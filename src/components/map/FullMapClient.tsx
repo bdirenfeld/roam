@@ -65,6 +65,14 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     if (!hasToken || !mapContainerRef.current) return;
 
     import("mapbox-gl").then((mapboxgl) => {
+      // Guard inside .then() — critical for React Strict Mode.
+      // In dev, React mounts→unmounts→remounts every component. Both mount
+      // cycles call import(), both promises resolve, both callbacks run.
+      // Without this check, two Mapbox instances are created in the same
+      // container: two canvases, two sets of tiles, two sets of pins that
+      // start overlapping then diverge on zoom to create "duplicate pins".
+      if (!mapContainerRef.current || mapInstRef.current) return;
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const mb = mapboxgl.default as any;
       mb.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
