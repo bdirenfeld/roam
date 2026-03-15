@@ -137,7 +137,7 @@ export default function DayMap({ cards, centerLat, centerLng }: Props) {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCollapsed]);
+  }, [isCollapsed, cards]);
 
   if (!hasToken) {
     return (

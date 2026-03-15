@@ -32,9 +32,11 @@ export default function DayViewClient({ trip, days, dayWithCards, userAvatarUrl 
     [router, trip.id]
   );
 
-  const mappableCards = dayWithCards.cards.filter(
-    (c) => c.lat != null && c.lng != null
-  );
+  const mappableCards = dayWithCards.cards.filter((c) => {
+    if (c.lat != null && c.lng != null) return true;
+    const d = c.details as Record<string, unknown>;
+    return typeof d?.lat === "number" && typeof d?.lng === "number";
+  });
 
   return (
     <div className="flex flex-col min-h-dvh">
