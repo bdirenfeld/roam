@@ -10,16 +10,15 @@ export default async function ProfilePage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/login");
+  // TODO: re-enable auth before deploy
+  // if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("users")
-    .select("*")
-    .eq("id", user.id)
-    .single();
+  const { data: profile } = user
+    ? await supabase.from("users").select("*").eq("id", user.id).single()
+    : { data: null };
 
-  const displayName = profile?.name ?? user.user_metadata?.full_name ?? user.email;
-  const avatarUrl = profile?.avatar_url ?? user.user_metadata?.avatar_url ?? null;
+  const displayName = profile?.name ?? user?.user_metadata?.full_name ?? user?.email ?? "Guest";
+  const avatarUrl = profile?.avatar_url ?? user?.user_metadata?.avatar_url ?? null;
 
   return (
     <div>
@@ -61,16 +60,18 @@ export default async function ProfilePage() {
         )}
 
         {/* Sign out */}
-        <div className="pt-4 border-t border-gray-100">
-          <form action={signOut}>
-            <button
-              type="submit"
-              className="text-sm font-semibold text-red-500 hover:text-red-600 transition-colors"
-            >
-              Sign out
-            </button>
-          </form>
-        </div>
+        {user && (
+          <div className="pt-4 border-t border-gray-100">
+            <form action={signOut}>
+              <button
+                type="submit"
+                className="text-sm font-semibold text-red-500 hover:text-red-600 transition-colors"
+              >
+                Sign out
+              </button>
+            </form>
+          </div>
+        )}
       </div>
     </div>
   );

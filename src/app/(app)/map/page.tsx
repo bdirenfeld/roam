@@ -9,12 +9,12 @@ import { redirect } from "next/navigation";
 export default async function MapPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  // TODO: re-enable auth before deploy
+  // if (!user) redirect("/login");
 
   const { data: trips } = await supabase
     .from("trips")
     .select("id, status, start_date")
-    .eq("user_id", user.id)
     .in("status", ["active", "planning"])
     .order("start_date", { ascending: true })
     .limit(1);

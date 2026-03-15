@@ -12,7 +12,8 @@ export default async function TripPage({ params }: Props) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/login");
+  // TODO: re-enable auth before deploy
+  // if (!user) redirect("/login");
 
   // Get the first day of this trip
   const { data: firstDay } = await supabase
