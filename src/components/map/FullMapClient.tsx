@@ -13,7 +13,7 @@ interface Props {
   userAvatarUrl?: string | null;
 }
 
-// Ordered: Activity (teal) · Food (amber) · Logistics (slate) — spec order
+// Spec order: Activity (teal) · Food (amber) · Logistics (slate)
 const FILTER_DOTS: { type: CardType; label: string }[] = [
   { type: "activity",  label: "Activity"  },
   { type: "food",      label: "Food"      },
@@ -23,21 +23,35 @@ const FILTER_DOTS: { type: CardType; label: string }[] = [
 export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Props) {
   const mapRef         = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<unknown>(null);
-  const markersRef     = useRef<Map<string, { wrapper: HTMLDivElement; inner: HTMLDivElement }>>(new Map());
-  // Tracks the inner element of whichever pin is currently "selected"
+  // Store wrapper, inner, AND the Mapbox Marker instance for each pin.
+  // We use .remove()/.addTo(map) for filter toggling — the official Mapbox API,
+  // far more reliable than setting display:none which Mapbox's style updates override.
+  const markersRef = useRef<Map<string, {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    marker: any;
+    wrapper: HTMLDivElement;
+    inner: HTMLDivElement;
+  }>>(new Map());
+
+  // Tracks the inner element of the currently selected pin
   const selectedInnerRef = useRef<HTMLDivElement | null>(null);
+  // BUG FIX: Mapbox fires map.on("click") from its own WebGL canvas event
+  // system, completely independent of the DOM click. stopPropagation() only
+  // stops DOM bubbling — Mapbox still fires its click, which would call
+  // setSelectedCard(null) right after setSelectedCard(card).
+  // This flag lets map.on("click") know a pin was just tapped so it skips dismissal.
+  const clickedPinRef = useRef(false);
 
   const [activeTypes, setActiveTypes] = useState<Set<CardType>>(
     new Set<CardType>(["logistics", "activity", "food"]),
   );
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
-  // First-time hint — initialised lazily after mount to avoid SSR mismatch
-  const [showHint, setShowHint] = useState(false);
+  const [showHint, setShowHint]         = useState(false);
 
   const hasToken = !!process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
   const dayById  = new Map(days.map((d) => [d.id, d]));
 
-  // Show the one-time onboarding hint
+  // One-time onboarding hint (lazy init to avoid SSR/localStorage mismatch)
   useEffect(() => {
     if (!localStorage.getItem("roam_map_hint_v1")) setShowHint(true);
   }, []);
@@ -54,7 +68,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     setActiveTypes((prev) => {
       const next = new Set(prev);
       if (next.has(type)) {
-        if (next.size === 1) return prev; // always keep at least one category
+        if (next.size === 1) return prev; // always keep at least one visible
         next.delete(type);
       } else {
         next.add(type);
@@ -63,16 +77,24 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     });
   }, []);
 
-  // Sync marker visibility whenever the type filter changes
+  // Sync marker visibility using Mapbox's own API.
+  // .remove() / .addTo(map) is idempotent and can't be overridden by Mapbox's
+  // internal style updates (unlike setting display:none on the element).
   useEffect(() => {
-    markersRef.current.forEach(({ wrapper }, cardId) => {
-      const card = cards.find((c) => c.id === cardId);
-      if (!card) return;
-      wrapper.style.display = activeTypes.has(card.type) ? "" : "none";
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const map = mapInstanceRef.current as any;
+    if (!map) return;
+    markersRef.current.forEach(({ marker, wrapper }) => {
+      const type = wrapper.dataset.cardType as CardType | undefined;
+      if (!type) return;
+      if (activeTypes.has(type)) {
+        marker.addTo(map);
+      } else {
+        marker.remove();
+      }
     });
-  }, [activeTypes, cards]);
+  }, [activeTypes]);
 
-  // Deselect pin when selectedCard is cleared externally (map click)
   function deselectPin() {
     if (selectedInnerRef.current) {
       selectedInnerRef.current.dataset.selected = "";
@@ -108,12 +130,16 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
 
           const { wrapper, inner } = makePinElement(card.type, card.sub_type, card.status, {
             onClick: () => {
-              // Deselect previous pin
+              // Signal to map.on("click") that this event originated from a pin,
+              // not a bare-map tap, so it should not dismiss the peek panel.
+              clickedPinRef.current = true;
+
+              // Deselect the previously selected pin
               if (selectedInnerRef.current && selectedInnerRef.current !== inner) {
                 selectedInnerRef.current.dataset.selected = "";
                 selectedInnerRef.current.style.transform  = "";
               }
-              // Select this pin — scale stays at 1.15x
+              // Lock this pin at 1.15× scale
               inner.dataset.selected = "1";
               inner.style.transform  = "scale(1.15)";
               selectedInnerRef.current = inner;
@@ -121,23 +147,21 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
             },
           });
 
-          // Status → visual weight
-          // interested = background noise (30% opacity, outline only)
-          // in_itinerary / on_map = signal (full opacity, filled)
-          if (card.status === "interested") {
-            wrapper.style.opacity = "0.3";
-          }
+          // Visual weight: interested = 30% opacity (background noise)
+          if (card.status === "interested") wrapper.style.opacity = "0.3";
 
+          // Store card type for filter toggling
+          wrapper.dataset.cardType = card.type;
           inner.title = card.title;
 
-          new mb.Marker({ element: wrapper, anchor: "bottom" })
+          const mbMarker = new mb.Marker({ element: wrapper, anchor: "bottom" })
             .setLngLat([card.lng!, card.lat!])
             .addTo(map);
 
-          markersRef.current.set(card.id, { wrapper, inner });
+          markersRef.current.set(card.id, { marker: mbMarker, wrapper, inner });
         });
 
-        // Fit to all mappable pins
+        // Fit to all visible pins
         const mappable = cards.filter(
           (c) => c.lat != null && c.lng != null && c.status !== "cut",
         );
@@ -152,8 +176,14 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
         }
       });
 
-      // Tap map → dismiss peek + deselect pin
+      // Tap on bare map → dismiss peek.
+      // Check clickedPinRef first: if a pin was just clicked, Mapbox still fires
+      // this handler (separate event system from DOM), so we skip the dismissal.
       map.on("click", () => {
+        if (clickedPinRef.current) {
+          clickedPinRef.current = false;
+          return;
+        }
         deselectPin();
         setSelectedCard(null);
       });
@@ -183,7 +213,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
         </div>
       )}
 
-      {/* ── Back button — top-left, minimal ── */}
+      {/* ── Back button — top-left ── */}
       <Link
         href={`/trips/${trip.id}`}
         className="absolute top-4 left-4 z-20 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center"
@@ -194,8 +224,8 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
         </svg>
       </Link>
 
-      {/* ── Three category dots — top-center, the only persistent controls ── */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3">
+      {/* ── Category dots — top-centre, the only persistent filter UI ── */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-4">
         {FILTER_DOTS.map(({ type, label }) => {
           const active = activeTypes.has(type);
           return (
@@ -203,7 +233,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
               key={type}
               title={label}
               onClick={() => toggleType(type)}
-              className="w-3 h-3 rounded-full transition-all duration-150 active:scale-90"
+              className="w-3.5 h-3.5 rounded-full transition-all duration-150 active:scale-90"
               style={{
                 background: active ? PIN_COLORS[type] : "#D1D5DB",
                 opacity: active ? 1 : 0.5,
@@ -213,7 +243,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
         })}
       </div>
 
-      {/* ── One-time onboarding hint ── */}
+      {/* ── One-time hint ── */}
       {showHint && (
         <div
           className="absolute top-12 left-1/2 -translate-x-1/2 z-30 pointer-events-none"
@@ -228,7 +258,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
         </div>
       )}
 
-      {/* ── Pin tap → card peek ── */}
+      {/* ── Card peek panel ── */}
       {selectedCard && (
         <MapCardPeek
           card={selectedCard}
@@ -241,7 +271,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
         />
       )}
 
-      {/* Avatar / trip link — top-right, very subtle */}
+      {/* ── Avatar / trip link — top-right ── */}
       <Link
         href={`/trips/${trip.id}`}
         className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full overflow-hidden bg-white/80"
