@@ -64,14 +64,19 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
   }, [showHint]);
 
   const toggleType = useCallback((type: CardType) => {
+    console.log("[DEBUG] toggleType called:", type, "| markers in ref:", markersRef.current.size);
     setActiveTypes((prev) => {
       const next = new Set(prev);
       if (next.has(type)) {
-        if (next.size === 1) return prev; // always keep at least one visible
+        if (next.size === 1) {
+          console.log("[DEBUG] toggleType: blocked — would hide last active type");
+          return prev;
+        }
         next.delete(type);
       } else {
         next.add(type);
       }
+      console.log("[DEBUG] toggleType: new activeTypes →", Array.from(next));
       return next;
     });
   }, []);
@@ -82,6 +87,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const map = mapInstanceRef.current as any;
+    console.log("[DEBUG] filter effect ran | map:", !!map, "| activeTypes:", Array.from(activeTypes), "| markers:", markersRef.current.size);
     if (!map) return;
 
     markersRef.current.forEach(({ marker, card: c }) => {
@@ -89,8 +95,10 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       const isHidden    = hiddenTypesRef.current.has(c.type);
 
       if (shouldHide && !isHidden) {
+        console.log("[DEBUG] removing marker for", c.type, c.title);
         marker.remove();
       } else if (!shouldHide && isHidden) {
+        console.log("[DEBUG] adding marker for", c.type, c.title);
         marker.addTo(map);
       }
       // No-op if visibility hasn't changed
@@ -136,16 +144,14 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       map.addControl(new mb.AttributionControl({ compact: true }), "bottom-right");
 
       map.on("load", () => {
+        console.log("[DEBUG] map load fired | cards to place:", cards.filter(c => c.lat != null && c.lng != null && c.status !== "cut").length);
         cards.forEach((card) => {
           if (card.lat == null || card.lng == null) return;
           if (card.status === "cut") return;
 
           const { wrapper, inner } = makePinElement(card.type, card.sub_type, card.status, {
-            // BUG 1 FIX: pin onClick simply calls setSelectedCard — no interference.
-            // map.on("click") has been removed entirely. "Tap bare map" dismissal is
-            // handled by a transparent React overlay div (z-[15]), which sits above
-            // the canvas but below the pins (.mapboxgl-marker z-index:20 in globals.css).
             onClick: () => {
+              console.log("[DEBUG] pin onClick fired for:", card.title, card.type);
               if (selectedInnerRef.current && selectedInnerRef.current !== inner) {
                 selectedInnerRef.current.dataset.selected = "";
                 selectedInnerRef.current.style.transform  = "";
@@ -154,6 +160,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
               inner.style.transform  = "scale(1.15)";
               selectedInnerRef.current = inner;
               setSelectedCard(card);
+              console.log("[DEBUG] setSelectedCard called for:", card.title);
             },
           });
 
@@ -220,6 +227,14 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       {selectedCard && (
         <div className="absolute inset-0 z-[15]" onClick={dismissCard} />
       )}
+
+      {/* ── DEBUG: plain click test button — remove before shipping ── */}
+      <button
+        className="absolute bottom-24 left-1/2 -translate-x-1/2 z-50 bg-red-500 text-white text-xs font-bold px-4 py-2 rounded-full"
+        onClick={() => alert("plain button works ✓")}
+      >
+        Test
+      </button>
 
       {/* ── Back button — top-left ── */}
       <Link
