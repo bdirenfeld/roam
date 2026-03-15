@@ -64,7 +64,26 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     return () => clearTimeout(t);
   }, [showHint]);
 
+  // Applies marker visibility directly from refs — safe to call any time,
+  // no React scheduling involved.
+  const applyFilter = useCallback((types: Set<CardType>) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const map = mapInstanceRef.current as any;
+    console.log("filter applied: activeTypes=", [...types], "markers=", markersRef.current.size);
+    if (!map) return;
+    markersRef.current.forEach(({ marker, wrapper }) => {
+      const cardType = wrapper.dataset.cardType as CardType | undefined;
+      if (!cardType) return;
+      if (types.has(cardType)) {
+        marker.addTo(map);
+      } else {
+        marker.remove();
+      }
+    });
+  }, []);
+
   const toggleType = useCallback((type: CardType) => {
+    console.log("toggleType called:", type);
     setActiveTypes((prev) => {
       const next = new Set(prev);
       if (next.has(type)) {
@@ -73,27 +92,11 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       } else {
         next.add(type);
       }
+      // Apply immediately — don't wait for useEffect scheduling
+      applyFilter(next);
       return next;
     });
-  }, []);
-
-  // Sync marker visibility using Mapbox's own API.
-  // .remove() / .addTo(map) is idempotent and can't be overridden by Mapbox's
-  // internal style updates (unlike setting display:none on the element).
-  useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const map = mapInstanceRef.current as any;
-    if (!map) return;
-    markersRef.current.forEach(({ marker, wrapper }) => {
-      const type = wrapper.dataset.cardType as CardType | undefined;
-      if (!type) return;
-      if (activeTypes.has(type)) {
-        marker.addTo(map);
-      } else {
-        marker.remove();
-      }
-    });
-  }, [activeTypes]);
+  }, [applyFilter]);
 
   function deselectPin() {
     if (selectedInnerRef.current) {
