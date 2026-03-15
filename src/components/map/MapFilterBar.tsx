@@ -1,48 +1,102 @@
 "use client";
 
 import type { CardType } from "@/types/database";
+import { PIN_COLORS } from "@/lib/mapPins";
+
+export type StatusFilter = "all" | "confirmed" | "ideas";
 
 interface Props {
   counts: Record<CardType, number>;
-  active: Set<CardType>;
-  onToggle: (type: CardType) => void;
+  activeTypes: Set<CardType>;
+  statusFilter: StatusFilter;
+  onToggleType: (type: CardType) => void;
+  onStatusChange: (s: StatusFilter) => void;
 }
 
-const TYPES: { type: CardType; label: string; color: string; bg: string; activeBg: string }[] = [
-  { type: "logistics", label: "Logistics", color: "text-logistics", bg: "bg-white",      activeBg: "bg-slate-100" },
-  { type: "activity",  label: "Activity",  color: "text-activity",  bg: "bg-white",      activeBg: "bg-teal-50"   },
-  { type: "food",      label: "Food",      color: "text-food",      bg: "bg-white",      activeBg: "bg-amber-50"  },
+const TYPES: { type: CardType; label: string }[] = [
+  { type: "logistics", label: "Logistics" },
+  { type: "activity",  label: "Activity"  },
+  { type: "food",      label: "Food"      },
 ];
 
-const DOT: Record<CardType, string> = {
-  logistics: "bg-logistics",
-  activity:  "bg-activity",
-  food:      "bg-food",
-};
+const STATUS_TABS: { value: StatusFilter; label: string }[] = [
+  { value: "all",       label: "All"       },
+  { value: "confirmed", label: "Confirmed" },
+  { value: "ideas",     label: "Ideas"     },
+];
 
-export default function MapFilterBar({ counts, active, onToggle }: Props) {
+export default function MapFilterBar({
+  counts, activeTypes, statusFilter, onToggleType, onStatusChange,
+}: Props) {
+  const hasAny = TYPES.some(({ type }) => (counts[type] ?? 0) > 0);
+  if (!hasAny) return null;
+
   return (
-    <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20 flex gap-2 bg-white/95 backdrop-blur-sm rounded-2xl px-2 py-2 shadow-sheet border border-gray-100">
-      {TYPES.map(({ type, label, color, bg, activeBg }) => {
-        const isActive = active.has(type);
+    <div className="absolute bottom-6 left-4 z-20 bg-white rounded-2xl shadow-sheet border border-gray-100 overflow-hidden w-52">
+      {/* Status tabs */}
+      <div className="flex border-b border-gray-100">
+        {STATUS_TABS.map(({ value, label }) => (
+          <button
+            key={value}
+            onClick={() => onStatusChange(value)}
+            className={`
+              flex-1 py-2 text-[11px] font-semibold transition-colors
+              ${statusFilter === value
+                ? "text-gray-900 border-b-2 border-gray-800 -mb-px"
+                : "text-gray-400 hover:text-gray-600"}
+            `}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Type rows */}
+      {TYPES.map(({ type, label }) => {
         const count = counts[type] ?? 0;
         if (count === 0) return null;
+        const isActive = activeTypes.has(type);
+        const color    = PIN_COLORS[type];
+
         return (
           <button
             key={type}
-            onClick={() => onToggle(type)}
+            onClick={() => onToggleType(type)}
             className={`
-              flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all duration-150 active:scale-95
-              ${isActive ? activeBg : bg}
-              ${isActive ? color : "text-gray-400"}
-              border ${isActive ? "border-transparent" : "border-gray-100"}
+              w-full flex items-center gap-3 px-3 py-2.5
+              hover:bg-gray-50 transition-colors
+              ${!isActive ? "opacity-40" : ""}
             `}
           >
-            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isActive ? DOT[type] : "bg-gray-300"}`} />
-            <span className="text-xs font-semibold">{label}</span>
-            <span className={`text-[10px] font-bold rounded-full px-1.5 py-px ${isActive ? "bg-white/70" : "bg-gray-100"}`}>
+            {/* Colour swatch */}
+            <div
+              className="w-3.5 h-3.5 rounded-full flex-shrink-0"
+              style={{ background: isActive ? color : "#D1D5DB" }}
+            />
+
+            <span className="text-[13px] font-medium text-gray-800 flex-1 text-left">
+              {label}
+            </span>
+
+            <span className="text-[11px] font-bold tabular-nums" style={{ color }}>
               {count}
             </span>
+
+            {/* Check / circle toggle indicator */}
+            <div
+              className="w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors"
+              style={
+                isActive
+                  ? { background: color, borderColor: color }
+                  : { background: "transparent", borderColor: "#D1D5DB" }
+              }
+            >
+              {isActive && (
+                <svg width="8" height="6" viewBox="0 0 8 6" fill="none">
+                  <path d="M1 3l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
+            </div>
           </button>
         );
       })}
