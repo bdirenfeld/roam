@@ -65,3 +65,43 @@ body {
 .dot-logistics { background-color: var(--color-logistics); }
 .dot-activity  { background-color: var(--color-activity); }
 .dot-food      { background-color: var(--color-food); }
+
+/* Mapbox marker positioning — avoids importing full mapbox-gl.css which
+   conflicts with Tailwind's position reset on the map container div */
+.mapboxgl-marker {
+  left: 0;
+  opacity: 1;
+  position: absolute;
+  top: 0;
+  transition: opacity 0.2s;
+  will-change: transform;
+}
+.mapboxgl-popup {
+  left: 0;
+  position: absolute;
+  top: 0;
+  will-change: transform;
+  display: flex;
+  pointer-events: none;
+}
+.mapboxgl-popup-anchor-bottom { flex-direction: column-reverse; }
+.mapboxgl-popup-anchor-top    { flex-direction: column; }
+.mapboxgl-popup-tip {
+  width: 0; height: 0;
+  border: 10px solid transparent;
+  z-index: 1;
+}
+.mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip {
+  border-bottom: none; border-top-color: #fff; align-self: center;
+}
+.mapboxgl-popup-anchor-top .mapboxgl-popup-tip {
+  border-top: none; border-bottom-color: #fff; align-self: center;
+}
+.mapboxgl-popup-content {
+  position: relative;
+  background: #fff;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  padding: 0;
+  pointer-events: auto;
+}

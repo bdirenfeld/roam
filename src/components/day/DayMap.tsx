@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Card } from "@/types/database";
-import "mapbox-gl/dist/mapbox-gl.css";
 
 interface Props {
   cards: Card[];
