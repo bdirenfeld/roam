@@ -83,7 +83,7 @@ export default function MapCardPeek({ card, day, tripId, onClose }: Props) {
 
   return (
     /* Slides up 130px from the bottom edge — no rounded top, no shadow */
-    <div className="absolute bottom-0 left-0 right-0 z-30 animate-in slide-in-from-bottom-[130px] duration-200">
+    <div className="fixed bottom-0 left-0 right-0 animate-in slide-in-from-bottom-[130px] duration-200" style={{ zIndex: 9999 }}>
       {/* Hairline top rule */}
       <div className="h-px w-full" style={{ background: "#E5E7EB" }} />
 

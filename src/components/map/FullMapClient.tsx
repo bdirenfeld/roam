@@ -128,24 +128,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           if (card.lat == null || card.lng == null) return;
           if (card.status === "cut") return;
 
-          const { wrapper, inner } = makePinElement(card.type, card.sub_type, card.status, {
-            onClick: () => {
-              // Signal to map.on("click") that this event originated from a pin,
-              // not a bare-map tap, so it should not dismiss the peek panel.
-              clickedPinRef.current = true;
-
-              // Deselect the previously selected pin
-              if (selectedInnerRef.current && selectedInnerRef.current !== inner) {
-                selectedInnerRef.current.dataset.selected = "";
-                selectedInnerRef.current.style.transform  = "";
-              }
-              // Lock this pin at 1.15× scale
-              inner.dataset.selected = "1";
-              inner.style.transform  = "scale(1.15)";
-              selectedInnerRef.current = inner;
-              setSelectedCard(card);
-            },
-          });
+          const { wrapper, inner } = makePinElement(card.type, card.sub_type, card.status);
 
           // Visual weight: interested = 30% opacity (background noise)
           if (card.status === "interested") wrapper.style.opacity = "0.3";
@@ -157,6 +140,19 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           const mbMarker = new mb.Marker({ element: wrapper, anchor: "bottom" })
             .setLngLat([card.lng!, card.lat!])
             .addTo(map);
+
+          mbMarker.getElement().addEventListener("click", (e: MouseEvent) => {
+            e.stopPropagation();
+            clickedPinRef.current = true;
+            if (selectedInnerRef.current && selectedInnerRef.current !== inner) {
+              selectedInnerRef.current.dataset.selected = "";
+              selectedInnerRef.current.style.transform  = "";
+            }
+            inner.dataset.selected = "1";
+            inner.style.transform  = "scale(1.15)";
+            selectedInnerRef.current = inner;
+            setSelectedCard(card);
+          });
 
           markersRef.current.set(card.id, { marker: mbMarker, wrapper, inner });
         });
@@ -216,8 +212,8 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       {/* ── Back button — top-left ── */}
       <Link
         href={`/trips/${trip.id}`}
-        className="absolute top-4 left-4 z-20 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center"
-        style={{ backdropFilter: "blur(8px)" }}
+        className="fixed top-4 left-4 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center"
+        style={{ backdropFilter: "blur(8px)", zIndex: 9999 }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round">
           <polyline points="15 18 9 12 15 6" />
@@ -225,7 +221,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       </Link>
 
       {/* ── Category dots — top-centre, the only persistent filter UI ── */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-4">
+      <div className="fixed top-4 left-1/2 -translate-x-1/2 flex items-center gap-4" style={{ zIndex: 9999 }}>
         {FILTER_DOTS.map(({ type, label }) => {
           const active = activeTypes.has(type);
           return (
@@ -274,8 +270,8 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       {/* ── Avatar / trip link — top-right ── */}
       <Link
         href={`/trips/${trip.id}`}
-        className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full overflow-hidden bg-white/80"
-        style={{ backdropFilter: "blur(8px)" }}
+        className="fixed top-4 right-4 w-8 h-8 rounded-full overflow-hidden bg-white/80"
+        style={{ backdropFilter: "blur(8px)", zIndex: 9999 }}
         title={trip.title}
       >
         {userAvatarUrl ? (
