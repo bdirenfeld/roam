@@ -73,7 +73,11 @@ export default function DayMap({ cards, centerLat, centerLng }: Props) {
 
       map.on("load", () => {
         cards.forEach((card, i) => {
-          if (card.lat == null || card.lng == null) return;
+          // Top-level lat/lng columns take priority; fall back to details.lat/lng
+          const d = card.details as Record<string, unknown>;
+          const lat = card.lat ?? (typeof d?.lat === "number" ? d.lat : null);
+          const lng = card.lng ?? (typeof d?.lng === "number" ? d.lng : null);
+          if (lat == null || lng == null) return;
 
           const color = TYPE_COLORS[card.type] ?? "#64748B";
 
@@ -99,7 +103,7 @@ export default function DayMap({ cards, centerLat, centerLng }: Props) {
           }).setHTML(popupHTML(card));
 
           new mb.Marker({ element: el })
-            .setLngLat([card.lng!, card.lat!])
+            .setLngLat([lng, lat])
             .setPopup(popup)
             .addTo(map);
         });
@@ -107,8 +111,13 @@ export default function DayMap({ cards, centerLat, centerLng }: Props) {
         // Fit bounds to all pins if there are multiple
         if (cards.length > 1) {
           const coords = cards
-            .filter((c) => c.lat != null && c.lng != null)
-            .map((c) => [c.lng!, c.lat!] as [number, number]);
+            .map((c) => {
+              const cd = c.details as Record<string, unknown>;
+              const clat = c.lat ?? (typeof cd?.lat === "number" ? cd.lat : null);
+              const clng = c.lng ?? (typeof cd?.lng === "number" ? cd.lng : null);
+              return clat != null && clng != null ? [clng, clat] as [number, number] : null;
+            })
+            .filter((x): x is [number, number] => x !== null);
 
           if (coords.length > 0) {
             const bounds = coords.reduce(
