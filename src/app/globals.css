@@ -67,7 +67,9 @@ body {
 .dot-food      { background-color: var(--color-food); }
 
 /* Mapbox marker positioning — avoids importing full mapbox-gl.css which
-   conflicts with Tailwind's position reset on the map container div */
+   conflicts with Tailwind's position reset on the map container div.
+   z-index: 20 ensures pins render above the dismiss overlay (z-[15]) so
+   pin clicks are not blocked when the card peek panel is open. */
 .mapboxgl-marker {
   left: 0;
   opacity: 1;
@@ -75,6 +77,7 @@ body {
   top: 0;
   transition: opacity 0.2s;
   will-change: transform;
+  z-index: 20;
 }
 .mapboxgl-popup {
   left: 0;
