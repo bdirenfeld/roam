@@ -25,7 +25,6 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
   const mapInstanceRef = useRef<unknown>(null);
 
   // card.id → { marker, inner, card }
-  // Storing the card directly avoids wrapper.dataset lookups and stale-closure risks.
   const markersRef = useRef<Map<string, {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     marker: any;
@@ -35,8 +34,6 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
 
   // Tracks which types are currently removed from the map, so we only call
   // remove()/addTo() when the visibility state actually changes.
-  // Calling marker.addTo(map) in Mapbox v3 internally calls remove() first,
-  // causing a visual flicker on every addTo even when already visible.
   const hiddenTypesRef = useRef<Set<CardType>>(new Set());
 
   const selectedInnerRef = useRef<HTMLDivElement | null>(null);
@@ -82,8 +79,6 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
   }, []);
 
   // Filter visibility: only call remove()/addTo() when the state actually changes.
-  // This prevents Mapbox v3's addTo() from remove()-then-re-adding already-visible
-  // markers on every re-render, which was causing the "slightly smaller" flicker.
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const map = mapInstanceRef.current as any;
@@ -91,8 +86,8 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     if (!map) return;
 
     markersRef.current.forEach(({ marker, card: c }) => {
-      const shouldHide  = !activeTypes.has(c.type);
-      const isHidden    = hiddenTypesRef.current.has(c.type);
+      const shouldHide = !activeTypes.has(c.type);
+      const isHidden   = hiddenTypesRef.current.has(c.type);
 
       if (shouldHide && !isHidden) {
         console.log("[DEBUG] removing marker for", c.type, c.title);
@@ -101,7 +96,6 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
         console.log("[DEBUG] adding marker for", c.type, c.title);
         marker.addTo(map);
       }
-      // No-op if visibility hasn't changed
     });
 
     // Sync hiddenTypesRef to current activeTypes
@@ -145,23 +139,32 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
 
       map.on("load", () => {
         console.log("[DEBUG] map load fired | cards to place:", cards.filter(c => c.lat != null && c.lng != null && c.status !== "cut").length);
+
+        // FIX 1: clear any existing markers before placing — prevents duplicates
+        // if the map fires "load" more than once (e.g. style reload).
+        markersRef.current.forEach(({ marker }) => marker.remove());
+        markersRef.current.clear();
+
         cards.forEach((card) => {
           if (card.lat == null || card.lng == null) return;
           if (card.status === "cut") return;
 
-          const { wrapper, inner } = makePinElement(card.type, card.sub_type, card.status, {
-            onClick: () => {
-              console.log("[DEBUG] pin onClick fired for:", card.title, card.type);
-              if (selectedInnerRef.current && selectedInnerRef.current !== inner) {
-                selectedInnerRef.current.dataset.selected = "";
-                selectedInnerRef.current.style.transform  = "";
-              }
-              inner.dataset.selected = "1";
-              inner.style.transform  = "scale(1.15)";
-              selectedInnerRef.current = inner;
-              setSelectedCard(card);
-              console.log("[DEBUG] setSelectedCard called for:", card.title);
-            },
+          // FIX 2: do NOT pass onClick through makePinElement — attach a direct
+          // DOM addEventListener on wrapper (the outermost element Mapbox positions).
+          // This bypasses any pointer-event quirks on the inner SVG layer.
+          const { wrapper, inner } = makePinElement(card.type, card.sub_type, card.status);
+
+          wrapper.addEventListener("click", (e) => {
+            console.log("clicked:", card.title);
+            e.stopPropagation();
+            if (selectedInnerRef.current && selectedInnerRef.current !== inner) {
+              selectedInnerRef.current.dataset.selected = "";
+              selectedInnerRef.current.style.transform  = "";
+            }
+            inner.dataset.selected = "1";
+            inner.style.transform  = "scale(1.15)";
+            selectedInnerRef.current = inner;
+            setSelectedCard(card);
           });
 
           // interested = 30% opacity (background noise); in_itinerary = full opacity (signal)
@@ -174,6 +177,8 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
 
           markersRef.current.set(card.id, { marker: mbMarker, inner, card });
         });
+
+        console.log("[DEBUG] markers placed:", markersRef.current.size);
 
         // Fit to all mappable pins
         const mappable = cards.filter(
@@ -189,8 +194,6 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           map.fitBounds(bounds, { padding: 80, maxZoom: 15 });
         }
       });
-
-      // No map.on("click") — dismiss is handled by the React overlay div below.
     });
 
     return () => {
@@ -220,9 +223,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       {/* ── Dismiss overlay ──────────────────────────────────────────────────
            Only rendered when a card is selected. Transparent, full-screen.
            z-[15]: above the Mapbox canvas, below the pins (z-20 via globals.css)
-           and below filter dots / peek panel (z-20 / z-30).
-           Tapping any bare-map area hits this div → dismisses the peek.
-           Tapping a pin hits the pin (z-20 > z-15) → selects the new card.
+           and below filter dots / peek panel (z-40+ / z-30).
       ─────────────────────────────────────────────────────────────────────── */}
       {selectedCard && (
         <div className="absolute inset-0 z-[15]" onClick={dismissCard} />
@@ -239,7 +240,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       {/* ── Back button — top-left ── */}
       <Link
         href={`/trips/${trip.id}`}
-        className="absolute top-4 left-4 z-20 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center"
+        className="absolute top-4 left-4 z-[60] w-8 h-8 rounded-full bg-white/80 flex items-center justify-center"
         style={{ backdropFilter: "blur(8px)" }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round">
@@ -247,21 +248,33 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
         </svg>
       </Link>
 
-      {/* ── Category dots — top-centre, only persistent filter UI ── */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-4">
+      {/* ── Category dots — top-centre ──
+           FIX 3: z-[60] ensures dots are above Mapbox marker stacking context
+           (which can win at z-20 depending on Mapbox version).
+           Each button gets extra padding for a larger tap target while keeping
+           the visible dot the same size.
+      ── */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-2">
         {FILTER_DOTS.map(({ type, label }) => {
           const active = activeTypes.has(type);
           return (
             <button
               key={type}
               title={label}
-              onClick={() => toggleType(type)}
-              className="w-3.5 h-3.5 rounded-full transition-all duration-150 active:scale-90"
-              style={{
-                background: active ? PIN_COLORS[type] : "#D1D5DB",
-                opacity: active ? 1 : 0.5,
+              onClick={() => {
+                console.log("[DEBUG] dot button clicked:", type);
+                toggleType(type);
               }}
-            />
+              className="p-2 flex items-center justify-center active:scale-90"
+            >
+              <span
+                className="block w-3.5 h-3.5 rounded-full transition-all duration-150"
+                style={{
+                  background: active ? PIN_COLORS[type] : "#D1D5DB",
+                  opacity: active ? 1 : 0.5,
+                }}
+              />
+            </button>
           );
         })}
       </div>
@@ -294,7 +307,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       {/* ── Avatar — top-right ── */}
       <Link
         href={`/trips/${trip.id}`}
-        className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full overflow-hidden bg-white/80"
+        className="absolute top-4 right-4 z-[60] w-8 h-8 rounded-full overflow-hidden bg-white/80"
         style={{ backdropFilter: "blur(8px)" }}
         title={trip.title}
       >
