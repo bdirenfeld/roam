@@ -110,13 +110,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
 
       map.addControl(new mb.AttributionControl({ compact: true }), "bottom-right");
 
-      map.on("load", () => {
-        // "load" can re-fire (style reload on zoom, etc.) — remove any existing
-        // markers and clear the map before repopulating so there's always exactly
-        // one set of live pins, all reachable by the filter.
-        markerMap.current.forEach(({ marker }) => marker.remove());
-        markerMap.current.clear();
-
+      map.once("load", () => {
         cards.forEach((card) => {
           if (card.lat == null || card.lng == null) return;
           if (card.status === "cut") return;
@@ -184,10 +178,10 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
   }, []);
 
   return (
-    <div className="relative w-full h-dvh overflow-hidden">
+    <div key="full-map" className="relative overflow-hidden" style={{ position: "fixed", inset: 0 }}>
       {/* ── Map ── */}
       {hasToken ? (
-        <div ref={mapRef} className="absolute inset-0" />
+        <div ref={mapRef} style={{ position: "absolute", inset: 0 }} />
       ) : (
         <div className="absolute inset-0 bg-gray-50 flex flex-col items-center justify-center gap-1">
           <p className="text-sm font-medium text-gray-500">Map unavailable</p>
