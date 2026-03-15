@@ -65,12 +65,10 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     if (!hasToken || !mapContainerRef.current) return;
 
     import("mapbox-gl").then((mapboxgl) => {
-      // Guard inside .then() — critical for React Strict Mode.
-      // In dev, React mounts→unmounts→remounts every component. Both mount
-      // cycles call import(), both promises resolve, both callbacks run.
-      // Without this check, two Mapbox instances are created in the same
-      // container: two canvases, two sets of tiles, two sets of pins that
-      // start overlapping then diverge on zoom to create "duplicate pins".
+      // Guard inside .then() — critical for React Strict Mode double-invoke.
+      // Both effect runs call import(); both .then() callbacks fire asynchronously.
+      // The first creates map1 and sets mapInstRef. Cleanup then nulls mapInstRef
+      // and removes map1. The second creates map2.
       if (!mapContainerRef.current || mapInstRef.current) return;
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -88,14 +86,19 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
 
       map.addControl(new mb.AttributionControl({ compact: true }), "bottom-right");
 
-      // once() fires exactly one time and self-removes — no duplicate markers possible
       map.once("load", () => {
+        // Strict Mode race: map1's once("load") can fire after cleanup removes map1
+        // and creates map2. Bail out if this handler belongs to a stale map instance.
+        if (mapInstRef.current !== map) return;
+
+        // Clear any stale markers from a previous (unmounted) map instance.
+        MARKERS.forEach(({ marker }) => marker.remove());
+        MARKERS.clear();
 
         // ── Markers ──────────────────────────────────────────────────────────
         cards.forEach((card) => {
           if (card.lat == null || card.lng == null) return;
           if (card.status === "cut") return;
-          if (MARKERS.has(card.id)) return; // dedup: skip if already in module map
 
           const { wrapper, inner } = makePinElement(card.type, card.sub_type, card.status);
           if (card.status === "interested") wrapper.style.opacity = "0.3";
@@ -147,7 +150,6 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
               btn.style.background = PIN_COLORS[type];
               btn.style.opacity    = "1";
             }
-            // Loop the same module-level MARKERS — always the full, current set
             MARKERS.forEach(({ marker, type: markerType }) => {
               if (ACTIVE_TYPES.has(markerType)) {
                 marker.addTo(map);
