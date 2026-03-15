@@ -140,6 +140,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           const type = btn.dataset.type as CardType;
 
           btn.onclick = () => {
+            console.log("MARKERS size:", MARKERS.size);
             if (ACTIVE_TYPES.has(type)) {
               if (ACTIVE_TYPES.size === 1) return; // keep at least one active
               ACTIVE_TYPES.delete(type);
