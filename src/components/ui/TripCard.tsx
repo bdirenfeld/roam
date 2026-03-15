@@ -4,6 +4,7 @@ import type { Trip, TripStatus } from "@/types/database";
 
 interface Props {
   trip: Trip;
+  firstDayId?: string;
 }
 
 function daysUntil(dateStr: string): number {
@@ -38,7 +39,7 @@ const STATUS: Record<TripStatus, { label: string; dot: string; text: string }> =
   completed: { label: "Completed", dot: "bg-gray-300",  text: "text-gray-400"  },
 };
 
-export default function TripCard({ trip }: Props) {
+export default function TripCard({ trip, firstDayId }: Props) {
   const countdown = daysUntil(trip.start_date);
   const nights = tripNights(trip.start_date, trip.end_date);
   const status = STATUS[trip.status] ?? STATUS.planning;
@@ -49,7 +50,7 @@ export default function TripCard({ trip }: Props) {
     countdown === 0 ? "Today" : null;
 
   return (
-    <Link href={`/trips/${trip.id}`} className="block group">
+    <Link href={firstDayId ? `/trips/${trip.id}/days/${firstDayId}` : `/trips/${trip.id}`} className="block group">
       <article className="rounded-2xl border border-gray-100 bg-white shadow-card group-hover:shadow-card-hover overflow-hidden transition-shadow duration-150 active:scale-[0.99]">
 
         {/* Cover image / gradient */}

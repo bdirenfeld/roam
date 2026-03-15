@@ -14,14 +14,24 @@ export default async function TripsPage() {
   // TODO: re-enable auth check before deploying
   // if (!user) redirect("/login");
 
-  const [{ data: profile }, { data: trips }] = await Promise.all([
+  const [{ data: profile }, { data: trips }, { data: firstDays }] = await Promise.all([
     supabase.from("users").select("name, avatar_url").eq("id", user?.id ?? "").single(),
     supabase
       .from("trips")
       .select("*")
       // .eq("user_id", user.id)
       .order("start_date", { ascending: true }),
+    supabase
+      .from("days")
+      .select("id, trip_id")
+      .order("day_number", { ascending: true }),
   ]);
+
+  // Build a map of tripId → first day id
+  const firstDayByTrip: Record<string, string> = {};
+  for (const day of firstDays ?? []) {
+    if (!firstDayByTrip[day.trip_id]) firstDayByTrip[day.trip_id] = day.id;
+  }
 
   const upcoming = trips?.filter((t: Trip) => t.status !== "completed") ?? [];
   const past = trips?.filter((t: Trip) => t.status === "completed") ?? [];
@@ -62,7 +72,7 @@ export default async function TripsPage() {
             {upcoming.length > 0 && (
               <div className="space-y-3 mb-6">
                 {upcoming.map((trip: Trip) => (
-                  <TripCard key={trip.id} trip={trip} />
+                  <TripCard key={trip.id} trip={trip} firstDayId={firstDayByTrip[trip.id]} />
                 ))}
               </div>
             )}
@@ -75,7 +85,7 @@ export default async function TripsPage() {
                 </p>
                 <div className="space-y-3">
                   {past.map((trip: Trip) => (
-                    <TripCard key={trip.id} trip={trip} />
+                    <TripCard key={trip.id} trip={trip} firstDayId={firstDayByTrip[trip.id]} />
                   ))}
                 </div>
               </>
