@@ -30,6 +30,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapInstRef       = useRef<any>(null);
   const filtersRef       = useRef<HTMLDivElement>(null);
+  const debugRef         = useRef<HTMLDivElement>(null);
   const selectedInnerRef = useRef<HTMLDivElement | null>(null);
   const clickedPinRef    = useRef(false);
 
@@ -123,6 +124,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
 
           MARKERS.set(card.id, { marker: mbMarker, type: card.type });
         });
+        if (debugRef.current) debugRef.current.textContent = "M: " + MARKERS.size;
 
         // Fit to all visible pins
         const mappable = cards.filter((c) => c.lat != null && c.lng != null && c.status !== "cut");
@@ -140,7 +142,6 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           const type = btn.dataset.type as CardType;
 
           btn.onclick = () => {
-            console.log("MARKERS size:", MARKERS.size);
             if (ACTIVE_TYPES.has(type)) {
               if (ACTIVE_TYPES.size === 1) return; // keep at least one active
               ACTIVE_TYPES.delete(type);
@@ -158,6 +159,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
                 marker.remove();
               }
             });
+            if (debugRef.current) debugRef.current.textContent = "M: " + MARKERS.size;
           };
         });
       });
@@ -207,6 +209,13 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           <polyline points="15 18 9 12 15 6" />
         </svg>
       </Link>
+
+      {/* ── Debug: MARKERS size ── */}
+      <div
+        ref={debugRef}
+        className="fixed top-14 left-4 text-[11px] font-bold text-white bg-black/60 px-2 py-0.5 rounded"
+        style={{ zIndex: 9999 }}
+      />
 
       {/* ── Filter dots — onclick set imperatively in useEffect ── */}
       <div
