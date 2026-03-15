@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import MapCardPeek from "./MapCardPeek";
 import type { Trip, Day, Card, CardType } from "@/types/database";
@@ -21,25 +21,22 @@ const FILTER_DOTS: { type: CardType; label: string }[] = [
 ];
 
 export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Props) {
-  const mapRef         = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<unknown>(null);
-  // Store wrapper, inner, AND the Mapbox Marker instance for each pin.
-  // We use .remove()/.addTo(map) for filter toggling — the official Mapbox API,
-  // far more reliable than setting display:none which Mapbox's style updates override.
-  const markersRef = useRef<Map<string, {
+  const mapRef           = useRef<HTMLDivElement>(null);
+  const mapInstanceRef   = useRef<unknown>(null);
+  // Prevents map.on("load") from adding duplicate markers on re-fires (e.g. zoom)
+  const markersPlacedRef = useRef(false);
+  // Plain JS Map: cardId → { marker, type, inner } — no React involvement
+  const markerMap = useRef<Map<string, {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     marker: any;
-    wrapper: HTMLDivElement;
+    type: CardType;
     inner: HTMLDivElement;
   }>>(new Map());
 
   // Tracks the inner element of the currently selected pin
   const selectedInnerRef = useRef<HTMLDivElement | null>(null);
-  // BUG FIX: Mapbox fires map.on("click") from its own WebGL canvas event
-  // system, completely independent of the DOM click. stopPropagation() only
-  // stops DOM bubbling — Mapbox still fires its click, which would call
-  // setSelectedCard(null) right after setSelectedCard(card).
-  // This flag lets map.on("click") know a pin was just tapped so it skips dismissal.
+  // Mapbox fires map.on("click") independently of the DOM — this flag stops
+  // it dismissing the peek panel right after a pin tap opens it.
   const clickedPinRef = useRef(false);
 
   const [activeTypes, setActiveTypes] = useState<Set<CardType>>(
@@ -64,39 +61,28 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     return () => clearTimeout(t);
   }, [showHint]);
 
-  // Applies marker visibility directly from refs — safe to call any time,
-  // no React scheduling involved.
-  const applyFilter = useCallback((types: Set<CardType>) => {
+  // Plain function — no useCallback, no useEffect, no React scheduling.
+  // Reads activeTypes from the render-closure, loops markerMap synchronously.
+  function toggleType(type: CardType) {
+    console.log("toggleType called:", type);
+    const next = new Set(activeTypes);
+    if (next.has(type)) {
+      if (next.size === 1) return; // always keep at least one visible
+      next.delete(type);
+    } else {
+      next.add(type);
+    }
+    setActiveTypes(next);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const map = mapInstanceRef.current as any;
-    console.log("filter applied: activeTypes=", [...types], "markers=", markersRef.current.size);
-    if (!map) return;
-    markersRef.current.forEach(({ marker, wrapper }) => {
-      const cardType = wrapper.dataset.cardType as CardType | undefined;
-      if (!cardType) return;
-      if (types.has(cardType)) {
+    markerMap.current.forEach(({ marker, type: cardType }) => {
+      if (next.has(cardType)) {
         marker.addTo(map);
       } else {
         marker.remove();
       }
     });
-  }, []);
-
-  const toggleType = useCallback((type: CardType) => {
-    console.log("toggleType called:", type);
-    setActiveTypes((prev) => {
-      const next = new Set(prev);
-      if (next.has(type)) {
-        if (next.size === 1) return prev; // always keep at least one visible
-        next.delete(type);
-      } else {
-        next.add(type);
-      }
-      // Apply immediately — don't wait for useEffect scheduling
-      applyFilter(next);
-      return next;
-    });
-  }, [applyFilter]);
+  }
 
   function deselectPin() {
     if (selectedInnerRef.current) {
@@ -127,6 +113,10 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       map.addControl(new mb.AttributionControl({ compact: true }), "bottom-right");
 
       map.on("load", () => {
+        // Guard: "load" can fire more than once (style reload on zoom, etc.)
+        if (markersPlacedRef.current) return;
+        markersPlacedRef.current = true;
+
         cards.forEach((card) => {
           if (card.lat == null || card.lng == null) return;
           if (card.status === "cut") return;
@@ -135,9 +125,6 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
 
           // Visual weight: interested = 30% opacity (background noise)
           if (card.status === "interested") wrapper.style.opacity = "0.3";
-
-          // Store card type for filter toggling
-          wrapper.dataset.cardType = card.type;
           inner.title = card.title;
 
           const mbMarker = new mb.Marker({ element: wrapper, anchor: "bottom" })
@@ -157,7 +144,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
             setSelectedCard(card);
           });
 
-          markersRef.current.set(card.id, { marker: mbMarker, wrapper, inner });
+          markerMap.current.set(card.id, { marker: mbMarker, type: card.type, inner });
         });
 
         // Fit to all visible pins
@@ -176,8 +163,6 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       });
 
       // Tap on bare map → dismiss peek.
-      // Check clickedPinRef first: if a pin was just clicked, Mapbox still fires
-      // this handler (separate event system from DOM), so we skip the dismissal.
       map.on("click", () => {
         if (clickedPinRef.current) {
           clickedPinRef.current = false;
@@ -189,12 +174,11 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     });
 
     return () => {
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      const markers = markersRef.current;
       if (mapInstanceRef.current) {
         (mapInstanceRef.current as { remove: () => void }).remove();
         mapInstanceRef.current = null;
-        markers.clear();
+        markerMap.current.clear();
+        markersPlacedRef.current = false;
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
