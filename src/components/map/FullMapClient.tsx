@@ -21,10 +21,8 @@ const FILTER_DOTS: { type: CardType; label: string }[] = [
 ];
 
 export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Props) {
-  const mapRef           = useRef<HTMLDivElement>(null);
-  const mapInstanceRef   = useRef<unknown>(null);
-  // Prevents map.on("load") from adding duplicate markers on re-fires (e.g. zoom)
-  const markersPlacedRef = useRef(false);
+  const mapRef          = useRef<HTMLDivElement>(null);
+  const mapInstanceRef  = useRef<unknown>(null);
   // Plain JS Map: cardId → { marker, type, inner } — no React involvement
   const markerMap = useRef<Map<string, {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -113,9 +111,11 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       map.addControl(new mb.AttributionControl({ compact: true }), "bottom-right");
 
       map.on("load", () => {
-        // Guard: "load" can fire more than once (style reload on zoom, etc.)
-        if (markersPlacedRef.current) return;
-        markersPlacedRef.current = true;
+        // "load" can re-fire (style reload on zoom, etc.) — remove any existing
+        // markers and clear the map before repopulating so there's always exactly
+        // one set of live pins, all reachable by the filter.
+        markerMap.current.forEach(({ marker }) => marker.remove());
+        markerMap.current.clear();
 
         cards.forEach((card) => {
           if (card.lat == null || card.lng == null) return;
@@ -178,7 +178,6 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
         (mapInstanceRef.current as { remove: () => void }).remove();
         mapInstanceRef.current = null;
         markerMap.current.clear();
-        markersPlacedRef.current = false;
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
