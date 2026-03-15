@@ -5,6 +5,7 @@ import Link from "next/link";
 import MapFilterBar from "./MapFilterBar";
 import MapCardPeek from "./MapCardPeek";
 import type { Trip, Day, Card, CardType } from "@/types/database";
+import "mapbox-gl/dist/mapbox-gl.css";
 
 interface Props {
   trip: Trip;
