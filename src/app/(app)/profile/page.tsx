@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 import { signOut } from "@/lib/auth-actions";
 import AppHeader from "@/components/ui/AppHeader";
 import Image from "next/image";
@@ -45,7 +44,7 @@ export default async function ProfilePage() {
           </div>
           <div>
             <p className="text-base font-bold text-gray-900">{displayName}</p>
-            <p className="text-sm text-gray-400 mt-0.5">{user.email}</p>
+            <p className="text-sm text-gray-400 mt-0.5">{user?.email}</p>
           </div>
         </div>
 

@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import AppHeader from "@/components/ui/AppHeader";
 import TripCard from "@/components/ui/TripCard";
