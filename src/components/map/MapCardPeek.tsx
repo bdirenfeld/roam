@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import type { Card, Day } from "@/types/database";
+import type { Card, Day, CardDetails } from "@/types/database";
+import { PIN_COLORS, getIconSVG } from "@/lib/mapPins";
 
 interface Props {
   card: Card;
@@ -10,103 +11,115 @@ interface Props {
   onClose: () => void;
 }
 
-function formatTime(t: string | null): string {
+function fmt(t: string | null | undefined): string {
   if (!t) return "";
   const [h, m] = t.split(":").map(Number);
   const p = h >= 12 ? "PM" : "AM";
   return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, "0")} ${p}`;
 }
 
-const TYPE_ACCENT: Record<string, { dot: string; bg: string; text: string }> = {
-  logistics: { dot: "bg-logistics", bg: "bg-slate-50",  text: "text-logistics" },
-  activity:  { dot: "bg-activity",  bg: "bg-teal-50",   text: "text-activity"  },
-  food:      { dot: "bg-food",      bg: "bg-amber-50",  text: "text-food"      },
-};
+function durStr(mins: number | undefined): string {
+  if (!mins) return "";
+  return mins >= 60
+    ? `${Math.floor(mins / 60)}h${mins % 60 ? ` ${mins % 60}m` : ""}`
+    : `${mins}m`;
+}
 
-const SUB_TYPE_LABEL: Record<string, string> = {
-  flight_arrival:   "Flight Arrival",
-  flight_departure: "Flight Departure",
-  self_directed:    "Self-Directed",
-  hosted:           "Guided",
-  wellness:         "Wellness",
-  restaurant:       "Restaurant",
-  coffee_dessert:   "Coffee",
-  drinks:           "Drinks",
-};
+/** One-line smart description pulled from the most useful field per sub-type. */
+function smartDesc(card: Card): string {
+  const d  = card.details as CardDetails;
+  const t0 = fmt(card.start_time);
+
+  switch (card.sub_type) {
+    case "flight_arrival":
+      return [d.airline, d.arrival_time ? fmt(d.arrival_time) : t0].filter(Boolean).join(" · ");
+    case "flight_departure":
+      return [d.airline, d.departure_time ? fmt(d.departure_time) : t0].filter(Boolean).join(" · ");
+    case "hotel":
+      return d.estimated_accommodation_arrival
+        ? `Check-in ${fmt(d.estimated_accommodation_arrival)}`
+        : t0 ? `Check-in ${t0}` : (card.address ?? "");
+    case "restaurant": {
+      const res = d.reservation_status;
+      const rt  = d.reservation_time ? fmt(d.reservation_time) : t0;
+      if (res === "reserved" || res === "booked") return `Reserved${rt ? ` · ${rt}` : ""}`;
+      return rt ? `Walk-in · ${rt}` : "Walk-in";
+    }
+    case "coffee_dessert":
+    case "drinks":
+      return [card.address, t0].filter(Boolean).join(" · ");
+    case "hosted":
+      return [d.supplier, d.meeting_time ? fmt(d.meeting_time) : t0].filter(Boolean).join(" · ");
+    case "self_directed": {
+      const dur    = durStr(d.duration_minutes);
+      const energy = d.ai_enriched?.energy_level;
+      return [dur, energy ? `${energy} energy` : ""].filter(Boolean).join(" · ");
+    }
+    case "wellness": {
+      const dur = durStr(d.duration_minutes);
+      return [dur, d.treatment_type].filter(Boolean).join(" · ");
+    }
+    case "street_food":
+      return [card.address, t0].filter(Boolean).join(" · ");
+    case "transportation":
+    case "transfer":
+      return t0 || card.address || "";
+    default: {
+      // Fall back to the first short string value in details
+      for (const v of Object.values(d as Record<string, unknown>)) {
+        if (typeof v === "string" && v.length > 0 && v.length < 80) return v;
+      }
+      return card.address ?? t0;
+    }
+  }
+}
 
 export default function MapCardPeek({ card, day, tripId, onClose }: Props) {
-  const accent = TYPE_ACCENT[card.type] ?? TYPE_ACCENT.logistics;
-  const timeStr = formatTime(card.start_time);
-  const subLabel = card.sub_type ? SUB_TYPE_LABEL[card.sub_type] ?? card.sub_type : card.type;
-
-  const dayLabel = day
-    ? `Day ${day.day_number} · ${day.day_name}`
-    : null;
+  const color = PIN_COLORS[card.type] ?? "#64748B";
+  const desc  = smartDesc(card);
+  const href  = day
+    ? `/trips/${tripId}/days/${day.id}`
+    : `/trips/${tripId}`;
 
   return (
-    <div
-      className="absolute bottom-24 left-4 right-4 z-20 bg-white rounded-2xl shadow-sheet border border-gray-100 animate-in slide-in-from-bottom duration-200 overflow-hidden"
-    >
-      {/* Colour bar */}
-      <div className={`h-0.5 w-full ${accent.dot}`} />
+    /* Slides up 130px from the bottom edge — no rounded top, no shadow */
+    <div className="absolute bottom-0 left-0 right-0 z-30 animate-in slide-in-from-bottom-[130px] duration-200">
+      {/* Hairline top rule */}
+      <div className="h-px w-full" style={{ background: "#E5E7EB" }} />
 
-      <div className="p-4">
-        {/* Top row: day label + close */}
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            {dayLabel && (
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                {dayLabel}
-              </span>
+      <div className="bg-white">
+        <Link
+          href={href}
+          className="flex items-start gap-3 px-4 py-4 active:bg-gray-50 transition-colors"
+          onClick={onClose}
+        >
+          {/* Sub-type icon */}
+          <div
+            className="flex-shrink-0 mt-0.5"
+            dangerouslySetInnerHTML={{ __html: getIconSVG(card.sub_type, color, 16) }}
+          />
+
+          {/* Text */}
+          <div className="flex-1 min-w-0">
+            <p className="text-[14px] font-medium text-gray-900 leading-snug truncate">
+              {card.title}
+            </p>
+            {desc && (
+              <p className="text-[12px] mt-0.5 truncate" style={{ color: "#64748B" }}>
+                {desc}
+              </p>
             )}
-            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${accent.bg} ${accent.text}`}>
-              {subLabel}
-            </span>
           </div>
-          <button
-            onClick={onClose}
-            className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 hover:bg-gray-200 transition-colors"
+
+          {/* Arrow */}
+          <svg
+            className="flex-shrink-0 mt-0.5"
+            width="16" height="16" viewBox="0 0 24 24"
+            fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round"
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Title + time */}
-        <div className="flex items-start justify-between gap-3">
-          <h3 className="text-base font-bold text-gray-900 leading-snug flex-1 min-w-0">
-            {card.title}
-          </h3>
-          {timeStr && (
-            <span className="text-xs font-semibold text-gray-400 shrink-0 mt-0.5">{timeStr}</span>
-          )}
-        </div>
-
-        {/* Address */}
-        {card.address && (
-          <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
-              <circle cx="12" cy="10" r="3" />
-            </svg>
-            {card.address}
-          </p>
-        )}
-
-        {/* CTA */}
-        {day && (
-          <Link
-            href={`/trips/${tripId}/days/${day.id}`}
-            className="mt-3 w-full flex items-center justify-center gap-1.5 bg-activity text-white text-xs font-semibold py-2.5 rounded-xl hover:opacity-90 active:scale-95 transition-all"
-          >
-            View Day {day.day_number}
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </Link>
-        )}
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </Link>
       </div>
     </div>
   );

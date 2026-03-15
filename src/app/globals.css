@@ -105,3 +105,9 @@ body {
   padding: 0;
   pointer-events: auto;
 }
+
+/* One-time map hint fade-out */
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}

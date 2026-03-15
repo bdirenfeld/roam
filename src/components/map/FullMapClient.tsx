@@ -2,10 +2,9 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
-import MapFilterBar, { type StatusFilter } from "./MapFilterBar";
 import MapCardPeek from "./MapCardPeek";
 import type { Trip, Day, Card, CardType } from "@/types/database";
-import { makePinElement } from "@/lib/mapPins";
+import { makePinElement, PIN_COLORS } from "@/lib/mapPins";
 
 interface Props {
   trip: Trip;
@@ -14,45 +13,48 @@ interface Props {
   userAvatarUrl?: string | null;
 }
 
-/** Returns true if a card should be visible given the current filters. */
-function isVisible(card: Card, activeTypes: Set<CardType>, statusFilter: StatusFilter): boolean {
-  if (!activeTypes.has(card.type)) return false;
-  if (statusFilter === "confirmed" && card.status !== "in_itinerary") return false;
-  if (statusFilter === "ideas"     && card.status !== "interested")    return false;
-  if (card.status === "cut") return false;
-  return true;
-}
+// Ordered: Activity (teal) · Food (amber) · Logistics (slate) — spec order
+const FILTER_DOTS: { type: CardType; label: string }[] = [
+  { type: "activity",  label: "Activity"  },
+  { type: "food",      label: "Food"      },
+  { type: "logistics", label: "Logistics" },
+];
 
 export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Props) {
   const mapRef         = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<unknown>(null);
-  // Each entry: { wrapper (Mapbox el), inner (visual el), card }
-  const markersRef = useRef<Map<string, { wrapper: HTMLDivElement; inner: HTMLDivElement }>>(new Map());
+  const markersRef     = useRef<Map<string, { wrapper: HTMLDivElement; inner: HTMLDivElement }>>(new Map());
+  // Tracks the inner element of whichever pin is currently "selected"
+  const selectedInnerRef = useRef<HTMLDivElement | null>(null);
 
-  const [activeTypes, setActiveTypes]   = useState<Set<CardType>>(new Set<CardType>(["logistics", "activity", "food"]));
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [activeTypes, setActiveTypes] = useState<Set<CardType>>(
+    new Set<CardType>(["logistics", "activity", "food"]),
+  );
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
+  // First-time hint — initialised lazily after mount to avoid SSR mismatch
+  const [showHint, setShowHint] = useState(false);
 
   const hasToken = !!process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
   const dayById  = new Map(days.map((d) => [d.id, d]));
 
-  // Pin counts per type, respecting the current status filter
-  const statusFiltered = cards.filter((c) => {
-    if (c.status === "cut") return false;
-    if (statusFilter === "confirmed") return c.status === "in_itinerary";
-    if (statusFilter === "ideas")     return c.status === "interested";
-    return true;
-  });
-  const counts = statusFiltered.reduce<Record<CardType, number>>(
-    (acc, c) => { acc[c.type] = (acc[c.type] ?? 0) + 1; return acc; },
-    { logistics: 0, activity: 0, food: 0 },
-  );
+  // Show the one-time onboarding hint
+  useEffect(() => {
+    if (!localStorage.getItem("roam_map_hint_v1")) setShowHint(true);
+  }, []);
+  useEffect(() => {
+    if (!showHint) return;
+    const t = setTimeout(() => {
+      setShowHint(false);
+      localStorage.setItem("roam_map_hint_v1", "1");
+    }, 3000);
+    return () => clearTimeout(t);
+  }, [showHint]);
 
   const toggleType = useCallback((type: CardType) => {
     setActiveTypes((prev) => {
       const next = new Set(prev);
       if (next.has(type)) {
-        if (next.size === 1) return prev; // keep at least one
+        if (next.size === 1) return prev; // always keep at least one category
         next.delete(type);
       } else {
         next.add(type);
@@ -61,14 +63,23 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     });
   }, []);
 
-  // Sync marker visibility whenever filters change
+  // Sync marker visibility whenever the type filter changes
   useEffect(() => {
     markersRef.current.forEach(({ wrapper }, cardId) => {
       const card = cards.find((c) => c.id === cardId);
       if (!card) return;
-      wrapper.style.display = isVisible(card, activeTypes, statusFilter) ? "" : "none";
+      wrapper.style.display = activeTypes.has(card.type) ? "" : "none";
     });
-  }, [activeTypes, statusFilter, cards]);
+  }, [activeTypes, cards]);
+
+  // Deselect pin when selectedCard is cleared externally (map click)
+  function deselectPin() {
+    if (selectedInnerRef.current) {
+      selectedInnerRef.current.dataset.selected = "";
+      selectedInnerRef.current.style.transform  = "";
+      selectedInnerRef.current = null;
+    }
+  }
 
   // Build map once on mount
   useEffect(() => {
@@ -89,7 +100,6 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       mapInstanceRef.current = map;
 
       map.addControl(new mb.AttributionControl({ compact: true }), "bottom-right");
-      map.addControl(new mb.NavigationControl({ showCompass: false }), "top-right");
 
       map.on("load", () => {
         cards.forEach((card) => {
@@ -97,15 +107,27 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           if (card.status === "cut") return;
 
           const { wrapper, inner } = makePinElement(card.type, card.sub_type, card.status, {
-            onClick: () => setSelectedCard(card),
+            onClick: () => {
+              // Deselect previous pin
+              if (selectedInnerRef.current && selectedInnerRef.current !== inner) {
+                selectedInnerRef.current.dataset.selected = "";
+                selectedInnerRef.current.style.transform  = "";
+              }
+              // Select this pin — scale stays at 1.15x
+              inner.dataset.selected = "1";
+              inner.style.transform  = "scale(1.15)";
+              selectedInnerRef.current = inner;
+              setSelectedCard(card);
+            },
           });
 
-          // Apply initial visibility
-          if (!isVisible(card, new Set<CardType>(["logistics", "activity", "food"]), "all")) {
-            wrapper.style.display = "none";
+          // Status → visual weight
+          // interested = background noise (30% opacity, outline only)
+          // in_itinerary / on_map = signal (full opacity, filled)
+          if (card.status === "interested") {
+            wrapper.style.opacity = "0.3";
           }
 
-          // Tooltip
           inner.title = card.title;
 
           new mb.Marker({ element: wrapper, anchor: "bottom" })
@@ -116,7 +138,9 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
         });
 
         // Fit to all mappable pins
-        const mappable = cards.filter((c) => c.lat != null && c.lng != null && c.status !== "cut");
+        const mappable = cards.filter(
+          (c) => c.lat != null && c.lng != null && c.status !== "cut",
+        );
         if (mappable.length > 1) {
           const coords = mappable.map((c) => [c.lng!, c.lat!] as [number, number]);
           const bounds = coords.reduce(
@@ -128,7 +152,11 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
         }
       });
 
-      map.on("click", () => setSelectedCard(null));
+      // Tap map → dismiss peek + deselect pin
+      map.on("click", () => {
+        deselectPin();
+        setSelectedCard(null);
+      });
     });
 
     return () => {
@@ -144,73 +172,94 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
   }, []);
 
   return (
-    <div className="relative flex flex-col h-dvh bg-gray-100">
-      {/* Floating header */}
-      <div className="absolute top-0 left-0 right-0 z-20">
-        <div className="flex items-center justify-between px-4 pt-safe pt-3 pb-2 bg-gradient-to-b from-white/95 to-transparent backdrop-blur-sm">
-          <div>
-            <Link href="/trips" className="text-lg font-bold tracking-tight text-gray-900">
-              Roam
-            </Link>
-            <p className="text-xs text-gray-500 font-medium -mt-0.5">{trip.title}</p>
-          </div>
-          <Link
-            href={`/trips/${trip.id}`}
-            className="w-8 h-8 rounded-full bg-white/90 border border-gray-100 flex items-center justify-center shadow-sm"
-          >
-            {userAvatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={userAvatarUrl} alt="" className="w-full h-full rounded-full object-cover" />
-            ) : (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2">
-                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
-            )}
-          </Link>
-        </div>
-      </div>
-
-      {/* Map container */}
+    <div className="relative w-full h-dvh overflow-hidden">
+      {/* ── Map ── */}
       {hasToken ? (
         <div ref={mapRef} className="absolute inset-0" />
       ) : (
-        <div className="absolute inset-0 bg-gray-100 flex flex-col items-center justify-center">
-          <p className="text-sm font-medium text-gray-500 mb-1">Map unavailable</p>
+        <div className="absolute inset-0 bg-gray-50 flex flex-col items-center justify-center gap-1">
+          <p className="text-sm font-medium text-gray-500">Map unavailable</p>
           <p className="text-xs text-gray-400">Add NEXT_PUBLIC_MAPBOX_TOKEN to .env.local</p>
         </div>
       )}
 
-      {/* Google Maps-style legend */}
-      {cards.length > 0 && (
-        <MapFilterBar
-          counts={counts}
-          activeTypes={activeTypes}
-          statusFilter={statusFilter}
-          onToggleType={toggleType}
-          onStatusChange={setStatusFilter}
-        />
+      {/* ── Back button — top-left, minimal ── */}
+      <Link
+        href={`/trips/${trip.id}`}
+        className="absolute top-4 left-4 z-20 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center"
+        style={{ backdropFilter: "blur(8px)" }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round">
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+      </Link>
+
+      {/* ── Three category dots — top-center, the only persistent controls ── */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3">
+        {FILTER_DOTS.map(({ type, label }) => {
+          const active = activeTypes.has(type);
+          return (
+            <button
+              key={type}
+              title={label}
+              onClick={() => toggleType(type)}
+              className="w-3 h-3 rounded-full transition-all duration-150 active:scale-90"
+              style={{
+                background: active ? PIN_COLORS[type] : "#D1D5DB",
+                opacity: active ? 1 : 0.5,
+              }}
+            />
+          );
+        })}
+      </div>
+
+      {/* ── One-time onboarding hint ── */}
+      {showHint && (
+        <div
+          className="absolute top-12 left-1/2 -translate-x-1/2 z-30 pointer-events-none"
+          style={{ animation: "fadeOut 500ms 2500ms ease-in forwards" }}
+        >
+          <p
+            className="bg-gray-900/85 text-white text-[11px] font-medium px-3 py-1.5 rounded-full whitespace-nowrap"
+            style={{ backdropFilter: "blur(4px)" }}
+          >
+            Filled pins are confirmed · Faded pins are ideas
+          </p>
+        </div>
       )}
 
-      {/* Card peek panel */}
+      {/* ── Pin tap → card peek ── */}
       {selectedCard && (
         <MapCardPeek
           card={selectedCard}
           day={dayById.get(selectedCard.day_id)}
           tripId={trip.id}
-          onClose={() => setSelectedCard(null)}
+          onClose={() => {
+            deselectPin();
+            setSelectedCard(null);
+          }}
         />
       )}
 
-      {/* Empty state */}
-      {cards.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center pb-20 pointer-events-none">
-          <div className="bg-white/90 backdrop-blur-sm rounded-2xl px-6 py-5 shadow-card text-center">
-            <p className="text-sm font-semibold text-gray-700">No pins yet</p>
-            <p className="text-xs text-gray-400 mt-1">Add lat/lng to cards to see them here.</p>
+      {/* Avatar / trip link — top-right, very subtle */}
+      <Link
+        href={`/trips/${trip.id}`}
+        className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full overflow-hidden bg-white/80"
+        style={{ backdropFilter: "blur(8px)" }}
+        title={trip.title}
+      >
+        {userAvatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={userAvatarUrl} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2">
+              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
           </div>
-        </div>
-      )}
+        )}
+      </Link>
     </div>
   );
 }

@@ -6,7 +6,7 @@ export const PIN_COLORS: Record<CardType, string> = {
   food:      "#F59E0B",
 };
 
-// Each icon is a function returning SVG child elements in a 24×24 coordinate space.
+// Each icon returns SVG child elements for a 24×24 viewBox.
 const ICONS: Record<string, (c: string) => string> = {
   // Logistics
   hotel: (c) =>
@@ -49,9 +49,25 @@ function getIcon(subType: string | null | undefined, color: string): string {
 }
 
 /**
+ * Standalone icon SVG — 24×24 viewBox, no pin shape.
+ * Used for popup rows and legend items.
+ */
+export function getIconSVG(
+  subType: string | null | undefined,
+  color: string,
+  size = 16,
+): string {
+  return (
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">` +
+    getIcon(subType, color) +
+    `</svg>`
+  );
+}
+
+/**
  * Returns an SVG string for a teardrop map pin.
- * viewBox: 28×38. Circle at (14,14) r=12. Tip at (14,38).
- * label: number/text shown instead of the sub-type icon (used in day view).
+ * viewBox: 24×32. Circle at (12,12) r=10. Tip at (12,32).
+ * label: number/text shown instead of the sub-type icon (day view only).
  */
 export function makePinSVG(
   type: CardType,
@@ -60,40 +76,46 @@ export function makePinSVG(
   label?: string,
 ): string {
   const baseColor = PIN_COLORS[type];
-  const outlined = status === "interested";
+  const outlined  = status === "interested";
   const iconColor = outlined ? baseColor : "white";
   const fill      = outlined ? "none" : baseColor;
-  const stroke    = outlined ? baseColor : "rgba(255,255,255,0.9)";
+  const stroke    = outlined ? baseColor : "rgba(255,255,255,0.8)";
 
-  const pinPath = "M14 38C14 38 2 28 2 14A12 12 0 0 1 26 14C26 28 14 38 14 38Z";
+  // Circle cx=12 cy=12 r=10, tip at (12,32)
+  const pinPath = "M12 32C12 32 2 22 2 12A10 10 0 0 1 22 12C22 22 12 32 12 32Z";
 
   let inner: string;
   if (label !== undefined) {
-    inner = `<text x="14" y="15" text-anchor="middle" dominant-baseline="middle"
-      font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700"
+    inner = `<text x="12" y="13" text-anchor="middle" dominant-baseline="middle"
+      font-family="Inter,system-ui,sans-serif" font-size="10" font-weight="700"
       fill="${iconColor}">${label}</text>`;
   } else {
-    // Scale 24×24 icon into pin circle: usable area (6,6)→(22,22), scale 16/24 ≈ 0.667
-    inner = `<g transform="translate(6,6) scale(0.667)">${getIcon(subType, iconColor)}</g>`;
+    // Scale 24×24 icon into usable area (4,4)→(20,20) = 16×16; scale = 16/24 ≈ 0.667
+    inner = `<g transform="translate(4,4) scale(0.667)">${getIcon(subType, iconColor)}</g>`;
   }
 
-  return `<svg width="28" height="38" viewBox="0 0 28 38" xmlns="http://www.w3.org/2000/svg">` +
-    `<path d="${pinPath}" fill="${fill}" stroke="${stroke}" stroke-width="1.5"/>` +
+  return (
+    `<svg width="24" height="32" viewBox="0 0 24 32" xmlns="http://www.w3.org/2000/svg">` +
+    `<path d="${pinPath}" fill="${fill}" stroke="${stroke}" stroke-width="1"/>` +
     inner +
-    `</svg>`;
+    `</svg>`
+  );
 }
 
 export interface PinElements {
-  /** Passed to Mapbox Marker({ element }). Mapbox applies translate here — never set transform on this. */
+  /** Passed to Mapbox Marker({ element }). Mapbox writes its translate() here — never set transform on this. */
   wrapper: HTMLDivElement;
-  /** Visual layer — apply hover/scale transforms here instead. */
+  /** Visual layer — safe to apply tap/hover scale here independently. */
   inner: HTMLDivElement;
 }
 
 /**
  * Creates a DOM element pair for use as a Mapbox custom marker.
- * The wrapper/inner split prevents Mapbox's positioning transform from
- * being overwritten by hover scale effects (the "fly to top-left" bug).
+ *
+ * Hover/tap bug fix: Mapbox applies transform:translate(x,y) directly to the
+ * element passed as `element`. If we set transform:scale() on the same element,
+ * it wipes out the translate and the pin flies to (0,0). The wrapper/inner
+ * split keeps Mapbox's positioning on the wrapper and visual effects on inner.
  */
 export function makePinElement(
   type: CardType,
@@ -102,22 +124,22 @@ export function makePinElement(
   opts?: { label?: string; onClick?: (e: MouseEvent) => void },
 ): PinElements {
   const wrapper = document.createElement("div");
-  wrapper.style.cssText = "width:28px;height:38px;";
+  wrapper.style.cssText = "width:24px;height:32px;cursor:pointer;";
 
   const inner = document.createElement("div");
   inner.style.cssText =
-    "width:28px;height:38px;" +
-    "transition:transform 150ms ease,filter 150ms ease;" +
+    "width:24px;height:32px;" +
+    "transition:transform 120ms ease;" +
     "transform-origin:50% 100%;";
   inner.innerHTML = makePinSVG(type, subType, status, opts?.label);
 
+  // Tap / hover: flat scale only — no shadows, no filters
   inner.addEventListener("mouseenter", () => {
-    inner.style.transform = "scale(1.2)";
-    inner.style.filter    = "drop-shadow(0 4px 8px rgba(0,0,0,0.25))";
+    inner.style.transform = "scale(1.15)";
   });
   inner.addEventListener("mouseleave", () => {
-    inner.style.transform = "";
-    inner.style.filter    = "";
+    // Let external selection state override if set
+    if (inner.dataset.selected !== "1") inner.style.transform = "";
   });
 
   if (opts?.onClick) {
