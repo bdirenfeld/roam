@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import MapCardPeek from "./MapCardPeek";
 import type { Trip, Day, Card, CardType } from "@/types/database";
@@ -13,45 +13,33 @@ interface Props {
   userAvatarUrl?: string | null;
 }
 
-// Spec order: Activity (teal) · Food (amber) · Logistics (slate)
 const FILTER_DOTS: { type: CardType; label: string }[] = [
   { type: "activity",  label: "Activity"  },
   { type: "food",      label: "Food"      },
   { type: "logistics", label: "Logistics" },
 ];
 
+// Module-level — outside React entirely. Same reference on every render,
+// immune to component re-renders, state updates, and React scheduling.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const MARKERS = new Map<string, { marker: any; type: CardType }>();
+const ACTIVE_TYPES = new Set<CardType>(["activity", "food", "logistics"]);
+
 export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Props) {
-  const mapRef         = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<unknown>(null);
-  // Store wrapper, inner, AND the Mapbox Marker instance for each pin.
-  // We use .remove()/.addTo(map) for filter toggling — the official Mapbox API,
-  // far more reliable than setting display:none which Mapbox's style updates override.
-  const markersRef = useRef<Map<string, {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    marker: any;
-    wrapper: HTMLDivElement;
-    inner: HTMLDivElement;
-  }>>(new Map());
-
-  // Tracks the inner element of the currently selected pin
+  const mapContainerRef  = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mapInstRef       = useRef<any>(null);
+  const filtersRef       = useRef<HTMLDivElement>(null);
   const selectedInnerRef = useRef<HTMLDivElement | null>(null);
-  // BUG FIX: Mapbox fires map.on("click") from its own WebGL canvas event
-  // system, completely independent of the DOM click. stopPropagation() only
-  // stops DOM bubbling — Mapbox still fires its click, which would call
-  // setSelectedCard(null) right after setSelectedCard(card).
-  // This flag lets map.on("click") know a pin was just tapped so it skips dismissal.
-  const clickedPinRef = useRef(false);
+  const clickedPinRef    = useRef(false);
 
-  const [activeTypes, setActiveTypes] = useState<Set<CardType>>(
-    new Set<CardType>(["logistics", "activity", "food"]),
-  );
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [showHint, setShowHint]         = useState(false);
 
   const hasToken = !!process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
   const dayById  = new Map(days.map((d) => [d.id, d]));
 
-  // One-time onboarding hint (lazy init to avoid SSR/localStorage mismatch)
+  // One-time onboarding hint
   useEffect(() => {
     if (!localStorage.getItem("roam_map_hint_v1")) setShowHint(true);
   }, []);
@@ -64,37 +52,6 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     return () => clearTimeout(t);
   }, [showHint]);
 
-  const toggleType = useCallback((type: CardType) => {
-    setActiveTypes((prev) => {
-      const next = new Set(prev);
-      if (next.has(type)) {
-        if (next.size === 1) return prev; // always keep at least one visible
-        next.delete(type);
-      } else {
-        next.add(type);
-      }
-      return next;
-    });
-  }, []);
-
-  // Sync marker visibility using Mapbox's own API.
-  // .remove() / .addTo(map) is idempotent and can't be overridden by Mapbox's
-  // internal style updates (unlike setting display:none on the element).
-  useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const map = mapInstanceRef.current as any;
-    if (!map) return;
-    markersRef.current.forEach(({ marker, wrapper }) => {
-      const type = wrapper.dataset.cardType as CardType | undefined;
-      if (!type) return;
-      if (activeTypes.has(type)) {
-        marker.addTo(map);
-      } else {
-        marker.remove();
-      }
-    });
-  }, [activeTypes]);
-
   function deselectPin() {
     if (selectedInnerRef.current) {
       selectedInnerRef.current.dataset.selected = "";
@@ -103,111 +60,146 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     }
   }
 
-  // Build map once on mount
+  // Single effect, runs once. Map and markers live outside React.
   useEffect(() => {
-    if (!hasToken || !mapRef.current || mapInstanceRef.current) return;
+    if (!hasToken || !mapContainerRef.current) return;
+
+    // `cancelled` is local to this effect invocation. When React Strict Mode
+    // runs cleanup before the import() Promise resolves, this flag prevents
+    // the stale .then() callback from creating a second map on the same container.
+    let cancelled = false;
 
     import("mapbox-gl").then((mapboxgl) => {
+      if (cancelled || !mapContainerRef.current || mapInstRef.current) return;
+
+      // Ensure the container is empty — Mapbox warns and misbehaves otherwise.
+      mapContainerRef.current.innerHTML = "";
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const mb = mapboxgl.default as any;
       mb.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 
       const map = new mb.Map({
-        container: mapRef.current!,
+        container: mapContainerRef.current!,
         style: "mapbox://styles/mapbox/light-v11",
         center: [trip.destination_lng ?? 12.4964, trip.destination_lat ?? 41.9028],
         zoom: 13,
         attributionControl: false,
       });
-      mapInstanceRef.current = map;
+      mapInstRef.current = map;
 
       map.addControl(new mb.AttributionControl({ compact: true }), "bottom-right");
 
-      map.on("load", () => {
+      map.once("load", () => {
+        // Strict Mode race: map1's once("load") can fire after cleanup removes map1
+        // and creates map2. Bail out if this handler belongs to a stale map instance.
+        if (mapInstRef.current !== map) return;
+
+        // Clear any stale markers from a previous (unmounted) map instance.
+        MARKERS.forEach(({ marker }) => marker.remove());
+        MARKERS.clear();
+
+        // ── Markers ──────────────────────────────────────────────────────────
         cards.forEach((card) => {
           if (card.lat == null || card.lng == null) return;
           if (card.status === "cut") return;
 
-          const { wrapper, inner } = makePinElement(card.type, card.sub_type, card.status, {
-            onClick: () => {
-              // Signal to map.on("click") that this event originated from a pin,
-              // not a bare-map tap, so it should not dismiss the peek panel.
-              clickedPinRef.current = true;
-
-              // Deselect the previously selected pin
-              if (selectedInnerRef.current && selectedInnerRef.current !== inner) {
-                selectedInnerRef.current.dataset.selected = "";
-                selectedInnerRef.current.style.transform  = "";
-              }
-              // Lock this pin at 1.15× scale
-              inner.dataset.selected = "1";
-              inner.style.transform  = "scale(1.15)";
-              selectedInnerRef.current = inner;
-              setSelectedCard(card);
-            },
-          });
-
-          // Visual weight: interested = 30% opacity (background noise)
+          const { wrapper, inner } = makePinElement(card.type, card.sub_type, card.status);
           if (card.status === "interested") wrapper.style.opacity = "0.3";
-
-          // Store card type for filter toggling
-          wrapper.dataset.cardType = card.type;
           inner.title = card.title;
 
           const mbMarker = new mb.Marker({ element: wrapper, anchor: "bottom" })
             .setLngLat([card.lng!, card.lat!])
             .addTo(map);
 
-          markersRef.current.set(card.id, { marker: mbMarker, wrapper, inner });
+          mbMarker.getElement().addEventListener("click", (e: MouseEvent) => {
+            e.stopPropagation();
+            clickedPinRef.current = true;
+            if (selectedInnerRef.current && selectedInnerRef.current !== inner) {
+              selectedInnerRef.current.dataset.selected = "";
+              selectedInnerRef.current.style.transform  = "";
+            }
+            inner.dataset.selected = "1";
+            inner.style.transform  = "scale(1.15)";
+            selectedInnerRef.current = inner;
+            setSelectedCard(card);
+          });
+
+          MARKERS.set(card.id, { marker: mbMarker, type: card.type });
         });
 
         // Fit to all visible pins
-        const mappable = cards.filter(
-          (c) => c.lat != null && c.lng != null && c.status !== "cut",
-        );
+        const mappable = cards.filter((c) => c.lat != null && c.lng != null && c.status !== "cut");
         if (mappable.length > 1) {
           const coords = mappable.map((c) => [c.lng!, c.lat!] as [number, number]);
           const bounds = coords.reduce(
-            (b: unknown, coord) =>
-              (b as { extend: (c: [number, number]) => unknown }).extend(coord),
+            (b: unknown, coord) => (b as { extend: (c: [number, number]) => unknown }).extend(coord),
             new mb.LngLatBounds(coords[0], coords[0]),
           );
           map.fitBounds(bounds, { padding: 80, maxZoom: 15 });
         }
+
+        // ── Filter dots — wired directly, zero React state or scheduling ────
+        filtersRef.current?.querySelectorAll<HTMLButtonElement>("button[data-type]").forEach((btn) => {
+          const type = btn.dataset.type as CardType;
+
+          btn.onclick = () => {
+            if (ACTIVE_TYPES.has(type)) {
+              if (ACTIVE_TYPES.size === 1) return; // keep at least one active
+              ACTIVE_TYPES.delete(type);
+              btn.style.background = "#D1D5DB";
+              btn.style.opacity    = "0.5";
+            } else {
+              ACTIVE_TYPES.add(type);
+              btn.style.background = PIN_COLORS[type];
+              btn.style.opacity    = "1";
+            }
+            MARKERS.forEach(({ marker, type: markerType }) => {
+              if (ACTIVE_TYPES.has(markerType)) {
+                marker.addTo(map);
+              } else {
+                marker.remove();
+              }
+            });
+          };
+        });
       });
 
-      // Tap on bare map → dismiss peek.
-      // Check clickedPinRef first: if a pin was just clicked, Mapbox still fires
-      // this handler (separate event system from DOM), so we skip the dismissal.
+      // Tap bare map → dismiss peek panel
       map.on("click", () => {
-        if (clickedPinRef.current) {
-          clickedPinRef.current = false;
-          return;
-        }
+        if (clickedPinRef.current) { clickedPinRef.current = false; return; }
         deselectPin();
         setSelectedCard(null);
       });
     });
 
     return () => {
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      const markers = markersRef.current;
-      if (mapInstanceRef.current) {
-        (mapInstanceRef.current as { remove: () => void }).remove();
-        mapInstanceRef.current = null;
-        markers.clear();
+      cancelled = true;
+      // Clean up module-level state so a future remount starts fresh
+      MARKERS.forEach(({ marker }) => marker.remove());
+      MARKERS.clear();
+      ACTIVE_TYPES.clear();
+      ACTIVE_TYPES.add("activity");
+      ACTIVE_TYPES.add("food");
+      ACTIVE_TYPES.add("logistics");
+      if (mapInstRef.current) {
+        mapInstRef.current.remove();
+        mapInstRef.current = null;
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <div className="relative w-full h-dvh overflow-hidden">
-      {/* ── Map ── */}
+    // Fill the mobile container. All overlays use position:absolute so they
+    // stay within the 390px-wide container rather than escaping to the viewport.
+    <div style={{ position: "relative", width: "100%", height: "calc(100dvh - 80px)", overflow: "hidden" }}>
+
+      {/* ── Map container ── */}
       {hasToken ? (
-        <div ref={mapRef} className="absolute inset-0" />
+        <div ref={mapContainerRef} style={{ position: "absolute", inset: 0 }} />
       ) : (
-        <div className="absolute inset-0 bg-gray-50 flex flex-col items-center justify-center gap-1">
+        <div style={{ position: "absolute", inset: 0 }} className="bg-gray-50 flex flex-col items-center justify-center gap-1">
           <p className="text-sm font-medium text-gray-500">Map unavailable</p>
           <p className="text-xs text-gray-400">Add NEXT_PUBLIC_MAPBOX_TOKEN to .env.local</p>
         </div>
@@ -216,31 +208,29 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       {/* ── Back button — top-left ── */}
       <Link
         href={`/trips/${trip.id}`}
-        className="absolute top-4 left-4 z-20 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center"
-        style={{ backdropFilter: "blur(8px)" }}
+        className="absolute top-4 left-4 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center"
+        style={{ backdropFilter: "blur(8px)", zIndex: 10 }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round">
           <polyline points="15 18 9 12 15 6" />
         </svg>
       </Link>
 
-      {/* ── Category dots — top-centre, the only persistent filter UI ── */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-4">
-        {FILTER_DOTS.map(({ type, label }) => {
-          const active = activeTypes.has(type);
-          return (
-            <button
-              key={type}
-              title={label}
-              onClick={() => toggleType(type)}
-              className="w-3.5 h-3.5 rounded-full transition-all duration-150 active:scale-90"
-              style={{
-                background: active ? PIN_COLORS[type] : "#D1D5DB",
-                opacity: active ? 1 : 0.5,
-              }}
-            />
-          );
-        })}
+      {/* ── Filter dots — onclick set imperatively in useEffect ── */}
+      <div
+        ref={filtersRef}
+        className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-4"
+        style={{ zIndex: 10 }}
+      >
+        {FILTER_DOTS.map(({ type, label }) => (
+          <button
+            key={type}
+            data-type={type}
+            title={label}
+            className="w-3.5 h-3.5 rounded-full transition-all duration-150 active:scale-90"
+            style={{ background: PIN_COLORS[type], opacity: 1 }}
+          />
+        ))}
       </div>
 
       {/* ── One-time hint ── */}
@@ -274,8 +264,8 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       {/* ── Avatar / trip link — top-right ── */}
       <Link
         href={`/trips/${trip.id}`}
-        className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full overflow-hidden bg-white/80"
-        style={{ backdropFilter: "blur(8px)" }}
+        className="absolute top-4 right-4 w-8 h-8 rounded-full overflow-hidden bg-white/80"
+        style={{ backdropFilter: "blur(8px)", zIndex: 10 }}
         title={trip.title}
       >
         {userAvatarUrl ? (
