@@ -30,7 +30,6 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapInstRef       = useRef<any>(null);
   const filtersRef       = useRef<HTMLDivElement>(null);
-  const debugRef         = useRef<HTMLDivElement>(null);
   const selectedInnerRef = useRef<HTMLDivElement | null>(null);
   const clickedPinRef    = useRef(false);
 
@@ -128,9 +127,6 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
 
           MARKERS.set(card.id, { marker: mbMarker, type: card.type });
         });
-        if (debugRef.current) debugRef.current.textContent = "M: " + MARKERS.size;
-        console.log("[roam] Markers loaded:", MARKERS.size);
-        alert("Markers loaded: " + MARKERS.size);
 
         // Fit to all visible pins
         const mappable = cards.filter((c) => c.lat != null && c.lng != null && c.status !== "cut");
@@ -148,8 +144,6 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           const type = btn.dataset.type as CardType;
 
           btn.onclick = () => {
-            console.log("[roam] Filter tapped. MARKERS size:", MARKERS.size);
-            alert("Filter tapped. MARKERS size: " + MARKERS.size);
             if (ACTIVE_TYPES.has(type)) {
               if (ACTIVE_TYPES.size === 1) return; // keep at least one active
               ACTIVE_TYPES.delete(type);
@@ -167,7 +161,6 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
                 marker.remove();
               }
             });
-            if (debugRef.current) debugRef.current.textContent = "M: " + MARKERS.size;
           };
         });
       });
@@ -198,7 +191,9 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
   }, []);
 
   return (
-    <div style={{ position: "fixed", inset: 0, overflow: "hidden" }}>
+    // Fill the mobile container. All overlays use position:absolute so they
+    // stay within the 390px-wide container rather than escaping to the viewport.
+    <div style={{ position: "relative", width: "100%", height: "calc(100dvh - 80px)", overflow: "hidden" }}>
 
       {/* ── Map container ── */}
       {hasToken ? (
@@ -213,26 +208,19 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       {/* ── Back button — top-left ── */}
       <Link
         href={`/trips/${trip.id}`}
-        className="fixed top-4 left-4 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center"
-        style={{ backdropFilter: "blur(8px)", zIndex: 9999 }}
+        className="absolute top-4 left-4 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center"
+        style={{ backdropFilter: "blur(8px)", zIndex: 10 }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round">
           <polyline points="15 18 9 12 15 6" />
         </svg>
       </Link>
 
-      {/* ── Debug: MARKERS size ── */}
-      <div
-        ref={debugRef}
-        className="fixed top-14 left-4 text-[11px] font-bold text-white bg-black/60 px-2 py-0.5 rounded"
-        style={{ zIndex: 9999 }}
-      />
-
       {/* ── Filter dots — onclick set imperatively in useEffect ── */}
       <div
         ref={filtersRef}
-        className="fixed top-4 left-1/2 -translate-x-1/2 flex items-center gap-4"
-        style={{ zIndex: 9999 }}
+        className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-4"
+        style={{ zIndex: 10 }}
       >
         {FILTER_DOTS.map(({ type, label }) => (
           <button
@@ -276,8 +264,8 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       {/* ── Avatar / trip link — top-right ── */}
       <Link
         href={`/trips/${trip.id}`}
-        className="fixed top-4 right-4 w-8 h-8 rounded-full overflow-hidden bg-white/80"
-        style={{ backdropFilter: "blur(8px)", zIndex: 9999 }}
+        className="absolute top-4 right-4 w-8 h-8 rounded-full overflow-hidden bg-white/80"
+        style={{ backdropFilter: "blur(8px)", zIndex: 10 }}
         title={trip.title}
       >
         {userAvatarUrl ? (
