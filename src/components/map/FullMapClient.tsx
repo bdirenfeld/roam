@@ -125,6 +125,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           MARKERS.set(card.id, { marker: mbMarker, type: card.type });
         });
         if (debugRef.current) debugRef.current.textContent = "M: " + MARKERS.size;
+        alert("Markers loaded: " + MARKERS.size);
 
         // Fit to all visible pins
         const mappable = cards.filter((c) => c.lat != null && c.lng != null && c.status !== "cut");
@@ -142,6 +143,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           const type = btn.dataset.type as CardType;
 
           btn.onclick = () => {
+            alert("Filter tapped. MARKERS size: " + MARKERS.size);
             if (ACTIVE_TYPES.has(type)) {
               if (ACTIVE_TYPES.size === 1) return; // keep at least one active
               ACTIVE_TYPES.delete(type);
