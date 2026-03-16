@@ -67,9 +67,22 @@ export default function DayMap({ cards, centerLat, centerLng }: Props) {
 
       map.on("load", () => {
         mappable.forEach((card, i) => {
-          const { wrapper } = makePinElement(card.type, card.sub_type, card.status, {
-            label: String(i + 1),
-          });
+          const { wrapper } = makePinElement(card.type, card.sub_type, card.status);
+
+          // Sequence number badge — sits outside the pin without interfering with
+          // Mapbox's transform:translate on wrapper, or inner's hover scale.
+          wrapper.style.position = "relative";
+          wrapper.style.overflow = "visible";
+          const badge = document.createElement("span");
+          badge.style.cssText =
+            "position:absolute;top:-4px;right:-5px;" +
+            "min-width:13px;height:13px;border-radius:7px;" +
+            "background:white;border:1.5px solid rgba(0,0,0,0.12);" +
+            "font-family:Inter,system-ui,sans-serif;font-size:8px;font-weight:800;" +
+            "color:#374151;display:flex;align-items:center;justify-content:center;" +
+            "padding:0 2px;line-height:1;pointer-events:none;";
+          badge.textContent = String(i + 1);
+          wrapper.appendChild(badge);
 
           const popup = new mb.Popup({
             closeButton: false,
