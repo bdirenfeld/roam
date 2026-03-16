@@ -65,12 +65,16 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
   useEffect(() => {
     if (!hasToken || !mapContainerRef.current) return;
 
+    // `cancelled` is local to this effect invocation. When React Strict Mode
+    // runs cleanup before the import() Promise resolves, this flag prevents
+    // the stale .then() callback from creating a second map on the same container.
+    let cancelled = false;
+
     import("mapbox-gl").then((mapboxgl) => {
-      // Guard inside .then() — critical for React Strict Mode double-invoke.
-      // Both effect runs call import(); both .then() callbacks fire asynchronously.
-      // The first creates map1 and sets mapInstRef. Cleanup then nulls mapInstRef
-      // and removes map1. The second creates map2.
-      if (!mapContainerRef.current || mapInstRef.current) return;
+      if (cancelled || !mapContainerRef.current || mapInstRef.current) return;
+
+      // Ensure the container is empty — Mapbox warns and misbehaves otherwise.
+      mapContainerRef.current.innerHTML = "";
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const mb = mapboxgl.default as any;
@@ -125,6 +129,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           MARKERS.set(card.id, { marker: mbMarker, type: card.type });
         });
         if (debugRef.current) debugRef.current.textContent = "M: " + MARKERS.size;
+        console.log("[roam] Markers loaded:", MARKERS.size);
         alert("Markers loaded: " + MARKERS.size);
 
         // Fit to all visible pins
@@ -143,6 +148,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           const type = btn.dataset.type as CardType;
 
           btn.onclick = () => {
+            console.log("[roam] Filter tapped. MARKERS size:", MARKERS.size);
             alert("Filter tapped. MARKERS size: " + MARKERS.size);
             if (ACTIVE_TYPES.has(type)) {
               if (ACTIVE_TYPES.size === 1) return; // keep at least one active
@@ -175,6 +181,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     });
 
     return () => {
+      cancelled = true;
       // Clean up module-level state so a future remount starts fresh
       MARKERS.forEach(({ marker }) => marker.remove());
       MARKERS.clear();
@@ -182,8 +189,10 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       ACTIVE_TYPES.add("activity");
       ACTIVE_TYPES.add("food");
       ACTIVE_TYPES.add("logistics");
-      mapInstRef.current?.remove();
-      mapInstRef.current = null;
+      if (mapInstRef.current) {
+        mapInstRef.current.remove();
+        mapInstRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
