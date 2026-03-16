@@ -55,7 +55,10 @@ export default function DayMap({ cards, centerLat, centerLng }: Props) {
         return [];
       });
 
+    let cancelled = false;
+
     import("mapbox-gl").then((mapboxgl) => {
+      if (cancelled || !mapRef.current || mapInstanceRef.current) return;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const mb = mapboxgl.default as any;
       mb.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
@@ -116,6 +119,7 @@ export default function DayMap({ cards, centerLat, centerLng }: Props) {
     });
 
     return () => {
+      cancelled = true;
       if (mapInstanceRef.current) {
         (mapInstanceRef.current as { remove: () => void }).remove();
         mapInstanceRef.current = null;
