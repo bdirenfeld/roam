@@ -43,10 +43,17 @@ export default function DayMap({ cards, centerLat, centerLng }: Props) {
   useEffect(() => {
     if (!hasToken || !mapRef.current || mapInstanceRef.current || isCollapsed) return;
 
-    // Only show cards that have coordinates and aren't cut
-    const mappable = cards.filter(
-      (c) => c.lat != null && c.lng != null && c.status !== "cut",
-    );
+    // Resolve lat/lng from top-level fields OR details fallback
+    type Resolved = { card: Card; lat: number; lng: number };
+    const mappable: Resolved[] = cards
+      .filter((c) => c.status !== "cut")
+      .flatMap((c) => {
+        if (c.lat != null && c.lng != null) return [{ card: c, lat: c.lat, lng: c.lng }];
+        const d = c.details as Record<string, unknown>;
+        if (typeof d?.lat === "number" && typeof d?.lng === "number")
+          return [{ card: c, lat: d.lat as number, lng: d.lng as number }];
+        return [];
+      });
 
     import("mapbox-gl").then((mapboxgl) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -66,7 +73,7 @@ export default function DayMap({ cards, centerLat, centerLng }: Props) {
       map.addControl(new mb.AttributionControl({ compact: true }), "bottom-right");
 
       map.on("load", () => {
-        mappable.forEach((card, i) => {
+        mappable.forEach(({ card, lat, lng }, i) => {
           const { wrapper } = makePinElement(card.type, card.sub_type, card.status);
 
           // Sequence number badge — sits outside the pin without interfering with
@@ -92,13 +99,13 @@ export default function DayMap({ cards, centerLat, centerLng }: Props) {
           }).setHTML(popupHTML(card));
 
           new mb.Marker({ element: wrapper, anchor: "bottom" })
-            .setLngLat([card.lng!, card.lat!])
+            .setLngLat([lng, lat])
             .setPopup(popup)
             .addTo(map);
         });
 
         if (mappable.length > 1) {
-          const coords = mappable.map((c) => [c.lng!, c.lat!] as [number, number]);
+          const coords = mappable.map(({ lng, lat }) => [lng, lat] as [number, number]);
           const bounds = coords.reduce(
             (b, coord) => b.extend(coord),
             new mb.LngLatBounds(coords[0], coords[0]),
