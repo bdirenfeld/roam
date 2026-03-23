@@ -1,11 +1,17 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const error = searchParams.get("error");
-  const next = searchParams.get("next") ?? "/trips";
+
+  // Read the post-login destination from the cookie set in signInWithGoogle,
+  // fall back to /trips if absent.
+  const cookieStore = await cookies();
+  const next = cookieStore.get("auth_redirect_next")?.value ?? "/trips";
+  cookieStore.delete("auth_redirect_next");
 
   // OAuth provider returned an error (e.g. user denied permission)
   if (error) {
