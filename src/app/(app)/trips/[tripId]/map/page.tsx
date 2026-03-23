@@ -27,8 +27,6 @@ export default async function TripMapPage({ params }: Props) {
       .select("*")
       .eq("trip_id", tripId)
       .eq("status", "in_itinerary")
-      .not("lat", "is", null)
-      .not("lng", "is", null)
       .order("day_id")
       .order("position"),
     user
