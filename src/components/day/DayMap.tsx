@@ -122,6 +122,15 @@ export default function DayMap({ cards, centerLat, centerLng }: Props) {
           );
           map.fitBounds(bounds, { padding: 50, maxZoom: 15 });
         }
+
+        // Force Mapbox to recalculate its canvas size. The map is initialised
+        // immediately when isCollapsed flips to false, but the CSS transition
+        // (300 ms, h-0 → h-48) may not have painted yet, so Mapbox can read a
+        // 0-height container and misposition all markers. The first resize()
+        // corrects the immediate case; the second fires after the transition
+        // completes to catch any remaining offset.
+        map.resize();
+        setTimeout(() => map.resize(), 310);
       });
     });
 
