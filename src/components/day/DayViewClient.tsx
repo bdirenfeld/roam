@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import AppHeader from "@/components/ui/AppHeader";
@@ -32,11 +32,17 @@ export default function DayViewClient({ trip, days, dayWithCards, userAvatarUrl 
     [router, trip.id]
   );
 
-  const mappableCards = dayWithCards.cards.filter((c) => {
-    if (c.lat != null && c.lng != null) return true;
-    const d = c.details as Record<string, unknown>;
-    return typeof d?.lat === "number" && typeof d?.lng === "number";
-  });
+  // Memoize so DayMap's effect (which deps on `cards`) doesn't re-run on every
+  // parent render — dayWithCards.cards is stable across the page lifecycle.
+  const mappableCards = useMemo(
+    () =>
+      dayWithCards.cards.filter((c) => {
+        if (c.lat != null && c.lng != null) return true;
+        const d = c.details as Record<string, unknown>;
+        return typeof d?.lat === "number" && typeof d?.lng === "number";
+      }),
+    [dayWithCards.cards],
+  );
 
   return (
     <div className="flex flex-col min-h-dvh">
