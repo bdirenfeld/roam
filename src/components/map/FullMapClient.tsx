@@ -100,16 +100,25 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
         MARKERS.clear();
 
         // ── Markers ──────────────────────────────────────────────────────────
-        cards.forEach((card) => {
-          if (card.lat == null || card.lng == null) return;
-          if (card.status === "cut") return;
+        // Resolve lat/lng from top-level fields OR details fallback
+        type Resolved = { card: Card; lat: number; lng: number };
+        const mappable: Resolved[] = cards
+          .filter((c) => c.status !== "cut")
+          .flatMap((c) => {
+            if (c.lat != null && c.lng != null) return [{ card: c, lat: c.lat, lng: c.lng }];
+            const d = c.details as Record<string, unknown>;
+            if (typeof d?.lat === "number" && typeof d?.lng === "number")
+              return [{ card: c, lat: d.lat as number, lng: d.lng as number }];
+            return [];
+          });
 
+        mappable.forEach(({ card, lat, lng }) => {
           const { wrapper, inner } = makePinElement(card.type, card.sub_type, card.status);
           if (card.status === "interested") wrapper.style.opacity = "0.3";
           inner.title = card.title;
 
           const mbMarker = new mb.Marker({ element: wrapper, anchor: "bottom" })
-            .setLngLat([card.lng!, card.lat!])
+            .setLngLat([lng, lat])
             .addTo(map);
 
           mbMarker.getElement().addEventListener("click", (e: MouseEvent) => {
@@ -129,9 +138,8 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
         });
 
         // Fit to all visible pins
-        const mappable = cards.filter((c) => c.lat != null && c.lng != null && c.status !== "cut");
         if (mappable.length > 1) {
-          const coords = mappable.map((c) => [c.lng!, c.lat!] as [number, number]);
+          const coords = mappable.map(({ lng, lat }) => [lng, lat] as [number, number]);
           const bounds = coords.reduce(
             (b: unknown, coord) => (b as { extend: (c: [number, number]) => unknown }).extend(coord),
             new mb.LngLatBounds(coords[0], coords[0]),
