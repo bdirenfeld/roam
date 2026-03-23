@@ -66,6 +66,10 @@ body {
 .dot-activity  { background-color: var(--color-activity); }
 .dot-food      { background-color: var(--color-food); }
 
+.mapboxgl-map {
+  height: 100%;
+}
+
 /* Mapbox marker positioning fix — override inline style Mapbox sets */
 .mapboxgl-marker {
   position: absolute !important;
