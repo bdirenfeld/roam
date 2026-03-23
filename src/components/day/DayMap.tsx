@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import type { Card } from "@/types/database";
 import { makePinElement, PIN_COLORS } from "@/lib/mapPins";
 
@@ -36,12 +36,11 @@ function popupHTML(card: Card): string {
 export default function DayMap({ cards, centerLat, centerLng }: Props) {
   const mapRef         = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<unknown>(null);
-  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const hasToken = !!process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
   useEffect(() => {
-    if (!hasToken || !mapRef.current || mapInstanceRef.current || isCollapsed) return;
+    if (!hasToken || !mapRef.current || mapInstanceRef.current) return;
 
     // Resolve lat/lng from top-level fields OR details fallback
     type Resolved = { card: Card; lat: number; lng: number };
@@ -123,14 +122,7 @@ export default function DayMap({ cards, centerLat, centerLng }: Props) {
           map.fitBounds(bounds, { padding: 50, maxZoom: 15 });
         }
 
-        // Force Mapbox to recalculate its canvas size. The map is initialised
-        // immediately when isCollapsed flips to false, but the CSS transition
-        // (300 ms, h-0 → h-48) may not have painted yet, so Mapbox can read a
-        // 0-height container and misposition all markers. The first resize()
-        // corrects the immediate case; the second fires after the transition
-        // completes to catch any remaining offset.
         map.resize();
-        setTimeout(() => map.resize(), 310);
       });
     });
 
@@ -142,7 +134,7 @@ export default function DayMap({ cards, centerLat, centerLng }: Props) {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCollapsed, cards]);
+  }, [cards]);
 
   if (!hasToken) {
     return (
@@ -153,38 +145,18 @@ export default function DayMap({ cards, centerLat, centerLng }: Props) {
   }
 
   return (
-    <div className="border-b border-gray-100">
-      {/* Collapsible map */}
-      <div className={`relative transition-all duration-300 overflow-hidden ${isCollapsed ? "h-0" : "h-48"}`}>
-        <div ref={mapRef} className="absolute inset-0" />
+    <div className="relative h-48 border-b border-gray-100">
+      <div ref={mapRef} className="absolute inset-0" />
 
-        {/* Category legend */}
-        {!isCollapsed && (
-          <div className="absolute bottom-2 left-2 flex gap-1.5 bg-white/90 backdrop-blur-sm rounded-lg px-2 py-1.5 shadow-sm pointer-events-none">
-            {(Object.entries(PIN_COLORS) as [string, string][]).map(([type, color]) => (
-              <div key={type} className="flex items-center gap-1">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
-                <span className="text-[9px] font-semibold text-gray-500 capitalize">{type}</span>
-              </div>
-            ))}
+      {/* Category legend */}
+      <div className="absolute bottom-2 left-2 flex gap-1.5 bg-white/90 backdrop-blur-sm rounded-lg px-2 py-1.5 shadow-sm pointer-events-none">
+        {(Object.entries(PIN_COLORS) as [string, string][]).map(([type, color]) => (
+          <div key={type} className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+            <span className="text-[9px] font-semibold text-gray-500 capitalize">{type}</span>
           </div>
-        )}
+        ))}
       </div>
-
-      {/* Collapse toggle */}
-      <button
-        onClick={() => setIsCollapsed((v) => !v)}
-        className="w-full flex items-center justify-center gap-1.5 py-1.5 text-[10px] font-semibold text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors"
-      >
-        <svg
-          width="12" height="12" viewBox="0 0 24 24"
-          fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
-          className={`transition-transform duration-200 ${isCollapsed ? "" : "rotate-180"}`}
-        >
-          <polyline points="18 15 12 9 6 15" />
-        </svg>
-        {isCollapsed ? "Show map" : "Hide map"}
-      </button>
     </div>
   );
 }
