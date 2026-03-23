@@ -1,5 +1,6 @@
 "use client";
 
+import "mapbox-gl/dist/mapbox-gl.css";
 import { useEffect, useRef } from "react";
 import type { Card } from "@/types/database";
 import { makePinElement, PIN_COLORS } from "@/lib/mapPins";

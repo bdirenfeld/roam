@@ -66,13 +66,12 @@ body {
 .dot-activity  { background-color: var(--color-activity); }
 .dot-food      { background-color: var(--color-food); }
 
-/* Mapbox marker positioning — avoids importing full mapbox-gl.css which
-   conflicts with Tailwind's position reset on the map container div */
+/* Mapbox marker positioning fix — override inline style Mapbox sets */
 .mapboxgl-marker {
-  left: 0;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
   opacity: 1;
-  position: absolute;
-  top: 0;
   transition: opacity 0.2s;
   will-change: transform;
 }
