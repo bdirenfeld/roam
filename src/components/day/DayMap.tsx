@@ -123,7 +123,7 @@ export default function DayMap({ cards, centerLat, centerLng }: Props) {
           map.fitBounds(bounds, { padding: 50, maxZoom: 15 });
         }
 
-        map.resize();
+        requestAnimationFrame(() => { map.resize(); });
       });
     });
 
