@@ -8,8 +8,7 @@ import { cookies } from "next/headers";
 // Fall back to VERCEL_URL (auto-provided by Vercel, no protocol) for preview deployments,
 // then localhost for local dev.
 const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ??
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+  process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
 export async function signInWithGoogle(next?: string) {
   const supabase = await createClient();

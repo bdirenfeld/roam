@@ -51,9 +51,9 @@ export async function updateSession(request: NextRequest) {
   const isPublic = publicPaths.some((p) => pathname.startsWith(p))
 
   if (!user && !isPublic) {
-    const loginUrl = request.nextUrl.clone()
-    loginUrl.pathname = '/login'
-    // Preserve the destination so we can redirect back after sign-in
+    // Build a fresh URL — do NOT clone request.nextUrl, which would carry over
+    // existing query params (e.g. code=... from an OAuth redirect) into /login.
+    const loginUrl = new URL('/login', request.nextUrl.origin)
     loginUrl.searchParams.set('next', pathname)
     return NextResponse.redirect(loginUrl)
   }
