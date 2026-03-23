@@ -55,7 +55,17 @@ export default function DayMap({ cards, centerLat, centerLng }: Props) {
         return [];
       });
 
+    // `cancelled` prevents a stale .then() callback (e.g. from a cleanup that
+    // fired while the dynamic import was still in-flight) from creating a
+    // second map on the same container — same pattern as FullMapClient.
+    let cancelled = false;
+
     import("mapbox-gl").then((mapboxgl) => {
+      if (cancelled || !mapRef.current || mapInstanceRef.current) return;
+
+      // Clear any DOM left behind by a previous map.remove() call.
+      mapRef.current.innerHTML = "";
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const mb = mapboxgl.default as any;
       mb.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
@@ -116,6 +126,7 @@ export default function DayMap({ cards, centerLat, centerLng }: Props) {
     });
 
     return () => {
+      cancelled = true;
       if (mapInstanceRef.current) {
         (mapInstanceRef.current as { remove: () => void }).remove();
         mapInstanceRef.current = null;
