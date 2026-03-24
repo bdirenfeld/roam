@@ -40,6 +40,7 @@ const config: Config = {
       },
     },
   },
+  safelist: ["touch-none"],
   plugins: [require("tailwindcss-animate")],
 };
 

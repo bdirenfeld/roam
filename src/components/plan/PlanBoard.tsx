@@ -6,6 +6,7 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
+  TouchSensor,
   KeyboardSensor,
   KeyboardCoordinateGetter,
   closestCorners,
@@ -94,6 +95,9 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 250, tolerance: 5 },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates as KeyboardCoordinateGetter,
     })
@@ -463,6 +467,7 @@ function SortableCardTile({
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.3 : 1,
+        touchAction: "none",
       }}
       {...attributes}
       {...listeners}
