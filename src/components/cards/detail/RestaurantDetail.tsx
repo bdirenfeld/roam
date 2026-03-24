@@ -2,7 +2,6 @@
 
 import type { Card } from "@/types/database";
 import FieldRow, { SectionLabel } from "./FieldRow";
-import ArrayField from "./ArrayField";
 
 interface Props {
   card: Card;
