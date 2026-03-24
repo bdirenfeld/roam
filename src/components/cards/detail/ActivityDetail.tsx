@@ -57,27 +57,30 @@ export default function ActivityDetail({ card }: Props) {
         <div>
           <SectionLabel>The plan</SectionLabel>
           <div className="mt-2 space-y-0">
-            {flow.map((step, i) => (
-              <div key={i} className="flex gap-3">
-                {/* Timeline spine */}
-                <div className="flex flex-col items-center w-10 flex-shrink-0">
-                  <div className="w-2 h-2 rounded-full bg-activity mt-1.5 z-10 flex-shrink-0" />
-                  {i < flow.length - 1 && (
-                    <div className="w-px flex-1 bg-gray-100 mt-1 mb-0" style={{ minHeight: 24 }} />
-                  )}
-                </div>
-                {/* Content */}
-                <div className="pb-4 flex-1 min-w-0">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-[11px] font-bold text-activity">{step.card?.start_time}</span>
+            {flow.map((step, i) => {
+              const notes = (step.card?.details as { notes?: string } | null)?.notes;
+              return (
+                <div key={i} className="flex gap-3">
+                  {/* Timeline spine */}
+                  <div className="flex flex-col items-center w-10 flex-shrink-0">
+                    <div className="w-2 h-2 rounded-full bg-activity mt-1.5 z-10 flex-shrink-0" />
+                    {i < flow.length - 1 && (
+                      <div className="w-px flex-1 bg-gray-100 mt-1 mb-0" style={{ minHeight: 24 }} />
+                    )}
                   </div>
-                  <p className="text-sm font-semibold text-gray-800 leading-snug mt-0.5">{step.card?.sub_type}</p>
-                  {step.card?.details?.notes && (
-                    <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{String(step.card.details.notes)}</p>
-                  )}
+                  {/* Content */}
+                  <div className="pb-4 flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[11px] font-bold text-activity">{step.card?.start_time}</span>
+                    </div>
+                    <p className="text-sm font-semibold text-gray-800 leading-snug mt-0.5">{step.card?.sub_type}</p>
+                    {notes && (
+                      <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{notes}</p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
