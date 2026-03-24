@@ -67,9 +67,13 @@ export interface AiEnriched {
 }
 
 export interface LogisticsDetails {
+  notes?: string
   airline?: string
   arrival_airport?: string
   arrival_time?: string
+  flight_number?: string
+  terminal?: string
+  confirmation?: string
   departure_airport?: string
   departure_time?: string
   transport_to_accommodation?: string
@@ -79,16 +83,21 @@ export interface LogisticsDetails {
 }
 
 export interface ActivityDetails {
+  notes?: string
   supplier?: string
   cost_per_person?: number
   currency?: string
   card_used?: string
   meeting_point?: string
   meeting_time?: string
+  website?: string
+  confirmation?: string
   refundable?: boolean
   cancellation_deadline?: string
   prep?: string
-  flow?: FlowStep[]
+  flow?: FlowStep[] | string[]
+  tips?: string[]
+  includes?: string[]
   post?: string
   duration_minutes?: number
   treatment_type?: string
@@ -96,6 +105,17 @@ export interface ActivityDetails {
 }
 
 export interface FoodDetails {
+  notes?: string
+  cuisine?: string
+  reservation?: string
+  website?: string
+  estimated_cost?: string
+  order_plan?: string | string[]
+  cost?: string
+  energy?: string
+  primary?: string
+  alternative?: string
+  flow?: string[]
   reservation_status?: 'walk-in' | 'reserved' | 'booked'
   reservation_time?: string
   ai_enriched?: AiEnriched

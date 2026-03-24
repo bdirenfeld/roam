@@ -20,6 +20,16 @@ interface Props {
 export default function DayViewClient({ trip, days, dayWithCards, userAvatarUrl }: Props) {
   const router = useRouter();
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
+  // Keep a local copy of cards so edits made in the sheet reflect in the list
+  const [localCards, setLocalCards] = useState<Card[]>(dayWithCards.cards);
+
+  const handleCardUpdate = useCallback(
+    (updated: Card) => {
+      setLocalCards((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+      setSelectedCard((prev) => (prev?.id === updated.id ? updated : prev));
+    },
+    []
+  );
 
   const currentIndex = days.findIndex((d) => d.id === dayWithCards.id);
   const prevDay = currentIndex > 0 ? days[currentIndex - 1] : null;
@@ -32,16 +42,20 @@ export default function DayViewClient({ trip, days, dayWithCards, userAvatarUrl 
     [router, trip.id]
   );
 
-  // Memoize so DayMap's effect (which deps on `cards`) doesn't re-run on every
-  // parent render — dayWithCards.cards is stable across the page lifecycle.
+  // Build an up-to-date dayWithCards from local card state
+  const localDayWithCards = useMemo(
+    () => ({ ...dayWithCards, cards: localCards }),
+    [dayWithCards, localCards]
+  );
+
   const mappableCards = useMemo(
     () =>
-      dayWithCards.cards.filter((c) => {
+      localCards.filter((c) => {
         if (c.lat != null && c.lng != null) return true;
         const d = c.details as Record<string, unknown>;
         return typeof d?.lat === "number" && typeof d?.lng === "number";
       }),
-    [dayWithCards.cards],
+    [localCards],
   );
 
   return (
@@ -70,7 +84,7 @@ export default function DayViewClient({ trip, days, dayWithCards, userAvatarUrl 
         className="flex-1 px-4 pt-4 animate-in fade-in duration-200"
       >
         <CardTimeline
-          dayWithCards={dayWithCards}
+          dayWithCards={localDayWithCards}
           onCardTap={setSelectedCard}
         />
       </div>
@@ -113,6 +127,7 @@ export default function DayViewClient({ trip, days, dayWithCards, userAvatarUrl 
         <CardBottomSheet
           card={selectedCard}
           onClose={() => setSelectedCard(null)}
+          onCardUpdate={handleCardUpdate}
         />
       )}
     </div>

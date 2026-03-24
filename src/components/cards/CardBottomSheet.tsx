@@ -1,33 +1,61 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import type { Card } from "@/types/database";
+import { createClient } from "@/lib/supabase/client";
+
+// ── Type-specific detail components ───────────────────────────
+import FlightArrivalDetail from "./detail/FlightArrivalDetail";
+import CoffeeDetail from "./detail/CoffeeDetail";
+import CocktailBarDetail from "./detail/CocktailBarDetail";
+import RestaurantDetail from "./detail/RestaurantDetail";
+import SelfDirectedDetail from "./detail/SelfDirectedDetail";
+import GuidedDetail from "./detail/GuidedDetail";
+
+// Legacy fallback components (for sub_types not yet migrated)
 import LogisticsDetail from "./detail/LogisticsDetail";
 import ActivityDetail from "./detail/ActivityDetail";
-import FoodDetail from "./detail/FoodDetail";
 
 interface Props {
   card: Card;
   onClose: () => void;
+  /** Called after every successful (or optimistically applied) edit. */
+  onCardUpdate?: (card: Card) => void;
 }
 
+// ── Sub-type display labels ────────────────────────────────────
 const SUB_TYPE_LABEL: Record<string, string> = {
   flight_arrival:   "Flight Arrival",
   flight_departure: "Flight Departure",
   self_directed:    "Self-Directed",
+  guided:           "Guided Experience",
   hosted:           "Guided Experience",
   wellness:         "Wellness",
   restaurant:       "Restaurant",
+  coffee:           "Coffee",
   coffee_dessert:   "Coffee & Pastry",
+  cocktail_bar:     "Cocktail Bar",
   drinks:           "Drinks",
 };
 
+// ── Type accent colours ────────────────────────────────────────
 const TYPE_ACCENT: Record<string, { dot: string; bg: string; text: string }> = {
   logistics: { dot: "bg-logistics", bg: "bg-slate-50",  text: "text-logistics" },
   activity:  { dot: "bg-activity",  bg: "bg-teal-50",   text: "text-activity"  },
   food:      { dot: "bg-food",      bg: "bg-amber-50",  text: "text-food"      },
 };
 
+// ── Booking badge ──────────────────────────────────────────────
+function bookingBadge(details: Record<string, unknown>) {
+  const status = details.reservation_status as string | undefined;
+  const refundable = details.refundable as boolean | undefined;
+  if (status === "reserved") return { label: "Reserved", classes: "bg-green-50 text-green-600 border-green-100" };
+  if (details.supplier)      return { label: refundable === false ? "Booked · Non-refundable" : "Booked", classes: "bg-teal-50 text-activity border-teal-100" };
+  if (status === "walk-in")  return { label: "Walk-in", classes: "bg-gray-50 text-gray-500 border-gray-100" };
+  return null;
+}
+
+// ── Time helpers ───────────────────────────────────────────────
 function formatTime(t: string | null): string {
   if (!t) return "";
   const [h, m] = t.split(":").map(Number);
@@ -47,36 +75,75 @@ function durationLabel(start: string | null, end: string | null): string | null 
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
-// Booking status badge config
-function bookingBadge(details: Record<string, unknown>) {
-  const status = details.reservation_status as string | undefined;
-  const refundable = details.refundable as boolean | undefined;
-  if (status === "reserved") return { label: "Reserved", classes: "bg-green-50 text-green-600 border-green-100" };
-  if (details.supplier)      return { label: refundable === false ? "Booked · Non-refundable" : "Booked", classes: "bg-teal-50 text-activity border-teal-100" };
-  if (status === "walk-in")  return { label: "Walk-in", classes: "bg-gray-50 text-gray-500 border-gray-100" };
-  return null;
+// ── Inline title editor ───────────────────────────────────────
+function TitleEditor({
+  value,
+  onSave,
+}: {
+  value: string;
+  onSave: (v: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+
+  useEffect(() => {
+    if (!editing) setDraft(value);
+  }, [value, editing]);
+
+  const commit = () => {
+    setEditing(false);
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== value) onSave(trimmed);
+    else setDraft(value);
+  };
+
+  return editing ? (
+    <input
+      autoFocus
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") { e.preventDefault(); commit(); }
+        if (e.key === "Escape") { setDraft(value); setEditing(false); }
+      }}
+      className="w-full text-[19px] font-bold text-gray-900 leading-snug bg-gray-50 rounded-md px-1 py-0.5 outline-none border border-gray-200 focus:border-blue-300"
+    />
+  ) : (
+    <h2
+      onClick={() => setEditing(true)}
+      className="text-[19px] font-bold text-gray-900 leading-snug cursor-pointer hover:bg-gray-50 rounded-md -mx-1 px-1 py-0.5 transition-colors"
+    >
+      {value}
+    </h2>
+  );
 }
 
-export default function CardBottomSheet({ card, onClose }: Props) {
+// ── Main component ─────────────────────────────────────────────
+export default function CardBottomSheet({ card, onClose, onCardUpdate }: Props) {
+  const supabase = createClient();
   const sheetRef = useRef<HTMLDivElement>(null);
   const dragY = useRef(0);
   const isDragging = useRef(false);
 
-  // ── keyboard escape ──────────────────────────────────────
+  // Local optimistic state
+  const [localCard, setLocalCard] = useState<Card>(card);
+
+  // ── Keyboard escape ────────────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  // ── body scroll lock ─────────────────────────────────────
+  // ── Body scroll lock ───────────────────────────────────────
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = prev; };
   }, []);
 
-  // ── drag-to-dismiss ───────────────────────────────────────
+  // ── Drag-to-dismiss ────────────────────────────────────────
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     dragY.current = e.touches[0].clientY;
     isDragging.current = true;
@@ -94,14 +161,11 @@ export default function CardBottomSheet({ card, onClose }: Props) {
       if (!isDragging.current || !sheetRef.current) return;
       isDragging.current = false;
       const dy = e.changedTouches[0].clientY - dragY.current;
-
       if (dy > 120) {
-        // Dismiss — animate sheet off screen then call onClose
         sheetRef.current.style.transition = "transform 250ms cubic-bezier(0.32,0.72,0,1)";
         sheetRef.current.style.transform = "translateY(100%)";
         setTimeout(onClose, 240);
       } else {
-        // Snap back
         sheetRef.current.style.transition = "transform 300ms cubic-bezier(0.34,1.56,0.64,1)";
         sheetRef.current.style.transform = "translateY(0)";
       }
@@ -109,17 +173,107 @@ export default function CardBottomSheet({ card, onClose }: Props) {
     [onClose]
   );
 
-  const accent = TYPE_ACCENT[card.type] ?? TYPE_ACCENT.logistics;
-  const typeLabel = SUB_TYPE_LABEL[card.sub_type ?? ""] ?? card.type;
+  // ── Persistence helpers ───────────────────────────────────
+  const saveTopLevel = useCallback(
+    async (field: string, value: unknown) => {
+      const prev = localCard;
+      const updated = { ...localCard, [field]: value };
+      setLocalCard(updated);
+      onCardUpdate?.(updated);
+
+      const { error } = await supabase
+        .from("cards")
+        .update({ [field]: value })
+        .eq("id", localCard.id);
+
+      if (error) {
+        console.error("Failed to save", field, error.message);
+        setLocalCard(prev);
+        onCardUpdate?.(prev);
+      }
+    },
+    [localCard, onCardUpdate, supabase]
+  );
+
+  const saveDetails = useCallback(
+    async (field: string, value: unknown) => {
+      // "__top__" prefix routes to a top-level column update instead
+      if (field.startsWith("__top__")) {
+        return saveTopLevel(field.replace("__top__", ""), value);
+      }
+
+      const prev = localCard;
+      const newDetails = { ...localCard.details, [field]: value };
+      const updated = { ...localCard, details: newDetails };
+      setLocalCard(updated);
+      onCardUpdate?.(updated);
+
+      const { error } = await supabase
+        .from("cards")
+        .update({ details: newDetails })
+        .eq("id", localCard.id);
+
+      if (error) {
+        console.error("Failed to save details.", field, error.message);
+        setLocalCard(prev);
+        onCardUpdate?.(prev);
+      }
+    },
+    [localCard, onCardUpdate, saveTopLevel, supabase]
+  );
+
+  // ── Derived display values ─────────────────────────────────
+  const accent = TYPE_ACCENT[localCard.type] ?? TYPE_ACCENT.logistics;
+  const typeLabel = SUB_TYPE_LABEL[localCard.sub_type ?? ""] ?? localCard.type;
+
   const timeRange = (() => {
-    const s = formatTime(card.start_time);
-    const e = formatTime(card.end_time);
+    const s = formatTime(localCard.start_time);
+    const e = formatTime(localCard.end_time);
     if (s && e) return `${s} – ${e}`;
     if (s) return s;
     return null;
   })();
-  const duration = durationLabel(card.start_time, card.end_time);
-  const badge = bookingBadge(card.details);
+  const duration = durationLabel(localCard.start_time, localCard.end_time);
+  const badge = bookingBadge(localCard.details);
+
+  // ── Route to sub-type component ───────────────────────────
+  const key = `${localCard.type}/${localCard.sub_type ?? ""}`;
+
+  function renderDetail() {
+    switch (key) {
+      case "logistics/flight_arrival":
+        return <FlightArrivalDetail card={localCard} onSaveDetails={saveDetails} />;
+      case "food/coffee":
+      case "food/coffee_dessert":
+        return <CoffeeDetail card={localCard} onSaveDetails={saveDetails} />;
+      case "food/cocktail_bar":
+      case "food/drinks":
+        return <CocktailBarDetail card={localCard} onSaveDetails={saveDetails} />;
+      case "food/restaurant":
+        return <RestaurantDetail card={localCard} onSaveDetails={saveDetails} />;
+      case "activity/self_directed":
+        return <SelfDirectedDetail card={localCard} onSaveDetails={saveDetails} />;
+      case "activity/guided":
+      case "activity/hosted":
+        return <GuidedDetail card={localCard} onSaveDetails={saveDetails} />;
+      // Legacy fallbacks
+      case "logistics/flight_departure":
+        return <LogisticsDetail card={localCard} />;
+      case "activity/wellness":
+        return <ActivityDetail card={localCard} />;
+      default:
+        if (localCard.type === "logistics") return <LogisticsDetail card={localCard} />;
+        if (localCard.type === "activity")  return <ActivityDetail  card={localCard} />;
+        return <RestaurantDetail card={localCard} onSaveDetails={saveDetails} />;
+    }
+  }
+
+  // ── Address display ────────────────────────────────────────
+  const addressLine = localCard.address ?? (
+    localCard.lat != null && localCard.lng != null
+      ? `${localCard.lat.toFixed(4)}, ${localCard.lng.toFixed(4)}`
+      : null
+  );
 
   return (
     <div
@@ -145,6 +299,7 @@ export default function CardBottomSheet({ card, onClose }: Props) {
 
         {/* Header */}
         <div className="px-5 pt-3 pb-4 flex-shrink-0 border-b border-gray-100">
+          {/* Top row: type badge + booking badge + close */}
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
               <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${accent.bg}`}>
@@ -169,32 +324,59 @@ export default function CardBottomSheet({ card, onClose }: Props) {
             </button>
           </div>
 
-          <h2 className="text-[19px] font-bold text-gray-900 mt-2.5 leading-snug">{card.title}</h2>
+          {/* Editable title */}
+          <div className="mt-2.5">
+            <TitleEditor
+              value={localCard.title}
+              onSave={(v) => saveTopLevel("title", v)}
+            />
+          </div>
 
-          {/* Time range + duration */}
-          {(timeRange || duration) && (
-            <div className="flex items-center gap-2 mt-1">
-              {timeRange && (
-                <span className="text-sm text-gray-400 font-medium">{timeRange}</span>
-              )}
-              {duration && (
-                <>
-                  {timeRange && <span className="text-gray-200 text-sm">·</span>}
-                  <span className="text-xs font-semibold text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100">
-                    {duration}
-                  </span>
-                </>
-              )}
-            </div>
+          {/* Address line */}
+          {addressLine && (
+            <p className="text-xs text-gray-400 mt-1 leading-snug">{addressLine}</p>
           )}
+
+          {/* Time range + duration + source link */}
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+            {timeRange && (
+              <span className="text-sm text-gray-400 font-medium">{timeRange}</span>
+            )}
+            {duration && (
+              <>
+                {timeRange && <span className="text-gray-200 text-sm">·</span>}
+                <span className="text-xs font-semibold text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100">
+                  {duration}
+                </span>
+              </>
+            )}
+            {localCard.source_url && (
+              <>
+                {(timeRange || duration) && <span className="text-gray-200 text-sm">·</span>}
+                <a
+                  href={localCard.source_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                  aria-label="Source"
+                >
+                  {/* Globe icon */}
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="2" y1="12" x2="22" y2="12" />
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                  </svg>
+                  Source
+                </a>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Scrollable detail content */}
         <div className="relative flex-1 min-h-0 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-8 after:bg-gradient-to-t after:from-white after:to-transparent after:pointer-events-none">
           <div className="overflow-y-auto h-full px-5 py-5 pb-[68px]">
-            {card.type === "logistics" && <LogisticsDetail card={card} />}
-            {card.type === "activity"  && <ActivityDetail  card={card} />}
-            {card.type === "food"      && <FoodDetail      card={card} />}
+            {renderDetail()}
           </div>
         </div>
       </div>
