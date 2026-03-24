@@ -109,6 +109,10 @@ body {
   pointer-events: auto;
 }
 
+/* Swipe navigation — subtle slide (overrides tailwindcss-animate defaults) */
+.slide-in-from-left  { --tw-enter-translate-x: -30px; }
+.slide-in-from-right { --tw-enter-translate-x:  30px; }
+
 /* One-time map hint fade-out */
 @keyframes fadeOut {
   from { opacity: 1; }
