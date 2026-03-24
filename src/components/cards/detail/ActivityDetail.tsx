@@ -1,10 +1,10 @@
-import type { Card, FlowStep } from "@/types/database";
+import type { Card } from "@/types/database";
 
 interface Props { card: Card }
 
 export default function ActivityDetail({ card }: Props) {
   const d = card.details;
-  const flow = d.flow as FlowStep[] | undefined;
+  const flow = d.flow as Array<{ card?: Card }> | undefined;
   const ai = d.ai_enriched as { energy_level?: string; tips?: string[] } | undefined;
 
   return (
@@ -69,11 +69,11 @@ export default function ActivityDetail({ card }: Props) {
                 {/* Content */}
                 <div className="pb-4 flex-1 min-w-0">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-[11px] font-bold text-activity">{step.time}</span>
+                    <span className="text-[11px] font-bold text-activity">{step.card?.start_time}</span>
                   </div>
-                  <p className="text-sm font-semibold text-gray-800 leading-snug mt-0.5">{step.segment}</p>
-                  {step.notes && (
-                    <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{step.notes}</p>
+                  <p className="text-sm font-semibold text-gray-800 leading-snug mt-0.5">{step.card?.sub_type}</p>
+                  {step.card?.details?.notes && (
+                    <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{step.card?.details?.notes as string}</p>
                   )}
                 </div>
               </div>
