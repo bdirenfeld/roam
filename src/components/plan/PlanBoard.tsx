@@ -27,7 +27,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { createClient } from "@/lib/supabase/client";
 import AppHeader from "@/components/ui/AppHeader";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
-import type { Trip, Day, Card, DayWithCards, CardType } from "@/types/database";
+import type { Trip, Card, DayWithCards, CardType } from "@/types/database";
 
 // ── Constants ──────────────────────────────────────────────────
 const COL_PREFIX = "col-";
