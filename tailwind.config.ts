@@ -35,6 +35,9 @@ const config: Config = {
         "card-hover": "0 4px 12px 0 rgba(0,0,0,0.10)",
         sheet: "0 -4px 24px 0 rgba(0,0,0,0.12)",
       },
+      zIndex: {
+        '60': '60',
+      },
     },
   },
   plugins: [require("tailwindcss-animate")],

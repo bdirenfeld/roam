@@ -8,56 +8,70 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 export default function FoodDetail({ card }: Props) {
   const d = card.details;
-  const ai = d.ai_enriched as {
-    about?: string;
-    must_order?: string[];
-    tips?: string[];
-    cuisine?: string;
-    signature_dishes?: string[];
-  } | undefined;
 
-  const reservationStatus = d.reservation_status as string | undefined;
-  const reservationTime = d.reservation_time as string | undefined;
+  const notes         = d.notes          as string | undefined;
+  const reservation   = d.reservation    as string | undefined;
+  const address       = d.address        as string | undefined;
+  const website       = d.website        as string | undefined;
+  const estimatedCost = d.estimated_cost as string | undefined;
+  const orderPlan     = d.order_plan     as string[] | string | undefined;
+  const orderItems    = Array.isArray(orderPlan)
+    ? orderPlan
+    : orderPlan ? [orderPlan] : [];
 
   return (
     <div className="space-y-6">
-      {/* About */}
-      {ai?.about && (
-        <p className="text-sm text-gray-700 leading-relaxed">{ai.about}</p>
+      {/* Notes */}
+      {notes && (
+        <p className="text-sm text-gray-700 leading-relaxed">{notes}</p>
       )}
 
-      {/* Cuisine + reservation in one row */}
-      {(ai?.cuisine || reservationStatus) && (
+      {/* Reservation badge */}
+      {reservation && (
         <div className="flex items-center gap-3 flex-wrap">
-          {ai?.cuisine && (
-            <div className="flex items-center gap-1.5 bg-amber-50 px-3 py-1.5 rounded-xl">
-              <span className="text-xs">🍽️</span>
-              <span className="text-xs font-semibold text-food">{ai.cuisine}</span>
+          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl ${
+            reservation.toLowerCase().includes("reserved")
+              ? "bg-green-50 text-green-600"
+              : "bg-gray-50 text-gray-500"
+          }`}>
+            <span className="text-xs">
+              {reservation.toLowerCase().includes("reserved") ? "✅" : "🚶"}
+            </span>
+            <span className="text-xs font-semibold">{reservation}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Address, cost, website */}
+      {(address || estimatedCost || website) && (
+        <div className="space-y-2">
+          {address && (
+            <div className="flex items-start gap-2 text-sm text-gray-700">
+              <span className="flex-shrink-0">📍</span>
+              <span>{address}</span>
             </div>
           )}
-          {reservationStatus && (
-            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl ${
-              reservationStatus === "reserved"
-                ? "bg-green-50 text-green-600"
-                : "bg-gray-50 text-gray-500"
-            }`}>
-              <span className="text-xs">{reservationStatus === "reserved" ? "✅" : "🚶"}</span>
-              <span className="text-xs font-semibold">
-                {reservationStatus === "reserved"
-                  ? `Reserved${reservationTime ? ` · ${reservationTime}` : ""}`
-                  : "Walk-in"}
-              </span>
+          {estimatedCost && (
+            <div className="flex items-start gap-2 text-sm text-gray-700">
+              <span className="flex-shrink-0">💳</span>
+              <span>{estimatedCost}</span>
+            </div>
+          )}
+          {website && (
+            <div className="flex items-start gap-2 text-sm">
+              <span className="flex-shrink-0">🔗</span>
+              <span className="text-food truncate">{website}</span>
             </div>
           )}
         </div>
       )}
 
-      {/* Must order */}
-      {ai?.must_order && ai.must_order.length > 0 && (
+      {/* Order plan */}
+      {orderItems.length > 0 && (
         <div>
-          <SectionLabel>Must order</SectionLabel>
+          <SectionLabel>Order plan</SectionLabel>
           <div className="flex flex-wrap gap-2">
-            {ai.must_order.map((item, i) => (
+            {orderItems.map((item, i) => (
               <span
                 key={i}
                 className="text-xs font-semibold bg-amber-50 text-food border border-amber-100 px-3 py-1.5 rounded-full"
@@ -66,36 +80,6 @@ export default function FoodDetail({ card }: Props) {
               </span>
             ))}
           </div>
-        </div>
-      )}
-
-      {/* Signature dishes */}
-      {ai?.signature_dishes && ai.signature_dishes.length > 0 && (
-        <div>
-          <SectionLabel>Signature dishes</SectionLabel>
-          <ul className="space-y-2">
-            {ai.signature_dishes.map((dish, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                <span className="text-food font-bold mt-0.5 flex-shrink-0">·</span>
-                {dish}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Tips */}
-      {ai?.tips && ai.tips.length > 0 && (
-        <div>
-          <SectionLabel>Tips</SectionLabel>
-          <ul className="space-y-2">
-            {ai.tips.map((tip, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                <span className="text-food font-bold mt-0.5 flex-shrink-0">·</span>
-                {tip}
-              </li>
-            ))}
-          </ul>
         </div>
       )}
     </div>

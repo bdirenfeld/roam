@@ -190,10 +190,12 @@ export default function CardBottomSheet({ card, onClose }: Props) {
         </div>
 
         {/* Scrollable detail content */}
-        <div className="overflow-y-auto flex-1 px-5 py-5">
-          {card.type === "logistics" && <LogisticsDetail card={card} />}
-          {card.type === "activity"  && <ActivityDetail  card={card} />}
-          {card.type === "food"      && <FoodDetail      card={card} />}
+        <div className="relative flex-1 min-h-0 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-8 after:bg-gradient-to-t after:from-white after:to-transparent after:pointer-events-none">
+          <div className="overflow-y-auto h-full px-5 py-5 pb-[68px]">
+            {card.type === "logistics" && <LogisticsDetail card={card} />}
+            {card.type === "activity"  && <ActivityDetail  card={card} />}
+            {card.type === "food"      && <FoodDetail      card={card} />}
+          </div>
         </div>
       </div>
     </div>
