@@ -77,8 +77,10 @@ export default function BottomNav() {
     },
   ];
 
+  const isFullWidthPage = pathname?.endsWith("/plan");
+
   return (
-    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-mobile bg-white/95 backdrop-blur-sm border-t border-gray-100 z-50">
+    <nav className={`fixed bottom-0 left-1/2 -translate-x-1/2 w-full ${isFullWidthPage ? "md:max-w-full" : "max-w-mobile"} bg-white/95 backdrop-blur-sm border-t border-gray-100 z-50`}>
       <div className="flex items-center justify-around py-2 pb-safe">
         {tabs.map((tab) => (
           <Link

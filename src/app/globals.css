@@ -35,6 +35,11 @@ body {
   overflow-x: hidden;
 }
 
+.mobile-container.full-width-page {
+  max-width: 100%;
+  overflow-x: visible;
+}
+
 /* Bottom sheet transition */
 .sheet-enter {
   transform: translateY(100%);
