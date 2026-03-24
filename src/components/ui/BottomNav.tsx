@@ -23,7 +23,7 @@ export default function BottomNav() {
   // Resolve tab destinations based on context
   const daysHref  = dayId && tripId ? `/trips/${tripId}/days/${dayId}` : tripId ? `/trips/${tripId}` : "/trips";
   const mapHref   = tripId ? `/trips/${tripId}/map` : "/map";
-  const tripsHref = "/trips";
+  const planHref  = tripId ? `/trips/${tripId}/plan` : "/trips";
 
   const tabs = [
     {
@@ -59,9 +59,9 @@ export default function BottomNav() {
     },
     {
       key: "trips",
-      href: tripsHref,
-      label: "Trip",
-      active: pathname === "/trips" || (pathname.startsWith("/trips") && !pathname.includes("/days/") && !pathname.endsWith("/map")),
+      href: planHref,
+      label: "Plan",
+      active: pathname.includes("/plan") || (pathname.startsWith("/trips") && !pathname.includes("/days/") && !pathname.endsWith("/map") && !pathname.includes("/plan")),
       icon: (active: boolean) => (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
           stroke={active ? "#0D9488" : "#9CA3AF"} strokeWidth="2"
