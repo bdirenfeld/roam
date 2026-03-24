@@ -73,7 +73,7 @@ export default function ActivityDetail({ card }: Props) {
                   </div>
                   <p className="text-sm font-semibold text-gray-800 leading-snug mt-0.5">{step.card?.sub_type}</p>
                   {step.card?.details?.notes && (
-                    <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{step.card?.details?.notes as string}</p>
+                    <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{String(step.card.details.notes)}</p>
                   )}
                 </div>
               </div>
