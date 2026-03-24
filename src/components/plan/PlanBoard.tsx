@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, KeyboardEvent } from "react";
+import { useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import {
   DndContext,
@@ -28,6 +28,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { createClient } from "@/lib/supabase/client";
 import AppHeader from "@/components/ui/AppHeader";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
+import CreateCardSheet from "@/components/plan/CreateCardSheet";
 import type { Trip, Card, DayWithCards, CardType } from "@/types/database";
 
 // ── Constants ──────────────────────────────────────────────────
@@ -85,6 +86,7 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
   const [days, setDays] = useState<DayWithCards[]>(initialDays);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
+  const [createSheetDayId, setCreateSheetDayId] = useState<string | null>(null);
 
   // Ref gives handleDragEnd access to the latest days without stale closure issues
   const daysRef = useRef(days);
@@ -234,56 +236,16 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
     await supabase.from("cards").update({ status: "interested" }).eq("id", cardId);
   }, [supabase]);
 
-  // ── Add card ──────────────────────────────────────────────────
-  const handleAddCard = useCallback(async (dayId: string, title: string) => {
-    const dayCards = daysRef.current.find((d) => d.id === dayId)?.cards ?? [];
-    const maxPos   = dayCards.reduce((m, c) => Math.max(m, c.position), 0);
-    const newCard: Card = {
-      id: crypto.randomUUID(),
-      day_id: dayId,
-      trip_id: trip.id,
-      type: "activity",
-      sub_type: "self_directed",
-      title,
-      start_time: null,
-      end_time:   null,
-      position: maxPos + 1,
-      status: "in_itinerary",
-      source_url: null,
-      cover_image_url: null,
-      lat: null,
-      lng: null,
-      address: null,
-      details: {},
-      ai_generated: false,
-      created_at: new Date().toISOString(),
-    };
+  // ── Card created from CreateCardSheet ─────────────────────────
+  const handleCardCreated = useCallback((card: Card) => {
     setDays((prev) =>
       prev.map((d) =>
-        d.id === dayId ? { ...d, cards: [...d.cards, newCard] } : d
+        d.id === card.day_id ? { ...d, cards: [...d.cards, card] } : d
       )
     );
-    const { error } = await supabase.from("cards").insert({
-      id: newCard.id,
-      day_id: dayId,
-      trip_id: trip.id,
-      type: "activity",
-      sub_type: "self_directed",
-      title,
-      position: maxPos + 1,
-      status: "in_itinerary",
-      details: {},
-    });
-    if (error) {
-      setDays((prev) =>
-        prev.map((d) =>
-          d.id === dayId
-            ? { ...d, cards: d.cards.filter((c) => c.id !== newCard.id) }
-            : d
-        )
-      );
-    }
-  }, [supabase, trip.id]);
+    setCreateSheetDayId(null);
+    setSelectedCard(card);
+  }, []);
 
   const firstDay = initialDays[0];
   const activeCard = activeId ? findCard(activeId) : null;
@@ -326,7 +288,7 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
                 cards={day.cards}
                 onCardTap={(card) => setSelectedCard(card)}
                 onRemove={handleRemove}
-                onAddCard={(title) => handleAddCard(day.id, title)}
+                onOpenCreateSheet={() => setCreateSheetDayId(day.id)}
               />
             ))}
           </div>
@@ -336,6 +298,20 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
           </DragOverlay>
         </DndContext>
       </div>
+
+      {createSheetDayId && (() => {
+        const day = days.find((d) => d.id === createSheetDayId);
+        const endPos = day ? day.cards.reduce((m, c) => Math.max(m, c.position), 0) + 1 : 1;
+        return (
+          <CreateCardSheet
+            dayId={createSheetDayId}
+            tripId={trip.id}
+            endPosition={endPos}
+            onClose={() => setCreateSheetDayId(null)}
+            onCardCreated={handleCardCreated}
+          />
+        );
+      })()}
 
       {selectedCard && (
         <CardBottomSheet
@@ -354,25 +330,11 @@ interface DayColumnProps {
   cards: Card[];
   onCardTap: (card: Card) => void;
   onRemove: (cardId: string) => void;
-  onAddCard: (title: string) => void;
+  onOpenCreateSheet: () => void;
 }
 
-function DayColumn({ day, cards, onCardTap, onRemove, onAddCard }: DayColumnProps) {
+function DayColumn({ day, cards, onCardTap, onRemove, onOpenCreateSheet }: DayColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `${COL_PREFIX}${day.id}` });
-  const [adding, setAdding] = useState(false);
-  const [newTitle, setNewTitle] = useState("");
-
-  const commitAdd = () => {
-    const t = newTitle.trim();
-    setAdding(false);
-    setNewTitle("");
-    if (t) onAddCard(t);
-  };
-
-  const handleKey = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter")  { e.preventDefault(); commitAdd(); }
-    if (e.key === "Escape") { setAdding(false); setNewTitle(""); }
-  };
 
   return (
     <div className="flex flex-col w-full md:w-72 md:flex-shrink-0">
@@ -424,24 +386,12 @@ function DayColumn({ day, cards, onCardTap, onRemove, onAddCard }: DayColumnProp
 
       {/* Add card */}
       <div className="mt-2">
-        {adding ? (
-          <input
-            autoFocus
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            onBlur={commitAdd}
-            onKeyDown={handleKey}
-            placeholder="Card title…"
-            className="w-full text-sm text-gray-800 bg-white rounded-xl border border-gray-200 px-3 py-2 outline-none focus:border-activity placeholder:text-gray-300"
-          />
-        ) : (
-          <button
-            onClick={() => setAdding(true)}
-            className="w-full flex items-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-gray-600 py-2 transition-colors"
-          >
-            <span className="text-base leading-none font-bold">+</span> Add card
-          </button>
-        )}
+        <button
+          onClick={onOpenCreateSheet}
+          className="w-full flex items-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-gray-600 py-2 transition-colors"
+        >
+          <span className="text-base leading-none font-bold">+</span> Add card
+        </button>
       </div>
     </div>
   );
