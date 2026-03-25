@@ -12,10 +12,10 @@ const SUB_TYPES: Record<CardType, { value: string; label: string }[]> = {
     { value: "wellness",      label: "Wellness" },
   ],
   food: [
-    { value: "restaurant",  label: "Restaurant" },
-    { value: "coffee",      label: "Coffee" },
+    { value: "restaurant",   label: "Restaurant" },
+    { value: "coffee",       label: "Coffee" },
     { value: "cocktail_bar", label: "Cocktail Bar" },
-    { value: "fine_dining", label: "Fine Dining" },
+    { value: "fine_dining",  label: "Fine Dining" },
   ],
   logistics: [
     { value: "flight_arrival",   label: "Flight Arrival" },
@@ -87,11 +87,26 @@ const TYPE_CONFIG: Record<CardType, TypeConfig> = {
   },
 };
 
+// ── Shared field styles ────────────────────────────────────────
+const INPUT_CLS =
+  "w-full text-[15px] text-gray-900 bg-gray-50 rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-activity placeholder:text-gray-300 transition-colors";
+const LABEL_CLS =
+  "block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide";
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="mb-4">
+      <label className={LABEL_CLS}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
 // ── Props ──────────────────────────────────────────────────────
 interface Props {
   dayId: string;
   tripId: string;
-  endPosition: number; // position = end of day + 1
+  endPosition: number;
   onClose: () => void;
   onCardCreated: (card: Card) => void;
 }
@@ -103,74 +118,140 @@ export default function CreateCardSheet({
   onClose,
   onCardCreated,
 }: Props) {
-  const supabase = createClient();
-  const sheetRef  = useRef<HTMLDivElement>(null);
-  const inputRef  = useRef<HTMLInputElement>(null);
-  const dragY     = useRef(0);
-  const isDragging = useRef(false);
+  const supabase   = createClient();
+  const sheetRef   = useRef<HTMLDivElement>(null);
+  const inputRef   = useRef<HTMLInputElement>(null);
+  const dragY      = useRef(0);
+  const dragging   = useRef(false);
 
-  const [title,   setTitle]   = useState("");
-  const [type,    setType]    = useState<CardType | null>(null);
-  const [subType, setSubType] = useState<string | null>(null);
-  const [saving,  setSaving]  = useState(false);
+  // ── Base fields ─────────────────────────────────────────────
+  const [title,     setTitle]     = useState("");
+  const [type,      setType]      = useState<CardType | null>(null);
+  const [subType,   setSubType]   = useState<string | null>(null);
+  const [startTime, setStartTime] = useState("");
+  const [endTime,   setEndTime]   = useState("");
+  const [notes,     setNotes]     = useState("");
 
-  // Auto-focus title on mount
+  // ── activity/guided ─────────────────────────────────────────
+  const [supplier,     setSupplier]     = useState("");
+  const [meetingPoint, setMeetingPoint] = useState("");
+  const [meetingTime,  setMeetingTime]  = useState("");
+  const [cost,         setCost]         = useState("");
+  const [paid,         setPaid]         = useState(false);
+
+  // ── activity/wellness ────────────────────────────────────────
+  const [treatment, setTreatment] = useState("");
+  const [goal,      setGoal]      = useState("");
+  const [duration,  setDuration]  = useState("");
+
+  // ── food/restaurant ──────────────────────────────────────────
+  const [cuisine,     setCuisine]     = useState("");
+  const [reservation, setReservation] = useState("");
+
+  // ── logistics/flight ─────────────────────────────────────────
+  const [airline,          setAirline]          = useState("");
+  const [arrivalAirport,   setArrivalAirport]   = useState("");
+  const [departureAirport, setDepartureAirport] = useState("");
+
+  // ── logistics/hotel ──────────────────────────────────────────
+  const [hotelAddress, setHotelAddress] = useState("");
+
+  const [saving, setSaving] = useState(false);
+
   useEffect(() => {
     const t = setTimeout(() => inputRef.current?.focus(), 80);
     return () => clearTimeout(t);
   }, []);
 
-  // Body scroll lock
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = prev; };
   }, []);
 
-  // Keyboard escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  // Reset sub_type when type changes
   const handleTypeSelect = (t: CardType) => {
     setType(t);
     setSubType(null);
   };
 
-  // ── Drag-to-dismiss ─────────────────────────────────────────
+  // ── Drag-to-dismiss ──────────────────────────────────────────
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    dragY.current = e.touches[0].clientY;
-    isDragging.current = true;
+    dragY.current  = e.touches[0].clientY;
+    dragging.current = true;
   }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isDragging.current || !sheetRef.current) return;
+    if (!dragging.current || !sheetRef.current) return;
     const dy = Math.max(0, e.touches[0].clientY - dragY.current);
-    sheetRef.current.style.transform = `translateY(${dy}px)`;
+    sheetRef.current.style.transform  = `translateY(${dy}px)`;
     sheetRef.current.style.transition = "none";
   }, []);
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (!isDragging.current || !sheetRef.current) return;
-    isDragging.current = false;
+    if (!dragging.current || !sheetRef.current) return;
+    dragging.current = false;
     const dy = e.changedTouches[0].clientY - dragY.current;
     if (dy > 120) {
       sheetRef.current.style.transition = "transform 250ms cubic-bezier(0.32,0.72,0,1)";
-      sheetRef.current.style.transform = "translateY(100%)";
+      sheetRef.current.style.transform  = "translateY(100%)";
       setTimeout(onClose, 240);
     } else {
       sheetRef.current.style.transition = "transform 300ms cubic-bezier(0.34,1.56,0.64,1)";
-      sheetRef.current.style.transform = "translateY(0)";
+      sheetRef.current.style.transform  = "translateY(0)";
     }
   }, [onClose]);
 
-  // ── Create ──────────────────────────────────────────────────
+  // ── Create ───────────────────────────────────────────────────
   const handleCreate = useCallback(async () => {
     if (!title.trim() || !type || saving) return;
     setSaving(true);
+
+    // Format times
+    const startTimeFmt = startTime ? `${startTime}:00` : null;
+    const endTimeFmt   = endTime   ? `${endTime}:00`   : null;
+
+    // Build details object
+    const details: Record<string, unknown> = {};
+    if (notes.trim()) details.notes = notes.trim();
+
+    const key = `${type}/${subType ?? ""}`;
+    switch (key) {
+      case "activity/guided":
+        if (supplier.trim())     details.supplier     = supplier.trim();
+        if (meetingPoint.trim()) details.meeting_point = meetingPoint.trim();
+        if (meetingTime.trim())  details.meeting_time  = meetingTime.trim();
+        if (cost.trim())         details.cost_per_person = parseFloat(cost);
+        details.paid = paid;
+        break;
+      case "activity/wellness":
+        if (supplier.trim())  details.supplier        = supplier.trim();
+        if (treatment.trim()) details.treatment_type  = treatment.trim();
+        if (goal.trim())      details.goal            = goal.trim();
+        if (duration.trim())  details.duration_minutes = parseInt(duration, 10);
+        break;
+      case "food/restaurant":
+        if (cuisine.trim())     details.cuisine     = cuisine.trim();
+        if (reservation.trim()) details.reservation = reservation.trim();
+        break;
+      case "logistics/flight_arrival":
+        if (airline.trim())        details.airline        = airline.trim();
+        if (arrivalAirport.trim()) details.arrival_airport = arrivalAirport.trim();
+        break;
+      case "logistics/flight_departure":
+        if (airline.trim())          details.airline           = airline.trim();
+        if (departureAirport.trim()) details.departure_airport = departureAirport.trim();
+        if (arrivalAirport.trim())   details.arrival_airport   = arrivalAirport.trim();
+        break;
+    }
+
+    // address is a top-level column (hotel only)
+    const address = key === "logistics/hotel" ? (hotelAddress.trim() || null) : null;
 
     const newCard: Card = {
       id: crypto.randomUUID(),
@@ -179,41 +260,50 @@ export default function CreateCardSheet({
       type,
       sub_type: subType,
       title: title.trim(),
-      start_time: null,
-      end_time: null,
+      start_time: startTimeFmt,
+      end_time:   endTimeFmt,
       position: endPosition,
       status: "in_itinerary",
       source_url: null,
       cover_image_url: null,
       lat: null,
       lng: null,
-      address: null,
-      details: {},
+      address,
+      details,
       ai_generated: false,
       created_at: new Date().toISOString(),
     };
 
     const { error } = await supabase.from("cards").insert({
-      id: newCard.id,
-      day_id: dayId,
-      trip_id: tripId,
+      id:         newCard.id,
+      day_id:     dayId,
+      trip_id:    tripId,
       type,
-      sub_type: subType,
-      title: newCard.title,
-      position: endPosition,
-      status: "in_itinerary",
-      details: {},
+      sub_type:   subType,
+      title:      newCard.title,
+      start_time: startTimeFmt,
+      end_time:   endTimeFmt,
+      address,
+      position:   endPosition,
+      status:     "in_itinerary",
+      details,
     });
 
     setSaving(false);
-
-    if (!error) {
-      onCardCreated(newCard);
-    }
-  }, [title, type, subType, saving, dayId, tripId, endPosition, supabase, onCardCreated]);
+    if (!error) onCardCreated(newCard);
+  }, [
+    title, type, subType, startTime, endTime, notes, saving,
+    supplier, meetingPoint, meetingTime, cost, paid,
+    treatment, goal, duration,
+    cuisine, reservation,
+    airline, arrivalAirport, departureAirport,
+    hotelAddress,
+    dayId, tripId, endPosition, supabase, onCardCreated,
+  ]);
 
   const canCreate = title.trim().length > 0 && type !== null;
   const cfg = type ? TYPE_CONFIG[type] : null;
+  const subKey = `${type ?? ""}/${subType ?? ""}`;
 
   return (
     <div
@@ -233,12 +323,12 @@ export default function CreateCardSheet({
         style={{ willChange: "transform" }}
       >
         {/* Drag handle */}
-        <div className="flex justify-center pt-2.5 pb-0 flex-shrink-0 cursor-grab">
+        <div className="flex justify-center pt-2.5 flex-shrink-0 cursor-grab">
           <div className="w-9 h-[3px] rounded-full bg-gray-200" />
         </div>
 
-        {/* Header row */}
-        <div className="flex items-center justify-between px-5 pt-3 pb-4 flex-shrink-0">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pt-3 pb-3 flex-shrink-0">
           <h2 className="text-[17px] font-bold text-gray-900">New card</h2>
           <button
             onClick={onClose}
@@ -256,26 +346,21 @@ export default function CreateCardSheet({
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto px-5 pb-safe">
 
-          {/* Title input */}
-          <div className="mb-5">
-            <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">
-              Title
-            </label>
+          {/* ── Title ── */}
+          <Field label="Title">
             <input
               ref={inputRef}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && canCreate) handleCreate(); }}
               placeholder="Card title…"
-              className="w-full text-[15px] text-gray-900 bg-gray-50 rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-activity placeholder:text-gray-300 transition-colors"
+              className={INPUT_CLS}
             />
-          </div>
+          </Field>
 
-          {/* Type selector */}
-          <div className="mb-5">
-            <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
-              Type
-            </label>
+          {/* ── Type ── */}
+          <div className="mb-4">
+            <label className={LABEL_CLS}>Type</label>
             <div className="grid grid-cols-3 gap-2">
               {(Object.keys(TYPE_CONFIG) as CardType[]).map((t) => {
                 const c = TYPE_CONFIG[t];
@@ -298,12 +383,10 @@ export default function CreateCardSheet({
             </div>
           </div>
 
-          {/* Sub-type selector — shown after type is picked */}
+          {/* ── Sub-type ── */}
           {type && (
-            <div className="mb-5">
-              <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
-                Sub-type
-              </label>
+            <div className="mb-4">
+              <label className={LABEL_CLS}>Sub-type</label>
               <div className="flex flex-wrap gap-2">
                 {SUB_TYPES[type].map(({ value, label }) => {
                   const selected = subType === value;
@@ -325,8 +408,172 @@ export default function CreateCardSheet({
             </div>
           )}
 
-          {/* Create button */}
-          <div className="pb-6">
+          {/* ── Base fields (shown once type is chosen) ── */}
+          {type && (
+            <>
+              {/* Start / End time */}
+              <div className="flex gap-3 mb-4">
+                <div className="flex-1">
+                  <label className={LABEL_CLS}>Start time</label>
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    className={INPUT_CLS}
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className={LABEL_CLS}>End time</label>
+                  <input
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    className={INPUT_CLS}
+                  />
+                </div>
+              </div>
+
+              {/* Notes */}
+              <Field label="Notes">
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Any notes…"
+                  rows={3}
+                  className={`${INPUT_CLS} resize-none`}
+                />
+              </Field>
+            </>
+          )}
+
+          {/* ── Conditional fields ── */}
+
+          {/* activity/guided */}
+          {subKey === "activity/guided" && (
+            <>
+              <Field label="Supplier">
+                <input value={supplier} onChange={(e) => setSupplier(e.target.value)}
+                  placeholder="Tour operator or company" className={INPUT_CLS} />
+              </Field>
+              <Field label="Meeting point">
+                <input value={meetingPoint} onChange={(e) => setMeetingPoint(e.target.value)}
+                  placeholder="Where to meet" className={INPUT_CLS} />
+              </Field>
+              <Field label="Meeting time">
+                <input type="time" value={meetingTime} onChange={(e) => setMeetingTime(e.target.value)}
+                  className={INPUT_CLS} />
+              </Field>
+              <Field label="Cost per person">
+                <input type="number" min="0" step="0.01" value={cost}
+                  onChange={(e) => setCost(e.target.value)}
+                  placeholder="0.00" className={INPUT_CLS} />
+              </Field>
+              <div className="mb-4 flex items-center justify-between">
+                <span className={LABEL_CLS + " mb-0"}>Paid</span>
+                <button
+                  onClick={() => setPaid((v) => !v)}
+                  className={`w-11 h-6 rounded-full transition-colors relative ${paid ? "bg-activity" : "bg-gray-200"}`}
+                  aria-pressed={paid}
+                >
+                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${paid ? "translate-x-5" : "translate-x-0.5"}`} />
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* activity/wellness */}
+          {subKey === "activity/wellness" && (
+            <>
+              <Field label="Supplier">
+                <input value={supplier} onChange={(e) => setSupplier(e.target.value)}
+                  placeholder="Spa or wellness centre" className={INPUT_CLS} />
+              </Field>
+              <Field label="Treatment">
+                <input value={treatment} onChange={(e) => setTreatment(e.target.value)}
+                  placeholder="e.g. Deep tissue massage" className={INPUT_CLS} />
+              </Field>
+              <Field label="Goal">
+                <input value={goal} onChange={(e) => setGoal(e.target.value)}
+                  placeholder="e.g. Relaxation, recovery" className={INPUT_CLS} />
+              </Field>
+              <Field label="Duration (minutes)">
+                <input type="number" min="0" value={duration}
+                  onChange={(e) => setDuration(e.target.value)}
+                  placeholder="60" className={INPUT_CLS} />
+              </Field>
+            </>
+          )}
+
+          {/* food/restaurant */}
+          {subKey === "food/restaurant" && (
+            <>
+              <Field label="Cuisine">
+                <input value={cuisine} onChange={(e) => setCuisine(e.target.value)}
+                  placeholder="e.g. Italian, Japanese" className={INPUT_CLS} />
+              </Field>
+              <Field label="Reservation">
+                <input value={reservation} onChange={(e) => setReservation(e.target.value)}
+                  placeholder="Booking reference or time" className={INPUT_CLS} />
+              </Field>
+            </>
+          )}
+
+          {/* food/fine_dining — same as restaurant */}
+          {subKey === "food/fine_dining" && (
+            <>
+              <Field label="Cuisine">
+                <input value={cuisine} onChange={(e) => setCuisine(e.target.value)}
+                  placeholder="e.g. French, Modern European" className={INPUT_CLS} />
+              </Field>
+              <Field label="Reservation">
+                <input value={reservation} onChange={(e) => setReservation(e.target.value)}
+                  placeholder="Booking reference or time" className={INPUT_CLS} />
+              </Field>
+            </>
+          )}
+
+          {/* logistics/flight_arrival */}
+          {subKey === "logistics/flight_arrival" && (
+            <>
+              <Field label="Airline">
+                <input value={airline} onChange={(e) => setAirline(e.target.value)}
+                  placeholder="e.g. British Airways" className={INPUT_CLS} />
+              </Field>
+              <Field label="Arrival airport">
+                <input value={arrivalAirport} onChange={(e) => setArrivalAirport(e.target.value)}
+                  placeholder="e.g. LHR" className={INPUT_CLS} />
+              </Field>
+            </>
+          )}
+
+          {/* logistics/flight_departure */}
+          {subKey === "logistics/flight_departure" && (
+            <>
+              <Field label="Airline">
+                <input value={airline} onChange={(e) => setAirline(e.target.value)}
+                  placeholder="e.g. British Airways" className={INPUT_CLS} />
+              </Field>
+              <Field label="Departure airport">
+                <input value={departureAirport} onChange={(e) => setDepartureAirport(e.target.value)}
+                  placeholder="e.g. JFK" className={INPUT_CLS} />
+              </Field>
+              <Field label="Arrival airport">
+                <input value={arrivalAirport} onChange={(e) => setArrivalAirport(e.target.value)}
+                  placeholder="e.g. LHR" className={INPUT_CLS} />
+              </Field>
+            </>
+          )}
+
+          {/* logistics/hotel */}
+          {subKey === "logistics/hotel" && (
+            <Field label="Address">
+              <input value={hotelAddress} onChange={(e) => setHotelAddress(e.target.value)}
+                placeholder="Hotel address" className={INPUT_CLS} />
+            </Field>
+          )}
+
+          {/* ── Create button ── */}
+          <div className="pb-8 pt-2">
             <button
               onClick={handleCreate}
               disabled={!canCreate || saving}
