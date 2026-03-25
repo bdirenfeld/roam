@@ -19,7 +19,18 @@ function Row({ icon, label, value }: { icon: string; label: string; value: strin
 }
 
 export default function LogisticsDetail({ card }: Props) {
-  const d = card.details;
+  const d = card.details as {
+    airline?: string;
+    arrival_airport?: string;
+    arrival_time?: string;
+    departure_airport?: string;
+    departure_time?: string;
+    transport_to_accommodation?: string;
+    estimated_accommodation_arrival?: string;
+    leave_accommodation_time?: string;
+    arrive_airport_time?: string;
+    notes?: string;
+  };
   const isArrival = card.sub_type === "flight_arrival";
   const isDeparture = card.sub_type === "flight_departure";
 

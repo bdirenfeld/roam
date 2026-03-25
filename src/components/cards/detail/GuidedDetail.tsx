@@ -10,7 +10,17 @@ interface Props {
 }
 
 export default function GuidedDetail({ card, onSaveDetails }: Props) {
-  const d = card.details;
+  const d = card.details as {
+    supplier?: string;
+    meeting_point?: string;
+    meeting_time?: string;
+    cost_per_person?: number;
+    paid?: boolean;
+    website?: string;
+    confirmation?: string;
+    includes?: string[];
+    notes?: string;
+  };
   const save = (field: string) =>
     onSaveDetails ? (v: string) => onSaveDetails(field, v || null) : undefined;
 

@@ -16,7 +16,10 @@ function fmtTime(t: string | null): string | null {
 }
 
 export default function HotelDetail({ card, onSaveDetails }: Props) {
-  const d = card.details;
+  const d = card.details as {
+    confirmation?: string;
+    notes?: string;
+  };
   const save = (field: string) =>
     onSaveDetails ? (v: string) => onSaveDetails(field, v || null) : undefined;
 

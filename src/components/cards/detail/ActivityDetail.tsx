@@ -3,9 +3,26 @@ import type { Card } from "@/types/database";
 interface Props { card: Card }
 
 export default function ActivityDetail({ card }: Props) {
-  const d = card.details;
-  const flow = d.flow as Array<{ card?: Card }> | undefined;
-  const ai = d.ai_enriched as { energy_level?: string; tips?: string[] } | undefined;
+  const d = card.details as {
+    supplier?: string;
+    meeting_point?: string;
+    meeting_time?: string;
+    cost_per_person?: number;
+    currency?: string;
+    card_used?: string;
+    refundable?: boolean;
+    cancellation_deadline?: string;
+    treatment_type?: string;
+    duration_minutes?: number;
+    goal?: string;
+    prep?: string;
+    flow?: Array<{ card?: Card }>;
+    post?: string;
+    ai_enriched?: { energy_level?: string; tips?: string[] };
+    notes?: string;
+  };
+  const flow = d.flow;
+  const ai = d.ai_enriched;
 
   return (
     <div className="space-y-6">
