@@ -9,7 +9,6 @@ export type PlacementFilter = "all" | "placed" | "unplaced";
 // ── Sub-type groups shown in the sidebar ─────────────────────
 interface SubTypeRow {
   label: string;
-  /** All sub_type values this toggle controls */
   subTypes: string[];
 }
 
@@ -56,6 +55,7 @@ interface Props {
   setActiveSubTypes: (next: Set<string>) => void;
   placementFilter: PlacementFilter;
   setPlacementFilter: (f: PlacementFilter) => void;
+  onCardSelect: (card: Card) => void;
 }
 
 // ── Toggle switch ─────────────────────────────────────────────
@@ -76,17 +76,33 @@ function Toggle({ on, color, onToggle }: { on: boolean; color: string; onToggle:
   );
 }
 
+function formatTime(t: string): string {
+  const [h, m] = t.split(":").map(Number);
+  const p = h >= 12 ? "PM" : "AM";
+  return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, "0")} ${p}`;
+}
+
 export default function MapSidebar({
   cards,
   activeSubTypes,
   setActiveSubTypes,
   placementFilter,
   setPlacementFilter,
+  onCardSelect,
 }: Props) {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   function toggleSection(key: string) {
     setCollapsedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) { next.delete(key); } else { next.add(key); }
+      return next;
+    });
+  }
+
+  function toggleExpandRow(key: string) {
+    setExpandedRows((prev) => {
       const next = new Set(prev);
       if (next.has(key)) { next.delete(key); } else { next.add(key); }
       return next;
@@ -107,8 +123,15 @@ export default function MapSidebar({
     setActiveSubTypes(next);
   }
 
-  function countForRow(row: SubTypeRow): number {
-    return cards.filter((c) => c.sub_type && row.subTypes.includes(c.sub_type)).length;
+  // Reactive: filter cards by placement before computing counts + lists
+  const filteredCards = cards.filter((c) => {
+    if (placementFilter === "placed")   return c.status === "in_itinerary";
+    if (placementFilter === "unplaced") return c.status === "interested";
+    return true;
+  });
+
+  function cardsForRow(row: SubTypeRow): Card[] {
+    return filteredCards.filter((c) => c.sub_type && row.subTypes.includes(c.sub_type));
   }
 
   const PLACEMENT_OPTIONS: { value: PlacementFilter; label: string }[] = [
@@ -119,7 +142,7 @@ export default function MapSidebar({
 
   return (
     <div className="flex flex-col h-full">
-      {/* ── Header ── */}
+      {/* ── Placement filter ── */}
       <div className="px-5 pt-5 pb-4 border-b border-gray-100 flex-shrink-0">
         <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-3">Status</p>
         <div className="flex rounded-xl overflow-hidden border border-gray-100">
@@ -142,55 +165,99 @@ export default function MapSidebar({
       {/* ── Layer groups ── */}
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6">
         {GROUPS.map((group) => {
-          const collapsed = collapsedSections.has(group.label);
+          const sectionCollapsed = collapsedSections.has(group.label);
           return (
             <div key={group.label}>
-              {/* Collapsible group header */}
+              {/* Collapsible section header */}
               <button
                 className="flex items-center gap-2 mb-3 w-full hover:opacity-70 transition-opacity"
                 onClick={() => toggleSection(group.label)}
               >
-                <span
-                  className="w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ background: group.color }}
-                />
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: group.color }} />
                 <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide flex-1 text-left">
                   {group.label}
                 </p>
                 <ChevronDown
-                  className={`w-3 h-3 text-gray-400 transition-transform duration-200 ${collapsed ? "-rotate-90" : ""}`}
+                  className={`w-3 h-3 text-gray-400 transition-transform duration-200 ${sectionCollapsed ? "-rotate-90" : ""}`}
                 />
               </button>
 
-              {/* Toggle rows */}
-              {!collapsed && (
-                <div className="space-y-1">
+              {/* Sub-type rows */}
+              {!sectionCollapsed && (
+                <div className="space-y-0.5">
                   {group.rows.map((row) => {
-                    const on    = isRowOn(row);
-                    const count = countForRow(row);
+                    const on       = isRowOn(row);
+                    const rowCards = cardsForRow(row);
+                    const count    = rowCards.length;
+                    const expanded = expandedRows.has(row.label);
+
                     return (
-                      <div
-                        key={row.label}
-                        className="flex items-center justify-between gap-3 py-2 px-3 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer"
-                        onClick={() => toggleRow(row)}
-                      >
-                        <Toggle on={on} color={group.color} onToggle={() => toggleRow(row)} />
-                        <span
-                          className="flex-1 text-[13px] font-medium"
-                          style={{ color: on ? "#111827" : "#9CA3AF" }}
-                        >
-                          {row.label}
-                        </span>
-                        {count > 0 && (
-                          <span
-                            className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full min-w-[20px] text-center"
-                            style={{
-                              background: on ? `${group.color}18` : "#F3F4F6",
-                              color: on ? group.color : "#9CA3AF",
-                            }}
+                      <div key={row.label} className="py-0.5">
+                        <div className="flex items-center gap-2 px-1">
+                          {/* Toggle — stop propagation so it doesn't expand the row */}
+                          <div onClick={(e) => e.stopPropagation()} className="flex-shrink-0">
+                            <Toggle on={on} color={group.color} onToggle={() => toggleRow(row)} />
+                          </div>
+
+                          {/* Label + count + expand chevron */}
+                          <button
+                            className="flex-1 flex items-center gap-2 py-1.5 px-2 rounded-lg hover:bg-gray-50 transition-colors text-left min-w-0"
+                            onClick={() => { if (count > 0) toggleExpandRow(row.label); }}
                           >
-                            {count}
-                          </span>
+                            <span
+                              className="flex-1 text-[13px] font-medium truncate"
+                              style={{ color: on ? "#111827" : "#9CA3AF" }}
+                            >
+                              {row.label}
+                            </span>
+                            {count > 0 && (
+                              <span
+                                className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full min-w-[20px] text-center flex-shrink-0"
+                                style={{
+                                  background: on ? `${group.color}18` : "#F3F4F6",
+                                  color: on ? group.color : "#9CA3AF",
+                                }}
+                              >
+                                {count}
+                              </span>
+                            )}
+                            {count > 0 && (
+                              <ChevronDown
+                                className={`w-3 h-3 text-gray-300 flex-shrink-0 transition-transform duration-200 ${expanded ? "" : "-rotate-90"}`}
+                              />
+                            )}
+                          </button>
+                        </div>
+
+                        {/* Expanded card list */}
+                        {expanded && (
+                          <div className="mt-1 space-y-px" style={{ paddingLeft: 52, paddingRight: 4 }}>
+                            {rowCards.map((card) => (
+                              <button
+                                key={card.id}
+                                onClick={() => onCardSelect(card)}
+                                className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                              >
+                                {/* Status dot: filled = in_itinerary, hollow = interested */}
+                                <span
+                                  className="w-1.5 h-1.5 rounded-full flex-shrink-0 border"
+                                  style={
+                                    card.status === "in_itinerary"
+                                      ? { background: group.color, borderColor: group.color }
+                                      : { background: "transparent", borderColor: group.color }
+                                  }
+                                />
+                                <span className="flex-1 text-[12px] text-gray-700 truncate leading-snug">
+                                  {card.title}
+                                </span>
+                                {card.start_time && (
+                                  <span className="text-[11px] text-gray-400 flex-shrink-0">
+                                    {formatTime(card.start_time)}
+                                  </span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
                         )}
                       </div>
                     );

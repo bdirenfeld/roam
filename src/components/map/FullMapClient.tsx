@@ -177,6 +177,34 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     MARKERS.set(card.id, { marker: mbMarker, type: card.type, status: card.status, dayId: card.day_id, cardRef });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Sidebar card select: fly to pin + open sheet ─────────────
+  function handleSidebarCardSelect(card: Card) {
+    const map = mapInstRef.current;
+    let lat = card.lat, lng = card.lng;
+    if (lat == null || lng == null) {
+      const d = card.details as Record<string, unknown>;
+      if (typeof d?.lat === "number" && typeof d?.lng === "number") {
+        lat = d.lat as number; lng = d.lng as number;
+      }
+    }
+    if (map && lat != null && lng != null) {
+      map.flyTo({ center: [lng, lat], zoom: 14 });
+    }
+    deselectPin();
+    const entry = MARKERS.get(card.id);
+    if (entry) {
+      const inner = entry.marker.getElement().children[0] as HTMLDivElement | undefined;
+      if (inner) {
+        inner.dataset.selected = "1";
+        inner.style.transform  = "scale(1.15)";
+        selectedInnerRef.current = inner;
+      }
+      setSelectedCard(entry.cardRef.current);
+    } else {
+      setSelectedCard(card);
+    }
+  }
+
   // ── Handle card updates from CardBottomSheet ─────────────────
   const handleCardUpdate = useCallback((updated: Card) => {
     setSelectedCard(updated);
@@ -322,6 +350,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           setActiveSubTypes={handleSubTypesChange}
           placementFilter={placementFilter}
           setPlacementFilter={handlePlacementChange}
+          onCardSelect={handleSidebarCardSelect}
         />
       </aside>
 
