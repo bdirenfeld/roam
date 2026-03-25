@@ -5,9 +5,19 @@ import Link from "next/link";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import CreateCardSheet from "@/components/plan/CreateCardSheet";
 import MapSidebar from "./MapSidebar";
+import PlaceSearch from "./PlaceSearch";
+import AddToTripSheet from "./AddToTripSheet";
+import type { PlaceResult } from "./AddToTripSheet";
 import type { PlacementFilter } from "./MapSidebar";
 import type { Trip, Day, Card, CardType } from "@/types/database";
 import { makePinElement, makePinSVG, PIN_COLORS } from "@/lib/mapPins";
+
+// Purple SVG teardrop pin for search result previews
+const TEMP_PIN_SVG =
+  `<svg width="24" height="32" viewBox="0 0 24 32" xmlns="http://www.w3.org/2000/svg">` +
+  `<path d="M12 32C12 32 2 22 2 12A10 10 0 0 1 22 12C22 22 12 32 12 32Z" fill="#7C3AED" stroke="rgba(255,255,255,0.8)" stroke-width="1"/>` +
+  `<circle cx="12" cy="12" r="4" fill="white"/>` +
+  `</svg>`;
 
 interface Props {
   trip: Trip;
@@ -60,6 +70,9 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
   const [activeSubTypes, setActiveSubTypesState] = useState<Set<string>>(makeInitialSubTypes);
   const [showCreate, setShowCreate]   = useState(false);
   const [createCoords, setCreateCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [pendingPlace, setPendingPlace] = useState<PlaceResult | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tempPinRef = useRef<any>(null);
 
   const hasToken = !!process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
@@ -205,6 +218,58 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     }
   }
 
+  // ── Place search: fetch details, drop temp pin, open sheet ───
+  async function handlePlaceSelect(placeId: string, sessionToken: string) {
+    try {
+      const res  = await fetch(
+        `/api/places/details?place_id=${encodeURIComponent(placeId)}&sessiontoken=${encodeURIComponent(sessionToken)}`,
+      );
+      const data = await res.json();
+      if (!data.result) return;
+      const { result } = data;
+      const lat = result.geometry.location.lat as number;
+      const lng = result.geometry.location.lng as number;
+
+      // Remove stale temp pin
+      if (tempPinRef.current) { tempPinRef.current.remove(); tempPinRef.current = null; }
+
+      // Drop purple preview pin
+      const mb  = mbRef.current;
+      const map = mapInstRef.current;
+      if (mb && map) {
+        const el = document.createElement("div");
+        el.style.cssText = "width:24px;height:32px;cursor:pointer;";
+        el.innerHTML = TEMP_PIN_SVG;
+        tempPinRef.current = new mb.Marker({ element: el, anchor: "bottom" })
+          .setLngLat([lng, lat])
+          .addTo(map);
+        map.flyTo({ center: [lng, lat], zoom: 15 });
+      }
+
+      setPendingPlace({
+        placeId,
+        name:    result.name,
+        address: result.formatted_address ?? "",
+        lat, lng,
+        website: result.website,
+        mapsUrl: result.url,
+      });
+    } catch {
+      // silently ignore network errors
+    }
+  }
+
+  function handleAddToTripClose() {
+    if (tempPinRef.current) { tempPinRef.current.remove(); tempPinRef.current = null; }
+    setPendingPlace(null);
+  }
+
+  function handlePlaceCardCreated(card: Card) {
+    if (tempPinRef.current) { tempPinRef.current.remove(); tempPinRef.current = null; }
+    setPendingPlace(null);
+    addPinToMap(card);
+  }
+
   // ── Handle card updates from CardBottomSheet ─────────────────
   const handleCardUpdate = useCallback((updated: Card) => {
     setSelectedCard(updated);
@@ -329,6 +394,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       ACTIVE_TYPES.add("activity");
       ACTIVE_TYPES.add("food");
       ACTIVE_TYPES.add("logistics");
+      if (tempPinRef.current) { tempPinRef.current.remove(); tempPinRef.current = null; }
       mbRef.current = null;
       if (mapInstRef.current) {
         mapInstRef.current.remove();
@@ -394,6 +460,9 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
             />
           ))}
         </div>
+
+        {/* Place search — sits just left of avatar, manages its own expand state */}
+        <PlaceSearch onPlaceSelect={handlePlaceSelect} />
 
         {/* Avatar — top-right */}
         <Link
@@ -524,6 +593,17 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
               setShowCreate(false);
               addPinToMap(card);
             }}
+          />
+        )}
+
+        {/* Add to Trip sheet — opened after selecting a Google Places result */}
+        {pendingPlace && days.length > 0 && (
+          <AddToTripSheet
+            place={pendingPlace}
+            tripId={trip.id}
+            dayId={days[0].id}
+            onClose={handleAddToTripClose}
+            onCardCreated={handlePlaceCardCreated}
           />
         )}
       </div>
