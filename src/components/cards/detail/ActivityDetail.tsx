@@ -37,10 +37,11 @@ export default function ActivityDetail({ card }: Props) {
       )}
 
       {/* Wellness specific */}
-      {(d.treatment_type || d.duration_minutes) && (
+      {(d.treatment_type || d.duration_minutes || d.goal) && (
         <Section label="Treatment">
           {d.treatment_type && <Row icon="💆" label="Type" value={d.treatment_type as string} />}
           {d.duration_minutes && <Row icon="⏱️" label="Duration" value={`${d.duration_minutes as number} minutes`} />}
+          {d.goal && <Row icon="🎯" label="Goal" value={d.goal as string} />}
         </Section>
       )}
 
@@ -90,6 +91,14 @@ export default function ActivityDetail({ card }: Props) {
         <div>
           <SectionLabel>After</SectionLabel>
           <p className="text-sm text-gray-700 mt-1.5">{d.post as string}</p>
+        </div>
+      )}
+
+      {/* Notes */}
+      {d.notes && (
+        <div>
+          <SectionLabel>Notes</SectionLabel>
+          <p className="text-sm text-gray-700 mt-1.5 leading-relaxed">{d.notes as string}</p>
         </div>
       )}
 

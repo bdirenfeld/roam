@@ -43,6 +43,9 @@ export default function LogisticsDetail({ card }: Props) {
             {isDeparture && d.departure_time && (
               <Row icon="🕐" label="Take off" value={d.departure_time as string} />
             )}
+            {isDeparture && d.arrival_airport && (
+              <Row icon="🛬" label="Arriving at" value={d.arrival_airport as string} />
+            )}
           </div>
         </div>
       )}
@@ -75,6 +78,13 @@ export default function LogisticsDetail({ card }: Props) {
               <TimelineRow time={d.departure_time as string} label={`${(d.airline as string) ?? "Flight"} departs`} last />
             )}
           </div>
+        </div>
+      )}
+      {/* Notes */}
+      {d.notes && (
+        <div>
+          <SectionLabel>Notes</SectionLabel>
+          <p className="text-sm text-gray-700 mt-1.5 leading-relaxed">{d.notes as string}</p>
         </div>
       )}
     </div>

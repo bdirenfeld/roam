@@ -15,6 +15,7 @@ import GuidedDetail from "./detail/GuidedDetail";
 // Legacy fallback components (for sub_types not yet migrated)
 import LogisticsDetail from "./detail/LogisticsDetail";
 import ActivityDetail from "./detail/ActivityDetail";
+import HotelDetail from "./detail/HotelDetail";
 
 interface Props {
   card: Card;
@@ -259,6 +260,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate }: Props) 
       // Legacy fallbacks
       case "logistics/flight_departure":
         return <LogisticsDetail card={localCard} />;
+      case "logistics/hotel":
+        return <HotelDetail card={localCard} onSaveDetails={saveDetails} />;
       case "activity/wellness":
         return <ActivityDetail card={localCard} />;
       default:

@@ -144,14 +144,29 @@ export default function CreateCardSheet({
   const [goal,      setGoal]      = useState("");
   const [duration,  setDuration]  = useState("");
 
+  // ── food/coffee ──────────────────────────────────────────────
+  const [primaryPick,  setPrimaryPick]  = useState("");
+  const [backupOption, setBackupOption] = useState("");
+  const [coffeeCost,   setCoffeeCost]   = useState("");
+  const [vibeEnergy,   setVibeEnergy]   = useState("");
+
+  // ── food/cocktail_bar ─────────────────────────────────────────
+  const [cocktailBarAddress, setCocktailBarAddress] = useState("");
+  const [cocktailBarWebsite, setCocktailBarWebsite] = useState("");
+
   // ── food/restaurant ──────────────────────────────────────────
-  const [cuisine,     setCuisine]     = useState("");
-  const [reservation, setReservation] = useState("");
+  const [cuisine,       setCuisine]       = useState("");
+  const [reservation,   setReservation]   = useState("");
+  const [estimatedCost, setEstimatedCost] = useState("");
+  const [orderPlan,     setOrderPlan]     = useState("");
 
   // ── logistics/flight ─────────────────────────────────────────
   const [airline,          setAirline]          = useState("");
   const [arrivalAirport,   setArrivalAirport]   = useState("");
   const [departureAirport, setDepartureAirport] = useState("");
+  const [flightNumber,     setFlightNumber]     = useState("");
+  const [terminal,         setTerminal]         = useState("");
+  const [confirmation,     setConfirmation]     = useState("");
 
   // ── logistics/hotel ──────────────────────────────────────────
   const [hotelAddress, setHotelAddress] = useState("");
@@ -235,13 +250,28 @@ export default function CreateCardSheet({
         if (goal.trim())      details.goal            = goal.trim();
         if (duration.trim())  details.duration_minutes = parseInt(duration, 10);
         break;
+      case "food/coffee":
+        if (primaryPick.trim())  details.primary     = primaryPick.trim();
+        if (backupOption.trim()) details.alternative = backupOption.trim();
+        if (coffeeCost.trim())   details.cost        = coffeeCost.trim();
+        if (vibeEnergy.trim())   details.energy      = vibeEnergy.trim();
+        break;
+      case "food/cocktail_bar":
+        if (cocktailBarWebsite.trim()) details.website = cocktailBarWebsite.trim();
+        break;
       case "food/restaurant":
-        if (cuisine.trim())     details.cuisine     = cuisine.trim();
-        if (reservation.trim()) details.reservation = reservation.trim();
+      case "food/fine_dining":
+        if (cuisine.trim())       details.cuisine        = cuisine.trim();
+        if (reservation.trim())   details.reservation    = reservation.trim();
+        if (estimatedCost.trim()) details.estimated_cost = estimatedCost.trim();
+        if (orderPlan.trim())     details.order_plan     = orderPlan.trim();
         break;
       case "logistics/flight_arrival":
-        if (airline.trim())        details.airline        = airline.trim();
+        if (airline.trim())        details.airline         = airline.trim();
         if (arrivalAirport.trim()) details.arrival_airport = arrivalAirport.trim();
+        if (flightNumber.trim())   details.flight_number   = flightNumber.trim();
+        if (terminal.trim())       details.terminal        = terminal.trim();
+        if (confirmation.trim())   details.confirmation    = confirmation.trim();
         break;
       case "logistics/flight_departure":
         if (airline.trim())          details.airline           = airline.trim();
@@ -250,8 +280,11 @@ export default function CreateCardSheet({
         break;
     }
 
-    // address is a top-level column (hotel only)
-    const address = key === "logistics/hotel" ? (hotelAddress.trim() || null) : null;
+    // address is a top-level column (hotel and cocktail_bar)
+    const address =
+      key === "logistics/hotel"  ? (hotelAddress.trim() || null) :
+      key === "food/cocktail_bar" ? (cocktailBarAddress.trim() || null) :
+      null;
 
     const newCard: Card = {
       id: crypto.randomUUID(),
@@ -295,8 +328,10 @@ export default function CreateCardSheet({
     title, type, subType, startTime, endTime, notes, saving,
     supplier, meetingPoint, meetingTime, cost, paid,
     treatment, goal, duration,
-    cuisine, reservation,
-    airline, arrivalAirport, departureAirport,
+    primaryPick, backupOption, coffeeCost, vibeEnergy,
+    cocktailBarAddress, cocktailBarWebsite,
+    cuisine, reservation, estimatedCost, orderPlan,
+    airline, arrivalAirport, departureAirport, flightNumber, terminal, confirmation,
     hotelAddress,
     dayId, tripId, endPosition, supabase, onCardCreated,
   ]);
@@ -411,10 +446,12 @@ export default function CreateCardSheet({
           {/* ── Base fields (shown once type is chosen) ── */}
           {type && (
             <>
-              {/* Start / End time */}
+              {/* Start / End time (relabelled for hotel) */}
               <div className="flex gap-3 mb-4">
                 <div className="flex-1">
-                  <label className={LABEL_CLS}>Start time</label>
+                  <label className={LABEL_CLS}>
+                    {subKey === "logistics/hotel" ? "Check-in time" : "Start time"}
+                  </label>
                   <input
                     type="time"
                     value={startTime}
@@ -423,7 +460,9 @@ export default function CreateCardSheet({
                   />
                 </div>
                 <div className="flex-1">
-                  <label className={LABEL_CLS}>End time</label>
+                  <label className={LABEL_CLS}>
+                    {subKey === "logistics/hotel" ? "Check-out time" : "End time"}
+                  </label>
                   <input
                     type="time"
                     value={endTime}
@@ -481,6 +520,42 @@ export default function CreateCardSheet({
             </>
           )}
 
+          {/* food/coffee */}
+          {subKey === "food/coffee" && (
+            <>
+              <Field label="Primary pick">
+                <input value={primaryPick} onChange={(e) => setPrimaryPick(e.target.value)}
+                  placeholder="Your first-choice café" className={INPUT_CLS} />
+              </Field>
+              <Field label="Backup option">
+                <input value={backupOption} onChange={(e) => setBackupOption(e.target.value)}
+                  placeholder="Alternative if first is closed" className={INPUT_CLS} />
+              </Field>
+              <Field label="Cost">
+                <input value={coffeeCost} onChange={(e) => setCoffeeCost(e.target.value)}
+                  placeholder="e.g. €4–6 pp" className={INPUT_CLS} />
+              </Field>
+              <Field label="Vibe / energy">
+                <input value={vibeEnergy} onChange={(e) => setVibeEnergy(e.target.value)}
+                  placeholder="e.g. quiet, busy, standing bar" className={INPUT_CLS} />
+              </Field>
+            </>
+          )}
+
+          {/* food/cocktail_bar */}
+          {subKey === "food/cocktail_bar" && (
+            <>
+              <Field label="Address">
+                <input value={cocktailBarAddress} onChange={(e) => setCocktailBarAddress(e.target.value)}
+                  placeholder="Bar address" className={INPUT_CLS} />
+              </Field>
+              <Field label="Website">
+                <input value={cocktailBarWebsite} onChange={(e) => setCocktailBarWebsite(e.target.value)}
+                  placeholder="https://…" className={INPUT_CLS} />
+              </Field>
+            </>
+          )}
+
           {/* activity/wellness */}
           {subKey === "activity/wellness" && (
             <>
@@ -504,30 +579,26 @@ export default function CreateCardSheet({
             </>
           )}
 
-          {/* food/restaurant */}
-          {subKey === "food/restaurant" && (
+          {/* food/restaurant + food/fine_dining */}
+          {(subKey === "food/restaurant" || subKey === "food/fine_dining") && (
             <>
               <Field label="Cuisine">
                 <input value={cuisine} onChange={(e) => setCuisine(e.target.value)}
-                  placeholder="e.g. Italian, Japanese" className={INPUT_CLS} />
+                  placeholder={subKey === "food/fine_dining" ? "e.g. French, Modern European" : "e.g. Italian, Japanese"}
+                  className={INPUT_CLS} />
               </Field>
               <Field label="Reservation">
                 <input value={reservation} onChange={(e) => setReservation(e.target.value)}
                   placeholder="Booking reference or time" className={INPUT_CLS} />
               </Field>
-            </>
-          )}
-
-          {/* food/fine_dining — same as restaurant */}
-          {subKey === "food/fine_dining" && (
-            <>
-              <Field label="Cuisine">
-                <input value={cuisine} onChange={(e) => setCuisine(e.target.value)}
-                  placeholder="e.g. French, Modern European" className={INPUT_CLS} />
+              <Field label="Estimated cost">
+                <input value={estimatedCost} onChange={(e) => setEstimatedCost(e.target.value)}
+                  placeholder="e.g. €35–50 pp" className={INPUT_CLS} />
               </Field>
-              <Field label="Reservation">
-                <input value={reservation} onChange={(e) => setReservation(e.target.value)}
-                  placeholder="Booking reference or time" className={INPUT_CLS} />
+              <Field label="Order plan">
+                <textarea value={orderPlan} onChange={(e) => setOrderPlan(e.target.value)}
+                  placeholder="What to order…" rows={2}
+                  className={`${INPUT_CLS} resize-none`} />
               </Field>
             </>
           )}
@@ -542,6 +613,18 @@ export default function CreateCardSheet({
               <Field label="Arrival airport">
                 <input value={arrivalAirport} onChange={(e) => setArrivalAirport(e.target.value)}
                   placeholder="e.g. LHR" className={INPUT_CLS} />
+              </Field>
+              <Field label="Flight number">
+                <input value={flightNumber} onChange={(e) => setFlightNumber(e.target.value)}
+                  placeholder="e.g. AZ 123" className={INPUT_CLS} />
+              </Field>
+              <Field label="Terminal">
+                <input value={terminal} onChange={(e) => setTerminal(e.target.value)}
+                  placeholder="e.g. T2" className={INPUT_CLS} />
+              </Field>
+              <Field label="Confirmation">
+                <input value={confirmation} onChange={(e) => setConfirmation(e.target.value)}
+                  placeholder="Booking reference" className={INPUT_CLS} />
               </Field>
             </>
           )}

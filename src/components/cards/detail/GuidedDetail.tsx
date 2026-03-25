@@ -41,6 +41,42 @@ export default function GuidedDetail({ card, onSaveDetails }: Props) {
             onSave={save("meeting_point")}
           />
           <FieldRow
+            icon="⏰"
+            label="Meet by"
+            value={d.meeting_time as string | undefined}
+            placeholder="Add meeting time…"
+            onSave={save("meeting_time")}
+          />
+          <FieldRow
+            icon="💳"
+            label="Cost per person"
+            value={d.cost_per_person != null ? String(d.cost_per_person) : undefined}
+            placeholder="Add cost…"
+            onSave={
+              onSaveDetails
+                ? (v) => onSaveDetails("cost_per_person", v ? parseFloat(v) : null)
+                : undefined
+            }
+          />
+          <div className="flex items-start gap-3">
+            <span className="flex-shrink-0 w-5 text-center text-base mt-0.5 leading-none">💰</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Paid</p>
+              {onSaveDetails ? (
+                <button
+                  onClick={() => onSaveDetails("paid", !(d.paid as boolean))}
+                  className={`text-sm font-medium rounded-full px-2.5 py-0.5 transition-colors ${
+                    d.paid ? "bg-teal-50 text-activity" : "bg-gray-100 text-gray-400"
+                  }`}
+                >
+                  {d.paid ? "Yes" : "No"}
+                </button>
+              ) : (
+                <p className="text-sm font-medium text-gray-800">{d.paid ? "Yes" : "No"}</p>
+              )}
+            </div>
+          </div>
+          <FieldRow
             icon="🔗"
             label="Website"
             value={d.website as string | undefined}
