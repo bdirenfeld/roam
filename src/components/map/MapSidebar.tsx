@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { ChevronDown } from "lucide-react";
 import type { Card } from "@/types/database";
 
 export type PlacementFilter = "all" | "placed" | "unplaced";
@@ -61,7 +63,7 @@ function Toggle({ on, color, onToggle }: { on: boolean; color: string; onToggle:
   return (
     <button
       onClick={onToggle}
-      className="relative flex-shrink-0 w-9 h-5 rounded-full transition-colors duration-200"
+      className="relative flex-shrink-0 w-9 h-5 rounded-full overflow-hidden transition-colors duration-200"
       style={{ background: on ? color : "#D1D5DB" }}
       aria-checked={on}
       role="switch"
@@ -81,6 +83,16 @@ export default function MapSidebar({
   placementFilter,
   setPlacementFilter,
 }: Props) {
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+
+  function toggleSection(key: string) {
+    setCollapsedSections((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  }
+
   function isRowOn(row: SubTypeRow): boolean {
     return row.subTypes.some((st) => activeSubTypes.has(st));
   }
@@ -129,54 +141,65 @@ export default function MapSidebar({
 
       {/* ── Layer groups ── */}
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6">
-        {GROUPS.map((group) => (
-          <div key={group.label}>
-            {/* Group header */}
-            <div className="flex items-center gap-2 mb-3">
-              <span
-                className="w-2 h-2 rounded-full flex-shrink-0"
-                style={{ background: group.color }}
-              />
-              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
-                {group.label}
-              </p>
-            </div>
+        {GROUPS.map((group) => {
+          const collapsed = collapsedSections.has(group.label);
+          return (
+            <div key={group.label}>
+              {/* Collapsible group header */}
+              <button
+                className="flex items-center gap-2 mb-3 w-full hover:opacity-70 transition-opacity"
+                onClick={() => toggleSection(group.label)}
+              >
+                <span
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ background: group.color }}
+                />
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide flex-1 text-left">
+                  {group.label}
+                </p>
+                <ChevronDown
+                  className={`w-3 h-3 text-gray-400 transition-transform duration-200 ${collapsed ? "-rotate-90" : ""}`}
+                />
+              </button>
 
-            {/* Toggle rows */}
-            <div className="space-y-1">
-              {group.rows.map((row) => {
-                const on    = isRowOn(row);
-                const count = countForRow(row);
-                return (
-                  <div
-                    key={row.label}
-                    className="flex items-center justify-between gap-3 py-2 px-3 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer"
-                    onClick={() => toggleRow(row)}
-                  >
-                    <Toggle on={on} color={group.color} onToggle={() => toggleRow(row)} />
-                    <span
-                      className="flex-1 text-[13px] font-medium"
-                      style={{ color: on ? "#111827" : "#9CA3AF" }}
-                    >
-                      {row.label}
-                    </span>
-                    {count > 0 && (
-                      <span
-                        className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full min-w-[20px] text-center"
-                        style={{
-                          background: on ? `${group.color}18` : "#F3F4F6",
-                          color: on ? group.color : "#9CA3AF",
-                        }}
+              {/* Toggle rows */}
+              {!collapsed && (
+                <div className="space-y-1">
+                  {group.rows.map((row) => {
+                    const on    = isRowOn(row);
+                    const count = countForRow(row);
+                    return (
+                      <div
+                        key={row.label}
+                        className="flex items-center justify-between gap-3 py-2 px-3 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer"
+                        onClick={() => toggleRow(row)}
                       >
-                        {count}
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
+                        <Toggle on={on} color={group.color} onToggle={() => toggleRow(row)} />
+                        <span
+                          className="flex-1 text-[13px] font-medium"
+                          style={{ color: on ? "#111827" : "#9CA3AF" }}
+                        >
+                          {row.label}
+                        </span>
+                        {count > 0 && (
+                          <span
+                            className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full min-w-[20px] text-center"
+                            style={{
+                              background: on ? `${group.color}18` : "#F3F4F6",
+                              color: on ? group.color : "#9CA3AF",
+                            }}
+                          >
+                            {count}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
