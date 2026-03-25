@@ -10,7 +10,7 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const isFullWidthPage = pathname?.endsWith("/plan");
+  const isFullWidthPage = pathname?.endsWith("/plan") || pathname?.endsWith("/map");
 
   return isFullWidthPage ? (
     <>
