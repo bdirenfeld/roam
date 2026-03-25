@@ -10,6 +10,8 @@ const SUB_TYPES: Record<CardType, { value: string; label: string }[]> = {
     { value: "self_directed", label: "Self-directed" },
     { value: "guided",        label: "Guided" },
     { value: "wellness",      label: "Wellness" },
+    { value: "event",         label: "Event" },
+    { value: "challenge",     label: "Challenge" },
   ],
   food: [
     { value: "restaurant",   label: "Restaurant" },
@@ -139,6 +141,9 @@ export default function CreateCardSheet({
   const [cost,         setCost]         = useState("");
   const [paid,         setPaid]         = useState(false);
 
+  // ── activity/event ───────────────────────────────────────────
+  const [eventVenue, setEventVenue] = useState("");
+
   // ── activity/wellness ────────────────────────────────────────
   const [treatment, setTreatment] = useState("");
   const [goal,      setGoal]      = useState("");
@@ -244,6 +249,12 @@ export default function CreateCardSheet({
         if (cost.trim())         details.cost_per_person = parseFloat(cost);
         details.paid = paid;
         break;
+      case "activity/event":
+        if (eventVenue.trim()) details.venue = eventVenue.trim();
+        break;
+      case "activity/challenge":
+        if (supplier.trim()) details.supplier = supplier.trim();
+        break;
       case "activity/wellness":
         if (supplier.trim())  details.supplier        = supplier.trim();
         if (treatment.trim()) details.treatment_type  = treatment.trim();
@@ -327,6 +338,7 @@ export default function CreateCardSheet({
   }, [
     title, type, subType, startTime, endTime, notes, saving,
     supplier, meetingPoint, meetingTime, cost, paid,
+    eventVenue,
     treatment, goal, duration,
     primaryPick, backupOption, coffeeCost, vibeEnergy,
     cocktailBarAddress, cocktailBarWebsite,
@@ -577,6 +589,22 @@ export default function CreateCardSheet({
                   placeholder="60" className={INPUT_CLS} />
               </Field>
             </>
+          )}
+
+          {/* activity/event */}
+          {subKey === "activity/event" && (
+            <Field label="Venue">
+              <input value={eventVenue} onChange={(e) => setEventVenue(e.target.value)}
+                placeholder="Venue or location" className={INPUT_CLS} />
+            </Field>
+          )}
+
+          {/* activity/challenge */}
+          {subKey === "activity/challenge" && (
+            <Field label="Organizer">
+              <input value={supplier} onChange={(e) => setSupplier(e.target.value)}
+                placeholder="Race organizer or company" className={INPUT_CLS} />
+            </Field>
           )}
 
           {/* food/restaurant + food/fine_dining */}

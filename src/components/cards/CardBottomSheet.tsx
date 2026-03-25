@@ -11,6 +11,8 @@ import CocktailBarDetail from "./detail/CocktailBarDetail";
 import RestaurantDetail from "./detail/RestaurantDetail";
 import SelfDirectedDetail from "./detail/SelfDirectedDetail";
 import GuidedDetail from "./detail/GuidedDetail";
+import EventDetail from "./detail/EventDetail";
+import ChallengeDetail from "./detail/ChallengeDetail";
 
 // Legacy fallback components (for sub_types not yet migrated)
 import LogisticsDetail from "./detail/LogisticsDetail";
@@ -32,6 +34,8 @@ const SUB_TYPE_LABEL: Record<string, string> = {
   guided:           "Guided Experience",
   hosted:           "Guided Experience",
   wellness:         "Wellness",
+  event:            "Event",
+  challenge:        "Challenge",
   restaurant:       "Restaurant",
   coffee:           "Coffee",
   coffee_dessert:   "Coffee & Pastry",
@@ -257,6 +261,10 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate }: Props) 
       case "activity/guided":
       case "activity/hosted":
         return <GuidedDetail card={localCard} onSaveDetails={saveDetails} />;
+      case "activity/event":
+        return <EventDetail card={localCard} onSaveDetails={saveDetails} />;
+      case "activity/challenge":
+        return <ChallengeDetail card={localCard} onSaveDetails={saveDetails} />;
       // Legacy fallbacks
       case "logistics/flight_departure":
         return <LogisticsDetail card={localCard} />;

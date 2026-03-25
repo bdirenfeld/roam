@@ -11,7 +11,11 @@ interface Props {
 }
 
 export default function SelfDirectedDetail({ card, onSaveDetails }: Props) {
-  const d = card.details;
+  const d = card.details as {
+    flow?: unknown[];
+    tips?: string[];
+    notes?: string;
+  };
   const save = (field: string) =>
     onSaveDetails ? (v: string) => onSaveDetails(field, v || null) : undefined;
 
