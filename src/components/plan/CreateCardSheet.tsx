@@ -111,6 +111,11 @@ interface Props {
   endPosition: number;
   onClose: () => void;
   onCardCreated: (card: Card) => void;
+  /** Pre-seed lat/lng when opening from map FAB */
+  initialLat?: number;
+  initialLng?: number;
+  /** Override default status (default: "in_itinerary") */
+  initialStatus?: Card["status"];
 }
 
 export default function CreateCardSheet({
@@ -119,6 +124,9 @@ export default function CreateCardSheet({
   endPosition,
   onClose,
   onCardCreated,
+  initialLat,
+  initialLng,
+  initialStatus,
 }: Props) {
   const supabase   = createClient();
   const sheetRef   = useRef<HTMLDivElement>(null);
@@ -297,6 +305,8 @@ export default function CreateCardSheet({
       key === "food/cocktail_bar" ? (cocktailBarAddress.trim() || null) :
       null;
 
+    const cardStatus = initialStatus ?? "in_itinerary";
+
     const newCard: Card = {
       id: crypto.randomUUID(),
       day_id: dayId,
@@ -307,11 +317,11 @@ export default function CreateCardSheet({
       start_time: startTimeFmt,
       end_time:   endTimeFmt,
       position: endPosition,
-      status: "in_itinerary",
+      status: cardStatus,
       source_url: null,
       cover_image_url: null,
-      lat: null,
-      lng: null,
+      lat: initialLat ?? null,
+      lng: initialLng ?? null,
       address,
       details,
       ai_generated: false,
@@ -329,7 +339,9 @@ export default function CreateCardSheet({
       end_time:   endTimeFmt,
       address,
       position:   endPosition,
-      status:     "in_itinerary",
+      status:     cardStatus,
+      lat:        initialLat ?? null,
+      lng:        initialLng ?? null,
       details,
     });
 
@@ -345,7 +357,7 @@ export default function CreateCardSheet({
     cuisine, reservation, estimatedCost, orderPlan,
     airline, arrivalAirport, departureAirport, flightNumber, terminal, confirmation,
     hotelAddress,
-    dayId, tripId, endPosition, supabase, onCardCreated,
+    dayId, tripId, endPosition, initialLat, initialLng, initialStatus, supabase, onCardCreated,
   ]);
 
   const canCreate = title.trim().length > 0 && type !== null;

@@ -26,7 +26,7 @@ export default async function TripMapPage({ params }: Props) {
       .from("cards")
       .select("*")
       .eq("trip_id", tripId)
-      .eq("status", "in_itinerary")
+      .neq("status", "cut")
       .order("day_id")
       .order("position"),
     user
