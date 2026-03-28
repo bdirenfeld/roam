@@ -154,35 +154,39 @@ export default function PlaceSearch({ onPlaceSelect }: Props) {
 
         {/* Autocomplete dropdown */}
         {predictions.length > 0 && (
-          <div className="mt-2 bg-white rounded-xl border border-gray-100 overflow-hidden" style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.10)" }}>
+          <ul
+            role="listbox"
+            className="mt-2 bg-white rounded-xl border border-gray-100 overflow-hidden"
+            style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.10)" }}
+          >
             {predictions.map((p, i) => (
-              <button
-                key={p.place_id}
-                onClick={() => handleSelect(p)}
-                className={`w-full flex items-start gap-3 px-4 py-3 hover:bg-gray-50 active:bg-gray-100 transition-colors text-left ${
-                  i < predictions.length - 1 ? "border-b border-gray-50" : ""
-                }`}
-              >
-                {/* Pin icon */}
-                <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                    <circle cx="12" cy="10" r="3" />
-                  </svg>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-medium text-gray-900 leading-snug truncate">
-                    {p.structured_formatting.main_text}
-                  </p>
-                  {p.structured_formatting.secondary_text && (
-                    <p className="text-[12px] text-gray-400 leading-snug truncate mt-0.5">
-                      {p.structured_formatting.secondary_text}
-                    </p>
-                  )}
-                </div>
-              </button>
+              <li key={p.place_id} role="option" aria-selected="false">
+                <button
+                  onClick={() => handleSelect(p)}
+                  className={`w-full flex items-start gap-3 px-4 py-3 hover:bg-gray-50 active:bg-gray-100 transition-colors text-left ${
+                    i < predictions.length - 1 ? "border-b border-gray-50" : ""
+                  }`}
+                >
+                  <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                      <circle cx="12" cy="10" r="3" />
+                    </svg>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-[13px] font-medium text-gray-900 leading-snug truncate">
+                      {p.structured_formatting.main_text}
+                    </span>
+                    {p.structured_formatting.secondary_text && (
+                      <span className="block text-[12px] text-gray-400 leading-snug truncate mt-0.5">
+                        {p.structured_formatting.secondary_text}
+                      </span>
+                    )}
+                  </div>
+                </button>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
       </div>
     </>
