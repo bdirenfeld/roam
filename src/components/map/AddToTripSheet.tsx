@@ -12,6 +12,12 @@ export interface PlaceResult {
   lng: number;
   website?: string;
   mapsUrl?: string;
+  coverPhotoUrl?: string;
+  rating?: number;
+  userRatingsTotal?: number;
+  phone?: string;
+  openNow?: boolean;
+  todayHours?: string;
 }
 
 interface Props {
@@ -68,6 +74,21 @@ const SUB_TYPES: Record<CardType, { value: string; label: string }[]> = {
 
 const LABEL_CLS = "block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide";
 const INPUT_CLS = "w-full text-[15px] text-gray-900 bg-gray-50 rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-activity placeholder:text-gray-300 transition-colors";
+
+function StarRating({ rating }: { rating: number }) {
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((i) => {
+        const filled = rating >= i - 0.25;
+        return (
+          <svg key={i} width="12" height="12" viewBox="0 0 24 24" fill={filled ? "#F59E0B" : "none"} stroke="#F59E0B" strokeWidth="1.5">
+            <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" />
+          </svg>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCreated }: Props) {
   const supabase = createClient();
@@ -137,6 +158,8 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
     const details: Record<string, unknown> = {};
     if (notes.trim())    details.notes   = notes.trim();
     if (place.website)   details.website = place.website;
+    if (place.phone)     details.phone   = place.phone;
+    if (place.rating)    details.rating  = place.rating;
 
     const newCard: Card = {
       id:              crypto.randomUUID(),
@@ -150,7 +173,7 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
       position:        0,
       status:          "interested",
       source_url:      place.mapsUrl ?? null,
-      cover_image_url: null,
+      cover_image_url: place.coverPhotoUrl ?? null,
       lat:             place.lat,
       lng:             place.lng,
       address:         place.address,
@@ -160,20 +183,21 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
     };
 
     const { error } = await supabase.from("cards").insert({
-      id:         newCard.id,
-      day_id:     dayId,
-      trip_id:    tripId,
+      id:              newCard.id,
+      day_id:          dayId,
+      trip_id:         tripId,
       type,
-      sub_type:   subType,
-      title:      newCard.title,
-      start_time: startTimeFmt,
-      end_time:   endTimeFmt,
-      position:   0,
-      status:     "interested",
-      source_url: place.mapsUrl ?? null,
-      lat:        place.lat,
-      lng:        place.lng,
-      address:    place.address,
+      sub_type:        subType,
+      title:           newCard.title,
+      start_time:      startTimeFmt,
+      end_time:        endTimeFmt,
+      position:        0,
+      status:          "interested",
+      source_url:      place.mapsUrl ?? null,
+      cover_image_url: place.coverPhotoUrl ?? null,
+      lat:             place.lat,
+      lng:             place.lng,
+      address:         place.address,
       details,
     });
 
@@ -182,6 +206,7 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
   }, [type, subType, title, startTime, endTime, notes, saving, place, dayId, tripId, supabase, onCardCreated]);
 
   const cfg = type ? TYPE_CONFIG[type] : null;
+  const hasPreviewInfo = place.rating !== undefined || place.phone || place.openNow !== undefined || place.todayHours;
 
   return (
     <div
@@ -200,6 +225,14 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
         className="relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet max-h-[92dvh] flex flex-col animate-in slide-in-from-bottom duration-300"
         style={{ willChange: "transform" }}
       >
+        {/* Cover photo */}
+        {place.coverPhotoUrl && (
+          <div className="flex-shrink-0 overflow-hidden rounded-t-2xl" style={{ height: 160 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={place.coverPhotoUrl} alt={place.name} className="w-full h-full object-cover" />
+          </div>
+        )}
+
         {/* Drag handle */}
         <div className="flex justify-center pt-2.5 flex-shrink-0 cursor-grab">
           <div className="w-9 h-[3px] rounded-full bg-gray-200" />
@@ -233,14 +266,49 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
             />
           </div>
 
-          {/* Address (read-only) */}
-          <div className="mb-4 flex items-start gap-2 px-1">
+          {/* Address */}
+          <div className="mb-3 flex items-start gap-2 px-1">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 flex-shrink-0">
               <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
               <circle cx="12" cy="10" r="3" />
             </svg>
             <p className="text-[13px] text-gray-500 leading-snug">{place.address}</p>
           </div>
+
+          {/* Rich preview: rating, hours, phone */}
+          {hasPreviewInfo && (
+            <div className="mb-4 bg-gray-50 rounded-xl p-3 space-y-2">
+              {place.rating !== undefined && (
+                <div className="flex items-center gap-2">
+                  <StarRating rating={place.rating} />
+                  <span className="text-[13px] font-semibold text-gray-700">{place.rating.toFixed(1)}</span>
+                  {place.userRatingsTotal !== undefined && (
+                    <span className="text-[12px] text-gray-400">({place.userRatingsTotal.toLocaleString()})</span>
+                  )}
+                </div>
+              )}
+              {(place.openNow !== undefined || place.todayHours) && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  {place.openNow !== undefined && (
+                    <span className={`text-[11px] font-bold ${place.openNow ? "text-green-600" : "text-red-500"}`}>
+                      {place.openNow ? "Open now" : "Closed"}
+                    </span>
+                  )}
+                  {place.todayHours && (
+                    <span className="text-[12px] text-gray-500">{place.todayHours}</span>
+                  )}
+                </div>
+              )}
+              {place.phone && (
+                <div className="flex items-center gap-2">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                    <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.5 1.18 2 2 0 012.5 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.91a16 16 0 006.18 6.18l.88-.88a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" />
+                  </svg>
+                  <span className="text-[12px] text-gray-600">{place.phone}</span>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Type selector */}
           <div className="mb-4">
@@ -332,7 +400,7 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
                   : "bg-gray-100 text-gray-300 cursor-not-allowed"
               }`}
             >
-              {saving ? "Saving…" : "Add to Map"}
+              {saving ? "Saving…" : "Save to Map"}
             </button>
           </div>
         </div>

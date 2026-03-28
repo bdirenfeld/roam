@@ -12,11 +12,11 @@ import type { PlacementFilter } from "./MapSidebar";
 import type { Trip, Day, Card, CardType } from "@/types/database";
 import { makePinElement, makePinSVG, PIN_COLORS } from "@/lib/mapPins";
 
-// Purple SVG teardrop pin for search result previews
+// Purple circular pin for search result previews
 const TEMP_PIN_SVG =
-  `<svg width="24" height="32" viewBox="0 0 24 32" xmlns="http://www.w3.org/2000/svg">` +
-  `<path d="M12 32C12 32 2 22 2 12A10 10 0 0 1 22 12C22 22 12 32 12 32Z" fill="#7C3AED" stroke="rgba(255,255,255,0.8)" stroke-width="1"/>` +
-  `<circle cx="12" cy="12" r="4" fill="white"/>` +
+  `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">` +
+  `<circle cx="14" cy="14" r="12" fill="#7C3AED"/>` +
+  `<circle cx="14" cy="14" r="4" fill="white"/>` +
   `</svg>`;
 
 interface Props {
@@ -158,7 +158,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     const { wrapper, inner } = makePinElement(card.type, card.sub_type, card.status);
     inner.title = card.title;
 
-    const mbMarker = new mb.Marker({ element: wrapper, anchor: "bottom" })
+    const mbMarker = new mb.Marker({ element: wrapper, anchor: "center" })
       .setLngLat([lng, lat]);
 
     const subTypeOk =
@@ -230,6 +230,34 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       const lat = result.geometry.location.lat as number;
       const lng = result.geometry.location.lng as number;
 
+      // Resolve cover photo via server-side proxy (keeps API key hidden)
+      let coverPhotoUrl: string | undefined;
+      const photoRef = result.photos?.[0]?.photo_reference as string | undefined;
+      if (photoRef) {
+        try {
+          const photoRes  = await fetch(`/api/places/photo?photo_reference=${encodeURIComponent(photoRef)}&maxwidth=800`);
+          const photoData = await photoRes.json();
+          if (photoData.url) coverPhotoUrl = photoData.url as string;
+        } catch {
+          // best-effort — ignore photo errors
+        }
+      }
+
+      // Parse today's opening hours
+      let openNow: boolean | undefined;
+      let todayHours: string | undefined;
+      if (result.opening_hours) {
+        openNow = result.opening_hours.open_now as boolean | undefined;
+        const weekdayText = result.opening_hours.weekday_text as string[] | undefined;
+        if (weekdayText?.length) {
+          const jsDay = new Date().getDay();               // 0 = Sunday
+          const idx   = jsDay === 0 ? 6 : jsDay - 1;      // weekday_text starts Monday
+          const raw   = weekdayText[idx] ?? "";
+          const sep   = raw.indexOf(": ");
+          todayHours  = sep !== -1 ? raw.slice(sep + 2) : raw;
+        }
+      }
+
       // Remove stale temp pin
       if (tempPinRef.current) { tempPinRef.current.remove(); tempPinRef.current = null; }
 
@@ -238,9 +266,9 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       const map = mapInstRef.current;
       if (mb && map) {
         const el = document.createElement("div");
-        el.style.cssText = "width:24px;height:32px;cursor:pointer;";
+        el.style.cssText = "width:28px;height:28px;cursor:pointer;";
         el.innerHTML = TEMP_PIN_SVG;
-        tempPinRef.current = new mb.Marker({ element: el, anchor: "bottom" })
+        tempPinRef.current = new mb.Marker({ element: el, anchor: "center" })
           .setLngLat([lng, lat])
           .addTo(map);
         map.flyTo({ center: [lng, lat], zoom: 15 });
@@ -248,11 +276,17 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
 
       setPendingPlace({
         placeId,
-        name:    result.name,
-        address: result.formatted_address ?? "",
+        name:             result.name,
+        address:          result.formatted_address ?? "",
         lat, lng,
-        website: result.website,
-        mapsUrl: result.url,
+        website:          result.website,
+        mapsUrl:          result.url,
+        coverPhotoUrl,
+        rating:           result.rating,
+        userRatingsTotal: result.user_ratings_total,
+        phone:            result.formatted_phone_number,
+        openNow,
+        todayHours,
       });
     } catch {
       // silently ignore network errors
@@ -330,7 +364,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           const { wrapper, inner } = makePinElement(card.type, card.sub_type, card.status);
           inner.title = card.title;
 
-          const mbMarker = new mb.Marker({ element: wrapper, anchor: "bottom" })
+          const mbMarker = new mb.Marker({ element: wrapper, anchor: "center" })
             .setLngLat([lng, lat])
             .addTo(map);
 

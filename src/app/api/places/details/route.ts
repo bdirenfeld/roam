@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
   url.searchParams.set("place_id", placeId);
   url.searchParams.set(
     "fields",
-    "name,formatted_address,geometry,website,formatted_phone_number,url",
+    "name,formatted_address,geometry,website,formatted_phone_number,url,photos,rating,user_ratings_total,opening_hours",
   );
   url.searchParams.set("key", key);
   if (sessiontoken) url.searchParams.set("sessiontoken", sessiontoken);
