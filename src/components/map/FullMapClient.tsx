@@ -304,6 +304,28 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     setSelectedCard((prev) => (prev?.id === cardId ? null : prev));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Handle card type/sub-type update from popup editor ───────
+  const handleCardUpdate = useCallback((updatedCard: Card) => {
+    // Remove old marker
+    const entry = MARKERS.get(updatedCard.id);
+    if (entry) { entry.marker.remove(); MARKERS.delete(updatedCard.id); }
+    // Update local state
+    setLocalCards((prev) => prev.map((c) => c.id === updatedCard.id ? updatedCard : c));
+    setSelectedCard(updatedCard);
+    // Re-add pin with new type/icon
+    addPinToMap(updatedCard);
+    // Re-select the new pin element
+    const newEntry = MARKERS.get(updatedCard.id);
+    if (newEntry) {
+      const inner = newEntry.marker.getElement().children[0] as HTMLDivElement | undefined;
+      if (inner) {
+        inner.dataset.selected = "1";
+        inner.style.transform  = "scale(1.4)";
+        selectedInnerRef.current = inner;
+      }
+    }
+  }, [addPinToMap]); // eslint-disable-line react-hooks/exhaustive-deps
+
 
   // ── Map initialisation (runs once) ───────────────────────────
   useEffect(() => {
@@ -525,6 +547,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
             card={selectedCard}
             anchorPos={anchorPos}
             onClose={() => { deselectPin(); setSelectedCard(null); }}
+            onCardUpdate={handleCardUpdate}
           />
         )}
 
