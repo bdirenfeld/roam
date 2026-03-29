@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function POST(req: NextRequest) {
   const { tripId } = await req.json();
-  const supabase = createClient();
+  const supabase = await createClient();
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
 
   // Fetch all cards missing cover_image_url
