@@ -2,7 +2,7 @@ import type { CardType } from "@/types/database";
 
 export const PIN_COLORS: Record<CardType, string> = {
   logistics: "#111827",
-  activity:  "#1E3A5F",
+  activity:  "#2563EB",
   food:      "#7C3AED",
 };
 

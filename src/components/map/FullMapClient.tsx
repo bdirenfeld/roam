@@ -427,6 +427,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       {/* ── Desktop sidebar ── */}
       <aside className="hidden md:flex md:w-[300px] flex-shrink-0 bg-white border-r border-gray-100 overflow-y-auto z-20 flex-col">
         <MapSidebar
+          tripId={trip.id}
           cards={localCards}
           activeSubTypes={activeSubTypes}
           setActiveSubTypes={handleSubTypesChange}
@@ -508,7 +509,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
               setShowCreate(true);
             }}
             className="absolute bottom-5 right-4 w-12 h-12 rounded-full bg-activity text-white flex items-center justify-center active:scale-95 transition-all duration-150"
-            style={{ zIndex: 10, boxShadow: "0 4px 12px rgba(30,58,95,0.4)" }}
+            style={{ zIndex: 10, boxShadow: "0 4px 12px rgba(37,99,235,0.4)" }}
             aria-label="Add card"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">

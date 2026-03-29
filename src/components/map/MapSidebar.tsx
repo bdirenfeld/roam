@@ -22,7 +22,7 @@ interface Group {
 const GROUPS: Group[] = [
   {
     label: "Activity",
-    color: "#1E3A5F",
+    color: "#2563EB",
     typeKey: "activity",
     rows: [
       { label: "Guided",   subTypes: ["guided", "hosted"] },
@@ -51,6 +51,7 @@ const GROUPS: Group[] = [
 ];
 
 interface Props {
+  tripId: string;
   cards: Card[];
   activeSubTypes: Set<string>;
   setActiveSubTypes: (next: Set<string>) => void;
@@ -61,6 +62,7 @@ interface Props {
 }
 
 export default function MapSidebar({
+  tripId,
   cards,
   activeSubTypes,
   setActiveSubTypes,
@@ -301,6 +303,22 @@ export default function MapSidebar({
           );
         })}
       </div>
+
+      {/* ── Enrich button (temporary utility) ── */}
+      <button
+        onClick={async () => {
+          const res = await fetch("/api/places/enrich-trip", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tripId }),
+          });
+          const data = await res.json() as { enriched: number; total: number };
+          alert(`Enriched ${data.enriched} of ${data.total} cards`);
+        }}
+        className="w-full text-xs text-gray-400 hover:text-gray-600 py-2 border-t border-gray-100 mt-4 flex-shrink-0"
+      >
+        Enrich all cards
+      </button>
     </div>
   );
 }
