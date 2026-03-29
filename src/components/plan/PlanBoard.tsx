@@ -87,6 +87,7 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [createSheetDayId, setCreateSheetDayId] = useState<string | null>(null);
+  const [deleteToast, setDeleteToast] = useState<string | null>(null);
 
   // Ref gives handleDragEnd access to the latest days without stale closure issues
   const daysRef = useRef(days);
@@ -236,6 +237,21 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
     await supabase.from("cards").update({ status: "interested" }).eq("id", cardId);
   }, [supabase]);
 
+  // ── Permanently delete card ───────────────────────────────────
+  const handleDelete = useCallback(async (cardId: string) => {
+    const snapshot = daysRef.current;
+    setDays((prev) =>
+      prev.map((d) => ({ ...d, cards: d.cards.filter((c) => c.id !== cardId) }))
+    );
+    setSelectedCard((prev) => (prev?.id === cardId ? null : prev));
+    const { error } = await supabase.from("cards").delete().eq("id", cardId);
+    if (error) {
+      setDays(snapshot);
+      setDeleteToast("Couldn't delete — please try again.");
+      setTimeout(() => setDeleteToast(null), 3000);
+    }
+  }, [supabase]);
+
   // ── Card created from CreateCardSheet ─────────────────────────
   const handleCardCreated = useCallback((card: Card) => {
     setDays((prev) =>
@@ -288,6 +304,7 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
                 cards={day.cards}
                 onCardTap={(card) => setSelectedCard(card)}
                 onRemove={handleRemove}
+                onDelete={handleDelete}
                 onOpenCreateSheet={() => setCreateSheetDayId(day.id)}
               />
             ))}
@@ -313,11 +330,19 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
         );
       })()}
 
+      {/* Delete error toast */}
+      {deleteToast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white text-[13px] font-medium px-4 py-2.5 rounded-full shadow-lg pointer-events-none animate-in fade-in">
+          {deleteToast}
+        </div>
+      )}
+
       {selectedCard && (
         <CardBottomSheet
           card={selectedCard}
           onClose={() => setSelectedCard(null)}
           onCardUpdate={handleCardUpdate}
+          onCardDelete={handleDelete}
         />
       )}
     </div>
@@ -330,10 +355,11 @@ interface DayColumnProps {
   cards: Card[];
   onCardTap: (card: Card) => void;
   onRemove: (cardId: string) => void;
+  onDelete: (cardId: string) => void;
   onOpenCreateSheet: () => void;
 }
 
-function DayColumn({ day, cards, onCardTap, onRemove, onOpenCreateSheet }: DayColumnProps) {
+function DayColumn({ day, cards, onCardTap, onRemove, onDelete, onOpenCreateSheet }: DayColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `${COL_PREFIX}${day.id}` });
 
   return (
@@ -373,6 +399,7 @@ function DayColumn({ day, cards, onCardTap, onRemove, onOpenCreateSheet }: DayCo
               card={card}
               onTap={() => onCardTap(card)}
               onRemove={() => onRemove(card.id)}
+              onDelete={() => onDelete(card.id)}
             />
           ))}
         </SortableContext>
@@ -402,10 +429,12 @@ function SortableCardTile({
   card,
   onTap,
   onRemove,
+  onDelete,
 }: {
   card: Card;
   onTap: () => void;
   onRemove: () => void;
+  onDelete: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: card.id });
@@ -422,7 +451,7 @@ function SortableCardTile({
       {...attributes}
       {...listeners}
     >
-      <CardTile card={card} onTap={onTap} onRemove={onRemove} />
+      <CardTile card={card} onTap={onTap} onRemove={onRemove} onDelete={onDelete} />
     </div>
   );
 }
@@ -432,14 +461,17 @@ function CardTile({
   card,
   onTap,
   onRemove,
+  onDelete,
   isOverlay,
 }: {
   card: Card;
   onTap?: () => void;
   onRemove?: () => void;
+  onDelete?: () => void;
   isOverlay?: boolean;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const borderClass = TYPE_BORDER[card.type] ?? "border-l-gray-300";
   const textClass   = TYPE_TEXT[card.type]   ?? "text-gray-500";
   const subLabel    = card.sub_type ? (SUB_LABEL[card.sub_type] ?? card.sub_type) : null;
@@ -494,18 +526,54 @@ function CardTile({
 
         {menuOpen && (
           <>
-            <div className="fixed inset-0 z-40" onPointerDown={() => setMenuOpen(false)} />
+            <div className="fixed inset-0 z-40" onPointerDown={() => { setMenuOpen(false); setConfirmDelete(false); }} />
             <div className="absolute right-0 top-7 z-50 bg-white rounded-xl shadow-sheet border border-gray-100 py-1 min-w-[180px]">
-              <button
-                className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setMenuOpen(false);
-                  onRemove?.();
-                }}
-              >
-                Remove from itinerary
-              </button>
+              {confirmDelete ? (
+                <div className="px-4 py-3">
+                  <p className="text-[12px] text-gray-600 mb-2.5 font-medium">Delete this card?</p>
+                  <div className="flex gap-2">
+                    <button
+                      className="flex-1 py-1.5 rounded-lg border border-gray-200 text-[12px] text-gray-600"
+                      onClick={(e) => { e.stopPropagation(); setConfirmDelete(false); }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      className="flex-1 py-1.5 rounded-lg bg-red-500 text-white text-[12px] font-semibold"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMenuOpen(false);
+                        setConfirmDelete(false);
+                        onDelete?.();
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <button
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMenuOpen(false);
+                      onRemove?.();
+                    }}
+                  >
+                    Remove from itinerary
+                  </button>
+                  <button
+                    className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setConfirmDelete(true);
+                    }}
+                  >
+                    Delete card
+                  </button>
+                </>
+              )}
             </div>
           </>
         )}

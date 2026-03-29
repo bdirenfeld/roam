@@ -24,6 +24,8 @@ interface Props {
   onClose: () => void;
   /** Called after every successful (or optimistically applied) edit. */
   onCardUpdate?: (card: Card) => void;
+  /** Called after the card is permanently deleted. */
+  onCardDelete?: (cardId: string) => void;
   /** Days available for assignment (shows "Assign to Day" when card is interested) */
   days?: Day[];
 }
@@ -127,7 +129,7 @@ function TitleEditor({
 }
 
 // ── Main component ─────────────────────────────────────────────
-export default function CardBottomSheet({ card, onClose, onCardUpdate, days }: Props) {
+export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDelete, days }: Props) {
   const supabase = createClient();
   const sheetRef = useRef<HTMLDivElement>(null);
   const dragY = useRef(0);
@@ -136,6 +138,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, days }: P
   // Local optimistic state
   const [localCard, setLocalCard] = useState<Card>(card);
   const [showDayPicker, setShowDayPicker] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // ── Keyboard escape ────────────────────────────────────────
   useEffect(() => {
@@ -229,6 +234,20 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, days }: P
     },
     [localCard, onCardUpdate, saveTopLevel, supabase]
   );
+
+  // ── Delete card ──────────────────────────────────────────────
+  const handleDelete = useCallback(async () => {
+    setIsDeleting(true);
+    const { error } = await supabase.from("cards").delete().eq("id", localCard.id);
+    setIsDeleting(false);
+    if (error) {
+      setDeleteError("Couldn't delete — please try again.");
+      setTimeout(() => setDeleteError(null), 3000);
+      return;
+    }
+    onCardDelete?.(localCard.id);
+    onClose();
+  }, [localCard.id, onCardDelete, onClose, supabase]);
 
   // ── Assign to day ─────────────────────────────────────────
   const handleAssignToDay = useCallback(
@@ -417,17 +436,58 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, days }: P
           </div>
         </div>
 
-        {/* Assign to Day footer — only for unplaced cards */}
-        {localCard.status === "interested" && days && days.length > 0 && (
-          <div className="flex-shrink-0 px-5 py-4 border-t border-gray-100 bg-white">
-            <button
-              onClick={() => setShowDayPicker(true)}
-              className="w-full py-3 rounded-xl bg-activity text-white text-[14px] font-bold active:scale-[0.98] transition-all"
-            >
-              Assign to Day
-            </button>
-          </div>
-        )}
+        {/* Bottom action area */}
+        <div className="flex-shrink-0 border-t border-gray-100 bg-white">
+          {/* Assign to Day — only for unplaced cards */}
+          {localCard.status === "interested" && days && days.length > 0 && !showDeleteConfirm && (
+            <div className="px-5 pt-4 pb-2">
+              <button
+                onClick={() => setShowDayPicker(true)}
+                className="w-full py-3 rounded-xl bg-activity text-white text-[14px] font-bold active:scale-[0.98] transition-all"
+              >
+                Assign to Day
+              </button>
+            </div>
+          )}
+
+          {/* Delete confirmation */}
+          {showDeleteConfirm ? (
+            <div className="px-5 pt-3 pb-5">
+              <p className="text-[13px] font-medium text-gray-700 text-center mb-3">
+                Delete this card? This can&apos;t be undone.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={isDeleting}
+                  className="flex-1 py-2.5 rounded-xl bg-white border border-gray-200 text-[13px] font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-[13px] font-semibold hover:bg-red-600 transition-colors"
+                >
+                  {isDeleting ? "Deleting…" : "Delete"}
+                </button>
+              </div>
+              {deleteError && (
+                <p className="text-[11px] text-red-500 text-center mt-2">{deleteError}</p>
+              )}
+            </div>
+          ) : (
+            /* Delete card link */
+            <div className="flex justify-center py-3">
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="text-[12px] text-red-400 hover:text-red-600 transition-colors px-4 py-1"
+              >
+                Delete card
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Day picker overlay */}
         {showDayPicker && days && (

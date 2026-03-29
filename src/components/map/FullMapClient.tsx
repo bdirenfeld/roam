@@ -63,6 +63,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
   const dayFilterRef        = useRef<string | null>(null);
   const activeSubTypesRef   = useRef<Set<string>>(makeInitialSubTypes());
 
+  const [localCards, setLocalCards]     = useState<Card[]>(cards);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [showHint, setShowHint]         = useState(false);
   const [placementFilter, setPlacementFilter] = useState<PlacementFilter>("all");
@@ -302,7 +303,16 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     if (tempPinRef.current) { tempPinRef.current.remove(); tempPinRef.current = null; }
     setPendingPlace(null);
     addPinToMap(card);
+    setLocalCards((prev) => [...prev, card]);
   }
+
+  // ── Handle card delete from sidebar or sheet ─────────────────
+  const handleCardDelete = useCallback((cardId: string) => {
+    const entry = MARKERS.get(cardId);
+    if (entry) { entry.marker.remove(); MARKERS.delete(cardId); }
+    setLocalCards((prev) => prev.filter((c) => c.id !== cardId));
+    setSelectedCard((prev) => (prev?.id === cardId ? null : prev));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Handle card updates from CardBottomSheet ─────────────────
   const handleCardUpdate = useCallback((updated: Card) => {
@@ -445,12 +455,13 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       {/* ── Desktop sidebar — hidden on mobile ── */}
       <aside className="hidden md:flex md:w-[300px] flex-shrink-0 bg-white border-r border-gray-100 overflow-y-auto z-20 flex-col">
         <MapSidebar
-          cards={cards}
+          cards={localCards}
           activeSubTypes={activeSubTypes}
           setActiveSubTypes={handleSubTypesChange}
           placementFilter={placementFilter}
           setPlacementFilter={handlePlacementChange}
           onCardSelect={handleSidebarCardSelect}
+          onCardDelete={handleCardDelete}
         />
       </aside>
 
@@ -610,6 +621,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
             days={days}
             onClose={() => { deselectPin(); setSelectedCard(null); }}
             onCardUpdate={handleCardUpdate}
+            onCardDelete={handleCardDelete}
           />
         )}
 

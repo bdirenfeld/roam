@@ -32,6 +32,12 @@ export default function DayViewClient({ trip, days, dayWithCards, userAvatarUrl 
     []
   );
 
+  const handleCardDelete = useCallback((cardId: string) => {
+    setLocalCards((prev) => prev.filter((c) => c.id !== cardId));
+    setSelectedCard((prev) => (prev?.id === cardId ? null : prev));
+    setIsCardOpen(false);
+  }, []);
+
   const [isCardOpen, setIsCardOpen] = useState(false);
   const [swipeDir, setSwipeDir] = useState<'left' | 'right' | null>(null);
 
@@ -122,6 +128,7 @@ export default function DayViewClient({ trip, days, dayWithCards, userAvatarUrl 
         <CardTimeline
           dayWithCards={localDayWithCards}
           onCardTap={(card) => { setSelectedCard(card); setIsCardOpen(true); }}
+          onCardDelete={handleCardDelete}
         />
       </div>
 
@@ -164,6 +171,7 @@ export default function DayViewClient({ trip, days, dayWithCards, userAvatarUrl 
           card={selectedCard}
           onClose={() => { setSelectedCard(null); setIsCardOpen(false); }}
           onCardUpdate={handleCardUpdate}
+          onCardDelete={handleCardDelete}
         />
       )}
     </div>

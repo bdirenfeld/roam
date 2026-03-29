@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { ChevronDown } from "lucide-react";
 import type { Card } from "@/types/database";
 import { getIconSVG, PIN_COLORS } from "@/lib/mapPins";
+import { createClient } from "@/lib/supabase/client";
 
 export type PlacementFilter = "all" | "placed" | "unplaced";
 
@@ -57,6 +58,7 @@ interface Props {
   placementFilter: PlacementFilter;
   setPlacementFilter: (f: PlacementFilter) => void;
   onCardSelect: (card: Card) => void;
+  onCardDelete?: (cardId: string) => void;
 }
 
 // ── Toggle switch ─────────────────────────────────────────────
@@ -90,9 +92,28 @@ export default function MapSidebar({
   placementFilter,
   setPlacementFilter,
   onCardSelect,
+  onCardDelete,
 }: Props) {
+  const supabase = createClient();
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleDeleteCard = useCallback(async (cardId: string) => {
+    setDeletingId(cardId);
+    const { error } = await supabase.from("cards").delete().eq("id", cardId);
+    setDeletingId(null);
+    if (error) {
+      setConfirmDeleteId(null);
+      setDeleteError("Couldn't delete — try again.");
+      setTimeout(() => setDeleteError(null), 3000);
+      return;
+    }
+    setConfirmDeleteId(null);
+    onCardDelete?.(cardId);
+  }, [onCardDelete, supabase]);
 
   function toggleSection(key: string) {
     setCollapsedSections((prev) => {
@@ -236,29 +257,73 @@ export default function MapSidebar({
                             {rowCards.map((card) => {
                               const typeKey = card.type as keyof typeof PIN_COLORS;
                               const iconColor = PIN_COLORS[typeKey] ?? group.color;
+                              const isConfirming = confirmDeleteId === card.id;
+                              const isDeleting   = deletingId === card.id;
                               return (
-                                <button
-                                  key={card.id}
-                                  onClick={() => onCardSelect(card)}
-                                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 active:bg-gray-100 transition-colors"
-                                >
-                                  {/* Sub-type icon */}
-                                  <span
-                                    className="flex-shrink-0 opacity-80"
-                                    // eslint-disable-next-line react/no-danger
-                                    dangerouslySetInnerHTML={{ __html: getIconSVG(card.sub_type, iconColor, 14) }}
-                                  />
-                                  <span className="flex-1 text-[12px] text-gray-700 truncate leading-snug">
-                                    {card.title}
-                                  </span>
-                                  {card.start_time && (
-                                    <span className="text-[11px] text-gray-400 flex-shrink-0">
-                                      {formatTime(card.start_time)}
-                                    </span>
+                                <div key={card.id} className="group relative">
+                                  {isConfirming ? (
+                                    /* Inline delete confirmation */
+                                    <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-red-50">
+                                      <span className="flex-1 text-[11px] text-red-600 font-medium truncate">
+                                        {isDeleting ? "Deleting…" : "Delete this card?"}
+                                      </span>
+                                      {!isDeleting && (
+                                        <>
+                                          <button
+                                            onClick={() => handleDeleteCard(card.id)}
+                                            className="text-[11px] font-bold text-white bg-red-500 px-2 py-0.5 rounded-md flex-shrink-0"
+                                          >
+                                            Delete
+                                          </button>
+                                          <button
+                                            onClick={() => setConfirmDeleteId(null)}
+                                            className="text-[11px] text-gray-500 flex-shrink-0"
+                                          >
+                                            Cancel
+                                          </button>
+                                        </>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-0 rounded-lg hover:bg-gray-50 transition-colors">
+                                      <button
+                                        onClick={() => onCardSelect(card)}
+                                        className="flex-1 flex items-center gap-2 px-2 py-1.5 text-left min-w-0"
+                                      >
+                                        <span
+                                          className="flex-shrink-0 opacity-80"
+                                          // eslint-disable-next-line react/no-danger
+                                          dangerouslySetInnerHTML={{ __html: getIconSVG(card.sub_type, iconColor, 14) }}
+                                        />
+                                        <span className="flex-1 text-[12px] text-gray-700 truncate leading-snug">
+                                          {card.title}
+                                        </span>
+                                        {card.start_time && (
+                                          <span className="text-[11px] text-gray-400 flex-shrink-0">
+                                            {formatTime(card.start_time)}
+                                          </span>
+                                        )}
+                                      </button>
+                                      {/* Trash icon — visible on hover */}
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(card.id); }}
+                                        className="opacity-0 group-hover:opacity-100 flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-md hover:bg-red-50 transition-all mr-1"
+                                        aria-label="Delete card"
+                                      >
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                          <polyline points="3 6 5 6 21 6" />
+                                          <path d="M19 6l-1 14H6L5 6" />
+                                          <path d="M10 11v6M14 11v6M9 6V4h6v2" />
+                                        </svg>
+                                      </button>
+                                    </div>
                                   )}
-                                </button>
+                                </div>
                               );
                             })}
+                            {deleteError && (
+                              <p className="text-[11px] text-red-500 px-2 py-1">{deleteError}</p>
+                            )}
                           </div>
                         )}
                       </div>
