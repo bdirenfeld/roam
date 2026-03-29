@@ -107,6 +107,80 @@ export function makePinSVG(
   );
 }
 
+// ── Material Symbols icon names per sub-type ─────────────────
+const MATERIAL_ICONS: Record<string, string> = {
+  // Activity
+  guided:           "tour",
+  hosted:           "tour",
+  wellness:         "spa",
+  event:            "event",
+  challenge:        "directions_run",
+  self_directed:    "explore",
+  // Food
+  restaurant:       "restaurant",
+  fine_dining:      "restaurant",
+  street_food:      "lunch_dining",
+  coffee:           "coffee",
+  coffee_dessert:   "coffee",
+  cocktail_bar:     "local_bar",
+  drinks:           "local_bar",
+  // Logistics / Stay
+  hotel:            "hotel",
+  flight_arrival:   "flight_land",
+  flight_departure: "flight_takeoff",
+};
+
+/**
+ * Creates a DOM-based map pin using Material Symbols icons (Google Maps style).
+ * A 28px circle with a centered 16px icon, white border, drop shadow.
+ * Use this for the full map view; DayMap keeps using makePinElement.
+ */
+export function makeMaterialPinElement(
+  type: CardType,
+  subType: string | null | undefined,
+  status: string,
+): PinElements {
+  const baseColor = PIN_COLORS[type];
+  const outlined  = status === "interested";
+  const iconName  = (subType && MATERIAL_ICONS[subType]) || "place";
+
+  const wrapper = document.createElement("div");
+  wrapper.style.cssText = "width:28px;height:28px;cursor:pointer;";
+
+  const inner = document.createElement("div");
+  inner.style.cssText =
+    "width:28px;height:28px;" +
+    "border-radius:50%;" +
+    `background:${outlined ? "white" : baseColor};` +
+    `border:2px solid ${outlined ? baseColor : "rgba(255,255,255,0.85)"};` +
+    "display:flex;align-items:center;justify-content:center;" +
+    "box-shadow:0 2px 6px rgba(0,0,0,0.28);" +
+    "transition:transform 120ms ease;" +
+    "transform-origin:50% 50%;";
+
+  const icon = document.createElement("span");
+  icon.className = "material-symbols-outlined";
+  icon.style.cssText =
+    `color:${outlined ? baseColor : "white"};` +
+    "font-size:16px;" +
+    "line-height:1;" +
+    "user-select:none;" +
+    "font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20;";
+  icon.textContent = iconName;
+
+  inner.appendChild(icon);
+
+  inner.addEventListener("mouseenter", () => {
+    inner.style.transform = "scale(1.2)";
+  });
+  inner.addEventListener("mouseleave", () => {
+    if (inner.dataset.selected !== "1") inner.style.transform = "";
+  });
+
+  wrapper.appendChild(inner);
+  return { wrapper, inner };
+}
+
 export interface PinElements {
   /** Passed to Mapbox Marker({ element }). Mapbox writes its translate() here — never set transform on this. */
   wrapper: HTMLDivElement;

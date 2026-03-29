@@ -9,7 +9,7 @@ import PlaceSearch from "./PlaceSearch";
 import AddToTripSheet from "./AddToTripSheet";
 import type { PlaceResult } from "./AddToTripSheet";
 import type { Trip, Day, Card, CardType } from "@/types/database";
-import { makePinElement } from "@/lib/mapPins";
+import { makeMaterialPinElement } from "@/lib/mapPins";
 
 // Purple circular pin for search result previews
 const TEMP_PIN_SVG =
@@ -125,7 +125,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     const lng = card.lng!;
 
     const cardRef: { current: Card } = { current: card };
-    const { wrapper, inner } = makePinElement(card.type, card.sub_type, card.status);
+    const { wrapper, inner } = makeMaterialPinElement(card.type, card.sub_type, card.status);
     inner.title = card.title;
 
     const mbMarker = new mb.Marker({ element: wrapper, anchor: "center" })
@@ -312,7 +312,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
 
         mappable.forEach(({ card, lat, lng }) => {
           const cardRef: { current: Card } = { current: card };
-          const { wrapper, inner } = makePinElement(card.type, card.sub_type, card.status);
+          const { wrapper, inner } = makeMaterialPinElement(card.type, card.sub_type, card.status);
           inner.title = card.title;
 
           const mbMarker = new mb.Marker({ element: wrapper, anchor: "center" })
