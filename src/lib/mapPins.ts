@@ -159,6 +159,7 @@ const MATERIAL_ICONS: Record<string, string> = {
 export function makeMaterialPinElement(
   type: CardType,
   subType: string | null | undefined,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _status: string,
 ): PinElements {
   const baseColor = PIN_COLORS[type];
