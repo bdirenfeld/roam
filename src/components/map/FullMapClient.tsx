@@ -34,7 +34,7 @@ const FILTER_DOTS: { type: CardType; label: string }[] = [
 
 // Sub-types that the sidebar can toggle (others always show)
 const CONTROLLED_SUB_TYPES = new Set([
-  "guided", "hosted", "self_directed", "wellness", "challenge", "event",
+  "guided", "hosted", "wellness", "challenge", "event",
   "restaurant", "fine_dining", "street_food", "coffee", "coffee_dessert", "cocktail_bar", "drinks",
   "hotel", "flight_arrival", "flight_departure",
 ]);
@@ -49,6 +49,8 @@ const PLACE_SUB_TYPES = new Set([
 /** A card should only appear as a map pin if it has coordinates AND is a real place. */
 function isRealPlace(card: Card): boolean {
   if (card.lat == null || card.lng == null) return false;
+  // Self-directed activities are never pinnable places
+  if (card.sub_type === "self_directed") return false;
   if (card.source_url) return true;
   if (card.address) return true;
   if (card.sub_type && PLACE_SUB_TYPES.has(card.sub_type)) return true;
