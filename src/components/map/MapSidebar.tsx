@@ -22,7 +22,7 @@ interface Group {
 const GROUPS: Group[] = [
   {
     label: "Activity",
-    color: "#2563EB",
+    color: "#0D9488",
     typeKey: "activity",
     rows: [
       { label: "Guided",   subTypes: ["guided", "hosted"] },

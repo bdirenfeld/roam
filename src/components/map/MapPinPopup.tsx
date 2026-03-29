@@ -29,7 +29,13 @@ const TYPE_OPTIONS: { type: CardType; label: string }[] = [
 ];
 
 const SUB_TYPE_OPTIONS: Record<CardType, { label: string; value: string }[]> = {
-  activity:  [{ label: "Guided", value: "guided" }, { label: "Wellness", value: "wellness" }],
+  activity:  [
+    { label: "Guided",        value: "guided"        },
+    { label: "Self-directed", value: "self_directed"  },
+    { label: "Wellness",      value: "wellness"       },
+    { label: "Event",         value: "event"          },
+    { label: "Challenge",     value: "challenge"      },
+  ],
   food:      [{ label: "Restaurant", value: "restaurant" }, { label: "Café & Dessert", value: "coffee" }, { label: "Bar", value: "cocktail_bar" }],
   logistics: [{ label: "Hotel", value: "hotel" }, { label: "Flight", value: "flight_arrival" }],
 };
@@ -172,6 +178,7 @@ function CardBody({
   const phone            = details?.phone as string | undefined;
   const rating           = details?.rating as number | undefined;
   const userRatingsTotal = details?.userRatingsTotal as number | undefined;
+  const website          = details?.website as string | undefined;
   const subTypeLabel     = card.sub_type ? (SUB_TYPE_LABEL[card.sub_type] ?? card.sub_type) : null;
   const hasPhoto         = !!card.cover_image_url;
 
@@ -272,9 +279,9 @@ function CardBody({
               Google Maps
             </a>
           )}
-          {card.source_url && (
+          {(website || card.source_url) && (
             <a
-              href={card.source_url}
+              href={(website || card.source_url)!}
               target="_blank"
               rel="noopener noreferrer"
               className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-gray-50 border border-gray-100 text-[11px] font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
