@@ -57,6 +57,27 @@ function getIcon(subType: string | null | undefined, color: string): string {
 }
 
 /**
+ * Returns an HTML string for a Material Symbols icon span.
+ * Inherits color from the parent element via `currentColor` unless overridden.
+ * Used for card surface icons in the day view timeline.
+ */
+export function getMaterialIconHTML(
+  subType: string | null | undefined,
+  size = 16,
+): string {
+  const name = (subType && MATERIAL_ICONS[subType]) || "place";
+  return (
+    `<span class="material-symbols-outlined" style="` +
+    `font-size:${size}px;` +
+    `line-height:1;` +
+    `display:block;` +
+    `user-select:none;` +
+    `font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20;` +
+    `">${name}</span>`
+  );
+}
+
+/**
  * Standalone icon SVG — 24×24 viewBox, no pin shape.
  * Used for popup rows and legend items.
  */

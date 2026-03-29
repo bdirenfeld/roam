@@ -1,5 +1,5 @@
 import type { Card, CardType } from "@/types/database";
-import { getIconSVG } from "@/lib/mapPins";
+import { getMaterialIconHTML } from "@/lib/mapPins";
 
 interface Props {
   card: Card;
@@ -46,9 +46,10 @@ export default function CardSurface({ card, timeLabel, onTap }: Props) {
       onClick={onTap}
       className={`w-full text-left flex items-center gap-3 p-3 rounded-xl border border-gray-100 border-l-[3px] shadow-card hover:shadow-card-hover transition-all duration-150 active:scale-[0.99] mb-2.5 bg-white ${colors.border}`}
     >
-      {/* Type icon — same paths as map pins via getIconSVG, currentColor inherits text-* class */}
+      {/* Type icon — Material Symbol, currentColor inherits from text-* class */}
       <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${colors.bg} ${colors.icon}`}>
-        <div dangerouslySetInnerHTML={{ __html: getIconSVG(card.sub_type, "currentColor", 15) }} />
+        {/* eslint-disable-next-line react/no-danger */}
+        <div dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(card.sub_type, 18) }} />
       </div>
 
       {/* Content */}

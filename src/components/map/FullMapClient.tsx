@@ -49,7 +49,6 @@ function makeInitialSubTypes(): Set<string> {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type MarkerEntry = { marker: any; type: CardType; cardRef: { current: Card } };
 const MARKERS = new Map<string, MarkerEntry>();
-const ACTIVE_TYPES = new Set<CardType>(["activity", "food"]);
 
 export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Props) {
   const mapContainerRef  = useRef<HTMLDivElement>(null);
@@ -59,12 +58,16 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
   const mbRef            = useRef<any>(null);
   const selectedInnerRef = useRef<HTMLDivElement | null>(null);
   const clickedPinRef    = useRef(false);
-  const activeSubTypesRef = useRef<Set<string>>(makeInitialSubTypes());
+  const activeSubTypesRef  = useRef<Set<string>>(makeInitialSubTypes());
+  const activeTypesRef     = useRef<Set<CardType>>(new Set(["activity", "food", "logistics"]));
 
   const [localCards, setLocalCards]     = useState<Card[]>(cards);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [showHint, setShowHint]         = useState(false);
   const [activeSubTypes, setActiveSubTypesState] = useState<Set<string>>(makeInitialSubTypes);
+  const [activeTypes, setActiveTypesState] = useState<Set<CardType>>(
+    () => new Set(["activity", "food", "logistics"] as CardType[]),
+  );
   const [showCreate, setShowCreate]     = useState(false);
   const [createCoords, setCreateCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [pendingPlace, setPendingPlace] = useState<PlaceResult | null>(null);
@@ -94,7 +97,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     }
   }
 
-  // ── Sync all marker visibility against sub-type toggles ──────
+  // ── Sync all marker visibility against type + sub-type toggles ─
   const syncVisibility = useCallback(() => {
     const map = mapInstRef.current;
     if (!map) return;
@@ -104,7 +107,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
         !card.sub_type ||
         !CONTROLLED_SUB_TYPES.has(card.sub_type) ||
         activeSubTypesRef.current.has(card.sub_type);
-      const show = ACTIVE_TYPES.has(type) && subTypeOk;
+      const show = activeTypesRef.current.has(type) && subTypeOk;
       if (show) marker.addTo(map); else marker.remove();
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -112,6 +115,12 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
   function handleSubTypesChange(next: Set<string>) {
     activeSubTypesRef.current = next;
     setActiveSubTypesState(new Set(next));
+    syncVisibility();
+  }
+
+  function handleActiveTypesChange(next: Set<CardType>) {
+    activeTypesRef.current = next;
+    setActiveTypesState(new Set(next));
     syncVisibility();
   }
 
@@ -136,7 +145,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       !CONTROLLED_SUB_TYPES.has(card.sub_type) ||
       activeSubTypesRef.current.has(card.sub_type);
 
-    if (ACTIVE_TYPES.has(card.type) && subTypeOk) {
+    if (activeTypesRef.current.has(card.type) && subTypeOk) {
       mbMarker.addTo(map);
     }
 
@@ -289,7 +298,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
 
       const map = new mb.Map({
         container: mapContainerRef.current!,
-        style: "mapbox://styles/mapbox/light-v11",
+        style: "mapbox://styles/mapbox/streets-v12",
         center: [trip.destination_lng ?? 12.4964, trip.destination_lat ?? 41.9028],
         zoom: 13,
         attributionControl: false,
@@ -357,9 +366,6 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       cancelled = true;
       MARKERS.forEach(({ marker }) => marker.remove());
       MARKERS.clear();
-      ACTIVE_TYPES.clear();
-      ACTIVE_TYPES.add("activity");
-      ACTIVE_TYPES.add("food");
       if (tempPinRef.current) { tempPinRef.current.remove(); tempPinRef.current = null; }
       mbRef.current = null;
       if (mapInstRef.current) {
@@ -379,6 +385,8 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           cards={localCards}
           activeSubTypes={activeSubTypes}
           setActiveSubTypes={handleSubTypesChange}
+          activeTypes={activeTypes}
+          setActiveTypes={handleActiveTypesChange}
           onCardSelect={handleSidebarCardSelect}
           onCardDelete={handleCardDelete}
         />

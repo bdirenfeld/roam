@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { ChevronDown } from "lucide-react";
-import type { Card } from "@/types/database";
+import type { Card, CardType } from "@/types/database";
 import { getIconSVG, PIN_COLORS } from "@/lib/mapPins";
 import { createClient } from "@/lib/supabase/client";
 
@@ -15,6 +15,7 @@ interface SubTypeRow {
 interface Group {
   label: string;
   color: string;
+  typeKey: CardType;
   rows: SubTypeRow[];
 }
 
@@ -22,6 +23,7 @@ const GROUPS: Group[] = [
   {
     label: "Activity",
     color: "#0D9488",
+    typeKey: "activity",
     rows: [
       { label: "Guided",   subTypes: ["guided", "hosted"] },
       { label: "Wellness", subTypes: ["wellness"] },
@@ -30,6 +32,7 @@ const GROUPS: Group[] = [
   {
     label: "Food",
     color: "#F59E0B",
+    typeKey: "food",
     rows: [
       { label: "Restaurant",   subTypes: ["restaurant", "fine_dining", "street_food"] },
       { label: "Coffee",       subTypes: ["coffee", "coffee_dessert"] },
@@ -39,6 +42,7 @@ const GROUPS: Group[] = [
   {
     label: "Stay",
     color: "#64748B",
+    typeKey: "logistics",
     rows: [
       { label: "Hotel", subTypes: ["hotel"] },
     ],
@@ -49,6 +53,8 @@ interface Props {
   cards: Card[];
   activeSubTypes: Set<string>;
   setActiveSubTypes: (next: Set<string>) => void;
+  activeTypes: Set<CardType>;
+  setActiveTypes: (next: Set<CardType>) => void;
   onCardSelect: (card: Card) => void;
   onCardDelete?: (cardId: string) => void;
 }
@@ -57,6 +63,8 @@ export default function MapSidebar({
   cards,
   activeSubTypes,
   setActiveSubTypes,
+  activeTypes,
+  setActiveTypes,
   onCardSelect,
   onCardDelete,
 }: Props) {
@@ -97,6 +105,12 @@ export default function MapSidebar({
     });
   }
 
+  function toggleTopLevelType(typeKey: CardType) {
+    const next = new Set(activeTypes);
+    if (next.has(typeKey)) { next.delete(typeKey); } else { next.add(typeKey); }
+    setActiveTypes(next);
+  }
+
   function isRowOn(row: SubTypeRow): boolean {
     return row.subTypes.some((st) => activeSubTypes.has(st));
   }
@@ -117,19 +131,58 @@ export default function MapSidebar({
 
   return (
     <div className="flex flex-col h-full">
-      {/* ── Layer groups ── */}
+
+      {/* ── Top-level category toggles ── */}
+      <div className="px-5 pt-5 pb-3 border-b border-gray-100 flex-shrink-0">
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2.5">
+          Categories
+        </p>
+        <div className="space-y-0.5">
+          {GROUPS.map((group) => {
+            const on = activeTypes.has(group.typeKey);
+            return (
+              <button
+                key={group.typeKey}
+                className="w-full flex items-center gap-2.5 px-1 py-1.5 rounded-lg hover:bg-gray-50 transition-colors text-left"
+                onClick={() => toggleTopLevelType(group.typeKey)}
+              >
+                <span
+                  className="flex-shrink-0 w-3 h-3 rounded-full transition-colors duration-200"
+                  style={{ background: on ? group.color : "#D1D5DB" }}
+                />
+                <span
+                  className="text-[13px] font-semibold transition-colors duration-200"
+                  style={{ color: on ? "#111827" : "#9CA3AF" }}
+                >
+                  {group.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Sub-type layer groups ── */}
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6">
         {GROUPS.map((group) => {
           const sectionCollapsed = collapsedSections.has(group.label);
+          const typeOn = activeTypes.has(group.typeKey);
+
           return (
             <div key={group.label}>
-              {/* Collapsible section header */}
+              {/* Collapsible section header — always interactive */}
               <button
                 className="flex items-center gap-2 mb-3 w-full hover:opacity-70 transition-opacity"
                 onClick={() => toggleSection(group.label)}
               >
-                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: group.color }} />
-                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide flex-1 text-left">
+                <span
+                  className="w-2 h-2 rounded-full flex-shrink-0 transition-colors duration-200"
+                  style={{ background: typeOn ? group.color : "#D1D5DB" }}
+                />
+                <p
+                  className="text-[11px] font-semibold uppercase tracking-wide flex-1 text-left transition-colors duration-200"
+                  style={{ color: typeOn ? "#9CA3AF" : "#D1D5DB" }}
+                >
                   {group.label}
                 </p>
                 <ChevronDown
@@ -137,9 +190,11 @@ export default function MapSidebar({
                 />
               </button>
 
-              {/* Sub-type rows */}
+              {/* Sub-type rows — dimmed + non-interactive when top-level type is OFF */}
               {!sectionCollapsed && (
-                <div className="space-y-0.5">
+                <div
+                  className={`space-y-0.5 transition-opacity duration-200 ${typeOn ? "" : "opacity-40 pointer-events-none"}`}
+                >
                   {group.rows.map((row) => {
                     const on       = isRowOn(row);
                     const rowCards = cardsForRow(row);
@@ -153,21 +208,16 @@ export default function MapSidebar({
                           className="w-full flex items-center gap-2.5 px-1 py-1.5 rounded-lg hover:bg-gray-50 transition-colors text-left"
                           onClick={() => toggleRow(row)}
                         >
-                          {/* Dot indicator */}
                           <span
                             className="flex-shrink-0 w-3 h-3 rounded-full transition-colors duration-200"
                             style={{ background: on ? group.color : "#D1D5DB" }}
                           />
-
-                          {/* Label */}
                           <span
                             className="flex-1 text-[13px] font-medium truncate transition-colors duration-200"
                             style={{ color: on ? "#111827" : "#9CA3AF" }}
                           >
                             {row.label}
                           </span>
-
-                          {/* Count badge */}
                           {count > 0 && (
                             <span
                               className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full min-w-[20px] text-center flex-shrink-0"
@@ -179,8 +229,6 @@ export default function MapSidebar({
                               {count}
                             </span>
                           )}
-
-                          {/* Expand chevron — stops propagation */}
                           {count > 0 && (
                             <span
                               role="button"
@@ -198,8 +246,8 @@ export default function MapSidebar({
                         {expanded && (
                           <div className="mt-0.5 space-y-px pl-1 pr-1">
                             {rowCards.map((card) => {
-                              const typeKey   = card.type as keyof typeof PIN_COLORS;
-                              const iconColor = PIN_COLORS[typeKey] ?? group.color;
+                              const typeKey_  = card.type as keyof typeof PIN_COLORS;
+                              const iconColor = PIN_COLORS[typeKey_] ?? group.color;
                               const isConfirming = confirmDeleteId === card.id;
                               const isDeleting_  = deletingId === card.id;
                               return (
@@ -241,7 +289,6 @@ export default function MapSidebar({
                                           {card.title}
                                         </span>
                                       </button>
-                                      {/* Trash icon — visible on hover */}
                                       <button
                                         onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(card.id); }}
                                         className="opacity-0 group-hover:opacity-100 flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-md hover:bg-red-50 transition-all mr-1"
