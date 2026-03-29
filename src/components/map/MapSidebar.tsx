@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import type { Card } from "@/types/database";
+import { getIconSVG, PIN_COLORS } from "@/lib/mapPins";
 
 export type PlacementFilter = "all" | "placed" | "unplaced";
 
@@ -232,31 +233,32 @@ export default function MapSidebar({
                         {/* Expanded card list */}
                         {expanded && (
                           <div className="mt-1 space-y-px" style={{ paddingLeft: 52, paddingRight: 4 }}>
-                            {rowCards.map((card) => (
-                              <button
-                                key={card.id}
-                                onClick={() => onCardSelect(card)}
-                                className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 active:bg-gray-100 transition-colors"
-                              >
-                                {/* Status dot: filled = in_itinerary, hollow = interested */}
-                                <span
-                                  className="w-1.5 h-1.5 rounded-full flex-shrink-0 border"
-                                  style={
-                                    card.status === "in_itinerary"
-                                      ? { background: group.color, borderColor: group.color }
-                                      : { background: "transparent", borderColor: group.color }
-                                  }
-                                />
-                                <span className="flex-1 text-[12px] text-gray-700 truncate leading-snug">
-                                  {card.title}
-                                </span>
-                                {card.start_time && (
-                                  <span className="text-[11px] text-gray-400 flex-shrink-0">
-                                    {formatTime(card.start_time)}
+                            {rowCards.map((card) => {
+                              const typeKey = card.type as keyof typeof PIN_COLORS;
+                              const iconColor = PIN_COLORS[typeKey] ?? group.color;
+                              return (
+                                <button
+                                  key={card.id}
+                                  onClick={() => onCardSelect(card)}
+                                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                                >
+                                  {/* Sub-type icon */}
+                                  <span
+                                    className="flex-shrink-0 opacity-80"
+                                    // eslint-disable-next-line react/no-danger
+                                    dangerouslySetInnerHTML={{ __html: getIconSVG(card.sub_type, iconColor, 14) }}
+                                  />
+                                  <span className="flex-1 text-[12px] text-gray-700 truncate leading-snug">
+                                    {card.title}
                                   </span>
-                                )}
-                              </button>
-                            ))}
+                                  {card.start_time && (
+                                    <span className="text-[11px] text-gray-400 flex-shrink-0">
+                                      {formatTime(card.start_time)}
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
                           </div>
                         )}
                       </div>

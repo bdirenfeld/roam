@@ -28,64 +28,28 @@ interface Props {
   onCardCreated: (card: Card) => void;
 }
 
-const TYPE_CONFIG: Record<CardType, { label: string; color: string; bg: string; selectedBg: string; border: string; selectedBorder: string }> = {
-  activity: {
-    label: "Activity",
-    color: "#0D9488",
-    bg: "bg-teal-50", selectedBg: "bg-teal-100",
-    border: "border-teal-100", selectedBorder: "border-activity",
-  },
-  food: {
-    label: "Food",
-    color: "#F59E0B",
-    bg: "bg-amber-50", selectedBg: "bg-amber-100",
-    border: "border-amber-100", selectedBorder: "border-food",
-  },
-  logistics: {
-    label: "Logistics",
-    color: "#64748B",
-    bg: "bg-slate-50", selectedBg: "bg-slate-100",
-    border: "border-slate-100", selectedBorder: "border-logistics",
-  },
-};
+const TYPE_PILLS: { type: CardType; label: string; color: string; bg: string; activeBg: string }[] = [
+  { type: "activity",  label: "Activity",  color: "#0D9488", bg: "bg-teal-50",   activeBg: "bg-teal-100"  },
+  { type: "food",      label: "Food",      color: "#F59E0B", bg: "bg-amber-50",  activeBg: "bg-amber-100" },
+  { type: "logistics", label: "Logistics", color: "#64748B", bg: "bg-slate-50",  activeBg: "bg-slate-100" },
+];
 
-const SUB_TYPES: Record<CardType, { value: string; label: string }[]> = {
-  activity: [
-    { value: "self_directed", label: "Self-directed" },
-    { value: "guided",        label: "Guided"        },
-    { value: "wellness",      label: "Wellness"      },
-    { value: "event",         label: "Event"         },
-    { value: "challenge",     label: "Challenge"     },
-  ],
-  food: [
-    { value: "restaurant",   label: "Restaurant"   },
-    { value: "coffee",       label: "Coffee"       },
-    { value: "cocktail_bar", label: "Cocktail Bar" },
-    { value: "fine_dining",  label: "Fine Dining"  },
-  ],
-  logistics: [
-    { value: "hotel",            label: "Hotel"            },
-    { value: "flight_arrival",   label: "Flight Arrival"   },
-    { value: "flight_departure", label: "Flight Departure" },
-    { value: "transit",          label: "Transit"          },
-  ],
+// Default sub-type when user hasn't chosen one — changeable later in the card editor
+const DEFAULT_SUB_TYPE: Record<CardType, string> = {
+  activity:  "self_directed",
+  food:      "restaurant",
+  logistics: "hotel",
 };
-
-const LABEL_CLS = "block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide";
-const INPUT_CLS = "w-full text-[15px] text-gray-900 bg-gray-50 rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-activity placeholder:text-gray-300 transition-colors";
 
 function StarRating({ rating }: { rating: number }) {
   return (
-    <div className="flex items-center gap-0.5">
-      {[1, 2, 3, 4, 5].map((i) => {
-        const filled = rating >= i - 0.25;
-        return (
-          <svg key={i} width="13" height="13" viewBox="0 0 24 24" fill={filled ? "#F59E0B" : "none"} stroke="#F59E0B" strokeWidth="1.5">
-            <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" />
-          </svg>
-        );
-      })}
-    </div>
+    <span className="inline-flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <svg key={i} width="12" height="12" viewBox="0 0 24 24" fill={rating >= i - 0.25 ? "#F59E0B" : "none"} stroke="#F59E0B" strokeWidth="1.5">
+          <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" />
+        </svg>
+      ))}
+    </span>
   );
 }
 
@@ -95,17 +59,8 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
   const dragY    = useRef(0);
   const dragging = useRef(false);
 
-  // Step 1 = rich preview; Step 2 = type/sub-type form
-  const [step,      setStep]      = useState<"preview" | "form">("preview");
-  const [title,     setTitle]     = useState(place.name);
-  const [type,      setType]      = useState<CardType | null>(null);
-  const [subType,   setSubType]   = useState<string | null>(null);
-  const [startTime, setStartTime] = useState("");
-  const [endTime,   setEndTime]   = useState("");
-  const [notes,     setNotes]     = useState("");
-  const [saving,    setSaving]    = useState(false);
-
-  useEffect(() => { setSubType(null); }, [type]);
+  const [type,   setType]   = useState<CardType | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -114,15 +69,10 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
   }, []);
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        if (step === "form") setStep("preview");
-        else onClose();
-      }
-    };
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [step, onClose]);
+  }, [onClose]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     dragY.current = e.touches[0].clientY;
@@ -154,23 +104,20 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
     if (!type || saving) return;
     setSaving(true);
 
-    const startTimeFmt = startTime ? `${startTime}:00` : null;
-    const endTimeFmt   = endTime   ? `${endTime}:00`   : null;
     const details: Record<string, unknown> = {};
-    if (notes.trim())    details.notes   = notes.trim();
-    if (place.website)   details.website = place.website;
-    if (place.phone)     details.phone   = place.phone;
-    if (place.rating)    details.rating  = place.rating;
+    if (place.website) details.website = place.website;
+    if (place.phone)   details.phone   = place.phone;
+    if (place.rating)  details.rating  = place.rating;
 
     const newCard: Card = {
       id:              crypto.randomUUID(),
       day_id:          dayId,
       trip_id:         tripId,
       type,
-      sub_type:        subType,
-      title:           title.trim() || place.name,
-      start_time:      startTimeFmt,
-      end_time:        endTimeFmt,
+      sub_type:        DEFAULT_SUB_TYPE[type],
+      title:           place.name,
+      start_time:      null,
+      end_time:        null,
       position:        0,
       status:          "interested",
       source_url:      place.mapsUrl ?? null,
@@ -188,10 +135,10 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
       day_id:          dayId,
       trip_id:         tripId,
       type,
-      sub_type:        subType,
-      title:           newCard.title,
-      start_time:      startTimeFmt,
-      end_time:        endTimeFmt,
+      sub_type:        DEFAULT_SUB_TYPE[type],
+      title:           place.name,
+      start_time:      null,
+      end_time:        null,
       position:        0,
       status:          "interested",
       source_url:      place.mapsUrl ?? null,
@@ -204,9 +151,7 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
 
     setSaving(false);
     if (!error) onCardCreated(newCard);
-  }, [type, subType, title, startTime, endTime, notes, saving, place, dayId, tripId, supabase, onCardCreated]);
-
-  const cfg = type ? TYPE_CONFIG[type] : null;
+  }, [type, saving, place, dayId, tripId, supabase, onCardCreated]);
 
   return (
     <div
@@ -220,260 +165,119 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        className="relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet max-h-[92dvh] flex flex-col animate-in slide-in-from-bottom duration-300"
+        className="relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet max-h-[90dvh] flex flex-col animate-in slide-in-from-bottom duration-300"
         style={{ willChange: "transform" }}
       >
-        {/* ── Step 1: Rich preview ── */}
-        {step === "preview" && (
-          <>
-            {place.coverPhotoUrl && (
-              <div className="flex-shrink-0 overflow-hidden rounded-t-2xl" style={{ height: 200 }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={place.coverPhotoUrl} alt={place.name} className="w-full h-full object-cover" />
-              </div>
+        {/* Cover photo — always visible, full width */}
+        {place.coverPhotoUrl ? (
+          <div className="flex-shrink-0 rounded-t-2xl overflow-hidden" style={{ height: 180 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={place.coverPhotoUrl} alt={place.name} className="w-full h-full object-cover" />
+          </div>
+        ) : (
+          <div className="flex-shrink-0 rounded-t-2xl bg-gray-100" style={{ height: 60 }} />
+        )}
+
+        {/* Drag handle */}
+        <div className="flex justify-center pt-2.5 flex-shrink-0 cursor-grab">
+          <div className="w-9 h-[3px] rounded-full bg-gray-200" />
+        </div>
+
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 w-7 h-7 rounded-full bg-black/30 flex items-center justify-center hover:bg-black/40 transition-colors"
+          aria-label="Close"
+          style={{ zIndex: 1 }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+
+        {/* Info + form */}
+        <div className="flex-1 overflow-y-auto px-5 pt-3 pb-6">
+          {/* Place name */}
+          <h2 className="text-[20px] font-bold text-gray-900 leading-tight mb-1">{place.name}</h2>
+
+          {/* Rating + address row */}
+          <div className="flex items-center gap-2 flex-wrap mb-1">
+            {place.rating !== undefined && (
+              <span className="flex items-center gap-1 text-[13px] text-gray-600">
+                <StarRating rating={place.rating} />
+                <span className="font-semibold">{place.rating.toFixed(1)}</span>
+                {place.userRatingsTotal !== undefined && (
+                  <span className="text-gray-400">· {place.userRatingsTotal.toLocaleString()} reviews</span>
+                )}
+              </span>
             )}
+          </div>
+          {place.address && (
+            <p className="text-[13px] text-gray-500 mb-2 leading-snug">{place.address}</p>
+          )}
 
-            <div className="flex justify-center pt-2.5 pb-0 flex-shrink-0 cursor-grab">
-              <div className="w-9 h-[3px] rounded-full bg-gray-200" />
-            </div>
+          {/* Hours */}
+          {(place.openNow !== undefined || place.todayHours) && (
+            <p className="text-[12px] mb-2">
+              {place.openNow !== undefined && (
+                <span className={`font-bold mr-1.5 ${place.openNow ? "text-green-600" : "text-red-500"}`}>
+                  {place.openNow ? "Open now" : "Closed"}
+                </span>
+              )}
+              {place.todayHours && <span className="text-gray-500">{place.todayHours}</span>}
+            </p>
+          )}
 
-            <div className="flex-1 overflow-y-auto px-5 pt-4 pb-6">
-              {/* Name + close */}
-              <div className="flex items-start justify-between gap-3 mb-3">
-                <h2 className="text-[20px] font-bold text-gray-900 leading-tight">{place.name}</h2>
+          {/* Phone + website */}
+          <div className="flex items-center gap-4 mb-4">
+            {place.phone && (
+              <a href={`tel:${place.phone}`} className="text-[12px] text-blue-600 hover:underline">
+                {place.phone}
+              </a>
+            )}
+            {place.website && (
+              <a href={place.website} target="_blank" rel="noopener noreferrer" className="text-[12px] text-blue-600 hover:underline truncate max-w-[180px]">
+                {place.website.replace(/^https?:\/\/(www\.)?/, "")}
+              </a>
+            )}
+          </div>
+
+          {/* Type selector */}
+          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Type</p>
+          <div className="flex gap-2 mb-5">
+            {TYPE_PILLS.map(({ type: t, label, color, bg, activeBg }) => {
+              const selected = type === t;
+              return (
                 <button
-                  onClick={onClose}
-                  className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 hover:bg-gray-200 transition-colors mt-0.5"
-                  aria-label="Close"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round">
-                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Rating */}
-              {place.rating !== undefined && (
-                <div className="flex items-center gap-2 mb-3">
-                  <StarRating rating={place.rating} />
-                  <span className="text-[14px] font-semibold text-gray-800">{place.rating.toFixed(1)}</span>
-                  {place.userRatingsTotal !== undefined && (
-                    <span className="text-[13px] text-gray-400">· {place.userRatingsTotal.toLocaleString()} reviews</span>
-                  )}
-                </div>
-              )}
-
-              {/* Address */}
-              {place.address && (
-                <div className="flex items-start gap-2 mb-2.5">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 flex-shrink-0">
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                    <circle cx="12" cy="10" r="3" />
-                  </svg>
-                  <span className="text-[13px] text-gray-600 leading-snug">{place.address}</span>
-                </div>
-              )}
-
-              {/* Phone */}
-              {place.phone && (
-                <div className="flex items-center gap-2 mb-2.5">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-                    <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.5 1.18 2 2 0 012.5 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.91a16 16 0 006.18 6.18l.88-.88a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" />
-                  </svg>
-                  <a href={`tel:${place.phone}`} className="text-[13px] text-blue-600 hover:underline">
-                    {place.phone}
-                  </a>
-                </div>
-              )}
-
-              {/* Website */}
-              {place.website && (
-                <div className="flex items-center gap-2 mb-2.5">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="2" y1="12" x2="22" y2="12" />
-                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                  </svg>
-                  <a href={place.website} target="_blank" rel="noopener noreferrer" className="text-[13px] text-blue-600 hover:underline truncate">
-                    {place.website.replace(/^https?:\/\/(www\.)?/, "")}
-                  </a>
-                </div>
-              )}
-
-              {/* Hours */}
-              {(place.openNow !== undefined || place.todayHours) && (
-                <div className="flex items-start gap-2 mb-2.5">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 flex-shrink-0">
-                    <circle cx="12" cy="12" r="10" />
-                    <polyline points="12 6 12 12 16 14" />
-                  </svg>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {place.openNow !== undefined && (
-                      <span className={`text-[12px] font-bold ${place.openNow ? "text-green-600" : "text-red-500"}`}>
-                        {place.openNow ? "Open now" : "Closed"}
-                      </span>
-                    )}
-                    {place.todayHours && (
-                      <span className="text-[13px] text-gray-500">{place.todayHours}</span>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Action buttons */}
-            <div className="flex-shrink-0 px-5 pb-6 pt-3 flex gap-3 border-t border-gray-100">
-              <button
-                onClick={onClose}
-                className="flex-1 py-3 rounded-xl text-[15px] font-semibold bg-gray-100 text-gray-600 active:scale-[0.98] transition-all"
-              >
-                Dismiss
-              </button>
-              <button
-                onClick={() => setStep("form")}
-                className="flex-1 py-3 rounded-xl text-[15px] font-bold bg-activity text-white active:scale-[0.98] transition-all"
-              >
-                Save to Map
-              </button>
-            </div>
-          </>
-        )}
-
-        {/* ── Step 2: Type selector form ── */}
-        {step === "form" && (
-          <>
-            <div className="flex justify-center pt-2.5 flex-shrink-0 cursor-grab">
-              <div className="w-9 h-[3px] rounded-full bg-gray-200" />
-            </div>
-
-            <div className="flex items-center justify-between px-5 pt-3 pb-3 flex-shrink-0">
-              <button
-                onClick={() => setStep("preview")}
-                className="flex items-center gap-1 text-[13px] font-medium text-gray-500 hover:text-gray-800 transition-colors"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <polyline points="15 18 9 12 15 6" />
-                </svg>
-                Back
-              </button>
-              <h2 className="text-[17px] font-bold text-gray-900">Save to Map</h2>
-              <button
-                onClick={onClose}
-                className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
-                aria-label="Close"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round">
-                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto px-5 pb-8">
-              {/* Place name */}
-              <div className="mb-4">
-                <label className={LABEL_CLS}>Place name</label>
-                <input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder={place.name}
-                  className={INPUT_CLS}
-                />
-              </div>
-
-              {/* Type */}
-              <div className="mb-4">
-                <label className={LABEL_CLS}>Type</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(Object.keys(TYPE_CONFIG) as CardType[]).map((t) => {
-                    const c        = TYPE_CONFIG[t];
-                    const selected = type === t;
-                    return (
-                      <button
-                        key={t}
-                        onClick={() => setType(t)}
-                        className={`flex flex-col items-center gap-1 rounded-xl border-2 px-2 py-2.5 transition-all text-[11px] font-bold ${
-                          selected
-                            ? `${c.selectedBg} ${c.selectedBorder}`
-                            : `${c.bg} ${c.border} text-gray-400`
-                        }`}
-                        style={selected ? { color: c.color } : undefined}
-                      >
-                        {c.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Sub-type */}
-              {type && (
-                <div className="mb-4">
-                  <label className={LABEL_CLS}>Sub-type</label>
-                  <div className="flex flex-wrap gap-2">
-                    {SUB_TYPES[type].map(({ value, label }) => {
-                      const selected = subType === value;
-                      return (
-                        <button
-                          key={value}
-                          onClick={() => setSubType(selected ? null : value)}
-                          className={`px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-all ${
-                            selected ? "border-2 text-white" : "bg-gray-50 border-gray-200 text-gray-500"
-                          }`}
-                          style={selected ? { background: cfg!.color, borderColor: cfg!.color } : undefined}
-                        >
-                          {label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Time */}
-              {type && (
-                <div className="flex gap-3 mb-4">
-                  <div className="flex-1">
-                    <label className={LABEL_CLS}>Start time</label>
-                    <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className={INPUT_CLS} />
-                  </div>
-                  <div className="flex-1">
-                    <label className={LABEL_CLS}>End time</label>
-                    <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className={INPUT_CLS} />
-                  </div>
-                </div>
-              )}
-
-              {/* Notes */}
-              {type && (
-                <div className="mb-4">
-                  <label className={LABEL_CLS}>Notes</label>
-                  <textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Any notes…"
-                    rows={3}
-                    className={`${INPUT_CLS} resize-none`}
-                  />
-                </div>
-              )}
-
-              {/* Add to Map */}
-              <div className="pt-2">
-                <button
-                  onClick={handleSave}
-                  disabled={!type || saving}
-                  className={`w-full py-3.5 rounded-xl text-[15px] font-bold transition-all ${
-                    type && !saving
-                      ? "bg-activity text-white active:scale-[0.98]"
-                      : "bg-gray-100 text-gray-300 cursor-not-allowed"
+                  key={t}
+                  onClick={() => setType(t)}
+                  className={`flex-1 py-2.5 rounded-xl text-[13px] font-bold border-2 transition-all ${
+                    selected ? activeBg : bg
                   }`}
+                  style={{
+                    borderColor: selected ? color : "transparent",
+                    color: selected ? color : "#9CA3AF",
+                  }}
                 >
-                  {saving ? "Saving…" : "Add to Map"}
+                  {label}
                 </button>
-              </div>
-            </div>
-          </>
-        )}
+              );
+            })}
+          </div>
+
+          {/* Save button */}
+          <button
+            onClick={handleSave}
+            disabled={!type || saving}
+            className={`w-full py-3.5 rounded-xl text-[15px] font-bold transition-all ${
+              type && !saving
+                ? "bg-activity text-white active:scale-[0.98]"
+                : "bg-gray-100 text-gray-300 cursor-not-allowed"
+            }`}
+          >
+            {saving ? "Saving…" : "Save to Map"}
+          </button>
+        </div>
       </div>
     </div>
   );
