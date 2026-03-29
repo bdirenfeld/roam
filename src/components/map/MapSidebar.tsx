@@ -22,7 +22,7 @@ interface Group {
 const GROUPS: Group[] = [
   {
     label: "Activity",
-    color: "#0D9488",
+    color: "#1E3A5F",
     typeKey: "activity",
     rows: [
       { label: "Guided",   subTypes: ["guided", "hosted"] },
@@ -31,7 +31,7 @@ const GROUPS: Group[] = [
   },
   {
     label: "Food",
-    color: "#F59E0B",
+    color: "#991B1B",
     typeKey: "food",
     rows: [
       { label: "Restaurant",   subTypes: ["restaurant", "fine_dining", "street_food"] },
@@ -41,7 +41,7 @@ const GROUPS: Group[] = [
   },
   {
     label: "Stay",
-    color: "#64748B",
+    color: "#111827",
     typeKey: "logistics",
     rows: [
       { label: "Hotel", subTypes: ["hotel"] },

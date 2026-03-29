@@ -1,9 +1,9 @@
 import type { CardType } from "@/types/database";
 
 export const PIN_COLORS: Record<CardType, string> = {
-  logistics: "#64748B",
-  activity:  "#0D9488",
-  food:      "#F59E0B",
+  logistics: "#111827",
+  activity:  "#1E3A5F",
+  food:      "#991B1B",
 };
 
 // Each icon returns SVG child elements for a 24×24 viewBox.

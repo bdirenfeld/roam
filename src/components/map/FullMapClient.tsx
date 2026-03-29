@@ -61,6 +61,9 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
   const activeSubTypesRef  = useRef<Set<string>>(makeInitialSubTypes());
   const activeTypesRef     = useRef<Set<CardType>>(new Set(["activity", "food", "logistics"] as CardType[]));
 
+  const selectedCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
+  const [anchorPos, setAnchorPos] = useState<{ x: number; y: number } | null>(null);
+
   const [localCards, setLocalCards]     = useState<Card[]>(cards);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [showHint, setShowHint]         = useState(false);
@@ -89,12 +92,23 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     return () => clearTimeout(t);
   }, [showHint]);
 
+  function computeAnchorPos(lat: number, lng: number): { x: number; y: number } | null {
+    const map = mapInstRef.current;
+    const container = mapContainerRef.current;
+    if (!map || !container) return null;
+    const point = map.project([lng, lat]);
+    const rect  = container.getBoundingClientRect();
+    return { x: rect.left + point.x, y: rect.top + point.y };
+  }
+
   function deselectPin() {
     if (selectedInnerRef.current) {
       selectedInnerRef.current.dataset.selected = "";
       selectedInnerRef.current.style.transform  = "";
       selectedInnerRef.current = null;
     }
+    selectedCoordsRef.current = null;
+    setAnchorPos(null);
   }
 
   // ── Sync all marker visibility against type + sub-type toggles ─
@@ -157,8 +171,10 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
         selectedInnerRef.current.style.transform  = "";
       }
       inner.dataset.selected = "1";
-      inner.style.transform  = "scale(1.15)";
+      inner.style.transform  = "scale(1.4)";
       selectedInnerRef.current = inner;
+      selectedCoordsRef.current = { lat, lng };
+      setAnchorPos(computeAnchorPos(lat, lng));
       setSelectedCard(cardRef.current);
     });
 
@@ -177,11 +193,19 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       const inner = entry.marker.getElement().children[0] as HTMLDivElement | undefined;
       if (inner) {
         inner.dataset.selected = "1";
-        inner.style.transform  = "scale(1.15)";
+        inner.style.transform  = "scale(1.4)";
         selectedInnerRef.current = inner;
+      }
+      if (card.lat != null && card.lng != null) {
+        selectedCoordsRef.current = { lat: card.lat, lng: card.lng };
+        setAnchorPos(computeAnchorPos(card.lat, card.lng));
       }
       setSelectedCard(entry.cardRef.current);
     } else {
+      if (card.lat != null && card.lng != null) {
+        selectedCoordsRef.current = { lat: card.lat, lng: card.lng };
+        setAnchorPos(computeAnchorPos(card.lat, card.lng));
+      }
       setSelectedCard(card);
     }
   }
@@ -336,8 +360,12 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
               selectedInnerRef.current.style.transform  = "";
             }
             inner.dataset.selected = "1";
-            inner.style.transform  = "scale(1.15)";
+            inner.style.transform  = "scale(1.4)";
             selectedInnerRef.current = inner;
+            selectedCoordsRef.current = { lat, lng };
+            const point = map.project([lng, lat]);
+            const rect  = mapContainerRef.current?.getBoundingClientRect();
+            if (rect) setAnchorPos({ x: rect.left + point.x, y: rect.top + point.y });
             setSelectedCard(cardRef.current);
           });
 
@@ -353,6 +381,14 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           );
           map.fitBounds(bounds, { padding: 80, maxZoom: 15 });
         }
+      });
+
+      map.on("move", () => {
+        const coords = selectedCoordsRef.current;
+        if (!coords || !mapContainerRef.current) return;
+        const point = map.project([coords.lng, coords.lat]);
+        const rect  = mapContainerRef.current.getBoundingClientRect();
+        setAnchorPos({ x: rect.left + point.x, y: rect.top + point.y });
       });
 
       map.on("click", () => {
@@ -463,7 +499,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
               setShowCreate(true);
             }}
             className="absolute bottom-5 right-4 w-12 h-12 rounded-full bg-activity text-white flex items-center justify-center active:scale-95 transition-all duration-150"
-            style={{ zIndex: 10, boxShadow: "0 4px 12px rgba(13,148,136,0.4)" }}
+            style={{ zIndex: 10, boxShadow: "0 4px 12px rgba(30,58,95,0.4)" }}
             aria-label="Add card"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
@@ -473,10 +509,11 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           </button>
         )}
 
-        {/* Centered pin popup */}
+        {/* Pin-anchored popup */}
         {selectedCard && (
           <MapPinPopup
             card={selectedCard}
+            anchorPos={anchorPos}
             onClose={() => { deselectPin(); setSelectedCard(null); }}
           />
         )}
