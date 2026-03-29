@@ -393,6 +393,22 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             <p className="text-xs text-gray-400 mt-1 leading-snug">{addressLine}</p>
           )}
 
+          {/* Open in Google Maps */}
+          {localCard.lat != null && localCard.lng != null && (
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${localCard.lat},${localCard.lng}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg bg-gray-50 border border-gray-100 text-[11px] font-semibold text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+                <circle cx="12" cy="9" r="2.5" />
+              </svg>
+              Open in Google Maps
+            </a>
+          )}
+
           {/* Time range + duration + source link */}
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
             {timeRange && (
