@@ -12,46 +12,36 @@ interface Prediction {
 }
 
 interface Props {
-  /** Called when the user selects a prediction; search bar closes itself. */
   onPlaceSelect: (placeId: string, sessionToken: string) => void;
+  destination?: string;
 }
 
-export default function PlaceSearch({ onPlaceSelect }: Props) {
-  const [expanded, setExpanded]       = useState(false);
+export default function PlaceSearch({ onPlaceSelect, destination }: Props) {
   const [query, setQuery]             = useState("");
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading]         = useState(false);
 
-  const inputRef      = useRef<HTMLInputElement>(null);
-  const debounceRef   = useRef<ReturnType<typeof setTimeout>>();
-  const sessionToken  = useRef(crypto.randomUUID());
+  const inputRef     = useRef<HTMLInputElement>(null);
+  const debounceRef  = useRef<ReturnType<typeof setTimeout>>();
+  const sessionToken = useRef(crypto.randomUUID());
 
-  // ── Close / reset ──────────────────────────────────────────
-  const close = useCallback(() => {
-    setExpanded(false);
-    setQuery("");
+  const clearPredictions = useCallback(() => {
     setPredictions([]);
-    setLoading(false);
     clearTimeout(debounceRef.current);
-    sessionToken.current = crypto.randomUUID(); // fresh token per session
+    sessionToken.current = crypto.randomUUID();
   }, []);
 
-  // ── Escape key ─────────────────────────────────────────────
+  // ── Escape key to clear ────────────────────────────────────
   useEffect(() => {
-    if (!expanded) return;
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { setQuery(""); clearPredictions(); }
+    };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [expanded, close]);
-
-  // ── Auto-focus on expand ───────────────────────────────────
-  useEffect(() => {
-    if (expanded) setTimeout(() => inputRef.current?.focus(), 60);
-  }, [expanded]);
+  }, [clearPredictions]);
 
   // ── Debounced autocomplete ─────────────────────────────────
   useEffect(() => {
-    if (!expanded) return;
     clearTimeout(debounceRef.current);
 
     if (!query.trim()) {
@@ -76,87 +66,74 @@ export default function PlaceSearch({ onPlaceSelect }: Props) {
     }, 300);
 
     return () => clearTimeout(debounceRef.current);
-  }, [query, expanded]);
+  }, [query]);
 
   function handleSelect(prediction: Prediction) {
     const token = sessionToken.current;
-    close();
+    setQuery("");
+    clearPredictions();
     onPlaceSelect(prediction.place_id, token);
   }
 
-  // ── Collapsed: search icon button ─────────────────────────
-  if (!expanded) {
-    return (
-      <button
-        onClick={() => setExpanded(true)}
-        className="absolute top-4 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center"
-        style={{ right: 52, backdropFilter: "blur(8px)", zIndex: 10 }}
-        aria-label="Search places"
-      >
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="11" cy="11" r="8" />
-          <line x1="21" y1="21" x2="16.65" y2="16.65" />
-        </svg>
-      </button>
-    );
-  }
+  const placeholder = destination ? `Search places in ${destination}…` : "Search places…";
 
-  // ── Expanded: search bar + dropdown ───────────────────────
   return (
     <>
-      {/* Tap-outside backdrop */}
-      <div
-        className="absolute inset-0"
-        style={{ zIndex: 19 }}
-        onClick={close}
-      />
+      {/* Tap-outside backdrop when dropdown is open */}
+      {predictions.length > 0 && (
+        <div
+          className="absolute inset-0"
+          style={{ zIndex: 19 }}
+          onClick={clearPredictions}
+        />
+      )}
 
-      {/* Search bar */}
+      {/* Always-visible search bar */}
       <div
-        className="absolute top-0 left-0 right-0 px-4 pt-3 pb-2 animate-in slide-in-from-top-2 duration-200"
-        style={{ zIndex: 20, background: "rgba(255,255,255,0.97)", backdropFilter: "blur(12px)" }}
+        className="absolute top-4 left-14 right-14"
+        style={{ zIndex: 20 }}
       >
-        <div className="flex items-center gap-2">
-          {/* Input pill */}
-          <div className="flex-1 flex items-center gap-2 bg-gray-100 rounded-xl px-3 h-10">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        {/* Input pill */}
+        <div
+          className="flex items-center gap-2 bg-white rounded-xl px-3 h-10 border border-gray-100"
+          style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={placeholder}
+            className="flex-1 bg-transparent text-[13px] text-gray-900 placeholder:text-gray-400 outline-none"
+          />
+          {loading && (
+            <svg className="w-4 h-4 text-gray-400 animate-spin flex-shrink-0" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16v-4l-3 3 3 3v-4a8 8 0 01-8-8z" />
             </svg>
-            <input
-              ref={inputRef}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search restaurants, cafés, museums…"
-              className="flex-1 bg-transparent text-[14px] text-gray-900 placeholder:text-gray-400 outline-none"
-            />
-            {loading && (
-              <svg className="w-4 h-4 text-gray-400 animate-spin flex-shrink-0" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16v-4l-3 3 3 3v-4a8 8 0 01-8-8z" />
+          )}
+          {query && !loading && (
+            <button
+              onClick={() => { setQuery(""); clearPredictions(); }}
+              className="flex-shrink-0 text-gray-400 hover:text-gray-600"
+              aria-label="Clear search"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
-            )}
-            {query && !loading && (
-              <button onClick={() => setQuery("")} className="flex-shrink-0 text-gray-400 hover:text-gray-600">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            )}
-          </div>
-          <button
-            onClick={close}
-            className="flex-shrink-0 text-[13px] font-medium text-gray-500 hover:text-gray-800 px-1 transition-colors"
-          >
-            Cancel
-          </button>
+            </button>
+          )}
         </div>
 
         {/* Autocomplete dropdown */}
         {predictions.length > 0 && (
           <ul
             role="listbox"
-            className="mt-2 bg-white rounded-xl border border-gray-100 overflow-hidden"
+            className="mt-1.5 bg-white rounded-xl border border-gray-100 overflow-hidden"
             style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.10)" }}
           >
             {predictions.map((p, i) => (

@@ -2,14 +2,14 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
-import CardBottomSheet from "@/components/cards/CardBottomSheet";
+import MapPinPopup from "./MapPinPopup";
 import CreateCardSheet from "@/components/plan/CreateCardSheet";
 import MapSidebar from "./MapSidebar";
 import PlaceSearch from "./PlaceSearch";
 import AddToTripSheet from "./AddToTripSheet";
 import type { PlaceResult } from "./AddToTripSheet";
 import type { Trip, Day, Card, CardType } from "@/types/database";
-import { makePinElement, makePinSVG } from "@/lib/mapPins";
+import { makePinElement } from "@/lib/mapPins";
 
 // Purple circular pin for search result previews
 const TEMP_PIN_SVG =
@@ -270,17 +270,6 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     setSelectedCard((prev) => (prev?.id === cardId ? null : prev));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Handle card updates from CardBottomSheet ─────────────────
-  const handleCardUpdate = useCallback((updated: Card) => {
-    setSelectedCard(updated);
-    const entry = MARKERS.get(updated.id);
-    if (entry) {
-      entry.cardRef.current = updated;
-      const inner = entry.marker.getElement().children[0] as HTMLDivElement | undefined;
-      if (inner) inner.innerHTML = makePinSVG(updated.type, updated.sub_type, updated.status);
-    }
-    syncVisibility();
-  }, [syncVisibility]);
 
   // ── Map initialisation (runs once) ───────────────────────────
   useEffect(() => {
@@ -419,8 +408,8 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           </svg>
         </Link>
 
-        {/* Place search */}
-        <PlaceSearch onPlaceSelect={handlePlaceSelect} />
+        {/* Place search — always visible bar */}
+        <PlaceSearch onPlaceSelect={handlePlaceSelect} destination={trip.destination} />
 
         {/* Avatar — top-right */}
         <Link
@@ -476,14 +465,11 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           </button>
         )}
 
-        {/* Card bottom sheet */}
+        {/* Centered pin popup */}
         {selectedCard && (
-          <CardBottomSheet
+          <MapPinPopup
             card={selectedCard}
-            days={days}
             onClose={() => { deselectPin(); setSelectedCard(null); }}
-            onCardUpdate={handleCardUpdate}
-            onCardDelete={handleCardDelete}
           />
         )}
 
