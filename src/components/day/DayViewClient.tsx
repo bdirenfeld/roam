@@ -128,7 +128,6 @@ export default function DayViewClient({ trip, days, dayWithCards, userAvatarUrl 
         <CardTimeline
           dayWithCards={localDayWithCards}
           onCardTap={(card) => { setSelectedCard(card); setIsCardOpen(true); }}
-          onCardDelete={handleCardDelete}
         />
       </div>
 
