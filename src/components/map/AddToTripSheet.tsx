@@ -30,7 +30,7 @@ interface Props {
 
 const TYPE_PILLS: { type: CardType; label: string; color: string; bg: string; activeBg: string }[] = [
   { type: "activity",  label: "Activity",  color: "#1E3A5F", bg: "bg-blue-50",  activeBg: "bg-blue-100"  },
-  { type: "food",      label: "Food",      color: "#991B1B", bg: "bg-red-50",   activeBg: "bg-red-100"   },
+  { type: "food",      label: "Food",      color: "#7C3AED", bg: "bg-violet-50", activeBg: "bg-violet-100" },
   { type: "logistics", label: "Stay",      color: "#111827", bg: "bg-gray-100", activeBg: "bg-gray-200"  },
 ];
 

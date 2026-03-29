@@ -332,7 +332,15 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
 
       map.addControl(new mb.AttributionControl({ compact: true }), "bottom-right");
 
-      map.once("load", () => {
+      map.once("load", async () => {
+        if (mapInstRef.current !== map) return;
+
+        // Wait for Material Symbols font before creating pins so icons render correctly
+        try {
+          await document.fonts.load('16px "Material Symbols Outlined"');
+        } catch {
+          // best-effort — proceed even if font check fails
+        }
         if (mapInstRef.current !== map) return;
 
         MARKERS.forEach(({ marker }) => marker.remove());

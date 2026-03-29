@@ -3,7 +3,7 @@ import type { CardType } from "@/types/database";
 export const PIN_COLORS: Record<CardType, string> = {
   logistics: "#111827",
   activity:  "#1E3A5F",
-  food:      "#991B1B",
+  food:      "#7C3AED",
 };
 
 // Each icon returns SVG child elements for a 24×24 viewBox.
@@ -159,32 +159,32 @@ const MATERIAL_ICONS: Record<string, string> = {
 export function makeMaterialPinElement(
   type: CardType,
   subType: string | null | undefined,
-  status: string,
+  _status: string,
 ): PinElements {
   const baseColor = PIN_COLORS[type];
-  const outlined  = status === "interested";
   const iconName  = (subType && MATERIAL_ICONS[subType]) || "place";
 
   const wrapper = document.createElement("div");
-  wrapper.style.cssText = "width:28px;height:28px;cursor:pointer;";
+  wrapper.style.cssText = "width:32px;height:32px;cursor:pointer;";
 
   const inner = document.createElement("div");
   inner.style.cssText =
-    "width:28px;height:28px;" +
+    "width:32px;height:32px;" +
     "border-radius:50%;" +
-    `background:${outlined ? "white" : baseColor};` +
-    `border:2px solid ${outlined ? baseColor : "rgba(255,255,255,0.85)"};` +
+    `background:${baseColor};` +
+    "border:2px solid white;" +
     "display:flex;align-items:center;justify-content:center;" +
-    "box-shadow:0 2px 6px rgba(0,0,0,0.28);" +
+    "box-shadow:0 2px 4px rgba(0,0,0,0.3);" +
     "transition:transform 150ms ease;" +
     "transform-origin:50% 50%;";
 
   const icon = document.createElement("span");
   icon.className = "material-symbols-outlined";
   icon.style.cssText =
-    `color:${outlined ? baseColor : "white"};` +
+    "color:white;" +
     "font-size:16px;" +
     "line-height:1;" +
+    "display:block;" +
     "user-select:none;" +
     "font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20;";
   icon.textContent = iconName;
@@ -192,7 +192,7 @@ export function makeMaterialPinElement(
   inner.appendChild(icon);
 
   inner.addEventListener("mouseenter", () => {
-    inner.style.transform = "scale(1.2)";
+    if (inner.dataset.selected !== "1") inner.style.transform = "scale(1.15)";
   });
   inner.addEventListener("mouseleave", () => {
     if (inner.dataset.selected !== "1") inner.style.transform = "";
