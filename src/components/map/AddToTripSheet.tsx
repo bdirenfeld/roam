@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import type { Card, CardType } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
+import { PIN_COLORS } from "@/lib/mapPins";
 
 export interface PlaceResult {
   placeId: string;
@@ -28,24 +29,38 @@ interface Props {
   onCardCreated: (card: Card) => void;
 }
 
-const TYPE_PILLS: { type: CardType; label: string; color: string; bg: string; activeBg: string }[] = [
-  { type: "activity",  label: "Activity",  color: "#2563EB", bg: "bg-blue-50",  activeBg: "bg-blue-100"  },
-  { type: "food",      label: "Food",      color: "#7C3AED", bg: "bg-violet-50", activeBg: "bg-violet-100" },
-  { type: "logistics", label: "Stay",      color: "#111827", bg: "bg-gray-100", activeBg: "bg-gray-200"  },
+const TYPE_OPTIONS: { type: CardType; label: string }[] = [
+  { type: "activity",  label: "Activity" },
+  { type: "food",      label: "Food"     },
+  { type: "logistics", label: "Stay"     },
 ];
 
-// Fallback sub-type when keyword matching finds nothing
+const SUB_TYPE_OPTIONS: Record<CardType, { label: string; value: string }[]> = {
+  activity: [
+    { label: "Guided",   value: "guided"   },
+    { label: "Wellness", value: "wellness" },
+  ],
+  food: [
+    { label: "Restaurant",    value: "restaurant"  },
+    { label: "Café & Dessert", value: "coffee"     },
+    { label: "Bar",           value: "cocktail_bar" },
+  ],
+  logistics: [
+    { label: "Hotel",  value: "hotel"         },
+    { label: "Flight", value: "flight_arrival" },
+  ],
+};
+
 const DEFAULT_SUB_TYPE: Record<CardType, string> = {
   activity:  "guided",
   food:      "restaurant",
   logistics: "hotel",
 };
 
-// Keyword → sub-type matching rules (case-insensitive, ordered by priority)
 const KEYWORD_RULES: { pattern: RegExp; subType: string; forTypes: CardType[] }[] = [
   { pattern: /airport|aeroporto|fco|cia|terminal/i,         subType: "flight_arrival",  forTypes: ["logistics"] },
   { pattern: /hotel|b&b|hostel|inn|suites/i,                subType: "hotel",           forTypes: ["logistics"] },
-  { pattern: /station|termini|train|bus/i,                  subType: "transit",         forTypes: ["logistics"] },
+  { pattern: /station|termini|train|bus/i,                  subType: "hotel",           forTypes: ["logistics"] },
   { pattern: /massage|spa|wellness|reflexology/i,           subType: "wellness",        forTypes: ["activity"]  },
   { pattern: /cooking class|corso/i,                        subType: "guided",          forTypes: ["activity"]  },
   { pattern: /caff[eè]|caffe|coffee|gelato|espresso/i,      subType: "coffee",          forTypes: ["food"]      },
@@ -77,8 +92,9 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
   const dragY    = useRef(0);
   const dragging = useRef(false);
 
-  const [type,   setType]   = useState<CardType | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [type,    setType]    = useState<CardType | null>(null);
+  const [subType, setSubType] = useState<string | null>(null);
+  const [saving,  setSaving]  = useState(false);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -118,6 +134,12 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
     }
   }, [onClose]);
 
+  function selectType(t: CardType) {
+    const suggested = suggestSubType(place.name, t);
+    setType(t);
+    setSubType(suggested);
+  }
+
   const handleSave = useCallback(async () => {
     if (!type || saving) return;
     setSaving(true);
@@ -127,14 +149,14 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
     if (place.phone)   details.phone   = place.phone;
     if (place.rating)  details.rating  = place.rating;
 
-    const subType = suggestSubType(place.name, type);
+    const finalSubType = subType ?? DEFAULT_SUB_TYPE[type];
 
     const newCard: Card = {
       id:              crypto.randomUUID(),
       day_id:          dayId,
       trip_id:         tripId,
       type,
-      sub_type:        subType,
+      sub_type:        finalSubType,
       title:           place.name,
       start_time:      null,
       end_time:        null,
@@ -155,7 +177,7 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
       day_id:          dayId,
       trip_id:         tripId,
       type,
-      sub_type:        subType,
+      sub_type:        finalSubType,
       title:           place.name,
       start_time:      null,
       end_time:        null,
@@ -171,7 +193,9 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
 
     setSaving(false);
     if (!error) onCardCreated(newCard);
-  }, [type, saving, place, dayId, tripId, supabase, onCardCreated]);
+  }, [type, subType, saving, place, dayId, tripId, supabase, onCardCreated]);
+
+  const typeColor = type ? PIN_COLORS[type] : null;
 
   return (
     <div
@@ -188,7 +212,7 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
         className="relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet max-h-[90dvh] flex flex-col animate-in slide-in-from-bottom duration-300"
         style={{ willChange: "transform" }}
       >
-        {/* Cover photo — always visible, full width */}
+        {/* Cover photo */}
         {place.coverPhotoUrl ? (
           <div className="flex-shrink-0 rounded-t-2xl overflow-hidden" style={{ height: 180 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -215,12 +239,13 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
           </svg>
         </button>
 
-        {/* Info + form */}
+        {/* Content */}
         <div className="flex-1 overflow-y-auto px-5 pt-3 pb-6">
+
           {/* Place name */}
           <h2 className="text-[20px] font-bold text-gray-900 leading-tight mb-1">{place.name}</h2>
 
-          {/* Rating + address row */}
+          {/* Rating */}
           <div className="flex items-center gap-2 flex-wrap mb-1">
             {place.rating !== undefined && (
               <span className="flex items-center gap-1 text-[13px] text-gray-600">
@@ -232,6 +257,8 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
               </span>
             )}
           </div>
+
+          {/* Address */}
           {place.address && (
             <p className="text-[13px] text-gray-500 mb-2 leading-snug">{place.address}</p>
           )}
@@ -249,35 +276,36 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
           )}
 
           {/* Phone + website */}
-          <div className="flex items-center gap-4 mb-4">
-            {place.phone && (
-              <a href={`tel:${place.phone}`} className="text-[12px] text-blue-600 hover:underline">
-                {place.phone}
-              </a>
-            )}
-            {place.website && (
-              <a href={place.website} target="_blank" rel="noopener noreferrer" className="text-[12px] text-blue-600 hover:underline truncate max-w-[180px]">
-                {place.website.replace(/^https?:\/\/(www\.)?/, "")}
-              </a>
-            )}
-          </div>
+          {(place.phone || place.website) && (
+            <div className="flex items-center gap-4 mb-4">
+              {place.phone && (
+                <a href={`tel:${place.phone}`} className="text-[12px] text-blue-600 hover:underline">
+                  {place.phone}
+                </a>
+              )}
+              {place.website && (
+                <a href={place.website} target="_blank" rel="noopener noreferrer" className="text-[12px] text-blue-600 hover:underline truncate max-w-[180px]">
+                  {place.website.replace(/^https?:\/\/(www\.)?/, "")}
+                </a>
+              )}
+            </div>
+          )}
 
-          {/* Type selector */}
-          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Type</p>
-          <div className="flex gap-2 mb-5">
-            {TYPE_PILLS.map(({ type: t, label, color, bg, activeBg }) => {
+          {/* ── Type pills ── */}
+          <div className="flex gap-2 mb-2">
+            {TYPE_OPTIONS.map(({ type: t, label }) => {
               const selected = type === t;
+              const color    = PIN_COLORS[t];
               return (
                 <button
                   key={t}
-                  onClick={() => setType(t)}
-                  className={`flex-1 py-2.5 rounded-xl text-[13px] font-bold border-2 transition-all ${
-                    selected ? activeBg : bg
-                  }`}
-                  style={{
-                    borderColor: selected ? color : "transparent",
-                    color: selected ? color : "#9CA3AF",
-                  }}
+                  onClick={() => selectType(t)}
+                  className="px-3 py-1 rounded-full text-xs font-medium transition-all"
+                  style={
+                    selected
+                      ? { background: color, color: "white", border: `1px solid ${color}` }
+                      : { background: "transparent", color: "#6B7280", border: "1px solid #E5E7EB" }
+                  }
                 >
                   {label}
                 </button>
@@ -285,15 +313,39 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
             })}
           </div>
 
+          {/* ── Sub-type pills — appears instantly when type selected ── */}
+          {type && (
+            <div className="flex gap-2 flex-wrap mb-4">
+              {SUB_TYPE_OPTIONS[type].map(({ label, value }) => {
+                const selected = subType === value;
+                return (
+                  <button
+                    key={value}
+                    onClick={() => setSubType(value)}
+                    className="px-3 py-1 rounded-full text-xs font-medium transition-all"
+                    style={
+                      selected
+                        ? { background: typeColor!, color: "white", border: `1px solid ${typeColor}` }
+                        : { background: "transparent", color: "#6B7280", border: "1px solid #E5E7EB" }
+                    }
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {/* Save button */}
           <button
             onClick={handleSave}
             disabled={!type || saving}
             className={`w-full py-3.5 rounded-xl text-[15px] font-bold transition-all ${
               type && !saving
-                ? "bg-activity text-white active:scale-[0.98] shadow-sm"
+                ? "text-white active:scale-[0.98] shadow-sm"
                 : "bg-gray-100 text-gray-300 cursor-not-allowed"
             }`}
+            style={type && !saving ? { background: typeColor! } : undefined}
           >
             {saving ? "Saving…" : "Save to Map"}
           </button>
