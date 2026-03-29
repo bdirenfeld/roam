@@ -60,30 +60,6 @@ interface Props {
   onCardDelete?: (cardId: string) => void;
 }
 
-// ── Toggle switch ─────────────────────────────────────────────
-function Toggle({ on, color, onToggle }: { on: boolean; color: string; onToggle: () => void }) {
-  return (
-    <button
-      onClick={onToggle}
-      className="relative flex-shrink-0 w-9 h-5 rounded-full overflow-hidden transition-colors duration-200"
-      style={{ background: on ? color : "#D1D5DB" }}
-      aria-checked={on}
-      role="switch"
-    >
-      <span
-        className="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200"
-        style={{ transform: on ? "translateX(18px)" : "translateX(2px)" }}
-      />
-    </button>
-  );
-}
-
-function formatTime(t: string): string {
-  const [h, m] = t.split(":").map(Number);
-  const p = h >= 12 ? "PM" : "AM";
-  return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, "0")} ${p}`;
-}
-
 export default function MapSidebar({
   cards,
   activeSubTypes,
@@ -214,59 +190,72 @@ export default function MapSidebar({
 
                     return (
                       <div key={row.label} className="py-0.5">
-                        <div className="flex items-center gap-2 px-1">
-                          {/* Toggle — stop propagation so it doesn't expand the row */}
-                          <div onClick={(e) => e.stopPropagation()} className="flex-shrink-0">
-                            <Toggle on={on} color={group.color} onToggle={() => toggleRow(row)} />
-                          </div>
+                        {/* Row header — entire row is clickable to toggle */}
+                        <button
+                          className="w-full flex items-center gap-2.5 px-1 py-1.5 rounded-lg hover:bg-gray-50 transition-colors text-left"
+                          onClick={() => {
+                            toggleRow(row);
+                            // If toggling on and has cards, keep expanded state unchanged
+                            // If clicking the chevron area, expand — handled by separate chevron button
+                          }}
+                        >
+                          {/* Dot indicator */}
+                          <span
+                            className="flex-shrink-0 w-3 h-3 rounded-full transition-colors duration-200"
+                            style={{ background: on ? group.color : "#D1D5DB" }}
+                          />
 
-                          {/* Label + count + expand chevron */}
-                          <button
-                            className="flex-1 flex items-center gap-2 py-1.5 px-2 rounded-lg hover:bg-gray-50 transition-colors text-left min-w-0"
-                            onClick={() => { if (count > 0) toggleExpandRow(row.label); }}
+                          {/* Label */}
+                          <span
+                            className="flex-1 text-[13px] font-medium truncate transition-colors duration-200"
+                            style={{ color: on ? "#111827" : "#9CA3AF" }}
                           >
+                            {row.label}
+                          </span>
+
+                          {/* Count badge */}
+                          {count > 0 && (
                             <span
-                              className="flex-1 text-[13px] font-medium truncate"
-                              style={{ color: on ? "#111827" : "#9CA3AF" }}
+                              className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full min-w-[20px] text-center flex-shrink-0"
+                              style={{
+                                background: on ? `${group.color}18` : "#F3F4F6",
+                                color: on ? group.color : "#9CA3AF",
+                              }}
                             >
-                              {row.label}
+                              {count}
                             </span>
-                            {count > 0 && (
-                              <span
-                                className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full min-w-[20px] text-center flex-shrink-0"
-                                style={{
-                                  background: on ? `${group.color}18` : "#F3F4F6",
-                                  color: on ? group.color : "#9CA3AF",
-                                }}
-                              >
-                                {count}
-                              </span>
-                            )}
-                            {count > 0 && (
+                          )}
+
+                          {/* Expand chevron — stops propagation so it doesn't toggle the layer */}
+                          {count > 0 && (
+                            <span
+                              role="button"
+                              onClick={(e) => { e.stopPropagation(); toggleExpandRow(row.label); }}
+                              className="flex-shrink-0 p-0.5 rounded hover:bg-gray-100 transition-colors"
+                            >
                               <ChevronDown
-                                className={`w-3 h-3 text-gray-300 flex-shrink-0 transition-transform duration-200 ${expanded ? "" : "-rotate-90"}`}
+                                className={`w-3 h-3 text-gray-300 transition-transform duration-200 ${expanded ? "" : "-rotate-90"}`}
                               />
-                            )}
-                          </button>
-                        </div>
+                            </span>
+                          )}
+                        </button>
 
                         {/* Expanded card list */}
                         {expanded && (
-                          <div className="mt-1 space-y-px" style={{ paddingLeft: 52, paddingRight: 4 }}>
+                          <div className="mt-0.5 space-y-px pl-1 pr-1">
                             {rowCards.map((card) => {
-                              const typeKey = card.type as keyof typeof PIN_COLORS;
+                              const typeKey  = card.type as keyof typeof PIN_COLORS;
                               const iconColor = PIN_COLORS[typeKey] ?? group.color;
                               const isConfirming = confirmDeleteId === card.id;
-                              const isDeleting   = deletingId === card.id;
+                              const isDeleting_  = deletingId === card.id;
                               return (
                                 <div key={card.id} className="group relative">
                                   {isConfirming ? (
-                                    /* Inline delete confirmation */
                                     <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-red-50">
                                       <span className="flex-1 text-[11px] text-red-600 font-medium truncate">
-                                        {isDeleting ? "Deleting…" : "Delete this card?"}
+                                        {isDeleting_ ? "Deleting…" : "Delete this card?"}
                                       </span>
-                                      {!isDeleting && (
+                                      {!isDeleting_ && (
                                         <>
                                           <button
                                             onClick={() => handleDeleteCard(card.id)}
@@ -284,7 +273,7 @@ export default function MapSidebar({
                                       )}
                                     </div>
                                   ) : (
-                                    <div className="flex items-center gap-0 rounded-lg hover:bg-gray-50 transition-colors">
+                                    <div className="flex items-center rounded-lg hover:bg-gray-50 transition-colors">
                                       <button
                                         onClick={() => onCardSelect(card)}
                                         className="flex-1 flex items-center gap-2 px-2 py-1.5 text-left min-w-0"
@@ -297,11 +286,6 @@ export default function MapSidebar({
                                         <span className="flex-1 text-[12px] text-gray-700 truncate leading-snug">
                                           {card.title}
                                         </span>
-                                        {card.start_time && (
-                                          <span className="text-[11px] text-gray-400 flex-shrink-0">
-                                            {formatTime(card.start_time)}
-                                          </span>
-                                        )}
                                       </button>
                                       {/* Trash icon — visible on hover */}
                                       <button
