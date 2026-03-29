@@ -6,8 +6,6 @@ import type { Card } from "@/types/database";
 import { getIconSVG, PIN_COLORS } from "@/lib/mapPins";
 import { createClient } from "@/lib/supabase/client";
 
-export type PlacementFilter = "all" | "placed" | "unplaced";
-
 // ── Sub-type groups shown in the sidebar ─────────────────────
 interface SubTypeRow {
   label: string;
@@ -25,10 +23,8 @@ const GROUPS: Group[] = [
     label: "Activity",
     color: "#0D9488",
     rows: [
-      { label: "Guided",    subTypes: ["guided", "hosted"] },
-      { label: "Wellness",  subTypes: ["wellness"] },
-      { label: "Challenge", subTypes: ["challenge"] },
-      { label: "Event",     subTypes: ["event"] },
+      { label: "Guided",   subTypes: ["guided", "hosted"] },
+      { label: "Wellness", subTypes: ["wellness"] },
     ],
   },
   {
@@ -41,11 +37,10 @@ const GROUPS: Group[] = [
     ],
   },
   {
-    label: "Logistics",
+    label: "Stay",
     color: "#64748B",
     rows: [
-      { label: "Hotel",  subTypes: ["hotel"] },
-      { label: "Flight", subTypes: ["flight_arrival", "flight_departure"] },
+      { label: "Hotel", subTypes: ["hotel"] },
     ],
   },
 ];
@@ -54,8 +49,6 @@ interface Props {
   cards: Card[];
   activeSubTypes: Set<string>;
   setActiveSubTypes: (next: Set<string>) => void;
-  placementFilter: PlacementFilter;
-  setPlacementFilter: (f: PlacementFilter) => void;
   onCardSelect: (card: Card) => void;
   onCardDelete?: (cardId: string) => void;
 }
@@ -64,8 +57,6 @@ export default function MapSidebar({
   cards,
   activeSubTypes,
   setActiveSubTypes,
-  placementFilter,
-  setPlacementFilter,
   onCardSelect,
   onCardDelete,
 }: Props) {
@@ -120,45 +111,12 @@ export default function MapSidebar({
     setActiveSubTypes(next);
   }
 
-  // Reactive: filter cards by placement before computing counts + lists
-  const filteredCards = cards.filter((c) => {
-    if (placementFilter === "placed")   return c.status === "in_itinerary";
-    if (placementFilter === "unplaced") return c.status === "interested";
-    return true;
-  });
-
   function cardsForRow(row: SubTypeRow): Card[] {
-    return filteredCards.filter((c) => c.sub_type && row.subTypes.includes(c.sub_type));
+    return cards.filter((c) => c.sub_type && row.subTypes.includes(c.sub_type));
   }
-
-  const PLACEMENT_OPTIONS: { value: PlacementFilter; label: string }[] = [
-    { value: "all",      label: "All" },
-    { value: "placed",   label: "Placed" },
-    { value: "unplaced", label: "Unplaced" },
-  ];
 
   return (
     <div className="flex flex-col h-full">
-      {/* ── Placement filter ── */}
-      <div className="px-5 pt-5 pb-4 border-b border-gray-100 flex-shrink-0">
-        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-3">Status</p>
-        <div className="flex rounded-xl overflow-hidden border border-gray-100">
-          {PLACEMENT_OPTIONS.map(({ value, label }) => (
-            <button
-              key={value}
-              onClick={() => setPlacementFilter(value)}
-              className={`flex-1 py-2 text-[12px] font-semibold transition-colors ${
-                placementFilter === value
-                  ? "bg-gray-900 text-white"
-                  : "bg-white text-gray-500 hover:bg-gray-50"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* ── Layer groups ── */}
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6">
         {GROUPS.map((group) => {
@@ -190,14 +148,10 @@ export default function MapSidebar({
 
                     return (
                       <div key={row.label} className="py-0.5">
-                        {/* Row header — entire row is clickable to toggle */}
+                        {/* Row header — entire row clicks to toggle layer */}
                         <button
                           className="w-full flex items-center gap-2.5 px-1 py-1.5 rounded-lg hover:bg-gray-50 transition-colors text-left"
-                          onClick={() => {
-                            toggleRow(row);
-                            // If toggling on and has cards, keep expanded state unchanged
-                            // If clicking the chevron area, expand — handled by separate chevron button
-                          }}
+                          onClick={() => toggleRow(row)}
                         >
                           {/* Dot indicator */}
                           <span
@@ -226,7 +180,7 @@ export default function MapSidebar({
                             </span>
                           )}
 
-                          {/* Expand chevron — stops propagation so it doesn't toggle the layer */}
+                          {/* Expand chevron — stops propagation */}
                           {count > 0 && (
                             <span
                               role="button"
@@ -244,7 +198,7 @@ export default function MapSidebar({
                         {expanded && (
                           <div className="mt-0.5 space-y-px pl-1 pr-1">
                             {rowCards.map((card) => {
-                              const typeKey  = card.type as keyof typeof PIN_COLORS;
+                              const typeKey   = card.type as keyof typeof PIN_COLORS;
                               const iconColor = PIN_COLORS[typeKey] ?? group.color;
                               const isConfirming = confirmDeleteId === card.id;
                               const isDeleting_  = deletingId === card.id;

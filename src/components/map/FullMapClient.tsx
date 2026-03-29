@@ -8,9 +8,8 @@ import MapSidebar from "./MapSidebar";
 import PlaceSearch from "./PlaceSearch";
 import AddToTripSheet from "./AddToTripSheet";
 import type { PlaceResult } from "./AddToTripSheet";
-import type { PlacementFilter } from "./MapSidebar";
 import type { Trip, Day, Card, CardType } from "@/types/database";
-import { makePinElement, makePinSVG, PIN_COLORS } from "@/lib/mapPins";
+import { makePinElement, makePinSVG } from "@/lib/mapPins";
 
 // Purple circular pin for search result previews
 const TEMP_PIN_SVG =
@@ -26,47 +25,31 @@ interface Props {
   userAvatarUrl?: string | null;
 }
 
-const FILTER_DOTS: { type: CardType; label: string }[] = [
-  { type: "activity",  label: "Activity"  },
-  { type: "food",      label: "Food"      },
-  { type: "logistics", label: "Logistics" },
-];
-
-// Sub-types that the sidebar can toggle (others always show)
-const CONTROLLED_SUB_TYPES = new Set([
-  "guided", "hosted", "wellness", "challenge", "event",
-  "restaurant", "fine_dining", "street_food", "coffee", "coffee_dessert", "cocktail_bar", "drinks",
-  "hotel", "flight_arrival", "flight_departure",
-]);
-
-// Sub-types that represent real, pinnable places even without a source_url/address
-const PLACE_SUB_TYPES = new Set([
+// Only these sub-types represent real, mappable locations
+const LOCATION_SUB_TYPES = new Set([
+  "restaurant", "coffee", "cocktail_bar",
   "guided", "wellness",
-  "restaurant", "fine_dining", "street_food", "coffee", "coffee_dessert", "cocktail_bar", "drinks",
-  "hotel", "flight_arrival", "flight_departure",
+  "hotel",
 ]);
 
-/** A card should only appear as a map pin if it has coordinates AND is a real place. */
+// Sub-types whose visibility is controlled by the sidebar toggles
+const CONTROLLED_SUB_TYPES = new Set(LOCATION_SUB_TYPES);
+
+/** Returns true only for cards that are real physical locations. */
 function isRealPlace(card: Card): boolean {
   if (card.lat == null || card.lng == null) return false;
-  // Self-directed activities are never pinnable places
-  if (card.sub_type === "self_directed") return false;
-  if (card.source_url) return true;
-  if (card.address) return true;
-  if (card.sub_type && PLACE_SUB_TYPES.has(card.sub_type)) return true;
-  return false;
+  return card.sub_type != null && LOCATION_SUB_TYPES.has(card.sub_type);
 }
 
-// All sub-types that start active (matches CONTROLLED_SUB_TYPES + spec values)
 function makeInitialSubTypes(): Set<string> {
   return new Set(CONTROLLED_SUB_TYPES);
 }
 
 // ── Module-level — outside React entirely ────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type MarkerEntry = { marker: any; type: CardType; status: string; dayId: string; cardRef: { current: Card } };
+type MarkerEntry = { marker: any; type: CardType; cardRef: { current: Card } };
 const MARKERS = new Map<string, MarkerEntry>();
-const ACTIVE_TYPES = new Set<CardType>(["activity", "food", "logistics"]);
+const ACTIVE_TYPES = new Set<CardType>(["activity", "food"]);
 
 export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Props) {
   const mapContainerRef  = useRef<HTMLDivElement>(null);
@@ -74,20 +57,15 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
   const mapInstRef       = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mbRef            = useRef<any>(null);
-  const filtersRef       = useRef<HTMLDivElement>(null);
   const selectedInnerRef = useRef<HTMLDivElement | null>(null);
   const clickedPinRef    = useRef(false);
-  const placementFilterRef  = useRef<PlacementFilter>("all");
-  const dayFilterRef        = useRef<string | null>(null);
-  const activeSubTypesRef   = useRef<Set<string>>(makeInitialSubTypes());
+  const activeSubTypesRef = useRef<Set<string>>(makeInitialSubTypes());
 
   const [localCards, setLocalCards]     = useState<Card[]>(cards);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [showHint, setShowHint]         = useState(false);
-  const [placementFilter, setPlacementFilter] = useState<PlacementFilter>("all");
-  const [dayFilter, setDayFilter]             = useState<string | null>(null);
   const [activeSubTypes, setActiveSubTypesState] = useState<Set<string>>(makeInitialSubTypes);
-  const [showCreate, setShowCreate]   = useState(false);
+  const [showCreate, setShowCreate]     = useState(false);
   const [createCoords, setCreateCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [pendingPlace, setPendingPlace] = useState<PlaceResult | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -116,45 +94,24 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     }
   }
 
-  // ── Sync all marker visibility against current filters ──────
+  // ── Sync all marker visibility against sub-type toggles ──────
   const syncVisibility = useCallback(() => {
     const map = mapInstRef.current;
     if (!map) return;
-    MARKERS.forEach(({ marker, type, status, dayId, cardRef }) => {
+    MARKERS.forEach(({ marker, type, cardRef }) => {
       const card = cardRef.current;
       const subTypeOk =
         !card.sub_type ||
         !CONTROLLED_SUB_TYPES.has(card.sub_type) ||
         activeSubTypesRef.current.has(card.sub_type);
-      const placementOk =
-        placementFilterRef.current === "all" ||
-        (placementFilterRef.current === "placed"   && status === "in_itinerary") ||
-        (placementFilterRef.current === "unplaced" && status === "interested");
-      const show =
-        ACTIVE_TYPES.has(type) &&
-        (dayFilterRef.current === null || dayId === dayFilterRef.current) &&
-        subTypeOk &&
-        placementOk;
+      const show = ACTIVE_TYPES.has(type) && subTypeOk;
       if (show) marker.addTo(map); else marker.remove();
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Sidebar filter handlers (update ref + state + sync) ─────
   function handleSubTypesChange(next: Set<string>) {
     activeSubTypesRef.current = next;
     setActiveSubTypesState(new Set(next));
-    syncVisibility();
-  }
-
-  function handlePlacementChange(f: PlacementFilter) {
-    placementFilterRef.current = f;
-    setPlacementFilter(f);
-    syncVisibility();
-  }
-
-  function handleDayFilter(dayId: string | null) {
-    dayFilterRef.current = dayId;
-    setDayFilter(dayId);
     syncVisibility();
   }
 
@@ -162,17 +119,10 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
   const addPinToMap = useCallback((card: Card) => {
     const map = mapInstRef.current;
     const mb  = mbRef.current;
-    if (!map || !mb) return;
-    if (!isRealPlace(card)) return;
+    if (!map || !mb || !isRealPlace(card)) return;
 
-    let lat = card.lat, lng = card.lng;
-    if (lat == null || lng == null) {
-      const d = card.details as Record<string, unknown>;
-      if (typeof d?.lat === "number" && typeof d?.lng === "number") {
-        lat = d.lat as number; lng = d.lng as number;
-      }
-    }
-    if (lat == null || lng == null) return;
+    const lat = card.lat!;
+    const lng = card.lng!;
 
     const cardRef: { current: Card } = { current: card };
     const { wrapper, inner } = makePinElement(card.type, card.sub_type, card.status);
@@ -185,12 +135,8 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       !card.sub_type ||
       !CONTROLLED_SUB_TYPES.has(card.sub_type) ||
       activeSubTypesRef.current.has(card.sub_type);
-    const placementOk =
-      placementFilterRef.current === "all" ||
-      (placementFilterRef.current === "placed"   && card.status === "in_itinerary") ||
-      (placementFilterRef.current === "unplaced" && card.status === "interested");
-    if (ACTIVE_TYPES.has(card.type) && subTypeOk && placementOk &&
-        (dayFilterRef.current === null || card.day_id === dayFilterRef.current)) {
+
+    if (ACTIVE_TYPES.has(card.type) && subTypeOk) {
       mbMarker.addTo(map);
     }
 
@@ -207,21 +153,14 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       setSelectedCard(cardRef.current);
     });
 
-    MARKERS.set(card.id, { marker: mbMarker, type: card.type, status: card.status, dayId: card.day_id, cardRef });
+    MARKERS.set(card.id, { marker: mbMarker, type: card.type, cardRef });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Sidebar card select: fly to pin + open sheet ─────────────
   function handleSidebarCardSelect(card: Card) {
     const map = mapInstRef.current;
-    let lat = card.lat, lng = card.lng;
-    if (lat == null || lng == null) {
-      const d = card.details as Record<string, unknown>;
-      if (typeof d?.lat === "number" && typeof d?.lng === "number") {
-        lat = d.lat as number; lng = d.lng as number;
-      }
-    }
-    if (map && lat != null && lng != null) {
-      map.flyTo({ center: [lng, lat], zoom: 14 });
+    if (map && card.lat != null && card.lng != null) {
+      map.flyTo({ center: [card.lng, card.lat], zoom: 14 });
     }
     deselectPin();
     const entry = MARKERS.get(card.id);
@@ -250,7 +189,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       const lat = result.geometry.location.lat as number;
       const lng = result.geometry.location.lng as number;
 
-      // Resolve cover photo via server-side proxy (keeps API key hidden)
+      // Resolve cover photo via server-side proxy
       let coverPhotoUrl: string | undefined;
       const photoRef = result.photos?.[0]?.photo_reference as string | undefined;
       if (photoRef) {
@@ -259,7 +198,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           const photoData = await photoRes.json();
           if (photoData.url) coverPhotoUrl = photoData.url as string;
         } catch {
-          // best-effort — ignore photo errors
+          // best-effort
         }
       }
 
@@ -270,18 +209,16 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
         openNow = result.opening_hours.open_now as boolean | undefined;
         const weekdayText = result.opening_hours.weekday_text as string[] | undefined;
         if (weekdayText?.length) {
-          const jsDay = new Date().getDay();               // 0 = Sunday
-          const idx   = jsDay === 0 ? 6 : jsDay - 1;      // weekday_text starts Monday
+          const jsDay = new Date().getDay();
+          const idx   = jsDay === 0 ? 6 : jsDay - 1;
           const raw   = weekdayText[idx] ?? "";
           const sep   = raw.indexOf(": ");
           todayHours  = sep !== -1 ? raw.slice(sep + 2) : raw;
         }
       }
 
-      // Remove stale temp pin
       if (tempPinRef.current) { tempPinRef.current.remove(); tempPinRef.current = null; }
 
-      // Drop purple preview pin
       const mb  = mbRef.current;
       const map = mapInstRef.current;
       if (mb && map) {
@@ -339,7 +276,6 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     const entry = MARKERS.get(updated.id);
     if (entry) {
       entry.cardRef.current = updated;
-      MARKERS.set(updated.id, { ...entry, status: updated.status, dayId: updated.day_id });
       const inner = entry.marker.getElement().children[0] as HTMLDivElement | undefined;
       if (inner) inner.innerHTML = makePinSVG(updated.type, updated.sub_type, updated.status);
     }
@@ -382,11 +318,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
         type Resolved = { card: Card; lat: number; lng: number };
         const mappable: Resolved[] = cards.flatMap((c) => {
           if (!isRealPlace(c)) return [];
-          if (c.lat != null && c.lng != null) return [{ card: c, lat: c.lat, lng: c.lng }];
-          const d = c.details as Record<string, unknown>;
-          if (typeof d?.lat === "number" && typeof d?.lng === "number")
-            return [{ card: c, lat: d.lat as number, lng: d.lng as number }];
-          return [];
+          return [{ card: c, lat: c.lat!, lng: c.lng! }];
         });
 
         mappable.forEach(({ card, lat, lng }) => {
@@ -411,7 +343,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
             setSelectedCard(cardRef.current);
           });
 
-          MARKERS.set(card.id, { marker: mbMarker, type: card.type, status: card.status, dayId: card.day_id, cardRef });
+          MARKERS.set(card.id, { marker: mbMarker, type: card.type, cardRef });
         });
 
         // Fit to all pins
@@ -423,24 +355,6 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           );
           map.fitBounds(bounds, { padding: 80, maxZoom: 15 });
         }
-
-        // ── Type filter dots — wired imperatively ─────────────
-        filtersRef.current?.querySelectorAll<HTMLButtonElement>("button[data-type]").forEach((btn) => {
-          const type = btn.dataset.type as CardType;
-          btn.onclick = () => {
-            if (ACTIVE_TYPES.has(type)) {
-              if (ACTIVE_TYPES.size === 1) return;
-              ACTIVE_TYPES.delete(type);
-              btn.style.background = "#D1D5DB";
-              btn.style.opacity    = "0.5";
-            } else {
-              ACTIVE_TYPES.add(type);
-              btn.style.background = PIN_COLORS[type];
-              btn.style.opacity    = "1";
-            }
-            syncVisibility();
-          };
-        });
       });
 
       map.on("click", () => {
@@ -457,7 +371,6 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       ACTIVE_TYPES.clear();
       ACTIVE_TYPES.add("activity");
       ACTIVE_TYPES.add("food");
-      ACTIVE_TYPES.add("logistics");
       if (tempPinRef.current) { tempPinRef.current.remove(); tempPinRef.current = null; }
       mbRef.current = null;
       if (mapInstRef.current) {
@@ -469,17 +382,14 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
   }, []);
 
   return (
-    // Flex row on desktop: sidebar (md+) + map (flex-1)
     <div style={{ display: "flex", width: "100%", height: "calc(100dvh - 80px)", overflow: "hidden" }}>
 
-      {/* ── Desktop sidebar — hidden on mobile ── */}
+      {/* ── Desktop sidebar ── */}
       <aside className="hidden md:flex md:w-[300px] flex-shrink-0 bg-white border-r border-gray-100 overflow-y-auto z-20 flex-col">
         <MapSidebar
           cards={localCards}
           activeSubTypes={activeSubTypes}
           setActiveSubTypes={handleSubTypesChange}
-          placementFilter={placementFilter}
-          setPlacementFilter={handlePlacementChange}
           onCardSelect={handleSidebarCardSelect}
           onCardDelete={handleCardDelete}
         />
@@ -509,24 +419,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           </svg>
         </Link>
 
-        {/* Type filter dots — hidden on desktop (sidebar handles type via sub-type) */}
-        <div
-          ref={filtersRef}
-          className="md:hidden absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-4"
-          style={{ zIndex: 10 }}
-        >
-          {FILTER_DOTS.map(({ type, label }) => (
-            <button
-              key={type}
-              data-type={type}
-              title={label}
-              className="w-3.5 h-3.5 rounded-full transition-all duration-150 active:scale-90"
-              style={{ background: PIN_COLORS[type], opacity: 1 }}
-            />
-          ))}
-        </div>
-
-        {/* Place search — sits just left of avatar, manages its own expand state */}
+        {/* Place search */}
         <PlaceSearch onPlaceSelect={handlePlaceSelect} />
 
         {/* Avatar — top-right */}
@@ -549,62 +442,11 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           )}
         </Link>
 
-        {/* Placement toggle — mobile only (desktop uses sidebar) */}
-        <div
-          className="md:hidden absolute left-1/2 -translate-x-1/2"
-          style={{ top: 56, zIndex: 10 }}
-        >
-          <div
-            className="flex items-center bg-white/90 rounded-full p-0.5 border border-gray-100"
-            style={{ backdropFilter: "blur(8px)", boxShadow: "0 1px 4px rgba(0,0,0,0.10)" }}
-          >
-            {(["all", "unplaced", "placed"] as PlacementFilter[]).map((f) => {
-              const label = f === "all" ? "All" : f === "unplaced" ? "Unplaced" : "Placed";
-              return (
-                <button
-                  key={f}
-                  onClick={() => handlePlacementChange(f)}
-                  className={`px-3 py-1 text-[11px] font-semibold rounded-full transition-all duration-150 ${
-                    placementFilter === f ? "bg-gray-900 text-white" : "text-gray-500"
-                  }`}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Day chips */}
-        {days.length > 1 && (
-          <div
-            className="absolute left-0 right-0"
-            style={{ top: 96, zIndex: 10, overflowX: "auto", WebkitOverflowScrolling: "touch" }}
-          >
-            <div className="flex items-center gap-2 px-4 pb-1" style={{ width: "max-content" }}>
-              {days.map((day) => (
-                <button
-                  key={day.id}
-                  onClick={() => handleDayFilter(dayFilter === day.id ? null : day.id)}
-                  className={`flex-shrink-0 text-[11px] font-semibold px-3 py-1.5 rounded-full border transition-all duration-150 active:scale-95 ${
-                    dayFilter === day.id
-                      ? "bg-gray-900 text-white border-gray-900"
-                      : "bg-white/90 text-gray-600 border-gray-200"
-                  }`}
-                  style={{ backdropFilter: "blur(4px)" }}
-                >
-                  Day {day.day_number}{day.day_name ? ` · ${day.day_name}` : ""}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* One-time hint */}
         {showHint && (
           <div
-            className="absolute left-1/2 -translate-x-1/2 z-30 pointer-events-none"
-            style={{ top: days.length > 1 ? 136 : 96, animation: "fadeOut 500ms 2500ms ease-in forwards" }}
+            className="absolute top-16 left-1/2 -translate-x-1/2 z-30 pointer-events-none"
+            style={{ animation: "fadeOut 500ms 2500ms ease-in forwards" }}
           >
             <p
               className="bg-gray-900/85 text-white text-[11px] font-medium px-3 py-1.5 rounded-full whitespace-nowrap"
@@ -662,7 +504,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           />
         )}
 
-        {/* Add to Trip sheet — opened after selecting a Google Places result */}
+        {/* Add to Trip sheet */}
         {pendingPlace && days.length > 0 && (
           <AddToTripSheet
             place={pendingPlace}
