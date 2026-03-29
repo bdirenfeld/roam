@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { ChevronDown } from "lucide-react";
 import type { Card, CardType } from "@/types/database";
-import { getIconSVG, PIN_COLORS } from "@/lib/mapPins";
+import { getMaterialIconHTML, PIN_COLORS } from "@/lib/mapPins";
 import { createClient } from "@/lib/supabase/client";
 
 // ── Sub-type groups shown in the sidebar ─────────────────────
@@ -22,7 +22,7 @@ interface Group {
 const GROUPS: Group[] = [
   {
     label: "Activity",
-    color: "#0D9488",
+    color: "#1E3A5F",
     typeKey: "activity",
     rows: [
       { label: "Guided",   subTypes: ["guided", "hosted"] },
@@ -31,20 +31,21 @@ const GROUPS: Group[] = [
   },
   {
     label: "Food",
-    color: "#F59E0B",
+    color: "#991B1B",
     typeKey: "food",
     rows: [
       { label: "Restaurant",   subTypes: ["restaurant", "fine_dining", "street_food"] },
-      { label: "Coffee",       subTypes: ["coffee", "coffee_dessert"] },
+      { label: "Café & Dessert", subTypes: ["coffee", "coffee_dessert"] },
       { label: "Cocktail Bar", subTypes: ["cocktail_bar", "drinks"] },
     ],
   },
   {
     label: "Stay",
-    color: "#64748B",
+    color: "#111827",
     typeKey: "logistics",
     rows: [
-      { label: "Hotel", subTypes: ["hotel"] },
+      { label: "Hotel",  subTypes: ["hotel"] },
+      { label: "Flight", subTypes: ["flight_arrival", "flight_departure"] },
     ],
   },
 ];
@@ -282,8 +283,9 @@ export default function MapSidebar({
                                       >
                                         <span
                                           className="flex-shrink-0 opacity-80"
+                                          style={{ color: iconColor }}
                                           // eslint-disable-next-line react/no-danger
-                                          dangerouslySetInnerHTML={{ __html: getIconSVG(card.sub_type, iconColor, 14) }}
+                                          dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(card.sub_type, 14) }}
                                         />
                                         <span className="flex-1 text-[12px] text-gray-700 truncate leading-snug">
                                           {card.title}

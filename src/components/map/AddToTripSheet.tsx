@@ -29,17 +29,35 @@ interface Props {
 }
 
 const TYPE_PILLS: { type: CardType; label: string; color: string; bg: string; activeBg: string }[] = [
-  { type: "activity",  label: "Activity",  color: "#0D9488", bg: "bg-teal-50",   activeBg: "bg-teal-100"  },
-  { type: "food",      label: "Food",      color: "#F59E0B", bg: "bg-amber-50",  activeBg: "bg-amber-100" },
-  { type: "logistics", label: "Logistics", color: "#64748B", bg: "bg-slate-50",  activeBg: "bg-slate-100" },
+  { type: "activity",  label: "Activity",  color: "#1E3A5F", bg: "bg-blue-50",  activeBg: "bg-blue-100"  },
+  { type: "food",      label: "Food",      color: "#991B1B", bg: "bg-red-50",   activeBg: "bg-red-100"   },
+  { type: "logistics", label: "Stay",      color: "#111827", bg: "bg-gray-100", activeBg: "bg-gray-200"  },
 ];
 
-// Default sub-type when user hasn't chosen one — changeable later in the card editor
+// Fallback sub-type when keyword matching finds nothing
 const DEFAULT_SUB_TYPE: Record<CardType, string> = {
-  activity:  "self_directed",
+  activity:  "guided",
   food:      "restaurant",
   logistics: "hotel",
 };
+
+// Keyword → sub-type matching rules (case-insensitive, ordered by priority)
+const KEYWORD_RULES: { pattern: RegExp; subType: string; forTypes: CardType[] }[] = [
+  { pattern: /airport|aeroporto|fco|cia|terminal/i,         subType: "flight_arrival",  forTypes: ["logistics"] },
+  { pattern: /hotel|b&b|hostel|inn|suites/i,                subType: "hotel",           forTypes: ["logistics"] },
+  { pattern: /station|termini|train|bus/i,                  subType: "transit",         forTypes: ["logistics"] },
+  { pattern: /massage|spa|wellness|reflexology/i,           subType: "wellness",        forTypes: ["activity"]  },
+  { pattern: /cooking class|corso/i,                        subType: "guided",          forTypes: ["activity"]  },
+  { pattern: /caff[eè]|caffe|coffee|gelato|espresso/i,      subType: "coffee",          forTypes: ["food"]      },
+  { pattern: /\bbar\b|cocktail|aperitivo/i,                 subType: "cocktail_bar",    forTypes: ["food"]      },
+];
+
+function suggestSubType(name: string, type: CardType): string {
+  for (const rule of KEYWORD_RULES) {
+    if (rule.forTypes.includes(type) && rule.pattern.test(name)) return rule.subType;
+  }
+  return DEFAULT_SUB_TYPE[type];
+}
 
 function StarRating({ rating }: { rating: number }) {
   return (
@@ -109,12 +127,14 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
     if (place.phone)   details.phone   = place.phone;
     if (place.rating)  details.rating  = place.rating;
 
+    const subType = suggestSubType(place.name, type);
+
     const newCard: Card = {
       id:              crypto.randomUUID(),
       day_id:          dayId,
       trip_id:         tripId,
       type,
-      sub_type:        DEFAULT_SUB_TYPE[type],
+      sub_type:        subType,
       title:           place.name,
       start_time:      null,
       end_time:        null,
@@ -135,7 +155,7 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
       day_id:          dayId,
       trip_id:         tripId,
       type,
-      sub_type:        DEFAULT_SUB_TYPE[type],
+      sub_type:        subType,
       title:           place.name,
       start_time:      null,
       end_time:        null,
@@ -271,7 +291,7 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
             disabled={!type || saving}
             className={`w-full py-3.5 rounded-xl text-[15px] font-bold transition-all ${
               type && !saving
-                ? "bg-activity text-white active:scale-[0.98]"
+                ? "bg-activity text-white active:scale-[0.98] shadow-sm"
                 : "bg-gray-100 text-gray-300 cursor-not-allowed"
             }`}
           >

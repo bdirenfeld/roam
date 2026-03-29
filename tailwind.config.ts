@@ -13,9 +13,9 @@ const config: Config = {
       },
       colors: {
         // Roam brand palette
-        logistics: "#64748B",   // Slate
-        activity:  "#0D9488",   // Teal
-        food:      "#F59E0B",   // Amber
+        logistics: "#111827",   // Near-black
+        activity:  "#1E3A5F",   // Navy
+        food:      "#991B1B",   // Dark red
         roam: {
           50:  "#f0fafa",
           100: "#ccf2f0",
