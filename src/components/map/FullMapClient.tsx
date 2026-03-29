@@ -59,7 +59,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
   const selectedInnerRef = useRef<HTMLDivElement | null>(null);
   const clickedPinRef    = useRef(false);
   const activeSubTypesRef  = useRef<Set<string>>(makeInitialSubTypes());
-  const activeTypesRef     = useRef<Set<CardType>>(new Set(["activity", "food", "logistics"]));
+  const activeTypesRef     = useRef<Set<CardType>>(new Set(["activity", "food", "logistics"] as CardType[]));
 
   const [localCards, setLocalCards]     = useState<Card[]>(cards);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
