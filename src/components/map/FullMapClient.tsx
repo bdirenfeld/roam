@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import MapPinPopup from "./MapPinPopup";
-import CreateCardSheet from "@/components/plan/CreateCardSheet";
 import MapSidebar from "./MapSidebar";
 import PlaceSearch from "./PlaceSearch";
 import AddToTripSheet from "./AddToTripSheet";
@@ -72,8 +71,6 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
   const [activeTypes, setActiveTypesState] = useState<Set<CardType>>(
     () => new Set(["activity", "food", "logistics"] as CardType[]),
   );
-  const [showCreate, setShowCreate]     = useState(false);
-  const [createCoords, setCreateCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [pendingPlace, setPendingPlace] = useState<PlaceResult | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tempPinRef = useRef<any>(null);
@@ -353,6 +350,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       mapInstRef.current = map;
 
       map.addControl(new mb.AttributionControl({ compact: true }), "bottom-right");
+      map.addControl(new mb.NavigationControl({ showCompass: false }), "bottom-right");
 
       map.once("load", async () => {
         if (mapInstRef.current !== map) return;
@@ -522,25 +520,6 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           </div>
         )}
 
-        {/* FAB — add card */}
-        {days.length > 0 && (
-          <button
-            onClick={() => {
-              const center = mapInstRef.current?.getCenter();
-              setCreateCoords(center ? { lat: center.lat, lng: center.lng } : null);
-              setShowCreate(true);
-            }}
-            className="absolute bottom-5 right-4 w-12 h-12 rounded-full bg-activity text-white flex items-center justify-center active:scale-95 transition-all duration-150"
-            style={{ zIndex: 10, boxShadow: "0 4px 12px rgba(37,99,235,0.4)" }}
-            aria-label="Add card"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-          </button>
-        )}
-
         {/* Pin-anchored popup */}
         {selectedCard && (
           <MapPinPopup
@@ -548,23 +527,6 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
             anchorPos={anchorPos}
             onClose={() => { deselectPin(); setSelectedCard(null); }}
             onCardUpdate={handleCardUpdate}
-          />
-        )}
-
-        {/* Create card sheet */}
-        {showCreate && days.length > 0 && (
-          <CreateCardSheet
-            dayId={days[0].id}
-            tripId={trip.id}
-            endPosition={0}
-            initialStatus="interested"
-            initialLat={createCoords?.lat}
-            initialLng={createCoords?.lng}
-            onClose={() => setShowCreate(false)}
-            onCardCreated={(card) => {
-              setShowCreate(false);
-              addPinToMap(card);
-            }}
           />
         )}
 
