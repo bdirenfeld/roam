@@ -257,38 +257,49 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     setShowLinkSheet(false);
     const placeDetails = place.details as Record<string, unknown> | null;
 
-    // Merge place data into current card
+    // Merge all place details into the skeleton
     const mergedDetails = {
-      ...localCard.details,
-      ...(typeof placeDetails?.website === "string" ? { website: placeDetails.website } : {}),
-      ...(typeof placeDetails?.phone   === "string" ? { phone:   placeDetails.phone   } : {}),
-      ...(typeof placeDetails?.rating  === "number" ? { rating:  placeDetails.rating  } : {}),
+      ...(placeDetails ?? {}),
+      // Ensure typed fields are present with correct types
+      ...(typeof placeDetails?.website        === "string" ? { website:        placeDetails.website        } : {}),
+      ...(typeof placeDetails?.phone          === "string" ? { phone:          placeDetails.phone          } : {}),
+      ...(typeof placeDetails?.rating         === "number" ? { rating:         placeDetails.rating         } : {}),
+      ...(typeof placeDetails?.place_id       === "string" ? { place_id:       placeDetails.place_id       } : {}),
+      ...(typeof placeDetails?.recommended_by === "string" ? { recommended_by: placeDetails.recommended_by } : {}),
     };
 
+    // Skeleton card absorbs ALL real place data (keeps its id/day_id/position in Kanban)
     const updated: Card = {
       ...localCard,
       title:           place.title,
+      type:            place.type,
+      sub_type:        place.sub_type,
       lat:             place.lat,
       lng:             place.lng,
       address:         place.address,
       cover_image_url: place.cover_image_url,
+      source_url:      place.source_url,
       details:         mergedDetails,
     };
 
     setLocalCard(updated);
     onCardUpdate?.(updated);
 
-    // Persist skeleton card update
+    // Persist all inherited fields to the skeleton card
     await supabase.from("cards").update({
       title:           place.title,
+      type:            place.type,
+      sub_type:        place.sub_type,
       lat:             place.lat,
       lng:             place.lng,
       address:         place.address,
       cover_image_url: place.cover_image_url,
+      source_url:      place.source_url,
       details:         mergedDetails,
     }).eq("id", localCard.id);
 
-    // Delete the now-absorbed interested card from the map
+    // Remove the now-absorbed interested pin — the skeleton card (which is already
+    // in_itinerary with lat/lng) will render as a solid pin on the map
     await supabase.from("cards").delete().eq("id", place.id);
   }, [localCard, onCardUpdate, supabase]);
 

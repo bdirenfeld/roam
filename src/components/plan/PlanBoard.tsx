@@ -186,6 +186,8 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
   const [parsedConf,       setParsedConf]       = useState<ParsedConfirmation | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [deleteToast, setDeleteToast] = useState<string | null>(null);
+  const [clearConfirm, setClearConfirm] = useState(false);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
 
   const daysRef = useRef(days);
   daysRef.current = days;
@@ -440,6 +442,21 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
     }
   }, [trip.id, supabase]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Clear all itinerary cards ────────────────────────────────
+  const handleClearItinerary = useCallback(async () => {
+    setClearConfirm(false);
+    const allIds = days.flatMap((d) => d.cards.map((c) => c.id));
+    if (!allIds.length) return;
+    // Optimistic update
+    setDays((prev) => prev.map((d) => ({ ...d, cards: [] })));
+    // Only delete cards that are in_itinerary with a day_id
+    await supabase.from("cards")
+      .delete()
+      .eq("trip_id", trip.id)
+      .eq("status", "in_itinerary")
+      .not("day_id", "is", null);
+  }, [days, trip.id, supabase]);
+
   // ── Confirmation file upload ──────────────────────────────────
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -486,6 +503,12 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
           </Link>
         )}
         <span className="text-xs font-bold text-gray-400 ml-1">Plan</span>
+
+        {/* Plan ··· menu */}
+        <PlanMenu
+          onClearItinerary={() => setClearConfirm(true)}
+          onApplyTemplate={() => setShowTemplatePicker(true)}
+        />
 
         {/* Upload confirmation — right side */}
         <div className="ml-auto">
@@ -534,9 +557,12 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
           onDragEnd={handleDragEnd}
         >
           <div className="p-4 pb-28 md:pb-6">
-            {/* Template banner — only when every day is empty */}
-            {allEmpty && days.length > 0 && (
-              <TemplateBanner onSelect={handleApplyTemplate} />
+            {/* Template banner — only when every day is empty, or manually triggered */}
+            {(allEmpty || showTemplatePicker) && days.length > 0 && (
+              <TemplateBanner
+                onSelect={(key) => { handleApplyTemplate(key); setShowTemplatePicker(false); }}
+                onDismiss={showTemplatePicker && !allEmpty ? () => setShowTemplatePicker(false) : undefined}
+              />
             )}
 
             <div className="flex flex-col md:flex-row gap-4 md:min-w-max">
@@ -590,6 +616,32 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
         />
       )}
 
+      {/* Clear itinerary confirmation dialog */}
+      {clearConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 px-6">
+          <div className="bg-white rounded-2xl shadow-sheet p-6 max-w-sm w-full">
+            <p className="text-[15px] font-bold text-gray-900 mb-2">Clear itinerary?</p>
+            <p className="text-[13px] text-gray-500 mb-5">
+              This will remove all itinerary cards. Your map pins will not be affected.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setClearConfirm(false)}
+                className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleClearItinerary}
+                className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors"
+              >
+                Clear all
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {deleteToast && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white text-[13px] font-medium px-4 py-2.5 rounded-full shadow-lg pointer-events-none animate-in fade-in">
           {deleteToast}
@@ -609,10 +661,19 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
 }
 
 // ── TemplateBanner ─────────────────────────────────────────────
-function TemplateBanner({ onSelect }: { onSelect: (key: string) => void }) {
+function TemplateBanner({ onSelect, onDismiss }: { onSelect: (key: string) => void; onDismiss?: () => void }) {
   return (
     <div className="bg-white border border-gray-100 rounded-2xl px-4 py-4 mb-4 shadow-card w-full md:max-w-xl">
-      <p className="text-[13px] font-bold text-gray-800 mb-2.5">Start with a day template?</p>
+      <div className="flex items-center justify-between mb-2.5">
+        <p className="text-[13px] font-bold text-gray-800">Start with a day template?</p>
+        {onDismiss && (
+          <button onClick={onDismiss} className="text-gray-400 hover:text-gray-600 transition-colors">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        )}
+      </div>
       <div className="flex flex-wrap gap-2">
         {TEMPLATES.map(({ key, label }) => (
           <button
@@ -737,6 +798,44 @@ function CopyMenu({ onCopyStructure }: { onCopyStructure: () => void }) {
               }}
             >
               Copy structure to all days
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── PlanMenu (sub-header "···" menu) ──────────────────────────
+function PlanMenu({ onClearItinerary, onApplyTemplate }: { onClearItinerary: () => void; onApplyTemplate: () => void }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-400"
+        aria-label="Plan options"
+      >
+        <span className="text-[10px] font-black leading-none tracking-widest">···</span>
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onPointerDown={() => setOpen(false)} />
+          <div className="absolute left-0 top-7 z-50 bg-white rounded-xl shadow-sheet border border-gray-100 py-1 min-w-[220px]">
+            <button
+              className="w-full text-left px-4 py-2.5 text-[13px] text-gray-700 hover:bg-gray-50 transition-colors"
+              onClick={() => { setOpen(false); onApplyTemplate(); }}
+            >
+              Apply new template
+            </button>
+            <div className="mx-3 border-t border-gray-100" />
+            <button
+              className="w-full text-left px-4 py-2.5 text-[13px] text-red-500 hover:bg-gray-50 transition-colors"
+              onClick={() => { setOpen(false); onClearItinerary(); }}
+            >
+              Clear itinerary cards
             </button>
           </div>
         </>
