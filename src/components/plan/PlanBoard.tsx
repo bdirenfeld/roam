@@ -29,7 +29,7 @@ import { createClient } from "@/lib/supabase/client";
 import AppHeader from "@/components/ui/AppHeader";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import CreateCardSheet from "@/components/plan/CreateCardSheet";
-import type { Trip, Card, DayWithCards, CardType } from "@/types/database";
+import type { Trip, Card, DayWithCards, CardType, CardStatus } from "@/types/database";
 
 // ── Constants ──────────────────────────────────────────────────
 const COL_PREFIX = "col-";
@@ -60,6 +60,99 @@ const SUB_LABEL: Record<string, string> = {
   drinks:           "Drinks",
 };
 
+// ── Template definitions ───────────────────────────────────────
+interface SkeletonDef {
+  type: CardType;
+  sub_type: string;
+  title: string;
+  start_time: string; // HH:mm
+  end_time: string | null; // HH:mm or null
+}
+
+const TEMPLATES: { key: string; label: string; cards: SkeletonDef[] }[] = [
+  {
+    key: "full",
+    label: "Full day",
+    cards: [
+      { type: "food",      sub_type: "coffee",        title: "Morning Coffee",     start_time: "08:30", end_time: "09:30" },
+      { type: "activity",  sub_type: "self_directed",  title: "Morning Activity",   start_time: "10:00", end_time: "12:00" },
+      { type: "food",      sub_type: "restaurant",     title: "Lunch",              start_time: "13:00", end_time: "14:30" },
+      { type: "activity",  sub_type: "self_directed",  title: "Afternoon Activity", start_time: "15:00", end_time: "17:30" },
+      { type: "food",      sub_type: "cocktail_bar",   title: "Aperitivo",          start_time: "18:30", end_time: "19:30" },
+      { type: "food",      sub_type: "restaurant",     title: "Dinner",             start_time: "20:00", end_time: "22:00" },
+    ],
+  },
+  {
+    key: "relaxed",
+    label: "Relaxed day",
+    cards: [
+      { type: "food",      sub_type: "coffee",        title: "Morning Coffee", start_time: "09:30", end_time: "10:30" },
+      { type: "activity",  sub_type: "self_directed",  title: "Activity",       start_time: "11:00", end_time: "13:00" },
+      { type: "food",      sub_type: "restaurant",     title: "Long Lunch",     start_time: "13:30", end_time: "15:30" },
+      { type: "activity",  sub_type: "self_directed",  title: "Downtime",       start_time: "16:00", end_time: "18:00" },
+      { type: "food",      sub_type: "restaurant",     title: "Dinner",         start_time: "20:00", end_time: "22:00" },
+    ],
+  },
+  {
+    key: "beach",
+    label: "Beach day",
+    cards: [
+      { type: "food",      sub_type: "restaurant",    title: "Breakfast",     start_time: "08:00", end_time: "09:00" },
+      { type: "activity",  sub_type: "self_directed",  title: "Beach",          start_time: "09:30", end_time: "12:30" },
+      { type: "food",      sub_type: "restaurant",    title: "Lunch",          start_time: "13:00", end_time: "14:30" },
+      { type: "activity",  sub_type: "self_directed",  title: "Beach",          start_time: "14:30", end_time: "17:30" },
+      { type: "food",      sub_type: "cocktail_bar",  title: "Sunset Drinks",  start_time: "18:00", end_time: "19:00" },
+      { type: "food",      sub_type: "restaurant",    title: "Dinner",         start_time: "20:00", end_time: "22:00" },
+    ],
+  },
+  {
+    key: "transit",
+    label: "Transit day",
+    cards: [
+      { type: "food",      sub_type: "coffee",        title: "Morning Coffee", start_time: "09:00", end_time: "10:00" },
+      { type: "activity",  sub_type: "self_directed",  title: "Light Activity", start_time: "10:00", end_time: "12:00" },
+      { type: "food",      sub_type: "restaurant",    title: "Lunch",          start_time: "12:30", end_time: "14:00" },
+    ],
+  },
+];
+
+const DAY1_CARDS: SkeletonDef[] = [
+  { type: "logistics", sub_type: "flight_arrival", title: "Arrival",      start_time: "10:00", end_time: null  },
+  { type: "logistics", sub_type: "hotel",          title: "Check-in",     start_time: "15:00", end_time: null  },
+  { type: "food",      sub_type: "restaurant",     title: "Light Dinner", start_time: "20:00", end_time: "21:30" },
+];
+
+const LAST_DAY_CARDS: SkeletonDef[] = [
+  { type: "food",      sub_type: "coffee",           title: "Morning Coffee", start_time: "08:00", end_time: "09:00" },
+  { type: "logistics", sub_type: "flight_departure", title: "Departure",      start_time: "12:00", end_time: null  },
+];
+
+// Sub-types that are "travel boundaries" — stripped from middle-day copies
+const TRAVEL_SUB_TYPES = new Set(["flight_arrival", "flight_departure", "hotel"]);
+
+function makeCards(dayId: string, tripId: string, skeletons: SkeletonDef[]): Card[] {
+  return skeletons.map((s, i) => ({
+    id:              crypto.randomUUID(),
+    day_id:          dayId,
+    trip_id:         tripId,
+    type:            s.type,
+    sub_type:        s.sub_type,
+    title:           s.title,
+    start_time:      s.start_time + ":00",
+    end_time:        s.end_time ? s.end_time + ":00" : null,
+    position:        i + 1,
+    status:          "in_itinerary" as CardStatus,
+    source_url:      null,
+    cover_image_url: null,
+    lat:             null,
+    lng:             null,
+    address:         null,
+    details:         {},
+    ai_generated:    false,
+    created_at:      new Date().toISOString(),
+  }));
+}
+
 // ── Helpers ────────────────────────────────────────────────────
 function fmt12(t: string | null): string {
   if (!t) return "";
@@ -89,7 +182,6 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
   const [createSheetDayId, setCreateSheetDayId] = useState<string | null>(null);
   const [deleteToast, setDeleteToast] = useState<string | null>(null);
 
-  // Ref gives handleDragEnd access to the latest days without stale closure issues
   const daysRef = useRef(days);
   daysRef.current = days;
 
@@ -98,15 +190,12 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, {
-      activationConstraint: { delay: 250, tolerance: 5 },
-    }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates as KeyboardCoordinateGetter,
     })
   );
 
-  // ── Helpers ──────────────────────────────────────────────────
   const findCard = useCallback(
     (id: string) => daysRef.current.flatMap((d) => d.cards).find((c) => c.id === id),
     []
@@ -129,10 +218,7 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
       );
       await Promise.all(
         updates.map((u) =>
-          supabase
-            .from("cards")
-            .update({ day_id: u.day_id, position: u.position })
-            .eq("id", u.id)
+          supabase.from("cards").update({ day_id: u.day_id, position: u.position }).eq("id", u.id)
         )
       );
     },
@@ -194,7 +280,6 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
     const overId   = over.id as string;
     let finalDays  = daysRef.current;
 
-    // Same-column reorder — cross-column already handled by onDragOver
     if (!wasCross && !overId.startsWith(COL_PREFIX) && activeId !== overId) {
       const dayIdx = finalDays.findIndex((d) => d.cards.some((c) => c.id === activeId));
       if (dayIdx >= 0 && finalDays[dayIdx].cards.some((c) => c.id === overId)) {
@@ -202,9 +287,7 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
         const newIdx = finalDays[dayIdx].cards.findIndex((c) => c.id === overId);
         if (oldIdx !== newIdx) {
           finalDays = finalDays.map((d, i) =>
-            i === dayIdx
-              ? { ...d, cards: arrayMove(d.cards, oldIdx, newIdx) }
-              : d
+            i === dayIdx ? { ...d, cards: arrayMove(d.cards, oldIdx, newIdx) } : d
           );
           setDays(finalDays);
         }
@@ -218,31 +301,22 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
     }
   }, [persistChanges]);
 
-  // ── Card edits from detail sheet ──────────────────────────────
+  // ── Card edits ────────────────────────────────────────────────
   const handleCardUpdate = useCallback((updated: Card) => {
     setDays((prev) =>
-      prev.map((d) => ({
-        ...d,
-        cards: d.cards.map((c) => (c.id === updated.id ? updated : c)),
-      }))
+      prev.map((d) => ({ ...d, cards: d.cards.map((c) => (c.id === updated.id ? updated : c)) }))
     );
     setSelectedCard((prev) => (prev?.id === updated.id ? updated : prev));
   }, []);
 
-  // ── Remove from itinerary ─────────────────────────────────────
   const handleRemove = useCallback(async (cardId: string) => {
-    setDays((prev) =>
-      prev.map((d) => ({ ...d, cards: d.cards.filter((c) => c.id !== cardId) }))
-    );
+    setDays((prev) => prev.map((d) => ({ ...d, cards: d.cards.filter((c) => c.id !== cardId) })));
     await supabase.from("cards").update({ status: "interested" }).eq("id", cardId);
   }, [supabase]);
 
-  // ── Permanently delete card ───────────────────────────────────
   const handleDelete = useCallback(async (cardId: string) => {
     const snapshot = daysRef.current;
-    setDays((prev) =>
-      prev.map((d) => ({ ...d, cards: d.cards.filter((c) => c.id !== cardId) }))
-    );
+    setDays((prev) => prev.map((d) => ({ ...d, cards: d.cards.filter((c) => c.id !== cardId) })));
     setSelectedCard((prev) => (prev?.id === cardId ? null : prev));
     const { error } = await supabase.from("cards").delete().eq("id", cardId);
     if (error) {
@@ -252,19 +326,118 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
     }
   }, [supabase]);
 
-  // ── Card created from CreateCardSheet ─────────────────────────
   const handleCardCreated = useCallback((card: Card) => {
     setDays((prev) =>
-      prev.map((d) =>
-        d.id === card.day_id ? { ...d, cards: [...d.cards, card] } : d
-      )
+      prev.map((d) => d.id === card.day_id ? { ...d, cards: [...d.cards, card] } : d)
     );
     setCreateSheetDayId(null);
     setSelectedCard(card);
   }, []);
 
-  const firstDay = initialDays[0];
-  const activeCard = activeId ? findCard(activeId) : null;
+  // ── Apply day template to all days ───────────────────────────
+  const handleApplyTemplate = useCallback(async (templateKey: string) => {
+    const template = TEMPLATES.find((t) => t.key === templateKey);
+    if (!template || !days.length) return;
+
+    const allNewCards: Card[] = [];
+
+    days.forEach((day, idx) => {
+      const isFirst = idx === 0;
+      const isLast  = idx === days.length - 1 && days.length > 1;
+      let skeletons: SkeletonDef[];
+      if (isFirst) skeletons = DAY1_CARDS;
+      else if (isLast) skeletons = LAST_DAY_CARDS;
+      else skeletons = template.cards;
+      allNewCards.push(...makeCards(day.id, trip.id, skeletons));
+    });
+
+    // Optimistic update
+    setDays((prev) =>
+      prev.map((day) => ({ ...day, cards: allNewCards.filter((c) => c.day_id === day.id) }))
+    );
+
+    // Persist
+    const rows = allNewCards.map((c) => ({
+      id: c.id, day_id: c.day_id, trip_id: c.trip_id,
+      type: c.type, sub_type: c.sub_type, title: c.title,
+      start_time: c.start_time, end_time: c.end_time,
+      position: c.position, status: c.status,
+      source_url: null, cover_image_url: null,
+      lat: null, lng: null, address: null, details: {},
+      ai_generated: false,
+    }));
+    await supabase.from("cards").insert(rows);
+  }, [days, trip.id, supabase]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Copy day structure to all other days ─────────────────────
+  const handleCopyStructure = useCallback(async (srcDayId: string) => {
+    const cur = daysRef.current;
+    const srcDay = cur.find((d) => d.id === srcDayId);
+    if (!srcDay) return;
+
+    // Extract base structure (type/sub_type/times) from source cards
+    const baseDefs: SkeletonDef[] = srcDay.cards.map((c) => ({
+      type:       c.type,
+      sub_type:   c.sub_type ?? "self_directed",
+      title:      c.title,
+      start_time: c.start_time?.slice(0, 5) ?? "09:00",
+      end_time:   c.end_time?.slice(0, 5) ?? null,
+    }));
+
+    const allNewCards: Card[] = [];
+    const idsToDelete: string[] = [];
+
+    cur.forEach((day, idx) => {
+      if (day.id === srcDayId) return;
+      idsToDelete.push(...day.cards.map((c) => c.id));
+
+      const isFirst = idx === 0;
+      const isLast  = idx === cur.length - 1 && cur.length > 1;
+
+      let skeletons: SkeletonDef[];
+      if (isFirst) {
+        // Prepend arrival cards, strip travel sub-types from the copy
+        const stripped = baseDefs.filter((s) => !TRAVEL_SUB_TYPES.has(s.sub_type));
+        skeletons = [...DAY1_CARDS, ...stripped];
+      } else if (isLast) {
+        // Append departure, strip departure from the copy to avoid duplicates
+        const stripped = baseDefs.filter((s) => s.sub_type !== "flight_departure");
+        skeletons = [...stripped, { type: "logistics", sub_type: "flight_departure", title: "Departure", start_time: "12:00", end_time: null }];
+      } else {
+        skeletons = baseDefs;
+      }
+
+      allNewCards.push(...makeCards(day.id, trip.id, skeletons));
+    });
+
+    // Optimistic update (source day unchanged)
+    setDays((prev) =>
+      prev.map((day) =>
+        day.id === srcDayId ? day : { ...day, cards: allNewCards.filter((c) => c.day_id === day.id) }
+      )
+    );
+
+    // Persist
+    if (idsToDelete.length) {
+      await supabase.from("cards").delete().in("id", idsToDelete);
+    }
+    if (allNewCards.length) {
+      const rows = allNewCards.map((c) => ({
+        id: c.id, day_id: c.day_id, trip_id: c.trip_id,
+        type: c.type, sub_type: c.sub_type, title: c.title,
+        start_time: c.start_time, end_time: c.end_time,
+        position: c.position, status: c.status,
+        source_url: null, cover_image_url: null,
+        lat: null, lng: null, address: null, details: {},
+        ai_generated: false,
+      }));
+      await supabase.from("cards").insert(rows);
+    }
+  }, [trip.id, supabase]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const firstDay    = initialDays[0];
+  const activeCard  = activeId ? findCard(activeId) : null;
+  const allEmpty    = days.every((d) => d.cards.length === 0);
 
   return (
     <div className="flex flex-col h-dvh bg-gray-50">
@@ -296,18 +469,28 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex flex-col md:flex-row gap-4 p-4 pb-28 md:pb-6 md:min-w-max">
-            {days.map((day) => (
-              <DayColumn
-                key={day.id}
-                day={day}
-                cards={day.cards}
-                onCardTap={(card) => setSelectedCard(card)}
-                onRemove={handleRemove}
-                onDelete={handleDelete}
-                onOpenCreateSheet={() => setCreateSheetDayId(day.id)}
-              />
-            ))}
+          <div className="p-4 pb-28 md:pb-6">
+            {/* Template banner — only when every day is empty */}
+            {allEmpty && days.length > 0 && (
+              <TemplateBanner onSelect={handleApplyTemplate} />
+            )}
+
+            <div className="flex flex-col md:flex-row gap-4 md:min-w-max">
+              {days.map((day, idx) => (
+                <DayColumn
+                  key={day.id}
+                  day={day}
+                  cards={day.cards}
+                  totalDays={days.length}
+                  dayIndex={idx}
+                  onCardTap={(card) => setSelectedCard(card)}
+                  onRemove={handleRemove}
+                  onDelete={handleDelete}
+                  onOpenCreateSheet={() => setCreateSheetDayId(day.id)}
+                  onCopyStructure={() => handleCopyStructure(day.id)}
+                />
+              ))}
+            </div>
           </div>
 
           <DragOverlay>
@@ -330,7 +513,6 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
         );
       })()}
 
-      {/* Delete error toast */}
       {deleteToast && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white text-[13px] font-medium px-4 py-2.5 rounded-full shadow-lg pointer-events-none animate-in fade-in">
           {deleteToast}
@@ -349,40 +531,66 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
   );
 }
 
+// ── TemplateBanner ─────────────────────────────────────────────
+function TemplateBanner({ onSelect }: { onSelect: (key: string) => void }) {
+  return (
+    <div className="bg-white border border-gray-100 rounded-2xl px-4 py-4 mb-4 shadow-card w-full md:max-w-xl">
+      <p className="text-[13px] font-bold text-gray-800 mb-2.5">Start with a day template?</p>
+      <div className="flex flex-wrap gap-2">
+        {TEMPLATES.map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => onSelect(key)}
+            className="px-3.5 py-1.5 rounded-full text-[12px] font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 active:scale-95 transition-all"
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── DayColumn ──────────────────────────────────────────────────
 interface DayColumnProps {
   day: DayWithCards;
   cards: Card[];
+  totalDays: number;
+  dayIndex: number;
   onCardTap: (card: Card) => void;
   onRemove: (cardId: string) => void;
   onDelete: (cardId: string) => void;
   onOpenCreateSheet: () => void;
+  onCopyStructure: () => void;
 }
 
-function DayColumn({ day, cards, onCardTap, onRemove, onDelete, onOpenCreateSheet }: DayColumnProps) {
+function DayColumn({ day, cards, totalDays, onCardTap, onRemove, onDelete, onOpenCreateSheet, onCopyStructure }: DayColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `${COL_PREFIX}${day.id}` });
 
   return (
     <div className="flex flex-col w-full md:w-72 md:flex-shrink-0">
       {/* Column header */}
-      <div className="mb-3">
-        <div className="flex items-baseline gap-1.5 flex-wrap">
-          <span className="text-sm font-bold text-gray-800">Day {day.day_number}</span>
-          {day.date && (
-            <>
-              <span className="text-gray-300 text-xs">·</span>
-              <span className="text-xs text-gray-500 font-medium">{fmtDate(day.date)}</span>
-            </>
+      <div className="flex items-start justify-between mb-3">
+        <div>
+          <div className="flex items-baseline gap-1.5 flex-wrap">
+            <span className="text-sm font-bold text-gray-800">Day {day.day_number}</span>
+            {day.date && (
+              <>
+                <span className="text-gray-300 text-xs">·</span>
+                <span className="text-xs text-gray-500 font-medium">{fmtDate(day.date)}</span>
+              </>
+            )}
+          </div>
+          {day.day_name && (
+            <p className="text-xs font-semibold text-gray-700 mt-0.5">{day.day_name}</p>
+          )}
+          {day.narrative_position && (
+            <p className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">
+              {day.narrative_position}
+            </p>
           )}
         </div>
-        {day.day_name && (
-          <p className="text-xs font-semibold text-gray-700 mt-0.5">{day.day_name}</p>
-        )}
-        {day.narrative_position && (
-          <p className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">
-            {day.narrative_position}
-          </p>
-        )}
+        {totalDays > 1 && <CopyMenu onCopyStructure={onCopyStructure} />}
       </div>
 
       {/* Cards */}
@@ -420,6 +628,42 @@ function DayColumn({ day, cards, onCardTap, onRemove, onDelete, onOpenCreateShee
           <span className="text-base leading-none font-bold">+</span> Add card
         </button>
       </div>
+    </div>
+  );
+}
+
+// ── CopyMenu (day header "···" menu) ──────────────────────────
+function CopyMenu({ onCopyStructure }: { onCopyStructure: () => void }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative flex-shrink-0">
+      <button
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
+        className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-400 mt-0.5"
+        aria-label="Day options"
+      >
+        <span className="text-[10px] font-black leading-none tracking-widest">···</span>
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onPointerDown={() => setOpen(false)} />
+          <div className="absolute right-0 top-7 z-50 bg-white rounded-xl shadow-sheet border border-gray-100 py-1 min-w-[200px]">
+            <button
+              className="w-full text-left px-4 py-2.5 text-[13px] text-gray-700 hover:bg-gray-50 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpen(false);
+                onCopyStructure();
+              }}
+            >
+              Copy structure to all days
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -489,10 +733,8 @@ function CardTile({
         isOverlay ? "shadow-card-hover rotate-1 scale-105" : ""
       }`}
     >
-      {/* Tap target — pointer events only; drag handled by outer SortableCardTile */}
       <button
         onClick={onTap}
-        // Don't stopPropagation on pointerDown — let dnd-kit see it for drag tracking
         className="w-full text-left px-3 py-2.5 pr-8"
       >
         <p className="text-[13px] font-bold text-gray-900 leading-snug line-clamp-2">
@@ -513,11 +755,8 @@ function CardTile({
       {/* ··· menu */}
       <div className="absolute top-2 right-2">
         <button
-          onPointerDown={(e) => e.stopPropagation()} // don't start drag on menu tap
-          onClick={(e) => {
-            e.stopPropagation();
-            setMenuOpen((v) => !v);
-          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v); }}
           className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-400"
           aria-label="Card options"
         >
@@ -555,20 +794,13 @@ function CardTile({
                 <>
                   <button
                     className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setMenuOpen(false);
-                      onRemove?.();
-                    }}
+                    onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onRemove?.(); }}
                   >
                     Remove from itinerary
                   </button>
                   <button
                     className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setConfirmDelete(true);
-                    }}
+                    onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}
                   >
                     Delete card
                   </button>
