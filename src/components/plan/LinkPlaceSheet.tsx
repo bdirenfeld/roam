@@ -177,7 +177,7 @@ export default function LinkPlaceSheet({ tripId, cardType, onLink, onClose }: Pr
     return () => document.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  // Fetch interested cards filtered to this card's type
+  // Fetch interested cards filtered to this card's type, deduplicated by place_id then title
   useEffect(() => {
     supabase
       .from("cards")
@@ -189,7 +189,19 @@ export default function LinkPlaceSheet({ tripId, cardType, onLink, onClose }: Pr
       .order("sub_type")
       .order("title")
       .then(({ data }) => {
-        setPlaces((data ?? []) as Card[]);
+        const raw = (data ?? []) as Card[];
+        // Dedup: prefer the card with a cover image; key by place_id, then fall back to title
+        const seen = new Map<string, Card>();
+        for (const card of raw) {
+          const details = card.details as Record<string, unknown> | null;
+          const key = (typeof details?.place_id === "string" ? details.place_id : null)
+                        ?? card.title.toLowerCase().trim();
+          const existing = seen.get(key);
+          if (!existing || (card.cover_image_url && !existing.cover_image_url)) {
+            seen.set(key, card);
+          }
+        }
+        setPlaces(Array.from(seen.values()));
         setLoading(false);
       });
   }, [tripId, cardType, supabase]);

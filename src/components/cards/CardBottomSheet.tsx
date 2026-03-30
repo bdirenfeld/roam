@@ -345,6 +345,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const accent    = isNote ? { dot: "bg-gray-300", bg: "bg-gray-50", text: "text-gray-500" }
                            : (TYPE_ACCENT[localCard.type] ?? TYPE_ACCENT.logistics);
   const typeLabel = SUB_TYPE_LABEL[localCard.sub_type ?? ""] ?? localCard.type;
+  const rating    = typeof (localCard.details as Record<string, unknown>)?.rating === "number"
+                      ? ((localCard.details as Record<string, unknown>).rating as number)
+                      : null;
 
   const timeRange = (() => {
     const s = formatTime(localCard.start_time);
@@ -420,10 +423,27 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         className="relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet min-h-[50dvh] max-h-[90dvh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300"
         style={{ willChange: "transform" }}
       >
-        {/* Drag handle */}
-        <div className="flex justify-center pt-2.5 pb-0 flex-shrink-0 cursor-grab">
-          <div className="w-9 h-[3px] rounded-full bg-gray-200" />
-        </div>
+        {/* Cover photo hero (shown when a place photo is available) */}
+        {localCard.cover_image_url ? (
+          <div className="relative w-full h-36 flex-shrink-0 overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={localCard.cover_image_url}
+              alt=""
+              className="w-full h-full object-cover"
+            />
+            {/* Gradient overlay so drag handle is visible */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent" />
+            {/* Drag handle on top of photo */}
+            <div className="absolute top-2.5 left-0 right-0 flex justify-center cursor-grab">
+              <div className="w-9 h-[3px] rounded-full bg-white/60" />
+            </div>
+          </div>
+        ) : (
+          <div className="flex justify-center pt-2.5 pb-0 flex-shrink-0 cursor-grab">
+            <div className="w-9 h-[3px] rounded-full bg-gray-200" />
+          </div>
+        )}
 
         {/* Header */}
         <div className="px-5 pt-3 pb-4 flex-shrink-0 border-b border-gray-100">
@@ -460,10 +480,18 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             />
           </div>
 
-          {/* Address line */}
-          {addressLine && (
-            <p className="text-xs text-gray-400 mt-1 leading-snug">{addressLine}</p>
-          )}
+          {/* Address line + rating */}
+          <div className="flex items-center gap-2 flex-wrap mt-1">
+            {addressLine && (
+              <p className="text-xs text-gray-400 leading-snug">{addressLine}</p>
+            )}
+            {rating !== null && (
+              <>
+                {addressLine && <span className="text-gray-200 text-xs">·</span>}
+                <span className="text-xs font-semibold text-amber-500">★ {rating.toFixed(1)}</span>
+              </>
+            )}
+          </div>
 
           {/* Open in Google Maps */}
           {localCard.lat != null && localCard.lng != null && (
