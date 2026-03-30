@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import type { Card, Day } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
+import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
 
 // ── Type-specific detail components ───────────────────────────
 import FlightArrivalDetail from "./detail/FlightArrivalDetail";
@@ -153,6 +154,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   // Local optimistic state
   const [localCard, setLocalCard] = useState<Card>(card);
   const [showDayPicker, setShowDayPicker] = useState(false);
+  const [showLinkSheet, setShowLinkSheet] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -249,6 +251,46 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     },
     [localCard, onCardUpdate, saveTopLevel, supabase]
   );
+
+  // ── Link place from map ───────────────────────────────────────
+  const handleLinkPlace = useCallback(async (place: Card) => {
+    setShowLinkSheet(false);
+    const placeDetails = place.details as Record<string, unknown> | null;
+
+    // Merge place data into current card
+    const mergedDetails = {
+      ...localCard.details,
+      ...(typeof placeDetails?.website === "string" ? { website: placeDetails.website } : {}),
+      ...(typeof placeDetails?.phone   === "string" ? { phone:   placeDetails.phone   } : {}),
+      ...(typeof placeDetails?.rating  === "number" ? { rating:  placeDetails.rating  } : {}),
+    };
+
+    const updated: Card = {
+      ...localCard,
+      title:           place.title,
+      lat:             place.lat,
+      lng:             place.lng,
+      address:         place.address,
+      cover_image_url: place.cover_image_url,
+      details:         mergedDetails,
+    };
+
+    setLocalCard(updated);
+    onCardUpdate?.(updated);
+
+    // Persist skeleton card update
+    await supabase.from("cards").update({
+      title:           place.title,
+      lat:             place.lat,
+      lng:             place.lng,
+      address:         place.address,
+      cover_image_url: place.cover_image_url,
+      details:         mergedDetails,
+    }).eq("id", localCard.id);
+
+    // Delete the now-absorbed interested card from the map
+    await supabase.from("cards").delete().eq("id", place.id);
+  }, [localCard, onCardUpdate, supabase]);
 
   // ── Delete card ──────────────────────────────────────────────
   const handleDelete = useCallback(async () => {
@@ -485,6 +527,22 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             </div>
           )}
 
+          {/* Link place from map — for itinerary cards */}
+          {localCard.status === "in_itinerary" && !showDeleteConfirm && (
+            <div className="px-5 pt-3 pb-1">
+              <button
+                onClick={() => setShowLinkSheet(true)}
+                className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-gray-200 text-[13px] font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+                  <circle cx="12" cy="9" r="2.5" />
+                </svg>
+                Link place from map
+              </button>
+            </div>
+          )}
+
           {/* Delete confirmation */}
           {showDeleteConfirm ? (
             <div className="px-5 pt-3 pb-5">
@@ -523,6 +581,17 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             </div>
           )}
         </div>
+
+        {/* Link place sheet */}
+        {showLinkSheet && (
+          <div className="absolute inset-0 z-10">
+            <LinkPlaceSheet
+              tripId={localCard.trip_id}
+              onLink={handleLinkPlace}
+              onClose={() => setShowLinkSheet(false)}
+            />
+          </div>
+        )}
 
         {/* Day picker overlay */}
         {showDayPicker && days && (
