@@ -598,6 +598,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           <div className="absolute inset-0 z-10">
             <LinkPlaceSheet
               tripId={localCard.trip_id}
+              cardType={localCard.type}
               onLink={handleLinkPlace}
               onClose={() => setShowLinkSheet(false)}
             />

@@ -5,46 +5,165 @@ import type { Card, CardType } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 
 interface Props {
-  tripId: string;
-  onLink: (place: Card) => void;
-  onClose: () => void;
+  tripId:   string;
+  cardType: CardType;
+  onLink:   (place: Card) => void;
+  onClose:  () => void;
 }
 
-const TYPE_ORDER: CardType[] = ["activity", "food", "logistics"];
-const TYPE_LABEL: Record<CardType, string> = {
-  activity:  "Activity",
-  food:      "Food",
-  logistics: "Stay & Logistics",
+// ── Sub-types belonging to each card type ──────────────────────
+const TYPE_SUB_TYPES: Record<CardType, string[]> = {
+  food:      ["restaurant", "coffee", "coffee_dessert", "cocktail_bar", "drinks", "bar"],
+  activity:  ["guided", "hosted", "self_directed", "wellness", "event", "challenge"],
+  logistics: ["hotel", "flight_arrival", "flight_departure", "transit"],
 };
-const TYPE_DOT: Record<CardType, string> = {
-  activity:  "bg-activity",
-  food:      "bg-food",
-  logistics: "bg-logistics",
+
+// Display order within each type
+const SUB_ORDER: Record<CardType, string[]> = {
+  food:      ["restaurant", "coffee", "coffee_dessert", "cocktail_bar", "drinks", "bar"],
+  activity:  ["guided", "hosted", "self_directed", "wellness", "event", "challenge"],
+  logistics: ["hotel", "flight_arrival", "flight_departure", "transit"],
 };
 
 const SUB_LABEL: Record<string, string> = {
   restaurant:       "Restaurant",
-  coffee:           "Café",
+  coffee:           "Café & Dessert",
+  coffee_dessert:   "Café & Dessert",
   cocktail_bar:     "Bar",
+  drinks:           "Bar",
+  bar:              "Bar",
   guided:           "Guided",
-  self_directed:    "Activity",
+  hosted:           "Guided",
+  self_directed:    "Self-Directed",
   wellness:         "Wellness",
   event:            "Event",
   challenge:        "Challenge",
   hotel:            "Hotel",
-  flight_arrival:   "Arrival",
-  flight_departure: "Departure",
+  flight_arrival:   "Flight Arrival",
+  flight_departure: "Flight Departure",
+  transit:          "Transit",
 };
 
-export default function LinkPlaceSheet({ tripId, onLink, onClose }: Props) {
-  const supabase    = createClient();
-  const sheetRef    = useRef<HTMLDivElement>(null);
-  const dragY       = useRef(0);
-  const dragging    = useRef(false);
+const TYPE_COLOR: Record<CardType, string> = {
+  food:      "#7C3AED",
+  activity:  "#0D9488",
+  logistics: "#111827",
+};
+
+// Simple sub-type icons (SVG paths)
+function SubTypeIcon({ subType, color }: { subType: string; color: string }) {
+  const s = { width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: color, strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+
+  switch (subType) {
+    case "restaurant":
+      return (
+        <svg {...s}>
+          <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" />
+          <path d="M7 2v20" /><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
+        </svg>
+      );
+    case "coffee":
+    case "coffee_dessert":
+      return (
+        <svg {...s}>
+          <path d="M17 8h1a4 4 0 0 1 0 8h-1" />
+          <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z" />
+          <line x1="6" y1="2" x2="6" y2="4" /><line x1="10" y1="2" x2="10" y2="4" /><line x1="14" y1="2" x2="14" y2="4" />
+        </svg>
+      );
+    case "cocktail_bar":
+    case "drinks":
+    case "bar":
+      return (
+        <svg {...s}>
+          <path d="M8 22h8" /><path d="M12 11v11" />
+          <path d="m19 3-7 8-7-8Z" />
+        </svg>
+      );
+    case "guided":
+    case "hosted":
+      return (
+        <svg {...s}>
+          <circle cx="12" cy="12" r="10" />
+          <polygon points="16.24,7.76 14.12,14.12 7.76,16.24 9.88,9.88" />
+        </svg>
+      );
+    case "self_directed":
+      return (
+        <svg {...s}>
+          <circle cx="12" cy="5" r="1" fill={color} stroke="none" />
+          <path d="m9 20 3-6 3 6" /><path d="m6 8 6 2 6-2" /><path d="M12 10v4" />
+        </svg>
+      );
+    case "wellness":
+      return (
+        <svg {...s}>
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+        </svg>
+      );
+    case "event":
+      return (
+        <svg {...s}>
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" />
+          <line x1="3" y1="10" x2="21" y2="10" />
+        </svg>
+      );
+    case "challenge":
+      return (
+        <svg {...s}>
+          <path d="m8 3 4 8 5-5 5 15H2L8 3z" />
+        </svg>
+      );
+    case "hotel":
+      return (
+        <svg {...s}>
+          <path d="M2 20V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12" />
+          <path d="M2 20h20" /><path d="M7 20v-5h10v5" />
+          <path d="M9 9h1" /><path d="M14 9h1" />
+        </svg>
+      );
+    case "flight_arrival":
+      return (
+        <svg {...s}>
+          <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21 4 19 4c-.7 0-1.5.3-2 .8L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" />
+        </svg>
+      );
+    case "flight_departure":
+      return (
+        <svg {...s}>
+          <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21 4 19 4c-.7 0-1.5.3-2 .8L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" />
+        </svg>
+      );
+    case "transit":
+      return (
+        <svg {...s}>
+          <rect x="1" y="3" width="15" height="13" rx="2" />
+          <path d="M16 8h4l3 3v5h-7V8z" />
+          <circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" />
+        </svg>
+      );
+    default:
+      return (
+        <svg {...s}>
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+          <circle cx="12" cy="9" r="2.5" />
+        </svg>
+      );
+  }
+}
+
+export default function LinkPlaceSheet({ tripId, cardType, onLink, onClose }: Props) {
+  const supabase = createClient();
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const dragY    = useRef(0);
+  const dragging = useRef(false);
 
   const [places,  setPlaces]  = useState<Card[]>([]);
-  const [query,   setQuery]   = useState("");
   const [loading, setLoading] = useState(true);
+
+  const validSubTypes = TYPE_SUB_TYPES[cardType] ?? [];
+  const color         = TYPE_COLOR[cardType];
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -58,22 +177,24 @@ export default function LinkPlaceSheet({ tripId, onLink, onClose }: Props) {
     return () => document.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  // Fetch interested cards (map pins not yet in itinerary)
+  // Fetch interested cards filtered to this card's type
   useEffect(() => {
     supabase
       .from("cards")
       .select("*")
       .eq("trip_id", tripId)
       .eq("status", "interested")
+      .eq("type", cardType)
       .not("lat", "is", null)
-      .order("type")
+      .order("sub_type")
       .order("title")
       .then(({ data }) => {
         setPlaces((data ?? []) as Card[]);
         setLoading(false);
       });
-  }, [tripId, supabase]);
+  }, [tripId, cardType, supabase]);
 
+  // Drag-to-dismiss
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     dragY.current = e.touches[0].clientY; dragging.current = true;
   }, []);
@@ -99,18 +220,34 @@ export default function LinkPlaceSheet({ tripId, onLink, onClose }: Props) {
     }
   }, [onClose]);
 
-  const filtered = query.trim()
-    ? places.filter((p) => p.title.toLowerCase().includes(query.toLowerCase()))
-    : places;
+  // Group by sub_type in display order
+  const subOrder = SUB_ORDER[cardType] ?? [];
+  const grouped  = subOrder
+    .map((sub) => ({
+      sub,
+      label: SUB_LABEL[sub] ?? sub,
+      cards: places.filter((p) => {
+        const st = p.sub_type ?? "";
+        // Collapse aliased sub-types into one bucket
+        if (sub === "coffee")      return st === "coffee" || st === "coffee_dessert";
+        if (sub === "cocktail_bar") return st === "cocktail_bar" || st === "drinks" || st === "bar";
+        if (sub === "guided")      return st === "guided" || st === "hosted";
+        return st === sub;
+      }),
+    }))
+    .filter((g) => g.cards.length > 0);
 
-  const grouped = TYPE_ORDER.map((type) => ({
-    type,
-    cards: filtered.filter((p) => p.type === type),
-  })).filter((g) => g.cards.length > 0);
+  // Also bucket any sub_type not in validSubTypes
+  const knownSubs = new Set(validSubTypes);
+  const otherCards = places.filter((p) => !knownSubs.has(p.sub_type ?? ""));
+
+  const typeLabel = { food: "Food", activity: "Activity", logistics: "Logistics" }[cardType];
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end"
-      onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div
+      className="fixed inset-0 z-[70] flex items-end"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
       <div className="absolute inset-0 bg-black/40 animate-in fade-in duration-200" />
 
       <div
@@ -118,7 +255,7 @@ export default function LinkPlaceSheet({ tripId, onLink, onClose }: Props) {
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        className="relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet max-h-[80dvh] flex flex-col animate-in slide-in-from-bottom duration-300"
+        className="relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet max-h-[75dvh] flex flex-col animate-in slide-in-from-bottom duration-300"
         style={{ willChange: "transform" }}
       >
         {/* Drag handle */}
@@ -128,7 +265,12 @@ export default function LinkPlaceSheet({ tripId, onLink, onClose }: Props) {
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-3 pb-3 border-b border-gray-100 flex-shrink-0">
-          <h3 className="text-[15px] font-bold text-gray-900">Link place from map</h3>
+          <div>
+            <h3 className="text-[15px] font-bold text-gray-900">Link place from map</h3>
+            <p className="text-[11px] text-gray-400 mt-0.5">
+              Showing {typeLabel.toLowerCase()} pins
+            </p>
+          </div>
           <button
             onClick={onClose}
             className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
@@ -140,109 +282,105 @@ export default function LinkPlaceSheet({ tripId, onLink, onClose }: Props) {
           </button>
         </div>
 
-        {/* Search */}
-        <div className="px-5 py-3 flex-shrink-0">
-          <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2 border border-gray-100">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search places…"
-              className="flex-1 text-[13px] text-gray-700 placeholder-gray-400 bg-transparent outline-none"
-              autoFocus
-            />
-            {query && (
-              <button onClick={() => setQuery("")} className="text-gray-300 hover:text-gray-500">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            )}
-          </div>
-        </div>
-
         {/* List */}
         <div className="flex-1 overflow-y-auto pb-6">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <p className="text-[13px] text-gray-400">Loading places…</p>
+              <p className="text-[13px] text-gray-400">Loading…</p>
             </div>
-          ) : grouped.length === 0 ? (
+          ) : places.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
-              <p className="text-[13px] font-medium text-gray-500">No saved places found</p>
+              <p className="text-[13px] font-medium text-gray-500">No {typeLabel.toLowerCase()} pins saved</p>
               <p className="text-[12px] text-gray-400 mt-1">
-                {places.length === 0
-                  ? "Pin places on the map first, then link them here."
-                  : "No results match your search."}
+                Pin {typeLabel.toLowerCase()} places on the map first, then link them here.
               </p>
             </div>
           ) : (
-            grouped.map(({ type, cards }) => (
-              <div key={type}>
-                {/* Group header */}
-                <div className="flex items-center gap-2 px-5 py-2 bg-gray-50 border-b border-gray-100">
-                  <span className={`w-2 h-2 rounded-full ${TYPE_DOT[type]}`} />
-                  <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
-                    {TYPE_LABEL[type]}
-                  </span>
-                </div>
+            <>
+              {grouped.map(({ sub, label, cards }) => (
+                <div key={sub}>
+                  {/* Sub-type header */}
+                  <div className="flex items-center gap-2 px-5 py-2 bg-gray-50 border-b border-gray-100">
+                    <SubTypeIcon subType={sub} color={color} />
+                    <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                      {label}
+                    </span>
+                  </div>
 
-                {cards.map((card) => {
-                  const details    = card.details as Record<string, unknown> | null;
-                  const rating     = details?.rating as number | undefined;
-                  const subLabel   = card.sub_type ? (SUB_LABEL[card.sub_type] ?? card.sub_type) : null;
-                  const hasPhoto   = !!card.cover_image_url;
+                  {cards.map((card) => {
+                    const details = card.details as Record<string, unknown> | null;
+                    const rating  = typeof details?.rating === "number" ? details.rating as number : null;
 
-                  return (
-                    <button
-                      key={card.id}
-                      onClick={() => onLink(card)}
-                      className="w-full flex items-center gap-3 px-5 py-3.5 border-b border-gray-50 hover:bg-gray-50 active:bg-gray-100 transition-colors text-left"
-                    >
-                      {/* Thumbnail or placeholder */}
-                      <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 flex items-center justify-center">
-                        {hasPhoto ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={card.cover_image_url!} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="1.5" strokeLinecap="round">
-                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-                            <circle cx="12" cy="9" r="2.5" />
-                          </svg>
-                        )}
-                      </div>
+                    return (
+                      <button
+                        key={card.id}
+                        onClick={() => onLink(card)}
+                        className="w-full flex items-center gap-3 px-5 py-3.5 border-b border-gray-50 hover:bg-gray-50 active:bg-gray-100 transition-colors text-left"
+                      >
+                        {/* Colored icon dot */}
+                        <div
+                          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                          style={{ background: `${color}15` }}
+                        >
+                          <SubTypeIcon subType={card.sub_type ?? sub} color={color} />
+                        </div>
 
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[13px] font-semibold text-gray-900 truncate">{card.title}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          {subLabel && (
-                            <span className="text-[11px] text-gray-400">{subLabel}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-semibold text-gray-900 truncate">{card.title}</p>
+                          {card.address && (
+                            <p className="text-[11px] text-gray-400 mt-0.5 truncate">{card.address}</p>
                           )}
-                          {rating !== undefined && (
-                            <>
-                              {subLabel && <span className="text-gray-200">·</span>}
-                              <span className="text-[11px] text-amber-500 font-medium">★ {rating.toFixed(1)}</span>
-                            </>
+                          {rating !== null && (
+                            <p className="text-[11px] text-amber-500 font-medium mt-0.5">★ {rating.toFixed(1)}</p>
                           )}
                         </div>
-                        {card.address && (
-                          <p className="text-[11px] text-gray-400 mt-0.5 truncate">{card.address}</p>
-                        )}
-                      </div>
 
-                      {/* Link arrow */}
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round">
-                        <polyline points="9 18 15 12 9 6" />
-                      </svg>
-                    </button>
-                  );
-                })}
-              </div>
-            ))
+                        {/* Chevron */}
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round">
+                          <polyline points="9 18 15 12 9 6" />
+                        </svg>
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+
+              {/* Any uncategorised cards */}
+              {otherCards.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 px-5 py-2 bg-gray-50 border-b border-gray-100">
+                    <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Other</span>
+                  </div>
+                  {otherCards.map((card) => {
+                    const details = card.details as Record<string, unknown> | null;
+                    const rating  = typeof details?.rating === "number" ? details.rating as number : null;
+                    return (
+                      <button
+                        key={card.id}
+                        onClick={() => onLink(card)}
+                        className="w-full flex items-center gap-3 px-5 py-3.5 border-b border-gray-50 hover:bg-gray-50 active:bg-gray-100 transition-colors text-left"
+                      >
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${color}15` }}>
+                          <SubTypeIcon subType={card.sub_type ?? ""} color={color} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-semibold text-gray-900 truncate">{card.title}</p>
+                          {card.address && (
+                            <p className="text-[11px] text-gray-400 mt-0.5 truncate">{card.address}</p>
+                          )}
+                          {rating !== null && (
+                            <p className="text-[11px] text-amber-500 font-medium mt-0.5">★ {rating.toFixed(1)}</p>
+                          )}
+                        </div>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round">
+                          <polyline points="9 18 15 12 9 6" />
+                        </svg>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
