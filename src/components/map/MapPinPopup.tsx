@@ -79,9 +79,11 @@ function TypeEditor({
     return opts.find((o) => o.value === card.sub_type)?.value ?? opts[0]?.value ?? "";
   }
 
-  const [editType,    setEditType]    = useState<CardType>(card.type);
-  const [editSubType, setEditSubType] = useState<string>(initSubType(card.type));
-  const [saving,      setSaving]      = useState(false);
+  const initDetails    = card.details as Record<string, unknown> | null;
+  const [editType,       setEditType]       = useState<CardType>(card.type);
+  const [editSubType,    setEditSubType]    = useState<string>(initSubType(card.type));
+  const [editRecommendedBy, setEditRecommendedBy] = useState<string>((initDetails?.recommended_by as string | undefined) ?? "");
+  const [saving,         setSaving]         = useState(false);
 
   function pickType(t: CardType) {
     setEditType(t);
@@ -92,13 +94,20 @@ function TypeEditor({
   const handleSave = useCallback(async () => {
     if (saving) return;
     setSaving(true);
+    const prevDetails = (card.details as Record<string, unknown> | null) ?? {};
+    const updatedDetails = { ...prevDetails };
+    if (editRecommendedBy.trim()) {
+      updatedDetails.recommended_by = editRecommendedBy.trim();
+    } else {
+      delete updatedDetails.recommended_by;
+    }
     const { error } = await supabase
       .from("cards")
-      .update({ type: editType, sub_type: editSubType })
+      .update({ type: editType, sub_type: editSubType, details: updatedDetails })
       .eq("id", card.id);
     setSaving(false);
-    if (!error) onSaved({ ...card, type: editType, sub_type: editSubType });
-  }, [saving, editType, editSubType, card, supabase, onSaved]);
+    if (!error) onSaved({ ...card, type: editType, sub_type: editSubType, details: updatedDetails });
+  }, [saving, editType, editSubType, editRecommendedBy, card, supabase, onSaved]);
 
   const typeColor = PIN_COLORS[editType];
 
@@ -143,6 +152,15 @@ function TypeEditor({
         })}
       </div>
 
+      {/* Recommended by */}
+      <input
+        type="text"
+        value={editRecommendedBy}
+        onChange={(e) => setEditRecommendedBy(e.target.value)}
+        placeholder="Recommended by…"
+        className="w-full px-2 py-1 text-[11px] text-gray-700 bg-white border border-gray-200 rounded-lg placeholder-gray-400 focus:outline-none focus:border-gray-300 transition-colors mb-2.5"
+      />
+
       {/* Save / Cancel */}
       <div className="flex gap-2">
         <button
@@ -179,6 +197,7 @@ function CardBody({
   const rating           = details?.rating as number | undefined;
   const userRatingsTotal = details?.userRatingsTotal as number | undefined;
   const website          = details?.website as string | undefined;
+  const recommendedBy    = details?.recommended_by as string | undefined;
   const subTypeLabel     = card.sub_type ? (SUB_TYPE_LABEL[card.sub_type] ?? card.sub_type) : null;
   const hasPhoto         = !!card.cover_image_url;
 
@@ -260,6 +279,11 @@ function CardBody({
         )}
         {card.address && (
           <p className="text-[12px] text-gray-500 mt-1.5 leading-snug">{card.address}</p>
+        )}
+        {recommendedBy && (
+          <p className="text-[11px] text-gray-400 mt-1 leading-snug">
+            <span className="text-amber-400">★</span> Recommended by {recommendedBy}
+          </p>
         )}
         {phone && (
           <a href={`tel:${phone}`} className="block text-[12px] text-blue-500 mt-1 hover:underline">{phone}</a>

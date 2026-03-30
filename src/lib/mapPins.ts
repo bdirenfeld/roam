@@ -161,12 +161,13 @@ export function makeMaterialPinElement(
   subType: string | null | undefined,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _status: string,
+  hasRecommendation?: boolean,
 ): PinElements {
   const baseColor = PIN_COLORS[type];
   const iconName  = (subType && MATERIAL_ICONS[subType]) || "place";
 
   const wrapper = document.createElement("div");
-  wrapper.style.cssText = "width:32px;height:32px;cursor:pointer;";
+  wrapper.style.cssText = "position:relative;width:32px;height:32px;cursor:pointer;";
 
   const inner = document.createElement("div");
   inner.style.cssText =
@@ -200,6 +201,23 @@ export function makeMaterialPinElement(
   });
 
   wrapper.appendChild(inner);
+
+  if (hasRecommendation) {
+    const star = document.createElement("div");
+    star.style.cssText =
+      "position:absolute;top:-3px;right:-3px;" +
+      "width:13px;height:13px;" +
+      "border-radius:50%;" +
+      "background:white;" +
+      "display:flex;align-items:center;justify-content:center;" +
+      "box-shadow:0 1px 2px rgba(0,0,0,0.25);" +
+      "font-size:8px;line-height:1;" +
+      "color:#F59E0B;" +
+      "pointer-events:none;";
+    star.textContent = "★";
+    wrapper.appendChild(star);
+  }
+
   return { wrapper, inner };
 }
 

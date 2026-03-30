@@ -95,9 +95,10 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
   const dragY    = useRef(0);
   const dragging = useRef(false);
 
-  const [type,    setType]    = useState<CardType | null>(null);
-  const [subType, setSubType] = useState<string | null>(null);
-  const [saving,  setSaving]  = useState(false);
+  const [type,          setType]          = useState<CardType | null>(null);
+  const [subType,       setSubType]       = useState<string | null>(null);
+  const [recommendedBy, setRecommendedBy] = useState("");
+  const [saving,        setSaving]        = useState(false);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -148,9 +149,10 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
     setSaving(true);
 
     const details: Record<string, unknown> = {};
-    if (place.website) details.website = place.website;
-    if (place.phone)   details.phone   = place.phone;
-    if (place.rating)  details.rating  = place.rating;
+    if (place.website)   details.website        = place.website;
+    if (place.phone)     details.phone          = place.phone;
+    if (place.rating)    details.rating         = place.rating;
+    if (recommendedBy.trim()) details.recommended_by = recommendedBy.trim();
 
     const finalSubType = subType ?? DEFAULT_SUB_TYPE[type];
 
@@ -196,7 +198,7 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
 
     setSaving(false);
     if (!error) onCardCreated(newCard);
-  }, [type, subType, saving, place, dayId, tripId, supabase, onCardCreated]);
+  }, [type, subType, recommendedBy, saving, place, dayId, tripId, supabase, onCardCreated]);
 
   const typeColor = type ? PIN_COLORS[type] : null;
 
@@ -318,7 +320,7 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
 
           {/* ── Sub-type pills — appears instantly when type selected ── */}
           {type && (
-            <div className="flex gap-2 flex-wrap mb-4">
+            <div className="flex gap-2 flex-wrap mb-3">
               {SUB_TYPE_OPTIONS[type].map(({ label, value }) => {
                 const selected = subType === value;
                 return (
@@ -338,6 +340,18 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
               })}
             </div>
           )}
+
+          {/* Recommended by */}
+          <div className="mb-4">
+            <input
+              type="text"
+              value={recommendedBy}
+              onChange={(e) => setRecommendedBy(e.target.value)}
+              placeholder="e.g. Marco, Sarah..."
+              className="w-full px-3 py-2 text-[13px] text-gray-700 bg-gray-50 border border-gray-200 rounded-lg placeholder-gray-400 focus:outline-none focus:border-gray-300 focus:bg-white transition-colors"
+            />
+            <p className="text-[11px] text-gray-400 mt-1 ml-0.5">Recommended by (optional)</p>
+          </div>
 
           {/* Save button */}
           <button

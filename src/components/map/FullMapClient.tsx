@@ -146,7 +146,9 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     const lng = card.lng!;
 
     const cardRef: { current: Card } = { current: card };
-    const { wrapper, inner } = makeMaterialPinElement(card.type, card.sub_type, card.status);
+    const cardDetails = card.details as Record<string, unknown> | null;
+    const hasRec = !!(cardDetails?.recommended_by);
+    const { wrapper, inner } = makeMaterialPinElement(card.type, card.sub_type, card.status, hasRec);
     inner.title = card.title;
 
     const mbMarker = new mb.Marker({ element: wrapper, anchor: "center" })
@@ -374,7 +376,8 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
 
         mappable.forEach(({ card, lat, lng }) => {
           const cardRef: { current: Card } = { current: card };
-          const { wrapper, inner } = makeMaterialPinElement(card.type, card.sub_type, card.status);
+          const initDetails = card.details as Record<string, unknown> | null;
+          const { wrapper, inner } = makeMaterialPinElement(card.type, card.sub_type, card.status, !!(initDetails?.recommended_by));
           inner.title = card.title;
 
           const mbMarker = new mb.Marker({ element: wrapper, anchor: "center" })
