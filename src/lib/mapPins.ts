@@ -159,12 +159,12 @@ const MATERIAL_ICONS: Record<string, string> = {
 export function makeMaterialPinElement(
   type: CardType,
   subType: string | null | undefined,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _status: string,
+  status: string,
   hasRecommendation?: boolean,
 ): PinElements {
   const baseColor = PIN_COLORS[type];
   const iconName  = (subType && MATERIAL_ICONS[subType]) || "place";
+  const isPlaced  = status === "in_itinerary";
 
   const wrapper = document.createElement("div");
   wrapper.style.cssText = "position:relative;width:32px;height:32px;cursor:pointer;";
@@ -173,17 +173,17 @@ export function makeMaterialPinElement(
   inner.style.cssText =
     "width:32px;height:32px;" +
     "border-radius:50%;" +
-    `background:${baseColor};` +
-    "border:2px solid white;" +
+    `background:${isPlaced ? baseColor : "white"};` +
+    `border:2px solid ${isPlaced ? "white" : baseColor};` +
     "display:flex;align-items:center;justify-content:center;" +
-    "box-shadow:0 2px 4px rgba(0,0,0,0.3);" +
+    "box-shadow:0 2px 4px rgba(0,0,0,0.25);" +
     "transition:transform 150ms ease;" +
     "transform-origin:50% 50%;";
 
   const icon = document.createElement("span");
   icon.className = "material-symbols-outlined";
   icon.style.cssText =
-    "color:white;" +
+    `color:${isPlaced ? "white" : baseColor};` +
     "font-size:16px;" +
     "line-height:1;" +
     "display:block;" +
