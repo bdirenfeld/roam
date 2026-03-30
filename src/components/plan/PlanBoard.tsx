@@ -30,6 +30,7 @@ import AppHeader from "@/components/ui/AppHeader";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import CreateCardSheet from "@/components/plan/CreateCardSheet";
 import NoteCardSheet from "@/components/plan/NoteCardSheet";
+import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/plan/ConfirmationPreviewSheet";
 import type { Trip, Card, DayWithCards, CardType, CardStatus } from "@/types/database";
 
 // ── Constants ──────────────────────────────────────────────────
@@ -183,6 +184,9 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [createSheetDayId, setCreateSheetDayId] = useState<string | null>(null);
   const [noteSheetDayId,   setNoteSheetDayId]   = useState<string | null>(null);
+  const [uploadState,      setUploadState]      = useState<"idle" | "reading" | "error">("idle");
+  const [parsedConf,       setParsedConf]       = useState<ParsedConfirmation | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [deleteToast, setDeleteToast] = useState<string | null>(null);
 
   const daysRef = useRef(days);
@@ -438,6 +442,29 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
     }
   }, [trip.id, supabase]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Confirmation file upload ──────────────────────────────────
+  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Reset input so same file can be re-selected
+    e.target.value = "";
+
+    setUploadState("reading");
+    const form = new FormData();
+    form.append("file", file);
+
+    try {
+      const res  = await fetch("/api/confirmations/parse", { method: "POST", body: form });
+      const data = await res.json() as { parsed?: ParsedConfirmation; error?: string };
+      if (data.error || !data.parsed) throw new Error(data.error ?? "Parse failed");
+      setParsedConf(data.parsed);
+      setUploadState("idle");
+    } catch {
+      setUploadState("error");
+      setTimeout(() => setUploadState("idle"), 3000);
+    }
+  }, []);
+
   const firstDay    = initialDays[0];
   const activeCard  = activeId ? findCard(activeId) : null;
   const allEmpty    = days.every((d) => d.cards.length === 0);
@@ -461,6 +488,42 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
           </Link>
         )}
         <span className="text-xs font-bold text-gray-400 ml-1">Plan</span>
+
+        {/* Upload confirmation — right side */}
+        <div className="ml-auto">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,image/png,image/jpeg,image/webp"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadState === "reading"}
+            className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
+          >
+            {uploadState === "reading" ? (
+              <>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="animate-spin">
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                </svg>
+                Reading…
+              </>
+            ) : uploadState === "error" ? (
+              <span className="text-red-400">Parse failed</span>
+            ) : (
+              <>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                Upload confirmation
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Board */}
@@ -530,6 +593,19 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
           />
         );
       })()}
+
+      {parsedConf && (
+        <ConfirmationPreviewSheet
+          parsed={parsedConf}
+          days={days}
+          tripId={trip.id}
+          onClose={() => setParsedConf(null)}
+          onCardCreated={(card) => {
+            handleCardCreated(card);
+            setParsedConf(null);
+          }}
+        />
+      )}
 
       {deleteToast && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white text-[13px] font-medium px-4 py-2.5 rounded-full shadow-lg pointer-events-none animate-in fade-in">
