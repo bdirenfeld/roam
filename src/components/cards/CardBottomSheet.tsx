@@ -45,6 +45,7 @@ const SUB_TYPE_LABEL: Record<string, string> = {
   coffee_dessert:   "Coffee & Pastry",
   cocktail_bar:     "Cocktail Bar",
   drinks:           "Drinks",
+  note:             "Note",
 };
 
 // ── Type accent colours ────────────────────────────────────────
@@ -82,6 +83,20 @@ function durationLabel(start: string | null, end: string | null): string | null 
   const m = mins % 60;
   if (h === 0) return `${m}m`;
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
+// ── Note detail (free-form textarea) ─────────────────────────
+function NoteDetail({ notes, onSave }: { notes: string; onSave: (v: string) => void }) {
+  const [draft, setDraft] = useState(notes);
+  return (
+    <textarea
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => { if (draft !== notes) onSave(draft); }}
+      placeholder="Start writing…"
+      className="w-full min-h-[200px] text-[14px] text-gray-700 placeholder-gray-300 resize-none outline-none bg-transparent leading-relaxed"
+    />
+  );
 }
 
 // ── Inline title editor ───────────────────────────────────────
@@ -273,7 +288,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   );
 
   // ── Derived display values ─────────────────────────────────
-  const accent = TYPE_ACCENT[localCard.type] ?? TYPE_ACCENT.logistics;
+  const isNote    = localCard.sub_type === "note";
+  const accent    = isNote ? { dot: "bg-gray-300", bg: "bg-gray-50", text: "text-gray-500" }
+                           : (TYPE_ACCENT[localCard.type] ?? TYPE_ACCENT.logistics);
   const typeLabel = SUB_TYPE_LABEL[localCard.sub_type ?? ""] ?? localCard.type;
 
   const timeRange = (() => {
@@ -306,6 +323,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       case "activity/guided":
       case "activity/hosted":
         return <GuidedDetail card={localCard} onSaveDetails={saveDetails} />;
+      case "activity/note":
+        return <NoteDetail notes={(localCard.details?.notes as string) ?? ""} onSave={(v) => saveDetails("notes", v)} />;
       case "activity/event":
         return <EventDetail card={localCard} onSaveDetails={saveDetails} />;
       case "activity/challenge":
