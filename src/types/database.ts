@@ -149,6 +149,17 @@ export interface DayWithCards extends Day {
   cards: Card[]
 }
 
+export interface Document {
+  id:            string;
+  trip_id:       string;
+  file_name:     string;
+  file_type:     string;
+  document_type: string;
+  parsed_data:   unknown[];
+  card_ids:      string[];
+  created_at:    string;
+}
+
 export interface TripWithDays extends Trip {
   days: DayWithCards[]
 }

@@ -1,17 +1,17 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import type { Card, CardType, DayWithCards } from "@/types/database";
+import type { Card, CardType, CardStatus, DayWithCards } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 
+// ── ParsedConfirmation — matches API response ─────────────────
 export interface ParsedConfirmation {
-  type:                "flight" | "hotel" | "restaurant" | "activity";
+  type:                "flight_arrival" | "flight_departure" | "hotel" | "restaurant" | "activity";
   title:               string;
   confirmation_number: string | null;
   date:                string | null;
   time:                string | null;
   end_time:            string | null;
-  venue_name:          string | null;
   address:             string | null;
   phone:               string | null;
   website:             string | null;
@@ -19,30 +19,40 @@ export interface ParsedConfirmation {
 }
 
 interface Props {
-  parsed:   ParsedConfirmation;
-  days:     DayWithCards[];
-  tripId:   string;
-  onClose:  () => void;
-  onCardCreated: (card: Card) => void;
+  items:           ParsedConfirmation[];
+  fileName:        string;
+  fileType:        string;
+  days:            DayWithCards[];
+  tripId:          string;
+  onClose:         () => void;
+  onCardsCreated:  (cards: Card[], deletedIds: string[]) => void;
 }
 
-function mapType(parsed: ParsedConfirmation): { type: CardType; sub_type: string } {
-  switch (parsed.type) {
-    case "flight": {
-      const isDep = /depart|departure|outbound/i.test(parsed.title ?? "");
-      return { type: "logistics", sub_type: isDep ? "flight_departure" : "flight_arrival" };
-    }
-    case "hotel":      return { type: "logistics", sub_type: "hotel" };
-    case "restaurant": return { type: "food",      sub_type: "restaurant" };
+// ── Map parsed type → Card type + sub_type ────────────────────
+function cardTypeFromParsed(type: string): { cardType: CardType; sub_type: string } {
+  switch (type) {
+    case "flight_arrival":   return { cardType: "logistics", sub_type: "flight_arrival"   };
+    case "flight_departure": return { cardType: "logistics", sub_type: "flight_departure" };
+    case "hotel":            return { cardType: "logistics", sub_type: "hotel"            };
+    case "restaurant":       return { cardType: "food",      sub_type: "restaurant"       };
     case "activity":
-    default:           return { type: "activity",  sub_type: "guided" };
+    default:                 return { cardType: "activity",  sub_type: "guided"           };
   }
 }
 
+const TYPE_LABEL: Record<string, string> = {
+  flight_arrival:   "Outbound Flight",
+  flight_departure: "Return Flight",
+  hotel:            "Hotel",
+  restaurant:       "Restaurant",
+  activity:         "Activity",
+};
+
+const SKELETON_TITLES = ["Arrival", "Departure", "Flight", "Morning Coffee", "Check-in"];
+
 function findMatchingDay(days: DayWithCards[], date: string | null): string | null {
   if (!date) return null;
-  const match = days.find((d) => d.date === date);
-  return match?.id ?? null;
+  return days.find((d) => d.date === date)?.id ?? null;
 }
 
 function fmtDate(dateStr: string): string {
@@ -52,27 +62,45 @@ function fmtDate(dateStr: string): string {
   });
 }
 
-const TYPE_CONF_LABEL: Record<string, string> = {
-  flight: "Flight", hotel: "Hotel", restaurant: "Restaurant", activity: "Activity",
-};
+// ── Per-item editable state ───────────────────────────────────
+interface ItemDraft {
+  title:   string;
+  dayId:   string;
+  time:    string;
+  endTime: string;
+  address: string;
+  notes:   string;
+}
 
-export default function ConfirmationPreviewSheet({ parsed, days, tripId, onClose, onCardCreated }: Props) {
+export default function ConfirmationPreviewSheet({
+  items, fileName, fileType, days, tripId, onClose, onCardsCreated,
+}: Props) {
   const supabase = createClient();
   const sheetRef = useRef<HTMLDivElement>(null);
   const dragY    = useRef(0);
   const dragging = useRef(false);
 
-  const [title,   setTitle]   = useState(parsed.title ?? "");
-  const [address, setAddress] = useState(parsed.address ?? parsed.venue_name ?? "");
-  const [time,    setTime]    = useState(parsed.time ?? "");
-  const [endTime, setEndTime] = useState(parsed.end_time ?? "");
-  const [notes,   setNotes]   = useState(parsed.notes ?? "");
-  const [confNo,  setConfNo]  = useState(parsed.confirmation_number ?? "");
-  const [dayId,   setDayId]   = useState<string>(
-    () => findMatchingDay(days, parsed.date) ?? (days[0]?.id ?? "")
+  // Shared confirmation number (usually same for round-trip)
+  const [confNo, setConfNo] = useState(items[0]?.confirmation_number ?? "");
+
+  // One draft per parsed item
+  const [drafts, setDrafts] = useState<ItemDraft[]>(() =>
+    items.map((p) => ({
+      title:   p.title ?? "",
+      dayId:   findMatchingDay(days, p.date) ?? (days[0]?.id ?? ""),
+      time:    p.time ?? "",
+      endTime: p.end_time ?? "",
+      address: p.address ?? "",
+      notes:   p.notes ?? "",
+    }))
   );
+
   const [saving, setSaving] = useState(false);
 
+  const patchDraft = (idx: number, patch: Partial<ItemDraft>) =>
+    setDrafts((prev) => prev.map((d, i) => i === idx ? { ...d, ...patch } : d));
+
+  // ── Scroll lock ──────────────────────────────────────────────
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -85,6 +113,7 @@ export default function ConfirmationPreviewSheet({ parsed, days, tripId, onClose
     return () => document.removeEventListener("keydown", handler);
   }, [onClose]);
 
+  // ── Drag-to-dismiss ──────────────────────────────────────────
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     dragY.current = e.touches[0].clientY; dragging.current = true;
   }, []);
@@ -110,71 +139,121 @@ export default function ConfirmationPreviewSheet({ parsed, days, tripId, onClose
     }
   }, [onClose]);
 
+  // ── Save all cards ───────────────────────────────────────────
   const handleSave = useCallback(async () => {
-    if (!title.trim() || !dayId || saving) return;
+    const canSave = drafts.every((d) => d.title.trim() && d.dayId);
+    if (!canSave || saving) return;
     setSaving(true);
 
-    const { type: cardType, sub_type } = mapType(parsed);
-    const selectedDay = days.find((d) => d.id === dayId);
-    const endPos = selectedDay
-      ? selectedDay.cards.reduce((m, c) => Math.max(m, c.position), 0) + 1
-      : 1;
+    const createdCards: Card[] = [];
+    const deletedIds:   string[] = [];
 
-    const details: Record<string, unknown> = {};
-    if (confNo.trim()) details.confirmation = confNo.trim();
-    if (parsed.phone)  details.phone        = parsed.phone;
-    if (parsed.website) details.website     = parsed.website;
-    if (notes.trim())  details.notes        = notes.trim();
+    for (let i = 0; i < items.length; i++) {
+      const parsed = items[i];
+      const draft  = drafts[i];
+      const { cardType, sub_type } = cardTypeFromParsed(parsed.type);
 
-    const newCard: Card = {
-      id:              crypto.randomUUID(),
-      day_id:          dayId,
-      trip_id:         tripId,
-      type:            cardType,
-      sub_type,
-      title:           title.trim(),
-      start_time:      time.trim() ? time.trim() + ":00" : null,
-      end_time:        endTime.trim() ? endTime.trim() + ":00" : null,
-      position:        endPos,
-      status:          "in_itinerary",
-      source_url:      null,
-      cover_image_url: null,
-      lat:             null,
-      lng:             null,
-      address:         address.trim() || null,
-      details,
-      ai_generated:    false,
-      created_at:      new Date().toISOString(),
-    };
+      // Fix 3 — delete skeleton cards on the same day (empty details only)
+      const { data: skeletons } = await supabase
+        .from("cards")
+        .select("id")
+        .eq("day_id", draft.dayId)
+        .in("title", SKELETON_TITLES)
+        .eq("details", {});
 
-    const { error } = await supabase.from("cards").insert({
-      id:           newCard.id,
-      day_id:       newCard.day_id,
-      trip_id:      newCard.trip_id,
-      type:         newCard.type,
-      sub_type:     newCard.sub_type,
-      title:        newCard.title,
-      start_time:   newCard.start_time,
-      end_time:     newCard.end_time,
-      position:     newCard.position,
-      status:       newCard.status,
-      source_url:   null,
-      cover_image_url: null,
-      lat:          null, lng: null,
-      address:      newCard.address,
-      details:      newCard.details,
-      ai_generated: false,
+      const skelIds = (skeletons ?? []).map((r: { id: string }) => r.id);
+      if (skelIds.length) {
+        await supabase.from("cards").delete().in("id", skelIds);
+        deletedIds.push(...skelIds);
+      }
+
+      // Compute position after skeleton removal
+      const dayCards = days.find((d) => d.id === draft.dayId)?.cards ?? [];
+      const remaining = dayCards.filter((c) => !skelIds.includes(c.id));
+      const endPos = remaining.reduce((m, c) => Math.max(m, c.position), 0) + 1;
+
+      // Build details
+      const details: Record<string, unknown> = {};
+      if (confNo.trim())       details.confirmation = confNo.trim();
+      if (parsed.phone)        details.phone        = parsed.phone;
+      if (parsed.website)      details.website      = parsed.website;
+      if (draft.notes.trim())  details.notes        = draft.notes.trim();
+
+      const newCard: Card = {
+        id:              crypto.randomUUID(),
+        day_id:          draft.dayId,
+        trip_id:         tripId,
+        type:            cardType,
+        sub_type,
+        title:           draft.title.trim(),
+        start_time:      draft.time.trim()    ? draft.time.trim()    + ":00" : null,
+        end_time:        draft.endTime.trim() ? draft.endTime.trim() + ":00" : null,
+        position:        endPos,
+        status:          "in_itinerary" as CardStatus,
+        source_url:      null,
+        cover_image_url: null,
+        lat:             null,
+        lng:             null,
+        address:         draft.address.trim() || null,
+        details:         details as Card["details"],
+        ai_generated:    false,
+        created_at:      new Date().toISOString(),
+      };
+
+      const { error } = await supabase.from("cards").insert({
+        id:              newCard.id,
+        day_id:          newCard.day_id,
+        trip_id:         newCard.trip_id,
+        type:            newCard.type,
+        sub_type:        newCard.sub_type,
+        title:           newCard.title,
+        start_time:      newCard.start_time,
+        end_time:        newCard.end_time,
+        position:        newCard.position,
+        status:          newCard.status,
+        source_url:      null,
+        cover_image_url: null,
+        lat:             null,
+        lng:             null,
+        address:         newCard.address,
+        details:         newCard.details,
+        ai_generated:    false,
+      });
+
+      if (!error) createdCards.push(newCard);
+    }
+
+    // Fix 5 — save document record
+    const documentType = items[0]?.type.startsWith("flight") ? "flight"
+                       : items[0]?.type ?? "activity";
+    await supabase.from("documents").insert({
+      trip_id:       tripId,
+      file_name:     fileName,
+      file_type:     fileType,
+      document_type: documentType,
+      parsed_data:   items,
+      card_ids:      createdCards.map((c) => c.id),
     });
 
     setSaving(false);
-    if (!error) onCardCreated(newCard);
-  }, [title, address, time, endTime, notes, confNo, dayId, days, tripId, parsed, saving, supabase, onCardCreated]);
+    onCardsCreated(createdCards, deletedIds);
+  }, [drafts, items, confNo, days, tripId, fileName, fileType, saving, supabase, onCardsCreated]);
 
-  const typeLabel = TYPE_CONF_LABEL[parsed.type] ?? "Confirmation";
+  // ── Derived ──────────────────────────────────────────────────
+  const isRoundTrip = items.length === 2 &&
+    items[0].type === "flight_arrival" && items[1].type === "flight_departure";
+
+  const sheetTitle = isRoundTrip
+    ? "Round-trip flight · 2 cards"
+    : (TYPE_LABEL[items[0]?.type ?? "activity"] ?? "Confirmation");
+
+  const canSave = drafts.every((d) => d.title.trim() && d.dayId) && !saving;
 
   return (
-    <div className="fixed inset-0 z-60 flex items-end"
-      onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div
+      className="fixed inset-0 z-60 flex items-end"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
       <div className="absolute inset-0 bg-black/30 animate-in fade-in duration-200" />
 
       <div
@@ -182,7 +261,7 @@ export default function ConfirmationPreviewSheet({ parsed, days, tripId, onClose
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        className="relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet max-h-[90dvh] flex flex-col animate-in slide-in-from-bottom duration-300"
+        className="relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet max-h-[92dvh] flex flex-col animate-in slide-in-from-bottom duration-300"
         style={{ willChange: "transform" }}
       >
         {/* Drag handle */}
@@ -193,8 +272,10 @@ export default function ConfirmationPreviewSheet({ parsed, days, tripId, onClose
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-3 pb-3 border-b border-gray-100 flex-shrink-0">
           <div>
-            <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Confirmation parsed</p>
-            <h3 className="text-[16px] font-bold text-gray-900">{typeLabel}</h3>
+            <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">
+              Confirmation parsed
+            </p>
+            <h3 className="text-[16px] font-bold text-gray-900">{sheetTitle}</h3>
           </div>
           <button
             onClick={onClose}
@@ -207,111 +288,156 @@ export default function ConfirmationPreviewSheet({ parsed, days, tripId, onClose
           </button>
         </div>
 
-        {/* Fields */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto pb-28">
 
-          {/* Title */}
-          <div>
-            <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Title</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full mt-1 px-3 py-2 text-[14px] text-gray-900 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-300 focus:bg-white transition-colors"
-            />
-          </div>
+          {/* One section per parsed item */}
+          {items.map((parsed, idx) => {
+            const draft = drafts[idx];
+            const label = TYPE_LABEL[parsed.type] ?? "Booking";
+            return (
+              <div key={idx} className={idx > 0 ? "border-t border-gray-100" : ""}>
+                {/* Section label (only if multiple items) */}
+                {items.length > 1 && (
+                  <div className="px-5 pt-4 pb-1">
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">
+                      {label}
+                    </p>
+                  </div>
+                )}
 
-          {/* Day assignment */}
-          <div>
-            <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
-              Assign to day
-              {parsed.date && <span className="ml-1 font-normal normal-case text-gray-400">({parsed.date})</span>}
-            </label>
-            <select
-              value={dayId}
-              onChange={(e) => setDayId(e.target.value)}
-              className="w-full mt-1 px-3 py-2 text-[14px] text-gray-900 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-300 appearance-none"
-            >
-              {days.map((d) => (
-                <option key={d.id} value={d.id}>
-                  Day {d.day_number}{d.date ? ` — ${fmtDate(d.date)}` : ""}
-                  {d.day_name ? ` (${d.day_name})` : ""}
-                </option>
-              ))}
-            </select>
-          </div>
+                <div className="px-5 py-4 space-y-4">
+                  {/* Title */}
+                  <div>
+                    <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                      Title
+                    </label>
+                    <input
+                      type="text"
+                      value={draft.title}
+                      onChange={(e) => patchDraft(idx, { title: e.target.value })}
+                      className="w-full mt-1 px-3 py-2 text-[14px] text-gray-900 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-300 focus:bg-white transition-colors"
+                    />
+                  </div>
 
-          {/* Time */}
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Start time</label>
-              <input
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                className="w-full mt-1 px-3 py-2 text-[14px] text-gray-900 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-300"
-              />
-            </div>
-            <div className="flex-1">
-              <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">End time</label>
-              <input
-                type="time"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className="w-full mt-1 px-3 py-2 text-[14px] text-gray-900 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-300"
-              />
-            </div>
-          </div>
+                  {/* Day assignment */}
+                  <div>
+                    <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                      Day
+                      {parsed.date && (
+                        <span className="ml-1 font-normal normal-case text-gray-400">
+                          ({parsed.date})
+                        </span>
+                      )}
+                    </label>
+                    <select
+                      value={draft.dayId}
+                      onChange={(e) => patchDraft(idx, { dayId: e.target.value })}
+                      className="w-full mt-1 px-3 py-2 text-[14px] text-gray-900 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-300 appearance-none"
+                    >
+                      {days.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          Day {d.day_number}{d.date ? ` — ${fmtDate(d.date)}` : ""}
+                          {d.day_name ? ` (${d.day_name})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-          {/* Address */}
-          <div>
-            <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Address / Venue</label>
-            <input
-              type="text"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="w-full mt-1 px-3 py-2 text-[14px] text-gray-900 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-300 focus:bg-white transition-colors"
-            />
-          </div>
+                  {/* Times */}
+                  <div className="flex gap-3">
+                    <div className="flex-1">
+                      <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                        {parsed.type.startsWith("flight") ? "Departs" : "Start time"}
+                      </label>
+                      <input
+                        type="time"
+                        value={draft.time}
+                        onChange={(e) => patchDraft(idx, { time: e.target.value })}
+                        className="w-full mt-1 px-3 py-2 text-[14px] text-gray-900 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-300"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                        {parsed.type.startsWith("flight") ? "Arrives" : "End time"}
+                      </label>
+                      <input
+                        type="time"
+                        value={draft.endTime}
+                        onChange={(e) => patchDraft(idx, { endTime: e.target.value })}
+                        className="w-full mt-1 px-3 py-2 text-[14px] text-gray-900 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-300"
+                      />
+                    </div>
+                  </div>
 
-          {/* Confirmation number */}
-          <div>
-            <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Confirmation #</label>
-            <input
-              type="text"
-              value={confNo}
-              onChange={(e) => setConfNo(e.target.value)}
-              placeholder="e.g. ABC123"
-              className="w-full mt-1 px-3 py-2 text-[14px] text-gray-900 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-300 focus:bg-white transition-colors placeholder-gray-300"
-            />
-          </div>
+                  {/* Address */}
+                  {(draft.address || parsed.type !== "flight_arrival" && parsed.type !== "flight_departure") && (
+                    <div>
+                      <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                        {parsed.type.startsWith("flight") ? "Airport" : "Address / Venue"}
+                      </label>
+                      <input
+                        type="text"
+                        value={draft.address}
+                        onChange={(e) => patchDraft(idx, { address: e.target.value })}
+                        className="w-full mt-1 px-3 py-2 text-[14px] text-gray-900 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-300 focus:bg-white transition-colors"
+                      />
+                    </div>
+                  )}
 
-          {/* Notes */}
-          {(parsed.notes || parsed.phone || parsed.website) && (
+                  {/* Notes — flight number, seat, etc. */}
+                  {(draft.notes || parsed.type.startsWith("flight")) && (
+                    <div>
+                      <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                        Notes
+                      </label>
+                      <textarea
+                        value={draft.notes}
+                        onChange={(e) => patchDraft(idx, { notes: e.target.value })}
+                        placeholder={parsed.type.startsWith("flight") ? "Flight number, seat, duration…" : "Notes…"}
+                        rows={2}
+                        className="w-full mt-1 px-3 py-2 text-[14px] text-gray-700 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-300 focus:bg-white transition-colors resize-none placeholder-gray-300"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Shared confirmation number */}
+          <div className="px-5 pb-4 border-t border-gray-100 pt-4 space-y-4">
             <div>
-              <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Notes</label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={3}
-                className="w-full mt-1 px-3 py-2 text-[14px] text-gray-700 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-300 focus:bg-white transition-colors resize-none"
+              <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                Confirmation #
+              </label>
+              <input
+                type="text"
+                value={confNo}
+                onChange={(e) => setConfNo(e.target.value)}
+                placeholder="e.g. B24EDV"
+                className="w-full mt-1 px-3 py-2 text-[14px] text-gray-900 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-300 focus:bg-white transition-colors placeholder-gray-300"
               />
             </div>
-          )}
+          </div>
         </div>
 
-        {/* Save */}
-        <div className="flex-shrink-0 px-5 py-4 border-t border-gray-100">
+        {/* Save — sticky bottom */}
+        <div className="absolute bottom-0 left-0 right-0 px-5 py-4 bg-white border-t border-gray-100">
           <button
             onClick={handleSave}
-            disabled={!title.trim() || !dayId || saving}
+            disabled={!canSave}
             className={`w-full py-3.5 rounded-xl text-[15px] font-bold transition-all ${
-              title.trim() && dayId && !saving
+              canSave
                 ? "bg-logistics text-white active:scale-[0.98] shadow-sm"
                 : "bg-gray-100 text-gray-300 cursor-not-allowed"
             }`}
           >
-            {saving ? "Adding to plan…" : "Add to Plan"}
+            {saving
+              ? "Adding to plan…"
+              : items.length > 1
+                ? `Add ${items.length} cards to plan`
+                : "Add to plan"}
           </button>
         </div>
       </div>

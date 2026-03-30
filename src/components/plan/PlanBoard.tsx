@@ -30,6 +30,7 @@ import AppHeader from "@/components/ui/AppHeader";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import CreateCardSheet from "@/components/plan/CreateCardSheet";
 import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/plan/ConfirmationPreviewSheet";
+import DocumentsSheet from "@/components/plan/DocumentsSheet";
 import type { Trip, Card, DayWithCards, CardType, CardStatus } from "@/types/database";
 
 // ── Constants ──────────────────────────────────────────────────
@@ -182,8 +183,9 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [createSheetDayId, setCreateSheetDayId] = useState<string | null>(null);
-  const [uploadState,      setUploadState]      = useState<"idle" | "reading" | "error">("idle");
-  const [parsedConf,       setParsedConf]       = useState<ParsedConfirmation | null>(null);
+  const [uploadState,  setUploadState]  = useState<"idle" | "reading" | "error">("idle");
+  const [pendingConf,  setPendingConf]  = useState<{ items: ParsedConfirmation[]; fileName: string; fileType: string } | null>(null);
+  const [showDocs,     setShowDocs]     = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [deleteToast, setDeleteToast] = useState<string | null>(null);
   const [clearConfirm, setClearConfirm] = useState(false);
@@ -461,7 +463,6 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    // Reset input so same file can be re-selected
     e.target.value = "";
 
     setUploadState("reading");
@@ -470,9 +471,9 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
 
     try {
       const res  = await fetch("/api/confirmations/parse", { method: "POST", body: form });
-      const data = await res.json() as { parsed?: ParsedConfirmation; error?: string };
-      if (data.error || !data.parsed) throw new Error(data.error ?? "Parse failed");
-      setParsedConf(data.parsed);
+      const data = await res.json() as { parsed?: ParsedConfirmation[]; error?: string };
+      if (data.error || !data.parsed?.length) throw new Error(data.error ?? "Parse failed");
+      setPendingConf({ items: data.parsed, fileName: file.name, fileType: file.type });
       setUploadState("idle");
     } catch {
       setUploadState("error");
@@ -510,8 +511,23 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
           onApplyTemplate={() => setShowTemplatePicker(true)}
         />
 
-        {/* Upload confirmation — right side */}
-        <div className="ml-auto">
+        {/* Right side actions */}
+        <div className="ml-auto flex items-center gap-3">
+          {/* Documents library */}
+          <button
+            onClick={() => setShowDocs(true)}
+            className="flex items-center gap-1 text-[11px] font-semibold text-gray-400 hover:text-gray-600 transition-colors"
+            aria-label="Documents"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+            </svg>
+            Docs
+          </button>
+
+          {/* Upload confirmation */}
+          <div>
           <input
             ref={fileInputRef}
             type="file"
@@ -544,8 +560,9 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
               </>
             )}
           </button>
-        </div>
-      </div>
+          </div>{/* end upload div */}
+        </div>{/* end right-side actions */}
+      </div>{/* end sub-header */}
 
       {/* Board */}
       <div className="flex-1 overflow-auto">
@@ -603,17 +620,38 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
         );
       })()}
 
-      {parsedConf && (
+      {pendingConf && (
         <ConfirmationPreviewSheet
-          parsed={parsedConf}
+          items={pendingConf.items}
+          fileName={pendingConf.fileName}
+          fileType={pendingConf.fileType}
           days={days}
           tripId={trip.id}
-          onClose={() => setParsedConf(null)}
-          onCardCreated={(card) => {
-            handleCardCreated(card);
-            setParsedConf(null);
+          onClose={() => setPendingConf(null)}
+          onCardsCreated={(cards, deletedIds) => {
+            setDays((prev) => {
+              // Remove deleted skeleton cards
+              let next = prev.map((d) => ({
+                ...d,
+                cards: deletedIds.length
+                  ? d.cards.filter((c) => !deletedIds.includes(c.id))
+                  : d.cards,
+              }));
+              // Add newly created cards
+              for (const card of cards) {
+                next = next.map((d) =>
+                  d.id === card.day_id ? { ...d, cards: [...d.cards, card] } : d
+                );
+              }
+              return next;
+            });
+            setPendingConf(null);
           }}
         />
+      )}
+
+      {showDocs && (
+        <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} />
       )}
 
       {/* Clear itinerary confirmation dialog */}
