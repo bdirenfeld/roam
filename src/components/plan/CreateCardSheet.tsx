@@ -3,95 +3,42 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import type { Card, CardType } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
+import { PIN_COLORS } from "@/lib/mapPins";
+
+// ── Type options (includes virtual "note" type) ────────────────
+type UiType = CardType | "note";
+
+const TYPE_OPTIONS: { value: UiType; label: string; color: string }[] = [
+  { value: "activity",  label: "Activity",  color: PIN_COLORS.activity  },
+  { value: "food",      label: "Food",       color: PIN_COLORS.food      },
+  { value: "logistics", label: "Logistics", color: PIN_COLORS.logistics },
+  { value: "note",      label: "Note",       color: "#6B7280"            },
+];
 
 // ── Sub-type options per card type ─────────────────────────────
 const SUB_TYPES: Record<CardType, { value: string; label: string }[]> = {
   activity: [
+    { value: "guided",        label: "Guided"        },
     { value: "self_directed", label: "Self-directed" },
-    { value: "guided",        label: "Guided" },
-    { value: "wellness",      label: "Wellness" },
-    { value: "event",         label: "Event" },
-    { value: "challenge",     label: "Challenge" },
+    { value: "wellness",      label: "Wellness"      },
+    { value: "event",         label: "Event"         },
+    { value: "challenge",     label: "Challenge"     },
   ],
   food: [
-    { value: "restaurant",   label: "Restaurant" },
-    { value: "coffee",       label: "Coffee" },
-    { value: "cocktail_bar", label: "Cocktail Bar" },
-    { value: "fine_dining",  label: "Fine Dining" },
+    { value: "restaurant",   label: "Restaurant"    },
+    { value: "coffee",       label: "Café & Dessert" },
+    { value: "cocktail_bar", label: "Bar"           },
   ],
   logistics: [
-    { value: "flight_arrival",   label: "Flight Arrival" },
-    { value: "flight_departure", label: "Flight Departure" },
-    { value: "hotel",            label: "Hotel" },
-    { value: "transit",          label: "Transit" },
+    { value: "hotel",          label: "Hotel"   },
+    { value: "flight_arrival", label: "Flight"  },
+    { value: "transit",        label: "Transit" },
   ],
-};
-
-// ── Type tile config ───────────────────────────────────────────
-interface TypeConfig {
-  label: string;
-  bg: string;
-  selectedBg: string;
-  border: string;
-  selectedBorder: string;
-  text: string;
-  icon: React.ReactNode;
-}
-
-const TYPE_CONFIG: Record<CardType, TypeConfig> = {
-  activity: {
-    label: "Activity",
-    bg: "bg-teal-50",
-    selectedBg: "bg-teal-100",
-    border: "border-teal-100",
-    selectedBorder: "border-activity",
-    text: "text-activity",
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="8" r="2" />
-        <path d="M12 10v5" />
-        <path d="M9 14l3 3 3-3" />
-        <path d="M7 20l2-3" />
-        <path d="M17 20l-2-3" />
-      </svg>
-    ),
-  },
-  food: {
-    label: "Food",
-    bg: "bg-amber-50",
-    selectedBg: "bg-amber-100",
-    border: "border-amber-100",
-    selectedBorder: "border-food",
-    text: "text-food",
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" />
-        <path d="M7 2v20" />
-        <path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7" />
-      </svg>
-    ),
-  },
-  logistics: {
-    label: "Logistics",
-    bg: "bg-slate-50",
-    selectedBg: "bg-slate-100",
-    border: "border-slate-100",
-    selectedBorder: "border-logistics",
-    text: "text-logistics",
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21 4 19 4c-1 0-2 .5-2.8 1.3L13 9 4.8 7.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.1z" />
-      </svg>
-    ),
-  },
 };
 
 // ── Shared field styles ────────────────────────────────────────
 const INPUT_CLS =
-  "w-full text-[15px] text-gray-900 bg-gray-50 rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-activity placeholder:text-gray-300 transition-colors";
+  "w-full text-[15px] text-gray-900 bg-gray-50 rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-gray-300 focus:bg-white placeholder:text-gray-300 transition-colors";
 const LABEL_CLS =
   "block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide";
 
@@ -111,32 +58,24 @@ interface Props {
   endPosition: number;
   onClose: () => void;
   onCardCreated: (card: Card) => void;
-  /** Pre-seed lat/lng when opening from map FAB */
   initialLat?: number;
   initialLng?: number;
-  /** Override default status (default: "in_itinerary") */
   initialStatus?: Card["status"];
 }
 
 export default function CreateCardSheet({
-  dayId,
-  tripId,
-  endPosition,
-  onClose,
-  onCardCreated,
-  initialLat,
-  initialLng,
-  initialStatus,
+  dayId, tripId, endPosition, onClose, onCardCreated,
+  initialLat, initialLng, initialStatus,
 }: Props) {
-  const supabase   = createClient();
-  const sheetRef   = useRef<HTMLDivElement>(null);
-  const inputRef   = useRef<HTMLInputElement>(null);
-  const dragY      = useRef(0);
-  const dragging   = useRef(false);
+  const supabase  = createClient();
+  const sheetRef  = useRef<HTMLDivElement>(null);
+  const inputRef  = useRef<HTMLInputElement>(null);
+  const dragY     = useRef(0);
+  const dragging  = useRef(false);
 
   // ── Base fields ─────────────────────────────────────────────
   const [title,     setTitle]     = useState("");
-  const [type,      setType]      = useState<CardType | null>(null);
+  const [type,      setType]      = useState<UiType | null>(null);
   const [subType,   setSubType]   = useState<string | null>(null);
   const [startTime, setStartTime] = useState("");
   const [endTime,   setEndTime]   = useState("");
@@ -203,15 +142,14 @@ export default function CreateCardSheet({
     return () => document.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  const handleTypeSelect = (t: CardType) => {
+  const handleTypeSelect = (t: UiType) => {
     setType(t);
     setSubType(null);
   };
 
   // ── Drag-to-dismiss ──────────────────────────────────────────
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    dragY.current  = e.touches[0].clientY;
-    dragging.current = true;
+    dragY.current = e.touches[0].clientY; dragging.current = true;
   }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
@@ -240,18 +178,55 @@ export default function CreateCardSheet({
     if (!title.trim() || !type || saving) return;
     setSaving(true);
 
-    // Format times
+    const cardStatus = initialStatus ?? "in_itinerary";
+
+    // ── Note card (virtual type) ─────────────────────────────
+    if (type === "note") {
+      const newCard: Card = {
+        id:              crypto.randomUUID(),
+        day_id:          dayId,
+        trip_id:         tripId,
+        type:            "activity",
+        sub_type:        "note",
+        title:           title.trim(),
+        start_time:      null,
+        end_time:        null,
+        position:        endPosition,
+        status:          cardStatus,
+        source_url:      null,
+        cover_image_url: null,
+        lat:             initialLat ?? null,
+        lng:             initialLng ?? null,
+        address:         null,
+        details:         notes.trim() ? { notes: notes.trim() } : {},
+        ai_generated:    false,
+        created_at:      new Date().toISOString(),
+      };
+      const { error } = await supabase.from("cards").insert({
+        id: newCard.id, day_id: dayId, trip_id: tripId,
+        type: "activity", sub_type: "note", title: newCard.title,
+        start_time: null, end_time: null, position: endPosition,
+        status: cardStatus, source_url: null, cover_image_url: null,
+        lat: initialLat ?? null, lng: initialLng ?? null, address: null,
+        details: newCard.details, ai_generated: false,
+      });
+      setSaving(false);
+      if (!error) onCardCreated(newCard);
+      return;
+    }
+
+    // ── Regular card ─────────────────────────────────────────
+    const cardType: CardType = type;
     const startTimeFmt = startTime ? `${startTime}:00` : null;
     const endTimeFmt   = endTime   ? `${endTime}:00`   : null;
 
-    // Build details object
     const details: Record<string, unknown> = {};
     if (notes.trim()) details.notes = notes.trim();
 
-    const key = `${type}/${subType ?? ""}`;
+    const key = `${cardType}/${subType ?? ""}`;
     switch (key) {
       case "activity/guided":
-        if (supplier.trim())     details.supplier     = supplier.trim();
+        if (supplier.trim())     details.supplier      = supplier.trim();
         if (meetingPoint.trim()) details.meeting_point = meetingPoint.trim();
         if (meetingTime.trim())  details.meeting_time  = meetingTime.trim();
         if (cost.trim())         details.cost_per_person = parseFloat(cost);
@@ -264,9 +239,9 @@ export default function CreateCardSheet({
         if (supplier.trim()) details.supplier = supplier.trim();
         break;
       case "activity/wellness":
-        if (supplier.trim())  details.supplier        = supplier.trim();
-        if (treatment.trim()) details.treatment_type  = treatment.trim();
-        if (goal.trim())      details.goal            = goal.trim();
+        if (supplier.trim())  details.supplier         = supplier.trim();
+        if (treatment.trim()) details.treatment_type   = treatment.trim();
+        if (goal.trim())      details.goal             = goal.trim();
         if (duration.trim())  details.duration_minutes = parseInt(duration, 10);
         break;
       case "food/coffee":
@@ -299,50 +274,39 @@ export default function CreateCardSheet({
         break;
     }
 
-    // address is a top-level column (hotel and cocktail_bar)
     const address =
-      key === "logistics/hotel"  ? (hotelAddress.trim() || null) :
-      key === "food/cocktail_bar" ? (cocktailBarAddress.trim() || null) :
+      key === "logistics/hotel"   ? (hotelAddress.trim() || null) :
+      key === "food/cocktail_bar"  ? (cocktailBarAddress.trim() || null) :
       null;
 
-    const cardStatus = initialStatus ?? "in_itinerary";
-
     const newCard: Card = {
-      id: crypto.randomUUID(),
-      day_id: dayId,
-      trip_id: tripId,
-      type,
-      sub_type: subType,
-      title: title.trim(),
-      start_time: startTimeFmt,
-      end_time:   endTimeFmt,
-      position: endPosition,
-      status: cardStatus,
-      source_url: null,
+      id:              crypto.randomUUID(),
+      day_id:          dayId,
+      trip_id:         tripId,
+      type:            cardType,
+      sub_type:        subType,
+      title:           title.trim(),
+      start_time:      startTimeFmt,
+      end_time:        endTimeFmt,
+      position:        endPosition,
+      status:          cardStatus,
+      source_url:      null,
       cover_image_url: null,
-      lat: initialLat ?? null,
-      lng: initialLng ?? null,
+      lat:             initialLat ?? null,
+      lng:             initialLng ?? null,
       address,
       details,
-      ai_generated: false,
-      created_at: new Date().toISOString(),
+      ai_generated:    false,
+      created_at:      new Date().toISOString(),
     };
 
     const { error } = await supabase.from("cards").insert({
-      id:         newCard.id,
-      day_id:     dayId,
-      trip_id:    tripId,
-      type,
-      sub_type:   subType,
-      title:      newCard.title,
-      start_time: startTimeFmt,
-      end_time:   endTimeFmt,
-      address,
-      position:   endPosition,
-      status:     cardStatus,
-      lat:        initialLat ?? null,
-      lng:        initialLng ?? null,
-      details,
+      id: newCard.id, day_id: dayId, trip_id: tripId,
+      type: cardType, sub_type: subType, title: newCard.title,
+      start_time: startTimeFmt, end_time: endTimeFmt,
+      address, position: endPosition, status: cardStatus,
+      lat: initialLat ?? null, lng: initialLng ?? null,
+      details, ai_generated: false,
     });
 
     setSaving(false);
@@ -350,8 +314,7 @@ export default function CreateCardSheet({
   }, [
     title, type, subType, startTime, endTime, notes, saving,
     supplier, meetingPoint, meetingTime, cost, paid,
-    eventVenue,
-    treatment, goal, duration,
+    eventVenue, treatment, goal, duration,
     primaryPick, backupOption, coffeeCost, vibeEnergy,
     cocktailBarAddress, cocktailBarWebsite,
     cuisine, reservation, estimatedCost, orderPlan,
@@ -360,19 +323,19 @@ export default function CreateCardSheet({
     dayId, tripId, endPosition, initialLat, initialLng, initialStatus, supabase, onCardCreated,
   ]);
 
-  const canCreate = title.trim().length > 0 && type !== null;
-  const cfg = type ? TYPE_CONFIG[type] : null;
-  const subKey = `${type ?? ""}/${subType ?? ""}`;
+  const canCreate  = title.trim().length > 0 && type !== null;
+  const isNote     = type === "note";
+  const cardType   = isNote ? null : (type as CardType | null);
+  const typeColor  = type ? (isNote ? "#6B7280" : PIN_COLORS[type as CardType]) : null;
+  const subKey     = `${cardType ?? ""}/${subType ?? ""}`;
 
   return (
     <div
       className="fixed inset-0 z-60 flex items-end"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      {/* Backdrop */}
       <div className="absolute inset-0 bg-black/30 animate-in fade-in duration-200" />
 
-      {/* Sheet */}
       <div
         ref={sheetRef}
         onTouchStart={handleTouchStart}
@@ -417,47 +380,42 @@ export default function CreateCardSheet({
             />
           </Field>
 
-          {/* ── Type ── */}
-          <div className="mb-4">
+          {/* ── Type pills ── */}
+          <div className="mb-3">
             <label className={LABEL_CLS}>Type</label>
-            <div className="grid grid-cols-3 gap-2">
-              {(Object.keys(TYPE_CONFIG) as CardType[]).map((t) => {
-                const c = TYPE_CONFIG[t];
-                const selected = type === t;
+            <div className="flex flex-wrap gap-2">
+              {TYPE_OPTIONS.map(({ value, label, color }) => {
+                const selected = type === value;
                 return (
                   <button
-                    key={t}
-                    onClick={() => handleTypeSelect(t)}
-                    className={`flex flex-col items-center gap-1.5 rounded-xl border-2 px-2 py-3 transition-all ${
-                      selected
-                        ? `${c.selectedBg} ${c.selectedBorder} ${c.text}`
-                        : `${c.bg} ${c.border} text-gray-400`
-                    }`}
+                    key={value}
+                    onClick={() => handleTypeSelect(value)}
+                    className="px-3 py-1 rounded-full text-xs font-semibold transition-all"
+                    style={selected
+                      ? { background: color, color: "white", border: `1px solid ${color}` }
+                      : { background: "transparent", color: "#6B7280", border: "1px solid #E5E7EB" }}
                   >
-                    {c.icon}
-                    <span className="text-[11px] font-bold">{c.label}</span>
+                    {label}
                   </button>
                 );
               })}
             </div>
           </div>
 
-          {/* ── Sub-type ── */}
-          {type && (
+          {/* ── Sub-type pills (not for Note) ── */}
+          {cardType && (
             <div className="mb-4">
-              <label className={LABEL_CLS}>Sub-type</label>
               <div className="flex flex-wrap gap-2">
-                {SUB_TYPES[type].map(({ value, label }) => {
+                {SUB_TYPES[cardType].map(({ value, label }) => {
                   const selected = subType === value;
                   return (
                     <button
                       key={value}
                       onClick={() => setSubType(selected ? null : value)}
-                      className={`px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-all ${
-                        selected
-                          ? `${cfg!.selectedBg} ${cfg!.selectedBorder} ${cfg!.text}`
-                          : "bg-gray-50 border-gray-200 text-gray-500"
-                      }`}
+                      className="px-3 py-1 rounded-full text-xs font-semibold transition-all"
+                      style={selected
+                        ? { background: typeColor!, color: "white", border: `1px solid ${typeColor}` }
+                        : { background: "transparent", color: "#6B7280", border: "1px solid #E5E7EB" }}
                     >
                       {label}
                     </button>
@@ -467,10 +425,23 @@ export default function CreateCardSheet({
             </div>
           )}
 
-          {/* ── Base fields (shown once type is chosen) ── */}
-          {type && (
+          {/* ── Note: just a textarea ── */}
+          {isNote && (
+            <Field label="Notes">
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Start writing…"
+                rows={5}
+                className={`${INPUT_CLS} resize-none`}
+                autoFocus
+              />
+            </Field>
+          )}
+
+          {/* ── Time + notes (for regular card types) ── */}
+          {cardType && (
             <>
-              {/* Start / End time (relabelled for hotel) */}
               <div className="flex gap-3 mb-4">
                 <div className="flex-1">
                   <label className={LABEL_CLS}>
@@ -496,7 +467,6 @@ export default function CreateCardSheet({
                 </div>
               </div>
 
-              {/* Notes */}
               <Field label="Notes">
                 <textarea
                   value={notes}
@@ -509,9 +479,8 @@ export default function CreateCardSheet({
             </>
           )}
 
-          {/* ── Conditional fields ── */}
+          {/* ── Conditional sub-type fields ── */}
 
-          {/* activity/guided */}
           {subKey === "activity/guided" && (
             <>
               <Field label="Supplier">
@@ -544,7 +513,6 @@ export default function CreateCardSheet({
             </>
           )}
 
-          {/* food/coffee */}
           {subKey === "food/coffee" && (
             <>
               <Field label="Primary pick">
@@ -566,7 +534,6 @@ export default function CreateCardSheet({
             </>
           )}
 
-          {/* food/cocktail_bar */}
           {subKey === "food/cocktail_bar" && (
             <>
               <Field label="Address">
@@ -580,7 +547,6 @@ export default function CreateCardSheet({
             </>
           )}
 
-          {/* activity/wellness */}
           {subKey === "activity/wellness" && (
             <>
               <Field label="Supplier">
@@ -603,7 +569,6 @@ export default function CreateCardSheet({
             </>
           )}
 
-          {/* activity/event */}
           {subKey === "activity/event" && (
             <Field label="Venue">
               <input value={eventVenue} onChange={(e) => setEventVenue(e.target.value)}
@@ -611,7 +576,6 @@ export default function CreateCardSheet({
             </Field>
           )}
 
-          {/* activity/challenge */}
           {subKey === "activity/challenge" && (
             <Field label="Organizer">
               <input value={supplier} onChange={(e) => setSupplier(e.target.value)}
@@ -619,13 +583,11 @@ export default function CreateCardSheet({
             </Field>
           )}
 
-          {/* food/restaurant + food/fine_dining */}
           {(subKey === "food/restaurant" || subKey === "food/fine_dining") && (
             <>
               <Field label="Cuisine">
                 <input value={cuisine} onChange={(e) => setCuisine(e.target.value)}
-                  placeholder={subKey === "food/fine_dining" ? "e.g. French, Modern European" : "e.g. Italian, Japanese"}
-                  className={INPUT_CLS} />
+                  placeholder="e.g. Italian, Japanese" className={INPUT_CLS} />
               </Field>
               <Field label="Reservation">
                 <input value={reservation} onChange={(e) => setReservation(e.target.value)}
@@ -643,7 +605,6 @@ export default function CreateCardSheet({
             </>
           )}
 
-          {/* logistics/flight_arrival */}
           {subKey === "logistics/flight_arrival" && (
             <>
               <Field label="Airline">
@@ -669,7 +630,6 @@ export default function CreateCardSheet({
             </>
           )}
 
-          {/* logistics/flight_departure */}
           {subKey === "logistics/flight_departure" && (
             <>
               <Field label="Airline">
@@ -687,7 +647,6 @@ export default function CreateCardSheet({
             </>
           )}
 
-          {/* logistics/hotel */}
           {subKey === "logistics/hotel" && (
             <Field label="Address">
               <input value={hotelAddress} onChange={(e) => setHotelAddress(e.target.value)}
@@ -700,11 +659,10 @@ export default function CreateCardSheet({
             <button
               onClick={handleCreate}
               disabled={!canCreate || saving}
-              className={`w-full py-3.5 rounded-xl text-[15px] font-bold transition-all ${
-                canCreate && !saving
-                  ? "bg-activity text-white active:scale-[0.98]"
-                  : "bg-gray-100 text-gray-300 cursor-not-allowed"
-              }`}
+              className="w-full py-3.5 rounded-xl text-[15px] font-bold transition-all active:scale-[0.98]"
+              style={canCreate && !saving
+                ? { background: typeColor ?? "#6B7280", color: "white" }
+                : { background: "#F3F4F6", color: "#D1D5DB", cursor: "not-allowed" }}
             >
               {saving ? "Creating…" : "Create"}
             </button>

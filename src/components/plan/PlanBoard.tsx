@@ -29,7 +29,6 @@ import { createClient } from "@/lib/supabase/client";
 import AppHeader from "@/components/ui/AppHeader";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import CreateCardSheet from "@/components/plan/CreateCardSheet";
-import NoteCardSheet from "@/components/plan/NoteCardSheet";
 import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/plan/ConfirmationPreviewSheet";
 import type { Trip, Card, DayWithCards, CardType, CardStatus } from "@/types/database";
 
@@ -183,7 +182,6 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [createSheetDayId, setCreateSheetDayId] = useState<string | null>(null);
-  const [noteSheetDayId,   setNoteSheetDayId]   = useState<string | null>(null);
   const [uploadState,      setUploadState]      = useState<"idle" | "reading" | "error">("idle");
   const [parsedConf,       setParsedConf]       = useState<ParsedConfirmation | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -553,7 +551,6 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
                   onRemove={handleRemove}
                   onDelete={handleDelete}
                   onOpenCreateSheet={() => setCreateSheetDayId(day.id)}
-                  onOpenNoteSheet={() => setNoteSheetDayId(day.id)}
                   onCopyStructure={() => handleCopyStructure(day.id)}
                 />
               ))}
@@ -575,20 +572,6 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
             tripId={trip.id}
             endPosition={endPos}
             onClose={() => setCreateSheetDayId(null)}
-            onCardCreated={handleCardCreated}
-          />
-        );
-      })()}
-
-      {noteSheetDayId && (() => {
-        const day    = days.find((d) => d.id === noteSheetDayId);
-        const endPos = day ? day.cards.reduce((m, c) => Math.max(m, c.position), 0) + 1 : 1;
-        return (
-          <NoteCardSheet
-            dayId={noteSheetDayId}
-            tripId={trip.id}
-            endPosition={endPos}
-            onClose={() => setNoteSheetDayId(null)}
             onCardCreated={handleCardCreated}
           />
         );
@@ -655,11 +638,10 @@ interface DayColumnProps {
   onRemove: (cardId: string) => void;
   onDelete: (cardId: string) => void;
   onOpenCreateSheet: () => void;
-  onOpenNoteSheet: () => void;
   onCopyStructure: () => void;
 }
 
-function DayColumn({ day, cards, totalDays, onCardTap, onRemove, onDelete, onOpenCreateSheet, onOpenNoteSheet, onCopyStructure }: DayColumnProps) {
+function DayColumn({ day, cards, totalDays, onCardTap, onRemove, onDelete, onOpenCreateSheet, onCopyStructure }: DayColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `${COL_PREFIX}${day.id}` });
 
   return (
@@ -721,16 +703,6 @@ function DayColumn({ day, cards, totalDays, onCardTap, onRemove, onDelete, onOpe
           className="flex-1 flex items-center gap-1 text-xs font-semibold text-gray-400 hover:text-gray-600 py-2 transition-colors"
         >
           <span className="text-base leading-none font-bold">+</span> Add card
-        </button>
-        <button
-          onClick={onOpenNoteSheet}
-          className="flex items-center gap-1 text-xs font-semibold text-gray-300 hover:text-gray-500 py-2 px-1 transition-colors"
-        >
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-          </svg>
-          Note
         </button>
       </div>
     </div>
