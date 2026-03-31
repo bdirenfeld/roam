@@ -967,10 +967,21 @@ function CardTile({
 
   return (
     <div
-      className={`relative bg-white rounded-xl border border-gray-100 border-l-[3px] shadow-card mb-2 select-none ${borderClass} ${
-        isOverlay ? "shadow-card-hover rotate-1 scale-105" : ""
-      }`}
+      className={`relative bg-white rounded-xl border border-gray-100 shadow-card mb-2 select-none overflow-hidden ${
+        card.cover_image_url ? "" : `border-l-[3px] ${borderClass}`
+      } ${isOverlay ? "shadow-card-hover rotate-1 scale-105" : ""}`}
     >
+      {/* Cover photo */}
+      {card.cover_image_url && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={card.cover_image_url}
+          alt=""
+          className="w-full h-[120px] object-cover"
+          draggable={false}
+        />
+      )}
+
       <button
         onClick={onTap}
         className="w-full text-left px-3 py-2.5 pr-8"
