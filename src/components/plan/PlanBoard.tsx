@@ -488,7 +488,7 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
   const allEmpty    = days.every((d) => d.cards.length === 0);
 
   return (
-    <div className="flex flex-col h-dvh bg-gray-50">
+    <div className="flex flex-col h-dvh bg-[#F1F2F4]">
       <AppHeader subtitle={trip.title} avatarUrl={userAvatarUrl} />
 
       {/* Sub-header */}
@@ -768,7 +768,7 @@ function DayColumn({ day, cards, totalDays, onCardTap, onRemove, onDelete, onOpe
   return (
     <div className="flex flex-col w-full md:w-72 md:flex-shrink-0">
       {/* Column header */}
-      <div className="flex items-start justify-between mb-3">
+      <div className="flex items-start justify-between mb-2">
         <div>
           <div className="flex items-baseline gap-1.5 flex-wrap">
             <span className="text-sm font-bold text-gray-800">Day {day.day_number}</span>
@@ -791,41 +791,44 @@ function DayColumn({ day, cards, totalDays, onCardTap, onRemove, onDelete, onOpe
         {totalDays > 1 && <CopyMenu onCopyStructure={onCopyStructure} />}
       </div>
 
-      {/* Cards */}
-      <div
-        ref={setNodeRef}
-        className={`flex-1 min-h-[72px] rounded-xl transition-colors ${
-          isOver && cards.length === 0 ? "bg-gray-100" : ""
-        }`}
-      >
-        <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-          {cards.map((card) => (
-            <SortableCardTile
-              key={card.id}
-              card={card}
-              onTap={() => onCardTap(card)}
-              onRemove={() => onRemove(card.id)}
-              onDelete={() => onDelete(card.id)}
-            />
-          ))}
-        </SortableContext>
-
-        {cards.length === 0 && !isOver && (
-          <div className="h-16 rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center">
-            <p className="text-xs text-gray-300">Drop cards here</p>
-          </div>
-        )}
-      </div>
-
-      {/* Add card / Add note */}
-      <div className="mt-2 flex gap-1">
-        <button
-          onClick={onOpenCreateSheet}
-          className="flex-1 flex items-center gap-1 text-xs font-semibold text-gray-400 hover:text-gray-600 py-2 transition-colors"
+      {/* Column container — Trello-style gray pill */}
+      <div className="bg-[#EBECF0] rounded-xl p-3 flex flex-col">
+        {/* Cards drop zone */}
+        <div
+          ref={setNodeRef}
+          className={`flex-1 min-h-[72px] rounded-lg transition-colors ${
+            isOver && cards.length === 0 ? "bg-[#D0D2D8]" : ""
+          }`}
         >
-          <span className="text-base leading-none font-bold">+</span> Add card
-        </button>
-      </div>
+          <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+            {cards.map((card) => (
+              <SortableCardTile
+                key={card.id}
+                card={card}
+                onTap={() => onCardTap(card)}
+                onRemove={() => onRemove(card.id)}
+                onDelete={() => onDelete(card.id)}
+              />
+            ))}
+          </SortableContext>
+
+          {cards.length === 0 && !isOver && (
+            <div className="h-16 rounded-lg border-2 border-dashed border-[#D0D2D8] flex items-center justify-center">
+              <p className="text-xs text-[#B0B3BC]">Drop cards here</p>
+            </div>
+          )}
+        </div>
+
+        {/* Add card */}
+        <div className="mt-1 flex gap-1">
+          <button
+            onClick={onOpenCreateSheet}
+            className="flex-1 flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-gray-700 py-2 transition-colors"
+          >
+            <span className="text-base leading-none font-bold">+</span> Add card
+          </button>
+        </div>
+      </div>{/* end column container */}
     </div>
   );
 }
