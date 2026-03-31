@@ -31,6 +31,7 @@ import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import CreateCardSheet from "@/components/plan/CreateCardSheet";
 import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/plan/ConfirmationPreviewSheet";
 import DocumentsSheet from "@/components/plan/DocumentsSheet";
+import TriageView from "@/components/plan/TriageView";
 import type { Trip, Card, DayWithCards, CardType, CardStatus } from "@/types/database";
 
 // ── Constants ──────────────────────────────────────────────────
@@ -186,6 +187,7 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
   const [uploadState,  setUploadState]  = useState<"idle" | "reading" | "error">("idle");
   const [pendingConf,  setPendingConf]  = useState<{ items: ParsedConfirmation[]; fileName: string; fileType: string } | null>(null);
   const [showDocs,     setShowDocs]     = useState(false);
+  const [viewMode,     setViewMode]     = useState<"board" | "triage">("board");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [deleteToast, setDeleteToast] = useState<string | null>(null);
   const [clearConfirm, setClearConfirm] = useState(false);
@@ -503,7 +505,22 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
             Days
           </Link>
         )}
-        <span className="text-xs font-bold text-gray-400 ml-1">Plan</span>
+        {/* Board / Triage toggle */}
+        <div className="flex items-center gap-0.5 ml-2 bg-gray-100 rounded-lg p-0.5">
+          {(["board", "triage"] as const).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setViewMode(mode)}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${
+                viewMode === mode
+                  ? "bg-white text-gray-800 shadow-sm"
+                  : "text-gray-400 hover:text-gray-600"
+              }`}
+            >
+              {mode === "board" ? "Board" : "Triage"}
+            </button>
+          ))}
+        </div>
 
         {/* Plan ··· menu */}
         <PlanMenu
@@ -564,8 +581,13 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
         </div>{/* end right-side actions */}
       </div>{/* end sub-header */}
 
+      {/* Triage view */}
+      {viewMode === "triage" && (
+        <TriageView tripId={trip.id} days={days} />
+      )}
+
       {/* Board */}
-      <div className="flex-1 overflow-auto">
+      {viewMode === "board" && <div className="flex-1 overflow-auto">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCorners}
@@ -604,7 +626,7 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
             {activeCard && <CardTile card={activeCard} isOverlay />}
           </DragOverlay>
         </DndContext>
-      </div>
+      </div>}{/* end board */}
 
       {createSheetDayId && (() => {
         const day = days.find((d) => d.id === createSheetDayId);

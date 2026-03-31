@@ -345,9 +345,15 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const accent    = isNote ? { dot: "bg-gray-300", bg: "bg-gray-50", text: "text-gray-500" }
                            : (TYPE_ACCENT[localCard.type] ?? TYPE_ACCENT.logistics);
   const typeLabel = SUB_TYPE_LABEL[localCard.sub_type ?? ""] ?? localCard.type;
-  const rating    = typeof (localCard.details as Record<string, unknown>)?.rating === "number"
-                      ? ((localCard.details as Record<string, unknown>).rating as number)
-                      : null;
+  const rating  = typeof (localCard.details as Record<string, unknown>)?.rating === "number"
+                    ? ((localCard.details as Record<string, unknown>).rating as number)
+                    : null;
+  const phone   = typeof (localCard.details as Record<string, unknown>)?.phone   === "string"
+                    ? ((localCard.details as Record<string, unknown>).phone   as string)
+                    : null;
+  const website = typeof (localCard.details as Record<string, unknown>)?.website === "string"
+                    ? ((localCard.details as Record<string, unknown>).website as string)
+                    : null;
 
   const timeRange = (() => {
     const s = formatTime(localCard.start_time);
@@ -507,6 +513,38 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               </svg>
               Open in Google Maps
             </a>
+          )}
+
+          {/* Phone + Website quick-links */}
+          {(phone || website) && (
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              {phone && (
+                <a
+                  href={`tel:${phone}`}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-50 border border-gray-100 text-[11px] font-semibold text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.77a16 16 0 0 0 6.29 6.29l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+                  </svg>
+                  {phone}
+                </a>
+              )}
+              {website && (
+                <a
+                  href={website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-50 border border-gray-100 text-[11px] font-semibold text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors max-w-[180px]"
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="2" y1="12" x2="22" y2="12" />
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                  </svg>
+                  <span className="truncate">{website.replace(/^https?:\/\/(www\.)?/, "")}</span>
+                </a>
+              )}
+            </div>
           )}
 
           {/* Time range + duration + source link */}
