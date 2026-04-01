@@ -3,7 +3,7 @@
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useEffect, useRef } from "react";
 import type { Card } from "@/types/database";
-import { makePinElement, PIN_COLORS } from "@/lib/mapPins";
+import { makeMaterialPinElement, PIN_COLORS } from "@/lib/mapPins";
 
 interface Props {
   cards: Card[];
@@ -82,33 +82,39 @@ export default function DayMap({ cards, centerLat, centerLng }: Props) {
 
       map.addControl(new mb.AttributionControl({ compact: true }), "bottom-right");
 
-      map.on("load", () => {
-        mappable.forEach(({ card, lat, lng }, i) => {
-          const { wrapper } = makePinElement(card.type, card.sub_type, card.status);
+      map.on("load", async () => {
+        // Wait for Material Symbols font so icons render on first paint
+        try {
+          await document.fonts.load('16px "Material Symbols Outlined"');
+        } catch { /* best-effort */ }
 
-          // Sequence number badge — sits outside the pin without interfering with
-          // Mapbox's transform:translate on wrapper, or inner's hover scale.
-          wrapper.style.position = "relative";
+        mappable.forEach(({ card, lat, lng }, i) => {
+          const cardDetails = card.details as Record<string, unknown> | null;
+          const { wrapper } = makeMaterialPinElement(
+            card.type, card.sub_type, card.status, !!(cardDetails?.recommended_by),
+          );
+
+          // Sequence number badge — absolute overlay on the pin
           wrapper.style.overflow = "visible";
           const badge = document.createElement("span");
           badge.style.cssText =
             "position:absolute;top:-4px;right:-5px;" +
-            "min-width:13px;height:13px;border-radius:7px;" +
+            "min-width:14px;height:14px;border-radius:7px;" +
             "background:white;border:1.5px solid rgba(0,0,0,0.12);" +
             "font-family:Inter,system-ui,sans-serif;font-size:8px;font-weight:800;" +
             "color:#374151;display:flex;align-items:center;justify-content:center;" +
-            "padding:0 2px;line-height:1;pointer-events:none;";
+            "padding:0 2.5px;line-height:1;pointer-events:none;z-index:1;";
           badge.textContent = String(i + 1);
           wrapper.appendChild(badge);
 
           const popup = new mb.Popup({
             closeButton: false,
             closeOnClick: true,
-            offset: [0, -42],
+            offset: [0, -20],
             maxWidth: "240px",
           }).setHTML(popupHTML(card));
 
-          new mb.Marker({ element: wrapper, anchor: "bottom" })
+          new mb.Marker({ element: wrapper, anchor: "center" })
             .setLngLat([lng, lat])
             .setPopup(popup)
             .addTo(map);

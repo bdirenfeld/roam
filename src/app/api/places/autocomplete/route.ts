@@ -4,6 +4,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const input        = searchParams.get("input");
   const sessiontoken = searchParams.get("sessiontoken");
+  const types        = searchParams.get("types");
 
   if (!input?.trim()) {
     return NextResponse.json({ predictions: [] });
@@ -21,6 +22,7 @@ export async function GET(request: NextRequest) {
   url.searchParams.set("input", input);
   url.searchParams.set("key", key);
   if (sessiontoken) url.searchParams.set("sessiontoken", sessiontoken);
+  if (types)        url.searchParams.set("types", types);
 
   try {
     const res  = await fetch(url.toString(), { next: { revalidate: 0 } });
