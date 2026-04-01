@@ -32,9 +32,22 @@ const CONTROLLED_SUB_TYPES = new Set([
   "flight_arrival", "flight_departure",
 ]);
 
-/** Returns true for any card that has coordinates — these get a map pin. */
+// Skeleton card titles (Day DNA templates) — these never have real locations
+const SKELETON_PREFIXES = [
+  "morning activity", "afternoon activity", "evening activity",
+  "morning coffee", "lunch", "dinner", "aperitivo", "light dinner",
+  "check-in", "check-out", "flight to", "flight home",
+  "departure", "arrival",
+];
+
+function isSkeletonCard(card: Card): boolean {
+  const lower = card.title.toLowerCase();
+  return SKELETON_PREFIXES.some((s) => lower.startsWith(s));
+}
+
+/** Returns true for any card that has real coordinates and isn't a skeleton placeholder. */
 function isRealPlace(card: Card): boolean {
-  return card.lat != null && card.lng != null;
+  return card.lat != null && card.lng != null && !isSkeletonCard(card);
 }
 
 function makeInitialSubTypes(): Set<string> {

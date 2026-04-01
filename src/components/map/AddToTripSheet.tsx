@@ -95,11 +95,11 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
   const dragY    = useRef(0);
   const dragging = useRef(false);
 
-  const [type,          setType]          = useState<CardType | null>(null);
-  const [subType,       setSubType]       = useState<string | null>(null);
-  const [recommendedBy, setRecommendedBy] = useState("");
-  const [saving,        setSaving]        = useState(false);
-  const [dupToast,      setDupToast]      = useState(false);
+  const [type,           setType]           = useState<CardType | null>(null);
+  const [subType,        setSubType]        = useState<string | null>(null);
+  const [recommendedBy,  setRecommendedBy]  = useState("");
+  const [saving,         setSaving]         = useState(false);
+  const [showDupConfirm, setShowDupConfirm] = useState(false);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -145,31 +145,13 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
     setSubType(suggested);
   }
 
-  const handleSave = useCallback(async () => {
-    if (!type || saving) return;
-    setSaving(true);
-
-    // ── Deduplication check ───────────────────────────────────
-    const { data: existing } = await supabase
-      .from("cards")
-      .select("id")
-      .eq("trip_id", tripId)
-      .ilike("title", place.name)
-      .eq("type", type)
-      .limit(1)
-      .maybeSingle();
-
-    if (existing) {
-      setSaving(false);
-      setDupToast(true);
-      setTimeout(onClose, 1600);
-      return;
-    }
-
+  // ── Core insert (called both on first save and "Save again") ──
+  const performInsert = useCallback(async () => {
+    if (!type) return;
     const details: Record<string, unknown> = {};
-    if (place.website)   details.website        = place.website;
-    if (place.phone)     details.phone          = place.phone;
-    if (place.rating)    details.rating         = place.rating;
+    if (place.website)        details.website        = place.website;
+    if (place.phone)          details.phone          = place.phone;
+    if (place.rating)         details.rating         = place.rating;
     if (recommendedBy.trim()) details.recommended_by = recommendedBy.trim();
 
     const finalSubType = subType ?? DEFAULT_SUB_TYPE[type];
@@ -216,7 +198,36 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
 
     setSaving(false);
     if (!error) onCardCreated(newCard);
-  }, [type, subType, recommendedBy, saving, place, dayId, tripId, supabase, onCardCreated, onClose]);
+  }, [type, subType, recommendedBy, place, dayId, tripId, supabase, onCardCreated]);
+
+  const handleSave = useCallback(async () => {
+    if (!type || saving) return;
+    setSaving(true);
+
+    // ── Deduplication check ───────────────────────────────────
+    const { data: existing } = await supabase
+      .from("cards")
+      .select("id")
+      .eq("trip_id", tripId)
+      .ilike("title", place.name)
+      .eq("type", type)
+      .limit(1)
+      .maybeSingle();
+
+    if (existing) {
+      setSaving(false);
+      setShowDupConfirm(true);
+      return;
+    }
+
+    await performInsert();
+  }, [type, saving, supabase, tripId, place, performInsert]);
+
+  const handleSaveAnyway = useCallback(async () => {
+    setShowDupConfirm(false);
+    setSaving(true);
+    await performInsert();
+  }, [performInsert]);
 
   const typeColor = type ? PIN_COLORS[type] : null;
 
@@ -235,6 +246,31 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
         className="relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet max-h-[90dvh] flex flex-col animate-in slide-in-from-bottom duration-300"
         style={{ willChange: "transform" }}
       >
+        {/* ── Duplicate confirmation overlay ── */}
+        {showDupConfirm && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center px-6 bg-black/20 rounded-t-2xl">
+            <div className="bg-white rounded-2xl shadow-sheet p-5 w-full max-w-xs">
+              <p className="text-[15px] font-bold text-gray-900 mb-1">Already saved</p>
+              <p className="text-[13px] text-gray-500 mb-5 leading-relaxed">
+                &ldquo;{place.name}&rdquo; is already in your trip. Save it again anyway?
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDupConfirm(false)}
+                  className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveAnyway}
+                  className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold text-white bg-teal-600 hover:bg-teal-700 transition-colors"
+                >
+                  Save again
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {/* Cover photo */}
         {place.coverPhotoUrl ? (
           <div className="flex-shrink-0 rounded-t-2xl overflow-hidden" style={{ height: 180 }}>
@@ -371,26 +407,16 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
             <p className="text-[11px] text-gray-400 mt-1 ml-0.5">Recommended by (optional)</p>
           </div>
 
-          {/* Duplicate toast */}
-          {dupToast && (
-            <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-100 mb-2">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-                <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-              <span className="text-[13px] font-semibold text-amber-700">This place is already saved</span>
-            </div>
-          )}
-
           {/* Save button */}
           <button
             onClick={handleSave}
-            disabled={!type || saving || dupToast}
+            disabled={!type || saving}
             className={`w-full py-3.5 rounded-xl text-[15px] font-bold transition-all ${
-              type && !saving && !dupToast
+              type && !saving
                 ? "text-white active:scale-[0.98] shadow-sm"
                 : "bg-gray-100 text-gray-300 cursor-not-allowed"
             }`}
-            style={type && !saving && !dupToast ? { background: typeColor! } : undefined}
+            style={type && !saving ? { background: typeColor! } : undefined}
           >
             {saving ? "Checking…" : "Save to Map"}
           </button>
