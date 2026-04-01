@@ -25,8 +25,9 @@ const GROUPS: Group[] = [
     color: "#0D9488",
     typeKey: "activity",
     rows: [
-      { label: "Guided",   subTypes: ["guided", "hosted"] },
-      { label: "Wellness", subTypes: ["wellness"] },
+      { label: "Guided",        subTypes: ["guided", "hosted"] },
+      { label: "Self-directed", subTypes: ["self_directed"]    },
+      { label: "Wellness",      subTypes: ["wellness"]         },
     ],
   },
   {

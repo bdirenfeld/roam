@@ -99,6 +99,7 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
   const [subType,       setSubType]       = useState<string | null>(null);
   const [recommendedBy, setRecommendedBy] = useState("");
   const [saving,        setSaving]        = useState(false);
+  const [dupToast,      setDupToast]      = useState(false);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -147,6 +148,23 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
   const handleSave = useCallback(async () => {
     if (!type || saving) return;
     setSaving(true);
+
+    // ── Deduplication check ───────────────────────────────────
+    const { data: existing } = await supabase
+      .from("cards")
+      .select("id")
+      .eq("trip_id", tripId)
+      .ilike("title", place.name)
+      .eq("type", type)
+      .limit(1)
+      .maybeSingle();
+
+    if (existing) {
+      setSaving(false);
+      setDupToast(true);
+      setTimeout(onClose, 1600);
+      return;
+    }
 
     const details: Record<string, unknown> = {};
     if (place.website)   details.website        = place.website;
@@ -198,7 +216,7 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
 
     setSaving(false);
     if (!error) onCardCreated(newCard);
-  }, [type, subType, recommendedBy, saving, place, dayId, tripId, supabase, onCardCreated]);
+  }, [type, subType, recommendedBy, saving, place, dayId, tripId, supabase, onCardCreated, onClose]);
 
   const typeColor = type ? PIN_COLORS[type] : null;
 
@@ -353,18 +371,28 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
             <p className="text-[11px] text-gray-400 mt-1 ml-0.5">Recommended by (optional)</p>
           </div>
 
+          {/* Duplicate toast */}
+          {dupToast && (
+            <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-100 mb-2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span className="text-[13px] font-semibold text-amber-700">This place is already saved</span>
+            </div>
+          )}
+
           {/* Save button */}
           <button
             onClick={handleSave}
-            disabled={!type || saving}
+            disabled={!type || saving || dupToast}
             className={`w-full py-3.5 rounded-xl text-[15px] font-bold transition-all ${
-              type && !saving
+              type && !saving && !dupToast
                 ? "text-white active:scale-[0.98] shadow-sm"
                 : "bg-gray-100 text-gray-300 cursor-not-allowed"
             }`}
-            style={type && !saving ? { background: typeColor! } : undefined}
+            style={type && !saving && !dupToast ? { background: typeColor! } : undefined}
           >
-            {saving ? "Saving…" : "Save to Map"}
+            {saving ? "Checking…" : "Save to Map"}
           </button>
         </div>
       </div>

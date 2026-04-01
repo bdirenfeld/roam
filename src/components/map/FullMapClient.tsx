@@ -24,16 +24,13 @@ interface Props {
   userAvatarUrl?: string | null;
 }
 
-// Only these sub-types represent real, mappable locations
-const LOCATION_SUB_TYPES = new Set([
+// Sub-types whose visibility is controlled by the sidebar toggles
+const CONTROLLED_SUB_TYPES = new Set([
   "restaurant", "coffee", "cocktail_bar",
-  "guided", "wellness",
+  "guided", "self_directed", "wellness",
   "hotel",
   "flight_arrival", "flight_departure",
 ]);
-
-// Sub-types whose visibility is controlled by the sidebar toggles
-const CONTROLLED_SUB_TYPES = new Set(LOCATION_SUB_TYPES);
 
 /** Returns true for any card that has coordinates — these get a map pin. */
 function isRealPlace(card: Card): boolean {
