@@ -43,21 +43,6 @@ export default function BottomNav() {
       ),
     },
     {
-      key: "map",
-      href: mapHref,
-      label: "Map",
-      active: pathname.endsWith("/map") || pathname === "/map",
-      icon: (active: boolean) => (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-          stroke={active ? "#0D9488" : "#9CA3AF"} strokeWidth="2"
-          strokeLinecap="round" strokeLinejoin="round">
-          <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
-          <line x1="9" y1="3" x2="9" y2="18" />
-          <line x1="15" y1="6" x2="15" y2="21" />
-        </svg>
-      ),
-    },
-    {
       key: "trips",
       href: planHref,
       label: "Plan",
@@ -72,6 +57,21 @@ export default function BottomNav() {
           <line x1="3" y1="6" x2="3.01" y2="6" />
           <line x1="3" y1="12" x2="3.01" y2="12" />
           <line x1="3" y1="18" x2="3.01" y2="18" />
+        </svg>
+      ),
+    },
+    {
+      key: "map",
+      href: mapHref,
+      label: "Map",
+      active: pathname.endsWith("/map") || pathname === "/map",
+      icon: (active: boolean) => (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+          stroke={active ? "#0D9488" : "#9CA3AF"} strokeWidth="2"
+          strokeLinecap="round" strokeLinejoin="round">
+          <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
+          <line x1="9" y1="3" x2="9" y2="18" />
+          <line x1="15" y1="6" x2="15" y2="21" />
         </svg>
       ),
     },

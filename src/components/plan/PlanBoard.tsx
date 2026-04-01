@@ -32,6 +32,7 @@ import CreateCardSheet from "@/components/plan/CreateCardSheet";
 import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/plan/ConfirmationPreviewSheet";
 import DocumentsSheet from "@/components/plan/DocumentsSheet";
 import TriageView from "@/components/plan/TriageView";
+import BoardBgPicker, { type BoardBg } from "@/components/plan/BoardBgPicker";
 import type { Trip, Card, DayWithCards, CardType, CardStatus } from "@/types/database";
 
 // ── Constants ──────────────────────────────────────────────────
@@ -192,6 +193,15 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
   const [deleteToast, setDeleteToast] = useState<string | null>(null);
   const [clearConfirm, setClearConfirm] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [showBgPicker, setShowBgPicker] = useState(false);
+  const [boardBg, setBoardBg] = useState<BoardBg>(() => {
+    if (typeof window === "undefined") return { type: "color", value: "#ffffff" };
+    try {
+      const stored = localStorage.getItem(`roam_board_bg_${trip.id}`);
+      if (stored) return JSON.parse(stored) as BoardBg;
+    } catch { /* ignore */ }
+    return { type: "color", value: "#ffffff" };
+  });
 
   const daysRef = useRef(days);
   daysRef.current = days;
@@ -487,8 +497,21 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
   const activeCard  = activeId ? findCard(activeId) : null;
   const allEmpty    = days.every((d) => d.cards.length === 0);
 
+  const boardBgStyle: React.CSSProperties =
+    boardBg.type === "photo"
+      ? { backgroundImage: `url(${boardBg.url})`, backgroundSize: "cover", backgroundPosition: "center" }
+      : { backgroundColor: boardBg.value };
+
+  const isPhotoBg = boardBg.type === "photo";
+
+  const handleBgSelect = (bg: BoardBg) => {
+    setBoardBg(bg);
+    try { localStorage.setItem(`roam_board_bg_${trip.id}`, JSON.stringify(bg)); } catch { /* ignore */ }
+    setShowBgPicker(false);
+  };
+
   return (
-    <div className="flex flex-col h-dvh bg-[#F1F2F4]">
+    <div className="flex flex-col h-dvh" style={boardBgStyle}>
       <AppHeader subtitle={trip.title} avatarUrl={userAvatarUrl} />
 
       {/* Sub-header */}
@@ -527,6 +550,18 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
           onClearItinerary={() => setClearConfirm(true)}
           onApplyTemplate={() => setShowTemplatePicker(true)}
         />
+
+        {/* Board background picker */}
+        <button
+          onClick={() => setShowBgPicker(true)}
+          className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-400"
+          aria-label="Change board background"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34" />
+            <polygon points="18 2 22 6 12 16 8 16 8 12 18 2" />
+          </svg>
+        </button>
 
         {/* Right side actions */}
         <div className="ml-auto flex items-center gap-3">
@@ -612,6 +647,7 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
                   cards={day.cards}
                   totalDays={days.length}
                   dayIndex={idx}
+                  isPhotoBg={isPhotoBg}
                   onCardTap={(card) => setSelectedCard(card)}
                   onRemove={handleRemove}
                   onDelete={handleDelete}
@@ -708,6 +744,14 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
         </div>
       )}
 
+      {showBgPicker && (
+        <BoardBgPicker
+          current={boardBg}
+          onSelect={handleBgSelect}
+          onClose={() => setShowBgPicker(false)}
+        />
+      )}
+
       {selectedCard && (
         <CardBottomSheet
           card={selectedCard}
@@ -755,6 +799,7 @@ interface DayColumnProps {
   cards: Card[];
   totalDays: number;
   dayIndex: number;
+  isPhotoBg?: boolean;
   onCardTap: (card: Card) => void;
   onRemove: (cardId: string) => void;
   onDelete: (cardId: string) => void;
@@ -762,7 +807,7 @@ interface DayColumnProps {
   onCopyStructure: () => void;
 }
 
-function DayColumn({ day, cards, totalDays, onCardTap, onRemove, onDelete, onOpenCreateSheet, onCopyStructure }: DayColumnProps) {
+function DayColumn({ day, cards, totalDays, isPhotoBg, onCardTap, onRemove, onDelete, onOpenCreateSheet, onCopyStructure }: DayColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `${COL_PREFIX}${day.id}` });
 
   return (
@@ -792,7 +837,7 @@ function DayColumn({ day, cards, totalDays, onCardTap, onRemove, onDelete, onOpe
       </div>
 
       {/* Column container — Trello-style gray pill */}
-      <div className="bg-[#EBECF0] rounded-xl p-3 flex flex-col">
+      <div className={`${isPhotoBg ? "bg-[#EBECF0]/80 backdrop-blur-sm" : "bg-[#EBECF0]"} rounded-xl p-3 flex flex-col`}>
         {/* Cards drop zone */}
         <div
           ref={setNodeRef}
@@ -974,21 +1019,21 @@ function CardTile({
         card.cover_image_url ? "" : `border-l-[3px] ${borderClass}`
       } ${isOverlay ? "shadow-card-hover rotate-1 scale-105" : ""}`}
     >
-      {/* Cover photo */}
-      {card.cover_image_url && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={card.cover_image_url}
-          alt=""
-          className="w-full h-[120px] object-cover"
-          draggable={false}
-        />
-      )}
-
       <button
         onClick={onTap}
-        className="w-full text-left px-3 py-2.5 pr-8"
+        className="w-full text-left"
       >
+        {/* Cover photo */}
+        {card.cover_image_url && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={card.cover_image_url}
+            alt=""
+            className="w-full h-[120px] object-cover"
+            draggable={false}
+          />
+        )}
+        <div className="px-3 py-2.5 pr-8">
         <div className="flex items-start gap-2">
           {isNote && (
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 flex-shrink-0">
@@ -1014,6 +1059,7 @@ function CardTile({
             )}
           </div>
         )}
+        </div>{/* end px-3 py-2.5 pr-8 */}
       </button>
 
       {/* ··· menu */}
