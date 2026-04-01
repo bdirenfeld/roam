@@ -758,6 +758,7 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
           onClose={() => setSelectedCard(null)}
           onCardUpdate={handleCardUpdate}
           onCardDelete={handleDelete}
+          tripDestination={trip.destination}
         />
       )}
     </div>

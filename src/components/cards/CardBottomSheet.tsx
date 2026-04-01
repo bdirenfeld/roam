@@ -29,6 +29,8 @@ interface Props {
   onCardDelete?: (cardId: string) => void;
   /** Days available for assignment (shows "Assign to Day" when card is interested) */
   days?: Day[];
+  /** Trip destination string (e.g. "Rome, Italy") — used to derive country dial code */
+  tripDestination?: string;
 }
 
 // ── Sub-type display labels ────────────────────────────────────
@@ -84,6 +86,89 @@ function durationLabel(start: string | null, end: string | null): string | null 
   const m = mins % 60;
   if (h === 0) return `${m}m`;
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
+// ── Country dial code helpers ──────────────────────────────────
+const COUNTRY_DIAL: Record<string, string> = {
+  "italy":           "+39",
+  "france":          "+33",
+  "spain":           "+34",
+  "germany":         "+49",
+  "united kingdom":  "+44",
+  "uk":              "+44",
+  "japan":           "+81",
+  "united states":   "+1",
+  "usa":             "+1",
+  "canada":          "+1",
+  "australia":       "+61",
+  "portugal":        "+351",
+  "greece":          "+30",
+  "netherlands":     "+31",
+  "switzerland":     "+41",
+  "austria":         "+43",
+  "belgium":         "+32",
+  "mexico":          "+52",
+  "brazil":          "+55",
+  "thailand":        "+66",
+  "indonesia":       "+62",
+  "vietnam":         "+84",
+  "india":           "+91",
+  "morocco":         "+212",
+  "turkey":          "+90",
+  "egypt":           "+20",
+  "south africa":    "+27",
+};
+
+/** Derive dial code from an address string or destination (checks last comma segment first). */
+function dialCodeFromText(text: string | null | undefined): string | null {
+  if (!text) return null;
+  const lower = text.toLowerCase();
+  // Try last comma-segment first (e.g. "Via Roma 1, 00100 Roma, Italy" → "italy")
+  const parts = lower.split(",").map((p) => p.trim());
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const seg = parts[i];
+    for (const [country, code] of Object.entries(COUNTRY_DIAL)) {
+      if (seg === country || seg.endsWith(` ${country}`) || seg.startsWith(`${country} `)) {
+        return code;
+      }
+    }
+  }
+  // Full-text match as fallback
+  for (const [country, code] of Object.entries(COUNTRY_DIAL)) {
+    if (lower.includes(country)) return code;
+  }
+  return null;
+}
+
+/**
+ * Build a normalized tel: href and display string.
+ * - Already has country code (+...): use as-is.
+ * - Italy (+39): strip leading 0 from local number, then prepend +39.
+ * - Others: prepend the dial code directly.
+ */
+function formatPhone(
+  raw: string,
+  cardAddress: string | null | undefined,
+  tripDestination: string | undefined,
+): { href: string; display: string } {
+  const stripped = raw.replace(/\s+/g, "");
+  if (stripped.startsWith("+")) {
+    return { href: `tel:${stripped}`, display: raw };
+  }
+  const dialCode = dialCodeFromText(cardAddress) ?? dialCodeFromText(tripDestination);
+  if (!dialCode) {
+    return { href: `tel:${stripped}`, display: raw };
+  }
+  // Italy rule: local numbers typically start with 0 (area code); strip it.
+  const localNum = dialCode === "+39" && stripped.startsWith("0")
+    ? stripped.slice(1)
+    : stripped;
+  const international = `${dialCode}${localNum}`;
+  // Display: show dial code visibly, keep original spacing for readability
+  const displayNum = dialCode === "+39" && raw.trimStart().startsWith("0")
+    ? raw.trimStart().slice(1)
+    : raw;
+  return { href: `tel:${international}`, display: `${dialCode} ${displayNum.trim()}` };
 }
 
 // ── Note detail (free-form textarea) ─────────────────────────
@@ -145,7 +230,7 @@ function TitleEditor({
 }
 
 // ── Main component ─────────────────────────────────────────────
-export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDelete, days }: Props) {
+export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDelete, days, tripDestination }: Props) {
   const supabase = createClient();
   const sheetRef = useRef<HTMLDivElement>(null);
   const dragY = useRef(0);
@@ -348,9 +433,12 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const rating  = typeof (localCard.details as Record<string, unknown>)?.rating === "number"
                     ? ((localCard.details as Record<string, unknown>).rating as number)
                     : null;
-  const phone   = typeof (localCard.details as Record<string, unknown>)?.phone   === "string"
-                    ? ((localCard.details as Record<string, unknown>).phone   as string)
+  const rawPhone = typeof (localCard.details as Record<string, unknown>)?.phone === "string"
+                    ? ((localCard.details as Record<string, unknown>).phone as string)
                     : null;
+  const phone    = rawPhone
+    ? formatPhone(rawPhone, localCard.address, tripDestination)
+    : null;
   const website = typeof (localCard.details as Record<string, unknown>)?.website === "string"
                     ? ((localCard.details as Record<string, unknown>).website as string)
                     : null;
@@ -418,7 +506,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/30 animate-in fade-in duration-200" />
+      <div className="absolute inset-0 bg-black/30 animate-in fade-in duration-200" onClick={onClose} />
 
       {/* Sheet */}
       <div
@@ -426,6 +514,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onClick={(e) => e.stopPropagation()}
         className="relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet min-h-[50dvh] max-h-[90dvh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300"
         style={{ willChange: "transform" }}
       >
@@ -520,13 +609,13 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             <div className="flex items-center gap-2 mt-2 flex-wrap">
               {phone && (
                 <a
-                  href={`tel:${phone}`}
+                  href={phone.href}
                   className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-50 border border-gray-100 text-[11px] font-semibold text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
                 >
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.77a16 16 0 0 0 6.29 6.29l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
                   </svg>
-                  {phone}
+                  {phone.display}
                 </a>
               )}
               {website && (

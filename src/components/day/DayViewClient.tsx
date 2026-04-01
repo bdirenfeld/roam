@@ -171,6 +171,7 @@ export default function DayViewClient({ trip, days, dayWithCards, userAvatarUrl 
           onClose={() => { setSelectedCard(null); setIsCardOpen(false); }}
           onCardUpdate={handleCardUpdate}
           onCardDelete={handleCardDelete}
+          tripDestination={trip.destination}
         />
       )}
     </div>

@@ -35,10 +35,9 @@ const LOCATION_SUB_TYPES = new Set([
 // Sub-types whose visibility is controlled by the sidebar toggles
 const CONTROLLED_SUB_TYPES = new Set(LOCATION_SUB_TYPES);
 
-/** Returns true only for cards that are real physical locations. */
+/** Returns true for any card that has coordinates — these get a map pin. */
 function isRealPlace(card: Card): boolean {
-  if (card.lat == null || card.lng == null) return false;
-  return card.sub_type != null && LOCATION_SUB_TYPES.has(card.sub_type);
+  return card.lat != null && card.lng != null;
 }
 
 function makeInitialSubTypes(): Set<string> {
@@ -522,6 +521,24 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
             </p>
           </div>
         )}
+
+        {/* Map legend — bottom-left floating pill (mobile + desktop) */}
+        <div
+          className="absolute bottom-4 left-3 z-10 pointer-events-none"
+          style={{ backdropFilter: "blur(6px)" }}
+        >
+          <div className="bg-white/85 rounded-xl px-2.5 py-1.5 shadow-sm border border-white/60 text-[10px] font-medium text-gray-600 leading-snug flex flex-col gap-0.5">
+            <div className="flex items-center gap-2.5">
+              <span className="flex items-center gap-1"><span style={{ width: 8, height: 8, borderRadius: "50%", background: "#0D9488", display: "inline-block" }} />Activity</span>
+              <span className="flex items-center gap-1"><span style={{ width: 8, height: 8, borderRadius: "50%", background: "#7C3AED", display: "inline-block" }} />Food</span>
+              <span className="flex items-center gap-1"><span style={{ width: 8, height: 8, borderRadius: "50%", background: "#111827", display: "inline-block" }} />Logistics</span>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <span className="flex items-center gap-1"><span style={{ width: 8, height: 8, borderRadius: "50%", border: "1.5px solid #6B7280", display: "inline-block" }} />Interested</span>
+              <span className="flex items-center gap-1"><span style={{ width: 8, height: 8, borderRadius: "50%", background: "#6B7280", display: "inline-block" }} />Saved</span>
+            </div>
+          </div>
+        </div>
 
         {/* Pin-anchored popup */}
         {selectedCard && (
