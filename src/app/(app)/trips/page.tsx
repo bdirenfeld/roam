@@ -32,8 +32,12 @@ export default async function TripsPage() {
     if (!firstDayByTrip[day.trip_id]) firstDayByTrip[day.trip_id] = day.id;
   }
 
-  const upcoming = trips?.filter((t: Trip) => t.status !== "completed") ?? [];
-  const past = trips?.filter((t: Trip) => t.status === "completed") ?? [];
+  const allTrips = (trips ?? []) as Trip[];
+  const active   = allTrips.filter((t) => !t.archived);
+  const archived = allTrips.filter((t) => t.archived);
+
+  const upcoming = active.filter((t) => t.status !== "completed");
+  const past     = active.filter((t) => t.status === "completed");
   const firstName = profile?.name?.split(" ")[0];
 
   return (
@@ -65,12 +69,12 @@ export default async function TripsPage() {
       </div>
 
       <div className="px-4 pb-6">
-        {trips && trips.length > 0 ? (
+        {active.length > 0 ? (
           <>
             {/* Upcoming */}
             {upcoming.length > 0 && (
               <div className="space-y-3 mb-6">
-                {upcoming.map((trip: Trip) => (
+                {upcoming.map((trip) => (
                   <TripCard key={trip.id} trip={trip} firstDayId={firstDayByTrip[trip.id]} />
                 ))}
               </div>
@@ -83,7 +87,7 @@ export default async function TripsPage() {
                   Past
                 </p>
                 <div className="space-y-3">
-                  {past.map((trip: Trip) => (
+                  {past.map((trip) => (
                     <TripCard key={trip.id} trip={trip} firstDayId={firstDayByTrip[trip.id]} />
                   ))}
                 </div>
@@ -91,7 +95,24 @@ export default async function TripsPage() {
             )}
           </>
         ) : (
-          <EmptyState />
+          archived.length === 0 && <EmptyState />
+        )}
+
+        {/* Archived trips — collapsed by default */}
+        {archived.length > 0 && (
+          <details className="mt-8">
+            <summary className="list-none cursor-pointer flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-widest select-none">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="transition-transform [details[open]_&]:rotate-90">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+              Archived ({archived.length})
+            </summary>
+            <div className="space-y-3 mt-3 opacity-60">
+              {archived.map((trip) => (
+                <TripCard key={trip.id} trip={trip} firstDayId={firstDayByTrip[trip.id]} />
+              ))}
+            </div>
+          </details>
         )}
       </div>
     </div>

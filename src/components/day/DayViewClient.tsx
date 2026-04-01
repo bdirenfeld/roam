@@ -96,7 +96,7 @@ export default function DayViewClient({ trip, days, dayWithCards, userAvatarUrl 
   return (
     <div className="flex flex-col min-h-dvh">
       {/* Header — "Roam" logo + trip title subtitle + avatar */}
-      <AppHeader subtitle={trip.title} avatarUrl={userAvatarUrl} />
+      <AppHeader subtitle={trip.title} avatarUrl={userAvatarUrl} showHomeButton />
 
       {/* Day strip */}
       <DayStrip

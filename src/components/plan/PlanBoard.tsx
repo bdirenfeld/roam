@@ -268,7 +268,7 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
 
   return (
     <div className="flex flex-col h-dvh bg-gray-50">
-      <AppHeader subtitle={trip.title} avatarUrl={userAvatarUrl} />
+      <AppHeader subtitle={trip.title} avatarUrl={userAvatarUrl} showHomeButton />
 
       {/* Sub-header */}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100 bg-white flex-shrink-0">
