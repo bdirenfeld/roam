@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
+  MouseSensor,
   TouchSensor,
   KeyboardSensor,
   KeyboardCoordinateGetter,
@@ -210,8 +210,11 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
   const crossColumnMoved = useRef(false);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+    // Mouse: immediate drag after 8px movement — no delay on desktop
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    // Touch: require 250ms long-press before drag activates; 8px tolerance
+    // so a normal tap or brief swipe never accidentally starts a drag
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates as KeyboardCoordinateGetter,
     })
@@ -1018,7 +1021,7 @@ function CardTile({
     <div
       className={`relative bg-white rounded-xl border border-gray-100 shadow-card mb-2 select-none overflow-hidden ${
         card.cover_image_url ? "" : `border-l-[3px] ${borderClass}`
-      } ${isOverlay ? "shadow-card-hover rotate-1 scale-105" : ""}`}
+      } ${isOverlay ? "shadow-[0_8px_24px_0_rgba(0,0,0,0.14)] scale-[1.02]" : ""}`}
     >
       <button
         onClick={onTap}
