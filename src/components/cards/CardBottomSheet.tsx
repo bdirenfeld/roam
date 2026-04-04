@@ -606,12 +606,46 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             />
           </div>
 
+          {/* Subtitle: time · duration (+ source link if present) */}
+          {(timeRange || duration || localCard.source_url) && (
+            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+              {timeRange && (
+                <span className="text-sm text-gray-500">{timeRange}</span>
+              )}
+              {duration && (
+                <>
+                  {timeRange && <span className="text-gray-300 text-sm">·</span>}
+                  <span className="text-sm text-gray-500">{duration}</span>
+                </>
+              )}
+              {localCard.source_url && (
+                <>
+                  {(timeRange || duration) && <span className="text-gray-300 text-sm">·</span>}
+                  <a
+                    href={localCard.source_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+                    aria-label="Source"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="2" y1="12" x2="22" y2="12" />
+                      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                    </svg>
+                    Source
+                  </a>
+                </>
+              )}
+            </div>
+          )}
+
           {/* Address line */}
           {addressLine && (
             <p className="text-xs text-gray-400 leading-snug mt-1">{addressLine}</p>
           )}
 
-          {/* Compact action row: rating · Maps · Call */}
+          {/* Action row: rating · [Maps] [Call] */}
           {(rating !== null || (localCard.lat != null && localCard.lng != null) || phone) && (
             <div className="flex items-center gap-3 mt-2">
               {rating !== null && (
@@ -663,41 +697,6 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               </a>
             </div>
           )}
-
-          {/* Time range + duration + source link */}
-          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            {timeRange && (
-              <span className="text-sm text-gray-400 font-medium">{timeRange}</span>
-            )}
-            {duration && (
-              <>
-                {timeRange && <span className="text-gray-200 text-sm">·</span>}
-                <span className="text-xs font-semibold text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100">
-                  {duration}
-                </span>
-              </>
-            )}
-            {localCard.source_url && (
-              <>
-                {(timeRange || duration) && <span className="text-gray-200 text-sm">·</span>}
-                <a
-                  href={localCard.source_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
-                  aria-label="Source"
-                >
-                  {/* Globe icon */}
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="2" y1="12" x2="22" y2="12" />
-                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                  </svg>
-                  Source
-                </a>
-              </>
-            )}
-          </div>
         </div>
         </div>{/* end drag/header touch zone */}
 
