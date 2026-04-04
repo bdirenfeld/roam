@@ -7,6 +7,7 @@ import { makeMaterialPinElement, PIN_COLORS } from "@/lib/mapPins";
 
 interface Props {
   cards: Card[];
+  accommodationCard?: Card;
   centerLat: number;
   centerLng: number;
 }
@@ -34,7 +35,19 @@ function popupHTML(card: Card): string {
     </div>`;
 }
 
-export default function DayMap({ cards, centerLat, centerLng }: Props) {
+function accommodationPopupHTML(card: Card): string {
+  return `
+    <div style="font-family:Inter,system-ui,sans-serif;padding:10px 12px;min-width:160px;max-width:220px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+        <span style="font-size:14px;color:#FFB800">★</span>
+        <span style="font-size:10px;font-weight:600;color:#6B7280;text-transform:capitalize">Tonight's Stay</span>
+      </div>
+      <p style="font-size:13px;font-weight:700;color:#111827;margin:0;line-height:1.3">${card.title}</p>
+      ${card.address ? `<p style="font-size:11px;color:#9CA3AF;margin:3px 0 0;line-height:1.3">${card.address}</p>` : ""}
+    </div>`;
+}
+
+export default function DayMap({ cards, accommodationCard, centerLat, centerLng }: Props) {
   const mapRef         = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<unknown>(null);
 
@@ -120,11 +133,48 @@ export default function DayMap({ cards, centerLat, centerLng }: Props) {
             .addTo(map);
         });
 
-        if (mappable.length > 1) {
-          const coords = mappable.map(({ lng, lat }) => [lng, lat] as [number, number]);
-          const bounds = coords.reduce(
+        // Accommodation star pin — rendered above regular pins
+        let accomCoord: [number, number] | null = null;
+        if (accommodationCard) {
+          const ac = accommodationCard;
+          const acLat = ac.lat ?? (ac.details as Record<string, unknown>)?.lat as number | undefined;
+          const acLng = ac.lng ?? (ac.details as Record<string, unknown>)?.lng as number | undefined;
+          if (acLat != null && acLng != null) {
+            accomCoord = [acLng, acLat];
+
+            const star = document.createElement("div");
+            star.style.cssText =
+              "width:40px;height:40px;" +
+              "display:flex;align-items:center;justify-content:center;" +
+              "font-size:26px;line-height:1;" +
+              "color:#FFB800;" +
+              "filter:drop-shadow(0 2px 5px rgba(0,0,0,0.35));" +
+              "cursor:pointer;";
+            star.textContent = "★";
+
+            const acPopup = new mb.Popup({
+              closeButton: false,
+              closeOnClick: true,
+              offset: [0, -22],
+              maxWidth: "240px",
+            }).setHTML(accommodationPopupHTML(ac));
+
+            new mb.Marker({ element: star, anchor: "center" })
+              .setLngLat(accomCoord)
+              .setPopup(acPopup)
+              .addTo(map);
+          }
+        }
+
+        const allCoords: [number, number][] = [
+          ...mappable.map(({ lng, lat }) => [lng, lat] as [number, number]),
+          ...(accomCoord ? [accomCoord] : []),
+        ];
+
+        if (allCoords.length > 1) {
+          const bounds = allCoords.reduce(
             (b, coord) => b.extend(coord),
-            new mb.LngLatBounds(coords[0], coords[0]),
+            new mb.LngLatBounds(allCoords[0], allCoords[0]),
           );
           map.fitBounds(bounds, { padding: 50, maxZoom: 15 });
         }
@@ -141,7 +191,7 @@ export default function DayMap({ cards, centerLat, centerLng }: Props) {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cards]);
+  }, [cards, accommodationCard]);
 
   if (!hasToken) {
     return (
@@ -163,6 +213,12 @@ export default function DayMap({ cards, centerLat, centerLng }: Props) {
             <span className="text-[9px] font-semibold text-gray-500 capitalize">{type}</span>
           </div>
         ))}
+        {accommodationCard && (
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] leading-none" style={{ color: "#FFB800" }}>★</span>
+            <span className="text-[9px] font-semibold text-gray-500">stay</span>
+          </div>
+        )}
       </div>
     </div>
   );

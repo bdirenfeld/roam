@@ -15,10 +15,11 @@ interface Props {
   trip: Trip;
   days: Day[];
   dayWithCards: DayWithCards;
+  hotelCards: Card[];
   userAvatarUrl?: string | null;
 }
 
-export default function DayViewClient({ trip, days, dayWithCards, userAvatarUrl }: Props) {
+export default function DayViewClient({ trip, days, dayWithCards, hotelCards, userAvatarUrl }: Props) {
   const router = useRouter();
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   // Keep a local copy of cards so edits made in the sheet reflect in the list
@@ -83,14 +84,47 @@ export default function DayViewClient({ trip, days, dayWithCards, userAvatarUrl 
     [dayWithCards, localCards]
   );
 
+  // Find the hotel card covering the current night.
+  // Hotel cards are keyed by the day they were added (check-in day). We sort them
+  // by that day's day_number and pick the last one whose check-in day ≤ current day.
+  const accommodationCard = useMemo(() => {
+    if (!hotelCards.length) return null;
+    const currentDayNumber = dayWithCards.day_number;
+
+    // Build a lookup from day_id → day_number
+    const dayNumberById = new Map(days.map((d) => [d.id, d.day_number]));
+
+    // Only include hotel cards that have coordinates
+    const mappableHotels = hotelCards.filter((c) => {
+      if (c.lat != null && c.lng != null) return true;
+      const d = c.details as Record<string, unknown>;
+      return typeof d?.lat === "number" && typeof d?.lng === "number";
+    });
+
+    // Sort by check-in day ascending
+    const sorted = [...mappableHotels].sort(
+      (a, b) => (dayNumberById.get(a.day_id) ?? 0) - (dayNumberById.get(b.day_id) ?? 0),
+    );
+
+    // The active hotel is the last one whose check-in day ≤ current day
+    let active: Card | null = null;
+    for (const hotel of sorted) {
+      const checkInDay = dayNumberById.get(hotel.day_id) ?? Infinity;
+      if (checkInDay <= currentDayNumber) active = hotel;
+    }
+    return active;
+  }, [hotelCards, dayWithCards.day_number, days]);
+
   const mappableCards = useMemo(
     () =>
       localCards.filter((c) => {
+        // Exclude the accommodation card from regular pins so it only appears as the star
+        if (accommodationCard && c.id === accommodationCard.id) return false;
         if (c.lat != null && c.lng != null) return true;
         const d = c.details as Record<string, unknown>;
         return typeof d?.lat === "number" && typeof d?.lng === "number";
       }),
-    [localCards],
+    [localCards, accommodationCard],
   );
 
   return (
@@ -109,6 +143,7 @@ export default function DayViewClient({ trip, days, dayWithCards, userAvatarUrl 
       {/* Map — collapsible, today's pins only */}
       <DayMap
         cards={mappableCards}
+        accommodationCard={accommodationCard ?? undefined}
         centerLat={trip.destination_lat ?? 41.9028}
         centerLng={trip.destination_lng ?? 12.4964}
       />
