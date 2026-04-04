@@ -357,6 +357,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
         center: [trip.destination_lng ?? 12.4964, trip.destination_lat ?? 41.9028],
         zoom: 13,
         attributionControl: false,
+        logoPosition: "bottom-right",
       });
       mapInstRef.current = map;
 

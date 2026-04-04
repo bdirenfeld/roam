@@ -91,7 +91,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng 
         center: [centerLng, centerLat],
         zoom: 13,
         attributionControl: false,
-        logoPosition: "bottom-left",
+        logoPosition: "bottom-right",
       });
       mapInstanceRef.current = map;
 
