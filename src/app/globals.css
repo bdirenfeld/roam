@@ -75,6 +75,22 @@ body {
   height: 100%;
 }
 
+/* Mapbox control container — Tailwind resets position to static; restore absolute so
+   controls (zoom, geolocate, logo, attribution) render over the canvas, not below it */
+.mapboxgl-control-container {
+  position: absolute !important;
+  pointer-events: none;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.mapboxgl-ctrl-group button {
+  width: 29px !important;
+  height: 29px !important;
+}
+
 /* Mapbox marker positioning fix — override inline style Mapbox sets */
 .mapboxgl-marker {
   position: absolute !important;
