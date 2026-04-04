@@ -10,14 +10,6 @@ interface Props {
   onDaySelect: (day: Day) => void;
 }
 
-// "Sat, Apr 25"
-function formatStripDate(dateStr: string): string {
-  const d = new Date(dateStr + "T00:00:00");
-  const weekday = d.toLocaleDateString("en-US", { weekday: "short" });
-  const month   = d.toLocaleDateString("en-US", { month: "short" });
-  return `${weekday}, ${month} ${d.getDate()}`;
-}
-
 // Whether a date is today
 function isToday(dateStr: string): boolean {
   const today = new Date();
@@ -68,9 +60,8 @@ export default function DayStrip({ days, activeDayId, onDaySelect }: Props) {
                 }
               `}
             >
-              {/* Single-line: "Day 4 · Sat, Apr 25" */}
               <span className={`text-[11px] font-semibold whitespace-nowrap ${isActive ? "text-white" : "text-gray-700"}`}>
-                Day {day.day_number} · {formatStripDate(day.date)}
+                Day {day.day_number}
               </span>
 
               {today && (
