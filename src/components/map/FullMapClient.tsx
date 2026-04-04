@@ -532,18 +532,45 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           </div>
         )}
 
-        {/* Map legend — bottom-left floating pill (mobile + desktop) */}
+        {/* Category filter toggles — bottom-left (mobile + desktop) */}
         <div
-          className="absolute bottom-4 left-3 z-10 pointer-events-none"
+          className="absolute bottom-4 left-3 z-10"
           style={{ backdropFilter: "blur(6px)" }}
         >
-          <div className="bg-white/85 rounded-xl px-2.5 py-1.5 shadow-sm border border-white/60 text-[10px] font-medium text-gray-600 leading-snug flex flex-col gap-0.5">
-            <div className="flex items-center gap-2.5">
-              <span className="flex items-center gap-1"><span style={{ width: 8, height: 8, borderRadius: "50%", background: "#0D9488", display: "inline-block" }} />Activity</span>
-              <span className="flex items-center gap-1"><span style={{ width: 8, height: 8, borderRadius: "50%", background: "#7C3AED", display: "inline-block" }} />Food</span>
-              <span className="flex items-center gap-1"><span style={{ width: 8, height: 8, borderRadius: "50%", background: "#111827", display: "inline-block" }} />Logistics</span>
+          <div className="bg-white/85 rounded-xl px-2.5 py-1.5 shadow-sm border border-white/60 flex flex-col gap-1">
+            {/* Toggle pills */}
+            <div className="flex items-center gap-1.5">
+              {(
+                [
+                  { type: "activity" as CardType, label: "Activities", color: "#0D9488" },
+                  { type: "food"     as CardType, label: "Food",       color: "#7C3AED" },
+                  { type: "logistics" as CardType, label: "Logistics", color: "#111827" },
+                ] as Array<{ type: CardType; label: string; color: string }>
+              ).map(({ type, label, color }) => {
+                const isActive = activeTypes.has(type);
+                return (
+                  <button
+                    key={type}
+                    onClick={() => {
+                      const next = new Set(activeTypes);
+                      if (isActive) next.delete(type); else next.add(type);
+                      handleActiveTypesChange(next);
+                    }}
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all"
+                    style={
+                      isActive
+                        ? { background: color + "22", color, border: `1.5px solid ${color}` }
+                        : { background: "transparent", color: "#9CA3AF", border: "1.5px solid #D1D5DB" }
+                    }
+                  >
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: isActive ? color : "#D1D5DB", display: "inline-block", flexShrink: 0 }} />
+                    {label}
+                  </button>
+                );
+              })}
             </div>
-            <div className="flex items-center gap-2.5">
+            {/* Status legend */}
+            <div className="flex items-center gap-2.5 text-[10px] font-medium text-gray-500 pointer-events-none">
               <span className="flex items-center gap-1"><span style={{ width: 8, height: 8, borderRadius: "50%", border: "1.5px solid #6B7280", display: "inline-block" }} />Interested</span>
               <span className="flex items-center gap-1"><span style={{ width: 8, height: 8, borderRadius: "50%", background: "#6B7280", display: "inline-block" }} />Saved</span>
             </div>
