@@ -511,16 +511,20 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       {/* Sheet */}
       <div
         ref={sheetRef}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
         onClick={(e) => e.stopPropagation()}
         className="relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet min-h-[50dvh] max-h-[90dvh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300"
         style={{ willChange: "transform" }}
       >
+        {/* Drag handle + header — touch-to-dismiss only from this area */}
+        <div
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          className="flex-shrink-0"
+        >
         {/* Cover photo hero (shown when a place photo is available) */}
         {localCard.cover_image_url ? (
-          <div className="relative w-full h-36 flex-shrink-0 overflow-hidden">
+          <div className="relative w-full h-36 overflow-hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={localCard.cover_image_url}
@@ -535,13 +539,13 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             </div>
           </div>
         ) : (
-          <div className="flex justify-center pt-2.5 pb-0 flex-shrink-0 cursor-grab">
+          <div className="flex justify-center pt-2.5 pb-0 cursor-grab">
             <div className="w-9 h-[3px] rounded-full bg-gray-200" />
           </div>
         )}
 
         {/* Header */}
-        <div className="px-5 pt-3 pb-4 flex-shrink-0 border-b border-gray-100">
+        <div className="px-5 pt-3 pb-4 border-b border-gray-100">
           {/* Top row: type badge + booking badge + close */}
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
@@ -671,10 +675,11 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             )}
           </div>
         </div>
+        </div>{/* end drag/header touch zone */}
 
         {/* Scrollable detail content */}
         <div className="relative flex-1 min-h-0 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-8 after:bg-gradient-to-t after:from-white after:to-transparent after:pointer-events-none">
-          <div className="overflow-y-auto h-full px-5 py-5 pb-[68px]">
+          <div className="overflow-y-auto h-full px-5 py-5">
             {renderDetail()}
           </div>
         </div>
