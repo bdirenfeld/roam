@@ -4,6 +4,7 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import type { Card, Day } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
+import AttachmentsPanel from "./AttachmentsPanel";
 
 // ── Type-specific detail components ───────────────────────────
 import FlightArrivalDetail from "./detail/FlightArrivalDetail";
@@ -238,8 +239,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
 
   // Local optimistic state
   const [localCard, setLocalCard] = useState<Card>(card);
-  const [showDayPicker, setShowDayPicker] = useState(false);
-  const [showLinkSheet, setShowLinkSheet] = useState(false);
+  const [showDayPicker,    setShowDayPicker]    = useState(false);
+  const [showLinkSheet,    setShowLinkSheet]    = useState(false);
+  const [showAttachments,  setShowAttachments]  = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -560,6 +562,16 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               )}
             </div>
             <div className="flex items-center gap-1.5 flex-shrink-0">
+              {/* Paperclip — attachments */}
+              <button
+                onClick={() => setShowAttachments(true)}
+                className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                aria-label="Attachments"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                </svg>
+              </button>
               {localCard.status === "in_itinerary" && (
                 <button
                   onClick={() => setShowLinkSheet(true)}
@@ -751,6 +763,15 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             </div>
           )}
         </div>
+
+        {/* Attachments panel */}
+        {showAttachments && (
+          <AttachmentsPanel
+            card={localCard}
+            onClose={() => setShowAttachments(false)}
+            onCardUpdate={(updated) => { setLocalCard(updated); onCardUpdate?.(updated); }}
+          />
+        )}
 
         {/* Link place sheet */}
         {showLinkSheet && (

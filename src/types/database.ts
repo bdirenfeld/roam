@@ -163,3 +163,18 @@ export interface Document {
 export interface TripWithDays extends Trip {
   days: DayWithCards[]
 }
+
+export type AttachmentParseStatus = 'parsing' | 'parsed' | 'failed' | 'skipped'
+
+export interface CardAttachment {
+  id:           string;
+  card_id:      string;
+  trip_id:      string;
+  file_name:    string;
+  file_type:    string;
+  file_url:     string;
+  file_size:    number;
+  parsed_data:  Record<string, unknown> | null;
+  parse_status: AttachmentParseStatus;
+  created_at:   string;
+}
