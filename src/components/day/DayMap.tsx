@@ -39,7 +39,10 @@ function accommodationPopupHTML(card: Card): string {
   return `
     <div style="font-family:Inter,system-ui,sans-serif;padding:10px 12px;min-width:160px;max-width:220px">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-        <span style="font-size:14px;color:#FFB800">★</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3 9.5L12 3l9 6.5V21a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z" fill="#F5A623"/>
+          <path d="M9 22V12h6v10" fill="white"/>
+        </svg>
         <span style="font-size:10px;font-weight:600;color:#6B7280;text-transform:capitalize">Tonight's Stay</span>
       </div>
       <p style="font-size:13px;font-weight:700;color:#111827;margin:0;line-height:1.3">${card.title}</p>
@@ -133,7 +136,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng 
             .addTo(map);
         });
 
-        // Accommodation star pin — rendered above regular pins
+        // Accommodation home pin — rendered above regular pins
         let accomCoord: [number, number] | null = null;
         if (accommodationCard) {
           const ac = accommodationCard;
@@ -142,15 +145,37 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng 
           if (acLat != null && acLng != null) {
             accomCoord = [acLng, acLat];
 
-            const star = document.createElement("div");
-            star.style.cssText =
+            // Wrapper/inner split keeps Mapbox's translate() on wrapper; scale on inner
+            const homeWrapper = document.createElement("div");
+            homeWrapper.style.cssText = "position:relative;width:40px;height:40px;cursor:pointer;";
+
+            const homeInner = document.createElement("div");
+            homeInner.style.cssText =
               "width:40px;height:40px;" +
+              "border-radius:50%;" +
+              "background:#F5A623;" +
+              "border:2.5px solid white;" +
               "display:flex;align-items:center;justify-content:center;" +
-              "font-size:26px;line-height:1;" +
-              "color:#FFB800;" +
-              "filter:drop-shadow(0 2px 5px rgba(0,0,0,0.35));" +
-              "cursor:pointer;";
-            star.textContent = "★";
+              "box-shadow:0 3px 8px rgba(0,0,0,0.35);" +
+              "transition:transform 150ms ease;" +
+              "transform-origin:50% 50%;";
+
+            const homeIcon = document.createElement("span");
+            homeIcon.className = "material-symbols-outlined";
+            homeIcon.style.cssText =
+              "color:white;" +
+              "font-size:20px;" +
+              "line-height:1;" +
+              "display:block;" +
+              "user-select:none;" +
+              "font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24;";
+            homeIcon.textContent = "home";
+
+            homeInner.addEventListener("mouseenter", () => { homeInner.style.transform = "scale(1.15)"; });
+            homeInner.addEventListener("mouseleave", () => { homeInner.style.transform = ""; });
+
+            homeInner.appendChild(homeIcon);
+            homeWrapper.appendChild(homeInner);
 
             const acPopup = new mb.Popup({
               closeButton: false,
@@ -159,10 +184,13 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng 
               maxWidth: "240px",
             }).setHTML(accommodationPopupHTML(ac));
 
-            new mb.Marker({ element: star, anchor: "center" })
+            const accomMarker = new mb.Marker({ element: homeWrapper, anchor: "center" })
               .setLngLat(accomCoord)
               .setPopup(acPopup)
               .addTo(map);
+
+            // Raise z-index so accommodation pin renders above regular card pins
+            accomMarker.getElement().style.zIndex = "5";
           }
         }
 
@@ -215,7 +243,10 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng 
         ))}
         {accommodationCard && (
           <div className="flex items-center gap-1">
-            <span className="text-[10px] leading-none" style={{ color: "#FFB800" }}>★</span>
+            <svg width="10" height="10" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 9.5L12 3l9 6.5V21a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z" fill="#F5A623"/>
+              <path d="M9 22V12h6v10" fill="white"/>
+            </svg>
             <span className="text-[9px] font-semibold text-gray-500">stay</span>
           </div>
         )}
