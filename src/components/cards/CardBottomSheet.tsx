@@ -512,7 +512,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       <div
         ref={sheetRef}
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet min-h-[50dvh] max-h-[90dvh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300"
+        className="relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet h-[85dvh] max-h-[90dvh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300"
         style={{ willChange: "transform" }}
       >
         {/* Drag handle + header — touch-to-dismiss only from this area */}
