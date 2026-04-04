@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/server";
 
 export const maxDuration = 30;
 
@@ -17,13 +17,7 @@ function extractJson(text: string): Record<string, unknown> {
 }
 
 export async function POST(req: NextRequest) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey  = process.env.SUPABASE_SERVICE_KEY;
-  if (!supabaseUrl || !serviceKey) {
-    return NextResponse.json({ error: "Supabase not configured" }, { status: 500 });
-  }
-
-  const supabase = createClient(supabaseUrl, serviceKey);
+  const supabase = await createClient();
 
   let file: File | null = null;
   let cardId: string | null = null;
@@ -45,18 +39,9 @@ export async function POST(req: NextRequest) {
   const isImage  = mimeType.startsWith("image/");
   const isPDF    = mimeType === "application/pdf";
 
-  // Ensure the bucket exists (ignore "already exists" errors)
-  const { error: bucketErr } = await supabase.storage.createBucket("card-attachments", {
-    public: true,
-    allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"],
-  });
-  if (bucketErr && !bucketErr.message.toLowerCase().includes("already exist")) {
-    return NextResponse.json({ error: "Storage setup failed" }, { status: 500 });
-  }
-
   // Upload to storage
   const safeName    = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const storagePath = `${tripId}/${cardId}/${Date.now()}_${safeName}`;
+  const storagePath = `${tripId}/${cardId}/${safeName}`;
   const bytes       = await file.arrayBuffer();
 
   const { error: uploadErr } = await supabase.storage
