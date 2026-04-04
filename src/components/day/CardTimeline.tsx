@@ -29,23 +29,10 @@ function freeTimeLabel(minutes: number): string {
 }
 
 export default function CardTimeline({ dayWithCards, onCardTap }: Props) {
-  const { cards, day_number, day_name, date } = dayWithCards;
-
-  const fullDate = new Date(date + "T00:00:00").toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
+  const { cards } = dayWithCards;
 
   return (
     <div className="pb-8">
-      {/* Compact day header */}
-      <div className="mb-4">
-        <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
-          Day {day_number} · {day_name}
-        </span>
-        <p className="text-sm font-bold text-gray-900 mt-0.5">{fullDate}</p>
-      </div>
 
       {cards.length === 0 ? (
         <div className="flex flex-col items-center py-14 text-center">

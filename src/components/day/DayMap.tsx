@@ -3,50 +3,13 @@
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useEffect, useRef } from "react";
 import type { Card } from "@/types/database";
-import { makeMaterialPinElement, PIN_COLORS } from "@/lib/mapPins";
+import { makeMaterialPinElement } from "@/lib/mapPins";
 
 interface Props {
   cards: Card[];
   accommodationCard?: Card;
   centerLat: number;
   centerLng: number;
-}
-
-function popupHTML(card: Card): string {
-  const color = PIN_COLORS[card.type] ?? "#64748B";
-  const time = card.start_time
-    ? (() => {
-        const [h, m] = card.start_time.split(":").map(Number);
-        const p = h >= 12 ? "PM" : "AM";
-        return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, "0")} ${p}`;
-      })()
-    : "";
-  return `
-    <div style="font-family:Inter,system-ui,sans-serif;padding:10px 12px;min-width:160px;max-width:220px">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-        <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></div>
-        <span style="font-size:10px;font-weight:600;color:#6B7280;text-transform:capitalize">
-          ${card.sub_type?.replace(/_/g, " ") ?? card.type}
-        </span>
-        ${time ? `<span style="font-size:10px;color:#9CA3AF;margin-left:auto">${time}</span>` : ""}
-      </div>
-      <p style="font-size:13px;font-weight:700;color:#111827;margin:0;line-height:1.3">${card.title}</p>
-      ${card.address ? `<p style="font-size:11px;color:#9CA3AF;margin:3px 0 0;line-height:1.3">${card.address}</p>` : ""}
-    </div>`;
-}
-
-function accommodationPopupHTML(card: Card): string {
-  return `
-    <div style="font-family:Inter,system-ui,sans-serif;padding:10px 12px;min-width:160px;max-width:220px">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M3 7v13M3 13h18M21 20V7M3 10h6a2 2 0 000-4H3" stroke="#111827" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <span style="font-size:10px;font-weight:600;color:#6B7280;text-transform:capitalize">Tonight's Stay</span>
-      </div>
-      <p style="font-size:13px;font-weight:700;color:#111827;margin:0;line-height:1.3">${card.title}</p>
-      ${card.address ? `<p style="font-size:11px;color:#9CA3AF;margin:3px 0 0;line-height:1.3">${card.address}</p>` : ""}
-    </div>`;
 }
 
 export default function DayMap({ cards, accommodationCard, centerLat, centerLng }: Props) {
@@ -122,16 +85,8 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng 
           badge.textContent = String(i + 1);
           wrapper.appendChild(badge);
 
-          const popup = new mb.Popup({
-            closeButton: false,
-            closeOnClick: true,
-            offset: [0, -20],
-            maxWidth: "240px",
-          }).setHTML(popupHTML(card));
-
           new mb.Marker({ element: wrapper, anchor: "center" })
             .setLngLat([lng, lat])
-            .setPopup(popup)
             .addTo(map);
         });
 
@@ -146,7 +101,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng 
 
             // Wrapper/inner split: Mapbox owns translate() on wrapper, scale lives on inner
             const acWrapper = document.createElement("div");
-            acWrapper.style.cssText = "position:relative;width:32px;height:32px;cursor:pointer;";
+            acWrapper.style.cssText = "position:relative;width:32px;height:32px;";
 
             const acInner = document.createElement("div");
             acInner.style.cssText =
@@ -171,9 +126,6 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng 
               "font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20;";
             acIcon.textContent = "hotel";
 
-            acInner.addEventListener("mouseenter", () => { acInner.style.transform = "scale(1.15)"; });
-            acInner.addEventListener("mouseleave", () => { acInner.style.transform = ""; });
-
             acInner.appendChild(acIcon);
             acWrapper.appendChild(acInner);
 
@@ -192,16 +144,8 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng 
             starBadge.textContent = "★";
             acWrapper.appendChild(starBadge);
 
-            const acPopup = new mb.Popup({
-              closeButton: false,
-              closeOnClick: true,
-              offset: [0, -18],
-              maxWidth: "240px",
-            }).setHTML(accommodationPopupHTML(ac));
-
             const accomMarker = new mb.Marker({ element: acWrapper, anchor: "center" })
               .setLngLat(accomCoord)
-              .setPopup(acPopup)
               .addTo(map);
 
             // Raise z-index so accommodation pin renders above regular card pins
@@ -247,26 +191,6 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng 
   return (
     <div className="relative h-48 border-b border-gray-100">
       <div ref={mapRef} className="absolute inset-0" />
-
-      {/* Category legend */}
-      <div className="absolute bottom-2 left-2 flex gap-1.5 bg-white/90 backdrop-blur-sm rounded-lg px-2 py-1.5 shadow-sm pointer-events-none">
-        {(Object.entries(PIN_COLORS) as [string, string][]).map(([type, color]) => (
-          <div key={type} className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
-            <span className="text-[9px] font-semibold text-gray-500 capitalize">{type}</span>
-          </div>
-        ))}
-        {accommodationCard && (
-          <div className="flex items-center gap-1">
-            {/* Near-black circle with gold ★, matching the map pin */}
-            <div className="relative flex-shrink-0" style={{ width: 10, height: 10 }}>
-              <div className="w-full h-full rounded-full" style={{ background: "#111827" }} />
-              <span style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%) translateX(1px)", color: "#F5A623", fontSize: 5, lineHeight: 1 }}>★</span>
-            </div>
-            <span className="text-[9px] font-semibold text-gray-500">stay</span>
-          </div>
-        )}
-      </div>
     </div>
   );
 }

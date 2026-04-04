@@ -148,6 +148,17 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, us
         centerLng={trip.destination_lng ?? 12.4964}
       />
 
+      {/* Sticky date header — sits between map and cards, stays visible on scroll */}
+      <div className="flex-shrink-0 bg-white border-b border-gray-100 px-4 py-2.5">
+        <p className="text-[15px] font-bold text-gray-900">
+          {new Date(dayWithCards.date + "T00:00:00").toLocaleDateString("en-US", {
+            weekday: "long",
+            month:   "long",
+            day:     "numeric",
+          })}
+        </p>
+      </div>
+
       {/* Scrollable cards area — only this section scrolls.
           min-h-0 is required so flex children can shrink below their content height. */}
       <div className="flex-1 overflow-y-auto min-h-0">
