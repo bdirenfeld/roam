@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Pencil } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import type { Card, CardType } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { PIN_COLORS } from "@/lib/mapPins";
@@ -187,11 +187,14 @@ function CardBody({
   card,
   onClose,
   onCardUpdate,
+  onCardDelete,
 }: {
   card: Card;
   onClose: () => void;
   onCardUpdate?: (updated: Card) => void;
+  onCardDelete?: (cardId: string) => void;
 }) {
+  const supabase         = createClient();
   const details          = card.details as Record<string, unknown> | null;
   const phone            = details?.phone as string | undefined;
   const rating           = details?.rating as number | undefined;
@@ -201,7 +204,33 @@ function CardBody({
   const subTypeLabel     = card.sub_type ? (SUB_TYPE_LABEL[card.sub_type] ?? card.sub_type) : null;
   const hasPhoto         = !!card.cover_image_url;
 
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing]               = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showItineraryMsg, setShowItineraryMsg]   = useState(false);
+  const [isDeleting, setIsDeleting]               = useState(false);
+  const [deleteError, setDeleteError]             = useState<string | null>(null);
+
+  function handleTrashClick() {
+    if (card.status === "in_itinerary") {
+      setShowItineraryMsg(true);
+      setTimeout(() => setShowItineraryMsg(false), 3500);
+    } else {
+      setShowDeleteConfirm(true);
+    }
+  }
+
+  const handleDelete = useCallback(async () => {
+    setIsDeleting(true);
+    const { error } = await supabase.from("cards").delete().eq("id", card.id);
+    setIsDeleting(false);
+    if (error) {
+      setDeleteError("Couldn't remove — please try again.");
+      setTimeout(() => setDeleteError(null), 3000);
+      return;
+    }
+    onCardDelete?.(card.id);
+    onClose();
+  }, [card.id, onCardDelete, onClose, supabase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>
@@ -235,6 +264,18 @@ function CardBody({
           <line x1="6" y1="6" x2="18" y2="18" />
         </svg>
       </button>
+
+      {/* Trash button */}
+      {onCardDelete && (
+        <button
+          onClick={handleTrashClick}
+          className="absolute top-2 right-10 w-6 h-6 rounded-full bg-black/40 flex items-center justify-center hover:bg-black/60 transition-colors"
+          style={{ backdropFilter: "blur(8px)" }}
+          aria-label="Delete place"
+        >
+          <Trash2 size={11} color="white" />
+        </button>
+      )}
 
       {/* Content */}
       <div className="px-4 pt-3 pb-4 overflow-y-auto flex-1">
@@ -319,6 +360,36 @@ function CardBody({
             </a>
           )}
         </div>
+
+        {/* Delete confirmation */}
+        {showDeleteConfirm && (
+          <div className="mt-3 p-3 bg-red-50 rounded-xl border border-red-100">
+            <p className="text-[12px] font-medium text-gray-800 mb-2.5">Remove this place from your map?</p>
+            {deleteError && <p className="text-[11px] text-red-600 mb-2">{deleteError}</p>}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 py-1.5 rounded-lg text-[11px] font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-60"
+              >
+                {isDeleting ? "Removing…" : "Remove"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* In-itinerary message */}
+        {showItineraryMsg && (
+          <div className="mt-3 p-3 bg-amber-50 rounded-xl border border-amber-100">
+            <p className="text-[12px] text-amber-700">This place is in your itinerary — remove it from your day plan first.</p>
+          </div>
+        )}
       </div>
     </>
   );
@@ -330,9 +401,10 @@ interface Props {
   anchorPos?: { x: number; y: number } | null;
   onClose: () => void;
   onCardUpdate?: (updated: Card) => void;
+  onCardDelete?: (cardId: string) => void;
 }
 
-export default function MapPinPopup({ card, anchorPos, onClose, onCardUpdate }: Props) {
+export default function MapPinPopup({ card, anchorPos, onClose, onCardUpdate, onCardDelete }: Props) {
   if (anchorPos) {
     const vw        = typeof window !== "undefined" ? window.innerWidth : 800;
     const rawLeft   = anchorPos.x - POPUP_W / 2;
@@ -357,7 +429,7 @@ export default function MapPinPopup({ card, anchorPos, onClose, onCardUpdate }: 
           className="bg-white rounded-2xl overflow-hidden flex flex-col"
           style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.20)", maxHeight: "65vh" }}
         >
-          <CardBody card={card} onClose={onClose} onCardUpdate={onCardUpdate} />
+          <CardBody card={card} onClose={onClose} onCardUpdate={onCardUpdate} onCardDelete={onCardDelete} />
         </div>
 
         {/* Downward triangle */}
@@ -389,7 +461,7 @@ export default function MapPinPopup({ card, anchorPos, onClose, onCardUpdate }: 
         className="relative bg-white rounded-2xl overflow-hidden w-full max-w-sm animate-in zoom-in-95 duration-200 max-h-[85dvh] flex flex-col"
         style={{ boxShadow: "0 20px 60px rgba(0,0,0,0.25)" }}
       >
-        <CardBody card={card} onClose={onClose} onCardUpdate={onCardUpdate} />
+        <CardBody card={card} onClose={onClose} onCardUpdate={onCardUpdate} onCardDelete={onCardDelete} />
       </div>
     </div>
   );

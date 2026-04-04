@@ -593,6 +593,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
             anchorPos={anchorPos}
             onClose={() => { deselectPin(); setSelectedCard(null); }}
             onCardUpdate={handleCardUpdate}
+            onCardDelete={(cardId) => { deselectPin(); handleCardDelete(cardId); }}
           />
         )}
 
