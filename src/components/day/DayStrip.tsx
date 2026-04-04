@@ -10,12 +10,12 @@ interface Props {
   onDaySelect: (day: Day) => void;
 }
 
-// Short weekday + month/day, e.g. "Wed · Apr 22"
+// "Sat, Apr 25"
 function formatStripDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
   const weekday = d.toLocaleDateString("en-US", { weekday: "short" });
-  const month = d.toLocaleDateString("en-US", { month: "short" });
-  return `${weekday} · ${month} ${d.getDate()}`;
+  const month   = d.toLocaleDateString("en-US", { month: "short" });
+  return `${weekday}, ${month} ${d.getDate()}`;
 }
 
 // Whether a date is today
@@ -24,19 +24,10 @@ function isToday(dateStr: string): boolean {
   const d = new Date(dateStr + "T00:00:00");
   return (
     d.getFullYear() === today.getFullYear() &&
-    d.getMonth() === today.getMonth() &&
-    d.getDate() === today.getDate()
+    d.getMonth()    === today.getMonth()    &&
+    d.getDate()     === today.getDate()
   );
 }
-
-// Minimal position badge per narrative
-const NARRATIVE_DOT: Record<string, string> = {
-  intro:       "bg-blue-300",
-  rising:      "bg-activity",
-  climax:      "bg-food",
-  denouement:  "bg-purple-300",
-  departure:   "bg-gray-300",
-};
 
 export default function DayStrip({ days, activeDayId, onDaySelect }: Props) {
   const activeRef = useRef<HTMLButtonElement>(null);
@@ -44,58 +35,61 @@ export default function DayStrip({ days, activeDayId, onDaySelect }: Props) {
   useEffect(() => {
     activeRef.current?.scrollIntoView({
       behavior: "smooth",
-      block: "nearest",
-      inline: "center",
+      block:    "nearest",
+      inline:   "center",
     });
   }, [activeDayId]);
 
-  return (
-    <div className="flex gap-1.5 px-3 py-2.5 overflow-x-auto scrollbar-none border-b border-gray-100 bg-white">
-      {days.map((day) => {
-        const isActive = day.id === activeDayId;
-        const today = isToday(day.date);
-        const dotClass = day.narrative_position
-          ? NARRATIVE_DOT[day.narrative_position]
-          : "bg-gray-200";
+  const activeIndex = days.findIndex((d) => d.id === activeDayId);
+  // Progress: current day position / total days (1-based, so Day 4 of 7 = 57%)
+  const progressPct = days.length > 0
+    ? Math.round(((activeIndex + 1) / days.length) * 100)
+    : 0;
 
-        return (
-          <button
-            key={day.id}
-            ref={isActive ? activeRef : null}
-            onClick={() => onDaySelect(day)}
-            className={`
-              flex-shrink-0 flex flex-col items-start px-3 py-2 rounded-xl
-              transition-all duration-150 min-w-0
-              ${isActive
-                ? "bg-activity shadow-sm"
-                : "bg-gray-50 hover:bg-gray-100 active:scale-95"
-              }
-            `}
-          >
-            {/* Day number + today indicator */}
-            <div className="flex items-center gap-1.5">
-              <span className={`text-[9px] font-bold uppercase tracking-wider ${isActive ? "text-white/60" : "text-gray-400"}`}>
-                Day {day.day_number}
+  return (
+    <div className="border-b border-gray-100 bg-white">
+      {/* Scrollable tab row */}
+      <div className="flex gap-1.5 px-3 py-2.5 overflow-x-auto scrollbar-none">
+        {days.map((day) => {
+          const isActive = day.id === activeDayId;
+          const today    = isToday(day.date);
+
+          return (
+            <button
+              key={day.id}
+              ref={isActive ? activeRef : null}
+              onClick={() => onDaySelect(day)}
+              className={`
+                flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl
+                transition-all duration-150 min-w-0
+                ${isActive
+                  ? "bg-activity shadow-sm"
+                  : "bg-gray-50 hover:bg-gray-100 active:scale-95"
+                }
+              `}
+            >
+              {/* Single-line: "Day 4 · Sat, Apr 25" */}
+              <span className={`text-[11px] font-semibold whitespace-nowrap ${isActive ? "text-white" : "text-gray-700"}`}>
+                Day {day.day_number} · {formatStripDate(day.date)}
               </span>
+
               {today && (
                 <span className={`text-[8px] font-bold uppercase tracking-wide px-1 py-px rounded ${isActive ? "bg-white/20 text-white" : "bg-activity/10 text-activity"}`}>
                   Today
                 </span>
               )}
-            </div>
+            </button>
+          );
+        })}
+      </div>
 
-            {/* Date */}
-            <span className={`text-[11px] font-semibold mt-0.5 whitespace-nowrap ${isActive ? "text-white" : "text-gray-700"}`}>
-              {formatStripDate(day.date)}
-            </span>
-
-            {/* Narrative dot */}
-            {day.narrative_position && (
-              <div className={`mt-1.5 w-1.5 h-1.5 rounded-full ${isActive ? "bg-white/50" : dotClass}`} />
-            )}
-          </button>
-        );
-      })}
+      {/* Trip progress bar — fills proportionally based on selected day */}
+      <div className="h-[3px] bg-gray-100">
+        <div
+          className="h-full bg-activity transition-all duration-300 ease-out"
+          style={{ width: `${progressPct}%` }}
+        />
+      </div>
     </div>
   );
 }

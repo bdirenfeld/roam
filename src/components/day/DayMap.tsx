@@ -135,7 +135,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng 
             .addTo(map);
         });
 
-        // Accommodation hotel pin — matches main map hotel style, slightly larger, gold ★ badge
+        // Accommodation hotel pin — matches main map hotel style, same size as regular pins, gold ★ badge
         let accomCoord: [number, number] | null = null;
         if (accommodationCard) {
           const ac = accommodationCard;
@@ -146,16 +146,16 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng 
 
             // Wrapper/inner split: Mapbox owns translate() on wrapper, scale lives on inner
             const acWrapper = document.createElement("div");
-            acWrapper.style.cssText = "position:relative;width:40px;height:40px;cursor:pointer;";
+            acWrapper.style.cssText = "position:relative;width:32px;height:32px;cursor:pointer;";
 
             const acInner = document.createElement("div");
             acInner.style.cssText =
-              "width:40px;height:40px;" +
+              "width:32px;height:32px;" +
               "border-radius:50%;" +
               "background:#111827;" +          // same near-black as main map logistics/hotel
-              "border:2.5px solid white;" +
+              "border:2px solid white;" +
               "display:flex;align-items:center;justify-content:center;" +
-              "box-shadow:0 3px 8px rgba(0,0,0,0.35);" +
+              "box-shadow:0 2px 4px rgba(0,0,0,0.25);" +
               "transition:transform 150ms ease;" +
               "transform-origin:50% 50%;";
 
@@ -164,11 +164,11 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng 
             acIcon.className = "material-symbols-outlined";
             acIcon.style.cssText =
               "color:white;" +
-              "font-size:20px;" +
+              "font-size:16px;" +
               "line-height:1;" +
               "display:block;" +
               "user-select:none;" +
-              "font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24;";
+              "font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20;";
             acIcon.textContent = "hotel";
 
             acInner.addEventListener("mouseenter", () => { acInner.style.transform = "scale(1.15)"; });
@@ -181,12 +181,12 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng 
             const starBadge = document.createElement("div");
             starBadge.style.cssText =
               "position:absolute;top:-3px;right:-3px;" +
-              "width:16px;height:16px;" +
+              "width:13px;height:13px;" +
               "border-radius:50%;" +
               "background:white;" +
               "display:flex;align-items:center;justify-content:center;" +
-              "box-shadow:0 1px 3px rgba(0,0,0,0.3);" +
-              "font-size:9px;line-height:1;" +
+              "box-shadow:0 1px 2px rgba(0,0,0,0.25);" +
+              "font-size:8px;line-height:1;" +
               "color:#F5A623;" +
               "pointer-events:none;";
             starBadge.textContent = "★";
@@ -195,7 +195,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng 
             const acPopup = new mb.Popup({
               closeButton: false,
               closeOnClick: true,
-              offset: [0, -22],
+              offset: [0, -18],
               maxWidth: "240px",
             }).setHTML(accommodationPopupHTML(ac));
 
@@ -258,10 +258,10 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng 
         ))}
         {accommodationCard && (
           <div className="flex items-center gap-1">
-            {/* Near-black circle with hotel icon, matching the map pin */}
+            {/* Near-black circle with gold ★, matching the map pin */}
             <div className="relative flex-shrink-0" style={{ width: 10, height: 10 }}>
               <div className="w-full h-full rounded-full" style={{ background: "#111827" }} />
-              <span style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", color: "#F5A623", fontSize: 6, lineHeight: 1 }}>★</span>
+              <span style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%) translateX(1px)", color: "#F5A623", fontSize: 5, lineHeight: 1 }}>★</span>
             </div>
             <span className="text-[9px] font-semibold text-gray-500">stay</span>
           </div>

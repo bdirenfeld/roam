@@ -28,20 +28,8 @@ function freeTimeLabel(minutes: number): string {
   return m > 0 ? `${h}h ${m}m free` : `${h}h free`;
 }
 
-const NARRATIVE_LABELS: Record<string, string> = {
-  intro:       "Arrival day",
-  rising:      "Getting into it",
-  climax:      "Peak day",
-  denouement:  "Winding down",
-  departure:   "Departure day",
-};
-
 export default function CardTimeline({ dayWithCards, onCardTap }: Props) {
-  const { cards, day_number, day_name, date, narrative_position } = dayWithCards;
-
-  const narrativeLabel = narrative_position
-    ? NARRATIVE_LABELS[narrative_position]
-    : null;
+  const { cards, day_number, day_name, date } = dayWithCards;
 
   const fullDate = new Date(date + "T00:00:00").toLocaleDateString("en-US", {
     weekday: "long",
@@ -52,18 +40,11 @@ export default function CardTimeline({ dayWithCards, onCardTap }: Props) {
   return (
     <div className="pb-8">
       {/* Compact day header */}
-      <div className="flex items-baseline justify-between mb-4">
-        <div>
-          <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
-            Day {day_number} · {day_name}
-          </span>
-          <p className="text-sm font-bold text-gray-900 mt-0.5">{fullDate}</p>
-        </div>
-        {narrativeLabel && (
-          <span className="text-[10px] font-semibold text-gray-400 bg-gray-50 border border-gray-100 px-2 py-1 rounded-full">
-            {narrativeLabel}
-          </span>
-        )}
+      <div className="mb-4">
+        <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
+          Day {day_number} · {day_name}
+        </span>
+        <p className="text-sm font-bold text-gray-900 mt-0.5">{fullDate}</p>
       </div>
 
       {cards.length === 0 ? (
