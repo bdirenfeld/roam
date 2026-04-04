@@ -39,9 +39,8 @@ function accommodationPopupHTML(card: Card): string {
   return `
     <div style="font-family:Inter,system-ui,sans-serif;padding:10px 12px;min-width:160px;max-width:220px">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-        <svg width="12" height="12" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path d="M3 9.5L12 3l9 6.5V21a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z" fill="#F5A623"/>
-          <path d="M9 22V12h6v10" fill="white"/>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3 7v13M3 13h18M21 20V7M3 10h6a2 2 0 000-4H3" stroke="#111827" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
         <span style="font-size:10px;font-weight:600;color:#6B7280;text-transform:capitalize">Tonight's Stay</span>
       </div>
@@ -136,7 +135,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng 
             .addTo(map);
         });
 
-        // Accommodation home pin — rendered above regular pins
+        // Accommodation hotel pin — matches main map hotel style, slightly larger, gold ★ badge
         let accomCoord: [number, number] | null = null;
         if (accommodationCard) {
           const ac = accommodationCard;
@@ -145,37 +144,53 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng 
           if (acLat != null && acLng != null) {
             accomCoord = [acLng, acLat];
 
-            // Wrapper/inner split keeps Mapbox's translate() on wrapper; scale on inner
-            const homeWrapper = document.createElement("div");
-            homeWrapper.style.cssText = "position:relative;width:40px;height:40px;cursor:pointer;";
+            // Wrapper/inner split: Mapbox owns translate() on wrapper, scale lives on inner
+            const acWrapper = document.createElement("div");
+            acWrapper.style.cssText = "position:relative;width:40px;height:40px;cursor:pointer;";
 
-            const homeInner = document.createElement("div");
-            homeInner.style.cssText =
+            const acInner = document.createElement("div");
+            acInner.style.cssText =
               "width:40px;height:40px;" +
               "border-radius:50%;" +
-              "background:#F5A623;" +
+              "background:#111827;" +          // same near-black as main map logistics/hotel
               "border:2.5px solid white;" +
               "display:flex;align-items:center;justify-content:center;" +
               "box-shadow:0 3px 8px rgba(0,0,0,0.35);" +
               "transition:transform 150ms ease;" +
               "transform-origin:50% 50%;";
 
-            const homeIcon = document.createElement("span");
-            homeIcon.className = "material-symbols-outlined";
-            homeIcon.style.cssText =
+            // Hotel icon — matches MATERIAL_ICONS.hotel = "hotel"
+            const acIcon = document.createElement("span");
+            acIcon.className = "material-symbols-outlined";
+            acIcon.style.cssText =
               "color:white;" +
               "font-size:20px;" +
               "line-height:1;" +
               "display:block;" +
               "user-select:none;" +
               "font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24;";
-            homeIcon.textContent = "home";
+            acIcon.textContent = "hotel";
 
-            homeInner.addEventListener("mouseenter", () => { homeInner.style.transform = "scale(1.15)"; });
-            homeInner.addEventListener("mouseleave", () => { homeInner.style.transform = ""; });
+            acInner.addEventListener("mouseenter", () => { acInner.style.transform = "scale(1.15)"; });
+            acInner.addEventListener("mouseleave", () => { acInner.style.transform = ""; });
 
-            homeInner.appendChild(homeIcon);
-            homeWrapper.appendChild(homeInner);
+            acInner.appendChild(acIcon);
+            acWrapper.appendChild(acInner);
+
+            // Gold ★ badge — top-right corner, ~40% of pin size
+            const starBadge = document.createElement("div");
+            starBadge.style.cssText =
+              "position:absolute;top:-3px;right:-3px;" +
+              "width:16px;height:16px;" +
+              "border-radius:50%;" +
+              "background:white;" +
+              "display:flex;align-items:center;justify-content:center;" +
+              "box-shadow:0 1px 3px rgba(0,0,0,0.3);" +
+              "font-size:9px;line-height:1;" +
+              "color:#F5A623;" +
+              "pointer-events:none;";
+            starBadge.textContent = "★";
+            acWrapper.appendChild(starBadge);
 
             const acPopup = new mb.Popup({
               closeButton: false,
@@ -184,7 +199,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng 
               maxWidth: "240px",
             }).setHTML(accommodationPopupHTML(ac));
 
-            const accomMarker = new mb.Marker({ element: homeWrapper, anchor: "center" })
+            const accomMarker = new mb.Marker({ element: acWrapper, anchor: "center" })
               .setLngLat(accomCoord)
               .setPopup(acPopup)
               .addTo(map);
@@ -243,10 +258,11 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng 
         ))}
         {accommodationCard && (
           <div className="flex items-center gap-1">
-            <svg width="10" height="10" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path d="M3 9.5L12 3l9 6.5V21a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z" fill="#F5A623"/>
-              <path d="M9 22V12h6v10" fill="white"/>
-            </svg>
+            {/* Near-black circle with hotel icon, matching the map pin */}
+            <div className="relative flex-shrink-0" style={{ width: 10, height: 10 }}>
+              <div className="w-full h-full rounded-full" style={{ background: "#111827" }} />
+              <span style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", color: "#F5A623", fontSize: 6, lineHeight: 1 }}>★</span>
+            </div>
             <span className="text-[9px] font-semibold text-gray-500">stay</span>
           </div>
         )}
