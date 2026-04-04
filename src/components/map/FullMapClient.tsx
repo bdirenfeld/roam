@@ -362,6 +362,14 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
 
       map.addControl(new mb.AttributionControl({ compact: true }), "bottom-right");
       map.addControl(new mb.NavigationControl({ showCompass: false }), "bottom-right");
+      map.addControl(
+        new mb.GeolocateControl({
+          positionOptions:  { enableHighAccuracy: true },
+          trackUserLocation: true,
+          showUserHeading:   true,
+        }),
+        "bottom-right",
+      );
 
       map.once("load", async () => {
         if (mapInstRef.current !== map) return;
