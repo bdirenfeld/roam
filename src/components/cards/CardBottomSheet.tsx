@@ -546,7 +546,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
 
         {/* Header */}
         <div className="px-5 pt-3 pb-4 border-b border-gray-100">
-          {/* Top row: type badge + booking badge + close */}
+          {/* Top row: type badge + booking badge + [📍 Link] [🗑 Delete] [✕ Close] */}
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
               <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${accent.bg}`}>
@@ -559,16 +559,43 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 </span>
               )}
             </div>
-            <button
-              onClick={onClose}
-              className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 hover:bg-gray-200 transition-colors"
-              aria-label="Close"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {localCard.status === "in_itinerary" && (
+                <button
+                  onClick={() => setShowLinkSheet(true)}
+                  className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                  aria-label="Link place from map"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+                    <circle cx="12" cy="9" r="2.5" />
+                  </svg>
+                </button>
+              )}
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                aria-label="Delete card"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                  <path d="M10 11v6" />
+                  <path d="M14 11v6" />
+                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                </svg>
+              </button>
+              <button
+                onClick={onClose}
+                className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                aria-label="Close"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
           </div>
 
           {/* Editable title */}
@@ -697,24 +724,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             </div>
           )}
 
-          {/* Link place from map — for itinerary cards */}
-          {localCard.status === "in_itinerary" && !showDeleteConfirm && (
-            <div className="px-5 pt-3 pb-1">
-              <button
-                onClick={() => setShowLinkSheet(true)}
-                className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-gray-200 text-[13px] font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-                  <circle cx="12" cy="9" r="2.5" />
-                </svg>
-                Link place from map
-              </button>
-            </div>
-          )}
-
           {/* Delete confirmation */}
-          {showDeleteConfirm ? (
+          {showDeleteConfirm && (
             <div className="px-5 pt-3 pb-5">
               <p className="text-[13px] font-medium text-gray-700 text-center mb-3">
                 Delete this card? This can&apos;t be undone.
@@ -738,16 +749,6 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               {deleteError && (
                 <p className="text-[11px] text-red-500 text-center mt-2">{deleteError}</p>
               )}
-            </div>
-          ) : (
-            /* Delete card link */
-            <div className="flex justify-center py-3">
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="text-[12px] text-red-400 hover:text-red-600 transition-colors px-4 py-1"
-              >
-                Delete card
-              </button>
             </div>
           )}
         </div>
