@@ -17,6 +17,69 @@ function fileTypeLabel(mimeType: string): string {
   return "FILE";
 }
 
+// ── Field mapping by card sub_type ───────────────────────────
+const FLIGHT_DETAIL_MAP: Record<string, string> = {
+  outbound_flight_number:       "flight_number",
+  outbound_origin_airport:      "origin_airport",
+  outbound_destination_airport: "arriving_at",
+  outbound_departure_time:      "departure_time",
+  outbound_arrival_time:        "arrival_time",
+  outbound_origin_terminal:     "terminal",
+  supplier:                     "airline",
+  confirmation:                 "confirmation",
+  outbound_duration:            "duration",
+  outbound_seat:                "seat",
+  outbound_aircraft:            "aircraft",
+};
+
+const HOTEL_DETAIL_MAP: Record<string, string> = {
+  confirmation:   "confirmation",
+  check_in_date:  "check_in",
+  check_in_time:  "check_in_time",
+  check_out_date: "check_out",
+  check_out_time: "check_out_time",
+  phone:          "phone",
+  address:        "address",
+  notes:          "notes",
+};
+
+const GENERIC_HOTEL_TITLES = ["check-in", "hotel", "accommodation", "stay", "arrival"];
+
+function remapParsedFields(
+  parsed: Record<string, unknown>,
+  card: Card,
+): { details: Record<string, unknown>; topLevel: Record<string, unknown> } {
+  const subType = card.sub_type;
+  const details: Record<string, unknown> = {};
+  const topLevel: Record<string, unknown> = {};
+
+  if (subType === "flight_arrival" || subType === "flight_departure") {
+    for (const [src, dst] of Object.entries(FLIGHT_DETAIL_MAP)) {
+      if (parsed[src] != null) details[dst] = parsed[src];
+    }
+    // Populate the card's top-level start_time from departure time
+    if (parsed.outbound_departure_time != null) {
+      topLevel.start_time = parsed.outbound_departure_time;
+    }
+  } else if (subType === "hotel") {
+    for (const [src, dst] of Object.entries(HOTEL_DETAIL_MAP)) {
+      if (parsed[src] != null) details[dst] = parsed[src];
+    }
+    // supplier → name only when the card title is a generic placeholder
+    if (parsed.supplier != null) {
+      const titleLower = (card.title ?? "").toLowerCase();
+      if (GENERIC_HOTEL_TITLES.some((t) => titleLower.includes(t))) {
+        details.name = parsed.supplier;
+      }
+    }
+  } else {
+    // All other card types: pass parsed fields through unchanged
+    Object.assign(details, parsed);
+  }
+
+  return { details, topLevel };
+}
+
 // ── AttachmentRow sub-component ───────────────────────────────
 function AttachmentRow({
   attachment,
@@ -127,6 +190,7 @@ export default function AttachmentsPanel({ card, onClose, onCardUpdate }: Props)
   // confirmApply: pending merge that has overwrite conflicts
   const [confirmApply, setConfirmApply] = useState<{
     data:          Record<string, unknown>;
+    topLevel:      Record<string, unknown>;
     overwriteKeys: string[];
   } | null>(null);
 
@@ -181,22 +245,31 @@ export default function AttachmentsPanel({ card, onClose, onCardUpdate }: Props)
     const parsed = attachment.parsed_data;
     if (!parsed) return;
 
+    const { details: mappedDetails, topLevel } = remapParsedFields(
+      parsed as Record<string, unknown>,
+      card,
+    );
+
     const current        = (card.details ?? {}) as Record<string, unknown>;
     const overwriteKeys: string[] = [];
 
-    for (const [key, val] of Object.entries(parsed)) {
+    for (const [key, val] of Object.entries(mappedDetails)) {
       if (val != null && current[key] != null) overwriteKeys.push(key);
     }
 
     if (overwriteKeys.length > 0) {
-      setConfirmApply({ data: parsed, overwriteKeys });
+      setConfirmApply({ data: mappedDetails, topLevel, overwriteKeys });
     } else {
-      doApply(parsed, []);
+      doApply(mappedDetails, topLevel, []);
     }
   };
 
   const doApply = useCallback(
-    async (data: Record<string, unknown>, skipKeys: string[]) => {
+    async (
+      data:     Record<string, unknown>,
+      topLevel: Record<string, unknown>,
+      skipKeys: string[],
+    ) => {
       const current = (card.details ?? {}) as Record<string, unknown>;
       const merged: Record<string, unknown> = { ...current };
 
@@ -205,13 +278,21 @@ export default function AttachmentsPanel({ card, onClose, onCardUpdate }: Props)
         if (v != null) merged[k] = v;
       }
 
+      // Build top-level column updates — only set if currently null/undefined
+      const topLevelUpdate: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(topLevel)) {
+        if (v != null && (card as Record<string, unknown>)[k] == null) {
+          topLevelUpdate[k] = v;
+        }
+      }
+
       const { error } = await supabase
         .from("cards")
-        .update({ details: merged })
+        .update({ details: merged, ...topLevelUpdate })
         .eq("id", card.id);
 
       if (!error) {
-        onCardUpdate?.({ ...card, details: merged as typeof card.details });
+        onCardUpdate?.({ ...card, details: merged as typeof card.details, ...topLevelUpdate } as typeof card);
         setApplySuccess(true);
         setTimeout(() => setApplySuccess(false), 2500);
       }
@@ -331,14 +412,14 @@ export default function AttachmentsPanel({ card, onClose, onCardUpdate }: Props)
                 Cancel
               </button>
               <button
-                onClick={() => doApply(confirmApply.data, [])}
+                onClick={() => doApply(confirmApply.data, confirmApply.topLevel, [])}
                 className="flex-1 py-2.5 rounded-xl bg-activity text-white text-[13px] font-semibold hover:bg-teal-700 transition-colors"
               >
                 Overwrite all
               </button>
             </div>
             <button
-              onClick={() => doApply(confirmApply.data, confirmApply.overwriteKeys)}
+              onClick={() => doApply(confirmApply.data, confirmApply.topLevel, confirmApply.overwriteKeys)}
               className="w-full py-2 text-[12px] text-gray-500 hover:text-gray-700 transition-colors"
             >
               Apply new fields only (keep {confirmApply.overwriteKeys.length} existing)
