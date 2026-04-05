@@ -364,17 +364,16 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
 
       map.addControl(new mb.AttributionControl({ compact: true }), "bottom-right");
       map.addControl(new mb.NavigationControl({ showCompass: false }), "bottom-right");
-      map.addControl(
-        new mb.GeolocateControl({
-          positionOptions:  { enableHighAccuracy: true },
-          trackUserLocation: true,
-          showUserHeading:   true,
-        }),
-        "bottom-right",
-      );
+      const geolocate = new mb.GeolocateControl({
+        positionOptions:  { enableHighAccuracy: true },
+        trackUserLocation: true,
+        showUserHeading:   true,
+      });
+      map.addControl(geolocate, "bottom-right");
 
       map.once("load", async () => {
         if (mapInstRef.current !== map) return;
+        geolocate.trigger();
 
         // Wait for Material Symbols font before creating pins so icons render correctly
         try {
