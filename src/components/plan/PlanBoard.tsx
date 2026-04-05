@@ -34,6 +34,7 @@ import TriageView from "@/components/plan/TriageView";
 import BoardBgPicker, { type BoardBg } from "@/components/plan/BoardBgPicker";
 import type { Trip, Card, DayWithCards, CardType, CardStatus } from "@/types/database";
 import { getPriceRange } from "@/lib/priceRange";
+import { getMaterialIconHTML } from "@/lib/mapPins";
 
 // ── Constants ──────────────────────────────────────────────────
 const COL_PREFIX = "col-";
@@ -44,11 +45,6 @@ const TYPE_BORDER: Record<CardType, string> = {
   food:      "border-l-food",
 };
 
-const TYPE_TEXT: Record<CardType, string> = {
-  logistics: "text-logistics",
-  activity:  "text-activity",
-  food:      "text-food",
-};
 
 const SUB_LABEL: Record<string, string> = {
   flight_arrival:   "Arrival",
@@ -953,7 +949,6 @@ function CardTile({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const isNote      = card.sub_type === "note";
   const borderClass = isNote ? "border-l-gray-200" : (TYPE_BORDER[card.type] ?? "border-l-gray-300");
-  const textClass   = TYPE_TEXT[card.type] ?? "text-gray-500";
   const subLabel    = card.sub_type ? (SUB_LABEL[card.sub_type] ?? card.sub_type) : null;
   const noteSnippet = isNote ? ((card.details as Record<string, unknown>)?.notes as string | undefined) : undefined;
   const det         = card.details as Record<string, unknown>;
@@ -969,58 +964,65 @@ function CardTile({
     return s || null;
   })();
 
+  const ACCENT: Record<string, string> = { logistics: "#111827", activity: "#0D9488", food: "#7C3AED" };
+  const accent = ACCENT[card.type] ?? "#6B7280";
+
   return (
     <div
-      className={`group relative bg-white rounded-xl border border-gray-100 shadow-card mb-2 select-none overflow-hidden ${
-        card.cover_image_url ? "" : `border-l-[3px] ${borderClass}`
-      } ${isOverlay ? "shadow-[0_8px_24px_0_rgba(0,0,0,0.14)] scale-[1.02]" : ""}`}
+      className={`group relative bg-white rounded-xl border border-gray-100 shadow-card mb-2 select-none overflow-hidden border-l-[3px] ${borderClass} ${isOverlay ? "shadow-[0_8px_24px_0_rgba(0,0,0,0.14)] scale-[1.02]" : ""}`}
     >
-      <button
-        onClick={onTap}
-        className="w-full text-left"
-      >
-        {/* Cover photo */}
-        {card.cover_image_url && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={card.cover_image_url}
-            alt=""
-            className="w-full h-24 object-cover"
-            draggable={false}
-          />
-        )}
-        <div className="px-3 py-2.5 pr-8">
-        <div className="flex items-start gap-2">
-          {isNote && (
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 flex-shrink-0">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-            </svg>
+      <button onClick={onTap} className="w-full text-left p-3">
+        <div className="flex items-start gap-2.5">
+
+          {/* Thumbnail — 60×60 */}
+          {card.cover_image_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={card.cover_image_url}
+              alt=""
+              className="w-[60px] h-[60px] rounded-lg object-cover flex-shrink-0"
+              draggable={false}
+            />
+          ) : (
+            <div
+              className="w-[60px] h-[60px] rounded-lg flex-shrink-0 flex items-center justify-center"
+              style={{ background: `${accent}18` }}
+            >
+              <span
+                style={{ color: accent }}
+                // eslint-disable-next-line react/no-danger
+                dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(card.sub_type, 22) }}
+              />
+            </div>
           )}
-          <p className="text-[13px] font-bold text-gray-900 leading-snug">
-            {card.title}
-          </p>
-        </div>
-        {isNote && noteSnippet ? (
-          <p className="text-[11px] text-gray-400 mt-1 leading-snug line-clamp-2">{noteSnippet}</p>
-        ) : (
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
-            {timeRange && (
-              <span className={`text-[10px] font-semibold ${textClass}`}>{timeRange}</span>
-            )}
-            {subLabel && !isNote && (
-              <span className="text-[10px] text-gray-400">{subLabel}</span>
-            )}
-            {priceRange && (
-              <span className="text-[10px] font-semibold text-amber-500">
-                {tileRating !== null ? `★ ${tileRating.toFixed(1)} · ` : ""}{priceRange}
-              </span>
+
+          {/* Text content */}
+          <div className="flex-1 min-w-0 pr-7">
+            <p className="text-[14px] font-semibold text-gray-900 leading-snug line-clamp-2">
+              {card.title}
+            </p>
+            {isNote && noteSnippet ? (
+              <p className="text-[11px] text-gray-400 mt-0.5 leading-snug line-clamp-2">{noteSnippet}</p>
+            ) : (
+              <div className="mt-0.5 space-y-px">
+                {timeRange && (
+                  <p className="text-[11px] text-gray-400 leading-snug">{timeRange}</p>
+                )}
+                {subLabel && !isNote && (
+                  <p className="text-[11px] text-gray-400 leading-snug">{subLabel}</p>
+                )}
+                {(tileRating !== null || priceRange) && (
+                  <p className="text-[11px] font-medium text-amber-500 leading-snug">
+                    {tileRating !== null ? `★ ${tileRating.toFixed(1)}` : ""}
+                    {tileRating !== null && priceRange ? " · " : ""}
+                    {priceRange ?? ""}
+                  </p>
+                )}
+              </div>
             )}
           </div>
-        )}
-        </div>{/* end px-3 py-2.5 pr-8 */}
+
+        </div>
       </button>
 
       {/* Hover trash button — desktop only, appears on group-hover */}
