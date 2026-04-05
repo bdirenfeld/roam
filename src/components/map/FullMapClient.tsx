@@ -70,6 +70,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
   const clickedPinRef    = useRef(false);
   const activeSubTypesRef  = useRef<Set<string>>(makeInitialSubTypes());
   const activeTypesRef     = useRef<Set<CardType>>(new Set(["activity", "food", "logistics"] as CardType[]));
+  const activeStatusesRef  = useRef<Set<string>>(new Set(["interested", "in_itinerary"]));
 
   const selectedCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
   const [anchorPos, setAnchorPos] = useState<{ x: number; y: number } | null>(null);
@@ -80,6 +81,9 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
   const [activeSubTypes, setActiveSubTypesState] = useState<Set<string>>(makeInitialSubTypes);
   const [activeTypes, setActiveTypesState] = useState<Set<CardType>>(
     () => new Set(["activity", "food", "logistics"] as CardType[]),
+  );
+  const [activeStatuses, setActiveStatusesState] = useState<Set<string>>(
+    () => new Set(["interested", "in_itinerary"]),
   );
   const [pendingPlace, setPendingPlace] = useState<PlaceResult | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -119,7 +123,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     setAnchorPos(null);
   }
 
-  // ── Sync all marker visibility against type + sub-type toggles ─
+  // ── Sync all marker visibility against type + sub-type + status toggles ─
   const syncVisibility = useCallback(() => {
     const map = mapInstRef.current;
     if (!map) return;
@@ -129,7 +133,8 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
         !card.sub_type ||
         !CONTROLLED_SUB_TYPES.has(card.sub_type) ||
         activeSubTypesRef.current.has(card.sub_type);
-      const show = activeTypesRef.current.has(type) && subTypeOk;
+      const statusOk = activeStatusesRef.current.has(card.status ?? "");
+      const show = activeTypesRef.current.has(type) && subTypeOk && statusOk;
       if (show) marker.addTo(map); else marker.remove();
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -143,6 +148,12 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
   function handleActiveTypesChange(next: Set<CardType>) {
     activeTypesRef.current = next;
     setActiveTypesState(new Set(next));
+    syncVisibility();
+  }
+
+  function handleActiveStatusesChange(next: Set<string>) {
+    activeStatusesRef.current = next;
+    setActiveStatusesState(new Set(next));
     syncVisibility();
   }
 
@@ -168,8 +179,9 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       !card.sub_type ||
       !CONTROLLED_SUB_TYPES.has(card.sub_type) ||
       activeSubTypesRef.current.has(card.sub_type);
+    const statusOk = activeStatusesRef.current.has(card.status ?? "");
 
-    if (activeTypesRef.current.has(card.type) && subTypeOk) {
+    if (activeTypesRef.current.has(card.type) && subTypeOk && statusOk) {
       mbMarker.addTo(map);
     }
 
@@ -474,6 +486,8 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           setActiveSubTypes={handleSubTypesChange}
           activeTypes={activeTypes}
           setActiveTypes={handleActiveTypesChange}
+          activeStatuses={activeStatuses}
+          setActiveStatuses={handleActiveStatusesChange}
           onCardSelect={handleSidebarCardSelect}
           onCardDelete={handleCardDelete}
         />
@@ -578,10 +592,41 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
                 );
               })}
             </div>
-            {/* Status legend */}
-            <div className="flex items-center gap-2.5 text-[10px] font-medium text-gray-500 pointer-events-none">
-              <span className="flex items-center gap-1"><span style={{ width: 8, height: 8, borderRadius: "50%", border: "1.5px solid #6B7280", display: "inline-block" }} />Interested</span>
-              <span className="flex items-center gap-1"><span style={{ width: 8, height: 8, borderRadius: "50%", background: "#6B7280", display: "inline-block" }} />Saved</span>
+            {/* Status filter toggles */}
+            <div className="flex items-center gap-1.5">
+              {(
+                [
+                  { status: "interested",   label: "Interested", hollow: true  },
+                  { status: "in_itinerary", label: "Scheduled",  hollow: false },
+                ] as Array<{ status: string; label: string; hollow: boolean }>
+              ).map(({ status, label, hollow }) => {
+                const isActive = activeStatuses.has(status);
+                return (
+                  <button
+                    key={status}
+                    onClick={() => {
+                      const next = new Set(activeStatuses);
+                      if (isActive) next.delete(status); else next.add(status);
+                      handleActiveStatusesChange(next);
+                    }}
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all"
+                    style={
+                      isActive
+                        ? { background: "#6B728022", color: "#374151", border: "1.5px solid #6B7280" }
+                        : { background: "transparent", color: "#9CA3AF", border: "1.5px solid #D1D5DB" }
+                    }
+                  >
+                    <span style={{
+                      width: 6, height: 6, borderRadius: "50%", display: "inline-block", flexShrink: 0,
+                      ...(isActive
+                        ? (hollow ? { border: "1.5px solid #6B7280" } : { background: "#6B7280" })
+                        : { background: "#D1D5DB" }
+                      ),
+                    }} />
+                    {label}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>

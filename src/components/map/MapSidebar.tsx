@@ -71,6 +71,8 @@ interface Props {
   setActiveSubTypes: (next: Set<string>) => void;
   activeTypes: Set<CardType>;
   setActiveTypes: (next: Set<CardType>) => void;
+  activeStatuses: Set<string>;
+  setActiveStatuses: (next: Set<string>) => void;
   onCardSelect: (card: Card) => void;
   onCardDelete?: (cardId: string) => void;
 }
@@ -82,6 +84,8 @@ export default function MapSidebar({
   setActiveSubTypes,
   activeTypes,
   setActiveTypes,
+  activeStatuses,
+  setActiveStatuses,
   onCardSelect,
   onCardDelete,
 }: Props) {
@@ -151,6 +155,47 @@ export default function MapSidebar({
 
       {/* ── Sub-type layer groups ── */}
       <div className="flex-1 overflow-y-auto px-5 py-4">
+
+        {/* Status filter */}
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-2">Status</p>
+        <div className="flex items-center gap-2 mb-1">
+          {(
+            [
+              { status: "interested",   label: "Interested", hollow: true  },
+              { status: "in_itinerary", label: "Scheduled",  hollow: false },
+            ] as Array<{ status: string; label: string; hollow: boolean }>
+          ).map(({ status, label, hollow }) => {
+            const isActive = activeStatuses.has(status);
+            return (
+              <button
+                key={status}
+                onClick={() => {
+                  const next = new Set(activeStatuses);
+                  if (isActive) next.delete(status); else next.add(status);
+                  setActiveStatuses(next);
+                }}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium transition-all border"
+                style={
+                  isActive
+                    ? { background: "#6B728015", color: "#374151", borderColor: "#6B7280" }
+                    : { background: "transparent", color: "#9CA3AF", borderColor: "#D1D5DB" }
+                }
+              >
+                <span style={{
+                  width: 8, height: 8, borderRadius: "50%", display: "inline-block", flexShrink: 0,
+                  ...(isActive
+                    ? (hollow ? { border: "1.5px solid #6B7280" } : { background: "#6B7280" })
+                    : { background: "#D1D5DB" }
+                  ),
+                }} />
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
+        <hr className="border-t border-gray-100 my-3" />
+
         {GROUPS.map((group, index) => {
           const sectionCollapsed = collapsedSections.has(group.label);
           const typeOn = activeTypes.has(group.typeKey);
