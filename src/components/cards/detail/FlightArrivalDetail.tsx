@@ -27,18 +27,53 @@ export default function FlightArrivalDetail({ card, onSaveDetails }: Props) {
             onSave={save("airline")}
           />
           <FieldRow
-            icon="🛬"
-            label="Arriving at"
-            value={d.arrival_airport as string | undefined}
-            placeholder="Add airport…"
-            onSave={save("arrival_airport")}
-          />
-          <FieldRow
             icon="🔢"
-            label="Flight number"
+            label="Flight Number"
             value={d.flight_number as string | undefined}
             placeholder="e.g. AZ 123"
             onSave={save("flight_number")}
+          />
+          <FieldRow
+            icon="🛩️"
+            label="Aircraft"
+            value={d.aircraft as string | undefined}
+            placeholder="Add aircraft…"
+            onSave={save("aircraft")}
+          />
+          <FieldRow
+            icon="🛫"
+            label="Departing From"
+            value={d.origin_airport as string | undefined}
+            placeholder="Add airport…"
+            onSave={save("origin_airport")}
+          />
+          <FieldRow
+            icon="🛬"
+            label="Arriving At"
+            value={d.arriving_at as string | undefined}
+            placeholder="Add airport…"
+            onSave={save("arriving_at")}
+          />
+          <FieldRow
+            icon="🕐"
+            label="Departure Time"
+            value={d.departure_time as string | undefined}
+            placeholder="Add departure time…"
+            onSave={save("departure_time")}
+          />
+          <FieldRow
+            icon="🕐"
+            label="Arrival Time"
+            value={d.arrival_time as string | undefined}
+            placeholder="Add arrival time…"
+            onSave={save("arrival_time")}
+          />
+          <FieldRow
+            icon="⏱️"
+            label="Duration"
+            value={d.duration as string | undefined}
+            placeholder="Add duration…"
+            onSave={save("duration")}
           />
           <FieldRow
             icon="🚪"
@@ -46,6 +81,13 @@ export default function FlightArrivalDetail({ card, onSaveDetails }: Props) {
             value={d.terminal as string | undefined}
             placeholder="Add terminal…"
             onSave={save("terminal")}
+          />
+          <FieldRow
+            icon="💺"
+            label="Seat"
+            value={d.seat as string | undefined}
+            placeholder="Add seat…"
+            onSave={save("seat")}
           />
           <FieldRow
             icon="📋"

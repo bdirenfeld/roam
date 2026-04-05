@@ -527,9 +527,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         return <EventDetail card={localCard} onSaveDetails={saveDetails} />;
       case "activity/challenge":
         return <ChallengeDetail card={localCard} onSaveDetails={saveDetails} />;
-      // Legacy fallbacks
       case "logistics/flight_departure":
-        return <LogisticsDetail card={localCard} />;
+        return <FlightArrivalDetail card={localCard} onSaveDetails={saveDetails} />;
       case "logistics/hotel":
         return <HotelDetail card={localCard} onSaveDetails={saveDetails} />;
       case "activity/wellness":
