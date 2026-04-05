@@ -7,14 +7,6 @@ interface Props {
   highlightedCardId?: string | null;
 }
 
-function formatTime(t: string | null): string {
-  if (!t) return "";
-  const [h, m] = t.split(":").map(Number);
-  const period = h >= 12 ? "PM" : "AM";
-  const hour = h % 12 === 0 ? 12 : h % 12;
-  return `${hour}:${String(m).padStart(2, "0")} ${period}`;
-}
-
 function minutesBetween(end: string | null, start: string | null): number {
   if (!end || !start) return 0;
   const [eh, em] = end.split(":").map(Number);
@@ -62,7 +54,6 @@ export default function CardTimeline({ dayWithCards, onCardTap, highlightedCardI
                   <CardSurface
                     card={card}
                     onTap={() => onCardTap(card)}
-                    timeLabel={formatTime(card.start_time)}
                     isHighlighted={highlightedCardId === card.id}
                   />
                 </div>

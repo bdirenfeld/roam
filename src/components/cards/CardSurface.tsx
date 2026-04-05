@@ -3,7 +3,6 @@ import { getMaterialIconHTML } from "@/lib/mapPins";
 
 interface Props {
   card: Card;
-  timeLabel: string;
   onTap: () => void;
   isHighlighted?: boolean;
 }
@@ -25,66 +24,64 @@ const SUB_TYPE_SHORT: Record<string, string> = {
   drinks:           "Drinks",
 };
 
-function duration(start: string | null, end: string | null): string | null {
-  if (!start || !end) return null;
-  const [sh, sm] = start.split(":").map(Number);
-  const [eh, em] = end.split(":").map(Number);
-  const mins = eh * 60 + em - (sh * 60 + sm);
-  if (mins <= 0) return null;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  if (h === 0) return `${m}m`;
-  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+/** Format a single HH:MM time string, optionally including the AM/PM period. */
+function fmtTime(t: string, showPeriod: boolean): string {
+  const [h, m] = t.split(":").map(Number);
+  const period = h >= 12 ? "PM" : "AM";
+  const hour   = h % 12 === 0 ? 12 : h % 12;
+  const mins   = String(m).padStart(2, "0");
+  return showPeriod ? `${hour}:${mins} ${period}` : `${hour}:${mins}`;
 }
 
-export default function CardSurface({ card, timeLabel, onTap, isHighlighted }: Props) {
-  const colors = TYPE_COLOR[card.type];
-  const subLabel = card.sub_type ? SUB_TYPE_SHORT[card.sub_type] : null;
-  const dur = duration(card.start_time, card.end_time);
+/**
+ * Build a time-range string:
+ *   same period  →  "7:00 – 8:30 AM"
+ *   diff periods →  "11:30 AM – 1:00 PM"
+ *   no end time  →  "7:45 PM"
+ */
+function formatTimeRange(start: string | null, end: string | null): string | null {
+  if (!start) return null;
+  if (!end)   return fmtTime(start, true);
+
+  const startPeriod = Number(start.split(":")[0]) >= 12 ? "PM" : "AM";
+  const endPeriod   = Number(end.split(":")[0])   >= 12 ? "PM" : "AM";
+
+  if (startPeriod === endPeriod) {
+    return `${fmtTime(start, false)} – ${fmtTime(end, true)}`;
+  }
+  return `${fmtTime(start, true)} – ${fmtTime(end, true)}`;
+}
+
+export default function CardSurface({ card, onTap, isHighlighted }: Props) {
+  const colors    = TYPE_COLOR[card.type];
+  const subLabel  = card.sub_type ? (SUB_TYPE_SHORT[card.sub_type] ?? null) : null;
+  const timeRange = formatTimeRange(card.start_time, card.end_time);
+  // Subtitle: prefer address, fall back to sub-type label
+  const subtitle  = card.address ?? subLabel;
 
   return (
     <button
       onClick={onTap}
       className={`w-full text-left flex items-center gap-3 p-3 rounded-xl border border-gray-100 border-l-[3px] shadow-card hover:shadow-card-hover transition-all duration-150 active:scale-[0.99] mb-2.5 bg-white ${colors.border}${isHighlighted ? " card-highlight" : ""}`}
     >
-      {/* Left: time + duration */}
-      <div className="flex flex-col items-start gap-0.5 shrink-0 w-14">
-        {timeLabel && (
-          <span className="text-[11px] font-semibold text-gray-500">{timeLabel}</span>
-        )}
-        {dur && (
-          <span className="text-[10px] text-gray-300 font-medium">{dur}</span>
-        )}
-      </div>
-
-      {/* Type icon — Material Symbol, currentColor inherits from text-* class */}
+      {/* Category icon */}
       <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${colors.bg} ${colors.icon}`}>
         {/* eslint-disable-next-line react/no-danger */}
         <div dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(card.sub_type, 18) }} />
       </div>
 
-      {/* Content */}
+      {/* Title + subtitle */}
       <div className="flex-1 min-w-0">
         <p className="text-[13px] font-bold text-gray-900 truncate leading-snug">
           {card.title}
         </p>
-        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-          {subLabel && (
-            <span className="text-[10px] font-semibold text-gray-400">{subLabel}</span>
-          )}
-          {subLabel && (card.address || card.lat) && (
-            <span className="text-gray-200 text-[10px]">·</span>
-          )}
-          {(card.address || card.lat) && (
-            <span className="text-[10px] text-gray-400 flex items-center gap-0.5 truncate">
-              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
-                <circle cx="12" cy="10" r="3" />
-              </svg>
-              {card.address ?? "On map"}
-            </span>
-          )}
-        </div>
+        {(timeRange || subtitle) && (
+          <p className="text-[11px] text-gray-400 mt-0.5 truncate leading-snug">
+            {timeRange}
+            {timeRange && subtitle && <span className="mx-1">·</span>}
+            {subtitle}
+          </p>
+        )}
       </div>
 
       {/* Chevron */}
