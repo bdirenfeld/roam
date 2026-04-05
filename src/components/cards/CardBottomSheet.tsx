@@ -411,7 +411,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     ]);
     const currentTitle = localCard.title ?? "";
     const placeName    = place.title ?? "";
-    if (GENERIC_TITLES.has(currentTitle) && placeName && !currentTitle.includes(placeName)) {
+    if (localCard.type === "food" && GENERIC_TITLES.has(currentTitle) && placeName && !currentTitle.includes(placeName)) {
       topUpdate.title = `${currentTitle} \u2014 ${placeName}`;
     }
 

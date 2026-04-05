@@ -35,7 +35,8 @@ export async function POST(req: NextRequest) {
     .from("cards")
     .select("id, title, details")
     .eq("trip_id", trip_id)
-    .eq("status", "in_itinerary");
+    .eq("status", "in_itinerary")
+    .eq("type", "food");
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
