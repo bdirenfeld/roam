@@ -15,27 +15,6 @@ export default function CoffeeDetail({ card, onSaveDetails }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* THE SPOT */}
-      <div>
-        <SectionLabel>The Spot</SectionLabel>
-        <div className="space-y-4">
-          <FieldRow
-            icon="☕"
-            label="Primary"
-            value={d.primary as string | undefined}
-            placeholder="Add primary pick…"
-            onSave={save("primary")}
-          />
-          <FieldRow
-            icon="🔄"
-            label="Backup"
-            value={d.alternative as string | undefined}
-            placeholder="Add backup option…"
-            onSave={save("alternative")}
-          />
-        </div>
-      </div>
-
       {/* DETAILS */}
       <div>
         <SectionLabel>Details</SectionLabel>
