@@ -210,9 +210,10 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
       });
     });
 
+    const markerInner = markerInnerRef.current;
     return () => {
       cancelled = true;
-      markerInnerRef.current.clear();
+      markerInner.clear();
       if (mapInstanceRef.current) {
         (mapInstanceRef.current as { remove: () => void }).remove();
         mapInstanceRef.current = null;
