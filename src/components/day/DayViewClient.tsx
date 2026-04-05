@@ -144,7 +144,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
   }, []);
 
   return (
-    <div className="flex flex-col h-dvh overflow-hidden">
+    <div className="flex flex-col h-dvh overflow-x-hidden">
       {/* Day strip — sits at the very top, does not scroll */}
       <DayStrip
         days={days}
