@@ -39,7 +39,7 @@ export default function DayStrip({ days, activeDayId, onDaySelect }: Props) {
     : 0;
 
   return (
-    <div className="border-b border-gray-100 bg-white">
+    <div className="sticky top-0 z-20 border-b border-gray-100 bg-white">
       {/* Scrollable tab row */}
       <div className="flex gap-1.5 px-3 py-2.5 overflow-x-auto scrollbar-none">
         {days.map((day) => {
