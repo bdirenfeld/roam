@@ -555,57 +555,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
           </svg>
         </button>
 
-        {/* Right side actions */}
-        <div className="ml-auto flex items-center gap-3">
-          {/* Documents library */}
-          <button
-            onClick={() => setShowDocs(true)}
-            className="flex items-center gap-1 text-[11px] font-semibold text-gray-400 hover:text-gray-600 transition-colors"
-            aria-label="Documents"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-            </svg>
-            Docs
-          </button>
-
-          {/* Upload confirmation */}
-          <div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,image/png,image/jpeg,image/webp"
-            className="hidden"
-            onChange={handleFileChange}
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploadState === "reading"}
-            className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
-          >
-            {uploadState === "reading" ? (
-              <>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="animate-spin">
-                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                </svg>
-                Reading…
-              </>
-            ) : uploadState === "error" ? (
-              <span className="text-red-400">Parse failed</span>
-            ) : (
-              <>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="17 8 12 3 7 8" />
-                  <line x1="12" y1="3" x2="12" y2="15" />
-                </svg>
-                Upload confirmation
-              </>
-            )}
-          </button>
-          </div>{/* end upload div */}
-        </div>{/* end right-side actions */}
+        {/* Right side actions — docs and upload removed */}
       </div>{/* end sub-header */}
 
       {/* Triage view */}
@@ -817,14 +767,6 @@ function DayColumn({ day, cards, totalDays, isPhotoBg, onCardTap, onRemove, onDe
               </>
             )}
           </div>
-          {day.day_name && (
-            <p className="text-xs font-semibold text-gray-700 mt-0.5">{day.day_name}</p>
-          )}
-          {day.narrative_position && (
-            <p className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">
-              {day.narrative_position}
-            </p>
-          )}
         </div>
         {totalDays > 1 && <CopyMenu onCopyStructure={onCopyStructure} />}
       </div>
