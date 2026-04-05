@@ -739,7 +739,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           {/* Action row: [★ rating ·] [📍 Maps] [🌐] [📞 Call] */}
           {(rating !== null || (localCard.lat != null && localCard.lng != null) || website || phone) && (
             <div className="flex items-center gap-2 mt-2">
-              {rating !== null && (
+              {rating !== null && localCard.sub_type !== "flight_arrival" && localCard.sub_type !== "flight_departure" && (
                 <>
                   <span className="text-xs font-semibold text-amber-500">★ {rating.toFixed(1)}</span>
                   <span className="text-gray-200 text-xs">·</span>
