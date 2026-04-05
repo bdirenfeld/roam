@@ -560,20 +560,33 @@ export default function PlanBoard({ trip, initialDays }: Props) {
               />
             )}
 
+            {/* Sticky header row — stays pinned to top while cards scroll freely */}
+            <div
+              className="sticky top-0 z-20 -mx-4 px-4 flex flex-row flex-nowrap gap-[10px] md:gap-4 bg-white/90 backdrop-blur-sm"
+              style={isPhotoBg ? { background: "rgba(255,255,255,0.85)" } : undefined}
+            >
+              {days.map((day) => (
+                <DayColumnHeader
+                  key={day.id}
+                  day={day}
+                  totalDays={days.length}
+                  onCopyStructure={() => handleCopyStructure(day.id)}
+                />
+              ))}
+            </div>
+
             <div className="flex flex-row flex-nowrap gap-[10px] md:gap-4 md:min-w-max">
               {days.map((day, idx) => (
                 <DayColumn
                   key={day.id}
                   day={day}
                   cards={day.cards}
-                  totalDays={days.length}
                   dayIndex={idx}
                   isPhotoBg={isPhotoBg}
                   onCardTap={(card) => setSelectedCard(card)}
                   onRemove={handleRemove}
                   onDelete={handleDelete}
                   onOpenCreateSheet={() => setCreateSheetDayId(day.id)}
-                  onCopyStructure={() => handleCopyStructure(day.id)}
                 />
               ))}
             </div>
@@ -715,41 +728,49 @@ function TemplateBanner({ onSelect, onDismiss }: { onSelect: (key: string) => vo
   );
 }
 
+// ── DayColumnHeader ────────────────────────────────────────────
+interface DayColumnHeaderProps {
+  day: DayWithCards;
+  totalDays: number;
+  onCopyStructure: () => void;
+}
+
+function DayColumnHeader({ day, totalDays, onCopyStructure }: DayColumnHeaderProps) {
+  return (
+    <div className="w-[148px] min-w-[148px] flex-shrink-0 md:w-72 flex items-start justify-between py-2">
+      <div>
+        <div className="flex items-baseline gap-1.5 flex-wrap">
+          <span className="text-sm font-bold text-gray-800">Day {day.day_number}</span>
+          {day.date && (
+            <>
+              <span className="text-gray-300 text-xs">·</span>
+              <span className="text-xs text-gray-500 font-medium">{fmtDate(day.date)}</span>
+            </>
+          )}
+        </div>
+      </div>
+      {totalDays > 1 && <CopyMenu onCopyStructure={onCopyStructure} />}
+    </div>
+  );
+}
+
 // ── DayColumn ──────────────────────────────────────────────────
 interface DayColumnProps {
   day: DayWithCards;
   cards: Card[];
-  totalDays: number;
   dayIndex: number;
   isPhotoBg?: boolean;
   onCardTap: (card: Card) => void;
   onRemove: (cardId: string) => void;
   onDelete: (cardId: string) => void;
   onOpenCreateSheet: () => void;
-  onCopyStructure: () => void;
 }
 
-function DayColumn({ day, cards, totalDays, isPhotoBg, onCardTap, onRemove, onDelete, onOpenCreateSheet, onCopyStructure }: DayColumnProps) {
+function DayColumn({ day, cards, isPhotoBg, onCardTap, onRemove, onDelete, onOpenCreateSheet }: DayColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `${COL_PREFIX}${day.id}` });
 
   return (
-    <div className="flex flex-col w-[148px] min-w-[148px] flex-shrink-0 md:w-72">
-      {/* Column header — sticky on desktop so it stays visible while scrolling through cards */}
-      <div className="flex items-start justify-between mb-2 md:sticky md:top-0 md:z-10 md:bg-white/90 md:backdrop-blur-sm md:rounded-xl md:px-3 md:-mx-3 md:py-2 md:mb-1">
-        <div>
-          <div className="flex items-baseline gap-1.5 flex-wrap">
-            <span className="text-sm font-bold text-gray-800">Day {day.day_number}</span>
-            {day.date && (
-              <>
-                <span className="text-gray-300 text-xs">·</span>
-                <span className="text-xs text-gray-500 font-medium">{fmtDate(day.date)}</span>
-              </>
-            )}
-          </div>
-        </div>
-        {totalDays > 1 && <CopyMenu onCopyStructure={onCopyStructure} />}
-      </div>
-
+    <div className="w-[148px] min-w-[148px] flex-shrink-0 md:w-72">
       {/* Column container — Trello-style gray pill; on mobile fixed max-height with per-column scroll */}
       <div className={`${isPhotoBg ? "bg-[#EBECF0]/80 backdrop-blur-sm" : "bg-[#EBECF0]"} rounded-xl p-3 flex flex-col max-h-[calc(100dvh-11rem)] overflow-y-auto md:max-h-none md:overflow-y-visible`}>
         {/* Cards drop zone */}
