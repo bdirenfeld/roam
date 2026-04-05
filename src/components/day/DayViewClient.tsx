@@ -144,7 +144,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
   }, []);
 
   return (
-    <div className="flex flex-col h-dvh overflow-x-clip">
+    <div className="flex flex-col h-dvh">
       {/* Day strip — sits at the very top, does not scroll */}
       <DayStrip
         days={days}
@@ -175,7 +175,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
 
       {/* Scrollable cards area — only this section scrolls.
           min-h-0 is required so flex children can shrink below their content height. */}
-      <div className="flex-1 overflow-y-auto min-h-0">
+      <div className="flex-1 overflow-y-auto min-h-0 pb-20">
 
         {/* Timeline — keyed to day so it re-mounts on day change.
             Swipe handlers live here only — map and day strip have their own
