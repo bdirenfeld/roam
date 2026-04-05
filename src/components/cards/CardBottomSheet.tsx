@@ -559,7 +559,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       <div
         ref={sheetRef}
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet h-[85dvh] max-h-[90dvh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300"
+        className="relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet h-[95dvh] max-h-[95dvh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300"
         style={{ willChange: "transform" }}
       >
         {/* Drag handle + header — touch-to-dismiss only from this area */}
@@ -571,7 +571,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         >
         {/* Cover photo hero (shown when a place photo is available) */}
         {localCard.cover_image_url ? (
-          <div className="relative w-full h-36 overflow-hidden">
+          <div className="relative w-full h-[160px] overflow-hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={localCard.cover_image_url}
