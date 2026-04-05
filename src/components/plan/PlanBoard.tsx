@@ -33,6 +33,7 @@ import DocumentsSheet from "@/components/plan/DocumentsSheet";
 import TriageView from "@/components/plan/TriageView";
 import BoardBgPicker, { type BoardBg } from "@/components/plan/BoardBgPicker";
 import type { Trip, Card, DayWithCards, CardType, CardStatus } from "@/types/database";
+import { getPriceRange } from "@/lib/priceRange";
 
 // ── Constants ──────────────────────────────────────────────────
 const COL_PREFIX = "col-";
@@ -955,6 +956,11 @@ function CardTile({
   const textClass   = TYPE_TEXT[card.type] ?? "text-gray-500";
   const subLabel    = card.sub_type ? (SUB_LABEL[card.sub_type] ?? card.sub_type) : null;
   const noteSnippet = isNote ? ((card.details as Record<string, unknown>)?.notes as string | undefined) : undefined;
+  const det         = card.details as Record<string, unknown>;
+  const tileRating  = card.type === "food" && typeof det?.rating === "number" ? det.rating as number : null;
+  const priceRange  = card.type === "food"
+    ? getPriceRange(det?.price_level as number | undefined, det?.currency_code as string | undefined)
+    : null;
 
   const timeRange = (() => {
     const s = fmt12(card.start_time);
@@ -1006,6 +1012,11 @@ function CardTile({
             )}
             {subLabel && !isNote && (
               <span className="text-[10px] text-gray-400">{subLabel}</span>
+            )}
+            {priceRange && (
+              <span className="text-[10px] font-semibold text-amber-500">
+                {tileRating !== null ? `★ ${tileRating.toFixed(1)} · ` : ""}{priceRange}
+              </span>
             )}
           </div>
         )}

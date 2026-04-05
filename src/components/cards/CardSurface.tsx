@@ -1,5 +1,6 @@
 import type { Card, CardType } from "@/types/database";
 import { getMaterialIconHTML } from "@/lib/mapPins";
+import { getPriceRange } from "@/lib/priceRange";
 
 interface Props {
   card: Card;
@@ -58,6 +59,11 @@ export default function CardSurface({ card, onTap, isHighlighted }: Props) {
   const timeRange = formatTimeRange(card.start_time, card.end_time);
   // Subtitle: prefer address, fall back to sub-type label
   const subtitle  = card.address ?? subLabel;
+  const det        = card.details as Record<string, unknown> | null;
+  const surfRating = card.type === "food" && typeof det?.rating === "number" ? det.rating as number : null;
+  const priceRange = card.type === "food"
+    ? getPriceRange(det?.price_level as number | undefined, det?.currency_code as string | undefined)
+    : null;
 
   return (
     <button
@@ -80,6 +86,11 @@ export default function CardSurface({ card, onTap, isHighlighted }: Props) {
             {timeRange}
             {timeRange && subtitle && <span className="mx-1">·</span>}
             {subtitle}
+          </p>
+        )}
+        {priceRange && (
+          <p className="text-[10px] font-semibold text-amber-500 mt-0.5 leading-snug">
+            {surfRating !== null ? `★ ${surfRating.toFixed(1)} · ` : ""}{priceRange}
           </p>
         )}
       </div>

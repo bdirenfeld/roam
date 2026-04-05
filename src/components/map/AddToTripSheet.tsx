@@ -154,6 +154,24 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
     if (place.rating)         details.rating         = place.rating;
     if (recommendedBy.trim()) details.recommended_by = recommendedBy.trim();
 
+    // ── Food cards: enrich with price_level + currency_code ───────
+    if (type === "food") {
+      details.place_id = place.placeId;
+      try {
+        const params = new URLSearchParams({ place_id: place.placeId });
+        params.set("lat", String(place.lat));
+        params.set("lng", String(place.lng));
+        const res = await fetch(`/api/places/food-enrich?${params}`);
+        if (res.ok) {
+          const enriched = await res.json() as { price_level: number | null; currency_code: string };
+          if (enriched.price_level != null) details.price_level = enriched.price_level;
+          details.currency_code = enriched.currency_code;
+        }
+      } catch {
+        // non-critical — card saves without enrichment
+      }
+    }
+
     const finalSubType = subType ?? DEFAULT_SUB_TYPE[type];
 
     const newCard: Card = {
