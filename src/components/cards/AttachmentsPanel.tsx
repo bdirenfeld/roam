@@ -281,7 +281,7 @@ export default function AttachmentsPanel({ card, onClose, onCardUpdate }: Props)
       // Build top-level column updates — only set if currently null/undefined
       const topLevelUpdate: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(topLevel)) {
-        if (v != null && (card as Record<string, unknown>)[k] == null) {
+        if (v != null && (card as unknown as Record<string, unknown>)[k] == null) {
           topLevelUpdate[k] = v;
         }
       }
