@@ -14,14 +14,14 @@ export default function AppLayout({
 
   return isFullWidthPage ? (
     <>
-      <main className="flex-1 overflow-y-auto pb-20">{children}</main>
+      <main className="flex-1 pb-20">{children}</main>
       <Suspense>
         <BottomNav />
       </Suspense>
     </>
   ) : (
     <div className="mobile-container flex flex-col bg-white">
-      <main className="flex-1 overflow-y-auto pb-20">{children}</main>
+      <main className="flex-1 pb-20">{children}</main>
       <Suspense>
         <BottomNav />
       </Suspense>
