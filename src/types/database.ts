@@ -119,6 +119,9 @@ export interface FoodDetails {
   reservation_status?: 'walk-in' | 'reserved' | 'booked'
   reservation_time?: string
   ai_enriched?: AiEnriched
+  place_id?: string
+  price_level?: number
+  currency_code?: string
 }
 
 export type CardDetails = LogisticsDetails & ActivityDetails & FoodDetails & Record<string, unknown>
