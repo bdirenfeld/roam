@@ -223,17 +223,20 @@ export default function ConfirmationPreviewSheet({
       if (!error) createdCards.push(newCard);
     }
 
-    // Fix 5 — save document record
+    // Save document record — best-effort, never blocks card creation
+    const { data: { user } } = await supabase.auth.getUser();
     const documentType = items[0]?.type.startsWith("flight") ? "flight"
                        : items[0]?.type ?? "activity";
-    await supabase.from("documents").insert({
+    const { error: docError } = await supabase.from("documents").insert({
       trip_id:       tripId,
+      user_id:       user?.id ?? null,
       file_name:     fileName,
       file_type:     fileType,
       document_type: documentType,
       parsed_data:   items,
       card_ids:      createdCards.map((c) => c.id),
     });
+    if (docError) console.error("[ConfirmationPreviewSheet] Failed to save document record:", docError);
 
     setSaving(false);
     onCardsCreated(createdCards, deletedIds);
