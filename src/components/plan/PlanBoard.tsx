@@ -985,7 +985,7 @@ function CardTile({
           <img
             src={card.cover_image_url}
             alt=""
-            className="w-full h-[120px] object-cover"
+            className="w-full h-24 object-cover"
             draggable={false}
           />
         )}
@@ -999,7 +999,7 @@ function CardTile({
               <line x1="16" y1="17" x2="8" y2="17" />
             </svg>
           )}
-          <p className="text-[13px] font-bold text-gray-900 leading-snug line-clamp-2">
+          <p className="text-[13px] font-bold text-gray-900 leading-snug">
             {card.title}
           </p>
         </div>
