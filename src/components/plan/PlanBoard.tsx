@@ -733,7 +733,7 @@ function DayColumn({ day, cards, totalDays, isPhotoBg, onCardTap, onRemove, onDe
   const { setNodeRef, isOver } = useDroppable({ id: `${COL_PREFIX}${day.id}` });
 
   return (
-    <div className="flex flex-col w-[260px] min-w-[260px] flex-shrink-0 md:w-72">
+    <div className="flex flex-col w-[148px] min-w-[148px] flex-shrink-0 md:w-72">
       {/* Column header — sticky on desktop so it stays visible while scrolling through cards */}
       <div className="flex items-start justify-between mb-2 md:sticky md:top-0 md:z-10 md:bg-white/90 md:backdrop-blur-sm md:rounded-xl md:px-3 md:-mx-3 md:py-2 md:mb-1">
         <div>
