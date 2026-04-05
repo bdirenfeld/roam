@@ -263,6 +263,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   // Local optimistic state
   const [localCard, setLocalCard] = useState<Card>(card);
   const [showDayPicker,     setShowDayPicker]     = useState(false);
+  const [showMovePicker,    setShowMovePicker]    = useState(false);
   const [showLinkSheet,     setShowLinkSheet]     = useState(false);
   const [showAttachments,   setShowAttachments]   = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -469,6 +470,30 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
 
       if (error) {
         console.error("Failed to assign to day", error.message);
+        setLocalCard(prev);
+        onCardUpdate?.(prev);
+      }
+    },
+    [localCard, onCardUpdate, supabase],
+  );
+
+  // ── Move to different day (in_itinerary) ─────────────────────
+  const handleMoveToDay = useCallback(
+    async (day: Day) => {
+      setShowMovePicker(false);
+      if (day.id === localCard.day_id) return;
+      const prev = localCard;
+      const updated = { ...localCard, day_id: day.id };
+      setLocalCard(updated);
+      onCardUpdate?.(updated);
+
+      const { error } = await supabase
+        .from("cards")
+        .update({ day_id: day.id })
+        .eq("id", localCard.id);
+
+      if (error) {
+        console.error("Failed to move to day", error.message);
         setLocalCard(prev);
         onCardUpdate?.(prev);
       }
@@ -826,6 +851,18 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             </div>
           )}
 
+          {/* Move to Day — for in_itinerary cards (useful on mobile) */}
+          {localCard.status === "in_itinerary" && days && days.length > 1 && !showDeleteConfirm && (
+            <div className="px-5 pt-3 pb-2">
+              <button
+                onClick={() => setShowMovePicker(true)}
+                className="w-full py-2.5 rounded-xl bg-gray-100 text-gray-700 text-[13px] font-semibold hover:bg-gray-200 active:scale-[0.98] transition-all"
+              >
+                Move to Day
+              </button>
+            </div>
+          )}
+
           {/* Delete confirmation */}
           {showDeleteConfirm && (
             <div className="px-5 pt-3 pb-5">
@@ -873,6 +910,55 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               onLink={handleLinkPlace}
               onClose={() => setShowLinkSheet(false)}
             />
+          </div>
+        )}
+
+        {/* Move to day picker overlay */}
+        {showMovePicker && days && (
+          <div className="absolute inset-0 z-10 bg-white rounded-t-2xl flex flex-col">
+            <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-gray-100 flex-shrink-0">
+              <h3 className="text-[16px] font-bold text-gray-900">Move to day</h3>
+              <button
+                onClick={() => setShowMovePicker(false)}
+                className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                aria-label="Close"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1">
+              {days.map((day) => {
+                const isCurrent = day.id === localCard.day_id;
+                return (
+                  <button
+                    key={day.id}
+                    onClick={() => handleMoveToDay(day)}
+                    disabled={isCurrent}
+                    className={`w-full flex items-center gap-3 px-5 py-4 border-b border-gray-50 transition-colors text-left ${isCurrent ? "opacity-40 cursor-default" : "hover:bg-gray-50 active:bg-gray-100"}`}
+                  >
+                    <div className="w-8 h-8 rounded-full bg-teal-50 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[12px] font-bold text-activity">{day.day_number}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[14px] font-medium text-gray-900">
+                        Day {day.day_number}{day.day_name ? ` — ${day.day_name}` : ""}
+                        {isCurrent && <span className="ml-2 text-[11px] text-gray-400 font-normal">current</span>}
+                      </p>
+                      {day.date && (
+                        <p className="text-[12px] text-gray-400">
+                          {new Date(day.date + "T00:00:00").toLocaleDateString("en-US", {
+                            weekday: "short", month: "short", day: "numeric",
+                          })}
+                        </p>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 

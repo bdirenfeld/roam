@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
 import {
   DndContext,
@@ -196,6 +196,17 @@ export default function PlanBoard({ trip, initialDays }: Props) {
     return { type: "color", value: "#ffffff" };
   });
 
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileDayIdx, setMobileDayIdx] = useState(0);
+  const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
   const daysRef = useRef(days);
   daysRef.current = days;
 
@@ -318,11 +329,70 @@ export default function PlanBoard({ trip, initialDays }: Props) {
     }
   }, [persistChanges]);
 
+  // ── Mobile drag (within-day only) ─────────────────────────────
+  const handleMobileDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveId(null);
+    const snapshot = preDragSnapshot.current;
+    preDragSnapshot.current = null;
+    if (!over || !snapshot) {
+      if (snapshot) setDays(snapshot);
+      return;
+    }
+    const activeCardId = active.id as string;
+    const overId = over.id as string;
+    let finalDays = daysRef.current;
+    if (activeCardId !== overId && !overId.startsWith(COL_PREFIX)) {
+      const dayIdx = finalDays.findIndex((d) => d.cards.some((c) => c.id === activeCardId));
+      if (dayIdx >= 0 && finalDays[dayIdx].cards.some((c) => c.id === overId)) {
+        const oldIdx = finalDays[dayIdx].cards.findIndex((c) => c.id === activeCardId);
+        const newIdx = finalDays[dayIdx].cards.findIndex((c) => c.id === overId);
+        if (oldIdx !== newIdx) {
+          finalDays = finalDays.map((d, i) =>
+            i === dayIdx ? { ...d, cards: arrayMove(d.cards, oldIdx, newIdx) } : d
+          );
+          setDays(finalDays);
+        }
+      }
+    }
+    try {
+      await persistChanges(snapshot, finalDays);
+    } catch {
+      setDays(snapshot);
+    }
+  }, [persistChanges]);
+
+  // ── Swipe navigation ───────────────────────────────────────────
+  const handleSwipeTouchStart = useCallback((e: React.TouchEvent) => {
+    const t = e.touches[0];
+    swipeStartRef.current = { x: t.clientX, y: t.clientY };
+  }, []);
+
+  const handleSwipeTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (!swipeStartRef.current) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - swipeStartRef.current.x;
+    const dy = t.clientY - swipeStartRef.current.y;
+    swipeStartRef.current = null;
+    if (Math.abs(dx) > 50 && Math.abs(dy) < Math.abs(dx) * 0.6) {
+      if (dx < 0) setMobileDayIdx((prev) => Math.min(prev + 1, daysRef.current.length - 1));
+      else setMobileDayIdx((prev) => Math.max(prev - 1, 0));
+    }
+  }, []);
+
   // ── Card edits ────────────────────────────────────────────────
   const handleCardUpdate = useCallback((updated: Card) => {
-    setDays((prev) =>
-      prev.map((d) => ({ ...d, cards: d.cards.map((c) => (c.id === updated.id ? updated : c)) }))
-    );
+    setDays((prev) => {
+      const srcDay = prev.find((d) => d.cards.some((c) => c.id === updated.id));
+      if (srcDay && updated.day_id && srcDay.id !== updated.day_id) {
+        return prev.map((d) => {
+          if (d.id === srcDay.id) return { ...d, cards: d.cards.filter((c) => c.id !== updated.id) };
+          if (d.id === updated.day_id) return { ...d, cards: [...d.cards, updated] };
+          return d;
+        });
+      }
+      return prev.map((d) => ({ ...d, cards: d.cards.map((c) => (c.id === updated.id ? updated : c)) }));
+    });
     setSelectedCard((prev) => (prev?.id === updated.id ? updated : prev));
   }, []);
 
@@ -470,6 +540,8 @@ export default function PlanBoard({ trip, initialDays }: Props) {
   const firstDay    = initialDays[0];
   const activeCard  = activeId ? findCard(activeId) : null;
   const allEmpty    = days.every((d) => d.cards.length === 0);
+  const safeMobileIdx = Math.min(mobileDayIdx, Math.max(0, days.length - 1));
+  const currentMobileDay = days[safeMobileIdx];
 
   const boardBgStyle: React.CSSProperties =
     boardBg.type === "photo"
@@ -538,75 +610,153 @@ export default function PlanBoard({ trip, initialDays }: Props) {
 
       {/* Board */}
       {viewMode === "board" && (
-        <div className="flex-1 flex flex-col">
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCorners}
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
-            onDragEnd={handleDragEnd}
-          >
-            {/* Single horizontal scroll container — both the sticky header row
-                and the card columns live here so they pan together with no JS.
-                overflow-x handles horizontal scroll; overflow-y:clip is set
-                explicitly so sticky top-0 on the header can never be broken by
-                future content growth (overflow-x-auto alone would implicitly set
-                overflow-y:auto which would create a new scroll container). */}
-            <div
-              className="flex-1 overflow-x-auto [overflow-y:clip]"
-              style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "none" } as React.CSSProperties}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {isMobile ? (
+            /* ── Mobile: single-day view with swipe navigation ── */
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCorners}
+              onDragStart={handleDragStart}
+              onDragEnd={handleMobileDragEnd}
             >
-              {/* Sticky header row */}
-              <div
-                className="sticky top-0 z-20 flex flex-row flex-nowrap gap-[10px] md:gap-4 px-4"
-                style={
-                  isPhotoBg
-                    ? { background: "rgba(255,255,255,0.85)", backdropFilter: "blur(8px)" }
-                    : { background: "rgba(255,255,255,0.95)" }
-                }
-              >
-                {days.map((day) => (
-                  <DayColumnHeader
-                    key={day.id}
-                    day={day}
-                    totalDays={days.length}
-                    onCopyStructure={() => handleCopyStructure(day.id)}
-                  />
-                ))}
+              {/* Day navigation header */}
+              <div className="flex items-center justify-between px-3 py-2 bg-white border-b border-gray-100 flex-shrink-0">
+                <button
+                  onClick={() => setMobileDayIdx((prev) => Math.max(prev - 1, 0))}
+                  disabled={safeMobileIdx === 0}
+                  className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-600 disabled:opacity-25"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <div className="text-center">
+                  <p className="text-sm font-bold text-gray-900">Day {currentMobileDay?.day_number}</p>
+                  {currentMobileDay?.date && (
+                    <p className="text-xs text-gray-400">{fmtDate(currentMobileDay.date)}</p>
+                  )}
+                </div>
+                <button
+                  onClick={() => setMobileDayIdx((prev) => Math.min(prev + 1, days.length - 1))}
+                  disabled={safeMobileIdx >= days.length - 1}
+                  className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-600 disabled:opacity-25"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
               </div>
 
-              {/* Card columns */}
-              <div className="p-4 pb-28 md:pb-6">
-                {/* Template banner — only when every day is empty, or manually triggered */}
-                {(allEmpty || showTemplatePicker) && days.length > 0 && (
-                  <TemplateBanner
-                    onSelect={(key) => { handleApplyTemplate(key); setShowTemplatePicker(false); }}
-                    onDismiss={showTemplatePicker && !allEmpty ? () => setShowTemplatePicker(false) : undefined}
-                  />
-                )}
-
-                <div className="flex flex-row flex-nowrap gap-[10px] md:gap-4 md:min-w-max">
-                  {days.map((day, idx) => (
-                    <DayColumn
-                      key={day.id}
-                      day={day}
-                      cards={day.cards}
-                      dayIndex={idx}
-                      isPhotoBg={isPhotoBg}
-                      onCardTap={(card) => setSelectedCard(card)}
-                      onRemove={handleRemove}
-                      onDelete={handleDelete}
-                      onOpenCreateSheet={() => setCreateSheetDayId(day.id)}
+              {/* Dot indicators */}
+              {days.length > 1 && (
+                <div className="flex items-center justify-center gap-1.5 py-1.5 flex-shrink-0 bg-white">
+                  {days.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setMobileDayIdx(i)}
+                      className={`rounded-full transition-all duration-200 ${i === safeMobileIdx ? "w-4 h-1.5 bg-gray-600" : "w-1.5 h-1.5 bg-gray-300"}`}
                     />
                   ))}
                 </div>
-              </div>
-            </div>
+              )}
 
-            <DragOverlay>
-              {activeCard && <CardTile card={activeCard} isOverlay />}
-            </DragOverlay>
-          </DndContext>
+              {/* Swipeable day content */}
+              {currentMobileDay && (
+                <div
+                  className="flex-1 overflow-y-auto px-3 pt-2 pb-28"
+                  onTouchStart={handleSwipeTouchStart}
+                  onTouchEnd={handleSwipeTouchEnd}
+                >
+                  {(allEmpty || showTemplatePicker) && days.length > 0 && (
+                    <TemplateBanner
+                      onSelect={(key) => { handleApplyTemplate(key); setShowTemplatePicker(false); }}
+                      onDismiss={showTemplatePicker && !allEmpty ? () => setShowTemplatePicker(false) : undefined}
+                    />
+                  )}
+                  <DayColumn
+                    day={currentMobileDay}
+                    cards={currentMobileDay.cards}
+                    dayIndex={safeMobileIdx}
+                    isPhotoBg={isPhotoBg}
+                    fullWidth
+                    onCardTap={(card) => setSelectedCard(card)}
+                    onRemove={handleRemove}
+                    onDelete={handleDelete}
+                    onOpenCreateSheet={() => setCreateSheetDayId(currentMobileDay.id)}
+                  />
+                </div>
+              )}
+
+              <DragOverlay>
+                {activeCard && <CardTile card={activeCard} isOverlay />}
+              </DragOverlay>
+            </DndContext>
+          ) : (
+            /* ── Desktop: multi-column Kanban ── */
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCorners}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragEnd={handleDragEnd}
+            >
+              {/* Single horizontal scroll container — both the sticky header row
+                  and the card columns live here so they pan together with no JS.
+                  overflow-x handles horizontal scroll; overflow-y:clip is set
+                  explicitly so sticky top-0 on the header can never be broken by
+                  future content growth (overflow-x-auto alone would implicitly set
+                  overflow-y:auto which would create a new scroll container). */}
+              <div
+                className="flex-1 overflow-x-auto [overflow-y:clip]"
+                style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "none" } as React.CSSProperties}
+              >
+                {/* Sticky header row */}
+                <div
+                  className="sticky top-0 z-20 flex flex-row flex-nowrap gap-[10px] md:gap-4 px-4"
+                  style={
+                    isPhotoBg
+                      ? { background: "rgba(255,255,255,0.85)", backdropFilter: "blur(8px)" }
+                      : { background: "rgba(255,255,255,0.95)" }
+                  }
+                >
+                  {days.map((day) => (
+                    <DayColumnHeader
+                      key={day.id}
+                      day={day}
+                      totalDays={days.length}
+                      onCopyStructure={() => handleCopyStructure(day.id)}
+                    />
+                  ))}
+                </div>
+
+                {/* Card columns */}
+                <div className="p-4 pb-28 md:pb-6">
+                  {(allEmpty || showTemplatePicker) && days.length > 0 && (
+                    <TemplateBanner
+                      onSelect={(key) => { handleApplyTemplate(key); setShowTemplatePicker(false); }}
+                      onDismiss={showTemplatePicker && !allEmpty ? () => setShowTemplatePicker(false) : undefined}
+                    />
+                  )}
+
+                  <div className="flex flex-row flex-nowrap gap-[10px] md:gap-4 md:min-w-max">
+                    {days.map((day, idx) => (
+                      <DayColumn
+                        key={day.id}
+                        day={day}
+                        cards={day.cards}
+                        dayIndex={idx}
+                        isPhotoBg={isPhotoBg}
+                        onCardTap={(card) => setSelectedCard(card)}
+                        onRemove={handleRemove}
+                        onDelete={handleDelete}
+                        onOpenCreateSheet={() => setCreateSheetDayId(day.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <DragOverlay>
+                {activeCard && <CardTile card={activeCard} isOverlay />}
+              </DragOverlay>
+            </DndContext>
+          )}
         </div>
       )}{/* end board */}
 
@@ -704,6 +854,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
           onClose={() => setSelectedCard(null)}
           onCardUpdate={handleCardUpdate}
           onCardDelete={handleDelete}
+          days={days}
           tripDestination={trip.destination}
         />
       )}
@@ -772,17 +923,18 @@ interface DayColumnProps {
   cards: Card[];
   dayIndex: number;
   isPhotoBg?: boolean;
+  fullWidth?: boolean;
   onCardTap: (card: Card) => void;
   onRemove: (cardId: string) => void;
   onDelete: (cardId: string) => void;
   onOpenCreateSheet: () => void;
 }
 
-function DayColumn({ day, cards, isPhotoBg, onCardTap, onRemove, onDelete, onOpenCreateSheet }: DayColumnProps) {
+function DayColumn({ day, cards, isPhotoBg, fullWidth, onCardTap, onRemove, onDelete, onOpenCreateSheet }: DayColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `${COL_PREFIX}${day.id}` });
 
   return (
-    <div className="w-[148px] min-w-[148px] flex-shrink-0 md:w-72">
+    <div className={fullWidth ? "w-full" : "w-[148px] min-w-[148px] flex-shrink-0 md:w-72"}>
       {/* Column container — Trello-style gray pill; on mobile fixed max-height with per-column scroll */}
       <div className={`${isPhotoBg ? "bg-[#EBECF0]/80 backdrop-blur-sm" : "bg-[#EBECF0]"} rounded-xl p-3 flex flex-col max-h-[calc(100dvh-11rem)] overflow-y-auto md:max-h-none md:overflow-y-visible`}>
         {/* Cards drop zone */}
