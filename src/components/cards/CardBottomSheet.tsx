@@ -659,11 +659,14 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             <p className="text-xs text-gray-400 leading-snug mt-1">{addressLine}</p>
           )}
 
-          {/* Action row: rating · [Maps] [Call] */}
-          {(rating !== null || (localCard.lat != null && localCard.lng != null) || phone) && (
-            <div className="flex items-center gap-3 mt-2">
+          {/* Action row: [★ rating ·] [📍 Maps] [🌐] [📞 Call] */}
+          {(rating !== null || (localCard.lat != null && localCard.lng != null) || website || phone) && (
+            <div className="flex items-center gap-2 mt-2">
               {rating !== null && (
-                <span className="text-xs font-semibold text-amber-500">★ {rating.toFixed(1)}</span>
+                <>
+                  <span className="text-xs font-semibold text-amber-500">★ {rating.toFixed(1)}</span>
+                  <span className="text-gray-200 text-xs">·</span>
+                </>
               )}
               {localCard.lat != null && localCard.lng != null && (
                 <a
@@ -679,6 +682,21 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   Maps
                 </a>
               )}
+              {website && (
+                <a
+                  href={website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Website"
+                  className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-gray-50 border border-gray-100 text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="2" y1="12" x2="22" y2="12" />
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                  </svg>
+                </a>
+              )}
               {phone && (
                 <a
                   href={phone.href}
@@ -690,25 +708,6 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   Call
                 </a>
               )}
-            </div>
-          )}
-
-          {/* Website quick-link */}
-          {website && (
-            <div className="flex items-center gap-2 mt-2">
-              <a
-                href={website}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-50 border border-gray-100 text-[11px] font-semibold text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors max-w-[180px]"
-              >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="2" y1="12" x2="22" y2="12" />
-                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                </svg>
-                <span className="truncate">{website.replace(/^https?:\/\/(www\.)?/, "")}</span>
-              </a>
             </div>
           )}
         </div>
