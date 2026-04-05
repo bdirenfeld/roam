@@ -540,7 +540,10 @@ export default function PlanBoard({ trip, initialDays }: Props) {
       )}
 
       {/* Board */}
-      {viewMode === "board" && <div className="flex-1 overflow-auto">
+      {viewMode === "board" && <div
+        className="flex-1 overflow-auto"
+        style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "none" } as React.CSSProperties}
+      >
         <DndContext
           sensors={sensors}
           collisionDetection={closestCorners}
@@ -557,7 +560,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
               />
             )}
 
-            <div className="flex flex-col md:flex-row gap-4 md:min-w-max">
+            <div className="flex flex-row flex-nowrap gap-[10px] md:gap-4 md:min-w-max">
               {days.map((day, idx) => (
                 <DayColumn
                   key={day.id}
@@ -730,7 +733,7 @@ function DayColumn({ day, cards, totalDays, isPhotoBg, onCardTap, onRemove, onDe
   const { setNodeRef, isOver } = useDroppable({ id: `${COL_PREFIX}${day.id}` });
 
   return (
-    <div className="flex flex-col w-full md:w-72 md:flex-shrink-0">
+    <div className="flex flex-col w-[260px] min-w-[260px] flex-shrink-0 md:w-72">
       {/* Column header — sticky on desktop so it stays visible while scrolling through cards */}
       <div className="flex items-start justify-between mb-2 md:sticky md:top-0 md:z-10 md:bg-white/90 md:backdrop-blur-sm md:rounded-xl md:px-3 md:-mx-3 md:py-2 md:mb-1">
         <div>
@@ -747,8 +750,8 @@ function DayColumn({ day, cards, totalDays, isPhotoBg, onCardTap, onRemove, onDe
         {totalDays > 1 && <CopyMenu onCopyStructure={onCopyStructure} />}
       </div>
 
-      {/* Column container — Trello-style gray pill */}
-      <div className={`${isPhotoBg ? "bg-[#EBECF0]/80 backdrop-blur-sm" : "bg-[#EBECF0]"} rounded-xl p-3 flex flex-col`}>
+      {/* Column container — Trello-style gray pill; on mobile fixed max-height with per-column scroll */}
+      <div className={`${isPhotoBg ? "bg-[#EBECF0]/80 backdrop-blur-sm" : "bg-[#EBECF0]"} rounded-xl p-3 flex flex-col max-h-[calc(100dvh-11rem)] overflow-y-auto md:max-h-none md:overflow-y-visible`}>
         {/* Cards drop zone */}
         <div
           ref={setNodeRef}
