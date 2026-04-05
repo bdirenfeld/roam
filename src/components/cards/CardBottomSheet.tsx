@@ -52,6 +52,29 @@ const SUB_TYPE_LABEL: Record<string, string> = {
   note:             "Note",
 };
 
+// ── Sub-type options per parent type ──────────────────────────
+const SUB_TYPE_OPTIONS: Record<string, { value: string; label: string }[]> = {
+  activity: [
+    { value: "guided",       label: "Guided Experience" },
+    { value: "self_directed",label: "Self-Directed" },
+    { value: "wellness",     label: "Wellness" },
+    { value: "event",        label: "Event" },
+    { value: "challenge",    label: "Challenge" },
+  ],
+  food: [
+    { value: "restaurant",   label: "Restaurant" },
+    { value: "coffee_dessert",label: "Coffee & Pastry" },
+    { value: "cocktail_bar", label: "Cocktail Bar" },
+    { value: "drinks",       label: "Drinks" },
+  ],
+  logistics: [
+    { value: "hotel",            label: "Hotel" },
+    { value: "flight_arrival",   label: "Flight Arrival" },
+    { value: "flight_departure", label: "Flight Departure" },
+    { value: "transit",          label: "Transit" },
+  ],
+};
+
 // ── Type accent colours ────────────────────────────────────────
 const TYPE_ACCENT: Record<string, { dot: string; bg: string; text: string }> = {
   logistics: { dot: "bg-logistics", bg: "bg-slate-50",  text: "text-logistics" },
@@ -239,12 +262,14 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
 
   // Local optimistic state
   const [localCard, setLocalCard] = useState<Card>(card);
-  const [showDayPicker,    setShowDayPicker]    = useState(false);
-  const [showLinkSheet,    setShowLinkSheet]    = useState(false);
-  const [showAttachments,  setShowAttachments]  = useState(false);
+  const [showDayPicker,     setShowDayPicker]     = useState(false);
+  const [showLinkSheet,     setShowLinkSheet]     = useState(false);
+  const [showAttachments,   setShowAttachments]   = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleting,        setIsDeleting]        = useState(false);
+  const [deleteError,       setDeleteError]       = useState<string | null>(null);
+  const [showSubTypePicker, setShowSubTypePicker] = useState(false);
+  const [linkMergeMessage,  setLinkMergeMessage]  = useState<string | null>(null);
 
   // ── Keyboard escape ────────────────────────────────────────
   useEffect(() => {
@@ -339,54 +364,66 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     [localCard, onCardUpdate, saveTopLevel, supabase]
   );
 
-  // ── Link place from map ───────────────────────────────────────
+  // ── Link place from map — merge, don't replace ───────────────
   const handleLinkPlace = useCallback(async (place: Card) => {
     setShowLinkSheet(false);
-    const placeDetails = place.details as Record<string, unknown> | null;
+    const placeDetails = (place.details ?? {}) as Record<string, unknown>;
+    const currentDetails = (localCard.details ?? {}) as Record<string, unknown>;
 
-    // Merge all place details into the skeleton
-    const mergedDetails = {
-      ...(placeDetails ?? {}),
-      // Ensure typed fields are present with correct types
-      ...(typeof placeDetails?.website        === "string" ? { website:        placeDetails.website        } : {}),
-      ...(typeof placeDetails?.phone          === "string" ? { phone:          placeDetails.phone          } : {}),
-      ...(typeof placeDetails?.rating         === "number" ? { rating:         placeDetails.rating         } : {}),
-      ...(typeof placeDetails?.place_id       === "string" ? { place_id:       placeDetails.place_id       } : {}),
-      ...(typeof placeDetails?.recommended_by === "string" ? { recommended_by: placeDetails.recommended_by } : {}),
-    };
+    // Merge details: only fill fields that are null/empty on the current card
+    const mergedDetails: Record<string, unknown> = { ...currentDetails };
+    let addedCount = 0;
+    let keptCount  = 0;
+    for (const [key, val] of Object.entries(placeDetails)) {
+      if (val == null || val === "") continue;
+      if (currentDetails[key] == null || currentDetails[key] === "") {
+        mergedDetails[key] = val;
+        addedCount++;
+      } else {
+        keptCount++;
+      }
+    }
 
-    // Skeleton card absorbs ALL real place data (keeps its id/day_id/position in Kanban)
+    // Top-level fields: only fill if null/empty on the current card
+    type TopField = "title" | "type" | "sub_type" | "lat" | "lng" | "address" | "cover_image_url" | "source_url";
+    const topFields: TopField[] = ["title", "type", "sub_type", "lat", "lng", "address", "cover_image_url", "source_url"];
+    const topUpdate: Partial<Record<TopField, unknown>> = {};
+    for (const field of topFields) {
+      const placeVal = place[field] as unknown;
+      const curVal   = localCard[field] as unknown;
+      if (placeVal != null && placeVal !== "" && (curVal == null || curVal === "")) {
+        topUpdate[field] = placeVal;
+      } else if (placeVal != null && placeVal !== "" && curVal != null && curVal !== "") {
+        keptCount++;
+      }
+    }
+    // Always absorb coordinates and place identity — they don't conflict
+    if (place.lat  != null) topUpdate.lat  = place.lat;
+    if (place.lng  != null) topUpdate.lng  = place.lng;
+    if (place.type != null) topUpdate.type = place.type;
+    if (place.sub_type != null) topUpdate.sub_type = place.sub_type;
+
     const updated: Card = {
       ...localCard,
-      title:           place.title,
-      type:            place.type,
-      sub_type:        place.sub_type,
-      lat:             place.lat,
-      lng:             place.lng,
-      address:         place.address,
-      cover_image_url: place.cover_image_url,
-      source_url:      place.source_url,
-      details:         mergedDetails,
+      ...(topUpdate as Partial<Card>),
+      details: mergedDetails as typeof localCard.details,
     };
 
     setLocalCard(updated);
     onCardUpdate?.(updated);
 
-    // Persist all inherited fields to the skeleton card
+    // Show brief merge summary when existing fields were kept
+    if (keptCount > 0) {
+      setLinkMergeMessage(`Added ${addedCount}, kept ${keptCount} existing`);
+      setTimeout(() => setLinkMergeMessage(null), 4000);
+    }
+
     await supabase.from("cards").update({
-      title:           place.title,
-      type:            place.type,
-      sub_type:        place.sub_type,
-      lat:             place.lat,
-      lng:             place.lng,
-      address:         place.address,
-      cover_image_url: place.cover_image_url,
-      source_url:      place.source_url,
-      details:         mergedDetails,
+      ...(topUpdate as Record<string, unknown>),
+      details: mergedDetails,
     }).eq("id", localCard.id);
 
-    // Remove the now-absorbed interested pin — the skeleton card (which is already
-    // in_itinerary with lat/lng) will render as a solid pin on the map
+    // Remove the now-absorbed interested pin
     await supabase.from("cards").delete().eq("id", place.id);
   }, [localCard, onCardUpdate, supabase]);
 
@@ -425,6 +462,15 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       }
     },
     [localCard, onCardUpdate, supabase],
+  );
+
+  // ── Sub-type change ────────────────────────────────────────
+  const handleSubTypeChange = useCallback(
+    async (newSubType: string) => {
+      setShowSubTypePicker(false);
+      await saveTopLevel("sub_type", newSubType);
+    },
+    [saveTopLevel],
   );
 
   // ── Derived display values ─────────────────────────────────
@@ -551,13 +597,45 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           {/* Top row: type badge + booking badge + [📍 Link] [🗑 Delete] [✕ Close] */}
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
-              <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${accent.bg}`}>
-                <span className={`w-2 h-2 rounded-full ${accent.dot}`} />
-                <span className={`text-[11px] font-semibold ${accent.text}`}>{typeLabel}</span>
+              {/* Type badge — tappable to change sub-type */}
+              <div className="relative">
+                <button
+                  onClick={() => !isNote && setShowSubTypePicker((v) => !v)}
+                  className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${accent.bg} ${!isNote ? "hover:opacity-80 active:opacity-70 transition-opacity cursor-pointer" : "cursor-default"}`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${accent.dot}`} />
+                  <span className={`text-[11px] font-semibold ${accent.text}`}>{typeLabel}</span>
+                  {!isNote && (
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className={accent.text}>
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  )}
+                </button>
+                {showSubTypePicker && !isNote && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setShowSubTypePicker(false)} />
+                    <div className="absolute left-0 top-8 z-20 bg-white rounded-xl shadow-sheet border border-gray-100 py-1 min-w-[180px]">
+                      {(SUB_TYPE_OPTIONS[localCard.type] ?? []).map(({ value, label }) => (
+                        <button
+                          key={value}
+                          onClick={() => handleSubTypeChange(value)}
+                          className={`w-full text-left px-4 py-2.5 text-[13px] transition-colors hover:bg-gray-50 ${localCard.sub_type === value ? "font-bold text-gray-900" : "text-gray-700"}`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
               {badge && (
                 <span className={`text-[11px] font-semibold px-2 py-1 rounded-lg border ${badge.classes}`}>
                   {badge.label}
+                </span>
+              )}
+              {linkMergeMessage && (
+                <span className="text-[11px] font-medium text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full">
+                  {linkMergeMessage}
                 </span>
               )}
             </div>

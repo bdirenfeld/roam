@@ -18,10 +18,13 @@ const TYPE_SUB_TYPES: Record<CardType, string[]> = {
   logistics: ["hotel", "flight_arrival", "flight_departure", "transit"],
 };
 
-// Display order within each type
+// Display order — one row per visible group.
+// "hosted" is intentionally omitted: hosted cards are folded into the "guided" bucket.
+// All other activity sub-types (self_directed, wellness, event, challenge) are explicit
+// so they always show when matching pins exist.
 const SUB_ORDER: Record<CardType, string[]> = {
-  food:      ["restaurant", "coffee", "coffee_dessert", "cocktail_bar", "drinks", "bar"],
-  activity:  ["guided", "hosted", "self_directed", "wellness", "event", "challenge"],
+  food:      ["restaurant", "coffee", "cocktail_bar"],
+  activity:  ["guided", "self_directed", "wellness", "event", "challenge"],
   logistics: ["hotel", "flight_arrival", "flight_departure", "transit"],
 };
 
@@ -249,8 +252,12 @@ export default function LinkPlaceSheet({ tripId, cardType, onLink, onClose }: Pr
     }))
     .filter((g) => g.cards.length > 0);
 
-  // Also bucket any sub_type not in validSubTypes
+  // Bucket any sub_type not captured by the grouped display into "Other"
+  // knownSubs covers all sub-types in TYPE_SUB_TYPES for this card type
   const knownSubs = new Set(validSubTypes);
+  // Also mark coffee_dessert / drinks / bar as known so they don't appear in Other
+  // (they're folded into their alias groups above)
+  ["coffee_dessert", "drinks", "bar", "hosted"].forEach((s) => knownSubs.add(s));
   const otherCards = places.filter((p) => !knownSubs.has(p.sub_type ?? ""));
 
   const typeLabel = { food: "Food", activity: "Activity", logistics: "Logistics" }[cardType];

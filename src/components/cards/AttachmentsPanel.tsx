@@ -45,6 +45,24 @@ const HOTEL_DETAIL_MAP: Record<string, string> = {
 
 const GENERIC_HOTEL_TITLES = ["check-in", "hotel", "accommodation", "stay", "arrival"];
 
+// Fields that are only filled when the card currently has no value for them
+const GUIDED_NULL_ONLY_FIELDS = new Set(["phone", "website", "provider"]);
+
+const GUIDED_DETAIL_MAP: Record<string, string> = {
+  date:                  "date",
+  time:                  "start_time",
+  end_time:              "end_time",
+  address:               "address",
+  confirmation:          "confirmation",
+  phone:                 "phone",
+  website:               "website",
+  notes:                 "notes",
+  cancellation_policy:   "cancellation_policy",
+  cancellation_deadline: "cancellation_deadline",
+  supplier:              "provider",
+  tickets_count:         "tickets_count",
+};
+
 function remapParsedFields(
   parsed: Record<string, unknown>,
   card: Card,
@@ -72,6 +90,24 @@ function remapParsedFields(
         details.name = parsed.supplier;
       }
     }
+  } else if (subType === "guided" || subType === "hosted") {
+    const currentDetails = (card.details ?? {}) as Record<string, unknown>;
+    for (const [src, dst] of Object.entries(GUIDED_DETAIL_MAP)) {
+      if (parsed[src] == null) continue;
+      // phone/website/provider: only fill if card currently has no value
+      if (GUIDED_NULL_ONLY_FIELDS.has(dst) && currentDetails[dst] != null) continue;
+      // notes: append to existing rather than overwrite
+      if (dst === "notes") {
+        const existing = typeof currentDetails.notes === "string" ? currentDetails.notes : null;
+        details.notes = existing ? `${existing}\n\n${parsed[src]}` : parsed[src];
+      } else {
+        details[dst] = parsed[src];
+      }
+    }
+    // Top-level fields updated from parsed data
+    if (parsed.time     != null) topLevel.start_time = parsed.time;
+    if (parsed.end_time != null) topLevel.end_time   = parsed.end_time;
+    if (parsed.address  != null) topLevel.address    = parsed.address;
   } else {
     // All other card types: pass parsed fields through unchanged
     Object.assign(details, parsed);
@@ -252,9 +288,15 @@ export default function AttachmentsPanel({ card, onClose, onCardUpdate }: Props)
 
     const current        = (card.details ?? {}) as Record<string, unknown>;
     const overwriteKeys: string[] = [];
+    const isGuided = card.sub_type === "guided" || card.sub_type === "hosted";
 
     for (const [key, val] of Object.entries(mappedDetails)) {
-      if (val != null && current[key] != null) overwriteKeys.push(key);
+      if (val != null && current[key] != null) {
+        // For guided cards: notes are appended (not overwritten) and null-only fields
+        // are already filtered in remapParsedFields — don't treat these as conflicts
+        if (isGuided && (key === "notes" || GUIDED_NULL_ONLY_FIELDS.has(key))) continue;
+        overwriteKeys.push(key);
+      }
     }
 
     if (overwriteKeys.length > 0) {

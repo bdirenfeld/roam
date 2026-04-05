@@ -47,6 +47,16 @@ export default function CardSurface({ card, timeLabel, onTap, isHighlighted }: P
       onClick={onTap}
       className={`w-full text-left flex items-center gap-3 p-3 rounded-xl border border-gray-100 border-l-[3px] shadow-card hover:shadow-card-hover transition-all duration-150 active:scale-[0.99] mb-2.5 bg-white ${colors.border}${isHighlighted ? " card-highlight" : ""}`}
     >
+      {/* Left: time + duration */}
+      <div className="flex flex-col items-start gap-0.5 shrink-0 w-14">
+        {timeLabel && (
+          <span className="text-[11px] font-semibold text-gray-500">{timeLabel}</span>
+        )}
+        {dur && (
+          <span className="text-[10px] text-gray-300 font-medium">{dur}</span>
+        )}
+      </div>
+
       {/* Type icon — Material Symbol, currentColor inherits from text-* class */}
       <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${colors.bg} ${colors.icon}`}>
         {/* eslint-disable-next-line react/no-danger */}
@@ -75,16 +85,6 @@ export default function CardSurface({ card, timeLabel, onTap, isHighlighted }: P
             </span>
           )}
         </div>
-      </div>
-
-      {/* Right: time + duration */}
-      <div className="flex flex-col items-end gap-0.5 shrink-0">
-        {timeLabel && (
-          <span className="text-[11px] font-semibold text-gray-500">{timeLabel}</span>
-        )}
-        {dur && (
-          <span className="text-[10px] text-gray-300 font-medium">{dur}</span>
-        )}
       </div>
 
       {/* Chevron */}
