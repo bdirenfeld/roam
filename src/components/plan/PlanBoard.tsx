@@ -26,7 +26,6 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { createClient } from "@/lib/supabase/client";
-import AppHeader from "@/components/ui/AppHeader";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import CreateCardSheet from "@/components/plan/CreateCardSheet";
 import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/plan/ConfirmationPreviewSheet";
@@ -176,10 +175,9 @@ function fmtDate(dateStr: string): string {
 interface Props {
   trip: Trip;
   initialDays: DayWithCards[];
-  userAvatarUrl?: string | null;
 }
 
-export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
+export default function PlanBoard({ trip, initialDays }: Props) {
   const supabase = createClient();
   const [days, setDays] = useState<DayWithCards[]>(initialDays);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -515,8 +513,6 @@ export default function PlanBoard({ trip, initialDays, userAvatarUrl }: Props) {
 
   return (
     <div className="flex flex-col h-dvh" style={boardBgStyle}>
-      <AppHeader subtitle={trip.title} avatarUrl={userAvatarUrl} />
-
       {/* Sub-header */}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100 bg-white flex-shrink-0">
         {firstDay && (
@@ -816,8 +812,8 @@ function DayColumn({ day, cards, totalDays, isPhotoBg, onCardTap, onRemove, onDe
 
   return (
     <div className="flex flex-col w-full md:w-72 md:flex-shrink-0">
-      {/* Column header */}
-      <div className="flex items-start justify-between mb-2">
+      {/* Column header — sticky on desktop so it stays visible while scrolling through cards */}
+      <div className="flex items-start justify-between mb-2 md:sticky md:top-0 md:z-10 md:bg-white/90 md:backdrop-blur-sm md:rounded-xl md:px-3 md:-mx-3 md:py-2 md:mb-1">
         <div>
           <div className="flex items-baseline gap-1.5 flex-wrap">
             <span className="text-sm font-bold text-gray-800">Day {day.day_number}</span>

@@ -10,14 +10,47 @@ interface Props {
   accommodationCard?: Card;
   centerLat: number;
   centerLng: number;
+  /** Called when a regular card pin is tapped. */
+  onPinTap?: (cardId: string) => void;
+  /** When set, briefly pulses the pin for that card ID. */
+  pulsedCardId?: string | null;
 }
 
-export default function DayMap({ cards, accommodationCard, centerLat, centerLng }: Props) {
+export default function DayMap({ cards, accommodationCard, centerLat, centerLng, onPinTap, pulsedCardId }: Props) {
   const mapRef         = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<unknown>(null);
 
+  // Stores the inner (animated) element of each regular-card marker, keyed by card.id.
+  // Mapbox owns translate() on the wrapper; we animate scale on inner only.
+  const markerInnerRef = useRef<Map<string, HTMLElement>>(new Map());
+
+  // Keep callback ref current without adding it to the main effect's deps
+  const onPinTapRef = useRef(onPinTap);
+  onPinTapRef.current = onPinTap;
+
   const hasToken = !!process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
+  // ── Pulse animation ────────────────────────────────────────────
+  useEffect(() => {
+    if (!pulsedCardId) return;
+    const inner = markerInnerRef.current.get(pulsedCardId);
+    if (!inner) return;
+
+    inner.style.transition = "transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1)";
+    inner.style.transform  = "scale(1.45)";
+    const t = setTimeout(() => {
+      inner.style.transition = "transform 300ms ease";
+      inner.style.transform  = "";
+    }, 220);
+    return () => {
+      clearTimeout(t);
+      // Reset scale in case cleanup fires mid-animation
+      inner.style.transition = "transform 150ms ease";
+      inner.style.transform  = "";
+    };
+  }, [pulsedCardId]);
+
+  // ── Map init ───────────────────────────────────────────────────
   useEffect(() => {
     if (!hasToken || !mapRef.current || mapInstanceRef.current) return;
 
@@ -37,6 +70,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng 
     // fired while the dynamic import was still in-flight) from creating a
     // second map on the same container — same pattern as FullMapClient.
     let cancelled = false;
+    markerInnerRef.current.clear();
 
     import("mapbox-gl").then((mapboxgl) => {
       if (cancelled || !mapRef.current || mapInstanceRef.current) return;
@@ -68,9 +102,15 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng 
 
         mappable.forEach(({ card, lat, lng }, i) => {
           const cardDetails = card.details as Record<string, unknown> | null;
-          const { wrapper } = makeMaterialPinElement(
+          const { wrapper, inner } = makeMaterialPinElement(
             card.type, card.sub_type, card.status, !!(cardDetails?.recommended_by),
           );
+
+          // Store inner element so the pulse effect can animate it
+          markerInnerRef.current.set(card.id, inner);
+
+          // Tap handler — fires onPinTap via stable ref
+          inner.addEventListener("click", () => onPinTapRef.current?.(card.id));
 
           // Sequence number badge — absolute overlay on the pin
           wrapper.style.overflow = "visible";
@@ -172,6 +212,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng 
 
     return () => {
       cancelled = true;
+      markerInnerRef.current.clear();
       if (mapInstanceRef.current) {
         (mapInstanceRef.current as { remove: () => void }).remove();
         mapInstanceRef.current = null;

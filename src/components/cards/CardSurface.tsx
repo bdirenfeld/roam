@@ -5,6 +5,7 @@ interface Props {
   card: Card;
   timeLabel: string;
   onTap: () => void;
+  isHighlighted?: boolean;
 }
 
 const TYPE_COLOR: Record<CardType, { border: string; icon: string; bg: string }> = {
@@ -36,7 +37,7 @@ function duration(start: string | null, end: string | null): string | null {
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
-export default function CardSurface({ card, timeLabel, onTap }: Props) {
+export default function CardSurface({ card, timeLabel, onTap, isHighlighted }: Props) {
   const colors = TYPE_COLOR[card.type];
   const subLabel = card.sub_type ? SUB_TYPE_SHORT[card.sub_type] : null;
   const dur = duration(card.start_time, card.end_time);
@@ -44,7 +45,7 @@ export default function CardSurface({ card, timeLabel, onTap }: Props) {
   return (
     <button
       onClick={onTap}
-      className={`w-full text-left flex items-center gap-3 p-3 rounded-xl border border-gray-100 border-l-[3px] shadow-card hover:shadow-card-hover transition-all duration-150 active:scale-[0.99] mb-2.5 bg-white ${colors.border}`}
+      className={`w-full text-left flex items-center gap-3 p-3 rounded-xl border border-gray-100 border-l-[3px] shadow-card hover:shadow-card-hover transition-all duration-150 active:scale-[0.99] mb-2.5 bg-white ${colors.border}${isHighlighted ? " card-highlight" : ""}`}
     >
       {/* Type icon — Material Symbol, currentColor inherits from text-* class */}
       <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${colors.bg} ${colors.icon}`}>

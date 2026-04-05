@@ -4,6 +4,7 @@ import type { DayWithCards, Card } from "@/types/database";
 interface Props {
   dayWithCards: DayWithCards;
   onCardTap: (card: Card) => void;
+  highlightedCardId?: string | null;
 }
 
 function formatTime(t: string | null): string {
@@ -28,7 +29,7 @@ function freeTimeLabel(minutes: number): string {
   return m > 0 ? `${h}h ${m}m free` : `${h}h free`;
 }
 
-export default function CardTimeline({ dayWithCards, onCardTap }: Props) {
+export default function CardTimeline({ dayWithCards, onCardTap, highlightedCardId }: Props) {
   const { cards } = dayWithCards;
 
   return (
@@ -56,12 +57,13 @@ export default function CardTimeline({ dayWithCards, onCardTap }: Props) {
                 : 0;
 
             return (
-              <div key={card.id}>
+              <div key={card.id} data-card-id={card.id}>
                 <div className="mb-2">
                   <CardSurface
                     card={card}
                     onTap={() => onCardTap(card)}
                     timeLabel={formatTime(card.start_time)}
+                    isHighlighted={highlightedCardId === card.id}
                   />
                 </div>
 

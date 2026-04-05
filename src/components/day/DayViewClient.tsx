@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import DayStrip from "@/components/day/DayStrip";
@@ -39,6 +39,15 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
 
   const [isCardOpen, setIsCardOpen] = useState(false);
   const [swipeDir, setSwipeDir] = useState<'left' | 'right' | null>(null);
+
+  // ── Pin ↔ card linking state ───────────────────────────────────
+  // Highlighted card (flash ring): set when a map pin is tapped
+  const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
+  // Pulsed pin: set when a card row is first-tapped
+  const [pulsedCardId, setPulsedCardId] = useState<string | null>(null);
+  // Tracks the last card that was first-tapped (waiting for a second tap to open)
+  const lastTappedCardIdRef = useRef<string | null>(null);
+  const tapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Reset swipe animation class after it has played
   useEffect(() => {
@@ -125,6 +134,56 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
     [localCards, accommodationCard],
   );
 
+  // Set of card IDs that have a map pin — used for tap logic
+  const pinnedCardIds = useMemo(
+    () => new Set(mappableCards.map((c) => c.id)),
+    [mappableCards],
+  );
+
+  // ── Pin tapped → scroll + highlight card ──────────────────────
+  const handlePinTap = useCallback((cardId: string) => {
+    // Scroll the card row into view
+    const el = document.querySelector(`[data-card-id="${cardId}"]`);
+    el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+    // Flash the highlight ring
+    setHighlightedCardId(cardId);
+    setTimeout(() => setHighlightedCardId(null), 1200);
+  }, []);
+
+  // ── Card tapped → pulse pin (first tap) or open sheet (second tap / no pin) ──
+  const handleCardTap = useCallback((card: Card) => {
+    const hasPin = pinnedCardIds.has(card.id);
+
+    if (!hasPin) {
+      // No corresponding pin — open the sheet immediately
+      setSelectedCard(card);
+      setIsCardOpen(true);
+      return;
+    }
+
+    if (lastTappedCardIdRef.current === card.id) {
+      // Second tap on the same card: open the sheet
+      if (tapTimeoutRef.current) clearTimeout(tapTimeoutRef.current);
+      lastTappedCardIdRef.current = null;
+      setPulsedCardId(null);
+      setSelectedCard(card);
+      setIsCardOpen(true);
+    } else {
+      // First tap: pulse the map pin
+      if (tapTimeoutRef.current) clearTimeout(tapTimeoutRef.current);
+      lastTappedCardIdRef.current = card.id;
+      // Reset to null first so the effect always fires, even if same card is re-tapped
+      setPulsedCardId(null);
+      requestAnimationFrame(() => setPulsedCardId(card.id));
+      // After 2 s with no second tap, reset
+      tapTimeoutRef.current = setTimeout(() => {
+        lastTappedCardIdRef.current = null;
+        setPulsedCardId(null);
+      }, 2000);
+    }
+  }, [pinnedCardIds]);
+
   return (
     <div className="flex flex-col h-dvh overflow-hidden">
       {/* Day strip — sits at the very top, does not scroll */}
@@ -141,6 +200,8 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
         accommodationCard={accommodationCard ?? undefined}
         centerLat={trip.destination_lat ?? 41.9028}
         centerLng={trip.destination_lng ?? 12.4964}
+        onPinTap={handlePinTap}
+        pulsedCardId={pulsedCardId}
       />
 
       {/* Sticky date header — sits between map and cards, stays visible on scroll */}
@@ -172,7 +233,8 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
         >
           <CardTimeline
             dayWithCards={localDayWithCards}
-            onCardTap={(card) => { setSelectedCard(card); setIsCardOpen(true); }}
+            onCardTap={handleCardTap}
+            highlightedCardId={highlightedCardId}
           />
         </div>
 
@@ -215,7 +277,13 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
       {selectedCard && (
         <CardBottomSheet
           card={selectedCard}
-          onClose={() => { setSelectedCard(null); setIsCardOpen(false); }}
+          onClose={() => {
+            setSelectedCard(null);
+            setIsCardOpen(false);
+            // Reset tap state so the next tap on the same card starts fresh
+            lastTappedCardIdRef.current = null;
+            if (tapTimeoutRef.current) clearTimeout(tapTimeoutRef.current);
+          }}
           onCardUpdate={handleCardUpdate}
           onCardDelete={handleCardDelete}
           tripDestination={trip.destination}
