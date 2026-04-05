@@ -403,6 +403,18 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     if (place.type != null) topUpdate.type = place.type;
     if (place.sub_type != null) topUpdate.sub_type = place.sub_type;
 
+    // Auto-name: if the card has a generic placeholder title and the place name
+    // isn't already in it, update to "[existing title] — [place name]"
+    const GENERIC_TITLES = new Set([
+      "Dinner", "Lunch", "Breakfast", "Aperitivo", "Morning Coffee",
+      "Coffee", "Activity", "Night Walk", "Afternoon Wandering", "Afternoon Relax",
+    ]);
+    const currentTitle = localCard.title ?? "";
+    const placeName    = place.title ?? "";
+    if (GENERIC_TITLES.has(currentTitle) && placeName && !currentTitle.includes(placeName)) {
+      topUpdate.title = `${currentTitle} \u2014 ${placeName}`;
+    }
+
     const updated: Card = {
       ...localCard,
       ...(topUpdate as Partial<Card>),
