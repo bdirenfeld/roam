@@ -512,6 +512,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       case "food/coffee_dessert":
         return <CoffeeDetail card={localCard} onSaveDetails={saveDetails} />;
       case "food/cocktail_bar":
+        return <CocktailBarDetail card={localCard} onSaveDetails={saveDetails} hideAddress />;
       case "food/drinks":
         return <CocktailBarDetail card={localCard} onSaveDetails={saveDetails} />;
       case "food/restaurant":

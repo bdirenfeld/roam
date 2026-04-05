@@ -29,24 +29,6 @@ export default function RestaurantDetail({ card, onSaveDetails }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* THE SPOT */}
-      <div>
-        <SectionLabel>The Spot</SectionLabel>
-        <div className="space-y-4">
-          <FieldRow
-            icon="📍"
-            label="Address"
-            value={card.address}
-            placeholder="Add address…"
-            onSave={
-              onSaveDetails
-                ? (v) => onSaveDetails("__top__address", v || null)
-                : undefined
-            }
-          />
-        </div>
-      </div>
-
       {/* DETAILS */}
       <div>
         <SectionLabel>Details</SectionLabel>

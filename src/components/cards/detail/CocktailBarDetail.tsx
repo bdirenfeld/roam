@@ -8,9 +8,10 @@ import { getPriceRange } from "@/lib/priceRange";
 interface Props {
   card: Card;
   onSaveDetails?: (field: string, value: unknown) => void;
+  hideAddress?: boolean;
 }
 
-export default function CocktailBarDetail({ card, onSaveDetails }: Props) {
+export default function CocktailBarDetail({ card, onSaveDetails, hideAddress }: Props) {
   const d = card.details;
   const save = (field: string) =>
     onSaveDetails ? (v: string) => onSaveDetails(field, v || null) : undefined;
@@ -33,17 +34,19 @@ export default function CocktailBarDetail({ card, onSaveDetails }: Props) {
       <div>
         <SectionLabel>The Spot</SectionLabel>
         <div className="space-y-4">
-          <FieldRow
-            icon="📍"
-            label="Address"
-            value={card.address}
-            placeholder="Add address…"
-            onSave={
-              onSaveDetails
-                ? (v) => onSaveDetails("__top__address", v || null)
-                : undefined
-            }
-          />
+          {!hideAddress && (
+            <FieldRow
+              icon="📍"
+              label="Address"
+              value={card.address}
+              placeholder="Add address…"
+              onSave={
+                onSaveDetails
+                  ? (v) => onSaveDetails("__top__address", v || null)
+                  : undefined
+              }
+            />
+          )}
           {priceRange && (
             <div className="flex items-start gap-3">
               <span className="flex-shrink-0 w-5 text-center text-base mt-0.5 leading-none">💳</span>
