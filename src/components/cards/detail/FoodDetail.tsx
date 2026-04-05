@@ -12,7 +12,6 @@ export default function FoodDetail({ card }: Props) {
   const notes         = d.notes          as string | undefined;
   const reservation   = d.reservation    as string | undefined;
   const address       = d.address        as string | undefined;
-  const website       = d.website        as string | undefined;
   const estimatedCost = d.estimated_cost as string | undefined;
   const orderPlan     = d.order_plan     as string[] | string | undefined;
   const orderItems    = Array.isArray(orderPlan)
@@ -42,8 +41,8 @@ export default function FoodDetail({ card }: Props) {
         </div>
       )}
 
-      {/* Address, cost, website */}
-      {(address || estimatedCost || website) && (
+      {/* Address, cost */}
+      {(address || estimatedCost) && (
         <div className="space-y-2">
           {address && (
             <div className="flex items-start gap-2 text-sm text-gray-700">
@@ -55,12 +54,6 @@ export default function FoodDetail({ card }: Props) {
             <div className="flex items-start gap-2 text-sm text-gray-700">
               <span className="flex-shrink-0">💳</span>
               <span>{estimatedCost}</span>
-            </div>
-          )}
-          {website && (
-            <div className="flex items-start gap-2 text-sm">
-              <span className="flex-shrink-0">🔗</span>
-              <span className="text-food truncate">{website}</span>
             </div>
           )}
         </div>

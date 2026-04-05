@@ -16,7 +16,6 @@ export default function GuidedDetail({ card, onSaveDetails }: Props) {
     meeting_time?: string;
     cost_per_person?: number;
     paid?: boolean;
-    website?: string;
     confirmation?: string;
     includes?: string[];
     notes?: string;
@@ -86,13 +85,7 @@ export default function GuidedDetail({ card, onSaveDetails }: Props) {
               )}
             </div>
           </div>
-          <FieldRow
-            icon="🔗"
-            label="Website"
-            value={d.website as string | undefined}
-            placeholder="Add website…"
-            onSave={save("website")}
-          />
+
           <FieldRow
             icon="📋"
             label="Confirmation"

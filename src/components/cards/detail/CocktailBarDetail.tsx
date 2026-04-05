@@ -38,13 +38,7 @@ export default function CocktailBarDetail({ card, onSaveDetails }: Props) {
                 : undefined
             }
           />
-          <FieldRow
-            icon="🔗"
-            label="Website"
-            value={d.website as string | undefined}
-            placeholder="Add website…"
-            onSave={save("website")}
-          />
+
         </div>
       </div>
 
