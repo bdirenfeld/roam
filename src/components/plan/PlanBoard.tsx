@@ -551,10 +551,12 @@ export default function PlanBoard({ trip, initialDays }: Props) {
           >
             {/* Single horizontal scroll container — both the sticky header row
                 and the card columns live here so they pan together with no JS.
-                overflow-x handles horizontal scroll; sticky top-0 on the header
-                works because this container does not constrain overflow-y. */}
+                overflow-x handles horizontal scroll; overflow-y:clip is set
+                explicitly so sticky top-0 on the header can never be broken by
+                future content growth (overflow-x-auto alone would implicitly set
+                overflow-y:auto which would create a new scroll container). */}
             <div
-              className="flex-1 overflow-x-auto"
+              className="flex-1 overflow-x-auto [overflow-y:clip]"
               style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "none" } as React.CSSProperties}
             >
               {/* Sticky header row */}
