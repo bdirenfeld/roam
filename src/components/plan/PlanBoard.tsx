@@ -186,7 +186,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
   const [uploadState,  setUploadState]  = useState<"idle" | "reading" | "error">("idle");
   const [pendingConf,  setPendingConf]  = useState<{ items: ParsedConfirmation[]; fileName: string; fileType: string } | null>(null);
   const [showDocs,     setShowDocs]     = useState(false);
-  const [viewMode,     _setViewMode]    = useState<"board" | "triage">("board");
+  const [viewMode] = useState<"board" | "triage">("board");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [deleteToast, setDeleteToast] = useState<string | null>(null);
   const [clearConfirm, setClearConfirm] = useState(false);
