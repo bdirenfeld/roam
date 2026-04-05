@@ -202,15 +202,6 @@ export default function PlanBoard({ trip, initialDays }: Props) {
   const daysRef = useRef(days);
   daysRef.current = days;
 
-  // Ref for the pinned header scroll container — kept in sync with the card
-  // area's horizontal scroll so headers always align with their columns.
-  const headerScrollRef = useRef<HTMLDivElement>(null);
-  const handleBoardScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    if (headerScrollRef.current) {
-      headerScrollRef.current.scrollLeft = e.currentTarget.scrollLeft;
-    }
-  }, []);
-
   const preDragSnapshot = useRef<DayWithCards[] | null>(null);
   const crossColumnMoved = useRef(false);
 
@@ -550,47 +541,42 @@ export default function PlanBoard({ trip, initialDays }: Props) {
 
       {/* Board */}
       {viewMode === "board" && (
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Pinned header row — lives outside the scroll container so it stays
-              fixed at the top. Its scrollLeft is kept in sync with the card
-              area via handleBoardScroll so headers always align with columns. */}
-          <div
-            className="flex-shrink-0 z-20"
-            style={
-              isPhotoBg
-                ? { background: "rgba(255,255,255,0.85)", backdropFilter: "blur(8px)" }
-                : { background: "rgba(255,255,255,0.95)" }
-            }
+        <div className="flex-1 flex flex-col">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCorners}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
           >
+            {/* Single horizontal scroll container — both the sticky header row
+                and the card columns live here so they pan together with no JS.
+                overflow-x handles horizontal scroll; sticky top-0 on the header
+                works because this container does not constrain overflow-y. */}
             <div
-              ref={headerScrollRef}
-              className="overflow-hidden flex flex-row flex-nowrap gap-[10px] md:gap-4 px-4"
-              style={{ scrollbarWidth: "none" } as React.CSSProperties}
+              className="flex-1 overflow-x-auto"
+              style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "none" } as React.CSSProperties}
             >
-              {days.map((day) => (
-                <DayColumnHeader
-                  key={day.id}
-                  day={day}
-                  totalDays={days.length}
-                  onCopyStructure={() => handleCopyStructure(day.id)}
-                />
-              ))}
-            </div>
-          </div>
+              {/* Sticky header row */}
+              <div
+                className="sticky top-0 z-20 flex flex-row flex-nowrap gap-[10px] md:gap-4 px-4"
+                style={
+                  isPhotoBg
+                    ? { background: "rgba(255,255,255,0.85)", backdropFilter: "blur(8px)" }
+                    : { background: "rgba(255,255,255,0.95)" }
+                }
+              >
+                {days.map((day) => (
+                  <DayColumnHeader
+                    key={day.id}
+                    day={day}
+                    totalDays={days.length}
+                    onCopyStructure={() => handleCopyStructure(day.id)}
+                  />
+                ))}
+              </div>
 
-          {/* Scrollable card area */}
-          <div
-            className="flex-1 overflow-auto"
-            style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "none" } as React.CSSProperties}
-            onScroll={handleBoardScroll}
-          >
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCorners}
-              onDragStart={handleDragStart}
-              onDragOver={handleDragOver}
-              onDragEnd={handleDragEnd}
-            >
+              {/* Card columns */}
               <div className="p-4 pb-28 md:pb-6">
                 {/* Template banner — only when every day is empty, or manually triggered */}
                 {(allEmpty || showTemplatePicker) && days.length > 0 && (
@@ -616,12 +602,12 @@ export default function PlanBoard({ trip, initialDays }: Props) {
                   ))}
                 </div>
               </div>
+            </div>
 
-              <DragOverlay>
-                {activeCard && <CardTile card={activeCard} isOverlay />}
-              </DragOverlay>
-            </DndContext>
-          </div>
+            <DragOverlay>
+              {activeCard && <CardTile card={activeCard} isOverlay />}
+            </DragOverlay>
+          </DndContext>
         </div>
       )}{/* end board */}
 
