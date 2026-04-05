@@ -183,11 +183,9 @@ export default function PlanBoard({ trip, initialDays }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [createSheetDayId, setCreateSheetDayId] = useState<string | null>(null);
-  const [uploadState,  setUploadState]  = useState<"idle" | "reading" | "error">("idle");
   const [pendingConf,  setPendingConf]  = useState<{ items: ParsedConfirmation[]; fileName: string; fileType: string } | null>(null);
   const [showDocs,     setShowDocs]     = useState(false);
   const [viewMode] = useState<"board" | "triage">("board");
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [deleteToast, setDeleteToast] = useState<string | null>(null);
   const [clearConfirm, setClearConfirm] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
@@ -471,28 +469,6 @@ export default function PlanBoard({ trip, initialDays }: Props) {
       .eq("status", "in_itinerary")
       .not("day_id", "is", null);
   }, [days, trip.id, supabase]);
-
-  // ── Confirmation file upload ──────────────────────────────────
-  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = "";
-
-    setUploadState("reading");
-    const form = new FormData();
-    form.append("file", file);
-
-    try {
-      const res  = await fetch("/api/confirmations/parse", { method: "POST", body: form });
-      const data = await res.json() as { parsed?: ParsedConfirmation[]; error?: string };
-      if (data.error || !data.parsed?.length) throw new Error(data.error ?? "Parse failed");
-      setPendingConf({ items: data.parsed, fileName: file.name, fileType: file.type });
-      setUploadState("idle");
-    } catch {
-      setUploadState("error");
-      setTimeout(() => setUploadState("idle"), 3000);
-    }
-  }, []);
 
   const firstDay    = initialDays[0];
   const activeCard  = activeId ? findCard(activeId) : null;
