@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import AppHeader from "@/components/ui/AppHeader";
 import DayStrip from "@/components/day/DayStrip";
 import DayMap from "@/components/day/DayMap";
 import CardTimeline from "@/components/day/CardTimeline";
@@ -16,10 +15,9 @@ interface Props {
   days: Day[];
   dayWithCards: DayWithCards;
   hotelCards: Card[];
-  userAvatarUrl?: string | null;
 }
 
-export default function DayViewClient({ trip, days, dayWithCards, hotelCards, userAvatarUrl }: Props) {
+export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: Props) {
   const router = useRouter();
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   // Keep a local copy of cards so edits made in the sheet reflect in the list
@@ -41,20 +39,6 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, us
 
   const [isCardOpen, setIsCardOpen] = useState(false);
   const [swipeDir, setSwipeDir] = useState<'left' | 'right' | null>(null);
-
-  // Hide-on-scroll for the app header
-  const [headerVisible, setHeaderVisible] = useState(true);
-  const lastScrollY = useRef(0);
-
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const y = e.currentTarget.scrollTop;
-    if (y > lastScrollY.current && y > 10) {
-      setHeaderVisible(false);
-    } else if (y < lastScrollY.current) {
-      setHeaderVisible(true);
-    }
-    lastScrollY.current = y;
-  }, []);
 
   // Reset swipe animation class after it has played
   useEffect(() => {
@@ -143,25 +127,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, us
 
   return (
     <div className="flex flex-col h-dvh overflow-hidden">
-      {/* Header — slides up on scroll-down, back on scroll-up */}
-      <div
-        className="flex-shrink-0 overflow-hidden"
-        style={{
-          maxHeight: headerVisible ? "80px" : "0",
-          transition: "max-height 0.2s ease",
-        }}
-      >
-        <div
-          style={{
-            transform: headerVisible ? "translateY(0)" : "translateY(-100%)",
-            transition: "transform 0.2s ease",
-          }}
-        >
-          <AppHeader subtitle={trip.title} avatarUrl={userAvatarUrl} />
-        </div>
-      </div>
-
-      {/* Day strip — sits above the map, does not scroll */}
+      {/* Day strip — sits at the very top, does not scroll */}
       <DayStrip
         days={days}
         activeDayId={dayWithCards.id}
@@ -190,7 +156,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, us
 
       {/* Scrollable cards area — only this section scrolls.
           min-h-0 is required so flex children can shrink below their content height. */}
-      <div className="flex-1 overflow-y-auto min-h-0" onScroll={handleScroll}>
+      <div className="flex-1 overflow-y-auto min-h-0">
 
         {/* Timeline — keyed to day so it re-mounts on day change.
             Swipe handlers live here only — map and day strip have their own
