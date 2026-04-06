@@ -40,38 +40,45 @@ export default function DayStrip({ days, activeDayId, onDaySelect }: Props) {
 
   return (
     <div className="border-b border-gray-100 bg-white">
-      {/* Scrollable tab row */}
-      <div className="flex gap-1.5 px-3 py-2.5 overflow-x-auto scrollbar-none">
-        {days.map((day) => {
-          const isActive = day.id === activeDayId;
-          const today    = isToday(day.date);
+      {/* Scrollable tab row — relative wrapper for the right-edge fade */}
+      <div className="relative">
+        <div className="flex gap-1.5 px-3 py-2.5 overflow-x-auto scrollbar-none">
+          {days.map((day) => {
+            const isActive = day.id === activeDayId;
+            const today    = isToday(day.date);
 
-          return (
-            <button
-              key={day.id}
-              ref={isActive ? activeRef : null}
-              onClick={() => onDaySelect(day)}
-              className={`
-                flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl
-                transition-all duration-150 min-w-0
-                ${isActive
-                  ? "bg-activity shadow-sm"
-                  : "bg-gray-50 hover:bg-gray-100 active:scale-95"
-                }
-              `}
-            >
-              <span className={`text-[11px] font-semibold whitespace-nowrap ${isActive ? "text-white" : "text-gray-700"}`}>
-                Day {day.day_number}
-              </span>
-
-              {today && (
-                <span className={`text-[8px] font-bold uppercase tracking-wide px-1 py-px rounded ${isActive ? "bg-white/20 text-white" : "bg-activity/10 text-activity"}`}>
-                  Today
+            return (
+              <button
+                key={day.id}
+                ref={isActive ? activeRef : null}
+                onClick={() => onDaySelect(day)}
+                className={`
+                  flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl
+                  transition-all duration-150 min-w-0
+                  ${isActive
+                    ? "bg-activity shadow-sm"
+                    : "bg-gray-50 hover:bg-gray-100 active:scale-95"
+                  }
+                `}
+              >
+                <span className={`text-[11px] font-semibold whitespace-nowrap ${isActive ? "text-white" : "text-gray-700"}`}>
+                  Day {day.day_number}
                 </span>
-              )}
-            </button>
-          );
-        })}
+
+                {today && (
+                  <span className={`text-[8px] font-bold uppercase tracking-wide px-1 py-px rounded ${isActive ? "bg-white/20 text-white" : "bg-activity/10 text-activity"}`}>
+                    Today
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        {/* Right-edge fade — signals scrollable overflow */}
+        <div
+          className="absolute right-0 top-0 bottom-0 w-10 pointer-events-none"
+          style={{ background: "linear-gradient(to left, white, transparent)" }}
+        />
       </div>
 
       {/* Trip progress bar — fills proportionally based on selected day */}
