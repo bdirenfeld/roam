@@ -6,6 +6,7 @@ import DayStrip from "@/components/day/DayStrip";
 import DayMap from "@/components/day/DayMap";
 import CardTimeline from "@/components/day/CardTimeline";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
+import CreateCardSheet from "@/components/plan/CreateCardSheet";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 import type { Trip, Day, DayWithCards, Card } from "@/types/database";
 
@@ -38,6 +39,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
 
   const [isCardOpen, setIsCardOpen] = useState(false);
   const [swipeDir, setSwipeDir] = useState<'left' | 'right' | null>(null);
+  const [gapStartTime, setGapStartTime] = useState<string | null>(null);
 
   // ── Pin ↔ card linking state ───────────────────────────────────
   // Highlighted card (flash ring): set when a map pin is tapped
@@ -142,6 +144,21 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
     setIsCardOpen(true);
   }, []);
 
+  // ── Gap tapped → open create sheet with start time pre-filled ─
+  const handleGapTap = useCallback((startTime: string) => {
+    setGapStartTime(startTime);
+  }, []);
+
+  const handleCardCreated = useCallback((card: Card) => {
+    setLocalCards((prev) => [...prev, card].sort((a, b) => {
+      if (!a.start_time && !b.start_time) return 0;
+      if (!a.start_time) return 1;
+      if (!b.start_time) return -1;
+      return a.start_time.localeCompare(b.start_time);
+    }));
+    setGapStartTime(null);
+  }, []);
+
   return (
     <div className="flex flex-col h-dvh">
       {/* Day strip — sits at the very top, does not scroll */}
@@ -192,6 +209,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
             dayWithCards={localDayWithCards}
             onCardTap={handleCardTap}
             highlightedCardId={highlightedCardId}
+            onGapTap={handleGapTap}
           />
         </div>
 
@@ -208,6 +226,18 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
           onCardUpdate={handleCardUpdate}
           onCardDelete={handleCardDelete}
           tripDestination={trip.destination}
+        />
+      )}
+
+      {/* Create card sheet — opened by tapping a free-time gap */}
+      {gapStartTime !== null && (
+        <CreateCardSheet
+          dayId={dayWithCards.id}
+          tripId={trip.id}
+          endPosition={localCards.reduce((m, c) => Math.max(m, c.position), 0) + 1}
+          initialStartTime={gapStartTime}
+          onClose={() => setGapStartTime(null)}
+          onCardCreated={handleCardCreated}
         />
       )}
     </div>

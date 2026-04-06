@@ -61,11 +61,12 @@ interface Props {
   initialLat?: number;
   initialLng?: number;
   initialStatus?: Card["status"];
+  initialStartTime?: string;
 }
 
 export default function CreateCardSheet({
   dayId, tripId, endPosition, onClose, onCardCreated,
-  initialLat, initialLng, initialStatus,
+  initialLat, initialLng, initialStatus, initialStartTime,
 }: Props) {
   const supabase  = createClient();
   const sheetRef  = useRef<HTMLDivElement>(null);
@@ -77,7 +78,7 @@ export default function CreateCardSheet({
   const [title,     setTitle]     = useState("");
   const [type,      setType]      = useState<UiType | null>(null);
   const [subType,   setSubType]   = useState<string | null>(null);
-  const [startTime, setStartTime] = useState("");
+  const [startTime, setStartTime] = useState(initialStartTime ?? "");
   const [endTime,   setEndTime]   = useState("");
   const [notes,     setNotes]     = useState("");
 

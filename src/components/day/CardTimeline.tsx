@@ -5,6 +5,7 @@ interface Props {
   dayWithCards: DayWithCards;
   onCardTap: (card: Card) => void;
   highlightedCardId?: string | null;
+  onGapTap?: (gapStartTime: string) => void;
 }
 
 function minutesBetween(end: string | null, start: string | null): number {
@@ -15,13 +16,13 @@ function minutesBetween(end: string | null, start: string | null): number {
 }
 
 function freeTimeLabel(minutes: number): string {
-  if (minutes < 60) return `${minutes}m free`;
+  if (minutes < 60) return `${minutes} min free`;
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   return m > 0 ? `${h}h ${m}m free` : `${h}h free`;
 }
 
-export default function CardTimeline({ dayWithCards, onCardTap, highlightedCardId }: Props) {
+export default function CardTimeline({ dayWithCards, onCardTap, highlightedCardId, onGapTap }: Props) {
   const { cards } = dayWithCards;
 
   return (
@@ -59,17 +60,21 @@ export default function CardTimeline({ dayWithCards, onCardTap, highlightedCardI
                 </div>
 
                 {gap >= 30 && (
-                  <div className="flex items-center gap-2.5 my-1.5 px-2">
-                    <div className="flex-1 h-px bg-gray-100" />
-                    <div className="flex items-center gap-1 text-[10px] text-gray-300 font-medium">
-                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <button
+                    onClick={() => onGapTap?.(card.end_time ?? "")}
+                    className="w-full flex items-center gap-2.5 my-1 px-1 min-h-[32px] group"
+                    aria-label={`Add activity — ${freeTimeLabel(gap)}`}
+                  >
+                    <div className="flex-1 border-t border-dashed border-gray-200 group-hover:border-gray-300 transition-colors" />
+                    <div className="flex items-center gap-1.5 text-[13px] text-gray-400 font-medium whitespace-nowrap group-hover:text-gray-600 transition-colors">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="12" cy="12" r="10" />
                         <polyline points="12 6 12 12 16 14" />
                       </svg>
                       {freeTimeLabel(gap)}
                     </div>
-                    <div className="flex-1 h-px bg-gray-100" />
-                  </div>
+                    <div className="flex-1 border-t border-dashed border-gray-200 group-hover:border-gray-300 transition-colors" />
+                  </button>
                 )}
               </div>
             );
