@@ -16,9 +16,16 @@ function useTripContext(): { tripId: string | null; dayId: string | null } {
   };
 }
 
+// UUID v4 pattern (loose match)
+const UUID_RE = /^[0-9a-f-]{36}$/i;
+
 export default function BottomNav() {
   const pathname = usePathname();
   const { tripId, dayId } = useTripContext();
+
+  // Only show inside a trip route (/trips/[uuid]/*)
+  const insideTrip = !!tripId && UUID_RE.test(tripId);
+  if (!insideTrip) return null;
 
   // Resolve tab destinations based on context
   const daysHref  = dayId && tripId ? `/trips/${tripId}/days/${dayId}` : tripId ? `/trips/${tripId}` : "/trips";
@@ -29,7 +36,7 @@ export default function BottomNav() {
     {
       key: "days",
       href: daysHref,
-      label: "Days",
+      label: "Agenda",
       active: pathname.includes("/days/"),
       icon: (active: boolean) => (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
