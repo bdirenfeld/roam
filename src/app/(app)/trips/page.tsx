@@ -3,6 +3,7 @@ import Link from "next/link";
 import AppHeader from "@/components/ui/AppHeader";
 import TripCard from "@/components/ui/TripCard";
 import type { Trip } from "@/types/database";
+import { fetchAndStoreCover } from "@/lib/unsplash";
 
 export default async function TripsPage() {
   const supabase = await createClient();
@@ -13,7 +14,7 @@ export default async function TripsPage() {
   // TODO: re-enable auth check before deploying
   // if (!user) redirect("/login");
 
-  const [{ data: profile }, { data: trips }, { data: firstDays }] = await Promise.all([
+  const [{ data: profile }, { data: rawTrips }, { data: firstDays }] = await Promise.all([
     supabase.from("users").select("name, avatar_url").eq("id", user?.id ?? "").single(),
     supabase
       .from("trips")
@@ -25,6 +26,25 @@ export default async function TripsPage() {
       .select("id, trip_id")
       .order("day_number", { ascending: true }),
   ]);
+
+  // Backfill cover images for trips that have a destination but no cover yet
+  let trips = rawTrips;
+  const tripsNeedingCover = (rawTrips ?? []).filter(
+    (t: Trip) => t.destination && !t.cover_image_url,
+  );
+  if (tripsNeedingCover.length > 0) {
+    await Promise.all(
+      tripsNeedingCover.map((t: Trip) =>
+        fetchAndStoreCover(supabase, t.id, t.destination!),
+      ),
+    );
+    // Re-fetch so the newly stored URLs are available for rendering
+    const { data: refreshed } = await supabase
+      .from("trips")
+      .select("*")
+      .order("start_date", { ascending: true });
+    trips = refreshed;
+  }
 
   // Build a map of tripId → first day id
   const firstDayByTrip: Record<string, string> = {};

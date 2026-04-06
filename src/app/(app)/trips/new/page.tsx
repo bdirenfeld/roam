@@ -155,6 +155,13 @@ export default function NewTripPage() {
       await supabase.from("days").insert(days);
     }
 
+    // Fire-and-forget: fetch Unsplash cover in background (navigates immediately)
+    fetch("/api/trips/fetch-cover", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ trip_id: tripId }),
+    }).catch(() => { /* ignore */ });
+
     router.push(`/trips/${tripId}/map`);
   }, [isValid, saving, destination, tripName, startDate, endDate, partySize, supabase, router]);
 
