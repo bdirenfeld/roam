@@ -236,13 +236,13 @@ function CardBody({
     <>
       {/* Cover photo */}
       {hasPhoto ? (
-        <div className="w-full h-36 flex-shrink-0 overflow-hidden">
+        <div className="w-full h-[120px] flex-shrink-0 overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={card.cover_image_url!} alt={card.title} className="w-full h-full object-cover" />
         </div>
       ) : (
         <div
-          className="w-full h-16 flex-shrink-0 flex items-center justify-center"
+          className="w-full h-[120px] flex-shrink-0 flex items-center justify-center"
           style={{ background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)" }}
         >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#86EFAC" strokeWidth="1.5" strokeLinecap="round">
@@ -278,10 +278,10 @@ function CardBody({
       )}
 
       {/* Content */}
-      <div className="px-4 pt-3 pb-4 overflow-y-auto flex-1">
+      <div className="px-3 pt-3 pb-3 overflow-y-auto flex-1">
 
         {/* Type badge + pencil */}
-        <div className="flex items-center gap-1 mb-1.5">
+        <div className="flex items-center gap-1 mb-1">
           {subTypeLabel && (
             <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
               {subTypeLabel}
@@ -310,7 +310,7 @@ function CardBody({
         <h2 className="text-[15px] font-bold text-gray-900 leading-snug">{card.title}</h2>
 
         {rating !== undefined && (
-          <div className="flex items-center gap-2 mt-1">
+          <div className="flex items-center gap-1.5 mt-1">
             <StarRating rating={rating} />
             <span className="text-[12px] font-semibold text-gray-700">{rating.toFixed(1)}</span>
             {userRatingsTotal && (
@@ -318,30 +318,26 @@ function CardBody({
             )}
           </div>
         )}
-        {card.address && (
-          <p className="text-[12px] text-gray-500 mt-1.5 leading-snug">{card.address}</p>
-        )}
         {recommendedBy && (
           <p className="text-[11px] text-gray-400 mt-1 leading-snug">
             <span className="text-amber-400">★</span> Recommended by {recommendedBy}
           </p>
         )}
-        {phone && (
-          <a href={`tel:${phone}`} className="block text-[12px] text-blue-500 mt-1 hover:underline">{phone}</a>
-        )}
-        <div className="flex gap-2 mt-3">
+
+        {/* Compact pill action buttons */}
+        <div className="flex gap-1.5 mt-3 flex-wrap">
           {card.lat != null && card.lng != null && (
             <a
               href={`https://www.google.com/maps/search/?api=1&query=${card.lat},${card.lng}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-blue-50 border border-blue-100 text-[11px] font-semibold text-blue-600 hover:bg-blue-100 transition-colors"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-blue-200 bg-blue-50 text-[11px] font-semibold text-blue-600 hover:bg-blue-100 transition-colors"
             >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
                 <circle cx="12" cy="9" r="2.5" />
               </svg>
-              Google Maps
+              Maps
             </a>
           )}
           {(website || card.source_url) && (
@@ -349,14 +345,25 @@ function CardBody({
               href={(website || card.source_url)!}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-gray-50 border border-gray-100 text-[11px] font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-gray-200 bg-gray-50 text-[11px] font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
             >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10" />
                 <line x1="2" y1="12" x2="22" y2="12" />
                 <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
               </svg>
               Website
+            </a>
+          )}
+          {phone && (
+            <a
+              href={`tel:${phone}`}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-gray-200 bg-gray-50 text-[11px] font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.44 2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.9a16 16 0 0 0 6.09 6.09l.98-.98a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+              </svg>
+              Call
             </a>
           )}
         </div>
