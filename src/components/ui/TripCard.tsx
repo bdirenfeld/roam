@@ -57,7 +57,7 @@ export default function TripCard({ trip, firstDayId }: Props) {
         <TripCover
           destination={trip.destination}
           coverImageUrl={trip.cover_image_url}
-          className="w-full h-[120px]"
+          className="w-full h-[80px]"
         />
 
         {/* Content */}
@@ -82,8 +82,8 @@ export default function TripCard({ trip, firstDayId }: Props) {
             <span className="text-xs text-gray-400">{trip.destination}</span>
           </div>
 
-          {/* Bottom row: dates · nights · countdown */}
-          <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+          {/* Bottom row: dates · nights · countdown · party */}
+          <div className="flex items-center gap-2 mt-2.5 overflow-hidden">
             <span className="text-xs text-gray-500">{formatDateRange(trip.start_date, trip.end_date)}</span>
             <span className="text-gray-200 text-xs">·</span>
             <span className="text-xs text-gray-400">{nights}n</span>
