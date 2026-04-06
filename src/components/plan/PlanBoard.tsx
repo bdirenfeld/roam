@@ -559,7 +559,18 @@ export default function PlanBoard({ trip, initialDays }: Props) {
   return (
     <div className="flex flex-col h-dvh" style={boardBgStyle}>
       {/* Sub-header */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100 bg-white flex-shrink-0">
+      <div className="flex items-center gap-2 px-2 py-2 border-b border-gray-100 bg-white flex-shrink-0">
+        {/* Home button */}
+        <Link
+          href="/"
+          className="flex items-center justify-center w-9 h-9 rounded-full text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors flex-shrink-0"
+          aria-label="Back to home"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </Link>
         {firstDay && (
           <Link
             href={`/trips/${trip.id}/days/${firstDay.id}`}
