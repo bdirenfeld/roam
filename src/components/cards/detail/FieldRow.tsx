@@ -26,6 +26,8 @@ interface FieldRowProps {
   placeholder?: string;
   onSave?: (value: string) => void;
   multiline?: boolean;
+  /** When true, renders nothing if the value is empty. */
+  hideWhenEmpty?: boolean;
 }
 
 export default function FieldRow({
@@ -35,6 +37,7 @@ export default function FieldRow({
   placeholder = "Add…",
   onSave,
   multiline = false,
+  hideWhenEmpty = false,
 }: FieldRowProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value ?? "");
@@ -65,6 +68,8 @@ export default function FieldRow({
 
   const canEdit = !!onSave;
   const isEmpty = !value;
+
+  if (hideWhenEmpty && isEmpty) return null;
 
   return (
     <div className="flex items-start gap-3">

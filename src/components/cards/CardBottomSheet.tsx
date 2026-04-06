@@ -328,6 +328,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const [showLinkSheet,     setShowLinkSheet]     = useState(false);
   const [showAttachments,   setShowAttachments]   = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showEmptyFields,   setShowEmptyFields]   = useState(false);
   const [isDeleting,        setIsDeleting]        = useState(false);
   const [deleteError,       setDeleteError]       = useState<string | null>(null);
   const [showSubTypePicker, setShowSubTypePicker] = useState(false);
@@ -601,34 +602,34 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         return <FlightArrivalDetail card={localCard} onSaveDetails={saveDetails} />;
       case "food/coffee":
       case "food/coffee_dessert":
-        return <CoffeeDetail card={localCard} onSaveDetails={saveDetails} />;
+        return <CoffeeDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
       case "food/cocktail_bar":
-        return <CocktailBarDetail card={localCard} onSaveDetails={saveDetails} hideAddress />;
+        return <CocktailBarDetail card={localCard} onSaveDetails={saveDetails} hideAddress showEmpty={showEmptyFields} />;
       case "food/drinks":
-        return <CocktailBarDetail card={localCard} onSaveDetails={saveDetails} />;
+        return <CocktailBarDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
       case "food/restaurant":
-        return <RestaurantDetail card={localCard} onSaveDetails={saveDetails} />;
+        return <RestaurantDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
       case "activity/self_directed":
-        return <SelfDirectedDetail card={localCard} onSaveDetails={saveDetails} />;
+        return <SelfDirectedDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
       case "activity/guided":
       case "activity/hosted":
-        return <GuidedDetail card={localCard} onSaveDetails={saveDetails} />;
+        return <GuidedDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
       case "activity/note":
         return <NoteDetail notes={(localCard.details?.notes as string) ?? ""} onSave={(v) => saveDetails("notes", v)} />;
       case "activity/event":
-        return <EventDetail card={localCard} onSaveDetails={saveDetails} />;
+        return <EventDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
       case "activity/challenge":
-        return <ChallengeDetail card={localCard} onSaveDetails={saveDetails} />;
+        return <ChallengeDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
       case "logistics/flight_departure":
-        return <FlightArrivalDetail card={localCard} onSaveDetails={saveDetails} />;
+        return <FlightArrivalDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
       case "logistics/hotel":
-        return <HotelDetail card={localCard} onSaveDetails={saveDetails} />;
+        return <HotelDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
       case "activity/wellness":
         return <ActivityDetail card={localCard} />;
       default:
         if (localCard.type === "logistics") return <LogisticsDetail card={localCard} />;
         if (localCard.type === "activity")  return <ActivityDetail  card={localCard} />;
-        return <RestaurantDetail card={localCard} onSaveDetails={saveDetails} />;
+        return <RestaurantDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
     }
   }
 
@@ -917,6 +918,19 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         <div className="relative flex-1 min-h-0">
           <div className="absolute inset-0 overflow-y-auto px-5 py-5">
             {renderDetail()}
+
+            {/* Add details / collapse toggle — not shown for notes */}
+            {localCard.sub_type !== "note" && (
+              <button
+                onClick={() => setShowEmptyFields((v) => !v)}
+                className="mt-4 flex items-center gap-1.5 text-[12px] text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <span className="w-4 h-4 rounded-full border border-gray-300 flex items-center justify-center flex-shrink-0 text-[10px] font-bold leading-none">
+                  {showEmptyFields ? "−" : "+"}
+                </span>
+                {showEmptyFields ? "Hide empty fields" : "Add details"}
+              </button>
+            )}
           </div>
           {/* Gradient fade to hint at more content below */}
           <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none" />

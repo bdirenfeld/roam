@@ -16,6 +16,8 @@ interface Props {
   onSave?: (items: string[]) => void;
   /** Tailwind bg class for the bullet dot, e.g. "bg-activity" */
   bulletClass?: string;
+  /** When true, renders nothing if items is empty. */
+  hideWhenEmpty?: boolean;
 }
 
 export default function ArrayField({
@@ -25,11 +27,14 @@ export default function ArrayField({
   newItemPlaceholder = "Add item…",
   onSave,
   bulletClass = "bg-gray-300",
+  hideWhenEmpty = false,
 }: Props) {
   const [editIdx, setEditIdx] = useState<number | null>(null);
   const [editVal, setEditVal] = useState("");
   const [adding, setAdding] = useState(false);
   const [newVal, setNewVal] = useState("");
+
+  if (hideWhenEmpty && items.length === 0) return null;
 
   const commitEdit = (i: number) => {
     setEditIdx(null);
