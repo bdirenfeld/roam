@@ -3,7 +3,8 @@
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
-import MapPinPopup from "./MapPinPopup";
+import MapPinSheet from "./MapPinSheet";
+import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import MapSidebar from "./MapSidebar";
 import PlaceSearch from "./PlaceSearch";
 import AddToTripSheet from "./AddToTripSheet";
@@ -72,11 +73,9 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
   const activeTypesRef     = useRef<Set<CardType>>(new Set(["activity", "food", "logistics"] as CardType[]));
   const activeStatusesRef  = useRef<Set<string>>(new Set(["interested", "in_itinerary"]));
 
-  const selectedCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
-  const [anchorPos, setAnchorPos] = useState<{ x: number; y: number } | null>(null);
-
-  const [localCards, setLocalCards]     = useState<Card[]>(cards);
-  const [selectedCard, setSelectedCard] = useState<Card | null>(null);
+  const [localCards, setLocalCards]       = useState<Card[]>(cards);
+  const [selectedCard, setSelectedCard]   = useState<Card | null>(null);
+  const [showCardDetail, setShowCardDetail] = useState(false);
   const [showHint, setShowHint]         = useState(false);
   const [activeSubTypes, setActiveSubTypesState] = useState<Set<string>>(makeInitialSubTypes);
   const [activeTypes, setActiveTypesState] = useState<Set<CardType>>(
@@ -104,23 +103,12 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     return () => clearTimeout(t);
   }, [showHint]);
 
-  function computeAnchorPos(lat: number, lng: number): { x: number; y: number } | null {
-    const map = mapInstRef.current;
-    const container = mapContainerRef.current;
-    if (!map || !container) return null;
-    const point = map.project([lng, lat]);
-    const rect  = container.getBoundingClientRect();
-    return { x: rect.left + point.x, y: rect.top + point.y };
-  }
-
   function deselectPin() {
     if (selectedInnerRef.current) {
       selectedInnerRef.current.dataset.selected = "";
       selectedInnerRef.current.style.transform  = "";
       selectedInnerRef.current = null;
     }
-    selectedCoordsRef.current = null;
-    setAnchorPos(null);
   }
 
   // ── Sync all marker visibility against type + sub-type + status toggles ─
@@ -195,9 +183,8 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       inner.dataset.selected = "1";
       inner.style.transform  = "scale(1.4)";
       selectedInnerRef.current = inner;
-      selectedCoordsRef.current = { lat, lng };
-      setAnchorPos(computeAnchorPos(lat, lng));
       setSelectedCard(cardRef.current);
+      setShowCardDetail(false);
     });
 
     MARKERS.set(card.id, { marker: mbMarker, type: card.type, cardRef });
@@ -218,18 +205,11 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
         inner.style.transform  = "scale(1.4)";
         selectedInnerRef.current = inner;
       }
-      if (card.lat != null && card.lng != null) {
-        selectedCoordsRef.current = { lat: card.lat, lng: card.lng };
-        setAnchorPos(computeAnchorPos(card.lat, card.lng));
-      }
       setSelectedCard(entry.cardRef.current);
     } else {
-      if (card.lat != null && card.lng != null) {
-        selectedCoordsRef.current = { lat: card.lat, lng: card.lng };
-        setAnchorPos(computeAnchorPos(card.lat, card.lng));
-      }
       setSelectedCard(card);
     }
+    setShowCardDetail(false);
   }
 
   // ── Place search: fetch details, drop temp pin, open sheet ───
@@ -424,11 +404,8 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
             inner.dataset.selected = "1";
             inner.style.transform  = "scale(1.4)";
             selectedInnerRef.current = inner;
-            selectedCoordsRef.current = { lat, lng };
-            const point = map.project([lng, lat]);
-            const rect  = mapContainerRef.current?.getBoundingClientRect();
-            if (rect) setAnchorPos({ x: rect.left + point.x, y: rect.top + point.y });
             setSelectedCard(cardRef.current);
+            setShowCardDetail(false);
           });
 
           MARKERS.set(card.id, { marker: mbMarker, type: card.type, cardRef });
@@ -443,14 +420,6 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           );
           map.fitBounds(bounds, { padding: 80, maxZoom: 15 });
         }
-      });
-
-      map.on("move", () => {
-        const coords = selectedCoordsRef.current;
-        if (!coords || !mapContainerRef.current) return;
-        const point = map.project([coords.lng, coords.lat]);
-        const rect  = mapContainerRef.current.getBoundingClientRect();
-        setAnchorPos({ x: rect.left + point.x, y: rect.top + point.y });
       });
 
       map.on("click", () => {
@@ -631,14 +600,25 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           </div>
         </div>
 
-        {/* Pin-anchored popup */}
-        {selectedCard && (
-          <MapPinPopup
+        {/* Pin bottom sheet — compact preview */}
+        {selectedCard && !showCardDetail && (
+          <MapPinSheet
             card={selectedCard}
-            anchorPos={anchorPos}
+            days={days}
             onClose={() => { deselectPin(); setSelectedCard(null); }}
+            onViewCard={() => setShowCardDetail(true)}
+          />
+        )}
+
+        {/* Full card detail sheet — opened from pin sheet "View card" */}
+        {selectedCard && showCardDetail && (
+          <CardBottomSheet
+            card={selectedCard}
+            days={days}
+            onClose={() => { deselectPin(); setSelectedCard(null); setShowCardDetail(false); }}
             onCardUpdate={handleCardUpdate}
-            onCardDelete={(cardId) => { deselectPin(); handleCardDelete(cardId); }}
+            onCardDelete={(cardId) => { deselectPin(); handleCardDelete(cardId); setShowCardDetail(false); }}
+            tripDestination={trip.destination}
           />
         )}
 
