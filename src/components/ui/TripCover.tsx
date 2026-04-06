@@ -50,15 +50,15 @@ export default function TripCover({ destination, coverImageUrl, className = "" }
 
   return (
     <div
-      className={`flex items-center justify-center ${className}`}
+      className={`flex items-end p-2.5 ${className}`}
       style={{
         background: `linear-gradient(135deg, ${palette.from}, ${palette.to})`,
       }}
     >
       {/* Subtle destination initial watermark */}
       <span
-        className="text-2xl font-black leading-none select-none"
-        style={{ color: "rgba(255,255,255,0.15)" }}
+        className="leading-none select-none font-black"
+        style={{ color: "rgba(255,255,255,0.17)", fontSize: "32px" }}
         aria-hidden
       >
         {destination.charAt(0).toUpperCase()}

@@ -17,13 +17,16 @@ function daysUntil(dateStr: string): number {
 }
 
 function formatDateRange(start: string, end: string): string {
+  const s = new Date(start + "T00:00:00");
+  const e = new Date(end   + "T00:00:00");
+  const crossYear = s.getFullYear() !== e.getFullYear();
   const fmt = (d: Date, year = false) =>
     d.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       ...(year ? { year: "numeric" } : {}),
     });
-  return `${fmt(new Date(start + "T00:00:00"))} – ${fmt(new Date(end + "T00:00:00"), true)}`;
+  return `${fmt(s)} – ${fmt(e, crossYear)}`;
 }
 
 function tripNights(start: string, end: string): number {
