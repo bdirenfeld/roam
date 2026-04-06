@@ -195,6 +195,67 @@ function formatPhone(
   return { href: `tel:${international}`, display: `${dialCode} ${displayNum.trim()}` };
 }
 
+// ── Time picker helpers ───────────────────────────────────────
+/** Convert "HH:MM" or "HH:MM:SS" to the value needed by <input type="time"> ("HH:MM") */
+function toInputTime(t: string | null): string {
+  if (!t) return "";
+  return t.slice(0, 5); // "HH:MM"
+}
+
+/** Convert <input type="time"> value ("HH:MM") to DB storage format ("HH:MM:SS") */
+function toDbTime(v: string): string {
+  return v ? `${v}:00` : "";
+}
+
+/**
+ * Inline editable time chip.
+ * Displays as a tappable pill. On click, activates a native time picker.
+ */
+function TimeChip({
+  value,
+  placeholder,
+  onSave,
+}: {
+  value: string | null;
+  placeholder: string;
+  onSave: (hhmm: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const inputVal = toInputTime(value);
+
+  const displayVal = value ? formatTime(value) : null;
+
+  const handleClick = () => {
+    // showPicker() is not available in all environments; fall back to focus + click
+    if (inputRef.current) {
+      inputRef.current.focus();
+      try { inputRef.current.showPicker?.(); } catch { /* ignore */ }
+    }
+  };
+
+  return (
+    <span className="relative inline-flex items-center">
+      {/* Visible pill */}
+      <button
+        type="button"
+        onClick={handleClick}
+        className={`text-sm px-2 py-0.5 rounded-md transition-colors hover:bg-gray-100 active:bg-gray-200 ${displayVal ? "text-gray-700 font-medium" : "text-gray-400 italic"}`}
+      >
+        {displayVal ?? placeholder}
+      </button>
+      {/* Hidden native time input — overlaid for picker activation */}
+      <input
+        ref={inputRef}
+        type="time"
+        value={inputVal}
+        onChange={(e) => { if (e.target.value) onSave(e.target.value); }}
+        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+        style={{ fontSize: 0 }}
+      />
+    </span>
+  );
+}
+
 // ── Note detail (free-form textarea) ─────────────────────────
 function NoteDetail({ notes, onSave }: { notes: string; onSave: (v: string) => void }) {
   const [draft, setDraft] = useState(notes);
@@ -528,13 +589,6 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                     ? ((localCard.details as Record<string, unknown>).website as string)
                     : null;
 
-  const timeRange = (() => {
-    const s = formatTime(localCard.start_time);
-    const e = formatTime(localCard.end_time);
-    if (s && e) return `${s} – ${e}`;
-    if (s) return s;
-    return null;
-  })();
   const duration = durationLabel(localCard.start_time, localCard.end_time);
   const badge = bookingBadge(localCard.details);
 
@@ -735,39 +789,70 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             />
           </div>
 
-          {/* Subtitle: time · duration (+ source link if present) */}
-          {(timeRange || duration || localCard.source_url) && (
-            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-              {timeRange && (
-                <span className="text-sm text-gray-500">{timeRange}</span>
-              )}
-              {duration && (
+          {/* Editable time row */}
+          <div className="flex items-center gap-1 mt-1 flex-wrap">
+            {/* Start time — always shown */}
+            <TimeChip
+              value={localCard.start_time}
+              placeholder="Add start time"
+              onSave={(hhmm) => saveTopLevel("start_time", toDbTime(hhmm))}
+            />
+
+            {/* Separator + end time (or "+" to add end time) */}
+            {localCard.start_time && (
+              localCard.end_time ? (
                 <>
-                  {timeRange && <span className="text-gray-300 text-sm">·</span>}
-                  <span className="text-sm text-gray-500">{duration}</span>
+                  <span className="text-gray-300 text-sm select-none">–</span>
+                  <TimeChip
+                    value={localCard.end_time}
+                    placeholder="End time"
+                    onSave={(hhmm) => saveTopLevel("end_time", toDbTime(hhmm))}
+                  />
                 </>
-              )}
-              {localCard.source_url && (
-                <>
-                  {(timeRange || duration) && <span className="text-gray-300 text-sm">·</span>}
-                  <a
-                    href={localCard.source_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 transition-colors"
-                    aria-label="Source"
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="10" />
-                      <line x1="2" y1="12" x2="22" y2="12" />
-                      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                    </svg>
-                    Source
-                  </a>
-                </>
-              )}
-            </div>
-          )}
+              ) : (
+                <TimeChip
+                  value={null}
+                  placeholder="+ end time"
+                  onSave={(hhmm) => saveTopLevel("end_time", toDbTime(hhmm))}
+                />
+              )
+            )}
+
+            {/* Duration */}
+            {duration && (
+              <>
+                <span className="text-gray-300 text-sm select-none">·</span>
+                <span className="text-sm text-gray-400">{duration}</span>
+              </>
+            )}
+
+            {/* Overnight warning */}
+            {localCard.start_time && localCard.end_time &&
+              toInputTime(localCard.end_time) < toInputTime(localCard.start_time) && (
+              <span className="text-[11px] text-amber-500 font-medium ml-0.5">overnight</span>
+            )}
+
+            {/* Source link */}
+            {localCard.source_url && (
+              <>
+                <span className="text-gray-300 text-sm">·</span>
+                <a
+                  href={localCard.source_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+                  aria-label="Source"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="2" y1="12" x2="22" y2="12" />
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                  </svg>
+                  Source
+                </a>
+              </>
+            )}
+          </div>
 
           {/* Address line */}
           {addressLine && (
