@@ -53,13 +53,29 @@ function formatTimeRange(start: string | null, end: string | null): string | nul
   return `${fmtTime(start, true)} – ${fmtTime(end, true)}`;
 }
 
+function flightRoute(det: Record<string, unknown> | null, timeRange: string | null): string | null {
+  const origin   = typeof det?.origin_airport  === "string" ? det.origin_airport  : null;
+  const arriving = typeof det?.arriving_at      === "string" ? det.arriving_at      : null;
+  if (origin && arriving) {
+    const base = `${origin} → ${arriving}`;
+    return timeRange ? `${base} · ${timeRange}` : base;
+  }
+  // Fall back to airline name
+  return typeof det?.airline === "string" ? det.airline : null;
+}
+
 export default function CardSurface({ card, onTap, isHighlighted }: Props) {
   const colors    = TYPE_COLOR[card.type];
   const subLabel  = card.sub_type ? (SUB_TYPE_SHORT[card.sub_type] ?? null) : null;
   const timeRange = formatTimeRange(card.start_time, card.end_time);
-  // Subtitle: prefer address, fall back to sub-type label
-  const subtitle  = card.address ?? subLabel;
   const det        = card.details as Record<string, unknown> | null;
+
+  const isFlight = card.sub_type === "flight_arrival" || card.sub_type === "flight_departure";
+
+  // Subtitle: flights get a route string; others prefer address, fall back to sub-type label
+  const subtitle = isFlight
+    ? flightRoute(det, timeRange)
+    : (card.address ?? subLabel);
   const surfRating = card.type === "food" && typeof det?.rating === "number" ? det.rating as number : null;
   const priceRange = card.type === "food"
     ? getPriceRange(det?.price_level as number | undefined, det?.currency_code as string | undefined)
@@ -82,10 +98,14 @@ export default function CardSurface({ card, onTap, isHighlighted }: Props) {
           {card.title}
         </p>
         {(timeRange || subtitle) && (
-          <p className="text-[11px] text-gray-400 mt-0.5 truncate leading-snug">
-            {timeRange}
-            {timeRange && subtitle && <span className="mx-1">·</span>}
-            {subtitle}
+          <p className="text-[11px] text-gray-600 mt-0.5 truncate leading-snug">
+            {isFlight ? subtitle : (
+              <>
+                {timeRange}
+                {timeRange && subtitle && <span className="mx-1">·</span>}
+                {subtitle}
+              </>
+            )}
           </p>
         )}
         {priceRange && (
