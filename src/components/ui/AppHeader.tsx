@@ -10,7 +10,7 @@ export default function AppHeader({ avatarUrl, subtitle }: AppHeaderProps) {
   return (
     <header className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-white sticky top-0 z-30">
       <div>
-        <Link href="/trips">
+        <Link href="/">
           <span className="text-xl font-bold tracking-tight text-gray-900">
             Roam
           </span>

@@ -57,8 +57,8 @@ export default function TripCover({ destination, coverImageUrl, className = "" }
     >
       {/* Subtle destination initial watermark */}
       <span
-        className="text-5xl font-black leading-none select-none"
-        style={{ color: "rgba(255,255,255,0.18)" }}
+        className="text-3xl font-black leading-none select-none"
+        style={{ color: "rgba(255,255,255,0.14)" }}
         aria-hidden
       >
         {destination.charAt(0).toUpperCase()}

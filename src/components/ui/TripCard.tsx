@@ -57,11 +57,11 @@ export default function TripCard({ trip, firstDayId }: Props) {
         <TripCover
           destination={trip.destination}
           coverImageUrl={trip.cover_image_url}
-          className="w-full h-32"
+          className="w-full h-[120px]"
         />
 
         {/* Content */}
-        <div className="px-4 py-3.5">
+        <div className="px-4 py-3">
           {/* Top row: title + status */}
           <div className="flex items-start justify-between gap-3">
             <h3 className="text-sm font-bold text-gray-900 leading-snug">
@@ -91,7 +91,7 @@ export default function TripCard({ trip, firstDayId }: Props) {
             {countdownLabel && (
               <>
                 <span className="text-gray-200 text-xs">·</span>
-                <span className={`text-xs font-semibold ${countdown <= 3 && countdown >= 0 ? "text-activity" : "text-gray-400"}`}>
+                <span className="text-[13px] font-semibold text-activity">
                   {countdownLabel}
                 </span>
               </>
