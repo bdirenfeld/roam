@@ -209,7 +209,8 @@ function toDbTime(v: string): string {
 
 /**
  * Inline editable time chip.
- * Displays as a tappable pill. On click, activates a native time picker.
+ * Displays as a tappable pill. On click, switches to a native time input.
+ * Works on both desktop (type/pick in input) and mobile (native picker via showPicker).
  */
 function TimeChip({
   value,
@@ -220,39 +221,44 @@ function TimeChip({
   placeholder: string;
   onSave: (hhmm: string) => void;
 }) {
+  const [editing, setEditing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const inputVal = toInputTime(value);
-
   const displayVal = value ? formatTime(value) : null;
 
-  const handleClick = () => {
-    // showPicker() is not available in all environments; fall back to focus + click
-    if (inputRef.current) {
+  useEffect(() => {
+    if (editing && inputRef.current) {
       inputRef.current.focus();
       try { inputRef.current.showPicker?.(); } catch { /* ignore */ }
     }
-  };
+  }, [editing]);
 
-  return (
-    <span className="relative inline-flex items-center">
-      {/* Visible pill */}
-      <button
-        type="button"
-        onClick={handleClick}
-        className={`text-sm px-2 py-0.5 rounded-md transition-colors hover:bg-gray-100 active:bg-gray-200 ${displayVal ? "text-gray-700 font-medium" : "text-gray-400 italic"}`}
-      >
-        {displayVal ?? placeholder}
-      </button>
-      {/* Hidden native time input — overlaid for picker activation */}
+  if (editing) {
+    return (
       <input
         ref={inputRef}
         type="time"
-        value={inputVal}
-        onChange={(e) => { if (e.target.value) onSave(e.target.value); }}
-        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-        style={{ fontSize: 0 }}
+        defaultValue={inputVal}
+        onChange={(e) => {
+          if (e.target.value) {
+            onSave(e.target.value);
+            setEditing(false);
+          }
+        }}
+        onBlur={() => setEditing(false)}
+        className="text-sm px-2 py-0.5 rounded-md border border-gray-200 bg-white text-gray-700 font-medium outline-none focus:border-teal-400"
       />
-    </span>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setEditing(true)}
+      className={`text-sm px-2 py-0.5 rounded-md transition-colors hover:bg-gray-100 active:bg-gray-200 ${displayVal ? "text-gray-700 font-medium" : "text-gray-400 italic"}`}
+    >
+      {displayVal ?? placeholder}
+    </button>
   );
 }
 
