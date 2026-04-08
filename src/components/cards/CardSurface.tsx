@@ -17,12 +17,21 @@ const TYPE_COLOR: Record<CardType, { border: string; icon: string; bg: string }>
 const SUB_TYPE_SHORT: Record<string, string> = {
   flight_arrival:   "Arrival",
   flight_departure: "Departure",
+  transit:          "Transit",
+  hotel:            "Hotel",
   self_directed:    "Self-directed",
+  guided:           "Guided",
   hosted:           "Guided",
   wellness:         "Wellness",
+  event:            "Event",
+  challenge:        "Challenge",
   restaurant:       "Restaurant",
+  coffee:           "Coffee",
   coffee_dessert:   "Coffee",
-  drinks:           "Drinks",
+  dessert:          "Dessert",
+  bar:              "Bar",
+  cocktail_bar:     "Bar",
+  drinks:           "Bar",
 };
 
 /** Format a single HH:MM time string, optionally including the AM/PM period. */

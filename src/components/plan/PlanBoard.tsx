@@ -49,15 +49,21 @@ const TYPE_BORDER: Record<CardType, string> = {
 const SUB_LABEL: Record<string, string> = {
   flight_arrival:   "Arrival",
   flight_departure: "Departure",
+  transit:          "Transit",
+  hotel:            "Hotel",
   self_directed:    "Self-directed",
   guided:           "Guided",
   hosted:           "Guided",
   wellness:         "Wellness",
+  event:            "Event",
+  challenge:        "Challenge",
   restaurant:       "Restaurant",
   coffee:           "Coffee",
   coffee_dessert:   "Coffee",
-  cocktail_bar:     "Cocktail bar",
-  drinks:           "Drinks",
+  dessert:          "Dessert",
+  bar:              "Bar",
+  cocktail_bar:     "Bar",
+  drinks:           "Bar",
   note:             "Note",
 };
 

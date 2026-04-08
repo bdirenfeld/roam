@@ -49,8 +49,9 @@ const SUB_TYPE_LABEL: Record<string, string> = {
   coffee_dessert:   "Coffee",
   dessert:          "Dessert",
   fine_dining:      "Fine Dining",
-  cocktail_bar:     "Cocktail Bar",
-  drinks:           "Cocktail Bar",
+  cocktail_bar:     "Bar",
+  bar:              "Bar",
+  drinks:           "Bar",
   hotel:            "Hotel",
   transit:          "Transit",
   note:             "Note",
@@ -69,15 +70,14 @@ const SUB_TYPE_OPTIONS: Record<string, { value: string; label: string }[]> = {
     { value: "guided",        label: "Guided" },
     { value: "self_directed", label: "Self-Directed" },
     { value: "wellness",      label: "Wellness" },
-    { value: "event",         label: "Event" },
     { value: "challenge",     label: "Challenge" },
+    { value: "event",         label: "Event" },
   ],
   food: [
-    { value: "restaurant",   label: "Restaurant" },
-    { value: "coffee",       label: "Coffee" },
-    { value: "dessert",      label: "Dessert" },
-    { value: "cocktail_bar", label: "Cocktail Bar" },
-    { value: "fine_dining",  label: "Fine Dining" },
+    { value: "restaurant", label: "Restaurant" },
+    { value: "coffee",     label: "Coffee" },
+    { value: "dessert",    label: "Dessert" },
+    { value: "bar",        label: "Bar" },
   ],
   logistics: [
     { value: "hotel",            label: "Hotel" },
@@ -598,6 +598,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         console.error("Failed to save type/sub_type", error.message);
         setLocalCard(prev);
         onCardUpdate?.(prev);
+      } else {
+        // Confirm the update to the parent so the card tile reflects the change immediately
+        onCardUpdate?.(updated);
       }
     },
     [localCard, onCardUpdate, supabase],
@@ -634,6 +637,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       case "food/coffee":
       case "food/coffee_dessert":
         return <CoffeeDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
+      case "food/bar":
       case "food/cocktail_bar":
         return <CocktailBarDetail card={localCard} onSaveDetails={saveDetails} hideAddress showEmpty={showEmptyFields} />;
       case "food/drinks":
