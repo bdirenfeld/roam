@@ -315,6 +315,10 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     setPendingPlace(null);
     addPinToMap(card);
     setLocalCards((prev) => [...prev, card]);
+    // Sync visibility so the new pin respects whatever filter state is currently active.
+    // addPinToMap conditionally adds the marker; syncVisibility ensures it is shown/hidden
+    // consistently with all other markers (matches the initialisation code behaviour).
+    syncVisibility();
   }
 
   // ── Handle card delete from sidebar or sheet ─────────────────
