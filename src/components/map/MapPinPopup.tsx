@@ -9,15 +9,22 @@ import { PIN_COLORS } from "@/lib/mapPins";
 // ── Constants ────────────────────────────────────────────────
 const SUB_TYPE_LABEL: Record<string, string> = {
   restaurant:       "Restaurant",
-  fine_dining:      "Fine Dining",
-  street_food:      "Street Food",
-  coffee:           "Café & Dessert",
-  coffee_dessert:   "Coffee & Pastry",
-  cocktail_bar:     "Cocktail Bar",
+  fine_dining:      "Restaurant",
+  street_food:      "Restaurant",
+  coffee:           "Coffee",
+  coffee_dessert:   "Coffee",
+  dessert:          "Dessert",
+  bar:              "Bar",
+  cocktail_bar:     "Bar",
   drinks:           "Bar",
   guided:           "Guided",
+  hosted:           "Guided",
+  self_directed:    "Self-Directed",
   wellness:         "Wellness",
+  challenge:        "Challenge",
+  event:            "Event",
   hotel:            "Hotel",
+  transit:          "Transit",
   flight_arrival:   "Flight Arrival",
   flight_departure: "Flight Departure",
 };
@@ -36,7 +43,12 @@ const SUB_TYPE_OPTIONS: Record<CardType, { label: string; value: string }[]> = {
     { label: "Event",         value: "event"          },
     { label: "Challenge",     value: "challenge"      },
   ],
-  food:      [{ label: "Restaurant", value: "restaurant" }, { label: "Café & Dessert", value: "coffee" }, { label: "Bar", value: "cocktail_bar" }],
+  food:      [
+    { label: "Restaurant", value: "restaurant" },
+    { label: "Coffee",     value: "coffee"     },
+    { label: "Dessert",    value: "dessert"    },
+    { label: "Bar",        value: "bar"        },
+  ],
   logistics: [{ label: "Hotel", value: "hotel" }, { label: "Flight", value: "flight_arrival" }],
 };
 

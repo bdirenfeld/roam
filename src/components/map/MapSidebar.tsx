@@ -6,19 +6,6 @@ import type { Card, CardType } from "@/types/database";
 import { getMaterialIconHTML, PIN_COLORS } from "@/lib/mapPins";
 import { createClient } from "@/lib/supabase/client";
 
-// ── Skeleton card filter (mirrors FullMapClient) ──────────────
-const SKELETON_PREFIXES = [
-  "morning activity", "afternoon activity", "evening activity",
-  "morning coffee", "lunch", "dinner", "aperitivo", "light dinner",
-  "check-in", "check-out", "flight to", "flight home",
-  "departure", "arrival",
-];
-
-function isSkeletonCard(card: import("@/types/database").Card): boolean {
-  const lower = card.title.toLowerCase();
-  return SKELETON_PREFIXES.some((s) => lower.startsWith(s));
-}
-
 // ── Sub-type groups shown in the sidebar ─────────────────────
 interface SubTypeRow {
   label: string;
@@ -38,9 +25,9 @@ const GROUPS: Group[] = [
     color: "#0D9488",
     typeKey: "activity",
     rows: [
-      { label: "Guided",        subTypes: ["guided", "hosted"] },
-      { label: "Self-directed", subTypes: ["self_directed"]    },
-      { label: "Wellness",      subTypes: ["wellness"]         },
+      { label: "Guided",       subTypes: ["guided", "hosted"]  },
+      { label: "Self-Directed", subTypes: ["self_directed"]    },
+      { label: "Wellness",     subTypes: ["wellness"]          },
     ],
   },
   {
@@ -48,9 +35,10 @@ const GROUPS: Group[] = [
     color: "#7C3AED",
     typeKey: "food",
     rows: [
-      { label: "Restaurant",   subTypes: ["restaurant", "fine_dining", "street_food"] },
-      { label: "Café & Dessert", subTypes: ["coffee", "coffee_dessert"] },
-      { label: "Cocktail Bar", subTypes: ["cocktail_bar", "drinks"] },
+      { label: "Restaurant", subTypes: ["restaurant", "fine_dining", "street_food"] },
+      { label: "Coffee",     subTypes: ["coffee", "coffee_dessert"]                  },
+      { label: "Dessert",    subTypes: ["dessert"]                                   },
+      { label: "Bar",        subTypes: ["bar", "cocktail_bar", "drinks"]              },
     ],
   },
   {
@@ -58,8 +46,9 @@ const GROUPS: Group[] = [
     color: "#111827",
     typeKey: "logistics",
     rows: [
-      { label: "Hotel",  subTypes: ["hotel"] },
-      { label: "Flight", subTypes: ["flight_arrival", "flight_departure"] },
+      { label: "Hotel",          subTypes: ["hotel"]             },
+      { label: "Flight Arrival", subTypes: ["flight_arrival"]    },
+      { label: "Flight Departure", subTypes: ["flight_departure"] },
     ],
   },
 ];
@@ -147,7 +136,7 @@ export default function MapSidebar({
   }
 
   function cardsForRow(row: SubTypeRow): Card[] {
-    return cards.filter((c) => c.sub_type && row.subTypes.includes(c.sub_type) && !isSkeletonCard(c));
+    return cards.filter((c) => c.sub_type && row.subTypes.includes(c.sub_type) && c.lat != null && c.lng != null);
   }
 
   return (
