@@ -93,6 +93,81 @@ const TYPE_ACCENT: Record<string, { dot: string; bg: string; text: string }> = {
   food:      { dot: "bg-food",      bg: "bg-amber-50",  text: "text-food"      },
 };
 
+// ── Sub-type picker (self-contained so activeCategory initialises correctly) ──
+function SubTypePicker({
+  currentType,
+  currentSubType,
+  onSelect,
+  onClose,
+}: {
+  currentType: string;
+  currentSubType: string | null;
+  onSelect: (type: string, subType: string) => void;
+  onClose: () => void;
+}) {
+  const initial = (["food", "activity", "logistics"] as const).includes(
+    currentType as "food" | "activity" | "logistics"
+  )
+    ? (currentType as "food" | "activity" | "logistics")
+    : "food";
+  const [activeCategory, setActiveCategory] = useState<"food" | "activity" | "logistics">(initial);
+
+  return (
+    <>
+      {/* Backdrop — click outside to close */}
+      <div className="fixed inset-0 z-10" onClick={onClose} />
+      <div
+        className="absolute left-0 top-8 z-20 bg-white rounded-xl shadow-sheet border border-gray-100 overflow-hidden"
+        style={{ minWidth: 220 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Section 1 — Category tabs */}
+        <div className="flex border-b border-gray-100">
+          {CATEGORY_OPTIONS.map(({ value, label }) => {
+            const isActive = activeCategory === value;
+            const dotCls =
+              value === "food" ? "bg-food" : value === "activity" ? "bg-activity" : "bg-logistics";
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setActiveCategory(value as "food" | "activity" | "logistics")}
+                className={`relative flex-1 flex items-center justify-center gap-1 py-2.5 text-[11px] font-semibold transition-colors ${
+                  isActive ? "text-gray-900" : "text-gray-400 hover:text-gray-600"
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotCls}`} />
+                {label}
+                {isActive && (
+                  <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-gray-800 rounded-t" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+        {/* Section 2 — Sub-types for selected category */}
+        <div className="py-1">
+          {(SUB_TYPE_OPTIONS[activeCategory] ?? []).map(({ value, label }) => {
+            const isCurrent = currentSubType === value && currentType === activeCategory;
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => onSelect(activeCategory, value)}
+                className={`w-full text-left px-4 py-2.5 text-[13px] transition-colors hover:bg-gray-50 ${
+                  isCurrent ? "font-bold text-gray-900" : "text-gray-700"
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── Booking badge ──────────────────────────────────────────────
 function bookingBadge(details: Record<string, unknown>) {
   const status = details.reservation_status as string | undefined;
@@ -349,7 +424,6 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const [isDeleting,        setIsDeleting]        = useState(false);
   const [deleteError,       setDeleteError]       = useState<string | null>(null);
   const [showSubTypePicker, setShowSubTypePicker] = useState(false);
-  const [pickerCategory,    setPickerCategory]    = useState<string | null>(null);
   const [linkMergeMessage,  setLinkMergeMessage]  = useState<string | null>(null);
 
   // ── Keyboard escape ────────────────────────────────────────
@@ -609,7 +683,10 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const isNote    = localCard.sub_type === "note";
   const accent    = isNote ? { dot: "bg-gray-300", bg: "bg-gray-50", text: "text-gray-500" }
                            : (TYPE_ACCENT[localCard.type] ?? TYPE_ACCENT.logistics);
-  const typeLabel = SUB_TYPE_LABEL[localCard.sub_type ?? ""] ?? localCard.type;
+  const typeLabel =
+    (localCard.sub_type ? SUB_TYPE_LABEL[localCard.sub_type] : undefined) ??
+    SUB_TYPE_OPTIONS[localCard.type]?.[0]?.label ??
+    localCard.type;
   const rating  = typeof (localCard.details as Record<string, unknown>)?.rating === "number"
                     ? ((localCard.details as Record<string, unknown>).rating as number)
                     : null;
@@ -725,18 +802,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               {/* Type badge — tappable to change sub-type */}
               <div className="relative">
                 <button
-                  onClick={() => {
-                    if (!isNote) {
-                      setPickerCategory(
-                        (["food", "activity", "logistics"] as const).includes(
-                          localCard.type as "food" | "activity" | "logistics"
-                        )
-                          ? localCard.type
-                          : "food"
-                      );
-                      setShowSubTypePicker((v) => !v);
-                    }
-                  }}
+                  type="button"
+                  onClick={() => { if (!isNote) setShowSubTypePicker((v) => !v); }}
                   className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${accent.bg} ${!isNote ? "hover:opacity-80 active:opacity-70 transition-opacity cursor-pointer" : "cursor-default"}`}
                 >
                   <span className={`w-2 h-2 rounded-full ${accent.dot}`} />
@@ -748,44 +815,12 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   )}
                 </button>
                 {showSubTypePicker && !isNote && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setShowSubTypePicker(false)} />
-                    <div className="absolute left-0 top-8 z-20 bg-white rounded-xl shadow-sheet border border-gray-100 overflow-hidden" style={{ minWidth: 200 }}>
-                      {/* Level 1 — Category tabs */}
-                      <div className="flex border-b border-gray-100">
-                        {CATEGORY_OPTIONS.map(({ value, label }) => {
-                          const isActive = pickerCategory === value;
-                          const dotCls = value === "food" ? "bg-food" : value === "activity" ? "bg-activity" : "bg-logistics";
-                          return (
-                            <button
-                              key={value}
-                              onClick={(e) => { e.stopPropagation(); setPickerCategory(value); }}
-                              className={`relative flex-1 flex items-center justify-center gap-1 py-2.5 text-[11px] font-semibold transition-colors ${isActive ? "text-gray-900" : "text-gray-400 hover:text-gray-600"}`}
-                            >
-                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotCls}`} />
-                              {label}
-                              {isActive && <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-gray-800 rounded-t" />}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      {/* Level 2 — Sub-types for selected category */}
-                      <div className="py-1">
-                        {(SUB_TYPE_OPTIONS[pickerCategory ?? localCard.type] ?? []).map(({ value, label }) => {
-                          const isCurrent = localCard.sub_type === value && localCard.type === pickerCategory;
-                          return (
-                            <button
-                              key={value}
-                              onClick={() => handleTypeAndSubTypeChange(pickerCategory!, value)}
-                              className={`w-full text-left px-4 py-2.5 text-[13px] transition-colors hover:bg-gray-50 ${isCurrent ? "font-bold text-gray-900" : "text-gray-700"}`}
-                            >
-                              {label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </>
+                  <SubTypePicker
+                    currentType={localCard.type}
+                    currentSubType={localCard.sub_type ?? null}
+                    onSelect={handleTypeAndSubTypeChange}
+                    onClose={() => setShowSubTypePicker(false)}
+                  />
                 )}
               </div>
               {badge && (
