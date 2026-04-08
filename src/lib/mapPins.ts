@@ -45,7 +45,7 @@ const ICONS: Record<string, (c: string) => string> = {
     `<path d="M6 8h12l-2 10H8L6 8zm12 0h2a2 2 0 000-4h-2" stroke="${c}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`,
   dessert: (c) =>
     `<path d="M12 2a7 7 0 00-7 7c0 3.87 7 13 7 13s7-9.13 7-13a7 7 0 00-7-7z" stroke="${c}" stroke-width="1.8" fill="none"/><path d="M9 9a3 3 0 006 0" stroke="${c}" stroke-width="1.4" fill="none"/>`,
-  cocktail_bar: (c) =>
+  bar: (c) =>
     `<path d="M5 4h14L12 13v7M8 20h8" stroke="${c}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`,
   street_food: (c) =>
     `<path d="M5 7h14M9 7L10 4h4l1 3M7 7l2 13h6l2-13" stroke="${c}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`,
@@ -146,7 +146,7 @@ const MATERIAL_ICONS: Record<string, string> = {
   coffee:           "coffee",
   coffee_dessert:   "coffee",
   dessert:          "icecream",
-  cocktail_bar:     "local_bar",
+  bar:              "local_bar",
   drinks:           "local_bar",
   // Logistics / Stay
   hotel:            "hotel",

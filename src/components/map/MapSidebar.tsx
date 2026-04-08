@@ -39,7 +39,7 @@ const GROUPS: Group[] = [
       { label: "Restaurant",   subTypes: ["restaurant", "fine_dining", "street_food"] },
       { label: "Coffee",       subTypes: ["coffee", "coffee_dessert"] },
       { label: "Dessert",      subTypes: ["dessert"]                 },
-      { label: "Cocktail Bar", subTypes: ["cocktail_bar", "drinks"]  },
+      { label: "Bar",          subTypes: ["bar", "drinks"]            },
     ],
   },
   {

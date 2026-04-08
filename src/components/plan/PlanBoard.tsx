@@ -388,17 +388,17 @@ export default function PlanBoard({ trip, initialDays }: Props) {
 
   // ── Card edits ────────────────────────────────────────────────
   const handleCardUpdate = useCallback((updated: Card) => {
-    setDays((prev) => {
-      const srcDay = prev.find((d) => d.cards.some((c) => c.id === updated.id));
-      if (srcDay && updated.day_id && srcDay.id !== updated.day_id) {
-        return prev.map((d) => {
-          if (d.id === srcDay.id) return { ...d, cards: d.cards.filter((c) => c.id !== updated.id) };
-          if (d.id === updated.day_id) return { ...d, cards: [...d.cards, updated] };
-          return d;
-        });
-      }
-      return prev.map((d) => ({ ...d, cards: d.cards.map((c) => (c.id === updated.id ? updated : c)) }));
-    });
+    const snapshot = daysRef.current;
+    const srcDay = snapshot.find((d) => d.cards.some((c) => c.id === updated.id));
+    if (srcDay && updated.day_id && srcDay.id !== updated.day_id) {
+      setDays(snapshot.map((d) => {
+        if (d.id === srcDay.id) return { ...d, cards: d.cards.filter((c) => c.id !== updated.id) };
+        if (d.id === updated.day_id) return { ...d, cards: [...d.cards, updated] };
+        return d;
+      }));
+    } else {
+      setDays(snapshot.map((d) => ({ ...d, cards: d.cards.map((c) => (c.id === updated.id ? updated : c)) })));
+    }
     setSelectedCard((prev) => (prev?.id === updated.id ? updated : prev));
   }, []);
 
