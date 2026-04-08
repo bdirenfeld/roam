@@ -39,39 +39,51 @@ const SUB_TYPE_LABEL: Record<string, string> = {
   flight_arrival:   "Flight Arrival",
   flight_departure: "Flight Departure",
   self_directed:    "Self-Directed",
-  guided:           "Guided Experience",
-  hosted:           "Guided Experience",
+  guided:           "Guided",
+  hosted:           "Guided",
   wellness:         "Wellness",
   event:            "Event",
   challenge:        "Challenge",
   restaurant:       "Restaurant",
   coffee:           "Coffee",
-  coffee_dessert:   "Coffee & Pastry",
-  cocktail_bar:     "Cocktail Bar",
-  drinks:           "Drinks",
+  coffee_dessert:   "Coffee",
+  dessert:          "Dessert",
+  fine_dining:      "Fine Dining",
+  bar:              "Bar",
+  cocktail_bar:     "Bar",
+  drinks:           "Bar",
+  hotel:            "Hotel",
+  transit:          "Transit",
   note:             "Note",
 };
+
+// ── Category options (top level of two-level picker) ──────────
+const CATEGORY_OPTIONS = [
+  { value: "food",      label: "Food"      },
+  { value: "activity",  label: "Activity"  },
+  { value: "logistics", label: "Logistics" },
+] as const;
 
 // ── Sub-type options per parent type ──────────────────────────
 const SUB_TYPE_OPTIONS: Record<string, { value: string; label: string }[]> = {
   activity: [
-    { value: "guided",       label: "Guided Experience" },
-    { value: "self_directed",label: "Self-Directed" },
-    { value: "wellness",     label: "Wellness" },
-    { value: "event",        label: "Event" },
-    { value: "challenge",    label: "Challenge" },
+    { value: "guided",        label: "Guided"        },
+    { value: "self_directed", label: "Self-Directed"  },
+    { value: "wellness",      label: "Wellness"       },
+    { value: "challenge",     label: "Challenge"      },
+    { value: "event",         label: "Event"          },
   ],
   food: [
-    { value: "restaurant",   label: "Restaurant" },
-    { value: "coffee_dessert",label: "Coffee & Pastry" },
-    { value: "cocktail_bar", label: "Cocktail Bar" },
-    { value: "drinks",       label: "Drinks" },
+    { value: "restaurant", label: "Restaurant" },
+    { value: "coffee",     label: "Coffee"     },
+    { value: "dessert",    label: "Dessert"    },
+    { value: "bar",        label: "Bar"        },
   ],
   logistics: [
-    { value: "hotel",            label: "Hotel" },
-    { value: "flight_arrival",   label: "Flight Arrival" },
+    { value: "hotel",            label: "Hotel"           },
+    { value: "flight_arrival",   label: "Flight Arrival"  },
     { value: "flight_departure", label: "Flight Departure" },
-    { value: "transit",          label: "Transit" },
+    { value: "transit",          label: "Transit"         },
   ],
 };
 
@@ -81,6 +93,80 @@ const TYPE_ACCENT: Record<string, { dot: string; bg: string; text: string }> = {
   activity:  { dot: "bg-activity",  bg: "bg-teal-50",   text: "text-activity"  },
   food:      { dot: "bg-food",      bg: "bg-amber-50",  text: "text-food"      },
 };
+
+// ── Sub-type picker — self-contained so activeCategory initialises correctly ──
+function SubTypePicker({
+  currentType,
+  currentSubType,
+  onSelect,
+  onClose,
+}: {
+  currentType: string;
+  currentSubType: string | null;
+  onSelect: (type: string, subType: string) => void;
+  onClose: () => void;
+}) {
+  const initial = (["food", "activity", "logistics"] as const).includes(
+    currentType as "food" | "activity" | "logistics"
+  )
+    ? (currentType as "food" | "activity" | "logistics")
+    : "food";
+  const [activeCategory, setActiveCategory] = useState<"food" | "activity" | "logistics">(initial);
+
+  return (
+    <>
+      <div className="fixed inset-0 z-10" onClick={onClose} />
+      <div
+        className="absolute left-0 top-8 z-20 bg-white rounded-xl shadow-sheet border border-gray-100 overflow-hidden"
+        style={{ minWidth: 220 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Section 1 — Category tabs */}
+        <div className="flex border-b border-gray-100">
+          {CATEGORY_OPTIONS.map(({ value, label }) => {
+            const isActive = activeCategory === value;
+            const dotCls =
+              value === "food" ? "bg-food" : value === "activity" ? "bg-activity" : "bg-logistics";
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setActiveCategory(value)}
+                className={`relative flex-1 flex items-center justify-center gap-1 py-2.5 text-[11px] font-semibold transition-colors ${
+                  isActive ? "text-gray-900" : "text-gray-400 hover:text-gray-600"
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotCls}`} />
+                {label}
+                {isActive && (
+                  <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-gray-800 rounded-t" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+        {/* Section 2 — Sub-types for the selected category */}
+        <div className="py-1">
+          {(SUB_TYPE_OPTIONS[activeCategory] ?? []).map(({ value, label }) => {
+            const isCurrent = currentSubType === value && currentType === activeCategory;
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => onSelect(activeCategory, value)}
+                className={`w-full text-left px-4 py-2.5 text-[13px] transition-colors hover:bg-gray-50 ${
+                  isCurrent ? "font-bold text-gray-900" : "text-gray-700"
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+}
 
 // ── Booking badge ──────────────────────────────────────────────
 function bookingBadge(details: Record<string, unknown>) {
@@ -563,20 +649,35 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     [localCard, onCardUpdate, supabase],
   );
 
-  // ── Sub-type change ────────────────────────────────────────
-  const handleSubTypeChange = useCallback(
-    async (newSubType: string) => {
+  // ── Type + sub-type change ─────────────────────────────────
+  const handleTypeAndSubTypeChange = useCallback(
+    async (newType: string, newSubType: string) => {
       setShowSubTypePicker(false);
-      await saveTopLevel("sub_type", newSubType);
+      const prev = localCard;
+      const updated = { ...localCard, type: newType as Card["type"], sub_type: newSubType };
+      setLocalCard(updated);
+      onCardUpdate?.(updated);
+      const { error } = await supabase
+        .from("cards")
+        .update({ type: newType, sub_type: newSubType })
+        .eq("id", localCard.id);
+      if (error) {
+        console.error("Failed to save type/sub_type", error.message);
+        setLocalCard(prev);
+        onCardUpdate?.(prev);
+      }
     },
-    [saveTopLevel],
+    [localCard, onCardUpdate, supabase],
   );
 
   // ── Derived display values ─────────────────────────────────
   const isNote    = localCard.sub_type === "note";
   const accent    = isNote ? { dot: "bg-gray-300", bg: "bg-gray-50", text: "text-gray-500" }
                            : (TYPE_ACCENT[localCard.type] ?? TYPE_ACCENT.logistics);
-  const typeLabel = SUB_TYPE_LABEL[localCard.sub_type ?? ""] ?? localCard.type;
+  const typeLabel =
+    (localCard.sub_type ? SUB_TYPE_LABEL[localCard.sub_type] : undefined) ??
+    SUB_TYPE_OPTIONS[localCard.type]?.[0]?.label ??
+    localCard.type;
   const rating  = typeof (localCard.details as Record<string, unknown>)?.rating === "number"
                     ? ((localCard.details as Record<string, unknown>).rating as number)
                     : null;
@@ -603,6 +704,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       case "food/coffee":
       case "food/coffee_dessert":
         return <CoffeeDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
+      case "food/bar":
       case "food/cocktail_bar":
         return <CocktailBarDetail card={localCard} onSaveDetails={saveDetails} hideAddress showEmpty={showEmptyFields} />;
       case "food/drinks":
@@ -704,20 +806,12 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   )}
                 </button>
                 {showSubTypePicker && !isNote && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setShowSubTypePicker(false)} />
-                    <div className="absolute left-0 top-8 z-20 bg-white rounded-xl shadow-sheet border border-gray-100 py-1 min-w-[180px]">
-                      {(SUB_TYPE_OPTIONS[localCard.type] ?? []).map(({ value, label }) => (
-                        <button
-                          key={value}
-                          onClick={() => handleSubTypeChange(value)}
-                          className={`w-full text-left px-4 py-2.5 text-[13px] transition-colors hover:bg-gray-50 ${localCard.sub_type === value ? "font-bold text-gray-900" : "text-gray-700"}`}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </>
+                  <SubTypePicker
+                    currentType={localCard.type}
+                    currentSubType={localCard.sub_type ?? null}
+                    onSelect={handleTypeAndSubTypeChange}
+                    onClose={() => setShowSubTypePicker(false)}
+                  />
                 )}
               </div>
               {badge && (
