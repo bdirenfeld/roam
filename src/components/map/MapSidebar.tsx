@@ -49,8 +49,9 @@ const GROUPS: Group[] = [
     typeKey: "food",
     rows: [
       { label: "Restaurant",   subTypes: ["restaurant", "fine_dining", "street_food"] },
-      { label: "Café & Dessert", subTypes: ["coffee", "coffee_dessert"] },
-      { label: "Cocktail Bar", subTypes: ["cocktail_bar", "drinks"] },
+      { label: "Coffee",       subTypes: ["coffee", "coffee_dessert"] },
+      { label: "Dessert",      subTypes: ["dessert"]                 },
+      { label: "Cocktail Bar", subTypes: ["cocktail_bar", "drinks"]  },
     ],
   },
   {

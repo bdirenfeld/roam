@@ -11,8 +11,9 @@ const SUB_TYPE_LABEL: Record<string, string> = {
   restaurant:       "Restaurant",
   fine_dining:      "Fine Dining",
   street_food:      "Street Food",
-  coffee:           "Café & Dessert",
-  coffee_dessert:   "Coffee & Pastry",
+  coffee:           "Coffee",
+  coffee_dessert:   "Coffee",
+  dessert:          "Dessert",
   cocktail_bar:     "Cocktail Bar",
   drinks:           "Bar",
   guided:           "Guided",
@@ -36,7 +37,13 @@ const SUB_TYPE_OPTIONS: Record<CardType, { label: string; value: string }[]> = {
     { label: "Event",         value: "event"          },
     { label: "Challenge",     value: "challenge"      },
   ],
-  food:      [{ label: "Restaurant", value: "restaurant" }, { label: "Café & Dessert", value: "coffee" }, { label: "Bar", value: "cocktail_bar" }],
+  food:      [
+    { label: "Restaurant",  value: "restaurant"   },
+    { label: "Coffee",      value: "coffee"       },
+    { label: "Dessert",     value: "dessert"      },
+    { label: "Cocktail Bar", value: "cocktail_bar" },
+    { label: "Fine Dining", value: "fine_dining"  },
+  ],
   logistics: [{ label: "Hotel", value: "hotel" }, { label: "Flight", value: "flight_arrival" }],
 };
 

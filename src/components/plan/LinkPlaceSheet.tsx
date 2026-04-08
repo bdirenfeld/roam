@@ -13,7 +13,7 @@ interface Props {
 
 // ── Sub-types belonging to each card type ──────────────────────
 const TYPE_SUB_TYPES: Record<CardType, string[]> = {
-  food:      ["restaurant", "coffee", "coffee_dessert", "cocktail_bar", "drinks", "bar"],
+  food:      ["restaurant", "coffee", "coffee_dessert", "dessert", "cocktail_bar", "drinks", "bar"],
   activity:  ["guided", "hosted", "self_directed", "wellness", "event", "challenge"],
   logistics: ["hotel", "flight_arrival", "flight_departure", "transit"],
 };
@@ -23,16 +23,17 @@ const TYPE_SUB_TYPES: Record<CardType, string[]> = {
 // All other activity sub-types (self_directed, wellness, event, challenge) are explicit
 // so they always show when matching pins exist.
 const SUB_ORDER: Record<CardType, string[]> = {
-  food:      ["restaurant", "coffee", "cocktail_bar"],
+  food:      ["restaurant", "coffee", "dessert", "cocktail_bar"],
   activity:  ["guided", "self_directed", "wellness", "event", "challenge"],
   logistics: ["hotel", "flight_arrival", "flight_departure", "transit"],
 };
 
 const SUB_LABEL: Record<string, string> = {
   restaurant:       "Restaurant",
-  coffee:           "Café & Dessert",
-  coffee_dessert:   "Café & Dessert",
-  cocktail_bar:     "Bar",
+  coffee:           "Coffee",
+  coffee_dessert:   "Coffee",
+  dessert:          "Dessert",
+  cocktail_bar:     "Cocktail Bar",
   drinks:           "Bar",
   bar:              "Bar",
   guided:           "Guided",
@@ -72,6 +73,13 @@ function SubTypeIcon({ subType, color }: { subType: string; color: string }) {
           <path d="M17 8h1a4 4 0 0 1 0 8h-1" />
           <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z" />
           <line x1="6" y1="2" x2="6" y2="4" /><line x1="10" y1="2" x2="10" y2="4" /><line x1="14" y1="2" x2="14" y2="4" />
+        </svg>
+      );
+    case "dessert":
+      return (
+        <svg {...s}>
+          <path d="M12 2a5 5 0 0 0-5 5c0 3 5 9 5 9s5-6 5-9a5 5 0 0 0-5-5z" />
+          <path d="M9.5 7a2.5 2.5 0 0 0 5 0" />
         </svg>
       );
     case "cocktail_bar":

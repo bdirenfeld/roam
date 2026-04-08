@@ -39,33 +39,45 @@ const SUB_TYPE_LABEL: Record<string, string> = {
   flight_arrival:   "Flight Arrival",
   flight_departure: "Flight Departure",
   self_directed:    "Self-Directed",
-  guided:           "Guided Experience",
-  hosted:           "Guided Experience",
+  guided:           "Guided",
+  hosted:           "Guided",
   wellness:         "Wellness",
   event:            "Event",
   challenge:        "Challenge",
   restaurant:       "Restaurant",
   coffee:           "Coffee",
-  coffee_dessert:   "Coffee & Pastry",
+  coffee_dessert:   "Coffee",
+  dessert:          "Dessert",
+  fine_dining:      "Fine Dining",
   cocktail_bar:     "Cocktail Bar",
-  drinks:           "Drinks",
+  drinks:           "Cocktail Bar",
+  hotel:            "Hotel",
+  transit:          "Transit",
   note:             "Note",
 };
+
+// ── Top-level category options for the two-level picker ────────
+const CATEGORY_OPTIONS = [
+  { value: "food",      label: "Food"      },
+  { value: "activity",  label: "Activity"  },
+  { value: "logistics", label: "Logistics" },
+] as const;
 
 // ── Sub-type options per parent type ──────────────────────────
 const SUB_TYPE_OPTIONS: Record<string, { value: string; label: string }[]> = {
   activity: [
-    { value: "guided",       label: "Guided Experience" },
-    { value: "self_directed",label: "Self-Directed" },
-    { value: "wellness",     label: "Wellness" },
-    { value: "event",        label: "Event" },
-    { value: "challenge",    label: "Challenge" },
+    { value: "guided",        label: "Guided" },
+    { value: "self_directed", label: "Self-Directed" },
+    { value: "wellness",      label: "Wellness" },
+    { value: "event",         label: "Event" },
+    { value: "challenge",     label: "Challenge" },
   ],
   food: [
     { value: "restaurant",   label: "Restaurant" },
-    { value: "coffee_dessert",label: "Coffee & Pastry" },
+    { value: "coffee",       label: "Coffee" },
+    { value: "dessert",      label: "Dessert" },
     { value: "cocktail_bar", label: "Cocktail Bar" },
-    { value: "drinks",       label: "Drinks" },
+    { value: "fine_dining",  label: "Fine Dining" },
   ],
   logistics: [
     { value: "hotel",            label: "Hotel" },
@@ -338,6 +350,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const [isDeleting,        setIsDeleting]        = useState(false);
   const [deleteError,       setDeleteError]       = useState<string | null>(null);
   const [showSubTypePicker, setShowSubTypePicker] = useState(false);
+  const [pickerCategory,    setPickerCategory]    = useState<string | null>(null);
   const [linkMergeMessage,  setLinkMergeMessage]  = useState<string | null>(null);
 
   // ── Keyboard escape ────────────────────────────────────────
@@ -569,13 +582,25 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     [localCard, onCardUpdate, supabase],
   );
 
-  // ── Sub-type change ────────────────────────────────────────
-  const handleSubTypeChange = useCallback(
-    async (newSubType: string) => {
+  // ── Type + sub-type change (two-level picker) ───────────────
+  const handleTypeAndSubTypeChange = useCallback(
+    async (newType: string, newSubType: string) => {
       setShowSubTypePicker(false);
-      await saveTopLevel("sub_type", newSubType);
+      const prev = localCard;
+      const updated = { ...localCard, type: newType as Card["type"], sub_type: newSubType };
+      setLocalCard(updated);
+      onCardUpdate?.(updated);
+      const { error } = await supabase
+        .from("cards")
+        .update({ type: newType, sub_type: newSubType })
+        .eq("id", localCard.id);
+      if (error) {
+        console.error("Failed to save type/sub_type", error.message);
+        setLocalCard(prev);
+        onCardUpdate?.(prev);
+      }
     },
-    [saveTopLevel],
+    [localCard, onCardUpdate, supabase],
   );
 
   // ── Derived display values ─────────────────────────────────
@@ -698,7 +723,12 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               {/* Type badge — tappable to change sub-type */}
               <div className="relative">
                 <button
-                  onClick={() => !isNote && setShowSubTypePicker((v) => !v)}
+                  onClick={() => {
+                    if (!isNote) {
+                      setPickerCategory(null);
+                      setShowSubTypePicker((v) => !v);
+                    }
+                  }}
                   className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${accent.bg} ${!isNote ? "hover:opacity-80 active:opacity-70 transition-opacity cursor-pointer" : "cursor-default"}`}
                 >
                   <span className={`w-2 h-2 rounded-full ${accent.dot}`} />
@@ -712,16 +742,44 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 {showSubTypePicker && !isNote && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setShowSubTypePicker(false)} />
-                    <div className="absolute left-0 top-8 z-20 bg-white rounded-xl shadow-sheet border border-gray-100 py-1 min-w-[180px]">
-                      {(SUB_TYPE_OPTIONS[localCard.type] ?? []).map(({ value, label }) => (
-                        <button
-                          key={value}
-                          onClick={() => handleSubTypeChange(value)}
-                          className={`w-full text-left px-4 py-2.5 text-[13px] transition-colors hover:bg-gray-50 ${localCard.sub_type === value ? "font-bold text-gray-900" : "text-gray-700"}`}
-                        >
-                          {label}
-                        </button>
-                      ))}
+                    <div className="absolute left-0 top-8 z-20 bg-white rounded-xl shadow-sheet border border-gray-100 overflow-hidden min-w-[180px]">
+                      {pickerCategory === null ? (
+                        /* Level 1 — Category */
+                        <div className="py-1">
+                          {CATEGORY_OPTIONS.map(({ value, label }) => (
+                            <button
+                              key={value}
+                              onClick={() => setPickerCategory(value)}
+                              className={`w-full text-left px-4 py-2.5 text-[13px] flex items-center justify-between transition-colors hover:bg-gray-50 ${localCard.type === value ? "font-semibold text-gray-900" : "text-gray-700"}`}
+                            >
+                              {label}
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        /* Level 2 — Sub-types for selected category */
+                        <>
+                          <button
+                            onClick={() => setPickerCategory(null)}
+                            className="w-full flex items-center gap-1.5 px-3 py-2 text-[11px] font-semibold text-gray-400 hover:text-gray-600 uppercase tracking-wide transition-colors border-b border-gray-100"
+                          >
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg>
+                            {CATEGORY_OPTIONS.find((c) => c.value === pickerCategory)?.label}
+                          </button>
+                          <div className="py-1">
+                            {(SUB_TYPE_OPTIONS[pickerCategory] ?? []).map(({ value, label }) => (
+                              <button
+                                key={value}
+                                onClick={() => handleTypeAndSubTypeChange(pickerCategory, value)}
+                                className={`w-full text-left px-4 py-2.5 text-[13px] transition-colors hover:bg-gray-50 ${localCard.sub_type === value && localCard.type === pickerCategory ? "font-bold text-gray-900" : "text-gray-700"}`}
+                              >
+                                {label}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
                     </div>
                   </>
                 )}

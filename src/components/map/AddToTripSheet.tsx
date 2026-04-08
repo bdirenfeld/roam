@@ -44,9 +44,11 @@ const SUB_TYPE_OPTIONS: Record<CardType, { label: string; value: string }[]> = {
     { label: "Challenge",     value: "challenge"      },
   ],
   food: [
-    { label: "Restaurant",    value: "restaurant"    },
-    { label: "Café & Dessert", value: "coffee"       },
-    { label: "Bar",           value: "cocktail_bar"  },
+    { label: "Restaurant",  value: "restaurant"   },
+    { label: "Coffee",      value: "coffee"       },
+    { label: "Dessert",     value: "dessert"      },
+    { label: "Cocktail Bar", value: "cocktail_bar" },
+    { label: "Fine Dining", value: "fine_dining"  },
   ],
   logistics: [
     { label: "Hotel",  value: "hotel"         },
@@ -66,7 +68,8 @@ const KEYWORD_RULES: { pattern: RegExp; subType: string; forTypes: CardType[] }[
   { pattern: /station|termini|train|bus/i,                  subType: "hotel",           forTypes: ["logistics"] },
   { pattern: /massage|spa|wellness|reflexology/i,           subType: "wellness",        forTypes: ["activity"]  },
   { pattern: /cooking class|corso/i,                        subType: "guided",          forTypes: ["activity"]  },
-  { pattern: /caff[eè]|caffe|coffee|gelato|espresso/i,      subType: "coffee",          forTypes: ["food"]      },
+  { pattern: /gelato|dessert|pasticceria|pastry|cake/i,      subType: "dessert",         forTypes: ["food"]      },
+  { pattern: /caff[eè]|caffe|coffee|espresso/i,             subType: "coffee",          forTypes: ["food"]      },
   { pattern: /\bbar\b|cocktail|aperitivo/i,                 subType: "cocktail_bar",    forTypes: ["food"]      },
 ];
 
