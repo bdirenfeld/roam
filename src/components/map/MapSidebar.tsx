@@ -6,18 +6,6 @@ import type { Card, CardType } from "@/types/database";
 import { getMaterialIconHTML, PIN_COLORS } from "@/lib/mapPins";
 import { createClient } from "@/lib/supabase/client";
 
-// ── Skeleton card filter (mirrors FullMapClient) ──────────────
-const SKELETON_PREFIXES = [
-  "morning activity", "afternoon activity", "evening activity",
-  "morning coffee", "lunch", "dinner", "aperitivo", "light dinner",
-  "check-in", "check-out", "flight to", "flight home",
-  "departure", "arrival",
-];
-
-function isSkeletonCard(card: import("@/types/database").Card): boolean {
-  const lower = card.title.toLowerCase();
-  return SKELETON_PREFIXES.some((s) => lower.startsWith(s));
-}
 
 // ── Sub-type groups shown in the sidebar ─────────────────────
 interface SubTypeRow {
@@ -148,7 +136,9 @@ export default function MapSidebar({
   }
 
   function cardsForRow(row: SubTypeRow): Card[] {
-    return cards.filter((c) => c.sub_type && row.subTypes.includes(c.sub_type) && !isSkeletonCard(c));
+    return cards.filter(
+      (c) => c.sub_type && row.subTypes.includes(c.sub_type) && c.lat != null && c.lng != null,
+    );
   }
 
   return (
