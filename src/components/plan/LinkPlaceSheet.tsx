@@ -13,7 +13,7 @@ interface Props {
 
 // ── Sub-types belonging to each card type ──────────────────────
 const TYPE_SUB_TYPES: Record<CardType, string[]> = {
-  food:      ["restaurant", "coffee", "coffee_dessert", "cocktail_bar", "drinks", "bar"],
+  food:      ["restaurant", "coffee", "coffee_dessert", "dessert", "cocktail_bar", "drinks", "bar"],
   activity:  ["guided", "hosted", "self_directed", "wellness", "event", "challenge"],
   logistics: ["hotel", "flight_arrival", "flight_departure", "transit"],
 };
@@ -23,15 +23,16 @@ const TYPE_SUB_TYPES: Record<CardType, string[]> = {
 // All other activity sub-types (self_directed, wellness, event, challenge) are explicit
 // so they always show when matching pins exist.
 const SUB_ORDER: Record<CardType, string[]> = {
-  food:      ["restaurant", "coffee", "bar"],
+  food:      ["restaurant", "coffee", "dessert", "bar"],
   activity:  ["guided", "self_directed", "wellness", "event", "challenge"],
   logistics: ["hotel", "flight_arrival", "flight_departure", "transit"],
 };
 
 const SUB_LABEL: Record<string, string> = {
   restaurant:       "Restaurant",
-  coffee:           "Café & Dessert",
-  coffee_dessert:   "Café & Dessert",
+  coffee:           "Coffee",
+  coffee_dessert:   "Coffee",
+  dessert:          "Dessert",
   cocktail_bar:     "Bar",
   drinks:           "Bar",
   bar:              "Bar",
@@ -72,6 +73,13 @@ function SubTypeIcon({ subType, color }: { subType: string; color: string }) {
           <path d="M17 8h1a4 4 0 0 1 0 8h-1" />
           <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z" />
           <line x1="6" y1="2" x2="6" y2="4" /><line x1="10" y1="2" x2="10" y2="4" /><line x1="14" y1="2" x2="14" y2="4" />
+        </svg>
+      );
+    case "dessert":
+      return (
+        <svg {...s}>
+          <circle cx="12" cy="10" r="4" />
+          <path d="M10 14-1 7h6l-1-7" />
         </svg>
       );
     case "cocktail_bar":
@@ -255,9 +263,8 @@ export default function LinkPlaceSheet({ tripId, cardType, onLink, onClose }: Pr
   // Bucket any sub_type not captured by the grouped display into "Other"
   // knownSubs covers all sub-types in TYPE_SUB_TYPES for this card type
   const knownSubs = new Set(validSubTypes);
-  // Also mark coffee_dessert / drinks / bar as known so they don't appear in Other
-  // (they're folded into their alias groups above)
-  ["coffee_dessert", "drinks", "bar", "hosted"].forEach((s) => knownSubs.add(s));
+  // Also mark alias sub-types as known so they don't appear in Other
+  ["coffee_dessert", "cocktail_bar", "drinks", "hosted"].forEach((s) => knownSubs.add(s));
   const otherCards = places.filter((p) => !knownSubs.has(p.sub_type ?? ""));
 
   const typeLabel = { food: "Food", activity: "Activity", logistics: "Logistics" }[cardType];
