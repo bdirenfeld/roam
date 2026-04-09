@@ -530,12 +530,14 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       ...(placeDetails.currency_code != null ? { currency_code: placeDetails.currency_code } : {}),
     };
 
-    // Always overwrite location and photo from pin; never touch type/sub_type/scheduling
+    // Always overwrite location, photo, and category from pin; never touch scheduling
     const topUpdate: Partial<Card> = {};
     if (place.lat             != null) topUpdate.lat             = place.lat;
     if (place.lng             != null) topUpdate.lng             = place.lng;
     if (place.address         != null && place.address         !== "") topUpdate.address         = place.address;
     if (place.cover_image_url != null && place.cover_image_url !== "") topUpdate.cover_image_url = place.cover_image_url;
+    if (place.type            != null) topUpdate.type            = place.type;
+    if (place.sub_type        != null) topUpdate.sub_type        = place.sub_type;
 
     const placeName = (place.title ?? "").trim();
     if (placeName) topUpdate.title = placeName;
