@@ -946,13 +946,13 @@ function DayColumn({ day, cards, isPhotoBg, fullWidth, onCardTap, onRemove, onDe
   return (
     <div className={fullWidth ? "w-full h-full" : "w-[148px] min-w-[148px] flex-shrink-0 md:w-72"}>
       {/* Column container — Trello-style gray pill; on mobile fills height and inner card list scrolls */}
-      <div className={`${isPhotoBg ? "bg-[#EBECF0]/80 backdrop-blur-sm" : "bg-[#EBECF0]"} rounded-xl p-3 flex flex-col ${fullWidth ? "h-full overflow-hidden" : "max-h-[calc(100dvh-11rem)] overflow-y-auto [touch-action:pan-y] md:max-h-none md:overflow-y-visible"}`}>
+      <div className={`${isPhotoBg ? "bg-[#EBECF0]/80 backdrop-blur-sm" : "bg-[#EBECF0]"} rounded-xl p-3 flex flex-col max-h-[calc(100dvh-14rem)] overflow-y-auto scrollbar-none [touch-action:pan-y] md:max-h-none md:overflow-y-visible`}>
         {/* Cards drop zone — independently scrollable on mobile */}
         <div
           ref={setNodeRef}
           className={`flex-1 min-h-[72px] rounded-lg transition-colors ${
             isOver && cards.length === 0 ? "bg-[#D0D2D8]" : ""
-          } ${fullWidth ? "overflow-y-auto pb-28 scrollbar-none [touch-action:pan-y]" : ""}`}
+          } ${fullWidth ? "pb-4" : ""}`}
         >
           <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
             {cards.map((card) => (
