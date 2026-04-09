@@ -385,7 +385,32 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
 
       map.once("load", async () => {
         if (mapInstRef.current !== map) return;
-        geolocate.trigger();
+
+        // Only auto-trigger geolocation (and its fly-to) if the user is within
+        // 50 km of the trip destination — otherwise the map stays centred on the
+        // destination and the user can click the geolocate button themselves.
+        if (
+          trip.destination_lat != null &&
+          trip.destination_lng != null &&
+          "geolocation" in navigator
+        ) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              const R = 6371;
+              const dLat = (pos.coords.latitude  - trip.destination_lat!) * (Math.PI / 180);
+              const dLng = (pos.coords.longitude - trip.destination_lng!) * (Math.PI / 180);
+              const a =
+                Math.sin(dLat / 2) ** 2 +
+                Math.cos(trip.destination_lat! * (Math.PI / 180)) *
+                Math.cos(pos.coords.latitude   * (Math.PI / 180)) *
+                Math.sin(dLng / 2) ** 2;
+              const distKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+              if (distKm <= 50) geolocate.trigger();
+            },
+            () => { /* permission denied or unavailable — stay at destination */ },
+            { timeout: 5000, maximumAge: 60_000 },
+          );
+        }
 
         // Wait for Material Symbols font before creating pins so icons render correctly
         try {
