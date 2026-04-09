@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { PencilSimple, Trash } from "@phosphor-icons/react";
 import type { Card, CardType } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { PIN_COLORS } from "@/lib/mapPins";
@@ -280,7 +280,7 @@ function CardBody({
           style={{ backdropFilter: "blur(8px)" }}
           aria-label="Delete place"
         >
-          <Trash2 size={11} color="white" />
+          <Trash size={11} weight="light" color="white" />
         </button>
       )}
 
@@ -300,7 +300,7 @@ function CardBody({
               className="p-0.5 rounded hover:bg-gray-100 transition-colors"
               aria-label="Edit type"
             >
-              <Pencil size={11} className="text-gray-400" />
+              <PencilSimple size={11} weight="light" color="#9CA3AF" />
             </button>
           )}
         </div>

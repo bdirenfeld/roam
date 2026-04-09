@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { ChevronDown } from "lucide-react";
+import { CaretDown } from "@phosphor-icons/react";
 import type { Card, CardType } from "@/types/database";
 import { getMaterialIconHTML, PIN_COLORS } from "@/lib/mapPins";
 import { createClient } from "@/lib/supabase/client";
@@ -212,8 +212,11 @@ export default function MapSidebar({
                   onClick={() => toggleSection(group.label)}
                   className="flex-shrink-0 p-0.5 rounded hover:bg-gray-100 transition-colors"
                 >
-                  <ChevronDown
-                    className={`w-3 h-3 text-gray-400 transition-transform duration-200 ${sectionCollapsed ? "-rotate-90" : ""}`}
+                  <CaretDown
+                    size={12}
+                    weight="light"
+                    color="#9CA3AF"
+                    className={`transition-transform duration-200 ${sectionCollapsed ? "-rotate-90" : ""}`}
                   />
                 </button>
               </div>
@@ -263,8 +266,11 @@ export default function MapSidebar({
                               onClick={(e) => { e.stopPropagation(); toggleExpandRow(row.label); }}
                               className="flex-shrink-0 p-0.5 rounded hover:bg-gray-100 transition-colors"
                             >
-                              <ChevronDown
-                                className={`w-3 h-3 text-gray-300 transition-transform duration-200 ${expanded ? "" : "-rotate-90"}`}
+                              <CaretDown
+                                size={12}
+                                weight="light"
+                                color="#D1D5DB"
+                                className={`transition-transform duration-200 ${expanded ? "" : "-rotate-90"}`}
                               />
                             </span>
                           )}
