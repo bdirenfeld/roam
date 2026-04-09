@@ -31,8 +31,7 @@ function suggestTripName(cityName: string, startDate: string): string {
 }
 
 export default function NewTripPage() {
-  const router   = useRouter();
-  const supabase = createClient();
+  const router = useRouter();
 
   // Destination autocomplete
   const [destInput,       setDestInput]       = useState("");
@@ -110,6 +109,7 @@ export default function NewTripPage() {
     setSaving(true);
     setSaveError(null);
 
+    const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       setSaving(false);
@@ -163,7 +163,7 @@ export default function NewTripPage() {
     }).catch(() => { /* ignore */ });
 
     router.push(`/trips/${tripId}/map`);
-  }, [isValid, saving, destination, tripName, startDate, endDate, partySize, supabase, router]);
+  }, [isValid, saving, destination, tripName, startDate, endDate, partySize, router]);
 
   return (
     <div className="min-h-dvh bg-white">
