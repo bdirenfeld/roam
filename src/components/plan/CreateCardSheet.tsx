@@ -18,21 +18,21 @@ const TYPE_OPTIONS: { value: UiType; label: string; color: string }[] = [
 // ── Sub-type options per card type ─────────────────────────────
 const SUB_TYPES: Record<CardType, { value: string; label: string }[]> = {
   activity: [
-    { value: "guided",        label: "Guided"        },
-    { value: "self_directed", label: "Self-directed" },
-    { value: "wellness",      label: "Wellness"      },
-    { value: "event",         label: "Event"         },
     { value: "challenge",     label: "Challenge"     },
+    { value: "guided",        label: "Guided"        },
+    { value: "self_directed", label: "Self-Directed" },
+    { value: "wellness",      label: "Wellness"      },
   ],
   food: [
-    { value: "restaurant",   label: "Restaurant"    },
-    { value: "coffee",       label: "Café & Dessert" },
-    { value: "cocktail_bar", label: "Bar"           },
+    { value: "restaurant", label: "Restaurant" },
+    { value: "coffee",     label: "Coffee"     },
+    { value: "dessert",    label: "Dessert"    },
+    { value: "bar",        label: "Bar"        },
   ],
   logistics: [
-    { value: "hotel",          label: "Hotel"   },
-    { value: "flight_arrival", label: "Flight"  },
-    { value: "transit",        label: "Transit" },
+    { value: "flight_arrival",   label: "Flight Arrival"   },
+    { value: "flight_departure", label: "Flight Departure" },
+    { value: "hotel",            label: "Hotel"            },
   ],
 };
 
@@ -88,9 +88,6 @@ export default function CreateCardSheet({
   const [meetingTime,  setMeetingTime]  = useState("");
   const [cost,         setCost]         = useState("");
   const [paid,         setPaid]         = useState(false);
-
-  // ── activity/event ───────────────────────────────────────────
-  const [eventVenue, setEventVenue] = useState("");
 
   // ── activity/wellness ────────────────────────────────────────
   const [treatment, setTreatment] = useState("");
@@ -233,9 +230,6 @@ export default function CreateCardSheet({
         if (cost.trim())         details.cost_per_person = parseFloat(cost);
         details.paid = paid;
         break;
-      case "activity/event":
-        if (eventVenue.trim()) details.venue = eventVenue.trim();
-        break;
       case "activity/challenge":
         if (supplier.trim()) details.supplier = supplier.trim();
         break;
@@ -251,7 +245,7 @@ export default function CreateCardSheet({
         if (coffeeCost.trim())   details.cost        = coffeeCost.trim();
         if (vibeEnergy.trim())   details.energy      = vibeEnergy.trim();
         break;
-      case "food/cocktail_bar":
+      case "food/bar":
         if (cocktailBarWebsite.trim()) details.website = cocktailBarWebsite.trim();
         break;
       case "food/restaurant":
@@ -276,8 +270,8 @@ export default function CreateCardSheet({
     }
 
     const address =
-      key === "logistics/hotel"   ? (hotelAddress.trim() || null) :
-      key === "food/cocktail_bar"  ? (cocktailBarAddress.trim() || null) :
+      key === "logistics/hotel" ? (hotelAddress.trim() || null) :
+      key === "food/bar"        ? (cocktailBarAddress.trim() || null) :
       null;
 
     const newCard: Card = {
@@ -315,7 +309,7 @@ export default function CreateCardSheet({
   }, [
     title, type, subType, startTime, endTime, notes, saving,
     supplier, meetingPoint, meetingTime, cost, paid,
-    eventVenue, treatment, goal, duration,
+    treatment, goal, duration,
     primaryPick, backupOption, coffeeCost, vibeEnergy,
     cocktailBarAddress, cocktailBarWebsite,
     cuisine, reservation, estimatedCost, orderPlan,
@@ -535,7 +529,7 @@ export default function CreateCardSheet({
             </>
           )}
 
-          {subKey === "food/cocktail_bar" && (
+          {subKey === "food/bar" && (
             <>
               <Field label="Address">
                 <input value={cocktailBarAddress} onChange={(e) => setCocktailBarAddress(e.target.value)}
@@ -568,13 +562,6 @@ export default function CreateCardSheet({
                   placeholder="60" className={INPUT_CLS} />
               </Field>
             </>
-          )}
-
-          {subKey === "activity/event" && (
-            <Field label="Venue">
-              <input value={eventVenue} onChange={(e) => setEventVenue(e.target.value)}
-                placeholder="Venue or location" className={INPUT_CLS} />
-            </Field>
           )}
 
           {subKey === "activity/challenge" && (
