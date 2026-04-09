@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import DayStrip from "@/components/day/DayStrip";
@@ -42,6 +42,16 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
   const [swipeDir, setSwipeDir] = useState<'left' | 'right' | null>(null);
   const [gapStartTime, setGapStartTime] = useState<string | null>(null);
 
+  // ── Day cross-fade ─────────────────────────────────────────────
+  const [contentVisible, setContentVisible] = useState(false);
+  const navTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Fade in whenever the active day changes (covers both first mount and day switches)
+  useEffect(() => {
+    const t = setTimeout(() => setContentVisible(true), 16);
+    return () => clearTimeout(t);
+  }, [dayWithCards.id]);
+
   // ── Pin ↔ card linking state ───────────────────────────────────
   // Highlighted card (flash ring): set when a map pin is tapped
   const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
@@ -59,7 +69,11 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
 
   const handleDaySelect = useCallback(
     (day: Day) => {
-      router.push(`/trips/${trip.id}/days/${day.id}`);
+      if (navTimeoutRef.current) clearTimeout(navTimeoutRef.current);
+      setContentVisible(false);
+      navTimeoutRef.current = setTimeout(() => {
+        router.push(`/trips/${trip.id}/days/${day.id}`);
+      }, 150);
     },
     [router, trip.id]
   );
@@ -207,18 +221,23 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
       </div>
 
       {/* Scrollable cards area — only this section scrolls.
-          min-h-0 is required so flex children can shrink below their content height. */}
-      <div className="flex-1 overflow-y-auto min-h-0 pb-20">
+          min-h-0 is required so flex children can shrink below their content height.
+          Opacity cross-fade on day strip taps; slide animation on swipes. */}
+      <div className={`flex-1 overflow-y-auto min-h-0 pb-20 transition-opacity ${
+        contentVisible
+          ? 'opacity-100 duration-[200ms] ease-in'
+          : 'opacity-0 duration-[150ms] ease-out'
+      }`}>
 
         {/* Timeline — keyed to day so it re-mounts on day change.
             Swipe handlers live here only — map and day strip have their own
             horizontal gestures and must not be affected. */}
         <div
           key={dayWithCards.id}
-          className={`px-4 pt-4 animate-in duration-200 ${
-            swipeDir === 'left'  ? 'slide-in-from-right' :
-            swipeDir === 'right' ? 'slide-in-from-left'  :
-            'fade-in'
+          className={`px-4 pt-4 ${
+            swipeDir === 'left'  ? 'animate-in slide-in-from-right duration-200' :
+            swipeDir === 'right' ? 'animate-in slide-in-from-left duration-200'  :
+            ''
           }`}
           {...swipeHandlers}
         >

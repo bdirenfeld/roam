@@ -31,6 +31,9 @@ const config: Config = {
       screens: {
         xs: "390px",
       },
+      transitionTimingFunction: {
+        spring: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+      },
       boxShadow: {
         card: "0 1px 3px 0 rgba(0,0,0,0.08), 0 1px 2px -1px rgba(0,0,0,0.06)",
         "card-hover": "0 4px 12px 0 rgba(0,0,0,0.10)",
