@@ -9,9 +9,9 @@ interface Props {
 }
 
 const TYPE_COLOR: Record<CardType, { border: string; icon: string; bg: string }> = {
-  logistics: { border: "border-l-logistics", icon: "text-logistics", bg: "bg-gray-100" },
-  activity:  { border: "border-l-activity",  icon: "text-activity",  bg: "bg-blue-50"  },
-  food:      { border: "border-l-food",       icon: "text-food",      bg: "bg-violet-50" },
+  logistics: { border: "border-l-gray-400", icon: "text-gray-500", bg: "bg-gray-100" },
+  activity:  { border: "border-l-gray-400", icon: "text-gray-500", bg: "bg-gray-100" },
+  food:      { border: "border-l-gray-400", icon: "text-gray-500", bg: "bg-gray-100" },
 };
 
 const SUB_TYPE_SHORT: Record<string, string> = {

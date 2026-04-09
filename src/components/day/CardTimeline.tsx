@@ -16,10 +16,10 @@ function minutesBetween(end: string | null, start: string | null): number {
 }
 
 function freeTimeLabel(minutes: number): string {
-  if (minutes < 60) return `${minutes} min free`;
+  if (minutes < 60) return `Free · ${minutes}m`;
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  return m > 0 ? `${h}h ${m}m free` : `${h}h free`;
+  return m > 0 ? `Free · ${h}h ${m}m` : `Free · ${h}h`;
 }
 
 export default function CardTimeline({ dayWithCards, onCardTap, highlightedCardId, onGapTap }: Props) {

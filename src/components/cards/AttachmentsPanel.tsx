@@ -195,7 +195,7 @@ function AttachmentRow({
           </div>
           <button
             onClick={onApply}
-            className="w-full py-2 rounded-lg bg-activity text-white text-[12px] font-semibold hover:bg-teal-700 transition-colors"
+            className="w-full py-2 rounded-lg bg-activity text-white text-[12px] font-semibold hover:opacity-80 transition-colors"
           >
             Apply to card
           </button>
@@ -455,7 +455,7 @@ export default function AttachmentsPanel({ card, onClose, onCardUpdate }: Props)
               </button>
               <button
                 onClick={() => doApply(confirmApply.data, confirmApply.topLevel, [])}
-                className="flex-1 py-2.5 rounded-xl bg-activity text-white text-[13px] font-semibold hover:bg-teal-700 transition-colors"
+                className="flex-1 py-2.5 rounded-xl bg-activity text-white text-[13px] font-semibold hover:opacity-80 transition-colors"
               >
                 Overwrite all
               </button>

@@ -37,7 +37,7 @@ function tripNights(start: string, end: string): number {
 }
 
 const STATUS: Record<TripStatus, { label: string; dot: string; text: string }> = {
-  planning:  { label: "Planning",  dot: "bg-blue-400",  text: "text-blue-600"  },
+  planning:  { label: "In preparation",  dot: "bg-blue-400",  text: "text-blue-600"  },
   active:    { label: "Active",    dot: "bg-green-400", text: "text-green-600" },
   completed: { label: "Completed", dot: "bg-gray-300",  text: "text-gray-400"  },
 };

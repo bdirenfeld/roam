@@ -282,7 +282,7 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
                 </button>
                 <button
                   onClick={handleSaveAnyway}
-                  className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold text-white bg-teal-600 hover:bg-teal-700 transition-colors"
+                  className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold text-white bg-activity hover:opacity-80 transition-colors"
                 >
                   Save again
                 </button>

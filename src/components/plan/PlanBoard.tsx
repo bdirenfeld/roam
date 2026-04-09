@@ -979,7 +979,7 @@ function DayColumn({ day, cards, isPhotoBg, fullWidth, onCardTap, onRemove, onDe
             onClick={onOpenCreateSheet}
             className="flex-1 flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-gray-700 py-2 transition-colors"
           >
-            <span className="text-base leading-none font-bold">+</span> Add card
+            <span className="text-base leading-none font-bold">+</span> Add to this day
           </button>
         </div>
       </div>{/* end column container */}

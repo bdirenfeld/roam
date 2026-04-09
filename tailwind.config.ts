@@ -13,15 +13,16 @@ const config: Config = {
       },
       colors: {
         // Roam brand palette
+        parchment: "#FAF7F2",   // Background
         logistics: "#111827",   // Near-black
-        activity:  "#0D9488",   // Teal
+        activity:  "#1A1A2E",   // Deep Ink
         food:      "#7C3AED",   // Purple
         roam: {
           50:  "#f0fafa",
           100: "#ccf2f0",
-          500: "#0D9488",
-          600: "#0b7e74",
-          700: "#096059",
+          500: "#1A1A2E",
+          600: "#111120",
+          700: "#0a0a14",
         },
       },
       maxWidth: {

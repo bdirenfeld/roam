@@ -172,7 +172,7 @@ export default function BoardBgPicker({ current, onSelect, onClose }: Props) {
                 <button
                   onClick={handleSearch}
                   disabled={!query.trim() || loading}
-                  className="px-3 py-2 bg-teal-600 text-white text-[12px] font-semibold rounded-lg disabled:opacity-50 hover:bg-teal-700 transition-colors"
+                  className="px-3 py-2 bg-activity text-white text-[12px] font-semibold rounded-lg disabled:opacity-50 hover:opacity-80 transition-colors"
                 >
                   {loading ? "…" : "Search"}
                 </button>

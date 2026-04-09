@@ -346,7 +346,7 @@ export default function CreateCardSheet({
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-3 pb-3 flex-shrink-0">
-          <h2 className="text-[17px] font-bold text-gray-900">New card</h2>
+          <h2 className="text-[17px] font-bold text-gray-900">Add a place</h2>
           <button
             onClick={onClose}
             className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"

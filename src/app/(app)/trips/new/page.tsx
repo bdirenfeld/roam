@@ -180,7 +180,7 @@ export default function NewTripPage() {
           Back
         </Link>
 
-        <h1 className="text-[22px] font-bold text-gray-900 mb-7">New Trip</h1>
+        <h1 className="text-[22px] font-bold text-gray-900 mb-7">Plan a journey</h1>
 
         <div className="space-y-6">
 
@@ -200,7 +200,7 @@ export default function NewTripPage() {
                 onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
                 placeholder="Rome, Italy"
                 autoComplete="off"
-                className="w-full px-3.5 py-3 text-[15px] bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-teal-400 focus:bg-white transition-colors placeholder:text-gray-300"
+                className="w-full px-3.5 py-3 text-[15px] bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-400 focus:bg-white transition-colors placeholder:text-gray-300"
               />
               {/* Status indicator */}
               <div className="absolute right-3 top-3.5 pointer-events-none">
@@ -252,7 +252,7 @@ export default function NewTripPage() {
               value={tripName}
               onChange={(e) => { setTripName(e.target.value); setTripNameDirty(true); }}
               placeholder="e.g. Rome April 2026"
-              className="w-full px-3.5 py-3 text-[15px] bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-teal-400 focus:bg-white transition-colors placeholder:text-gray-300"
+              className="w-full px-3.5 py-3 text-[15px] bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-400 focus:bg-white transition-colors placeholder:text-gray-300"
             />
           </div>
 
@@ -269,7 +269,7 @@ export default function NewTripPage() {
                   setStartDate(e.target.value);
                   if (endDate && e.target.value > endDate) setEndDate("");
                 }}
-                className="flex-1 px-3 py-3 text-[14px] bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-teal-400 focus:bg-white transition-colors"
+                className="flex-1 px-3 py-3 text-[14px] bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-400 focus:bg-white transition-colors"
               />
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0">
                 <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
@@ -279,7 +279,7 @@ export default function NewTripPage() {
                 value={endDate}
                 min={startDate || undefined}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="flex-1 px-3 py-3 text-[14px] bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-teal-400 focus:bg-white transition-colors"
+                className="flex-1 px-3 py-3 text-[14px] bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-400 focus:bg-white transition-colors"
               />
             </div>
           </div>
@@ -327,7 +327,7 @@ export default function NewTripPage() {
             disabled={!isValid || saving}
             className={`w-full py-4 rounded-2xl text-[16px] font-bold transition-all ${
               isValid && !saving
-                ? "bg-teal-600 text-white hover:bg-teal-700 active:scale-[0.99] shadow-sm"
+                ? "bg-activity text-white hover:opacity-80 active:scale-[0.99] shadow-sm"
                 : "bg-gray-100 text-gray-300 cursor-not-allowed"
             }`}
           >
