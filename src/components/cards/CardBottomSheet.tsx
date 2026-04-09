@@ -513,74 +513,54 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     [localCard, onCardUpdate, saveTopLevel, supabase]
   );
 
-  // ── Link place from map — merge, don't replace ───────────────
+  // ── Link place from map — inherit pin data, preserve user fields ─
   const handleLinkPlace = useCallback(async (place: Card) => {
     setShowLinkSheet(false);
-    const placeDetails = (place.details ?? {}) as Record<string, unknown>;
+    const placeDetails  = (place.details  ?? {}) as Record<string, unknown>;
     const currentDetails = (localCard.details ?? {}) as Record<string, unknown>;
 
-    // Merge details: only fill fields that are null/empty on the current card
-    const mergedDetails: Record<string, unknown> = { ...currentDetails };
-    let addedCount = 0;
-    let keptCount  = 0;
-    for (const [key, val] of Object.entries(placeDetails)) {
-      if (val == null || val === "") continue;
-      if (currentDetails[key] == null || currentDetails[key] === "") {
-        mergedDetails[key] = val;
-        addedCount++;
-      } else {
-        keptCount++;
-      }
-    }
+    // Build merged details: start from current card (preserves notes, flow, prep, tips, etc.)
+    // then overwrite with the pin's place-specific fields
+    const mergedDetails: Record<string, unknown> = {
+      ...currentDetails,
+      ...(placeDetails.place_id      != null ? { place_id:      placeDetails.place_id      } : {}),
+      ...(placeDetails.rating        != null ? { rating:        placeDetails.rating        } : {}),
+      ...(placeDetails.phone         != null ? { phone:         placeDetails.phone         } : {}),
+      ...(placeDetails.website       != null ? { website:       placeDetails.website       } : {}),
+      ...(placeDetails.currency_code != null ? { currency_code: placeDetails.currency_code } : {}),
+    };
 
-    // Top-level fields: only fill if null/empty on the current card
-    type TopField = "title" | "type" | "sub_type" | "lat" | "lng" | "address" | "cover_image_url" | "source_url";
-    const topFields: TopField[] = ["title", "type", "sub_type", "lat", "lng", "address", "cover_image_url", "source_url"];
-    const topUpdate: Partial<Record<TopField, unknown>> = {};
-    for (const field of topFields) {
-      const placeVal = place[field] as unknown;
-      const curVal   = localCard[field] as unknown;
-      if (placeVal != null && placeVal !== "" && (curVal == null || curVal === "")) {
-        topUpdate[field] = placeVal;
-      } else if (placeVal != null && placeVal !== "" && curVal != null && curVal !== "") {
-        keptCount++;
-      }
-    }
-    // Always absorb coordinates and place identity — they don't conflict
-    if (place.lat  != null) topUpdate.lat  = place.lat;
-    if (place.lng  != null) topUpdate.lng  = place.lng;
-    if (place.type != null) topUpdate.type = place.type;
-    if (place.sub_type != null) topUpdate.sub_type = place.sub_type;
+    // Always overwrite location and photo from pin; never touch type/sub_type/scheduling
+    const topUpdate: Partial<Card> = {};
+    if (place.lat             != null) topUpdate.lat             = place.lat;
+    if (place.lng             != null) topUpdate.lng             = place.lng;
+    if (place.address         != null && place.address         !== "") topUpdate.address         = place.address;
+    if (place.cover_image_url != null && place.cover_image_url !== "") topUpdate.cover_image_url = place.cover_image_url;
 
-    // Auto-name: if the card has a generic placeholder title and the place name
-    // isn't already in it, update to "[existing title] — [place name]"
+    // Auto-name: if title is a generic placeholder, rename to "[title] — [pin name]"
     const GENERIC_TITLES = new Set([
       "Dinner", "Lunch", "Breakfast", "Aperitivo", "Morning Coffee",
-      "Coffee", "Activity", "Night Walk", "Afternoon Wandering", "Afternoon Relax",
+      "Coffee", "Activity", "Drinks", "Dessert",
     ]);
     const currentTitle = localCard.title ?? "";
     const placeName    = place.title ?? "";
-    if (localCard.type === "food" && GENERIC_TITLES.has(currentTitle) && placeName && !currentTitle.includes(placeName)) {
+    if (GENERIC_TITLES.has(currentTitle) && placeName && !currentTitle.includes(placeName)) {
       topUpdate.title = `${currentTitle} \u2014 ${placeName}`;
     }
 
     const updated: Card = {
       ...localCard,
-      ...(topUpdate as Partial<Card>),
+      ...topUpdate,
       details: mergedDetails as typeof localCard.details,
     };
 
     setLocalCard(updated);
     onCardUpdate?.(updated);
-
-    // Show brief merge summary when existing fields were kept
-    if (keptCount > 0) {
-      setLinkMergeMessage(`Added ${addedCount}, kept ${keptCount} existing`);
-      setTimeout(() => setLinkMergeMessage(null), 4000);
-    }
+    setLinkMergeMessage("Linked!");
+    setTimeout(() => setLinkMergeMessage(null), 3000);
 
     await supabase.from("cards").update({
-      ...(topUpdate as Record<string, unknown>),
+      ...topUpdate,
       details: mergedDetails,
     }).eq("id", localCard.id);
 
