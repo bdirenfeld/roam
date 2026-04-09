@@ -19,7 +19,7 @@ const FALLBACK_LNG = 12.4964;
 function mapboxStaticUrl(lng: number, lat: number, zoom: number): string | null {
   if (!MAPBOX_TOKEN) return null;
   return (
-    `https://api.mapbox.com/styles/v1/mapbox/light-v11/static/` +
+    `https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/static/` +
     `${lng},${lat},${zoom},0/800x400@2x?access_token=${MAPBOX_TOKEN}`
   );
 }

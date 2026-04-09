@@ -66,7 +66,7 @@ export default async function TripsPage() {
           <h2 className="text-lg font-bold text-gray-900">
             {firstName
               ? upcoming[0]?.destination
-                ? `${firstName}. ${upcoming[0].destination} awaits.`
+                ? `${firstName}. ${upcoming[0].destination.split(",")[0].trim()} awaits.`
                 : firstName
               : "My Trips"}
           </h2>

@@ -321,7 +321,6 @@ export default function CreateCardSheet({
   const canCreate  = title.trim().length > 0 && type !== null;
   const isNote     = type === "note";
   const cardType   = isNote ? null : (type as CardType | null);
-  const typeColor  = type ? (isNote ? "#6B7280" : PIN_COLORS[type as CardType]) : null;
   const subKey     = `${cardType ?? ""}/${subType ?? ""}`;
 
   return (
@@ -379,7 +378,7 @@ export default function CreateCardSheet({
           <div className="mb-3">
             <label className={LABEL_CLS}>Type</label>
             <div className="flex flex-wrap gap-2">
-              {TYPE_OPTIONS.map(({ value, label, color }) => {
+              {TYPE_OPTIONS.map(({ value, label }) => {
                 const selected = type === value;
                 return (
                   <button
@@ -387,7 +386,7 @@ export default function CreateCardSheet({
                     onClick={() => handleTypeSelect(value)}
                     className="px-3 py-1 rounded-full text-xs font-semibold transition-all"
                     style={selected
-                      ? { background: color, color: "white", border: `1px solid ${color}` }
+                      ? { background: "#1A1A2E", color: "white", border: "1px solid #1A1A2E" }
                       : { background: "transparent", color: "#6B7280", border: "1px solid #E5E7EB" }}
                   >
                     {label}
@@ -409,7 +408,7 @@ export default function CreateCardSheet({
                       onClick={() => setSubType(selected ? null : value)}
                       className="px-3 py-1 rounded-full text-xs font-semibold transition-all"
                       style={selected
-                        ? { background: typeColor!, color: "white", border: `1px solid ${typeColor}` }
+                        ? { background: "#1A1A2E", color: "white", border: "1px solid #1A1A2E" }
                         : { background: "transparent", color: "#6B7280", border: "1px solid #E5E7EB" }}
                     >
                       {label}
@@ -649,7 +648,7 @@ export default function CreateCardSheet({
               disabled={!canCreate || saving}
               className="w-full py-3.5 rounded-xl text-[15px] font-bold transition-all active:scale-[0.98]"
               style={canCreate && !saving
-                ? { background: typeColor ?? "#6B7280", color: "white" }
+                ? { background: "#1A1A2E", color: "white" }
                 : { background: "#F3F4F6", color: "#D1D5DB", cursor: "not-allowed" }}
             >
               {saving ? "Creating…" : "Create"}

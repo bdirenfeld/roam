@@ -196,7 +196,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
       />
 
       {/* Sticky date header — sits between map and cards, stays visible on scroll */}
-      <div className="flex-shrink-0 bg-white border-t border-gray-200 px-4 pt-8 pb-4">
+      <div className="flex-shrink-0 bg-parchment border-t border-gray-200 px-4 pt-8 pb-4">
         <p className="text-lg font-medium text-gray-900">
           {new Date(dayWithCards.date + "T00:00:00").toLocaleDateString("en-US", {
             weekday: "long",
