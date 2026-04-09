@@ -630,42 +630,42 @@ export default function PlanBoard({ trip, initialDays }: Props) {
               onDragStart={handleDragStart}
               onDragEnd={handleMobileDragEnd}
             >
-              {/* Day navigation header */}
-              <div className="flex items-center justify-between px-3 py-2 bg-white border-b border-gray-100 flex-shrink-0">
-                <button
-                  onClick={() => setMobileDayIdx((prev) => Math.max(prev - 1, 0))}
-                  disabled={safeMobileIdx === 0}
-                  className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-600 disabled:opacity-25"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
-                </button>
-                <div className="text-center">
-                  <p className="text-sm font-bold text-gray-900">Day {currentMobileDay?.day_number}</p>
-                  {currentMobileDay?.date && (
-                    <p className="text-xs text-gray-400">{fmtDate(currentMobileDay.date)}</p>
-                  )}
+              {/* Day navigation header + dots — sticky on mobile */}
+              <div className="sticky top-0 z-20 bg-white flex-shrink-0">
+                <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
+                  <button
+                    onClick={() => setMobileDayIdx((prev) => Math.max(prev - 1, 0))}
+                    disabled={safeMobileIdx === 0}
+                    className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-600 disabled:opacity-25"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+                  </button>
+                  <div className="text-center">
+                    <p className="text-sm font-bold text-gray-900">Day {currentMobileDay?.day_number}</p>
+                    {currentMobileDay?.date && (
+                      <p className="text-xs text-gray-400">{fmtDate(currentMobileDay.date)}</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setMobileDayIdx((prev) => Math.min(prev + 1, days.length - 1))}
+                    disabled={safeMobileIdx >= days.length - 1}
+                    className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-600 disabled:opacity-25"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+                  </button>
                 </div>
-                <button
-                  onClick={() => setMobileDayIdx((prev) => Math.min(prev + 1, days.length - 1))}
-                  disabled={safeMobileIdx >= days.length - 1}
-                  className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-600 disabled:opacity-25"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-                </button>
+                {days.length > 1 && (
+                  <div className="flex items-center justify-center gap-1.5 py-1 bg-white">
+                    {days.map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setMobileDayIdx(i)}
+                        className={`rounded-full transition-all duration-200 ${i === safeMobileIdx ? "w-4 h-1.5 bg-gray-600" : "w-1.5 h-1.5 bg-gray-300"}`}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
-
-              {/* Dot indicators */}
-              {days.length > 1 && (
-                <div className="flex items-center justify-center gap-1.5 py-1.5 flex-shrink-0 bg-white">
-                  {days.map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setMobileDayIdx(i)}
-                      className={`rounded-full transition-all duration-200 ${i === safeMobileIdx ? "w-4 h-1.5 bg-gray-600" : "w-1.5 h-1.5 bg-gray-300"}`}
-                    />
-                  ))}
-                </div>
-              )}
 
               {/* Swipeable day content */}
               {currentMobileDay && (
@@ -1166,21 +1166,19 @@ function CardTile({
             {isNote && noteSnippet ? (
               <p className="text-[11px] text-gray-400 mt-0.5 leading-snug line-clamp-2">{noteSnippet}</p>
             ) : (
-              <div className="mt-0.5 space-y-px">
-                {timeRange && (
-                  <p className="text-[11px] text-gray-400 leading-snug">{timeRange}</p>
-                )}
-                {subLabel && !isNote && (
-                  <p className="text-[11px] text-gray-400 leading-snug">{subLabel}</p>
-                )}
-                {(tileRating !== null || priceRange) && (
-                  <p className="text-[11px] font-medium text-amber-500 leading-snug">
-                    {tileRating !== null ? `★ ${tileRating.toFixed(1)}` : ""}
-                    {tileRating !== null && priceRange ? " · " : ""}
-                    {priceRange ?? ""}
+              (() => {
+                const parts: React.ReactNode[] = [];
+                if (timeRange) parts.push(timeRange);
+                if (subLabel && !isNote) parts.push(subLabel);
+                if (tileRating !== null) parts.push(<span key="r" className="text-amber-500">★ {tileRating.toFixed(1)}</span>);
+                if (priceRange) parts.push(priceRange);
+                if (parts.length === 0) return null;
+                return (
+                  <p className="text-[11px] text-gray-400 mt-0.5 leading-snug truncate">
+                    {parts.map((p, i) => <span key={i}>{i > 0 && " · "}{p}</span>)}
                   </p>
-                )}
-              </div>
+                );
+              })()
             )}
           </div>
 
