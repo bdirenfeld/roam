@@ -63,8 +63,8 @@ export default function CardTimeline({ dayWithCards, onCardTap, highlightedCardI
                     className="w-full mt-4 text-left"
                     aria-label={`Add activity — ${freeTimeLabel(gap)}`}
                   >
-                    <div className="rounded-lg border border-[#E5E0D8] bg-[#FAF7F2] px-4 py-3">
-                      <p className="text-sm italic text-gray-400">{freeTimeLabel(gap)}</p>
+                    <div className="rounded-lg border border-[#E5E0D8] bg-[#FAF7F2] px-4 py-1.5">
+                      <p className="text-xs italic text-gray-400">{freeTimeLabel(gap)}</p>
                     </div>
                   </button>
                 )}
