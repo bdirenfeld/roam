@@ -168,8 +168,9 @@ export function makeMaterialPinElement(
   subType: string | null | undefined,
   status: string,
   hasRecommendation?: boolean,
+  colorOverride?: string,
 ): PinElements {
-  const baseColor = PIN_COLORS[type];
+  const baseColor = colorOverride ?? PIN_COLORS[type];
   const iconName  = (subType && MATERIAL_ICONS[subType]) || "place";
   const isPlaced  = status === "in_itinerary";
 

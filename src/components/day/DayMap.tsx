@@ -103,7 +103,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
         mappable.forEach(({ card, lat, lng }, i) => {
           const cardDetails = card.details as Record<string, unknown> | null;
           const { wrapper, inner } = makeMaterialPinElement(
-            card.type, card.sub_type, card.status, !!(cardDetails?.recommended_by),
+            card.type, card.sub_type, card.status, !!(cardDetails?.recommended_by), "#1A1A2E",
           );
 
           // Store inner element so the pulse effect can animate it
@@ -147,7 +147,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
             acInner.style.cssText =
               "width:32px;height:32px;" +
               "border-radius:50%;" +
-              "background:#111827;" +          // same near-black as main map logistics/hotel
+              "background:#1A1A2E;" +          // uniform ink color for agenda mini-map
               "border:2px solid white;" +
               "display:flex;align-items:center;justify-content:center;" +
               "box-shadow:0 2px 4px rgba(0,0,0,0.25);" +
