@@ -63,8 +63,12 @@ export default async function TripsPage() {
       {/* Greeting + new trip */}
       <div className="px-4 pt-5 pb-3 flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold text-gray-900">
-            {firstName ? `Hey, ${firstName}` : "My Trips"}
+          <h2 className="font-display italic font-light text-2xl text-gray-900">
+            {firstName
+              ? upcoming[0]?.destination
+                ? `${firstName}. ${upcoming[0].destination.split(",")[0].trim()} awaits.`
+                : firstName
+              : "My Trips"}
           </h2>
           {upcoming.length > 0 && (
             <p className="text-xs text-gray-400 mt-0.5">
@@ -80,7 +84,7 @@ export default async function TripsPage() {
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          New Trip
+          Plan a journey
         </Link>
       </div>
 

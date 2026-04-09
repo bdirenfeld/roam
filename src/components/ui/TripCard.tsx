@@ -67,7 +67,7 @@ export default function TripCard({ trip, firstDayId }: Props) {
         <div className="px-4 py-3">
           {/* Top row: title + status */}
           <div className="flex items-start justify-between gap-3">
-            <h3 className="text-sm font-bold text-gray-900 leading-snug">
+            <h3 className="font-display font-light text-xl text-gray-900 leading-snug">
               {trip.title}
             </h3>
             <div className={`flex items-center gap-1.5 shrink-0 ${status.text}`}>
