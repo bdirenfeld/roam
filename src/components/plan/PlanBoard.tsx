@@ -34,7 +34,8 @@ import TriageView from "@/components/plan/TriageView";
 import BoardBgPicker, { type BoardBg } from "@/components/plan/BoardBgPicker";
 import type { Trip, Card, DayWithCards, CardType, CardStatus } from "@/types/database";
 import { getPriceRange } from "@/lib/priceRange";
-import { getMaterialIconHTML } from "@/lib/mapPins";
+
+import CardImage from "@/components/ui/CardImage";
 
 // ── Constants ──────────────────────────────────────────────────
 const COL_PREFIX = "col-";
@@ -1126,9 +1127,6 @@ function CardTile({
     return s || null;
   })();
 
-  const ACCENT: Record<string, string> = { logistics: "#111827", activity: "#0D9488", food: "#7C3AED" };
-  const accent = ACCENT[card.type] ?? "#6B7280";
-
   return (
     <div
       className={`group relative bg-white rounded-xl border border-gray-100 shadow-card mb-2 select-none overflow-hidden border-l-[3px] ${borderClass} ${isOverlay ? "shadow-[0_8px_24px_0_rgba(0,0,0,0.14)] scale-[1.02]" : ""}`}
@@ -1137,26 +1135,15 @@ function CardTile({
         <div className="flex items-start gap-2.5">
 
           {/* Thumbnail — 60×60 */}
-          {card.cover_image_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={card.cover_image_url}
-              alt=""
-              className="w-[60px] h-[60px] rounded-lg object-cover flex-shrink-0"
-              draggable={false}
-            />
-          ) : (
-            <div
-              className="w-[60px] h-[60px] rounded-lg flex-shrink-0 flex items-center justify-center"
-              style={{ background: `${accent}18` }}
-            >
-              <span
-                style={{ color: accent }}
-                // eslint-disable-next-line react/no-danger
-                dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(card.sub_type, 22) }}
-              />
-            </div>
-          )}
+          <CardImage
+            src={card.cover_image_url}
+            alt=""
+            className="w-[60px] h-[60px] rounded-lg object-cover flex-shrink-0"
+            lat={card.lat}
+            lng={card.lng}
+            subType={card.sub_type}
+            title={card.title}
+          />
 
           {/* Text content */}
           <div className="flex-1 min-w-0 pr-7">

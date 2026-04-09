@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import type { Card, CardType } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { PIN_COLORS } from "@/lib/mapPins";
+import CardImage from "@/components/ui/CardImage";
 
 export interface PlaceResult {
   placeId: string;
@@ -291,14 +292,16 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
           </div>
         )}
         {/* Cover photo */}
-        {place.coverPhotoUrl ? (
-          <div className="flex-shrink-0 rounded-t-2xl overflow-hidden" style={{ height: 180 }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={place.coverPhotoUrl} alt={place.name} className="w-full h-full object-cover" />
-          </div>
-        ) : (
-          <div className="flex-shrink-0 rounded-t-2xl bg-gray-100" style={{ height: 60 }} />
-        )}
+        <div className="flex-shrink-0 rounded-t-2xl overflow-hidden" style={{ height: 180 }}>
+          <CardImage
+            src={place.coverPhotoUrl}
+            alt={place.name}
+            className="w-full h-full object-cover"
+            lat={place.lat}
+            lng={place.lng}
+            title={place.name}
+          />
+        </div>
 
         {/* Drag handle */}
         <div className="flex justify-center pt-2.5 flex-shrink-0 cursor-grab">

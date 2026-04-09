@@ -5,6 +5,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import type { Card, CardType } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { PIN_COLORS } from "@/lib/mapPins";
+import CardImage from "@/components/ui/CardImage";
 
 // ── Constants ────────────────────────────────────────────────
 const SUB_TYPE_LABEL: Record<string, string> = {
@@ -214,7 +215,6 @@ function CardBody({
   const website          = details?.website as string | undefined;
   const recommendedBy    = details?.recommended_by as string | undefined;
   const subTypeLabel     = card.sub_type ? (SUB_TYPE_LABEL[card.sub_type] ?? card.sub_type) : null;
-  const hasPhoto         = !!card.cover_image_url;
 
   const [isEditing, setIsEditing]               = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -246,23 +246,18 @@ function CardBody({
 
   return (
     <>
-      {/* Cover photo */}
-      {hasPhoto ? (
-        <div className="w-full h-[120px] flex-shrink-0 overflow-hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={card.cover_image_url!} alt={card.title} className="w-full h-full object-cover" />
-        </div>
-      ) : (
-        <div
-          className="w-full h-[120px] flex-shrink-0 flex items-center justify-center"
-          style={{ background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)" }}
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#86EFAC" strokeWidth="1.5" strokeLinecap="round">
-            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-            <circle cx="12" cy="10" r="3" />
-          </svg>
-        </div>
-      )}
+      {/* Cover photo — always shown; CardImage handles tier-2/3 fallbacks */}
+      <div className="w-full h-[120px] flex-shrink-0 overflow-hidden">
+        <CardImage
+          src={card.cover_image_url}
+          alt={card.title}
+          className="w-full h-full object-cover"
+          lat={card.lat}
+          lng={card.lng}
+          subType={card.sub_type}
+          title={card.title}
+        />
+      </div>
 
       {/* Close button */}
       <button

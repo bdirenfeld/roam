@@ -5,6 +5,7 @@ import type { Card, Day } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
 import AttachmentsPanel from "./AttachmentsPanel";
+import CardImage from "@/components/ui/CardImage";
 
 // ── Type-specific detail components ───────────────────────────
 import FlightArrivalDetail from "./detail/FlightArrivalDetail";
@@ -736,27 +737,24 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           onTouchEnd={handleTouchEnd}
           className="flex-shrink-0"
         >
-        {/* Cover photo hero (shown when a place photo is available) */}
-        {localCard.cover_image_url ? (
-          <div className="relative w-full h-[160px] overflow-hidden">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={localCard.cover_image_url}
-              alt=""
-              className="w-full h-full object-cover"
-            />
-            {/* Gradient overlay so drag handle is visible */}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent" />
-            {/* Drag handle on top of photo */}
-            <div className="absolute top-2.5 left-0 right-0 flex justify-center cursor-grab">
-              <div className="w-9 h-[3px] rounded-full bg-white/60" />
-            </div>
+        {/* Cover photo hero */}
+        <div className="relative w-full h-[160px] overflow-hidden">
+          <CardImage
+            src={localCard.cover_image_url}
+            alt=""
+            className="w-full h-full object-cover"
+            lat={localCard.lat}
+            lng={localCard.lng}
+            subType={localCard.sub_type}
+            title={localCard.title}
+          />
+          {/* Gradient overlay so drag handle is visible */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent pointer-events-none" />
+          {/* Drag handle on top of photo */}
+          <div className="absolute top-2.5 left-0 right-0 flex justify-center cursor-grab">
+            <div className="w-9 h-[3px] rounded-full bg-white/60" />
           </div>
-        ) : (
-          <div className="flex justify-center pt-2.5 pb-0 cursor-grab">
-            <div className="w-9 h-[3px] rounded-full bg-gray-200" />
-          </div>
-        )}
+        </div>
 
         {/* Header */}
         <div className="px-5 pt-3 pb-4 border-b border-gray-100">

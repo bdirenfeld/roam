@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { Card, DayWithCards } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
+import CardImage from "@/components/ui/CardImage";
 
 interface Props {
   tripId: string;
@@ -174,22 +175,16 @@ export default function TriageView({ tripId, days }: Props) {
                   }}
                 >
                   {/* Thumbnail */}
-                  <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
-                    {card.cover_image_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={card.cover_image_url}
-                        alt=""
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="1.5" strokeLinecap="round">
-                          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-                          <circle cx="12" cy="9" r="2.5" />
-                        </svg>
-                      </div>
-                    )}
+                  <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
+                    <CardImage
+                      src={card.cover_image_url}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      lat={card.lat}
+                      lng={card.lng}
+                      subType={card.sub_type}
+                      title={card.title}
+                    />
                   </div>
 
                   {/* Name + rating */}
