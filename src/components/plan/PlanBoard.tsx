@@ -557,7 +557,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
   };
 
   return (
-    <div className="flex flex-col h-dvh" style={boardBgStyle}>
+    <div className="flex flex-col h-dvh overflow-hidden" style={boardBgStyle}>
       {/* Sub-header */}
       <div className="flex items-center gap-2 px-2 py-2 border-b border-gray-100 bg-white flex-shrink-0">
         {/* Home button */}
@@ -709,12 +709,11 @@ export default function PlanBoard({ trip, initialDays }: Props) {
             >
               {/* Single horizontal scroll container — both the sticky header row
                   and the card columns live here so they pan together with no JS.
-                  overflow-x handles horizontal scroll; overflow-y:clip is set
-                  explicitly so sticky top-0 on the header can never be broken by
-                  future content growth (overflow-x-auto alone would implicitly set
-                  overflow-y:auto which would create a new scroll container). */}
+                  overflow-x handles horizontal scroll; overflow-y:hidden clips
+                  vertical overflow while still establishing a proper scroll
+                  container so child columns can scroll independently on iOS. */}
               <div
-                className="flex-1 overflow-x-auto [overflow-y:clip]"
+                className="flex-1 overflow-x-auto overflow-y-hidden"
                 style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "none" } as React.CSSProperties}
               >
                 {/* Sticky header row */}
@@ -947,13 +946,13 @@ function DayColumn({ day, cards, isPhotoBg, fullWidth, onCardTap, onRemove, onDe
   return (
     <div className={fullWidth ? "w-full h-full" : "w-[148px] min-w-[148px] flex-shrink-0 md:w-72"}>
       {/* Column container — Trello-style gray pill; on mobile fills height and inner card list scrolls */}
-      <div className={`${isPhotoBg ? "bg-[#EBECF0]/80 backdrop-blur-sm" : "bg-[#EBECF0]"} rounded-xl p-3 flex flex-col ${fullWidth ? "h-full overflow-hidden" : "max-h-[calc(100dvh-11rem)] overflow-y-auto md:max-h-none md:overflow-y-visible"}`}>
+      <div className={`${isPhotoBg ? "bg-[#EBECF0]/80 backdrop-blur-sm" : "bg-[#EBECF0]"} rounded-xl p-3 flex flex-col ${fullWidth ? "h-full overflow-hidden" : "max-h-[calc(100dvh-11rem)] overflow-y-auto [touch-action:pan-y] md:max-h-none md:overflow-y-visible"}`}>
         {/* Cards drop zone — independently scrollable on mobile */}
         <div
           ref={setNodeRef}
           className={`flex-1 min-h-[72px] rounded-lg transition-colors ${
             isOver && cards.length === 0 ? "bg-[#D0D2D8]" : ""
-          } ${fullWidth ? "overflow-y-auto pb-28 scrollbar-none" : ""}`}
+          } ${fullWidth ? "overflow-y-auto pb-28 scrollbar-none [touch-action:pan-y]" : ""}`}
         >
           <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
             {cards.map((card) => (
