@@ -21,31 +21,34 @@ export default function CoffeeDetail({ card, onSaveDetails, showEmpty = false }:
     d.currency_code as string | undefined,
   );
 
-  const hasDetailsData = priceRange || d.energy;
+  const rawOrderPlan = d.order_plan;
+  const orderPlanValue = Array.isArray(rawOrderPlan)
+    ? (rawOrderPlan as string[]).join(", ")
+    : (rawOrderPlan as string | undefined);
 
   return (
     <div className="space-y-6">
-      {/* DETAILS */}
-      {(showEmpty || hasDetailsData) && (
-        <div>
-          <SectionLabel>Details</SectionLabel>
-          <div className="space-y-4">
-            {priceRange && (
-              <div className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-5 text-center text-base mt-0.5 leading-none">💳</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Cost</p>
-                  <p className="text-sm font-medium text-gray-800">{priceRange} per person</p>
-                </div>
-              </div>
-            )}
-            <FieldRow icon="⚡" label="Vibe / energy" value={d.energy as string | undefined}
-              placeholder="e.g. quiet, busy, standing bar" onSave={save("energy")} hideWhenEmpty={hide} />
+      {/* Price range — read-only */}
+      {priceRange && (
+        <div className="flex items-start gap-3">
+          <span className="flex-shrink-0 w-5 text-center text-base mt-0.5 leading-none">💳</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Price range</p>
+            <p className="text-sm font-medium text-gray-800">{priceRange} per person</p>
           </div>
         </div>
       )}
 
-      {/* NOTES */}
+      {/* What to order */}
+      {(showEmpty || orderPlanValue) && (
+        <div>
+          <SectionLabel>What to order</SectionLabel>
+          <FieldRow value={orderPlanValue} placeholder="What to order…"
+            onSave={save("order_plan")} multiline hideWhenEmpty={hide} />
+        </div>
+      )}
+
+      {/* Notes */}
       {(showEmpty || d.notes) && (
         <div>
           <SectionLabel>Notes</SectionLabel>

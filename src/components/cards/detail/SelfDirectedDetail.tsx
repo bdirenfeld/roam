@@ -3,7 +3,6 @@
 import { useState } from "react";
 import type { Card } from "@/types/database";
 import FieldRow, { SectionLabel } from "./FieldRow";
-import ArrayField from "./ArrayField";
 
 interface Props {
   card: Card;
@@ -12,7 +11,7 @@ interface Props {
 }
 
 export default function SelfDirectedDetail({ card, onSaveDetails, showEmpty = false }: Props) {
-  const d = card.details as { flow?: unknown[]; tips?: string[]; notes?: string };
+  const d = card.details as { flow?: unknown[]; notes?: string };
   const save = (field: string) =>
     onSaveDetails ? (v: string) => onSaveDetails(field, v || null) : undefined;
   const hide = !showEmpty;
@@ -20,7 +19,6 @@ export default function SelfDirectedDetail({ card, onSaveDetails, showEmpty = fa
   const flow: string[] = Array.isArray(d.flow)
     ? (d.flow as unknown[]).map((item) => typeof item === "string" ? item : String(item))
     : [];
-  const tips: string[] = Array.isArray(d.tips) ? (d.tips as string[]) : [];
 
   return (
     <div className="space-y-6">
@@ -77,12 +75,6 @@ export default function SelfDirectedDetail({ card, onSaveDetails, showEmpty = fa
           )}
         </div>
       )}
-
-      {/* TIPS */}
-      <ArrayField label="Tips" items={tips} placeholder="No tips added yet…"
-        newItemPlaceholder="Add a tip…"
-        onSave={onSaveDetails ? (items) => onSaveDetails("tips", items) : undefined}
-        bulletClass="bg-activity" hideWhenEmpty={hide} />
 
       {/* NOTES */}
       {(showEmpty || d.notes) && (

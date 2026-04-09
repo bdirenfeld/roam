@@ -2,7 +2,6 @@
 
 import type { Card } from "@/types/database";
 import FieldRow, { SectionLabel } from "./FieldRow";
-import ArrayField from "./ArrayField";
 import { getPriceRange } from "@/lib/priceRange";
 
 interface Props {
@@ -12,7 +11,7 @@ interface Props {
   showEmpty?: boolean;
 }
 
-export default function CocktailBarDetail({ card, onSaveDetails, hideAddress, showEmpty = false }: Props) {
+export default function CocktailBarDetail({ card, onSaveDetails, showEmpty = false }: Props) {
   const d = card.details;
   const save = (field: string) =>
     onSaveDetails ? (v: string) => onSaveDetails(field, v || null) : undefined;
@@ -23,46 +22,34 @@ export default function CocktailBarDetail({ card, onSaveDetails, hideAddress, sh
     d.currency_code as string | undefined,
   );
 
-  const rawFlow = d.flow;
-  const flow: string[] = Array.isArray(rawFlow)
-    ? (rawFlow as unknown[]).map((item) => typeof item === "string" ? item : String(item))
-    : [];
-
-  const hasSpotData = (!hideAddress && card.address) || priceRange;
+  const rawOrderPlan = d.order_plan;
+  const orderPlanValue = Array.isArray(rawOrderPlan)
+    ? (rawOrderPlan as string[]).join(", ")
+    : (rawOrderPlan as string | undefined);
 
   return (
     <div className="space-y-6">
-      {/* THE SPOT */}
-      {(showEmpty || hasSpotData) && (
-        <div>
-          <SectionLabel>The Spot</SectionLabel>
-          <div className="space-y-4">
-            {!hideAddress && (
-              <FieldRow icon="📍" label="Address" value={card.address}
-                placeholder="Add address…"
-                onSave={onSaveDetails ? (v) => onSaveDetails("__top__address", v || null) : undefined}
-                hideWhenEmpty={hide} />
-            )}
-            {priceRange && (
-              <div className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-5 text-center text-base mt-0.5 leading-none">💳</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Cost</p>
-                  <p className="text-sm font-medium text-gray-800">{priceRange} per person</p>
-                </div>
-              </div>
-            )}
+      {/* Price range — read-only */}
+      {priceRange && (
+        <div className="flex items-start gap-3">
+          <span className="flex-shrink-0 w-5 text-center text-base mt-0.5 leading-none">💳</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Price range</p>
+            <p className="text-sm font-medium text-gray-800">{priceRange} per person</p>
           </div>
         </div>
       )}
 
-      {/* PLAN */}
-      <ArrayField label="Plan" items={flow} placeholder="No plan added yet…"
-        newItemPlaceholder="Add a step…"
-        onSave={onSaveDetails ? (items) => onSaveDetails("flow", items) : undefined}
-        bulletClass="bg-food" hideWhenEmpty={hide} />
+      {/* What to order */}
+      {(showEmpty || orderPlanValue) && (
+        <div>
+          <SectionLabel>What to order</SectionLabel>
+          <FieldRow value={orderPlanValue} placeholder="What to order…"
+            onSave={save("order_plan")} multiline hideWhenEmpty={hide} />
+        </div>
+      )}
 
-      {/* NOTES */}
+      {/* Notes */}
       {(showEmpty || d.notes) && (
         <div>
           <SectionLabel>Notes</SectionLabel>

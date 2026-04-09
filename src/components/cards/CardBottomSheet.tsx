@@ -15,6 +15,7 @@ import SelfDirectedDetail from "./detail/SelfDirectedDetail";
 import GuidedDetail from "./detail/GuidedDetail";
 import EventDetail from "./detail/EventDetail";
 import ChallengeDetail from "./detail/ChallengeDetail";
+import WellnessDetail from "./detail/WellnessDetail";
 
 // Legacy fallback components (for sub_types not yet migrated)
 import LogisticsDetail from "./detail/LogisticsDetail";
@@ -698,7 +699,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       case "logistics/hotel":
         return <HotelDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
       case "activity/wellness":
-        return <ActivityDetail card={localCard} />;
+        return <WellnessDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
       default:
         if (localCard.type === "logistics") return <LogisticsDetail card={localCard} />;
         if (localCard.type === "activity")  return <ActivityDetail  card={localCard} />;
