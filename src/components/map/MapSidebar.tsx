@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { ChevronDown } from "lucide-react";
+import { CaretDown, Trash } from "@phosphor-icons/react";
 import type { Card, CardType } from "@/types/database";
 import { getMaterialIconHTML, PIN_COLORS } from "@/lib/mapPins";
 import { createClient } from "@/lib/supabase/client";
@@ -214,8 +214,9 @@ export default function MapSidebar({
                   onClick={() => toggleSection(group.label)}
                   className="flex-shrink-0 p-0.5 rounded hover:bg-gray-100 transition-colors"
                 >
-                  <ChevronDown
-                    className={`w-3 h-3 text-gray-400 transition-transform duration-200 ${sectionCollapsed ? "-rotate-90" : ""}`}
+                  <CaretDown
+                    size={12} weight="light" color="#9CA3AF"
+                    className={`transition-transform duration-200 ${sectionCollapsed ? "-rotate-90" : ""}`}
                   />
                 </button>
               </div>
@@ -265,8 +266,9 @@ export default function MapSidebar({
                               onClick={(e) => { e.stopPropagation(); toggleExpandRow(row.label); }}
                               className="flex-shrink-0 p-0.5 rounded hover:bg-gray-100 transition-colors"
                             >
-                              <ChevronDown
-                                className={`w-3 h-3 text-gray-300 transition-transform duration-200 ${expanded ? "" : "-rotate-90"}`}
+                              <CaretDown
+                                size={12} weight="light" color="#D1D5DB"
+                                className={`transition-transform duration-200 ${expanded ? "" : "-rotate-90"}`}
                               />
                             </span>
                           )}
@@ -325,11 +327,7 @@ export default function MapSidebar({
                                         className="opacity-0 group-hover:opacity-100 flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-md hover:bg-red-50 transition-all mr-1"
                                         aria-label="Delete card"
                                       >
-                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                          <polyline points="3 6 5 6 21 6" />
-                                          <path d="M19 6l-1 14H6L5 6" />
-                                          <path d="M10 11v6M14 11v6M9 6V4h6v2" />
-                                        </svg>
+                                        <Trash size={12} weight="light" color="#EF4444" />
                                       </button>
                                     </div>
                                   )}

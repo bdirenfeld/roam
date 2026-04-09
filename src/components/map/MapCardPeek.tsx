@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { Card, Day, CardDetails } from "@/types/database";
 import { PIN_COLORS, getIconSVG } from "@/lib/mapPins";
+import { CaretRight } from "@phosphor-icons/react";
 
 interface Props {
   card: Card;
@@ -112,13 +113,7 @@ export default function MapCardPeek({ card, day, tripId, onClose }: Props) {
           </div>
 
           {/* Arrow */}
-          <svg
-            className="flex-shrink-0 mt-0.5"
-            width="16" height="16" viewBox="0 0 24 24"
-            fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round"
-          >
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
+          <CaretRight size={16} weight="light" color="#9CA3AF" className="flex-shrink-0 mt-0.5" />
         </Link>
       </div>
     </div>

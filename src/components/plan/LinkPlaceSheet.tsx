@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { Card, CardType } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
+import { X, CaretRight, ForkKnife, Coffee, Cookie, Wine, Compass, PersonSimpleWalk, Heart, CalendarBlank, Lightning, Buildings, AirplaneTilt, Truck, MapPin } from "@phosphor-icons/react";
 
 interface Props {
   tripId:   string;
@@ -54,113 +55,23 @@ const TYPE_COLOR: Record<CardType, string> = {
   logistics: "#111827",
 };
 
-// Simple sub-type icons (SVG paths)
+// Simple sub-type icons using Phosphor Light
 function SubTypeIcon({ subType, color }: { subType: string; color: string }) {
-  const s = { width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: color, strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
-
+  const props = { size: 14, weight: "light" as const, color };
   switch (subType) {
-    case "restaurant":
-      return (
-        <svg {...s}>
-          <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" />
-          <path d="M7 2v20" /><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
-        </svg>
-      );
-    case "coffee":
-    case "coffee_dessert":
-      return (
-        <svg {...s}>
-          <path d="M17 8h1a4 4 0 0 1 0 8h-1" />
-          <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z" />
-          <line x1="6" y1="2" x2="6" y2="4" /><line x1="10" y1="2" x2="10" y2="4" /><line x1="14" y1="2" x2="14" y2="4" />
-        </svg>
-      );
-    case "dessert":
-      return (
-        <svg {...s}>
-          <path d="M12 2a5 5 0 0 0-5 5c0 3 5 9 5 9s5-6 5-9a5 5 0 0 0-5-5z" />
-          <path d="M9.5 7a2.5 2.5 0 0 0 5 0" />
-        </svg>
-      );
-    case "cocktail_bar":
-    case "drinks":
-    case "bar":
-      return (
-        <svg {...s}>
-          <path d="M8 22h8" /><path d="M12 11v11" />
-          <path d="m19 3-7 8-7-8Z" />
-        </svg>
-      );
-    case "guided":
-    case "hosted":
-      return (
-        <svg {...s}>
-          <circle cx="12" cy="12" r="10" />
-          <polygon points="16.24,7.76 14.12,14.12 7.76,16.24 9.88,9.88" />
-        </svg>
-      );
-    case "self_directed":
-      return (
-        <svg {...s}>
-          <circle cx="12" cy="5" r="1" fill={color} stroke="none" />
-          <path d="m9 20 3-6 3 6" /><path d="m6 8 6 2 6-2" /><path d="M12 10v4" />
-        </svg>
-      );
-    case "wellness":
-      return (
-        <svg {...s}>
-          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-        </svg>
-      );
-    case "event":
-      return (
-        <svg {...s}>
-          <rect x="3" y="4" width="18" height="18" rx="2" />
-          <line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" />
-          <line x1="3" y1="10" x2="21" y2="10" />
-        </svg>
-      );
-    case "challenge":
-      return (
-        <svg {...s}>
-          <path d="m8 3 4 8 5-5 5 15H2L8 3z" />
-        </svg>
-      );
-    case "hotel":
-      return (
-        <svg {...s}>
-          <path d="M2 20V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12" />
-          <path d="M2 20h20" /><path d="M7 20v-5h10v5" />
-          <path d="M9 9h1" /><path d="M14 9h1" />
-        </svg>
-      );
-    case "flight_arrival":
-      return (
-        <svg {...s}>
-          <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21 4 19 4c-.7 0-1.5.3-2 .8L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" />
-        </svg>
-      );
-    case "flight_departure":
-      return (
-        <svg {...s}>
-          <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21 4 19 4c-.7 0-1.5.3-2 .8L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" />
-        </svg>
-      );
-    case "transit":
-      return (
-        <svg {...s}>
-          <rect x="1" y="3" width="15" height="13" rx="2" />
-          <path d="M16 8h4l3 3v5h-7V8z" />
-          <circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" />
-        </svg>
-      );
-    default:
-      return (
-        <svg {...s}>
-          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-          <circle cx="12" cy="9" r="2.5" />
-        </svg>
-      );
+    case "restaurant":                          return <ForkKnife {...props} />;
+    case "coffee": case "coffee_dessert":       return <Coffee {...props} />;
+    case "dessert":                             return <Cookie {...props} />;
+    case "cocktail_bar": case "drinks": case "bar": return <Wine {...props} />;
+    case "guided": case "hosted":              return <Compass {...props} />;
+    case "self_directed":                       return <PersonSimpleWalk {...props} />;
+    case "wellness":                            return <Heart {...props} />;
+    case "event":                               return <CalendarBlank {...props} />;
+    case "challenge":                           return <Lightning {...props} />;
+    case "hotel":                               return <Buildings {...props} />;
+    case "flight_arrival": case "flight_departure": return <AirplaneTilt {...props} />;
+    case "transit":                             return <Truck {...props} />;
+    default:                                    return <MapPin {...props} />;
   }
 }
 
@@ -303,9 +214,7 @@ export default function LinkPlaceSheet({ tripId, cardType, onLink, onClose }: Pr
             className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
             aria-label="Close"
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <X size={13} weight="light" color="#6B7280" />
           </button>
         </div>
 
@@ -363,9 +272,7 @@ export default function LinkPlaceSheet({ tripId, cardType, onLink, onClose }: Pr
                         </div>
 
                         {/* Chevron */}
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round">
-                          <polyline points="9 18 15 12 9 6" />
-                        </svg>
+                        <CaretRight size={14} weight="light" color="#D1D5DB" />
                       </button>
                     );
                   })}
@@ -399,9 +306,7 @@ export default function LinkPlaceSheet({ tripId, cardType, onLink, onClose }: Pr
                             <p className="text-[11px] text-amber-500 font-medium mt-0.5">★ {rating.toFixed(1)}</p>
                           )}
                         </div>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round">
-                          <polyline points="9 18 15 12 9 6" />
-                        </svg>
+                        <CaretRight size={14} weight="light" color="#D1D5DB" />
                       </button>
                     );
                   })}

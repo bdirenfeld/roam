@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { MagnifyingGlass, CircleNotch, X, MapPin } from "@phosphor-icons/react";
 
 interface Prediction {
   place_id: string;
@@ -98,10 +99,7 @@ export default function PlaceSearch({ onPlaceSelect, destination }: Props) {
           className="flex items-center gap-2 bg-white rounded-xl px-3 h-10 border border-gray-100"
           style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
+          <MagnifyingGlass size={15} weight="light" color="#9CA3AF" className="flex-shrink-0" />
           <input
             ref={inputRef}
             value={query}
@@ -110,10 +108,7 @@ export default function PlaceSearch({ onPlaceSelect, destination }: Props) {
             className="flex-1 bg-transparent text-[13px] text-gray-900 placeholder:text-gray-400 outline-none"
           />
           {loading && (
-            <svg className="w-4 h-4 text-gray-400 animate-spin flex-shrink-0" viewBox="0 0 24 24" fill="none">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16v-4l-3 3 3 3v-4a8 8 0 01-8-8z" />
-            </svg>
+            <CircleNotch size={16} weight="light" className="text-gray-400 animate-spin flex-shrink-0" />
           )}
           {query && !loading && (
             <button
@@ -121,10 +116,7 @@ export default function PlaceSearch({ onPlaceSelect, destination }: Props) {
               className="flex-shrink-0 text-gray-400 hover:text-gray-600"
               aria-label="Clear search"
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
+              <X size={13} weight="light" />
             </button>
           )}
         </div>
@@ -145,10 +137,7 @@ export default function PlaceSearch({ onPlaceSelect, destination }: Props) {
                   }`}
                 >
                   <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                      <circle cx="12" cy="10" r="3" />
-                    </svg>
+                    <MapPin size={13} weight="light" color="#6B7280" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <span className="block text-[13px] font-medium text-gray-900 leading-snug truncate">

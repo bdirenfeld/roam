@@ -1,6 +1,7 @@
 import Link from "next/link";
 import TripCover from "./TripCover";
 import type { Trip, TripStatus } from "@/types/database";
+import { MapPin, Users } from "@phosphor-icons/react";
 
 interface Props {
   trip: Trip;
@@ -78,10 +79,7 @@ export default function TripCard({ trip, firstDayId }: Props) {
 
           {/* Destination */}
           <div className="flex items-center gap-1 mt-1">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round">
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
-              <circle cx="12" cy="10" r="3" />
-            </svg>
+            <MapPin size={11} weight="light" color="#9CA3AF" />
             <span className="text-xs text-gray-400">{trip.destination}</span>
           </div>
 
@@ -104,12 +102,7 @@ export default function TripCard({ trip, firstDayId }: Props) {
               <>
                 <span className="text-gray-200 text-xs">·</span>
                 <span className="text-xs text-gray-400 flex items-center gap-0.5">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                    <path d="M23 21v-2a4 4 0 00-3-3.87" />
-                    <path d="M16 3.13a4 4 0 010 7.75" />
-                  </svg>
+                  <Users size={10} weight="light" />
                   {trip.party_size}
                 </span>
               </>

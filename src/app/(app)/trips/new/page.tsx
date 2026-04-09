@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import AppHeader from "@/components/ui/AppHeader";
 import { createClient } from "@/lib/supabase/client";
+import { CaretLeft, CircleNotch, Check, ArrowRight } from "@phosphor-icons/react";
 
 interface DestinationPrediction {
   description: string;
@@ -176,9 +177,7 @@ export default function NewTripPage() {
           href="/trips"
           className="inline-flex items-center gap-1.5 text-xs text-gray-400 font-medium mb-6 hover:text-gray-600 transition-colors"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
+          <CaretLeft size={14} weight="light" />
           Back
         </Link>
 
@@ -207,14 +206,10 @@ export default function NewTripPage() {
               {/* Status indicator */}
               <div className="absolute right-3 top-3.5 pointer-events-none">
                 {loadingDetails && (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" className="animate-spin">
-                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                  </svg>
+                  <CircleNotch size={14} weight="light" color="#9CA3AF" className="animate-spin" />
                 )}
                 {destination && !loadingDetails && (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0D9488" strokeWidth="2.5" strokeLinecap="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
+                  <Check size={16} weight="light" color="#0D9488" />
                 )}
               </div>
 
@@ -273,9 +268,7 @@ export default function NewTripPage() {
                 }}
                 className="flex-1 px-3 py-3 text-[14px] bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-400 focus:bg-white transition-colors"
               />
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0">
-                <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
-              </svg>
+              <ArrowRight size={14} weight="light" color="#9CA3AF" className="flex-shrink-0" />
               <input
                 type="date"
                 value={endDate}

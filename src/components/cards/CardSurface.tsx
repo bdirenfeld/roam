@@ -1,6 +1,7 @@
 import type { Card, CardType } from "@/types/database";
 import { getMaterialIconHTML } from "@/lib/mapPins";
 import { getPriceRange } from "@/lib/priceRange";
+import { CaretRight } from "@phosphor-icons/react";
 
 interface Props {
   card: Card;
@@ -125,9 +126,7 @@ export default function CardSurface({ card, onTap, isHighlighted }: Props) {
       </div>
 
       {/* Chevron */}
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2.5" strokeLinecap="round" className="flex-shrink-0">
-        <polyline points="9 18 15 12 9 6" />
-      </svg>
+      <CaretRight size={13} weight="light" color="#D1D5DB" className="flex-shrink-0" />
     </button>
   );
 }

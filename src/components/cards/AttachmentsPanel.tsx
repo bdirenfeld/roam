@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Card, CardAttachment } from "@/types/database";
+import { X, CircleNotch, Paperclip } from "@phosphor-icons/react";
 
 // ── Helpers ───────────────────────────────────────────────────
 function formatBytes(bytes: number): string {
@@ -155,14 +156,10 @@ function AttachmentRow({
 
         {/* Parse status indicator */}
         {isParsing && (
-          <svg className="animate-spin flex-shrink-0 text-gray-400" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M21 12a9 9 0 1 1-6.219-8.56" strokeLinecap="round" />
-          </svg>
+          <CircleNotch size={12} weight="light" className="animate-spin flex-shrink-0 text-gray-400" />
         )}
         {attachment.parse_status === "failed" && (
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.5" strokeLinecap="round" className="flex-shrink-0">
-            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
+          <X size={12} weight="light" color="#EF4444" className="flex-shrink-0" />
         )}
 
         {/* "Parsed info" toggle */}
@@ -354,10 +351,7 @@ export default function AttachmentsPanel({ card, onClose, onCardUpdate }: Props)
           className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
           aria-label="Close attachments"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
+          <X size={14} weight="light" color="#6B7280" />
         </button>
       </div>
 
@@ -377,16 +371,12 @@ export default function AttachmentsPanel({ card, onClose, onCardUpdate }: Props)
         >
           {isUploading ? (
             <>
-              <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M21 12a9 9 0 1 1-6.219-8.56" strokeLinecap="round" />
-              </svg>
+              <CircleNotch size={14} weight="light" className="animate-spin" />
               Uploading…
             </>
           ) : (
             <>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-              </svg>
+              <Paperclip size={14} weight="light" />
               Upload file
             </>
           )}

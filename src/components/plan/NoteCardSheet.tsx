@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import type { Card } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
+import { FileText, X } from "@phosphor-icons/react";
 
 interface Props {
   dayId: string;
@@ -135,13 +136,7 @@ export default function NoteCardSheet({ dayId, tripId, endPosition, onClose, onC
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-3 pb-3 border-b border-gray-100 flex-shrink-0">
           <div className="flex items-center gap-2">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-              <polyline points="10 9 9 9 8 9" />
-            </svg>
+            <FileText size={14} weight="light" color="#9CA3AF" />
             <span className="text-[12px] font-semibold text-gray-400">Note</span>
           </div>
           <button
@@ -149,9 +144,7 @@ export default function NoteCardSheet({ dayId, tripId, endPosition, onClose, onC
             className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
             aria-label="Close"
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <X size={13} weight="light" color="#6B7280" />
           </button>
         </div>
 

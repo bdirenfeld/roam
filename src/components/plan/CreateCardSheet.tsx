@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import type { Card, CardType } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { PIN_COLORS } from "@/lib/mapPins";
+import { X } from "@phosphor-icons/react";
 
 // ── Type options (includes virtual "note" type) ────────────────
 type UiType = CardType | "note";
@@ -360,11 +361,7 @@ export default function CreateCardSheet({
             className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
             aria-label="Close"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-              stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <X size={14} weight="light" color="#6B7280" />
           </button>
         </div>
 

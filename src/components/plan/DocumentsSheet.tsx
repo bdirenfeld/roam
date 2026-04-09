@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { Document } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
+import { X, FileText, Trash, CircleNotch, AirplaneTilt, Buildings, ForkKnife } from "@phosphor-icons/react";
 
 interface Props {
   tripId:  string;
@@ -17,41 +18,11 @@ const DOC_LABEL: Record<string, string> = {
 };
 
 function DocTypeIcon({ type }: { type: string }) {
-  const s = {
-    width: 16, height: 16, viewBox: "0 0 24 24",
-    fill: "none", stroke: "currentColor",
-    strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const,
-  };
   switch (type) {
-    case "flight":
-      return (
-        <svg {...s}>
-          <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21 4 19 4c-.7 0-1.5.3-2 .8L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" />
-        </svg>
-      );
-    case "hotel":
-      return (
-        <svg {...s}>
-          <path d="M2 20V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12" />
-          <path d="M2 20h20" /><path d="M7 20v-5h10v5" />
-          <path d="M9 9h1" /><path d="M14 9h1" />
-        </svg>
-      );
-    case "restaurant":
-      return (
-        <svg {...s}>
-          <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" />
-          <path d="M7 2v20" />
-          <path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
-        </svg>
-      );
-    default:
-      return (
-        <svg {...s}>
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-          <polyline points="14 2 14 8 20 8" />
-        </svg>
-      );
+    case "flight":      return <AirplaneTilt size={16} weight="light" />;
+    case "hotel":       return <Buildings size={16} weight="light" />;
+    case "restaurant":  return <ForkKnife size={16} weight="light" />;
+    default:            return <FileText size={16} weight="light" />;
   }
 }
 
@@ -161,9 +132,7 @@ export default function DocumentsSheet({ tripId, onClose }: Props) {
             className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
             aria-label="Close"
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <X size={13} weight="light" color="#6B7280" />
           </button>
         </div>
 
@@ -176,10 +145,7 @@ export default function DocumentsSheet({ tripId, onClose }: Props) {
           ) : docs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
               <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                </svg>
+                <FileText size={18} weight="light" color="#9CA3AF" />
               </div>
               <p className="text-[13px] font-medium text-gray-500">No documents yet</p>
               <p className="text-[12px] text-gray-400 mt-1">
@@ -224,16 +190,9 @@ export default function DocumentsSheet({ tripId, onClose }: Props) {
                   aria-label="Delete document"
                 >
                   {deleting === doc.id ? (
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="animate-spin">
-                      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                    </svg>
+                    <CircleNotch size={13} weight="light" className="animate-spin" />
                   ) : (
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6l-1 14H6L5 6" />
-                      <path d="M10 11v6" /><path d="M14 11v6" />
-                      <path d="M9 6V4h6v2" />
-                    </svg>
+                    <Trash size={13} weight="light" />
                   )}
                 </button>
               </div>

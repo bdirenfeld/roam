@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import LoginButton from "@/components/auth/LoginButton";
+import { MapPin, WarningCircle } from "@phosphor-icons/react";
 
 interface Props {
   searchParams: Promise<{ error?: string; next?: string }>;
@@ -34,10 +35,7 @@ export default async function LoginPage({ searchParams }: Props) {
       {/* Logo mark */}
       <div className="mb-3">
         <div className="w-14 h-14 rounded-2xl bg-activity flex items-center justify-center shadow-sm">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="10" r="3" />
-            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-          </svg>
+          <MapPin size={28} weight="light" color="white" />
         </div>
       </div>
 
@@ -64,11 +62,7 @@ export default async function LoginPage({ searchParams }: Props) {
       {/* Error message */}
       {errorMessage && (
         <div className="w-full mb-4 p-3 rounded-xl bg-red-50 border border-red-100 flex items-start gap-2.5">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" className="shrink-0 mt-0.5">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
+          <WarningCircle size={15} weight="light" color="#EF4444" className="shrink-0 mt-0.5" />
           <p className="text-xs text-red-600 font-medium">{errorMessage}</p>
         </div>
       )}

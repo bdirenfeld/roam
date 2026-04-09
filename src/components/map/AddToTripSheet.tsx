@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import type { Card, CardType } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { PIN_COLORS } from "@/lib/mapPins";
+import { X } from "@phosphor-icons/react";
 
 export interface PlaceResult {
   placeId: string;
@@ -314,9 +315,7 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
           aria-label="Close"
           style={{ zIndex: 1 }}
         >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
+          <X size={13} weight="light" color="white" />
         </button>
 
         {/* Content */}

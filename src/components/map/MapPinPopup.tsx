@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Pencil, Trash2 } from "lucide-react";
 import type { Card, CardType } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { PIN_COLORS } from "@/lib/mapPins";
+import { X, Trash, PencilSimple, MapPin, Globe, Phone } from "@phosphor-icons/react";
 
 // ── Constants ────────────────────────────────────────────────
 const SUB_TYPE_LABEL: Record<string, string> = {
@@ -252,10 +252,7 @@ function CardBody({
           className="w-full h-[120px] flex-shrink-0 flex items-center justify-center"
           style={{ background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)" }}
         >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#86EFAC" strokeWidth="1.5" strokeLinecap="round">
-            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-            <circle cx="12" cy="10" r="3" />
-          </svg>
+          <MapPin size={24} weight="light" color="#86EFAC" />
         </div>
       )}
 
@@ -266,10 +263,7 @@ function CardBody({
         style={{ backdropFilter: "blur(8px)" }}
         aria-label="Close"
       >
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
+        <X size={10} weight="light" color="white" />
       </button>
 
       {/* Trash button */}
@@ -280,7 +274,7 @@ function CardBody({
           style={{ backdropFilter: "blur(8px)" }}
           aria-label="Delete place"
         >
-          <Trash2 size={11} color="white" />
+          <Trash size={11} weight="light" color="white" />
         </button>
       )}
 
@@ -300,7 +294,7 @@ function CardBody({
               className="p-0.5 rounded hover:bg-gray-100 transition-colors"
               aria-label="Edit type"
             >
-              <Pencil size={11} className="text-gray-400" />
+              <PencilSimple size={11} weight="light" className="text-gray-400" />
             </button>
           )}
         </div>
@@ -340,10 +334,7 @@ function CardBody({
               rel="noopener noreferrer"
               className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-blue-200 bg-blue-50 text-[11px] font-semibold text-blue-600 hover:bg-blue-100 transition-colors"
             >
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-                <circle cx="12" cy="9" r="2.5" />
-              </svg>
+              <MapPin size={10} weight="light" />
               Maps
             </a>
           )}
@@ -354,11 +345,7 @@ function CardBody({
               rel="noopener noreferrer"
               className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-gray-200 bg-gray-50 text-[11px] font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
             >
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="2" y1="12" x2="22" y2="12" />
-                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-              </svg>
+              <Globe size={10} weight="light" />
               Website
             </a>
           )}
@@ -367,9 +354,7 @@ function CardBody({
               href={`tel:${phone}`}
               className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-gray-200 bg-gray-50 text-[11px] font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
             >
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.44 2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.9a16 16 0 0 0 6.09 6.09l.98-.98a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
-              </svg>
+              <Phone size={10} weight="light" />
               Call
             </a>
           )}

@@ -3,6 +3,7 @@
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
+import { CaretLeft, User } from "@phosphor-icons/react";
 import MapPinPopup from "./MapPinPopup";
 import MapSidebar from "./MapSidebar";
 import PlaceSearch from "./PlaceSearch";
@@ -516,9 +517,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           className="absolute top-4 left-4 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center"
           style={{ backdropFilter: "blur(8px)", zIndex: 10 }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
+          <CaretLeft size={16} weight="light" color="#374151" />
         </Link>
 
         {/* Place search — always visible bar */}
@@ -536,10 +535,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
             <img src={userAvatarUrl} alt="" className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2">
-                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
+              <User size={14} weight="light" color="#9CA3AF" />
             </div>
           )}
         </Link>

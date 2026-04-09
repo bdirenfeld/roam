@@ -5,6 +5,7 @@ import type { Card, Day } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
 import AttachmentsPanel from "./AttachmentsPanel";
+import { CaretDown, Paperclip, MapPin, Trash, X, Globe, Phone } from "@phosphor-icons/react";
 
 // ── Type-specific detail components ───────────────────────────
 import FlightArrivalDetail from "./detail/FlightArrivalDetail";
@@ -809,9 +810,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   <span className={`w-2 h-2 rounded-full ${accent.dot}`} />
                   <span className={`text-[11px] font-semibold ${accent.text}`}>{typeLabel}</span>
                   {!isNote && (
-                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className={accent.text}>
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
+                    <CaretDown size={9} weight="bold" className={accent.text} />
                   )}
                 </button>
                 {showSubTypePicker && !isNote && (
@@ -842,9 +841,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
                   aria-label="Attachments"
                 >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-                  </svg>
+                  <Paperclip size={13} weight="light" color="#6B7280" />
                 </button>
               )}
               {localCard.status === "in_itinerary" && (
@@ -853,10 +850,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
                   aria-label="Link place from map"
                 >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-                    <circle cx="12" cy="9" r="2.5" />
-                  </svg>
+                  <MapPin size={13} weight="light" color="#6B7280" />
                 </button>
               )}
               <button
@@ -864,23 +858,14 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
                 aria-label="Delete card"
               >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                  <path d="M10 11v6" />
-                  <path d="M14 11v6" />
-                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                </svg>
+                <Trash size={13} weight="light" color="#6B7280" />
               </button>
               <button
                 onClick={onClose}
                 className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
                 aria-label="Close"
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
+                <X size={14} weight="light" color="#6B7280" />
               </button>
             </div>
           </div>
@@ -947,11 +932,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 transition-colors"
                   aria-label="Source"
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="2" y1="12" x2="22" y2="12" />
-                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                  </svg>
+                  <Globe size={12} weight="light" />
                   Source
                 </a>
               </>
@@ -979,10 +960,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-50 border border-gray-100 text-[11px] font-semibold text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
                 >
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-                    <circle cx="12" cy="9" r="2.5" />
-                  </svg>
+                  <MapPin size={11} weight="light" />
                   Maps
                 </a>
               )}
@@ -994,11 +972,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   aria-label="Website"
                   className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-gray-50 border border-gray-100 text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
                 >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="2" y1="12" x2="22" y2="12" />
-                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                  </svg>
+                  <Globe size={13} weight="light" />
                 </a>
               )}
               {phone && (
@@ -1006,9 +980,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   href={phone.href}
                   className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-50 border border-gray-100 text-[11px] font-semibold text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
                 >
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.77a16 16 0 0 0 6.29 6.29l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
-                  </svg>
+                  <Phone size={11} weight="light" />
                   Call
                 </a>
               )}
@@ -1125,10 +1097,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
                 aria-label="Close"
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
+                <X size={14} weight="light" color="#6B7280" />
               </button>
             </div>
             <div className="overflow-y-auto flex-1">
@@ -1174,10 +1143,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
                 aria-label="Close"
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
+                <X size={14} weight="light" color="#6B7280" />
               </button>
             </div>
             <div className="overflow-y-auto flex-1">

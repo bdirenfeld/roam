@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { X, CircleNotch } from "@phosphor-icons/react";
 
 export type BoardBg =
   | { type: "color"; value: string }
@@ -125,9 +126,7 @@ export default function BoardBgPicker({ current, onSelect, onClose }: Props) {
             className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
             aria-label="Close"
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <X size={13} weight="light" color="#6B7280" />
           </button>
         </div>
 
@@ -181,9 +180,7 @@ export default function BoardBgPicker({ current, onSelect, onClose }: Props) {
               {/* Photo grid */}
               {loading ? (
                 <div className="flex justify-center py-6">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" className="animate-spin">
-                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                  </svg>
+                  <CircleNotch size={20} weight="light" color="#9CA3AF" className="animate-spin" />
                 </div>
               ) : searched && photos.length === 0 ? (
                 <p className="text-[13px] text-gray-400 text-center py-4">No photos found</p>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { User } from "@phosphor-icons/react";
 
 interface AppHeaderProps {
   avatarUrl?: string | null;
@@ -26,10 +27,7 @@ export default function AppHeader({ avatarUrl, subtitle }: AppHeaderProps) {
           {avatarUrl ? (
             <Image src={avatarUrl} alt="Profile" width={32} height={32} className="object-cover" />
           ) : (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2">
-              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
-            </svg>
+            <User size={16} weight="light" color="#9CA3AF" />
           )}
         </div>
       </Link>
