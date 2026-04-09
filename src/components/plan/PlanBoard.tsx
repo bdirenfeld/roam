@@ -27,7 +27,6 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { createClient } from "@/lib/supabase/client";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
-import CreateCardSheet from "@/components/plan/CreateCardSheet";
 import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/plan/ConfirmationPreviewSheet";
 import DocumentsSheet from "@/components/plan/DocumentsSheet";
 import TriageView from "@/components/plan/TriageView";
@@ -180,7 +179,6 @@ export default function PlanBoard({ trip, initialDays }: Props) {
   const [days, setDays] = useState<DayWithCards[]>(initialDays);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
-  const [createSheetDayId, setCreateSheetDayId] = useState<string | null>(null);
   const [pendingConf,  setPendingConf]  = useState<{ items: ParsedConfirmation[]; fileName: string; fileType: string } | null>(null);
   const [showDocs,     setShowDocs]     = useState(false);
   const [viewMode] = useState<"board" | "triage">("board");
@@ -414,13 +412,35 @@ export default function PlanBoard({ trip, initialDays }: Props) {
     }
   }, [supabase]);
 
-  const handleCardCreated = useCallback((card: Card) => {
+  // ── Inline card creation (board view) ───────────────────────
+  const handleCreateCard = useCallback(async (dayId: string, title: string) => {
+    const day = days.find((d) => d.id === dayId);
+    const endPos = day ? day.cards.reduce((m, c) => Math.max(m, c.position), 0) + 1 : 1;
+    const id = crypto.randomUUID();
+    const newCard: Card = {
+      id, day_id: dayId, trip_id: trip.id,
+      type: "activity", sub_type: null, title,
+      start_time: null, end_time: null, position: endPos,
+      status: "in_itinerary", source_url: null, cover_image_url: null,
+      lat: null, lng: null, address: null, details: {}, ai_generated: false,
+      created_at: new Date().toISOString(),
+    };
     setDays((prev) =>
-      prev.map((d) => d.id === card.day_id ? { ...d, cards: [...d.cards, card] } : d)
+      prev.map((d) => d.id === dayId ? { ...d, cards: [...d.cards, newCard] } : d)
     );
-    setCreateSheetDayId(null);
-    setSelectedCard(card);
-  }, []);
+    const { error } = await supabase.from("cards").insert({
+      id, day_id: dayId, trip_id: trip.id,
+      type: "activity", sub_type: null, title,
+      start_time: null, end_time: null, position: endPos,
+      status: "in_itinerary", lat: null, lng: null,
+      address: null, details: {}, ai_generated: false,
+    });
+    if (error) {
+      setDays((prev) =>
+        prev.map((d) => d.id === dayId ? { ...d, cards: d.cards.filter((c) => c.id !== id) } : d)
+      );
+    }
+  }, [days, trip.id, supabase]);
 
   // ── Apply day template to all days ───────────────────────────
   const handleApplyTemplate = useCallback(async (templateKey: string) => {
@@ -690,7 +710,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
                     onCardTap={(card) => setSelectedCard(card)}
                     onRemove={handleRemove}
                     onDelete={handleDelete}
-                    onOpenCreateSheet={() => setCreateSheetDayId(currentMobileDay.id)}
+                    onCreateCard={(title) => handleCreateCard(currentMobileDay.id, title)}
                   />
                 </div>
               )}
@@ -756,7 +776,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
                         onCardTap={(card) => setSelectedCard(card)}
                         onRemove={handleRemove}
                         onDelete={handleDelete}
-                        onOpenCreateSheet={() => setCreateSheetDayId(day.id)}
+                        onCreateCard={(title) => handleCreateCard(day.id, title)}
                       />
                     ))}
                   </div>
@@ -770,20 +790,6 @@ export default function PlanBoard({ trip, initialDays }: Props) {
           )}
         </div>
       )}{/* end board */}
-
-      {createSheetDayId && (() => {
-        const day = days.find((d) => d.id === createSheetDayId);
-        const endPos = day ? day.cards.reduce((m, c) => Math.max(m, c.position), 0) + 1 : 1;
-        return (
-          <CreateCardSheet
-            dayId={createSheetDayId}
-            tripId={trip.id}
-            endPosition={endPos}
-            onClose={() => setCreateSheetDayId(null)}
-            onCardCreated={handleCardCreated}
-          />
-        );
-      })()}
 
       {pendingConf && (
         <ConfirmationPreviewSheet
@@ -938,11 +944,27 @@ interface DayColumnProps {
   onCardTap: (card: Card) => void;
   onRemove: (cardId: string) => void;
   onDelete: (cardId: string) => void;
-  onOpenCreateSheet: () => void;
+  onCreateCard: (title: string) => Promise<void>;
 }
 
-function DayColumn({ day, cards, isPhotoBg, fullWidth, onCardTap, onRemove, onDelete, onOpenCreateSheet }: DayColumnProps) {
+function DayColumn({ day, cards, isPhotoBg, fullWidth, onCardTap, onRemove, onDelete, onCreateCard }: DayColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `${COL_PREFIX}${day.id}` });
+  const [isInlineAdding, setIsInlineAdding] = useState(false);
+  const [inlineTitle,    setInlineTitle]    = useState("");
+  const inlineRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isInlineAdding) setTimeout(() => inlineRef.current?.focus(), 40);
+  }, [isInlineAdding]);
+
+  const submitInline = async () => {
+    const t = inlineTitle.trim();
+    setIsInlineAdding(false);
+    setInlineTitle("");
+    if (t) await onCreateCard(t);
+  };
+
+  const dismissInline = () => { setIsInlineAdding(false); setInlineTitle(""); };
 
   return (
     <div className={fullWidth ? "w-full h-full" : "w-[148px] min-w-[148px] flex-shrink-0 md:w-72"}>
@@ -974,14 +996,39 @@ function DayColumn({ day, cards, isPhotoBg, fullWidth, onCardTap, onRemove, onDe
           )}
         </div>
 
-        {/* Add card */}
-        <div className="mt-1 flex gap-1">
-          <button
-            onClick={onOpenCreateSheet}
-            className="flex-1 flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-gray-700 py-2 transition-colors"
-          >
-            <span className="text-base leading-none font-bold">+</span> Add to this day
-          </button>
+        {/* Inline add / Add button */}
+        <div className="mt-1">
+          {isInlineAdding ? (
+            <div className="flex gap-1.5 pt-1">
+              <input
+                ref={inlineRef}
+                value={inlineTitle}
+                onChange={(e) => setInlineTitle(e.target.value)}
+                placeholder="Name this stop..."
+                className="flex-1 text-[13px] bg-white rounded-lg border border-gray-200 px-2.5 py-1.5 outline-none focus:border-gray-400 placeholder:text-gray-300 min-w-0"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { e.preventDefault(); submitInline(); }
+                  if (e.key === "Escape") dismissInline();
+                }}
+                onBlur={() => setTimeout(dismissInline, 150)}
+              />
+              <button
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={submitInline}
+                className="px-2.5 py-1.5 rounded-lg text-[12px] font-bold text-white flex-shrink-0"
+                style={{ background: "#1A1A2E" }}
+              >
+                Add
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setIsInlineAdding(true)}
+              className="w-full flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-gray-700 py-2 transition-colors"
+            >
+              <span className="text-base leading-none font-bold">+</span> Add to this day
+            </button>
+          )}
         </div>
       </div>{/* end column container */}
     </div>
