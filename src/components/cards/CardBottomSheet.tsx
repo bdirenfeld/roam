@@ -564,9 +564,6 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       ...topUpdate,
       details: mergedDetails,
     }).eq("id", localCard.id);
-
-    // Restore the linked pin to the map as an available interested place
-    await supabase.from("cards").update({ status: "interested", day_id: null }).eq("id", place.id);
   }, [localCard, onCardUpdate, supabase]);
 
   // ── Delete card ──────────────────────────────────────────────
