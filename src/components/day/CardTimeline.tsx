@@ -50,30 +50,22 @@ export default function CardTimeline({ dayWithCards, onCardTap, highlightedCardI
                 : 0;
 
             return (
-              <div key={card.id} data-card-id={card.id}>
-                <div className="mb-2">
-                  <CardSurface
-                    card={card}
-                    onTap={() => onCardTap(card)}
-                    isHighlighted={highlightedCardId === card.id}
-                  />
-                </div>
+              <div key={card.id} data-card-id={card.id} className="mb-5">
+                <CardSurface
+                  card={card}
+                  onTap={() => onCardTap(card)}
+                  isHighlighted={highlightedCardId === card.id}
+                />
 
                 {gap >= 30 && (
                   <button
                     onClick={() => onGapTap?.(card.end_time ?? "")}
-                    className="w-full flex items-center gap-2.5 my-1 px-1 min-h-[32px] group"
+                    className="w-full mt-4 text-left"
                     aria-label={`Add activity — ${freeTimeLabel(gap)}`}
                   >
-                    <div className="flex-1 border-t border-dashed border-gray-200 group-hover:border-gray-300 transition-colors" />
-                    <div className="flex items-center gap-1.5 text-[13px] text-gray-400 font-medium whitespace-nowrap group-hover:text-gray-600 transition-colors">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="10" />
-                        <polyline points="12 6 12 12 16 14" />
-                      </svg>
-                      {freeTimeLabel(gap)}
+                    <div className="rounded-lg border border-[#E5E0D8] bg-[#FAF7F2] px-4 py-3">
+                      <p className="text-sm italic text-gray-400">{freeTimeLabel(gap)}</p>
                     </div>
-                    <div className="flex-1 border-t border-dashed border-gray-200 group-hover:border-gray-300 transition-colors" />
                   </button>
                 )}
               </div>
