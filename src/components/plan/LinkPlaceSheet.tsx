@@ -23,7 +23,7 @@ const TYPE_SUB_TYPES: Record<CardType, string[]> = {
 // All other activity sub-types (self_directed, wellness, event, challenge) are explicit
 // so they always show when matching pins exist.
 const SUB_ORDER: Record<CardType, string[]> = {
-  food:      ["restaurant", "coffee", "cocktail_bar"],
+  food:      ["restaurant", "coffee", "bar"],
   activity:  ["guided", "self_directed", "wellness", "event", "challenge"],
   logistics: ["hotel", "flight_arrival", "flight_departure", "transit"],
 };
@@ -245,7 +245,7 @@ export default function LinkPlaceSheet({ tripId, cardType, onLink, onClose }: Pr
         const st = p.sub_type ?? "";
         // Collapse aliased sub-types into one bucket
         if (sub === "coffee")      return st === "coffee" || st === "coffee_dessert";
-        if (sub === "cocktail_bar") return st === "cocktail_bar" || st === "drinks" || st === "bar";
+        if (sub === "bar")         return st === "bar" || st === "cocktail_bar" || st === "drinks";
         if (sub === "guided")      return st === "guided" || st === "hosted";
         return st === sub;
       }),

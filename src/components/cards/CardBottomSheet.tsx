@@ -542,8 +542,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       "Dinner", "Lunch", "Breakfast", "Aperitivo", "Morning Coffee",
       "Coffee", "Activity", "Drinks", "Dessert",
     ]);
-    const currentTitle = localCard.title ?? "";
-    const placeName    = place.title ?? "";
+    const currentTitle = (localCard.title ?? "").trim();
+    const placeName    = (place.title ?? "").trim();
+    console.log("[LinkPlace] title logic:", { currentTitle, placeName, isGeneric: GENERIC_TITLES.has(currentTitle), includesPin: currentTitle.includes(placeName) });
     if (GENERIC_TITLES.has(currentTitle) && placeName && !currentTitle.includes(placeName)) {
       topUpdate.title = `${currentTitle} \u2014 ${placeName}`;
     }
@@ -564,8 +565,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       details: mergedDetails,
     }).eq("id", localCard.id);
 
-    // Remove the now-absorbed interested pin
-    await supabase.from("cards").delete().eq("id", place.id);
+    // Restore the linked pin to the map as an available interested place
+    await supabase.from("cards").update({ status: "interested", day_id: null }).eq("id", place.id);
   }, [localCard, onCardUpdate, supabase]);
 
   // ── Delete card ──────────────────────────────────────────────
