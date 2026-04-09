@@ -537,17 +537,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     if (place.address         != null && place.address         !== "") topUpdate.address         = place.address;
     if (place.cover_image_url != null && place.cover_image_url !== "") topUpdate.cover_image_url = place.cover_image_url;
 
-    // Auto-name: if title is a generic placeholder, rename to "[title] — [pin name]"
-    const GENERIC_TITLES = new Set([
-      "Dinner", "Lunch", "Breakfast", "Aperitivo", "Morning Coffee",
-      "Coffee", "Activity", "Drinks", "Dessert",
-    ]);
-    const currentTitle = (localCard.title ?? "").trim();
-    const placeName    = (place.title ?? "").trim();
-    console.log("[LinkPlace] title logic:", { currentTitle, placeName, isGeneric: GENERIC_TITLES.has(currentTitle), includesPin: currentTitle.includes(placeName) });
-    if (GENERIC_TITLES.has(currentTitle) && placeName && !currentTitle.includes(placeName)) {
-      topUpdate.title = `${currentTitle} \u2014 ${placeName}`;
-    }
+    const placeName = (place.title ?? "").trim();
+    if (placeName) topUpdate.title = placeName;
 
     const updated: Card = {
       ...localCard,
