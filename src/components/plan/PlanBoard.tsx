@@ -41,9 +41,9 @@ import CardImage from "@/components/ui/CardImage";
 const COL_PREFIX = "col-";
 
 const TYPE_BORDER: Record<CardType, string> = {
-  logistics: "border-l-logistics",
-  activity:  "border-l-activity",
-  food:      "border-l-food",
+  logistics: "border-l-gray-400",
+  activity:  "border-l-gray-400",
+  food:      "border-l-gray-400",
 };
 
 

@@ -62,10 +62,10 @@ body {
   display: none;
 }
 
-/* Card type accent colours */
-.card-type-logistics { border-left-color: var(--color-logistics); }
-.card-type-activity  { border-left-color: var(--color-activity); }
-.card-type-food      { border-left-color: var(--color-food); }
+/* Card type accent colours — uniform slate grey border for all types */
+.card-type-logistics { border-left-color: #9CA3AF; }
+.card-type-activity  { border-left-color: #9CA3AF; }
+.card-type-food      { border-left-color: #9CA3AF; }
 
 .dot-logistics { background-color: var(--color-logistics); }
 .dot-activity  { background-color: var(--color-activity); }
