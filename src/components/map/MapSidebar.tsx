@@ -37,7 +37,7 @@ const GROUPS: Group[] = [
       { label: "Restaurant", subTypes: ["restaurant", "fine_dining", "street_food"] },
       { label: "Coffee",     subTypes: ["coffee", "coffee_dessert"]                  },
       { label: "Dessert",    subTypes: ["dessert"]                                   },
-      { label: "Bar",        subTypes: ["bar", "cocktail_bar", "drinks"]              },
+      { label: "Bar",        subTypes: ["bar", "cocktail_bar", "drinks"]             },
     ],
   },
   {
@@ -45,9 +45,9 @@ const GROUPS: Group[] = [
     color: "#111827",
     typeKey: "logistics",
     rows: [
-      { label: "Hotel",            subTypes: ["hotel"]              },
-      { label: "Flight Arrival",   subTypes: ["flight_arrival"]     },
-      { label: "Flight Departure", subTypes: ["flight_departure"]   },
+      { label: "Hotel",            subTypes: ["hotel"]            },
+      { label: "Flight Arrival",   subTypes: ["flight_arrival"]   },
+      { label: "Flight Departure", subTypes: ["flight_departure"] },
     ],
   },
 ];
@@ -89,22 +89,6 @@ function PillToggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   );
 }
 
-// ── Checkbox ──────────────────────────────────────────────────
-function Checkbox({ on }: { on: boolean }) {
-  return (
-    <div
-      className="w-3.5 h-3.5 rounded border flex items-center justify-center transition-colors duration-200 flex-shrink-0"
-      style={{ background: on ? "#1A1A2E" : "white", borderColor: on ? "#1A1A2E" : "#D1D5DB" }}
-    >
-      {on && (
-        <svg width="8" height="8" viewBox="0 0 12 12" fill="none">
-          <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      )}
-    </div>
-  );
-}
-
 export default function MapSidebar({
   tripId,
   cards,
@@ -118,12 +102,12 @@ export default function MapSidebar({
   onCardDelete,
 }: Props) {
   const supabase = createClient();
-  // Categories start expanded (not in collapsedSections)
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const [expandedRows,      setExpandedRows]      = useState<Set<string>>(new Set());
   const [confirmDeleteId,   setConfirmDeleteId]   = useState<string | null>(null);
   const [deletingId,        setDeletingId]        = useState<string | null>(null);
   const [deleteError,       setDeleteError]       = useState<string | null>(null);
+  const [focusedCardId,     setFocusedCardId]     = useState<string | null>(null);
 
   const handleDeleteCard = useCallback(async (cardId: string) => {
     setDeletingId(cardId);
@@ -181,8 +165,20 @@ export default function MapSidebar({
     );
   }
 
+  function handleCardClick(card: Card) {
+    setFocusedCardId((prev) => (prev === card.id ? null : card.id));
+    onCardSelect(card);
+  }
+
   return (
-    <div className="flex flex-col h-full">
+    <div
+      className="flex flex-col h-full"
+      style={{
+        background: "rgba(255,255,255,0.92)",
+        backdropFilter: "blur(8px)",
+        WebkitBackdropFilter: "blur(8px)",
+      }}
+    >
       <div className="flex-1 overflow-y-auto px-4 py-4">
 
         {/* ── Status filter pills ── */}
@@ -232,9 +228,8 @@ export default function MapSidebar({
 
           return (
             <div key={group.label}>
-              {/* Category header row */}
+              {/* Category header: caret+label expands/collapses; PillToggle on right */}
               <div className="flex items-center gap-2 mb-1">
-                {/* Left: caret + label — clicking expands/collapses */}
                 <button
                   className="flex items-center gap-1.5 flex-1 min-w-0 py-1.5 text-left"
                   onClick={() => toggleSection(group.label)}
@@ -251,8 +246,6 @@ export default function MapSidebar({
                     {group.label}
                   </span>
                 </button>
-
-                {/* Right: pill toggle — turns category on/off */}
                 <PillToggle on={typeOn} onToggle={() => toggleTopLevelType(group.typeKey)} />
               </div>
 
@@ -260,7 +253,7 @@ export default function MapSidebar({
               {!sectionCollapsed && (
                 <div
                   className={`mb-2 rounded-lg overflow-hidden transition-opacity duration-200 ${typeOn ? "" : "opacity-40 pointer-events-none"}`}
-                  style={{ background: "#F9FAFB" }}
+                  style={{ background: "rgba(250,247,242,0.85)" }}
                 >
                   {group.rows.map((row) => {
                     const on       = isRowOn(row);
@@ -270,55 +263,62 @@ export default function MapSidebar({
 
                     return (
                       <div key={row.label}>
-                        {/* Sub-category row — tap row to expand/collapse, checkbox toggles visibility */}
-                        <button
-                          className="w-full flex items-center gap-2 pl-6 pr-3 py-2 text-left"
-                          onClick={() => count > 0 && toggleExpandRow(row.label)}
+                        {/* Sub-category row: clicking label/count = toggle on/off; caret = expand (stopPropagation) */}
+                        <div
+                          className="w-full flex items-center gap-2 pl-3 pr-3 py-2 cursor-pointer select-none"
+                          onClick={() => toggleRow(row)}
                         >
-                          {/* Left caret — only shown when row has cards */}
-                          <svg
-                            width="10" height="10" viewBox="0 0 24 24" fill="none"
-                            stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"
-                            className="flex-shrink-0 transition-transform duration-200"
-                            style={{
-                              transform: expanded ? "rotate(0deg)" : "rotate(-90deg)",
-                              opacity: count > 0 ? 1 : 0,
-                            }}
+                          {/* Left caret — stopPropagation prevents toggleRow from also firing */}
+                          <button
+                            className="flex-shrink-0 p-0.5"
+                            onClick={(e) => { e.stopPropagation(); if (count > 0) toggleExpandRow(row.label); }}
                           >
-                            <polyline points="6 9 12 15 18 9" />
-                          </svg>
+                            <svg
+                              width="10" height="10" viewBox="0 0 24 24" fill="none"
+                              stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"
+                              className="transition-transform duration-200"
+                              style={{
+                                transform: expanded ? "rotate(0deg)" : "rotate(-90deg)",
+                                opacity: count > 0 ? 1 : 0,
+                              }}
+                            >
+                              <polyline points="6 9 12 15 18 9" />
+                            </svg>
+                          </button>
 
                           {/* Label */}
                           <span
-                            className="flex-1 text-sm transition-colors duration-200"
-                            style={{ color: on ? "#111827" : "#9CA3AF" }}
+                            className="flex-1 text-sm transition-opacity duration-200"
+                            style={{ color: "#111827", opacity: on ? 1 : 0.25 }}
                           >
                             {row.label}
                           </span>
 
                           {/* Count badge */}
                           {count > 0 && (
-                            <span className="text-[10px] text-gray-400 flex-shrink-0 mr-1">{count}</span>
+                            <span
+                              className="text-[10px] text-gray-400 flex-shrink-0 transition-opacity duration-200"
+                              style={{ opacity: on ? 1 : 0.25 }}
+                            >
+                              {count}
+                            </span>
                           )}
+                        </div>
 
-                          {/* Checkbox — stopPropagation so it doesn't expand/collapse */}
-                          <span onClick={(e) => { e.stopPropagation(); toggleRow(row); }}>
-                            <Checkbox on={on} />
-                          </span>
-                        </button>
-
-                        {/* Expanded card list */}
+                        {/* Expanded card list — deep level */}
                         {expanded && (
-                          <div className="pl-8 pr-3 pb-2 space-y-px">
+                          <div className="pb-2 space-y-px">
                             {rowCards.map((card) => {
                               const typeKey_     = card.type as keyof typeof PIN_COLORS;
                               const iconColor    = PIN_COLORS[typeKey_] ?? group.color;
                               const isConfirming = confirmDeleteId === card.id;
                               const isDeleting_  = deletingId === card.id;
+                              const isFocused    = focusedCardId === card.id;
+                              const dimmed       = focusedCardId !== null && !isFocused;
                               return (
                                 <div key={card.id} className="group relative">
                                   {isConfirming ? (
-                                    <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-red-50">
+                                    <div className="flex items-center gap-1.5 pl-12 pr-3 py-1.5 rounded-lg bg-red-50">
                                       <span className="flex-1 text-[11px] text-red-600 font-medium truncate">
                                         {isDeleting_ ? "Deleting…" : "Delete this card?"}
                                       </span>
@@ -340,18 +340,21 @@ export default function MapSidebar({
                                       )}
                                     </div>
                                   ) : (
-                                    <div className="flex items-center rounded-lg hover:bg-gray-100 transition-colors">
+                                    <div
+                                      className="flex items-center rounded-lg hover:bg-white/60 transition-colors duration-200"
+                                      style={{ opacity: dimmed ? 0.25 : 1 }}
+                                    >
                                       <button
-                                        onClick={() => onCardSelect(card)}
-                                        className="flex-1 flex items-center gap-2 px-2 py-1.5 text-left min-w-0"
+                                        onClick={() => handleCardClick(card)}
+                                        className="flex-1 flex items-center gap-2 pl-12 pr-2 py-1.5 text-left min-w-0"
                                       >
                                         <span
-                                          className="flex-shrink-0 opacity-80"
+                                          className="flex-shrink-0 opacity-70"
                                           style={{ color: iconColor }}
                                           // eslint-disable-next-line react/no-danger
-                                          dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(card.sub_type, 14) }}
+                                          dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(card.sub_type, 12) }}
                                         />
-                                        <span className="flex-1 text-[12px] text-gray-700 truncate leading-snug">
+                                        <span className="flex-1 text-[11px] italic text-gray-600 truncate leading-snug">
                                           {card.title}
                                         </span>
                                       </button>
@@ -372,7 +375,7 @@ export default function MapSidebar({
                               );
                             })}
                             {deleteError && (
-                              <p className="text-[11px] text-red-500 px-2 py-1">{deleteError}</p>
+                              <p className="text-[11px] text-red-500 pl-12 py-1">{deleteError}</p>
                             )}
                           </div>
                         )}
