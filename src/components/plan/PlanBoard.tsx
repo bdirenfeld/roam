@@ -395,11 +395,6 @@ export default function PlanBoard({ trip, initialDays }: Props) {
     setSelectedCard((prev) => (prev?.id === updated.id ? updated : prev));
   }, []);
 
-  const handleRemove = useCallback(async (cardId: string) => {
-    setDays((prev) => prev.map((d) => ({ ...d, cards: d.cards.filter((c) => c.id !== cardId) })));
-    await supabase.from("cards").update({ status: "interested" }).eq("id", cardId);
-  }, [supabase]);
-
   const handleDelete = useCallback(async (cardId: string) => {
     const snapshot = daysRef.current;
     setDays((prev) => prev.map((d) => ({ ...d, cards: d.cards.filter((c) => c.id !== cardId) })));
@@ -708,8 +703,6 @@ export default function PlanBoard({ trip, initialDays }: Props) {
                     isPhotoBg={isPhotoBg}
                     fullWidth
                     onCardTap={(card) => setSelectedCard(card)}
-                    onRemove={handleRemove}
-                    onDelete={handleDelete}
                     onCreateCard={(title) => handleCreateCard(currentMobileDay.id, title)}
                   />
                 </div>
@@ -774,8 +767,6 @@ export default function PlanBoard({ trip, initialDays }: Props) {
                         dayIndex={idx}
                         isPhotoBg={isPhotoBg}
                         onCardTap={(card) => setSelectedCard(card)}
-                        onRemove={handleRemove}
-                        onDelete={handleDelete}
                         onCreateCard={(title) => handleCreateCard(day.id, title)}
                       />
                     ))}
@@ -942,12 +933,10 @@ interface DayColumnProps {
   isPhotoBg?: boolean;
   fullWidth?: boolean;
   onCardTap: (card: Card) => void;
-  onRemove: (cardId: string) => void;
-  onDelete: (cardId: string) => void;
   onCreateCard: (title: string) => Promise<void>;
 }
 
-function DayColumn({ day, cards, isPhotoBg, fullWidth, onCardTap, onRemove, onDelete, onCreateCard }: DayColumnProps) {
+function DayColumn({ day, cards, isPhotoBg, fullWidth, onCardTap, onCreateCard }: DayColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `${COL_PREFIX}${day.id}` });
   const [isInlineAdding, setIsInlineAdding] = useState(false);
   const [inlineTitle,    setInlineTitle]    = useState("");
@@ -983,8 +972,6 @@ function DayColumn({ day, cards, isPhotoBg, fullWidth, onCardTap, onRemove, onDe
                 key={card.id}
                 card={card}
                 onTap={() => onCardTap(card)}
-                onRemove={() => onRemove(card.id)}
-                onDelete={() => onDelete(card.id)}
               />
             ))}
           </SortableContext>
@@ -1113,13 +1100,9 @@ function PlanMenu({ onClearItinerary, onApplyTemplate }: { onClearItinerary: () 
 function SortableCardTile({
   card,
   onTap,
-  onRemove,
-  onDelete,
 }: {
   card: Card;
   onTap: () => void;
-  onRemove: () => void;
-  onDelete: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: card.id });
@@ -1136,7 +1119,7 @@ function SortableCardTile({
       {...attributes}
       {...listeners}
     >
-      <CardTile card={card} onTap={onTap} onRemove={onRemove} onDelete={onDelete} />
+      <CardTile card={card} onTap={onTap} />
     </div>
   );
 }
@@ -1145,18 +1128,12 @@ function SortableCardTile({
 function CardTile({
   card,
   onTap,
-  onRemove,
-  onDelete,
   isOverlay,
 }: {
   card: Card;
   onTap?: () => void;
-  onRemove?: () => void;
-  onDelete?: () => void;
   isOverlay?: boolean;
 }) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const isNote      = card.sub_type === "note";
   const borderClass = isNote ? "border-l-gray-200" : (TYPE_BORDER[card.type] ?? "border-l-gray-300");
   const subLabel    = card.sub_type ? (SUB_LABEL[card.sub_type] ?? card.sub_type) : null;
@@ -1176,7 +1153,7 @@ function CardTile({
 
   return (
     <div
-      className={`group relative bg-white rounded-xl border border-gray-100 shadow-card mb-2 select-none overflow-hidden border-l-[3px] ${borderClass} ${isOverlay ? "shadow-[0_8px_24px_0_rgba(0,0,0,0.14)] scale-[1.02]" : ""}`}
+      className={`bg-white rounded-xl border border-gray-100 shadow-card mb-2 select-none overflow-hidden border-l-[3px] ${borderClass} ${isOverlay ? "shadow-[0_8px_24px_0_rgba(0,0,0,0.14)] scale-[1.02]" : ""}`}
     >
       <button onClick={onTap} className="w-full text-left p-3">
         <div className="flex items-start gap-2.5">
@@ -1193,7 +1170,7 @@ function CardTile({
           />
 
           {/* Text content */}
-          <div className="flex-1 min-w-0 pr-7">
+          <div className="flex-1 min-w-0">
             <p className="text-[14px] font-semibold text-gray-900 leading-snug line-clamp-2">
               {card.title}
             </p>
@@ -1219,80 +1196,6 @@ function CardTile({
         </div>
       </button>
 
-      {/* Hover trash button — desktop only, appears on group-hover */}
-      {!isOverlay && (
-        <button
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => { e.stopPropagation(); setMenuOpen(true); setConfirmDelete(true); }}
-          className="hidden md:flex absolute top-2 right-9 opacity-0 group-hover:opacity-100 w-6 h-6 items-center justify-center rounded-full bg-white border border-gray-100 shadow-sm hover:bg-red-50 hover:border-red-200 transition-all text-gray-400 hover:text-red-500"
-          aria-label="Delete card"
-        >
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-          </svg>
-        </button>
-      )}
-
-      {/* ··· menu */}
-      <div className="absolute top-2 right-2">
-        <button
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v); }}
-          className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-400"
-          aria-label="Card options"
-        >
-          <span className="text-[10px] font-black leading-none tracking-widest">···</span>
-        </button>
-
-        {menuOpen && (
-          <>
-            <div className="fixed inset-0 z-40" onPointerDown={() => { setMenuOpen(false); setConfirmDelete(false); }} />
-            <div className="absolute right-0 top-7 z-50 bg-white rounded-xl shadow-sheet border border-gray-100 py-1 min-w-[180px]">
-              {confirmDelete ? (
-                <div className="px-4 py-3">
-                  <p className="text-[12px] text-gray-600 mb-2.5 font-medium">Delete this card?</p>
-                  <div className="flex gap-2">
-                    <button
-                      className="flex-1 py-1.5 rounded-lg border border-gray-200 text-[12px] text-gray-600"
-                      onClick={(e) => { e.stopPropagation(); setConfirmDelete(false); }}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      className="flex-1 py-1.5 rounded-lg bg-red-500 text-white text-[12px] font-semibold"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setMenuOpen(false);
-                        setConfirmDelete(false);
-                        onDelete?.();
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <button
-                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                    onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onRemove?.(); }}
-                  >
-                    Remove from itinerary
-                  </button>
-                  <button
-                    className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"
-                    onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}
-                  >
-                    Delete card
-                  </button>
-                </>
-              )}
-            </div>
-          </>
-        )}
-      </div>
     </div>
   );
 }
