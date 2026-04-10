@@ -54,7 +54,24 @@ export default async function TripsPage() {
 
   const upcoming = trips?.filter((t: Trip) => t.status !== "completed") ?? [];
   const past = trips?.filter((t: Trip) => t.status === "completed") ?? [];
-  const firstName = profile?.name?.split(" ")[0];
+
+  // Resolve first name: OAuth metadata → users table → null
+  const rawName =
+    (user?.user_metadata?.full_name as string | undefined) ??
+    (user?.user_metadata?.name as string | undefined) ??
+    profile?.name ??
+    null;
+  const firstName = rawName ? rawName.trim().split(/\s+/)[0] : null;
+
+  const destination = upcoming[0]?.destination?.split(",")[0]?.trim() ?? null;
+
+  const greeting = firstName
+    ? destination
+      ? `${firstName}. ${destination} awaits.`
+      : `${firstName}. Where to next?`
+    : destination
+    ? `${destination} awaits.`
+    : "My Trips";
 
   return (
     <div>
@@ -64,11 +81,7 @@ export default async function TripsPage() {
       <div className="px-4 pt-5 pb-3 flex items-center justify-between">
         <div>
           <h2 className="text-lg font-bold text-gray-900">
-            {firstName
-              ? upcoming[0]?.destination
-                ? `${firstName}. ${upcoming[0].destination.split(",")[0].trim()} awaits.`
-                : firstName
-              : "My Trips"}
+            {greeting}
           </h2>
           {upcoming.length > 0 && (
             <p className="text-xs text-gray-400 mt-0.5">
