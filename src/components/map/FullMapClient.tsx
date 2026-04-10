@@ -5,11 +5,13 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import MapPinPopup from "./MapPinPopup";
 import MapSidebar from "./MapSidebar";
+import MapFilterSheet from "./MapFilterSheet";
 import PlaceSearch from "./PlaceSearch";
 import AddToTripSheet from "./AddToTripSheet";
 import type { PlaceResult } from "./AddToTripSheet";
 import type { Trip, Day, Card, CardType } from "@/types/database";
 import { makeMaterialPinElement } from "@/lib/mapPins";
+import { Funnel } from "@phosphor-icons/react";
 
 // Purple circular pin for search result previews
 const TEMP_PIN_SVG =
@@ -86,6 +88,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     () => new Set(["interested", "in_itinerary"]),
   );
   const [pendingPlace, setPendingPlace] = useState<PlaceResult | null>(null);
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tempPinRef = useRef<any>(null);
 
@@ -545,6 +548,16 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
         {/* Place search — always visible bar */}
         <PlaceSearch onPlaceSelect={handlePlaceSelect} destination={trip.destination} />
 
+        {/* Filter button — mobile only, below search bar */}
+        <button
+          onClick={() => setFilterSheetOpen(true)}
+          className="md:hidden absolute top-16 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 shadow-sm text-xs font-medium text-gray-700"
+          style={{ backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", zIndex: 10 }}
+        >
+          <Funnel size={14} weight="light" />
+          Filter
+        </button>
+
         {/* Avatar — top-right */}
         <Link
           href={`/trips/${trip.id}`}
@@ -599,6 +612,17 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
             dayId={days[0].id}
             onClose={handleAddToTripClose}
             onCardCreated={handlePlaceCardCreated}
+          />
+        )}
+
+        {/* Mobile filter sheet */}
+        {filterSheetOpen && (
+          <MapFilterSheet
+            activeTypes={activeTypes}
+            activeStatuses={activeStatuses}
+            onTypesChange={handleActiveTypesChange}
+            onStatusesChange={handleActiveStatusesChange}
+            onClose={() => setFilterSheetOpen(false)}
           />
         )}
       </div>
