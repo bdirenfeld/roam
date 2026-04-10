@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
 import AttachmentsPanel from "./AttachmentsPanel";
 import CardImage from "@/components/ui/CardImage";
+import { NavigationSheet } from "@/components/ui/NavigationSheet";
 
 // ── Type-specific detail components ───────────────────────────
 import FlightArrivalDetail from "./detail/FlightArrivalDetail";
@@ -421,6 +422,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const [deleteError,       setDeleteError]       = useState<string | null>(null);
   const [showSubTypePicker, setShowSubTypePicker] = useState(false);
   const [linkMergeMessage,  setLinkMergeMessage]  = useState<string | null>(null);
+  const [navSheetOpen,      setNavSheetOpen]      = useState(false);
 
   // ── Keyboard escape ────────────────────────────────────────
   useEffect(() => {
@@ -716,6 +718,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   );
 
   return (
+    <>
     <div
       className="fixed inset-0 z-60 flex items-end"
       onClick={(e) => e.target === e.currentTarget && onClose()}
@@ -925,7 +928,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           )}
 
           {/* Action row: [★ rating ·] [📍 Maps] [🌐] [📞 Call] */}
-          {(rating !== null || (localCard.lat != null && localCard.lng != null) || website || phone) && (
+          {(rating !== null || localCard.lat != null || localCard.lng != null || (localCard.details as Record<string, unknown>)?.place_id != null || website || phone) && (
             <div className="flex items-center gap-2 mt-2">
               {rating !== null && localCard.sub_type !== "flight_arrival" && localCard.sub_type !== "flight_departure" && (
                 <>
@@ -933,11 +936,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   <span className="text-gray-200 text-xs">·</span>
                 </>
               )}
-              {localCard.lat != null && localCard.lng != null && (
-                <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${localCard.lat},${localCard.lng}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+              {(localCard.lat != null && localCard.lng != null || (localCard.details as Record<string, unknown>)?.place_id != null) && (
+                <button
+                  onClick={() => setNavSheetOpen(true)}
                   className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-50 border border-gray-100 text-[11px] font-semibold text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
                 >
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -945,7 +946,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                     <circle cx="12" cy="9" r="2.5" />
                   </svg>
                   Maps
-                </a>
+                </button>
               )}
               {website && (
                 <a
@@ -1170,5 +1171,15 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         )}
       </div>
     </div>
+
+    <NavigationSheet
+      isOpen={navSheetOpen}
+      onClose={() => setNavSheetOpen(false)}
+      placeName={localCard.title}
+      placeId={(localCard.details as Record<string, unknown>)?.place_id as string | undefined}
+      lat={localCard.lat}
+      lng={localCard.lng}
+    />
+    </>
   );
 }
