@@ -90,7 +90,7 @@ export default function PlaceSearch({ onPlaceSelect, destination }: Props) {
 
       {/* Always-visible search bar */}
       <div
-        className="absolute top-4 left-14 right-[8.5rem] md:right-14"
+        className="absolute top-4 left-14 right-14"
         style={{ zIndex: 20 }}
       >
         {/* Input pill */}

@@ -547,97 +547,99 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
         {/* Place search — always visible bar */}
         <PlaceSearch onPlaceSelect={handlePlaceSelect} destination={trip.destination} />
 
-        {/* Filter button — mobile only, inline with search bar */}
-        <button
-          onClick={() => setFilterOpen((v) => !v)}
-          className="md:hidden absolute top-4 right-14 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors duration-200"
-          style={{
-            backdropFilter: "blur(8px)",
-            WebkitBackdropFilter: "blur(8px)",
-            zIndex: 10,
-            background: filterOpen ? "#1A1A2E" : "rgba(255,255,255,0.9)",
-            color: filterOpen ? "#FFFFFF" : "#374151",
-          }}
+        {/* Filter button + pill bar — mobile only, bottom-left, expands upward */}
+        <div
+          className="md:hidden absolute bottom-4 left-3 flex flex-col gap-2"
+          style={{ zIndex: 10 }}
         >
-          <Funnel size={13} weight="light" color={filterOpen ? "#FFFFFF" : "#374151"} />
-          {filterOpen ? "Done" : "Filter"}
-        </button>
+          {/* Pill rows — rendered above the button (flex-col, first child = top) */}
+          {filterOpen && (
+            <div className="flex flex-col gap-2 animate-in fade-in duration-200">
+              {/* Row 1 (top) — Categories */}
+              <div className="flex items-center gap-2">
+                {(
+                  [
+                    { typeKey: "activity"  as CardType, label: "Activity", color: "#1D9E75" },
+                    { typeKey: "food"      as CardType, label: "Food",     color: "#7C3AED" },
+                    { typeKey: "logistics" as CardType, label: "Stay",     color: "#1A1A2E" },
+                  ] as { typeKey: CardType; label: string; color: string }[]
+                ).map(({ typeKey, label, color }) => {
+                  const active = activeTypes.has(typeKey);
+                  return (
+                    <button
+                      key={typeKey}
+                      onClick={() => {
+                        const next = new Set(activeTypes);
+                        if (next.has(typeKey)) next.delete(typeKey); else next.add(typeKey);
+                        handleActiveTypesChange(next);
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200"
+                      style={{
+                        backdropFilter: "blur(8px)",
+                        WebkitBackdropFilter: "blur(8px)",
+                        background: active ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.5)",
+                        color: active ? "#374151" : "#9CA3AF",
+                      }}
+                    >
+                      <span
+                        className="w-1.5 h-1.5 rounded-full flex-shrink-0 transition-opacity duration-200"
+                        style={{ background: color, opacity: active ? 1 : 0.3 }}
+                      />
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
 
-        {/* Floating pill bar — mobile only, fades in below search bar */}
-        {filterOpen && (
-          <div
-            className="md:hidden absolute top-16 left-4 right-4 flex flex-col gap-2 animate-in fade-in duration-200"
-            style={{ zIndex: 10 }}
+              {/* Row 2 — Status */}
+              <div className="flex items-center gap-2">
+                {(
+                  [
+                    { status: "interested",   label: "Interested"   },
+                    { status: "in_itinerary", label: "In Itinerary" },
+                  ] as { status: string; label: string }[]
+                ).map(({ status, label }) => {
+                  const active = activeStatuses.has(status);
+                  return (
+                    <button
+                      key={status}
+                      onClick={() => {
+                        const next = new Set(activeStatuses);
+                        if (next.has(status)) next.delete(status); else next.add(status);
+                        handleActiveStatusesChange(next);
+                      }}
+                      className="px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200"
+                      style={{
+                        backdropFilter: "blur(8px)",
+                        WebkitBackdropFilter: "blur(8px)",
+                        background: active ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.5)",
+                        color: active ? "#374151" : "#9CA3AF",
+                        textDecoration: active ? "none" : "line-through",
+                      }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Filter button — always at bottom of the stack */}
+          <button
+            onClick={() => setFilterOpen((v) => !v)}
+            className="self-start flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors duration-200"
+            style={{
+              backdropFilter: "blur(8px)",
+              WebkitBackdropFilter: "blur(8px)",
+              background: filterOpen ? "#1A1A2E" : "rgba(255,255,255,0.9)",
+              color: filterOpen ? "#FFFFFF" : "#374151",
+            }}
           >
-            {/* Row 1 — Status */}
-            <div className="flex items-center gap-2">
-              {(
-                [
-                  { status: "interested",   label: "Interested"   },
-                  { status: "in_itinerary", label: "In Itinerary" },
-                ] as { status: string; label: string }[]
-              ).map(({ status, label }) => {
-                const active = activeStatuses.has(status);
-                return (
-                  <button
-                    key={status}
-                    onClick={() => {
-                      const next = new Set(activeStatuses);
-                      if (next.has(status)) next.delete(status); else next.add(status);
-                      handleActiveStatusesChange(next);
-                    }}
-                    className="px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200"
-                    style={{
-                      backdropFilter: "blur(8px)",
-                      WebkitBackdropFilter: "blur(8px)",
-                      background: active ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.5)",
-                      color: active ? "#374151" : "#9CA3AF",
-                      textDecoration: active ? "none" : "line-through",
-                    }}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Row 2 — Categories */}
-            <div className="flex items-center gap-2">
-              {(
-                [
-                  { typeKey: "activity"  as CardType, label: "Activity", color: "#1D9E75" },
-                  { typeKey: "food"      as CardType, label: "Food",     color: "#7C3AED" },
-                  { typeKey: "logistics" as CardType, label: "Stay",     color: "#1A1A2E" },
-                ] as { typeKey: CardType; label: string; color: string }[]
-              ).map(({ typeKey, label, color }) => {
-                const active = activeTypes.has(typeKey);
-                return (
-                  <button
-                    key={typeKey}
-                    onClick={() => {
-                      const next = new Set(activeTypes);
-                      if (next.has(typeKey)) next.delete(typeKey); else next.add(typeKey);
-                      handleActiveTypesChange(next);
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200"
-                    style={{
-                      backdropFilter: "blur(8px)",
-                      WebkitBackdropFilter: "blur(8px)",
-                      background: active ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.5)",
-                      color: active ? "#374151" : "#9CA3AF",
-                    }}
-                  >
-                    <span
-                      className="w-1.5 h-1.5 rounded-full flex-shrink-0 transition-opacity duration-200"
-                      style={{ background: color, opacity: active ? 1 : 0.3 }}
-                    />
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
+            <Funnel size={13} weight="light" color={filterOpen ? "#FFFFFF" : "#374151"} />
+            {filterOpen ? "Done" : "Filter"}
+          </button>
+        </div>
 
         {/* Avatar — top-right */}
         <Link
