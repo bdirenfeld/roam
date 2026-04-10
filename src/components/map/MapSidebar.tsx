@@ -270,50 +270,42 @@ export default function MapSidebar({
 
                     return (
                       <div key={row.label}>
-                        {/* Sub-category row */}
-                        <div className="flex items-center gap-2 pl-8 pr-3 py-2">
-                          {/* Label — tapping toggles sub-type */}
-                          <button
-                            className="flex-1 text-left"
-                            onClick={() => toggleRow(row)}
+                        {/* Sub-category row — tap row to expand/collapse, checkbox toggles visibility */}
+                        <button
+                          className="w-full flex items-center gap-2 pl-6 pr-3 py-2 text-left"
+                          onClick={() => count > 0 && toggleExpandRow(row.label)}
+                        >
+                          {/* Left caret — only shown when row has cards */}
+                          <svg
+                            width="10" height="10" viewBox="0 0 24 24" fill="none"
+                            stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"
+                            className="flex-shrink-0 transition-transform duration-200"
+                            style={{
+                              transform: expanded ? "rotate(0deg)" : "rotate(-90deg)",
+                              opacity: count > 0 ? 1 : 0,
+                            }}
                           >
-                            <span
-                              className="text-sm transition-colors duration-200"
-                              style={{ color: on ? "#111827" : "#9CA3AF" }}
-                            >
-                              {row.label}
-                            </span>
-                          </button>
+                            <polyline points="6 9 12 15 18 9" />
+                          </svg>
+
+                          {/* Label */}
+                          <span
+                            className="flex-1 text-sm transition-colors duration-200"
+                            style={{ color: on ? "#111827" : "#9CA3AF" }}
+                          >
+                            {row.label}
+                          </span>
 
                           {/* Count badge */}
                           {count > 0 && (
-                            <span className="text-[10px] text-gray-400 flex-shrink-0">{count}</span>
+                            <span className="text-[10px] text-gray-400 flex-shrink-0 mr-1">{count}</span>
                           )}
 
-                          {/* Expand caret (only if has cards) */}
-                          {count > 0 && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); toggleExpandRow(row.label); }}
-                              className="flex-shrink-0 p-0.5 rounded hover:bg-gray-200 transition-colors"
-                            >
-                              <svg
-                                width="10" height="10" viewBox="0 0 24 24" fill="none"
-                                stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"
-                                className="transition-transform duration-200"
-                                style={{ transform: expanded ? "rotate(0deg)" : "rotate(-90deg)" }}
-                              >
-                                <polyline points="6 9 12 15 18 9" />
-                              </svg>
-                            </button>
-                          )}
-
-                          {/* Checkbox toggle */}
-                          <button
-                            onClick={(e) => { e.stopPropagation(); toggleRow(row); }}
-                          >
+                          {/* Checkbox — stopPropagation so it doesn't expand/collapse */}
+                          <span onClick={(e) => { e.stopPropagation(); toggleRow(row); }}>
                             <Checkbox on={on} />
-                          </button>
-                        </div>
+                          </span>
+                        </button>
 
                         {/* Expanded card list */}
                         {expanded && (

@@ -35,6 +35,7 @@ import type { Trip, Card, DayWithCards, CardType, CardStatus } from "@/types/dat
 import { getPriceRange } from "@/lib/priceRange";
 
 import CardImage from "@/components/ui/CardImage";
+import { Trash } from "@phosphor-icons/react";
 
 // ── Constants ──────────────────────────────────────────────────
 const COL_PREFIX = "col-";
@@ -703,6 +704,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
                     isPhotoBg={isPhotoBg}
                     fullWidth
                     onCardTap={(card) => setSelectedCard(card)}
+                    onDelete={handleDelete}
                     onCreateCard={(title) => handleCreateCard(currentMobileDay.id, title)}
                   />
                 </div>
@@ -767,6 +769,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
                         dayIndex={idx}
                         isPhotoBg={isPhotoBg}
                         onCardTap={(card) => setSelectedCard(card)}
+                        onDelete={handleDelete}
                         onCreateCard={(title) => handleCreateCard(day.id, title)}
                       />
                     ))}
@@ -933,10 +936,11 @@ interface DayColumnProps {
   isPhotoBg?: boolean;
   fullWidth?: boolean;
   onCardTap: (card: Card) => void;
+  onDelete: (cardId: string) => void;
   onCreateCard: (title: string) => Promise<void>;
 }
 
-function DayColumn({ day, cards, isPhotoBg, fullWidth, onCardTap, onCreateCard }: DayColumnProps) {
+function DayColumn({ day, cards, isPhotoBg, fullWidth, onCardTap, onDelete, onCreateCard }: DayColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `${COL_PREFIX}${day.id}` });
   const [isInlineAdding, setIsInlineAdding] = useState(false);
   const [inlineTitle,    setInlineTitle]    = useState("");
@@ -972,6 +976,7 @@ function DayColumn({ day, cards, isPhotoBg, fullWidth, onCardTap, onCreateCard }
                 key={card.id}
                 card={card}
                 onTap={() => onCardTap(card)}
+                onDelete={() => onDelete(card.id)}
               />
             ))}
           </SortableContext>
@@ -1100,9 +1105,11 @@ function PlanMenu({ onClearItinerary, onApplyTemplate }: { onClearItinerary: () 
 function SortableCardTile({
   card,
   onTap,
+  onDelete,
 }: {
   card: Card;
   onTap: () => void;
+  onDelete: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: card.id });
@@ -1119,7 +1126,7 @@ function SortableCardTile({
       {...attributes}
       {...listeners}
     >
-      <CardTile card={card} onTap={onTap} />
+      <CardTile card={card} onTap={onTap} onDelete={onDelete} />
     </div>
   );
 }
@@ -1128,10 +1135,12 @@ function SortableCardTile({
 function CardTile({
   card,
   onTap,
+  onDelete,
   isOverlay,
 }: {
   card: Card;
   onTap?: () => void;
+  onDelete?: () => void;
   isOverlay?: boolean;
 }) {
   const isNote      = card.sub_type === "note";
@@ -1153,7 +1162,7 @@ function CardTile({
 
   return (
     <div
-      className={`bg-white rounded-xl border border-gray-100 shadow-card mb-2 select-none overflow-hidden border-l-[3px] ${borderClass} ${isOverlay ? "shadow-[0_8px_24px_0_rgba(0,0,0,0.14)] scale-[1.02]" : ""}`}
+      className={`group relative bg-white rounded-xl border border-gray-100 shadow-card mb-2 select-none overflow-hidden border-l-[3px] ${borderClass} ${isOverlay ? "shadow-[0_8px_24px_0_rgba(0,0,0,0.14)] scale-[1.02]" : ""}`}
     >
       <button onClick={onTap} className="w-full text-left p-3">
         <div className="flex items-start gap-2.5">
@@ -1196,6 +1205,17 @@ function CardTile({
         </div>
       </button>
 
+      {/* Hover trash — desktop only, no menu or confirmation */}
+      {!isOverlay && onDelete && (
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded-full text-gray-400 hover:text-red-400 hover:bg-red-50 transition-all"
+          aria-label="Delete card"
+        >
+          <Trash size={14} weight="light" />
+        </button>
+      )}
     </div>
   );
 }
