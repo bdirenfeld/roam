@@ -5,7 +5,6 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import MapPinPopup from "./MapPinPopup";
 import MapSidebar from "./MapSidebar";
-import MapFilterSheet from "./MapFilterSheet";
 import PlaceSearch from "./PlaceSearch";
 import AddToTripSheet from "./AddToTripSheet";
 import type { PlaceResult } from "./AddToTripSheet";
@@ -88,7 +87,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     () => new Set(["interested", "in_itinerary"]),
   );
   const [pendingPlace, setPendingPlace] = useState<PlaceResult | null>(null);
-  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tempPinRef = useRef<any>(null);
 
@@ -548,15 +547,97 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
         {/* Place search — always visible bar */}
         <PlaceSearch onPlaceSelect={handlePlaceSelect} destination={trip.destination} />
 
-        {/* Filter button — mobile only, below search bar */}
+        {/* Filter button — mobile only, inline with search bar */}
         <button
-          onClick={() => setFilterSheetOpen(true)}
-          className="md:hidden absolute top-16 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 shadow-sm text-xs font-medium text-gray-700"
-          style={{ backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", zIndex: 10 }}
+          onClick={() => setFilterOpen((v) => !v)}
+          className="md:hidden absolute top-4 right-14 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors duration-200"
+          style={{
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
+            zIndex: 10,
+            background: filterOpen ? "#1A1A2E" : "rgba(255,255,255,0.9)",
+            color: filterOpen ? "#FFFFFF" : "#374151",
+          }}
         >
-          <Funnel size={14} weight="light" />
-          Filter
+          <Funnel size={13} weight="light" color={filterOpen ? "#FFFFFF" : "#374151"} />
+          {filterOpen ? "Done" : "Filter"}
         </button>
+
+        {/* Floating pill bar — mobile only, fades in below search bar */}
+        {filterOpen && (
+          <div
+            className="md:hidden absolute top-16 left-4 right-4 flex flex-col gap-2 animate-in fade-in duration-200"
+            style={{ zIndex: 10 }}
+          >
+            {/* Row 1 — Status */}
+            <div className="flex items-center gap-2">
+              {(
+                [
+                  { status: "interested",   label: "Interested"   },
+                  { status: "in_itinerary", label: "In Itinerary" },
+                ] as { status: string; label: string }[]
+              ).map(({ status, label }) => {
+                const active = activeStatuses.has(status);
+                return (
+                  <button
+                    key={status}
+                    onClick={() => {
+                      const next = new Set(activeStatuses);
+                      if (next.has(status)) next.delete(status); else next.add(status);
+                      handleActiveStatusesChange(next);
+                    }}
+                    className="px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200"
+                    style={{
+                      backdropFilter: "blur(8px)",
+                      WebkitBackdropFilter: "blur(8px)",
+                      background: active ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.5)",
+                      color: active ? "#374151" : "#9CA3AF",
+                      textDecoration: active ? "none" : "line-through",
+                    }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Row 2 — Categories */}
+            <div className="flex items-center gap-2">
+              {(
+                [
+                  { typeKey: "activity"  as CardType, label: "Activity", color: "#1D9E75" },
+                  { typeKey: "food"      as CardType, label: "Food",     color: "#7C3AED" },
+                  { typeKey: "logistics" as CardType, label: "Stay",     color: "#1A1A2E" },
+                ] as { typeKey: CardType; label: string; color: string }[]
+              ).map(({ typeKey, label, color }) => {
+                const active = activeTypes.has(typeKey);
+                return (
+                  <button
+                    key={typeKey}
+                    onClick={() => {
+                      const next = new Set(activeTypes);
+                      if (next.has(typeKey)) next.delete(typeKey); else next.add(typeKey);
+                      handleActiveTypesChange(next);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200"
+                    style={{
+                      backdropFilter: "blur(8px)",
+                      WebkitBackdropFilter: "blur(8px)",
+                      background: active ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.5)",
+                      color: active ? "#374151" : "#9CA3AF",
+                    }}
+                  >
+                    <span
+                      className="w-1.5 h-1.5 rounded-full flex-shrink-0 transition-opacity duration-200"
+                      style={{ background: color, opacity: active ? 1 : 0.3 }}
+                    />
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Avatar — top-right */}
         <Link
@@ -615,16 +696,6 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           />
         )}
 
-        {/* Mobile filter sheet */}
-        {filterSheetOpen && (
-          <MapFilterSheet
-            activeTypes={activeTypes}
-            activeStatuses={activeStatuses}
-            onTypesChange={handleActiveTypesChange}
-            onStatusesChange={handleActiveStatusesChange}
-            onClose={() => setFilterSheetOpen(false)}
-          />
-        )}
       </div>
     </div>
   );
