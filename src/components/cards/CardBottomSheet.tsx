@@ -92,9 +92,9 @@ const SUB_TYPE_OPTIONS: Record<string, { value: string; label: string }[]> = {
 
 // ── Type accent colours ────────────────────────────────────────
 const TYPE_ACCENT: Record<string, { dot: string; bg: string; text: string }> = {
-  logistics: { dot: "bg-logistics", bg: "bg-slate-50",  text: "text-logistics" },
-  activity:  { dot: "bg-activity",  bg: "bg-teal-50",   text: "text-activity"  },
-  food:      { dot: "bg-food",      bg: "bg-amber-50",  text: "text-food"      },
+  logistics: { dot: "bg-gray-400", bg: "bg-slate-50",  text: "text-logistics" },
+  activity:  { dot: "bg-gray-400", bg: "bg-teal-50",   text: "text-activity"  },
+  food:      { dot: "bg-gray-400", bg: "bg-amber-50",  text: "text-food"      },
 };
 
 // ── Sub-type picker — self-contained so activeCategory initialises correctly ──
@@ -128,8 +128,7 @@ function SubTypePicker({
         <div className="flex border-b border-gray-100">
           {CATEGORY_OPTIONS.map(({ value, label }) => {
             const isActive = activeCategory === value;
-            const dotCls =
-              value === "food" ? "bg-food" : value === "activity" ? "bg-activity" : "bg-logistics";
+            const dotCls = "bg-gray-400";
             return (
               <button
                 key={value}
