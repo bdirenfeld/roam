@@ -78,7 +78,7 @@ export default async function TripsPage() {
       <AppHeader avatarUrl={profile?.avatar_url} />
 
       {/* Greeting + new trip */}
-      <div className="px-4 pt-5 pb-3 flex items-center justify-between">
+      <div className="px-4 pt-5 pb-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-gray-900">
             {greeting}
@@ -91,7 +91,7 @@ export default async function TripsPage() {
         </div>
         <Link
           href="/trips/new"
-          className="flex items-center gap-1.5 bg-activity text-white text-xs font-semibold px-3 py-2 rounded-xl shadow-sm hover:opacity-90 active:scale-95 transition-all duration-100"
+          className="self-start flex items-center gap-1.5 bg-activity text-white text-xs font-semibold px-3 py-2 rounded-xl shadow-sm hover:opacity-90 active:scale-95 transition-all duration-100"
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <line x1="12" y1="5" x2="12" y2="19" />

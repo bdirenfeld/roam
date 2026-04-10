@@ -41,7 +41,7 @@ export default function TripCard({ trip, firstDayId }: Props) {
 
         {/* Editorial content — name + date range */}
         <div className="px-4 pt-3 pb-4">
-          <h3 className="text-xl font-light text-gray-900 leading-snug">
+          <h3 className="text-xl font-normal text-gray-900 leading-snug">
             {trip.title}
           </h3>
           <p className="text-xs tracking-widest uppercase text-gray-400 mt-1">
