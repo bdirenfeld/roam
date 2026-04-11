@@ -30,7 +30,10 @@ import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/plan/ConfirmationPreviewSheet";
 import DocumentsSheet from "@/components/plan/DocumentsSheet";
 import TriageView from "@/components/plan/TriageView";
-import BoardBgPicker, { type BoardBg } from "@/components/plan/BoardBgPicker";
+// BoardBg type (kept local — no longer uses external BoardBgPicker)
+type BoardBg =
+  | { type: "color"; value: string }
+  | { type: "photo"; url: string; thumb: string };
 import type { Trip, Card, DayWithCards, CardType, CardStatus } from "@/types/database";
 import { getPriceRange } from "@/lib/priceRange";
 
@@ -187,7 +190,14 @@ export default function PlanBoard({ trip, initialDays }: Props) {
   const [clearConfirm, setClearConfirm] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [showBgPicker, setShowBgPicker] = useState(false);
+  const [bgUrlInput, setBgUrlInput] = useState("");
+  const [bgPreviewError, setBgPreviewError] = useState(false);
+  const [savingBg, setSavingBg] = useState(false);
   const [boardBg, setBoardBg] = useState<BoardBg>(() => {
+    // Prefer DB-persisted URL over localStorage
+    if (trip.kanban_background_url) {
+      return { type: "photo", url: trip.kanban_background_url, thumb: trip.kanban_background_url };
+    }
     if (typeof window === "undefined") return { type: "color", value: "#ffffff" };
     try {
       const stored = localStorage.getItem(`roam_board_bg_${trip.id}`);
@@ -562,14 +572,28 @@ export default function PlanBoard({ trip, initialDays }: Props) {
 
   const boardBgStyle: React.CSSProperties =
     boardBg.type === "photo"
-      ? { backgroundImage: `url(${boardBg.url})`, backgroundSize: "cover", backgroundPosition: "center" }
+      ? {
+          backgroundImage: `linear-gradient(rgba(0,0,0,0.15), rgba(0,0,0,0.15)), url(${boardBg.url})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }
       : { backgroundColor: boardBg.value };
 
   const isPhotoBg = boardBg.type === "photo";
 
-  const handleBgSelect = (bg: BoardBg) => {
-    setBoardBg(bg);
-    try { localStorage.setItem(`roam_board_bg_${trip.id}`, JSON.stringify(bg)); } catch { /* ignore */ }
+  const handleBgSave = async (url: string) => {
+    const newBg: BoardBg = url
+      ? { type: "photo", url, thumb: url }
+      : { type: "color", value: "#ffffff" };
+    setBoardBg(newBg);
+    try {
+      if (url) {
+        localStorage.setItem(`roam_board_bg_${trip.id}`, JSON.stringify(newBg));
+      } else {
+        localStorage.removeItem(`roam_board_bg_${trip.id}`);
+      }
+    } catch { /* ignore */ }
+    await supabase.from("trips").update({ kanban_background_url: url || null }).eq("id", trip.id);
     setShowBgPicker(false);
   };
 
@@ -630,7 +654,11 @@ export default function PlanBoard({ trip, initialDays }: Props) {
 
         {/* Board background picker */}
         <button
-          onClick={() => setShowBgPicker(true)}
+          onClick={() => {
+            setBgUrlInput(boardBg.type === "photo" ? boardBg.url : "");
+            setBgPreviewError(false);
+            setShowBgPicker(true);
+          }}
           className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-400"
           aria-label="Change board background"
         >
@@ -863,12 +891,84 @@ export default function PlanBoard({ trip, initialDays }: Props) {
         </div>
       )}
 
+      {/* ── Kanban background URL sheet ── */}
       {showBgPicker && (
-        <BoardBgPicker
-          current={boardBg}
-          onSelect={handleBgSelect}
-          onClose={() => setShowBgPicker(false)}
-        />
+        <>
+          <div
+            className="fixed inset-0 bg-black/40 z-[60]"
+            onClick={() => setShowBgPicker(false)}
+          />
+          <div
+            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl z-[60] max-w-mobile mx-auto flex flex-col"
+            style={{ maxHeight: "85vh" }}
+          >
+            <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+              <div className="w-9 h-1 bg-gray-200 rounded-full" />
+            </div>
+            <div className="flex-1 overflow-y-auto px-5 pt-3 pb-2">
+              <p className="text-center font-display italic text-base text-gray-900 mb-5">
+                Kanban background
+              </p>
+              <input
+                type="url"
+                value={bgUrlInput}
+                onChange={(e) => {
+                  setBgUrlInput(e.target.value);
+                  setBgPreviewError(false);
+                }}
+                placeholder="Paste an image URL…"
+                autoFocus
+                className="w-full text-[14px] border-b border-black/10 py-3 outline-none bg-transparent placeholder:text-gray-300 text-[#1A1A2E]"
+              />
+              {/* Live preview */}
+              <div
+                className="mt-4 w-full h-[120px] rounded-xl overflow-hidden"
+                style={{ background: "#E8E3DA" }}
+              >
+                {bgUrlInput.trim() && !bgPreviewError && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={bgUrlInput.trim()}
+                    alt="Background preview"
+                    className="w-full h-full object-cover"
+                    onError={() => setBgPreviewError(true)}
+                  />
+                )}
+              </div>
+            </div>
+            <div className="flex-shrink-0 px-5 pt-4 pb-10 space-y-3">
+              <button
+                onClick={async () => {
+                  setSavingBg(true);
+                  await handleBgSave(bgUrlInput.trim());
+                  setSavingBg(false);
+                }}
+                disabled={savingBg || !bgUrlInput.trim()}
+                className="w-full py-3 bg-[#1A1A2E] text-white text-[14px] font-semibold rounded-full disabled:opacity-40 active:scale-[0.99] transition-all"
+              >
+                {savingBg ? "Saving…" : "Save"}
+              </button>
+              {isPhotoBg && (
+                <button
+                  onClick={async () => {
+                    setSavingBg(true);
+                    await handleBgSave("");
+                    setSavingBg(false);
+                  }}
+                  className="w-full text-center text-[13px] text-gray-400 py-2"
+                >
+                  Remove background
+                </button>
+              )}
+              <button
+                onClick={() => setShowBgPicker(false)}
+                className="w-full text-center text-[13px] text-gray-400 py-1"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </>
       )}
 
       {selectedCard && (

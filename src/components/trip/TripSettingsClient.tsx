@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Camera } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
@@ -46,7 +46,6 @@ const MONTHS = [
 
 export default function TripSettingsClient({ trip, days }: Props) {
   const router = useRouter();
-  const coverInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
   const [title, setTitle] = useState(trip.title);
@@ -55,8 +54,15 @@ export default function TripSettingsClient({ trip, days }: Props) {
   const [endDate, setEndDate] = useState(trip.end_date);
   const [partySize, setPartySize] = useState(trip.party_size);
 
-  // Cover image error fallback
+  // Cover image — tracked locally so hero updates immediately after save
+  const [currentCoverUrl, setCurrentCoverUrl] = useState<string | null>(trip.cover_image_url ?? null);
   const [coverError, setCoverError] = useState(false);
+
+  // Cover URL sheet
+  const [showCoverSheet, setShowCoverSheet] = useState(false);
+  const [coverUrlInput, setCoverUrlInput] = useState("");
+  const [coverPreviewError, setCoverPreviewError] = useState(false);
+  const [savingCover, setSavingCover] = useState(false);
 
   // UI state
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -81,10 +87,10 @@ export default function TripSettingsClient({ trip, days }: Props) {
   const nightCount = Math.max(0, countDays(startDate, endDate) - 1);
   const dateRangeDisplay = `${fmtDate(startDate)} → ${fmtDate(endDate)}`;
 
-  // Cover source
+  // Cover source — derived from local state so it updates immediately on save
   const coverSrc =
-    trip.cover_image_url && !coverError
-      ? trip.cover_image_url
+    currentCoverUrl && !coverError
+      ? currentCoverUrl
       : MAPBOX_TOKEN && trip.destination_lat != null && trip.destination_lng != null
       ? `https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/static/${trip.destination_lng},${trip.destination_lat},12,0/800x200@2x?access_token=${MAPBOX_TOKEN}`
       : null;
@@ -92,7 +98,21 @@ export default function TripSettingsClient({ trip, days }: Props) {
   // ── Handlers ───────────────────────────────────────────────────────────────
 
   const handleChangeCover = () => {
-    coverInputRef.current?.click();
+    setCoverUrlInput(currentCoverUrl ?? "");
+    setCoverPreviewError(false);
+    setShowCoverSheet(true);
+  };
+
+  const handleSaveCover = async () => {
+    if (savingCover) return;
+    setSavingCover(true);
+    const supabase = createClient();
+    const url = coverUrlInput.trim() || null;
+    await supabase.from("trips").update({ cover_image_url: url }).eq("id", trip.id);
+    setCurrentCoverUrl(url);
+    setCoverError(false);
+    setSavingCover(false);
+    setShowCoverSheet(false);
   };
 
   const handleSave = async () => {
@@ -328,14 +348,6 @@ export default function TripSettingsClient({ trip, days }: Props) {
             </span>
           </div>
         </button>
-        {/* Hidden file input for cover photo upload */}
-        <input
-          ref={coverInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={() => {/* upload flow TBD */}}
-        />
 
         {/* ── Alerts ── */}
         {warning && (
@@ -442,6 +454,70 @@ export default function TripSettingsClient({ trip, days }: Props) {
         </div>
 
       </div>{/* end scrollable */}
+
+      {/* ── Cover photo URL sheet ── */}
+      {showCoverSheet && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/40 z-[60]"
+            onClick={() => setShowCoverSheet(false)}
+          />
+          <div
+            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl z-[60] max-w-mobile mx-auto flex flex-col"
+            style={{ maxHeight: "85vh" }}
+          >
+            <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+              <div className="w-9 h-1 bg-gray-200 rounded-full" />
+            </div>
+            <div className="flex-1 overflow-y-auto px-5 pt-3 pb-2">
+              <p className="text-center font-display italic text-base text-gray-900 mb-5">
+                Change cover
+              </p>
+              <input
+                type="url"
+                value={coverUrlInput}
+                onChange={(e) => {
+                  setCoverUrlInput(e.target.value);
+                  setCoverPreviewError(false);
+                }}
+                placeholder="Paste an image URL…"
+                autoFocus
+                className="w-full text-[14px] border-b border-black/10 py-3 outline-none bg-transparent placeholder:text-gray-300 text-[#1A1A2E]"
+              />
+              {/* Live preview */}
+              <div
+                className="mt-4 w-full h-[100px] rounded-xl overflow-hidden"
+                style={{ background: "#E8E3DA" }}
+              >
+                {coverUrlInput.trim() && !coverPreviewError && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={coverUrlInput.trim()}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                    onError={() => setCoverPreviewError(true)}
+                  />
+                )}
+              </div>
+            </div>
+            <div className="flex-shrink-0 px-5 pt-4 pb-10 space-y-3">
+              <button
+                onClick={handleSaveCover}
+                disabled={savingCover || !coverUrlInput.trim()}
+                className="w-full py-3 bg-[#1A1A2E] text-white text-[14px] font-semibold rounded-full disabled:opacity-40 active:scale-[0.99] transition-all"
+              >
+                {savingCover ? "Saving…" : "Save"}
+              </button>
+              <button
+                onClick={() => setShowCoverSheet(false)}
+                className="w-full text-center text-[13px] text-gray-400 py-2"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* ── Delete confirmation sheet ── */}
       {showDeleteConfirm && (

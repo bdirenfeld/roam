@@ -35,6 +35,7 @@ export interface Trip {
   accommodation_address: string | null
   status: TripStatus
   cover_image_url: string | null
+  kanban_background_url: string | null
   created_at: string
 }
 
