@@ -35,7 +35,7 @@ import type { Trip, Card, DayWithCards, CardType, CardStatus } from "@/types/dat
 import { getPriceRange } from "@/lib/priceRange";
 
 import CardImage from "@/components/ui/CardImage";
-import { Trash } from "@phosphor-icons/react";
+import { Trash, DotsThree } from "@phosphor-icons/react";
 
 // ── Constants ──────────────────────────────────────────────────
 const COL_PREFIX = "col-";
@@ -609,6 +609,18 @@ export default function PlanBoard({ trip, initialDays }: Props) {
             </button>
           ))}
         </div> */}
+
+        {/* Spacer — pushes right-side controls to the edge */}
+        <span className="flex-1" />
+
+        {/* Trip settings */}
+        <Link
+          href={`/trips/${trip.id}/settings`}
+          className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-400"
+          aria-label="Trip settings"
+        >
+          <DotsThree size={20} weight="light" />
+        </Link>
 
         {/* Plan ··· menu */}
         <PlanMenu

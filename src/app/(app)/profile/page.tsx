@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
-import { signOut } from "@/lib/auth-actions";
 import AppHeader from "@/components/ui/AppHeader";
 import Image from "next/image";
+import ProfileClient from "@/components/profile/ProfileClient";
 
 export default async function ProfilePage() {
   const supabase = await createClient();
@@ -24,7 +24,7 @@ export default async function ProfilePage() {
       <AppHeader avatarUrl={avatarUrl} />
 
       <div className="px-4 pt-6 pb-8">
-        {/* Avatar + name */}
+        {/* Avatar + name — display only, pulled from Google OAuth */}
         <div className="flex items-center gap-4 mb-8">
           <div className="w-16 h-16 rounded-full bg-gray-100 overflow-hidden flex items-center justify-center border border-gray-200 flex-shrink-0">
             {avatarUrl ? (
@@ -48,49 +48,23 @@ export default async function ProfilePage() {
           </div>
         </div>
 
-        {/* Profile fields */}
-        {profile && (
-          <div className="space-y-4 mb-8">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Travel profile</p>
-            <ProfileRow label="Home airport" value={profile.home_airport} placeholder="e.g. YYZ" />
-            <ProfileRow label="Home country" value={profile.home_country} placeholder="e.g. Canada" />
-            <ProfileRow label="Passport" value={profile.passport_country} placeholder="e.g. Canadian" />
-          </div>
-        )}
-
-        {/* Sign out */}
-        {user && (
-          <div className="pt-4 border-t border-gray-100">
-            <form action={signOut}>
-              <button
-                type="submit"
-                className="text-sm font-semibold text-red-500 hover:text-red-600 transition-colors"
-              >
-                Sign out
-              </button>
-            </form>
-          </div>
-        )}
+        {/* Editable travel profile + save + sign out */}
+        {user && profile ? (
+          <ProfileClient
+            userId={user.id}
+            initialHomeAirport={profile.home_airport ?? null}
+            initialHomeCountry={profile.home_country ?? null}
+            initialPassportCountry={profile.passport_country ?? null}
+          />
+        ) : user ? (
+          <ProfileClient
+            userId={user.id}
+            initialHomeAirport={null}
+            initialHomeCountry={null}
+            initialPassportCountry={null}
+          />
+        ) : null}
       </div>
-    </div>
-  );
-}
-
-function ProfileRow({
-  label,
-  value,
-  placeholder,
-}: {
-  label: string;
-  value: string | null;
-  placeholder: string;
-}) {
-  return (
-    <div className="flex items-center justify-between py-2 border-b border-gray-50">
-      <span className="text-sm text-gray-500">{label}</span>
-      <span className={`text-sm font-medium ${value ? "text-gray-800" : "text-gray-300"}`}>
-        {value ?? placeholder}
-      </span>
     </div>
   );
 }

@@ -10,7 +10,7 @@ import AddToTripSheet from "./AddToTripSheet";
 import type { PlaceResult } from "./AddToTripSheet";
 import type { Trip, Day, Card, CardType } from "@/types/database";
 import { makeMaterialPinElement } from "@/lib/mapPins";
-import { Funnel } from "@phosphor-icons/react";
+import { Funnel, DotsThree } from "@phosphor-icons/react";
 
 // Purple circular pin for search result previews
 const TEMP_PIN_SVG =
@@ -542,6 +542,16 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round">
             <polyline points="15 18 9 12 15 6" />
           </svg>
+        </Link>
+
+        {/* Trip settings — next to back button */}
+        <Link
+          href={`/trips/${trip.id}/settings`}
+          className="absolute top-4 left-14 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center"
+          style={{ backdropFilter: "blur(8px)", zIndex: 10 }}
+          aria-label="Trip settings"
+        >
+          <DotsThree size={18} weight="light" color="#374151" />
         </Link>
 
         {/* Place search — always visible bar */}

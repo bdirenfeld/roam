@@ -26,7 +26,9 @@ export default function BottomNav() {
 
   // Only show inside a trip route (/trips/[uuid]/*)
   const insideTrip = !!tripId && UUID_RE.test(tripId);
-  if (!insideTrip) return null;
+  // Hide on the trip settings page — it has its own back/save header
+  const isSettingsPage = pathname?.endsWith("/settings");
+  if (!insideTrip || isSettingsPage) return null;
 
   // Resolve tab destinations based on context
   const daysHref  = dayId && tripId ? `/trips/${tripId}/days/${dayId}` : tripId ? `/trips/${tripId}` : "/trips";

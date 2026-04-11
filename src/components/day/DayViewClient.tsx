@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { DotsThree } from "@phosphor-icons/react";
 import DayStrip from "@/components/day/DayStrip";
 import DayMap from "@/components/day/DayMap";
 import CardTimeline from "@/components/day/CardTimeline";
@@ -176,7 +177,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
 
   return (
     <div className="flex flex-col h-dvh">
-      {/* Trip header — back to home + trip title */}
+      {/* Trip header — back to home + trip title + settings */}
       <div className="flex items-center bg-white border-b border-gray-100 flex-shrink-0 h-11">
         <Link
           href="/"
@@ -187,9 +188,16 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </Link>
-        <span className="flex-1 text-[16px] font-semibold text-gray-900 truncate pr-11">
+        <span className="flex-1 text-[16px] font-semibold text-gray-900 truncate px-2">
           {trip.title}
         </span>
+        <Link
+          href={`/trips/${trip.id}/settings`}
+          className="flex items-center justify-center w-11 h-11 text-gray-500 hover:text-gray-800 transition-colors flex-shrink-0"
+          aria-label="Trip settings"
+        >
+          <DotsThree size={20} weight="light" />
+        </Link>
       </div>
 
       {/* Day strip — sits below the trip header, does not scroll */}
