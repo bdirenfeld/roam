@@ -79,14 +79,9 @@ export default async function TripsPage() {
 
       {/* Greeting */}
       <div className="px-4 pt-5 pb-3">
-        <h2 className="text-lg font-bold text-gray-900">
+        <h2 className="font-display italic font-normal text-lg text-gray-900">
           {greeting}
         </h2>
-        {upcoming.length > 0 && (
-          <p className="text-xs text-gray-400 mt-0.5">
-            {upcoming.length} upcoming trip{upcoming.length !== 1 ? "s" : ""}
-          </p>
-        )}
       </div>
 
       <div className="px-4 pb-6">
@@ -94,7 +89,7 @@ export default async function TripsPage() {
           <>
             {/* Upcoming */}
             {upcoming.length > 0 && (
-              <div className="space-y-3 mb-6">
+              <div className="space-y-3 mb-8">
                 {upcoming.map((trip: Trip) => (
                   <TripCard key={trip.id} trip={trip} firstDayId={firstDayByTrip[trip.id]} />
                 ))}
@@ -104,9 +99,11 @@ export default async function TripsPage() {
             {/* Past */}
             {past.length > 0 && (
               <>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">
-                  Past
-                </p>
+                <div className="pt-6 pb-3 border-t border-gray-100">
+                  <p className="font-display italic text-sm text-gray-400">
+                    Past journeys
+                  </p>
+                </div>
                 <div className="space-y-3">
                   {past.map((trip: Trip) => (
                     <TripCard key={trip.id} trip={trip} firstDayId={firstDayByTrip[trip.id]} />

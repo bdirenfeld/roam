@@ -36,6 +36,8 @@ export default function TripCard({ trip, firstDayId }: Props) {
         <TripCover
           destination={trip.destination}
           coverImageUrl={trip.cover_image_url}
+          lat={trip.destination_lat}
+          lng={trip.destination_lng}
           className="w-full h-[140px]"
         />
 
