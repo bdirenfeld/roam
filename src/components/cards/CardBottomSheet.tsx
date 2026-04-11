@@ -5,7 +5,7 @@ import type { Card, Day } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
 import AttachmentsPanel from "./AttachmentsPanel";
-import CardImage from "@/components/ui/CardImage";
+import { CardGallery } from "@/components/ui/CardGallery";
 import { NavigationSheet } from "@/components/ui/NavigationSheet";
 
 // ── Type-specific detail components ───────────────────────────
@@ -739,21 +739,19 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           onTouchEnd={handleTouchEnd}
           className="flex-shrink-0"
         >
-        {/* Cover photo hero */}
-        <div className="relative w-full h-[160px] overflow-hidden">
-          <CardImage
-            src={localCard.cover_image_url}
-            alt=""
-            className="w-full h-full object-cover"
-            lat={localCard.lat}
-            lng={localCard.lng}
-            subType={localCard.sub_type}
-            title={localCard.title}
+        {/* Cover photo hero — swipeable gallery */}
+        <div className="relative w-full overflow-hidden">
+          <CardGallery
+            placeId={(localCard.details as Record<string, unknown>)?.place_id as string | undefined}
+            fallbackLat={localCard.lat}
+            fallbackLng={localCard.lng}
+            cardTitle={localCard.title}
+            height={220}
           />
           {/* Gradient overlay so drag handle is visible */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent pointer-events-none" style={{ zIndex: 20 }} />
           {/* Drag handle on top of photo */}
-          <div className="absolute top-2.5 left-0 right-0 flex justify-center cursor-grab">
+          <div className="absolute top-2.5 left-0 right-0 flex justify-center cursor-grab" style={{ zIndex: 21 }}>
             <div className="w-9 h-[3px] rounded-full bg-white/60" />
           </div>
         </div>

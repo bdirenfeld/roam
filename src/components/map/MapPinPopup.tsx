@@ -5,7 +5,7 @@ import { PencilSimple, Trash } from "@phosphor-icons/react";
 import type { Card, CardType } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { PIN_COLORS } from "@/lib/mapPins";
-import CardImage from "@/components/ui/CardImage";
+import { CardGallery } from "@/components/ui/CardGallery";
 
 // ── Constants ────────────────────────────────────────────────
 const SUB_TYPE_LABEL: Record<string, string> = {
@@ -246,18 +246,15 @@ function CardBody({
 
   return (
     <>
-      {/* Cover photo — always shown; CardImage handles tier-2/3 fallbacks */}
-      <div className="w-full h-[120px] flex-shrink-0 overflow-hidden">
-        <CardImage
-          src={card.cover_image_url}
-          alt={card.title}
-          className="w-full h-full object-cover"
-          lat={card.lat}
-          lng={card.lng}
-          subType={card.sub_type}
-          title={card.title}
-        />
-      </div>
+      {/* Cover photo — swipeable gallery */}
+      <CardGallery
+        placeId={(card.details as Record<string, unknown>)?.place_id as string | undefined}
+        fallbackLat={card.lat}
+        fallbackLng={card.lng}
+        cardTitle={card.title}
+        height={160}
+        maxPhotos={4}
+      />
 
       {/* Close button */}
       <button
