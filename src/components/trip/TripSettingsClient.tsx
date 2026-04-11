@@ -36,10 +36,13 @@ export default function TripSettingsClient({ trip, days }: Props) {
   const [startDate, setStartDate] = useState(trip.start_date);
   const [endDate, setEndDate] = useState(trip.end_date);
   const [partySize, setPartySize] = useState(trip.party_size);
-  const [tripType, setTripType] = useState(trip.trip_type ?? "");
-  const [tripPurpose, setTripPurpose] = useState(trip.trip_purpose ?? "");
+  // Normalise to lowercase so pill comparisons always match regardless of DB casing
+  const [tripType, setTripType] = useState((trip.trip_type ?? "").toLowerCase());
+  const [tripPurpose, setTripPurpose] = useState((trip.trip_purpose ?? "").toLowerCase());
 
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [warning, setWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -155,9 +158,19 @@ export default function TripSettingsClient({ trip, days }: Props) {
   };
 
   const handleArchive = async () => {
-    if (!confirm("Archive this trip? It will be marked as completed.")) return;
     const supabase = createClient();
     await supabase.from("trips").update({ status: "completed" }).eq("id", trip.id);
+    router.push("/");
+  };
+
+  const handleDelete = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    const supabase = createClient();
+    // Delete in dependency order: cards → days → trip
+    await supabase.from("cards").delete().eq("trip_id", trip.id);
+    await supabase.from("days").delete().eq("trip_id", trip.id);
+    await supabase.from("trips").delete().eq("id", trip.id);
     router.push("/");
   };
 
@@ -399,32 +412,106 @@ export default function TripSettingsClient({ trip, days }: Props) {
             </div>
           </section>
 
-          {/* ── DANGER ZONE ───────────────────────────────────── */}
+          {/* ── MANAGE JOURNEY ────────────────────────────────── */}
           <section>
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-4">
-              Danger zone
+              Manage journey
             </p>
-            <button
-              onClick={handleArchive}
-              className="w-full py-3 px-4 rounded-xl bg-red-50 border border-red-100 text-[14px] font-medium text-red-600 text-left flex items-center justify-between hover:bg-red-100 transition-colors active:scale-[0.99]"
-            >
-              Archive trip
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#EF4444"
-                strokeWidth="2"
-                strokeLinecap="round"
+            <div className="space-y-2.5">
+
+              {/* Archive — soft/neutral */}
+              <button
+                onClick={handleArchive}
+                className="w-full py-3 px-4 rounded-xl text-[14px] text-gray-500 text-left flex items-center justify-between active:scale-[0.99] transition-all"
+                style={{
+                  background: "white",
+                  border: "0.5px solid rgba(0,0,0,0.10)",
+                  fontStyle: "italic",
+                }}
               >
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </button>
+                Archive this journey
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                >
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+
+              {/* Delete permanently — red tint */}
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="w-full py-3 px-4 rounded-xl text-[14px] font-medium text-red-500 text-left flex items-center justify-between active:scale-[0.99] transition-all"
+                style={{
+                  background: "rgba(254,242,242,0.8)",
+                  border: "0.5px solid rgba(239,68,68,0.2)",
+                }}
+              >
+                Delete permanently
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                >
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+
+            </div>
           </section>
 
         </div>
       </div>
+
+      {/* Delete confirmation bottom sheet */}
+      {showDeleteConfirm && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/40 z-[60]"
+            onClick={() => setShowDeleteConfirm(false)}
+          />
+          <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl z-[60] max-w-mobile mx-auto">
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-9 h-1 bg-gray-200 rounded-full" />
+            </div>
+            <div className="px-5 pt-3 pb-10">
+              <h2
+                className="text-[22px] text-gray-900 mb-2 font-display italic"
+              >
+                Delete &ldquo;{trip.title}&rdquo;?
+              </h2>
+              <p className="text-[14px] text-gray-500 leading-relaxed mb-7">
+                This will permanently remove the trip and all its cards. This cannot be undone.
+              </p>
+              <div className="space-y-2.5">
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="w-full py-3.5 rounded-xl bg-[#1A1A2E] text-white text-[15px] font-semibold disabled:opacity-50 active:scale-[0.99] transition-all"
+                >
+                  {deleting ? "Deleting…" : "Delete permanently"}
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="w-full py-3.5 rounded-xl text-[15px] font-medium text-gray-500 active:scale-[0.99] transition-all"
+                  style={{ background: "white", border: "0.5px solid rgba(0,0,0,0.10)" }}
+                >
+                  Keep this journey
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Date range picker bottom sheet */}
       {showDatePicker && (
