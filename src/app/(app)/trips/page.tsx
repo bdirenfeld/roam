@@ -5,6 +5,15 @@ import TripCard from "@/components/ui/TripCard";
 import type { Trip } from "@/types/database";
 import { fetchAndStoreCover } from "@/lib/unsplash";
 
+function formatDateShort(start: string, end: string): string {
+  const s = new Date(start + "T00:00:00");
+  const e = new Date(end + "T00:00:00");
+  const sM = s.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
+  const eM = e.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
+  if (sM === eM) return `${sM} ${s.getDate()}–${e.getDate()}`;
+  return `${sM} ${s.getDate()} – ${eM} ${e.getDate()}`;
+}
+
 export default async function TripsPage() {
   const supabase = await createClient();
   const {
@@ -96,17 +105,45 @@ export default async function TripsPage() {
               </div>
             )}
 
-            {/* Past */}
+            {/* Past — compact rows */}
             {past.length > 0 && (
               <>
-                <div className="pt-6 pb-3 border-t border-gray-100">
-                  <p className="font-display italic text-sm text-gray-400">
+                {/* Double-hairline divider with centered label */}
+                <div className="mt-6 mb-3 flex items-center gap-3">
+                  <div className="flex-1" style={{ height: "0.5px", background: "#E8E3DA" }} />
+                  <span className="font-display italic text-sm" style={{ color: "#B8B4AC" }}>
                     Past journeys
-                  </p>
+                  </span>
+                  <div className="flex-1" style={{ height: "0.5px", background: "#E8E3DA" }} />
                 </div>
-                <div className="space-y-3">
+                {/* Compact rows */}
+                <div>
                   {past.map((trip: Trip) => (
-                    <TripCard key={trip.id} trip={trip} firstDayId={firstDayByTrip[trip.id]} />
+                    <Link
+                      key={trip.id}
+                      href="/past-journeys"
+                      className="flex items-center gap-3 py-3 border-b border-black/5"
+                    >
+                      <div
+                        className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                        style={{ background: "#D4CFC8" }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p
+                          className="font-display italic text-[13px] truncate"
+                          style={{ color: "#9CA3AF" }}
+                        >
+                          {trip.title}
+                        </p>
+                        <p
+                          className="text-[9px] uppercase tracking-widest mt-0.5"
+                          style={{ color: "#C4C0B8" }}
+                        >
+                          {formatDateShort(trip.start_date, trip.end_date)}
+                        </p>
+                      </div>
+                      <span style={{ color: "#D4CFC8", fontSize: "14px" }}>›</span>
+                    </Link>
                   ))}
                 </div>
               </>
