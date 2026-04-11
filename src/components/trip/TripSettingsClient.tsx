@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
+
+const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 import type { Trip, Day } from "@/types/database";
 
 interface Props {
@@ -40,6 +41,7 @@ export default function TripSettingsClient({ trip, days }: Props) {
   const [tripType, setTripType] = useState((trip.trip_type ?? "").toLowerCase());
   const [tripPurpose, setTripPurpose] = useState((trip.trip_purpose ?? "").toLowerCase());
 
+  const [coverError, setCoverError] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -236,18 +238,27 @@ export default function TripSettingsClient({ trip, days }: Props) {
               <div className="flex items-center justify-between py-3 border-b border-gray-100">
                 <span className="text-[14px] text-gray-700">Cover photo</span>
                 <div className="flex items-center gap-2.5">
-                  {trip.cover_image_url ? (
+                  {trip.cover_image_url && !coverError ? (
                     <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                      <Image
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
                         src={trip.cover_image_url}
                         alt="Cover"
-                        width={40}
-                        height={40}
+                        className="w-full h-full object-cover"
+                        onError={() => setCoverError(true)}
+                      />
+                    </div>
+                  ) : MAPBOX_TOKEN && trip.destination_lat != null && trip.destination_lng != null ? (
+                    <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/static/${trip.destination_lng},${trip.destination_lat},12,0/400x200@2x?access_token=${MAPBOX_TOKEN}`}
+                        alt="Cover"
                         className="w-full h-full object-cover"
                       />
                     </div>
                   ) : (
-                    <div className="w-10 h-10 rounded-lg bg-gray-100 flex-shrink-0" />
+                    <div className="w-10 h-10 rounded-lg flex-shrink-0" style={{ background: "#E8E3DA" }} />
                   )}
                   <span className="text-[13px] text-gray-400">Change</span>
                   <svg
@@ -479,35 +490,36 @@ export default function TripSettingsClient({ trip, days }: Props) {
             className="fixed inset-0 bg-black/40 z-[60]"
             onClick={() => setShowDeleteConfirm(false)}
           />
-          <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl z-[60] max-w-mobile mx-auto">
-            <div className="flex justify-center pt-3 pb-1">
+          <div
+            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl z-[60] max-w-mobile mx-auto flex flex-col"
+            style={{ maxHeight: "85vh" }}
+          >
+            <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
               <div className="w-9 h-1 bg-gray-200 rounded-full" />
             </div>
-            <div className="px-5 pt-3 pb-10">
-              <h2
-                className="text-[22px] text-gray-900 mb-2 font-display italic"
-              >
+            <div className="flex-1 overflow-y-auto px-5 pt-3">
+              <h2 className="text-[22px] text-gray-900 mb-2 font-display italic">
                 Delete &ldquo;{trip.title}&rdquo;?
               </h2>
-              <p className="text-[14px] text-gray-500 leading-relaxed mb-7">
+              <p className="text-[14px] text-gray-500 leading-relaxed">
                 This will permanently remove the trip and all its cards. This cannot be undone.
               </p>
-              <div className="space-y-2.5">
-                <button
-                  onClick={handleDelete}
-                  disabled={deleting}
-                  className="w-full py-3.5 rounded-xl bg-[#1A1A2E] text-white text-[15px] font-semibold disabled:opacity-50 active:scale-[0.99] transition-all"
-                >
-                  {deleting ? "Deleting…" : "Delete permanently"}
-                </button>
-                <button
-                  onClick={() => setShowDeleteConfirm(false)}
-                  className="w-full py-3.5 rounded-xl text-[15px] font-medium text-gray-500 active:scale-[0.99] transition-all"
-                  style={{ background: "white", border: "0.5px solid rgba(0,0,0,0.10)" }}
-                >
-                  Keep this journey
-                </button>
-              </div>
+            </div>
+            <div className="flex-shrink-0 px-5 pt-4 pb-10 space-y-2.5">
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="w-full py-3.5 rounded-xl bg-[#1A1A2E] text-white text-[15px] font-semibold disabled:opacity-50 active:scale-[0.99] transition-all"
+              >
+                {deleting ? "Deleting…" : "Delete permanently"}
+              </button>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="w-full py-3.5 rounded-xl text-[15px] font-medium text-gray-500 active:scale-[0.99] transition-all"
+                style={{ background: "white", border: "0.5px solid rgba(0,0,0,0.10)" }}
+              >
+                Keep this journey
+              </button>
             </div>
           </div>
         </>
