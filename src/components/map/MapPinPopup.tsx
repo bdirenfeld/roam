@@ -248,9 +248,9 @@ function CardBody({
     <>
       {/* Cover photo — swipeable gallery */}
       <CardGallery
-        placeId={(card.details as Record<string, unknown>)?.place_id as string | undefined}
-        fallbackLat={card.lat}
-        fallbackLng={card.lng}
+        placeId={card.details?.place_id}
+        fallbackLat={(card.details as Record<string, unknown>)?.lat as number | null ?? card.lat}
+        fallbackLng={(card.details as Record<string, unknown>)?.lng as number | null ?? card.lng}
         cardTitle={card.title}
         height={160}
         maxPhotos={4}
