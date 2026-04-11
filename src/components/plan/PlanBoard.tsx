@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   DndContext,
   DragOverlay,
@@ -38,7 +39,7 @@ import type { Trip, Card, DayWithCards, CardType, CardStatus } from "@/types/dat
 import { getPriceRange } from "@/lib/priceRange";
 
 import CardImage from "@/components/ui/CardImage";
-import { Trash, DotsThree } from "@phosphor-icons/react";
+import { Trash, DotsThree, Image as ImageIcon, Gear, ShareNetwork } from "@phosphor-icons/react";
 
 // ── Constants ──────────────────────────────────────────────────
 const COL_PREFIX = "col-";
@@ -132,8 +133,6 @@ const LAST_DAY_CARDS: SkeletonDef[] = [
   { type: "logistics", sub_type: "flight_departure", title: "Departure",      start_time: "12:00", end_time: null  },
 ];
 
-// Sub-types that are "travel boundaries" — stripped from middle-day copies
-const TRAVEL_SUB_TYPES = new Set(["flight_arrival", "flight_departure", "hotel"]);
 
 function makeCards(dayId: string, tripId: string, skeletons: SkeletonDef[]): Card[] {
   return skeletons.map((s, i) => ({
@@ -187,7 +186,6 @@ export default function PlanBoard({ trip, initialDays }: Props) {
   const [showDocs,     setShowDocs]     = useState(false);
   const [viewMode] = useState<"board" | "triage">("board");
   const [deleteToast, setDeleteToast] = useState<string | null>(null);
-  const [clearConfirm, setClearConfirm] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [showBgPicker, setShowBgPicker] = useState(false);
   const [bgUrlInput, setBgUrlInput] = useState("");
@@ -483,86 +481,6 @@ export default function PlanBoard({ trip, initialDays }: Props) {
     await supabase.from("cards").insert(rows);
   }, [days, trip.id, supabase]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Copy day structure to all other days ─────────────────────
-  const handleCopyStructure = useCallback(async (srcDayId: string) => {
-    const cur = daysRef.current;
-    const srcDay = cur.find((d) => d.id === srcDayId);
-    if (!srcDay) return;
-
-    // Extract base structure (type/sub_type/times) from source cards
-    const baseDefs: SkeletonDef[] = srcDay.cards.map((c) => ({
-      type:       c.type,
-      sub_type:   c.sub_type ?? "self_directed",
-      title:      c.title,
-      start_time: c.start_time?.slice(0, 5) ?? "09:00",
-      end_time:   c.end_time?.slice(0, 5) ?? null,
-    }));
-
-    const allNewCards: Card[] = [];
-    const idsToDelete: string[] = [];
-
-    cur.forEach((day, idx) => {
-      if (day.id === srcDayId) return;
-      idsToDelete.push(...day.cards.map((c) => c.id));
-
-      const isFirst = idx === 0;
-      const isLast  = idx === cur.length - 1 && cur.length > 1;
-
-      let skeletons: SkeletonDef[];
-      if (isFirst) {
-        // Prepend arrival cards, strip travel sub-types from the copy
-        const stripped = baseDefs.filter((s) => !TRAVEL_SUB_TYPES.has(s.sub_type));
-        skeletons = [...DAY1_CARDS, ...stripped];
-      } else if (isLast) {
-        // Append departure, strip departure from the copy to avoid duplicates
-        const stripped = baseDefs.filter((s) => s.sub_type !== "flight_departure");
-        skeletons = [...stripped, { type: "logistics", sub_type: "flight_departure", title: "Departure", start_time: "12:00", end_time: null }];
-      } else {
-        skeletons = baseDefs;
-      }
-
-      allNewCards.push(...makeCards(day.id, trip.id, skeletons));
-    });
-
-    // Optimistic update (source day unchanged)
-    setDays((prev) =>
-      prev.map((day) =>
-        day.id === srcDayId ? day : { ...day, cards: allNewCards.filter((c) => c.day_id === day.id) }
-      )
-    );
-
-    // Persist
-    if (idsToDelete.length) {
-      await supabase.from("cards").delete().in("id", idsToDelete);
-    }
-    if (allNewCards.length) {
-      const rows = allNewCards.map((c) => ({
-        id: c.id, day_id: c.day_id, trip_id: c.trip_id,
-        type: c.type, sub_type: c.sub_type, title: c.title,
-        start_time: c.start_time, end_time: c.end_time,
-        position: c.position, status: c.status,
-        source_url: null, cover_image_url: null,
-        lat: null, lng: null, address: null, details: {},
-        ai_generated: false,
-      }));
-      await supabase.from("cards").insert(rows);
-    }
-  }, [trip.id, supabase]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Clear all itinerary cards ────────────────────────────────
-  const handleClearItinerary = useCallback(async () => {
-    setClearConfirm(false);
-    const allIds = days.flatMap((d) => d.cards.map((c) => c.id));
-    if (!allIds.length) return;
-    // Optimistic update
-    setDays((prev) => prev.map((d) => ({ ...d, cards: [] })));
-    // Only delete cards that are in_itinerary with a day_id
-    await supabase.from("cards")
-      .delete()
-      .eq("trip_id", trip.id)
-      .eq("status", "in_itinerary")
-      .not("day_id", "is", null);
-  }, [days, trip.id, supabase]);
 
   const firstDay    = initialDays[0];
   const activeCard  = activeId ? findCard(activeId) : null;
@@ -599,77 +517,56 @@ export default function PlanBoard({ trip, initialDays }: Props) {
 
   return (
     <div className="flex flex-col h-dvh overflow-hidden" style={boardBgStyle}>
-      {/* Sub-header */}
-      <div className="flex items-center gap-2 px-2 py-2 border-b border-gray-100 bg-white flex-shrink-0">
-        {/* Home button */}
-        <Link
-          href="/"
-          className="flex items-center justify-center w-9 h-9 rounded-full text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors flex-shrink-0"
-          aria-label="Back to home"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-        </Link>
-        {firstDay && (
+      {/* Nav bar — transparent, floats over background */}
+      <div className="relative flex items-center h-11 px-3 flex-shrink-0">
+        {/* Left: back buttons */}
+        <div className="flex items-center gap-1 z-10">
           <Link
-            href={`/trips/${trip.id}/days/${firstDay.id}`}
-            className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-800 transition-colors"
+            href="/"
+            className="flex items-center justify-center w-9 h-9 rounded-full transition-colors text-white/70"
+            aria-label="Back to home"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <polyline points="15 18 9 12 15 6" />
             </svg>
-            Days
           </Link>
-        )}
-        {/* Board / Triage toggle — hidden from UI; keep code for future re-enable */}
-        {/* <div className="flex items-center gap-0.5 ml-2 bg-gray-100 rounded-lg p-0.5">
-          {(["board", "triage"] as const).map((mode) => (
-            <button key={mode} onClick={() => setViewMode(mode)}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${viewMode === mode ? "bg-white text-gray-800 shadow-sm" : "text-gray-400 hover:text-gray-600"}`}>
-              {mode === "board" ? "Board" : "Triage"}
-            </button>
-          ))}
-        </div> */}
+          {firstDay && (
+            <Link
+              href={`/trips/${trip.id}/days/${firstDay.id}`}
+              className="flex items-center gap-1 text-xs font-semibold transition-colors text-white/70"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+              Days
+            </Link>
+          )}
+        </div>
 
-        {/* Spacer — pushes right-side controls to the edge */}
-        <span className="flex-1" />
+        {/* Center: trip title */}
+        <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <span
+            className="font-display italic text-[15px] text-white"
+            style={{ textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}
+          >
+            {trip.title}
+          </span>
+        </span>
 
-        {/* Trip settings */}
-        <Link
-          href={`/trips/${trip.id}/settings`}
-          className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-400"
-          aria-label="Trip settings"
-        >
-          <DotsThree size={20} weight="light" />
-        </Link>
-
-        {/* Plan ··· menu */}
-        <PlanMenu
-          onClearItinerary={() => setClearConfirm(true)}
-          onApplyTemplate={() => setShowTemplatePicker(true)}
-        />
-
-        {/* Board background picker */}
-        <button
-          onClick={() => {
-            setBgUrlInput(boardBg.type === "photo" ? boardBg.url : "");
-            setBgPreviewError(false);
-            setShowBgPicker(true);
-          }}
-          className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-400"
-          aria-label="Change board background"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34" />
-            <polygon points="18 2 22 6 12 16 8 16 8 12 18 2" />
-          </svg>
-        </button>
-
-        {/* Right side actions — docs and upload removed */}
-      </div>{/* end sub-header */}
+        {/* Right: single ··· menu */}
+        <div className="ml-auto z-10">
+          <MainMenu
+            tripId={trip.id}
+            onOpenBgPicker={() => {
+              setBgUrlInput(boardBg.type === "photo" ? boardBg.url : "");
+              setBgPreviewError(false);
+              setShowBgPicker(true);
+            }}
+          />
+        </div>
+      </div>{/* end nav bar */}
 
       {/* Triage view */}
       {viewMode === "triage" && (
@@ -772,25 +669,6 @@ export default function PlanBoard({ trip, initialDays }: Props) {
                 className="flex-1 overflow-x-auto overflow-y-hidden"
                 style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "none" } as React.CSSProperties}
               >
-                {/* Sticky header row */}
-                <div
-                  className="sticky top-0 z-20 flex flex-row flex-nowrap gap-[10px] md:gap-4 px-4"
-                  style={
-                    isPhotoBg
-                      ? { background: "rgba(255,255,255,0.85)", backdropFilter: "blur(8px)" }
-                      : { background: "rgba(255,255,255,0.95)" }
-                  }
-                >
-                  {days.map((day) => (
-                    <DayColumnHeader
-                      key={day.id}
-                      day={day}
-                      totalDays={days.length}
-                      onCopyStructure={() => handleCopyStructure(day.id)}
-                    />
-                  ))}
-                </div>
-
                 {/* Card columns */}
                 <div className="p-4 pb-28 md:pb-6">
                   {(allEmpty || showTemplatePicker) && days.length > 0 && (
@@ -859,31 +737,6 @@ export default function PlanBoard({ trip, initialDays }: Props) {
         <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} />
       )}
 
-      {/* Clear itinerary confirmation dialog */}
-      {clearConfirm && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 px-6">
-          <div className="bg-white rounded-2xl shadow-sheet p-6 max-w-sm w-full">
-            <p className="text-[15px] font-bold text-gray-900 mb-2">Clear itinerary?</p>
-            <p className="text-[13px] text-gray-500 mb-5">
-              This will remove all itinerary cards. Your map pins will not be affected.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setClearConfirm(false)}
-                className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleClearItinerary}
-                className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors"
-              >
-                Clear all
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {deleteToast && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white text-[13px] font-medium px-4 py-2.5 rounded-full shadow-lg pointer-events-none animate-in fade-in">
@@ -1014,31 +867,6 @@ function TemplateBanner({ onSelect, onDismiss }: { onSelect: (key: string) => vo
   );
 }
 
-// ── DayColumnHeader ────────────────────────────────────────────
-interface DayColumnHeaderProps {
-  day: DayWithCards;
-  totalDays: number;
-  onCopyStructure: () => void;
-}
-
-function DayColumnHeader({ day, totalDays, onCopyStructure }: DayColumnHeaderProps) {
-  return (
-    <div className="w-[148px] min-w-[148px] flex-shrink-0 md:w-72 flex items-start justify-between py-2">
-      <div>
-        <div className="flex items-baseline gap-1.5 flex-wrap">
-          <span className="text-sm font-bold text-gray-800">Day {day.day_number}</span>
-          {day.date && (
-            <>
-              <span className="text-gray-300 text-xs">·</span>
-              <span className="text-xs text-gray-500 font-medium">{fmtDate(day.date)}</span>
-            </>
-          )}
-        </div>
-      </div>
-      {totalDays > 1 && <CopyMenu onCopyStructure={onCopyStructure} />}
-    </div>
-  );
-}
 
 // ── DayColumn ──────────────────────────────────────────────────
 interface DayColumnProps {
@@ -1052,7 +880,7 @@ interface DayColumnProps {
   onCreateCard: (title: string) => Promise<void>;
 }
 
-function DayColumn({ day, cards, isPhotoBg, fullWidth, onCardTap, onDelete, onCreateCard }: DayColumnProps) {
+function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }: DayColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `${COL_PREFIX}${day.id}` });
   const [isInlineAdding, setIsInlineAdding] = useState(false);
   const [inlineTitle,    setInlineTitle]    = useState("");
@@ -1071,15 +899,42 @@ function DayColumn({ day, cards, isPhotoBg, fullWidth, onCardTap, onDelete, onCr
 
   const dismissInline = () => { setIsInlineAdding(false); setInlineTitle(""); };
 
+  const dayOfWeek = day.date
+    ? new Date(day.date + "T00:00:00").toLocaleDateString("en-US", { weekday: "long" })
+    : null;
+  const shortDate = day.date
+    ? new Date(day.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase()
+    : null;
+
   return (
-    <div className={fullWidth ? "w-full h-full" : "w-[148px] min-w-[148px] flex-shrink-0 md:w-72"}>
-      {/* Column container — Trello-style gray pill; on mobile fills height and inner card list scrolls */}
-      <div className={`${isPhotoBg ? "bg-[#EBECF0]/80 backdrop-blur-sm" : "bg-[#EBECF0]"} rounded-xl p-3 flex flex-col max-h-[calc(100dvh-8rem)] overflow-y-auto scrollbar-none [touch-action:pan-y] md:max-h-none md:overflow-y-visible`}>
-        {/* Cards drop zone — independently scrollable on mobile */}
+    <div className={fullWidth ? "w-full h-full flex flex-col" : "w-[148px] min-w-[148px] flex-shrink-0 md:w-72 flex flex-col"}>
+      {/* Floating day labels — over background image */}
+      <div className="pb-2">
+        <p className="text-[8px] uppercase tracking-widest text-white/45">DAY {day.day_number}</p>
+        {dayOfWeek && (
+          <p
+            className="font-display italic text-[13px] text-white/85"
+            style={{ textShadow: "0 1px 3px rgba(0,0,0,0.5)" }}
+          >
+            {dayOfWeek}
+          </p>
+        )}
+        {shortDate && (
+          <p className="text-[8px] text-white/35 tracking-wide">{shortDate}</p>
+        )}
+      </div>
+
+      {/* Card column body */}
+      <div className={`bg-white/88 backdrop-blur-md rounded-xl p-3 flex flex-col scrollbar-none [touch-action:pan-y] ${
+        fullWidth
+          ? "flex-1 min-h-0 overflow-y-auto"
+          : "max-h-[calc(100dvh-11rem)] overflow-y-auto md:max-h-none md:overflow-y-visible"
+      }`}>
+        {/* Cards drop zone */}
         <div
           ref={setNodeRef}
           className={`flex-1 min-h-[72px] rounded-lg transition-colors ${
-            isOver && cards.length === 0 ? "bg-[#D0D2D8]" : ""
+            isOver && cards.length === 0 ? "bg-black/5" : ""
           } ${fullWidth ? "overflow-y-auto pb-4" : ""}`}
         >
           <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
@@ -1094,118 +949,111 @@ function DayColumn({ day, cards, isPhotoBg, fullWidth, onCardTap, onDelete, onCr
           </SortableContext>
 
           {cards.length === 0 && !isOver && (
-            <div className="h-16 rounded-lg border-2 border-dashed border-[#D0D2D8] flex items-center justify-center">
-              <p className="text-xs text-[#B0B3BC]">Drop cards here</p>
+            <div className="h-16 rounded-lg border-2 border-dashed border-black/10 flex items-center justify-center">
+              <p className="text-xs text-black/25">Drop cards here</p>
             </div>
           )}
         </div>
+      </div>{/* end card column body */}
 
-        {/* Inline add / Add button */}
-        <div className="mt-1">
-          {isInlineAdding ? (
-            <div className="flex gap-1.5 pt-1">
-              <input
-                ref={inlineRef}
-                value={inlineTitle}
-                onChange={(e) => setInlineTitle(e.target.value)}
-                placeholder="Name this stop..."
-                className="flex-1 text-[13px] bg-white rounded-lg border border-gray-200 px-2.5 py-1.5 outline-none focus:border-gray-400 placeholder:text-gray-300 min-w-0"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") { e.preventDefault(); submitInline(); }
-                  if (e.key === "Escape") dismissInline();
-                }}
-                onBlur={() => setTimeout(dismissInline, 150)}
-              />
-              <button
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={submitInline}
-                className="px-2.5 py-1.5 rounded-lg text-[12px] font-bold text-white flex-shrink-0"
-                style={{ background: "#1A1A2E" }}
-              >
-                Add
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setIsInlineAdding(true)}
-              className="w-full flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-gray-700 py-2 transition-colors"
-            >
-              <span className="text-base leading-none font-bold">+</span> Add to this day
-            </button>
-          )}
-        </div>
-      </div>{/* end column container */}
-    </div>
-  );
-}
-
-// ── CopyMenu (day header "···" menu) ──────────────────────────
-function CopyMenu({ onCopyStructure }: { onCopyStructure: () => void }) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div className="relative flex-shrink-0">
-      <button
-        onPointerDown={(e) => e.stopPropagation()}
-        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
-        className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-400 mt-0.5"
-        aria-label="Day options"
-      >
-        <span className="text-[10px] font-black leading-none tracking-widest">···</span>
-      </button>
-
-      {open && (
-        <>
-          <div className="fixed inset-0 z-40" onPointerDown={() => setOpen(false)} />
-          <div className="absolute right-0 top-7 z-50 bg-white rounded-xl shadow-sheet border border-gray-100 py-1 min-w-[200px]">
-            <button
-              className="w-full text-left px-4 py-2.5 text-[13px] text-gray-700 hover:bg-gray-50 transition-colors"
-              onClick={(e) => {
-                e.stopPropagation();
-                setOpen(false);
-                onCopyStructure();
+      {/* Add to this day — floats below column, over background */}
+      <div className="mt-1">
+        {isInlineAdding ? (
+          <div className="flex gap-1.5 pt-1">
+            <input
+              ref={inlineRef}
+              value={inlineTitle}
+              onChange={(e) => setInlineTitle(e.target.value)}
+              placeholder="Name this stop..."
+              className="flex-1 text-[13px] bg-white rounded-lg border border-gray-200 px-2.5 py-1.5 outline-none focus:border-gray-400 placeholder:text-gray-300 min-w-0"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") { e.preventDefault(); submitInline(); }
+                if (e.key === "Escape") dismissInline();
               }}
+              onBlur={() => setTimeout(dismissInline, 150)}
+            />
+            <button
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={submitInline}
+              className="px-2.5 py-1.5 rounded-lg text-[12px] font-bold text-white flex-shrink-0"
+              style={{ background: "#1A1A2E" }}
             >
-              Copy structure to all days
+              Add
             </button>
           </div>
-        </>
-      )}
+        ) : (
+          <button
+            onClick={() => setIsInlineAdding(true)}
+            className="w-full flex items-center gap-1 text-xs py-2 transition-colors text-white/45"
+          >
+            <span className="text-base leading-none font-bold">+</span> Add to this day
+          </button>
+        )}
+      </div>
     </div>
   );
 }
 
-// ── PlanMenu (sub-header "···" menu) ──────────────────────────
-function PlanMenu({ onClearItinerary, onApplyTemplate }: { onClearItinerary: () => void; onApplyTemplate: () => void }) {
+// ── MainMenu (consolidated top-right ··· menu) ────────────────
+function MainMenu({ tripId, onOpenBgPicker }: { tripId: string; onOpenBgPicker: () => void }) {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
 
   return (
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-400"
-        aria-label="Plan options"
+        className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 backdrop-blur-sm border border-white/25 text-white transition-colors"
+        aria-label="More options"
       >
-        <span className="text-[10px] font-black leading-none tracking-widest">···</span>
+        <DotsThree size={18} weight="bold" />
       </button>
 
       {open && (
         <>
           <div className="fixed inset-0 z-40" onPointerDown={() => setOpen(false)} />
-          <div className="absolute left-0 top-7 z-50 bg-white rounded-xl shadow-sheet border border-gray-100 py-1 min-w-[220px]">
+          <div className="absolute right-0 top-full mt-1.5 z-50 bg-white/97 backdrop-blur-xl rounded-xl shadow-xl w-[210px] py-1 overflow-hidden">
+            {/* Change background */}
             <button
-              className="w-full text-left px-4 py-2.5 text-[13px] text-gray-700 hover:bg-gray-50 transition-colors"
-              onClick={() => { setOpen(false); onApplyTemplate(); }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+              onClick={() => { setOpen(false); onOpenBgPicker(); }}
             >
-              Apply new template
+              <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                <ImageIcon size={15} weight="light" className="text-gray-600" />
+              </div>
+              <div className="text-left">
+                <p className="text-[13px] font-medium text-gray-900 leading-snug">Change background</p>
+                <p className="text-[11px] text-gray-400 leading-snug">Paste an image URL</p>
+              </div>
             </button>
-            <div className="mx-3 border-t border-gray-100" />
+
+            {/* Trip settings */}
             <button
-              className="w-full text-left px-4 py-2.5 text-[13px] text-red-500 hover:bg-gray-50 transition-colors"
-              onClick={() => { setOpen(false); onClearItinerary(); }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+              onClick={() => { setOpen(false); router.push(`/trips/${tripId}/settings`); }}
             >
-              Clear itinerary cards
+              <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                <Gear size={15} weight="light" className="text-gray-600" />
+              </div>
+              <div className="text-left">
+                <p className="text-[13px] font-medium text-gray-900 leading-snug">Trip settings</p>
+                <p className="text-[11px] text-gray-400 leading-snug">Dates, travellers, cover</p>
+              </div>
             </button>
+
+            {/* Divider */}
+            <div className="mx-3 my-0.5 border-t border-gray-100" />
+
+            {/* Share itinerary — coming soon */}
+            <div className="flex items-center gap-3 px-3 py-2.5 opacity-40 cursor-default">
+              <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                <ShareNetwork size={15} weight="light" className="text-gray-600" />
+              </div>
+              <div className="text-left">
+                <p className="text-[13px] font-medium text-gray-900 leading-snug">Share itinerary</p>
+                <p className="text-[11px] text-gray-400 leading-snug">Coming soon</p>
+              </div>
+            </div>
           </div>
         </>
       )}
