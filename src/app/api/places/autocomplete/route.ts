@@ -5,6 +5,8 @@ export async function GET(request: NextRequest) {
   const input        = searchParams.get("input");
   const sessiontoken = searchParams.get("sessiontoken");
   const types        = searchParams.get("types");
+  const lat          = searchParams.get("lat");
+  const lng          = searchParams.get("lng");
 
   if (!input?.trim()) {
     return NextResponse.json({ predictions: [] });
@@ -23,6 +25,10 @@ export async function GET(request: NextRequest) {
   url.searchParams.set("key", key);
   if (sessiontoken) url.searchParams.set("sessiontoken", sessiontoken);
   if (types)        url.searchParams.set("types", types);
+  if (lat && lng)   {
+    url.searchParams.set("location", `${lat},${lng}`);
+    url.searchParams.set("radius", "50000");
+  }
 
   try {
     const res  = await fetch(url.toString(), { next: { revalidate: 0 } });

@@ -555,7 +555,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
         </Link>
 
         {/* Place search — always visible bar */}
-        <PlaceSearch onPlaceSelect={handlePlaceSelect} destination={trip.destination} />
+        <PlaceSearch onPlaceSelect={handlePlaceSelect} destination={trip.destination} lat={trip.destination_lat} lng={trip.destination_lng} />
 
         {/* Filter button + pill bar — mobile only, bottom-left, expands upward */}
         <div

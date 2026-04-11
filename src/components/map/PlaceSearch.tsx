@@ -14,9 +14,11 @@ interface Prediction {
 interface Props {
   onPlaceSelect: (placeId: string, sessionToken: string) => void;
   destination?: string;
+  lat?: number | null;
+  lng?: number | null;
 }
 
-export default function PlaceSearch({ onPlaceSelect, destination }: Props) {
+export default function PlaceSearch({ onPlaceSelect, destination, lat, lng }: Props) {
   const [query, setQuery]             = useState("");
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading]         = useState(false);
@@ -53,9 +55,15 @@ export default function PlaceSearch({ onPlaceSelect, destination }: Props) {
     setLoading(true);
     debounceRef.current = setTimeout(async () => {
       try {
-        const res  = await fetch(
-          `/api/places/autocomplete?input=${encodeURIComponent(query)}&sessiontoken=${sessionToken.current}`,
-        );
+        const params = new URLSearchParams({
+          input: query,
+          sessiontoken: sessionToken.current,
+        });
+        if (lat != null && lng != null) {
+          params.set("lat", String(lat));
+          params.set("lng", String(lng));
+        }
+        const res  = await fetch(`/api/places/autocomplete?${params.toString()}`);
         const data = await res.json();
         setPredictions(data.predictions ?? []);
       } catch {
