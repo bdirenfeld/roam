@@ -905,6 +905,9 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }:
   const shortDate = day.date
     ? new Date(day.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase()
     : null;
+  const shortDateTitle = day.date
+    ? new Date(day.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    : null;
 
   return (
     <div className={fullWidth ? "w-full h-full flex flex-col" : "w-[148px] min-w-[148px] flex-shrink-0 md:w-72 flex flex-col"}>
@@ -924,23 +927,38 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }:
         )}
       </div>
 
+      {/* Frosted glass day header — desktop only */}
+      <div className="hidden md:block pb-2 flex-shrink-0">
+        <div style={{
+          background: "rgba(255,255,255,0.75)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          borderRadius: "10px",
+          border: "0.5px solid rgba(255,255,255,0.6)",
+          padding: "7px 10px 6px",
+        }}>
+          <p style={{
+            fontFamily: "'Playfair Display', serif",
+            fontStyle: "italic",
+            fontSize: "14px",
+            fontWeight: 500,
+            color: "#1A1A2E",
+          }}>{dayOfWeek || `Day ${day.day_number}`}</p>
+          <p style={{
+            fontSize: "9px",
+            color: "#888",
+            marginTop: "2px",
+            letterSpacing: "0.03em",
+          }}>Day {day.day_number}{shortDateTitle ? ` · ${shortDateTitle}` : ""}</p>
+        </div>
+      </div>
+
       {/* Card column body */}
       <div className={`bg-white/88 backdrop-blur-md rounded-xl overflow-hidden flex flex-col scrollbar-none [touch-action:pan-y] ${
         fullWidth
           ? "flex-1 min-h-0 overflow-y-auto"
           : "max-h-[calc(100dvh-11rem)] overflow-y-auto md:max-h-none md:overflow-y-visible"
       }`}>
-
-        {/* Day label header — desktop only (hidden below md:), inside column */}
-        <div className="hidden md:block px-3 pt-3 pb-2 border-b border-black/5 flex-shrink-0">
-          <p className="text-[8px] uppercase tracking-widest text-gray-400">DAY {day.day_number}</p>
-          {dayOfWeek && (
-            <p className="font-display italic text-[14px] text-[#1A1A2E]">{dayOfWeek}</p>
-          )}
-          {shortDate && (
-            <p className="text-[8px] uppercase tracking-widest text-[#B8B4AC]">{shortDate}</p>
-          )}
-        </div>
 
         {/* Cards drop zone */}
         <div className="flex-1 p-3 flex flex-col">
