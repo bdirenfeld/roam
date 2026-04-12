@@ -1030,9 +1030,10 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }:
         ) : (
           <button
             onClick={() => setIsInlineAdding(true)}
-            className="w-full flex items-center gap-1 text-xs py-2 transition-colors text-white/45"
+            className="w-full text-left text-[12px] font-medium py-2 text-white/75"
+            style={{ textShadow: "0 1px 3px rgba(0,0,0,0.5)" }}
           >
-            <span className="text-base leading-none font-bold">+</span> Add to this day
+            + Add to this day
           </button>
         )}
       </div>
