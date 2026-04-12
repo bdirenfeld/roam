@@ -936,6 +936,7 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }:
           borderRadius: "12px",
           border: "1px solid rgba(255,255,255,0.5)",
           padding: "8px 12px 7px",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)",
         }}>
           {/* Tier 1 — DAY NUMBER */}
           <p style={{
@@ -945,6 +946,7 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }:
             letterSpacing: "0.12em",
             textTransform: "uppercase",
             color: "rgb(26, 26, 46)",
+            marginBottom: "2px",
           }}>Day {day.day_number}</p>
           {/* Tier 2 — Day name */}
           {dayOfWeek && (
@@ -974,7 +976,7 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }:
       </div>
 
       {/* Card column body */}
-      <div className={`bg-white/88 backdrop-blur-md rounded-xl overflow-hidden flex flex-col scrollbar-none [touch-action:pan-y] ${
+      <div style={{ backgroundColor: 'rgba(255,255,255,0.88)' }} className={`backdrop-blur-md rounded-xl overflow-hidden flex flex-col scrollbar-none [touch-action:pan-y] ${
         fullWidth
           ? "flex-1 min-h-0 overflow-y-auto"
           : "max-h-[calc(100dvh-11rem)] overflow-y-auto md:max-h-none md:overflow-y-visible"
