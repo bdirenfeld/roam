@@ -932,7 +932,7 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }:
       }`}>
 
         {/* Day label header — desktop only (hidden below md:), inside column */}
-        <div className="hidden md:block px-3 pt-3 pb-2 border-b border-black/5 flex-shrink-0">
+        <div className="hidden md:block px-3 pt-4 pb-2 bg-black/[0.03] border-b border-black/8 flex-shrink-0">
           <p className="text-[8px] uppercase tracking-widest text-gray-400">DAY {day.day_number}</p>
           {dayOfWeek && (
             <p className="font-display italic text-[14px] text-[#1A1A2E]">{dayOfWeek}</p>
