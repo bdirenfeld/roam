@@ -1002,8 +1002,8 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }:
         </div>
       </div>{/* end card column body */}
 
-      {/* Add to this day — floats below column, over background */}
-      <div className="mt-1">
+      {/* Add a card — ghost pill below column */}
+      <div className="mt-2">
         {isInlineAdding ? (
           <div className="flex gap-1.5 pt-1">
             <input
@@ -1030,10 +1030,13 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }:
         ) : (
           <button
             onClick={() => setIsInlineAdding(true)}
-            className="w-full text-left text-[12px] font-medium py-2 text-white/75"
-            style={{ textShadow: "0 1px 3px rgba(0,0,0,0.5)" }}
+            className="w-full text-left text-[13px] font-medium text-[#1A1A2E] rounded-xl px-3 py-[10px] active:opacity-70 transition-opacity"
+            style={{
+              backgroundColor: "rgba(255,255,255,0.88)",
+              border: "1px solid rgba(255,255,255,0.6)",
+            }}
           >
-            + Add to this day
+            + Add a card
           </button>
         )}
       </div>
