@@ -908,8 +908,8 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }:
 
   return (
     <div className={fullWidth ? "w-full h-full flex flex-col" : "w-[148px] min-w-[148px] flex-shrink-0 md:w-72 flex flex-col"}>
-      {/* Floating day labels — over background image */}
-      <div className="pb-2">
+      {/* Floating day labels — mobile only (hidden on md+), over background image */}
+      <div className="pb-2 md:hidden">
         <p className="text-[8px] uppercase tracking-widest text-white/45">DAY {day.day_number}</p>
         {dayOfWeek && (
           <p
@@ -925,34 +925,48 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }:
       </div>
 
       {/* Card column body */}
-      <div className={`bg-white/88 backdrop-blur-md rounded-xl p-3 flex flex-col scrollbar-none [touch-action:pan-y] ${
+      <div className={`bg-white/88 backdrop-blur-md rounded-xl overflow-hidden flex flex-col scrollbar-none [touch-action:pan-y] ${
         fullWidth
           ? "flex-1 min-h-0 overflow-y-auto"
           : "max-h-[calc(100dvh-11rem)] overflow-y-auto md:max-h-none md:overflow-y-visible"
       }`}>
-        {/* Cards drop zone */}
-        <div
-          ref={setNodeRef}
-          className={`flex-1 min-h-[72px] rounded-lg transition-colors ${
-            isOver && cards.length === 0 ? "bg-black/5" : ""
-          } ${fullWidth ? "overflow-y-auto pb-4" : ""}`}
-        >
-          <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-            {cards.map((card) => (
-              <SortableCardTile
-                key={card.id}
-                card={card}
-                onTap={() => onCardTap(card)}
-                onDelete={() => onDelete(card.id)}
-              />
-            ))}
-          </SortableContext>
 
-          {cards.length === 0 && !isOver && (
-            <div className="h-16 rounded-lg border-2 border-dashed border-black/10 flex items-center justify-center">
-              <p className="text-xs text-black/25">Drop cards here</p>
-            </div>
+        {/* Day label header — desktop only (hidden below md:), inside column */}
+        <div className="hidden md:block px-3 pt-3 pb-2 border-b border-black/5 flex-shrink-0">
+          <p className="text-[8px] uppercase tracking-widest text-gray-400">DAY {day.day_number}</p>
+          {dayOfWeek && (
+            <p className="font-display italic text-[14px] text-[#1A1A2E]">{dayOfWeek}</p>
           )}
+          {shortDate && (
+            <p className="text-[8px] uppercase tracking-widest text-[#B8B4AC]">{shortDate}</p>
+          )}
+        </div>
+
+        {/* Cards drop zone */}
+        <div className="flex-1 p-3 flex flex-col">
+          <div
+            ref={setNodeRef}
+            className={`flex-1 min-h-[72px] rounded-lg transition-colors ${
+              isOver && cards.length === 0 ? "bg-black/5" : ""
+            } ${fullWidth ? "overflow-y-auto pb-4" : ""}`}
+          >
+            <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+              {cards.map((card) => (
+                <SortableCardTile
+                  key={card.id}
+                  card={card}
+                  onTap={() => onCardTap(card)}
+                  onDelete={() => onDelete(card.id)}
+                />
+              ))}
+            </SortableContext>
+
+            {cards.length === 0 && !isOver && (
+              <div className="h-16 rounded-lg border-2 border-dashed border-black/10 flex items-center justify-center">
+                <p className="text-xs text-black/25">Drop cards here</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>{/* end card column body */}
 
