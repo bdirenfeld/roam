@@ -188,9 +188,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </Link>
-        <span className="flex-1 text-[16px] font-semibold text-gray-900 truncate px-2">
-          {trip.title}
-        </span>
+        <span className="flex-1" />
         <Link
           href={`/trips/${trip.id}/settings`}
           className="flex items-center justify-center w-11 h-11 text-gray-500 hover:text-gray-800 transition-colors flex-shrink-0"
@@ -216,17 +214,6 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
         centerLng={trip.destination_lng ?? 12.4964}
         onPinTap={handlePinTap}
       />
-
-      {/* Sticky date header — sits between map and cards, stays visible on scroll */}
-      <div className="flex-shrink-0 bg-white border-t border-gray-200 px-4 pt-3 pb-2">
-        <p className="text-lg font-medium text-gray-900">
-          {new Date(dayWithCards.date + "T00:00:00").toLocaleDateString("en-US", {
-            weekday: "long",
-            month:   "long",
-            day:     "numeric",
-          })}
-        </p>
-      </div>
 
       {/* Scrollable cards area — only this section scrolls.
           min-h-0 is required so flex children can shrink below their content height.
