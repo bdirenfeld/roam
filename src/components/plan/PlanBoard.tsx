@@ -974,11 +974,11 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }:
           : "max-h-[calc(100dvh-11rem)] overflow-y-auto md:max-h-none md:overflow-y-visible"
       }`}>
 
-        {/* Cards drop zone */}
-        <div className="flex-1 p-3 flex flex-col">
+        {/* Cards drop zone + add button — inside the frosted glass column */}
+        <div className="p-3 flex flex-col">
           <div
             ref={setNodeRef}
-            className={`flex-1 min-h-[72px] rounded-lg transition-colors ${
+            className={`min-h-[72px] rounded-lg transition-colors ${
               isOver && cards.length === 0 ? "bg-black/5" : ""
             } ${fullWidth ? "overflow-y-auto pb-4" : ""}`}
           >
@@ -999,47 +999,45 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }:
               </div>
             )}
           </div>
+
+          {/* Add a card — flush below last card, inside column surface */}
+          {isInlineAdding ? (
+            <div className="flex gap-1.5">
+              <input
+                ref={inlineRef}
+                value={inlineTitle}
+                onChange={(e) => setInlineTitle(e.target.value)}
+                placeholder="Name this stop..."
+                className="flex-1 text-[13px] bg-white rounded-lg border border-gray-200 px-2.5 py-1.5 outline-none focus:border-gray-400 placeholder:text-gray-300 min-w-0"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { e.preventDefault(); submitInline(); }
+                  if (e.key === "Escape") dismissInline();
+                }}
+                onBlur={() => setTimeout(dismissInline, 150)}
+              />
+              <button
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={submitInline}
+                className="px-2.5 py-1.5 rounded-lg text-[12px] font-bold text-white flex-shrink-0"
+                style={{ background: "#1A1A2E" }}
+              >
+                Add
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setIsInlineAdding(true)}
+              className="w-full text-left text-[13px] font-medium text-[#1A1A2E] rounded-xl px-3 py-[10px] active:opacity-70 transition-opacity"
+              style={{
+                backgroundColor: "rgba(255,255,255,0.88)",
+                border: "1px solid rgba(255,255,255,0.6)",
+              }}
+            >
+              + Add a card
+            </button>
+          )}
         </div>
       </div>{/* end card column body */}
-
-      {/* Add a card — ghost pill below column */}
-      <div className="mt-2">
-        {isInlineAdding ? (
-          <div className="flex gap-1.5 pt-1">
-            <input
-              ref={inlineRef}
-              value={inlineTitle}
-              onChange={(e) => setInlineTitle(e.target.value)}
-              placeholder="Name this stop..."
-              className="flex-1 text-[13px] bg-white rounded-lg border border-gray-200 px-2.5 py-1.5 outline-none focus:border-gray-400 placeholder:text-gray-300 min-w-0"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") { e.preventDefault(); submitInline(); }
-                if (e.key === "Escape") dismissInline();
-              }}
-              onBlur={() => setTimeout(dismissInline, 150)}
-            />
-            <button
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={submitInline}
-              className="px-2.5 py-1.5 rounded-lg text-[12px] font-bold text-white flex-shrink-0"
-              style={{ background: "#1A1A2E" }}
-            >
-              Add
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => setIsInlineAdding(true)}
-            className="w-full text-left text-[13px] font-medium text-[#1A1A2E] rounded-xl px-3 py-[10px] active:opacity-70 transition-opacity"
-            style={{
-              backgroundColor: "rgba(255,255,255,0.88)",
-              border: "1px solid rgba(255,255,255,0.6)",
-            }}
-          >
-            + Add a card
-          </button>
-        )}
-      </div>
     </div>
   );
 }
