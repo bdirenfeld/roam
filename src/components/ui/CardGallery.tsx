@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 
 interface CardGalleryProps {
   placeId?: string | null
+  coverImageUrl?: string | null
   fallbackLat?: number | null
   fallbackLng?: number | null
   cardTitle: string
@@ -13,6 +14,7 @@ interface CardGalleryProps {
 
 export function CardGallery({
   placeId,
+  coverImageUrl,
   fallbackLat,
   fallbackLng,
   cardTitle,
@@ -29,7 +31,11 @@ export function CardGallery({
     setLoading(true)
 
     if (!placeId) {
-      setPhotos(getMapboxFallback())
+      if (coverImageUrl) {
+        setPhotos([coverImageUrl])
+      } else {
+        setPhotos(getMapboxFallback())
+      }
       setLoading(false)
       return
     }

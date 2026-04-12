@@ -156,9 +156,11 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
     if (place.rating)         details.rating         = place.rating;
     if (recommendedBy.trim()) details.recommended_by = recommendedBy.trim();
 
+    // ── Store place_id for all card types (needed for photo carousel) ─
+    details.place_id = place.placeId;
+
     // ── Food cards: enrich with price_level + currency_code ───────
     if (type === "food") {
-      details.place_id = place.placeId;
       try {
         const params = new URLSearchParams({ place_id: place.placeId });
         params.set("lat", String(place.lat));
