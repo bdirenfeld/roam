@@ -4,10 +4,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Camera } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
-import BoardBgPicker, { type BoardBg } from "@/components/plan/BoardBgPicker";
 
-const MAPBOX_TOKEN  = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-const UNSPLASH_KEY  = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY;
+const UNSPLASH_KEY = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY;
 
 interface DestinationPrediction {
   description: string;
@@ -77,11 +75,12 @@ export default function NewTripPage() {
   const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Cover state
-  const [coverUrl,           setCoverUrl]           = useState<string | null>(null);
-  const [coverColorOverride, setCoverColorOverride] = useState<string | null>(null);
-  const [coverError,         setCoverError]         = useState(false);
-  const [fetchingCover,      setFetchingCover]      = useState(false);
-  const [showBgPicker,       setShowBgPicker]       = useState(false);
+  const [coverUrl,         setCoverUrl]         = useState<string | null>(null);
+  const [coverError,       setCoverError]       = useState(false);
+  const [fetchingCover,    setFetchingCover]    = useState(false);
+  const [showCoverSheet,   setShowCoverSheet]   = useState(false);
+  const [coverUrlInput,    setCoverUrlInput]    = useState("");
+  const [coverPreviewError, setCoverPreviewError] = useState(false);
 
   // Form fields
   const [tripName,      setTripName]      = useState("");
@@ -157,7 +156,7 @@ export default function NewTripPage() {
             .then((r) => r.json())
             .then((d: { results?: { urls?: { regular?: string } }[] }) => {
               const url = d.results?.[0]?.urls?.regular ?? null;
-              if (url) { setCoverUrl(url); setCoverColorOverride(null); }
+              if (url) setCoverUrl(url);
             })
             .catch(() => { /* ignore */ })
             .finally(() => setFetchingCover(false));
@@ -168,29 +167,10 @@ export default function NewTripPage() {
     }
   }, []);
 
-  // Cover source — manual/auto photo first, then Mapbox satellite fallback
-  const coverSrc =
-    coverUrl && !coverError
-      ? coverUrl
-      : (!coverColorOverride && MAPBOX_TOKEN && destination)
-      ? `https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/static/${destination.lng},${destination.lat},12,0/800x200@2x?access_token=${MAPBOX_TOKEN}`
-      : null;
+  // Cover source — Unsplash auto-fetch or manually pasted URL only; no satellite fallback
+  const coverSrc = coverUrl && !coverError ? coverUrl : null;
 
-  const hasCover = !!(coverSrc || coverColorOverride);
-
-  // Handle cover picker selection
-  const handleBgSelect = useCallback((bg: BoardBg) => {
-    if (bg.type === "photo") {
-      setCoverUrl(bg.url);
-      setCoverColorOverride(null);
-      setCoverError(false);
-    } else {
-      setCoverColorOverride(bg.value);
-      setCoverUrl(null);
-      setCoverError(false);
-    }
-    setShowBgPicker(false);
-  }, []);
+  const hasCover = !!coverSrc;
 
   // Dates display
   const dateRangeDisplay = startDate && endDate
@@ -347,7 +327,7 @@ export default function NewTripPage() {
 
         {/* Cover hero */}
         <button
-          onClick={() => setShowBgPicker(true)}
+          onClick={() => { setCoverUrlInput(coverUrl ?? ""); setCoverPreviewError(false); setShowCoverSheet(true); }}
           className="relative w-full h-[100px] block overflow-hidden flex-shrink-0"
           aria-label={hasCover ? "Change cover photo" : "Add cover photo"}
         >
@@ -360,10 +340,7 @@ export default function NewTripPage() {
               onError={() => setCoverError(true)}
             />
           ) : (
-            <div
-              className={`absolute inset-0 ${coverColorOverride ? "" : "bg-gradient-to-b from-stone-200 to-stone-100"}`}
-              style={coverColorOverride ? { backgroundColor: coverColorOverride } : {}}
-            />
+            <div className="absolute inset-0 bg-gradient-to-b from-stone-200 to-stone-100" />
           )}
 
           {/* Scrim + label — dark scrim when there's a cover, transparent otherwise */}
@@ -417,7 +394,6 @@ export default function NewTripPage() {
                 if (destination && e.target.value !== destination.name) {
                   setDestination(null);
                   setCoverUrl(null);
-                  setCoverColorOverride(null);
                   setCoverError(false);
                 }
               }}
@@ -529,19 +505,70 @@ export default function NewTripPage() {
 
       </div>
 
-      {/* Cover background picker */}
-      {showBgPicker && (
-        <BoardBgPicker
-          current={
-            coverUrl
-              ? { type: "photo", url: coverUrl, thumb: coverUrl }
-              : coverColorOverride
-              ? { type: "color", value: coverColorOverride }
-              : { type: "color", value: "#F1F2F4" }
-          }
-          onSelect={handleBgSelect}
-          onClose={() => setShowBgPicker(false)}
-        />
+      {/* Cover photo URL sheet */}
+      {showCoverSheet && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/40 z-[60]"
+            onClick={() => setShowCoverSheet(false)}
+          />
+          <div
+            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl z-[60] max-w-mobile mx-auto flex flex-col"
+            style={{ maxHeight: "85vh" }}
+          >
+            <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+              <div className="w-9 h-1 bg-gray-200 rounded-full" />
+            </div>
+            <div className="flex-1 overflow-y-auto px-5 pt-3 pb-2">
+              <p className="text-center font-display italic text-base text-gray-900 mb-5">
+                Change cover
+              </p>
+              <input
+                type="url"
+                value={coverUrlInput}
+                onChange={(e) => { setCoverUrlInput(e.target.value); setCoverPreviewError(false); }}
+                placeholder="Paste an image URL…"
+                autoFocus
+                className="w-full text-[14px] border-b border-black/10 py-3 outline-none bg-transparent placeholder:text-gray-300 text-[#1A1A2E]"
+              />
+              {/* Live preview */}
+              <div
+                className="mt-4 w-full h-[100px] rounded-xl overflow-hidden"
+                style={{ background: "#E8E3DA" }}
+              >
+                {coverUrlInput.trim() && !coverPreviewError && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={coverUrlInput.trim()}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                    onError={() => setCoverPreviewError(true)}
+                  />
+                )}
+              </div>
+            </div>
+            <div className="flex-shrink-0 px-5 pt-4 pb-10 space-y-3">
+              <button
+                onClick={() => {
+                  const url = coverUrlInput.trim() || null;
+                  setCoverUrl(url);
+                  setCoverError(false);
+                  setShowCoverSheet(false);
+                }}
+                disabled={!coverUrlInput.trim()}
+                className="w-full py-3 bg-[#1A1A2E] text-white text-[14px] font-semibold rounded-full disabled:opacity-40 active:scale-[0.99] transition-all"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => setShowCoverSheet(false)}
+                className="w-full text-center text-[13px] text-gray-400 py-2"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Date range picker sheet */}
