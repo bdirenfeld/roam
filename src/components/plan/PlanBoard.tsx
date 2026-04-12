@@ -546,7 +546,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
         </div>
 
         {/* Center: trip title */}
-        <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <span className="absolute inset-0 hidden md:flex items-center justify-center pointer-events-none">
           <span
             className="font-display italic text-[15px] text-white"
             style={{ textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}
@@ -914,14 +914,6 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }:
       {/* Floating day labels — mobile only (hidden on md+), over background image */}
       <div className="pb-2 md:hidden">
         <p className="text-[8px] uppercase tracking-widest text-white/45">DAY {day.day_number}</p>
-        {dayOfWeek && (
-          <p
-            className="font-display italic text-[13px] text-white/85"
-            style={{ textShadow: "0 1px 3px rgba(0,0,0,0.5)" }}
-          >
-            {dayOfWeek}
-          </p>
-        )}
         {shortDate && (
           <p className="text-[8px] text-white/35 tracking-wide">{shortDate}</p>
         )}
