@@ -930,26 +930,46 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }:
       {/* Frosted glass day header — desktop only */}
       <div className="hidden md:block pb-2 flex-shrink-0">
         <div style={{
-          background: "rgba(255,255,255,0.75)",
+          background: "rgba(255,255,255,0.65)",
           backdropFilter: "blur(12px)",
           WebkitBackdropFilter: "blur(12px)",
-          borderRadius: "10px",
-          border: "0.5px solid rgba(255,255,255,0.6)",
-          padding: "7px 10px 6px",
+          borderRadius: "12px",
+          border: "1px solid rgba(255,255,255,0.5)",
+          padding: "8px 12px 7px",
         }}>
+          {/* Tier 1 — DAY NUMBER */}
           <p style={{
-            fontFamily: "'Playfair Display', serif",
-            fontStyle: "italic",
-            fontSize: "14px",
-            fontWeight: 500,
-            color: "#1A1A2E",
-          }}>{dayOfWeek || `Day ${day.day_number}`}</p>
-          <p style={{
-            fontSize: "9px",
-            color: "#888",
-            marginTop: "2px",
-            letterSpacing: "0.03em",
-          }}>Day {day.day_number}{shortDateTitle ? ` · ${shortDateTitle}` : ""}</p>
+            fontFamily: "'DM Sans', system-ui, sans-serif",
+            fontSize: "11px",
+            fontWeight: 600,
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            color: "rgb(26, 26, 46)",
+          }}>Day {day.day_number}</p>
+          {/* Tier 2 — Day name */}
+          {dayOfWeek && (
+            <p style={{
+              fontFamily: "'Playfair Display', Georgia, serif",
+              fontSize: "17px",
+              fontWeight: 400,
+              fontStyle: "italic",
+              color: "rgb(26, 26, 46)",
+              letterSpacing: "-0.01em",
+              lineHeight: 1.3,
+              marginBottom: "1px",
+            }}>{dayOfWeek}</p>
+          )}
+          {/* Tier 3 — Date */}
+          {shortDateTitle && (
+            <p style={{
+              fontFamily: "'DM Sans', system-ui, sans-serif",
+              fontSize: "9px",
+              fontWeight: 400,
+              color: "rgba(26, 26, 46, 0.38)",
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+            }}>{shortDateTitle}</p>
+          )}
         </div>
       </div>
 
