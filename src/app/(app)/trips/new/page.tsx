@@ -2,9 +2,12 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { Camera } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
+import BoardBgPicker, { type BoardBg } from "@/components/plan/BoardBgPicker";
 
-const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+const MAPBOX_TOKEN  = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+const UNSPLASH_KEY  = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY;
 
 interface DestinationPrediction {
   description: string;
@@ -73,8 +76,12 @@ export default function NewTripPage() {
   const sessionToken = useRef(crypto.randomUUID());
   const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Cover image
-  const [coverError, setCoverError] = useState(false);
+  // Cover state
+  const [coverUrl,           setCoverUrl]           = useState<string | null>(null);
+  const [coverColorOverride, setCoverColorOverride] = useState<string | null>(null);
+  const [coverError,         setCoverError]         = useState(false);
+  const [fetchingCover,      setFetchingCover]      = useState(false);
+  const [showBgPicker,       setShowBgPicker]       = useState(false);
 
   // Form fields
   const [tripName,      setTripName]      = useState("");
@@ -139,17 +146,51 @@ export default function NewTripPage() {
           lng:     data.result.geometry.location.lng,
         });
         sessionToken.current = crypto.randomUUID();
+
+        // Auto-fetch Unsplash cover for the destination
+        if (UNSPLASH_KEY) {
+          setFetchingCover(true);
+          fetch(
+            `https://api.unsplash.com/search/photos?query=${encodeURIComponent(p.description + " travel landmark")}&per_page=1&orientation=landscape`,
+            { headers: { Authorization: `Client-ID ${UNSPLASH_KEY}` } },
+          )
+            .then((r) => r.json())
+            .then((d: { results?: { urls?: { regular?: string } }[] }) => {
+              const url = d.results?.[0]?.urls?.regular ?? null;
+              if (url) { setCoverUrl(url); setCoverColorOverride(null); }
+            })
+            .catch(() => { /* ignore */ })
+            .finally(() => setFetchingCover(false));
+        }
       }
     } catch { /* ignore */ } finally {
       setLoadingDetails(false);
     }
   }, []);
 
-  // Cover source — Mapbox satellite once a destination with coords is selected
+  // Cover source — manual/auto photo first, then Mapbox satellite fallback
   const coverSrc =
-    !coverError && MAPBOX_TOKEN && destination
+    coverUrl && !coverError
+      ? coverUrl
+      : (!coverColorOverride && MAPBOX_TOKEN && destination)
       ? `https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/static/${destination.lng},${destination.lat},12,0/800x200@2x?access_token=${MAPBOX_TOKEN}`
       : null;
+
+  const hasCover = !!(coverSrc || coverColorOverride);
+
+  // Handle cover picker selection
+  const handleBgSelect = useCallback((bg: BoardBg) => {
+    if (bg.type === "photo") {
+      setCoverUrl(bg.url);
+      setCoverColorOverride(null);
+      setCoverError(false);
+    } else {
+      setCoverColorOverride(bg.value);
+      setCoverUrl(null);
+      setCoverError(false);
+    }
+    setShowBgPicker(false);
+  }, []);
 
   // Dates display
   const dateRangeDisplay = startDate && endDate
@@ -243,6 +284,8 @@ export default function NewTripPage() {
       end_date:        endDate,
       party_size:      partySize,
       status:          "planning",
+      // Persist manually chosen cover immediately so it's visible on the trip
+      ...(coverUrl ? { cover_image_url: coverUrl } : {}),
     });
 
     if (tripErr) {
@@ -267,14 +310,17 @@ export default function NewTripPage() {
       await supabase.from("days").insert(days);
     }
 
-    fetch("/api/trips/fetch-cover", {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ trip_id: tripId }),
-    }).catch(() => { /* ignore */ });
+    // Only fire the background cover fetch if we don't already have one
+    if (!coverUrl) {
+      fetch("/api/trips/fetch-cover", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ trip_id: tripId }),
+      }).catch(() => { /* ignore */ });
+    }
 
     router.push(`/trips/${tripId}/map`);
-  }, [isValid, saving, destination, tripName, startDate, endDate, partySize, router]);
+  }, [isValid, saving, destination, tripName, startDate, endDate, partySize, coverUrl, router]);
 
   return (
     <div className="flex flex-col min-h-dvh bg-white">
@@ -300,7 +346,11 @@ export default function NewTripPage() {
       <div className="flex-1 overflow-y-auto pb-24">
 
         {/* Cover hero */}
-        <div className="relative w-full h-[100px] overflow-hidden flex-shrink-0">
+        <button
+          onClick={() => setShowBgPicker(true)}
+          className="relative w-full h-[100px] block overflow-hidden flex-shrink-0"
+          aria-label={hasCover ? "Change cover photo" : "Add cover photo"}
+        >
           {coverSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -310,16 +360,39 @@ export default function NewTripPage() {
               onError={() => setCoverError(true)}
             />
           ) : (
-            <div className="absolute inset-0 bg-gradient-to-b from-stone-200 to-stone-100" />
+            <div
+              className={`absolute inset-0 ${coverColorOverride ? "" : "bg-gradient-to-b from-stone-200 to-stone-100"}`}
+              style={coverColorOverride ? { backgroundColor: coverColorOverride } : {}}
+            />
           )}
-        </div>
+
+          {/* Scrim + label — dark scrim when there's a cover, transparent otherwise */}
+          <div
+            className="absolute inset-0 flex flex-col items-center justify-center gap-1"
+            style={{ background: hasCover ? "rgba(0,0,0,0.25)" : "transparent" }}
+          >
+            <Camera size={14} weight="light" color={hasCover ? "white" : "#9CA3AF"} />
+            <span className={`text-[11px] font-medium tracking-wide ${hasCover ? "text-white" : "text-gray-400"}`}>
+              {hasCover ? "Change cover" : "Add cover"}
+            </span>
+          </div>
+
+          {/* Fetching indicator */}
+          {fetchingCover && (
+            <div className="absolute top-2 right-2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" className="animate-spin">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+              </svg>
+            </div>
+          )}
+        </button>
 
         {/* Inline field rows */}
         <div className="mt-2">
 
           {/* Name */}
           <div className="flex items-center px-5 py-[14px] border-b border-black/5">
-            <span className="text-[10px] uppercase tracking-widest text-gray-400 w-20 flex-shrink-0">
+            <span className="text-[10px] uppercase tracking-widest text-[#1A1A2E] w-20 flex-shrink-0">
               Name
             </span>
             <input
@@ -327,13 +400,13 @@ export default function NewTripPage() {
               value={tripName}
               onChange={(e) => { setTripName(e.target.value); setTripNameDirty(true); }}
               placeholder="Journey name"
-              className="flex-1 text-[14px] text-[#1A1A2E] bg-transparent outline-none placeholder:text-gray-300"
+              className="flex-1 text-[14px] text-[#1A1A2E] bg-transparent outline-none placeholder:text-[rgba(26,26,46,0.4)]"
             />
           </div>
 
           {/* Destination */}
           <div className="flex items-center px-5 py-[14px] border-b border-black/5 relative">
-            <span className="text-[10px] uppercase tracking-widest text-gray-400 w-20 flex-shrink-0">
+            <span className="text-[10px] uppercase tracking-widest text-[#1A1A2E] w-20 flex-shrink-0">
               Destination
             </span>
             <input
@@ -343,13 +416,15 @@ export default function NewTripPage() {
                 setDestInput(e.target.value);
                 if (destination && e.target.value !== destination.name) {
                   setDestination(null);
+                  setCoverUrl(null);
+                  setCoverColorOverride(null);
                   setCoverError(false);
                 }
               }}
               onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
               placeholder="City, Country"
               autoComplete="off"
-              className="flex-1 text-[14px] text-[#1A1A2E] bg-transparent outline-none placeholder:text-gray-300"
+              className="flex-1 text-[14px] text-[#1A1A2E] bg-transparent outline-none placeholder:text-[rgba(26,26,46,0.4)]"
             />
             <div className="ml-2 flex-shrink-0 w-4 flex items-center justify-center">
               {loadingDetails && (
@@ -393,10 +468,10 @@ export default function NewTripPage() {
             onClick={openDatePicker}
             className="w-full flex items-center px-5 py-[14px] border-b border-black/5 text-left"
           >
-            <span className="text-[10px] uppercase tracking-widest text-gray-400 w-20 flex-shrink-0">
+            <span className="text-[10px] uppercase tracking-widest text-[#1A1A2E] w-20 flex-shrink-0">
               Dates
             </span>
-            <span className={`flex-1 text-[14px] ${startDate ? "text-[#1A1A2E]" : "text-gray-300"}`}>
+            <span className={`flex-1 text-[14px] ${startDate ? "text-[#1A1A2E]" : "text-[rgba(26,26,46,0.4)]"}`}>
               {dateRangeDisplay}
             </span>
             {nightCount !== null && (
@@ -408,7 +483,7 @@ export default function NewTripPage() {
 
           {/* Travellers */}
           <div className="flex items-center px-5 py-[14px] border-b border-black/5">
-            <span className="text-[10px] uppercase tracking-widest text-gray-400 w-20 flex-shrink-0">
+            <span className="text-[10px] uppercase tracking-widest text-[#1A1A2E] w-20 flex-shrink-0">
               Travellers
             </span>
             <div className="flex items-center gap-3">
@@ -453,6 +528,21 @@ export default function NewTripPage() {
         </div>
 
       </div>
+
+      {/* Cover background picker */}
+      {showBgPicker && (
+        <BoardBgPicker
+          current={
+            coverUrl
+              ? { type: "photo", url: coverUrl, thumb: coverUrl }
+              : coverColorOverride
+              ? { type: "color", value: coverColorOverride }
+              : { type: "color", value: "#F1F2F4" }
+          }
+          onSelect={handleBgSelect}
+          onClose={() => setShowBgPicker(false)}
+        />
+      )}
 
       {/* Date range picker sheet */}
       {showDatePicker && (
