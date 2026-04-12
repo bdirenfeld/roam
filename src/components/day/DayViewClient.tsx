@@ -178,7 +178,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
   return (
     <div className="flex flex-col h-dvh">
       {/* Trip header — back to home + trip title + settings */}
-      <div className="flex items-center bg-white border-b border-gray-100 flex-shrink-0 h-11">
+      <div className="relative flex items-center bg-white border-b border-gray-100 flex-shrink-0 h-11">
         <Link
           href="/"
           className="flex items-center justify-center w-11 h-11 text-gray-500 hover:text-gray-800 transition-colors flex-shrink-0"
@@ -188,6 +188,11 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </Link>
+        <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <span className="font-display italic text-[15px] text-gray-900">
+            {trip.title}
+          </span>
+        </span>
         <span className="flex-1" />
         <Link
           href={`/trips/${trip.id}/settings`}
