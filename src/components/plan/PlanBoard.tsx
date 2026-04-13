@@ -902,33 +902,19 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }:
   const dayOfWeek = day.date
     ? new Date(day.date + "T00:00:00").toLocaleDateString("en-US", { weekday: "long" })
     : null;
-  const shortDate = day.date
-    ? new Date(day.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase()
-    : null;
   const shortDateTitle = day.date
     ? new Date(day.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })
     : null;
 
   return (
     <div className={fullWidth ? "w-full h-full flex flex-col" : "w-[148px] min-w-[148px] flex-shrink-0 md:w-72 flex flex-col"}>
-      {/* Floating day labels — mobile only (hidden on md+), over background image */}
-      <div className="pb-2 md:hidden">
-        <p className="text-[8px] uppercase tracking-widest text-white/45">DAY {day.day_number}</p>
-        {shortDate && (
-          <p className="text-[8px] text-white/35 tracking-wide">{shortDate}</p>
-        )}
-      </div>
-
-      {/* Frosted glass day header — desktop only */}
-      <div className="hidden md:block pb-2 flex-shrink-0">
+      {/* Universal day header — dark translucent pill, works on any background */}
+      <div className="pb-2 flex-shrink-0">
         <div style={{
-          background: "rgba(255,255,255,0.65)",
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
+          background: "rgba(0,0,0,0.07)",
+          border: "1px solid rgba(0,0,0,0.08)",
           borderRadius: "12px",
-          border: "1px solid rgba(255,255,255,0.5)",
           padding: "8px 12px 7px",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)",
         }}>
           {/* Tier 1 — DAY NUMBER */}
           <p style={{
@@ -1027,7 +1013,7 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }:
           ) : (
             <button
               onClick={() => setIsInlineAdding(true)}
-              className="w-full text-left text-[13px] font-medium text-[#1A1A2E] rounded-xl px-3 py-[10px] active:opacity-70 transition-opacity"
+              className="w-full text-left text-[13px] font-medium text-[#1A1A2E] rounded-xl px-3 py-[6px] active:opacity-70 transition-opacity"
               style={{
                 backgroundColor: "rgba(255,255,255,0.88)",
                 border: "1px solid rgba(255,255,255,0.6)",
