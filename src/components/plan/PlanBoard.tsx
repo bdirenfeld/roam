@@ -954,11 +954,14 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }:
       </div>
 
       {/* Card column body */}
-      <div style={{ backgroundColor: 'rgba(255,255,255,0.88)' }} className={`backdrop-blur-md rounded-xl overflow-hidden flex flex-col scrollbar-none [touch-action:pan-y] ${
-        fullWidth
-          ? "flex-1 min-h-0 overflow-y-auto"
-          : "max-h-[calc(100dvh-11rem)] overflow-y-auto md:max-h-none md:overflow-y-visible"
-      }`}>
+      <div
+        style={fullWidth ? { backgroundColor: 'rgba(255,255,255,0.88)' } : { backgroundColor: '#EBECF0' }}
+        className={`rounded-xl overflow-hidden flex flex-col scrollbar-none [touch-action:pan-y] ${
+          fullWidth
+            ? "backdrop-blur-md flex-1 min-h-0 overflow-y-auto"
+            : "max-h-[calc(100dvh-11rem)] overflow-y-auto md:max-h-none md:overflow-y-visible"
+        }`}
+      >
 
         {/* Desktop-only day header — first child inside the white column surface */}
         <div className="hidden md:block flex-shrink-0" style={{ padding: "10px 12px", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
