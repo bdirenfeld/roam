@@ -908,8 +908,8 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }:
 
   return (
     <div className={fullWidth ? "w-full h-full flex flex-col" : "w-[148px] min-w-[148px] flex-shrink-0 md:w-72 flex flex-col"}>
-      {/* Universal day header — dark translucent pill, works on any background */}
-      <div className="pb-2 flex-shrink-0">
+      {/* Mobile-only day header pill — hidden on desktop */}
+      <div className="md:hidden pb-2 flex-shrink-0">
         <div style={{
           background: "rgba(0,0,0,0.07)",
           border: "1px solid rgba(0,0,0,0.08)",
@@ -959,6 +959,44 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }:
           ? "flex-1 min-h-0 overflow-y-auto"
           : "max-h-[calc(100dvh-11rem)] overflow-y-auto md:max-h-none md:overflow-y-visible"
       }`}>
+
+        {/* Desktop-only day header — first child inside the white column surface */}
+        <div className="hidden md:block flex-shrink-0" style={{ padding: "10px 12px", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+          {/* Tier 1 — DAY NUMBER */}
+          <p style={{
+            fontFamily: "'DM Sans', system-ui, sans-serif",
+            fontSize: "11px",
+            fontWeight: 600,
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            color: "rgb(26, 26, 46)",
+            marginBottom: "2px",
+          }}>Day {day.day_number}</p>
+          {/* Tier 2 — Day name */}
+          {dayOfWeek && (
+            <p style={{
+              fontFamily: "'Playfair Display', Georgia, serif",
+              fontSize: "17px",
+              fontWeight: 400,
+              fontStyle: "italic",
+              color: "rgb(26, 26, 46)",
+              letterSpacing: "-0.01em",
+              lineHeight: 1.3,
+              marginBottom: "1px",
+            }}>{dayOfWeek}</p>
+          )}
+          {/* Tier 3 — Date */}
+          {shortDateTitle && (
+            <p style={{
+              fontFamily: "'DM Sans', system-ui, sans-serif",
+              fontSize: "9px",
+              fontWeight: 400,
+              color: "rgba(26, 26, 46, 0.38)",
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+            }}>{shortDateTitle}</p>
+          )}
+        </div>
 
         {/* Cards drop zone + add button — inside the frosted glass column */}
         <div className="p-3 flex flex-col">
