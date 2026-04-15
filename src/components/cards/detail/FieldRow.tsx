@@ -111,7 +111,7 @@ export default function FieldRow({
             onClick={() => canEdit && setEditing(true)}
             className={[
               "text-sm rounded-md transition-colors",
-              multiline ? "leading-relaxed" : "leading-snug",
+              multiline ? "leading-relaxed whitespace-pre-wrap" : "leading-snug",
               isEmpty ? "text-gray-300 italic" : "text-gray-800 font-medium",
               canEdit ? "cursor-pointer hover:bg-gray-50 -mx-1 px-1 py-0.5" : "",
             ].join(" ")}
