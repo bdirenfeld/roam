@@ -164,6 +164,13 @@ function fmt12(t: string | null): string {
   return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, "0")}${h >= 12 ? "pm" : "am"}`;
 }
 
+// Strips seconds so a DB "HH:mm:ss" value works in <input type="time">
+function toInputTime(v: string | null): string {
+  if (!v) return "";
+  const parts = v.split(":");
+  return `${parts[0]}:${parts[1]}`;
+}
+
 function fmtDate(dateStr: string): string {
   const [y, mo, d] = dateStr.split("-").map(Number);
   return new Date(y, mo - 1, d).toLocaleDateString("en-US", {
@@ -182,6 +189,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
   const [days, setDays] = useState<DayWithCards[]>(initialDays);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
+  const [desktopPopup, setDesktopPopup] = useState<{ card: Card; rect: DOMRect } | null>(null);
   const [pendingConf,  setPendingConf]  = useState<{ items: ParsedConfirmation[]; fileName: string; fileType: string } | null>(null);
   const [showDocs,     setShowDocs]     = useState(false);
   const [viewMode] = useState<"board" | "triage">("board");
@@ -408,12 +416,29 @@ export default function PlanBoard({ trip, initialDays }: Props) {
     const snapshot = daysRef.current;
     setDays((prev) => prev.map((d) => ({ ...d, cards: d.cards.filter((c) => c.id !== cardId) })));
     setSelectedCard((prev) => (prev?.id === cardId ? null : prev));
+    setDesktopPopup((prev) => (prev?.card.id === cardId ? null : prev));
     const { error } = await supabase.from("cards").delete().eq("id", cardId);
     if (error) {
       setDays(snapshot);
       setDeleteToast("Couldn't delete — please try again.");
       setTimeout(() => setDeleteToast(null), 3000);
     }
+  }, [supabase]);
+
+  const handlePopupTimeUpdate = useCallback(async (
+    cardId: string,
+    field: "start_time" | "end_time",
+    hhmm: string,
+  ) => {
+    const value = hhmm ? `${hhmm}:00` : null;
+    setDays((prev) => prev.map((d) => ({
+      ...d,
+      cards: d.cards.map((c) => c.id === cardId ? { ...c, [field]: value } : c),
+    })));
+    setDesktopPopup((prev) =>
+      prev?.card.id === cardId ? { ...prev, card: { ...prev.card, [field]: value } } : prev
+    );
+    await supabase.from("cards").update({ [field]: value }).eq("id", cardId);
   }, [supabase]);
 
   // ── Inline card creation (board view) ───────────────────────
@@ -686,6 +711,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
                         dayIndex={idx}
                         isPhotoBg={isPhotoBg}
                         onCardTap={(card) => setSelectedCard(card)}
+                        onCardDesktopTap={(card, rect) => setDesktopPopup({ card, rect })}
                         onDelete={handleDelete}
                         onCreateCard={(title) => handleCreateCard(day.id, title)}
                       />
@@ -833,6 +859,19 @@ export default function PlanBoard({ trip, initialDays }: Props) {
           tripDestination={trip.destination}
         />
       )}
+
+      {/* Desktop-only quick-edit popup */}
+      {desktopPopup && (
+        <div className="hidden md:block">
+          <CardPopup
+            card={desktopPopup.card}
+            rect={desktopPopup.rect}
+            onClose={() => setDesktopPopup(null)}
+            onTimeUpdate={(field, hhmm) => handlePopupTimeUpdate(desktopPopup.card.id, field, hhmm)}
+            onOpenSheet={() => { setDesktopPopup(null); setSelectedCard(desktopPopup.card); }}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -875,11 +914,12 @@ interface DayColumnProps {
   isPhotoBg?: boolean;
   fullWidth?: boolean;
   onCardTap: (card: Card) => void;
+  onCardDesktopTap?: (card: Card, rect: DOMRect) => void;
   onDelete: (cardId: string) => void;
   onCreateCard: (title: string) => Promise<void>;
 }
 
-function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }: DayColumnProps) {
+function DayColumn({ day, cards, fullWidth, onCardTap, onCardDesktopTap, onDelete, onCreateCard }: DayColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `${COL_PREFIX}${day.id}` });
   const [isInlineAdding, setIsInlineAdding] = useState(false);
   const [inlineTitle,    setInlineTitle]    = useState("");
@@ -969,6 +1009,7 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }:
                   key={card.id}
                   card={card}
                   onTap={() => onCardTap(card)}
+                  onDesktopTap={onCardDesktopTap ? (rect) => onCardDesktopTap(card, rect) : undefined}
                   onDelete={() => onDelete(card.id)}
                 />
               ))}
@@ -1094,10 +1135,12 @@ function MainMenu({ tripId, onOpenBgPicker }: { tripId: string; onOpenBgPicker: 
 function SortableCardTile({
   card,
   onTap,
+  onDesktopTap,
   onDelete,
 }: {
   card: Card;
   onTap: () => void;
+  onDesktopTap?: (rect: DOMRect) => void;
   onDelete: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -1115,7 +1158,7 @@ function SortableCardTile({
       {...attributes}
       {...listeners}
     >
-      <CardTile card={card} onTap={onTap} onDelete={onDelete} />
+      <CardTile card={card} onTap={onTap} onDesktopTap={onDesktopTap} onDelete={onDelete} />
     </div>
   );
 }
@@ -1124,11 +1167,13 @@ function SortableCardTile({
 function CardTile({
   card,
   onTap,
+  onDesktopTap,
   onDelete,
   isOverlay,
 }: {
   card: Card;
   onTap?: () => void;
+  onDesktopTap?: (rect: DOMRect) => void;
   onDelete?: () => void;
   isOverlay?: boolean;
 }) {
@@ -1153,7 +1198,16 @@ function CardTile({
     <div
       className={`group relative bg-white rounded-xl border border-gray-100 shadow-card mb-2 select-none overflow-hidden border-l-[3px] ${borderClass} ${isOverlay ? "shadow-[0_8px_24px_0_rgba(0,0,0,0.14)] scale-[1.02]" : ""}`}
     >
-      <button onClick={onTap} className="w-full text-left p-3">
+      <button
+        onClick={(e) => {
+          if (onDesktopTap && typeof window !== "undefined" && window.innerWidth >= 768) {
+            onDesktopTap(e.currentTarget.getBoundingClientRect());
+          } else {
+            onTap?.();
+          }
+        }}
+        className="w-full text-left p-3"
+      >
         <div className="flex items-start gap-2.5">
 
           {/* Thumbnail — 60×60 */}
@@ -1206,5 +1260,124 @@ function CardTile({
         </button>
       )}
     </div>
+  );
+}
+
+// ── TimeChip (desktop card popup) ─────────────────────────────
+function TimeChip({
+  value,
+  placeholder,
+  onSave,
+}: {
+  value: string | null;
+  placeholder: string;
+  onSave: (hhmm: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const displayVal = value ? fmt12(value) : null;
+
+  const handleClick = () => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+      try { inputRef.current.showPicker?.(); } catch { /* ignore */ }
+    }
+  };
+
+  return (
+    <span className="relative inline-flex items-center">
+      <button
+        type="button"
+        onClick={handleClick}
+        className={`text-[13px] px-2 py-0.5 rounded-md transition-colors hover:bg-gray-100 active:bg-gray-200 ${
+          displayVal ? "text-[#1A1A2E] font-medium" : "text-gray-400 italic"
+        }`}
+      >
+        {displayVal ?? placeholder}
+      </button>
+      <input
+        ref={inputRef}
+        type="time"
+        value={toInputTime(value)}
+        onChange={(e) => { if (e.target.value) onSave(e.target.value); }}
+        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+        tabIndex={-1}
+      />
+    </span>
+  );
+}
+
+// ── CardPopup (desktop quick-edit floating panel) ──────────────
+function CardPopup({
+  card,
+  rect,
+  onClose,
+  onTimeUpdate,
+  onOpenSheet,
+}: {
+  card: Card;
+  rect: DOMRect;
+  onClose: () => void;
+  onTimeUpdate: (field: "start_time" | "end_time", hhmm: string) => void;
+  onOpenSheet: () => void;
+}) {
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
+  // Position below the card; flip above if near the bottom of the viewport
+  const POPUP_H = 130;
+  const POPUP_W = 230;
+  const spaceBelow = (typeof window !== "undefined" ? window.innerHeight : 800) - rect.bottom;
+  const top = spaceBelow >= POPUP_H + 10
+    ? rect.bottom + 6
+    : rect.top - POPUP_H - 6;
+  const left = Math.min(
+    rect.left,
+    (typeof window !== "undefined" ? window.innerWidth : 1200) - POPUP_W - 12,
+  );
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div className="fixed inset-0 z-40" onPointerDown={onClose} />
+      {/* Panel */}
+      <div
+        className="fixed z-50 bg-white rounded-xl shadow-xl border border-gray-100 p-3"
+        style={{ top, left, width: POPUP_W }}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        {/* Title */}
+        <p className="text-[13px] font-semibold text-[#1A1A2E] leading-snug line-clamp-2 mb-2">
+          {card.title}
+        </p>
+
+        {/* Editable time row */}
+        <div className="flex items-center gap-0.5 -ml-2 mb-2">
+          <TimeChip
+            value={card.start_time}
+            placeholder="Start time"
+            onSave={(hhmm) => onTimeUpdate("start_time", hhmm)}
+          />
+          {(card.start_time || card.end_time) && (
+            <span className="text-gray-300 text-sm select-none">–</span>
+          )}
+          <TimeChip
+            value={card.end_time}
+            placeholder="+ end time"
+            onSave={(hhmm) => onTimeUpdate("end_time", hhmm)}
+          />
+        </div>
+
+        {/* Open full details */}
+        <button
+          onClick={() => { onClose(); onOpenSheet(); }}
+          className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          Open full details →
+        </button>
+      </div>
+    </>
   );
 }
