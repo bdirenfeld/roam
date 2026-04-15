@@ -42,7 +42,7 @@ export default function BottomNav() {
       label: "Agenda",
       active: pathname.includes("/days/"),
       icon: (active: boolean) => (
-        <CalendarBlank size={22} weight="light" color={active ? "#0D9488" : "#9CA3AF"} />
+        <CalendarBlank size={22} weight="light" color={active ? "#1A1A2E" : "rgba(26, 26, 46, 0.4)"} />
       ),
     },
     {
@@ -51,7 +51,7 @@ export default function BottomNav() {
       label: "Plan",
       active: pathname.includes("/plan") || (pathname.startsWith("/trips") && !pathname.includes("/days/") && !pathname.endsWith("/map") && !pathname.includes("/plan")),
       icon: (active: boolean) => (
-        <ListBullets size={22} weight="light" color={active ? "#0D9488" : "#9CA3AF"} />
+        <ListBullets size={22} weight="light" color={active ? "#1A1A2E" : "rgba(26, 26, 46, 0.4)"} />
       ),
     },
     {
@@ -60,15 +60,13 @@ export default function BottomNav() {
       label: "Map",
       active: pathname.endsWith("/map") || pathname === "/map",
       icon: (active: boolean) => (
-        <MapTrifold size={22} weight="light" color={active ? "#0D9488" : "#9CA3AF"} />
+        <MapTrifold size={22} weight="light" color={active ? "#1A1A2E" : "rgba(26, 26, 46, 0.4)"} />
       ),
     },
   ];
 
-  const isFullWidthPage = pathname?.endsWith("/plan");
-
   return (
-    <nav className={`fixed bottom-0 left-1/2 -translate-x-1/2 w-full ${isFullWidthPage ? "md:max-w-full" : "max-w-mobile"} bg-white/95 backdrop-blur-sm border-t border-gray-100 z-50`}>
+    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-mobile bg-white/95 backdrop-blur-sm border-t border-gray-100 z-50">
       <div className="flex items-center justify-around py-2 pb-safe">
         {tabs.map((tab) => (
           <Link
@@ -77,7 +75,10 @@ export default function BottomNav() {
             className="flex flex-col items-center gap-0.5 py-1.5 px-5"
           >
             {tab.icon(tab.active)}
-            <span className={`text-[10px] font-semibold transition-colors ${tab.active ? "text-activity" : "text-gray-400"}`}>
+            <span
+              className="text-[10px] font-semibold transition-colors"
+              style={{ color: tab.active ? "#1A1A2E" : "rgba(26, 26, 46, 0.4)" }}
+            >
               {tab.label}
             </span>
           </Link>
