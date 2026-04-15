@@ -517,13 +517,13 @@ export default function PlanBoard({ trip, initialDays }: Props) {
 
   return (
     <div className="flex flex-col h-dvh overflow-hidden" style={boardBgStyle}>
-      {/* Nav bar — transparent, floats over background */}
-      <div className="relative flex items-center h-11 px-3 flex-shrink-0">
+      {/* Nav bar — transparent on mobile, frosted white on desktop */}
+      <div className="relative flex items-center h-11 px-3 flex-shrink-0 md:bg-white/90 md:backdrop-blur-md md:border-b md:border-black/[0.06]">
         {/* Left: back buttons */}
         <div className="flex items-center gap-1 z-10">
           <Link
             href="/"
-            className="flex items-center justify-center w-9 h-9 rounded-full transition-colors text-white/70"
+            className="flex items-center justify-center w-9 h-9 rounded-full transition-colors text-white/70 md:text-[#1A1A2E]"
             aria-label="Back to home"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -534,7 +534,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
           {firstDay && (
             <Link
               href={`/trips/${trip.id}/days/${firstDay.id}`}
-              className="flex items-center gap-1 text-xs font-semibold transition-colors text-white/70"
+              className="flex items-center gap-1 text-xs font-semibold transition-colors text-white/70 md:text-[#1A1A2E]"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -548,8 +548,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
         {/* Center: trip title */}
         <span className="absolute inset-0 hidden md:flex items-center justify-center pointer-events-none">
           <span
-            className="font-display italic text-[15px] text-white"
-            style={{ textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}
+            className="font-display italic text-[15px] md:text-[#1A1A2E]"
           >
             {trip.title}
           </span>
@@ -1078,7 +1077,7 @@ function MainMenu({ tripId, onOpenBgPicker }: { tripId: string; onOpenBgPicker: 
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 backdrop-blur-sm border border-white/25 text-white transition-colors"
+        className="w-8 h-8 flex items-center justify-center rounded-full transition-colors bg-white/20 backdrop-blur-sm border border-white/25 text-white md:bg-black/[0.06] md:border-black/[0.08] md:text-[#1A1A2E]"
         aria-label="More options"
       >
         <DotsThree size={18} weight="bold" />
