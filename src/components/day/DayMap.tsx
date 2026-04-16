@@ -95,6 +95,29 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
       map.addControl(new mb.AttributionControl({ compact: true }), "bottom-right");
 
       map.on("load", async () => {
+        // ── Cartographic palette override ──────────────────────────────────
+        try {
+          const styleLayers = map.getStyle().layers as Array<{ id: string; type: string }>;
+          for (const layer of styleLayers) {
+            if (layer.id === "background") {
+              map.setPaintProperty(layer.id, "background-color", "#FAF7F2");
+            } else if (layer.type === "fill" && layer.id === "water") {
+              map.setPaintProperty(layer.id, "fill-color", "#DDE5DB");
+            } else if (layer.type === "fill" && (layer.id === "land" || layer.id.startsWith("land-"))) {
+              map.setPaintProperty(layer.id, "fill-color", "#FAF7F2");
+            } else if (layer.type === "line" && layer.id.startsWith("road")) {
+              const isMajor = /motorway|trunk|primary/.test(layer.id);
+              map.setPaintProperty(
+                layer.id,
+                "line-color",
+                isMajor ? "rgba(196, 98, 45, 0.12)" : "rgba(26, 26, 46, 0.07)",
+              );
+            }
+          }
+        } catch {
+          // best-effort — skip layers that don't support the property
+        }
+
         // Wait for Material Symbols font so icons render on first paint
         try {
           await document.fonts.load('16px "Material Symbols Outlined"');
