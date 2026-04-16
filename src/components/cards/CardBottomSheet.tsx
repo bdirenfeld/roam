@@ -982,6 +982,33 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           <div className="absolute inset-0 overflow-y-auto px-5 py-5">
             {renderDetail()}
 
+            {/* Confirmation toggle — guided activities, all logistics, restaurants */}
+            {((localCard.type === "activity" && localCard.sub_type === "guided") ||
+              localCard.type === "logistics" ||
+              (localCard.type === "food" && localCard.sub_type === "restaurant")) && (
+              <button
+                onClick={() => saveTopLevel("confirmed", !localCard.confirmed)}
+                className="w-full flex items-center justify-between mt-5 pt-4 border-t border-gray-100"
+              >
+                <span className="text-[13px] font-medium text-gray-700">Confirmed</span>
+                <div style={{
+                  width: 40, height: 22, borderRadius: 11,
+                  backgroundColor: localCard.confirmed ? "#1A1A2E" : "#E5E7EB",
+                  transition: "background-color 200ms",
+                  position: "relative", flexShrink: 0,
+                }}>
+                  <div style={{
+                    position: "absolute", top: 2,
+                    left: localCard.confirmed ? 20 : 2,
+                    width: 18, height: 18, borderRadius: "50%",
+                    backgroundColor: "white",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                    transition: "left 200ms",
+                  }} />
+                </div>
+              </button>
+            )}
+
             {/* Add details / collapse toggle — not shown for notes */}
             {localCard.sub_type !== "note" && (
               <button

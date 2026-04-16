@@ -197,6 +197,7 @@ export default function ConfirmationPreviewSheet({
         address:         draft.address.trim() || null,
         details:         details as Card["details"],
         ai_generated:    false,
+        confirmed:       false,
         created_at:      new Date().toISOString(),
       };
 

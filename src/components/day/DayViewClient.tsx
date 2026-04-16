@@ -10,6 +10,7 @@ import CardTimeline from "@/components/day/CardTimeline";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import CreateCardSheet from "@/components/plan/CreateCardSheet";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
+import { createClient } from "@/lib/supabase/client";
 import type { Trip, Day, DayWithCards, Card } from "@/types/database";
 
 interface Props {
@@ -29,6 +30,7 @@ function formatDayTitle(dateStr: string): string {
 
 export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: Props) {
   const router = useRouter();
+  const supabase = createClient();
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   // Keep a local copy of cards so edits made in the sheet reflect in the list
   const [localCards, setLocalCards] = useState<Card[]>(dayWithCards.cards);
@@ -46,6 +48,21 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
     setSelectedCard((prev) => (prev?.id === cardId ? null : prev));
     setIsCardOpen(false);
   }, []);
+
+  const handleToggleConfirmed = useCallback(async (cardId: string) => {
+    const card = localCards.find((c) => c.id === cardId);
+    if (!card) return;
+    const newValue = !card.confirmed;
+    // Optimistic update
+    setLocalCards((prev) => prev.map((c) => c.id === cardId ? { ...c, confirmed: newValue } : c));
+    setSelectedCard((prev) => prev?.id === cardId ? { ...prev, confirmed: newValue } : prev);
+    const { error } = await supabase.from("cards").update({ confirmed: newValue }).eq("id", cardId);
+    if (error) {
+      // Revert on failure
+      setLocalCards((prev) => prev.map((c) => c.id === cardId ? { ...c, confirmed: !newValue } : c));
+      setSelectedCard((prev) => prev?.id === cardId ? { ...prev, confirmed: !newValue } : prev);
+    }
+  }, [localCards, supabase]);
 
   const [isCardOpen, setIsCardOpen] = useState(false);
   const [swipeDir, setSwipeDir] = useState<'left' | 'right' | null>(null);
@@ -254,6 +271,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
             onCardTap={handleCardTap}
             highlightedCardId={highlightedCardId}
             onGapTap={handleGapTap}
+            onToggleConfirmed={handleToggleConfirmed}
           />
         </div>
 

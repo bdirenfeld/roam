@@ -6,6 +6,7 @@ interface Props {
   onCardTap: (card: Card) => void;
   highlightedCardId?: string | null;
   onGapTap?: (gapStartTime: string) => void;
+  onToggleConfirmed?: (cardId: string) => void;
 }
 
 function minutesBetween(end: string | null, start: string | null): number {
@@ -22,7 +23,7 @@ function freeTimeLabel(minutes: number): string {
   return m > 0 ? `Free · ${h}h ${m}m` : `Free · ${h}h`;
 }
 
-export default function CardTimeline({ dayWithCards, onCardTap, highlightedCardId, onGapTap }: Props) {
+export default function CardTimeline({ dayWithCards, onCardTap, highlightedCardId, onGapTap, onToggleConfirmed }: Props) {
   const { cards } = dayWithCards;
 
   return (
@@ -55,6 +56,7 @@ export default function CardTimeline({ dayWithCards, onCardTap, highlightedCardI
                   card={card}
                   onTap={() => onCardTap(card)}
                   isHighlighted={highlightedCardId === card.id}
+                  onToggleConfirmed={onToggleConfirmed ? () => onToggleConfirmed(card.id) : undefined}
                 />
 
                 {gap >= 30 && (

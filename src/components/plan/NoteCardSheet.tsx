@@ -85,6 +85,7 @@ export default function NoteCardSheet({ dayId, tripId, endPosition, onClose, onC
       address:         null,
       details:         notes.trim() ? { notes: notes.trim() } : {},
       ai_generated:    false,
+      confirmed:       false,
       created_at:      now,
     };
 

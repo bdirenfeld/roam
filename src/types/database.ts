@@ -145,6 +145,7 @@ export interface Card {
   address: string | null
   details: CardDetails
   ai_generated: boolean
+  confirmed: boolean
   created_at: string
 }
 

@@ -6,6 +6,16 @@ interface Props {
   card: Card;
   onTap: () => void;
   isHighlighted?: boolean;
+  onToggleConfirmed?: () => void;
+}
+
+/** Cards eligible to show a confirmation dot */
+function isConfirmable(card: Card): boolean {
+  return (
+    (card.type === "activity" && card.sub_type === "guided") ||
+    card.type === "logistics" ||
+    (card.type === "food" && card.sub_type === "restaurant")
+  );
 }
 
 const TYPE_COLOR: Record<CardType, { border: string; icon: string; bg: string }> = {
@@ -64,7 +74,7 @@ function flightRoute(det: Record<string, unknown> | null, timeRange: string | nu
   return typeof det?.airline === "string" ? det.airline : null;
 }
 
-export default function CardSurface({ card, onTap, isHighlighted }: Props) {
+export default function CardSurface({ card, onTap, isHighlighted, onToggleConfirmed }: Props) {
   const colors    = TYPE_COLOR[card.type];
   const subLabel  = card.sub_type ? (SUB_TYPE_SHORT[card.sub_type] ?? null) : null;
   const timeRange = formatTimeRange(card.start_time, card.end_time);
@@ -87,9 +97,33 @@ export default function CardSurface({ card, onTap, isHighlighted }: Props) {
       className={`w-full text-left flex items-center gap-3 p-3 rounded-xl border border-gray-100 border-l-[3px] shadow-card hover:shadow-card-hover transition-all duration-150 active:scale-[0.99] mb-2.5 bg-white ${colors.border}${isHighlighted ? " card-highlight" : ""}`}
     >
       {/* Category icon */}
-      <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${colors.bg} ${colors.icon}`}>
+      <div className={`relative w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${colors.bg} ${colors.icon}`}>
         {/* eslint-disable-next-line react/no-danger */}
         <div dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(card.sub_type, 18) }} />
+        {isConfirmable(card) && card.confirmed && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggleConfirmed?.(); }}
+            aria-label="Confirmed — tap to unconfirm"
+            style={{
+              position: "absolute",
+              bottom: -2,
+              right: -2,
+              width: 12,
+              height: 12,
+              borderRadius: "50%",
+              backgroundColor: "#1A1A2E",
+              border: "1.5px solid #FAF7F2",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 0,
+            }}
+          >
+            <svg width="6" height="6" viewBox="0 0 7 7" fill="none">
+              <polyline points="1,3.5 2.8,5.5 6,1.5" stroke="#FAF7F2" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Title + subtitle */}

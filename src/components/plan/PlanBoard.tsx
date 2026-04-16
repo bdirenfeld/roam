@@ -153,6 +153,7 @@ function makeCards(dayId: string, tripId: string, skeletons: SkeletonDef[]): Car
     address:         null,
     details:         {},
     ai_generated:    false,
+    confirmed:       false,
     created_at:      new Date().toISOString(),
   }));
 }
@@ -427,7 +428,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
       start_time: null, end_time: null, position: endPos,
       status: "in_itinerary", source_url: null, cover_image_url: null,
       lat: null, lng: null, address: null, details: {}, ai_generated: false,
-      created_at: new Date().toISOString(),
+      confirmed: false, created_at: new Date().toISOString(),
     };
     setDays((prev) =>
       prev.map((d) => d.id === dayId ? { ...d, cards: [...d.cards, newCard] } : d)

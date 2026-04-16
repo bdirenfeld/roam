@@ -134,6 +134,7 @@ export default function CreateCardSheet({
       address:         null,
       details:         {},
       ai_generated:    false,
+      confirmed:       false,
       created_at:      new Date().toISOString(),
     };
 

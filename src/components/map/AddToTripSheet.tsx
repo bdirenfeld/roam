@@ -196,6 +196,7 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
       address:         place.address,
       details,
       ai_generated:    false,
+      confirmed:       false,
       created_at:      new Date().toISOString(),
     };
 
