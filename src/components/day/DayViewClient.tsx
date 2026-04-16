@@ -19,6 +19,14 @@ interface Props {
   hotelCards: Card[];
 }
 
+function formatDayTitle(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  const dayName = d.toLocaleDateString("en-GB", { weekday: "long" });
+  const dayNum = d.getDate();
+  const monthName = d.toLocaleDateString("en-GB", { month: "long" });
+  return `${dayName}, ${dayNum} ${monthName}`;
+}
+
 export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: Props) {
   const router = useRouter();
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
@@ -190,7 +198,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
         </Link>
         <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <span className="font-display italic text-[15px] text-gray-900">
-            {trip.title}
+            {formatDayTitle(dayWithCards.date)}
           </span>
         </span>
         <span className="flex-1" />
