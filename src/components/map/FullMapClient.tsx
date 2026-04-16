@@ -368,7 +368,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
 
       const map = new mb.Map({
         container: mapContainerRef.current!,
-        style: "mapbox://styles/mapbox/light-v11",
+        style: "mapbox://styles/mapbox/streets-v12",
         center: [trip.destination_lng ?? 12.4964, trip.destination_lat ?? 41.9028],
         zoom: 13,
         attributionControl: false,
@@ -387,29 +387,6 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
 
       map.once("load", async () => {
         if (mapInstRef.current !== map) return;
-
-        // ── Cartographic palette override ──────────────────────────────────
-        try {
-          const styleLayers = map.getStyle().layers as Array<{ id: string; type: string }>;
-          for (const layer of styleLayers) {
-            if (layer.id === "background") {
-              map.setPaintProperty(layer.id, "background-color", "#FAF7F2");
-            } else if (layer.type === "fill" && layer.id === "water") {
-              map.setPaintProperty(layer.id, "fill-color", "#DDE5DB");
-            } else if (layer.type === "fill" && (layer.id === "land" || layer.id.startsWith("land-"))) {
-              map.setPaintProperty(layer.id, "fill-color", "#FAF7F2");
-            } else if (layer.type === "line" && layer.id.startsWith("road")) {
-              const isMajor = /motorway|trunk|primary/.test(layer.id);
-              map.setPaintProperty(
-                layer.id,
-                "line-color",
-                isMajor ? "rgba(196, 98, 45, 0.12)" : "rgba(26, 26, 46, 0.07)",
-              );
-            }
-          }
-        } catch {
-          // best-effort — skip layers that don't support the property
-        }
 
         // Only auto-trigger geolocation (and its fly-to) if the user is within
         // 50 km of the trip destination — otherwise the map stays centred on the
