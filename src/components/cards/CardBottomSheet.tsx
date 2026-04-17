@@ -678,8 +678,28 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                     ? ((localCard.details as Record<string, unknown>).menu_url as string) || null
                     : null;
 
+  const priceLevel = typeof (localCard.details as Record<string, unknown>)?.price_level === "number"
+    ? (localCard.details as Record<string, unknown>).price_level as number
+    : null;
+
   const duration = durationLabel(localCard.start_time, localCard.end_time);
   const badge = bookingBadge(localCard.details);
+
+  // Meta line parts: ★ rating · €€ · 8:00 – 10:30 PM · 2h 30m
+  const metaParts: { text: string; amber?: boolean }[] = [];
+  if (rating !== null && localCard.sub_type !== "flight_arrival" && localCard.sub_type !== "flight_departure") {
+    metaParts.push({ text: `★ ${rating.toFixed(1)}`, amber: true });
+  }
+  if (localCard.type === "food" && priceLevel != null) {
+    const euroSigns = (["Free", "€", "€€", "€€€", "€€€€"] as const)[priceLevel] ?? null;
+    if (euroSigns) metaParts.push({ text: euroSigns });
+  }
+  if (localCard.start_time) {
+    let timeStr = formatTime(localCard.start_time);
+    if (localCard.end_time) timeStr += ` – ${formatTime(localCard.end_time)}`;
+    metaParts.push({ text: timeStr });
+  }
+  if (duration) metaParts.push({ text: duration });
 
   // ── Route to sub-type component ───────────────────────────
   const key = `${localCard.type}/${localCard.sub_type ?? ""}`;
@@ -933,84 +953,84 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             )}
           </div>
 
-          {/* Address line */}
-          {addressLine && (
-            <p className="text-xs text-gray-400 leading-snug mt-1">{addressLine}</p>
+          {/* Meta line: ★ rating · €€ · 8:00 – 10:30 PM · 2h 30m */}
+          {metaParts.length > 0 && (
+            <div className="flex items-center flex-wrap mt-1.5">
+              {metaParts.flatMap((part, i) => [
+                ...(i > 0 ? [<span key={`d${i}`} style={{ color: "#D4CFC8", fontSize: 11 }}>&nbsp;·&nbsp;</span>] : []),
+                <span key={`p${i}`} style={{ fontSize: 11, color: part.amber ? "#B45309" : "#9CA3AF", fontWeight: part.amber ? 600 : 400 }}>
+                  {part.text}
+                </span>,
+              ])}
+            </div>
           )}
 
-          {/* Action row: [★ rating ·] [📍 Maps] [🌐] [📞 Call] [Menu (food only)] */}
-          {(rating !== null || localCard.lat != null || localCard.lng != null || (localCard.details as Record<string, unknown>)?.place_id != null || website || phone || localCard.type === "food") && (
-            <div className="flex items-center gap-2 mt-2">
-              {rating !== null && localCard.sub_type !== "flight_arrival" && localCard.sub_type !== "flight_departure" && (
-                <>
-                  <span className="text-xs font-semibold text-amber-500">★ {rating.toFixed(1)}</span>
-                  <span className="text-gray-200 text-xs">·</span>
-                </>
-              )}
+          {/* Address */}
+          {addressLine && (
+            <p className="mt-0.5 truncate" style={{ fontSize: 11, color: "#C4CAD0" }}>{addressLine}</p>
+          )}
+
+          {/* Icon strip: Maps · Website · Call · Menu */}
+          {(localCard.lat != null && localCard.lng != null || (localCard.details as Record<string, unknown>)?.place_id != null || website || phone || localCard.type === "food") && (
+            <div className="flex mt-3" style={{ justifyContent: "space-around" }}>
               {(localCard.lat != null && localCard.lng != null || (localCard.details as Record<string, unknown>)?.place_id != null) && (
-                <button
-                  onClick={() => setNavSheetOpen(true)}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-50 border border-gray-100 text-[11px] font-semibold text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
-                >
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-                    <circle cx="12" cy="9" r="2.5" />
-                  </svg>
-                  Maps
+                <button onClick={() => setNavSheetOpen(true)} className="flex flex-col items-center gap-1">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "#F0EDE8" }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+                      <circle cx="12" cy="9" r="2.5" />
+                    </svg>
+                  </div>
+                  <span style={{ fontSize: 10, color: "#9CA3AF" }}>Maps</span>
                 </button>
               )}
               {website && (
-                <a
-                  href={website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Website"
-                  className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-gray-50 border border-gray-100 text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="2" y1="12" x2="22" y2="12" />
-                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                  </svg>
+                <a href={website} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "#F0EDE8" }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="2" y1="12" x2="22" y2="12" />
+                      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                    </svg>
+                  </div>
+                  <span style={{ fontSize: 10, color: "#9CA3AF" }}>Website</span>
                 </a>
               )}
               {phone && (
-                <a
-                  href={phone.href}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-50 border border-gray-100 text-[11px] font-semibold text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
-                >
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.77a16 16 0 0 0 6.29 6.29l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
-                  </svg>
-                  Call
+                <a href={phone.href} className="flex flex-col items-center gap-1">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "#F0EDE8" }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.77a16 16 0 0 0 6.29 6.29l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+                    </svg>
+                  </div>
+                  <span style={{ fontSize: 10, color: "#9CA3AF" }}>Call</span>
                 </a>
               )}
               {localCard.type === "food" && (
                 menuUrl ? (
-                  <a
-                    href={menuUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-50 border border-gray-100 text-[11px] font-semibold text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
-                  >
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="3" y1="6" x2="21" y2="6" />
-                      <line x1="3" y1="12" x2="21" y2="12" />
-                      <line x1="3" y1="18" x2="15" y2="18" />
-                    </svg>
-                    Menu
+                  <a href={menuUrl} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "#F0EDE8" }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="3" y1="6" x2="21" y2="6" />
+                        <line x1="3" y1="12" x2="21" y2="12" />
+                        <line x1="3" y1="18" x2="15" y2="18" />
+                      </svg>
+                    </div>
+                    <span style={{ fontSize: 10, color: "#9CA3AF" }}>Menu</span>
                   </a>
                 ) : (
                   <button
                     onClick={() => { setShowMenuInput((v) => !v); setMenuInputValue(""); }}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-50 border border-gray-100 text-[11px] font-semibold text-gray-400 hover:bg-gray-100 hover:text-gray-500 transition-colors"
+                    className="flex flex-col items-center gap-1"
                   >
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="3" y1="6" x2="21" y2="6" />
-                      <line x1="3" y1="12" x2="21" y2="12" />
-                      <line x1="3" y1="18" x2="15" y2="18" />
-                    </svg>
-                    Menu
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "#F0EDE8", opacity: 0.4 }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="3" y1="6" x2="21" y2="6" />
+                        <line x1="3" y1="12" x2="21" y2="12" />
+                        <line x1="3" y1="18" x2="15" y2="18" />
+                      </svg>
+                    </div>
+                    <span style={{ fontSize: 10, color: "#D1D5DB" }}>Menu</span>
                   </button>
                 )
               )}
