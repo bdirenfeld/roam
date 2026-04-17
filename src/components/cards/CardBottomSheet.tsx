@@ -991,8 +991,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                     href={menuUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors"
-                    style={{ backgroundColor: "#FEF3EA", border: "1px solid #C4622D", color: "#C4622D" }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-50 border border-gray-100 text-[11px] font-semibold text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
                   >
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <line x1="3" y1="6" x2="21" y2="6" />
