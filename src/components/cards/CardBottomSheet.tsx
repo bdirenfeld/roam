@@ -896,7 +896,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           </div>
 
           {/* Editable time row */}
-          <div className="flex items-center gap-1 mt-1 flex-wrap">
+          <div className="flex items-center gap-1 mt-1 flex-wrap -ml-2">
             {/* Start time — always shown */}
             <TimeChip
               value={localCard.start_time}
