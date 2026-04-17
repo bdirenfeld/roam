@@ -422,6 +422,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const [showSubTypePicker, setShowSubTypePicker] = useState(false);
   const [linkMergeMessage,  setLinkMergeMessage]  = useState<string | null>(null);
   const [navSheetOpen,      setNavSheetOpen]      = useState(false);
+  const [showMenuInput,     setShowMenuInput]     = useState(false);
+  const [menuInputValue,    setMenuInputValue]    = useState("");
 
   // ── Keyboard escape ────────────────────────────────────────
   useEffect(() => {
@@ -515,6 +517,14 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     },
     [localCard, onCardUpdate, saveTopLevel, supabase]
   );
+
+  const saveMenuUrl = useCallback(async () => {
+    const url = menuInputValue.trim();
+    if (!url) return;
+    await saveDetails("menu_url", url);
+    setShowMenuInput(false);
+    setMenuInputValue("");
+  }, [menuInputValue, saveDetails]);
 
   // ── Link place from map — inherit pin data, preserve user fields ─
   const handleLinkPlace = useCallback(async (place: Card) => {
@@ -663,6 +673,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     : null;
   const website = typeof (localCard.details as Record<string, unknown>)?.website === "string"
                     ? ((localCard.details as Record<string, unknown>).website as string)
+                    : null;
+  const menuUrl = typeof (localCard.details as Record<string, unknown>)?.menu_url === "string"
+                    ? ((localCard.details as Record<string, unknown>).menu_url as string) || null
                     : null;
 
   const duration = durationLabel(localCard.start_time, localCard.end_time);
@@ -925,8 +938,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             <p className="text-xs text-gray-400 leading-snug mt-1">{addressLine}</p>
           )}
 
-          {/* Action row: [★ rating ·] [📍 Maps] [🌐] [📞 Call] */}
-          {(rating !== null || localCard.lat != null || localCard.lng != null || (localCard.details as Record<string, unknown>)?.place_id != null || website || phone) && (
+          {/* Action row: [★ rating ·] [📍 Maps] [🌐] [📞 Call] [Menu (food only)] */}
+          {(rating !== null || localCard.lat != null || localCard.lng != null || (localCard.details as Record<string, unknown>)?.place_id != null || website || phone || localCard.type === "food") && (
             <div className="flex items-center gap-2 mt-2">
               {rating !== null && localCard.sub_type !== "flight_arrival" && localCard.sub_type !== "flight_departure" && (
                 <>
@@ -972,6 +985,64 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   Call
                 </a>
               )}
+              {localCard.type === "food" && (
+                menuUrl ? (
+                  <a
+                    href={menuUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors"
+                    style={{ backgroundColor: "#FEF3EA", border: "1px solid #C4622D", color: "#C4622D" }}
+                  >
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="3" y1="6" x2="21" y2="6" />
+                      <line x1="3" y1="12" x2="21" y2="12" />
+                      <line x1="3" y1="18" x2="15" y2="18" />
+                    </svg>
+                    Menu
+                  </a>
+                ) : (
+                  <button
+                    onClick={() => { setShowMenuInput((v) => !v); setMenuInputValue(""); }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-50 border border-gray-100 text-[11px] font-semibold text-gray-400 hover:bg-gray-100 hover:text-gray-500 transition-colors"
+                  >
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="3" y1="6" x2="21" y2="6" />
+                      <line x1="3" y1="12" x2="21" y2="12" />
+                      <line x1="3" y1="18" x2="15" y2="18" />
+                    </svg>
+                    Menu
+                  </button>
+                )
+              )}
+            </div>
+          )}
+          {localCard.type === "food" && showMenuInput && (
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                type="url"
+                value={menuInputValue}
+                onChange={(e) => setMenuInputValue(e.target.value)}
+                placeholder="Paste menu URL…"
+                autoFocus
+                className="flex-1 px-3 py-1.5 text-[12px] border border-gray-200 rounded-lg outline-none focus:border-gray-400"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") saveMenuUrl();
+                  if (e.key === "Escape") { setShowMenuInput(false); setMenuInputValue(""); }
+                }}
+              />
+              <button
+                onClick={saveMenuUrl}
+                className="px-3 py-1.5 text-[11px] font-semibold rounded-lg bg-[#1A1A2E] text-white hover:opacity-90 transition-opacity"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => { setShowMenuInput(false); setMenuInputValue(""); }}
+                className="px-3 py-1.5 text-[11px] font-semibold rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
             </div>
           )}
         </div>
