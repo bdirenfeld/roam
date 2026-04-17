@@ -682,18 +682,12 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     ? (localCard.details as Record<string, unknown>).price_level as number
     : null;
 
+  const badgePriceLabel = localCard.type === "food" && priceLevel != null
+    ? (["Free", "€", "€€", "€€€", "€€€€"] as const)[priceLevel] ?? null
+    : null;
+
   const duration = durationLabel(localCard.start_time, localCard.end_time);
   const badge = bookingBadge(localCard.details);
-
-  // Meta line: ★ rating · €€
-  const metaParts: { text: string; amber?: boolean }[] = [];
-  if (rating !== null && localCard.sub_type !== "flight_arrival" && localCard.sub_type !== "flight_departure") {
-    metaParts.push({ text: `★ ${rating.toFixed(1)}`, amber: true });
-  }
-  if (localCard.type === "food" && priceLevel != null) {
-    const euroSigns = (["Free", "€", "€€", "€€€", "€€€€"] as const)[priceLevel] ?? null;
-    if (euroSigns) metaParts.push({ text: euroSigns });
-  }
 
   // ── Route to sub-type component ───────────────────────────
   const key = `${localCard.type}/${localCard.sub_type ?? ""}`;
@@ -824,6 +818,25 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               )}
             </div>
             <div className="flex items-center gap-1.5 flex-shrink-0">
+              {/* Rating + price — badge row, right of type badge */}
+              {(rating !== null && localCard.sub_type !== "flight_arrival" && localCard.sub_type !== "flight_departure" || badgePriceLabel) && (
+                <div className="flex items-center mr-0.5" style={{ gap: 3 }}>
+                  {rating !== null && localCard.sub_type !== "flight_arrival" && localCard.sub_type !== "flight_departure" && (
+                    <>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="#B45309" stroke="none">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                      </svg>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: "#B45309" }}>{rating.toFixed(1)}</span>
+                    </>
+                  )}
+                  {rating !== null && localCard.sub_type !== "flight_arrival" && localCard.sub_type !== "flight_departure" && badgePriceLabel && (
+                    <span style={{ color: "#D4CFC8", fontSize: 11 }}>·</span>
+                  )}
+                  {badgePriceLabel && (
+                    <span style={{ fontSize: 11, color: "#9CA3AF" }}>{badgePriceLabel}</span>
+                  )}
+                </div>
+              )}
               {/* Paperclip — attachments (logistics and activity cards only) */}
               {(localCard.type === "logistics" || localCard.type === "activity") && (
                 <button
@@ -946,18 +959,6 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               </>
             )}
           </div>
-
-          {/* Meta line: ★ rating · €€ · 8:00 – 10:30 PM · 2h 30m */}
-          {metaParts.length > 0 && (
-            <div className="flex items-center flex-wrap mt-1.5">
-              {metaParts.flatMap((part, i) => [
-                ...(i > 0 ? [<span key={`d${i}`} style={{ color: "#D4CFC8", fontSize: 11 }}>&nbsp;·&nbsp;</span>] : []),
-                <span key={`p${i}`} style={{ fontSize: 11, color: part.amber ? "#B45309" : "#9CA3AF", fontWeight: part.amber ? 600 : 400 }}>
-                  {part.text}
-                </span>,
-              ])}
-            </div>
-          )}
 
           {/* Address */}
           {addressLine && (
