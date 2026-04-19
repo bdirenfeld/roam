@@ -48,3 +48,15 @@ The benchmark: someone opens Roam in a Centurion Lounge and the person next to t
 - Always run `npm run build` before pushing
 - Always push directly to main — never create feature branches
 - Always end by running `git log origin/main -1` and `git log origin/HEAD -1` — both must show the same commit
+
+## Supplemental data pattern (weather, etc.)
+- Fetched once per trip using a **module-level `Map` keyed by `tripId`** in the client component — survives `router.push()` navigations without a Context provider or Zustand
+- Fails silently: `console.error` once, no retry, no error UI — the feature degrades gracefully
+- Loading state: reserve layout space (empty placeholder div at fixed height) so data arrival causes zero layout shift
+- Weather provider: **Open-Meteo** — no API key, 16-day forecast horizon, always include `timezone=auto`
+- Endpoint: `https://api.open-meteo.com/v1/forecast` with `daily` + `hourly` params; parse into a `Record<string, DayWeather>` keyed by `"YYYY-MM-DD"`
+
+## Color token conventions
+- Neutral muted text: **`text-activity/50`** (warm Ink at 50% opacity, `rgba(26,26,46,0.5)`) — warmer than `text-gray-500` on parchment. A named semantic alias (`text-ink-muted`) is a future cleanup.
+- Condition/weather icons: inline hex is intentional — these are semantic accents (`#D18A2E` amber, `#3A7CA5` rain blue, `#8B8680` grey) not neutral tokens
+- Icons within SVG-heavy UI (weather): use inline Lucide SVG paths at 13×13, `strokeWidth=2`, rather than icon components, to avoid wrapper divs in tight layouts
