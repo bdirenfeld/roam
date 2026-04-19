@@ -381,6 +381,13 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
   const prevDay = currentIndex > 0 ? days[currentIndex - 1] : null;
   const nextDay = currentIndex < days.length - 1 ? days[currentIndex + 1] : null;
 
+  // Warm adjacent day routes so tab-switches skip the skeleton flash
+  useEffect(() => {
+    if (prevDay) router.prefetch(`/trips/${trip.id}/days/${prevDay.id}`);
+    if (nextDay) router.prefetch(`/trips/${trip.id}/days/${nextDay.id}`);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dayWithCards.id]);
+
   const handleDaySelect = useCallback(
     (day: Day) => {
       if (navTimeoutRef.current) clearTimeout(navTimeoutRef.current);
