@@ -330,7 +330,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
 
   const [isCardOpen, setIsCardOpen] = useState(false);
   const [swipeDir, setSwipeDir] = useState<"left" | "right" | null>(null);
-  const [gapStartTime, setGapStartTime] = useState<string | null>(null);
+  const [gapTimes, setGapTimes] = useState<{ start: string; end: string } | null>(null);
 
   // ── Weather ────────────────────────────────────────────────────────────
   const [weatherByDate, setWeatherByDate] = useState<Record<string, DayWeather> | null>(null);
@@ -461,8 +461,8 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
     setIsCardOpen(true);
   }, []);
 
-  const handleGapTap = useCallback((startTime: string) => {
-    setGapStartTime(startTime);
+  const handleGapTap = useCallback((startTime: string, endTime: string) => {
+    setGapTimes({ start: startTime, end: endTime });
   }, []);
 
   const handleCardCreated = useCallback((card: Card) => {
@@ -474,7 +474,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
         return a.start_time.localeCompare(b.start_time);
       })
     );
-    setGapStartTime(null);
+    setGapTimes(null);
   }, []);
 
   const dayWeather = weatherByDate?.[dayWithCards.date] ?? null;
@@ -572,14 +572,14 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
         />
       )}
 
-      {/* Create card sheet */}
-      {gapStartTime !== null && (
+      {/* Create card sheet — gapTimes.end available for future use by CreateCardSheet */}
+      {gapTimes !== null && (
         <CreateCardSheet
           dayId={dayWithCards.id}
           tripId={trip.id}
           endPosition={localCards.reduce((m, c) => Math.max(m, c.position), 0) + 1}
-          initialStartTime={gapStartTime}
-          onClose={() => setGapStartTime(null)}
+          initialStartTime={gapTimes.start}
+          onClose={() => setGapTimes(null)}
           onCardCreated={handleCardCreated}
         />
       )}
