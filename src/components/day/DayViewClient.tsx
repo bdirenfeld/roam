@@ -23,6 +23,7 @@ interface DayWeather {
   snow: boolean;
   hourly_precip: number[];
   hourly_temp: number[];
+  hourly_condition_codes: number[];
 }
 
 type WeatherCategory = "sunny" | "partly-cloudy" | "cloudy" | "rain" | "snow" | "fog";
@@ -41,7 +42,7 @@ async function fetchWeatherForTrip(
     latitude: String(lat),
     longitude: String(lng),
     daily: "temperature_2m_max,temperature_2m_min,weathercode,precipitation_probability_max,wind_speed_10m_max,snowfall_sum",
-    hourly: "precipitation_probability,temperature_2m",
+    hourly: "precipitation_probability,temperature_2m,weathercode",
     start_date: startDate,
     end_date: endDate,
     timezone: "auto",
@@ -64,6 +65,7 @@ async function fetchWeatherForTrip(
     hourly: {
       precipitation_probability: number[];
       temperature_2m: number[];
+      weathercode: number[];
     };
   };
 
@@ -80,6 +82,7 @@ async function fetchWeatherForTrip(
       snow: (daily.snowfall_sum[i] ?? 0) > 0,
       hourly_precip: hourly.precipitation_probability.slice(s, s + 24),
       hourly_temp: hourly.temperature_2m.slice(s, s + 24),
+      hourly_condition_codes: hourly.weathercode.slice(s, s + 24),
     };
   }
   return result;
@@ -110,11 +113,11 @@ const ICON_COLOR: Record<WeatherCategory, string> = {
   "fog": "#8B8680",
 };
 
-function WeatherIcon({ category }: { category: WeatherCategory }) {
+function WeatherIcon({ category, size = 13 }: { category: WeatherCategory; size?: number }) {
   const stroke = ICON_COLOR[category];
   const base = {
-    width: 13,
-    height: 13,
+    width: size,
+    height: size,
     viewBox: "0 0 24 24",
     fill: "none" as const,
     stroke,
@@ -241,13 +244,100 @@ function getConditionText(w: DayWeather): string | null {
   return null;
 }
 
+// ── Weather expansion (hourly + 7-day) ────────────────────────────────────
+const HOURLY_INDICES = [8, 10, 12, 14, 16, 18, 20, 22];
+const HOURLY_LABELS = ["8a", "10a", "12p", "2p", "4p", "6p", "8p", "10p"];
+
+function WeatherExpansion({
+  id,
+  expanded,
+  weather,
+  weatherByDate,
+  days,
+  activeDayId,
+  onDaySelect,
+}: {
+  id: string;
+  expanded: boolean;
+  weather: DayWeather | null;
+  weatherByDate: Record<string, DayWeather> | null;
+  days: Day[];
+  activeDayId: string;
+  onDaySelect: (day: Day) => void;
+}) {
+  return (
+    <div
+      id={id}
+      className="overflow-hidden transition-[max-height] duration-300 ease-out bg-white"
+      style={{ maxHeight: expanded ? "280px" : "0px" }}
+    >
+      {weather && (
+        <div className="mx-4 my-[14px] rounded-[10px] p-[14px]" style={{ background: "rgba(26,26,46,0.025)" }}>
+          <div className="text-[9px] font-medium uppercase tracking-[0.18em] text-activity/50 mb-3">Hourly</div>
+          <div className="flex overflow-x-auto scrollbar-none">
+            {HOURLY_INDICES.map((h, i) => {
+              const temp = weather.hourly_temp[h];
+              const precip = weather.hourly_precip[h] ?? 0;
+              const code = weather.hourly_condition_codes[h] ?? weather.condition_code;
+              return (
+                <div key={h} className="min-w-[46px] flex flex-col items-center">
+                  <div className="text-[9px] text-activity/50 lowercase">{HOURLY_LABELS[i]}</div>
+                  <div className="mt-[6px]"><WeatherIcon category={getWeatherCategory(code)} size={14} /></div>
+                  <div className="font-display italic text-[13px] text-activity mt-[4px]">{Math.round(temp)}°</div>
+                  <div className="text-[9px] mt-[2px]" style={{ color: precip >= 20 ? "#C4622D" : "rgba(26,26,46,0.35)" }}>
+                    {precip >= 20 ? `${precip}%` : "—"}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-[14px] mb-3" style={{ borderTop: "0.5px solid rgba(26,26,46,0.10)" }} />
+          <div className="text-[9px] font-medium uppercase tracking-[0.18em] text-activity/50 mb-3">7-day outlook</div>
+          <div className="flex overflow-x-auto scrollbar-none">
+            {days.map((d) => {
+              const w = weatherByDate?.[d.date];
+              const isActive = d.id === activeDayId;
+              const dt = new Date(d.date + "T00:00:00");
+              const dow = dt.toLocaleDateString("en-GB", { weekday: "short" });
+              return (
+                <button
+                  key={d.id}
+                  onClick={() => onDaySelect(d)}
+                  className="min-w-[44px] flex flex-col items-center py-1 rounded-md transition-colors"
+                  style={{
+                    background: isActive ? "rgba(196,98,45,0.10)" : undefined,
+                    opacity: isActive ? 1 : 0.45,
+                  }}
+                >
+                  <div className="text-[8px] uppercase tracking-[0.1em]" style={{ color: isActive ? "#C4622D" : "#1A1A2E" }}>{dow}</div>
+                  <div className="font-display italic text-[12px] mt-[2px]" style={{ color: isActive ? "#C4622D" : "#1A1A2E" }}>{dt.getDate()}</div>
+                  {w && (
+                    <>
+                      <div className="mt-[4px]"><WeatherIcon category={getWeatherCategory(w.condition_code)} size={11} /></div>
+                      <div className="text-[9px] mt-[2px] text-activity">{w.high_c}°/{w.low_c}°</div>
+                    </>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Weather subtitle row ──────────────────────────────────────────────────
 function WeatherSubtitle({
   weather,
-  onTap,
+  expanded,
+  onToggle,
+  controlsId,
 }: {
   weather: DayWeather | null;
-  onTap: () => void;
+  expanded: boolean;
+  onToggle: () => void;
+  controlsId: string;
 }) {
   if (!weather) {
     // Reserve height so the header never resizes on data arrival
@@ -259,9 +349,15 @@ function WeatherSubtitle({
 
   return (
     <button
-      onClick={onTap}
-      className="pointer-events-auto flex items-center gap-1 h-[13px]"
-      aria-label="View weather details"
+      onClick={onToggle}
+      aria-expanded={expanded}
+      aria-controls={controlsId}
+      aria-label="Toggle weather forecast"
+      className="pointer-events-auto flex items-center gap-1 rounded-[4px] transition-colors"
+      style={{
+        padding: "2px 6px",
+        background: expanded ? "rgba(196,98,45,0.08)" : "transparent",
+      }}
     >
       <WeatherIcon category={category} />
       <span className="text-[11px] font-medium leading-none text-activity/50 tabular-nums">
@@ -275,6 +371,13 @@ function WeatherSubtitle({
           </span>
         </>
       )}
+      <span
+        aria-hidden
+        className="text-[8px] text-activity/40 ml-px transition-transform duration-200"
+        style={{ transform: expanded ? "rotate(180deg)" : "none" }}
+      >
+        ▾
+      </span>
     </button>
   );
 }
@@ -334,7 +437,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
 
   // ── Weather ────────────────────────────────────────────────────────────
   const [weatherByDate, setWeatherByDate] = useState<Record<string, DayWeather> | null>(null);
-  const [weatherModalOpen, setWeatherModalOpen] = useState(false);
+  const [weatherExpanded, setWeatherExpanded] = useState(false);
 
   useEffect(() => {
     if (!trip.destination_lat || !trip.destination_lng) return;
@@ -366,6 +469,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
 
   useEffect(() => {
     const t = setTimeout(() => setContentVisible(true), 16);
+    setWeatherExpanded(false);
     return () => clearTimeout(t);
   }, [dayWithCards.id]);
 
@@ -507,7 +611,9 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
           </span>
           <WeatherSubtitle
             weather={dayWeather}
-            onTap={() => setWeatherModalOpen(true)}
+            expanded={weatherExpanded}
+            onToggle={() => setWeatherExpanded((v) => !v)}
+            controlsId="weather-expansion"
           />
         </div>
 
@@ -526,6 +632,16 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
         days={days}
         activeDayId={dayWithCards.id}
         tripId={trip.id}
+        onDaySelect={handleDaySelect}
+      />
+
+      <WeatherExpansion
+        id="weather-expansion"
+        expanded={weatherExpanded}
+        weather={dayWeather}
+        weatherByDate={weatherByDate}
+        days={days}
+        activeDayId={dayWithCards.id}
         onDaySelect={handleDaySelect}
       />
 
@@ -591,25 +707,6 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
         />
       )}
 
-      {/* Weather detail modal (placeholder) */}
-      {weatherModalOpen && (
-        <div
-          className="fixed inset-0 z-60 flex items-end justify-center"
-          onClick={() => setWeatherModalOpen(false)}
-        >
-          <div className="absolute inset-0 bg-black/40" />
-          <div
-            className="relative bg-white rounded-t-2xl w-full max-w-[390px] px-6 pt-4 pb-10"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="w-9 h-[3px] rounded-full bg-gray-200 mx-auto mb-5" />
-            <h2 className="font-display italic text-[18px] text-gray-900 mb-2">
-              {formatDayTitle(dayWithCards.date)}
-            </h2>
-            <p className="text-[14px] text-gray-500">Detailed forecast coming soon.</p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
