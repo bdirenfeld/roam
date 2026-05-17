@@ -22,7 +22,12 @@ export default async function TripMapPage({ params }: Props) {
     supabase.from("days").select("*").eq("trip_id", tripId).order("day_number"),
     supabase
       .from("cards")
-      .select("*")
+      .select(`
+        *,
+        place:places (
+          id, title, type, sub_type, lat, lng, address, cover_image_url, rating, price_level
+        )
+      `)
       .eq("trip_id", tripId)
       .neq("status", "cut")
       .order("day_id")

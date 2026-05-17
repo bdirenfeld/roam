@@ -127,6 +127,19 @@ export interface FoodDetails {
 
 export type CardDetails = LogisticsDetails & ActivityDetails & FoodDetails & Record<string, unknown>
 
+export interface Place {
+  id: string
+  title: string
+  type: CardType
+  sub_type: string | null
+  lat: number | null
+  lng: number | null
+  address: string | null
+  cover_image_url: string | null
+  rating: number | null
+  price_level: number | null
+}
+
 export interface Card {
   id: string
   day_id: string
@@ -147,6 +160,8 @@ export interface Card {
   ai_generated: boolean
   confirmed: boolean
   created_at: string
+  place_id?: string | null
+  place?: Place | null
 }
 
 // View models — days with their cards

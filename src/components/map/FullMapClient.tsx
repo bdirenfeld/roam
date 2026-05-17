@@ -47,9 +47,14 @@ function isSkeletonCard(card: Card): boolean {
   return SKELETON_PREFIXES.some((s) => lower.startsWith(s));
 }
 
-/** Returns true for any card that has real coordinates and isn't a skeleton placeholder. */
+/** Returns true for any card that has a linked place with coords and isn't a skeleton placeholder. */
 function isRealPlace(card: Card): boolean {
-  return card.lat != null && card.lng != null && !isSkeletonCard(card);
+  return (
+    card.place != null &&
+    card.place.lat != null &&
+    card.place.lng != null &&
+    !isSkeletonCard(card)
+  );
 }
 
 function makeInitialSubTypes(): Set<string> {
@@ -131,10 +136,11 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     if (!map) return;
     MARKERS.forEach(({ marker, type, cardRef }) => {
       const card = cardRef.current;
+      const sub = card.place!.sub_type;
       const subTypeOk =
-        !card.sub_type ||
-        !CONTROLLED_SUB_TYPES.has(card.sub_type) ||
-        activeSubTypesRef.current.has(card.sub_type);
+        !sub ||
+        !CONTROLLED_SUB_TYPES.has(sub) ||
+        activeSubTypesRef.current.has(sub);
       const statusOk = activeStatusesRef.current.has(card.status ?? "");
       const show = activeTypesRef.current.has(type) && subTypeOk && statusOk;
       if (show) marker.addTo(map); else marker.remove();
@@ -165,25 +171,26 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
     const mb  = mbRef.current;
     if (!map || !mb || !isRealPlace(card)) return;
 
-    const lat = card.lat!;
-    const lng = card.lng!;
+    const place = card.place!;
+    const lat = place.lat!;
+    const lng = place.lng!;
 
     const cardRef: { current: Card } = { current: card };
     const cardDetails = card.details as Record<string, unknown> | null;
     const hasRec = !!(cardDetails?.recommended_by);
-    const { wrapper, inner } = makeMaterialPinElement(card.type, card.sub_type, card.status, hasRec);
-    inner.title = card.title;
+    const { wrapper, inner } = makeMaterialPinElement(place.type, place.sub_type, card.status, hasRec);
+    inner.title = place.title;
 
     const mbMarker = new mb.Marker({ element: wrapper, anchor: "center" })
       .setLngLat([lng, lat]);
 
     const subTypeOk =
-      !card.sub_type ||
-      !CONTROLLED_SUB_TYPES.has(card.sub_type) ||
-      activeSubTypesRef.current.has(card.sub_type);
+      !place.sub_type ||
+      !CONTROLLED_SUB_TYPES.has(place.sub_type) ||
+      activeSubTypesRef.current.has(place.sub_type);
     const statusOk = activeStatusesRef.current.has(card.status ?? "");
 
-    if (activeTypesRef.current.has(card.type) && subTypeOk && statusOk) {
+    if (activeTypesRef.current.has(place.type) && subTypeOk && statusOk) {
       mbMarker.addTo(map);
     }
 
@@ -202,14 +209,17 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       setSelectedCard(cardRef.current);
     });
 
-    MARKERS.set(card.id, { marker: mbMarker, type: card.type, cardRef });
+    MARKERS.set(card.id, { marker: mbMarker, type: place.type, cardRef });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Sidebar card select: fly to pin + open sheet ─────────────
   function handleSidebarCardSelect(card: Card) {
     const map = mapInstRef.current;
-    if (map && card.lat != null && card.lng != null) {
-      map.flyTo({ center: [card.lng, card.lat], zoom: 14 });
+    const place = card.place!;
+    const lat = place.lat;
+    const lng = place.lng;
+    if (map && lat != null && lng != null) {
+      map.flyTo({ center: [lng, lat], zoom: 14 });
     }
     deselectPin();
     const entry = MARKERS.get(card.id);
@@ -220,15 +230,15 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
         inner.style.transform  = "scale(1.4)";
         selectedInnerRef.current = inner;
       }
-      if (card.lat != null && card.lng != null) {
-        selectedCoordsRef.current = { lat: card.lat, lng: card.lng };
-        setAnchorPos(computeAnchorPos(card.lat, card.lng));
+      if (lat != null && lng != null) {
+        selectedCoordsRef.current = { lat, lng };
+        setAnchorPos(computeAnchorPos(lat, lng));
       }
       setSelectedCard(entry.cardRef.current);
     } else {
-      if (card.lat != null && card.lng != null) {
-        selectedCoordsRef.current = { lat: card.lat, lng: card.lng };
-        setAnchorPos(computeAnchorPos(card.lat, card.lng));
+      if (lat != null && lng != null) {
+        selectedCoordsRef.current = { lat, lng };
+        setAnchorPos(computeAnchorPos(lat, lng));
       }
       setSelectedCard(card);
     }
@@ -428,14 +438,15 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
         type Resolved = { card: Card; lat: number; lng: number };
         const mappable: Resolved[] = cards.flatMap((c) => {
           if (!isRealPlace(c)) return [];
-          return [{ card: c, lat: c.lat!, lng: c.lng! }];
+          return [{ card: c, lat: c.place!.lat!, lng: c.place!.lng! }];
         });
 
         mappable.forEach(({ card, lat, lng }) => {
+          const place = card.place!;
           const cardRef: { current: Card } = { current: card };
           const initDetails = card.details as Record<string, unknown> | null;
-          const { wrapper, inner } = makeMaterialPinElement(card.type, card.sub_type, card.status, !!(initDetails?.recommended_by));
-          inner.title = card.title;
+          const { wrapper, inner } = makeMaterialPinElement(place.type, place.sub_type, card.status, !!(initDetails?.recommended_by));
+          inner.title = place.title;
 
           const mbMarker = new mb.Marker({ element: wrapper, anchor: "center" })
             .setLngLat([lng, lat])
@@ -458,7 +469,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
             setSelectedCard(cardRef.current);
           });
 
-          MARKERS.set(card.id, { marker: mbMarker, type: card.type, cardRef });
+          MARKERS.set(card.id, { marker: mbMarker, type: place.type, cardRef });
         });
 
         // Fit to all pins
