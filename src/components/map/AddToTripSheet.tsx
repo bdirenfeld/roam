@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import type { Card, CardType } from "@/types/database";
+import type { Card, CardType, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { PIN_COLORS } from "@/lib/mapPins";
 import CardImage from "@/components/ui/CardImage";
@@ -160,6 +160,7 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
     details.place_id = place.placeId;
 
     // ── Food cards: enrich with price_level + currency_code ───────
+    let foodPriceLevel: number | null = null;
     if (type === "food") {
       try {
         const params = new URLSearchParams({ place_id: place.placeId });
@@ -168,7 +169,10 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
         const res = await fetch(`/api/places/food-enrich?${params}`);
         if (res.ok) {
           const enriched = await res.json() as { price_level: number | null; currency_code: string };
-          if (enriched.price_level != null) details.price_level = enriched.price_level;
+          if (enriched.price_level != null) {
+            details.price_level = enriched.price_level;
+            foodPriceLevel = enriched.price_level;
+          }
           details.currency_code = enriched.currency_code;
         }
       } catch {
@@ -177,6 +181,46 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
     }
 
     const finalSubType = subType ?? DEFAULT_SUB_TYPE[type];
+
+    // ── Resolve places row: reuse existing (user_id, google_place_id) or insert ──
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setSaving(false); return; }
+
+    const { data: placeRow, error: placeErr } = await supabase
+      .from("places")
+      .upsert(
+        {
+          user_id:         user.id,
+          google_place_id: place.placeId,
+          title:           place.name,
+          type,
+          sub_type:        finalSubType,
+          lat:             place.lat,
+          lng:             place.lng,
+          address:         place.address,
+          cover_image_url: place.coverPhotoUrl ?? null,
+          rating:          place.rating ?? null,
+          price_level:     foodPriceLevel,
+        },
+        { onConflict: "user_id,google_place_id", ignoreDuplicates: false },
+      )
+      .select("id")
+      .single();
+
+    if (placeErr || !placeRow) { setSaving(false); return; }
+
+    const joinedPlace: Place = {
+      id:              placeRow.id,
+      title:           place.name,
+      type,
+      sub_type:        finalSubType,
+      lat:             place.lat,
+      lng:             place.lng,
+      address:         place.address,
+      cover_image_url: place.coverPhotoUrl ?? null,
+      rating:          place.rating ?? null,
+      price_level:     foodPriceLevel,
+    };
 
     const newCard: Card = {
       id:              crypto.randomUUID(),
@@ -198,6 +242,8 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
       ai_generated:    false,
       confirmed:       false,
       created_at:      new Date().toISOString(),
+      place_id:        placeRow.id,
+      place:           joinedPlace,
     };
 
     const { error } = await supabase.from("cards").insert({
@@ -217,6 +263,7 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
       lng:             place.lng,
       address:         place.address,
       details,
+      place_id:        placeRow.id,
     });
 
     setSaving(false);
