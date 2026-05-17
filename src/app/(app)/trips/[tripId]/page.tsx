@@ -8,9 +8,6 @@ interface Props {
 export default async function TripPage({ params }: Props) {
   const { tripId } = await params;
   const supabase = await createClient();
-  // TODO: re-enable auth before deploy
-  // const { data: { user } } = await supabase.auth.getUser();
-  // if (!user) redirect("/login");
 
   // Get the first day of this trip
   const { data: firstDay } = await supabase

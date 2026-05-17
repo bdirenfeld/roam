@@ -8,9 +8,6 @@ import { redirect } from "next/navigation";
  */
 export default async function MapPage() {
   const supabase = await createClient();
-  // TODO: re-enable auth before deploy
-  // const { data: { user } } = await supabase.auth.getUser();
-  // if (!user) redirect("/login");
 
   const { data: trips } = await supabase
     .from("trips")

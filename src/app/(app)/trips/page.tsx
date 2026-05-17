@@ -20,9 +20,6 @@ export default async function TripsPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // TODO: re-enable auth check before deploying
-  // if (!user) redirect("/login");
-
   const [{ data: profile }, { data: rawTrips }, { data: firstDays }] = await Promise.all([
     supabase.from("users").select("name, avatar_url").eq("id", user?.id ?? "").single(),
     supabase

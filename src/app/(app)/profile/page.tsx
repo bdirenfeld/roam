@@ -9,9 +9,6 @@ export default async function ProfilePage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // TODO: re-enable auth before deploy
-  // if (!user) redirect("/login");
-
   const { data: profile } = user
     ? await supabase.from("users").select("*").eq("id", user.id).single()
     : { data: null };

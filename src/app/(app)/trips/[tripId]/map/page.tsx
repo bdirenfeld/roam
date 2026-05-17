@@ -11,8 +11,6 @@ export default async function TripMapPage({ params }: Props) {
   const { tripId } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  // TODO: re-enable auth before deploy
-  // if (!user) redirect("/login");
 
   const [
     { data: trip },
