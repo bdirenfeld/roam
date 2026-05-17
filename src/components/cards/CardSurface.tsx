@@ -12,9 +12,9 @@ interface Props {
 /** Cards eligible to show a confirmation dot */
 function isConfirmable(card: Card): boolean {
   return (
-    (card.type === "activity" && card.sub_type === "guided") ||
-    card.type === "logistics" ||
-    (card.type === "food" && card.sub_type === "restaurant")
+    (card.place!.type === "activity" && card.place!.sub_type === "guided") ||
+    card.place!.type === "logistics" ||
+    (card.place!.type === "food" && card.place!.sub_type === "restaurant")
   );
 }
 
@@ -75,20 +75,21 @@ function flightRoute(det: Record<string, unknown> | null, timeRange: string | nu
 }
 
 export default function CardSurface({ card, onTap, isHighlighted, onToggleConfirmed }: Props) {
-  const colors    = TYPE_COLOR[card.type];
-  const subLabel  = card.sub_type ? (SUB_TYPE_SHORT[card.sub_type] ?? null) : null;
+  const place     = card.place!;
+  const colors    = TYPE_COLOR[place.type];
+  const subLabel  = place.sub_type ? (SUB_TYPE_SHORT[place.sub_type] ?? null) : null;
   const timeRange = formatTimeRange(card.start_time, card.end_time);
   const det        = card.details as Record<string, unknown> | null;
 
-  const isFlight = card.sub_type === "flight_arrival" || card.sub_type === "flight_departure";
+  const isFlight = place.sub_type === "flight_arrival" || place.sub_type === "flight_departure";
 
   // Subtitle: flights get a route string; others prefer address, fall back to sub-type label
   const subtitle = isFlight
     ? flightRoute(det, timeRange)
-    : (card.address ?? subLabel);
-  const surfRating = card.type === "food" && typeof det?.rating === "number" ? det.rating as number : null;
-  const priceRange = card.type === "food"
-    ? getPriceRange(det?.price_level as number | undefined, det?.currency_code as string | undefined)
+    : (place.address ?? subLabel);
+  const surfRating = place.type === "food" ? place.rating : null;
+  const priceRange = place.type === "food"
+    ? getPriceRange(place.price_level ?? undefined, det?.currency_code as string | undefined)
     : null;
 
   return (
@@ -99,7 +100,7 @@ export default function CardSurface({ card, onTap, isHighlighted, onToggleConfir
       {/* Category icon */}
       <div className={`relative w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${colors.bg} ${colors.icon}`}>
         {/* eslint-disable-next-line react/no-danger */}
-        <div dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(card.sub_type, 18) }} />
+        <div dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(place.sub_type, 18) }} />
         {isConfirmable(card) && card.confirmed && (
           <button
             onClick={(e) => { e.stopPropagation(); onToggleConfirmed?.(); }}
@@ -129,7 +130,7 @@ export default function CardSurface({ card, onTap, isHighlighted, onToggleConfir
       {/* Title + subtitle */}
       <div className="flex-1 min-w-0">
         <p className="text-[13px] font-bold text-gray-900 truncate leading-snug">
-          {card.title}
+          {place.title}
         </p>
         {(timeRange || subtitle) && (
           <p className="text-[11px] text-gray-600 mt-0.5 truncate leading-snug">

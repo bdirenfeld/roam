@@ -15,37 +15,37 @@ const GROUPS: { key: string; label: string; test: (c: Card) => boolean }[] = [
   {
     key:   "activity",
     label: "Activity",
-    test:  (c) => c.type === "activity" && c.sub_type !== "note",
+    test:  (c) => c.place!.type === "activity" && c.place!.sub_type !== "note",
   },
   {
     key:   "restaurant",
     label: "Food — Restaurants",
-    test:  (c) => c.type === "food" && c.sub_type === "restaurant",
+    test:  (c) => c.place!.type === "food" && c.place!.sub_type === "restaurant",
   },
   {
     key:   "coffee",
     label: "Food — Cafés",
-    test:  (c) => c.type === "food" && ["coffee", "coffee_dessert"].includes(c.sub_type ?? ""),
+    test:  (c) => c.place!.type === "food" && ["coffee", "coffee_dessert"].includes(c.place!.sub_type ?? ""),
   },
   {
     key:   "bar",
     label: "Food — Bars",
-    test:  (c) => c.type === "food" && ["cocktail_bar", "drinks", "bar"].includes(c.sub_type ?? ""),
+    test:  (c) => c.place!.type === "food" && ["cocktail_bar", "drinks", "bar"].includes(c.place!.sub_type ?? ""),
   },
   {
     key:   "food_other",
     label: "Food",
-    test:  (c) => c.type === "food",
+    test:  (c) => c.place!.type === "food",
   },
   {
     key:   "hotel",
     label: "Hotels",
-    test:  (c) => c.type === "logistics" && c.sub_type === "hotel",
+    test:  (c) => c.place!.type === "logistics" && c.place!.sub_type === "hotel",
   },
   {
     key:   "logistics",
     label: "Logistics",
-    test:  (c) => c.type === "logistics",
+    test:  (c) => c.place!.type === "logistics",
   },
 ];
 
@@ -70,7 +70,12 @@ export default function TriageView({ tripId, days }: Props) {
   useEffect(() => {
     supabase
       .from("cards")
-      .select("*")
+      .select(`
+        *,
+        place:places (
+          id, title, type, sub_type, lat, lng, address, cover_image_url, rating, price_level
+        )
+      `)
       .eq("trip_id", tripId)
       .eq("status", "interested")
       .order("type")
@@ -161,8 +166,7 @@ export default function TriageView({ tripId, days }: Props) {
             </div>
 
             {groupCards.map((card) => {
-              const details = card.details as Record<string, unknown> | null;
-              const rating  = typeof details?.rating === "number" ? (details.rating as number) : null;
+              const rating  = card.place!.rating;
               const isFading = fading.has(card.id);
 
               return (
@@ -177,19 +181,19 @@ export default function TriageView({ tripId, days }: Props) {
                   {/* Thumbnail */}
                   <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
                     <CardImage
-                      src={card.cover_image_url}
+                      src={card.place!.cover_image_url}
                       alt=""
                       className="w-full h-full object-cover"
-                      lat={card.lat}
-                      lng={card.lng}
-                      subType={card.sub_type}
-                      title={card.title}
+                      lat={card.place!.lat}
+                      lng={card.place!.lng}
+                      subType={card.place!.sub_type}
+                      title={card.place!.title}
                     />
                   </div>
 
                   {/* Name + rating */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-semibold text-gray-900 truncate">{card.title}</p>
+                    <p className="text-[13px] font-semibold text-gray-900 truncate">{card.place!.title}</p>
                     {rating !== null && (
                       <p className="text-[11px] text-amber-500 font-medium leading-tight">
                         ★ {rating.toFixed(1)}

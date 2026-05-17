@@ -54,15 +54,15 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
   useEffect(() => {
     if (!hasToken || !mapRef.current || mapInstanceRef.current) return;
 
-    // Resolve lat/lng from top-level fields OR details fallback
+    // Resolve lat/lng from the linked place
     type Resolved = { card: Card; lat: number; lng: number };
     const mappable: Resolved[] = cards
       .filter((c) => c.status !== "cut")
       .flatMap((c) => {
-        if (c.lat != null && c.lng != null) return [{ card: c, lat: c.lat, lng: c.lng }];
-        const d = c.details as Record<string, unknown>;
-        if (typeof d?.lat === "number" && typeof d?.lng === "number")
-          return [{ card: c, lat: d.lat as number, lng: d.lng as number }];
+        const p = c.place;
+        if (p != null && p.lat != null && p.lng != null) {
+          return [{ card: c, lat: p.lat, lng: p.lng }];
+        }
         return [];
       });
 
@@ -103,7 +103,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
         mappable.forEach(({ card, lat, lng }, i) => {
           const cardDetails = card.details as Record<string, unknown> | null;
           const { wrapper, inner } = makeMaterialPinElement(
-            card.type, card.sub_type, card.status, !!(cardDetails?.recommended_by), "#1A1A2E",
+            card.place!.type, card.place!.sub_type, card.status, !!(cardDetails?.recommended_by), "#1A1A2E",
           );
 
           // Store inner element so the pulse effect can animate it

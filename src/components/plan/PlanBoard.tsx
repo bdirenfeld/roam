@@ -1133,14 +1133,15 @@ function CardTile({
   onDelete?: () => void;
   isOverlay?: boolean;
 }) {
-  const isNote      = card.sub_type === "note";
-  const borderClass = isNote ? "border-l-gray-200" : (TYPE_BORDER[card.type] ?? "border-l-gray-300");
-  const subLabel    = card.sub_type ? (SUB_LABEL[card.sub_type] ?? card.sub_type) : null;
+  const place       = card.place!;
+  const isNote      = place.sub_type === "note";
+  const borderClass = isNote ? "border-l-gray-200" : (TYPE_BORDER[place.type] ?? "border-l-gray-300");
+  const subLabel    = place.sub_type ? (SUB_LABEL[place.sub_type] ?? place.sub_type) : null;
   const noteSnippet = isNote ? ((card.details as Record<string, unknown>)?.notes as string | undefined) : undefined;
   const det         = card.details as Record<string, unknown>;
-  const tileRating  = card.type === "food" && typeof det?.rating === "number" ? det.rating as number : null;
-  const priceRange  = card.type === "food"
-    ? getPriceRange(det?.price_level as number | undefined, det?.currency_code as string | undefined)
+  const tileRating  = place.type === "food" ? place.rating : null;
+  const priceRange  = place.type === "food"
+    ? getPriceRange(place.price_level ?? undefined, det?.currency_code as string | undefined)
     : null;
 
   const timeRange = (() => {
@@ -1159,19 +1160,19 @@ function CardTile({
 
           {/* Thumbnail — 60×60 */}
           <CardImage
-            src={card.cover_image_url}
+            src={place.cover_image_url}
             alt=""
             className="w-[60px] h-[60px] rounded-lg object-cover flex-shrink-0"
-            lat={card.lat}
-            lng={card.lng}
-            subType={card.sub_type}
-            title={card.title}
+            lat={place.lat}
+            lng={place.lng}
+            subType={place.sub_type}
+            title={place.title}
           />
 
           {/* Text content */}
           <div className="flex-1 min-w-0">
             <p className="text-[14px] font-semibold text-gray-900 leading-snug line-clamp-2">
-              {card.title}
+              {place.title}
             </p>
             {isNote && noteSnippet ? (
               <p className="text-[11px] text-gray-400 mt-0.5 leading-snug line-clamp-2">{noteSnippet}</p>

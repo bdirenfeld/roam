@@ -86,15 +86,15 @@ function TypeEditor({
 }) {
   const supabase = createClient();
 
-  // Find the sub-type option that matches current card.sub_type (fall back to first option)
+  // Find the sub-type option that matches current place.sub_type (fall back to first option)
   function initSubType(type: CardType): string {
     const opts = SUB_TYPE_OPTIONS[type] ?? [];
-    return opts.find((o) => o.value === card.sub_type)?.value ?? opts[0]?.value ?? "";
+    return opts.find((o) => o.value === card.place!.sub_type)?.value ?? opts[0]?.value ?? "";
   }
 
   const initDetails    = card.details as Record<string, unknown> | null;
-  const [editType,       setEditType]       = useState<CardType>(card.type);
-  const [editSubType,    setEditSubType]    = useState<string>(initSubType(card.type));
+  const [editType,       setEditType]       = useState<CardType>(card.place!.type);
+  const [editSubType,    setEditSubType]    = useState<string>(initSubType(card.place!.type));
   const [editRecommendedBy, setEditRecommendedBy] = useState<string>((initDetails?.recommended_by as string | undefined) ?? "");
   const [saving,         setSaving]         = useState(false);
 
@@ -114,6 +114,15 @@ function TypeEditor({
     } else {
       delete updatedDetails.recommended_by;
     }
+    // Dual-write: canonical places row first, then the cards mirror
+    if (card.place_id) {
+      const { error: placeErr } = await supabase
+        .from("places")
+        .update({ type: editType, sub_type: editSubType })
+        .eq("id", card.place_id);
+      if (placeErr) { setSaving(false); return; }
+    }
+
     const { error } = await supabase
       .from("cards")
       .update({ type: editType, sub_type: editSubType, details: updatedDetails })
@@ -208,13 +217,14 @@ function CardBody({
   onCardDelete?: (cardId: string) => void;
 }) {
   const supabase         = createClient();
+  const place            = card.place!;
   const details          = card.details as Record<string, unknown> | null;
   const phone            = details?.phone as string | undefined;
-  const rating           = details?.rating as number | undefined;
+  const rating           = place.rating ?? undefined;
   const userRatingsTotal = details?.userRatingsTotal as number | undefined;
   const website          = details?.website as string | undefined;
   const recommendedBy    = details?.recommended_by as string | undefined;
-  const subTypeLabel     = card.sub_type ? (SUB_TYPE_LABEL[card.sub_type] ?? card.sub_type) : null;
+  const subTypeLabel     = place.sub_type ? (SUB_TYPE_LABEL[place.sub_type] ?? place.sub_type) : null;
 
   const [isEditing, setIsEditing]               = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -249,10 +259,10 @@ function CardBody({
       {/* Cover photo — swipeable gallery */}
       <CardGallery
         placeId={card.details?.place_id}
-        coverImageUrl={card.cover_image_url}
-        fallbackLat={(card.details as Record<string, unknown>)?.lat as number | null ?? card.lat}
-        fallbackLng={(card.details as Record<string, unknown>)?.lng as number | null ?? card.lng}
-        cardTitle={card.title}
+        coverImageUrl={place.cover_image_url}
+        fallbackLat={(card.details as Record<string, unknown>)?.lat as number | null ?? place.lat}
+        fallbackLng={(card.details as Record<string, unknown>)?.lng as number | null ?? place.lng}
+        cardTitle={place.title}
         height={160}
         maxPhotos={4}
       />
@@ -312,7 +322,7 @@ function CardBody({
           />
         )}
 
-        <h2 className="text-[15px] font-bold text-gray-900 leading-snug">{card.title}</h2>
+        <h2 className="text-[15px] font-bold text-gray-900 leading-snug">{place.title}</h2>
 
         {rating !== undefined && (
           <div className="flex items-center gap-1.5 mt-1">
@@ -331,9 +341,9 @@ function CardBody({
 
         {/* Compact pill action buttons */}
         <div className="flex gap-1.5 mt-3 flex-wrap">
-          {card.lat != null && card.lng != null && (
+          {place.lat != null && place.lng != null && (
             <a
-              href={`https://www.google.com/maps/search/?api=1&query=${card.lat},${card.lng}`}
+              href={`https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-blue-200 bg-blue-50 text-[11px] font-semibold text-blue-600 hover:bg-blue-100 transition-colors"

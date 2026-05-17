@@ -161,7 +161,7 @@ export default function MapSidebar({
 
   function cardsForRow(row: SubTypeRow): Card[] {
     return cards.filter(
-      (c) => c.sub_type && row.subTypes.includes(c.sub_type) && c.lat != null && c.lng != null,
+      (c) => c.place!.sub_type && row.subTypes.includes(c.place!.sub_type) && c.place!.lat != null && c.place!.lng != null,
     );
   }
 
@@ -309,7 +309,7 @@ export default function MapSidebar({
                         {expanded && (
                           <div className="pb-2 space-y-px">
                             {rowCards.map((card) => {
-                              const typeKey_     = card.type as keyof typeof PIN_COLORS;
+                              const typeKey_     = card.place!.type as keyof typeof PIN_COLORS;
                               const iconColor    = PIN_COLORS[typeKey_] ?? group.color;
                               const isConfirming = confirmDeleteId === card.id;
                               const isDeleting_  = deletingId === card.id;
@@ -352,10 +352,10 @@ export default function MapSidebar({
                                           className="flex-shrink-0 opacity-70"
                                           style={{ color: iconColor }}
                                           // eslint-disable-next-line react/no-danger
-                                          dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(card.sub_type, 12) }}
+                                          dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(card.place!.sub_type, 12) }}
                                         />
                                         <span className="flex-1 text-[11px] italic text-gray-600 truncate leading-snug">
-                                          {card.title}
+                                          {card.place!.title}
                                         </span>
                                       </button>
                                       <button

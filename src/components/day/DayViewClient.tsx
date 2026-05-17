@@ -531,11 +531,9 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
     const currentDayNumber = dayWithCards.day_number;
     const dayNumberById = new Map(days.map((d) => [d.id, d.day_number]));
 
-    const mappableHotels = hotelCards.filter((c) => {
-      if (c.lat != null && c.lng != null) return true;
-      const d = c.details as Record<string, unknown>;
-      return typeof d?.lat === "number" && typeof d?.lng === "number";
-    });
+    const mappableHotels = hotelCards.filter(
+      (c) => c.place != null && c.place.lat != null && c.place.lng != null,
+    );
 
     const sorted = [...mappableHotels].sort(
       (a, b) => (dayNumberById.get(a.day_id) ?? 0) - (dayNumberById.get(b.day_id) ?? 0)
@@ -553,9 +551,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
     () =>
       localCards.filter((c) => {
         if (accommodationCard && c.id === accommodationCard.id) return false;
-        if (c.lat != null && c.lng != null) return true;
-        const d = c.details as Record<string, unknown>;
-        return typeof d?.lat === "number" && typeof d?.lng === "number";
+        return c.place != null && c.place.lat != null && c.place.lng != null;
       }),
     [localCards, accommodationCard]
   );

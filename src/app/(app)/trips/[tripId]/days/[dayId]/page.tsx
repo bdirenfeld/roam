@@ -21,13 +21,23 @@ export default async function DayPage({ params }: Props) {
     supabase.from("days").select("*").eq("trip_id", tripId).order("day_number"),
     supabase
       .from("cards")
-      .select("*")
+      .select(`
+        *,
+        place:places (
+          id, title, type, sub_type, lat, lng, address, cover_image_url, rating, price_level
+        )
+      `)
       .eq("day_id", dayId)
       .eq("status", "in_itinerary")
       .order("position"),
     supabase
       .from("cards")
-      .select("*")
+      .select(`
+        *,
+        place:places (
+          id, title, type, sub_type, lat, lng, address, cover_image_url, rating, price_level
+        )
+      `)
       .eq("trip_id", tripId)
       .eq("type", "logistics")
       .eq("sub_type", "hotel"),

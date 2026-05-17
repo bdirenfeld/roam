@@ -192,7 +192,12 @@ export default function LinkPlaceSheet({ tripId, cardType, onLink, onClose }: Pr
   useEffect(() => {
     supabase
       .from("cards")
-      .select("*")
+      .select(`
+        *,
+        place:places (
+          id, title, type, sub_type, lat, lng, address, cover_image_url, rating, price_level
+        )
+      `)
       .eq("trip_id", tripId)
       .eq("status", "interested")
       .eq("type", cardType)
@@ -204,11 +209,9 @@ export default function LinkPlaceSheet({ tripId, cardType, onLink, onClose }: Pr
         // Dedup: prefer the card with a cover image; key by place_id, then fall back to title
         const seen = new Map<string, Card>();
         for (const card of raw) {
-          const details = card.details as Record<string, unknown> | null;
-          const key = (typeof details?.place_id === "string" ? details.place_id : null)
-                        ?? card.title.toLowerCase().trim();
+          const key = card.place_id ?? card.place!.title.toLowerCase().trim();
           const existing = seen.get(key);
-          if (!existing || (card.cover_image_url && !existing.cover_image_url)) {
+          if (!existing || (card.place!.cover_image_url && !existing.place!.cover_image_url)) {
             seen.set(key, card);
           }
         }
@@ -250,7 +253,7 @@ export default function LinkPlaceSheet({ tripId, cardType, onLink, onClose }: Pr
       sub,
       label: SUB_LABEL[sub] ?? sub,
       cards: places.filter((p) => {
-        const st = p.sub_type ?? "";
+        const st = p.place!.sub_type ?? "";
         // Collapse aliased sub-types into one bucket
         if (sub === "coffee")      return st === "coffee" || st === "coffee_dessert";
         if (sub === "bar")         return st === "bar" || st === "cocktail_bar" || st === "drinks";
@@ -265,7 +268,7 @@ export default function LinkPlaceSheet({ tripId, cardType, onLink, onClose }: Pr
   const knownSubs = new Set(validSubTypes);
   // Also mark alias sub-types as known so they don't appear in Other
   ["coffee_dessert", "cocktail_bar", "drinks", "hosted"].forEach((s) => knownSubs.add(s));
-  const otherCards = places.filter((p) => !knownSubs.has(p.sub_type ?? ""));
+  const otherCards = places.filter((p) => !knownSubs.has(p.place!.sub_type ?? ""));
 
   const typeLabel = { food: "Food", activity: "Activity", logistics: "Logistics" }[cardType];
 
@@ -334,8 +337,7 @@ export default function LinkPlaceSheet({ tripId, cardType, onLink, onClose }: Pr
                   </div>
 
                   {cards.map((card) => {
-                    const details = card.details as Record<string, unknown> | null;
-                    const rating  = typeof details?.rating === "number" ? details.rating as number : null;
+                    const rating  = card.place!.rating;
 
                     return (
                       <button
@@ -348,13 +350,13 @@ export default function LinkPlaceSheet({ tripId, cardType, onLink, onClose }: Pr
                           className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
                           style={{ background: `${color}15` }}
                         >
-                          <SubTypeIcon subType={card.sub_type ?? sub} color={color} />
+                          <SubTypeIcon subType={card.place!.sub_type ?? sub} color={color} />
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-semibold text-gray-900 truncate">{card.title}</p>
-                          {card.address && (
-                            <p className="text-[11px] text-gray-400 mt-0.5 truncate">{card.address}</p>
+                          <p className="text-[13px] font-semibold text-gray-900 truncate">{card.place!.title}</p>
+                          {card.place!.address && (
+                            <p className="text-[11px] text-gray-400 mt-0.5 truncate">{card.place!.address}</p>
                           )}
                           {rating !== null && (
                             <p className="text-[11px] text-amber-500 font-medium mt-0.5">★ {rating.toFixed(1)}</p>
@@ -378,8 +380,7 @@ export default function LinkPlaceSheet({ tripId, cardType, onLink, onClose }: Pr
                     <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Other</span>
                   </div>
                   {otherCards.map((card) => {
-                    const details = card.details as Record<string, unknown> | null;
-                    const rating  = typeof details?.rating === "number" ? details.rating as number : null;
+                    const rating  = card.place!.rating;
                     return (
                       <button
                         key={card.id}
@@ -387,12 +388,12 @@ export default function LinkPlaceSheet({ tripId, cardType, onLink, onClose }: Pr
                         className="w-full flex items-center gap-3 px-5 py-3.5 border-b border-gray-50 hover:bg-gray-50 active:bg-gray-100 transition-colors text-left"
                       >
                         <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${color}15` }}>
-                          <SubTypeIcon subType={card.sub_type ?? ""} color={color} />
+                          <SubTypeIcon subType={card.place!.sub_type ?? ""} color={color} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-semibold text-gray-900 truncate">{card.title}</p>
-                          {card.address && (
-                            <p className="text-[11px] text-gray-400 mt-0.5 truncate">{card.address}</p>
+                          <p className="text-[13px] font-semibold text-gray-900 truncate">{card.place!.title}</p>
+                          {card.place!.address && (
+                            <p className="text-[11px] text-gray-400 mt-0.5 truncate">{card.place!.address}</p>
                           )}
                           {rating !== null && (
                             <p className="text-[11px] text-amber-500 font-medium mt-0.5">★ {rating.toFixed(1)}</p>

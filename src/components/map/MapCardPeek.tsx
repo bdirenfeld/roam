@@ -29,8 +29,9 @@ function durStr(mins: number | undefined): string {
 function smartDesc(card: Card): string {
   const d  = card.details as CardDetails;
   const t0 = fmt(card.start_time);
+  const place = card.place!;
 
-  switch (card.sub_type) {
+  switch (place.sub_type) {
     case "flight_arrival":
       return [d.airline, d.arrival_time ? fmt(d.arrival_time) : t0].filter(Boolean).join(" · ");
     case "flight_departure":
@@ -38,7 +39,7 @@ function smartDesc(card: Card): string {
     case "hotel":
       return d.estimated_accommodation_arrival
         ? `Check-in ${fmt(d.estimated_accommodation_arrival)}`
-        : t0 ? `Check-in ${t0}` : (card.address ?? "");
+        : t0 ? `Check-in ${t0}` : (place.address ?? "");
     case "restaurant": {
       const res = d.reservation_status;
       const rt  = d.reservation_time ? fmt(d.reservation_time) : t0;
@@ -47,7 +48,7 @@ function smartDesc(card: Card): string {
     }
     case "coffee_dessert":
     case "drinks":
-      return [card.address, t0].filter(Boolean).join(" · ");
+      return [place.address, t0].filter(Boolean).join(" · ");
     case "hosted":
       return [d.supplier, d.meeting_time ? fmt(d.meeting_time) : t0].filter(Boolean).join(" · ");
     case "self_directed": {
@@ -60,22 +61,23 @@ function smartDesc(card: Card): string {
       return [dur, d.treatment_type].filter(Boolean).join(" · ");
     }
     case "street_food":
-      return [card.address, t0].filter(Boolean).join(" · ");
+      return [place.address, t0].filter(Boolean).join(" · ");
     case "transportation":
     case "transfer":
-      return t0 || card.address || "";
+      return t0 || place.address || "";
     default: {
       // Fall back to the first short string value in details
       for (const v of Object.values(d as Record<string, unknown>)) {
         if (typeof v === "string" && v.length > 0 && v.length < 80) return v;
       }
-      return card.address ?? t0;
+      return place.address ?? t0;
     }
   }
 }
 
 export default function MapCardPeek({ card, day, tripId, onClose }: Props) {
-  const color = PIN_COLORS[card.type] ?? "#64748B";
+  const place = card.place!;
+  const color = PIN_COLORS[place.type] ?? "#64748B";
   const desc  = smartDesc(card);
   const href  = day
     ? `/trips/${tripId}/days/${day.id}`
@@ -96,13 +98,13 @@ export default function MapCardPeek({ card, day, tripId, onClose }: Props) {
           {/* Sub-type icon */}
           <div
             className="flex-shrink-0 mt-0.5"
-            dangerouslySetInnerHTML={{ __html: getIconSVG(card.sub_type, color, 16) }}
+            dangerouslySetInnerHTML={{ __html: getIconSVG(place.sub_type, color, 16) }}
           />
 
           {/* Text */}
           <div className="flex-1 min-w-0">
             <p className="text-[14px] font-medium text-gray-900 leading-snug truncate">
-              {card.title}
+              {place.title}
             </p>
             {desc && (
               <p className="text-[12px] mt-0.5 truncate" style={{ color: "#64748B" }}>
