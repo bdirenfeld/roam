@@ -527,6 +527,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   }, [menuInputValue, saveDetails]);
 
   // ── Link place from map — inherit pin data, preserve user fields ─
+  // TODO(phase-followup): handleLinkPlace should redirect place_id, not copy flat columns
   const handleLinkPlace = useCallback(async (place: Card) => {
     setShowLinkSheet(false);
     const placeDetails  = (place.details  ?? {}) as Record<string, unknown>;
@@ -638,9 +639,30 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     async (newType: string, newSubType: string) => {
       setShowSubTypePicker(false);
       const prev = localCard;
-      const updated = { ...localCard, type: newType as Card["type"], sub_type: newSubType };
+      const updated: Card = {
+        ...localCard,
+        type: newType as Card["type"],
+        sub_type: newSubType,
+        // Patch in-memory place to match DB; flat-column patch above does the same for cards.*
+        place: localCard.place ? { ...localCard.place, type: newType as Card["type"], sub_type: newSubType } : localCard.place,
+      };
       setLocalCard(updated);
       onCardUpdate?.(updated);
+
+      // Dual-write: canonical places row first, then the cards mirror
+      if (localCard.place_id) {
+        const { error: placeErr } = await supabase
+          .from("places")
+          .update({ type: newType, sub_type: newSubType })
+          .eq("id", localCard.place_id);
+        if (placeErr) {
+          console.error("Failed to save type/sub_type on places", placeErr.message);
+          setLocalCard(prev);
+          onCardUpdate?.(prev);
+          return;
+        }
+      }
+
       const { error } = await supabase
         .from("cards")
         .update({ type: newType, sub_type: newSubType })
@@ -654,22 +676,60 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     [localCard, onCardUpdate, supabase],
   );
 
+  const saveTitle = useCallback(
+    async (value: string) => {
+      const prev = localCard;
+      const updated: Card = {
+        ...localCard,
+        title: value,
+        // Patch in-memory place to match DB; flat-column patch above does the same for cards.*
+        place: localCard.place ? { ...localCard.place, title: value } : localCard.place,
+      };
+      setLocalCard(updated);
+      onCardUpdate?.(updated);
+
+      // Dual-write: canonical places row first, then the cards mirror
+      if (localCard.place_id) {
+        const { error: placeErr } = await supabase
+          .from("places")
+          .update({ title: value })
+          .eq("id", localCard.place_id);
+        if (placeErr) {
+          console.error("Failed to save title on places", placeErr.message);
+          setLocalCard(prev);
+          onCardUpdate?.(prev);
+          return;
+        }
+      }
+
+      const { error } = await supabase
+        .from("cards")
+        .update({ title: value })
+        .eq("id", localCard.id);
+      if (error) {
+        console.error("Failed to save title", error.message);
+        setLocalCard(prev);
+        onCardUpdate?.(prev);
+      }
+    },
+    [localCard, onCardUpdate, supabase],
+  );
+
   // ── Derived display values ─────────────────────────────────
-  const isNote    = localCard.sub_type === "note";
+  const place     = localCard.place!;
+  const isNote    = place.sub_type === "note";
   const accent    = isNote ? { dot: "bg-gray-300", bg: "bg-gray-50", text: "text-gray-500" }
-                           : (TYPE_ACCENT[localCard.type] ?? TYPE_ACCENT.logistics);
+                           : (TYPE_ACCENT[place.type] ?? TYPE_ACCENT.logistics);
   const typeLabel =
-    (localCard.sub_type ? SUB_TYPE_LABEL[localCard.sub_type] : undefined) ??
-    SUB_TYPE_OPTIONS[localCard.type]?.[0]?.label ??
-    localCard.type;
-  const rating  = typeof (localCard.details as Record<string, unknown>)?.rating === "number"
-                    ? ((localCard.details as Record<string, unknown>).rating as number)
-                    : null;
+    (place.sub_type ? SUB_TYPE_LABEL[place.sub_type] : undefined) ??
+    SUB_TYPE_OPTIONS[place.type]?.[0]?.label ??
+    place.type;
+  const rating  = place.rating;
   const rawPhone = typeof (localCard.details as Record<string, unknown>)?.phone === "string"
                     ? ((localCard.details as Record<string, unknown>).phone as string)
                     : null;
   const phone    = rawPhone
-    ? formatPhone(rawPhone, localCard.address, tripDestination)
+    ? formatPhone(rawPhone, place.address, tripDestination)
     : null;
   const website = typeof (localCard.details as Record<string, unknown>)?.website === "string"
                     ? ((localCard.details as Record<string, unknown>).website as string)
@@ -678,11 +738,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                     ? ((localCard.details as Record<string, unknown>).menu_url as string) || null
                     : null;
 
-  const priceLevel = typeof (localCard.details as Record<string, unknown>)?.price_level === "number"
-    ? (localCard.details as Record<string, unknown>).price_level as number
-    : null;
+  const priceLevel = place.price_level;
 
-  const badgePriceLabel = localCard.type === "food" && priceLevel != null
+  const badgePriceLabel = place.type === "food" && priceLevel != null
     ? (["Free", "€", "€€", "€€€", "€€€€"] as const)[priceLevel] ?? null
     : null;
 
@@ -690,7 +748,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const badge = bookingBadge(localCard.details);
 
   // ── Route to sub-type component ───────────────────────────
-  const key = `${localCard.type}/${localCard.sub_type ?? ""}`;
+  const key = `${place.type}/${place.sub_type ?? ""}`;
 
   function renderDetail() {
     switch (key) {
@@ -724,16 +782,16 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       case "activity/wellness":
         return <WellnessDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
       default:
-        if (localCard.type === "logistics") return <LogisticsDetail card={localCard} />;
-        if (localCard.type === "activity")  return <ActivityDetail  card={localCard} />;
+        if (place.type === "logistics") return <LogisticsDetail card={localCard} />;
+        if (place.type === "activity")  return <ActivityDetail  card={localCard} />;
         return <RestaurantDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
     }
   }
 
   // ── Address display ────────────────────────────────────────
-  const addressLine = localCard.address ?? (
-    localCard.lat != null && localCard.lng != null
-      ? `${localCard.lat.toFixed(4)}, ${localCard.lng.toFixed(4)}`
+  const addressLine = place.address ?? (
+    place.lat != null && place.lng != null
+      ? `${place.lat.toFixed(4)}, ${place.lng.toFixed(4)}`
       : null
   );
 
@@ -764,10 +822,10 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         <div className="relative w-full overflow-hidden">
           <CardGallery
             placeId={(localCard.details as Record<string, unknown>)?.place_id as string | undefined}
-            coverImageUrl={localCard.cover_image_url}
-            fallbackLat={localCard.lat}
-            fallbackLng={localCard.lng}
-            cardTitle={localCard.title}
+            coverImageUrl={place.cover_image_url}
+            fallbackLat={place.lat}
+            fallbackLng={place.lng}
+            cardTitle={place.title}
             height={220}
           />
           {/* Gradient overlay so drag handle is visible */}
@@ -799,8 +857,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 </button>
                 {showSubTypePicker && !isNote && (
                   <SubTypePicker
-                    currentType={localCard.type}
-                    currentSubType={localCard.sub_type ?? null}
+                    currentType={place.type}
+                    currentSubType={place.sub_type ?? null}
                     onSelect={handleTypeAndSubTypeChange}
                     onClose={() => setShowSubTypePicker(false)}
                   />
@@ -819,9 +877,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             </div>
             <div className="flex items-center gap-1.5 flex-shrink-0">
               {/* Rating + price — badge row, right of type badge */}
-              {(rating !== null && localCard.sub_type !== "flight_arrival" && localCard.sub_type !== "flight_departure" || badgePriceLabel) && (
+              {(rating !== null && place.sub_type !== "flight_arrival" && place.sub_type !== "flight_departure" || badgePriceLabel) && (
                 <div className="flex items-center mr-0.5" style={{ gap: 3 }}>
-                  {rating !== null && localCard.sub_type !== "flight_arrival" && localCard.sub_type !== "flight_departure" && (
+                  {rating !== null && place.sub_type !== "flight_arrival" && place.sub_type !== "flight_departure" && (
                     <>
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="#B45309" stroke="none">
                         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
@@ -829,7 +887,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                       <span style={{ fontSize: 11, fontWeight: 600, color: "#B45309" }}>{rating.toFixed(1)}</span>
                     </>
                   )}
-                  {rating !== null && localCard.sub_type !== "flight_arrival" && localCard.sub_type !== "flight_departure" && badgePriceLabel && (
+                  {rating !== null && place.sub_type !== "flight_arrival" && place.sub_type !== "flight_departure" && badgePriceLabel && (
                     <span style={{ color: "#D4CFC8", fontSize: 11 }}>·</span>
                   )}
                   {badgePriceLabel && (
@@ -838,7 +896,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 </div>
               )}
               {/* Paperclip — attachments (logistics and activity cards only) */}
-              {(localCard.type === "logistics" || localCard.type === "activity") && (
+              {(place.type === "logistics" || place.type === "activity") && (
                 <button
                   onClick={() => setShowAttachments(true)}
                   className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
@@ -890,8 +948,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           {/* Editable title */}
           <div className="mt-2.5">
             <TitleEditor
-              value={localCard.title}
-              onSave={(v) => saveTopLevel("title", v)}
+              value={place.title}
+              onSave={(v) => saveTitle(v)}
             />
           </div>
 
@@ -966,9 +1024,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           )}
 
           {/* Action pills: Maps · Website · Call · Menu */}
-          {(localCard.lat != null && localCard.lng != null || (localCard.details as Record<string, unknown>)?.place_id != null || website || phone || localCard.type === "food") && (
+          {(place.lat != null && place.lng != null || (localCard.details as Record<string, unknown>)?.place_id != null || website || phone || place.type === "food") && (
             <div className="flex flex-wrap mt-3" style={{ gap: 6 }}>
-              {(localCard.lat != null && localCard.lng != null || (localCard.details as Record<string, unknown>)?.place_id != null) && (
+              {(place.lat != null && place.lng != null || (localCard.details as Record<string, unknown>)?.place_id != null) && (
                 <button
                   onClick={() => setNavSheetOpen(true)}
                   style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 20, border: "0.5px solid #E5E0D8", background: "#fff", fontSize: 11, color: "#4B5563" }}
@@ -1006,7 +1064,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   Call
                 </a>
               )}
-              {localCard.type === "food" && (
+              {place.type === "food" && (
                 menuUrl ? (
                   <a
                     href={menuUrl}
@@ -1037,7 +1095,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               )}
             </div>
           )}
-          {localCard.type === "food" && showMenuInput && (
+          {place.type === "food" && showMenuInput && (
             <div className="mt-2 flex items-center gap-2">
               <input
                 type="url"
@@ -1074,9 +1132,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             {renderDetail()}
 
             {/* Confirmation toggle — guided activities, all logistics, restaurants */}
-            {((localCard.type === "activity" && localCard.sub_type === "guided") ||
-              localCard.type === "logistics" ||
-              (localCard.type === "food" && localCard.sub_type === "restaurant")) && (
+            {((place.type === "activity" && place.sub_type === "guided") ||
+              place.type === "logistics" ||
+              (place.type === "food" && place.sub_type === "restaurant")) && (
               <button
                 onClick={() => saveTopLevel("confirmed", !localCard.confirmed)}
                 className="w-full flex items-center justify-between mt-5 pt-4 border-t border-gray-100"
@@ -1101,7 +1159,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             )}
 
             {/* Add details / collapse toggle — not shown for notes */}
-            {localCard.sub_type !== "note" && (
+            {place.sub_type !== "note" && (
               <button
                 onClick={() => setShowEmptyFields((v) => !v)}
                 className="mt-4 flex items-center gap-1.5 text-[12px] text-gray-400 hover:text-gray-600 transition-colors"
@@ -1186,7 +1244,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           <div className="absolute inset-0 z-10">
             <LinkPlaceSheet
               tripId={localCard.trip_id}
-              cardType={localCard.type}
+              cardType={place.type}
               onLink={handleLinkPlace}
               onClose={() => setShowLinkSheet(false)}
             />
@@ -1291,10 +1349,10 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     <NavigationSheet
       isOpen={navSheetOpen}
       onClose={() => setNavSheetOpen(false)}
-      placeName={localCard.title}
+      placeName={place.title}
       placeId={(localCard.details as Record<string, unknown>)?.place_id as string | undefined}
-      lat={localCard.lat}
-      lng={localCard.lng}
+      lat={place.lat}
+      lng={place.lng}
     />
     </>
   );

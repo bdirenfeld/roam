@@ -31,8 +31,8 @@ export default function LogisticsDetail({ card }: Props) {
     arrive_airport_time?: string;
     notes?: string;
   };
-  const isArrival = card.sub_type === "flight_arrival";
-  const isDeparture = card.sub_type === "flight_departure";
+  const isArrival = card.place!.sub_type === "flight_arrival";
+  const isDeparture = card.place!.sub_type === "flight_departure";
 
   return (
     <div className="space-y-6">

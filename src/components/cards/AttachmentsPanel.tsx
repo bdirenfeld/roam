@@ -67,7 +67,7 @@ function remapParsedFields(
   parsed: Record<string, unknown>,
   card: Card,
 ): { details: Record<string, unknown>; topLevel: Record<string, unknown> } {
-  const subType = card.sub_type;
+  const subType = card.place!.sub_type;
   const details: Record<string, unknown> = {};
   const topLevel: Record<string, unknown> = {};
 
@@ -85,7 +85,7 @@ function remapParsedFields(
     }
     // supplier → name only when the card title is a generic placeholder
     if (parsed.supplier != null) {
-      const titleLower = (card.title ?? "").toLowerCase();
+      const titleLower = (card.place!.title ?? "").toLowerCase();
       if (GENERIC_HOTEL_TITLES.some((t) => titleLower.includes(t))) {
         details.name = parsed.supplier;
       }
@@ -288,7 +288,7 @@ export default function AttachmentsPanel({ card, onClose, onCardUpdate }: Props)
 
     const current        = (card.details ?? {}) as Record<string, unknown>;
     const overwriteKeys: string[] = [];
-    const isGuided = card.sub_type === "guided" || card.sub_type === "hosted";
+    const isGuided = card.place!.sub_type === "guided" || card.place!.sub_type === "hosted";
 
     for (const [key, val] of Object.entries(mappedDetails)) {
       if (val != null && current[key] != null) {
@@ -326,6 +326,26 @@ export default function AttachmentsPanel({ card, onClose, onCardUpdate }: Props)
         if (v != null && (card as unknown as Record<string, unknown>)[k] == null) {
           topLevelUpdate[k] = v;
         }
+      }
+
+      // Parser overwrite: if parsed address differs from the linked place's, place wins
+      const parsedAddress = topLevel.address;
+      if (
+        card.place_id &&
+        typeof parsedAddress === "string" &&
+        parsedAddress !== card.place!.address
+      ) {
+        console.log("[parser] place overwrite", {
+          card_id:   card.id,
+          place_id:  card.place_id,
+          field:     "address",
+          old_value: card.place!.address,
+          new_value: parsedAddress,
+        });
+        await supabase
+          .from("places")
+          .update({ address: parsedAddress })
+          .eq("id", card.place_id);
       }
 
       const { error } = await supabase
