@@ -2,8 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 export async function POST(req: NextRequest) {
-  const { tripId } = await req.json();
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { tripId } = await req.json();
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
 
   // Fetch all cards missing cover_image_url
