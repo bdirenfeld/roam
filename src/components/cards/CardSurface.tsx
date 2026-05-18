@@ -11,10 +11,12 @@ interface Props {
 
 /** Cards eligible to show a confirmation dot */
 function isConfirmable(card: Card): boolean {
+  const p = card.place;
+  if (!p) return false;
   return (
-    (card.place!.type === "activity" && card.place!.sub_type === "guided") ||
-    card.place!.type === "logistics" ||
-    (card.place!.type === "food" && card.place!.sub_type === "restaurant")
+    (p.type === "activity" && p.sub_type === "guided") ||
+    p.type === "logistics" ||
+    (p.type === "food" && p.sub_type === "restaurant")
   );
 }
 
@@ -75,20 +77,24 @@ function flightRoute(det: Record<string, unknown> | null, timeRange: string | nu
 }
 
 export default function CardSurface({ card, onTap, isHighlighted, onToggleConfirmed }: Props) {
-  const place     = card.place!;
-  const colors    = TYPE_COLOR[place.type];
-  const subLabel  = place.sub_type ? (SUB_TYPE_SHORT[place.sub_type] ?? null) : null;
-  const timeRange = formatTimeRange(card.start_time, card.end_time);
+  const place     = card.place;
   const det        = card.details as Record<string, unknown> | null;
+  // Unlinked cards default to activity-style color for the icon block
+  const placeType: CardType = place?.type ?? "activity";
+  const colors    = TYPE_COLOR[placeType];
+  const subLabel  = place?.sub_type ? (SUB_TYPE_SHORT[place.sub_type] ?? null) : null;
+  const timeRange = formatTimeRange(card.start_time, card.end_time);
+  const noteSnippet = !place ? (det?.notes as string | undefined) : undefined;
+  const title     = place?.title ?? (det?.title as string | undefined) ?? noteSnippet?.slice(0, 60) ?? "(untitled note)";
 
-  const isFlight = place.sub_type === "flight_arrival" || place.sub_type === "flight_departure";
+  const isFlight = place?.sub_type === "flight_arrival" || place?.sub_type === "flight_departure";
 
   // Subtitle: flights get a route string; others prefer address, fall back to sub-type label
   const subtitle = isFlight
     ? flightRoute(det, timeRange)
-    : (place.address ?? subLabel);
-  const surfRating = place.type === "food" ? place.rating : null;
-  const priceRange = place.type === "food"
+    : (place?.address ?? subLabel);
+  const surfRating = place?.type === "food" ? place.rating : null;
+  const priceRange = place?.type === "food"
     ? getPriceRange(place.price_level ?? undefined, det?.currency_code as string | undefined)
     : null;
 
@@ -100,7 +106,7 @@ export default function CardSurface({ card, onTap, isHighlighted, onToggleConfir
       {/* Category icon */}
       <div className={`relative w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${colors.bg} ${colors.icon}`}>
         {/* eslint-disable-next-line react/no-danger */}
-        <div dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(place.sub_type, 18) }} />
+        <div dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(place?.sub_type ?? null, 18) }} />
         {isConfirmable(card) && card.confirmed && (
           <button
             onClick={(e) => { e.stopPropagation(); onToggleConfirmed?.(); }}
@@ -130,7 +136,7 @@ export default function CardSurface({ card, onTap, isHighlighted, onToggleConfir
       {/* Title + subtitle */}
       <div className="flex-1 min-w-0">
         <p className="text-[13px] font-bold text-gray-900 truncate leading-snug">
-          {place.title}
+          {title}
         </p>
         {(timeRange || subtitle) && (
           <p className="text-[11px] text-gray-600 mt-0.5 truncate leading-snug">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import type { Card, Place } from "@/types/database";
+import type { Card } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 
 interface Props {
@@ -66,30 +66,10 @@ export default function NoteCardSheet({ dayId, tripId, endPosition, onClose, onC
     if (!title.trim() || saving) return;
     setSaving(true);
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setSaving(false); return; }
-
-    const { data: placeRow, error: placeErr } = await supabase
-      .from("places")
-      .insert({
-        user_id:         user.id,
-        google_place_id: null,
-        title:           title.trim(),
-        type:            "activity",
-        sub_type:        "note",
-        lat:             null,
-        lng:             null,
-        address:         null,
-        cover_image_url: null,
-      })
-      .select("*")
-      .single();
-    if (placeErr || !placeRow) { setSaving(false); return; }
-    const place = placeRow as Place;
-
     const now = new Date().toISOString();
     const cardId = crypto.randomUUID();
-    const details = notes.trim() ? { notes: notes.trim() } : {};
+    const details: Record<string, unknown> = { title: title.trim() };
+    if (notes.trim()) details.notes = notes.trim();
 
     const { error } = await supabase.from("cards").insert({
       id:           cardId,
@@ -102,7 +82,7 @@ export default function NoteCardSheet({ dayId, tripId, endPosition, onClose, onC
       source_url:   null,
       details,
       ai_generated: false,
-      place_id:     place.id,
+      place_id:     null,
     });
 
     setSaving(false);
@@ -120,8 +100,8 @@ export default function NoteCardSheet({ dayId, tripId, endPosition, onClose, onC
         ai_generated: false,
         confirmed:    false,
         created_at:   now,
-        place_id:     place.id,
-        place,
+        place_id:     null,
+        place:        null,
       };
       onCardCreated(newCard);
     }

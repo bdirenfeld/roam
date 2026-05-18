@@ -675,31 +675,33 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   );
 
   // ── Derived display values ─────────────────────────────────
-  const place     = localCard.place!;
-  const isNote    = place.sub_type === "note";
-  const accent    = isNote ? { dot: "bg-gray-300", bg: "bg-gray-50", text: "text-gray-500" }
-                           : (TYPE_ACCENT[place.type] ?? TYPE_ACCENT.logistics);
-  const typeLabel =
-    (place.sub_type ? SUB_TYPE_LABEL[place.sub_type] : undefined) ??
-    SUB_TYPE_OPTIONS[place.type]?.[0]?.label ??
-    place.type;
-  const rating  = place.rating;
-  const rawPhone = typeof (localCard.details as Record<string, unknown>)?.phone === "string"
-                    ? ((localCard.details as Record<string, unknown>).phone as string)
-                    : null;
+  const place     = localCard.place ?? null;
+  const isNote    = place == null;
+  const det       = localCard.details as Record<string, unknown>;
+  const noteSnippet = isNote ? (det?.notes as string | undefined) : undefined;
+  const displayTitle = place?.title ?? (det?.title as string | undefined) ?? noteSnippet?.slice(0, 60) ?? "(untitled note)";
+  // Unlinked cards default to a muted note accent
+  const accent    = isNote
+    ? { dot: "bg-gray-300", bg: "bg-gray-50", text: "text-gray-500" }
+    : (TYPE_ACCENT[place.type] ?? TYPE_ACCENT.logistics);
+  const typeLabel = isNote
+    ? "Note"
+    : ((place.sub_type ? SUB_TYPE_LABEL[place.sub_type] : undefined) ??
+       SUB_TYPE_OPTIONS[place.type]?.[0]?.label ??
+       place.type);
+  const rating  = place?.rating ?? null;
+  const rawPhone = typeof det?.phone === "string" ? (det.phone as string) : null;
   const phone    = rawPhone
-    ? formatPhone(rawPhone, place.address, tripDestination)
+    ? formatPhone(rawPhone, place?.address ?? null, tripDestination)
     : null;
-  const website = typeof (localCard.details as Record<string, unknown>)?.website === "string"
-                    ? ((localCard.details as Record<string, unknown>).website as string)
-                    : null;
-  const menuUrl = typeof (localCard.details as Record<string, unknown>)?.menu_url === "string"
-                    ? ((localCard.details as Record<string, unknown>).menu_url as string) || null
+  const website = typeof det?.website === "string" ? (det.website as string) : null;
+  const menuUrl = typeof det?.menu_url === "string"
+                    ? ((det.menu_url as string) || null)
                     : null;
 
-  const priceLevel = place.price_level;
+  const priceLevel = place?.price_level ?? null;
 
-  const badgePriceLabel = place.type === "food" && priceLevel != null
+  const badgePriceLabel = place?.type === "food" && priceLevel != null
     ? (["Free", "€", "€€", "€€€", "€€€€"] as const)[priceLevel] ?? null
     : null;
 
@@ -707,7 +709,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const badge = bookingBadge(localCard.details);
 
   // ── Route to sub-type component ───────────────────────────
-  const key = `${place.type}/${place.sub_type ?? ""}`;
+  const key = place ? `${place.type}/${place.sub_type ?? ""}` : "note";
 
   function renderDetail() {
     switch (key) {
@@ -728,7 +730,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       case "activity/guided":
       case "activity/hosted":
         return <GuidedDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
-      case "activity/note":
+      case "note":
         return <NoteDetail notes={(localCard.details?.notes as string) ?? ""} onSave={(v) => saveDetails("notes", v)} />;
       case "activity/event":
         return <EventDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
@@ -741,15 +743,15 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       case "activity/wellness":
         return <WellnessDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
       default:
-        if (place.type === "logistics") return <LogisticsDetail card={localCard} />;
-        if (place.type === "activity")  return <ActivityDetail  card={localCard} />;
+        if (place?.type === "logistics") return <LogisticsDetail card={localCard} />;
+        if (place?.type === "activity")  return <ActivityDetail  card={localCard} />;
         return <RestaurantDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
     }
   }
 
   // ── Address display ────────────────────────────────────────
-  const addressLine = place.address ?? (
-    place.lat != null && place.lng != null
+  const addressLine = place?.address ?? (
+    place?.lat != null && place.lng != null
       ? `${place.lat.toFixed(4)}, ${place.lng.toFixed(4)}`
       : null
   );
@@ -777,44 +779,50 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           onTouchEnd={handleTouchEnd}
           className="flex-shrink-0"
         >
-        {/* Cover photo hero — swipeable gallery */}
-        <div className="relative w-full overflow-hidden">
-          <CardGallery
-            placeId={(localCard.details as Record<string, unknown>)?.place_id as string | undefined}
-            coverImageUrl={place.cover_image_url}
-            fallbackLat={place.lat}
-            fallbackLng={place.lng}
-            cardTitle={place.title}
-            height={220}
-          />
-          {/* Gradient overlay so drag handle is visible */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent pointer-events-none" style={{ zIndex: 20 }} />
-          {/* Drag handle on top of photo */}
-          <div className="absolute top-2.5 left-0 right-0 flex justify-center cursor-grab" style={{ zIndex: 21 }}>
-            <div className="w-9 h-[3px] rounded-full bg-white/60" />
+        {/* Cover photo hero — swipeable gallery (only when card is linked to a place) */}
+        {place ? (
+          <div className="relative w-full overflow-hidden">
+            <CardGallery
+              placeId={(localCard.details as Record<string, unknown>)?.place_id as string | undefined}
+              coverImageUrl={place.cover_image_url}
+              fallbackLat={place.lat}
+              fallbackLng={place.lng}
+              cardTitle={place.title}
+              height={220}
+            />
+            {/* Gradient overlay so drag handle is visible */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent pointer-events-none" style={{ zIndex: 20 }} />
+            {/* Drag handle on top of photo */}
+            <div className="absolute top-2.5 left-0 right-0 flex justify-center cursor-grab" style={{ zIndex: 21 }}>
+              <div className="w-9 h-[3px] rounded-full bg-white/60" />
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="relative w-full pt-2.5 flex justify-center cursor-grab">
+            <div className="w-9 h-[3px] rounded-full bg-gray-200" />
+          </div>
+        )}
 
         {/* Header */}
         <div className="px-5 pt-3 pb-4 border-b border-gray-100">
           {/* Top row: type badge + booking badge + [📍 Link] [🗑 Delete] [✕ Close] */}
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
-              {/* Type badge — tappable to change sub-type */}
+              {/* Type badge — tappable to change sub-type (only when linked to a place) */}
               <div className="relative">
                 <button
-                  onClick={() => !isNote && setShowSubTypePicker((v) => !v)}
-                  className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${accent.bg} ${!isNote ? "hover:opacity-80 active:opacity-70 transition-opacity cursor-pointer" : "cursor-default"}`}
+                  onClick={() => place && setShowSubTypePicker((v) => !v)}
+                  className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${accent.bg} ${place ? "hover:opacity-80 active:opacity-70 transition-opacity cursor-pointer" : "cursor-default"}`}
                 >
                   <span className={`w-2 h-2 rounded-full ${accent.dot}`} />
                   <span className={`text-[11px] font-semibold ${accent.text}`}>{typeLabel}</span>
-                  {!isNote && (
+                  {place && (
                     <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className={accent.text}>
                       <polyline points="6 9 12 15 18 9" />
                     </svg>
                   )}
                 </button>
-                {showSubTypePicker && !isNote && (
+                {showSubTypePicker && place && (
                   <SubTypePicker
                     currentType={place.type}
                     currentSubType={place.sub_type ?? null}
@@ -836,9 +844,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             </div>
             <div className="flex items-center gap-1.5 flex-shrink-0">
               {/* Rating + price — badge row, right of type badge */}
-              {(rating !== null && place.sub_type !== "flight_arrival" && place.sub_type !== "flight_departure" || badgePriceLabel) && (
+              {(rating !== null && place?.sub_type !== "flight_arrival" && place?.sub_type !== "flight_departure" || badgePriceLabel) && (
                 <div className="flex items-center mr-0.5" style={{ gap: 3 }}>
-                  {rating !== null && place.sub_type !== "flight_arrival" && place.sub_type !== "flight_departure" && (
+                  {rating !== null && place?.sub_type !== "flight_arrival" && place?.sub_type !== "flight_departure" && (
                     <>
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="#B45309" stroke="none">
                         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
@@ -846,7 +854,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                       <span style={{ fontSize: 11, fontWeight: 600, color: "#B45309" }}>{rating.toFixed(1)}</span>
                     </>
                   )}
-                  {rating !== null && place.sub_type !== "flight_arrival" && place.sub_type !== "flight_departure" && badgePriceLabel && (
+                  {rating !== null && place?.sub_type !== "flight_arrival" && place?.sub_type !== "flight_departure" && badgePriceLabel && (
                     <span style={{ color: "#D4CFC8", fontSize: 11 }}>·</span>
                   )}
                   {badgePriceLabel && (
@@ -855,7 +863,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 </div>
               )}
               {/* Paperclip — attachments (logistics and activity cards only) */}
-              {(place.type === "logistics" || place.type === "activity") && (
+              {(place?.type === "logistics" || place?.type === "activity") && (
                 <button
                   onClick={() => setShowAttachments(true)}
                   className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
@@ -904,12 +912,16 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             </div>
           </div>
 
-          {/* Editable title */}
+          {/* Title — editable when linked to a place, readonly otherwise */}
           <div className="mt-2.5">
-            <TitleEditor
-              value={place.title}
-              onSave={(v) => saveTitle(v)}
-            />
+            {place ? (
+              <TitleEditor
+                value={place.title}
+                onSave={(v) => saveTitle(v)}
+              />
+            ) : (
+              <h2 className="text-[19px] font-bold text-gray-900 leading-snug">{displayTitle}</h2>
+            )}
           </div>
 
           {/* Editable time row */}
@@ -983,9 +995,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           )}
 
           {/* Action pills: Maps · Website · Call · Menu */}
-          {(place.lat != null && place.lng != null || (localCard.details as Record<string, unknown>)?.place_id != null || website || phone || place.type === "food") && (
+          {(place?.lat != null && place.lng != null || (localCard.details as Record<string, unknown>)?.place_id != null || website || phone || place?.type === "food") && (
             <div className="flex flex-wrap mt-3" style={{ gap: 6 }}>
-              {(place.lat != null && place.lng != null || (localCard.details as Record<string, unknown>)?.place_id != null) && (
+              {(place?.lat != null && place.lng != null || (localCard.details as Record<string, unknown>)?.place_id != null) && (
                 <button
                   onClick={() => setNavSheetOpen(true)}
                   style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 20, border: "0.5px solid #E5E0D8", background: "#fff", fontSize: 11, color: "#4B5563" }}
@@ -1023,7 +1035,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   Call
                 </a>
               )}
-              {place.type === "food" && (
+              {place?.type === "food" && (
                 menuUrl ? (
                   <a
                     href={menuUrl}
@@ -1054,7 +1066,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               )}
             </div>
           )}
-          {place.type === "food" && showMenuInput && (
+          {place?.type === "food" && showMenuInput && (
             <div className="mt-2 flex items-center gap-2">
               <input
                 type="url"
@@ -1091,9 +1103,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             {renderDetail()}
 
             {/* Confirmation toggle — guided activities, all logistics, restaurants */}
-            {((place.type === "activity" && place.sub_type === "guided") ||
-              place.type === "logistics" ||
-              (place.type === "food" && place.sub_type === "restaurant")) && (
+            {((place?.type === "activity" && place.sub_type === "guided") ||
+              place?.type === "logistics" ||
+              (place?.type === "food" && place.sub_type === "restaurant")) && (
               <button
                 onClick={() => saveTopLevel("confirmed", !localCard.confirmed)}
                 className="w-full flex items-center justify-between mt-5 pt-4 border-t border-gray-100"
@@ -1118,7 +1130,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             )}
 
             {/* Add details / collapse toggle — not shown for notes */}
-            {place.sub_type !== "note" && (
+            {place && place.sub_type !== "note" && (
               <button
                 onClick={() => setShowEmptyFields((v) => !v)}
                 className="mt-4 flex items-center gap-1.5 text-[12px] text-gray-400 hover:text-gray-600 transition-colors"
@@ -1198,12 +1210,12 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           />
         )}
 
-        {/* Link place sheet */}
+        {/* Link place sheet — unlinked cards default to activity */}
         {showLinkSheet && (
           <div className="absolute inset-0 z-10">
             <LinkPlaceSheet
               tripId={localCard.trip_id}
-              cardType={place.type}
+              cardType={place?.type ?? "activity"}
               onLink={handleLinkPlace}
               onClose={() => setShowLinkSheet(false)}
             />
@@ -1308,10 +1320,10 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     <NavigationSheet
       isOpen={navSheetOpen}
       onClose={() => setNavSheetOpen(false)}
-      placeName={place.title}
+      placeName={place?.title ?? displayTitle}
       placeId={(localCard.details as Record<string, unknown>)?.place_id as string | undefined}
-      lat={place.lat}
-      lng={place.lng}
+      lat={place?.lat ?? null}
+      lng={place?.lng ?? null}
     />
     </>
   );

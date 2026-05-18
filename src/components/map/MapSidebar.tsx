@@ -161,7 +161,7 @@ export default function MapSidebar({
 
   function cardsForRow(row: SubTypeRow): Card[] {
     return cards.filter(
-      (c) => c.place!.sub_type && row.subTypes.includes(c.place!.sub_type) && c.place!.lat != null && c.place!.lng != null,
+      (c) => c.place?.sub_type != null && row.subTypes.includes(c.place.sub_type) && c.place.lat != null && c.place.lng != null,
     );
   }
 

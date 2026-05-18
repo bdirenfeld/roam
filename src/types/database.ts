@@ -153,7 +153,7 @@ export interface Card {
   ai_generated: boolean
   confirmed: boolean
   created_at: string
-  place_id: string
+  place_id: string | null
   place?: Place | null
 }
 

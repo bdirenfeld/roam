@@ -35,7 +35,7 @@ import TriageView from "@/components/plan/TriageView";
 type BoardBg =
   | { type: "color"; value: string }
   | { type: "photo"; url: string; thumb: string };
-import type { Trip, Card, DayWithCards, CardType, CardStatus, Place } from "@/types/database";
+import type { Trip, Card, DayWithCards, CardType, CardStatus } from "@/types/database";
 import { getPriceRange } from "@/lib/priceRange";
 
 import CardImage from "@/components/ui/CardImage";
@@ -137,22 +137,9 @@ const LAST_DAY_CARDS: SkeletonDef[] = [
 function makeCards(
   dayId: string,
   tripId: string,
-  userId: string,
   skeletons: SkeletonDef[],
-): { cards: Card[]; places: Place[] } {
-  const places: Place[] = skeletons.map((s) => ({
-    id:              crypto.randomUUID(),
-    title:           s.title,
-    type:            s.type,
-    sub_type:        s.sub_type,
-    lat:             null,
-    lng:             null,
-    address:         null,
-    cover_image_url: null,
-    rating:          null,
-    price_level:     null,
-  }));
-  const cards: Card[] = skeletons.map((s, i) => ({
+): Card[] {
+  return skeletons.map((s, i) => ({
     id:           crypto.randomUUID(),
     day_id:       dayId,
     trip_id:      tripId,
@@ -161,16 +148,13 @@ function makeCards(
     position:     i + 1,
     status:       "in_itinerary" as CardStatus,
     source_url:   null,
-    details:      {},
+    details:      { title: s.title },
     ai_generated: false,
     confirmed:    false,
     created_at:   new Date().toISOString(),
-    place_id:     places[i].id,
-    place:        places[i],
+    place_id:     null,
+    place:        null,
   }));
-  // user_id is carried separately for the places insert payload
-  void userId;
-  return { cards, places };
 }
 
 // ── Helpers ────────────────────────────────────────────────────
@@ -437,64 +421,25 @@ export default function PlanBoard({ trip, initialDays }: Props) {
     const day = days.find((d) => d.id === dayId);
     const endPos = day ? day.cards.reduce((m, c) => Math.max(m, c.position), 0) + 1 : 1;
     const id = crypto.randomUUID();
-    const placeId = crypto.randomUUID();
-    const place: Place = {
-      id:              placeId,
-      title,
-      type:            "activity",
-      sub_type:        null,
-      lat:             null,
-      lng:             null,
-      address:         null,
-      cover_image_url: null,
-      rating:          null,
-      price_level:     null,
-    };
+    const details = { title };
     const newCard: Card = {
       id, day_id: dayId, trip_id: trip.id,
       start_time: null, end_time: null, position: endPos,
       status: "in_itinerary", source_url: null,
-      details: {}, ai_generated: false,
+      details, ai_generated: false,
       confirmed: false, created_at: new Date().toISOString(),
-      place_id: placeId, place,
+      place_id: null, place: null,
     };
     setDays((prev) =>
       prev.map((d) => d.id === dayId ? { ...d, cards: [...d.cards, newCard] } : d)
     );
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      setDays((prev) =>
-        prev.map((d) => d.id === dayId ? { ...d, cards: d.cards.filter((c) => c.id !== id) } : d)
-      );
-      return;
-    }
-
-    const { error: placeErr } = await supabase.from("places").insert({
-      id:              placeId,
-      user_id:         user.id,
-      google_place_id: null,
-      title,
-      type:            "activity",
-      sub_type:        null,
-      lat:             null,
-      lng:             null,
-      address:         null,
-      cover_image_url: null,
-    });
-    if (placeErr) {
-      setDays((prev) =>
-        prev.map((d) => d.id === dayId ? { ...d, cards: d.cards.filter((c) => c.id !== id) } : d)
-      );
-      return;
-    }
-
     const { error } = await supabase.from("cards").insert({
       id, day_id: dayId, trip_id: trip.id,
       start_time: null, end_time: null, position: endPos,
       status: "in_itinerary",
-      details: {}, ai_generated: false,
-      place_id: placeId,
+      details, ai_generated: false,
+      place_id: null,
     });
     if (error) {
       setDays((prev) =>
@@ -508,11 +453,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
     const template = TEMPLATES.find((t) => t.key === templateKey);
     if (!template || !days.length) return;
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const allNewCards:  Card[]  = [];
-    const allNewPlaces: Place[] = [];
+    const allNewCards: Card[] = [];
 
     days.forEach((day, idx) => {
       const isFirst = idx === 0;
@@ -521,9 +462,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
       if (isFirst) skeletons = DAY1_CARDS;
       else if (isLast) skeletons = LAST_DAY_CARDS;
       else skeletons = template.cards;
-      const { cards, places } = makeCards(day.id, trip.id, user.id, skeletons);
-      allNewCards.push(...cards);
-      allNewPlaces.push(...places);
+      allNewCards.push(...makeCards(day.id, trip.id, skeletons));
     });
 
     // Optimistic update
@@ -531,34 +470,18 @@ export default function PlanBoard({ trip, initialDays }: Props) {
       prev.map((day) => ({ ...day, cards: allNewCards.filter((c) => c.day_id === day.id) }))
     );
 
-    // Persist places first (cards.place_id FK requires them)
-    const placeRows = allNewPlaces.map((p) => ({
-      id:              p.id,
-      user_id:         user.id,
-      google_place_id: null,
-      title:           p.title,
-      type:            p.type,
-      sub_type:        p.sub_type,
-      lat:             null,
-      lng:             null,
-      address:         null,
-      cover_image_url: null,
-    }));
-    const { error: placesErr } = await supabase.from("places").insert(placeRows);
-    if (placesErr) return;
-
     const rows = allNewCards.map((c) => ({
-      id:         c.id,
-      day_id:     c.day_id,
-      trip_id:    c.trip_id,
-      start_time: c.start_time,
-      end_time:   c.end_time,
-      position:   c.position,
-      status:     c.status,
-      source_url: null,
-      details:    {},
+      id:           c.id,
+      day_id:       c.day_id,
+      trip_id:      c.trip_id,
+      start_time:   c.start_time,
+      end_time:     c.end_time,
+      position:     c.position,
+      status:       c.status,
+      source_url:   null,
+      details:      c.details,
       ai_generated: false,
-      place_id:   c.place_id,
+      place_id:     null,
     }));
     await supabase.from("cards").insert(rows);
   }, [days, trip.id, supabase]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1214,16 +1137,19 @@ function CardTile({
   onDelete?: () => void;
   isOverlay?: boolean;
 }) {
-  const place       = card.place!;
-  const isNote      = place.sub_type === "note";
-  const borderClass = isNote ? "border-l-gray-200" : (TYPE_BORDER[place.type] ?? "border-l-gray-300");
-  const subLabel    = place.sub_type ? (SUB_LABEL[place.sub_type] ?? place.sub_type) : null;
-  const noteSnippet = isNote ? ((card.details as Record<string, unknown>)?.notes as string | undefined) : undefined;
+  const place       = card.place;
   const det         = card.details as Record<string, unknown>;
-  const tileRating  = place.type === "food" ? place.rating : null;
-  const priceRange  = place.type === "food"
+  const isNote      = place == null;
+  // Unlinked cards default to activity-style border for color consistency
+  const placeType   = place?.type ?? "activity";
+  const borderClass = isNote ? "border-l-gray-200" : (TYPE_BORDER[placeType] ?? "border-l-gray-300");
+  const subLabel    = place?.sub_type ? (SUB_LABEL[place.sub_type] ?? place.sub_type) : null;
+  const noteSnippet = isNote ? (det?.notes as string | undefined) : undefined;
+  const tileRating  = place?.type === "food" ? place.rating : null;
+  const priceRange  = place?.type === "food"
     ? getPriceRange(place.price_level ?? undefined, det?.currency_code as string | undefined)
     : null;
+  const title       = place?.title ?? (det?.title as string | undefined) ?? noteSnippet?.slice(0, 60) ?? "(untitled note)";
 
   const timeRange = (() => {
     const s = fmt12(card.start_time);
@@ -1239,21 +1165,23 @@ function CardTile({
       <button onClick={onTap} className="w-full text-left p-3">
         <div className="flex items-start gap-2.5">
 
-          {/* Thumbnail — 60×60 */}
-          <CardImage
-            src={place.cover_image_url}
-            alt=""
-            className="w-[60px] h-[60px] rounded-lg object-cover flex-shrink-0"
-            lat={place.lat}
-            lng={place.lng}
-            subType={place.sub_type}
-            title={place.title}
-          />
+          {/* Thumbnail — 60×60 (only when card is linked to a place) */}
+          {place && (
+            <CardImage
+              src={place.cover_image_url}
+              alt=""
+              className="w-[60px] h-[60px] rounded-lg object-cover flex-shrink-0"
+              lat={place.lat}
+              lng={place.lng}
+              subType={place.sub_type}
+              title={place.title}
+            />
+          )}
 
           {/* Text content */}
           <div className="flex-1 min-w-0">
             <p className="text-[14px] font-semibold text-gray-900 leading-snug line-clamp-2">
-              {place.title}
+              {title}
             </p>
             {isNote && noteSnippet ? (
               <p className="text-[11px] text-gray-400 mt-0.5 leading-snug line-clamp-2">{noteSnippet}</p>

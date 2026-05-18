@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import type { Card, CardType, CardStatus, DayWithCards, Place } from "@/types/database";
+import type { Card, CardStatus, DayWithCards } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 
 // ── ParsedConfirmation — matches API response ─────────────────
@@ -26,18 +26,6 @@ interface Props {
   tripId:          string;
   onClose:         () => void;
   onCardsCreated:  (cards: Card[], deletedIds: string[]) => void;
-}
-
-// ── Map parsed type → Card type + sub_type ────────────────────
-function cardTypeFromParsed(type: string): { cardType: CardType; sub_type: string } {
-  switch (type) {
-    case "flight_arrival":   return { cardType: "logistics", sub_type: "flight_arrival"   };
-    case "flight_departure": return { cardType: "logistics", sub_type: "flight_departure" };
-    case "hotel":            return { cardType: "logistics", sub_type: "hotel"            };
-    case "restaurant":       return { cardType: "food",      sub_type: "restaurant"       };
-    case "activity":
-    default:                 return { cardType: "activity",  sub_type: "guided"           };
-  }
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -154,7 +142,6 @@ export default function ConfirmationPreviewSheet({
     for (let i = 0; i < items.length; i++) {
       const parsed = items[i];
       const draft  = drafts[i];
-      const { cardType, sub_type } = cardTypeFromParsed(parsed.type);
 
       // Fix 3 — delete skeleton cards on the same day (empty details only)
       const { data: skeletons } = await supabase
@@ -176,32 +163,11 @@ export default function ConfirmationPreviewSheet({
       const endPos = remaining.reduce((m, c) => Math.max(m, c.position), 0) + 1;
 
       // Build details
-      const details: Record<string, unknown> = {};
+      const details: Record<string, unknown> = { title: draft.title.trim() };
       if (confNo.trim())       details.confirmation = confNo.trim();
       if (parsed.phone)        details.phone        = parsed.phone;
       if (parsed.website)      details.website      = parsed.website;
       if (draft.notes.trim())  details.notes        = draft.notes.trim();
-
-      const cardTitle = draft.title.trim();
-      const cardAddress = draft.address.trim() || null;
-
-      const { data: placeRow, error: placeErr } = await supabase
-        .from("places")
-        .insert({
-          user_id:         user.id,
-          google_place_id: null,
-          title:           cardTitle,
-          type:            cardType,
-          sub_type,
-          lat:             null,
-          lng:             null,
-          address:         cardAddress,
-          cover_image_url: null,
-        })
-        .select("*")
-        .single();
-      if (placeErr || !placeRow) continue;
-      const place = placeRow as Place;
 
       const cardId = crypto.randomUUID();
       const startTime = draft.time.trim()    ? draft.time.trim()    + ":00" : null;
@@ -218,7 +184,7 @@ export default function ConfirmationPreviewSheet({
         source_url:      null,
         details:         details as Card["details"],
         ai_generated:    false,
-        place_id:        place.id,
+        place_id:        null,
       });
 
       if (!error) {
@@ -235,8 +201,8 @@ export default function ConfirmationPreviewSheet({
           ai_generated: false,
           confirmed:    false,
           created_at:   new Date().toISOString(),
-          place_id:     place.id,
-          place,
+          place_id:     null,
+          place:        null,
         };
         createdCards.push(newCard);
       }

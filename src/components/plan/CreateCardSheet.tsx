@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import type { Card, CardType, Place } from "@/types/database";
+import type { Card, CardType } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 
 type UiType = CardType | "note";
@@ -39,15 +39,13 @@ interface Props {
   endPosition: number;
   onClose: () => void;
   onCardCreated: (card: Card) => void;
-  initialLat?: number;
-  initialLng?: number;
   initialStatus?: Card["status"];
   initialStartTime?: string;
 }
 
 export default function CreateCardSheet({
   dayId, tripId, endPosition, onClose, onCardCreated,
-  initialLat, initialLng, initialStatus, initialStartTime,
+  initialStatus, initialStartTime,
 }: Props) {
   const supabase  = createClient();
   const sheetRef  = useRef<HTMLDivElement>(null);
@@ -109,42 +107,19 @@ export default function CreateCardSheet({
     if (!title.trim() || saving) return;
     setSaving(true);
 
-    const cardStatus  = initialStatus ?? "in_itinerary";
-    const isNote      = type === "note";
-    const cardType: CardType = isNote ? "activity" : ((type ?? "activity") as CardType);
-    const cardSubType = isNote ? "note" : subType;
+    const cardStatus   = initialStatus ?? "in_itinerary";
     const startTimeFmt = startTime ? `${startTime}:00` : null;
     const endTimeFmt   = endTime   ? `${endTime}:00`   : null;
     const cardTitle    = title.trim();
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setSaving(false); return; }
-
-    const { data: placeRow, error: placeErr } = await supabase
-      .from("places")
-      .insert({
-        user_id:         user.id,
-        google_place_id: null,
-        title:           cardTitle,
-        type:            cardType,
-        sub_type:        cardSubType,
-        lat:             initialLat ?? null,
-        lng:             initialLng ?? null,
-        address:         null,
-        cover_image_url: null,
-      })
-      .select("*")
-      .single();
-    if (placeErr || !placeRow) { setSaving(false); return; }
-    const place = placeRow as Place;
+    const details: Record<string, unknown> = { title: cardTitle };
 
     const cardId = crypto.randomUUID();
     const { error } = await supabase.from("cards").insert({
       id: cardId, day_id: dayId, trip_id: tripId,
       start_time: startTimeFmt, end_time: endTimeFmt,
       position: endPosition, status: cardStatus,
-      details: {}, ai_generated: false,
-      place_id: place.id,
+      details, ai_generated: false,
+      place_id: null,
     });
 
     setSaving(false);
@@ -158,18 +133,18 @@ export default function CreateCardSheet({
         position:     endPosition,
         status:       cardStatus,
         source_url:   null,
-        details:      {},
+        details,
         ai_generated: false,
         confirmed:    false,
         created_at:   new Date().toISOString(),
-        place_id:     place.id,
-        place,
+        place_id:     null,
+        place:        null,
       };
       onCardCreated(newCard);
     }
   }, [
-    title, type, subType, startTime, endTime, saving,
-    dayId, tripId, endPosition, initialLat, initialLng, initialStatus, supabase, onCardCreated,
+    title, startTime, endTime, saving,
+    dayId, tripId, endPosition, initialStatus, supabase, onCardCreated,
   ]);
 
   const canCreate  = title.trim().length > 0;
