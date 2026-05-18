@@ -1170,7 +1170,7 @@ function CardTile({
           {/* Thumbnail — 60×60 (only when card is linked to a place) */}
           {place && (
             <CardImage
-              src={place.cover_image_url}
+              src={`/api/places/photo?place_id=${place.id}`}
               alt=""
               className="w-[60px] h-[60px] rounded-lg object-cover flex-shrink-0"
               lat={place.lat}

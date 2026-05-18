@@ -153,17 +153,6 @@ export async function POST(req: NextRequest) {
       continue;
     }
 
-    // ── Photo URL — never fail the import for missing photos ──────
-    let coverImageUrl: string | null = null;
-    try {
-      const photoRef = result.photos?.[0]?.photo_reference;
-      if (photoRef) {
-        coverImageUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${photoRef}&key=${apiKey}`;
-      }
-    } catch {
-      coverImageUrl = null;
-    }
-
     const row = {
       user_id:         user.id,
       google_place_id: googlePlaceId,
@@ -178,7 +167,6 @@ export async function POST(req: NextRequest) {
       hours:           result.opening_hours ?? null,
       rating:          result.rating ?? null,
       price_level:     result.price_level ?? null,
-      cover_image_url: coverImageUrl,
       details:         detailsRes.result,
     };
 
