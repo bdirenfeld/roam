@@ -66,10 +66,15 @@ const GUIDED_DETAIL_MAP: Record<string, string> = {
 function remapParsedFields(
   parsed: Record<string, unknown>,
   card: Card,
-): { details: Record<string, unknown>; topLevel: Record<string, unknown> } {
+): {
+  details:      Record<string, unknown>;
+  topLevel:     Record<string, unknown>;
+  placeAddress: string | null;
+} {
   const subType = card.place!.sub_type;
   const details: Record<string, unknown> = {};
   const topLevel: Record<string, unknown> = {};
+  let   placeAddress: string | null = null;
 
   if (subType === "flight_arrival" || subType === "flight_departure") {
     for (const [src, dst] of Object.entries(FLIGHT_DETAIL_MAP)) {
@@ -104,16 +109,17 @@ function remapParsedFields(
         details[dst] = parsed[src];
       }
     }
-    // Top-level fields updated from parsed data
+    // Trip-scoped top-level fields updated from parsed data
     if (parsed.time     != null) topLevel.start_time = parsed.time;
     if (parsed.end_time != null) topLevel.end_time   = parsed.end_time;
-    if (parsed.address  != null) topLevel.address    = parsed.address;
+    // Parsed address routes to the linked place, not the card
+    if (typeof parsed.address === "string") placeAddress = parsed.address;
   } else {
     // All other card types: pass parsed fields through unchanged
     Object.assign(details, parsed);
   }
 
-  return { details, topLevel };
+  return { details, topLevel, placeAddress };
 }
 
 // ── AttachmentRow sub-component ───────────────────────────────
@@ -227,6 +233,7 @@ export default function AttachmentsPanel({ card, onClose, onCardUpdate }: Props)
   const [confirmApply, setConfirmApply] = useState<{
     data:          Record<string, unknown>;
     topLevel:      Record<string, unknown>;
+    placeAddress: string | null;
     overwriteKeys: string[];
   } | null>(null);
 
@@ -281,7 +288,7 @@ export default function AttachmentsPanel({ card, onClose, onCardUpdate }: Props)
     const parsed = attachment.parsed_data;
     if (!parsed) return;
 
-    const { details: mappedDetails, topLevel } = remapParsedFields(
+    const { details: mappedDetails, topLevel, placeAddress } = remapParsedFields(
       parsed as Record<string, unknown>,
       card,
     );
@@ -300,17 +307,18 @@ export default function AttachmentsPanel({ card, onClose, onCardUpdate }: Props)
     }
 
     if (overwriteKeys.length > 0) {
-      setConfirmApply({ data: mappedDetails, topLevel, overwriteKeys });
+      setConfirmApply({ data: mappedDetails, topLevel, placeAddress, overwriteKeys });
     } else {
-      doApply(mappedDetails, topLevel, []);
+      doApply(mappedDetails, topLevel, placeAddress, []);
     }
   };
 
   const doApply = useCallback(
     async (
-      data:     Record<string, unknown>,
-      topLevel: Record<string, unknown>,
-      skipKeys: string[],
+      data:         Record<string, unknown>,
+      topLevel:     Record<string, unknown>,
+      placeAddress: string | null,
+      skipKeys:     string[],
     ) => {
       const current = (card.details ?? {}) as Record<string, unknown>;
       const merged: Record<string, unknown> = { ...current };
@@ -329,22 +337,21 @@ export default function AttachmentsPanel({ card, onClose, onCardUpdate }: Props)
       }
 
       // Parser overwrite: if parsed address differs from the linked place's, place wins
-      const parsedAddress = topLevel.address;
       if (
         card.place_id &&
-        typeof parsedAddress === "string" &&
-        parsedAddress !== card.place!.address
+        placeAddress != null &&
+        placeAddress !== card.place!.address
       ) {
         console.log("[parser] place overwrite", {
           card_id:   card.id,
           place_id:  card.place_id,
           field:     "address",
           old_value: card.place!.address,
-          new_value: parsedAddress,
+          new_value: placeAddress,
         });
         await supabase
           .from("places")
-          .update({ address: parsedAddress })
+          .update({ address: placeAddress })
           .eq("id", card.place_id);
       }
 
@@ -474,14 +481,14 @@ export default function AttachmentsPanel({ card, onClose, onCardUpdate }: Props)
                 Cancel
               </button>
               <button
-                onClick={() => doApply(confirmApply.data, confirmApply.topLevel, [])}
+                onClick={() => doApply(confirmApply.data, confirmApply.topLevel, confirmApply.placeAddress, [])}
                 className="flex-1 py-2.5 rounded-xl bg-activity text-white text-[13px] font-semibold hover:opacity-80 transition-colors"
               >
                 Overwrite all
               </button>
             </div>
             <button
-              onClick={() => doApply(confirmApply.data, confirmApply.topLevel, confirmApply.overwriteKeys)}
+              onClick={() => doApply(confirmApply.data, confirmApply.topLevel, confirmApply.placeAddress, confirmApply.overwriteKeys)}
               className="w-full py-2 text-[12px] text-gray-500 hover:text-gray-700 transition-colors"
             >
               Apply new fields only (keep {confirmApply.overwriteKeys.length} existing)

@@ -144,23 +144,16 @@ export interface Card {
   id: string
   day_id: string
   trip_id: string
-  type: CardType
-  sub_type: string | null
-  title: string
   start_time: string | null
   end_time: string | null
   position: number
   status: CardStatus
   source_url: string | null
-  cover_image_url: string | null
-  lat: number | null
-  lng: number | null
-  address: string | null
   details: CardDetails
   ai_generated: boolean
   confirmed: boolean
   created_at: string
-  place_id?: string | null
+  place_id: string
   place?: Place | null
 }
 

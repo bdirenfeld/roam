@@ -91,7 +91,7 @@ export default function ActivityDetail({ card }: Props) {
                     <div className="flex items-baseline gap-2">
                       <span className="text-[11px] font-bold text-activity">{step.card?.start_time}</span>
                     </div>
-                    <p className="text-sm font-semibold text-gray-800 leading-snug mt-0.5">{step.card?.sub_type}</p>
+                    <p className="text-sm font-semibold text-gray-800 leading-snug mt-0.5">{step.card?.place?.sub_type}</p>
                     {notes && (
                       <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{notes}</p>
                     )}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import type { Card } from "@/types/database";
+import type { Card, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 
 interface Props {
@@ -66,51 +66,65 @@ export default function NoteCardSheet({ dayId, tripId, endPosition, onClose, onC
     if (!title.trim() || saving) return;
     setSaving(true);
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setSaving(false); return; }
+
+    const { data: placeRow, error: placeErr } = await supabase
+      .from("places")
+      .insert({
+        user_id:         user.id,
+        google_place_id: null,
+        title:           title.trim(),
+        type:            "activity",
+        sub_type:        "note",
+        lat:             null,
+        lng:             null,
+        address:         null,
+        cover_image_url: null,
+      })
+      .select("*")
+      .single();
+    if (placeErr || !placeRow) { setSaving(false); return; }
+    const place = placeRow as Place;
+
     const now = new Date().toISOString();
-    const newCard: Card = {
-      id:              crypto.randomUUID(),
-      day_id:          dayId,
-      trip_id:         tripId,
-      type:            "activity",
-      sub_type:        "note",
-      title:           title.trim(),
-      start_time:      null,
-      end_time:        null,
-      position:        endPosition,
-      status:          "in_itinerary",
-      source_url:      null,
-      cover_image_url: null,
-      lat:             null,
-      lng:             null,
-      address:         null,
-      details:         notes.trim() ? { notes: notes.trim() } : {},
-      ai_generated:    false,
-      confirmed:       false,
-      created_at:      now,
-    };
+    const cardId = crypto.randomUUID();
+    const details = notes.trim() ? { notes: notes.trim() } : {};
 
     const { error } = await supabase.from("cards").insert({
-      id:           newCard.id,
-      day_id:       newCard.day_id,
-      trip_id:      newCard.trip_id,
-      type:         newCard.type,
-      sub_type:     newCard.sub_type,
-      title:        newCard.title,
+      id:           cardId,
+      day_id:       dayId,
+      trip_id:      tripId,
       start_time:   null,
       end_time:     null,
-      position:     newCard.position,
-      status:       newCard.status,
+      position:     endPosition,
+      status:       "in_itinerary",
       source_url:   null,
-      cover_image_url: null,
-      lat:          null,
-      lng:          null,
-      address:      null,
-      details:      newCard.details,
+      details,
       ai_generated: false,
+      place_id:     place.id,
     });
 
     setSaving(false);
-    if (!error) onCardCreated(newCard);
+    if (!error) {
+      const newCard: Card = {
+        id:           cardId,
+        day_id:       dayId,
+        trip_id:      tripId,
+        start_time:   null,
+        end_time:     null,
+        position:     endPosition,
+        status:       "in_itinerary",
+        source_url:   null,
+        details,
+        ai_generated: false,
+        confirmed:    false,
+        created_at:   now,
+        place_id:     place.id,
+        place,
+      };
+      onCardCreated(newCard);
+    }
   }, [title, notes, saving, dayId, tripId, endPosition, supabase, onCardCreated]);
 
   return (

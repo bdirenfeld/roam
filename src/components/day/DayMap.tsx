@@ -134,8 +134,8 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
         let accomCoord: [number, number] | null = null;
         if (accommodationCard) {
           const ac = accommodationCard;
-          const acLat = ac.lat ?? (ac.details as Record<string, unknown>)?.lat as number | undefined;
-          const acLng = ac.lng ?? (ac.details as Record<string, unknown>)?.lng as number | undefined;
+          const acLat = ac.place?.lat ?? (ac.details as Record<string, unknown>)?.lat as number | undefined;
+          const acLng = ac.place?.lng ?? (ac.details as Record<string, unknown>)?.lng as number | undefined;
           if (acLat != null && acLng != null) {
             accomCoord = [acLng, acLat];
 

@@ -114,7 +114,6 @@ function TypeEditor({
     } else {
       delete updatedDetails.recommended_by;
     }
-    // Dual-write: canonical places row first, then the cards mirror
     if (card.place_id) {
       const { error: placeErr } = await supabase
         .from("places")
@@ -125,10 +124,15 @@ function TypeEditor({
 
     const { error } = await supabase
       .from("cards")
-      .update({ type: editType, sub_type: editSubType, details: updatedDetails })
+      .update({ details: updatedDetails })
       .eq("id", card.id);
     setSaving(false);
-    if (!error) onSaved({ ...card, type: editType, sub_type: editSubType, details: updatedDetails });
+    if (!error) {
+      const updatedPlace = card.place
+        ? { ...card.place, type: editType, sub_type: editSubType }
+        : card.place;
+      onSaved({ ...card, details: updatedDetails, place: updatedPlace });
+    }
   }, [saving, editType, editSubType, editRecommendedBy, card, supabase, onSaved]);
 
   const typeColor = PIN_COLORS[editType];

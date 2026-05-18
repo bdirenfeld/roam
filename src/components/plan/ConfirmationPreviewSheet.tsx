@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import type { Card, CardType, CardStatus, DayWithCards } from "@/types/database";
+import type { Card, CardType, CardStatus, DayWithCards, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 
 // ── ParsedConfirmation — matches API response ─────────────────
@@ -145,6 +145,9 @@ export default function ConfirmationPreviewSheet({
     if (!canSave || saving) return;
     setSaving(true);
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setSaving(false); return; }
+
     const createdCards: Card[] = [];
     const deletedIds:   string[] = [];
 
@@ -179,58 +182,72 @@ export default function ConfirmationPreviewSheet({
       if (parsed.website)      details.website      = parsed.website;
       if (draft.notes.trim())  details.notes        = draft.notes.trim();
 
-      const newCard: Card = {
-        id:              crypto.randomUUID(),
-        day_id:          draft.dayId,
-        trip_id:         tripId,
-        type:            cardType,
-        sub_type,
-        title:           draft.title.trim(),
-        start_time:      draft.time.trim()    ? draft.time.trim()    + ":00" : null,
-        end_time:        draft.endTime.trim() ? draft.endTime.trim() + ":00" : null,
-        position:        endPos,
-        status:          "in_itinerary" as CardStatus,
-        source_url:      null,
-        cover_image_url: null,
-        lat:             null,
-        lng:             null,
-        address:         draft.address.trim() || null,
-        details:         details as Card["details"],
-        ai_generated:    false,
-        confirmed:       false,
-        created_at:      new Date().toISOString(),
-      };
+      const cardTitle = draft.title.trim();
+      const cardAddress = draft.address.trim() || null;
+
+      const { data: placeRow, error: placeErr } = await supabase
+        .from("places")
+        .insert({
+          user_id:         user.id,
+          google_place_id: null,
+          title:           cardTitle,
+          type:            cardType,
+          sub_type,
+          lat:             null,
+          lng:             null,
+          address:         cardAddress,
+          cover_image_url: null,
+        })
+        .select("*")
+        .single();
+      if (placeErr || !placeRow) continue;
+      const place = placeRow as Place;
+
+      const cardId = crypto.randomUUID();
+      const startTime = draft.time.trim()    ? draft.time.trim()    + ":00" : null;
+      const endTime   = draft.endTime.trim() ? draft.endTime.trim() + ":00" : null;
 
       const { error } = await supabase.from("cards").insert({
-        id:              newCard.id,
-        day_id:          newCard.day_id,
-        trip_id:         newCard.trip_id,
-        type:            newCard.type,
-        sub_type:        newCard.sub_type,
-        title:           newCard.title,
-        start_time:      newCard.start_time,
-        end_time:        newCard.end_time,
-        position:        newCard.position,
-        status:          newCard.status,
+        id:              cardId,
+        day_id:          draft.dayId,
+        trip_id:         tripId,
+        start_time:      startTime,
+        end_time:        endTime,
+        position:        endPos,
+        status:          "in_itinerary",
         source_url:      null,
-        cover_image_url: null,
-        lat:             null,
-        lng:             null,
-        address:         newCard.address,
-        details:         newCard.details,
+        details:         details as Card["details"],
         ai_generated:    false,
+        place_id:        place.id,
       });
 
-      if (!error) createdCards.push(newCard);
+      if (!error) {
+        const newCard: Card = {
+          id:           cardId,
+          day_id:       draft.dayId,
+          trip_id:      tripId,
+          start_time:   startTime,
+          end_time:     endTime,
+          position:     endPos,
+          status:       "in_itinerary" as CardStatus,
+          source_url:   null,
+          details:      details as Card["details"],
+          ai_generated: false,
+          confirmed:    false,
+          created_at:   new Date().toISOString(),
+          place_id:     place.id,
+          place,
+        };
+        createdCards.push(newCard);
+      }
     }
 
     // Save document record — best-effort, never blocks card creation
-    const { data: { user } } = await supabase.auth.getUser();
     const documentType = items[0]?.type.startsWith("flight") ? "flight"
                        : items[0]?.type ?? "activity";
     const { error: docError } = await supabase.from("documents").insert({
       trip_id:       tripId,
-      user_id:       user?.id ?? null,
+      user_id:       user.id,
       file_name:     fileName,
       file_type:     fileType,
       document_type: documentType,

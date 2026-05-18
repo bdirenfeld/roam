@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import type { Card, CardType } from "@/types/database";
+import type { Card, CardType, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 
 type UiType = CardType | "note";
@@ -115,40 +115,58 @@ export default function CreateCardSheet({
     const cardSubType = isNote ? "note" : subType;
     const startTimeFmt = startTime ? `${startTime}:00` : null;
     const endTimeFmt   = endTime   ? `${endTime}:00`   : null;
+    const cardTitle    = title.trim();
 
-    const newCard: Card = {
-      id:              crypto.randomUUID(),
-      day_id:          dayId,
-      trip_id:         tripId,
-      type:            cardType,
-      sub_type:        cardSubType,
-      title:           title.trim(),
-      start_time:      startTimeFmt,
-      end_time:        endTimeFmt,
-      position:        endPosition,
-      status:          cardStatus,
-      source_url:      null,
-      cover_image_url: null,
-      lat:             initialLat ?? null,
-      lng:             initialLng ?? null,
-      address:         null,
-      details:         {},
-      ai_generated:    false,
-      confirmed:       false,
-      created_at:      new Date().toISOString(),
-    };
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setSaving(false); return; }
 
+    const { data: placeRow, error: placeErr } = await supabase
+      .from("places")
+      .insert({
+        user_id:         user.id,
+        google_place_id: null,
+        title:           cardTitle,
+        type:            cardType,
+        sub_type:        cardSubType,
+        lat:             initialLat ?? null,
+        lng:             initialLng ?? null,
+        address:         null,
+        cover_image_url: null,
+      })
+      .select("*")
+      .single();
+    if (placeErr || !placeRow) { setSaving(false); return; }
+    const place = placeRow as Place;
+
+    const cardId = crypto.randomUUID();
     const { error } = await supabase.from("cards").insert({
-      id: newCard.id, day_id: dayId, trip_id: tripId,
-      type: cardType, sub_type: cardSubType, title: newCard.title,
+      id: cardId, day_id: dayId, trip_id: tripId,
       start_time: startTimeFmt, end_time: endTimeFmt,
       position: endPosition, status: cardStatus,
-      lat: initialLat ?? null, lng: initialLng ?? null,
-      address: null, details: {}, ai_generated: false,
+      details: {}, ai_generated: false,
+      place_id: place.id,
     });
 
     setSaving(false);
-    if (!error) onCardCreated(newCard);
+    if (!error) {
+      const newCard: Card = {
+        id:           cardId,
+        day_id:       dayId,
+        trip_id:      tripId,
+        start_time:   startTimeFmt,
+        end_time:     endTimeFmt,
+        position:     endPosition,
+        status:       cardStatus,
+        source_url:   null,
+        details:      {},
+        ai_generated: false,
+        confirmed:    false,
+        created_at:   new Date().toISOString(),
+        place_id:     place.id,
+        place,
+      };
+      onCardCreated(newCard);
+    }
   }, [
     title, type, subType, startTime, endTime, saving,
     dayId, tripId, endPosition, initialLat, initialLng, initialStatus, supabase, onCardCreated,

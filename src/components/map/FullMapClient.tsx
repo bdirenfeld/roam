@@ -43,7 +43,7 @@ const SKELETON_PREFIXES = [
 ];
 
 function isSkeletonCard(card: Card): boolean {
-  const lower = card.title.toLowerCase();
+  const lower = (card.place?.title ?? "").toLowerCase();
   return SKELETON_PREFIXES.some((s) => lower.startsWith(s));
 }
 

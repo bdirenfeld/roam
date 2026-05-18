@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback, useState } from "react";
-import type { Card, Day } from "@/types/database";
+import type { Card, Day, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
 import AttachmentsPanel from "./AttachmentsPanel";
@@ -544,21 +544,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       ...(placeDetails.currency_code != null ? { currency_code: placeDetails.currency_code } : {}),
     };
 
-    // Always overwrite location, photo, and category from pin; never touch scheduling
-    const topUpdate: Partial<Card> = {};
-    if (place.lat             != null) topUpdate.lat             = place.lat;
-    if (place.lng             != null) topUpdate.lng             = place.lng;
-    if (place.address         != null && place.address         !== "") topUpdate.address         = place.address;
-    if (place.cover_image_url != null && place.cover_image_url !== "") topUpdate.cover_image_url = place.cover_image_url;
-    if (place.type            != null) topUpdate.type            = place.type;
-    if (place.sub_type        != null) topUpdate.sub_type        = place.sub_type;
-
-    const placeName = (place.title ?? "").trim();
-    if (placeName) topUpdate.title = placeName;
-
     const updated: Card = {
       ...localCard,
-      ...topUpdate,
       details: mergedDetails as typeof localCard.details,
     };
 
@@ -568,7 +555,6 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     setTimeout(() => setLinkMergeMessage(null), 3000);
 
     await supabase.from("cards").update({
-      ...topUpdate,
       details: mergedDetails,
     }).eq("id", localCard.id);
   }, [localCard, onCardUpdate, supabase]);
@@ -641,15 +627,13 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       const prev = localCard;
       const updated: Card = {
         ...localCard,
-        type: newType as Card["type"],
-        sub_type: newSubType,
-        // Patch in-memory place to match DB; flat-column patch above does the same for cards.*
-        place: localCard.place ? { ...localCard.place, type: newType as Card["type"], sub_type: newSubType } : localCard.place,
+        place: localCard.place
+          ? { ...localCard.place, type: newType as Place["type"], sub_type: newSubType }
+          : localCard.place,
       };
       setLocalCard(updated);
       onCardUpdate?.(updated);
 
-      // Dual-write: canonical places row first, then the cards mirror
       if (localCard.place_id) {
         const { error: placeErr } = await supabase
           .from("places")
@@ -659,18 +643,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           console.error("Failed to save type/sub_type on places", placeErr.message);
           setLocalCard(prev);
           onCardUpdate?.(prev);
-          return;
         }
-      }
-
-      const { error } = await supabase
-        .from("cards")
-        .update({ type: newType, sub_type: newSubType })
-        .eq("id", localCard.id);
-      if (error) {
-        console.error("Failed to save type/sub_type", error.message);
-        setLocalCard(prev);
-        onCardUpdate?.(prev);
       }
     },
     [localCard, onCardUpdate, supabase],
@@ -681,14 +654,11 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       const prev = localCard;
       const updated: Card = {
         ...localCard,
-        title: value,
-        // Patch in-memory place to match DB; flat-column patch above does the same for cards.*
         place: localCard.place ? { ...localCard.place, title: value } : localCard.place,
       };
       setLocalCard(updated);
       onCardUpdate?.(updated);
 
-      // Dual-write: canonical places row first, then the cards mirror
       if (localCard.place_id) {
         const { error: placeErr } = await supabase
           .from("places")
@@ -698,18 +668,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           console.error("Failed to save title on places", placeErr.message);
           setLocalCard(prev);
           onCardUpdate?.(prev);
-          return;
         }
-      }
-
-      const { error } = await supabase
-        .from("cards")
-        .update({ title: value })
-        .eq("id", localCard.id);
-      if (error) {
-        console.error("Failed to save title", error.message);
-        setLocalCard(prev);
-        onCardUpdate?.(prev);
       }
     },
     [localCard, onCardUpdate, supabase],
