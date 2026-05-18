@@ -108,8 +108,8 @@ export default function CreateCardSheet({
     setSaving(true);
 
     const cardStatus   = initialStatus ?? "in_itinerary";
-    const startTimeFmt = startTime ? `${startTime}:00` : null;
-    const endTimeFmt   = endTime   ? `${endTime}:00`   : null;
+    const startTimeFmt = startTime ? `${startTime.slice(0, 5)}:00` : null;
+    const endTimeFmt   = endTime   ? `${endTime.slice(0, 5)}:00`   : null;
     const cardTitle    = title.trim();
     const details: Record<string, unknown> = { title: cardTitle };
 
