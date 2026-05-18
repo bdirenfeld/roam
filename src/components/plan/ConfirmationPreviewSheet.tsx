@@ -170,8 +170,8 @@ export default function ConfirmationPreviewSheet({
       if (draft.notes.trim())  details.notes        = draft.notes.trim();
 
       const cardId = crypto.randomUUID();
-      const startTime = draft.time.trim()    ? draft.time.trim()    + ":00" : null;
-      const endTime   = draft.endTime.trim() ? draft.endTime.trim() + ":00" : null;
+      const startTime = draft.time.trim()    ? `${draft.time.trim().slice(0, 5)}:00`    : null;
+      const endTime   = draft.endTime.trim() ? `${draft.endTime.trim().slice(0, 5)}:00` : null;
 
       const { error } = await supabase.from("cards").insert({
         id:              cardId,
