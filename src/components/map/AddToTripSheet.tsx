@@ -198,7 +198,6 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
           lat:             place.lat,
           lng:             place.lng,
           address:         place.address,
-          cover_image_url: place.coverPhotoUrl ?? null,
           rating:          place.rating ?? null,
           price_level:     foodPriceLevel,
         },
@@ -217,7 +216,7 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
       lat:             place.lat,
       lng:             place.lng,
       address:         place.address,
-      cover_image_url: place.coverPhotoUrl ?? null,
+      cover_image_url: null,
       rating:          place.rating ?? null,
       price_level:     foodPriceLevel,
     };

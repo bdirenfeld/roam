@@ -181,7 +181,7 @@ export default function TriageView({ tripId, days }: Props) {
                   {/* Thumbnail */}
                   <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
                     <CardImage
-                      src={card.place!.cover_image_url}
+                      src={`/api/places/photo?place_id=${card.place!.id}`}
                       alt=""
                       className="w-full h-full object-cover"
                       lat={card.place!.lat}

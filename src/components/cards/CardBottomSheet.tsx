@@ -784,7 +784,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           <div className="relative w-full overflow-hidden">
             <CardGallery
               placeId={(localCard.details as Record<string, unknown>)?.place_id as string | undefined}
-              coverImageUrl={place.cover_image_url}
+              coverImageUrl={`/api/places/photo?place_id=${place.id}`}
               fallbackLat={place.lat}
               fallbackLng={place.lng}
               cardTitle={place.title}

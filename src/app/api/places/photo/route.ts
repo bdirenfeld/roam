@@ -1,35 +1,66 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { fetchPlaceDetails } from "@/lib/places/fetchDetails";
 
-export async function GET(request: NextRequest) {
-  const { searchParams } = request.nextUrl;
-  const photoRef = searchParams.get("photo_reference");
-  const maxWidth = searchParams.get("maxwidth") ?? "800";
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const CACHE_HEADER = "public, max-age=86400, s-maxage=86400";
 
-  if (!photoRef) {
-    return NextResponse.json({ error: "photo_reference is required" }, { status: 400 });
-  }
+function notFound() {
+  return new NextResponse(null, { status: 404 });
+}
 
-  const key = process.env.GOOGLE_PLACES_API_KEY;
-  if (!key) {
-    return NextResponse.json(
-      { error: "GOOGLE_PLACES_API_KEY is not configured" },
-      { status: 500 },
-    );
-  }
+function redirectTo(location: string) {
+  return new NextResponse(null, {
+    status: 302,
+    headers: { Location: location, "Cache-Control": CACHE_HEADER },
+  });
+}
 
-  const url = new URL("https://maps.googleapis.com/maps/api/place/photo");
-  url.searchParams.set("photoreference", photoRef);
-  url.searchParams.set("maxwidth", maxWidth);
-  url.searchParams.set("key", key);
+export async function GET(req: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return new NextResponse(null, { status: 401 });
 
-  try {
-    const res = await fetch(url.toString(), { redirect: "manual" });
-    const location = res.headers.get("location");
-    if (location) {
-      return NextResponse.json({ url: location });
+  const placeId = req.nextUrl.searchParams.get("place_id");
+  if (!placeId || !UUID_RE.test(placeId)) return notFound();
+
+  const { data: place } = await supabase
+    .from("places")
+    .select("id, google_place_id, cover_image_url")
+    .eq("id", placeId)
+    .maybeSingle();
+
+  if (!place) return notFound();
+
+  if (place.google_place_id) {
+    const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+    if (!apiKey) return notFound();
+
+    const details = await fetchPlaceDetails(place.google_place_id, apiKey);
+    if (!details.ok) return notFound();
+
+    const photos = details.result.photos as { photo_reference?: string }[] | undefined;
+    const photoRef = photos?.[0]?.photo_reference;
+    if (!photoRef) return notFound();
+
+    const photoUrl = new URL("https://maps.googleapis.com/maps/api/place/photo");
+    photoUrl.searchParams.set("photoreference", photoRef);
+    photoUrl.searchParams.set("maxwidth", "800");
+    photoUrl.searchParams.set("key", apiKey);
+
+    let location: string | null = null;
+    try {
+      const res = await fetch(photoUrl.toString(), { redirect: "manual" });
+      location = res.headers.get("location");
+    } catch {
+      return notFound();
     }
-    return NextResponse.json({ error: "No redirect from Places photo API" }, { status: 502 });
-  } catch {
-    return NextResponse.json({ error: "Failed to fetch photo" }, { status: 502 });
+    if (!location) return notFound();
+
+    return redirectTo(location);
   }
+
+  if (place.cover_image_url) return redirectTo(place.cover_image_url);
+
+  return notFound();
 }
