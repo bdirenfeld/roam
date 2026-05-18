@@ -186,6 +186,7 @@ export default function ConfirmationPreviewSheet({
         ai_generated:    false,
         place_id:        null,
       });
+      if (error) console.error("[ConfirmationPreviewSheet] card insert failed:", error);
 
       if (!error) {
         const newCard: Card = {

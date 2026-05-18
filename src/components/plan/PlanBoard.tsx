@@ -442,6 +442,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
       place_id: null,
     });
     if (error) {
+      console.error("[PlanBoard.handleCreateCard] card insert failed:", error);
       setDays((prev) =>
         prev.map((d) => d.id === dayId ? { ...d, cards: d.cards.filter((c) => c.id !== id) } : d)
       );
@@ -483,7 +484,8 @@ export default function PlanBoard({ trip, initialDays }: Props) {
       ai_generated: false,
       place_id:     null,
     }));
-    await supabase.from("cards").insert(rows);
+    const { error } = await supabase.from("cards").insert(rows);
+    if (error) console.error("[PlanBoard.handleApplyTemplate] card insert failed:", error);
   }, [days, trip.id, supabase]); // eslint-disable-line react-hooks/exhaustive-deps
 
 

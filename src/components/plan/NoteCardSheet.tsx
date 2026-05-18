@@ -84,6 +84,7 @@ export default function NoteCardSheet({ dayId, tripId, endPosition, onClose, onC
       ai_generated: false,
       place_id:     null,
     });
+    if (error) console.error("[NoteCardSheet] card insert failed:", error);
 
     setSaving(false);
     if (!error) {

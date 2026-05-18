@@ -121,6 +121,7 @@ export default function CreateCardSheet({
       details, ai_generated: false,
       place_id: null,
     });
+    if (error) console.error("[CreateCardSheet] card insert failed:", error);
 
     setSaving(false);
     if (!error) {
