@@ -261,7 +261,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
       const photoRef = result.photos?.[0]?.photo_reference as string | undefined;
       if (photoRef) {
         try {
-          const photoRes  = await fetch(`/api/places/photo?photo_reference=${encodeURIComponent(photoRef)}&maxwidth=800`);
+          const photoRes  = await fetch(`/api/places/photo/by-reference?photo_reference=${encodeURIComponent(photoRef)}&maxwidth=800`);
           const photoData = await photoRes.json();
           if (photoData.url) coverPhotoUrl = photoData.url as string;
         } catch {
