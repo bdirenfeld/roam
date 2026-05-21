@@ -31,7 +31,7 @@ export default function RootLayout({
         />
         {/* Playfair Display — editorial display font */}
         <link
-          href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital@1&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,400;1,500&display=swap"
           rel="stylesheet"
         />
         {/* Material Symbols — variable font, all axes available */}
