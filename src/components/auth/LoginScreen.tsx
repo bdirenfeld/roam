@@ -33,11 +33,11 @@ export default function LoginScreen({ image, errorMessage, next }: Props) {
       style={{
         background: PARCHMENT,
         paddingTop: "env(safe-area-inset-top)",
-        paddingBottom: "calc(44px + env(safe-area-inset-bottom))",
+        paddingBottom: "calc(28px + env(safe-area-inset-bottom))",
       }}
     >
       {/* Masthead */}
-      <div style={{ padding: "62px 24px 18px" }}>
+      <div style={{ padding: "24px 24px 18px" }}>
         <h1
           className="font-display italic"
           style={{
@@ -58,7 +58,7 @@ export default function LoginScreen({ image, errorMessage, next }: Props) {
       {/* Photo plate — decorative; the caption conveys the place */}
       <div
         style={{
-          margin: "32px 24px 14px",
+          margin: "20px 24px 14px",
           borderRadius: "12px",
           aspectRatio: "4 / 5",
           background: "#2a2620",
