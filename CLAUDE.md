@@ -43,6 +43,11 @@ The benchmark: someone opens Roam in a Centurion Lounge and the person next to t
 - Google Places API for card photos and place data
 - Deployed on Vercel, pushes go directly to main
 
+## Database schema — the live DB is the source of truth
+- `supabase/migrations/001_schema.sql` is **stale**. Later schema changes (column drops, nullability) were applied directly to the live database and are **not** captured in `supabase/migrations/`.
+- Before writing any insert/select, verify columns against `src/types/database.ts` **and** an existing working query for that table (e.g. `AddToTripSheet`'s `cards` insert) — never against `001_schema.sql`.
+- Known divergences from `001_schema.sql`: `cards` no longer has `title`/`type`/`sub_type`/`lat`/`lng`/`address`/`cover_image_url` — world facts live on `places`, joined via `cards.place_id`. `cards.day_id` is nullable.
+
 ## Git rules (critical)
 - Always start by running `git branch` and confirming you are on main
 - Always run `npm run build` before pushing
