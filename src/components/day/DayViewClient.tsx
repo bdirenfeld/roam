@@ -9,6 +9,7 @@ import DayMap from "@/components/day/DayMap";
 import CardTimeline from "@/components/day/CardTimeline";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import CreateCardSheet from "@/components/plan/CreateCardSheet";
+import Companion from "@/components/companion/Companion";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Trip, Day, DayWithCards, Card } from "@/types/database";
@@ -640,6 +641,9 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
         activeDayId={dayWithCards.id}
         onDaySelect={handleDaySelect}
       />
+
+      {/* Companion — editorial entry pull + chat panel */}
+      <Companion tripId={trip.id} />
 
       {/* Map */}
       <DayMap

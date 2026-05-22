@@ -147,3 +147,12 @@ body {
 .card-highlight {
   animation: card-highlight 1.1s ease-out forwards;
 }
+
+/* Companion — streaming caret block (hard step blink, ink on parchment) */
+@keyframes roam-caret {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0; }
+}
+.roam-caret {
+  animation: roam-caret 1s steps(2, start) infinite;
+}
