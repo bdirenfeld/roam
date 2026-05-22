@@ -108,6 +108,7 @@ async function resolveQuery(
   lat: number | null,
   lng: number | null,
   origin: string,
+  cookie: string,
 ): Promise<{ google_place_id: string; name: string; meta: string } | null> {
   const url = new URL("/api/places/autocomplete", origin);
   url.searchParams.set("input", query);
@@ -117,7 +118,13 @@ async function resolveQuery(
     url.searchParams.set("lng", String(lng));
   }
   try {
-    const res = await fetch(url.toString(), { cache: "no-store" });
+    // Forward the user's session cookie — /api/places/autocomplete sits
+    // behind the auth middleware; an uncredentialed internal fetch is
+    // 307'd to /login. Mirrors the bulk-import call in handleApprove.
+    const res = await fetch(url.toString(), {
+      cache: "no-store",
+      headers: { cookie },
+    });
     if (!res.ok) return null;
     const data = (await res.json()) as {
       predictions?: {
@@ -174,10 +181,17 @@ async function resolveProposal(
   input: ProposeInput,
   trip: { destination_lat: number | null; destination_lng: number | null },
   origin: string,
+  cookie: string,
 ): Promise<AddProposal | null> {
   const resolved = await Promise.all(
     input.places.map(async (p) => {
-      const r = await resolveQuery(p.query, trip.destination_lat, trip.destination_lng, origin);
+      const r = await resolveQuery(
+        p.query,
+        trip.destination_lat,
+        trip.destination_lng,
+        origin,
+        cookie,
+      );
       if (!r) return null;
       const place: ResolvedPlace = {
         google_place_id: r.google_place_id,
@@ -448,6 +462,7 @@ async function handleTurn(
     },
   ];
   const origin = req.nextUrl.origin;
+  const cookie = req.headers.get("cookie") ?? "";
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream<Uint8Array>({
@@ -484,7 +499,7 @@ async function handleTurn(
               // hand the proposal to the client; write nothing.
               const parsed = parseProposeInput(propose.input);
               const proposal = parsed
-                ? await resolveProposal(parsed, skeleton.trip, origin)
+                ? await resolveProposal(parsed, skeleton.trip, origin, cookie)
                 : null;
               if (proposal) {
                 emittedProposal = true;
