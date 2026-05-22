@@ -367,41 +367,25 @@ async function handleApprove(
     return NextResponse.json({ error: "No places could be added" }, { status: 502 });
   }
 
-  // Read back the enriched places for their inferred type / sub_type.
-  const { data: placeRows } = await supabase
-    .from("places")
-    .select("id, title, type, sub_type")
-    .in(
-      "id",
-      imported.map((i) => i.place_id),
-    );
-  const byId = new Map(
-    (placeRows ?? []).map((p) => [p.id as string, p as { title: string; type: string; sub_type: string | null }]),
-  );
-
-  // Insert interested cards — unscheduled (day_id null), the single
-  // write this route performs.
-  const cardRows = imported.map((i) => {
-    const p = byId.get(i.place_id);
-    return {
-      trip_id: tripId,
-      day_id: null,
-      type: p?.type ?? "activity",
-      sub_type: p?.sub_type ?? null,
-      title: p?.title ?? i.title,
-      status: "interested",
-      position: 0,
-      details: { place_id: i.google_place_id },
-      place_id: i.place_id,
-    };
-  });
+  // Insert interested cards — unscheduled (day_id null), the single write
+  // this route performs. The column set matches AddToTripSheet's working
+  // insert: world facts (title / type / sub_type) live on the enriched
+  // places row and join via place_id — they are not columns on `cards`.
+  const cardRows = imported.map((i) => ({
+    trip_id: tripId,
+    day_id: null,
+    status: "interested",
+    position: 0,
+    details: { place_id: i.google_place_id },
+    place_id: i.place_id,
+  }));
   const { error: insertErr } = await supabase.from("cards").insert(cardRows);
   if (insertErr) {
     console.error("[assistant] card insert failed", insertErr);
     return NextResponse.json({ error: "Could not add to the journey" }, { status: 500 });
   }
 
-  const names = imported.map((i) => byId.get(i.place_id)?.title ?? i.title);
+  const names = imported.map((i) => i.title);
   const ack = buildApproveAck(names);
   // Two sequential inserts so the pair gets distinct created_at timestamps
   // and reloads in the right order (companion_messages has no sequence).
