@@ -46,7 +46,14 @@ interface SkeletonCard {
   place: SkeletonPlace | SkeletonPlace[] | null;
 }
 
-function placeOf(p: SkeletonCard["place"]): SkeletonPlace | null {
+interface SkeletonInterestedCard {
+  id: string;
+  place: SkeletonPlace | SkeletonPlace[] | null;
+}
+
+function placeOf(
+  p: SkeletonPlace | SkeletonPlace[] | null,
+): SkeletonPlace | null {
   if (!p) return null;
   return Array.isArray(p) ? (p[0] ?? null) : p;
 }
@@ -90,9 +97,10 @@ export async function buildTripSkeleton(
       .order("position"),
     supabase
       .from("cards")
-      .select("id", { count: "exact", head: true })
+      .select("id, place:places(title, type, sub_type)")
       .eq("trip_id", tripId)
-      .eq("status", "interested"),
+      .eq("status", "interested")
+      .order("created_at"),
   ]);
 
   // Distinguish real query failure from a legitimately empty trip: a new
@@ -105,8 +113,8 @@ export async function buildTripSkeleton(
   }
 
   const days = daysRes.data;
-  const interestedCount = interestedRes.count;
   const cardList = (cardsRes.data ?? []) as SkeletonCard[];
+  const interestedList = (interestedRes.data ?? []) as SkeletonInterestedCard[];
   const cardsByDay = new Map<string, SkeletonCard[]>();
   for (const c of cardList) {
     if (!c.day_id) continue;
@@ -151,9 +159,18 @@ export async function buildTripSkeleton(
   }
 
   lines.push("");
-  lines.push(
-    `Unscheduled places already held in this journey: ${interestedCount ?? 0}`,
-  );
+  lines.push(`UNSCHEDULED PLACES IN THIS JOURNEY (${interestedList.length})`);
+  if (interestedList.length === 0) {
+    lines.push("  (none yet)");
+  } else {
+    for (const c of interestedList) {
+      const place = placeOf(c.place);
+      const title = place?.title ?? "Untitled";
+      const type = place?.type ?? "";
+      const subType = place?.sub_type ? `/${place.sub_type}` : "";
+      lines.push(`  [card ${c.id}] ${title} · ${type}${subType}`);
+    }
+  }
 
   return {
     text: lines.join("\n"),

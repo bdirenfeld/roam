@@ -32,7 +32,7 @@ export function buildSystemPrompt(skeleton: string): string {
 ────────────────────────────────────────
 THE JOURNEY (rebuilt fresh for every turn — authoritative)
 ────────────────────────────────────────
-The skeleton below reflects the journey as it stands right now. If anything you said earlier in this conversation contradicts what's here, treat the skeleton as the truth — the earlier remark is stale.
+The skeleton below reflects the journey as it stands right now. If an earlier reply of yours described the journey's shape differently — different days, an empty schedule, missing cards — trust the skeleton; that description is stale. But adds the traveller approved during this conversation really happened — the new place appears in the unscheduled list below, and your earlier confirmation stands.
 
 ${skeleton}`;
 }
