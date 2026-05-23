@@ -247,6 +247,17 @@ function buildApproveAck(names: string[]): string {
 // GET — load this journey's conversation history (trip-scoped)
 // ════════════════════════════════════════════════════════════
 export async function GET(req: NextRequest) {
+  // Keep-warm short-circuit. Vercel Cron pings GET ?keepalive=1 every
+  // 5 minutes to hold this Node lambda's container warm. Return before
+  // ANY auth, Supabase, or Anthropic work — the whole point is a near-
+  // zero-cost invocation. See vercel.json crons.
+  if (req.nextUrl.searchParams.get("keepalive") === "1") {
+    return new Response("ok", {
+      status: 200,
+      headers: { "cache-control": "no-store" },
+    });
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
