@@ -228,7 +228,7 @@ async function getCardDetail(
   const { data } = await supabase
     .from("cards")
     .select(
-      "id, title, type, sub_type, status, start_time, end_time, details, place:places(title, address, rating, price_level, type, sub_type)",
+      "id, status, start_time, end_time, details, place:places(title, address, rating, price_level, type, sub_type)",
     )
     .eq("trip_id", tripId)
     .eq("id", cardId)

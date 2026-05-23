@@ -31,15 +31,24 @@ function fmtTime(t: string | null): string {
   return t ? t.slice(0, 5) : "";
 }
 
+interface SkeletonPlace {
+  title: string | null;
+  type: string | null;
+  sub_type: string | null;
+}
+
 interface SkeletonCard {
   id: string;
   day_id: string | null;
-  title: string;
-  type: string;
-  sub_type: string | null;
   start_time: string | null;
   end_time: string | null;
-  place: { title: string | null } | { title: string | null }[] | null;
+  position: number;
+  place: SkeletonPlace | SkeletonPlace[] | null;
+}
+
+function placeOf(p: SkeletonCard["place"]): SkeletonPlace | null {
+  if (!p) return null;
+  return Array.isArray(p) ? (p[0] ?? null) : p;
 }
 
 /**
@@ -51,7 +60,7 @@ export async function buildTripSkeleton(
   supabase: SupabaseClient,
   tripId: string,
 ): Promise<SkeletonResult | null> {
-  const { data: trip } = await supabase
+  const { data: trip, error: tripErr } = await supabase
     .from("trips")
     .select(
       "id, title, destination, destination_lat, destination_lng, start_date, end_date, party_size, party_ages, trip_purpose, accommodation_name",
@@ -59,32 +68,45 @@ export async function buildTripSkeleton(
     .eq("id", tripId)
     .maybeSingle();
 
+  // A real query failure (RLS misconfig, network, etc.) must surface — not
+  // silently look like "trip not found", which is a legitimate empty result.
+  if (tripErr) throw new Error(`Skeleton trip query failed: ${tripErr.message}`);
   if (!trip) return null;
 
-  const [{ data: days }, { data: cards }, { count: interestedCount }] =
-    await Promise.all([
-      supabase
-        .from("days")
-        .select("id, day_number, date, theme")
-        .eq("trip_id", tripId)
-        .order("day_number"),
-      supabase
-        .from("cards")
-        .select(
-          "id, day_id, title, type, sub_type, start_time, end_time, place:places(title)",
-        )
-        .eq("trip_id", tripId)
-        .eq("status", "in_itinerary")
-        .order("day_id")
-        .order("start_time"),
-      supabase
-        .from("cards")
-        .select("id", { count: "exact", head: true })
-        .eq("trip_id", tripId)
-        .eq("status", "interested"),
-    ]);
+  const [daysRes, cardsRes, interestedRes] = await Promise.all([
+    supabase
+      .from("days")
+      .select("id, day_number, date, theme")
+      .eq("trip_id", tripId)
+      .order("day_number"),
+    supabase
+      .from("cards")
+      .select(
+        "id, day_id, start_time, end_time, position, place:places(title, type, sub_type)",
+      )
+      .eq("trip_id", tripId)
+      .eq("status", "in_itinerary")
+      .order("day_id")
+      .order("position"),
+    supabase
+      .from("cards")
+      .select("id", { count: "exact", head: true })
+      .eq("trip_id", tripId)
+      .eq("status", "interested"),
+  ]);
 
-  const cardList = (cards ?? []) as SkeletonCard[];
+  // Distinguish real query failure from a legitimately empty trip: a new
+  // journey with no days/cards/interested is valid and renders calmly;
+  // a thrown query (e.g. dropped column) must surface, not silently render
+  // every day as empty.
+  const queryErr = daysRes.error ?? cardsRes.error ?? interestedRes.error;
+  if (queryErr) {
+    throw new Error(`Skeleton sub-query failed: ${queryErr.message}`);
+  }
+
+  const days = daysRes.data;
+  const interestedCount = interestedRes.count;
+  const cardList = (cardsRes.data ?? []) as SkeletonCard[];
   const cardsByDay = new Map<string, SkeletonCard[]>();
   for (const c of cardList) {
     if (!c.day_id) continue;
@@ -116,11 +138,14 @@ export async function buildTripSkeleton(
       lines.push("  (nothing scheduled yet)");
     } else {
       for (const c of dayCards) {
-        const subType = c.sub_type ? `/${c.sub_type}` : "";
+        const place = placeOf(c.place);
+        const title = place?.title ?? "Untitled";
+        const type = place?.type ?? "";
+        const subType = place?.sub_type ? `/${place.sub_type}` : "";
         const start = fmtTime(c.start_time);
         const end = fmtTime(c.end_time);
         const time = start ? (end ? `${start}–${end}` : start) : "no time set";
-        lines.push(`  [card ${c.id}] ${c.title} · ${c.type}${subType} · ${time}`);
+        lines.push(`  [card ${c.id}] ${title} · ${type}${subType} · ${time}`);
       }
     }
   }
