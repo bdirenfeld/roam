@@ -438,18 +438,10 @@ async function handleTurn(
   }));
 
   const client = new Anthropic({ apiKey });
-  const systemPromptText = buildSystemPrompt(skeleton.text);
-  // TEMP DEBUG — remove once empty-skeleton bug is diagnosed
-  console.log(
-    "[assistant-debug] system prompt length=" +
-      systemPromptText.length +
-      "; skeleton.text length=" +
-      skeleton.text.length,
-  );
   const system: Anthropic.TextBlockParam[] = [
     {
       type: "text",
-      text: systemPromptText,
+      text: buildSystemPrompt(skeleton.text),
       cache_control: { type: "ephemeral" },
     },
   ];

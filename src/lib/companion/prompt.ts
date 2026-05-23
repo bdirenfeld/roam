@@ -30,7 +30,9 @@ export function buildSystemPrompt(skeleton: string): string {
   return `${BASE_PROMPT}
 
 ────────────────────────────────────────
-THE JOURNEY (assembled when this conversation opened)
+THE JOURNEY (rebuilt fresh for every turn — authoritative)
 ────────────────────────────────────────
+The skeleton below reflects the journey as it stands right now. If anything you said earlier in this conversation contradicts what's here, treat the skeleton as the truth — the earlier remark is stale.
+
 ${skeleton}`;
 }
