@@ -107,6 +107,18 @@ export async function buildTripSkeleton(
   const days = daysRes.data;
   const interestedCount = interestedRes.count;
   const cardList = (cardsRes.data ?? []) as SkeletonCard[];
+
+  // TEMP DEBUG — remove once empty-skeleton bug is diagnosed
+  console.log(
+    "[skeleton-debug]",
+    JSON.stringify({
+      tripId,
+      daysCount: days?.length ?? 0,
+      cardsRowCount: cardList.length,
+      cardsSample: cardList.slice(0, 3),
+      interestedCount,
+    }),
+  );
   const cardsByDay = new Map<string, SkeletonCard[]>();
   for (const c of cardList) {
     if (!c.day_id) continue;
@@ -155,8 +167,12 @@ export async function buildTripSkeleton(
     `Unscheduled places already held in this journey: ${interestedCount ?? 0}`,
   );
 
+  const text = lines.join("\n");
+  // TEMP DEBUG — remove once empty-skeleton bug is diagnosed
+  console.log("[skeleton-debug] assembled text:\n" + text);
+
   return {
-    text: lines.join("\n"),
+    text,
     trip: {
       id: trip.id,
       title: trip.title,
