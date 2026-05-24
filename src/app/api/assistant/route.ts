@@ -364,9 +364,9 @@ function buildApproveAck(names: string[]): string {
 
 function buildCutAck(names: string[]): string {
   if (names.length === 1) {
-    return `Cut ${names[0]}. Restorable — tap Restore on the card above to bring it back as it was.`;
+    return `Cut ${names[0]}. Nothing destroyed — held in case you want it back.`;
   }
-  return `Cut ${names.length} cards — ${names.join(", ")}. Restorable — tap Restore on the card above to bring them back as they were.`;
+  return `Cut ${names.length} cards — ${names.join(", ")}. Nothing destroyed — held in case you want them back.`;
 }
 
 function buildRestoreAck(names: string[]): string {

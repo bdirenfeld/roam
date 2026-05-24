@@ -30,10 +30,31 @@ export default function Companion({ tripId }: { tripId: string }) {
   const [input, setInput] = useState("");
   const [toast, setToast] = useState<string | null>(null);
 
-  // Open — and lazily load this journey's history (trip-scoped).
+  // Open — try the in-tab cache first, fall back to the persisted
+  // thread. The cache preserves cut_proposal items (and their
+  // restoreEntries) across navigations within the same tab; the GET
+  // only returns flat companion_messages rows and cannot rebuild a
+  // cut_proposal frame.
   const openCompanion = useCallback(async () => {
     setOpen(true);
     if (loaded) return;
+
+    if (typeof window !== "undefined") {
+      try {
+        const cached = window.sessionStorage.getItem(`roam:companion:v1:${tripId}`);
+        if (cached) {
+          const parsed = JSON.parse(cached) as ThreadItem[];
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setItems(parsed);
+            setLoaded(true);
+            return;
+          }
+        }
+      } catch {
+        // Fall through to GET on any cache trouble.
+      }
+    }
+
     try {
       const res = await fetch(`/api/assistant?tripId=${encodeURIComponent(tripId)}`);
       if (res.ok) {
@@ -53,6 +74,22 @@ export default function Companion({ tripId }: { tripId: string }) {
       setLoaded(true);
     }
   }, [loaded, tripId]);
+
+  // Mirror items to sessionStorage so an in-tab remount (navigating
+  // to a day view and back) doesn't drop the cut_proposal frame and
+  // its Restore link. Scoped per-trip; cleared naturally on tab close.
+  useEffect(() => {
+    if (!loaded) return;
+    if (typeof window === "undefined") return;
+    try {
+      window.sessionStorage.setItem(
+        `roam:companion:v1:${tripId}`,
+        JSON.stringify(items),
+      );
+    } catch {
+      // Quota exceeded or storage disabled — degrade silently.
+    }
+  }, [items, loaded, tripId]);
 
   // Escape closes the panel.
   useEffect(() => {
