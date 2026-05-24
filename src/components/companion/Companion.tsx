@@ -20,6 +20,9 @@ const INK = "#1A1A2E";
 const PARCHMENT = "#FAF7F2";
 const RULE = "rgba(26,26,46,0.12)";
 
+const cacheKey = (tripId: string) => `roam:companion:v1:${tripId}`;
+const pendingConvKey = (tripId: string) => `roam:companion:v1:${tripId}:pending-conv`;
+
 export default function Companion({ tripId }: { tripId: string }) {
   const [open, setOpen] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -29,6 +32,14 @@ export default function Companion({ tripId }: { tripId: string }) {
   const [busyProposalId, setBusyProposalId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [toast, setToast] = useState<string | null>(null);
+  // pendingConvId is the client-minted uuid for a brand-new conversation
+  // that has not yet received its first message. Survives navigation via
+  // sessionStorage so the empty state doesn't snap back to the old thread
+  // (the server's most-recent-wins rule would otherwise return it).
+  const [pendingConvId, setPendingConvId] = useState<string | null>(null);
+  // Inline confirm gate visibility — rendered in the thread, never a
+  // native window.confirm (clashes with the Roam surface).
+  const [showNewConvGate, setShowNewConvGate] = useState(false);
 
   // Open — try the in-tab cache first, fall back to the persisted
   // thread. The cache preserves cut_proposal items (and their
@@ -40,8 +51,25 @@ export default function Companion({ tripId }: { tripId: string }) {
     if (loaded) return;
 
     if (typeof window !== "undefined") {
+      // Pending new-conversation wins over everything: a fresh id was
+      // minted but no first message has been sent yet. Show empty thread
+      // (greeting state) and skip GET — the server has no rows under this
+      // id and would otherwise return the OLD conversation via most-
+      // recent-wins.
       try {
-        const cached = window.sessionStorage.getItem(`roam:companion:v1:${tripId}`);
+        const pending = window.sessionStorage.getItem(pendingConvKey(tripId));
+        if (pending) {
+          setPendingConvId(pending);
+          setItems([]);
+          setLoaded(true);
+          return;
+        }
+      } catch {
+        // Fall through.
+      }
+
+      try {
+        const cached = window.sessionStorage.getItem(cacheKey(tripId));
         if (cached) {
           const parsed = JSON.parse(cached) as ThreadItem[];
           if (Array.isArray(parsed) && parsed.length > 0) {
@@ -82,14 +110,26 @@ export default function Companion({ tripId }: { tripId: string }) {
     if (!loaded) return;
     if (typeof window === "undefined") return;
     try {
-      window.sessionStorage.setItem(
-        `roam:companion:v1:${tripId}`,
-        JSON.stringify(items),
-      );
+      window.sessionStorage.setItem(cacheKey(tripId), JSON.stringify(items));
     } catch {
       // Quota exceeded or storage disabled — degrade silently.
     }
   }, [items, loaded, tripId]);
+
+  // Mirror pendingConvId to sessionStorage so a new-conversation that
+  // hasn't yet received its first message survives in-tab navigation.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      if (pendingConvId) {
+        window.sessionStorage.setItem(pendingConvKey(tripId), pendingConvId);
+      } else {
+        window.sessionStorage.removeItem(pendingConvKey(tripId));
+      }
+    } catch {
+      // Degrade silently.
+    }
+  }, [pendingConvId, tripId]);
 
   // Escape closes the panel.
   useEffect(() => {
@@ -132,11 +172,21 @@ export default function Companion({ tripId }: { tripId: string }) {
     setStreaming(true);
     setStreamingId(asstId);
 
+    // Carry the pending new-conversation id once, on the first send of
+    // the new thread. After this turn lands, the new id is the most-
+    // recent row for the trip — server-side most-recent-wins takes over
+    // and we no longer need to pass it.
+    const carryConvId = pendingConvId;
+
     try {
       const res = await fetch("/api/assistant", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ tripId, message: text }),
+        body: JSON.stringify(
+          carryConvId
+            ? { tripId, message: text, conversationId: carryConvId }
+            : { tripId, message: text },
+        ),
       });
       if (!res.ok || !res.body) throw new Error("no stream");
 
@@ -196,8 +246,11 @@ export default function Companion({ tripId }: { tripId: string }) {
           (it) => !(it.kind === "msg" && it.id === asstId && it.text.trim() === ""),
         ),
       );
+      // The new-conversation id has now been written into the DB by the
+      // server; subsequent turns will resolve it via most-recent-wins.
+      if (carryConvId) setPendingConvId(null);
     }
-  }, [input, streaming, tripId, appendToMsg]);
+  }, [input, streaming, tripId, appendToMsg, pendingConvId]);
 
   // ── Approve a proposal — the route runs the add ──────────────
   const approve = useCallback(
@@ -350,6 +403,33 @@ export default function Companion({ tripId }: { tripId: string }) {
     [items, tripId],
   );
 
+  // ── New-conversation request — open the inline confirm gate ───
+  // If the thread is empty, there's nothing to start fresh from; do
+  // nothing (the masthead action will also be hidden in that state).
+  const requestNewConversation = useCallback(() => {
+    if (items.length === 0) return;
+    setShowNewConvGate(true);
+  }, [items.length]);
+
+  // ── Confirm new conversation — mint a fresh id, clear the thread,
+  //    drop the items cache so a remount can't rehydrate the old one ─
+  const confirmNewConversation = useCallback(() => {
+    setShowNewConvGate(false);
+    setItems([]);
+    setPendingConvId(crypto.randomUUID());
+    if (typeof window !== "undefined") {
+      try {
+        window.sessionStorage.removeItem(cacheKey(tripId));
+      } catch {
+        // Degrade silently.
+      }
+    }
+  }, [tripId]);
+
+  const cancelNewConversation = useCallback(() => {
+    setShowNewConvGate(false);
+  }, []);
+
   return (
     <>
       {/* Entry — editorial pull between the day strip and the map */}
@@ -387,6 +467,11 @@ export default function Companion({ tripId }: { tripId: string }) {
           onDiscard={discard}
           onApproveCut={approveCut}
           onRestore={restore}
+          canStartNew={items.length > 0 && !streaming}
+          newConvPending={showNewConvGate}
+          onRequestNewConversation={requestNewConversation}
+          onConfirmNewConversation={confirmNewConversation}
+          onCancelNewConversation={cancelNewConversation}
         />
       )}
 

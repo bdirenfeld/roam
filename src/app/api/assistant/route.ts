@@ -376,6 +376,25 @@ function buildRestoreAck(names: string[]): string {
   return `Restored ${names.length} cards — ${names.join(", ")} — back where they were.`;
 }
 
+// ── Active conversation = the most-recent row's conversation_id ─
+// Conversations are identified by conversation_id; the "active" one
+// for a trip is whichever id last received a message. New-conversation
+// = mint a new id and let the next insert reset which one wins.
+async function getActiveConversationId(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tripId: string,
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("companion_messages")
+    .select("conversation_id")
+    .eq("trip_id", tripId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const id = (data as { conversation_id: string | null } | null)?.conversation_id;
+  return id ?? null;
+}
+
 // ════════════════════════════════════════════════════════════
 // GET — load this journey's conversation history (trip-scoped)
 // ════════════════════════════════════════════════════════════
@@ -402,10 +421,17 @@ export async function GET(req: NextRequest) {
 
   // RLS scopes companion_messages through trips.user_id — a tripId that
   // is not the user's simply returns nothing. No cross-trip bleed.
+  // Scope to the active conversation only — most-recent row's
+  // conversation_id wins. Older conversations stay in the DB untouched
+  // but do not bleed into the current thread.
+  const activeId = await getActiveConversationId(supabase, tripId);
+  if (!activeId) return NextResponse.json({ messages: [] });
+
   const { data } = await supabase
     .from("companion_messages")
     .select("id, role, content, created_at")
     .eq("trip_id", tripId)
+    .eq("conversation_id", activeId)
     .order("created_at", { ascending: true });
 
   return NextResponse.json({ messages: data ?? [] });
@@ -452,7 +478,15 @@ export async function POST(req: NextRequest) {
   if (body.restore !== undefined) return handleRestore(supabase, tripId, body.restore);
   if (body.discard === true) return handleDiscard(supabase, tripId);
   if (typeof body.message === "string") {
-    return handleTurn(req, supabase, apiKey, tripId, body.message);
+    // Optional: client-minted conversation_id for "new conversation" —
+    // when present, this turn (and its assistant reply) start a fresh
+    // conversation under that id. Old conversations stay in the DB
+    // untouched.
+    const clientConvId =
+      typeof body.conversationId === "string" && body.conversationId.trim()
+        ? body.conversationId.trim()
+        : null;
+    return handleTurn(req, supabase, apiKey, tripId, body.message, clientConvId);
   }
   return NextResponse.json({ error: "Nothing to do" }, { status: 400 });
 }
@@ -462,9 +496,13 @@ async function handleDiscard(
   supabase: Awaited<ReturnType<typeof createClient>>,
   tripId: string,
 ) {
-  await supabase
-    .from("companion_messages")
-    .insert({ trip_id: tripId, role: "assistant", content: DISCARD_TRACE });
+  const conversationId = await getActiveConversationId(supabase, tripId);
+  await supabase.from("companion_messages").insert({
+    trip_id: tripId,
+    role: "assistant",
+    content: DISCARD_TRACE,
+    conversation_id: conversationId,
+  });
   return NextResponse.json({ ok: true, trace: DISCARD_TRACE });
 }
 
@@ -534,16 +572,22 @@ async function handleApprove(
 
   const names = imported.map((i) => i.title);
   const ack = buildApproveAck(names);
+  // Read the active conv id once so both rows of this turn share it.
+  const conversationId = await getActiveConversationId(supabase, tripId);
   // Two sequential inserts so the pair gets distinct created_at timestamps
   // and reloads in the right order (companion_messages has no sequence).
   await supabase.from("companion_messages").insert({
     trip_id: tripId,
     role: "user",
     content: `Approved — adding ${names.length} ${names.length === 1 ? "place" : "places"}.`,
+    conversation_id: conversationId,
   });
-  await supabase
-    .from("companion_messages")
-    .insert({ trip_id: tripId, role: "assistant", content: ack });
+  await supabase.from("companion_messages").insert({
+    trip_id: tripId,
+    role: "assistant",
+    content: ack,
+    conversation_id: conversationId,
+  });
 
   return NextResponse.json({ added: imported.length, names, ack });
 }
@@ -608,14 +652,19 @@ async function handleApproveCut(
   }
 
   const ack = buildCutAck(names);
+  const conversationId = await getActiveConversationId(supabase, tripId);
   await supabase.from("companion_messages").insert({
     trip_id: tripId,
     role: "user",
     content: `Approved — cutting ${names.length} ${names.length === 1 ? "card" : "cards"}.`,
+    conversation_id: conversationId,
   });
-  await supabase
-    .from("companion_messages")
-    .insert({ trip_id: tripId, role: "assistant", content: ack });
+  await supabase.from("companion_messages").insert({
+    trip_id: tripId,
+    role: "assistant",
+    content: ack,
+    conversation_id: conversationId,
+  });
 
   return NextResponse.json({
     cut: priors.length,
@@ -685,14 +734,19 @@ async function handleRestore(
   );
 
   const ack = buildRestoreAck(names);
+  const conversationId = await getActiveConversationId(supabase, tripId);
   await supabase.from("companion_messages").insert({
     trip_id: tripId,
     role: "user",
     content: `Restored ${entries.length} ${entries.length === 1 ? "card" : "cards"}.`,
+    conversation_id: conversationId,
   });
-  await supabase
-    .from("companion_messages")
-    .insert({ trip_id: tripId, role: "assistant", content: ack });
+  await supabase.from("companion_messages").insert({
+    trip_id: tripId,
+    role: "assistant",
+    content: ack,
+    conversation_id: conversationId,
+  });
 
   return NextResponse.json({ restored: entries.length, names, ack });
 }
@@ -704,24 +758,38 @@ async function handleTurn(
   apiKey: string,
   tripId: string,
   message: string,
+  clientConvId: string | null,
 ) {
   const trimmed = message.trim();
   if (!trimmed) return NextResponse.json({ error: "Empty message" }, { status: 400 });
 
+  // Resolve the active conversation_id ONCE per turn so the user row,
+  // the assistant final, and the history-window read all agree. Order:
+  // a client-minted id (a fresh new-conversation) overrides; else the
+  // most-recent row's id; else a fresh uuid for a brand-new trip.
+  const activeConvId =
+    clientConvId ?? (await getActiveConversationId(supabase, tripId)) ?? crypto.randomUUID();
+
   // Persist the user turn first — storage keeps the full thread.
-  await supabase
-    .from("companion_messages")
-    .insert({ trip_id: tripId, role: "user", content: trimmed });
+  await supabase.from("companion_messages").insert({
+    trip_id: tripId,
+    role: "user",
+    content: trimmed,
+    conversation_id: activeConvId,
+  });
 
   // Skeleton — assembled once, here, then reused across the loop.
   const skeleton = await buildTripSkeleton(supabase, tripId);
   if (!skeleton) return NextResponse.json({ error: "Journey not found" }, { status: 404 });
 
   // Last HISTORY_TURNS turns, oldest-first, sent verbatim (no summarization).
+  // Scoped to the active conversation — older conversations are out of
+  // context for the model; that's the whole point of new-conversation.
   const { data: historyRows } = await supabase
     .from("companion_messages")
     .select("role, content")
     .eq("trip_id", tripId)
+    .eq("conversation_id", activeConvId)
     .order("created_at", { ascending: false })
     .limit(HISTORY_TURNS);
   const history = (historyRows ?? []).reverse() as { role: string; content: string }[];
@@ -857,9 +925,12 @@ async function handleTurn(
 
       // Storage keeps the full thread regardless of what was sent.
       if (assistantText.trim()) {
-        await supabase
-          .from("companion_messages")
-          .insert({ trip_id: tripId, role: "assistant", content: assistantText.trim() });
+        await supabase.from("companion_messages").insert({
+          trip_id: tripId,
+          role: "assistant",
+          content: assistantText.trim(),
+          conversation_id: activeConvId,
+        });
       }
 
       send({ type: "done" });

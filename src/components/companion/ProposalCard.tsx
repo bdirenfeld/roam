@@ -390,3 +390,64 @@ export function RestoredAck() {
     </p>
   );
 }
+
+// ── New-conversation gate — quietest variant of the confirm gate ──
+// No native confirm — the Roam surface doesn't host browser chrome.
+// One sober prompt; affirmative is the single filled action; cancel
+// is a plain text link. Borrows the cut gate's vocabulary.
+export function NewConversationGate({
+  onConfirm,
+  onCancel,
+}: {
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div
+      className="overflow-hidden rounded-[4px] bg-[#FAF7F2] animate-in fade-in slide-in-from-bottom-2 duration-300"
+      style={{ border: `1px solid ${RULE_STRONG}` }}
+    >
+      <div className="px-4 pb-3 pt-3.5" style={{ borderBottom: `1px solid ${RULE}` }}>
+        <div className="mb-1">
+          <span
+            className="text-[9.5px] font-medium uppercase"
+            style={{ letterSpacing: "0.22em", color: SIENNA }}
+          >
+            About to begin again
+          </span>
+        </div>
+        <p
+          className="font-display text-[17px] italic"
+          style={{ color: INK, letterSpacing: "-0.005em" }}
+        >
+          Start a new conversation?
+        </p>
+        <p className="mt-1.5 text-[12.5px] leading-[1.55]" style={{ color: "rgba(26,26,46,0.55)" }}>
+          This one stays saved — nothing is lost.
+        </p>
+      </div>
+      <div
+        className="flex items-center justify-end gap-4 px-4 py-3"
+        style={{ background: "#F7F3EA" }}
+      >
+        <button
+          type="button"
+          onClick={onCancel}
+          className="bg-transparent text-[13px] font-medium"
+          style={{ color: "rgba(26,26,46,0.55)" }}
+        >
+          Keep this one
+        </button>
+        <button
+          type="button"
+          onClick={onConfirm}
+          className="inline-flex items-center gap-2 rounded-md px-3.5 py-2 text-[13px] font-medium"
+          style={{ background: INK, color: PARCHMENT }}
+        >
+          Start fresh
+          <Plus size={13} weight="light" />
+        </button>
+      </div>
+    </div>
+  );
+}

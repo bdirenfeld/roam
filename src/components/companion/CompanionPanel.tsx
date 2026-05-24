@@ -17,6 +17,7 @@ import {
   CutProposalCard,
   CutAck,
   RestoredAck,
+  NewConversationGate,
 } from "./ProposalCard";
 
 const SIENNA = "#C4622D";
@@ -58,6 +59,11 @@ interface Props {
   onDiscard: (id: string) => void;
   onApproveCut: (id: string) => void;
   onRestore: (id: string) => void;
+  canStartNew: boolean;
+  newConvPending: boolean;
+  onRequestNewConversation: () => void;
+  onConfirmNewConversation: () => void;
+  onCancelNewConversation: () => void;
 }
 
 // ── A single transcript turn ───────────────────────────────────
@@ -173,14 +179,20 @@ export default function CompanionPanel({
   onDiscard,
   onApproveCut,
   onRestore,
+  canStartNew,
+  newConvPending,
+  onRequestNewConversation,
+  onConfirmNewConversation,
+  onCancelNewConversation,
 }: Props) {
   const bodyRef = useRef<HTMLDivElement>(null);
 
-  // Keep the transcript pinned to the latest line.
+  // Keep the transcript pinned to the latest line — and to the gate when
+  // it appears, so the confirm never lands below the fold.
   useEffect(() => {
     const el = bodyRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [items, streaming]);
+  }, [items, streaming, newConvPending]);
 
   return (
     <div
@@ -203,15 +215,27 @@ export default function CompanionPanel({
             Roam · Companion
           </span>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close companion"
-          className="flex h-7 w-7 items-center justify-center"
-          style={{ color: CAPTION }}
-        >
-          <X size={15} weight="light" />
-        </button>
+        <div className="flex items-center gap-4">
+          {canStartNew && !newConvPending && (
+            <button
+              type="button"
+              onClick={onRequestNewConversation}
+              className="font-display text-[13px] italic"
+              style={{ color: SIENNA, letterSpacing: "-0.005em" }}
+            >
+              New conversation
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close companion"
+            className="flex h-7 w-7 items-center justify-center"
+            style={{ color: CAPTION }}
+          >
+            <X size={15} weight="light" />
+          </button>
+        </div>
       </div>
 
       {/* Thread */}
@@ -286,6 +310,14 @@ export default function CompanionPanel({
               </div>
             );
           })
+        )}
+        {newConvPending && (
+          <div className="mb-[26px] max-w-[64ch]">
+            <NewConversationGate
+              onConfirm={onConfirmNewConversation}
+              onCancel={onCancelNewConversation}
+            />
+          </div>
         )}
       </div>
 
