@@ -15,6 +15,7 @@ import type {
   AssistantStreamEvent,
   CutCardSummary,
   CutProposal,
+  MoveProposal,
   ProposalIcon,
   ResolvedPlace,
   RestoreEntry,
@@ -109,6 +110,33 @@ const TOOLS: Anthropic.Tool[] = [
         },
       },
       required: ["heading", "places"],
+    },
+  },
+  {
+    name: "propose_move",
+    description:
+      "Propose to move ONE already-scheduled card from its current day to a different day. This writes NOTHING — it shows the traveller a confirm card, and nothing moves unless they approve. The card keeps its start_time and end_time exactly; it lands at the END of the target day's manual order. Use only when the traveller has explicitly told you both the card AND the day. NEVER originate a move. NEVER invent or shift a time. If the request is ambiguous, ask in plain conversation FIRST; do not call this tool to disambiguate. Move only works on cards currently scheduled on a day — never on UNSCHEDULED PLACES.",
+    input_schema: {
+      type: "object",
+      properties: {
+        heading: {
+          type: "string",
+          description:
+            "A short Playfair-italic lede for the move card header, in Roam's editorial voice.",
+        },
+        lede: { type: "string", description: "Optional one-sentence supporting line." },
+        card_id: {
+          type: "string",
+          description:
+            "The UUID of the card to move, taken from the skeleton's [card <uuid>] tokens. Must be a card currently scheduled on a day.",
+        },
+        target_day_id: {
+          type: "string",
+          description:
+            "The UUID of the day to move it to, taken from the skeleton's [day <uuid>] tokens. Must be a different day than the card's current day.",
+        },
+      },
+      required: ["heading", "card_id", "target_day_id"],
     },
   },
 ];
@@ -335,6 +363,136 @@ async function resolveProposal(
   return { heading: input.heading, lede: input.lede, places };
 }
 
+// ── Move proposal — parse + resolve ─────────────────────────────
+// Model passes the moving card's UUID and the target day's UUID, both
+// from the skeleton's tokens. Server reads the live rows to format the
+// user-facing title, time, and day numbers — the model NEVER supplies
+// titles, times, or day labels. Both edge cases are caught here so the
+// confirm card never even renders for an invalid move.
+interface MoveInput {
+  heading: string;
+  lede?: string;
+  card_id: string;
+  target_day_id: string;
+}
+
+function parseMoveInput(input: unknown): MoveInput | null {
+  if (!input || typeof input !== "object") return null;
+  const o = input as Record<string, unknown>;
+  const cardId =
+    typeof o.card_id === "string" && o.card_id.trim() ? o.card_id.trim() : "";
+  const targetDayId =
+    typeof o.target_day_id === "string" && o.target_day_id.trim()
+      ? o.target_day_id.trim()
+      : "";
+  if (!cardId || !targetDayId) return null;
+  return {
+    heading:
+      typeof o.heading === "string" && o.heading.trim()
+        ? o.heading.trim()
+        : "About to move.",
+    lede: typeof o.lede === "string" && o.lede.trim() ? o.lede.trim() : undefined,
+    card_id: cardId,
+    target_day_id: targetDayId,
+  };
+}
+
+interface MoveCardRow {
+  id: string;
+  status: string;
+  day_id: string | null;
+  position: number | null;
+  start_time: string | null;
+  end_time: string | null;
+  place: { title: string | null } | { title: string | null }[] | null;
+  day: { day_number: number } | { day_number: number }[] | null;
+}
+
+type MoveResolution =
+  | { ok: true; proposal: MoveProposal }
+  | { ok: false; note: string };
+
+async function resolveMoveProposal(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tripId: string,
+  input: MoveInput,
+): Promise<MoveResolution> {
+  const { data } = await supabase
+    .from("cards")
+    .select(
+      "id, status, day_id, position, start_time, end_time, place:places(title), day:days(day_number)",
+    )
+    .eq("trip_id", tripId)
+    .eq("id", input.card_id)
+    .maybeSingle();
+  const card = data as MoveCardRow | null;
+
+  if (!card) {
+    return {
+      ok: false,
+      note: "I couldn't find that card on this journey — let's name it a little more precisely.",
+    };
+  }
+  if (card.status === "cut") {
+    return {
+      ok: false,
+      note: "That one's already cut — there's nothing to move.",
+    };
+  }
+  // The unscheduled / interested edge case: no source day, so no move.
+  if (!card.day_id || card.status !== "in_itinerary") {
+    return {
+      ok: false,
+      note:
+        "That one isn't on a day yet — it's in your unscheduled places, so there's nothing to move from. Schedule it onto a day first, or tell me to add a new place there directly.",
+    };
+  }
+
+  const { data: targetDayRow } = await supabase
+    .from("days")
+    .select("id, day_number")
+    .eq("trip_id", tripId)
+    .eq("id", input.target_day_id)
+    .maybeSingle();
+  const targetDay = targetDayRow as { id: string; day_number: number } | null;
+  if (!targetDay) {
+    return {
+      ok: false,
+      note: "I couldn't find that day on this journey — let's name it a little more precisely.",
+    };
+  }
+
+  // The same-day edge case: source equals target. The confirm card never
+  // renders; the assistant just notes it plainly.
+  if (card.day_id === targetDay.id) {
+    return {
+      ok: false,
+      note: `It's already on Day ${targetDay.day_number} — nothing to move.`,
+    };
+  }
+
+  const place = singleOf(card.place);
+  const sourceDay = singleOf(card.day);
+  const title = place?.title ?? "Untitled";
+  const start = card.start_time ? card.start_time.slice(0, 5) : "";
+  const end = card.end_time ? card.end_time.slice(0, 5) : "";
+  const time = start ? (end ? `${start}–${end}` : start) : "no time set";
+
+  return {
+    ok: true,
+    proposal: {
+      heading: input.heading,
+      lede: input.lede,
+      card_id: card.id,
+      card_title: title,
+      card_time: time,
+      source_day_number: sourceDay?.day_number ?? 0,
+      target_day_id: targetDay.id,
+      target_day_number: targetDay.day_number,
+    },
+  };
+}
+
 // ── Read tool: single-card detail ──────────────────────────────
 async function getCardDetail(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -367,6 +525,18 @@ function buildCutAck(names: string[]): string {
     return `Cut ${names[0]}. Nothing destroyed — held in case you want it back.`;
   }
   return `Cut ${names.length} cards — ${names.join(", ")}. Nothing destroyed — held in case you want them back.`;
+}
+
+function buildMoveAck(name: string, targetDayNumber: number, repackOk: boolean): string {
+  // A successful move with a clean re-pack is the happy path. A move that
+  // succeeded but whose source-day re-pack failed is a different state —
+  // the card DID move; only the old day's order is left with a gap that
+  // the next move/cut on that day will tidy. Surface that honestly rather
+  // than presenting the whole move as a failure.
+  if (!repackOk) {
+    return `Moved ${name} to Day ${targetDayNumber} — its time held. The previous day's order may need a quick tidy; the move went through, but the old day didn't re-pack cleanly.`;
+  }
+  return `Moved ${name} to Day ${targetDayNumber} — its time held, sitting at the end of that day's order.`;
 }
 
 function buildRestoreAck(names: string[]): string {
@@ -475,6 +645,8 @@ export async function POST(req: NextRequest) {
   if (body.approve !== undefined) return handleApprove(req, supabase, tripId, body.approve);
   if (body.approveCut !== undefined)
     return handleApproveCut(supabase, tripId, body.approveCut);
+  if (body.approveMove !== undefined)
+    return handleApproveMove(supabase, tripId, body.approveMove);
   if (body.restore !== undefined) return handleRestore(supabase, tripId, body.restore);
   if (body.discard === true) return handleDiscard(supabase, tripId);
   if (typeof body.message === "string") {
@@ -674,6 +846,159 @@ async function handleApproveCut(
   });
 }
 
+// ── Approve Move — relocate one card to a target day, append at the
+//    end of its order, re-pack the source day. Two writes, no TX:
+//    consistent with the rest of this route. The card's start_time /
+//    end_time are NEVER touched. ─────────────────────────────────
+async function handleApproveMove(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tripId: string,
+  approveMove: unknown,
+) {
+  let cardId = "";
+  let targetDayId = "";
+  if (approveMove && typeof approveMove === "object") {
+    const o = approveMove as Record<string, unknown>;
+    if (typeof o.card_id === "string") cardId = o.card_id.trim();
+    if (typeof o.target_day_id === "string") targetDayId = o.target_day_id.trim();
+  }
+  if (!cardId || !targetDayId) {
+    return NextResponse.json({ error: "Move missing card_id or target_day_id" }, { status: 400 });
+  }
+
+  // Re-read the card under RLS — defence in depth, the resolver's checks
+  // ran at propose time; the world may have shifted (a cut, a manual
+  // move) between proposal and approval.
+  const { data: cardRow } = await supabase
+    .from("cards")
+    .select("id, status, day_id, position, place:places(title)")
+    .eq("trip_id", tripId)
+    .eq("id", cardId)
+    .maybeSingle();
+  const card = cardRow as
+    | {
+        id: string;
+        status: string;
+        day_id: string | null;
+        position: number | null;
+        place: { title: string | null } | { title: string | null }[] | null;
+      }
+    | null;
+  if (!card) return NextResponse.json({ error: "Card not found" }, { status: 404 });
+  if (card.status !== "in_itinerary" || !card.day_id) {
+    return NextResponse.json(
+      { error: "That card isn't scheduled on a day — nothing to move." },
+      { status: 400 },
+    );
+  }
+  if (card.day_id === targetDayId) {
+    return NextResponse.json(
+      { error: "Card is already on that day." },
+      { status: 400 },
+    );
+  }
+
+  const { data: targetDayRow } = await supabase
+    .from("days")
+    .select("id, day_number")
+    .eq("trip_id", tripId)
+    .eq("id", targetDayId)
+    .maybeSingle();
+  const targetDay = targetDayRow as { id: string; day_number: number } | null;
+  if (!targetDay) {
+    return NextResponse.json({ error: "Target day not found" }, { status: 404 });
+  }
+
+  const sourceDayId = card.day_id;
+  const currentPosition = card.position ?? 0;
+
+  // Append at the END of the target day's manual order. Positions on a
+  // day are contiguous 1..N for in_itinerary cards; reading the current
+  // max and adding 1 keeps that invariant.
+  const { data: maxRow } = await supabase
+    .from("cards")
+    .select("position")
+    .eq("trip_id", tripId)
+    .eq("day_id", targetDayId)
+    .eq("status", "in_itinerary")
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const currentMax = (maxRow as { position: number | null } | null)?.position ?? 0;
+  const nextPos = currentMax + 1;
+
+  // Write 1 — the actual move. start_time / end_time / status untouched.
+  const { error: moveErr } = await supabase
+    .from("cards")
+    .update({ day_id: targetDayId, position: nextPos })
+    .eq("trip_id", tripId)
+    .eq("id", cardId);
+  if (moveErr) {
+    console.error("[assistant] move update failed", moveErr);
+    return NextResponse.json({ error: "Could not move that card" }, { status: 500 });
+  }
+
+  // Write 2 — re-pack the source day. Decrement position by 1 for every
+  // in_itinerary card whose position was above the moved card's old
+  // position, so the source day stays contiguous 1..N. A failure here
+  // does NOT undo the move; the card has already relocated. The worst
+  // case is a one-slot gap on the old day that the next move/cut on
+  // that day will close.
+  let repackOk = true;
+  const { data: repackRows, error: readErr } = await supabase
+    .from("cards")
+    .select("id, position")
+    .eq("trip_id", tripId)
+    .eq("day_id", sourceDayId)
+    .eq("status", "in_itinerary")
+    .gt("position", currentPosition);
+  if (readErr) {
+    console.error("[assistant] move re-pack read failed", sourceDayId, readErr);
+    repackOk = false;
+  } else {
+    const rows = (repackRows ?? []) as { id: string; position: number | null }[];
+    for (const r of rows) {
+      const newPos = (r.position ?? 0) - 1;
+      const { error: updErr } = await supabase
+        .from("cards")
+        .update({ position: newPos })
+        .eq("trip_id", tripId)
+        .eq("id", r.id);
+      if (updErr) {
+        console.error("[assistant] move re-pack update failed", r.id, updErr);
+        repackOk = false;
+        // Stop on first failure — a partial decrement is worse than a
+        // single clean gap, since it can collide positions.
+        break;
+      }
+    }
+  }
+
+  const name = singleOf(card.place)?.title ?? "Untitled";
+  const ack = buildMoveAck(name, targetDay.day_number, repackOk);
+  const conversationId = await getActiveConversationId(supabase, tripId);
+  await supabase.from("companion_messages").insert({
+    trip_id: tripId,
+    role: "user",
+    content: `Approved — moving ${name} to Day ${targetDay.day_number}.`,
+    conversation_id: conversationId,
+  });
+  await supabase.from("companion_messages").insert({
+    trip_id: tripId,
+    role: "assistant",
+    content: ack,
+    conversation_id: conversationId,
+  });
+
+  return NextResponse.json({
+    moved: true,
+    name,
+    target_day_number: targetDay.day_number,
+    repack_ok: repackOk,
+    ack,
+  });
+}
+
 // ── Restore — direct, non-model. Reverts each card to the status
 //    it held just before the cut (NOT a hardcoded fallback). ─────
 async function handleRestore(
@@ -857,6 +1182,32 @@ async function handleTurn(
                   "\n\nI couldn't find those cards in this journey — let's name them a little more precisely.";
                 assistantText += note;
                 send({ type: "text", delta: note });
+              }
+              break;
+            }
+
+            const proposeMove = toolUses.find((t) => t.name === "propose_move");
+            if (proposeMove) {
+              // propose_move pauses server-side — verify the card/day pair
+              // and hand a resolved proposal to the client; write nothing.
+              // Both edge cases (same-day target, unscheduled card) decline
+              // here with a specific note rather than emitting a proposal.
+              const parsed = parseMoveInput(proposeMove.input);
+              if (!parsed) {
+                const note =
+                  "\n\nI couldn't read that move — name the card and the day again, more precisely.";
+                assistantText += note;
+                send({ type: "text", delta: note });
+              } else {
+                const resolution = await resolveMoveProposal(supabase, tripId, parsed);
+                if (resolution.ok) {
+                  emittedProposal = true;
+                  send({ type: "move_proposal", proposal: resolution.proposal });
+                } else {
+                  const note = `\n\n${resolution.note}`;
+                  assistantText += note;
+                  send({ type: "text", delta: note });
+                }
               }
               break;
             }

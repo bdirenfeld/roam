@@ -72,6 +72,23 @@ export interface RestoreEntry {
   prior_status: string;
 }
 
+// ── Move proposal ──────────────────────────────────────────────
+// One scheduled card the companion is about to relocate to a different
+// day. The card keeps its start_time / end_time verbatim and lands at
+// the END of the target day's manual order (positions are 1..N per day
+// and not time-sorted). Resolved server-side — the model never supplies
+// titles, day numbers, or times.
+export interface MoveProposal {
+  heading: string;
+  lede?: string;
+  card_id: string;
+  card_title: string;
+  card_time: string; // "09:00", "09:00–11:30", or "no time set"
+  source_day_number: number;
+  target_day_id: string;
+  target_day_number: number;
+}
+
 // ── /api/assistant streaming wire format ──────────────────────
 // The POST turn handler streams newline-delimited JSON; each line is
 // one of these events.
@@ -79,5 +96,6 @@ export type AssistantStreamEvent =
   | { type: "text"; delta: string }
   | { type: "proposal"; proposal: AddProposal }
   | { type: "cut_proposal"; proposal: CutProposal }
+  | { type: "move_proposal"; proposal: MoveProposal }
   | { type: "error"; message: string }
   | { type: "done" };

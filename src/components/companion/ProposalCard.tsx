@@ -11,6 +11,8 @@ import {
   Plus,
   Scissors,
   ArrowCounterClockwise,
+  ArrowsLeftRight,
+  ArrowRight,
   Coffee,
   ForkKnife,
   IceCream,
@@ -20,7 +22,7 @@ import {
   Bed,
   MapPin,
 } from "@phosphor-icons/react";
-import type { AddProposal, CutProposal, ProposalIcon } from "@/lib/companion/types";
+import type { AddProposal, CutProposal, MoveProposal, ProposalIcon } from "@/lib/companion/types";
 
 const SIENNA = "#C4622D";
 const INK = "#1A1A2E";
@@ -388,6 +390,146 @@ export function RestoredAck() {
     >
       Restored — back where it was.
     </p>
+  );
+}
+
+// ── Move proposal — soberer variant of the confirm gate ────────
+// One card relocating from one day to another. The row reads
+// "Day N · time → Day N" so the editorial intent (time held, lands at
+// the end) is legible at a glance. Single card per proposal.
+export function MoveProposalCard({
+  proposal,
+  busy,
+  onApprove,
+  onDiscard,
+}: {
+  proposal: MoveProposal;
+  busy: boolean;
+  onApprove: () => void;
+  onDiscard: () => void;
+}) {
+  return (
+    <div
+      className="overflow-hidden rounded-[4px] bg-[#FAF7F2]"
+      style={{ border: `1px solid ${RULE_STRONG}` }}
+    >
+      {/* Header */}
+      <div className="px-4 pb-3 pt-3.5" style={{ borderBottom: `1px solid ${RULE}` }}>
+        <div className="mb-1 flex items-baseline justify-between">
+          <span
+            className="text-[9.5px] font-medium uppercase"
+            style={{ letterSpacing: "0.22em", color: SIENNA }}
+          >
+            About to move
+          </span>
+          <span
+            className="text-[9.5px] font-medium uppercase"
+            style={{ letterSpacing: "0.22em", color: "rgba(26,26,46,0.40)" }}
+          >
+            1 card
+          </span>
+        </div>
+        <p
+          className="font-display text-[17px] italic"
+          style={{ color: INK, letterSpacing: "-0.005em" }}
+        >
+          {proposal.heading}
+        </p>
+        {proposal.lede && (
+          <p className="mt-1.5 text-[12.5px] leading-[1.55]" style={{ color: "rgba(26,26,46,0.55)" }}>
+            {proposal.lede}
+          </p>
+        )}
+        <p className="mt-1.5 text-[11px]" style={{ color: "rgba(26,26,46,0.40)" }}>
+          Time held — lands at the end of that day&apos;s order.
+        </p>
+      </div>
+
+      {/* The one card row */}
+      <div
+        className="flex items-start gap-3 px-3.5 py-3 animate-in fade-in slide-in-from-bottom-2 duration-300"
+      >
+        <div
+          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[#F2EDE3]"
+          style={{ border: `1px solid ${RULE_STRONG}`, color: INK }}
+        >
+          <ArrowsLeftRight size={13} weight="light" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div
+            className="text-[14px] font-medium"
+            style={{ color: INK, letterSpacing: "-0.01em" }}
+          >
+            {proposal.card_title}
+          </div>
+          <div
+            className="mt-1 flex flex-wrap items-center gap-1.5 text-[11.5px]"
+            style={{ color: "rgba(26,26,46,0.55)" }}
+          >
+            <span>
+              Day {proposal.source_day_number} · {proposal.card_time}
+            </span>
+            <ArrowRight size={11} weight="light" style={{ color: "rgba(26,26,46,0.40)" }} />
+            <span style={{ color: INK }}>Day {proposal.target_day_number}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer — same vocabulary as the other gates */}
+      <div
+        className="flex items-center justify-between gap-3 px-4 py-3"
+        style={{ borderTop: `1px solid ${RULE}`, background: "#F7F3EA" }}
+      >
+        <span
+          className="font-display text-[12.5px] italic"
+          style={{ color: "rgba(26,26,46,0.55)" }}
+        >
+          Nothing changes until you approve.
+        </span>
+        <div className="flex flex-shrink-0 items-center gap-4">
+          <button
+            type="button"
+            onClick={onDiscard}
+            disabled={busy}
+            className="bg-transparent text-[13px] font-medium disabled:opacity-40"
+            style={{ color: "rgba(26,26,46,0.55)" }}
+          >
+            Discard
+          </button>
+          <button
+            type="button"
+            onClick={onApprove}
+            disabled={busy}
+            className="inline-flex items-center gap-2 rounded-md px-3.5 py-2 text-[13px] font-medium disabled:opacity-60"
+            style={{ background: INK, color: PARCHMENT }}
+          >
+            {busy ? "Moving…" : "Approve"}
+            {!busy && <Check size={13} weight="light" />}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── After move — quiet ack frame. No Restore (a wrong move is undone
+// by another move), mirrors ApprovedAck's collapsed shape. ─────
+export function MovedAck({ targetDayNumber }: { targetDayNumber: number }) {
+  return (
+    <div
+      className="rounded-[4px] px-4 py-3.5 animate-in fade-in duration-300"
+      style={{ background: "#F7F3EA", border: `1px solid ${RULE}` }}
+    >
+      <div className="flex items-center gap-2.5">
+        <ArrowsLeftRight size={13} weight="light" style={{ color: INK }} />
+        <span
+          className="text-[10px] font-medium uppercase"
+          style={{ letterSpacing: "0.22em", color: "rgba(26,26,46,0.85)" }}
+        >
+          Moved · Day {targetDayNumber}
+        </span>
+      </div>
+    </div>
   );
 }
 

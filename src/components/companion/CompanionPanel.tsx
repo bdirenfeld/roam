@@ -9,7 +9,12 @@
 
 import { useEffect, useRef } from "react";
 import { Compass, X, ArrowElbowDownLeft } from "@phosphor-icons/react";
-import type { AddProposal, CutProposal, RestoreEntry } from "@/lib/companion/types";
+import type {
+  AddProposal,
+  CutProposal,
+  MoveProposal,
+  RestoreEntry,
+} from "@/lib/companion/types";
 import {
   ProposalCard,
   ApprovedAck,
@@ -17,6 +22,8 @@ import {
   CutProposalCard,
   CutAck,
   RestoredAck,
+  MoveProposalCard,
+  MovedAck,
   NewConversationGate,
 } from "./ProposalCard";
 
@@ -43,6 +50,13 @@ export type ThreadItem =
       // Captured at approval time so Restore reverts each card to the
       // status it held BEFORE the cut.
       restoreEntries?: RestoreEntry[];
+    }
+  | {
+      kind: "move_proposal";
+      id: string;
+      proposal: MoveProposal;
+      // No "restored" — a wrong move is undone by another move.
+      decision: "pending" | "approved" | "discarded";
     };
 
 interface Props {
@@ -59,6 +73,7 @@ interface Props {
   onDiscard: (id: string) => void;
   onApproveCut: (id: string) => void;
   onRestore: (id: string) => void;
+  onApproveMove: (id: string) => void;
   canStartNew: boolean;
   newConvPending: boolean;
   onRequestNewConversation: () => void;
@@ -179,6 +194,7 @@ export default function CompanionPanel({
   onDiscard,
   onApproveCut,
   onRestore,
+  onApproveMove,
   canStartNew,
   newConvPending,
   onRequestNewConversation,
@@ -287,26 +303,44 @@ export default function CompanionPanel({
                 </div>
               );
             }
-            // cut_proposal
+            if (item.kind === "cut_proposal") {
+              return (
+                <div key={item.id} className="mb-[26px] max-w-[64ch]">
+                  {item.decision === "pending" && (
+                    <CutProposalCard
+                      proposal={item.proposal}
+                      busy={busyProposalId === item.id}
+                      onApprove={() => onApproveCut(item.id)}
+                      onDiscard={() => onDiscard(item.id)}
+                    />
+                  )}
+                  {item.decision === "approved" && (
+                    <CutAck
+                      count={item.proposal.cards.length}
+                      busy={busyProposalId === item.id}
+                      onRestore={() => onRestore(item.id)}
+                    />
+                  )}
+                  {item.decision === "discarded" && <DiscardedAck />}
+                  {item.decision === "restored" && <RestoredAck />}
+                </div>
+              );
+            }
+            // move_proposal
             return (
               <div key={item.id} className="mb-[26px] max-w-[64ch]">
                 {item.decision === "pending" && (
-                  <CutProposalCard
+                  <MoveProposalCard
                     proposal={item.proposal}
                     busy={busyProposalId === item.id}
-                    onApprove={() => onApproveCut(item.id)}
+                    onApprove={() => onApproveMove(item.id)}
                     onDiscard={() => onDiscard(item.id)}
                   />
                 )}
                 {item.decision === "approved" && (
-                  <CutAck
-                    count={item.proposal.cards.length}
-                    busy={busyProposalId === item.id}
-                    onRestore={() => onRestore(item.id)}
-                  />
+                  <MovedAck targetDayNumber={item.proposal.target_day_number} />
                 )}
                 {item.decision === "discarded" && <DiscardedAck />}
-                {item.decision === "restored" && <RestoredAck />}
               </div>
             );
           })

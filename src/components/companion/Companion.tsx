@@ -230,6 +230,16 @@ export default function Companion({ tripId }: { tripId: string }) {
                 decision: "pending",
               },
             ]);
+          } else if (ev.type === "move_proposal") {
+            setItems((prev) => [
+              ...prev,
+              {
+                kind: "move_proposal",
+                id: crypto.randomUUID(),
+                proposal: ev.proposal,
+                decision: "pending",
+              },
+            ]);
           } else if (ev.type === "error") {
             appendToMsg(asstId, ev.message);
           }
@@ -302,7 +312,9 @@ export default function Companion({ tripId }: { tripId: string }) {
       }
       setItems((prev) =>
         prev.map((it) =>
-          (it.kind === "proposal" || it.kind === "cut_proposal") &&
+          (it.kind === "proposal" ||
+            it.kind === "cut_proposal" ||
+            it.kind === "move_proposal") &&
           it.id === proposalItemId
             ? { ...it, decision: "discarded" }
             : it,
@@ -352,6 +364,46 @@ export default function Companion({ tripId }: { tripId: string }) {
         setToast(`${n} ${n === 1 ? "card" : "cards"} cut`);
       } catch {
         setToast("Couldn't cut those — try again.");
+      } finally {
+        setBusyProposalId(null);
+      }
+    },
+    [items, tripId],
+  );
+
+  // ── Approve a move — the route relocates the card to the target
+  //    day, re-packs the source day, keeps start_time/end_time. ───
+  const approveMove = useCallback(
+    async (proposalItemId: string) => {
+      const item = items.find(
+        (it) => it.kind === "move_proposal" && it.id === proposalItemId,
+      );
+      if (!item || item.kind !== "move_proposal" || item.decision !== "pending") return;
+
+      setBusyProposalId(proposalItemId);
+      try {
+        const res = await fetch("/api/assistant", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            tripId,
+            approveMove: {
+              card_id: item.proposal.card_id,
+              target_day_id: item.proposal.target_day_id,
+            },
+          }),
+        });
+        if (!res.ok) throw new Error("failed");
+        setItems((prev) =>
+          prev.map((it) =>
+            it.kind === "move_proposal" && it.id === proposalItemId
+              ? { ...it, decision: "approved" }
+              : it,
+          ),
+        );
+        setToast(`Moved to Day ${item.proposal.target_day_number}`);
+      } catch {
+        setToast("Couldn't move that — try again.");
       } finally {
         setBusyProposalId(null);
       }
@@ -467,6 +519,7 @@ export default function Companion({ tripId }: { tripId: string }) {
           onDiscard={discard}
           onApproveCut={approveCut}
           onRestore={restore}
+          onApproveMove={approveMove}
           canStartNew={items.length > 0 && !streaming}
           newConvPending={showNewConvGate}
           onRequestNewConversation={requestNewConversation}
