@@ -140,7 +140,7 @@ export async function buildTripSkeleton(
 
   for (const day of days ?? []) {
     const theme = day.theme ? ` — ${day.theme}` : "";
-    lines.push(`DAY ${day.day_number} · ${fmtDate(day.date)}${theme}`);
+    lines.push(`[day ${day.id}] DAY ${day.day_number} · ${fmtDate(day.date)}${theme}`);
     const dayCards = cardsByDay.get(day.id) ?? [];
     if (dayCards.length === 0) {
       lines.push("  (nothing scheduled yet)");
