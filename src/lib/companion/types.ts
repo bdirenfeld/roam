@@ -44,11 +44,40 @@ export interface AddProposal {
   places: ResolvedPlace[];
 }
 
+// ── Cut proposal ───────────────────────────────────────────────
+// One card the companion is about to soft-delete (status → 'cut').
+// Resolved server-side from the model's card_id — title and meta come
+// from the live DB join, never from the model.
+export interface CutCardSummary {
+  card_id: string;
+  title: string;
+  meta: string; // e.g., "Day 3 · 09:00", "Day 3", or "Unscheduled"
+}
+
+export interface CutProposal {
+  heading: string;
+  lede?: string;
+  // Reason is OPTIONAL and present only if the traveller gave one in
+  // conversation. The route forwards the model's reason verbatim — the
+  // system prompt forbids the model from inventing one.
+  reason?: string;
+  cards: CutCardSummary[];
+}
+
+// One entry sent back on Restore — captured at cut time so a card cut
+// from 'in_itinerary' restores to 'in_itinerary', not silently to the
+// holding pile.
+export interface RestoreEntry {
+  card_id: string;
+  prior_status: string;
+}
+
 // ── /api/assistant streaming wire format ──────────────────────
 // The POST turn handler streams newline-delimited JSON; each line is
 // one of these events.
 export type AssistantStreamEvent =
   | { type: "text"; delta: string }
   | { type: "proposal"; proposal: AddProposal }
+  | { type: "cut_proposal"; proposal: CutProposal }
   | { type: "error"; message: string }
   | { type: "done" };

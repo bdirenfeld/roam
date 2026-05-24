@@ -11,6 +11,7 @@ import { Compass } from "@phosphor-icons/react";
 import type {
   AssistantStreamEvent,
   CompanionMessage,
+  RestoreEntry,
 } from "@/lib/companion/types";
 import CompanionPanel, { type ThreadItem } from "./CompanionPanel";
 
@@ -132,6 +133,16 @@ export default function Companion({ tripId }: { tripId: string }) {
                 decision: "pending",
               },
             ]);
+          } else if (ev.type === "cut_proposal") {
+            setItems((prev) => [
+              ...prev,
+              {
+                kind: "cut_proposal",
+                id: crypto.randomUUID(),
+                proposal: ev.proposal,
+                decision: "pending",
+              },
+            ]);
           } else if (ev.type === "error") {
             appendToMsg(asstId, ev.message);
           }
@@ -186,7 +197,7 @@ export default function Companion({ tripId }: { tripId: string }) {
     [items, tripId],
   );
 
-  // ── Discard a proposal — nothing was written; leaves a trace ─
+  // ── Discard any proposal (add or cut) — writes nothing ────────
   const discard = useCallback(
     async (proposalItemId: string) => {
       setBusyProposalId(proposalItemId);
@@ -201,7 +212,8 @@ export default function Companion({ tripId }: { tripId: string }) {
       }
       setItems((prev) =>
         prev.map((it) =>
-          it.kind === "proposal" && it.id === proposalItemId
+          (it.kind === "proposal" || it.kind === "cut_proposal") &&
+          it.id === proposalItemId
             ? { ...it, decision: "discarded" }
             : it,
         ),
@@ -209,6 +221,96 @@ export default function Companion({ tripId }: { tripId: string }) {
       setBusyProposalId(null);
     },
     [tripId],
+  );
+
+  // ── Approve a cut — the route flips status to 'cut' and returns
+  //    the prior_status of each card so Restore can put them back ─
+  const approveCut = useCallback(
+    async (proposalItemId: string) => {
+      const item = items.find(
+        (it) => it.kind === "cut_proposal" && it.id === proposalItemId,
+      );
+      if (!item || item.kind !== "cut_proposal" || item.decision !== "pending") return;
+
+      setBusyProposalId(proposalItemId);
+      try {
+        const res = await fetch("/api/assistant", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            tripId,
+            approveCut: { card_ids: item.proposal.cards.map((c) => c.card_id) },
+          }),
+        });
+        if (!res.ok) throw new Error("failed");
+        const data = (await res.json()) as {
+          cut?: number;
+          restore_entries?: RestoreEntry[];
+        };
+        setItems((prev) =>
+          prev.map((it) =>
+            it.kind === "cut_proposal" && it.id === proposalItemId
+              ? {
+                  ...it,
+                  decision: "approved",
+                  restoreEntries: data.restore_entries ?? [],
+                }
+              : it,
+          ),
+        );
+        const n = data.cut ?? item.proposal.cards.length;
+        setToast(`${n} ${n === 1 ? "card" : "cards"} cut`);
+      } catch {
+        setToast("Couldn't cut those — try again.");
+      } finally {
+        setBusyProposalId(null);
+      }
+    },
+    [items, tripId],
+  );
+
+  // ── Restore — direct, non-model. Reverts each card to the status
+  //    it held BEFORE the cut (NOT a hardcoded 'interested'). ─────
+  const restore = useCallback(
+    async (proposalItemId: string) => {
+      const item = items.find(
+        (it) => it.kind === "cut_proposal" && it.id === proposalItemId,
+      );
+      if (
+        !item ||
+        item.kind !== "cut_proposal" ||
+        item.decision !== "approved" ||
+        !item.restoreEntries?.length
+      )
+        return;
+
+      setBusyProposalId(proposalItemId);
+      try {
+        const res = await fetch("/api/assistant", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            tripId,
+            restore: { entries: item.restoreEntries },
+          }),
+        });
+        if (!res.ok) throw new Error("failed");
+        setItems((prev) =>
+          prev.map((it) =>
+            it.kind === "cut_proposal" && it.id === proposalItemId
+              ? { ...it, decision: "restored" }
+              : it,
+          ),
+        );
+        const n = item.restoreEntries.length;
+        setToast(`${n} ${n === 1 ? "card" : "cards"} restored`);
+      } catch {
+        setToast("Couldn't restore — try again.");
+      } finally {
+        setBusyProposalId(null);
+      }
+    },
+    [items, tripId],
   );
 
   return (
@@ -246,6 +348,8 @@ export default function Companion({ tripId }: { tripId: string }) {
           onClose={() => setOpen(false)}
           onApprove={approve}
           onDiscard={discard}
+          onApproveCut={approveCut}
+          onRestore={restore}
         />
       )}
 

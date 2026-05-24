@@ -13,8 +13,11 @@ import { buildSystemPrompt } from "@/lib/companion/prompt";
 import type {
   AddProposal,
   AssistantStreamEvent,
+  CutCardSummary,
+  CutProposal,
   ProposalIcon,
   ResolvedPlace,
+  RestoreEntry,
 } from "@/lib/companion/types";
 
 export const maxDuration = 60;
@@ -37,6 +40,34 @@ const TOOLS: Anthropic.Tool[] = [
         card_id: { type: "string", description: "The card UUID from the skeleton." },
       },
       required: ["card_id"],
+    },
+  },
+  {
+    name: "propose_cut",
+    description:
+      "Propose to cut (soft-delete) one or more cards already in this journey. This writes NOTHING — it shows the traveller a confirm card, and nothing is cut unless they approve. Cuts are always restorable. NEVER originate a cut — only call this tool when the traveller has explicitly told you which card(s) to drop. If the request is ambiguous, ask in plain conversation FIRST; do not call this tool to disambiguate. NEVER invent a reason — pass `reason` only if the traveller gave one, and use their exact phrasing verbatim.",
+    input_schema: {
+      type: "object",
+      properties: {
+        heading: {
+          type: "string",
+          description:
+            "A short Playfair-italic lede for the cut card header, in Roam's editorial voice.",
+        },
+        lede: { type: "string", description: "Optional one-sentence supporting line." },
+        reason: {
+          type: "string",
+          description:
+            "ONLY pass this if the traveller gave a reason for the cut, and quote their words verbatim. Otherwise OMIT this field entirely — never invent or paraphrase.",
+        },
+        card_ids: {
+          type: "array",
+          description:
+            "The UUIDs of the cards to cut, taken from the skeleton's [card <uuid>] tokens.",
+          items: { type: "string" },
+        },
+      },
+      required: ["heading", "card_ids"],
     },
   },
   {
@@ -177,6 +208,94 @@ function parseProposeInput(input: unknown): ProposeInput | null {
   };
 }
 
+// ── Cut proposal — parse + resolve ─────────────────────────────
+// Model passes card UUIDs from the skeleton. Server reads the live row
+// (joined to places) to format the user-facing title and meta line —
+// the model NEVER supplies card titles or times.
+interface CutInput {
+  heading: string;
+  lede?: string;
+  reason?: string;
+  card_ids: string[];
+}
+
+function parseCutInput(input: unknown): CutInput | null {
+  if (!input || typeof input !== "object") return null;
+  const o = input as Record<string, unknown>;
+  if (!Array.isArray(o.card_ids)) return null;
+  const ids: string[] = [];
+  for (const id of o.card_ids) {
+    if (typeof id === "string" && id.trim()) ids.push(id.trim());
+  }
+  if (ids.length === 0) return null;
+  return {
+    heading:
+      typeof o.heading === "string" && o.heading.trim()
+        ? o.heading.trim()
+        : "About to cut.",
+    lede: typeof o.lede === "string" && o.lede.trim() ? o.lede.trim() : undefined,
+    reason:
+      typeof o.reason === "string" && o.reason.trim() ? o.reason.trim() : undefined,
+    card_ids: Array.from(new Set(ids)),
+  };
+}
+
+interface CutCardRow {
+  id: string;
+  status: string;
+  start_time: string | null;
+  day_id: string | null;
+  place: { title: string | null } | { title: string | null }[] | null;
+  day: { day_number: number } | { day_number: number }[] | null;
+}
+
+function singleOf<T>(v: T | T[] | null): T | null {
+  if (!v) return null;
+  return Array.isArray(v) ? (v[0] ?? null) : v;
+}
+
+async function resolveCutProposal(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tripId: string,
+  input: CutInput,
+): Promise<CutProposal | null> {
+  // RLS-scoped read — only this user's cards on this trip. Already-cut
+  // cards are excluded so the companion can't propose to cut what's
+  // already gone.
+  const { data } = await supabase
+    .from("cards")
+    .select(
+      "id, status, start_time, day_id, place:places(title), day:days(day_number)",
+    )
+    .eq("trip_id", tripId)
+    .in("id", input.card_ids)
+    .neq("status", "cut");
+
+  const rows = (data ?? []) as CutCardRow[];
+  if (rows.length === 0) return null;
+
+  const cards: CutCardSummary[] = rows.map((r) => {
+    const place = singleOf(r.place);
+    const day = singleOf(r.day);
+    const title = place?.title ?? "Untitled";
+    const time = r.start_time ? r.start_time.slice(0, 5) : "";
+    let meta: string;
+    if (day?.day_number != null) {
+      meta = time ? `Day ${day.day_number} · ${time}` : `Day ${day.day_number}`;
+    } else {
+      meta = "Unscheduled";
+    }
+    return { card_id: r.id, title, meta };
+  });
+
+  return {
+    heading: input.heading,
+    lede: input.lede,
+    reason: input.reason,
+    cards,
+  };
+}
+
 async function resolveProposal(
   input: ProposeInput,
   trip: { destination_lat: number | null; destination_lng: number | null },
@@ -241,6 +360,20 @@ function buildApproveAck(names: string[]): string {
     return `Added ${names[0]} — it's held in this journey's places now, unscheduled. Slot it into a day whenever the shape feels right.`;
   }
   return `Added ${names.length} places — ${names.join(", ")} — held in this journey's places now, unscheduled. Slot them into days whenever the shape feels right.`;
+}
+
+function buildCutAck(names: string[]): string {
+  if (names.length === 1) {
+    return `Cut ${names[0]}. Restorable — tap Restore on the card above to bring it back as it was.`;
+  }
+  return `Cut ${names.length} cards — ${names.join(", ")}. Restorable — tap Restore on the card above to bring them back as they were.`;
+}
+
+function buildRestoreAck(names: string[]): string {
+  if (names.length === 1) {
+    return `Restored ${names[0]} — back where it was.`;
+  }
+  return `Restored ${names.length} cards — ${names.join(", ")} — back where they were.`;
 }
 
 // ════════════════════════════════════════════════════════════
@@ -314,6 +447,9 @@ export async function POST(req: NextRequest) {
   if (!tripCheck) return NextResponse.json({ error: "Journey not found" }, { status: 404 });
 
   if (body.approve !== undefined) return handleApprove(req, supabase, tripId, body.approve);
+  if (body.approveCut !== undefined)
+    return handleApproveCut(supabase, tripId, body.approveCut);
+  if (body.restore !== undefined) return handleRestore(supabase, tripId, body.restore);
   if (body.discard === true) return handleDiscard(supabase, tripId);
   if (typeof body.message === "string") {
     return handleTurn(req, supabase, apiKey, tripId, body.message);
@@ -412,6 +548,155 @@ async function handleApprove(
   return NextResponse.json({ added: imported.length, names, ack });
 }
 
+// ── Approve Cut — flip status to 'cut', capture prior_status per
+//    card so Restore can put each one back exactly where it was. ──
+async function handleApproveCut(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tripId: string,
+  approveCut: unknown,
+) {
+  const ids: string[] = [];
+  if (approveCut && typeof approveCut === "object") {
+    const list = (approveCut as Record<string, unknown>).card_ids;
+    if (Array.isArray(list)) {
+      for (const v of list) {
+        if (typeof v === "string" && v) ids.push(v);
+      }
+    }
+  }
+  const cardIds = Array.from(new Set(ids));
+  if (cardIds.length === 0) {
+    return NextResponse.json({ error: "No cards to cut" }, { status: 400 });
+  }
+
+  // Read current status per card BEFORE updating, so Restore can revert
+  // each one to exactly where it was (in_itinerary, interested, etc.).
+  const { data: priorRows } = await supabase
+    .from("cards")
+    .select("id, status, place:places(title)")
+    .eq("trip_id", tripId)
+    .in("id", cardIds)
+    .neq("status", "cut");
+
+  const priors = (priorRows ?? []) as {
+    id: string;
+    status: string;
+    place: { title: string | null } | { title: string | null }[] | null;
+  }[];
+
+  if (priors.length === 0) {
+    return NextResponse.json({ error: "No cards to cut" }, { status: 400 });
+  }
+
+  const restoreEntries: RestoreEntry[] = priors.map((p) => ({
+    card_id: p.id,
+    prior_status: p.status,
+  }));
+  const names = priors.map((p) => singleOf(p.place)?.title ?? "Untitled");
+
+  const { error: updateErr } = await supabase
+    .from("cards")
+    .update({ status: "cut" })
+    .eq("trip_id", tripId)
+    .in(
+      "id",
+      priors.map((p) => p.id),
+    );
+  if (updateErr) {
+    console.error("[assistant] cut update failed", updateErr);
+    return NextResponse.json({ error: "Could not cut those cards" }, { status: 500 });
+  }
+
+  const ack = buildCutAck(names);
+  await supabase.from("companion_messages").insert({
+    trip_id: tripId,
+    role: "user",
+    content: `Approved — cutting ${names.length} ${names.length === 1 ? "card" : "cards"}.`,
+  });
+  await supabase
+    .from("companion_messages")
+    .insert({ trip_id: tripId, role: "assistant", content: ack });
+
+  return NextResponse.json({
+    cut: priors.length,
+    names,
+    restore_entries: restoreEntries,
+    ack,
+  });
+}
+
+// ── Restore — direct, non-model. Reverts each card to the status
+//    it held just before the cut (NOT a hardcoded fallback). ─────
+async function handleRestore(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tripId: string,
+  restore: unknown,
+) {
+  const entries: RestoreEntry[] = [];
+  if (restore && typeof restore === "object") {
+    const list = (restore as Record<string, unknown>).entries;
+    if (Array.isArray(list)) {
+      for (const e of list) {
+        if (!e || typeof e !== "object") continue;
+        const eo = e as Record<string, unknown>;
+        if (
+          typeof eo.card_id === "string" &&
+          eo.card_id &&
+          typeof eo.prior_status === "string" &&
+          eo.prior_status
+        ) {
+          entries.push({ card_id: eo.card_id, prior_status: eo.prior_status });
+        }
+      }
+    }
+  }
+  if (entries.length === 0) {
+    return NextResponse.json({ error: "Nothing to restore" }, { status: 400 });
+  }
+
+  // Per-card update — a single UPDATE can't fan a different status to
+  // each row, and the entry list is small (typically 1–3).
+  for (const e of entries) {
+    const { error } = await supabase
+      .from("cards")
+      .update({ status: e.prior_status })
+      .eq("trip_id", tripId)
+      .eq("id", e.card_id);
+    if (error) {
+      console.error("[assistant] restore failed for", e.card_id, error);
+      return NextResponse.json({ error: "Could not restore" }, { status: 500 });
+    }
+  }
+
+  const { data: nameRows } = await supabase
+    .from("cards")
+    .select("id, place:places(title)")
+    .eq("trip_id", tripId)
+    .in(
+      "id",
+      entries.map((e) => e.card_id),
+    );
+  const names = (nameRows ?? []).map(
+    (r) =>
+      singleOf(
+        (r as { place: { title: string | null } | { title: string | null }[] | null })
+          .place,
+      )?.title ?? "Untitled",
+  );
+
+  const ack = buildRestoreAck(names);
+  await supabase.from("companion_messages").insert({
+    trip_id: tripId,
+    role: "user",
+    content: `Restored ${entries.length} ${entries.length === 1 ? "card" : "cards"}.`,
+  });
+  await supabase
+    .from("companion_messages")
+    .insert({ trip_id: tripId, role: "assistant", content: ack });
+
+  return NextResponse.json({ restored: entries.length, names, ack });
+}
+
 // ── Turn — the streaming Anthropic tool loop ───────────────────
 async function handleTurn(
   req: NextRequest,
@@ -487,6 +772,26 @@ async function handleTurn(
             const toolUses = final.content.filter(
               (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
             );
+
+            const proposeCut = toolUses.find((t) => t.name === "propose_cut");
+            if (proposeCut) {
+              // propose_cut pauses server-side — resolve titles from the
+              // live DB and hand the proposal to the client; write nothing.
+              const parsed = parseCutInput(proposeCut.input);
+              const proposal = parsed
+                ? await resolveCutProposal(supabase, tripId, parsed)
+                : null;
+              if (proposal) {
+                emittedProposal = true;
+                send({ type: "cut_proposal", proposal });
+              } else {
+                const note =
+                  "\n\nI couldn't find those cards in this journey — let's name them a little more precisely.";
+                assistantText += note;
+                send({ type: "text", delta: note });
+              }
+              break;
+            }
 
             const propose = toolUses.find((t) => t.name === "propose_add");
             if (propose) {

@@ -9,8 +9,15 @@
 
 import { useEffect, useRef } from "react";
 import { Compass, X, ArrowElbowDownLeft } from "@phosphor-icons/react";
-import type { AddProposal } from "@/lib/companion/types";
-import { ProposalCard, ApprovedAck, DiscardedAck } from "./ProposalCard";
+import type { AddProposal, CutProposal, RestoreEntry } from "@/lib/companion/types";
+import {
+  ProposalCard,
+  ApprovedAck,
+  DiscardedAck,
+  CutProposalCard,
+  CutAck,
+  RestoredAck,
+} from "./ProposalCard";
 
 const SIENNA = "#C4622D";
 const INK = "#1A1A2E";
@@ -26,6 +33,15 @@ export type ThreadItem =
       id: string;
       proposal: AddProposal;
       decision: "pending" | "approved" | "discarded";
+    }
+  | {
+      kind: "cut_proposal";
+      id: string;
+      proposal: CutProposal;
+      decision: "pending" | "approved" | "discarded" | "restored";
+      // Captured at approval time so Restore reverts each card to the
+      // status it held BEFORE the cut.
+      restoreEntries?: RestoreEntry[];
     };
 
 interface Props {
@@ -40,6 +56,8 @@ interface Props {
   onClose: () => void;
   onApprove: (id: string) => void;
   onDiscard: (id: string) => void;
+  onApproveCut: (id: string) => void;
+  onRestore: (id: string) => void;
 }
 
 // ── A single transcript turn ───────────────────────────────────
@@ -153,6 +171,8 @@ export default function CompanionPanel({
   onClose,
   onApprove,
   onDiscard,
+  onApproveCut,
+  onRestore,
 }: Props) {
   const bodyRef = useRef<HTMLDivElement>(null);
 
@@ -225,20 +245,44 @@ export default function CompanionPanel({
                 />
               );
             }
+            if (item.kind === "proposal") {
+              return (
+                <div key={item.id} className="mb-[26px] max-w-[64ch]">
+                  {item.decision === "pending" && (
+                    <ProposalCard
+                      proposal={item.proposal}
+                      busy={busyProposalId === item.id}
+                      onApprove={() => onApprove(item.id)}
+                      onDiscard={() => onDiscard(item.id)}
+                    />
+                  )}
+                  {item.decision === "approved" && (
+                    <ApprovedAck count={item.proposal.places.length} />
+                  )}
+                  {item.decision === "discarded" && <DiscardedAck />}
+                </div>
+              );
+            }
+            // cut_proposal
             return (
               <div key={item.id} className="mb-[26px] max-w-[64ch]">
                 {item.decision === "pending" && (
-                  <ProposalCard
+                  <CutProposalCard
                     proposal={item.proposal}
                     busy={busyProposalId === item.id}
-                    onApprove={() => onApprove(item.id)}
+                    onApprove={() => onApproveCut(item.id)}
                     onDiscard={() => onDiscard(item.id)}
                   />
                 )}
                 {item.decision === "approved" && (
-                  <ApprovedAck count={item.proposal.places.length} />
+                  <CutAck
+                    count={item.proposal.cards.length}
+                    busy={busyProposalId === item.id}
+                    onRestore={() => onRestore(item.id)}
+                  />
                 )}
                 {item.decision === "discarded" && <DiscardedAck />}
+                {item.decision === "restored" && <RestoredAck />}
               </div>
             );
           })
