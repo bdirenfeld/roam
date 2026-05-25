@@ -30,7 +30,7 @@ interface Props {
 const CONTROLLED_SUB_TYPES = new Set([
   "restaurant", "coffee", "dessert", "bar",
   "guided", "self_directed", "wellness", "challenge", "event",
-  "hotel", "transit",
+  "hotel", "transit", "grocery", "medical",
   "flight_arrival", "flight_departure",
 ]);
 

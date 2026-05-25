@@ -145,9 +145,17 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
   }, [onClose]);
 
   function selectType(t: CardType) {
-    const suggested = suggestSubType(place.name, t);
     setType(t);
-    setSubType(suggested);
+    if (t === "logistics") {
+      // Logistics has too many distinct sub-types to safely default — only
+      // pre-pick when a keyword genuinely matches; otherwise let the user choose.
+      const matched = KEYWORD_RULES.find(
+        (r) => r.forTypes.includes(t) && r.pattern.test(place.name),
+      );
+      setSubType(matched ? matched.subType : null);
+    } else {
+      setSubType(suggestSubType(place.name, t));
+    }
   }
 
   // ── Core insert (called both on first save and "Save again") ──
@@ -260,6 +268,7 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
 
   const handleSave = useCallback(async () => {
     if (!type || saving) return;
+    if (type === "logistics" && !subType) return;
     setSaving(true);
 
     // ── Deduplication check ───────────────────────────────────
@@ -279,7 +288,7 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
     }
 
     await performInsert();
-  }, [type, saving, supabase, tripId, place, performInsert]);
+  }, [type, subType, saving, supabase, tripId, place, performInsert]);
 
   const handleSaveAnyway = useCallback(async () => {
     setShowDupConfirm(false);
@@ -288,6 +297,7 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
   }, [performInsert]);
 
   const typeColor = type ? PIN_COLORS[type] : null;
+  const canSave   = !!type && !saving && !(type === "logistics" && !subType);
 
   return (
     <div
@@ -470,13 +480,13 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
           {/* Save button */}
           <button
             onClick={handleSave}
-            disabled={!type || saving}
+            disabled={!canSave}
             className={`w-full py-3.5 rounded-xl text-[15px] font-bold transition-all ${
-              type && !saving
+              canSave
                 ? "text-white active:scale-[0.98] shadow-sm"
                 : "bg-gray-100 text-gray-300 cursor-not-allowed"
             }`}
-            style={type && !saving ? { background: typeColor! } : undefined}
+            style={canSave ? { background: typeColor! } : undefined}
           >
             {saving ? "Checking…" : "Save to Map"}
           </button>
