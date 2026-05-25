@@ -46,8 +46,10 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  // Public paths — no auth required
-  const publicPaths = ['/login', '/auth']
+  // Public paths — no auth required. The Stripe webhook is called by Stripe
+  // with no user session and must pass through to its signature-verified
+  // handler; bouncing it to /login would silently break all payment events.
+  const publicPaths = ['/login', '/auth', '/api/stripe/webhook']
   const isPublic = publicPaths.some((p) => pathname.startsWith(p))
 
   if (!user && !isPublic) {
