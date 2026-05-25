@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Lessons and Travellers</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400;1,500;1,600&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400;1,9..40,500&display=swap"
+    rel="stylesheet" />
+  <style>
+    html, body { margin: 0; background: #f0eee9; font-family: "DM Sans", system-ui, sans-serif; }
+    #root { width: 100vw; height: 100vh; }
+  </style>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <script type="text/babel" src="companion-shared.jsx"></script>
+  <script type="text/babel" src="trip-intel-shared.jsx"></script>
+  <script type="text/babel" src="lessons-surface.jsx"></script>
+  <script type="text/babel" src="people-surface.jsx"></script>
+
+  <script type="text/babel">
+    const MOBILE_W = 390;
+    const MOBILE_H = 844;
+
+    const App = () => (
+      <DesignCanvas>
+
+        {/* ─────────────────────────────────────────────────────────
+            SURFACE 1 — LESSONS
+            Global, lives on the Profile page. Flat list, no checkboxes.
+            ───────────────────────────────────────────────────────── */}
+        <DCSection
+          id="lessons"
+          title="Lessons learned"
+          subtitle="Global · lives on Profile. Flat list, no checkboxes, edit/remove per row."
+        >
+          <DCArtboard id="lessons-m-a" label="Default"
+                      width={MOBILE_W} height={MOBILE_H}
+                      data-screen-label="Lessons · Default">
+            <Lessons_M_A/>
+          </DCArtboard>
+
+          <DCArtboard id="lessons-m-empty" label="Empty state"
+                      width={MOBILE_W} height={MOBILE_H}
+                      data-screen-label="Lessons · Empty">
+            <Lessons_M_Empty/>
+          </DCArtboard>
+
+          <DCArtboard id="lessons-m-add" label="Adding (inline)"
+                      width={MOBILE_W} height={MOBILE_H}
+                      data-screen-label="Lessons · Adding">
+            <Lessons_M_Adding/>
+          </DCArtboard>
+
+          <DCArtboard id="lessons-m-edit" label="Editing a lesson"
+                      width={MOBILE_W} height={MOBILE_H}
+                      data-screen-label="Lessons · Editing">
+            <Lessons_M_Editing/>
+          </DCArtboard>
+        </DCSection>
+
+        {/* ─────────────────────────────────────────────────────────
+            SURFACE 2 — PEOPLE
+            Trip-level, lives in Trip Settings. Structured per person.
+            ───────────────────────────────────────────────────────── */}
+        <DCSection
+          id="people"
+          title="Travellers"
+          subtitle="Per journey · lives in Trip Settings. Name · birthday · likes/dislikes. Monogram only — no photos in v1."
+        >
+          <DCArtboard id="people-m-a" label="Default"
+                      width={MOBILE_W} height={MOBILE_H}
+                      data-screen-label="People · Default">
+            <People_M_A/>
+          </DCArtboard>
+
+          <DCArtboard id="people-m-empty" label="Empty state"
+                      width={MOBILE_W} height={MOBILE_H}
+                      data-screen-label="People · Empty">
+            <People_M_Empty/>
+          </DCArtboard>
+
+          <DCArtboard id="people-m-add" label="Adding (sheet)"
+                      width={MOBILE_W} height={MOBILE_H}
+                      data-screen-label="People · Adding">
+            <People_M_Adding/>
+          </DCArtboard>
+
+          <DCArtboard id="people-m-edit" label="Editing a traveller"
+                      width={MOBILE_W} height={MOBILE_H}
+                      data-screen-label="People · Editing">
+            <People_M_Editing/>
+          </DCArtboard>
+        </DCSection>
+
+      </DesignCanvas>
+    );
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
