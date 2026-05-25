@@ -17,6 +17,10 @@ const ICONS: Record<string, (c: string) => string> = {
     `<path d="M21 17H3M5 9l7 4.5 3-1 4-1 1 2.5-4 1-7 4.5-3.5-.5L1 12" stroke="${c}" stroke-width="1.8" stroke-linecap="round" fill="none"/>`,
   transit: (c) =>
     `<rect x="3" y="5" width="18" height="14" rx="2" stroke="${c}" stroke-width="1.8" fill="none"/><path d="M3 10h18M8 19v2M16 19v2" stroke="${c}" stroke-width="1.8" stroke-linecap="round" fill="none"/><circle cx="8" cy="15" r="1.5" fill="${c}"/><circle cx="16" cy="15" r="1.5" fill="${c}"/>`,
+  grocery: (c) =>
+    `<path d="M3 4h2l2 11h12l2-8H7" stroke="${c}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="9" cy="19" r="1.5" fill="${c}"/><circle cx="17" cy="19" r="1.5" fill="${c}"/>`,
+  medical: (c) =>
+    `<rect x="3" y="7" width="18" height="13" rx="2" stroke="${c}" stroke-width="1.8" fill="none"/><path d="M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2" stroke="${c}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M12 11v5M9.5 13.5h5" stroke="${c}" stroke-width="1.8" stroke-linecap="round" fill="none"/>`,
   transportation: (c) =>
     `<rect x="3" y="5" width="18" height="14" rx="2" stroke="${c}" stroke-width="1.8" fill="none"/><path d="M3 10h18M8 19v2M16 19v2" stroke="${c}" stroke-width="1.8" stroke-linecap="round" fill="none"/><circle cx="8" cy="15" r="1.5" fill="${c}"/><circle cx="16" cy="15" r="1.5" fill="${c}"/>`,
   transfer: (c) =>
@@ -151,11 +155,13 @@ const MATERIAL_ICONS: Record<string, string> = {
   bar:              "local_bar",
   cocktail_bar:     "local_bar",
   drinks:           "local_bar",
-  // Logistics / Stay
+  // Logistics
   hotel:            "hotel",
   flight_arrival:   "flight_land",
   flight_departure: "flight_takeoff",
   transit:          "directions_transit",
+  grocery:          "local_grocery_store",
+  medical:          "medical_services",
 };
 
 /**

@@ -41,13 +41,16 @@ const GROUPS: Group[] = [
     ],
   },
   {
-    label: "Stay",
+    label: "Logistics",
     color: "#111827",
     typeKey: "logistics",
     rows: [
       { label: "Hotel",            subTypes: ["hotel"]            },
       { label: "Flight Arrival",   subTypes: ["flight_arrival"]   },
       { label: "Flight Departure", subTypes: ["flight_departure"] },
+      { label: "Transit",          subTypes: ["transit"]          },
+      { label: "Grocery",          subTypes: ["grocery"]          },
+      { label: "Medical",          subTypes: ["medical"]          },
     ],
   },
 ];

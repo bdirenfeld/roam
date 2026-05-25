@@ -26,6 +26,8 @@ const SUB_TYPE_LABEL: Record<string, string> = {
   event:            "Event",
   hotel:            "Hotel",
   transit:          "Transit",
+  grocery:          "Grocery",
+  medical:          "Medical",
   flight_arrival:   "Flight Arrival",
   flight_departure: "Flight Departure",
 };
@@ -33,7 +35,7 @@ const SUB_TYPE_LABEL: Record<string, string> = {
 const TYPE_OPTIONS: { type: CardType; label: string }[] = [
   { type: "activity",  label: "Activity" },
   { type: "food",      label: "Food"     },
-  { type: "logistics", label: "Stay"     },
+  { type: "logistics", label: "Logistics" },
 ];
 
 const SUB_TYPE_OPTIONS: Record<CardType, { label: string; value: string }[]> = {
@@ -50,7 +52,13 @@ const SUB_TYPE_OPTIONS: Record<CardType, { label: string; value: string }[]> = {
     { label: "Dessert",    value: "dessert"    },
     { label: "Bar",        value: "bar"        },
   ],
-  logistics: [{ label: "Hotel", value: "hotel" }, { label: "Flight", value: "flight_arrival" }],
+  logistics: [
+    { label: "Hotel",   value: "hotel"          },
+    { label: "Flight",  value: "flight_arrival" },
+    { label: "Transit", value: "transit"        },
+    { label: "Grocery", value: "grocery"        },
+    { label: "Medical", value: "medical"        },
+  ],
 };
 
 const POPUP_W = 300;

@@ -33,7 +33,7 @@ interface Props {
 const TYPE_OPTIONS: { type: CardType; label: string }[] = [
   { type: "activity",  label: "Activity" },
   { type: "food",      label: "Food"     },
-  { type: "logistics", label: "Stay"     },
+  { type: "logistics", label: "Logistics" },
 ];
 
 const SUB_TYPE_OPTIONS: Record<CardType, { label: string; value: string }[]> = {
@@ -51,8 +51,11 @@ const SUB_TYPE_OPTIONS: Record<CardType, { label: string; value: string }[]> = {
     { label: "Bar",        value: "bar"        },
   ],
   logistics: [
-    { label: "Hotel",  value: "hotel"         },
-    { label: "Flight", value: "flight_arrival" },
+    { label: "Hotel",   value: "hotel"          },
+    { label: "Flight",  value: "flight_arrival" },
+    { label: "Transit", value: "transit"        },
+    { label: "Grocery", value: "grocery"        },
+    { label: "Medical", value: "medical"        },
   ],
 };
 

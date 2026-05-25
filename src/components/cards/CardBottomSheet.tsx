@@ -57,6 +57,8 @@ const SUB_TYPE_LABEL: Record<string, string> = {
   drinks:           "Bar",
   hotel:            "Hotel",
   transit:          "Transit",
+  grocery:          "Grocery",
+  medical:          "Medical",
   note:             "Note",
 };
 
@@ -83,10 +85,12 @@ const SUB_TYPE_OPTIONS: Record<string, { value: string; label: string }[]> = {
     { value: "bar",        label: "Bar"        },
   ],
   logistics: [
-    { value: "hotel",            label: "Hotel"           },
-    { value: "flight_arrival",   label: "Flight Arrival"  },
+    { value: "hotel",            label: "Hotel"            },
+    { value: "flight_arrival",   label: "Flight Arrival"   },
     { value: "flight_departure", label: "Flight Departure" },
-    { value: "transit",          label: "Transit"         },
+    { value: "transit",          label: "Transit"          },
+    { value: "grocery",          label: "Grocery"          },
+    { value: "medical",          label: "Medical"          },
   ],
 };
 

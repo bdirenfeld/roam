@@ -582,7 +582,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
                   [
                     { typeKey: "activity"  as CardType, label: "Activity", color: "#1D9E75" },
                     { typeKey: "food"      as CardType, label: "Food",     color: "#7C3AED" },
-                    { typeKey: "logistics" as CardType, label: "Stay",     color: "#1A1A2E" },
+                    { typeKey: "logistics" as CardType, label: "Logistics", color: "#1A1A2E" },
                   ] as { typeKey: CardType; label: string; color: string }[]
                 ).map(({ typeKey, label, color }) => {
                   const active = activeTypes.has(typeKey);
