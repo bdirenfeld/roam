@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { signOut } from "@/lib/auth-actions";
 
 interface Props {
   userId: string;
@@ -84,17 +83,6 @@ export default function ProfileClient({
       >
         {saving ? "Saving…" : saved ? "Saved!" : "Save"}
       </button>
-
-      <div className="pt-4 border-t border-gray-100">
-        <form action={signOut}>
-          <button
-            type="submit"
-            className="text-sm font-semibold text-gray-400 hover:text-gray-500 transition-colors"
-          >
-            Sign out
-          </button>
-        </form>
-      </div>
     </div>
   );
 }

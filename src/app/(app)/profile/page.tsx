@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import AppHeader from "@/components/ui/AppHeader";
 import Image from "next/image";
 import ProfileClient from "@/components/profile/ProfileClient";
+import LessonsSection, { type Lesson } from "@/components/profile/LessonsSection";
+import { signOut } from "@/lib/auth-actions";
 
 export default async function ProfilePage() {
   const supabase = await createClient();
@@ -12,6 +14,14 @@ export default async function ProfilePage() {
   const { data: profile } = user
     ? await supabase.from("users").select("*").eq("id", user.id).single()
     : { data: null };
+
+  const { data: lessonsData } = user
+    ? await supabase
+        .from("lessons")
+        .select("id, body, position")
+        .order("position", { ascending: true })
+    : { data: null };
+  const initialLessons: Lesson[] = (lessonsData ?? []) as Lesson[];
 
   const displayName = profile?.name ?? user?.user_metadata?.full_name ?? user?.email ?? "Guest";
   const avatarUrl = profile?.avatar_url ?? user?.user_metadata?.avatar_url ?? null;
@@ -45,7 +55,7 @@ export default async function ProfilePage() {
           </div>
         </div>
 
-        {/* Editable travel profile + save + sign out */}
+        {/* Editable travel profile + save */}
         {user && profile ? (
           <ProfileClient
             userId={user.id}
@@ -61,6 +71,23 @@ export default async function ProfilePage() {
             initialPassportCountry={null}
           />
         ) : null}
+
+        {/* Lessons learned — global, persists across all journeys */}
+        {user && (
+          <LessonsSection userId={user.id} initialLessons={initialLessons} />
+        )}
+
+        {/* Sign out */}
+        <div className="mt-10 pt-4 border-t border-gray-100">
+          <form action={signOut}>
+            <button
+              type="submit"
+              className="text-sm font-semibold text-gray-400 hover:text-gray-500 transition-colors"
+            >
+              Sign out
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );
