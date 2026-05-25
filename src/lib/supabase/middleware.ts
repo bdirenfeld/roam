@@ -58,5 +58,26 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
+  // Payment gate — page routes only. /api/* stays auth-only by design;
+  // /checkout (the session-creating route + its cancel target) must remain
+  // reachable for unpaid users, or the gate would loop on itself.
+  if (user) {
+    const isApiRoute = pathname.startsWith('/api/')
+    const isCheckoutRoute = pathname.startsWith('/checkout')
+    const needsGate = !isApiRoute && !isCheckoutRoute && !isPublic
+
+    if (needsGate) {
+      const { data: profile } = await supabase
+        .from('users')
+        .select('has_paid')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      if (!profile?.has_paid) {
+        return NextResponse.redirect(new URL('/checkout', request.nextUrl.origin))
+      }
+    }
+  }
+
   return supabaseResponse
 }
