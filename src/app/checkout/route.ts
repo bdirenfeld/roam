@@ -40,7 +40,7 @@ export async function GET(request: Request) {
         quantity: 1,
         price_data: {
           currency: "usd",
-          unit_amount: 100,
+          unit_amount: 1000,
           product_data: {
             name: "Roam — early access",
           },
