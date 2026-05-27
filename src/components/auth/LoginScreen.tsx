@@ -6,6 +6,8 @@ import { signInWithGoogle } from "@/lib/auth-actions";
 const INK = "#1A1A2E";
 const SIENNA = "#C4622D";
 const PARCHMENT = "#FAF7F2";
+const RULE = "rgba(26,26,46,0.10)";
+const CAPTION = "rgba(26,26,46,0.55)";
 
 interface Props {
   image: { file: string; place: string; descriptor: string };
@@ -28,147 +30,365 @@ export default function LoginScreen({ image, errorMessage, next }: Props) {
   }
 
   return (
-    <main
-      className="mobile-container flex flex-col"
-      style={{
-        background: PARCHMENT,
-        paddingTop: "env(safe-area-inset-top)",
-        paddingBottom: "calc(28px + env(safe-area-inset-bottom))",
-      }}
-    >
-      {/* Masthead */}
-      <div style={{ padding: "24px 24px 18px" }}>
-        <h1
-          className="font-display italic"
+    <main>
+      {/* ────────────────────────────────────────────────────────────
+         MOBILE — unchanged from production
+         ──────────────────────────────────────────────────────────── */}
+      <div
+        className="mobile-container md:hidden flex flex-col"
+        style={{
+          background: PARCHMENT,
+          paddingTop: "env(safe-area-inset-top)",
+          paddingBottom: "calc(28px + env(safe-area-inset-bottom))",
+        }}
+      >
+        {/* Masthead */}
+        <div style={{ padding: "24px 24px 18px" }}>
+          <h1
+            className="font-display italic"
+            style={{
+              fontWeight: 500,
+              fontSize: "28px",
+              lineHeight: 0.95,
+              letterSpacing: "-0.015em",
+              color: INK,
+            }}
+          >
+            Roam
+          </h1>
+        </div>
+
+        {/* Hairline rule */}
+        <div style={{ margin: "0 24px", height: "1px", background: "rgba(26,26,46,0.18)" }} />
+
+        {/* Photo plate — decorative; the caption conveys the place */}
+        <div
           style={{
-            fontWeight: 500,
-            fontSize: "28px",
-            lineHeight: 0.95,
-            letterSpacing: "-0.015em",
-            color: INK,
+            margin: "20px 24px 14px",
+            borderRadius: "12px",
+            aspectRatio: "4 / 5",
+            background: "#2a2620",
+            overflow: "hidden",
           }}
         >
-          Roam
-        </h1>
-      </div>
+          {!imgFailed && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={`/login/${image.file}`}
+              alt=""
+              onError={() => setImgFailed(true)}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                objectPosition: "center",
+                display: "block",
+              }}
+            />
+          )}
+        </div>
 
-      {/* Hairline rule */}
-      <div style={{ margin: "0 24px", height: "1px", background: "rgba(26,26,46,0.18)" }} />
-
-      {/* Photo plate — decorative; the caption conveys the place */}
-      <div
-        style={{
-          margin: "20px 24px 14px",
-          borderRadius: "12px",
-          aspectRatio: "4 / 5",
-          background: "#2a2620",
-          overflow: "hidden",
-        }}
-      >
-        {!imgFailed && (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            src={`/login/${image.file}`}
-            alt=""
-            onError={() => setImgFailed(true)}
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              objectPosition: "center",
-              display: "block",
-            }}
-          />
-        )}
-      </div>
-
-      {/* Caption — paired to the photo, rotates with it */}
-      <p
-        className="font-display italic"
-        style={{
-          margin: "0 24px",
-          fontWeight: 400,
-          fontSize: "15px",
-          lineHeight: 1.3,
-          letterSpacing: "-0.005em",
-        }}
-      >
-        <span style={{ color: INK }}>{image.place}</span>
-        <span style={{ color: INK }}> — </span>
-        <span style={{ color: SIENNA }}>{image.descriptor}</span>
-      </p>
-
-      {/* Flexible spacer — pushes the CTA to the bottom */}
-      <div className="flex-1" />
-
-      {/* Error — single line, above the CTA, Ink (never Sienna for alarms) */}
-      {status === "error" && (
+        {/* Caption — paired to the photo, rotates with it */}
         <p
           className="font-display italic"
-          style={{ margin: "0 24px 14px", fontSize: "13px", color: INK }}
-        >
-          {errorMessage}
-        </p>
-      )}
-
-      {/* CTA — Google OAuth, the only sign-in method */}
-      <div style={{ margin: "0 24px" }}>
-        <button
-          type="button"
-          onClick={handleSignIn}
-          disabled={isPending}
-          aria-busy={isPending}
-          className="font-sans"
           style={{
-            width: "100%",
-            height: "54px",
-            borderRadius: "12px",
-            background: INK,
-            color: PARCHMENT,
-            fontWeight: 500,
+            margin: "0 24px",
+            fontWeight: 400,
             fontSize: "15px",
+            lineHeight: 1.3,
             letterSpacing: "-0.005em",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "12px",
           }}
         >
-          {isPending ? (
-            <Spinner />
-          ) : (
-            <>
-              <GoogleIcon />
-              Continue with Google
-            </>
-          )}
-        </button>
+          <span style={{ color: INK }}>{image.place}</span>
+          <span style={{ color: INK }}> — </span>
+          <span style={{ color: SIENNA }}>{image.descriptor}</span>
+        </p>
+
+        {/* Flexible spacer — pushes the CTA to the bottom */}
+        <div className="flex-1" />
+
+        {/* Error — single line, above the CTA, Ink (never Sienna for alarms) */}
+        {status === "error" && (
+          <p
+            className="font-display italic"
+            style={{ margin: "0 24px 14px", fontSize: "13px", color: INK }}
+          >
+            {errorMessage}
+          </p>
+        )}
+
+        {/* CTA — Google OAuth, the only sign-in method */}
+        <div style={{ margin: "0 24px" }}>
+          <button
+            type="button"
+            onClick={handleSignIn}
+            disabled={isPending}
+            aria-busy={isPending}
+            className="font-sans"
+            style={{
+              width: "100%",
+              height: "54px",
+              borderRadius: "12px",
+              background: INK,
+              color: PARCHMENT,
+              fontWeight: 500,
+              fontSize: "15px",
+              letterSpacing: "-0.005em",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "12px",
+            }}
+          >
+            {isPending ? (
+              <Spinner />
+            ) : (
+              <>
+                <GoogleIcon />
+                Continue with Google
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Terms */}
+        <p
+          className="font-sans"
+          style={{
+            margin: "14px 24px 0",
+            fontWeight: 400,
+            fontSize: "11px",
+            lineHeight: 1.55,
+            color: "rgba(26, 26, 46, 0.55)",
+            textAlign: "center",
+          }}
+        >
+          By continuing, you accept Roam&apos;s{" "}
+          {/* TODO: real legal URLs */}
+          <a href="#" style={{ textDecoration: "underline", textUnderlineOffset: "2px" }}>
+            Terms
+          </a>{" "}
+          {/* TODO: real legal URLs */}
+          and{" "}
+          <a href="#" style={{ textDecoration: "underline", textUnderlineOffset: "2px" }}>
+            Privacy Policy
+          </a>
+          .
+        </p>
       </div>
 
-      {/* Terms */}
-      <p
-        className="font-sans"
+      {/* ────────────────────────────────────────────────────────────
+         DESKTOP — editorial spread (md:+)
+         Photo plate left, masthead + headline + CTA right.
+         ──────────────────────────────────────────────────────────── */}
+      <div
+        className="hidden md:flex"
         style={{
-          margin: "14px 24px 0",
-          fontWeight: 400,
-          fontSize: "11px",
-          lineHeight: 1.55,
-          color: "rgba(26, 26, 46, 0.55)",
-          textAlign: "center",
+          width: "100%",
+          minHeight: "100dvh",
+          background: PARCHMENT,
+          color: INK,
         }}
       >
-        By continuing, you accept Roam&apos;s{" "}
-        {/* TODO: real legal URLs */}
-        <a href="#" style={{ textDecoration: "underline", textUnderlineOffset: "2px" }}>
-          Terms
-        </a>{" "}
-        {/* TODO: real legal URLs */}
-        and{" "}
-        <a href="#" style={{ textDecoration: "underline", textUnderlineOffset: "2px" }}>
-          Privacy Policy
-        </a>
-        .
-      </p>
+        {/* Left — photo plate */}
+        <div
+          style={{
+            flex: "0 0 52%",
+            background: "#2a2620",
+            position: "relative",
+            overflow: "hidden",
+          }}
+        >
+          {!imgFailed && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={`/login/${image.file}`}
+              alt=""
+              onError={() => setImgFailed(true)}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                objectPosition: "50% 55%",
+                display: "block",
+              }}
+            />
+          )}
+          {/* Bottom caption overlay — small-caps, parchment-toned */}
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              padding: "60px 40px 28px",
+              background: "linear-gradient(180deg, rgba(26,26,46,0) 0%, rgba(26,26,46,0.55) 100%)",
+            }}
+          >
+            <div
+              className="font-sans"
+              style={{
+                fontSize: "10.5px",
+                fontWeight: 500,
+                textTransform: "uppercase",
+                letterSpacing: "0.14em",
+                color: "rgba(250,247,242,0.92)",
+              }}
+            >
+              {image.place} · {image.descriptor}
+            </div>
+          </div>
+        </div>
+
+        {/* Right — masthead + headline + CTA */}
+        <div
+          style={{
+            flex: 1,
+            padding: "64px 72px 56px",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          {/* Top row: wordmark + hairline rule */}
+          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 6 }}>
+            <div
+              className="font-display italic"
+              style={{
+                fontWeight: 500,
+                fontSize: 38,
+                color: INK,
+                letterSpacing: "-0.015em",
+                lineHeight: 1,
+              }}
+            >
+              Roam
+            </div>
+            <div style={{ flex: 1, height: 1, background: RULE, marginTop: 8 }} />
+          </div>
+
+          {/* Small-caps subtitle */}
+          <div
+            className="font-sans"
+            style={{
+              fontSize: "10px",
+              fontWeight: 500,
+              textTransform: "uppercase",
+              letterSpacing: "0.14em",
+              color: CAPTION,
+            }}
+          >
+            Trip planning simplified
+          </div>
+
+          {/* Headline deck */}
+          <div style={{ marginTop: 80, maxWidth: 440 }}>
+            <div
+              className="font-display italic"
+              style={{
+                fontWeight: 400,
+                fontSize: 34,
+                lineHeight: 1.25,
+                color: INK,
+                letterSpacing: "-0.01em",
+              }}
+            >
+              Plan with care.
+              <br />
+              Travel with curiosity.
+            </div>
+            <div
+              className="font-sans"
+              style={{
+                marginTop: 18,
+                fontSize: 14,
+                lineHeight: 1.65,
+                color: CAPTION,
+                letterSpacing: "-0.005em",
+              }}
+            >
+              Day-by-day itineraries, the places you mean to keep, and a thinking partner along for the ride.
+            </div>
+          </div>
+
+          {/* Spacer */}
+          <div style={{ flex: 1 }} />
+
+          {/* Error — Ink, single line above the CTA */}
+          {status === "error" && (
+            <div
+              className="font-display italic"
+              style={{
+                maxWidth: 440,
+                marginBottom: 14,
+                fontSize: 13,
+                color: INK,
+              }}
+            >
+              {errorMessage}
+            </div>
+          )}
+
+          {/* CTA */}
+          <div style={{ maxWidth: 440 }}>
+            <button
+              type="button"
+              onClick={handleSignIn}
+              disabled={isPending}
+              aria-busy={isPending}
+              className="font-sans"
+              style={{
+                width: "100%",
+                height: 52,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 12,
+                background: INK,
+                color: PARCHMENT,
+                border: "none",
+                borderRadius: 12,
+                fontSize: 15,
+                fontWeight: 500,
+                letterSpacing: "-0.005em",
+                cursor: isPending ? "default" : "pointer",
+              }}
+            >
+              {isPending ? (
+                <Spinner />
+              ) : (
+                <>
+                  <GoogleIcon />
+                  Continue with Google
+                </>
+              )}
+            </button>
+
+            {/* Terms */}
+            <div
+              className="font-sans"
+              style={{
+                marginTop: 14,
+                fontSize: 12,
+                lineHeight: 1.55,
+                color: CAPTION,
+                letterSpacing: "-0.005em",
+              }}
+            >
+              By continuing, you accept Roam&apos;s{" "}
+              {/* TODO: real legal URLs */}
+              <a href="#" style={{ textDecoration: "underline", textUnderlineOffset: 2, color: "inherit" }}>
+                Terms
+              </a>{" "}
+              {/* TODO: real legal URLs */}
+              and{" "}
+              <a href="#" style={{ textDecoration: "underline", textUnderlineOffset: 2, color: "inherit" }}>
+                Privacy Policy
+              </a>
+              .
+            </div>
+          </div>
+        </div>
+      </div>
     </main>
   );
 }

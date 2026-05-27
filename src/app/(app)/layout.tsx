@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { usePathname } from "next/navigation";
 import BottomNav from "@/components/ui/BottomNav";
+import DesktopMasthead from "@/components/ui/DesktopMasthead";
 
 export default function AppLayout({
   children,
@@ -14,19 +15,19 @@ export default function AppLayout({
   // Day view manages its own height (h-dvh) and its own bottom padding — no pb-20 here
   const isDayView = !!pathname?.match(/\/days\//);
 
-  return isFullWidthPage ? (
+  return (
     <>
-      <main className="flex-1 pb-20">{children}</main>
+      <DesktopMasthead />
+      {isFullWidthPage ? (
+        <main className="flex-1 pb-20 md:pb-0">{children}</main>
+      ) : (
+        <div className="mobile-container flex flex-col bg-white">
+          <main className={isDayView ? "flex-1" : "flex-1 pb-20 md:pb-0"}>{children}</main>
+        </div>
+      )}
       <Suspense>
         <BottomNav />
       </Suspense>
     </>
-  ) : (
-    <div className="mobile-container flex flex-col bg-white">
-      <main className={isDayView ? "flex-1" : "flex-1 pb-20"}>{children}</main>
-      <Suspense>
-        <BottomNav />
-      </Suspense>
-    </div>
   );
 }

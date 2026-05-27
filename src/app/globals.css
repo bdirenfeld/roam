@@ -38,6 +38,16 @@ body {
   overflow-x: visible;
 }
 
+/* Desktop unfolds the mobile column at the md: breakpoint (768px).
+   Mobile remains 390px; everything ≥768px renders full-width with the
+   masthead shell sitting above. */
+@media (min-width: 768px) {
+  .mobile-container {
+    max-width: 100%;
+    overflow-x: visible;
+  }
+}
+
 /* Bottom sheet transition */
 .sheet-enter {
   transform: translateY(100%);
