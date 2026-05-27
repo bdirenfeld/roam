@@ -538,81 +538,9 @@ export default function PlanBoard({ trip, initialDays }: Props) {
 
   return (
     <div
-      className="relative flex flex-col h-dvh md:h-[calc(100dvh-120px)] overflow-hidden"
+      className="relative flex flex-col h-dvh md:h-[calc(100dvh-120px)] overflow-hidden md:bg-none md:bg-[#FAF7F2]"
       style={boardBgStyle}
     >
-      {/* Desktop trip-name + dates overlay — bottom-left of the visible cover strip.
-          Columns reserve the strip with md:pt-[88px]; we anchor the overlay's
-          BOTTOM at 80px (8px above the column line) via translateY(-100%),
-          so the box reads as a credit-line just above the first column.
-          pointer-events-none so it never intercepts clicks on the columns below. */}
-      {isPhotoBg && (
-        <div
-          className="hidden md:flex absolute z-20 items-baseline gap-[14px] pointer-events-none rounded"
-          style={{
-            left: 16,
-            top: 80,
-            transform: "translateY(-100%)",
-            padding: "8px 36px 10px 16px",
-            background:
-              "linear-gradient(90deg, rgba(0,0,0,0.30) 0%, rgba(0,0,0,0.10) 60%, rgba(0,0,0,0) 100%)",
-          }}
-        >
-          <span
-            className="font-display italic"
-            style={{
-              fontWeight: 500,
-              fontSize: 22,
-              color: "#FAF7F2",
-              letterSpacing: "-0.005em",
-              textShadow: "0 1px 2px rgba(0,0,0,0.4)",
-            }}
-          >
-            {trip.title}
-          </span>
-          <span
-            style={{
-              fontSize: 9.5,
-              fontWeight: 500,
-              letterSpacing: "0.18em",
-              color: "rgba(250,247,242,0.85)",
-              textShadow: "0 1px 2px rgba(0,0,0,0.4)",
-            }}
-          >
-            {fmtCoverDates(trip.start_date, trip.end_date)}
-          </span>
-        </div>
-      )}
-
-      {/* Desktop "Change cover" pill — top-right of the cover strip. Replaces the
-          legacy paint-bucket pill; same handler, new editorial styling. */}
-      <button
-        onClick={() => {
-          setBgUrlInput(boardBg.type === "photo" ? boardBg.url : "");
-          setBgPreviewError(false);
-          setShowBgPicker(true);
-        }}
-        aria-label="Change cover photo"
-        className="hidden md:flex absolute z-20 items-center gap-2 rounded-full backdrop-blur-[4px] transition-opacity hover:opacity-90"
-        style={{
-          top: 18,
-          right: 28,
-          padding: "8px 14px",
-          background: "rgba(26,26,46,0.55)",
-          border: "1px solid rgba(255,255,255,0.18)",
-          color: "#FAF7F2",
-          fontWeight: 500,
-          fontSize: 12,
-          letterSpacing: "-0.005em",
-        }}
-      >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FAF7F2" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 8a2 2 0 012-2h2.5l1.5-2h6l1.5 2H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
-          <circle cx="12" cy="13" r="3.5" />
-        </svg>
-        Change cover
-      </button>
-
       {/* Nav bar — mobile only (md:hidden). Desktop nav lives in TripSubBar/Masthead. */}
       <div className="md:hidden relative flex items-center h-11 px-3 flex-shrink-0">
         {/* Left: back buttons */}
@@ -755,6 +683,90 @@ export default function PlanBoard({ trip, initialDays }: Props) {
               onDragOver={handleDragOver}
               onDragEnd={handleDragEnd}
             >
+              {/* Contained hero band (240px) — carries the cover photo with a
+                  directional scrim, the "Change cover" pill, and the trip-name
+                  overlay. md:+ only; mobile keeps its full-bleed root bg. */}
+              <div
+                className="hidden md:block relative flex-shrink-0 w-full"
+                style={{
+                  height: 240,
+                  backgroundColor: "#2a2620",
+                  ...(isPhotoBg && {
+                    backgroundImage: `url(${(boardBg as { url: string }).url})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "50% 60%",
+                  }),
+                }}
+              >
+                {isPhotoBg && (
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                      background:
+                        "linear-gradient(180deg, rgba(26,26,46,0) 0%, rgba(26,26,46,0.35) 100%)",
+                    }}
+                  />
+                )}
+
+                <button
+                  onClick={() => {
+                    setBgUrlInput(boardBg.type === "photo" ? boardBg.url : "");
+                    setBgPreviewError(false);
+                    setShowBgPicker(true);
+                  }}
+                  aria-label="Change cover photo"
+                  className="absolute z-20 flex items-center gap-2 rounded-full backdrop-blur-[4px] transition-opacity hover:opacity-90"
+                  style={{
+                    top: 18,
+                    right: 28,
+                    padding: "8px 14px",
+                    background: "rgba(26,26,46,0.55)",
+                    border: "1px solid rgba(255,255,255,0.18)",
+                    color: "#FAF7F2",
+                    fontWeight: 500,
+                    fontSize: 12,
+                    letterSpacing: "-0.005em",
+                  }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FAF7F2" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 8a2 2 0 012-2h2.5l1.5-2h6l1.5 2H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
+                    <circle cx="12" cy="13" r="3.5" />
+                  </svg>
+                  Change cover
+                </button>
+
+                {isPhotoBg && (
+                  <div
+                    className="absolute flex items-baseline pointer-events-none"
+                    style={{ left: 32, bottom: 22, right: 32, gap: 14 }}
+                  >
+                    <span
+                      className="font-display italic"
+                      style={{
+                        fontWeight: 500,
+                        fontSize: 22,
+                        color: "#FAF7F2",
+                        letterSpacing: "-0.005em",
+                        textShadow: "0 1px 2px rgba(0,0,0,0.4)",
+                      }}
+                    >
+                      {trip.title}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 9.5,
+                        fontWeight: 500,
+                        letterSpacing: "0.18em",
+                        color: "rgba(250,247,242,0.85)",
+                        textShadow: "0 1px 2px rgba(0,0,0,0.4)",
+                      }}
+                    >
+                      {fmtCoverDates(trip.start_date, trip.end_date)}
+                    </span>
+                  </div>
+                )}
+              </div>
+
               {/* Single horizontal scroll container — both the sticky header row
                   and the card columns live here so they pan together with no JS.
                   overflow-x handles horizontal scroll; overflow-y:hidden clips
@@ -764,8 +776,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
                 className="flex-1 overflow-x-auto overflow-y-hidden"
                 style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "none" } as React.CSSProperties}
               >
-                {/* Card columns — md:pt-[88px] reserves the cover strip above the first column */}
-                <div className="p-4 pb-28 md:px-7 md:pt-[88px] md:pb-6">
+                <div className="p-4 pb-28 md:px-7 md:pb-6">
                   {(allEmpty || showTemplatePicker) && days.length > 0 && (
                     <TemplateBanner
                       onSelect={(key) => { handleApplyTemplate(key); setShowTemplatePicker(false); }}
