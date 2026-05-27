@@ -231,7 +231,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
   }
 
   return (
-    <div className="relative h-48 border-b border-gray-100">
+    <div className="relative h-48 border-b border-gray-100 md:h-[620px] md:rounded-2xl md:overflow-hidden md:border md:border-[rgba(26,26,46,0.12)]">
       <div ref={mapRef} className="absolute inset-0" />
     </div>
   );

@@ -8,6 +8,9 @@ interface Props {
   highlightedCardId?: string | null;
   onGapTap?: (gapStartTime: string, gapEndTime: string) => void;
   onToggleConfirmed?: (cardId: string) => void;
+  /** Numbered-pin index per card, keyed by card id. Used at md:+ only;
+   *  omit entries (or pass an empty map) to render rows without a pin number. */
+  cardNumberById?: Map<string, number>;
 }
 
 function minutesBetween(end: string | null, start: string | null): number {
@@ -98,6 +101,7 @@ export default function CardTimeline({
   highlightedCardId,
   onGapTap,
   onToggleConfirmed,
+  cardNumberById,
 }: Props) {
   const { cards } = dayWithCards;
 
@@ -139,6 +143,7 @@ export default function CardTimeline({
                   onToggleConfirmed={
                     onToggleConfirmed ? () => onToggleConfirmed(card.id) : undefined
                   }
+                  pinIndex={cardNumberById?.get(card.id)}
                 />
                 {gap >= 30 && (
                   <GapRow

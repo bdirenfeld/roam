@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import type { Day } from "@/types/database";
 
 interface Props {
@@ -10,19 +10,19 @@ interface Props {
   onDaySelect: (day: Day) => void;
 }
 
-// Whether a date is today
-function isToday(dateStr: string): boolean {
-  const today = new Date();
-  const d = new Date(dateStr + "T00:00:00");
-  return (
-    d.getFullYear() === today.getFullYear() &&
-    d.getMonth()    === today.getMonth()    &&
-    d.getDate()     === today.getDate()
-  );
-}
-
 export default function DayStrip({ days, activeDayId, onDaySelect }: Props) {
   const activeRef = useRef<HTMLButtonElement>(null);
+
+  // Client-only today key — null on SSR and first paint so the "Today" chip
+  // doesn't render before hydration. Avoids the UTC-vs-local date mismatch
+  // that surfaces as React #418/#422.
+  const [todayKey, setTodayKey] = useState<string | null>(null);
+  useEffect(() => {
+    const d = new Date();
+    setTodayKey(
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+    );
+  }, []);
 
   useEffect(() => {
     activeRef.current?.scrollIntoView({
@@ -39,13 +39,13 @@ export default function DayStrip({ days, activeDayId, onDaySelect }: Props) {
     : 0;
 
   return (
-    <div className="border-b border-gray-100 bg-white">
+    <div className="border-b border-gray-100 bg-white md:hidden">
       {/* Scrollable tab row — relative wrapper for the right-edge fade */}
       <div className="relative">
         <div className="flex gap-1.5 px-3 py-2.5 overflow-x-auto scrollbar-none">
           {days.map((day) => {
             const isActive = day.id === activeDayId;
-            const today    = isToday(day.date);
+            const today    = todayKey !== null && day.date === todayKey;
 
             return (
               <button

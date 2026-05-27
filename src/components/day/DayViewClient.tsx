@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { DotsThree } from "@phosphor-icons/react";
+import { DotsThree, CaretLeft, CaretRight, CaretDown } from "@phosphor-icons/react";
 import DayStrip from "@/components/day/DayStrip";
 import DayMap from "@/components/day/DayMap";
 import CardTimeline from "@/components/day/CardTimeline";
@@ -557,6 +557,21 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
     [localCards, accommodationCard]
   );
 
+  // Map each mappable card to its 1-based pin index. Activities without a place
+  // get no number — the column simply stays empty for that row at md:+.
+  // Order mirrors what DayMap uses when rendering markers so the numbers match.
+  const cardNumberById = useMemo(() => {
+    const m = new Map<string, number>();
+    mappableCards.forEach((c, i) => m.set(c.id, i + 1));
+    return m;
+  }, [mappableCards]);
+
+  // Desktop-only — calendar popover for the "Day N of M ▾" chip.
+  const [dayMenuOpen, setDayMenuOpen] = useState(false);
+  useEffect(() => {
+    setDayMenuOpen(false);
+  }, [dayWithCards.id]);
+
   const handlePinTap = useCallback((cardId: string) => {
     const el = document.querySelector(`[data-card-id="${cardId}"]`);
     el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -588,9 +603,9 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
   const dayWeather = weatherByDate?.[dayWithCards.date] ?? null;
 
   return (
-    <div className="flex flex-col h-dvh">
-      {/* Trip header — h-[58px] is constant; the subtitle row always reserves its height */}
-      <div className="relative flex items-center bg-white border-b border-gray-100 flex-shrink-0 h-[58px]">
+    <div className="flex flex-col h-dvh md:block md:h-auto">
+      {/* Mobile-only trip header — h-[58px] is constant; the subtitle row always reserves its height */}
+      <div className="relative flex items-center bg-white border-b border-gray-100 flex-shrink-0 h-[58px] md:hidden">
         <Link
           href="/"
           className="flex items-center justify-center w-11 h-11 text-gray-500 hover:text-gray-800 transition-colors flex-shrink-0"
@@ -624,7 +639,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
         </Link>
       </div>
 
-      {/* Day strip */}
+      {/* Day strip — md:hidden lives inside DayStrip itself */}
       <DayStrip
         days={days}
         activeDayId={dayWithCards.id}
@@ -632,52 +647,193 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
         onDaySelect={handleDaySelect}
       />
 
-      <WeatherExpansion
-        id="weather-expansion"
-        expanded={weatherExpanded}
-        weather={dayWeather}
-        weatherByDate={weatherByDate}
-        days={days}
-        activeDayId={dayWithCards.id}
-        onDaySelect={handleDaySelect}
-      />
+      {/* Mobile-only weather expansion */}
+      <div className="md:hidden">
+        <WeatherExpansion
+          id="weather-expansion"
+          expanded={weatherExpanded}
+          weather={dayWeather}
+          weatherByDate={weatherByDate}
+          days={days}
+          activeDayId={dayWithCards.id}
+          onDaySelect={handleDaySelect}
+        />
+      </div>
 
-      {/* Companion — editorial entry pull + chat panel */}
-      <Companion tripId={trip.id} />
-
-      {/* Map */}
-      <DayMap
-        cards={mappableCards}
-        accommodationCard={accommodationCard ?? undefined}
-        centerLat={trip.destination_lat ?? 41.9028}
-        centerLng={trip.destination_lng ?? 12.4964}
-        onPinTap={handlePinTap}
-      />
-
-      {/* Scrollable cards */}
-      <div
-        className={`flex-1 overflow-y-auto min-h-0 pb-20 transition-opacity ${
-          contentVisible
-            ? "opacity-100 duration-[200ms] ease-in"
-            : "opacity-0 duration-[150ms] ease-out"
-        }`}
-      >
-        <div
-          key={dayWithCards.id}
-          className={`px-4 pt-4 ${
-            swipeDir === "left"  ? "animate-in slide-in-from-right duration-200" :
-            swipeDir === "right" ? "animate-in slide-in-from-left duration-200"  :
-            ""
-          }`}
-          {...swipeHandlers}
+      {/* Desktop-only editorial day header: chevron pager + Playfair date + Day N of M chip + settings */}
+      <div className="hidden md:flex md:items-center md:gap-3.5 md:px-10 md:pt-8 md:pb-[18px] md:border-b md:border-[rgba(26,26,46,0.12)]">
+        <button
+          onClick={goToPrevDay}
+          disabled={!prevDay}
+          aria-label="Previous day"
+          className="flex items-center justify-center p-1.5 text-[rgba(26,26,46,0.55)] disabled:opacity-30 disabled:cursor-default cursor-pointer hover:text-activity transition-colors"
         >
-          <CardTimeline
-            dayWithCards={localDayWithCards}
-            onCardTap={handleCardTap}
-            highlightedCardId={highlightedCardId}
-            onGapTap={handleGapTap}
-            onToggleConfirmed={handleToggleConfirmed}
+          <CaretLeft size={16} weight="light" />
+        </button>
+
+        <span
+          className="font-display italic font-medium text-[26px] text-activity"
+          style={{ letterSpacing: "-0.01em" }}
+        >
+          {formatDayTitle(dayWithCards.date)}
+        </span>
+
+        <button
+          onClick={goToNextDay}
+          disabled={!nextDay}
+          aria-label="Next day"
+          className="flex items-center justify-center p-1.5 text-[rgba(26,26,46,0.55)] disabled:opacity-30 disabled:cursor-default cursor-pointer hover:text-activity transition-colors"
+        >
+          <CaretRight size={16} weight="light" />
+        </button>
+
+        {/* Day N of M ▾ chip with calendar popover */}
+        <div className="relative ml-1.5">
+          <button
+            onClick={() => setDayMenuOpen((o) => !o)}
+            aria-expanded={dayMenuOpen}
+            aria-haspopup="menu"
+            className="flex items-center gap-2 rounded-full border border-[rgba(26,26,46,0.12)] bg-[rgba(26,26,46,0.025)] px-3 py-1.5 text-[12px] font-medium text-activity hover:bg-[rgba(26,26,46,0.05)] transition-colors"
+            style={{ letterSpacing: "-0.005em" }}
+          >
+            <span>Day {currentIndex + 1} of {days.length}</span>
+            <span
+              aria-hidden
+              style={{
+                display: "inline-flex",
+                transform: dayMenuOpen ? "rotate(180deg)" : "none",
+                transition: "transform 120ms",
+                color: "rgba(26,26,46,0.55)",
+              }}
+            >
+              <CaretDown size={11} weight="light" />
+            </span>
+          </button>
+
+          {dayMenuOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setDayMenuOpen(false)}
+              />
+              <div
+                role="menu"
+                className="absolute top-[calc(100%+10px)] left-0 z-50 w-[280px] rounded-xl border border-[rgba(26,26,46,0.12)] bg-[#FAF7F2] p-3"
+                style={{ boxShadow: "0 8px 28px rgba(26,26,46,0.08), 0 0 0 1px rgba(26,26,46,0.03)" }}
+              >
+                <div className="mt-1 flex flex-col gap-0.5">
+                  {days.map((d) => {
+                    const dt = new Date(d.date + "T00:00:00");
+                    const dow = dt.toLocaleDateString("en-GB", { weekday: "short" });
+                    const dayNum = dt.getDate();
+                    const monthName = dt.toLocaleDateString("en-GB", { month: "short" });
+                    const on = d.id === dayWithCards.id;
+                    return (
+                      <button
+                        key={d.id}
+                        role="menuitem"
+                        onClick={() => {
+                          setDayMenuOpen(false);
+                          handleDaySelect(d);
+                        }}
+                        className="flex items-center gap-3.5 w-full px-2.5 py-2 rounded-md text-left"
+                        style={{
+                          background: on ? "#fff" : "transparent",
+                          boxShadow: on ? "0 0 0 1px rgba(26,26,46,0.12)" : "none",
+                        }}
+                      >
+                        <span
+                          className="font-display italic text-[22px] w-8 text-center"
+                          style={{
+                            color: on ? "#1A1A2E" : "rgba(26,26,46,0.55)",
+                            letterSpacing: "-0.01em",
+                          }}
+                        >
+                          {dayNum}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div
+                            className="text-[13px] font-medium text-activity"
+                            style={{ letterSpacing: "-0.005em" }}
+                          >
+                            {dow}, {dayNum} {monthName}
+                          </div>
+                          <div
+                            className="text-[11px] mt-px"
+                            style={{ color: "rgba(26,26,46,0.55)" }}
+                          >
+                            Day {d.day_number}
+                          </div>
+                        </div>
+                        {on && <div className="w-1 h-1 rounded-full bg-activity" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="flex-1" />
+
+        <Link
+          href={`/trips/${trip.id}/settings`}
+          aria-label="Trip settings"
+          className="flex items-center justify-center w-9 h-9 text-[rgba(26,26,46,0.55)] hover:text-activity transition-colors"
+        >
+          <DotsThree size={20} weight="light" />
+        </Link>
+      </div>
+
+      {/* Two-pane body: at mobile a flex column (Companion+Map then timeline-scroller),
+          at desktop a 2-col grid with timeline on the left and a sticky right column. */}
+      <div className="flex-1 min-h-0 flex flex-col md:grid md:grid-cols-2 md:gap-10 md:items-start md:px-10 md:pt-6 md:pb-16 md:flex-none md:min-h-0">
+
+        {/* Right side at desktop, top of mobile flow.
+            DOM order: Companion → DayMap (mobile current order).
+            Desktop flips visually via flex-col-reverse so the map sits above the CTA. */}
+        <div className="md:col-start-2 md:row-start-1 md:sticky md:top-6 md:self-start md:flex md:flex-col-reverse md:gap-3.5">
+          {/* Companion — editorial entry pull + chat panel */}
+          <Companion tripId={trip.id} />
+
+          {/* Map */}
+          <DayMap
+            cards={mappableCards}
+            accommodationCard={accommodationCard ?? undefined}
+            centerLat={trip.destination_lat ?? 41.9028}
+            centerLng={trip.destination_lng ?? 12.4964}
+            onPinTap={handlePinTap}
           />
+        </div>
+
+        {/* Left side at desktop, bottom of mobile flow. Scrolls internally at mobile,
+            flows naturally at desktop with the page providing the scroll context. */}
+        <div
+          className={`flex-1 overflow-y-auto min-h-0 pb-20 md:flex-none md:overflow-visible md:min-h-0 md:pb-0 md:col-start-1 md:row-start-1 transition-opacity ${
+            contentVisible
+              ? "opacity-100 duration-[200ms] ease-in"
+              : "opacity-0 duration-[150ms] ease-out"
+          }`}
+        >
+          <div
+            key={dayWithCards.id}
+            className={`px-4 pt-4 md:px-0 md:pt-0 ${
+              swipeDir === "left"  ? "animate-in slide-in-from-right duration-200" :
+              swipeDir === "right" ? "animate-in slide-in-from-left duration-200"  :
+              ""
+            }`}
+            {...swipeHandlers}
+          >
+            <CardTimeline
+              dayWithCards={localDayWithCards}
+              onCardTap={handleCardTap}
+              highlightedCardId={highlightedCardId}
+              onGapTap={handleGapTap}
+              onToggleConfirmed={handleToggleConfirmed}
+              cardNumberById={cardNumberById}
+            />
+          </div>
         </div>
       </div>
 
