@@ -9,7 +9,7 @@ interface AppHeaderProps {
 
 export default function AppHeader({ avatarUrl, subtitle, showNewTrip }: AppHeaderProps) {
   return (
-    <header className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-white sticky top-0 z-30">
+    <header className="flex md:hidden items-center justify-between px-4 py-3 border-b border-gray-100 bg-white sticky top-0 z-30">
       <div>
         <Link href="/">
           <span className="font-display italic text-xl text-gray-900">
