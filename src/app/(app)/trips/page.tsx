@@ -79,76 +79,170 @@ export default async function TripsPage() {
     ? `${destination} awaits.`
     : "My Trips";
 
+  // Two-color desktop greeting: split on first ". " — name in ink, tagline in caption.
+  const sepIdx = greeting.indexOf(". ");
+  const greetingName = sepIdx > -1 ? greeting.slice(0, sepIdx + 1) : greeting;
+  const greetingTagline = sepIdx > -1 ? greeting.slice(sepIdx + 2) : "";
+
   return (
     <div>
       <AppHeader avatarUrl={profile?.avatar_url} showNewTrip />
 
-      {/* Greeting */}
-      <div className="px-4 pt-5 pb-3">
-        <h2 className="font-display italic font-normal text-lg text-gray-900">
-          {greeting}
-        </h2>
-      </div>
+      {/* Desktop bounded column; mobile passes through */}
+      <div className="md:max-w-[1100px] md:mx-auto md:px-14 md:pt-10 md:pb-12">
 
-      <div className="px-4 pb-6">
-        {trips && trips.length > 0 ? (
-          <>
-            {/* Upcoming */}
-            {upcoming.length > 0 && (
-              <div className="space-y-3 mb-8">
-                {upcoming.map((trip: Trip) => (
-                  <TripCard key={trip.id} trip={trip} firstDayId={firstDayByTrip[trip.id]} />
-                ))}
-              </div>
-            )}
+        {/* Greeting deck */}
+        <div className="px-4 pt-5 pb-3 md:px-0 md:pt-0 md:pb-0">
+          {/* Mobile — single-color */}
+          <h2 className="md:hidden font-display italic font-normal text-lg text-gray-900">
+            {greeting}
+          </h2>
+          {/* Desktop — two-color deck + trip-count meta */}
+          <div className="hidden md:block">
+            <h2
+              className="font-display italic font-normal"
+              style={{ fontSize: 30, letterSpacing: "-0.01em", lineHeight: 1.2 }}
+            >
+              <span style={{ color: "#1A1A2E" }}>{greetingName}</span>
+              {greetingTagline && (
+                <span style={{ color: "rgba(26,26,46,0.55)" }}>{" "}{greetingTagline}</span>
+              )}
+            </h2>
+            <div
+              className="font-sans mt-1"
+              style={{
+                fontSize: 10,
+                fontWeight: 500,
+                textTransform: "uppercase",
+                letterSpacing: "0.14em",
+                color: "rgba(26,26,46,0.55)",
+              }}
+            >
+              {upcoming.length} upcoming · {past.length} past
+            </div>
+          </div>
+        </div>
 
-            {/* Past — compact rows */}
-            {past.length > 0 && (
-              <>
-                {/* Double-hairline divider with centered label */}
-                <div className="mt-6 mb-3 flex items-center gap-3">
-                  <div className="flex-1" style={{ height: "0.5px", background: "#E8E3DA" }} />
-                  <span className="font-display italic text-sm" style={{ color: "#B8B4AC" }}>
-                    Past journeys
-                  </span>
-                  <div className="flex-1" style={{ height: "0.5px", background: "#E8E3DA" }} />
-                </div>
-                {/* Compact rows */}
-                <div>
-                  {past.map((trip: Trip) => (
-                    <Link
-                      key={trip.id}
-                      href="/past-journeys"
-                      className="flex items-center gap-3 py-3 border-b border-black/5"
-                    >
-                      <div
-                        className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                        style={{ background: "#D4CFC8" }}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p
-                          className="font-display italic text-[13px] truncate"
-                          style={{ color: "#9CA3AF" }}
-                        >
-                          {trip.title}
-                        </p>
-                        <p
-                          className="text-[9px] uppercase tracking-widest mt-0.5"
-                          style={{ color: "#C4C0B8" }}
-                        >
-                          {formatDateShort(trip.start_date, trip.end_date)}
-                        </p>
-                      </div>
-                      <span style={{ color: "#D4CFC8", fontSize: "14px" }}>›</span>
-                    </Link>
+        <div className="px-4 pb-6 md:px-0 md:pb-0 md:mt-9">
+          {trips && trips.length > 0 ? (
+            <>
+              {/* Upcoming — stacked on mobile, 2-up grid on desktop */}
+              {upcoming.length > 0 && (
+                <div className="space-y-3 mb-8 md:space-y-0 md:grid md:grid-cols-2 md:gap-7 md:mb-14">
+                  {upcoming.map((trip: Trip) => (
+                    <TripCard key={trip.id} trip={trip} firstDayId={firstDayByTrip[trip.id]} />
                   ))}
                 </div>
-              </>
-            )}
-          </>
-        ) : (
-          <EmptyState />
-        )}
+              )}
+
+              {/* Past journeys */}
+              {past.length > 0 && (
+                <>
+                  {/* Hairline divider with centered label */}
+                  <div className="mt-6 mb-3 flex items-center gap-3 md:mt-0 md:mb-3.5 md:gap-4">
+                    <div className="flex-1" style={{ height: "0.5px", background: "#E8E3DA" }} />
+                    <span
+                      className="md:hidden font-display italic text-sm"
+                      style={{ color: "#B8B4AC" }}
+                    >
+                      Past journeys
+                    </span>
+                    <span
+                      className="hidden md:inline font-display italic"
+                      style={{ fontSize: 15, color: "rgba(26,26,46,0.55)" }}
+                    >
+                      Past journeys
+                    </span>
+                    <div className="flex-1" style={{ height: "0.5px", background: "#E8E3DA" }} />
+                  </div>
+
+                  {/* Mobile — compact rows */}
+                  <div className="md:hidden">
+                    {past.map((trip: Trip) => (
+                      <Link
+                        key={trip.id}
+                        href="/past-journeys"
+                        className="flex items-center gap-3 py-3 border-b border-black/5"
+                      >
+                        <div
+                          className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                          style={{ background: "#D4CFC8" }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p
+                            className="font-display italic text-[13px] truncate"
+                            style={{ color: "#9CA3AF" }}
+                          >
+                            {trip.title}
+                          </p>
+                          <p
+                            className="text-[9px] uppercase tracking-widest mt-0.5"
+                            style={{ color: "#C4C0B8" }}
+                          >
+                            {formatDateShort(trip.start_date, trip.end_date)}
+                          </p>
+                        </div>
+                        <span style={{ color: "#D4CFC8", fontSize: "14px" }}>›</span>
+                      </Link>
+                    ))}
+                  </div>
+
+                  {/* Desktop — editorial rows with circular cover */}
+                  <div className="hidden md:block">
+                    {past.map((trip: Trip) => (
+                      <Link
+                        key={trip.id}
+                        href="/past-journeys"
+                        className="flex items-center gap-[18px] py-[14px] px-1 hover:opacity-80 transition-opacity"
+                      >
+                        <div
+                          className="w-14 h-14 rounded-full flex-shrink-0"
+                          style={{
+                            backgroundImage: trip.cover_image_url
+                              ? `url(${trip.cover_image_url})`
+                              : undefined,
+                            backgroundColor: trip.cover_image_url ? undefined : "#E8E3DA",
+                            backgroundSize: "cover",
+                            backgroundPosition: "50% 50%",
+                            boxShadow: "0 0 0 1px rgba(26,26,46,0.10)",
+                          }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div
+                            className="font-display italic truncate"
+                            style={{
+                              fontSize: 18,
+                              fontWeight: 500,
+                              color: "#1A1A2E",
+                              letterSpacing: "-0.005em",
+                            }}
+                          >
+                            {trip.title}
+                          </div>
+                          <div
+                            className="mt-1"
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 500,
+                              textTransform: "uppercase",
+                              letterSpacing: "0.14em",
+                              color: "rgba(26,26,46,0.55)",
+                            }}
+                          >
+                            {formatDateShort(trip.start_date, trip.end_date)}
+                          </div>
+                        </div>
+                        <span style={{ color: "rgba(26,26,46,0.40)", fontSize: 16 }}>›</span>
+                      </Link>
+                    ))}
+                  </div>
+                </>
+              )}
+            </>
+          ) : (
+            <EmptyState />
+          )}
+        </div>
       </div>
     </div>
   );

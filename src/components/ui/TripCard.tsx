@@ -47,7 +47,7 @@ export default function TripCard({ trip, firstDayId }: Props) {
               coverImageUrl={coverImageUrl}
               lat={trip.destination_lat}
               lng={trip.destination_lng}
-              className="w-full h-[140px]"
+              className="w-full h-[140px] md:h-[260px]"
             />
 
             {/* Editorial content — name + date range */}

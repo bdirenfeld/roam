@@ -21,7 +21,7 @@ export default function AppLayout({
       {isFullWidthPage ? (
         <main className="flex-1 pb-20 md:pb-0">{children}</main>
       ) : (
-        <div className="mobile-container flex flex-col bg-white">
+        <div className="mobile-container flex flex-col bg-white md:bg-transparent">
           <main className={isDayView ? "flex-1" : "flex-1 pb-20 md:pb-0"}>{children}</main>
         </div>
       )}
