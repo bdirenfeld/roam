@@ -513,10 +513,10 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
   }, []);
 
   return (
-    <div style={{ display: "flex", width: "100%", height: "calc(100dvh - 80px)", overflow: "hidden" }}>
+    <div className="flex w-full overflow-hidden h-[calc(100dvh-80px)] md:h-[calc(100dvh-120px)]">
 
       {/* ── Desktop sidebar ── */}
-      <aside className="hidden md:flex md:w-[300px] flex-shrink-0 bg-white border-r border-gray-100 overflow-y-auto z-20 flex-col">
+      <aside className="hidden md:flex md:w-[232px] flex-shrink-0 border-r overflow-y-auto z-20 flex-col" style={{ borderRightColor: "rgba(26,26,46,0.10)", background: "#FAF7F2" }}>
         <MapSidebar
           tripId={trip.id}
           cards={localCards}
@@ -544,10 +544,10 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           </div>
         )}
 
-        {/* Back button — top-left */}
+        {/* Back button — mobile only (desktop nav lives in masthead + sub-bar) */}
         <Link
           href={`/trips/${trip.id}`}
-          className="absolute top-4 left-4 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center"
+          className="md:hidden absolute top-4 left-4 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center"
           style={{ backdropFilter: "blur(8px)", zIndex: 10 }}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round">
@@ -555,10 +555,10 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           </svg>
         </Link>
 
-        {/* Trip settings — next to back button */}
+        {/* Trip settings — mobile only */}
         <Link
           href={`/trips/${trip.id}/settings`}
-          className="absolute top-4 left-14 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center"
+          className="md:hidden absolute top-4 left-14 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center"
           style={{ backdropFilter: "blur(8px)", zIndex: 10 }}
           aria-label="Trip settings"
         >
@@ -662,10 +662,10 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           </button>
         </div>
 
-        {/* Avatar — top-right */}
+        {/* Avatar — mobile only (desktop avatar lives in masthead) */}
         <Link
           href={`/trips/${trip.id}`}
-          className="absolute top-4 right-4 w-8 h-8 rounded-full overflow-hidden bg-white/80"
+          className="md:hidden absolute top-4 right-4 w-8 h-8 rounded-full overflow-hidden bg-white/80"
           style={{ backdropFilter: "blur(8px)", zIndex: 10 }}
           title={trip.title}
         >

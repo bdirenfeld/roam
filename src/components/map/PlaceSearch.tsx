@@ -98,7 +98,7 @@ export default function PlaceSearch({ onPlaceSelect, destination, lat, lng }: Pr
 
       {/* Always-visible search bar */}
       <div
-        className="absolute top-4 left-14 right-14"
+        className="absolute top-4 left-14 right-14 md:left-6 md:right-6 md:max-w-md"
         style={{ zIndex: 20 }}
       >
         {/* Input pill */}

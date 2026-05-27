@@ -174,18 +174,11 @@ export default function MapSidebar({
   }
 
   return (
-    <div
-      className="flex flex-col h-full"
-      style={{
-        background: "rgba(255,255,255,0.92)",
-        backdropFilter: "blur(8px)",
-        WebkitBackdropFilter: "blur(8px)",
-      }}
-    >
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+    <div className="flex flex-col h-full" style={{ background: "#FAF7F2" }}>
+      <div className="flex-1 overflow-y-auto" style={{ padding: "14px 18px" }}>
 
         {/* ── Status filter pills ── */}
-        <p className="text-[9px] tracking-[0.14em] uppercase font-medium text-gray-400 mb-2">Status</p>
+        <p className="text-[9.5px] tracking-[0.18em] uppercase font-semibold mb-2.5" style={{ color: "rgba(26,26,46,0.55)" }}>Status</p>
         <div className="flex items-center gap-2 mb-1">
           {(
             [
@@ -222,7 +215,7 @@ export default function MapSidebar({
           })}
         </div>
 
-        <hr className="border-t border-gray-100 my-3" />
+        <hr className="my-3" style={{ borderTopColor: "rgba(26,26,46,0.10)" }} />
 
         {/* ── Category groups ── */}
         {GROUPS.map((group, index) => {
@@ -245,7 +238,7 @@ export default function MapSidebar({
                   >
                     <polyline points="6 9 12 15 18 9" />
                   </svg>
-                  <span className="text-[9px] tracking-[0.14em] uppercase font-medium text-gray-500">
+                  <span className="text-[9.5px] tracking-[0.18em] uppercase font-semibold" style={{ color: "rgba(26,26,46,0.55)" }}>
                     {group.label}
                   </span>
                 </button>
@@ -256,7 +249,7 @@ export default function MapSidebar({
               {!sectionCollapsed && (
                 <div
                   className={`mb-2 rounded-lg overflow-hidden transition-opacity duration-200 ${typeOn ? "" : "opacity-40 pointer-events-none"}`}
-                  style={{ background: "rgba(250,247,242,0.85)" }}
+                  style={{ background: "rgba(255,255,255,0.6)" }}
                 >
                   {group.rows.map((row) => {
                     const on       = isRowOn(row);
@@ -291,8 +284,8 @@ export default function MapSidebar({
 
                           {/* Label */}
                           <span
-                            className="flex-1 text-sm transition-opacity duration-200"
-                            style={{ color: "#111827", opacity: on ? 1 : 0.25 }}
+                            className="flex-1 text-[13px] transition-opacity duration-200"
+                            style={{ color: "#1A1A2E", opacity: on ? 1 : 0.25 }}
                           >
                             {row.label}
                           </span>
@@ -300,8 +293,8 @@ export default function MapSidebar({
                           {/* Count badge */}
                           {count > 0 && (
                             <span
-                              className="text-[10px] text-gray-400 flex-shrink-0 transition-opacity duration-200"
-                              style={{ opacity: on ? 1 : 0.25 }}
+                              className="text-[12px] flex-shrink-0 transition-opacity duration-200"
+                              style={{ color: "rgba(26,26,46,0.45)", opacity: on ? 1 : 0.25 }}
                             >
                               {count}
                             </span>
@@ -389,7 +382,7 @@ export default function MapSidebar({
               )}
 
               {index < GROUPS.length - 1 && (
-                <hr className="border-t border-gray-100 my-2" />
+                <hr className="my-3" style={{ borderTopColor: "rgba(26,26,46,0.10)" }} />
               )}
             </div>
           );
@@ -407,7 +400,8 @@ export default function MapSidebar({
           const data = await res.json() as { enriched: number; total: number };
           alert(`Enriched ${data.enriched} of ${data.total} cards`);
         }}
-        className="w-full text-xs text-gray-400 hover:text-gray-600 py-2 border-t border-gray-100 mt-2 flex-shrink-0"
+        className="w-full text-[12.5px] py-3 flex-shrink-0 transition-colors"
+        style={{ color: "rgba(26,26,46,0.55)", borderTop: "1px solid rgba(26,26,46,0.10)" }}
       >
         Enrich all cards
       </button>

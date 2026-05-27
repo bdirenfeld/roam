@@ -33,11 +33,6 @@ body {
   overflow-x: hidden;
 }
 
-.mobile-container.full-width-page {
-  max-width: 100%;
-  overflow-x: visible;
-}
-
 /* Desktop unfolds the mobile column at the md: breakpoint (768px).
    Mobile remains 390px; everything ≥768px renders full-width with the
    masthead shell sitting above. */

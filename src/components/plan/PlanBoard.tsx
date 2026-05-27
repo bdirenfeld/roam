@@ -39,7 +39,8 @@ import type { Trip, Card, DayWithCards, CardType, CardStatus } from "@/types/dat
 import { getPriceRange } from "@/lib/priceRange";
 
 import CardImage from "@/components/ui/CardImage";
-import { Trash, DotsThree, Image as ImageIcon, Gear, ShareNetwork } from "@phosphor-icons/react";
+import { Trash, DotsThree, Image as ImageIcon, Gear, ShareNetwork, PaintBucket } from "@phosphor-icons/react";
+import { getMaterialIconHTML } from "@/lib/mapPins";
 
 // ── Constants ──────────────────────────────────────────────────
 const COL_PREFIX = "col-";
@@ -523,9 +524,25 @@ export default function PlanBoard({ trip, initialDays }: Props) {
   };
 
   return (
-    <div className="flex flex-col h-dvh overflow-hidden" style={boardBgStyle}>
-      {/* Nav bar — transparent on mobile, frosted white on desktop */}
-      <div className="relative flex items-center h-11 px-3 flex-shrink-0 md:bg-white/90 md:backdrop-blur-md md:border-b md:border-black/[0.06]">
+    <div
+      className="relative flex flex-col h-dvh md:h-[calc(100dvh-120px)] overflow-hidden"
+      style={boardBgStyle}
+    >
+      {/* Desktop floating bg-picker pill — paint bucket on the kanban content area */}
+      <button
+        onClick={() => {
+          setBgUrlInput(boardBg.type === "photo" ? boardBg.url : "");
+          setBgPreviewError(false);
+          setShowBgPicker(true);
+        }}
+        aria-label="Change background"
+        className="hidden md:flex absolute top-4 right-4 z-20 w-9 h-9 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm border border-black/[0.08] text-[#1A1A2E] shadow-sm hover:bg-white transition-colors"
+      >
+        <PaintBucket size={16} weight="light" />
+      </button>
+
+      {/* Nav bar — mobile only (md:hidden). Desktop nav lives in TripSubBar/Masthead. */}
+      <div className="md:hidden relative flex items-center h-11 px-3 flex-shrink-0">
         {/* Left: back buttons */}
         <div className="flex items-center gap-1 z-10">
           <Link
@@ -684,7 +701,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
                     />
                   )}
 
-                  <div className="flex flex-row flex-nowrap gap-[10px] md:gap-4 md:min-w-max">
+                  <div className="flex flex-row flex-nowrap gap-[10px] md:gap-5 md:min-w-max">
                     {days.map((day, idx) => (
                       <DayColumn
                         key={day.id}
@@ -913,7 +930,7 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }:
     : null;
 
   return (
-    <div className={fullWidth ? "w-full h-full flex flex-col" : "w-[148px] min-w-[148px] flex-shrink-0 md:w-72 flex flex-col"}>
+    <div className={fullWidth ? "w-full h-full flex flex-col" : "w-[148px] min-w-[148px] flex-shrink-0 md:w-[280px] flex flex-col"}>
       {/* Card column body */}
       <div
         style={fullWidth ? { backgroundColor: 'rgba(255,255,255,0.88)' } : { backgroundColor: '#EBECF0' }}
@@ -925,38 +942,39 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }:
       >
 
         {/* Desktop-only day header — first child inside the white column surface */}
-        <div className="hidden md:block flex-shrink-0" style={{ padding: "10px 12px", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
-          {/* Tier 1 — DAY NUMBER */}
+        <div className="hidden md:block flex-shrink-0" style={{ padding: "14px 16px 12px", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+          {/* Tier 1 — DAY NUMBER (small-caps) */}
           <p style={{
             fontFamily: "'DM Sans', system-ui, sans-serif",
-            fontSize: "11px",
+            fontSize: "9.5px",
             fontWeight: 600,
-            letterSpacing: "0.12em",
+            letterSpacing: "0.18em",
             textTransform: "uppercase",
-            color: "rgb(26, 26, 46)",
-            marginBottom: "2px",
+            color: "rgba(26, 26, 46, 0.55)",
+            marginBottom: "4px",
           }}>Day {day.day_number}</p>
-          {/* Tier 2 — Day name */}
+          {/* Tier 2 — Day of week (italic Playfair, uppercased) */}
           {dayOfWeek && (
             <p style={{
               fontFamily: "'Playfair Display', Georgia, serif",
-              fontSize: "17px",
-              fontWeight: 400,
+              fontSize: "22px",
+              fontWeight: 500,
               fontStyle: "italic",
               color: "rgb(26, 26, 46)",
               letterSpacing: "-0.01em",
-              lineHeight: 1.3,
-              marginBottom: "1px",
+              lineHeight: 1.1,
+              marginBottom: "6px",
+              textTransform: "uppercase",
             }}>{dayOfWeek}</p>
           )}
-          {/* Tier 3 — Date */}
+          {/* Tier 3 — Date (small-caps caption) */}
           {shortDateTitle && (
             <p style={{
               fontFamily: "'DM Sans', system-ui, sans-serif",
-              fontSize: "9px",
-              fontWeight: 400,
-              color: "rgba(26, 26, 46, 0.38)",
-              letterSpacing: "0.06em",
+              fontSize: "10px",
+              fontWeight: 500,
+              color: "rgba(26, 26, 46, 0.45)",
+              letterSpacing: "0.14em",
               textTransform: "uppercase",
             }}>{shortDateTitle}</p>
           )}
@@ -1164,15 +1182,15 @@ function CardTile({
     <div
       className={`group relative bg-white rounded-xl border border-gray-100 shadow-card mb-2 select-none overflow-hidden border-l-[3px] ${borderClass} ${isOverlay ? "shadow-[0_8px_24px_0_rgba(0,0,0,0.14)] scale-[1.02]" : ""}`}
     >
-      <button onClick={onTap} className="w-full text-left p-3">
-        <div className="flex items-start gap-2.5">
+      <button onClick={onTap} className="w-full text-left p-3 md:px-3 md:py-2.5">
+        <div className="flex items-start gap-2.5 md:items-center md:gap-3">
 
-          {/* Thumbnail — 60×60 (only when card is linked to a place) */}
+          {/* Mobile thumbnail — 60×60 (only when card is linked to a place) */}
           {place && (
             <CardImage
               src={`/api/places/photo?place_id=${place.id}`}
               alt=""
-              className="w-[60px] h-[60px] rounded-lg object-cover flex-shrink-0"
+              className="md:hidden w-[60px] h-[60px] rounded-lg object-cover flex-shrink-0"
               lat={place.lat}
               lng={place.lng}
               subType={place.sub_type}
@@ -1180,9 +1198,17 @@ function CardTile({
             />
           )}
 
+          {/* Desktop icon disc — 36×36 parchment-deep */}
+          <div
+            className="hidden md:flex flex-shrink-0 items-center justify-center text-[#1A1A2E]"
+            style={{ width: 36, height: 36, borderRadius: 18, background: "#E8E3DA" }}
+            // eslint-disable-next-line react/no-danger
+            dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(place?.sub_type, 16) }}
+          />
+
           {/* Text content */}
           <div className="flex-1 min-w-0">
-            <p className="text-[14px] font-semibold text-gray-900 leading-snug line-clamp-2">
+            <p className="text-[14px] font-semibold text-gray-900 leading-snug line-clamp-2 md:text-[13.5px] md:font-medium md:line-clamp-1 md:tracking-[-0.005em]">
               {title}
             </p>
             {isNote && noteSnippet ? (
