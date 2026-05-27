@@ -436,6 +436,12 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
   const [swipeDir, setSwipeDir] = useState<"left" | "right" | null>(null);
   const [gapTimes, setGapTimes] = useState<{ start: string; end: string } | null>(null);
 
+  // Companion open state — hoisted from Companion so the desktop body grid can
+  // flip between 2 columns (timeline + map) and 3 columns (timeline + map +
+  // companion). Mobile composition is unchanged: Companion owns its own state
+  // when uncontrolled, but here it's controlled so the grid layout can react.
+  const [companionOpen, setCompanionOpen] = useState(false);
+
   // ── Weather ────────────────────────────────────────────────────────────
   const [weatherByDate, setWeatherByDate] = useState<Record<string, DayWeather> | null>(null);
   const [weatherExpanded, setWeatherExpanded] = useState(false);
@@ -786,18 +792,35 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
         </Link>
       </div>
 
-      {/* Two-pane body: at mobile a flex column (Companion+Map then timeline-scroller),
-          at desktop a 2-col grid with timeline on the left and a sticky right column. */}
-      <div className="flex-1 min-h-0 flex flex-col md:grid md:grid-cols-2 md:gap-10 md:items-start md:px-10 md:pt-6 md:pb-16 md:flex-none md:min-h-0">
+      {/* Two-pane body — mobile: flex column (Companion → Map → Timeline).
+          Desktop: CSS grid that flips between 2 columns (timeline + map) and
+          3 columns (timeline + smaller map + companion panel) on companionOpen.
+          The Companion mount sits inside a md:contents wrapper so its two
+          children (entry pull, panel) become direct grid items at md:+ and
+          can be placed in separate columns. */}
+      <div
+        className={`flex-1 min-h-0 flex flex-col md:grid md:items-start md:px-10 md:pt-6 md:pb-16 md:flex-none md:min-h-0 ${
+          companionOpen
+            ? "md:grid-cols-[minmax(340px,1fr)_minmax(340px,1fr)_400px] md:gap-6"
+            : "md:grid-cols-[minmax(420px,1fr)_minmax(420px,1fr)] md:gap-10"
+        }`}
+      >
+        {/* Companion — at mobile renders its entry pull inline (above the map)
+            and its panel as a fixed slide-over. At md:+, md:contents makes the
+            wrapper transparent so the pull lands in col 2 row 2 (below map)
+            and the panel lands in col 3 spanning rows. */}
+        <div className="md:contents">
+          <Companion
+            tripId={trip.id}
+            open={companionOpen}
+            onOpenChange={setCompanionOpen}
+            entryClassName="md:col-start-2 md:row-start-2"
+            panelOuterClassName="md:relative md:inset-auto md:z-auto md:w-auto md:border-l-0 md:col-start-3 md:row-start-1 md:row-span-2 md:sticky md:top-6 md:self-start md:rounded-2xl md:shadow-[0_1px_2px_rgba(26,26,46,0.04),0_0_0_1px_rgba(26,26,46,0.12)] md:animate-none md:max-h-[calc(100dvh-160px)]"
+          />
+        </div>
 
-        {/* Right side at desktop, top of mobile flow.
-            DOM order: Companion → DayMap (mobile current order).
-            Desktop flips visually via flex-col-reverse so the map sits above the CTA. */}
-        <div className="md:col-start-2 md:row-start-1 md:sticky md:top-6 md:self-start md:flex md:flex-col-reverse md:gap-3.5">
-          {/* Companion — editorial entry pull + chat panel */}
-          <Companion tripId={trip.id} />
-
-          {/* Map */}
+        {/* Map — desktop col 2 row 1, sticky. Mobile: natural flow below Companion. */}
+        <div className="md:col-start-2 md:row-start-1 md:sticky md:top-6 md:self-start">
           <DayMap
             cards={mappableCards}
             accommodationCard={accommodationCard ?? undefined}
@@ -807,10 +830,9 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
           />
         </div>
 
-        {/* Left side at desktop, bottom of mobile flow. Scrolls internally at mobile,
-            flows naturally at desktop with the page providing the scroll context. */}
+        {/* Timeline — desktop col 1 spanning rows. Mobile: natural flow below Map. */}
         <div
-          className={`flex-1 overflow-y-auto min-h-0 pb-20 md:flex-none md:overflow-visible md:min-h-0 md:pb-0 md:col-start-1 md:row-start-1 transition-opacity ${
+          className={`flex-1 overflow-y-auto min-h-0 pb-20 md:flex-none md:overflow-visible md:min-h-0 md:pb-0 md:col-start-1 md:row-start-1 md:row-span-2 transition-opacity ${
             contentVisible
               ? "opacity-100 duration-[200ms] ease-in"
               : "opacity-0 duration-[150ms] ease-out"

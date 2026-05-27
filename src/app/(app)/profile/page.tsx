@@ -30,17 +30,19 @@ export default async function ProfilePage() {
     <div>
       <AppHeader avatarUrl={avatarUrl} />
 
-      <div className="px-4 pt-6 pb-8">
-        {/* Avatar + name — display only, pulled from Google OAuth */}
-        <div className="flex items-center gap-4 mb-8">
-          <div className="w-16 h-16 rounded-full bg-gray-100 overflow-hidden flex items-center justify-center border border-gray-200 flex-shrink-0">
+      <div className="px-4 pt-6 pb-8 md:max-w-[880px] md:mx-auto md:px-10 md:pt-12 md:pb-16">
+        {/* Avatar + name — display only, pulled from Google OAuth.
+            At md:+ the avatar grows to 72×72, name becomes Playfair italic 30,
+            and a hairline rule closes the identity block. */}
+        <div className="flex items-center gap-4 mb-8 md:gap-[22px] md:mb-0 md:pb-7 md:border-b md:border-[rgba(26,26,46,0.12)]">
+          <div className="w-16 h-16 md:w-[72px] md:h-[72px] rounded-full bg-gray-100 overflow-hidden flex items-center justify-center border border-gray-200 flex-shrink-0">
             {avatarUrl ? (
               <Image
                 src={avatarUrl}
                 alt={displayName ?? "Avatar"}
-                width={64}
-                height={64}
-                className="object-cover"
+                width={72}
+                height={72}
+                className="object-cover w-full h-full"
               />
             ) : (
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.5">
@@ -49,9 +51,13 @@ export default async function ProfilePage() {
               </svg>
             )}
           </div>
-          <div>
-            <p className="text-base font-bold text-gray-900">{displayName}</p>
-            <p className="text-sm text-gray-400 mt-0.5">{user?.email}</p>
+          <div className="min-w-0">
+            <p className="text-base font-bold text-gray-900 md:font-display md:italic md:font-medium md:text-[30px] md:font-normal md:text-[#1A1A2E] md:leading-tight md:tracking-[-0.01em]">
+              {displayName}
+            </p>
+            <p className="text-sm text-gray-400 mt-0.5 md:text-[14px] md:text-[rgba(26,26,46,0.55)] md:mt-1 md:tracking-[-0.005em]">
+              {user?.email}
+            </p>
           </div>
         </div>
 
@@ -77,8 +83,8 @@ export default async function ProfilePage() {
           <LessonsSection userId={user.id} initialLessons={initialLessons} />
         )}
 
-        {/* Sign out */}
-        <div className="mt-10 pt-4 border-t border-gray-100">
+        {/* Sign out — mobile only. At md:+ the dropdown in DesktopMasthead carries this. */}
+        <div className="mt-10 pt-4 border-t border-gray-100 md:hidden">
           <form action={signOut}>
             <button
               type="submit"

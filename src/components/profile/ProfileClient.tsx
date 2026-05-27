@@ -73,22 +73,28 @@ export default function ProfileClient({
   };
 
   return (
-    <div className="mb-8">
+    <div className="mb-8 md:mb-0 md:pt-8">
       {!editing ? (
         <div>
-          <div className="flex items-baseline justify-between mb-3">
-            <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-gray-400">
+          {/* Section header — at md:+ the label sits in a row with a flex hairline
+              rule and an italic-Playfair underlined Edit button, matching the
+              desktop canvas. */}
+          <div className="flex items-baseline justify-between mb-3 md:gap-3.5 md:mb-4">
+            <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-gray-400 md:text-[rgba(26,26,46,0.55)]">
               Travel profile
             </p>
+            <div className="hidden md:block md:flex-1 md:h-px md:bg-[rgba(26,26,46,0.12)] md:-translate-y-[3px]" />
             <button
               type="button"
               onClick={enterEdit}
-              className="font-display italic text-[13px] text-gray-400 active:opacity-60 transition-opacity"
+              className="font-display italic text-[13px] text-gray-400 active:opacity-60 transition-opacity md:text-[14px] md:text-[rgba(26,26,46,0.55)] md:underline md:underline-offset-[3px] md:decoration-[rgba(26,26,46,0.12)]"
             >
               Edit
             </button>
           </div>
-          <div className="grid grid-cols-3 gap-3.5">
+          {/* At md:+ the cells sit in a white card with hairline border and a
+              subtle inset shadow, per canvas. Mobile keeps the bare 3-col grid. */}
+          <div className="grid grid-cols-3 gap-3.5 md:gap-6 md:bg-white md:rounded-xl md:px-6 md:py-5 md:shadow-[0_1px_2px_rgba(26,26,46,0.04),0_0_0_1px_rgba(26,26,46,0.12)]">
             <FactInline label="Home airport" value={homeAirport} />
             <FactInline label="Home country" value={homeCountry} />
             <FactInline label="Passport" value={passportCountry} />
@@ -96,15 +102,16 @@ export default function ProfileClient({
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="flex items-baseline justify-between">
-            <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-gray-400">
+          <div className="flex items-baseline justify-between md:gap-3.5">
+            <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-gray-400 md:text-[rgba(26,26,46,0.55)]">
               Travel profile
             </p>
+            <div className="hidden md:block md:flex-1 md:h-px md:bg-[rgba(26,26,46,0.12)] md:-translate-y-[3px]" />
             <button
               type="button"
               onClick={cancel}
               disabled={saving}
-              className="font-display italic text-[13px] text-gray-400 active:opacity-60 transition-opacity disabled:opacity-40"
+              className="font-display italic text-[13px] text-gray-400 active:opacity-60 transition-opacity disabled:opacity-40 md:text-[14px] md:text-[rgba(26,26,46,0.55)]"
             >
               Cancel
             </button>

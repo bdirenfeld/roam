@@ -542,14 +542,17 @@ export default function PlanBoard({ trip, initialDays }: Props) {
       style={boardBgStyle}
     >
       {/* Desktop trip-name + dates overlay — bottom-left of the visible cover strip.
-          Only renders against a photo background; pointer-events-none so it never
-          intercepts clicks on the columns below. */}
+          Columns reserve the strip with md:pt-[88px]; we anchor the overlay's
+          BOTTOM at 80px (8px above the column line) via translateY(-100%),
+          so the box reads as a credit-line just above the first column.
+          pointer-events-none so it never intercepts clicks on the columns below. */}
       {isPhotoBg && (
         <div
           className="hidden md:flex absolute z-20 items-baseline gap-[14px] pointer-events-none rounded"
           style={{
             left: 16,
-            top: 36,
+            top: 80,
+            transform: "translateY(-100%)",
             padding: "8px 36px 10px 16px",
             background:
               "linear-gradient(90deg, rgba(0,0,0,0.30) 0%, rgba(0,0,0,0.10) 60%, rgba(0,0,0,0) 100%)",

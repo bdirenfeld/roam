@@ -23,8 +23,36 @@ const RULE = "rgba(26,26,46,0.12)";
 const cacheKey = (tripId: string) => `roam:companion:v1:${tripId}`;
 const pendingConvKey = (tripId: string) => `roam:companion:v1:${tripId}:pending-conv`;
 
-export default function Companion({ tripId }: { tripId: string }) {
-  const [open, setOpen] = useState(false);
+interface CompanionProps {
+  tripId: string;
+  // Optional controlled mode — the day view hoists open so the desktop grid
+  // can flip between 2 and 3 columns. When omitted, the component owns its
+  // own open state (the mobile / fallback behavior).
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  // Optional className overrides for desktop placement. At md:+ the day view
+  // uses display:contents on the wrapper so these classes place the entry
+  // pull and the panel into specific grid columns. Mobile is unaffected.
+  entryClassName?: string;
+  panelOuterClassName?: string;
+}
+
+export default function Companion({
+  tripId,
+  open: controlledOpen,
+  onOpenChange,
+  entryClassName,
+  panelOuterClassName,
+}: CompanionProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = useCallback(
+    (next: boolean) => {
+      if (controlledOpen === undefined) setInternalOpen(next);
+      onOpenChange?.(next);
+    },
+    [controlledOpen, onOpenChange],
+  );
   const [loaded, setLoaded] = useState(false);
   const [items, setItems] = useState<ThreadItem[]>([]);
   const [streaming, setStreaming] = useState(false);
@@ -484,12 +512,14 @@ export default function Companion({ tripId }: { tripId: string }) {
 
   return (
     <>
-      {/* Entry — editorial pull between the day strip and the map */}
+      {/* Entry — editorial pull between the day strip and the map.
+          At md:+ when the panel is open we hide the pull: the panel sits in
+          its own grid column with a header carrying the same affordance. */}
       <button
         type="button"
         onClick={openCompanion}
         aria-label="Open Roam Companion"
-        className="flex w-full items-center gap-3.5 px-6 py-2.5"
+        className={`flex w-full items-center gap-3.5 px-6 py-2.5 ${open ? "md:hidden" : ""} ${entryClassName ?? ""}`}
       >
         <span className="h-px flex-1" style={{ background: RULE }} />
         <span className="flex items-center gap-2">
@@ -525,6 +555,7 @@ export default function Companion({ tripId }: { tripId: string }) {
           onRequestNewConversation={requestNewConversation}
           onConfirmNewConversation={confirmNewConversation}
           onCancelNewConversation={cancelNewConversation}
+          outerClassName={panelOuterClassName}
         />
       )}
 

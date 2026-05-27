@@ -79,6 +79,10 @@ interface Props {
   onRequestNewConversation: () => void;
   onConfirmNewConversation: () => void;
   onCancelNewConversation: () => void;
+  // Optional override for the panel's outer wrapper classes at md:+ — lets
+  // the day view mount the panel as an inline third column instead of a
+  // right-docked slide-over. Mobile (fixed inset-0) is unaffected.
+  outerClassName?: string;
 }
 
 // ── A single transcript turn ───────────────────────────────────
@@ -200,6 +204,7 @@ export default function CompanionPanel({
   onRequestNewConversation,
   onConfirmNewConversation,
   onCancelNewConversation,
+  outerClassName,
 }: Props) {
   const bodyRef = useRef<HTMLDivElement>(null);
 
@@ -210,10 +215,18 @@ export default function CompanionPanel({
     if (el) el.scrollTop = el.scrollHeight;
   }, [items, streaming, newConvPending]);
 
+  // Mobile: full-screen slide-over (fixed inset-0) with a 1px left edge —
+  // the slide-over's right-side hairline. Desktop default: right-docked 440px
+  // panel that carries the same left edge. The day view can pass outerClassName
+  // for inline-column placement (md:+ only); inline callers include md:border-l-0
+  // to drop the slide-over edge in favor of a boxShadow card outline.
+  const baseCls =
+    "fixed inset-0 z-[70] flex flex-col bg-[#FAF7F2] animate-in fade-in slide-in-from-right duration-300 border-l border-[rgba(26,26,46,0.20)]";
+  const mdCls = outerClassName ?? "md:left-auto md:w-[440px]";
+
   return (
     <div
-      className="fixed inset-0 z-[70] flex flex-col bg-[#FAF7F2] animate-in fade-in slide-in-from-right duration-300 md:left-auto md:w-[440px]"
-      style={{ borderLeft: `1px solid rgba(26,26,46,0.20)` }}
+      className={`${baseCls} ${mdCls}`}
       role="dialog"
       aria-label="Roam Companion"
     >

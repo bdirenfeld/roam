@@ -138,12 +138,29 @@ export default function LessonsSection({ userId, initialLessons }: Props) {
   const isEmpty = sorted.length === 0;
 
   return (
-    <section className="mt-10">
-      {/* Section title */}
-      <div className="pb-3.5">
-        <h2 className="font-display italic font-medium text-[24px] text-[#1A1A2E] leading-tight">
+    <section className="mt-10 md:mt-11">
+      {/* Section title — at md:+ the row carries a small-caps entry count and
+          an outline-pill add button on the right, per desktop canvas. */}
+      <div className="pb-3.5 md:flex md:items-baseline md:gap-4 md:pb-4">
+        <h2 className="font-display italic font-medium text-[24px] text-[#1A1A2E] leading-tight md:text-[26px] md:tracking-[-0.01em]">
           Lessons learned
         </h2>
+        <span
+          className="hidden md:inline text-[10px] font-medium uppercase"
+          style={{ color: "rgba(26,26,46,0.55)", letterSpacing: "0.1em" }}
+        >
+          {sorted.length} {sorted.length === 1 ? "entry" : "entries"}
+        </span>
+        <div className="hidden md:block md:flex-1" />
+        <button
+          onClick={startAdd}
+          disabled={editing}
+          className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-[rgba(26,26,46,0.12)] px-3 py-1.5 text-[12px] font-medium text-[#1A1A2E] disabled:opacity-40 transition-opacity"
+          style={{ letterSpacing: "-0.005em" }}
+        >
+          <Plus size={11} weight="light" />
+          Add a lesson
+        </button>
       </div>
 
       {isEmpty && !adding ? (
@@ -155,7 +172,7 @@ export default function LessonsSection({ userId, initialLessons }: Props) {
             e.g. &ldquo;Keep one day completely unplanned — always the best
             day.&rdquo;
           </p>
-          <div className="mt-[18px]">
+          <div className="mt-[18px] md:hidden">
             <button
               onClick={startAdd}
               className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded bg-[#1A1A2E] text-[#FAF7F2] text-[14px] font-medium active:scale-[0.99] transition-transform"
@@ -167,21 +184,22 @@ export default function LessonsSection({ userId, initialLessons }: Props) {
           </div>
         </div>
       ) : (
-        <div>
+        <div className="md:grid md:grid-cols-2 md:gap-x-7">
           {sorted.map((lesson) =>
             editingId === lesson.id ? (
-              <EditorRow
-                key={lesson.id}
-                mode="edit"
-                draft={draft}
-                busy={busy}
-                onInput={onInput}
-                onKeyDown={onKeyDown}
-                onCancel={cancel}
-                onSave={saveEdit}
-                onRemove={() => remove(lesson.id)}
-                textareaRef={textareaRef}
-              />
+              <div key={lesson.id} className="md:col-span-2">
+                <EditorRow
+                  mode="edit"
+                  draft={draft}
+                  busy={busy}
+                  onInput={onInput}
+                  onKeyDown={onKeyDown}
+                  onCancel={cancel}
+                  onSave={saveEdit}
+                  onRemove={() => remove(lesson.id)}
+                  textareaRef={textareaRef}
+                />
+              </div>
             ) : (
               <LessonRow
                 key={lesson.id}
@@ -193,23 +211,27 @@ export default function LessonsSection({ userId, initialLessons }: Props) {
             )
           )}
 
-          {/* Closing rule + Add row, or inline add editor */}
+          {/* Closing rule + Add row (mobile only — at md:+ the add affordance
+              lives in the section header). The inline editor still renders
+              here when adding, spanning both columns. */}
           {adding ? (
-            <EditorRow
-              mode="add"
-              draft={draft}
-              busy={busy}
-              onInput={onInput}
-              onKeyDown={onKeyDown}
-              onCancel={cancel}
-              onSave={saveAdd}
-              textareaRef={textareaRef}
-            />
+            <div className="md:col-span-2">
+              <EditorRow
+                mode="add"
+                draft={draft}
+                busy={busy}
+                onInput={onInput}
+                onKeyDown={onKeyDown}
+                onCancel={cancel}
+                onSave={saveAdd}
+                textareaRef={textareaRef}
+              />
+            </div>
           ) : (
-            <>
+            <div className="md:hidden">
               <div className="border-t border-black/5" />
               <AddRow dimmed={!!editingId} onClick={startAdd} />
-            </>
+            </div>
           )}
         </div>
       )}
