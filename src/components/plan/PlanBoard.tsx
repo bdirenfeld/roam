@@ -39,7 +39,7 @@ import type { Trip, Card, DayWithCards, CardType, CardStatus } from "@/types/dat
 import { getPriceRange } from "@/lib/priceRange";
 
 import CardImage from "@/components/ui/CardImage";
-import { Trash, DotsThree, Image as ImageIcon, Gear, ShareNetwork, PaintBucket } from "@phosphor-icons/react";
+import { Trash, DotsThree, Image as ImageIcon, Gear, ShareNetwork } from "@phosphor-icons/react";
 import { getMaterialIconHTML } from "@/lib/mapPins";
 
 // ── Constants ──────────────────────────────────────────────────
@@ -170,6 +170,19 @@ function fmtDate(dateStr: string): string {
   return new Date(y, mo - 1, d).toLocaleDateString("en-US", {
     weekday: "short", month: "short", day: "numeric",
   });
+}
+
+function fmtCoverDates(start: string, end: string): string {
+  const upper = (s: string) => {
+    const [y, mo, d] = s.split("-").map(Number);
+    return new Date(y, mo - 1, d)
+      .toLocaleDateString("en-US", { month: "short", day: "numeric" })
+      .toUpperCase();
+  };
+  const sMs = new Date(start + "T00:00:00").getTime();
+  const eMs = new Date(end + "T00:00:00").getTime();
+  const nights = Math.max(0, Math.round((eMs - sMs) / 86400000));
+  return `${upper(start)} → ${upper(end)} · ${nights} NIGHT${nights !== 1 ? "S" : ""}`;
 }
 
 // ── PlanBoard ──────────────────────────────────────────────────
@@ -528,17 +541,73 @@ export default function PlanBoard({ trip, initialDays }: Props) {
       className="relative flex flex-col h-dvh md:h-[calc(100dvh-120px)] overflow-hidden"
       style={boardBgStyle}
     >
-      {/* Desktop floating bg-picker pill — paint bucket on the kanban content area */}
+      {/* Desktop trip-name + dates overlay — bottom-left of the visible cover strip.
+          Only renders against a photo background; pointer-events-none so it never
+          intercepts clicks on the columns below. */}
+      {isPhotoBg && (
+        <div
+          className="hidden md:flex absolute z-20 items-baseline gap-[14px] pointer-events-none rounded"
+          style={{
+            left: 16,
+            top: 36,
+            padding: "8px 36px 10px 16px",
+            background:
+              "linear-gradient(90deg, rgba(0,0,0,0.30) 0%, rgba(0,0,0,0.10) 60%, rgba(0,0,0,0) 100%)",
+          }}
+        >
+          <span
+            className="font-display italic"
+            style={{
+              fontWeight: 500,
+              fontSize: 22,
+              color: "#FAF7F2",
+              letterSpacing: "-0.005em",
+              textShadow: "0 1px 2px rgba(0,0,0,0.4)",
+            }}
+          >
+            {trip.title}
+          </span>
+          <span
+            style={{
+              fontSize: 9.5,
+              fontWeight: 500,
+              letterSpacing: "0.18em",
+              color: "rgba(250,247,242,0.85)",
+              textShadow: "0 1px 2px rgba(0,0,0,0.4)",
+            }}
+          >
+            {fmtCoverDates(trip.start_date, trip.end_date)}
+          </span>
+        </div>
+      )}
+
+      {/* Desktop "Change cover" pill — top-right of the cover strip. Replaces the
+          legacy paint-bucket pill; same handler, new editorial styling. */}
       <button
         onClick={() => {
           setBgUrlInput(boardBg.type === "photo" ? boardBg.url : "");
           setBgPreviewError(false);
           setShowBgPicker(true);
         }}
-        aria-label="Change background"
-        className="hidden md:flex absolute top-4 right-4 z-20 w-9 h-9 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm border border-black/[0.08] text-[#1A1A2E] shadow-sm hover:bg-white transition-colors"
+        aria-label="Change cover photo"
+        className="hidden md:flex absolute z-20 items-center gap-2 rounded-full backdrop-blur-[4px] transition-opacity hover:opacity-90"
+        style={{
+          top: 18,
+          right: 28,
+          padding: "8px 14px",
+          background: "rgba(26,26,46,0.55)",
+          border: "1px solid rgba(255,255,255,0.18)",
+          color: "#FAF7F2",
+          fontWeight: 500,
+          fontSize: 12,
+          letterSpacing: "-0.005em",
+        }}
       >
-        <PaintBucket size={16} weight="light" />
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FAF7F2" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 8a2 2 0 012-2h2.5l1.5-2h6l1.5 2H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
+          <circle cx="12" cy="13" r="3.5" />
+        </svg>
+        Change cover
       </button>
 
       {/* Nav bar — mobile only (md:hidden). Desktop nav lives in TripSubBar/Masthead. */}
@@ -692,8 +761,8 @@ export default function PlanBoard({ trip, initialDays }: Props) {
                 className="flex-1 overflow-x-auto overflow-y-hidden"
                 style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "none" } as React.CSSProperties}
               >
-                {/* Card columns */}
-                <div className="p-4 pb-28 md:pb-6">
+                {/* Card columns — md:pt-[88px] reserves the cover strip above the first column */}
+                <div className="p-4 pb-28 md:px-7 md:pt-[88px] md:pb-6">
                   {(allEmpty || showTemplatePicker) && days.length > 0 && (
                     <TemplateBanner
                       onSelect={(key) => { handleApplyTemplate(key); setShowTemplatePicker(false); }}
