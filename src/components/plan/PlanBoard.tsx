@@ -172,6 +172,20 @@ function fmtDate(dateStr: string): string {
   });
 }
 
+// Sum measurable durations for cards that have both start_time and end_time.
+// Cards modelling "moments" (flight arrival, hotel check-in) leave end_time
+// null by design — skip those. Negative diffs (bad data or cross-midnight)
+// drop to 0 since templates never use cross-midnight slots.
+function sumDurationMinutes(cards: Card[]): number {
+  return cards.reduce((sum, c) => {
+    if (!c.start_time || !c.end_time) return sum;
+    const [sh, sm] = c.start_time.split(":").map(Number);
+    const [eh, em] = c.end_time.split(":").map(Number);
+    const diff = (eh * 60 + em) - (sh * 60 + sm);
+    return sum + Math.max(0, diff);
+  }, 0);
+}
+
 function fmtCoverDates(start: string, end: string): string {
   const upper = (s: string) => {
     const [y, mo, d] = s.split("-").map(Number);
@@ -1011,12 +1025,17 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }:
   const shortDateTitle = day.date
     ? new Date(day.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })
     : null;
+  const stopCount = cards.length;
+  const totalHours = Math.round(sumDurationMinutes(cards) / 60);
+  const dateLine = shortDateTitle
+    ? `${shortDateTitle}${stopCount > 0 ? ` · ${stopCount} ${stopCount === 1 ? "STOP" : "STOPS"}` : ""}${totalHours > 0 ? ` · ${totalHours}H` : ""}`
+    : null;
 
   return (
     <div className={fullWidth ? "w-full h-full flex flex-col" : "w-[148px] min-w-[148px] flex-shrink-0 md:w-[280px] flex flex-col"}>
       {/* Card column body */}
       <div
-        style={fullWidth ? { backgroundColor: 'rgba(255,255,255,0.88)' } : { backgroundColor: '#EBECF0' }}
+        style={fullWidth ? { backgroundColor: 'rgba(255,255,255,0.88)' } : undefined}
         className={`rounded-xl overflow-hidden flex flex-col scrollbar-none [touch-action:pan-y] ${
           fullWidth
             ? "backdrop-blur-md flex-1 min-h-0 overflow-y-auto"
@@ -1025,7 +1044,7 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }:
       >
 
         {/* Desktop-only day header — first child inside the white column surface */}
-        <div className="hidden md:block flex-shrink-0" style={{ padding: "14px 16px 12px", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+        <div className="hidden md:block flex-shrink-0" style={{ padding: "14px 16px 12px" }}>
           {/* Tier 1 — DAY NUMBER (small-caps) */}
           <p style={{
             fontFamily: "'DM Sans', system-ui, sans-serif",
@@ -1047,11 +1066,10 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }:
               letterSpacing: "-0.01em",
               lineHeight: 1.1,
               marginBottom: "6px",
-              textTransform: "uppercase",
             }}>{dayOfWeek}</p>
           )}
           {/* Tier 3 — Date (small-caps caption) */}
-          {shortDateTitle && (
+          {dateLine && (
             <p style={{
               fontFamily: "'DM Sans', system-ui, sans-serif",
               fontSize: "10px",
@@ -1059,7 +1077,7 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }:
               color: "rgba(26, 26, 46, 0.45)",
               letterSpacing: "0.14em",
               textTransform: "uppercase",
-            }}>{shortDateTitle}</p>
+            }}>{dateLine}</p>
           )}
         </div>
 
