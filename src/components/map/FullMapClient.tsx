@@ -513,7 +513,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
   }, []);
 
   return (
-    <div className="flex w-full overflow-hidden h-[calc(100dvh-80px)] md:h-[calc(100dvh-120px)]">
+    <div className="flex w-full overflow-hidden h-[calc(100dvh-80px)] md:h-[calc(100dvh-64px)]">
 
       {/* ── Desktop sidebar ── */}
       <aside className="hidden md:flex md:w-[232px] flex-shrink-0 border-r overflow-y-auto z-20 flex-col" style={{ borderRightColor: "rgba(26,26,46,0.10)", background: "#FAF7F2" }}>

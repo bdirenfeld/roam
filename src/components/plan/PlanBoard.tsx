@@ -552,10 +552,10 @@ export default function PlanBoard({ trip, initialDays }: Props) {
 
   return (
     <div
-      className="relative flex flex-col h-dvh md:h-[calc(100dvh-120px)] overflow-hidden md:!bg-none md:!bg-[#FAF7F2]"
+      className="relative flex flex-col h-dvh md:h-[calc(100dvh-64px)] overflow-hidden md:!bg-none md:!bg-[#FAF7F2]"
       style={boardBgStyle}
     >
-      {/* Nav bar — mobile only (md:hidden). Desktop nav lives in TripSubBar/Masthead. */}
+      {/* Nav bar — mobile only (md:hidden). Desktop nav lives in Masthead. */}
       <div className="md:hidden relative flex items-center h-11 px-3 flex-shrink-0">
         {/* Left: back buttons */}
         <div className="flex items-center gap-1 z-10">

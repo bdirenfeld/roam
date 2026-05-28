@@ -3,19 +3,42 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { UserCircle } from "@phosphor-icons/react";
+import { UserCircle, Calendar, Columns, MapPin } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import { signOut } from "@/lib/auth-actions";
 
 const INK = "#1A1A2E";
 const RULE = "rgba(26,26,46,0.10)";
 const CAPTION = "rgba(26,26,46,0.55)";
+const CAPTION_SOFT = "rgba(26,26,46,0.35)";
 
 type UserSummary = { name: string | null; email: string | null };
+
+type TripContext = {
+  id: string;
+  title: string;
+  start_date: string;
+  end_date: string;
+  firstDayId: string | null;
+};
 
 // Module-level cache — survives client navigations and avoids re-hitting
 // supabase.auth.getUser() on every masthead mount or dropdown open.
 let USER_CACHE: UserSummary | null = null;
+
+// Module-level cache — survives client navigations between Agenda / Plan / Map
+// for the same trip. Matches the weather supplemental-data pattern in CLAUDE.md.
+const TRIP_CACHE = new Map<string, TripContext>();
+
+function formatDateRange(start: string, end: string): string {
+  const fmt = (s: string) => {
+    const [y, m, d] = s.split("-").map(Number);
+    return new Date(y, m - 1, d)
+      .toLocaleDateString("en-US", { month: "short", day: "numeric" })
+      .toUpperCase();
+  };
+  return `${fmt(start)} – ${fmt(end)}`;
+}
 
 /**
  * Desktop-only masthead. Renders at ≥768px above the (app) content area.
@@ -24,17 +47,62 @@ export default function DesktopMasthead() {
   const pathname = usePathname() ?? "";
   const onJourneys = !pathname.startsWith("/trips/");
 
-  // Derive a trip ID from the current path so the dropdown can carry a
-  // "Trip settings" link when the user is inside a specific trip. Matches
+  // Derive trip ID + section segment from the current path. Matches
   // /trips/{id}, /trips/{id}/plan, /trips/{id}/days/{dayId}, /trips/{id}/map,
   // /trips/{id}/settings. Excludes /trips, /trips/new, and non-trip routes.
-  const tripMatch = /^\/trips\/([^/]+)/.exec(pathname);
+  const tripMatch = /^\/trips\/([^/]+)(?:\/(days|plan|map|settings))?/.exec(pathname);
   const currentTripId =
     tripMatch && tripMatch[1] !== "new" ? tripMatch[1] : null;
+  const segment = (tripMatch?.[2] ?? null) as
+    | "days" | "plan" | "map" | "settings" | null;
+  const showTripStrip = !!currentTripId && segment !== "settings";
 
   const [user, setUser] = useState<UserSummary | null>(USER_CACHE);
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const [tripCtx, setTripCtx] = useState<TripContext | null>(
+    () => (currentTripId ? TRIP_CACHE.get(currentTripId) ?? null : null),
+  );
+
+  useEffect(() => {
+    if (!showTripStrip || !currentTripId) return;
+    const cached = TRIP_CACHE.get(currentTripId);
+    if (cached) { setTripCtx(cached); return; }
+
+    let cancelled = false;
+    const supabase = createClient();
+    (async () => {
+      try {
+        const [{ data: trip }, { data: days }] = await Promise.all([
+          supabase
+            .from("trips")
+            .select("id, title, start_date, end_date")
+            .eq("id", currentTripId)
+            .single(),
+          supabase
+            .from("days")
+            .select("id")
+            .eq("trip_id", currentTripId)
+            .order("day_number", { ascending: true })
+            .limit(1),
+        ]);
+        if (cancelled || !trip) return;
+        const next: TripContext = {
+          id: trip.id,
+          title: trip.title,
+          start_date: trip.start_date,
+          end_date: trip.end_date,
+          firstDayId: days?.[0]?.id ?? null,
+        };
+        TRIP_CACHE.set(currentTripId, next);
+        setTripCtx(next);
+      } catch (err) {
+        console.error("[DesktopMasthead] trip fetch failed:", err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [currentTripId, showTripStrip]);
 
   useEffect(() => {
     if (USER_CACHE) return;
@@ -118,7 +186,7 @@ export default function DesktopMasthead() {
             padding: "6px 2px",
             fontWeight: onJourneys ? 500 : 400,
             fontSize: 17,
-            color: onJourneys ? INK : CAPTION,
+            color: onJourneys ? INK : currentTripId ? CAPTION : INK,
             letterSpacing: "-0.005em",
             borderBottom: onJourneys ? `1px solid ${INK}` : "1px solid transparent",
             textDecoration: "none",
@@ -126,6 +194,73 @@ export default function DesktopMasthead() {
         >
           Journeys
         </Link>
+
+        {showTripStrip && currentTripId && (
+          <>
+            <span
+              className="font-display italic"
+              style={{
+                color: CAPTION_SOFT,
+                padding: "0 10px",
+                fontSize: 17,
+              }}
+            >
+              ›
+            </span>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                gap: 12,
+                minWidth: 0,
+              }}
+            >
+              <span
+                className="font-display italic"
+                style={{
+                  fontWeight: 500,
+                  fontSize: 17,
+                  color: INK,
+                  letterSpacing: "-0.005em",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  maxWidth: 360,
+                }}
+              >
+                {tripCtx?.title ?? " "}
+              </span>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 500,
+                  color: CAPTION,
+                  letterSpacing: "0.14em",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
+                }}
+              >
+                {tripCtx ? formatDateRange(tripCtx.start_date, tripCtx.end_date) : " "}
+              </span>
+            </div>
+
+            <div
+              style={{
+                width: 1,
+                height: 22,
+                background: RULE,
+                margin: "0 22px",
+                flexShrink: 0,
+              }}
+            />
+
+            <TripTabs
+              tripId={currentTripId}
+              segment={segment}
+              firstDayId={tripCtx?.firstDayId ?? null}
+            />
+          </>
+        )}
       </nav>
 
       <div style={{ flex: 1 }} />
@@ -282,5 +417,62 @@ export default function DesktopMasthead() {
         )}
       </div>
     </header>
+  );
+}
+
+function TripTabs({
+  tripId,
+  segment,
+  firstDayId,
+}: {
+  tripId: string;
+  segment: "days" | "plan" | "map" | "settings" | null;
+  firstDayId: string | null;
+}) {
+  const activeTab: "agenda" | "plan" | "map" =
+    segment === "plan" ? "plan" : segment === "map" ? "map" : "agenda";
+
+  const agendaHref = firstDayId
+    ? `/trips/${tripId}/days/${firstDayId}`
+    : `/trips/${tripId}`;
+
+  const TABS = [
+    { id: "agenda" as const, label: "Agenda", icon: Calendar, href: agendaHref },
+    { id: "plan" as const, label: "Plan", icon: Columns, href: `/trips/${tripId}/plan` },
+    { id: "map" as const, label: "Map", icon: MapPin, href: `/trips/${tripId}/map` },
+  ];
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+      {TABS.map((t) => {
+        const on = t.id === activeTab;
+        const Icon = t.icon;
+        return (
+          <Link
+            key={t.id}
+            href={t.href}
+            style={{
+              background: on ? "#fff" : "transparent",
+              padding: "8px 14px",
+              borderRadius: 999,
+              display: "flex",
+              alignItems: "center",
+              gap: 7,
+              fontWeight: on ? 600 : 500,
+              fontSize: 13,
+              color: on ? INK : CAPTION,
+              boxShadow: on
+                ? `0 0 0 1px ${RULE}, 0 1px 2px rgba(26,26,46,0.05)`
+                : "none",
+              letterSpacing: "-0.005em",
+              textDecoration: "none",
+            }}
+          >
+            <Icon size={14} weight="light" color={on ? INK : CAPTION} />
+            {t.label}
+          </Link>
+        );
+      })}
+    </div>
   );
 }

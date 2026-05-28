@@ -4,7 +4,6 @@ import { Suspense } from "react";
 import { usePathname } from "next/navigation";
 import BottomNav from "@/components/ui/BottomNav";
 import DesktopMasthead from "@/components/ui/DesktopMasthead";
-import TripSubBar from "@/components/ui/TripSubBar";
 
 export default function AppLayout({
   children,
@@ -18,7 +17,6 @@ export default function AppLayout({
   return (
     <>
       <DesktopMasthead />
-      <TripSubBar />
       <div className="mobile-container flex flex-col bg-white md:bg-transparent">
         <main className={isDayView ? "flex-1" : "flex-1 pb-20 md:pb-0"}>{children}</main>
       </div>
