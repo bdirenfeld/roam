@@ -10,15 +10,12 @@ interface Props {
 export default async function DayPage({ params }: Props) {
   const { tripId, dayId } = await params;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  // Parallel fetch — trip, all days, cards for today, hotel cards for all days,
-  // user's home_airport (used to exclude that pin from map fit-bounds)
+  // Parallel fetch — trip, all days, cards for today, hotel cards for all days
   const [
     { data: trip },
     { data: days },
     { data: cards },
     { data: hotelCards },
-    { data: profile },
   ] = await Promise.all([
     supabase.from("trips").select("*").eq("id", tripId).single(),
     supabase.from("days").select("*").eq("trip_id", tripId).order("day_number"),
@@ -44,9 +41,6 @@ export default async function DayPage({ params }: Props) {
       .eq("trip_id", tripId)
       .eq("type", "logistics")
       .eq("sub_type", "hotel"),
-    user
-      ? supabase.from("users").select("home_airport").eq("id", user.id).single()
-      : Promise.resolve({ data: null, error: null }),
   ]);
 
   if (!trip) redirect("/trips");
@@ -65,7 +59,6 @@ export default async function DayPage({ params }: Props) {
       days={(days ?? []) as Day[]}
       dayWithCards={dayWithCards}
       hotelCards={(hotelCards ?? []) as Card[]}
-      homeAirport={profile?.home_airport ?? null}
     />
   );
 }

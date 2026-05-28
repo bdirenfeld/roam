@@ -10,7 +10,6 @@ import AddToTripSheet from "./AddToTripSheet";
 import type { PlaceResult } from "./AddToTripSheet";
 import type { Trip, Day, Card, CardType } from "@/types/database";
 import { makeMaterialPinElement } from "@/lib/mapPins";
-import { isHomeAirportCard } from "@/lib/maps/homeAirport";
 import { Funnel, DotsThree } from "@phosphor-icons/react";
 
 // Purple circular pin for search result previews
@@ -25,10 +24,6 @@ interface Props {
   days: Day[];
   cards: Card[];
   userAvatarUrl?: string | null;
-  /** User's home airport IATA code. Excluded from fit-bounds so the map
-   *  zooms to the destination cluster, not across continents. The pin
-   *  itself still renders. */
-  homeAirport?: string | null;
 }
 
 // Sub-types whose visibility is controlled by the sidebar toggles
@@ -71,7 +66,7 @@ function makeInitialSubTypes(): Set<string> {
 type MarkerEntry = { marker: any; type: CardType; cardRef: { current: Card } };
 const MARKERS = new Map<string, MarkerEntry>();
 
-export default function FullMapClient({ trip, days, cards, userAvatarUrl, homeAirport }: Props) {
+export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Props) {
   const mapContainerRef  = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapInstRef       = useRef<any>(null);
@@ -477,14 +472,9 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, homeAi
           MARKERS.set(card.id, { marker: mbMarker, type: place.type, cardRef });
         });
 
-        // Fit to all pins — but exclude the home airport so the map zooms
-        // to the destination cluster, not across continents. The home pin
-        // still renders (created above); only bounds skip it.
-        const boundsCards = mappable.filter(
-          ({ card }) => !isHomeAirportCard(card, homeAirport ?? null),
-        );
-        if (boundsCards.length > 1) {
-          const coords = boundsCards.map(({ lng, lat }) => [lng, lat] as [number, number]);
+        // Fit to all pins
+        if (mappable.length > 1) {
+          const coords = mappable.map(({ lng, lat }) => [lng, lat] as [number, number]);
           const bounds = coords.reduce(
             (b: unknown, coord) => (b as { extend: (c: [number, number]) => unknown }).extend(coord),
             new mb.LngLatBounds(coords[0], coords[0]),

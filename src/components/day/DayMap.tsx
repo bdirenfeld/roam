@@ -4,7 +4,6 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { useEffect, useRef } from "react";
 import type { Card } from "@/types/database";
 import { makeMaterialPinElement } from "@/lib/mapPins";
-import { isHomeAirportCard } from "@/lib/maps/homeAirport";
 
 interface Props {
   cards: Card[];
@@ -15,13 +14,9 @@ interface Props {
   onPinTap?: (cardId: string) => void;
   /** When set, briefly pulses the pin for that card ID. */
   pulsedCardId?: string | null;
-  /** User's home airport IATA code. Excluded from fit-bounds so the map
-   *  zooms to the destination cluster, not across continents. The pin
-   *  itself still renders. */
-  homeAirport?: string | null;
 }
 
-export default function DayMap({ cards, accommodationCard, centerLat, centerLng, onPinTap, pulsedCardId, homeAirport }: Props) {
+export default function DayMap({ cards, accommodationCard, centerLat, centerLng, onPinTap, pulsedCardId }: Props) {
   const mapRef         = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<unknown>(null);
 
@@ -198,19 +193,15 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
           }
         }
 
-        // Exclude the home-airport pin from bounds — it still renders, but
-        // including it would zoom the map out across continents.
-        const boundsCoords: [number, number][] = [
-          ...mappable
-            .filter(({ card }) => !isHomeAirportCard(card, homeAirport ?? null))
-            .map(({ lng, lat }) => [lng, lat] as [number, number]),
+        const allCoords: [number, number][] = [
+          ...mappable.map(({ lng, lat }) => [lng, lat] as [number, number]),
           ...(accomCoord ? [accomCoord] : []),
         ];
 
-        if (boundsCoords.length > 1) {
-          const bounds = boundsCoords.reduce(
+        if (allCoords.length > 1) {
+          const bounds = allCoords.reduce(
             (b, coord) => b.extend(coord),
-            new mb.LngLatBounds(boundsCoords[0], boundsCoords[0]),
+            new mb.LngLatBounds(allCoords[0], allCoords[0]),
           );
           map.fitBounds(bounds, { padding: 50, maxZoom: 15 });
         }
