@@ -33,7 +33,7 @@ export default async function TripMapPage({ params }: Props) {
       .order("day_id")
       .order("position"),
     user
-      ? supabase.from("users").select("avatar_url").eq("id", user.id).single()
+      ? supabase.from("users").select("avatar_url, home_airport").eq("id", user.id).single()
       : Promise.resolve({ data: null, error: null }),
   ]);
 
@@ -45,6 +45,7 @@ export default async function TripMapPage({ params }: Props) {
       days={(days ?? []) as Day[]}
       cards={(cards ?? []) as Card[]}
       userAvatarUrl={profile?.avatar_url}
+      homeAirport={profile?.home_airport ?? null}
     />
   );
 }

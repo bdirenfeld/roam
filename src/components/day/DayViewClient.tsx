@@ -389,6 +389,7 @@ interface Props {
   days: Day[];
   dayWithCards: DayWithCards;
   hotelCards: Card[];
+  homeAirport: string | null;
 }
 
 function formatDayTitle(dateStr: string): string {
@@ -399,7 +400,7 @@ function formatDayTitle(dateStr: string): string {
   return `${dayName}, ${dayNum} ${monthName}`;
 }
 
-export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: Props) {
+export default function DayViewClient({ trip, days, dayWithCards, hotelCards, homeAirport }: Props) {
   const router = useRouter();
   const supabase = createClient();
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
@@ -792,7 +793,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
       <div
         className={`flex-1 min-h-0 flex flex-col md:grid md:items-start md:px-10 md:pt-6 md:pb-16 md:flex-none md:min-h-0 ${
           companionOpen
-            ? "md:grid-cols-[minmax(340px,1fr)_minmax(340px,1fr)_400px] md:gap-6"
+            ? "md:grid-cols-[minmax(360px,1fr)_minmax(360px,1fr)_minmax(440px,1fr)] md:gap-6"
             : "md:grid-cols-[minmax(420px,1fr)_minmax(420px,1fr)] md:gap-10"
         }`}
       >
@@ -818,6 +819,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
             centerLat={trip.destination_lat ?? 41.9028}
             centerLng={trip.destination_lng ?? 12.4964}
             onPinTap={handlePinTap}
+            homeAirport={homeAirport}
           />
         </div>
 
