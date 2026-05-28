@@ -1291,7 +1291,7 @@ function CardTile({
 
           {/* Text content */}
           <div className="flex-1 min-w-0">
-            <p className="text-[14px] font-semibold text-gray-900 leading-snug line-clamp-2 md:text-[13.5px] md:font-medium md:line-clamp-1 md:tracking-[-0.005em]">
+            <p className="text-[14px] font-semibold text-gray-900 leading-snug line-clamp-2 md:text-[13.5px] md:font-medium md:line-clamp-2 md:tracking-[-0.005em]">
               {title}
             </p>
             {isNote && noteSnippet ? (

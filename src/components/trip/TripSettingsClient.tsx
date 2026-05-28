@@ -320,7 +320,7 @@ export default function TripSettingsClient({ trip, days, initialPeople }: Props)
       </div>
 
       {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto md:max-w-[880px] md:mx-auto md:w-full md:px-10 md:pt-12 md:pb-16">
 
         {/* ── Cover hero ── */}
         <button

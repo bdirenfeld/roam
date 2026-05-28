@@ -781,15 +781,6 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
           )}
         </div>
 
-        <div className="flex-1" />
-
-        <Link
-          href={`/trips/${trip.id}/settings`}
-          aria-label="Trip settings"
-          className="flex items-center justify-center w-9 h-9 text-[rgba(26,26,46,0.55)] hover:text-activity transition-colors"
-        >
-          <DotsThree size={20} weight="light" />
-        </Link>
       </div>
 
       {/* Two-pane body — mobile: flex column (Companion → Map → Timeline).

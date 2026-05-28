@@ -84,7 +84,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
 
       const map = new mb.Map({
         container: mapRef.current!,
-        style: "mapbox://styles/mapbox/light-v11",
+        style: "mapbox://styles/mapbox/streets-v12",
         center: [centerLng, centerLat],
         zoom: 13,
         attributionControl: false,

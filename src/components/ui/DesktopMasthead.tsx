@@ -24,6 +24,14 @@ export default function DesktopMasthead() {
   const pathname = usePathname() ?? "";
   const onJourneys = !pathname.startsWith("/trips/");
 
+  // Derive a trip ID from the current path so the dropdown can carry a
+  // "Trip settings" link when the user is inside a specific trip. Matches
+  // /trips/{id}, /trips/{id}/plan, /trips/{id}/days/{dayId}, /trips/{id}/map,
+  // /trips/{id}/settings. Excludes /trips, /trips/new, and non-trip routes.
+  const tripMatch = /^\/trips\/([^/]+)/.exec(pathname);
+  const currentTripId =
+    tripMatch && tripMatch[1] !== "new" ? tripMatch[1] : null;
+
   const [user, setUser] = useState<UserSummary | null>(USER_CACHE);
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -219,6 +227,22 @@ export default function DesktopMasthead() {
                 </div>
               )}
             </div>
+            {currentTripId && (
+              <Link
+                href={`/trips/${currentTripId}/settings`}
+                role="menuitem"
+                onClick={() => setOpen(false)}
+                style={{
+                  display: "block",
+                  padding: "11px 16px",
+                  fontSize: 13,
+                  color: INK,
+                  textDecoration: "none",
+                }}
+              >
+                Trip settings
+              </Link>
+            )}
             <Link
               href="/profile"
               role="menuitem"
