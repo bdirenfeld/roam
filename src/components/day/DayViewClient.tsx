@@ -807,7 +807,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, ho
             open={companionOpen}
             onOpenChange={setCompanionOpen}
             entryClassName="md:col-start-2 md:row-start-2"
-            panelOuterClassName="md:relative md:inset-auto md:z-auto md:w-auto md:border-l-0 md:col-start-3 md:row-start-1 md:row-span-2 md:sticky md:top-6 md:self-start md:rounded-2xl md:shadow-[0_1px_2px_rgba(26,26,46,0.04),0_0_0_1px_rgba(26,26,46,0.12)] md:animate-none md:h-[calc(100dvh-160px)]"
+            panelOuterClassName="md:relative md:inset-auto md:z-auto md:w-auto md:border-l-0 md:col-start-3 md:row-start-1 md:row-span-2 md:sticky md:top-6 md:self-start md:rounded-2xl md:shadow-[0_1px_2px_rgba(26,26,46,0.04),0_0_0_1px_rgba(26,26,46,0.12)] md:animate-none md:max-h-[calc(100dvh-160px)]"
           />
         </div>
 
