@@ -70,12 +70,12 @@ export interface AiEnriched {
 export interface LogisticsDetails {
   notes?: string
   airline?: string
-  arrival_airport?: string
+  arriving_at?: string
   arrival_time?: string
   flight_number?: string
   terminal?: string
   confirmation?: string
-  departure_airport?: string
+  origin_airport?: string
   departure_time?: string
   transport_to_accommodation?: string
   estimated_accommodation_arrival?: string
