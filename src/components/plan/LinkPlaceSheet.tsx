@@ -194,16 +194,16 @@ export default function LinkPlaceSheet({ tripId, cardType, onLink, onClose }: Pr
       .from("cards")
       .select(`
         *,
-        place:places (
+        place:places!inner (
           id, title, type, sub_type, lat, lng, address, cover_image_url, rating, price_level
         )
       `)
       .eq("trip_id", tripId)
       .eq("status", "interested")
-      .eq("type", cardType)
-      .not("lat", "is", null)
-      .order("sub_type")
-      .order("title")
+      .eq("place.type", cardType)
+      .not("place.lat", "is", null)
+      .order("sub_type", { referencedTable: "place" })
+      .order("title", { referencedTable: "place" })
       .then(({ data }) => {
         const raw = (data ?? []) as Card[];
         // Dedup: prefer the card with a cover image; key by place_id, then fall back to title
