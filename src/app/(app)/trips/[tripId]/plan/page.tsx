@@ -23,7 +23,7 @@ export default async function PlanPage({ params }: Props) {
         .select(`
           *,
           place:places (
-            id, title, type, sub_type, lat, lng, address, cover_image_url, rating, price_level
+            id, title, type, sub_type, lat, lng, address, google_place_id, cover_image_url, rating, price_level
           )
         `)
         .eq("trip_id", tripId)

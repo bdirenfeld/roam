@@ -135,6 +135,7 @@ export interface Place {
   lat: number | null
   lng: number | null
   address: string | null
+  google_place_id: string | null
   cover_image_url: string | null
   rating: number | null
   price_level: number | null

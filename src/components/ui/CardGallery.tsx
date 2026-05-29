@@ -58,7 +58,7 @@ export function CardGallery({
 
     fetchPhotos()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [placeId])
+  }, [placeId, coverImageUrl, fallbackLat, fallbackLng])
 
   function getMapboxFallback(): string[] {
     const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
