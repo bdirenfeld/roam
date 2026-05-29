@@ -530,27 +530,17 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     setMenuInputValue("");
   }, [menuInputValue, saveDetails]);
 
-  // ── Link place from map — inherit pin data, preserve user fields ─
-  // TODO(phase-followup): handleLinkPlace should redirect place_id, not copy flat columns
+  // ── Link place from map — repoint the card to the selected place ─
+  // Clean relink: set place_id to the selected pin's place. If the card
+  // already pointed at a different place, this replaces it. Nothing else
+  // (day_id, status, position, details) is touched.
   const handleLinkPlace = useCallback(async (place: Card) => {
     setShowLinkSheet(false);
-    const placeDetails  = (place.details  ?? {}) as Record<string, unknown>;
-    const currentDetails = (localCard.details ?? {}) as Record<string, unknown>;
-
-    // Build merged details: start from current card (preserves notes, flow, prep, tips, etc.)
-    // then overwrite with the pin's place-specific fields
-    const mergedDetails: Record<string, unknown> = {
-      ...currentDetails,
-      ...(placeDetails.place_id      != null ? { place_id:      placeDetails.place_id      } : {}),
-      ...(placeDetails.rating        != null ? { rating:        placeDetails.rating        } : {}),
-      ...(placeDetails.phone         != null ? { phone:         placeDetails.phone         } : {}),
-      ...(placeDetails.website       != null ? { website:       placeDetails.website       } : {}),
-      ...(placeDetails.currency_code != null ? { currency_code: placeDetails.currency_code } : {}),
-    };
 
     const updated: Card = {
       ...localCard,
-      details: mergedDetails as typeof localCard.details,
+      place_id: place.place_id,
+      place:    place.place,
     };
 
     setLocalCard(updated);
@@ -559,7 +549,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     setTimeout(() => setLinkMergeMessage(null), 3000);
 
     await supabase.from("cards").update({
-      details: mergedDetails,
+      place_id: place.place_id,
     }).eq("id", localCard.id);
   }, [localCard, onCardUpdate, supabase]);
 
