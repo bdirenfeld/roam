@@ -66,7 +66,7 @@ export default function LandingPage() {
           ════════════════════════════════════════════════════════════════ */}
       <div className="md:hidden" style={{ background: PARCHMENT, color: INK }}>
         {/* HERO — full-bleed photo, gateway content in the bottom overlay */}
-        <div style={{ position: "relative", width: "100%", height: 620 }}>
+        <div style={{ position: "relative", width: "100%", height: "min(100svh, 900px)" }}>
           <PlatePhoto src="/landing/hero-amalfi.jpg" position="50% 52%" />
           <div
             style={{
@@ -128,8 +128,8 @@ export default function LandingPage() {
                   <span className="font-display italic" style={{ fontSize: 17, fontWeight: 500, color: SIENNA }}>
                     {p.n}
                   </span>
-                  <span style={{ flex: 1, height: 1, background: RULE }} />
-                  <span className="font-display italic" style={{ fontSize: 21, fontWeight: 500, color: INK }}>
+                  <span style={{ width: 32, height: 1, background: RULE, flex: "0 0 auto" }} />
+                  <span className="font-display italic" style={{ fontSize: 21, fontWeight: 500, color: INK, marginLeft: "auto" }}>
                     {p.word}
                   </span>
                 </div>
@@ -177,7 +177,7 @@ export default function LandingPage() {
           ════════════════════════════════════════════════════════════════ */}
       <div className="hidden md:block" style={{ background: PARCHMENT, color: INK }}>
         {/* HERO — full-bleed photograph, gateway card bottom-left */}
-        <div style={{ position: "relative", width: "100%", height: "min(812px, 86vh)" }}>
+        <div style={{ position: "relative", width: "100%", height: "min(100svh, 900px)" }}>
           <PlatePhoto src="/landing/hero-amalfi.jpg" position="50% 52%" />
           <div
             style={{
@@ -241,8 +241,8 @@ export default function LandingPage() {
                   <span className="font-display italic" style={{ fontSize: 20, fontWeight: 500, color: SIENNA }}>
                     {p.n}
                   </span>
-                  <span style={{ flex: 1, height: 1, background: RULE }} />
-                  <span className="font-display italic" style={{ fontSize: 24, fontWeight: 500, color: INK }}>
+                  <span style={{ width: 40, height: 1, background: RULE, flex: "0 0 auto" }} />
+                  <span className="font-display italic" style={{ fontSize: 24, fontWeight: 500, color: INK, marginLeft: "auto" }}>
                     {p.word}
                   </span>
                 </div>
