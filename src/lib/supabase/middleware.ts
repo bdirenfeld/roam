@@ -50,7 +50,10 @@ export async function updateSession(request: NextRequest) {
   // with no user session and must pass through to its signature-verified
   // handler; bouncing it to /login would silently break all payment events.
   const publicPaths = ['/login', '/auth', '/api/stripe/webhook']
-  const isPublic = publicPaths.some((p) => pathname.startsWith(p))
+  // `/` is the logged-out marketing front door — exempt by EXACT match only.
+  // (Adding '/' to publicPaths would make every path startsWith('/') public.)
+  // The page itself redirects authenticated visitors on to /trips.
+  const isPublic = pathname === '/' || publicPaths.some((p) => pathname.startsWith(p))
 
   if (!user && !isPublic) {
     // Build a fresh URL — do NOT clone request.nextUrl, which would carry over
