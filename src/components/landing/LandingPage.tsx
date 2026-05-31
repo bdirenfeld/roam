@@ -129,7 +129,7 @@ export default function LandingPage() {
                     {p.n}
                   </span>
                   <span style={{ width: 32, height: 1, background: RULE, flex: "0 0 auto" }} />
-                  <span className="font-display italic" style={{ fontSize: 21, fontWeight: 500, color: INK, marginLeft: "auto" }}>
+                  <span className="font-display italic" style={{ fontSize: 21, fontWeight: 500, color: INK }}>
                     {p.word}
                   </span>
                 </div>
@@ -242,7 +242,7 @@ export default function LandingPage() {
                     {p.n}
                   </span>
                   <span style={{ width: 40, height: 1, background: RULE, flex: "0 0 auto" }} />
-                  <span className="font-display italic" style={{ fontSize: 24, fontWeight: 500, color: INK, marginLeft: "auto" }}>
+                  <span className="font-display italic" style={{ fontSize: 24, fontWeight: 500, color: INK }}>
                     {p.word}
                   </span>
                 </div>
