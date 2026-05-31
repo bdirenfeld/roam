@@ -22,24 +22,30 @@ const ON_DARK_PRICE = "rgba(250,247,242,0.55)";
 
 // The three movements — numeral, italic word, body line, and the real app plate.
 // Plates are static screenshots cropped to hide Android system chrome (top status
-// bar + bottom nav bar) via object-position; only the app UI shows.
+// bar + bottom nav bar) via object-position; only the app UI shows. `pos` tunes
+// each crop's vertical origin: map/day land cleanly at 42%, but plan's header is
+// taller, so it needs a lower origin (60%) to start the crop at the card list and
+// avoid clipping mid-header (the "Fri, Jul 24" label + pagination dots).
 const PHASES = [
   {
     n: "i",
     word: "Brainstorm",
     src: "/landing/screen-map.jpeg",
+    pos: "50% 42%",
     line: "Throw down every place you might want to go. From a friend, a blog, a link — it all lands on one map.",
   },
   {
     n: "ii",
     word: "Decide",
     src: "/landing/screen-plan.jpeg",
+    pos: "50% 60%",
     line: "Figure out what you'll actually do. Pull each place into a day, and watch the trip take shape.",
   },
   {
     n: "iii",
     word: "Go",
     src: "/landing/screen-day.jpeg",
+    pos: "50% 42%",
     line: "Then just follow your agenda — each place in order, one day at a time.",
   },
 ];
@@ -131,7 +137,7 @@ export default function LandingPage() {
                   {p.line}
                 </p>
                 <div style={{ display: "flex", justifyContent: "center" }}>
-                  <ScreenPlate src={p.src} w={260} h={380} />
+                  <ScreenPlate src={p.src} pos={p.pos} w={260} h={380} />
                 </div>
               </div>
             ))}
@@ -243,7 +249,7 @@ export default function LandingPage() {
                 <p className="font-sans" style={{ marginBottom: 22, fontSize: 15, lineHeight: 1.62, letterSpacing: "-0.005em", color: INK_SOFT }}>
                   {p.line}
                 </p>
-                <ScreenPlate src={p.src} w={300} h={440} />
+                <ScreenPlate src={p.src} pos={p.pos} w={300} h={440} />
               </div>
             ))}
           </div>
@@ -346,9 +352,11 @@ function PlatePhoto({ src, position }: { src: string; position: string }) {
 }
 
 // A framed Roam screen "plate" — portrait crop, hairline + soft shadow, 16px radius.
-// object-fit: cover on a portrait frame trims the tall screenshot's top status bar
-// and bottom nav bar, so only the app UI is shown (per design decision).
-function ScreenPlate({ src, w, h }: { src: string; w: number; h: number }) {
+// The frame (radius + ruleStrong hairline + soft shadow) lives on the wrapper, which
+// clips the image via overflow:hidden; the radius is mirrored onto the <img> so the
+// image element itself also reports it. object-fit: cover on the portrait frame trims
+// the tall screenshot's top status bar and bottom nav bar; `pos` sets the crop origin.
+function ScreenPlate({ src, w, h, pos = "50% 42%" }: { src: string; w: number; h: number; pos?: string }) {
   return (
     <div
       style={{
@@ -367,7 +375,7 @@ function ScreenPlate({ src, w, h }: { src: string; w: number; h: number }) {
       <img
         src={src}
         alt=""
-        style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "50% 42%", display: "block" }}
+        style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: pos, borderRadius: 16, display: "block" }}
       />
     </div>
   );
