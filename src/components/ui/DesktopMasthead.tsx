@@ -396,7 +396,6 @@ export default function DesktopMasthead() {
               <button
                 type="submit"
                 role="menuitem"
-                onClick={() => setOpen(false)}
                 style={{
                   display: "block",
                   width: "100%",
