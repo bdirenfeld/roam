@@ -4,7 +4,8 @@ import { getPriceRange } from "@/lib/priceRange";
 
 interface Props {
   card: Card;
-  onTap: () => void;
+  /** Omit (guest read-only) to render the card as a non-interactive surface. */
+  onTap?: () => void;
   isHighlighted?: boolean;
   onToggleConfirmed?: () => void;
   /** Numbered pin index that matches this card's marker on the map.
@@ -105,10 +106,18 @@ export default function CardSurface({ card, onTap, isHighlighted, onToggleConfir
   // (when pinIndex is set) plus the inner card. At mobile, the inner card
   // carries all the visual styling and the outer is a thin wrapper — keeps
   // mobile pixel-identical.
+  // Guest read-only renders a plain div (no press feedback, no chevron) so a
+  // dead tap never implies an editable surface. Cast keeps the dynamic tag
+  // type-checking against the shared (button-compatible) prop set.
+  const interactive = !!onTap;
+  const Wrapper = (interactive ? "button" : "div") as "button";
+
   return (
-    <button
+    <Wrapper
       onClick={onTap}
-      className="w-full text-left transition-all duration-150 active:scale-[0.99] mb-2.5 md:mb-2 md:flex md:items-stretch md:gap-3.5"
+      className={`w-full text-left transition-all duration-150 mb-2.5 md:mb-2 md:flex md:items-stretch md:gap-3.5 ${
+        interactive ? "active:scale-[0.99]" : ""
+      }`}
     >
       {/* Desktop-only numbered pin column — matches the map marker badge */}
       <div className="hidden md:flex md:flex-shrink-0 md:w-7 md:flex-col md:items-center md:pt-[18px]">
@@ -193,14 +202,18 @@ export default function CardSurface({ card, onTap, isHighlighted, onToggleConfir
           )}
         </div>
 
-        {/* Chevron */}
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2.5" strokeLinecap="round" className="flex-shrink-0 md:hidden">
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(26,26,46,0.30)" strokeWidth="1.3" strokeLinecap="round" className="hidden md:block md:flex-shrink-0">
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
+        {/* Chevron — only when the card is tappable */}
+        {interactive && (
+          <>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2.5" strokeLinecap="round" className="flex-shrink-0 md:hidden">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(26,26,46,0.30)" strokeWidth="1.3" strokeLinecap="round" className="hidden md:block md:flex-shrink-0">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </>
+        )}
       </div>
-    </button>
+    </Wrapper>
   );
 }

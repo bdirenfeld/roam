@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { CalendarBlank, ListBullets, MapTrifold } from "@phosphor-icons/react";
+import { isTripGuest } from "@/lib/trip-access-client";
 
 /**
  * Extract /trips/[tripId]/days/[dayId] segments from the current path.
@@ -28,6 +30,16 @@ export default function BottomNav() {
   const insideTrip = !!tripId && UUID_RE.test(tripId);
   // Hide on the trip settings page — it has its own back/save header
   const isSettingsPage = pathname?.endsWith("/settings");
+
+  // A guest doesn't get the Plan tab (the Plan board is owner-only).
+  const [guest, setGuest] = useState(false);
+  useEffect(() => {
+    if (!insideTrip || !tripId) { setGuest(false); return; }
+    let cancelled = false;
+    isTripGuest(tripId).then((g) => { if (!cancelled) setGuest(g); });
+    return () => { cancelled = true; };
+  }, [insideTrip, tripId]);
+
   if (!insideTrip || isSettingsPage) return null;
 
   // Resolve tab destinations based on context
@@ -63,7 +75,7 @@ export default function BottomNav() {
         <MapTrifold size={22} weight="light" color={active ? "#1A1A2E" : "rgba(26, 26, 46, 0.4)"} />
       ),
     },
-  ];
+  ].filter((tab) => !(guest && tab.key === "trips"));
 
   return (
     <nav className="fixed bottom-0 left-[calc(50vw-195px)] w-full max-w-mobile bg-white/95 backdrop-blur-sm border-t border-gray-100 z-50 md:hidden">

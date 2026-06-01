@@ -389,6 +389,8 @@ interface Props {
   days: Day[];
   dayWithCards: DayWithCards;
   hotelCards: Card[];
+  /** Guest view — every plan-edit affordance is suppressed; the companion stays. */
+  readOnly?: boolean;
 }
 
 function formatDayTitle(dateStr: string): string {
@@ -399,7 +401,7 @@ function formatDayTitle(dateStr: string): string {
   return `${dayName}, ${dayNum} ${monthName}`;
 }
 
-export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: Props) {
+export default function DayViewClient({ trip, days, dayWithCards, hotelCards, readOnly = false }: Props) {
   const router = useRouter();
   const supabase = createClient();
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
@@ -636,13 +638,16 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
         </div>
 
         <span className="flex-1" />
-        <Link
-          href={`/trips/${trip.id}/settings`}
-          className="flex items-center justify-center w-11 h-11 text-gray-500 hover:text-gray-800 transition-colors flex-shrink-0"
-          aria-label="Trip settings"
-        >
-          <DotsThree size={20} weight="light" />
-        </Link>
+        {!readOnly && (
+          <Link
+            href={`/trips/${trip.id}/settings`}
+            className="flex items-center justify-center w-11 h-11 text-gray-500 hover:text-gray-800 transition-colors flex-shrink-0"
+            aria-label="Trip settings"
+          >
+            <DotsThree size={20} weight="light" />
+          </Link>
+        )}
+        {readOnly && <span className="w-11 flex-shrink-0" />}
       </div>
 
       {/* Day strip — md:hidden lives inside DayStrip itself */}
@@ -840,11 +845,12 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards }: 
           >
             <CardTimeline
               dayWithCards={localDayWithCards}
-              onCardTap={handleCardTap}
+              onCardTap={readOnly ? undefined : handleCardTap}
               highlightedCardId={highlightedCardId}
-              onGapTap={handleGapTap}
-              onToggleConfirmed={handleToggleConfirmed}
+              onGapTap={readOnly ? undefined : handleGapTap}
+              onToggleConfirmed={readOnly ? undefined : handleToggleConfirmed}
               cardNumberById={cardNumberById}
+              readOnly={readOnly}
             />
           </div>
         </div>

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import DayViewClient from "@/components/day/DayViewClient";
+import { getTripAccess } from "@/lib/trip-access";
 import type { Card, DayWithCards, Trip, Day } from "@/types/database";
 
 interface Props {
@@ -10,6 +11,12 @@ interface Props {
 export default async function DayPage({ params }: Props) {
   const { tripId, dayId } = await params;
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  // Guests get a read-only Day view; owners get the full editing surface.
+  const access = await getTripAccess(supabase, tripId, user?.id);
+  const readOnly = access === "guest";
   // Parallel fetch — trip, all days, cards for today, hotel cards for all days
   const [
     { data: trip },
@@ -59,6 +66,7 @@ export default async function DayPage({ params }: Props) {
       days={(days ?? []) as Day[]}
       dayWithCards={dayWithCards}
       hotelCards={(hotelCards ?? []) as Card[]}
+      readOnly={readOnly}
     />
   );
 }

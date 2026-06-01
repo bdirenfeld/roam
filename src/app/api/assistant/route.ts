@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
+import { getTripAccess } from "@/lib/trip-access";
 import { buildTripSkeleton } from "@/lib/companion/skeleton";
 import { buildSystemPrompt } from "@/lib/companion/prompt";
 import type {
@@ -634,13 +635,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "tripId required" }, { status: 400 });
   }
 
-  // Confirm the journey is the user's (RLS would also block).
-  const { data: tripCheck } = await supabase
-    .from("trips")
-    .select("id")
-    .eq("id", tripId)
-    .maybeSingle();
-  if (!tripCheck) return NextResponse.json({ error: "Journey not found" }, { status: 404 });
+  // Resolve access once — the single source of truth shared with the views and
+  // route guards. RLS also enforces this, but the resolver tells us whether the
+  // caller is a guest (talk-only) or the owner (full tools).
+  const access = await getTripAccess(supabase, tripId, user.id);
+  if (access === "none")
+    return NextResponse.json({ error: "Journey not found" }, { status: 404 });
+  const isGuest = access === "guest";
+
+  // A guest's companion is talk-only. Every plan-mutating action is owner-only;
+  // reject them at the route — the real boundary, not just the hidden UI. The
+  // guest's sole write carve-out is their own companion messages (handleTurn).
+  if (
+    isGuest &&
+    (body.approve !== undefined ||
+      body.approveCut !== undefined ||
+      body.approveMove !== undefined ||
+      body.restore !== undefined ||
+      body.discard === true)
+  ) {
+    return NextResponse.json(
+      { error: "Guests can't change this journey." },
+      { status: 403 },
+    );
+  }
 
   if (body.approve !== undefined) return handleApprove(req, supabase, tripId, body.approve);
   if (body.approveCut !== undefined)
@@ -658,7 +676,7 @@ export async function POST(req: NextRequest) {
       typeof body.conversationId === "string" && body.conversationId.trim()
         ? body.conversationId.trim()
         : null;
-    return handleTurn(req, supabase, apiKey, tripId, body.message, clientConvId);
+    return handleTurn(req, supabase, apiKey, tripId, body.message, clientConvId, user.id, isGuest);
   }
   return NextResponse.json({ error: "Nothing to do" }, { status: 400 });
 }
@@ -1084,9 +1102,18 @@ async function handleTurn(
   tripId: string,
   message: string,
   clientConvId: string | null,
+  userId: string,
+  isGuest: boolean,
 ) {
   const trimmed = message.trim();
   if (!trimmed) return NextResponse.json({ error: "Empty message" }, { status: 400 });
+
+  // Talk-only for guests: withhold the plan-mutating proposal tools (add / cut /
+  // move). The read-only get_card_detail stays — it's RLS-scoped, so a guest
+  // only ever sees scheduled cards through it.
+  const tools = isGuest
+    ? TOOLS.filter((t) => t.name === "get_card_detail")
+    : TOOLS;
 
   // Resolve the active conversation_id ONCE per turn so the user row,
   // the assistant final, and the history-window read all agree. Order:
@@ -1095,12 +1122,16 @@ async function handleTurn(
   const activeConvId =
     clientConvId ?? (await getActiveConversationId(supabase, tripId)) ?? crypto.randomUUID();
 
-  // Persist the user turn first — storage keeps the full thread.
+  // Persist the user turn first — storage keeps the full thread. user_id is
+  // stamped from the server session: required so a guest's INSERT satisfies the
+  // guest_write_own_companion policy (user_id = auth.uid()) and so their reads
+  // resolve to their own threads.
   await supabase.from("companion_messages").insert({
     trip_id: tripId,
     role: "user",
     content: trimmed,
     conversation_id: activeConvId,
+    user_id: userId,
   });
 
   // Skeleton — assembled once, here, then reused across the loop.
@@ -1152,7 +1183,7 @@ async function handleTurn(
             model: MODEL,
             max_tokens: MAX_TOKENS,
             system,
-            tools: TOOLS,
+            tools,
             messages,
           });
           ms.on("text", (delta) => {
@@ -1274,13 +1305,16 @@ async function handleTurn(
         send({ type: "text", delta: fallback });
       }
 
-      // Storage keeps the full thread regardless of what was sent.
+      // Storage keeps the full thread regardless of what was sent. Stamp
+      // user_id so the turn is attributed to its author (and a guest's own
+      // thread reads back under the guest_read_own_companion policy).
       if (assistantText.trim()) {
         await supabase.from("companion_messages").insert({
           trip_id: tripId,
           role: "assistant",
           content: assistantText.trim(),
           conversation_id: activeConvId,
+          user_id: userId,
         });
       }
 

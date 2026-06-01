@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import PlanBoard from "@/components/plan/PlanBoard";
+import { getTripAccess } from "@/lib/trip-access";
 import type { Trip, Day, Card, DayWithCards } from "@/types/database";
 
 interface Props {
@@ -10,6 +11,17 @@ interface Props {
 export default async function PlanPage({ params }: Props) {
   const { tripId } = await params;
   const supabase = await createClient();
+
+  // The Plan board is owner-only. A guest can read the trip under RLS, so the
+  // not-found check below won't catch them — guard explicitly and send them to
+  // the Day view rather than a starved board.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if ((await getTripAccess(supabase, tripId, user?.id)) === "guest") {
+    redirect(`/trips/${tripId}`);
+  }
+
   const [{ data: trip }, { data: days }, { data: cards }] =
     await Promise.all([
       supabase.from("trips").select("*").eq("id", tripId).single(),

@@ -4,13 +4,16 @@ import type { DayWithCards, Card } from "@/types/database";
 
 interface Props {
   dayWithCards: DayWithCards;
-  onCardTap: (card: Card) => void;
+  /** Omit (guest read-only) to render cards as non-interactive surfaces. */
+  onCardTap?: (card: Card) => void;
   highlightedCardId?: string | null;
   onGapTap?: (gapStartTime: string, gapEndTime: string) => void;
   onToggleConfirmed?: (cardId: string) => void;
   /** Numbered-pin index per card, keyed by card id. Used at md:+ only;
    *  omit entries (or pass an empty map) to render rows without a pin number. */
   cardNumberById?: Map<string, number>;
+  /** Guest read-only — suppress the tappable gap connector's add affordance. */
+  readOnly?: boolean;
 }
 
 function minutesBetween(end: string | null, start: string | null): number {
@@ -102,6 +105,7 @@ export default function CardTimeline({
   onGapTap,
   onToggleConfirmed,
   cardNumberById,
+  readOnly = false,
 }: Props) {
   const { cards } = dayWithCards;
 
@@ -138,14 +142,14 @@ export default function CardTimeline({
               <div key={card.id} data-card-id={card.id} className="mb-5">
                 <CardSurface
                   card={card}
-                  onTap={() => onCardTap(card)}
+                  onTap={onCardTap ? () => onCardTap(card) : undefined}
                   isHighlighted={highlightedCardId === card.id}
                   onToggleConfirmed={
                     onToggleConfirmed ? () => onToggleConfirmed(card.id) : undefined
                   }
                   pinIndex={cardNumberById?.get(card.id)}
                 />
-                {gap >= 30 && (
+                {gap >= 30 && !readOnly && (
                   <GapRow
                     minutes={gap}
                     onTap={() =>

@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { UserCircle, Calendar, Columns, MapPin } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import { signOut } from "@/lib/auth-actions";
+import { isTripGuest } from "@/lib/trip-access-client";
 
 const INK = "#1A1A2E";
 const RULE = "rgba(26,26,46,0.10)";
@@ -64,6 +65,16 @@ export default function DesktopMasthead() {
   const [tripCtx, setTripCtx] = useState<TripContext | null>(
     () => (currentTripId ? TRIP_CACHE.get(currentTripId) ?? null : null),
   );
+
+  // A guest doesn't get the Plan tab or the Trip settings entry (both
+  // owner-only). The route guards enforce this; here we just don't offer it.
+  const [guest, setGuest] = useState(false);
+  useEffect(() => {
+    if (!currentTripId) { setGuest(false); return; }
+    let cancelled = false;
+    isTripGuest(currentTripId).then((g) => { if (!cancelled) setGuest(g); });
+    return () => { cancelled = true; };
+  }, [currentTripId]);
 
   useEffect(() => {
     if (!showTripStrip || !currentTripId) return;
@@ -258,6 +269,7 @@ export default function DesktopMasthead() {
               tripId={currentTripId}
               segment={segment}
               firstDayId={tripCtx?.firstDayId ?? null}
+              guest={guest}
             />
           </>
         )}
@@ -362,7 +374,7 @@ export default function DesktopMasthead() {
                 </div>
               )}
             </div>
-            {currentTripId && (
+            {currentTripId && !guest && (
               <Link
                 href={`/trips/${currentTripId}/settings`}
                 role="menuitem"
@@ -423,10 +435,12 @@ function TripTabs({
   tripId,
   segment,
   firstDayId,
+  guest = false,
 }: {
   tripId: string;
   segment: "days" | "plan" | "map" | "settings" | null;
   firstDayId: string | null;
+  guest?: boolean;
 }) {
   const activeTab: "agenda" | "plan" | "map" =
     segment === "plan" ? "plan" : segment === "map" ? "map" : "agenda";
@@ -439,7 +453,7 @@ function TripTabs({
     { id: "agenda" as const, label: "Agenda", icon: Calendar, href: agendaHref },
     { id: "plan" as const, label: "Plan", icon: Columns, href: `/trips/${tripId}/plan` },
     { id: "map" as const, label: "Map", icon: MapPin, href: `/trips/${tripId}/map` },
-  ];
+  ].filter((t) => !(guest && t.id === "plan"));
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>

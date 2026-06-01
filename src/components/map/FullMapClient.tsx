@@ -24,6 +24,8 @@ interface Props {
   days: Day[];
   cards: Card[];
   userAvatarUrl?: string | null;
+  /** Guest view — no place search/add, no pin editing/delete, no sidebar. */
+  readOnly?: boolean;
 }
 
 // Sub-types whose visibility is controlled by the sidebar toggles
@@ -66,7 +68,7 @@ function makeInitialSubTypes(): Set<string> {
 type MarkerEntry = { marker: any; type: CardType; cardRef: { current: Card } };
 const MARKERS = new Map<string, MarkerEntry>();
 
-export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Props) {
+export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOnly = false }: Props) {
   const mapContainerRef  = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapInstRef       = useRef<any>(null);
@@ -515,21 +517,24 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
   return (
     <div className="flex w-full overflow-hidden h-[calc(100dvh-80px)] md:h-[calc(100dvh-64px)]">
 
-      {/* ── Desktop sidebar ── */}
-      <aside className="hidden md:flex md:w-[232px] flex-shrink-0 border-r overflow-y-auto z-20 flex-col" style={{ borderRightColor: "rgba(26,26,46,0.10)", background: "#FAF7F2" }}>
-        <MapSidebar
-          tripId={trip.id}
-          cards={localCards}
-          activeSubTypes={activeSubTypes}
-          setActiveSubTypes={handleSubTypesChange}
-          activeTypes={activeTypes}
-          setActiveTypes={handleActiveTypesChange}
-          activeStatuses={activeStatuses}
-          setActiveStatuses={handleActiveStatusesChange}
-          onCardSelect={handleSidebarCardSelect}
-          onCardDelete={handleCardDelete}
-        />
-      </aside>
+      {/* ── Desktop sidebar ── (owner only — it carries per-card delete and the
+          enrich utility; a guest gets the bare map) */}
+      {!readOnly && (
+        <aside className="hidden md:flex md:w-[232px] flex-shrink-0 border-r overflow-y-auto z-20 flex-col" style={{ borderRightColor: "rgba(26,26,46,0.10)", background: "#FAF7F2" }}>
+          <MapSidebar
+            tripId={trip.id}
+            cards={localCards}
+            activeSubTypes={activeSubTypes}
+            setActiveSubTypes={handleSubTypesChange}
+            activeTypes={activeTypes}
+            setActiveTypes={handleActiveTypesChange}
+            activeStatuses={activeStatuses}
+            setActiveStatuses={handleActiveStatusesChange}
+            onCardSelect={handleSidebarCardSelect}
+            onCardDelete={handleCardDelete}
+          />
+        </aside>
+      )}
 
       {/* ── Map area ── */}
       <div style={{ position: "relative", flex: 1, overflow: "hidden" }}>
@@ -555,18 +560,22 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
           </svg>
         </Link>
 
-        {/* Trip settings — mobile only */}
-        <Link
-          href={`/trips/${trip.id}/settings`}
-          className="md:hidden absolute top-4 left-14 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center"
-          style={{ backdropFilter: "blur(8px)", zIndex: 10 }}
-          aria-label="Trip settings"
-        >
-          <DotsThree size={18} weight="light" color="#374151" />
-        </Link>
+        {/* Trip settings — mobile only, owner only */}
+        {!readOnly && (
+          <Link
+            href={`/trips/${trip.id}/settings`}
+            className="md:hidden absolute top-4 left-14 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center"
+            style={{ backdropFilter: "blur(8px)", zIndex: 10 }}
+            aria-label="Trip settings"
+          >
+            <DotsThree size={18} weight="light" color="#374151" />
+          </Link>
+        )}
 
-        {/* Place search — always visible bar */}
-        <PlaceSearch onPlaceSelect={handlePlaceSelect} destination={trip.destination} lat={trip.destination_lat} lng={trip.destination_lng} />
+        {/* Place search — the add-a-place entry; owner only */}
+        {!readOnly && (
+          <PlaceSearch onPlaceSelect={handlePlaceSelect} destination={trip.destination} lat={trip.destination_lat} lng={trip.destination_lng} />
+        )}
 
         {/* Filter button + pill bar — mobile only, bottom-left, expands upward */}
         <div
@@ -703,8 +712,8 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl }: Prop
             card={selectedCard}
             anchorPos={anchorPos}
             onClose={() => { deselectPin(); setSelectedCard(null); }}
-            onCardUpdate={handleCardUpdate}
-            onCardDelete={(cardId) => { deselectPin(); handleCardDelete(cardId); }}
+            onCardUpdate={readOnly ? undefined : handleCardUpdate}
+            onCardDelete={readOnly ? undefined : (cardId) => { deselectPin(); handleCardDelete(cardId); }}
           />
         )}
 
