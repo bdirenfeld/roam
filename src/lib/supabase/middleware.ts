@@ -49,7 +49,12 @@ export async function updateSession(request: NextRequest) {
   // Public paths — no auth required. The Stripe webhook is called by Stripe
   // with no user session and must pass through to its signature-verified
   // handler; bouncing it to /login would silently break all payment events.
-  const publicPaths = ['/login', '/auth', '/api/stripe/webhook']
+  // `/journey/` is the guest claim link: it must be reachable logged-out (it
+  // initiates OAuth itself, carrying the claim path as `next`) and pre-payment
+  // (a guest is unpaid), so a real '/journey/' prefix match — NOT a bare
+  // '/journey' that could catch a future '/journeys' — exempts it from BOTH the
+  // auth bounce and the payment gate below.
+  const publicPaths = ['/login', '/auth', '/api/stripe/webhook', '/journey/']
   // `/` is the logged-out marketing front door — exempt by EXACT match only.
   // (Adding '/' to publicPaths would make every path startsWith('/') public.)
   // The page itself redirects authenticated visitors on to /trips.
@@ -63,24 +68,22 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  // Payment gate — page routes only. /api/* stays auth-only by design;
-  // /checkout (the session-creating route + its cancel target) must remain
-  // reachable for unpaid users, or the gate would loop on itself.
-  if (user) {
-    const isApiRoute = pathname.startsWith('/api/')
-    const isCheckoutRoute = pathname.startsWith('/checkout')
-    const needsGate = !isApiRoute && !isCheckoutRoute && !isPublic
+  // Payment gate — scoped to journey CREATION only. Any authenticated user may
+  // load the app; RLS scopes what they actually see (an unpaid non-guest sees
+  // an empty /trips list, a guest sees the journeys shared with them). The
+  // paywall moved from "may you open the app" to "may you create/own a
+  // journey", enforced here at the creation route. /checkout stays reachable
+  // for unpaid users because it is not the creation route. /api/* and the
+  // /journey/ claim link are never gated (the latter via isPublic above).
+  if (user && pathname.startsWith('/trips/new')) {
+    const { data: profile } = await supabase
+      .from('users')
+      .select('has_paid')
+      .eq('id', user.id)
+      .maybeSingle()
 
-    if (needsGate) {
-      const { data: profile } = await supabase
-        .from('users')
-        .select('has_paid')
-        .eq('id', user.id)
-        .maybeSingle()
-
-      if (!profile?.has_paid) {
-        return NextResponse.redirect(new URL('/checkout', request.nextUrl.origin))
-      }
+    if (!profile?.has_paid) {
+      return NextResponse.redirect(new URL('/checkout', request.nextUrl.origin))
     }
   }
 
