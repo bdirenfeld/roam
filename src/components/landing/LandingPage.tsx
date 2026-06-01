@@ -10,7 +10,6 @@ const INK = "#1A1A2E";
 const SIENNA = "#C4622D";
 const PARCHMENT = "#FAF7F2";
 const INK_SOFT = "#3A3A4E";
-const RULE = "rgba(26,26,46,0.10)";
 const RULE_STRONG = "rgba(26,26,46,0.20)";
 const CAPTION_SOFT = "rgba(26,26,46,0.40)";
 
@@ -128,7 +127,6 @@ export default function LandingPage() {
                   <span className="font-display italic" style={{ fontSize: 17, fontWeight: 500, color: SIENNA }}>
                     {p.n}
                   </span>
-                  <span style={{ width: 32, height: 1, background: RULE, flex: "0 0 auto" }} />
                   <span className="font-display italic" style={{ fontSize: 21, fontWeight: 500, color: INK }}>
                     {p.word}
                   </span>
@@ -241,7 +239,6 @@ export default function LandingPage() {
                   <span className="font-display italic" style={{ fontSize: 20, fontWeight: 500, color: SIENNA }}>
                     {p.n}
                   </span>
-                  <span style={{ width: 40, height: 1, background: RULE, flex: "0 0 auto" }} />
                   <span className="font-display italic" style={{ fontSize: 24, fontWeight: 500, color: INK }}>
                     {p.word}
                   </span>
