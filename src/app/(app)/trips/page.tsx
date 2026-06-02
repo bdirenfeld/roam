@@ -257,10 +257,12 @@ function EmptyState() {
           <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
         </svg>
       </div>
-      <p className="text-sm font-semibold text-gray-700">No trips yet</p>
-      <p className="text-xs text-gray-400 mt-1 mb-5 max-w-[200px]">
-        Plan your first adventure — every great trip starts here.
+      <p className="text-sm font-semibold text-gray-700">No journeys yet</p>
+      <p className="text-xs text-gray-400 mt-1 mb-5 max-w-[220px]">
+        Plan your first journey, or wait for one to be shared with you.
       </p>
+      {/* Routes to /trips/new; middleware sends an unpaid traveller on to
+          /checkout (the paywall) and a paid one to the form — never a dead end. */}
       <Link
         href="/trips/new"
         className="inline-flex items-center gap-2 bg-activity text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-sm hover:opacity-90 active:scale-95 transition-all"
@@ -269,7 +271,7 @@ function EmptyState() {
           <line x1="12" y1="5" x2="12" y2="19" />
           <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
-        Plan a Trip
+        Plan a journey
       </Link>
     </div>
   );
