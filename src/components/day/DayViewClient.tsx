@@ -845,7 +845,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, re
           >
             <CardTimeline
               dayWithCards={localDayWithCards}
-              onCardTap={readOnly ? undefined : handleCardTap}
+              onCardTap={handleCardTap}
               highlightedCardId={highlightedCardId}
               onGapTap={readOnly ? undefined : handleGapTap}
               onToggleConfirmed={readOnly ? undefined : handleToggleConfirmed}
@@ -867,6 +867,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, re
           onCardUpdate={handleCardUpdate}
           onCardDelete={handleCardDelete}
           tripDestination={trip.destination}
+          readOnly={readOnly}
         />
       )}
 

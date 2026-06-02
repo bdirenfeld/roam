@@ -35,6 +35,17 @@ interface Props {
   days?: Day[];
   /** Trip destination string (e.g. "Rome, Italy") — used to derive country dial code */
   tripDestination?: string;
+  /** Guest view — render every section read-only; no edit/add/delete/move
+   *  controls, no editable fields, and the confirmation reference is hidden. */
+  readOnly?: boolean;
+}
+
+/** Drop the booking/flight confirmation reference so it never renders for a
+ *  guest. Other facts (meeting point, includes, contact, transport) are kept. */
+function withoutConfirmation(details: Card["details"]): Card["details"] {
+  const rest = { ...details };
+  delete (rest as Record<string, unknown>).confirmation;
+  return rest;
 }
 
 // ── Sub-type display labels ────────────────────────────────────
@@ -407,7 +418,7 @@ function TitleEditor({
 }
 
 // ── Main component ─────────────────────────────────────────────
-export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDelete, days, tripDestination }: Props) {
+export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDelete, days, tripDestination, readOnly = false }: Props) {
   const supabase = createClient();
   const sheetRef = useRef<HTMLDivElement>(null);
   const dragY = useRef(0);
@@ -706,40 +717,54 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const key = place ? `${place.type}/${place.sub_type ?? ""}` : "note";
 
   function renderDetail() {
+    // Read-only (guest): every detail component already renders static when
+    // onSaveDetails is absent, so pass undefined. Strip the confirmation
+    // reference and never reveal empty fields (there's nothing to fill in).
+    const dCard = readOnly
+      ? { ...localCard, details: withoutConfirmation(localCard.details) }
+      : localCard;
+    const onSave = readOnly ? undefined : saveDetails;
+    const empty = readOnly ? false : showEmptyFields;
     switch (key) {
       case "logistics/flight_arrival":
-        return <FlightArrivalDetail card={localCard} onSaveDetails={saveDetails} />;
+        return <FlightArrivalDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
       case "food/coffee":
       case "food/coffee_dessert":
-        return <CoffeeDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
+        return <CoffeeDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
       case "food/bar":
       case "food/cocktail_bar":
-        return <CocktailBarDetail card={localCard} onSaveDetails={saveDetails} hideAddress showEmpty={showEmptyFields} />;
+        return <CocktailBarDetail card={dCard} onSaveDetails={onSave} hideAddress showEmpty={empty} />;
       case "food/drinks":
-        return <CocktailBarDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
+        return <CocktailBarDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
       case "food/restaurant":
-        return <RestaurantDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
+        return <RestaurantDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
       case "activity/self_directed":
-        return <SelfDirectedDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
+        return <SelfDirectedDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
       case "activity/guided":
       case "activity/hosted":
-        return <GuidedDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
+        return <GuidedDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
       case "note":
-        return <NoteDetail notes={(localCard.details?.notes as string) ?? ""} onSave={(v) => saveDetails("notes", v)} />;
+        return readOnly ? (
+          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+            {(dCard.details?.notes as string) ?? ""}
+          </p>
+        ) : (
+          <NoteDetail notes={(localCard.details?.notes as string) ?? ""} onSave={(v) => saveDetails("notes", v)} />
+        );
       case "activity/event":
-        return <EventDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
+        return <EventDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
       case "activity/challenge":
-        return <ChallengeDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
+        return <ChallengeDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
       case "logistics/flight_departure":
-        return <FlightArrivalDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
+        return <FlightArrivalDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
       case "logistics/hotel":
-        return <HotelDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
+        return <HotelDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
       case "activity/wellness":
-        return <WellnessDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
+        return <WellnessDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
       default:
-        if (place?.type === "logistics") return <LogisticsDetail card={localCard} />;
-        if (place?.type === "activity")  return <ActivityDetail  card={localCard} />;
-        return <RestaurantDetail card={localCard} onSaveDetails={saveDetails} showEmpty={showEmptyFields} />;
+        if (place?.type === "logistics") return <LogisticsDetail card={dCard} />;
+        if (place?.type === "activity")  return <ActivityDetail  card={dCard} />;
+        return <RestaurantDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
     }
   }
 
@@ -805,18 +830,18 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               {/* Type badge — tappable to change sub-type (only when linked to a place) */}
               <div className="relative">
                 <button
-                  onClick={() => place && setShowSubTypePicker((v) => !v)}
-                  className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${accent.bg} ${place ? "hover:opacity-80 active:opacity-70 transition-opacity cursor-pointer" : "cursor-default"}`}
+                  onClick={readOnly ? undefined : () => place && setShowSubTypePicker((v) => !v)}
+                  className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${accent.bg} ${place && !readOnly ? "hover:opacity-80 active:opacity-70 transition-opacity cursor-pointer" : "cursor-default"}`}
                 >
                   <span className={`w-2 h-2 rounded-full ${accent.dot}`} />
                   <span className={`text-[11px] font-semibold ${accent.text}`}>{typeLabel}</span>
-                  {place && (
+                  {place && !readOnly && (
                     <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className={accent.text}>
                       <polyline points="6 9 12 15 18 9" />
                     </svg>
                   )}
                 </button>
-                {showSubTypePicker && place && (
+                {showSubTypePicker && place && !readOnly && (
                   <SubTypePicker
                     currentType={place.type}
                     currentSubType={place.sub_type ?? null}
@@ -857,7 +882,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 </div>
               )}
               {/* Paperclip — attachments (logistics and activity cards only) */}
-              {(place?.type === "logistics" || place?.type === "activity") && (
+              {!readOnly && (place?.type === "logistics" || place?.type === "activity") && (
                 <button
                   onClick={() => setShowAttachments(true)}
                   className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
@@ -868,7 +893,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   </svg>
                 </button>
               )}
-              {localCard.status === "in_itinerary" && (
+              {!readOnly && localCard.status === "in_itinerary" && (
                 <button
                   onClick={() => setShowLinkSheet(true)}
                   className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
@@ -880,19 +905,21 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   </svg>
                 </button>
               )}
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
-                aria-label="Delete card"
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                  <path d="M10 11v6" />
-                  <path d="M14 11v6" />
-                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                </svg>
-              </button>
+              {!readOnly && (
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                  aria-label="Delete card"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                    <path d="M10 11v6" />
+                    <path d="M14 11v6" />
+                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                  </svg>
+                </button>
+              )}
               <button
                 onClick={onClose}
                 className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
@@ -906,9 +933,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             </div>
           </div>
 
-          {/* Title — editable when linked to a place, readonly otherwise */}
+          {/* Title — editable when linked to a place (owner); static otherwise */}
           <div className="mt-2.5">
-            {place ? (
+            {place && !readOnly ? (
               <TitleEditor
                 value={place.title}
                 onSave={(v) => saveTitle(v)}
@@ -920,31 +947,43 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
 
           {/* Editable time row */}
           <div className="flex items-center gap-1 mt-1 flex-wrap -ml-2">
-            {/* Start time — always shown */}
-            <TimeChip
-              value={localCard.start_time}
-              placeholder="Add start time"
-              onSave={(hhmm) => saveTopLevel("start_time", toDbTime(hhmm))}
-            />
-
-            {/* Separator + end time (or "+" to add end time) */}
-            {localCard.start_time && (
-              localCard.end_time ? (
-                <>
-                  <span className="text-gray-300 text-sm select-none">–</span>
-                  <TimeChip
-                    value={localCard.end_time}
-                    placeholder="End time"
-                    onSave={(hhmm) => saveTopLevel("end_time", toDbTime(hhmm))}
-                  />
-                </>
-              ) : (
-                <TimeChip
-                  value={null}
-                  placeholder="+ end time"
-                  onSave={(hhmm) => saveTopLevel("end_time", toDbTime(hhmm))}
-                />
+            {readOnly ? (
+              /* Static time (guest) — no editable chips */
+              localCard.start_time && (
+                <span className="text-sm text-gray-700 font-medium px-2 py-0.5">
+                  {formatTime(localCard.start_time)}
+                  {localCard.end_time ? ` – ${formatTime(localCard.end_time)}` : ""}
+                </span>
               )
+            ) : (
+              <>
+                {/* Start time — always shown */}
+                <TimeChip
+                  value={localCard.start_time}
+                  placeholder="Add start time"
+                  onSave={(hhmm) => saveTopLevel("start_time", toDbTime(hhmm))}
+                />
+
+                {/* Separator + end time (or "+" to add end time) */}
+                {localCard.start_time && (
+                  localCard.end_time ? (
+                    <>
+                      <span className="text-gray-300 text-sm select-none">–</span>
+                      <TimeChip
+                        value={localCard.end_time}
+                        placeholder="End time"
+                        onSave={(hhmm) => saveTopLevel("end_time", toDbTime(hhmm))}
+                      />
+                    </>
+                  ) : (
+                    <TimeChip
+                      value={null}
+                      placeholder="+ end time"
+                      onSave={(hhmm) => saveTopLevel("end_time", toDbTime(hhmm))}
+                    />
+                  )
+                )}
+              </>
             )}
 
             {/* Duration */}
@@ -1044,7 +1083,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                     </svg>
                     Menu
                   </a>
-                ) : (
+                ) : readOnly ? null : (
                   <button
                     onClick={() => { setShowMenuInput((v) => !v); setMenuInputValue(""); }}
                     style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 20, border: "0.5px solid #E5E0D8", background: "#fff", fontSize: 11, color: "#4B5563", opacity: 0.38 }}
@@ -1060,7 +1099,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               )}
             </div>
           )}
-          {place?.type === "food" && showMenuInput && (
+          {place?.type === "food" && !readOnly && showMenuInput && (
             <div className="mt-2 flex items-center gap-2">
               <input
                 type="url"
@@ -1097,7 +1136,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             {renderDetail()}
 
             {/* Confirmation toggle — guided activities, all logistics, restaurants */}
-            {((place?.type === "activity" && place.sub_type === "guided") ||
+            {!readOnly && ((place?.type === "activity" && place.sub_type === "guided") ||
               place?.type === "logistics" ||
               (place?.type === "food" && place.sub_type === "restaurant")) && (
               <button
@@ -1123,8 +1162,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               </button>
             )}
 
-            {/* Add details / collapse toggle — not shown for notes */}
-            {place && place.sub_type !== "note" && (
+            {/* Add details / collapse toggle — owner only, not shown for notes */}
+            {!readOnly && place && place.sub_type !== "note" && (
               <button
                 onClick={() => setShowEmptyFields((v) => !v)}
                 className="mt-4 flex items-center gap-1.5 text-[12px] text-gray-400 hover:text-gray-600 transition-colors"
@@ -1143,7 +1182,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         {/* Bottom action area */}
         <div className="flex-shrink-0 border-t border-gray-100 bg-white">
           {/* Assign to Day — only for unplaced cards */}
-          {localCard.status === "interested" && days && days.length > 0 && !showDeleteConfirm && (
+          {!readOnly && localCard.status === "interested" && days && days.length > 0 && !showDeleteConfirm && (
             <div className="px-5 pt-4 pb-2">
               <button
                 onClick={() => setShowDayPicker(true)}
@@ -1155,7 +1194,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           )}
 
           {/* Move to Day — for in_itinerary cards (useful on mobile) */}
-          {localCard.status === "in_itinerary" && days && days.length > 1 && !showDeleteConfirm && (
+          {!readOnly && localCard.status === "in_itinerary" && days && days.length > 1 && !showDeleteConfirm && (
             <div className="px-5 pt-3 pb-2">
               <button
                 onClick={() => setShowMovePicker(true)}
