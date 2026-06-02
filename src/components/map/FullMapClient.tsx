@@ -577,9 +577,12 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
           <PlaceSearch onPlaceSelect={handlePlaceSelect} destination={trip.destination} lat={trip.destination_lat} lng={trip.destination_lng} />
         )}
 
-        {/* Filter button + pill bar — mobile only, bottom-left, expands upward */}
+        {/* Filter button + pill bar — bottom-left, expands upward. View-only
+            (toggles pin visibility, mutates nothing). Mobile-only for owners
+            (desktop owners use the sidebar); shown on desktop too for guests,
+            since their sidebar is suppressed. */}
         <div
-          className="md:hidden absolute bottom-4 left-3 flex flex-col gap-2"
+          className={`${readOnly ? "" : "md:hidden"} absolute bottom-4 left-3 flex flex-col gap-2`}
           style={{ zIndex: 10 }}
         >
           {/* Pill rows — rendered above the button (flex-col, first child = top) */}
@@ -621,7 +624,9 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
                 })}
               </div>
 
-              {/* Row 2 — Status */}
+              {/* Row 2 — Status. Hidden for guests: under RLS they only have
+                  scheduled pins, so the toggle would be dead. */}
+              {!readOnly && (
               <div className="flex items-center gap-2">
                 {(
                   [
@@ -652,6 +657,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
                   );
                 })}
               </div>
+              )}
             </div>
           )}
 
