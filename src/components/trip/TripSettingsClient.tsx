@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Camera } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import TravellersSection, { type Person } from "@/components/trip/TravellersSection";
+import ShareJourneySection, { type ShareGuest } from "@/components/trip/ShareJourneySection";
 import type { Trip, Day } from "@/types/database";
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
@@ -13,6 +14,8 @@ interface Props {
   trip: Trip;
   days: Day[];
   initialPeople: Person[];
+  initialShareToken: string | null;
+  initialGuests: ShareGuest[];
 }
 
 function fmtDate(dateStr: string): string {
@@ -46,7 +49,7 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December",
 ];
 
-export default function TripSettingsClient({ trip, days, initialPeople }: Props) {
+export default function TripSettingsClient({ trip, days, initialPeople, initialShareToken, initialGuests }: Props) {
   const router = useRouter();
 
   // Form state
@@ -439,6 +442,13 @@ export default function TripSettingsClient({ trip, days, initialPeople }: Props)
 
         {/* ── Travellers — who's on this journey ── */}
         <TravellersSection tripId={trip.id} initialPeople={initialPeople} />
+
+        {/* ── Share this journey — guest sharing ── */}
+        <ShareJourneySection
+          tripId={trip.id}
+          initialShareToken={initialShareToken}
+          initialGuests={initialGuests}
+        />
 
         {/* ── Manage journey — quiet text links ── */}
         <div className="py-8 flex items-center justify-center gap-3">
