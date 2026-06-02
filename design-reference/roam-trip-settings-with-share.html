@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roam · Trip settings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400;1,500&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
+<style>
+  :root{
+    --parchment:#FAF7F2;
+    --ink:#1A1A2E;
+    --sienna:#C4622D;
+    --coral:#D98A77;
+    --hair:rgba(26,26,46,.1);
+    --hair-2:rgba(26,26,46,.15);
+    --label:rgba(26,26,46,.45);
+    --muted:rgba(26,26,46,.6);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:#fff;color:var(--ink);font-family:'DM Sans',-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+  .pf{font-family:'Playfair Display',serif}
+  .pi{font-family:'Playfair Display',serif;font-style:italic}
+  .lbl{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--label)}
+
+  .masthead{height:64px;background:var(--parchment);border-bottom:0.5px solid var(--hair);
+    display:flex;align-items:center;justify-content:space-between;padding:0 30px}
+  .brand{display:flex;align-items:center;gap:18px}
+  .brand .logo{font-size:23px;color:var(--ink)}
+  .brand .sep{width:0.5px;height:22px;background:var(--hair-2)}
+  .brand .section{font-size:17px;color:rgba(26,26,46,.5)}
+  .mast-right{display:flex;align-items:center;gap:18px;color:rgba(26,26,46,.55)}
+  .mast-right i{font-size:22px;cursor:pointer}
+  .avatar-btn{width:30px;height:30px;border-radius:50%;border:0.5px solid var(--hair-2);
+    display:flex;align-items:center;justify-content:center}
+  .avatar-btn i{font-size:17px}
+
+  .subbar{height:56px;border-bottom:0.5px solid var(--hair);display:flex;align-items:center;
+    padding:0 30px}
+  .subbar .back{font-size:20px;color:rgba(26,26,46,.5);cursor:pointer}
+  .subbar .title{flex:1;text-align:center;font-size:15px;font-weight:500;color:var(--ink)}
+  .subbar .save{font-size:15px;font-weight:500;color:var(--ink);cursor:pointer}
+
+  .page{max-width:820px;margin:0 auto;padding:40px 24px 80px}
+
+  .cover{height:150px;border-radius:3px;background:#8d8275;position:relative;overflow:hidden;
+    display:flex;align-items:center;justify-content:center}
+  .cover .change{display:flex;flex-direction:column;align-items:center;gap:5px;color:rgba(255,255,255,.92)}
+  .cover .change i{font-size:22px}
+  .cover .change span{font-size:13px}
+
+  .row{display:flex;align-items:center;gap:24px;padding:18px 4px;border-bottom:0.5px solid var(--hair)}
+  .row .lbl{width:96px;flex-shrink:0}
+  .row .val{font-size:15px;color:var(--ink)}
+  .row .val.flex1{flex:1}
+  .row .nights{font-size:13px;color:var(--label)}
+  .dots{margin-left:auto;width:34px;height:26px;border-radius:7px;background:rgba(26,26,46,.06);
+    display:flex;align-items:center;justify-content:center;color:rgba(26,26,46,.4);cursor:pointer}
+  .dots i{font-size:16px}
+  .stepper{display:flex;align-items:center;gap:14px}
+  .step{width:26px;height:26px;border-radius:50%;background:rgba(26,26,46,.06);border:none;
+    color:var(--ink);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .stepval{font-size:15px;min-width:12px;text-align:center}
+
+  .section-h{font-size:23px;color:var(--ink);margin:38px 0 6px}
+
+  .person{display:flex;align-items:flex-start;gap:16px;padding:18px 4px;border-bottom:0.5px solid var(--hair)}
+  .person .av{width:48px;height:48px;border-radius:50%;background:var(--ink);color:var(--parchment);
+    display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+  .person .pname{font-size:18px;color:var(--ink);display:flex;align-items:baseline;gap:12px}
+  .person .born{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--label)}
+  .person .interest{font-size:15px;color:var(--muted);margin-top:5px}
+
+  .addrow{display:flex;align-items:center;gap:10px;padding:18px 4px;color:rgba(26,26,46,.45);
+    font-size:16px;cursor:pointer}
+  .addrow i{font-size:18px}
+
+  .share{padding-top:4px}
+  .share .lede{font-size:14px;line-height:1.6;color:var(--muted);margin:8px 0 16px;max-width:62ch}
+  .btn-create{background:var(--sienna);color:var(--parchment);border:none;border-radius:9px;
+    padding:11px 17px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;
+    display:inline-flex;align-items:center;gap:8px;cursor:pointer;transition:filter .15s ease}
+  .btn-create:hover{filter:brightness(1.06)}
+  .btn-create i{font-size:17px}
+
+  .linkfield{display:flex;align-items:center;gap:10px;border:0.5px solid var(--hair-2);
+    border-radius:9px;padding:9px 9px 9px 13px;background:rgba(26,26,46,.02);max-width:520px}
+  .linkfield .pin{font-size:16px;color:var(--label)}
+  .linkfield .url{flex:1;min-width:0;font-size:14px;color:var(--ink);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .btn-copy{display:inline-flex;align-items:center;gap:6px;flex-shrink:0;background:none;
+    border:0.5px solid rgba(26,26,46,.25);border-radius:7px;padding:7px 12px;
+    font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;color:var(--ink);
+    cursor:pointer;transition:background .15s ease}
+  .btn-copy:hover{background:rgba(26,26,46,.05)}
+  .btn-copy i{font-size:15px}
+  .btn-revoke{background:none;border:none;color:rgba(26,26,46,.6);
+    font-family:'DM Sans',sans-serif;font-size:13px;padding:10px 0 0;cursor:pointer}
+  .btn-revoke:hover{color:var(--ink)}
+
+  .guest{display:flex;align-items:center;gap:14px;padding:12px 4px;border-bottom:0.5px solid var(--hair);
+    transition:opacity .2s ease}
+  .guest .gav{width:38px;height:38px;border-radius:50%;background:rgba(26,26,46,.07);
+    color:rgba(26,26,46,.7);display:flex;align-items:center;justify-content:center;
+    font-size:14px;font-weight:500;font-family:'DM Sans',sans-serif;flex-shrink:0}
+  .guest .gmeta{flex:1;min-width:0}
+  .guest .gname{font-size:14px;font-weight:500;color:var(--ink);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .guest .gemail{font-size:13px;color:rgba(26,26,46,.5);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .btn-remove{background:none;border:none;color:rgba(26,26,46,.4);cursor:pointer;padding:5px;
+    display:flex;transition:color .15s ease}
+  .btn-remove:hover{color:var(--ink)}
+  .btn-remove i{font-size:18px}
+
+  .footer{text-align:center;margin-top:46px;font-size:14px}
+  .footer .arch{color:rgba(26,26,46,.5);cursor:pointer}
+  .footer .dot{color:rgba(26,26,46,.3);margin:0 10px}
+  .footer .del{color:var(--coral);cursor:pointer}
+
+  .reveal{animation:rise .28s ease both}
+  @keyframes rise{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+  <div class="masthead">
+    <div class="brand">
+      <span class="pf logo">Roam</span>
+      <span class="sep"></span>
+      <span class="pi section">Journeys</span>
+    </div>
+    <div class="mast-right">
+      <i class="ph-light ph-plus" aria-hidden="true"></i>
+      <span class="avatar-btn"><i class="ph-light ph-user" aria-hidden="true"></i></span>
+    </div>
+  </div>
+
+  <div class="subbar">
+    <i class="ph-light ph-caret-left back" aria-hidden="true"></i>
+    <span class="title">Trip settings</span>
+    <span class="save">Save</span>
+  </div>
+
+  <div class="page">
+    <div class="cover">
+      <div class="change"><i class="ph-light ph-camera" aria-hidden="true"></i><span>Change cover</span></div>
+    </div>
+
+    <div class="row">
+      <span class="lbl">Name</span>
+      <span class="val flex1">New York (Mia &amp; Daddy)</span>
+      <span class="dots"><i class="ph-light ph-dots-three" aria-hidden="true"></i></span>
+    </div>
+    <div class="row">
+      <span class="lbl">Destination</span>
+      <span class="val">New York, NY, USA</span>
+    </div>
+    <div class="row">
+      <span class="lbl">Dates</span>
+      <span class="val flex1">Jul 23 &nbsp;&rarr;&nbsp; Jul 26</span>
+      <span class="nights">3 nights</span>
+    </div>
+    <div class="row">
+      <span class="lbl">Travellers</span>
+      <div class="stepper">
+        <button class="step" aria-label="Fewer travellers">&minus;</button>
+        <span class="stepval">2</span>
+        <button class="step" aria-label="More travellers">+</button>
+      </div>
+    </div>
+
+    <h2 class="pi section-h">Travellers</h2>
+    <div class="person">
+      <div class="av pf">B</div>
+      <div>
+        <div class="pname"><span class="pi">Brennan Direnfeld</span><span class="born">Born Apr 3</span></div>
+        <div class="pi interest">Good restaurants and walking around the city</div>
+      </div>
+    </div>
+    <div class="person">
+      <div class="av pf">M</div>
+      <div>
+        <div class="pname"><span class="pi">Mia Direnfeld</span><span class="born">Born Aug 14</span></div>
+        <div class="pi interest">Ice cream and slime</div>
+      </div>
+    </div>
+    <div class="addrow"><i class="ph-light ph-plus" aria-hidden="true"></i><span class="pi">Add traveller</span></div>
+
+    <h2 class="pi section-h">Share this journey</h2>
+    <section class="share">
+      <div id="off" hidden>
+        <p class="lede">Invite a guest to view your days and your map, and ask the companion for advice &mdash; they can&rsquo;t change a thing.</p>
+        <button class="btn-create" id="createBtn"><i class="ph-light ph-link" aria-hidden="true"></i>Create link</button>
+      </div>
+
+      <div id="on">
+        <p class="lede">Anyone with this link can view this journey.</p>
+        <div class="linkfield">
+          <i class="ph-light ph-link pin" aria-hidden="true"></i>
+          <span class="url" id="url">roam.app/journey/9f3k2m</span>
+          <button class="btn-copy" id="copyBtn"><i class="ph-light ph-copy" aria-hidden="true"></i><span id="copyLabel">Copy</span></button>
+        </div>
+        <button class="btn-revoke" id="revokeBtn">Revoke link</button>
+
+        <div class="lbl" style="margin:22px 0 2px">Guests</div>
+        <div id="guests">
+          <div class="guest">
+            <div class="gav">M</div>
+            <div class="gmeta"><div class="gname">Margaux Hill</div><div class="gemail">margaux.hill@gmail.com</div></div>
+            <button class="btn-remove" aria-label="Remove Margaux Hill"><i class="ph-light ph-x" aria-hidden="true"></i></button>
+          </div>
+          <div class="guest">
+            <div class="gav">J</div>
+            <div class="gmeta"><div class="gname">James Okafor</div><div class="gemail">j.okafor@gmail.com</div></div>
+            <button class="btn-remove" aria-label="Remove James Okafor"><i class="ph-light ph-x" aria-hidden="true"></i></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="footer">
+      <span class="arch">Archive this journey</span>
+      <span class="dot">&middot;</span>
+      <span class="del">Delete permanently</span>
+    </div>
+  </div>
+
+<script>
+  const off = document.getElementById('off');
+  const on = document.getElementById('on');
+  document.getElementById('createBtn').addEventListener('click', () => {
+    off.hidden = true; on.hidden = false; on.classList.add('reveal');
+  });
+  document.getElementById('revokeBtn').addEventListener('click', () => {
+    on.hidden = true; off.hidden = false; off.classList.add('reveal');
+  });
+  const copyLabel = document.getElementById('copyLabel');
+  document.getElementById('copyBtn').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText('https://' + document.getElementById('url').textContent); } catch(e){}
+    copyLabel.textContent = 'Copied';
+    setTimeout(() => copyLabel.textContent = 'Copy', 1500);
+  });
+  document.querySelectorAll('.btn-remove').forEach(b => {
+    b.addEventListener('click', () => {
+      const row = b.closest('.guest');
+      row.style.opacity = '0';
+      setTimeout(() => row.remove(), 200);
+    });
+  });
+</script>
+</body>
+</html>
