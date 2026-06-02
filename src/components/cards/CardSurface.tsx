@@ -144,9 +144,9 @@ export default function CardSurface({ card, onTap, isHighlighted, onToggleConfir
         <div className={`relative w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 md:rounded-full md:bg-[rgba(26,26,46,0.05)] ${colors.bg} ${colors.icon}`}>
           {/* eslint-disable-next-line react/no-danger */}
           <div dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(place?.sub_type ?? null, 18) }} />
-          {isConfirmable(card) && card.confirmed && (
+          {isConfirmable(card) && card.confirmed && onToggleConfirmed && (
             <button
-              onClick={(e) => { e.stopPropagation(); onToggleConfirmed?.(); }}
+              onClick={(e) => { e.stopPropagation(); onToggleConfirmed(); }}
               aria-label="Confirmed — tap to unconfirm"
               style={{
                 position: "absolute",
