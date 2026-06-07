@@ -1243,12 +1243,13 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           />
         )}
 
-        {/* Link place sheet — unlinked cards default to activity */}
+        {/* Link place sheet — a card with no linked place has no type, so the
+            picker shows every saved place (null = no filter). */}
         {showLinkSheet && (
           <div className="absolute inset-0 z-10">
             <LinkPlaceSheet
               tripId={localCard.trip_id}
-              cardType={place?.type ?? "activity"}
+              cardType={place?.type ?? null}
               onLink={handleLinkPlace}
               onClose={() => setShowLinkSheet(false)}
             />

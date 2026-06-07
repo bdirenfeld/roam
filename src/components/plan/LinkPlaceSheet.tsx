@@ -6,46 +6,19 @@ import { createClient } from "@/lib/supabase/client";
 
 interface Props {
   tripId:   string;
-  cardType: CardType;
+  /** The card's declared type. `null` (e.g. a fresh Note card) shows every saved place. */
+  cardType: CardType | null;
   onLink:   (place: Card) => void;
   onClose:  () => void;
 }
 
-// ── Sub-types belonging to each card type ──────────────────────
-const TYPE_SUB_TYPES: Record<CardType, string[]> = {
-  food:      ["restaurant", "coffee", "coffee_dessert", "dessert", "cocktail_bar", "drinks", "bar"],
-  activity:  ["guided", "hosted", "self_directed", "wellness", "event", "challenge"],
-  logistics: ["hotel", "flight_arrival", "flight_departure", "transit"],
-};
+// Display order for the type-level groups.
+const TYPE_ORDER: CardType[] = ["food", "activity", "logistics"];
 
-// Display order — one row per visible group.
-// "hosted" is intentionally omitted: hosted cards are folded into the "guided" bucket.
-// All other activity sub-types (self_directed, wellness, event, challenge) are explicit
-// so they always show when matching pins exist.
-const SUB_ORDER: Record<CardType, string[]> = {
-  food:      ["restaurant", "coffee", "dessert", "bar"],
-  activity:  ["guided", "self_directed", "wellness", "event", "challenge"],
-  logistics: ["hotel", "flight_arrival", "flight_departure", "transit"],
-};
-
-const SUB_LABEL: Record<string, string> = {
-  restaurant:       "Restaurant",
-  coffee:           "Coffee",
-  coffee_dessert:   "Coffee",
-  dessert:          "Dessert",
-  cocktail_bar:     "Bar",
-  drinks:           "Bar",
-  bar:              "Bar",
-  guided:           "Guided",
-  hosted:           "Guided",
-  self_directed:    "Self-Directed",
-  wellness:         "Wellness",
-  event:            "Event",
-  challenge:        "Challenge",
-  hotel:            "Hotel",
-  flight_arrival:   "Flight Arrival",
-  flight_departure: "Flight Departure",
-  transit:          "Transit",
+const TYPE_LABEL: Record<CardType, string> = {
+  food:      "Food",
+  activity:  "Activity",
+  logistics: "Logistics",
 };
 
 const TYPE_COLOR: Record<CardType, string> = {
@@ -54,7 +27,7 @@ const TYPE_COLOR: Record<CardType, string> = {
   logistics: "#111827",
 };
 
-// Simple sub-type icons (SVG paths)
+// Simple sub-type icons (SVG paths) — used for each place's row glyph.
 function SubTypeIcon({ subType, color }: { subType: string; color: string }) {
   const s = { width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: color, strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
 
@@ -135,11 +108,6 @@ function SubTypeIcon({ subType, color }: { subType: string; color: string }) {
         </svg>
       );
     case "flight_arrival":
-      return (
-        <svg {...s}>
-          <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21 4 19 4c-.7 0-1.5.3-2 .8L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" />
-        </svg>
-      );
     case "flight_departure":
       return (
         <svg {...s}>
@@ -173,9 +141,6 @@ export default function LinkPlaceSheet({ tripId, cardType, onLink, onClose }: Pr
   const [places,  setPlaces]  = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const validSubTypes = TYPE_SUB_TYPES[cardType] ?? [];
-  const color         = TYPE_COLOR[cardType];
-
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -188,28 +153,29 @@ export default function LinkPlaceSheet({ tripId, cardType, onLink, onClose }: Pr
     return () => document.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  // Fetch interested cards filtered to this card's type, deduplicated by place_id then title
+  // Fetch this trip's interested cards that have a linked place, then filter by
+  // the card's declared type CLIENT-SIDE — at the TYPE level only (never
+  // sub_type). A card with no type shows every saved place. Trip card counts
+  // are small, so this sidesteps PostgREST embedded-filter syntax entirely.
   useEffect(() => {
     supabase
       .from("cards")
       .select(`
         *,
-        place:places!inner (
+        place:places (
           id, title, type, sub_type, lat, lng, address, google_place_id, cover_image_url, rating, price_level
         )
       `)
       .eq("trip_id", tripId)
       .eq("status", "interested")
-      .eq("place.type", cardType)
-      .not("place.lat", "is", null)
-      .order("sub_type", { referencedTable: "place" })
-      .order("title", { referencedTable: "place" })
+      .not("place_id", "is", null)
       .then(({ data }) => {
-        const raw = (data ?? []) as Card[];
-        // Dedup: prefer the card with a cover image; key by place_id, then fall back to title
+        const raw   = ((data ?? []) as Card[]).filter((c) => c.place);
+        const typed = cardType ? raw.filter((c) => c.place!.type === cardType) : raw;
+        // Dedupe by place_id; prefer the card that already has a cover image.
         const seen = new Map<string, Card>();
-        for (const card of raw) {
-          const key = card.place_id ?? card.place!.title.toLowerCase().trim();
+        for (const card of typed) {
+          const key      = card.place_id!;
           const existing = seen.get(key);
           if (!existing || (card.place!.cover_image_url && !existing.place!.cover_image_url)) {
             seen.set(key, card);
@@ -246,31 +212,18 @@ export default function LinkPlaceSheet({ tripId, cardType, onLink, onClose }: Pr
     }
   }, [onClose]);
 
-  // Group by sub_type in display order
-  const subOrder = SUB_ORDER[cardType] ?? [];
-  const grouped  = subOrder
-    .map((sub) => ({
-      sub,
-      label: SUB_LABEL[sub] ?? sub,
-      cards: places.filter((p) => {
-        const st = p.place!.sub_type ?? "";
-        // Collapse aliased sub-types into one bucket
-        if (sub === "coffee")      return st === "coffee" || st === "coffee_dessert";
-        if (sub === "bar")         return st === "bar" || st === "cocktail_bar" || st === "drinks";
-        if (sub === "guided")      return st === "guided" || st === "hosted";
-        return st === sub;
-      }),
-    }))
+  // Group lightly by type, in display order.
+  const grouped = TYPE_ORDER
+    .map((type) => ({ type, cards: places.filter((p) => p.place!.type === type) }))
     .filter((g) => g.cards.length > 0);
 
-  // Bucket any sub_type not captured by the grouped display into "Other"
-  // knownSubs covers all sub-types in TYPE_SUB_TYPES for this card type
-  const knownSubs = new Set(validSubTypes);
-  // Also mark alias sub-types as known so they don't appear in Other
-  ["coffee_dessert", "cocktail_bar", "drinks", "hosted"].forEach((s) => knownSubs.add(s));
-  const otherCards = places.filter((p) => !knownSubs.has(p.place!.sub_type ?? ""));
+  const subtitle = cardType
+    ? `Showing ${TYPE_LABEL[cardType].toLowerCase()} places`
+    : "Showing all saved places";
 
-  const typeLabel = { food: "Food", activity: "Activity", logistics: "Logistics" }[cardType];
+  const emptyCopy = cardType
+    ? `No ${TYPE_LABEL[cardType].toLowerCase()} places saved yet`
+    : "No places saved yet — find them on the Map";
 
   return (
     <div
@@ -296,9 +249,7 @@ export default function LinkPlaceSheet({ tripId, cardType, onLink, onClose }: Pr
         <div className="flex items-center justify-between px-5 pt-3 pb-3 border-b border-gray-100 flex-shrink-0">
           <div>
             <h3 className="text-[15px] font-bold text-gray-900">Link place from map</h3>
-            <p className="text-[11px] text-gray-400 mt-0.5">
-              Showing {typeLabel.toLowerCase()} pins
-            </p>
+            <p className="text-[11px] text-gray-400 mt-0.5">{subtitle}</p>
           </div>
           <button
             onClick={onClose}
@@ -319,26 +270,22 @@ export default function LinkPlaceSheet({ tripId, cardType, onLink, onClose }: Pr
             </div>
           ) : places.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
-              <p className="text-[13px] font-medium text-gray-500">No {typeLabel.toLowerCase()} pins saved</p>
-              <p className="text-[12px] text-gray-400 mt-1">
-                Pin {typeLabel.toLowerCase()} places on the map first, then link them here.
-              </p>
+              <p className="text-[13px] font-medium text-gray-500">{emptyCopy}</p>
             </div>
           ) : (
-            <>
-              {grouped.map(({ sub, label, cards }) => (
-                <div key={sub}>
-                  {/* Sub-type header */}
+            grouped.map(({ type, cards }) => {
+              const color = TYPE_COLOR[type];
+              return (
+                <div key={type}>
+                  {/* Type header */}
                   <div className="flex items-center gap-2 px-5 py-2 bg-gray-50 border-b border-gray-100">
-                    <SubTypeIcon subType={sub} color={color} />
                     <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
-                      {label}
+                      {TYPE_LABEL[type]}
                     </span>
                   </div>
 
                   {cards.map((card) => {
-                    const rating  = card.place!.rating;
-
+                    const rating = card.place!.rating;
                     return (
                       <button
                         key={card.id}
@@ -350,7 +297,7 @@ export default function LinkPlaceSheet({ tripId, cardType, onLink, onClose }: Pr
                           className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
                           style={{ background: `${color}15` }}
                         >
-                          <SubTypeIcon subType={card.place!.sub_type ?? sub} color={color} />
+                          <SubTypeIcon subType={card.place!.sub_type ?? ""} color={color} />
                         </div>
 
                         <div className="flex-1 min-w-0">
@@ -371,43 +318,8 @@ export default function LinkPlaceSheet({ tripId, cardType, onLink, onClose }: Pr
                     );
                   })}
                 </div>
-              ))}
-
-              {/* Any uncategorised cards */}
-              {otherCards.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 px-5 py-2 bg-gray-50 border-b border-gray-100">
-                    <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Other</span>
-                  </div>
-                  {otherCards.map((card) => {
-                    const rating  = card.place!.rating;
-                    return (
-                      <button
-                        key={card.id}
-                        onClick={() => onLink(card)}
-                        className="w-full flex items-center gap-3 px-5 py-3.5 border-b border-gray-50 hover:bg-gray-50 active:bg-gray-100 transition-colors text-left"
-                      >
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${color}15` }}>
-                          <SubTypeIcon subType={card.place!.sub_type ?? ""} color={color} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-semibold text-gray-900 truncate">{card.place!.title}</p>
-                          {card.place!.address && (
-                            <p className="text-[11px] text-gray-400 mt-0.5 truncate">{card.place!.address}</p>
-                          )}
-                          {rating !== null && (
-                            <p className="text-[11px] text-amber-500 font-medium mt-0.5">★ {rating.toFixed(1)}</p>
-                          )}
-                        </div>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round">
-                          <polyline points="9 18 15 12 9 6" />
-                        </svg>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </>
+              );
+            })
           )}
         </div>
       </div>

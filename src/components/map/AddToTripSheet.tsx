@@ -235,7 +235,8 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
 
     const newCard: Card = {
       id:              crypto.randomUUID(),
-      day_id:          dayId,
+      // Interested cards are unscheduled by rule: day_id null + status interested.
+      day_id:          null as unknown as string,
       trip_id:         tripId,
       start_time:      null,
       end_time:        null,
@@ -252,7 +253,7 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
 
     const { error } = await supabase.from("cards").insert({
       id:              newCard.id,
-      day_id:          dayId,
+      day_id:          null,
       trip_id:         tripId,
       start_time:      null,
       end_time:        null,
