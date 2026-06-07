@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Roam · Two-Door Add — four touchpoints</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400;1,500;1,600&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400;1,9..40,500&display=swap"
+    rel="stylesheet" />
+  <style>
+    html, body { margin: 0; background: #f0eee9; font-family: "DM Sans", system-ui, sans-serif; }
+    #root { width: 100vw; height: 100vh; }
+  </style>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+  <template id="__bundler_thumbnail">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+      <rect width="200" height="200" fill="#FAF7F2"/>
+      <text x="100" y="104" text-anchor="middle" font-family="Playfair Display, Georgia, serif"
+            font-style="italic" font-weight="500" font-size="48" fill="#1A1A2E" letter-spacing="-1">Roam</text>
+      <text x="100" y="132" text-anchor="middle" font-family="DM Sans, sans-serif"
+            font-size="11" letter-spacing="3" fill="#C4622D">TWO-DOOR ADD</text>
+    </svg>
+  </template>
+  <div id="root"></div>
+
+  <script type="text/babel" src="companion-shared.jsx"></script>
+  <script type="text/babel" src="desktop-shared.jsx"></script>
+  <script type="text/babel" src="desktop-shells.jsx"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <script type="text/babel" src="tda-plan.jsx"></script>
+  <script type="text/babel" src="tda-picker.jsx"></script>
+  <script type="text/babel" src="tda-map.jsx"></script>
+
+  <script type="text/babel">
+    const {
+      ROAM, UI_FONT, DISPLAY_FONT, Ph, SmallCaps, Italic,
+      DesignCanvas, DCSection, DCArtboard, DCPostIt,
+      TdaPlanCard, TDA_CATS, TDA_DAYS,
+      TdaFooterSplit, TdaFooterStacked, TdaFooterTwoDoor, TdaBlankComposer,
+      TdaPlanSurface, TdaPickerSheet, TdaMapSurface, TdaPinPopupActions, TdaPinPopupDayList,
+      TdaPlanBoard, MastheadShell,
+    } = window;
+
+    // A short column tail (header + 2 cards) used as backdrop for the
+    // close-up footer variants, so each affordance reads in context.
+    function ColumnTail({ footer, tag }) {
+      const day = TDA_DAYS[0];
+      return (
+        <div style={{ background: ROAM.parchment, height: '100%', padding: '22px 22px 0',
+                      display: 'flex', flexDirection: 'column' }}>
+          <SmallCaps color={ROAM.caption} size={10}>Day 1</SmallCaps>
+          <div style={{ marginTop: 4, fontFamily: DISPLAY_FONT, fontStyle: 'italic', fontWeight: 500,
+                        fontSize: 22, color: ROAM.ink, letterSpacing: '-0.01em' }}>Thursday</div>
+          <div style={{ height: 1, background: ROAM.rule, margin: '12px 0' }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <TdaPlanCard card={day.cards[3]} />
+            <TdaPlanCard card={day.cards[4]} />
+            <div style={{ marginTop: 4 }}>{footer}</div>
+          </div>
+          <div style={{ flex: 1 }} />
+          <div style={{ padding: '12px 0 14px' }}>
+            <span style={{ fontFamily: DISPLAY_FONT, fontStyle: 'italic', fontSize: 13, color: ROAM.captionSoft }}>{tag}</span>
+          </div>
+        </div>
+      );
+    }
+
+    // Picker docked over a dimmed plan board (in situ).
+    function PickerInSitu({ selectedNames }) {
+      return (
+        <MastheadShell activeNav="journeys" trip={{ name: 'New York (Mia & Daddy)' }} tab="plan">
+          <div style={{ position: 'relative', height: '100%', display: 'flex' }}>
+            <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+              <TdaPlanBoard renderFooter={() => <TdaFooterStacked />} />
+              <div style={{ position: 'absolute', inset: 0, background: 'rgba(26,26,46,0.10)' }} />
+            </div>
+            <TdaPickerSheet selectedNames={selectedNames} docked />
+          </div>
+        </MastheadShell>
+      );
+    }
+
+    // Center a fixed-size element on parchment for close-up artboards.
+    function Plate({ children, pad = 28, bg = ROAM.parchment, align = 'center' }) {
+      return (
+        <div style={{ height: '100%', width: '100%', background: bg, display: 'flex',
+                      alignItems: align, justifyContent: 'center', padding: pad, boxSizing: 'border-box' }}>
+          {children}
+        </div>
+      );
+    }
+
+    const App = () => (
+      <DesignCanvas>
+
+        {/* ───── Intro ───── */}
+        <DCPostIt left={40} top={32} width={460} rotate={-1.5}>
+          <strong>Roam · Two-Door Add</strong><br/><br/>
+          Four new touchpoints that connect saved pins → days. New elements only —
+          the surfaces underneath are unchanged. Tokens held: Parchment #FAF7F2,
+          Ink #1A1A2E, Sienna #C4622D as the single accent (never alarm),
+          Playfair italic display, DM Sans UI, Phosphor-light icons.<br/><br/>
+          Copy-not-move: placing a saved place copies it; the saved pile never
+          shrinks, so a <em>Scheduled</em> check is the only signal of what's handled.
+        </DCPostIt>
+
+        {/* ───────────────────── TOUCHPOINT 1 ───────────────────── */}
+        <DCSection id="t1"
+          title="Touchpoint 1 — “Add from saved” on a day column"
+          subtitle="The path from pins to days. Decided: option B (two stacked). The two alternatives are kept below, dimmed, for the record.">
+
+          <DCArtboard id="t1-situ" label="In situ · decided (B)"
+                      width={1440} height={860} data-screen-label="Plan board — Add from saved footer">
+            <TdaPlanSurface renderFooter={() => <TdaFooterStacked />} />
+          </DCArtboard>
+
+          <DCArtboard id="t1-b" label="B · Two stacked — DECIDED" width={320} height={420}
+                      data-screen-label="Footer B — two stacked (decided)">
+            <ColumnTail footer={<TdaFooterStacked />} tag="Stacked · saved path reads first" />
+          </DCArtboard>
+
+          <DCArtboard id="t1-a" label="A · Splits on tap (not chosen)" width={320} height={420}
+                      data-screen-label="Footer A — split on tap">
+            <div style={{ height: '100%', opacity: 0.5 }}>
+              <ColumnTail footer={<TdaFooterSplit />} tag="Combined · two doors behind a tap" />
+            </div>
+          </DCArtboard>
+
+          <DCArtboard id="t1-c" label="C · Two-door block (not chosen)" width={320} height={420}
+                      data-screen-label="Footer C — two-door block">
+            <div style={{ height: '100%', opacity: 0.5 }}>
+              <ColumnTail footer={<TdaFooterTwoDoor />} tag="Two-door · one block, hairline split" />
+            </div>
+          </DCArtboard>
+
+          <DCPostIt left={1180} top={250} width={300} rotate={1.5}>
+            <strong>Decided · B — two stacked.</strong><br/><br/>
+            The test failed on <em>discoverability</em>. B makes “Add from saved”
+            the first, filled-quiet line in every column footer (parchment-deep
+            chip, ink label, bookmark glyph) — unmissable cold — while the blank
+            card stays a demoted dashed ghost below.<br/><br/>
+            A re-hid the saved path behind a tap (the exact thing that tested
+            badly); C split billing 50/50, diluting the signal. Both kept dimmed
+            for the record.
+          </DCPostIt>
+
+          <DCPostIt left={1180} top={560} width={300} rotate={-1}>
+            <strong>Spec</strong><br/><br/>
+            Primary chip: DM Sans 600 / 13.5px, 13px vertical pad, radius 12,
+            bg Parchment-deep, 1px inset rule. 8px gap to the dashed “Add a card”
+            (caption-soft). No sienna — discipline holds.
+          </DCPostIt>
+        </DCSection>
+
+        {/* ───────────────────── TOUCHPOINT 2 ───────────────────── */}
+        <DCSection id="t2"
+          title="Touchpoint 2 — The picker sheet (create mode)"
+          subtitle="The “Link place from map” sheet, reused. Grouped by type; multi-select with an “Add N” commit; a simple Scheduled check on places already placed anywhere on the trip.">
+
+          <DCArtboard id="t2-situ" label="In situ · 3 selected" width={1440} height={860}
+                      data-screen-label="Picker sheet docked over plan board">
+            <PickerInSitu selectedNames={['Rubirosa', 'Tenement Museum', 'The High Line']} />
+          </DCArtboard>
+
+          <DCArtboard id="t2-empty" label="Nothing selected" width={380} height={720}
+                      data-screen-label="Picker — nothing selected">
+            <TdaPickerSheet selectedNames={[]} />
+          </DCArtboard>
+
+          <DCArtboard id="t2-three" label="3 selected (incl. a scheduled one) → Add 3" width={380} height={720}
+                      data-screen-label="Picker — 3 selected">
+            <TdaPickerSheet selectedNames={['Rubirosa', 'Tenement Museum', 'The High Line']} />
+          </DCArtboard>
+
+          <DCArtboard id="t2-after" label="After commit · untimed cluster" width={320} height={560}
+                      data-screen-label="Day 1 — after commit, untimed cluster">
+            <TdaAfterCommitColumn />
+          </DCArtboard>
+
+          <DCPostIt left={1180} top={250} width={300} rotate={1}>
+            <strong>The Scheduled check is load-bearing.</strong><br/><br/>
+            Copy-not-move: the saved pile never shrinks, so a quiet ink check +
+            small-caps <em>Scheduled</em> on the meta line is the only cue for
+            what's handled. Note <em>Rubirosa</em> here \u2014 already scheduled, yet
+            still selected: re-adding it just drops a second copy on this day.
+            That's the behavior the check has to survive.
+          </DCPostIt>
+
+          <DCPostIt left={1180} top={520} width={300} rotate={-1.5}>
+            <strong>Selection &amp; commit</strong><br/><br/>
+            Tap toggles a 22px ring → ink fill + check. Commit is the only filled
+            button: “Add 3” + check. At zero it sits disabled (parchment-deep)
+            with an italic prompt. Group headers: small-caps 9.5px, Food /
+            Activities / Logistics — same order as the map filter rail.
+          </DCPostIt>
+
+          <DCPostIt left={1180} top={770} width={300} rotate={1}>
+            <strong>Where they land (order)</strong><br/><br/>
+            Copies arrive <em>untimed</em> and append to the <strong>end of the
+            day</strong> as a cluster — never guessed into the timeline. Order
+            among them = the order they read in the sheet (Food → Activities →
+            Logistics), <em>not</em> tap order, which is invisible once the sheet
+            closes. A sienna “Just added” rule marks them; each shows an italic
+            <em>Add a time</em> until you place it.
+          </DCPostIt>
+        </DCSection>
+
+        {/* ───────────────────── TOUCHPOINT 3 ───────────────────── */}
+        <DCSection id="t3"
+          title="Touchpoint 3 — Pin popup with day list"
+          subtitle="The map pin popup gains one “Add to day” action. Tapping it swaps the action area for a compact flat day list — the popup must not grow into a panel.">
+
+          <DCArtboard id="t3-situ" label="In situ · popup on map" width={1440} height={780}
+                      data-screen-label="Map — pin popup with Add to day">
+            <TdaMapSurface state="actions" />
+          </DCArtboard>
+
+          <DCArtboard id="t3-actions" label="Popup · Add to day action" width={360} height={420}
+                      data-screen-label="Pin popup — actions">
+            <Plate><TdaPinPopupActions /></Plate>
+          </DCArtboard>
+
+          <DCArtboard id="t3-list" label="Popup · day list open" width={360} height={460}
+                      data-screen-label="Pin popup — day list">
+            <Plate><TdaPinPopupDayList /></Plate>
+          </DCArtboard>
+
+          <DCPostIt left={1180} top={230} width={300} rotate={-1}>
+            <strong>One door, no growth.</strong><br/><br/>
+            Maps / Website / Call stay as the three quiet utility pills. “Add to
+            day” is added beneath them as one parchment-deep action — the
+            deliberate new door. Width is fixed at 296px in both states.
+          </DCPostIt>
+
+          <DCPostIt left={1180} top={490} width={300} rotate={1.5}>
+            <strong>Day list</strong><br/><br/>
+            The action region is <em>replaced</em>, not extended: a back chevron +
+            small-caps title, then a flat scrollable list — “Day 3 · Jul 25”,
+            DM Sans 600 number + caption date. Capped at ~168px; scrolls past that.
+          </DCPostIt>
+        </DCSection>
+
+        {/* ───────────────────── TOUCHPOINT 4 ───────────────────── */}
+        <DCSection id="t4"
+          title="Touchpoint 4 — Placeholder chips"
+          subtitle="Not a separate add — this IS the “+ Add a card” door from Touchpoint 1, opened. The dashed button transforms in place into a naming composer; three one-tap presets (Dinner · Lunch · Free time) fast-fill the common case.">
+
+          <DCArtboard id="t4-situ" label="In situ · composer on Day 2" width={1440} height={860}
+                      data-screen-label="Plan board — blank card composer">
+            <TdaPlanSurface renderFooter={() => null} composerAt={1} />
+          </DCArtboard>
+
+          <DCArtboard id="t4-close" label="Composer · close-up" width={340} height={240}
+                      data-screen-label="Blank card composer close-up">
+            <Plate align="center"><div style={{ width: 280 }}><TdaBlankComposer /></div></Plate>
+          </DCArtboard>
+
+          <DCPostIt left={1180} top={250} width={300} rotate={1}>
+            <strong>Quiet, not buttons.</strong><br/><br/>
+            Chips are hairline pills (1px rule, caption text, no fill) under the
+            naming field, indented to the title baseline. They preselect a name +
+            type; they don't compete with the cursor. One tap fills the card.
+          </DCPostIt>
+
+          <DCPostIt left={1180} top={490} width={300} rotate={-1.5}>
+            <strong>Lineage to T1 \u2014 not a rival.</strong><br/><br/>
+            The footer's two doors split here: <em>Add from saved</em> \u2192 the
+            picker (T2); <em>+ Add a card</em> \u2192 this composer. The dashed-ring
+            plus is carried over from the button so the two read as one motion.
+            Saved = a specific place; a chip = a generic slot (a dinner, a free
+            block) with no place yet \u2014 different jobs.
+          </DCPostIt>
+        </DCSection>
+
+      </DesignCanvas>
+    );
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
