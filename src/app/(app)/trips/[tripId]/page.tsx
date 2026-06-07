@@ -9,6 +9,17 @@ export default async function TripPage({ params }: Props) {
   const { tripId } = await params;
   const supabase = await createClient();
 
+  // Confirm access before rendering any trip chrome. RLS filters the row out for
+  // users who don't own and aren't a member of this trip, so a null result means
+  // "no access" — send them back to /trips rather than show an empty shell.
+  const { data: trip } = await supabase
+    .from("trips")
+    .select("id")
+    .eq("id", tripId)
+    .single();
+
+  if (!trip) redirect("/trips");
+
   // Get the first day of this trip
   const { data: firstDay } = await supabase
     .from("days")
