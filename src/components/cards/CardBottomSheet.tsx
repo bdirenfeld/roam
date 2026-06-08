@@ -4,6 +4,7 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import { Clock } from "@phosphor-icons/react";
 import type { Card, Day, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
+import { formatTimeValue } from "@/lib/formatTime";
 import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
 import AttachmentsPanel from "./AttachmentsPanel";
 import { CardGallery } from "@/components/ui/CardGallery";
@@ -313,8 +314,10 @@ function toDbTime(v: string): string {
 
 /**
  * Inline editable time field.
- * A real, visible <input type="time"> styled as an on-brand parchment chip —
- * opens the browser's native picker on a normal click (no invisible overlay).
+ * The visible face is an editorial label when unset ("Add start time") or the
+ * shared-formatter time when set ("9:00 AM") — never the browser's native
+ * "--:-- --" empty state. A real <input type="time"> sits collapsed underneath
+ * as the click target, so clicking the chip reliably opens the native picker.
  */
 function TimeChip({
   value,
@@ -327,6 +330,7 @@ function TimeChip({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const inputVal = toInputTime(value);
+  const display  = value ? formatTimeValue(value) : null;
 
   // Clicking anywhere on the chip opens the native picker. showPicker() isn't
   // available everywhere — focus first so a bare focus still surfaces it on mobile.
@@ -340,21 +344,41 @@ function TimeChip({
   return (
     <span
       onClick={openPicker}
-      className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 cursor-pointer transition-colors hover:bg-black/[0.02]"
+      className="relative inline-flex items-center gap-1.5 rounded-md px-2 py-1 cursor-pointer transition-colors hover:bg-black/[0.02]"
       style={{
         background: "#FAF7F2",
         boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)",
       }}
     >
       <Clock size={13} weight="light" color="#1A1A2E" />
+      {/* Visible face — formatted time, or the editorial prompt when unset.
+          The native "--:-- --" never shows; the input below is collapsed. */}
+      {display ? (
+        <span
+          className="text-[13px] font-medium text-[#1A1A2E]"
+          style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}
+        >
+          {display}
+        </span>
+      ) : (
+        <span
+          className="text-[13px] italic"
+          style={{ fontFamily: "'DM Sans', system-ui, sans-serif", color: "rgba(26,26,46,0.45)" }}
+        >
+          {placeholder}
+        </span>
+      )}
+      {/* Real picker target — focusable but visually collapsed (w-px, opacity-0,
+          not display:none so showPicker() still works). */}
       <input
         ref={inputRef}
         type="time"
         value={inputVal}
         aria-label={placeholder}
+        tabIndex={-1}
         onChange={(e) => { if (e.target.value) onSave(e.target.value); }}
-        className="bg-transparent outline-none text-[13px] font-medium text-[#1A1A2E]"
-        style={{ fontFamily: "'DM Sans', system-ui, sans-serif", colorScheme: "light" }}
+        className="absolute right-0 bottom-0 w-px h-px opacity-0 p-0 border-0 pointer-events-none"
+        style={{ colorScheme: "light" }}
       />
     </span>
   );
