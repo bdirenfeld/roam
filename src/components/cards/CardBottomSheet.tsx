@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback, useState } from "react";
+import { Clock } from "@phosphor-icons/react";
 import type { Card, Day, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
@@ -311,8 +312,9 @@ function toDbTime(v: string): string {
 }
 
 /**
- * Inline editable time chip.
- * Displays as a tappable pill. On click, activates a native time picker.
+ * Inline editable time field.
+ * A real, visible <input type="time"> styled as an on-brand parchment chip —
+ * opens the browser's native picker on a normal click (no invisible overlay).
  */
 function TimeChip({
   value,
@@ -326,34 +328,33 @@ function TimeChip({
   const inputRef = useRef<HTMLInputElement>(null);
   const inputVal = toInputTime(value);
 
-  const displayVal = value ? formatTime(value) : null;
-
-  const handleClick = () => {
-    // showPicker() is not available in all environments; fall back to focus + click
-    if (inputRef.current) {
-      inputRef.current.focus();
-      try { inputRef.current.showPicker?.(); } catch { /* ignore */ }
-    }
+  // Clicking anywhere on the chip opens the native picker. showPicker() isn't
+  // available everywhere — focus first so a bare focus still surfaces it on mobile.
+  const openPicker = () => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.focus();
+    try { el.showPicker?.(); } catch { /* ignore */ }
   };
 
   return (
-    <span className="relative inline-flex items-center">
-      {/* Visible pill */}
-      <button
-        type="button"
-        onClick={handleClick}
-        className={`text-sm px-2 py-0.5 rounded-md transition-colors hover:bg-gray-100 active:bg-gray-200 ${displayVal ? "text-gray-700 font-medium" : "text-gray-400 italic"}`}
-      >
-        {displayVal ?? placeholder}
-      </button>
-      {/* Hidden native time input — overlaid for picker activation */}
+    <span
+      onClick={openPicker}
+      className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 cursor-pointer transition-colors hover:bg-black/[0.02]"
+      style={{
+        background: "#FAF7F2",
+        boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)",
+      }}
+    >
+      <Clock size={13} weight="light" color="#1A1A2E" />
       <input
         ref={inputRef}
         type="time"
         value={inputVal}
+        aria-label={placeholder}
         onChange={(e) => { if (e.target.value) onSave(e.target.value); }}
-        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-        style={{ fontSize: 0 }}
+        className="bg-transparent outline-none text-[13px] font-medium text-[#1A1A2E]"
+        style={{ fontFamily: "'DM Sans', system-ui, sans-serif", colorScheme: "light" }}
       />
     </span>
   );

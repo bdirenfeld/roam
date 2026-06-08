@@ -38,6 +38,7 @@ type BoardBg =
   | { type: "photo"; url: string; thumb: string };
 import type { Trip, Card, DayWithCards, CardType, CardStatus } from "@/types/database";
 import { getPriceRange } from "@/lib/priceRange";
+import { formatTimeRange } from "@/lib/formatTime";
 
 import CardImage from "@/components/ui/CardImage";
 import { Trash, DotsThree, Image as ImageIcon, Gear, ShareNetwork, BookmarkSimple } from "@phosphor-icons/react";
@@ -160,12 +161,6 @@ function makeCards(
 }
 
 // ── Helpers ────────────────────────────────────────────────────
-function fmt12(t: string | null): string {
-  if (!t) return "";
-  const [h, m] = t.split(":").map(Number);
-  return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, "0")}${h >= 12 ? "pm" : "am"}`;
-}
-
 function fmtDate(dateStr: string): string {
   const [y, mo, d] = dateStr.split("-").map(Number);
   return new Date(y, mo - 1, d).toLocaleDateString("en-US", {
@@ -1354,12 +1349,7 @@ function CardTile({
     : null;
   const title       = place?.title ?? (det?.title as string | undefined) ?? noteSnippet?.slice(0, 60) ?? "(untitled note)";
 
-  const timeRange = (() => {
-    const s = fmt12(card.start_time);
-    const e = fmt12(card.end_time);
-    if (s && e) return `${s} – ${e}`;
-    return s || null;
-  })();
+  const timeRange = formatTimeRange(card.start_time, card.end_time);
 
   return (
     <div

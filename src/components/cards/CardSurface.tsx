@@ -1,6 +1,7 @@
 import type { Card, CardType } from "@/types/database";
 import { getMaterialIconHTML } from "@/lib/mapPins";
 import { getPriceRange } from "@/lib/priceRange";
+import { formatTimeRange } from "@/lib/formatTime";
 
 interface Props {
   card: Card;
@@ -40,34 +41,6 @@ const SUB_TYPE_SHORT: Record<string, string> = {
   coffee_dessert:   "Coffee",
   drinks:           "Drinks",
 };
-
-/** Format a single HH:MM time string, optionally including the AM/PM period. */
-function fmtTime(t: string, showPeriod: boolean): string {
-  const [h, m] = t.split(":").map(Number);
-  const period = h >= 12 ? "PM" : "AM";
-  const hour   = h % 12 === 0 ? 12 : h % 12;
-  const mins   = String(m).padStart(2, "0");
-  return showPeriod ? `${hour}:${mins} ${period}` : `${hour}:${mins}`;
-}
-
-/**
- * Build a time-range string:
- *   same period  →  "7:00 – 8:30 AM"
- *   diff periods →  "11:30 AM – 1:00 PM"
- *   no end time  →  "7:45 PM"
- */
-function formatTimeRange(start: string | null, end: string | null): string | null {
-  if (!start) return null;
-  if (!end)   return fmtTime(start, true);
-
-  const startPeriod = Number(start.split(":")[0]) >= 12 ? "PM" : "AM";
-  const endPeriod   = Number(end.split(":")[0])   >= 12 ? "PM" : "AM";
-
-  if (startPeriod === endPeriod) {
-    return `${fmtTime(start, false)} – ${fmtTime(end, true)}`;
-  }
-  return `${fmtTime(start, true)} – ${fmtTime(end, true)}`;
-}
 
 function flightRoute(det: Record<string, unknown> | null, timeRange: string | null): string | null {
   const origin   = typeof det?.origin_airport  === "string" ? det.origin_airport  : null;
