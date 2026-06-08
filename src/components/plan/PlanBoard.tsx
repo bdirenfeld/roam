@@ -28,6 +28,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { createClient } from "@/lib/supabase/client";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
+import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
 import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/plan/ConfirmationPreviewSheet";
 import DocumentsSheet from "@/components/plan/DocumentsSheet";
 import TriageView from "@/components/plan/TriageView";
@@ -39,7 +40,7 @@ import type { Trip, Card, DayWithCards, CardType, CardStatus } from "@/types/dat
 import { getPriceRange } from "@/lib/priceRange";
 
 import CardImage from "@/components/ui/CardImage";
-import { Trash, DotsThree, Image as ImageIcon, Gear, ShareNetwork } from "@phosphor-icons/react";
+import { Trash, DotsThree, Image as ImageIcon, Gear, ShareNetwork, BookmarkSimple } from "@phosphor-icons/react";
 import { getMaterialIconHTML } from "@/lib/mapPins";
 
 // ── Constants ──────────────────────────────────────────────────
@@ -210,6 +211,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
   const [days, setDays] = useState<DayWithCards[]>(initialDays);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
+  const [addFromSavedDay, setAddFromSavedDay] = useState<DayWithCards | null>(null);
   const [pendingConf,  setPendingConf]  = useState<{ items: ParsedConfirmation[]; fileName: string; fileType: string } | null>(null);
   const [showDocs,     setShowDocs]     = useState(false);
   const [viewMode] = useState<"board" | "triage">("board");
@@ -477,6 +479,23 @@ export default function PlanBoard({ trip, initialDays }: Props) {
     }
   }, [days, trip.id, supabase]);
 
+  // ── Door 1: cards placed from the "Add from saved" picker ────
+  // The picker writes via the shared helper and hands back the new card(s);
+  // we just splice them into the right day. The interested card is untouched.
+  const handleSavedAdded = useCallback((added: Card[]) => {
+    setDays((prev) => prev.map((d) => {
+      const mine = added.filter((c) => c.day_id === d.id);
+      return mine.length ? { ...d, cards: [...d.cards, ...mine] } : d;
+    }));
+  }, []);
+
+  // place_ids scheduled anywhere on the trip — derived from loaded days, no query.
+  const scheduledPlaceIds = new Set(
+    days.flatMap((d) => d.cards)
+      .filter((c) => c.status === "in_itinerary" && c.place_id)
+      .map((c) => c.place_id as string),
+  );
+
   // ── Apply day template to all days ───────────────────────────
   const handleApplyTemplate = useCallback(async (templateKey: string) => {
     const template = TEMPLATES.find((t) => t.key === templateKey);
@@ -680,6 +699,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
                     onCardTap={(card) => setSelectedCard(card)}
                     onDelete={handleDelete}
                     onCreateCard={(title) => handleCreateCard(currentMobileDay.id, title)}
+                    onAddFromSaved={() => setAddFromSavedDay(currentMobileDay)}
                   />
                 </div>
               )}
@@ -809,6 +829,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
                         onCardTap={(card) => setSelectedCard(card)}
                         onDelete={handleDelete}
                         onCreateCard={(title) => handleCreateCard(day.id, title)}
+                        onAddFromSaved={() => setAddFromSavedDay(day)}
                       />
                     ))}
                   </div>
@@ -954,6 +975,17 @@ export default function PlanBoard({ trip, initialDays }: Props) {
           tripDestination={trip.destination}
         />
       )}
+
+      {addFromSavedDay && (
+        <LinkPlaceSheet
+          mode="create"
+          tripId={trip.id}
+          day={addFromSavedDay}
+          scheduledPlaceIds={scheduledPlaceIds}
+          onAdded={handleSavedAdded}
+          onClose={() => setAddFromSavedDay(null)}
+        />
+      )}
     </div>
   );
 }
@@ -998,9 +1030,10 @@ interface DayColumnProps {
   onCardTap: (card: Card) => void;
   onDelete: (cardId: string) => void;
   onCreateCard: (title: string) => Promise<void>;
+  onAddFromSaved: () => void;
 }
 
-function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }: DayColumnProps) {
+function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard, onAddFromSaved }: DayColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `${COL_PREFIX}${day.id}` });
   const [isInlineAdding, setIsInlineAdding] = useState(false);
   const [inlineTitle,    setInlineTitle]    = useState("");
@@ -1018,6 +1051,14 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }:
   };
 
   const dismissInline = () => { setIsInlineAdding(false); setInlineTitle(""); };
+
+  // Placeholder presets — set the card TITLE only. No place, so no type and no
+  // times are written (handleCreateCard inserts place_id: null, no type).
+  const submitChip = async (label: string) => {
+    setIsInlineAdding(false);
+    setInlineTitle("");
+    await onCreateCard(label);
+  };
 
   const dayOfWeek = day.date
     ? new Date(day.date + "T00:00:00").toLocaleDateString("en-US", { weekday: "long" })
@@ -1109,39 +1150,76 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard }:
 
           {/* Add a card — flush below last card, inside column surface */}
           {isInlineAdding ? (
-            <div className="flex gap-1.5">
-              <input
-                ref={inlineRef}
-                value={inlineTitle}
-                onChange={(e) => setInlineTitle(e.target.value)}
-                placeholder="Name this stop..."
-                className="flex-1 text-[13px] bg-white rounded-lg border border-gray-200 px-2.5 py-1.5 outline-none focus:border-gray-400 placeholder:text-gray-300 min-w-0"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") { e.preventDefault(); submitInline(); }
-                  if (e.key === "Escape") dismissInline();
-                }}
-                onBlur={() => setTimeout(dismissInline, 150)}
-              />
-              <button
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={submitInline}
-                className="px-2.5 py-1.5 rounded-lg text-[12px] font-bold text-white flex-shrink-0"
-                style={{ background: "#1A1A2E" }}
-              >
-                Add
-              </button>
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-1.5">
+                <input
+                  ref={inlineRef}
+                  value={inlineTitle}
+                  onChange={(e) => setInlineTitle(e.target.value)}
+                  placeholder="Name this stop..."
+                  className="flex-1 text-[13px] bg-white rounded-lg border border-gray-200 px-2.5 py-1.5 outline-none focus:border-gray-400 placeholder:text-gray-300 min-w-0"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") { e.preventDefault(); submitInline(); }
+                    if (e.key === "Escape") dismissInline();
+                  }}
+                  onBlur={() => setTimeout(dismissInline, 150)}
+                />
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={submitInline}
+                  className="px-2.5 py-1.5 rounded-lg text-[12px] font-bold text-white flex-shrink-0"
+                  style={{ background: "#1A1A2E" }}
+                >
+                  Add
+                </button>
+              </div>
+              {/* Preset chips — one tap sets the title only (hairline pills) */}
+              <div className="flex flex-wrap gap-1.5 pl-2.5">
+                {["Dinner", "Lunch", "Free time"].map((c) => (
+                  <button
+                    key={c}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => submitChip(c)}
+                    className="px-2.5 py-1 rounded-full text-[12px] font-medium active:opacity-70 transition-opacity"
+                    style={{ boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)", color: "rgba(26,26,46,0.55)", letterSpacing: "-0.005em" }}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
             </div>
           ) : (
-            <button
-              onClick={() => setIsInlineAdding(true)}
-              className="w-full text-left text-[13px] font-medium text-[#1A1A2E] rounded-xl px-3 py-[6px] active:opacity-70 transition-opacity"
-              style={{
-                backgroundColor: "rgba(255,255,255,0.88)",
-                border: "1px solid rgba(255,255,255,0.6)",
-              }}
-            >
-              + Add a card
-            </button>
+            <div className="flex flex-col gap-2">
+              {/* Door 1 — "Add from saved" reads first (quiet filled chip). */}
+              <button
+                onClick={onAddFromSaved}
+                className="w-full flex items-center justify-center gap-2 rounded-xl px-4 py-3 active:opacity-70 transition-opacity"
+                style={{
+                  background: "#F2EDE3",
+                  boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)",
+                  fontFamily: "'DM Sans', system-ui, sans-serif",
+                  fontWeight: 600, fontSize: "13.5px", color: "#1A1A2E", letterSpacing: "-0.005em",
+                }}
+              >
+                <BookmarkSimple size={14} weight="light" color="#1A1A2E" />
+                Add from saved
+              </button>
+              {/* Demoted — the existing blank-card composer trigger. */}
+              <button
+                onClick={() => setIsInlineAdding(true)}
+                className="w-full flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 active:opacity-70 transition-opacity"
+                style={{
+                  border: "1px dashed rgba(26,26,46,0.20)",
+                  fontFamily: "'Playfair Display', Georgia, serif", fontStyle: "italic",
+                  fontSize: "14px", color: "rgba(26,26,46,0.40)", letterSpacing: "-0.005em",
+                }}
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(26,26,46,0.40)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                Add a card
+              </button>
+            </div>
           )}
         </div>
       </div>{/* end card column body */}

@@ -720,6 +720,8 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
             onClose={() => { deselectPin(); setSelectedCard(null); }}
             onCardUpdate={readOnly ? undefined : handleCardUpdate}
             onCardDelete={readOnly ? undefined : (cardId) => { deselectPin(); handleCardDelete(cardId); }}
+            days={readOnly ? undefined : days}
+            tripId={readOnly ? undefined : trip.id}
           />
         )}
 

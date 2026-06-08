@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { PencilSimple, Trash } from "@phosphor-icons/react";
-import type { Card, CardType } from "@/types/database";
+import { PencilSimple, Trash, BookmarkSimple } from "@phosphor-icons/react";
+import type { Card, CardType, Day } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
+import { scheduleCardOnDay } from "@/lib/scheduleCard";
 import { PIN_COLORS } from "@/lib/mapPins";
 import { CardGallery } from "@/components/ui/CardGallery";
 
@@ -222,11 +223,15 @@ function CardBody({
   onClose,
   onCardUpdate,
   onCardDelete,
+  days,
+  tripId,
 }: {
   card: Card;
   onClose: () => void;
   onCardUpdate?: (updated: Card) => void;
   onCardDelete?: (cardId: string) => void;
+  days?: Day[];
+  tripId?: string;
 }) {
   const supabase         = createClient();
   const place            = card.place!;
@@ -243,6 +248,22 @@ function CardBody({
   const [showItineraryMsg, setShowItineraryMsg]   = useState(false);
   const [isDeleting, setIsDeleting]               = useState(false);
   const [deleteError, setDeleteError]             = useState<string | null>(null);
+  const [showDayList, setShowDayList]             = useState(false);
+  const [scheduling, setScheduling]               = useState(false);
+
+  // Door 2: place this pin onto a day as a new in_itinerary card via the shared
+  // helper. The interested card behind the pin is untouched.
+  const canAddToDay = !!(days && days.length > 0 && tripId && card.place_id);
+
+  const handleAddToDay = useCallback(async (day: Day) => {
+    if (!tripId || !card.place_id || scheduling) return;
+    setScheduling(true);
+    const newCard = await scheduleCardOnDay(supabase, {
+      tripId, dayId: day.id, placeId: card.place_id, place: card.place,
+    });
+    setScheduling(false);
+    if (newCard) onClose();
+  }, [tripId, card.place_id, card.place, scheduling, supabase, onClose]);
 
   function handleTrashClick() {
     if (card.status === "in_itinerary") {
@@ -351,49 +372,99 @@ function CardBody({
           </p>
         )}
 
-        {/* Compact pill action buttons */}
-        <div className="flex gap-1.5 mt-3 flex-wrap">
-          {place.lat != null && place.lng != null && (
-            <a
-              href={`https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-blue-200 bg-blue-50 text-[11px] font-semibold text-blue-600 hover:bg-blue-100 transition-colors"
-            >
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-                <circle cx="12" cy="9" r="2.5" />
-              </svg>
-              Maps
-            </a>
-          )}
-          {(website || card.source_url) && (
-            <a
-              href={(website || card.source_url)!}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-gray-200 bg-gray-50 text-[11px] font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
-            >
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="2" y1="12" x2="22" y2="12" />
-                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-              </svg>
-              Website
-            </a>
-          )}
-          {phone && (
-            <a
-              href={`tel:${phone}`}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-gray-200 bg-gray-50 text-[11px] font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
-            >
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.44 2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.9a16 16 0 0 0 6.09 6.09l.98-.98a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
-              </svg>
-              Call
-            </a>
-          )}
-        </div>
+        {showDayList && canAddToDay ? (
+          /* Day list — replaces the action area; popup width is unchanged */
+          <div className="mt-3">
+            <div className="flex items-center gap-1.5 px-1 pb-2">
+              <button onClick={() => setShowDayList(false)} className="p-0.5 flex" aria-label="Back">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(26,26,46,0.55)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+              </button>
+              <span style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(26,26,46,0.40)" }}>
+                Add to which day
+              </span>
+            </div>
+            <div className="overflow-y-auto rounded-[10px]" style={{ maxHeight: 168, boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)" }}>
+              {days!.map((d, i) => (
+                <button
+                  key={d.id}
+                  onClick={() => handleAddToDay(d)}
+                  disabled={scheduling}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-3 text-left bg-white active:bg-gray-50 transition-colors disabled:opacity-60"
+                  style={{ borderBottom: i < days!.length - 1 ? "1px solid rgba(26,26,46,0.10)" : "none" }}
+                >
+                  <span style={{ fontWeight: 600, fontSize: "13.5px", color: "#1A1A2E", letterSpacing: "-0.005em" }}>Day {d.day_number}</span>
+                  <span style={{ color: "rgba(26,26,46,0.40)", fontSize: "11px" }}>·</span>
+                  <span className="flex-1" style={{ fontSize: "13px", color: "rgba(26,26,46,0.55)", letterSpacing: "-0.005em" }}>
+                    {new Date(d.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                  </span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(26,26,46,0.40)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Compact pill action buttons */}
+            <div className="flex gap-1.5 mt-3 flex-wrap">
+              {place.lat != null && place.lng != null && (
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-blue-200 bg-blue-50 text-[11px] font-semibold text-blue-600 hover:bg-blue-100 transition-colors"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+                    <circle cx="12" cy="9" r="2.5" />
+                  </svg>
+                  Maps
+                </a>
+              )}
+              {(website || card.source_url) && (
+                <a
+                  href={(website || card.source_url)!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-gray-200 bg-gray-50 text-[11px] font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="2" y1="12" x2="22" y2="12" />
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                  </svg>
+                  Website
+                </a>
+              )}
+              {phone && (
+                <a
+                  href={`tel:${phone}`}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-gray-200 bg-gray-50 text-[11px] font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.44 2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.9a16 16 0 0 0 6.09 6.09l.98-.98a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+                  </svg>
+                  Call
+                </a>
+              )}
+            </div>
+
+            {/* Door 2 — Add to day */}
+            {canAddToDay && (
+              <button
+                onClick={() => setShowDayList(true)}
+                className="mt-2.5 w-full flex items-center justify-center gap-2 rounded-[10px] px-3.5 py-2.5 active:opacity-70 transition-opacity"
+                style={{ background: "#F2EDE3", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)", fontWeight: 600, fontSize: "13.5px", color: "#1A1A2E", letterSpacing: "-0.005em" }}
+              >
+                <BookmarkSimple size={14} weight="light" color="#1A1A2E" />
+                Add to day
+              </button>
+            )}
+          </>
+        )}
 
         {/* Delete confirmation */}
         {showDeleteConfirm && (
@@ -436,9 +507,11 @@ interface Props {
   onClose: () => void;
   onCardUpdate?: (updated: Card) => void;
   onCardDelete?: (cardId: string) => void;
+  days?: Day[];
+  tripId?: string;
 }
 
-export default function MapPinPopup({ card, anchorPos, onClose, onCardUpdate, onCardDelete }: Props) {
+export default function MapPinPopup({ card, anchorPos, onClose, onCardUpdate, onCardDelete, days, tripId }: Props) {
   if (anchorPos) {
     const vw        = typeof window !== "undefined" ? window.innerWidth : 800;
     const rawLeft   = anchorPos.x - POPUP_W / 2;
@@ -463,7 +536,7 @@ export default function MapPinPopup({ card, anchorPos, onClose, onCardUpdate, on
           className="bg-white rounded-2xl overflow-hidden flex flex-col"
           style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.20)", maxHeight: "65vh" }}
         >
-          <CardBody card={card} onClose={onClose} onCardUpdate={onCardUpdate} onCardDelete={onCardDelete} />
+          <CardBody card={card} onClose={onClose} onCardUpdate={onCardUpdate} onCardDelete={onCardDelete} days={days} tripId={tripId} />
         </div>
 
         {/* Downward triangle */}
@@ -495,7 +568,7 @@ export default function MapPinPopup({ card, anchorPos, onClose, onCardUpdate, on
         className="relative bg-white rounded-2xl overflow-hidden w-full max-w-sm animate-in zoom-in-95 duration-200 max-h-[85dvh] flex flex-col"
         style={{ boxShadow: "0 20px 60px rgba(0,0,0,0.25)" }}
       >
-        <CardBody card={card} onClose={onClose} onCardUpdate={onCardUpdate} onCardDelete={onCardDelete} />
+        <CardBody card={card} onClose={onClose} onCardUpdate={onCardUpdate} onCardDelete={onCardDelete} days={days} tripId={tripId} />
       </div>
     </div>
   );
