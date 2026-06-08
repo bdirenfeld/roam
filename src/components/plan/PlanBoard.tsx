@@ -1080,7 +1080,7 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard, o
         className={`rounded-xl overflow-hidden flex flex-col scrollbar-none [touch-action:pan-y] ${
           fullWidth
             ? "backdrop-blur-md flex-1 min-h-0 overflow-y-auto"
-            : "max-h-[calc(100dvh-11rem)] overflow-y-auto md:max-h-none md:overflow-y-visible"
+            : "md:max-h-[calc(100dvh-344px)]"
         }`}
       >
 
@@ -1122,8 +1122,12 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard, o
           )}
         </div>
 
-        {/* Cards drop zone + add button — inside the frosted glass column */}
-        <div className="p-3 flex flex-col">
+        {/* Cards drop zone + add button — scrolls beneath the pinned day header */}
+        <div className={`p-3 flex flex-col scrollbar-none [touch-action:pan-y] ${
+          fullWidth
+            ? ""
+            : "max-h-[calc(100dvh-11rem)] overflow-y-auto md:max-h-none md:flex-1 md:min-h-0 md:overflow-y-auto"
+        }`}>
           <div
             ref={setNodeRef}
             className={`min-h-[72px] rounded-lg transition-colors ${
