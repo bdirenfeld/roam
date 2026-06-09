@@ -236,10 +236,12 @@ function CardBody({
   const supabase         = createClient();
   const place            = card.place!;
   const details          = card.details as Record<string, unknown> | null;
-  const phone            = details?.phone as string | undefined;
+  // Prefer the embedded place (world facts); fall back to card.details for
+  // cards saved before the place row carried these fields (transitional).
+  const phone            = place?.phone ?? (details?.phone as string | undefined) ?? undefined;
   const rating           = place.rating ?? undefined;
   const userRatingsTotal = details?.userRatingsTotal as number | undefined;
-  const website          = details?.website as string | undefined;
+  const website          = place?.website ?? (details?.website as string | undefined) ?? undefined;
   const recommendedBy    = details?.recommended_by as string | undefined;
   const subTypeLabel     = place.sub_type ? (SUB_TYPE_LABEL[place.sub_type] ?? place.sub_type) : null;
 

@@ -720,11 +720,13 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
        SUB_TYPE_OPTIONS[place.type]?.[0]?.label ??
        place.type);
   const rating  = place?.rating ?? null;
-  const rawPhone = typeof det?.phone === "string" ? (det.phone as string) : null;
+  // Prefer the embedded place (world facts); fall back to card.details for
+  // cards saved before the place row carried these fields (transitional).
+  const rawPhone = place?.phone ?? (typeof det?.phone === "string" ? (det.phone as string) : null);
   const phone    = rawPhone
     ? formatPhone(rawPhone, place?.address ?? null, tripDestination)
     : null;
-  const website = typeof det?.website === "string" ? (det.website as string) : null;
+  const website = place?.website ?? (typeof det?.website === "string" ? (det.website as string) : null);
   const menuUrl = typeof det?.menu_url === "string"
                     ? ((det.menu_url as string) || null)
                     : null;

@@ -139,6 +139,11 @@ export interface Place {
   cover_image_url: string | null
   rating: number | null
   price_level: number | null
+  // World facts persisted on the place; embedded in card+place projections.
+  // Optional so existing Place literals (e.g. AddToTripSheet) need no change.
+  website?: string | null
+  phone?: string | null
+  hours?: unknown
 }
 
 export interface Card {
