@@ -10,7 +10,7 @@ import AddToTripSheet from "./AddToTripSheet";
 import type { PlaceResult } from "./AddToTripSheet";
 import type { Trip, Day, Card, CardType } from "@/types/database";
 import { makeMaterialPinElement } from "@/lib/mapPins";
-import { Funnel, DotsThree, MapPin } from "@phosphor-icons/react";
+import { Funnel, DotsThree } from "@phosphor-icons/react";
 
 // Purple circular pin for search result previews
 const TEMP_PIN_SVG =
@@ -99,9 +99,6 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
   const tempPinRef = useRef<any>(null);
 
   const hasToken = !!process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-
-  // No mappable pins yet — show a quiet centered prompt over the live map.
-  const hasMappablePins = localCards.some(isRealPlace);
 
   // One-time onboarding hint
   useEffect(() => {
@@ -553,51 +550,6 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
           <div style={{ position: "absolute", inset: 0 }} className="bg-gray-50 flex flex-col items-center justify-center gap-1">
             <p className="text-sm font-medium text-gray-500">Map unavailable</p>
             <p className="text-xs text-gray-400">Add NEXT_PUBLIC_MAPBOX_TOKEN to .env.local</p>
-          </div>
-        )}
-
-        {/* Empty state — no mappable pins yet. The live map renders underneath
-            unchanged; this card floats over it and never intercepts pointer
-            events, so the basemap stays pannable and the search bar stays live. */}
-        {hasToken && !hasMappablePins && (
-          <div
-            className="absolute inset-0 z-10 flex items-center justify-center px-6"
-            style={{ pointerEvents: "none" }}
-          >
-            <div
-              className="flex flex-col items-center text-center rounded-2xl"
-              style={{
-                background: "#FAF7F2",
-                maxWidth: "360px",
-                padding: "32px 28px",
-                boxShadow: "0 8px 32px rgba(26,26,46,0.12)",
-              }}
-            >
-              <MapPin size={28} weight="light" color="#1A1A2E" />
-              <h2
-                className="italic"
-                style={{
-                  fontFamily: "'Playfair Display', Georgia, serif",
-                  fontWeight: 400,
-                  fontSize: "22px",
-                  lineHeight: 1.25,
-                  color: "#1A1A2E",
-                  marginTop: "16px",
-                }}
-              >
-                Your places will plot here.
-              </h2>
-              <p
-                style={{
-                  fontFamily: "'DM Sans', system-ui, sans-serif",
-                  fontSize: "14px",
-                  color: "rgba(26,26,46,0.6)",
-                  marginTop: "8px",
-                }}
-              >
-                Search above to save your first spot.
-              </p>
-            </div>
           </div>
         )}
 
