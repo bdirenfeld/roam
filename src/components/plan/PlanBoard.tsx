@@ -1295,13 +1295,28 @@ function CardTile({
             />
           )}
 
-          {/* Desktop icon disc — 36×36 parchment-deep */}
+          {/* Desktop photo chip — 40×40, place photo over the category icon.
+              Mirrors the mobile proxy thumbnail (same /api/places/photo call);
+              on load failure the photo hides and the category icon shows through
+              — the icon chip IS the fallback (per the Plan pinned-header mockup). */}
           <div
-            className="hidden md:flex flex-shrink-0 items-center justify-center text-[#1A1A2E]"
-            style={{ width: 36, height: 36, borderRadius: 18, background: "#E8E3DA" }}
-            // eslint-disable-next-line react/no-danger
-            dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(place?.sub_type, 16) }}
-          />
+            className="hidden md:flex relative flex-shrink-0 items-center justify-center overflow-hidden text-[#1A1A2E]"
+            style={{ width: 40, height: 40, borderRadius: 9, background: "#E8E3DA", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.08)" }}
+          >
+            <span
+              // eslint-disable-next-line react/no-danger
+              dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(place?.sub_type, 16) }}
+            />
+            {place && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={`/api/places/photo?place_id=${place.id}`}
+                alt=""
+                className="absolute inset-0 w-full h-full object-cover"
+                onError={(e) => { e.currentTarget.style.display = "none"; }}
+              />
+            )}
+          </div>
 
           {/* Text content */}
           <div className="flex-1 min-w-0">
