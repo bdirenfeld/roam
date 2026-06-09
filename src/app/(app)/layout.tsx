@@ -17,7 +17,7 @@ export default function AppLayout({
   return (
     <>
       <DesktopMasthead />
-      <div className="mobile-container flex flex-col bg-white md:bg-transparent">
+      <div className="mobile-container flex flex-col bg-white md:bg-transparent md:!min-h-[calc(100dvh-64px)]">
         <main className={isDayView ? "flex-1" : "flex-1 pb-20 md:pb-0"}>{children}</main>
       </div>
       <Suspense>
