@@ -1075,7 +1075,7 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard, o
         className={`rounded-xl overflow-hidden flex flex-col scrollbar-none [touch-action:pan-y] ${
           fullWidth
             ? "backdrop-blur-md flex-1 min-h-0 overflow-y-auto"
-            : "md:max-h-[calc(100dvh-344px)]"
+            : "md:h-[calc(100dvh-344px)]"
         }`}
       >
 
