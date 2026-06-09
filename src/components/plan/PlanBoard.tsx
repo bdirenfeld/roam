@@ -182,19 +182,6 @@ function sumDurationMinutes(cards: Card[]): number {
   }, 0);
 }
 
-function fmtCoverDates(start: string, end: string): string {
-  const upper = (s: string) => {
-    const [y, mo, d] = s.split("-").map(Number);
-    return new Date(y, mo - 1, d)
-      .toLocaleDateString("en-US", { month: "short", day: "numeric" })
-      .toUpperCase();
-  };
-  const sMs = new Date(start + "T00:00:00").getTime();
-  const eMs = new Date(end + "T00:00:00").getTime();
-  const nights = Math.max(0, Math.round((eMs - sMs) / 86400000));
-  return `${upper(start)} → ${upper(end)} · ${nights} NIGHT${nights !== 1 ? "S" : ""}`;
-}
-
 // ── PlanBoard ──────────────────────────────────────────────────
 interface Props {
   trip: Trip;
@@ -712,91 +699,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
               onDragOver={handleDragOver}
               onDragEnd={handleDragEnd}
             >
-              {/* Contained hero band (240px) — carries the cover photo with a
-                  directional scrim, the "Change cover" pill, and the trip-name
-                  overlay. md:+ only; mobile keeps its full-bleed root bg. */}
-              <div
-                className="hidden md:block relative flex-shrink-0 w-full"
-                style={{
-                  height: 240,
-                  backgroundColor: "#2a2620",
-                  ...(isPhotoBg && {
-                    backgroundImage: `url(${(boardBg as { url: string }).url})`,
-                    backgroundSize: "cover",
-                    backgroundPosition: "50% 60%",
-                  }),
-                }}
-              >
-                {isPhotoBg && (
-                  <div
-                    className="absolute inset-0 pointer-events-none"
-                    style={{
-                      background:
-                        "linear-gradient(180deg, rgba(26,26,46,0) 0%, rgba(26,26,46,0.35) 100%)",
-                    }}
-                  />
-                )}
-
-                <button
-                  onClick={() => {
-                    setBgUrlInput(boardBg.type === "photo" ? boardBg.url : "");
-                    setBgPreviewError(false);
-                    setShowBgPicker(true);
-                  }}
-                  aria-label="Change cover photo"
-                  className="absolute z-20 flex items-center gap-2 rounded-full backdrop-blur-[4px] transition-opacity hover:opacity-90"
-                  style={{
-                    top: 18,
-                    right: 28,
-                    padding: "8px 14px",
-                    background: "rgba(26,26,46,0.55)",
-                    border: "1px solid rgba(255,255,255,0.18)",
-                    color: "#FAF7F2",
-                    fontWeight: 500,
-                    fontSize: 12,
-                    letterSpacing: "-0.005em",
-                  }}
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FAF7F2" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 8a2 2 0 012-2h2.5l1.5-2h6l1.5 2H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
-                    <circle cx="12" cy="13" r="3.5" />
-                  </svg>
-                  Change cover
-                </button>
-
-                {isPhotoBg && (
-                  <div
-                    className="absolute flex items-baseline pointer-events-none"
-                    style={{ left: 32, bottom: 22, right: 32, gap: 14 }}
-                  >
-                    <span
-                      className="font-display italic"
-                      style={{
-                        fontWeight: 500,
-                        fontSize: 22,
-                        color: "#FAF7F2",
-                        letterSpacing: "-0.005em",
-                        textShadow: "0 1px 2px rgba(0,0,0,0.4)",
-                      }}
-                    >
-                      {trip.title}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 9.5,
-                        fontWeight: 500,
-                        letterSpacing: "0.18em",
-                        color: "rgba(250,247,242,0.85)",
-                        textShadow: "0 1px 2px rgba(0,0,0,0.4)",
-                      }}
-                    >
-                      {fmtCoverDates(trip.start_date, trip.end_date)}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Single horizontal scroll container — both the sticky header row
+              {/* Single horizontal scroll container — both the pinned header row
                   and the card columns live here so they pan together with no JS.
                   overflow-x handles horizontal scroll; overflow-y:hidden clips
                   vertical overflow while still establishing a proper scroll
@@ -812,6 +715,18 @@ export default function PlanBoard({ trip, initialDays }: Props) {
                       onDismiss={showTemplatePicker && !allEmpty ? () => setShowTemplatePicker(false) : undefined}
                     />
                   )}
+
+                  {/* Pinned day-header row — first flex-shrink-0 child of pad.
+                      Lives in the same X-scroller as the columns row, so it pans
+                      horizontally in lockstep with zero JS; the X-scroller never
+                      scrolls Y (overflow-y-hidden), so it stays pinned to the top
+                      structurally — no position:sticky needed. Cells mirror the
+                      column width (md:w-[280px]) and gap (md:gap-5) exactly. */}
+                  <div className="hidden md:flex md:flex-row md:flex-nowrap md:gap-5 md:min-w-max md:flex-shrink-0">
+                    {days.map((day) => (
+                      <DayHeaderCell key={day.id} day={day} />
+                    ))}
+                  </div>
 
                   <div className="flex flex-row flex-nowrap gap-[10px] md:gap-5 md:min-w-max md:flex-1 md:min-h-0">
                     {days.map((day, idx) => (
@@ -1055,18 +970,6 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard, o
     await onCreateCard(label);
   };
 
-  const dayOfWeek = day.date
-    ? new Date(day.date + "T00:00:00").toLocaleDateString("en-US", { weekday: "long" })
-    : null;
-  const shortDateTitle = day.date
-    ? new Date(day.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })
-    : null;
-  const stopCount = cards.length;
-  const totalHours = Math.round(sumDurationMinutes(cards) / 60);
-  const dateLine = shortDateTitle
-    ? `${shortDateTitle}${stopCount > 0 ? ` · ${stopCount} ${stopCount === 1 ? "STOP" : "STOPS"}` : ""}${totalHours > 0 ? ` · ${totalHours}H` : ""}`
-    : null;
-
   return (
     <div className={fullWidth ? "w-full h-full flex flex-col" : "w-[148px] min-w-[148px] flex-shrink-0 md:w-[280px] md:h-full md:min-h-0 flex flex-col"}>
       {/* Card column body */}
@@ -1079,45 +982,8 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard, o
         }`}
       >
 
-        {/* Desktop-only day header — first child inside the white column surface */}
-        <div className="hidden md:block flex-shrink-0" style={{ padding: "14px 16px 12px" }}>
-          {/* Tier 1 — DAY NUMBER (small-caps) */}
-          <p style={{
-            fontFamily: "'DM Sans', system-ui, sans-serif",
-            fontSize: "9.5px",
-            fontWeight: 600,
-            letterSpacing: "0.18em",
-            textTransform: "uppercase",
-            color: "rgba(26, 26, 46, 0.55)",
-            marginBottom: "4px",
-          }}>Day {day.day_number}</p>
-          {/* Tier 2 — Day of week (italic Playfair, uppercased) */}
-          {dayOfWeek && (
-            <p style={{
-              fontFamily: "'Playfair Display', Georgia, serif",
-              fontSize: "22px",
-              fontWeight: 500,
-              fontStyle: "italic",
-              color: "rgb(26, 26, 46)",
-              letterSpacing: "-0.01em",
-              lineHeight: 1.1,
-              marginBottom: "6px",
-            }}>{dayOfWeek}</p>
-          )}
-          {/* Tier 3 — Date (small-caps caption) */}
-          {dateLine && (
-            <p style={{
-              fontFamily: "'DM Sans', system-ui, sans-serif",
-              fontSize: "10px",
-              fontWeight: 500,
-              color: "rgba(26, 26, 46, 0.45)",
-              letterSpacing: "0.14em",
-              textTransform: "uppercase",
-            }}>{dateLine}</p>
-          )}
-        </div>
-
-        {/* Cards drop zone + add button — scrolls beneath the pinned day header */}
+        {/* Cards drop zone + add button — bounded Y-scroller; the day header
+            now lives in the pinned header row above the columns (DayHeaderCell). */}
         <div className={`p-3 flex flex-col scrollbar-none [touch-action:pan-y] ${
           fullWidth
             ? ""
@@ -1222,6 +1088,64 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard, o
           )}
         </div>
       </div>{/* end card column body */}
+    </div>
+  );
+}
+
+// ── DayHeaderCell ──────────────────────────────────────────────
+// Lifted out of DayColumn into the pinned header row. Reads the day's
+// cards (live) so the STOP/H caption updates as cards move. Mirrors the
+// column width (md:w-[280px]) so each header sits exactly above its column.
+function DayHeaderCell({ day }: { day: DayWithCards }) {
+  const cards = day.cards;
+  const dayOfWeek = day.date
+    ? new Date(day.date + "T00:00:00").toLocaleDateString("en-US", { weekday: "long" })
+    : null;
+  const shortDateTitle = day.date
+    ? new Date(day.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    : null;
+  const stopCount = cards.length;
+  const totalHours = Math.round(sumDurationMinutes(cards) / 60);
+  const dateLine = shortDateTitle
+    ? `${shortDateTitle}${stopCount > 0 ? ` · ${stopCount} ${stopCount === 1 ? "STOP" : "STOPS"}` : ""}${totalHours > 0 ? ` · ${totalHours}H` : ""}`
+    : null;
+
+  return (
+    <div className="md:w-[280px] md:flex-shrink-0" style={{ padding: "14px 16px 12px" }}>
+      {/* Tier 1 — DAY NUMBER (small-caps) */}
+      <p style={{
+        fontFamily: "'DM Sans', system-ui, sans-serif",
+        fontSize: "9.5px",
+        fontWeight: 600,
+        letterSpacing: "0.18em",
+        textTransform: "uppercase",
+        color: "rgba(26, 26, 46, 0.55)",
+        marginBottom: "4px",
+      }}>Day {day.day_number}</p>
+      {/* Tier 2 — Day of week (italic Playfair, uppercased) */}
+      {dayOfWeek && (
+        <p style={{
+          fontFamily: "'Playfair Display', Georgia, serif",
+          fontSize: "22px",
+          fontWeight: 500,
+          fontStyle: "italic",
+          color: "rgb(26, 26, 46)",
+          letterSpacing: "-0.01em",
+          lineHeight: 1.1,
+          marginBottom: "6px",
+        }}>{dayOfWeek}</p>
+      )}
+      {/* Tier 3 — Date (small-caps caption) */}
+      {dateLine && (
+        <p style={{
+          fontFamily: "'DM Sans', system-ui, sans-serif",
+          fontSize: "10px",
+          fontWeight: 500,
+          color: "rgba(26, 26, 46, 0.45)",
+          letterSpacing: "0.14em",
+          textTransform: "uppercase",
+        }}>{dateLine}</p>
+      )}
     </div>
   );
 }
