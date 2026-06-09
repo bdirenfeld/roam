@@ -991,7 +991,7 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard, o
         }`}>
           <div
             ref={setNodeRef}
-            className={`min-h-[72px] rounded-lg transition-colors ${
+            className={`min-h-[72px] shrink-0 rounded-lg transition-colors ${
               isOver && cards.length === 0 ? "bg-black/5" : ""
             } ${fullWidth ? "overflow-y-auto pb-4" : ""}`}
           >
@@ -1015,7 +1015,7 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard, o
 
           {/* Add a card — flush below last card, inside column surface */}
           {isInlineAdding ? (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 shrink-0">
               <div className="flex gap-1.5">
                 <input
                   ref={inlineRef}
@@ -1054,7 +1054,7 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard, o
               </div>
             </div>
           ) : (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 shrink-0">
               {/* Door 1 — "Add from saved" reads first (quiet filled chip). */}
               <button
                 onClick={onAddFromSaved}
