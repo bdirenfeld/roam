@@ -805,7 +805,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
                 className="flex-1 overflow-x-auto overflow-y-hidden"
                 style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "none" } as React.CSSProperties}
               >
-                <div className="p-4 pb-28 md:px-7 md:pb-6">
+                <div className="p-4 pb-28 md:px-7 md:pb-6 md:flex md:flex-col md:h-full md:min-h-0">
                   {(allEmpty || showTemplatePicker) && days.length > 0 && (
                     <TemplateBanner
                       onSelect={(key) => { handleApplyTemplate(key); setShowTemplatePicker(false); }}
@@ -813,7 +813,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
                     />
                   )}
 
-                  <div className="flex flex-row flex-nowrap gap-[10px] md:gap-5 md:min-w-max">
+                  <div className="flex flex-row flex-nowrap gap-[10px] md:gap-5 md:min-w-max md:flex-1 md:min-h-0">
                     {days.map((day, idx) => (
                       <DayColumn
                         key={day.id}
@@ -1068,14 +1068,14 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard, o
     : null;
 
   return (
-    <div className={fullWidth ? "w-full h-full flex flex-col" : "w-[148px] min-w-[148px] flex-shrink-0 md:w-[280px] flex flex-col"}>
+    <div className={fullWidth ? "w-full h-full flex flex-col" : "w-[148px] min-w-[148px] flex-shrink-0 md:w-[280px] md:h-full md:min-h-0 flex flex-col"}>
       {/* Card column body */}
       <div
         style={fullWidth ? { backgroundColor: 'rgba(255,255,255,0.88)' } : undefined}
         className={`rounded-xl overflow-hidden flex flex-col scrollbar-none [touch-action:pan-y] ${
           fullWidth
             ? "backdrop-blur-md flex-1 min-h-0 overflow-y-auto"
-            : "md:h-[calc(100dvh-344px)]"
+            : "md:flex-1 md:min-h-0"
         }`}
       >
 
