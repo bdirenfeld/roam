@@ -313,6 +313,10 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
         phone:            result.formatted_phone_number,
         openNow,
         todayHours,
+        // Forward the raw opening_hours object and the full raw details result
+        // so AddToTripSheet can persist them onto the places row (world facts).
+        hours:            result.opening_hours ?? null,
+        details:          result,
       });
     } catch {
       // silently ignore network errors

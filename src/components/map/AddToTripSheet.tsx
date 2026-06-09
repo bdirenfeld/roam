@@ -20,6 +20,11 @@ export interface PlaceResult {
   phone?: string;
   openNow?: boolean;
   todayHours?: string;
+  // Forwarded straight from the Google details response so the places row can
+  // carry the same world facts the bulk-import path writes. hours = raw
+  // opening_hours object; details = the full raw Google details result.
+  hours?: unknown;
+  details?: unknown;
 }
 
 interface Props {
@@ -209,8 +214,12 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
           lat:             place.lat,
           lng:             place.lng,
           address:         place.address,
+          website:         place.website ?? null,
+          phone:           place.phone ?? null,
+          hours:           place.hours ?? null,
           rating:          place.rating ?? null,
           price_level:     foodPriceLevel,
+          details:         place.details ?? null,
         },
         { onConflict: "user_id,google_place_id", ignoreDuplicates: false },
       )
