@@ -1,0 +1,21 @@
+{
+  "name": "roam-explainer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Branded Remotion explainer for Roam — rendered from the app's own design tokens.",
+  "scripts": {
+    "render": "remotion render RoamExplainer out/roam-explainer.mp4"
+  },
+  "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
+    "@remotion/cli": "^4.0.0",
+    "@remotion/google-fonts": "^4.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.0",
+    "typescript": "^5.4.0"
+  }
+}
