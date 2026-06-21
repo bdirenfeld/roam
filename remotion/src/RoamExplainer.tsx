@@ -1,7 +1,9 @@
 import React from "react";
 import {
   AbsoluteFill,
+  Audio,
   Sequence,
+  staticFile,
   interpolate,
   spring,
   useCurrentFrame,
@@ -39,12 +41,14 @@ const { fontFamily: DM_SANS } = loadDMSans("normal", {
 });
 
 export const FPS = 30;
+// Voiceover lives in public/. When absent the project renders silent.
+export const VOICEOVER_FILE = "voiceover.mp3";
+// Silent fallback length (~28s) used when no voiceover is present.
+export const FALLBACK_FRAMES = 840;
 
-// Scene lengths (frames). Restrained, editorial pacing — nothing rushed.
-const COVER = 105;
-const STEP = 120;
-const CLOSE = 110;
-export const TOTAL_FRAMES = COVER + STEP * 5 + CLOSE; // 815
+// Per-scene weights ≈ spoken word count of each narration line, so scenes
+// stretch to match the voiceover's natural pacing. Order matches the scenes.
+const SCENE_WEIGHTS = [16, 17, 15, 11, 14, 13, 9];
 
 // ── Motion helpers ────────────────────────────────────────────────────────────
 function useReveal(delay = 0, distance = 28) {
@@ -61,7 +65,6 @@ function useReveal(delay = 0, distance = 28) {
   };
 }
 
-// Quiet hairline label, uppercase, letterspaced — the Monocle kicker.
 const Kicker: React.FC<{ children: React.ReactNode; delay?: number }> = ({
   children,
   delay = 0,
@@ -130,7 +133,6 @@ const Body: React.FC<{ children: React.ReactNode; delay?: number }> = ({
   );
 };
 
-// A faithful little Roam card — white surface, soft shadow, icon chip, two lines.
 const MockCard: React.FC<{
   icon: React.ReactNode;
   title: string;
@@ -189,7 +191,6 @@ const MockCard: React.FC<{
   );
 };
 
-// Shared scene scaffold: parchment field, generous margins, top-anchored copy.
 const Scene: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <AbsoluteFill
     style={{
@@ -291,114 +292,76 @@ const Closing: React.FC = () => {
 };
 
 // ── Composition ───────────────────────────────────────────────────────────────
-export const RoamExplainer: React.FC = () => {
+export const RoamExplainer: React.FC<{ hasAudio?: boolean }> = ({ hasAudio = false }) => {
+  const { durationInFrames } = useVideoConfig();
   const ICON = { size: 46, weight: "light" as const, color: INK };
-  let at = 0;
-  const next = (len: number) => {
-    const from = at;
-    at += len;
-    return from;
-  };
+
+  // The seven scenes, in order, paired with their pacing weights.
+  const scenes: React.ReactNode[] = [
+    <Cover />,
+    <StepScene
+      index="One"
+      title={"Plan a\njourney"}
+      body="Begin with a name and a place. Roam keeps it in preparation until the details arrive."
+    >
+      <MockCard icon={<Compass {...ICON} color={SIENNA} />} title="Kyoto in Bloom" meta="In preparation" accent delay={30} />
+    </StepScene>,
+    <StepScene
+      index="Two"
+      title={"Build the\ndays"}
+      body="Lay out the journey day by day. Each one its own page, in order."
+    >
+      <MockCard icon={<CalendarBlank {...ICON} />} title="Day One — Arrival" meta="Gion · Evening" delay={28} />
+      <MockCard icon={<AirplaneTilt {...ICON} />} title="Day Two — Higashiyama" meta="Temples · Tea" delay={42} />
+    </StepScene>,
+    <StepScene
+      index="Three"
+      title={"Add to\nthis day"}
+      body="Hotels, tables, flights — drop each into the day it belongs to."
+    >
+      <MockCard icon={<Bed {...ICON} />} title="Aman Kyoto" meta="Check-in · 15:00" delay={28} />
+      <MockCard icon={<ForkKnife {...ICON} color={SIENNA} />} title="Kikunoi Honten" meta="Reservation · 19:30" accent delay={42} />
+    </StepScene>,
+    <StepScene
+      index="Four"
+      title={"See it on\nthe map"}
+      body="Every place, pinned. Understand a day at a glance, then walk it."
+    >
+      <MockCard icon={<MapTrifold {...ICON} />} title="Higashiyama, mapped" meta="6 places · 1 day" delay={30} />
+    </StepScene>,
+    <StepScene
+      index="Five"
+      title={"Travel with\nyour Companion"}
+      body="A considered second opinion — ask, and it answers in the spirit of the trip."
+    >
+      <MockCard icon={<ChatCircleDots {...ICON} color={SIENNA} />} title="“Where for a quiet late dinner?”" meta="Companion · Replies" accent delay={30} />
+    </StepScene>,
+    <Closing />,
+  ];
+
+  // Distribute the runtime across scenes in proportion to their weights, so the
+  // visuals track the voiceover's pacing. The last scene absorbs any remainder.
+  const sumWeights = SCENE_WEIGHTS.reduce((a, b) => a + b, 0);
+  let acc = 0;
+  const layout = SCENE_WEIGHTS.map((w, i) => {
+    const len =
+      i === SCENE_WEIGHTS.length - 1
+        ? durationInFrames - acc
+        : Math.round((durationInFrames * w) / sumWeights);
+    const from = acc;
+    acc += len;
+    return { from, len };
+  });
 
   return (
     <AbsoluteFill style={{ background: PARCHMENT }}>
-      <Sequence from={next(COVER)} durationInFrames={COVER}>
-        <Cover />
-      </Sequence>
+      {hasAudio && <Audio src={staticFile(VOICEOVER_FILE)} />}
 
-      <Sequence from={next(STEP)} durationInFrames={STEP}>
-        <StepScene
-          index="One"
-          title={"Plan a\njourney"}
-          body="Begin with a name and a place. Roam keeps it in preparation until the details arrive."
-        >
-          <MockCard
-            icon={<Compass {...ICON} color={SIENNA} />}
-            title="Kyoto in Bloom"
-            meta="In preparation"
-            accent
-            delay={30}
-          />
-        </StepScene>
-      </Sequence>
-
-      <Sequence from={next(STEP)} durationInFrames={STEP}>
-        <StepScene
-          index="Two"
-          title={"Build the\ndays"}
-          body="Lay out the journey day by day. Each one its own page, in order."
-        >
-          <MockCard
-            icon={<CalendarBlank {...ICON} />}
-            title="Day One — Arrival"
-            meta="Gion · Evening"
-            delay={28}
-          />
-          <MockCard
-            icon={<AirplaneTilt {...ICON} />}
-            title="Day Two — Higashiyama"
-            meta="Temples · Tea"
-            delay={42}
-          />
-        </StepScene>
-      </Sequence>
-
-      <Sequence from={next(STEP)} durationInFrames={STEP}>
-        <StepScene
-          index="Three"
-          title={"Add to\nthis day"}
-          body="Hotels, tables, flights — drop each into the day it belongs to."
-        >
-          <MockCard
-            icon={<Bed {...ICON} />}
-            title="Aman Kyoto"
-            meta="Check-in · 15:00"
-            delay={28}
-          />
-          <MockCard
-            icon={<ForkKnife {...ICON} color={SIENNA} />}
-            title="Kikunoi Honten"
-            meta="Reservation · 19:30"
-            accent
-            delay={42}
-          />
-        </StepScene>
-      </Sequence>
-
-      <Sequence from={next(STEP)} durationInFrames={STEP}>
-        <StepScene
-          index="Four"
-          title={"See it on\nthe map"}
-          body="Every place, pinned. Understand a day at a glance, then walk it."
-        >
-          <MockCard
-            icon={<MapTrifold {...ICON} />}
-            title="Higashiyama, mapped"
-            meta="6 places · 1 day"
-            delay={30}
-          />
-        </StepScene>
-      </Sequence>
-
-      <Sequence from={next(STEP)} durationInFrames={STEP}>
-        <StepScene
-          index="Five"
-          title={"Travel with\nyour Companion"}
-          body="A considered second opinion — ask, and it answers in the spirit of the trip."
-        >
-          <MockCard
-            icon={<ChatCircleDots {...ICON} color={SIENNA} />}
-            title="“Where for a quiet late dinner?”"
-            meta="Companion · Replies"
-            accent
-            delay={30}
-          />
-        </StepScene>
-      </Sequence>
-
-      <Sequence from={next(CLOSE)} durationInFrames={CLOSE}>
-        <Closing />
-      </Sequence>
+      {scenes.map((node, i) => (
+        <Sequence key={i} from={layout[i].from} durationInFrames={layout[i].len}>
+          {node}
+        </Sequence>
+      ))}
 
       {/* Persistent corner mark — a quiet sparkle, like a watermark. */}
       <AbsoluteFill style={{ pointerEvents: "none" }}>
