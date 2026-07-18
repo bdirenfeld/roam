@@ -192,6 +192,7 @@ export interface CardAttachment {
   file_name:    string;
   file_type:    string;
   file_url:     string;
+  file_path:    string | null;
   file_size:    number;
   parsed_data:  Record<string, unknown> | null;
   parse_status: AttachmentParseStatus;

@@ -125,17 +125,53 @@ function remapParsedFields(
 // ── AttachmentRow sub-component ───────────────────────────────
 function AttachmentRow({
   attachment,
+  supabase,
   isExpanded,
   onToggleExpand,
   onApply,
 }: {
   attachment: CardAttachment;
+  supabase: ReturnType<typeof createClient>;
   isExpanded: boolean;
   onToggleExpand: () => void;
   onApply: () => void;
 }) {
   const hasParsed = attachment.parse_status === "parsed" && attachment.parsed_data;
   const isParsing = attachment.parse_status === "parsing";
+
+  // card-attachments is a private bucket, so the stored /object/public/ file_url
+  // never resolves. Resolve a short-lived signed URL from file_path (Pattern B:
+  // href is ready before the tap, so no await sits in the gesture path — iOS
+  // Safari would block a post-await window.open). file_path is the raw storage
+  // object path — pass it byte-for-byte, never encode/decode it.
+  const [signState, setSignState] = useState<"loading" | "ready" | "unavailable" | "failed">(
+    attachment.file_path ? "loading" : "unavailable",
+  );
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const path = attachment.file_path;
+    if (!path) { setSignState("unavailable"); setSignedUrl(null); return; }
+    let cancelled = false;
+    setSignState("loading");
+    supabase.storage
+      .from("card-attachments")
+      .createSignedUrl(path, 3600)
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error || !data?.signedUrl) {
+          console.error("[attachments] createSignedUrl failed", { id: attachment.id, path, error });
+          setSignState("failed");
+          setSignedUrl(null);
+        } else {
+          setSignedUrl(data.signedUrl);
+          setSignState("ready");
+        }
+      });
+    return () => { cancelled = true; };
+  }, [attachment.id, attachment.file_path, supabase]);
+
+  const isUnavailable = signState === "unavailable" || signState === "failed";
 
   return (
     <div className="border border-gray-100 rounded-xl overflow-hidden">
@@ -148,15 +184,27 @@ function AttachmentRow({
 
         {/* Name + size */}
         <div className="flex-1 min-w-0">
-          <a
-            href={attachment.file_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block text-[12px] font-semibold text-gray-800 truncate hover:underline"
-          >
-            {attachment.file_name}
-          </a>
-          <p className="text-[10px] text-gray-400">{formatBytes(attachment.file_size)}</p>
+          {signState === "ready" && signedUrl ? (
+            <a
+              href={signedUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block text-[12px] font-semibold text-gray-800 truncate hover:underline"
+            >
+              {attachment.file_name}
+            </a>
+          ) : (
+            <p className={`block text-[12px] font-semibold truncate ${isUnavailable ? "text-activity/50" : "text-gray-800"}`}>
+              {attachment.file_name}
+            </p>
+          )}
+          {signState === "unavailable" ? (
+            <p className="text-[10px] text-activity/50">Unavailable</p>
+          ) : signState === "failed" ? (
+            <p className="text-[10px] text-activity/50">Couldn’t open — try again</p>
+          ) : (
+            <p className="text-[10px] text-gray-400">{formatBytes(attachment.file_size)}</p>
+          )}
         </div>
 
         {/* Parse status indicator */}
@@ -446,6 +494,7 @@ export default function AttachmentsPanel({ card, onClose, onCardUpdate }: Props)
               <AttachmentRow
                 key={att.id}
                 attachment={att}
+                supabase={supabase}
                 isExpanded={expandedId === att.id}
                 onToggleExpand={() => setExpandedId(expandedId === att.id ? null : att.id)}
                 onApply={() => handleApplyRequest(att)}
