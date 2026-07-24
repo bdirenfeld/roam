@@ -12,6 +12,7 @@ import CreateCardSheet from "@/components/plan/CreateCardSheet";
 import Companion from "@/components/companion/Companion";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 import { createClient } from "@/lib/supabase/client";
+import { COMPANION_ENABLED } from "@/lib/featureFlags";
 import type { Trip, Day, DayWithCards, Card } from "@/types/database";
 
 // ── Weather types ──────────────────────────────────────────────────────────
@@ -805,15 +806,17 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, re
             and its panel as a fixed slide-over. At md:+, md:contents makes the
             wrapper transparent so the pull lands in col 2 row 2 (below map)
             and the panel lands in col 3 spanning rows. */}
-        <div className="md:contents">
-          <Companion
-            tripId={trip.id}
-            open={companionOpen}
-            onOpenChange={setCompanionOpen}
-            entryClassName="md:col-start-2 md:row-start-2"
-            panelOuterClassName="md:relative md:inset-auto md:z-auto md:w-auto md:border-l-0 md:col-start-3 md:row-start-1 md:row-span-2 md:sticky md:top-6 md:self-start md:rounded-2xl md:shadow-[0_1px_2px_rgba(26,26,46,0.04),0_0_0_1px_rgba(26,26,46,0.12)] md:animate-none md:max-h-[calc(100dvh-104px)]"
-          />
-        </div>
+        {COMPANION_ENABLED && (
+          <div className="md:contents">
+            <Companion
+              tripId={trip.id}
+              open={companionOpen}
+              onOpenChange={setCompanionOpen}
+              entryClassName="md:col-start-2 md:row-start-2"
+              panelOuterClassName="md:relative md:inset-auto md:z-auto md:w-auto md:border-l-0 md:col-start-3 md:row-start-1 md:row-span-2 md:sticky md:top-6 md:self-start md:rounded-2xl md:shadow-[0_1px_2px_rgba(26,26,46,0.04),0_0_0_1px_rgba(26,26,46,0.12)] md:animate-none md:max-h-[calc(100dvh-104px)]"
+            />
+          </div>
+        )}
 
         {/* Map — desktop col 2 row 1, sticky. Mobile: natural flow below Companion. */}
         <div className="md:col-start-2 md:row-start-1 md:sticky md:top-6 md:self-start">

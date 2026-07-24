@@ -14,6 +14,7 @@ import type {
   RestoreEntry,
 } from "@/lib/companion/types";
 import CompanionPanel, { type ThreadItem } from "./CompanionPanel";
+import { COMPANION_ENABLED } from "@/lib/featureFlags";
 
 const SIENNA = "#C4622D";
 const INK = "#1A1A2E";
@@ -37,7 +38,16 @@ interface CompanionProps {
   panelOuterClassName?: string;
 }
 
-export default function Companion({
+// Feature gate. Reads the single COMPANION_ENABLED source of truth: when the
+// companion is off, nothing mounts — no entry pull, no panel. The wrapper holds
+// no hooks, so returning early here doesn't touch the rules of hooks. Flip the
+// constant back to true and the full component below is restored untouched.
+export default function Companion(props: CompanionProps) {
+  if (!COMPANION_ENABLED) return null;
+  return <CompanionImpl {...props} />;
+}
+
+function CompanionImpl({
   tripId,
   open: controlledOpen,
   onOpenChange,
