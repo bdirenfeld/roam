@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
 
 interface Props {
   params: Promise<{ tripId: string }>;
@@ -20,17 +21,18 @@ export default async function TripPage({ params }: Props) {
 
   if (!trip) redirect("/trips");
 
-  // Get the first day of this trip
-  const { data: firstDay } = await supabase
+  // Entering the journey: land on today's day, clamped to the journey range
+  // (first day before it starts, last day once it's over). Fetch every day so
+  // the shared resolver can pick — never hard-code Day 1.
+  const { data: days } = await supabase
     .from("days")
-    .select("id")
+    .select("id, date")
     .eq("trip_id", tripId)
-    .order("day_number", { ascending: true })
-    .limit(1)
-    .single();
+    .order("day_number", { ascending: true });
 
-  if (firstDay) {
-    redirect(`/trips/${tripId}/days/${firstDay.id}`);
+  const openDay = resolveDefaultDay(days ?? []);
+  if (openDay) {
+    redirect(`/trips/${tripId}/days/${openDay.id}`);
   }
 
   // No days — show a placeholder

@@ -6,6 +6,7 @@ import { Camera } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import TravellersSection, { type Person } from "@/components/trip/TravellersSection";
 import ShareJourneySection, { type ShareGuest } from "@/components/trip/ShareJourneySection";
+import { TRAVELLERS_ENABLED } from "@/lib/featureFlags";
 import type { Trip, Day } from "@/types/database";
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
@@ -441,7 +442,9 @@ export default function TripSettingsClient({ trip, days, initialPeople, initialS
         </div>
 
         {/* ── Travellers — who's on this journey ── */}
-        <TravellersSection tripId={trip.id} initialPeople={initialPeople} />
+        {TRAVELLERS_ENABLED && (
+          <TravellersSection tripId={trip.id} initialPeople={initialPeople} />
+        )}
 
         {/* ── Share this journey — guest sharing ── */}
         <ShareJourneySection

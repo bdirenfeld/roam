@@ -8,7 +8,9 @@ import type { Trip } from "@/types/database";
 
 interface Props {
   trip: Trip;
-  firstDayId?: string;
+  // The day to open when this card is tapped — today's day clamped to the
+  // journey range, resolved upstream. Falls back to the trip root when absent.
+  openDayId?: string;
 }
 
 function tripNights(start: string, end: string): number {
@@ -31,14 +33,14 @@ function formatDateCompact(start: string, end: string): string {
   return `${sMonth} ${sDay} – ${eMonth} ${eDay} · ${nightsStr}`;
 }
 
-export default function TripCard({ trip, firstDayId }: Props) {
+export default function TripCard({ trip, openDayId }: Props) {
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(trip.cover_image_url ?? null);
   const [showModal,     setShowModal]     = useState(false);
 
   return (
     <>
       <div className="group relative">
-        <Link href={firstDayId ? `/trips/${trip.id}/days/${firstDayId}` : `/trips/${trip.id}`} className="block">
+        <Link href={openDayId ? `/trips/${trip.id}/days/${openDayId}` : `/trips/${trip.id}`} className="block">
           <article className="rounded-2xl overflow-hidden border border-gray-100 bg-white active:scale-[0.99] transition-all duration-150 [@media(hover:hover)]:group-hover:shadow-[0_0_0_1.5px_rgba(196,98,45,0.3)]">
 
             {/* Full-bleed cover — ~60% of card height */}

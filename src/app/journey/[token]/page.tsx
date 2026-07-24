@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
 import ClaimSignIn from "./ClaimSignIn";
 
 interface Props {
@@ -80,17 +81,18 @@ export default async function ClaimPage({ params }: Props) {
     );
   }
 
-  // Land in the Day view — first day if present, else the trip root (which
-  // resolves the first day itself).
-  const { data: firstDay } = await admin
+  // Land in the Day view on today's day, clamped to the journey range; if the
+  // journey has no days yet, fall back to the trip root (which resolves it
+  // itself). The shared resolver is the single source of that choice.
+  const { data: days } = await admin
     .from("days")
-    .select("id")
+    .select("id, date")
     .eq("trip_id", trip.id)
-    .order("day_number", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+    .order("day_number", { ascending: true });
+
+  const openDay = resolveDefaultDay(days ?? []);
 
   redirect(
-    firstDay ? `/trips/${trip.id}/days/${firstDay.id}` : `/trips/${trip.id}`,
+    openDay ? `/trips/${trip.id}/days/${openDay.id}` : `/trips/${trip.id}`,
   );
 }

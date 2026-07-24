@@ -4,6 +4,7 @@ import AppHeader from "@/components/ui/AppHeader";
 import TripCard from "@/components/ui/TripCard";
 import type { Trip } from "@/types/database";
 import { fetchAndStoreCover } from "@/lib/unsplash";
+import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
 
 function formatDateShort(start: string, end: string): string {
   const s = new Date(start + "T00:00:00");
@@ -20,7 +21,7 @@ export default async function TripsPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: profile }, { data: rawTrips }, { data: firstDays }] = await Promise.all([
+  const [{ data: profile }, { data: rawTrips }, { data: allDays }] = await Promise.all([
     supabase.from("users").select("name, avatar_url").eq("id", user?.id ?? "").single(),
     supabase
       .from("trips")
@@ -29,7 +30,7 @@ export default async function TripsPage() {
       .order("start_date", { ascending: true }),
     supabase
       .from("days")
-      .select("id, trip_id")
+      .select("id, trip_id, date")
       .order("day_number", { ascending: true }),
   ]);
 
@@ -52,10 +53,17 @@ export default async function TripsPage() {
     trips = refreshed;
   }
 
-  // Build a map of tripId → first day id
-  const firstDayByTrip: Record<string, string> = {};
-  for (const day of firstDays ?? []) {
-    if (!firstDayByTrip[day.trip_id]) firstDayByTrip[day.trip_id] = day.id;
+  // Group every day by trip, then resolve the day each journey should open to
+  // when entered from this list: today's day, clamped to the journey range.
+  // The shared resolver is the single source of that choice — no Day-1 default.
+  const daysByTrip: Record<string, { id: string; date: string }[]> = {};
+  for (const day of allDays ?? []) {
+    (daysByTrip[day.trip_id] ??= []).push({ id: day.id, date: day.date });
+  }
+  const openDayByTrip: Record<string, string> = {};
+  for (const [tripId, days] of Object.entries(daysByTrip)) {
+    const openDay = resolveDefaultDay(days);
+    if (openDay) openDayByTrip[tripId] = openDay.id;
   }
 
   const upcoming = trips?.filter((t: Trip) => t.status !== "completed") ?? [];
@@ -130,7 +138,7 @@ export default async function TripsPage() {
               {upcoming.length > 0 && (
                 <div className="space-y-3 mb-8 md:space-y-0 md:grid md:grid-cols-2 md:gap-7 md:mb-14">
                   {upcoming.map((trip: Trip) => (
-                    <TripCard key={trip.id} trip={trip} firstDayId={firstDayByTrip[trip.id]} />
+                    <TripCard key={trip.id} trip={trip} openDayId={openDayByTrip[trip.id]} />
                   ))}
                 </div>
               )}
