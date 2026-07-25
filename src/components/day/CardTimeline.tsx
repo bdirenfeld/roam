@@ -142,6 +142,7 @@ export default function CardTimeline({
               <div key={card.id} data-card-id={card.id} className="mb-5">
                 <CardSurface
                   card={card}
+                  dayDate={dayWithCards.date}
                   onTap={onCardTap ? () => onCardTap(card) : undefined}
                   isHighlighted={highlightedCardId === card.id}
                   onToggleConfirmed={

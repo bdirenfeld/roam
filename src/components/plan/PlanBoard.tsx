@@ -39,6 +39,7 @@ type BoardBg =
 import type { Trip, Card, DayWithCards, CardType, CardStatus } from "@/types/database";
 import { getPriceRange } from "@/lib/priceRange";
 import { formatTimeRange } from "@/lib/formatTime";
+import { getOpeningHoursConflict, openingHoursCaption } from "@/lib/openingHours";
 
 import CardImage from "@/components/ui/CardImage";
 import { Trash, DotsThree, Image as ImageIcon, Gear, ShareNetwork, BookmarkSimple } from "@phosphor-icons/react";
@@ -1000,6 +1001,7 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard, o
                 <SortableCardTile
                   key={card.id}
                   card={card}
+                  dayDate={day.date}
                   onTap={() => onCardTap(card)}
                   onDelete={() => onDelete(card.id)}
                 />
@@ -1220,10 +1222,12 @@ function MainMenu({ tripId, onOpenBgPicker }: { tripId: string; onOpenBgPicker: 
 // ── SortableCardTile ───────────────────────────────────────────
 function SortableCardTile({
   card,
+  dayDate,
   onTap,
   onDelete,
 }: {
   card: Card;
+  dayDate: string | null;
   onTap: () => void;
   onDelete: () => void;
 }) {
@@ -1242,7 +1246,7 @@ function SortableCardTile({
       {...attributes}
       {...listeners}
     >
-      <CardTile card={card} onTap={onTap} onDelete={onDelete} />
+      <CardTile card={card} dayDate={dayDate} onTap={onTap} onDelete={onDelete} />
     </div>
   );
 }
@@ -1250,11 +1254,13 @@ function SortableCardTile({
 // ── CardTile ───────────────────────────────────────────────────
 function CardTile({
   card,
+  dayDate,
   onTap,
   onDelete,
   isOverlay,
 }: {
   card: Card;
+  dayDate?: string | null;
   onTap?: () => void;
   onDelete?: () => void;
   isOverlay?: boolean;
@@ -1274,6 +1280,9 @@ function CardTile({
   const title       = place?.title ?? (det?.title as string | undefined) ?? noteSnippet?.slice(0, 60) ?? "(untitled note)";
 
   const timeRange = formatTimeRange(card.start_time, card.end_time);
+
+  // Opening-hours conflict signal — silent unless the scheduled time clashes.
+  const hoursSignal = place ? getOpeningHoursConflict(place.hours, dayDate ?? null, card.start_time) : null;
 
   return (
     <div
@@ -1323,6 +1332,11 @@ function CardTile({
             <p className="text-[14px] font-semibold text-gray-900 leading-snug line-clamp-2 md:text-[13.5px] md:font-medium md:line-clamp-2 md:tracking-[-0.005em]">
               {title}
             </p>
+            {hoursSignal && (
+              <p className="text-[11px] text-activity mt-0.5 leading-snug truncate">
+                {openingHoursCaption(hoursSignal)}
+              </p>
+            )}
             {isNote && noteSnippet ? (
               <p className="text-[11px] text-gray-400 mt-0.5 leading-snug line-clamp-2">{noteSnippet}</p>
             ) : (

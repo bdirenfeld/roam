@@ -2,9 +2,12 @@ import type { Card, CardType } from "@/types/database";
 import { getMaterialIconHTML } from "@/lib/mapPins";
 import { getPriceRange } from "@/lib/priceRange";
 import { formatTimeRange } from "@/lib/formatTime";
+import { getOpeningHoursConflict, openingHoursCaption } from "@/lib/openingHours";
 
 interface Props {
   card: Card;
+  /** The card's day calendar date ("YYYY-MM-DD"), for the opening-hours signal. */
+  dayDate?: string | null;
   /** Omit (guest read-only) to render the card as a non-interactive surface. */
   onTap?: () => void;
   isHighlighted?: boolean;
@@ -53,7 +56,7 @@ function flightRoute(det: Record<string, unknown> | null, timeRange: string | nu
   return typeof det?.airline === "string" ? det.airline : null;
 }
 
-export default function CardSurface({ card, onTap, isHighlighted, onToggleConfirmed, pinIndex }: Props) {
+export default function CardSurface({ card, dayDate, onTap, isHighlighted, onToggleConfirmed, pinIndex }: Props) {
   const place     = card.place;
   const det        = card.details as Record<string, unknown> | null;
   // Unlinked cards default to activity-style color for the icon block
@@ -61,6 +64,8 @@ export default function CardSurface({ card, onTap, isHighlighted, onToggleConfir
   const colors    = TYPE_COLOR[placeType];
   const subLabel  = place?.sub_type ? (SUB_TYPE_SHORT[place.sub_type] ?? null) : null;
   const timeRange = formatTimeRange(card.start_time, card.end_time);
+  // Opening-hours conflict signal — silent unless the scheduled time clashes.
+  const hoursSignal = place ? getOpeningHoursConflict(place.hours, dayDate ?? null, card.start_time) : null;
   const noteSnippet = !place ? (det?.notes as string | undefined) : undefined;
   const title     = place?.title ?? (det?.title as string | undefined) ?? noteSnippet?.slice(0, 60) ?? "(untitled note)";
 
@@ -157,6 +162,11 @@ export default function CardSurface({ card, onTap, isHighlighted, onToggleConfir
           <p className="text-[13px] font-bold text-gray-900 truncate leading-snug md:text-[15.5px] md:font-medium md:text-activity md:tracking-[-0.005em]">
             {title}
           </p>
+          {hoursSignal && (
+            <p className="text-[11px] text-activity mt-0.5 truncate leading-snug md:text-[12.5px] md:mt-[2px] md:tracking-[-0.005em]">
+              {openingHoursCaption(hoursSignal)}
+            </p>
+          )}
           {(timeRange || subtitle) && (
             <p className="text-[11px] text-gray-600 mt-0.5 truncate leading-snug md:text-[12.5px] md:text-activity/50 md:mt-[2px] md:tracking-[-0.005em]">
               {isFlight ? subtitle : (

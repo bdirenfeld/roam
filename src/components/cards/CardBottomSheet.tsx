@@ -26,6 +26,17 @@ import LogisticsDetail from "./detail/LogisticsDetail";
 import ActivityDetail from "./detail/ActivityDetail";
 import HotelDetail from "./detail/HotelDetail";
 
+/** Read Google's `weekday_text` (seven "Monday: 9:00 AM – 5:00 PM" lines) off
+ *  the raw place hours. The bottom sheet is the deliberate lookup surface, so it
+ *  always shows the full week when it exists. Returns null when absent/malformed. */
+function readWeekdayText(hours: unknown): string[] | null {
+  if (typeof hours !== "object" || hours === null) return null;
+  const wt = (hours as { weekday_text?: unknown }).weekday_text;
+  if (!Array.isArray(wt)) return null;
+  const lines = wt.filter((l): l is string => typeof l === "string");
+  return lines.length > 0 ? lines : null;
+}
+
 interface Props {
   card: Card;
   onClose: () => void;
@@ -727,6 +738,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     ? formatPhone(rawPhone, place?.address ?? null, tripDestination)
     : null;
   const website = place?.website ?? (typeof det?.website === "string" ? (det.website as string) : null);
+  const weekdayText = readWeekdayText(place?.hours);
   const menuUrl = typeof det?.menu_url === "string"
                     ? ((det.menu_url as string) || null)
                     : null;
@@ -1161,6 +1173,30 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         <div className="relative flex-1 min-h-0">
           <div className="absolute inset-0 overflow-y-auto px-5 py-5">
             {renderDetail()}
+
+            {/* Full weekly hours — the deliberate lookup surface. Always shown
+                when the place carries hours; absent for notes and hours-less places. */}
+            {weekdayText && (
+              <div className="mt-5 pt-4 border-t border-gray-100">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Clock size={14} weight="light" className="text-activity/50" />
+                  <span className="text-[12px] font-medium text-activity">Hours</span>
+                </div>
+                <ul className="space-y-1">
+                  {weekdayText.map((line, i) => {
+                    const idx = line.indexOf(": ");
+                    const day = idx >= 0 ? line.slice(0, idx) : line;
+                    const value = idx >= 0 ? line.slice(idx + 2) : "";
+                    return (
+                      <li key={i} className="flex justify-between gap-4 text-[12.5px] leading-snug">
+                        <span className="text-activity/50">{day}</span>
+                        <span className="text-activity/80 text-right">{value}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
 
             {/* Confirmation toggle — guided activities, all logistics, restaurants */}
             {!readOnly && ((place?.type === "activity" && place.sub_type === "guided") ||
