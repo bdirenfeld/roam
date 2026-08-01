@@ -23,7 +23,7 @@ export default async function TripsPage() {
   } = await supabase.auth.getUser();
 
   const [{ data: profile }, { data: rawTrips }, { data: allDays }] = await Promise.all([
-    supabase.from("users").select("name, avatar_url").eq("id", user?.id ?? "").single(),
+    supabase.from("users").select("avatar_url").eq("id", user?.id ?? "").single(),
     supabase
       .from("trips")
       .select("*")
@@ -72,29 +72,6 @@ export default async function TripsPage() {
   const upcoming = trips?.filter((t: Trip) => !isPastJourney(t)) ?? [];
   const past = trips?.filter((t: Trip) => isPastJourney(t)) ?? [];
 
-  // Resolve first name: OAuth metadata → users table → null
-  const rawName =
-    (user?.user_metadata?.full_name as string | undefined) ??
-    (user?.user_metadata?.name as string | undefined) ??
-    profile?.name ??
-    null;
-  const firstName = rawName ? rawName.trim().split(/\s+/)[0] : null;
-
-  const destination = upcoming[0]?.destination?.split(",")[0]?.trim() ?? null;
-
-  const greeting = firstName
-    ? destination
-      ? `${firstName}. ${destination} awaits.`
-      : `${firstName}. Where to next?`
-    : destination
-    ? `${destination} awaits.`
-    : "My Trips";
-
-  // Two-color desktop greeting: split on first ". " — name in ink, tagline in caption.
-  const sepIdx = greeting.indexOf(". ");
-  const greetingName = sepIdx > -1 ? greeting.slice(0, sepIdx + 1) : greeting;
-  const greetingTagline = sepIdx > -1 ? greeting.slice(sepIdx + 2) : "";
-
   return (
     <div>
       <AppHeader avatarUrl={profile?.avatar_url} showNewTrip />
@@ -102,22 +79,22 @@ export default async function TripsPage() {
       {/* Desktop bounded column; mobile passes through */}
       <div className="md:max-w-[1100px] md:mx-auto md:px-14 md:pt-10 md:pb-12">
 
-        {/* Greeting deck */}
+        {/* Page header */}
         <div className="px-4 pt-5 pb-3 md:px-0 md:pt-0 md:pb-0">
-          {/* Mobile — single-color */}
-          <h2 className="md:hidden font-display italic font-normal text-lg text-gray-900">
-            {greeting}
+          {/* Mobile */}
+          <h2
+            className="md:hidden font-display italic font-normal text-base"
+            style={{ color: "#1A1A2E" }}
+          >
+            Journeys
           </h2>
-          {/* Desktop — two-color deck + trip-count meta */}
+          {/* Desktop — static header + trip-count meta */}
           <div className="hidden md:block">
             <h2
               className="font-display italic font-normal"
-              style={{ fontSize: 30, letterSpacing: "-0.01em", lineHeight: 1.2 }}
+              style={{ fontSize: 24, letterSpacing: "-0.01em", lineHeight: 1.2, color: "#1A1A2E" }}
             >
-              <span style={{ color: "#1A1A2E" }}>{greetingName}</span>
-              {greetingTagline && (
-                <span style={{ color: "rgba(26,26,46,0.55)" }}>{" "}{greetingTagline}</span>
-              )}
+              Journeys
             </h2>
             <div
               className="font-sans mt-1"
