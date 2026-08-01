@@ -6,7 +6,8 @@
 // duplicates it: today's calendar date, clamped to the journey's range.
 //   • today before the journey → the first day
 //   • today within the journey → the day whose date is today
-//   • today after the journey  → the last day
+//   • today on the last day     → the last day (the journey isn't over)
+//   • today after the journey   → the first day (start over at day one)
 //
 // Calendar dates only, no time-of-day. `today` defaults to the local "now"
 // (browser-local on the client; the host clock in a server context, which is
@@ -46,7 +47,8 @@ export function resolveDefaultDay<T extends DayLike>(
   const last = sorted[sorted.length - 1];
 
   if (todayStr <= first.date) return first; // before the journey, or on day one
-  if (todayStr >= last.date) return last; // after the journey, or on the last day
+  if (todayStr === last.date) return last; // on the last day — the journey isn't over
+  if (todayStr > last.date) return first; // after the journey — start over at day one
 
   // Inside the range: the day whose date is today. For consecutive dates that
   // is an exact match; walking to the last day on or before today keeps it
