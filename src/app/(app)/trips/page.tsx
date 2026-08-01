@@ -5,6 +5,7 @@ import TripCard from "@/components/ui/TripCard";
 import type { Trip } from "@/types/database";
 import { fetchAndStoreCover } from "@/lib/unsplash";
 import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
+import { isPastJourney } from "@/lib/tripRecency";
 
 function formatDateShort(start: string, end: string): string {
   const s = new Date(start + "T00:00:00");
@@ -66,8 +67,10 @@ export default async function TripsPage() {
     if (openDay) openDayByTrip[tripId] = openDay.id;
   }
 
-  const upcoming = trips?.filter((t: Trip) => t.status !== "completed") ?? [];
-  const past = trips?.filter((t: Trip) => t.status === "completed") ?? [];
+  // Group by a read-time recency rule, not the manually-set `status` column:
+  // a journey is "past" only once its end_date is >7 days behind us.
+  const upcoming = trips?.filter((t: Trip) => !isPastJourney(t)) ?? [];
+  const past = trips?.filter((t: Trip) => isPastJourney(t)) ?? [];
 
   // Resolve first name: OAuth metadata → users table → null
   const rawName =
