@@ -68,24 +68,5 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  // Payment gate — scoped to journey CREATION only. Any authenticated user may
-  // load the app; RLS scopes what they actually see (an unpaid non-guest sees
-  // an empty /trips list, a guest sees the journeys shared with them). The
-  // paywall moved from "may you open the app" to "may you create/own a
-  // journey", enforced here at the creation route. /checkout stays reachable
-  // for unpaid users because it is not the creation route. /api/* and the
-  // /journey/ claim link are never gated (the latter via isPublic above).
-  if (user && pathname.startsWith('/trips/new')) {
-    const { data: profile } = await supabase
-      .from('users')
-      .select('has_paid')
-      .eq('id', user.id)
-      .maybeSingle()
-
-    if (!profile?.has_paid) {
-      return NextResponse.redirect(new URL('/checkout', request.nextUrl.origin))
-    }
-  }
-
   return supabaseResponse
 }
