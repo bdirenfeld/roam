@@ -117,7 +117,7 @@ export default function NewTripPage() {
     debounceRef.current = setTimeout(async () => {
       try {
         const res  = await fetch(
-          `/api/places/autocomplete?input=${encodeURIComponent(destInput)}&sessiontoken=${sessionToken.current}&types=(cities)`,
+          `/api/places/autocomplete?input=${encodeURIComponent(destInput)}&sessiontoken=${sessionToken.current}&types=(regions)`,
         );
         const data = await res.json() as { predictions?: DestinationPrediction[] };
         setSuggestions(data.predictions ?? []);
