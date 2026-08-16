@@ -34,6 +34,8 @@ export interface Trip {
   accommodation_name: string | null
   accommodation_address: string | null
   status: TripStatus
+  archived: boolean
+  archived_at: string | null
   cover_image_url: string | null
   kanban_background_url: string | null
   created_at: string

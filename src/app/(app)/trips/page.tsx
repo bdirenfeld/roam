@@ -67,10 +67,11 @@ export default async function TripsPage() {
     if (openDay) openDayByTrip[tripId] = openDay.id;
   }
 
-  // Group by a read-time recency rule, not the manually-set `status` column:
-  // a journey is "past" only once its end_date is >7 days behind us.
-  const upcoming = trips?.filter((t: Trip) => !isPastJourney(t)) ?? [];
-  const past = trips?.filter((t: Trip) => isPastJourney(t)) ?? [];
+  // A journey is "past" when explicitly archived, or by the read-time recency
+  // rule: its end_date is >7 days behind us. `status` plays no part.
+  const isPast = (t: Trip) => t.archived === true || isPastJourney(t);
+  const upcoming = trips?.filter((t: Trip) => !isPast(t)) ?? [];
+  const past = trips?.filter((t: Trip) => isPast(t)) ?? [];
 
   return (
     <div>

@@ -7,7 +7,7 @@ export default async function PastJourneysPage() {
   const { data: trips } = await supabase
     .from("trips")
     .select("*")
-    .eq("status", "completed")
+    .eq("archived", true)
     .order("end_date", { ascending: false });
 
   return <PastJourneysClient initialTrips={(trips ?? []) as Trip[]} />;

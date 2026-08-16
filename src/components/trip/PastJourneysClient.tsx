@@ -58,7 +58,7 @@ export default function PastJourneysClient({ initialTrips }: Props) {
     const supabase = createClient();
     await supabase
       .from("trips")
-      .update({ status: "planning" })
+      .update({ archived: false, archived_at: null })
       .eq("id", trip.id);
     setTrips((prev) => prev.filter((t) => t.id !== trip.id));
     router.refresh();

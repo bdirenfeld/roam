@@ -225,7 +225,13 @@ export default function TripSettingsClient({ trip, days, initialPeople, initialS
 
   const handleArchive = async () => {
     const supabase = createClient();
-    await supabase.from("trips").update({ status: "completed" }).eq("id", trip.id);
+    const { error } = await supabase
+      .from("trips")
+      .update({ archived: true, archived_at: new Date().toISOString() })
+      .eq("id", trip.id);
+    if (error) {
+      console.error("Failed to archive journey:", error);
+    }
     router.push("/");
   };
 
