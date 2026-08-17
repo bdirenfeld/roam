@@ -247,17 +247,31 @@ interface PlaceToEnrich {
   /** Human search string. null means "vendor decision pending" — skipped. */
   search: string | null
   /**
-   * Optional per-entry override. bulk-import's `defaults` is batch-wide, so a
-   * place needing an explicit sub_type (Esselunga → logistics/grocery) would
-   * need its own single-entry call to that route. Here it rides along per entry.
+   * Per-entry override. bulk-import's `defaults` is batch-wide, so a place
+   * needing an explicit sub_type (Esselunga → logistics/grocery) would need its
+   * own single-entry call to that route. Here it rides along per entry.
+   *
+   * The Tuscany input sets these on every entry, which means inferType never
+   * decides anything — that is deliberate. Two sub_types in this itinerary
+   * ('grocery', 'challenge') either have no inference rule or no rule that
+   * would pick them, so relying on inference would silently mislabel them.
    */
   type?: RoamType
   sub_type?: string
+  /** Author's own confidence + note, surfaced in the review table. */
+  confidence?: string
+  note?: string
+  /** Which category block it came from, for grouping the table. */
+  category: string
 }
 
 interface ResolvedEntry {
   title: string
   search: string
+  category: string
+  /** Author's stated confidence — 'low' means they already expect trouble. */
+  confidence: string | null
+  note: string | null
   google_place_id: string | null
   resolved_name: string | null
   resolved_address: string | null
@@ -290,30 +304,54 @@ function readInputPlaces(): PlaceToEnrich[] {
   }
 
   const raw = parsed['step_1_places_to_enrich']
-  if (!Array.isArray(raw)) {
-    console.error('❌  Expected a `step_1_places_to_enrich` array at the top level.')
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    console.error('❌  Expected a `step_1_places_to_enrich` object at the top level.')
     console.error(`    Top-level keys present: ${Object.keys(parsed).join(', ')}`)
     process.exit(1)
   }
 
+  /**
+   * step_1_places_to_enrich is keyed by category (logistics / activities / food)
+   * alongside `_`-prefixed metadata keys. Flatten every array value, skip the
+   * metadata, and remember which category each entry came from.
+   */
   const places: PlaceToEnrich[] = []
-  raw.forEach((entry, i) => {
-    const e = entry as Record<string, unknown>
-    if (typeof e.title !== 'string' || !e.title.trim()) {
-      console.error(`❌  step_1_places_to_enrich[${i}] has no usable \`title\`.`)
+  for (const [category, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (category.startsWith('_')) continue
+    if (!Array.isArray(value)) {
+      console.error(`❌  step_1_places_to_enrich.${category} is not an array.`)
       process.exit(1)
     }
-    if (e.search !== null && typeof e.search !== 'string') {
-      console.error(`❌  step_1_places_to_enrich[${i}] (${e.title}) has a \`search\` that is neither a string nor null.`)
-      process.exit(1)
-    }
-    places.push({
-      title:    e.title,
-      search:   (e.search as string | null) ?? null,
-      type:     typeof e.type === 'string' ? (e.type as RoamType) : undefined,
-      sub_type: typeof e.sub_type === 'string' ? e.sub_type : undefined,
+    value.forEach((entry, i) => {
+      const e   = entry as Record<string, unknown>
+      const at  = `step_1_places_to_enrich.${category}[${i}]`
+      if (typeof e.title !== 'string' || !e.title.trim()) {
+        console.error(`❌  ${at} has no usable \`title\`.`)
+        process.exit(1)
+      }
+      if (e.search !== null && typeof e.search !== 'string') {
+        console.error(`❌  ${at} (${e.title}) has a \`search\` that is neither a string nor null.`)
+        process.exit(1)
+      }
+      places.push({
+        title:      e.title,
+        search:     (e.search as string | null) ?? null,
+        type:       typeof e.type === 'string' ? (e.type as RoamType) : undefined,
+        sub_type:   typeof e.sub_type === 'string' ? e.sub_type : undefined,
+        confidence: typeof e.confidence === 'string' ? e.confidence : undefined,
+        note:       typeof e.note === 'string' ? e.note : undefined,
+        category,
+      })
     })
-  })
+  }
+
+  const dupes = places.map((p) => p.title).filter((t, i, a) => a.indexOf(t) !== i)
+  if (dupes.length) {
+    console.error(`❌  Duplicate titles in step_1_places_to_enrich: ${Array.from(new Set(dupes)).join(", ")}`)
+    console.error('    Titles are the join key for step_2 `place_ref`, so they must be unique.')
+    process.exit(1)
+  }
+
   return places
 }
 
@@ -375,6 +413,9 @@ async function runResolve(apiKey: string): Promise<void> {
       console.log('NO MATCH')
       resolved.push({
         title: place.title, search,
+        category: place.category,
+        confidence: place.confidence ?? null,
+        note: place.note ?? null,
         google_place_id: null, resolved_name: null, resolved_address: null,
         resolved_types: [], lat: null, lng: null,
         inferred_type: null, inferred_sub_type: null,
@@ -404,9 +445,16 @@ async function runResolve(apiKey: string): Promise<void> {
       flags.push(`NAME_DRIFT — "${top.name}" shares no significant word with the search string`)
     }
 
+    if (place.confidence === 'low') {
+      flags.push('AUTHOR_FLAGGED_LOW — the itinerary itself marks this entry as needing a decision; check the match carefully')
+    }
+
     resolved.push({
       title: place.title,
       search,
+      category:          place.category,
+      confidence:        place.confidence ?? null,
+      note:              place.note ?? null,
       google_place_id:   top.place_id,
       resolved_name:     top.name ?? null,
       resolved_address:  top.formatted_address ?? null,
@@ -437,7 +485,7 @@ async function runResolve(apiKey: string): Promise<void> {
   console.log('RESOLUTION TABLE — review before running with --live')
   console.log('━'.repeat(78))
   for (const r of resolved) {
-    console.log(`\n  ${r.flags.length ? '⚠ ' : '  '}${r.title}`)
+    console.log(`\n  ${r.flags.length ? '⚠ ' : '  '}${r.title}   [${r.category}${r.confidence ? ` · confidence ${r.confidence}` : ''}]`)
     console.log(`      search   : ${r.search}`)
     console.log(`      resolved : ${r.resolved_name ?? '(no match)'}`)
     console.log(`      address  : ${r.resolved_address ?? '—'}`)
@@ -445,6 +493,7 @@ async function runResolve(apiKey: string): Promise<void> {
     const t  = r.override_type ?? r.inferred_type
     const st = r.override_sub_type ?? r.inferred_sub_type
     console.log(`      type     : ${t ?? '(none)'} / ${st ?? '(none)'}${r.override_type ? '  [override]' : ''}`)
+    if (r.note) console.log(`      note     : ${r.note}`)
     for (const f of r.flags) console.log(`      ⚠  ${f}`)
     if (r.flags.length && r.alternatives.length) {
       console.log('      alternatives:')

@@ -1,0 +1,218 @@
+{
+  "_meta": {
+    "trip": "Tuscany — September 2027",
+    "arrival": "2027-09-04",
+    "departure": "2027-09-14",
+    "nights": 10,
+    "user_id": "ece938aa-db7b-4436-bb59-442cc0dc5e10",
+    "trip_id": "TBD — create trip row first",
+    "party": "7 — Brennan + wife, kids aged 10 / 8 / 5, plus grandparents in their early 70s",
+    "base": "Villa Bottino, Torcigliano (Camaiore, Lucca hills)",
+    "_revision": "Rev 2 — recalibrated from 'small kids' to ages 10/8/5 plus two grandparents. Removed cot/high-chair/stroller assumptions. Wine tour promoted from the interested pile onto Day 9. Cinque Terre switched to the ferry. Corrected drive times measured from Torcigliano rather than the Vinci/Empoli corridor.",
+
+    "_drive_times_from_torcigliano": {
+      "Lucca": "20 min",
+      "Lido di Camaiore (Versilia sand)": "20-25 min",
+      "Colline Lucchesi wineries": "20-25 min",
+      "Collodi (Parco di Pinocchio)": "~35 min",
+      "Montecarlo DOC": "~30 min",
+      "Montecatini Terme station": "~30 min",
+      "Pisa city": "~35 min",
+      "Pisa airport (PSA)": "~40 min",
+      "Vinci": "~50 min — NOT 15-20 min. That figure was for the Montopoli/Empoli corridor, a base we did not choose. Vinci is demoted to an option.",
+      "Levanto (Cinque Terre gateway)": "1h10-1h15",
+      "Florence": "~30 min drive to Montecatini + ~50 min train = ~1h20 door to door"
+    },
+
+    "_enrichment_warning": "Do NOT insert these as direct DB card inserts. Per 05-gotchas: direct card inserts bypass Google enrichment. Run STEP 1 (places via /api/places/bulk-import) before STEP 2 (cards via MCP referencing the returned place_id).",
+
+    "_schema_notes": [
+      "status is 'interested' | 'in_itinerary' | 'cut' ONLY — invented values fail silently",
+      "position is manual, 1-based, contiguous per day; null position = silent non-render",
+      "type/sub_type live on places, NOT on cards",
+      "note cards have place_id: null, title at details.title, body at details.notes",
+      "write details with: details = COALESCE(details,'{}'::jsonb) || jsonb_build_object(...)",
+      "grocery + pharmacy sub_types have NO auto-inference — must be set manually or Save stays disabled"
+    ],
+
+    "_booking_questions_for_salogi": [
+      "How many bedrooms are at GROUND level, and how many stairs to the others? Two guests are in their early 70s — this is now a booking-decision question, not a nice-to-have.",
+      "Is pool fencing installed by default or on request? (Listing says 'available for families with children'.) A 5-year-old still wants a barrier even though cots are irrelevant.",
+      "Can you arrange the in-villa cooking class the 2018 listing advertised?",
+      "Can you arrange a private chef for the final night?",
+      "Can you pre-stock the villa for a Saturday arrival?"
+    ],
+
+    "_vehicle_note": "One 9-seat van from Pisa. Ask specifically for a Mercedes V-Class or Vito Tourer rather than a VW Transporter or Renault Trafic — same seats, meaningfully lower step-in height, which matters with two passengers in their 70s getting in and out six times a day. Book an automatic early; 9-seaters in Italy are overwhelmingly manual.",
+
+    "_car_seat_note": "All three children are under 150cm so all three legally need a restraint. The 10- and 8-year-old can use packable backless boosters (mifold / BubbleBum). The 5-year-old likely needs a high-back — backless cushions are generally restricted to over 125cm and 22kg. Confirm with the rental desk. Bringing your own beats €10-15/day/seat."
+  },
+
+  "step_1_places_to_enrich": {
+    "_how": "POST to /api/places/bulk-import so Google Places resolves google_place_id, lat, lng, hours, rating, price_level and the raw details JSONB. Capture the returned place_id per title.",
+    "_confidence_key": "high = well-known, should resolve first try. low = needs a vendor decision before enrichment is meaningful.",
+
+    "logistics": [
+      { "title": "Pisa International Airport", "search": "Pisa International Airport, Italy", "type": "logistics", "sub_type": "flight_arrival", "confidence": "high" },
+      { "title": "Villa Bottino", "search": "Torcigliano, Camaiore, Lucca", "type": "logistics", "sub_type": "hotel", "confidence": "low", "note": "Villa rentals usually have NO Google Place. Expect this to fail or resolve to the wrong thing. Set lat/lng manually from the Salogi listing rather than accepting a bad match." },
+      { "title": "Esselunga Lucca", "search": "Esselunga Lucca", "type": "logistics", "sub_type": "grocery", "confidence": "high", "note": "sub_type needs MANUAL pick — no auto-inference for grocery" },
+      { "title": "Stazione di Montecatini Terme", "search": "Stazione di Montecatini Terme Monsummano", "type": "logistics", "sub_type": "transit", "confidence": "high", "note": "Primary Florence railhead. Lucca station is the fallback — 20 min closer to drive but ~35 min longer on the train." },
+      { "title": "Firenze Santa Maria Novella", "search": "Firenze Santa Maria Novella station", "type": "logistics", "sub_type": "transit", "confidence": "high" },
+      { "title": "Levanto Station", "search": "Stazione di Levanto", "type": "logistics", "sub_type": "transit", "confidence": "high" }
+    ],
+
+    "activities": [
+      { "title": "Passeggiata delle Mura Urbane", "search": "Passeggiata delle Mura Urbane Lucca", "type": "activity", "sub_type": "self_directed", "confidence": "high" },
+      { "title": "Piazza dell'Anfiteatro", "search": "Piazza dell'Anfiteatro Lucca", "type": "activity", "sub_type": "self_directed", "confidence": "high" },
+      { "title": "Torre Guinigi", "search": "Torre Guinigi Lucca", "type": "activity", "sub_type": "self_directed", "confidence": "high" },
+      { "title": "Parco di Pinocchio", "search": "Parco di Pinocchio Collodi", "type": "activity", "sub_type": "guided", "confidence": "high" },
+      { "title": "Villa Garzoni", "search": "Villa Garzoni Collodi", "type": "activity", "sub_type": "self_directed", "confidence": "high" },
+      { "title": "Vernazza", "search": "Vernazza Cinque Terre", "type": "activity", "sub_type": "self_directed", "confidence": "high" },
+      { "title": "Monterosso al Mare", "search": "Monterosso al Mare beach Cinque Terre", "type": "activity", "sub_type": "self_directed", "confidence": "high" },
+      { "title": "Manarola", "search": "Manarola Cinque Terre", "type": "activity", "sub_type": "self_directed", "confidence": "high" },
+      { "title": "Cattedrale di Santa Maria del Fiore", "search": "Duomo Firenze Cattedrale di Santa Maria del Fiore", "type": "activity", "sub_type": "self_directed", "confidence": "high" },
+      { "title": "Cupola del Brunelleschi", "search": "Brunelleschi Dome climb Florence", "type": "activity", "sub_type": "challenge", "confidence": "high", "note": "463 steps. NOW VIABLE for the 10- and 8-year-old — this was ruled out under the toddler assumption." },
+      { "title": "Piazza della Signoria", "search": "Piazza della Signoria Firenze", "type": "activity", "sub_type": "self_directed", "confidence": "high" },
+      { "title": "Giardino di Boboli", "search": "Giardino di Boboli Firenze", "type": "activity", "sub_type": "self_directed", "confidence": "high" },
+      { "title": "Lido di Camaiore", "search": "Lido di Camaiore beach", "type": "activity", "sub_type": "self_directed", "confidence": "high" },
+      { "title": "Torre di Pisa", "search": "Leaning Tower of Pisa", "type": "activity", "sub_type": "challenge", "confidence": "high", "note": "Minimum age 8 — the 10- and 8-year-old now clear it. Optional add to Day 8." },
+      { "title": "Piazza dei Miracoli", "search": "Piazza dei Miracoli Pisa", "type": "activity", "sub_type": "self_directed", "confidence": "high" },
+      { "title": "Museo Leonardiano di Vinci", "search": "Museo Leonardiano Vinci", "type": "activity", "sub_type": "guided", "confidence": "high", "note": "Demoted to the interested pile — it's ~50 min from Torcigliano, not 15." },
+      { "title": "COOKING CLASS — vendor TBD", "search": null, "type": "activity", "sub_type": "guided", "confidence": "low", "note": "Ask Salogi first — Bottino's 2018 listing advertised in-villa cooking lessons. A chef who comes to the house beats seven people driving to a class." },
+      { "title": "WINE TOUR — vendor TBD", "search": null, "type": "activity", "sub_type": "guided", "confidence": "low", "note": "Colline Lucchesi (20-25 min) or Montecarlo DOC (~30 min) — both far closer than Chianti. Needs a private driver so all four adults can drink. Ask for an estate with grounds the kids can be turned loose in." },
+      { "title": "CINQUE TERRE FERRY — operator TBD", "search": "Consorzio Marittimo Turistico Cinque Terre Golfo dei Poeti", "type": "activity", "sub_type": "guided", "confidence": "low", "note": "The key upgrade for a party spanning 5 to 70-something. Runs Levanto-Monterosso-Vernazza-Manarola-Riomaggiore-Portovenere, roughly late March to early November. No stairs, best views of the villages. Corniglia has no harbour so it's skipped — which is fine, it's the 382-step one. VERIFY the 2027 timetable closer to the date." },
+      { "title": "PRIVATE CHEF — vendor TBD", "search": null, "type": "activity", "sub_type": "event", "confidence": "low", "note": "The 'Last Supper' anchor from the 2018 deck. Book in-villa, well ahead." }
+    ],
+
+    "food": [
+      { "title": "Buca di Sant'Antonio", "search": "Buca di Sant'Antonio Lucca", "type": "food", "sub_type": "restaurant", "confidence": "high" },
+      { "title": "Trattoria da Leo", "search": "Trattoria da Leo Lucca", "type": "food", "sub_type": "restaurant", "confidence": "high" },
+      { "title": "Gelateria Veneta", "search": "Gelateria Veneta Lucca", "type": "food", "sub_type": "dessert", "confidence": "high" },
+      { "title": "Mercato Centrale Firenze", "search": "Mercato Centrale Firenze San Lorenzo", "type": "food", "sub_type": "restaurant", "confidence": "high" }
+    ]
+  },
+
+  "step_2_days": [
+    {
+      "date": "2027-09-04",
+      "label": "Day 0 · Saturday — Arrive",
+      "shape": "travel only",
+      "cards": [
+        { "position": 1, "status": "in_itinerary", "place_ref": "Pisa International Airport", "start_time": "13:00", "details": { "notes": "Land, clear customs, collect the 9-seat van. Budget 90 minutes from wheels-down to driving away — seven people, three booster seats and a van pickup is not a 20-minute exercise.", "prep": "IDPs in hand for every adult who might drive. Boosters out of the checked bags before you leave the terminal.", "energy": "low" } },
+        { "position": 2, "status": "in_itinerary", "place_ref": "Esselunga Lucca", "start_time": "15:00", "details": { "notes": "First grocery run — or skip it entirely if Salogi pre-stocks. On a Saturday arrival with five people who've just flown, pre-stocking is worth every euro.", "order": "Breakfast for 10 days, pasta, wine, and whatever the kids will actually eat on night one.", "energy": "low" } },
+        { "position": 3, "status": "in_itinerary", "place_ref": "Villa Bottino", "start_time": "16:30", "details": { "notes": "Check in, ~40 min from the airport. Pool if there's daylight left. Eat whatever's in the fridge.", "prep": "Sort out who's in which building and confirm your parents got a ground-floor room.", "confirmation": "TBD — Salogi booking ref", "energy": "low" } }
+      ]
+    },
+    {
+      "date": "2027-09-05",
+      "label": "Day 1 · Sunday — Nothing",
+      "shape": "downtime",
+      "cards": [
+        { "position": 1, "status": "in_itinerary", "place_id": null, "details": { "title": "Nothing. Deliberately.", "notes": "The 2018 plan put 'Relax at Villa' on Day 1 and it was right. Jet lag is a two-day tax for the kids and for anyone in their 70s — pay it up front rather than dragging it through Florence. Pool, long lunch, early night." } },
+        { "position": 2, "status": "in_itinerary", "place_id": null, "details": { "title": "Dinner regroup — cook at the villa", "notes": "Sets the pattern for the whole trip: someone cooks, everyone eats outside." } }
+      ]
+    },
+    {
+      "date": "2027-09-06",
+      "label": "Day 2 · Monday — Lucca",
+      "shape": "anchor · kid experience 1 · best multi-generational day of the trip",
+      "cards": [
+        { "position": 1, "status": "in_itinerary", "place_ref": "Passeggiata delle Mura Urbane", "start_time": "09:30", "end_time": "11:30", "details": { "notes": "4.2 km of tree-lined rampart on top of the city walls — flat, shaded, zero cars. At 10, 8 and 5 all three ride their own bikes, no kid seats or tag-alongs needed. Your parents can cycle the same flat loop or sit in the cafés along it and get collected on the way round. This is the one day where all seven of you genuinely want the same thing.", "prep": "Park at Palatucci (€6/day cap) or Carducci (€5/day) — both outside the ZTL, both rent bikes. Do NOT drive toward the walls hunting for a space; that's an €80 fine per camera pass.", "tips": "Ride the full loop once, then drop into the town.", "energy": "medium", "duration": "2h" } },
+        { "position": 2, "status": "in_itinerary", "place_ref": "Piazza dell'Anfiteatro", "start_time": "11:45", "details": { "notes": "A closed oval built on the footprint of the Roman amphitheatre — the buildings ARE the walls. Enclosed, so the kids can run and the adults can sit.", "energy": "low" } },
+        { "position": 3, "status": "in_itinerary", "place_ref": "Trattoria da Leo", "start_time": "12:45", "details": { "notes": "Loud, cheap, family-run, no ceremony. The right lunch for a table of seven with no reservation.", "order": "Whatever's on the handwritten sheet.", "energy": "low" } },
+        { "position": 4, "status": "in_itinerary", "place_ref": "Torre Guinigi", "start_time": "14:15", "details": { "notes": "The tower with oak trees growing out of the top. 233 steps — fine for all three kids. Your parents may want to sit this one out in the piazza; send one adult up with the kids.", "energy": "high" } },
+        { "position": 5, "status": "in_itinerary", "place_ref": "Gelateria Veneta", "start_time": "15:15", "details": { "notes": "The bribe that gets everyone back to the van without incident.", "energy": "low" } }
+      ]
+    },
+    {
+      "date": "2027-09-07",
+      "label": "Day 3 · Tuesday — Collodi, then pool",
+      "shape": "downtime with a half-day",
+      "cards": [
+        { "position": 1, "status": "in_itinerary", "place_ref": "Parco di Pinocchio", "start_time": "09:30", "end_time": "12:30", "details": { "notes": "~35 min away and the most underrated kid stop in Tuscany. Not a theme park — a 1950s-70s sculpture park and mosaic maze telling the story, with enough real artistic merit that the adults don't suffer. The 5-year-old is the target audience; the 10-year-old will like the maze. Villa Garzoni's gardens next door if they're still going.", "prep": "Morning — it's exposed and hot by midday, which matters more for your parents than for the kids. Verify ticket prices; the site blocks automated lookup.", "energy": "medium", "duration": "3h" } },
+        { "position": 2, "status": "in_itinerary", "place_id": null, "details": { "title": "Pool, all afternoon", "notes": "Back by 1pm. This is the swim-every-day part of the brief and it has to be actually protected, not theoretically available." } }
+      ]
+    },
+    {
+      "date": "2027-09-08",
+      "label": "Day 4 · Wednesday — Cinque Terre by boat",
+      "shape": "anchor · kid experience 2 · the big day",
+      "cards": [
+        { "position": 1, "status": "in_itinerary", "place_ref": "Levanto Station", "start_time": "07:30", "details": { "notes": "Leave the villa at 7:30. ~1h10 to Levanto — the whole reason the Lucca hills base works. Park in Levanto (easier and cheaper than La Spezia).", "prep": "Under-4s free and 4-11 half price on the trains, but the ferry prices differently — check both. Validate paper train tickets at the green machines; fines are steep.", "energy": "high" } },
+        { "position": 2, "status": "in_itinerary", "place_ref": "CINQUE TERRE FERRY — operator TBD", "start_time": "09:00", "details": { "notes": "Take the BOAT, not just the train. This is the single change that makes Cinque Terre work for a party spanning a 5-year-old and two people in their 70s: no stairs, no packed carriages, and by far the best views of the villages — they were built to be seen from the water. The kids will rate it above anything on land.", "prep": "Buy tickets at the Levanto harbour kiosk on the morning. VERIFY the 2027 timetable closer to the date — the service runs roughly late March to early November and the schedule shifts each season.", "tips": "Corniglia has no harbour so the boat skips it. That's a feature, not a loss — it's the one with 382 steps up from its station.", "energy": "low" } },
+        { "position": 3, "status": "in_itinerary", "place_ref": "Vernazza", "start_time": "09:45", "details": { "notes": "The prettiest of the five and the reason for the early start. Harbour, castle, one street down to the water. Arriving by sea beats arriving by tunnel.", "tips": "Still steep once you're off the boat. Set the pace off your parents, not the 10-year-old.", "energy": "medium" } },
+        { "position": 4, "status": "in_itinerary", "place_ref": "Monterosso al Mare", "start_time": "11:30", "end_time": "14:30", "details": { "notes": "The only village with real sand and the flattest of the five. Swim here, eat here, then go home. Sea temperature in early September is ~24°C — warmer than any unheated pool, which is what earns this day its length.", "prep": "Swimsuits under clothes. No changing logistics with seven people.", "energy": "medium", "duration": "3h" } },
+        { "position": 5, "status": "in_itinerary", "place_id": null, "details": { "title": "Ferry back to Levanto, drive home", "notes": "On the road by 3pm. Day-trippers pour in from 10am and leave by 5pm — the early start is the entire trick." } }
+      ]
+    },
+    {
+      "date": "2027-09-09",
+      "label": "Day 5 · Thursday — Recovery",
+      "shape": "downtime",
+      "cards": [
+        { "position": 1, "status": "in_itinerary", "place_id": null, "details": { "title": "Recovery day — pool and nothing else", "notes": "Non-negotiable after Cinque Terre, and more for your parents than for the kids. The 2018 plan drew deliberate downtime after every anchor and that instinct is why it read as a holiday rather than a march." } }
+      ]
+    },
+    {
+      "date": "2027-09-10",
+      "label": "Day 6 · Friday — Cooking class",
+      "shape": "anchor · at the villa",
+      "cards": [
+        { "position": 1, "status": "in_itinerary", "place_id": null, "details": { "title": "Slow morning, pool", "notes": "Nothing before the class. Optional Lucca market run if anyone wants an errand." } },
+        { "position": 2, "status": "in_itinerary", "place_ref": "COOKING CLASS — vendor TBD", "start_time": "16:00", "end_time": "20:00", "details": { "notes": "Straight from the 2018 deck, which listed cooking lessons as an in-villa extra at Bottino. Ask Salogi to arrange it at the house rather than driving seven people to a class. Ten and eight are the ideal ages for this — real hands, not supervision — and it's a sitting-down activity your parents will enjoy rather than endure.", "prep": "Ask for something the kids can physically do: pasta by hand, or pizza. Kids who make the dinner eat the dinner.", "flow": "Prep and cook late afternoon, eat outside as it cools.", "energy": "low" } }
+      ]
+    },
+    {
+      "date": "2027-09-11",
+      "label": "Day 7 · Saturday — Florence",
+      "shape": "anchor · kid experience 3",
+      "cards": [
+        { "position": 1, "status": "in_itinerary", "place_ref": "Stazione di Montecatini Terme", "start_time": "07:45", "details": { "notes": "Drive ~30 min to Montecatini, then train to Florence (~50 min). The van stays at the station. No ZTL, no parking, no designated driver, and nobody in their 70s navigating Florence traffic. Lucca station is the fallback — 10 min closer to drive, ~35 min longer on the train.", "prep": "Buy at the machine. Validate before boarding on regionals. Kids 4-11 half price.", "energy": "medium" } },
+        { "position": 2, "status": "in_itinerary", "place_ref": "Cattedrale di Santa Maria del Fiore", "start_time": "09:30", "details": { "notes": "Be here by 9:30, before the heat and the queues. The marble is the point and it's free from the outside.", "energy": "medium" } },
+        { "position": 3, "status": "in_itinerary", "place_ref": "Cupola del Brunelleschi", "start_time": "10:00", "details": { "notes": "463 steps, no lift, no exit partway up. At 10 and 8 the older two can absolutely do this — it was off the table when I thought they were toddlers. Split the group: one parent takes the older two up, the other stays below with the 5-year-old and your parents.", "prep": "Timed entry, books out weeks ahead. Reserve as soon as the window opens.", "tips": "Genuinely the best thing in Florence for a 10-year-old — you climb up between the two shells of the dome and come out on the lantern.", "energy": "high", "duration": "1h" } },
+        { "position": 4, "status": "in_itinerary", "place_ref": "Piazza della Signoria", "start_time": "11:15", "details": { "notes": "An open-air sculpture gallery — free, no queue, no rules about noise, and shaded benches for your parents while the kids roam. The move that makes Florence work for a group this size.", "tips": "If anyone wants the Uffizi, do it as a 45-minute shift from here rather than committing all seven.", "energy": "low" } },
+        { "position": 5, "status": "in_itinerary", "place_ref": "Mercato Centrale Firenze", "start_time": "12:15", "details": { "notes": "Upstairs food hall — the easy solve for feeding seven people with seven opinions and no reservation.", "energy": "low" } },
+        { "position": 6, "status": "in_itinerary", "place_ref": "Giardino di Boboli", "start_time": "13:45", "details": { "notes": "Space, shade, fountains and room to run after a morning of being told not to touch things.", "tips": "It's a hillside garden — genuinely sloped. Take the lower terraces and skip the climb to the Porcelain Museum. Out of the city by 3pm; Florence bakes in the afternoon.", "energy": "medium" } }
+      ]
+    },
+    {
+      "date": "2027-09-12",
+      "label": "Day 8 · Sunday — Versilia beach",
+      "shape": "downtime · the real beach day",
+      "cards": [
+        { "position": 1, "status": "in_itinerary", "place_id": null, "details": { "title": "Slow morning, pool", "notes": "No alarm. OPTIONAL: Pisa is ~35 min away and the Leaning Tower's minimum climbing age is 8, so the older two now clear it — Piazza dei Miracoli in the morning pairs neatly with the beach afternoon if the group has the appetite. Both places are in the saved pile; pull them onto this day if you want it." } },
+        { "position": 2, "status": "in_itinerary", "place_ref": "Lido di Camaiore", "start_time": "14:00", "end_time": "19:30", "details": { "notes": "20-25 minutes away, and the best swimming of the trip for a group this mixed — long, flat, shallow-shelving sand instead of rocky coves and stairs. Book a stabilimento: umbrella, loungers, showers, changing cabins, often a lifeguard and a play area, ~€25-45 for a family setup. The loungers and shade matter as much for your parents as the shallow water does for the 5-year-old.", "prep": "Reserve a day or two ahead — Sunday is the busiest day of the week with Italian families.", "tips": "Early September is the sweet spot: Italian schools are back, the water's still warm, half the August crowd. Eat on the seafront afterwards.", "energy": "low", "duration": "5h" } }
+      ]
+    },
+    {
+      "date": "2027-09-13",
+      "label": "Day 9 · Monday — Wine tour, then the Last Supper",
+      "shape": "anchor · final night",
+      "cards": [
+        { "position": 1, "status": "in_itinerary", "place_ref": "WINE TOUR — vendor TBD", "start_time": "10:30", "end_time": "14:30", "details": { "notes": "Back on the schedule. I'd cut this when I thought the kids were toddlers — with 10, 8 and 5 plus grandparents it's one of the best days available. It's a sitting-down activity your parents will genuinely love, the kids can be turned loose on the grounds, and Colline Lucchesi is 20-25 minutes away rather than the 90 to Chianti.", "prep": "Book a private driver so all four adults can drink — this was the explicit reasoning in the 2018 deck and it still holds. Ask for an estate with grounds and a proper lunch rather than a tasting-room-only visit.", "tips": "Montecarlo DOC (~30 min) is the alternative appellation if Colline Lucchesi doesn't have a good option.", "energy": "low", "duration": "4h" } },
+        { "position": 2, "status": "in_itinerary", "place_id": null, "details": { "title": "Last pool afternoon", "notes": "Pack in the evening, not now." } },
+        { "position": 3, "status": "in_itinerary", "place_ref": "PRIVATE CHEF — vendor TBD", "start_time": "19:00", "details": { "notes": "The 'Last Supper' — lifted straight from the 2018 deck and the single best idea in it. A chef comes to the villa and cooks al fresco. Nobody drives, nobody cleans up, and the trip ends on the terrace instead of in a restaurant.", "prep": "Book well ahead. Give them the ages — 10, 8 and 5 — and ask for one thing the children will definitely eat alongside the adult menu.", "flow": "Early enough that the kids are part of it, long enough that the adults get the end of it.", "energy": "low" } }
+      ]
+    },
+    {
+      "date": "2027-09-14",
+      "label": "Day 10 · Tuesday — Home",
+      "shape": "travel only",
+      "cards": [
+        { "position": 1, "status": "in_itinerary", "place_ref": "Pisa International Airport", "start_time": "10:00", "details": { "notes": "~40 minutes from the villa. Drop the van, fly home.", "prep": "Fuel up off-motorway the night before — autostrada service areas run 15-25c/L above town prices.", "energy": "low" } }
+      ]
+    }
+  ],
+
+  "step_3_interested_pile": {
+    "_why": "Per 03-schema, scheduling is COPY not MOVE — the interested pile never shrinks. These are the options that make the 'choose your own adventure' afternoons from the 2018 deck real: unscheduled cards, day_id null, status 'interested', ready to pull onto any day.",
+    "cards": [
+      { "place_ref": "Torre di Pisa", "status": "interested", "day_id": null, "details": { "notes": "~35 min. Minimum climbing age 8, so the 10- and 8-year-old clear it. Pairs with the Day 8 beach afternoon." } },
+      { "place_ref": "Piazza dei Miracoli", "status": "interested", "day_id": null, "details": { "notes": "One enclosed grassy field — kids run while the adults look at the Tower. 2-3 hours, no more. Go before 10 or after 5." } },
+      { "place_ref": "Manarola", "status": "interested", "day_id": null, "details": { "notes": "The third Cinque Terre village if the boat day has momentum. Best photographed from the Punta Bonfiglio path." } },
+      { "place_ref": "Museo Leonardiano di Vinci", "status": "interested", "day_id": null, "details": { "notes": "Working hands-on models of Leonardo's machines — a great fit for a 10-year-old, and indoors, so it's the bad-weather fallback. Caveat: ~50 min from Torcigliano, not the 15 I originally quoted. Worth a morning only if the weather forces it." } },
+      { "place_ref": "Villa Garzoni", "status": "interested", "day_id": null, "details": { "notes": "Collodi. Pair with Pinocchio Park or use as a standalone." } },
+      { "place_ref": "Buca di Sant'Antonio", "status": "interested", "day_id": null, "details": { "notes": "The grown-up Lucca dinner. With grandparents on the trip you have built-in babysitting for one night — this is what to spend it on." } }
+    ]
+  }
+}
