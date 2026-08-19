@@ -5,7 +5,7 @@ import TripCard from "@/components/ui/TripCard";
 import type { Trip } from "@/types/database";
 import { fetchAndStoreCover } from "@/lib/unsplash";
 import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
-import { isPastJourney } from "@/lib/tripRecency";
+import { belongsInPastJourneys } from "@/lib/tripRecency";
 
 function formatDateShort(start: string, end: string): string {
   const s = new Date(start + "T00:00:00");
@@ -68,10 +68,10 @@ export default async function TripsPage() {
   }
 
   // A journey is "past" when explicitly archived, or by the read-time recency
-  // rule: its end_date is >7 days behind us. `status` plays no part.
-  const isPast = (t: Trip) => t.archived === true || isPastJourney(t);
-  const upcoming = trips?.filter((t: Trip) => !isPast(t)) ?? [];
-  const past = trips?.filter((t: Trip) => isPast(t)) ?? [];
+  // rule: its end_date is >7 days behind us. `status` plays no part. The
+  // predicate is shared with /past-journeys so both pages list the same set.
+  const upcoming = trips?.filter((t: Trip) => !belongsInPastJourneys(t)) ?? [];
+  const past = trips?.filter((t: Trip) => belongsInPastJourneys(t)) ?? [];
 
   return (
     <div>
@@ -150,7 +150,7 @@ export default async function TripsPage() {
                     {past.map((trip: Trip) => (
                       <Link
                         key={trip.id}
-                        href="/past-journeys"
+                        href={openDayByTrip[trip.id] ? `/trips/${trip.id}/days/${openDayByTrip[trip.id]}` : `/trips/${trip.id}`}
                         className="flex items-center gap-3 py-3 border-b border-black/5"
                       >
                         <div
@@ -181,7 +181,7 @@ export default async function TripsPage() {
                     {past.map((trip: Trip) => (
                       <Link
                         key={trip.id}
-                        href="/past-journeys"
+                        href={openDayByTrip[trip.id] ? `/trips/${trip.id}/days/${openDayByTrip[trip.id]}` : `/trips/${trip.id}`}
                         className="flex items-center gap-[18px] py-[14px] px-1 hover:opacity-80 transition-opacity"
                       >
                         <div
