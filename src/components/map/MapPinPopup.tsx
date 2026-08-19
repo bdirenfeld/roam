@@ -6,7 +6,7 @@ import type { Card, CardType, Day } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { scheduleCardOnDay } from "@/lib/scheduleCard";
 import { PIN_COLORS } from "@/lib/mapPins";
-import { CardGallery } from "@/components/ui/CardGallery";
+import PlacePhotoGallery from "@/components/cards/PlacePhotoGallery";
 
 // ── Constants ────────────────────────────────────────────────
 const SUB_TYPE_LABEL: Record<string, string> = {
@@ -291,15 +291,18 @@ function CardBody({
 
   return (
     <>
-      {/* Cover photo — swipeable gallery */}
-      <CardGallery
-        placeId={card.details?.place_id}
-        coverImageUrl={`/api/places/photo?place_id=${place.id}`}
-        fallbackLat={(card.details as Record<string, unknown>)?.lat as number | null ?? place.lat}
-        fallbackLng={(card.details as Record<string, unknown>)?.lng as number | null ?? place.lng}
-        cardTitle={place.title}
+      {/* Cover photo — swipeable gallery. Keyed on places.id (a uuid), NOT the
+          Google place id: every image goes through the authenticated proxy,
+          which resolves the photo reference server-side so no API key ever
+          reaches the browser. */}
+      <PlacePhotoGallery
+        key={place.id}
+        placeId={place.id}
+        hasGooglePhotos={!!place.google_place_id}
+        fallbackLat={place.lat}
+        fallbackLng={place.lng}
+        title={place.title}
         height={160}
-        maxPhotos={4}
       />
 
       {/* Close button */}

@@ -457,8 +457,16 @@ function TitleEditor({
 export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDelete, days, tripDestination, readOnly = false }: Props) {
   const supabase = createClient();
   const sheetRef = useRef<HTMLDivElement>(null);
+  const dragX = useRef(0);
   const dragY = useRef(0);
   const isDragging = useRef(false);
+  // Axis lock for the photo hero: a touch starts "pending" and only commits to
+  // a vertical sheet drag once the gesture has moved far enough to reveal its
+  // intent. A horizontally-dominant swipe releases the sheet entirely so the
+  // gallery's native scroll-snap owns it — otherwise a diagonal photo swipe
+  // drags the sheet down and >120px of drift dismisses it mid-swipe.
+  const dragAxis = useRef<"pending" | "vertical" | "horizontal">("pending");
+  const AXIS_LOCK_THRESHOLD = 8;
 
   // Local optimistic state
   const [localCard, setLocalCard] = useState<Card>(card);
@@ -492,20 +500,39 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
 
   // ── Drag-to-dismiss ────────────────────────────────────────
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    dragX.current = e.touches[0].clientX;
     dragY.current = e.touches[0].clientY;
-    isDragging.current = true;
+    // Nothing is committed yet — the first significant move picks the axis.
+    dragAxis.current = "pending";
+    isDragging.current = false;
   }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isDragging.current || !sheetRef.current) return;
-    const dy = Math.max(0, e.touches[0].clientY - dragY.current);
-    sheetRef.current.style.transform = `translateY(${dy}px)`;
+    if (!sheetRef.current) return;
+    const dx = e.touches[0].clientX - dragX.current;
+    const dy = e.touches[0].clientY - dragY.current;
+
+    if (dragAxis.current === "pending") {
+      // Wait for enough travel to read intent, then lock for the whole gesture.
+      if (Math.abs(dx) < AXIS_LOCK_THRESHOLD && Math.abs(dy) < AXIS_LOCK_THRESHOLD) return;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        dragAxis.current = "horizontal"; // hand the gesture to the gallery
+        return;
+      }
+      dragAxis.current = "vertical";
+      isDragging.current = true;
+    }
+
+    if (dragAxis.current !== "vertical" || !isDragging.current) return;
+    sheetRef.current.style.transform = `translateY(${Math.max(0, dy)}px)`;
     sheetRef.current.style.transition = "none";
   }, []);
 
   const handleTouchEnd = useCallback(
     (e: React.TouchEvent) => {
-      if (!isDragging.current || !sheetRef.current) return;
+      const axis = dragAxis.current;
+      dragAxis.current = "pending"; // re-evaluated on the next touchstart
+      if (axis !== "vertical" || !isDragging.current || !sheetRef.current) return;
       isDragging.current = false;
       const dy = e.changedTouches[0].clientY - dragY.current;
       if (dy > 120) {
