@@ -841,6 +841,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         {place ? (
           <div className="relative w-full overflow-hidden">
             <PlacePhotoGallery
+              key={place.id}
               placeId={place.id}
               hasGooglePhotos={!!place.google_place_id}
               fallbackLat={place.lat}

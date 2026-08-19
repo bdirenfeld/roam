@@ -67,15 +67,18 @@ export default function PlacePhotoGallery({
       .select("photos:details->photos")
       .eq("id", placeId)
       .maybeSingle()
-      .then(({ data, error }) => {
-        if (error) {
-          console.error("Failed to load place photos", error.message);
-          return; // stay on the single cover
-        }
-        const list = Array.isArray(data?.photos) ? (data.photos as PlacePhoto[]) : [];
-        photosCache.set(placeId, list);
-        if (!cancelled) setPhotos(list);
-      });
+      .then(
+        ({ data, error }) => {
+          if (error) {
+            console.error("Failed to load place photos", error.message);
+            return; // stay on the single cover
+          }
+          const list = Array.isArray(data?.photos) ? (data.photos as PlacePhoto[]) : [];
+          photosCache.set(placeId, list);
+          if (!cancelled) setPhotos(list);
+        },
+        (err: unknown) => console.error("Failed to load place photos", err),
+      );
     return () => { cancelled = true; };
   }, [placeId, hasGooglePhotos]);
 
