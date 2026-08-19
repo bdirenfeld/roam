@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Camera } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
+import { setTripArchived } from "@/lib/tripArchive";
 import TravellersSection, { type Person } from "@/components/trip/TravellersSection";
 import ShareJourneySection, { type ShareGuest } from "@/components/trip/ShareJourneySection";
 import { TRAVELLERS_ENABLED } from "@/lib/featureFlags";
@@ -225,12 +226,22 @@ export default function TripSettingsClient({ trip, days, initialPeople, initialS
 
   const handleArchive = async () => {
     const supabase = createClient();
-    const { error } = await supabase
-      .from("trips")
-      .update({ archived: true, archived_at: new Date().toISOString() })
-      .eq("id", trip.id);
-    if (error) {
-      console.error("Failed to archive journey:", error);
+    const failure = await setTripArchived(supabase, trip.id, true);
+    if (failure) {
+      console.error("Failed to archive journey:", failure);
+      setError("Couldn't archive this journey — please try again.");
+      return;
+    }
+    router.push("/");
+  };
+
+  const handleRestore = async () => {
+    const supabase = createClient();
+    const failure = await setTripArchived(supabase, trip.id, false);
+    if (failure) {
+      console.error("Failed to restore journey:", failure);
+      setError("Couldn't restore this journey — please try again.");
+      return;
     }
     router.push("/");
   };
@@ -459,14 +470,15 @@ export default function TripSettingsClient({ trip, days, initialPeople, initialS
           initialGuests={initialGuests}
         />
 
-        {/* ── Manage journey — quiet text links ── */}
+        {/* ── Manage journey — quiet text links. An archived journey offers
+            Restore in place of Archive; both write through setTripArchived. ── */}
         <div className="py-8 flex items-center justify-center gap-3">
           <button
-            onClick={handleArchive}
+            onClick={trip.archived ? handleRestore : handleArchive}
             className="text-[12px] text-gray-400 italic cursor-pointer active:opacity-60 transition-opacity"
             style={{ fontFamily: "inherit" }}
           >
-            Archive this journey
+            {trip.archived ? "Restore this journey" : "Archive this journey"}
           </button>
           <span className="text-gray-300 text-[12px]">·</span>
           <button

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowCounterClockwise, Trash } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
+import { setTripArchived } from "@/lib/tripArchive";
 import type { Trip } from "@/types/database";
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
@@ -56,10 +57,13 @@ export default function PastJourneysClient({ initialTrips }: Props) {
 
   const handleRestore = async (trip: Trip) => {
     const supabase = createClient();
-    await supabase
-      .from("trips")
-      .update({ archived: false, archived_at: null })
-      .eq("id", trip.id);
+    const failure = await setTripArchived(supabase, trip.id, false);
+    if (failure) {
+      // Keep the row — hiding it on a failed write reads as success until
+      // the next refresh puts it back.
+      console.error("Failed to restore journey:", failure);
+      return;
+    }
     setTrips((prev) => prev.filter((t) => t.id !== trip.id));
     router.refresh();
   };
@@ -119,13 +123,20 @@ export default function PastJourneysClient({ initialTrips }: Props) {
                 key={trip.id}
                 className="flex items-center gap-3 py-3 border-b border-black/5"
               >
-                {/* Thumbnail */}
-                <div className="w-[52px] h-[40px] rounded-lg overflow-hidden flex-shrink-0">
+                {/* Thumbnail — opens the journey's settings, where Restore also lives */}
+                <button
+                  onClick={() => router.push(`/trips/${trip.id}/settings`)}
+                  className="w-[52px] h-[40px] rounded-lg overflow-hidden flex-shrink-0"
+                  aria-label={`Open ${trip.title} settings`}
+                >
                   <TripThumb trip={trip} />
-                </div>
+                </button>
 
                 {/* Text */}
-                <div className="flex-1 min-w-0">
+                <div
+                  className="flex-1 min-w-0 cursor-pointer"
+                  onClick={() => router.push(`/trips/${trip.id}/settings`)}
+                >
                   <p
                     className="font-display text-[14px] truncate"
                     style={{ color: "#6B7280" }}
