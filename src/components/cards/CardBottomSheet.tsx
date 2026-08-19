@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { formatTimeValue } from "@/lib/formatTime";
 import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
 import AttachmentsPanel from "./AttachmentsPanel";
-import { CardGallery } from "@/components/ui/CardGallery";
+import PlacePhotoGallery from "./PlacePhotoGallery";
 import { NavigationSheet } from "@/components/ui/NavigationSheet";
 
 // ── Type-specific detail components ───────────────────────────
@@ -840,12 +840,13 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         {/* Cover photo hero — swipeable gallery (only when card is linked to a place) */}
         {place ? (
           <div className="relative w-full overflow-hidden">
-            <CardGallery
-              placeId={place.google_place_id}
-              coverImageUrl={`/api/places/photo?place_id=${place.id}`}
+            <PlacePhotoGallery
+              key={place.id}
+              placeId={place.id}
+              hasGooglePhotos={!!place.google_place_id}
               fallbackLat={place.lat}
               fallbackLng={place.lng}
-              cardTitle={place.title}
+              title={place.title}
               height={220}
             />
             {/* Gradient overlay so drag handle is visible */}
