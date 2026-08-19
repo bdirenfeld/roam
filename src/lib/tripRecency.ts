@@ -27,10 +27,9 @@ export function isPastJourney(trip: Pick<Trip, "end_date">): boolean {
 }
 
 /**
- * The single definition of "belongs in Past journeys", shared by the /trips
- * upcoming/past split and the /past-journeys page: explicitly archived, or
- * past by the recency rule above. Keep both pages on this predicate so the
- * two lists never drift apart.
+ * The single definition of "belongs in Past journeys" — explicitly archived,
+ * or past by the recency rule above. Every surface that splits journeys into
+ * upcoming/past must use this predicate so the lists never drift apart.
  */
 export function belongsInPastJourneys(
   trip: Pick<Trip, "archived" | "end_date">,

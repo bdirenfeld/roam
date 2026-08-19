@@ -2,19 +2,11 @@ import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import AppHeader from "@/components/ui/AppHeader";
 import TripCard from "@/components/ui/TripCard";
+import PastJourneysList from "@/components/trip/PastJourneysList";
 import type { Trip } from "@/types/database";
 import { fetchAndStoreCover } from "@/lib/unsplash";
 import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
 import { belongsInPastJourneys } from "@/lib/tripRecency";
-
-function formatDateShort(start: string, end: string): string {
-  const s = new Date(start + "T00:00:00");
-  const e = new Date(end + "T00:00:00");
-  const sM = s.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
-  const eM = e.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
-  if (sM === eM) return `${sM} ${s.getDate()}–${e.getDate()}`;
-  return `${sM} ${s.getDate()} – ${eM} ${e.getDate()}`;
-}
 
 export default async function TripsPage() {
   const supabase = await createClient();
@@ -68,8 +60,7 @@ export default async function TripsPage() {
   }
 
   // A journey is "past" when explicitly archived, or by the read-time recency
-  // rule: its end_date is >7 days behind us. `status` plays no part. The
-  // predicate is shared with /past-journeys so both pages list the same set.
+  // rule: its end_date is >7 days behind us. `status` plays no part.
   const upcoming = trips?.filter((t: Trip) => !belongsInPastJourneys(t)) ?? [];
   const past = trips?.filter((t: Trip) => belongsInPastJourneys(t)) ?? [];
 
@@ -145,86 +136,9 @@ export default async function TripsPage() {
                     <div className="flex-1" style={{ height: "0.5px", background: "#E8E3DA" }} />
                   </div>
 
-                  {/* Mobile — compact rows */}
-                  <div className="md:hidden">
-                    {past.map((trip: Trip) => (
-                      <Link
-                        key={trip.id}
-                        href={openDayByTrip[trip.id] ? `/trips/${trip.id}/days/${openDayByTrip[trip.id]}` : `/trips/${trip.id}`}
-                        className="flex items-center gap-3 py-3 border-b border-black/5"
-                      >
-                        <div
-                          className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                          style={{ background: "#D4CFC8" }}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p
-                            className="font-display italic text-[13px] truncate"
-                            style={{ color: "#9CA3AF" }}
-                          >
-                            {trip.title}
-                          </p>
-                          <p
-                            className="text-[9px] uppercase tracking-widest mt-0.5"
-                            style={{ color: "#C4C0B8" }}
-                          >
-                            {formatDateShort(trip.start_date, trip.end_date)}
-                          </p>
-                        </div>
-                        <span style={{ color: "#D4CFC8", fontSize: "14px" }}>›</span>
-                      </Link>
-                    ))}
-                  </div>
-
-                  {/* Desktop — editorial rows with circular cover */}
-                  <div className="hidden md:block">
-                    {past.map((trip: Trip) => (
-                      <Link
-                        key={trip.id}
-                        href={openDayByTrip[trip.id] ? `/trips/${trip.id}/days/${openDayByTrip[trip.id]}` : `/trips/${trip.id}`}
-                        className="flex items-center gap-[18px] py-[14px] px-1 hover:opacity-80 transition-opacity"
-                      >
-                        <div
-                          className="w-14 h-14 rounded-full flex-shrink-0"
-                          style={{
-                            backgroundImage: trip.cover_image_url
-                              ? `url(${trip.cover_image_url})`
-                              : undefined,
-                            backgroundColor: trip.cover_image_url ? undefined : "#E8E3DA",
-                            backgroundSize: "cover",
-                            backgroundPosition: "50% 50%",
-                            boxShadow: "0 0 0 1px rgba(26,26,46,0.10)",
-                          }}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div
-                            className="font-display italic truncate"
-                            style={{
-                              fontSize: 18,
-                              fontWeight: 500,
-                              color: "#1A1A2E",
-                              letterSpacing: "-0.005em",
-                            }}
-                          >
-                            {trip.title}
-                          </div>
-                          <div
-                            className="mt-1"
-                            style={{
-                              fontSize: 10,
-                              fontWeight: 500,
-                              textTransform: "uppercase",
-                              letterSpacing: "0.14em",
-                              color: "rgba(26,26,46,0.55)",
-                            }}
-                          >
-                            {formatDateShort(trip.start_date, trip.end_date)}
-                          </div>
-                        </div>
-                        <span style={{ color: "rgba(26,26,46,0.40)", fontSize: 16 }}>›</span>
-                      </Link>
-                    ))}
-                  </div>
+                  {/* Rows with inline Restore/Delete — the one surface for
+                      managing past journeys (settings has Restore too). */}
+                  <PastJourneysList trips={past} openDayByTrip={openDayByTrip} />
                 </>
               )}
             </>
