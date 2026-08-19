@@ -25,3 +25,15 @@ export function isPastJourney(trip: Pick<Trip, "end_date">): boolean {
 
   return daysSinceEnd > 7;
 }
+
+/**
+ * The single definition of "belongs in Past journeys", shared by the /trips
+ * upcoming/past split and the /past-journeys page: explicitly archived, or
+ * past by the recency rule above. Keep both pages on this predicate so the
+ * two lists never drift apart.
+ */
+export function belongsInPastJourneys(
+  trip: Pick<Trip, "archived" | "end_date">,
+): boolean {
+  return trip.archived === true || isPastJourney(trip);
+}

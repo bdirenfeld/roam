@@ -114,7 +114,7 @@ export default function PastJourneysClient({ initialTrips }: Props) {
             className="font-display italic text-[12px] text-center pt-12"
             style={{ color: "#C4C0B8" }}
           >
-            No archived journeys yet.
+            No past journeys yet.
           </p>
         ) : (
           <div>
@@ -153,15 +153,19 @@ export default function PastJourneysClient({ initialTrips }: Props) {
 
                 {/* Action buttons */}
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  {/* Restore */}
-                  <button
-                    onClick={() => handleRestore(trip)}
-                    className="w-8 h-8 rounded-full flex items-center justify-center active:scale-90 transition-transform"
-                    style={{ background: "rgba(0,0,0,0.04)" }}
-                    aria-label="Restore journey"
-                  >
-                    <ArrowCounterClockwise size={12} weight="light" className="text-gray-400" />
-                  </button>
+                  {/* Restore — only for explicitly archived trips. A trip that
+                      is here by date alone has nothing to un-archive; clearing
+                      the flag would leave it in this list. */}
+                  {trip.archived === true && (
+                    <button
+                      onClick={() => handleRestore(trip)}
+                      className="w-8 h-8 rounded-full flex items-center justify-center active:scale-90 transition-transform"
+                      style={{ background: "rgba(0,0,0,0.04)" }}
+                      aria-label="Restore journey"
+                    >
+                      <ArrowCounterClockwise size={12} weight="light" className="text-gray-400" />
+                    </button>
+                  )}
                   {/* Delete */}
                   <button
                     onClick={() => setDeleteTarget(trip)}
@@ -182,7 +186,7 @@ export default function PastJourneysClient({ initialTrips }: Props) {
           className="font-display italic text-[12px] text-center mt-8"
           style={{ color: "#C4C0B8" }}
         >
-          Archive a journey to preserve it here. Restore anytime.
+          Finished journeys settle here on their own. Restore anytime.
         </p>
       </div>
 

@@ -233,6 +233,7 @@ export default function TripSettingsClient({ trip, days, initialPeople, initialS
       return;
     }
     router.push("/");
+    router.refresh();
   };
 
   const handleRestore = async () => {
@@ -244,6 +245,7 @@ export default function TripSettingsClient({ trip, days, initialPeople, initialS
       return;
     }
     router.push("/");
+    router.refresh();
   };
 
   const handleDelete = async () => {
