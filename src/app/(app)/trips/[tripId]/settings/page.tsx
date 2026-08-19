@@ -45,21 +45,27 @@ export default async function TripSettingsPage({ params }: Props) {
   // The share token lives on the trip; guests' user rows are cross-user and
   // RLS-blocked for the owner, so read both via service-role, scoped to this
   // owner's own trip.
-  const admin = createAdminClient();
-  const { data: members } = await admin
-    .from("trip_members")
-    .select("user_id")
-    .eq("trip_id", tripId)
-    .eq("role", "guest");
-  const guestIds = (members ?? []).map((m) => m.user_id);
-  const { data: guestUsers } = guestIds.length
-    ? await admin.from("users").select("id, name, email").in("id", guestIds)
-    : { data: [] as { id: string; name: string | null; email: string | null }[] };
-  const guests: ShareGuest[] = (guestUsers ?? []).map((u) => ({
-    userId: u.id,
-    name: u.name,
-    email: u.email,
-  }));
+  // Sharing needs the service-role key; an environment without it (e.g. a
+  // fresh local setup) hides the section instead of crashing the whole page.
+  const shareAvailable = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+  let guests: ShareGuest[] = [];
+  if (shareAvailable) {
+    const admin = createAdminClient();
+    const { data: members } = await admin
+      .from("trip_members")
+      .select("user_id")
+      .eq("trip_id", tripId)
+      .eq("role", "guest");
+    const guestIds = (members ?? []).map((m) => m.user_id);
+    const { data: guestUsers } = guestIds.length
+      ? await admin.from("users").select("id, name, email").in("id", guestIds)
+      : { data: [] as { id: string; name: string | null; email: string | null }[] };
+    guests = (guestUsers ?? []).map((u) => ({
+      userId: u.id,
+      name: u.name,
+      email: u.email,
+    }));
+  }
   const shareToken = (trip as { share_token: string | null }).share_token ?? null;
 
   return (
@@ -69,6 +75,7 @@ export default async function TripSettingsPage({ params }: Props) {
       initialPeople={(people ?? []) as Person[]}
       initialShareToken={shareToken}
       initialGuests={guests}
+      shareAvailable={shareAvailable}
     />
   );
 }

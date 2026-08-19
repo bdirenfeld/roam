@@ -18,6 +18,9 @@ interface Props {
   initialPeople: Person[];
   initialShareToken: string | null;
   initialGuests: ShareGuest[];
+  // False when SUPABASE_SERVICE_ROLE_KEY is absent from the environment —
+  // sharing can't work without it, so the section is hidden entirely.
+  shareAvailable: boolean;
 }
 
 function fmtDate(dateStr: string): string {
@@ -51,7 +54,7 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December",
 ];
 
-export default function TripSettingsClient({ trip, days, initialPeople, initialShareToken, initialGuests }: Props) {
+export default function TripSettingsClient({ trip, days, initialPeople, initialShareToken, initialGuests, shareAvailable }: Props) {
   const router = useRouter();
 
   // Form state
@@ -466,11 +469,13 @@ export default function TripSettingsClient({ trip, days, initialPeople, initialS
         )}
 
         {/* ── Share this journey — guest sharing ── */}
-        <ShareJourneySection
-          tripId={trip.id}
-          initialShareToken={initialShareToken}
-          initialGuests={initialGuests}
-        />
+        {shareAvailable && (
+          <ShareJourneySection
+            tripId={trip.id}
+            initialShareToken={initialShareToken}
+            initialGuests={initialGuests}
+          />
+        )}
 
         {/* ── Manage journey — quiet text links. An archived journey offers
             Restore in place of Archive; both write through setTripArchived. ── */}
