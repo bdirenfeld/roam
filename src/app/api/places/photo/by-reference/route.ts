@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
+  // Same auth gate as /api/places/photo — middleware already bounces
+  // unauthenticated page loads, but API routes should not rely on it.
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return new NextResponse(null, { status: 401 });
+
   const { searchParams } = request.nextUrl;
   const photoRef = searchParams.get("photo_reference");
   const maxWidth = searchParams.get("maxwidth") ?? "800";
