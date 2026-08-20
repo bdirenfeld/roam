@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -38,6 +38,14 @@ type BoardBg =
   | { type: "color"; value: string }
   | { type: "photo"; url: string; thumb: string };
 import type { Trip, Card, Day, DayWithCards, CardType, CardStatus } from "@/types/database";
+import {
+  groupDaysIntoWeeks,
+  shouldShowWeeks,
+  weekSlotWidth,
+  readFoldedDays,
+  writeFoldedDays,
+  type PlanWeek,
+} from "@/lib/planWeeks";
 import { getPriceRange } from "@/lib/priceRange";
 import { formatTimeRange } from "@/lib/formatTime";
 import { getOpeningHoursConflict, openingHoursCaption } from "@/lib/openingHours";
@@ -48,6 +56,12 @@ import { getMaterialIconHTML } from "@/lib/mapPins";
 
 // ── Constants ──────────────────────────────────────────────────
 const COL_PREFIX = "col-";
+
+// The Direction A control-row chip — lifted verbatim from DayPicker's trigger
+// so "Fold all weeks" / "Unfold all" sit beside "Jump to day" as one family.
+const CTRL_CHIP =
+  "rounded-full border border-[rgba(26,26,46,0.12)] bg-[rgba(26,26,46,0.025)] px-3 py-1.5 " +
+  "text-[12px] font-medium text-activity hover:bg-[rgba(26,26,46,0.05)] transition-colors";
 
 const TYPE_BORDER: Record<CardType, string> = {
   logistics: "border-l-gray-400",
@@ -226,6 +240,14 @@ export default function PlanBoard({ trip, initialDays }: Props) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [fades, setFades] = useState({ left: false, right: false });
 
+  // Week fold state — a set of DAY ids, not week ids: a week reads as folded
+  // when every member day is in the set. Declared up here because the edge-fade
+  // effect below depends on it. Hydrated from localStorage in a mount effect
+  // rather than a useState initializer: the server has no storage, so seeding
+  // initial state from it would render eleven columns on the server and three
+  // cards on the client. One frame of unfolded board beats a mismatch.
+  const [foldedDays, setFoldedDays] = useState<Set<string>>(() => new Set());
+
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
     check();
@@ -249,7 +271,9 @@ export default function PlanBoard({ trip, initialDays }: Props) {
       el.removeEventListener("scroll", update);
       window.removeEventListener("resize", update);
     };
-  }, [isMobile, days.length]);
+    // foldedDays: folding changes scrollWidth by thousands of pixels without
+    // changing days.length, so without it the fades would desync after a fold.
+  }, [isMobile, days.length, foldedDays]);
 
   // Jump the board horizontally to a day's column. Measures the column's real
   // position via rect deltas (independent of any positioned ancestor) rather
@@ -271,6 +295,154 @@ export default function PlanBoard({ trip, initialDays }: Props) {
 
   const daysRef = useRef(days);
   daysRef.current = days;
+
+  // ── Week folding (desktop only) ──────────────────────────────
+  useEffect(() => {
+    setFoldedDays(readFoldedDays(trip.id));
+  }, [trip.id]);
+
+  // Every fold mutation goes through here, so the write can never race the
+  // hydrate effect the way a separate persist-on-change effect would.
+  const applyFold = useCallback((next: Set<string>) => {
+    setFoldedDays(next);
+    writeFoldedDays(trip.id, next);
+  }, [trip.id]);
+
+  const weeks = useMemo(
+    () => (isMobile || !shouldShowWeeks(days) ? [] : groupDaysIntoWeeks(days)),
+    [isMobile, days],
+  );
+  const showWeeks = weeks.length > 0;
+
+  // The one conditional. Each week's folded flag and pixel width are resolved
+  // once here; the week-bar row, the pinned header row and the columns row all
+  // read this same array, so they cannot disagree about which weeks are folded
+  // or how wide their slots are.
+  const weekSlots = useMemo(
+    () =>
+      weeks.map((week) => {
+        const folded = week.days.every((d) => foldedDays.has(d.id));
+        return { week, folded, width: weekSlotWidth(week.days.length, folded) };
+      }),
+    [weeks, foldedDays],
+  );
+
+  // handleJumpToDay measures [data-col-idx] against the day's index in the flat
+  // days array. Grouping columns by week nests that map, so the global index
+  // has to be carried in explicitly or the picker would silently scroll to the
+  // wrong column.
+  const dayIndexById = useMemo(() => {
+    const m = new Map<string, number>();
+    days.forEach((d, i) => m.set(d.id, i));
+    return m;
+  }, [days]);
+
+  // Content-space x of a week's left edge — the same rect-delta measurement
+  // handleJumpToDay uses, so both agree about where a week sits.
+  const weekContentX = useCallback((weekKey: string): number | null => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return null;
+    const el = scroller.querySelector<HTMLElement>(`[data-week-key="${weekKey}"]`);
+    if (!el) return null;
+    return scroller.scrollLeft + (el.getBoundingClientRect().left - scroller.getBoundingClientRect().left);
+  }, []);
+
+  // Folding a seven-day week removes 2,080px of board and inserts a 140px card,
+  // shifting everything to its right ~1,940px left. Hold the folded week's own
+  // left edge where it was: content to its left never moves, so in the common
+  // case that means restoring the scroll the browser silently clamped, and only
+  // a week starting off-screen to the left (reachable via Fold all) needs a
+  // real correction. Measure after two frames — the first fires before the new
+  // layout exists.
+  const anchorWeek = useCallback((weekKey: string, mutate: () => void) => {
+    const scroller = scrollerRef.current;
+    const beforeX = weekContentX(weekKey);
+    const beforeScroll = scroller?.scrollLeft ?? 0;
+    mutate();
+    if (!scroller || beforeX === null) return;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const afterX = weekContentX(weekKey);
+        let next = beforeScroll;
+        if (afterX !== null && beforeX < beforeScroll) next = beforeScroll + (afterX - beforeX);
+        const max = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+        scroller.scrollLeft = Math.min(Math.max(0, next), max);
+      });
+    });
+  }, [weekContentX]);
+
+  const scrollBoardToStart = useCallback(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (scrollerRef.current) scrollerRef.current.scrollLeft = 0;
+      });
+    });
+  }, []);
+
+  // Swallows the SECOND click of a double-click on a week bar — nothing more.
+  // The − sits at the bar's right edge, and after the fold that pixel belongs
+  // to the NEXT week's bar, so a double-click aimed at one week would fold two.
+  // Gated on the pointer not having moved (4px), so a deliberate move-and-click
+  // on another bar is never swallowed. This is not a general cooldown.
+  const lastFoldRef = useRef<{ x: number; y: number; t: number } | null>(null);
+
+  const handleFoldWeek = useCallback((e: React.MouseEvent, week: PlanWeek<DayWithCards>) => {
+    const prev = lastFoldRef.current;
+    if (
+      prev &&
+      e.timeStamp - prev.t < 400 &&
+      Math.abs(e.clientX - prev.x) <= 4 &&
+      Math.abs(e.clientY - prev.y) <= 4
+    ) return;
+    lastFoldRef.current = { x: e.clientX, y: e.clientY, t: e.timeStamp };
+
+    anchorWeek(week.key, () => {
+      const next = new Set(foldedDays);
+      week.days.forEach((d) => next.add(d.id));
+      applyFold(next);
+    });
+  }, [anchorWeek, applyFold, foldedDays]);
+
+  // Unfolding grows the board, so nothing is pulled out from under the cursor
+  // and a reflex second click merely re-folds the same week — reversible, and
+  // not worth suppressing.
+  const handleUnfoldWeek = useCallback((week: PlanWeek<DayWithCards>) => {
+    anchorWeek(week.key, () => {
+      const next = new Set(foldedDays);
+      week.days.forEach((d) => next.delete(d.id));
+      applyFold(next);
+    });
+  }, [anchorWeek, applyFold, foldedDays]);
+
+  // All-folded and all-unfolded both leave no meaningful anchor — the board
+  // changes width wholesale — so both land at the start.
+  const handleFoldAll = useCallback(() => {
+    const next = new Set(foldedDays);
+    weeks.forEach((w) => w.days.forEach((d) => next.add(d.id)));
+    applyFold(next);
+    scrollBoardToStart();
+  }, [applyFold, foldedDays, weeks, scrollBoardToStart]);
+
+  const handleUnfoldAll = useCallback(() => {
+    applyFold(new Set());
+    scrollBoardToStart();
+  }, [applyFold, scrollBoardToStart]);
+
+  // Jump to day sees through folds: the picker lists every day, so a pick can
+  // land inside a folded week. Unfold it, let React commit and the browser lay
+  // out, then hand off to the existing rect-delta helper — measuring before
+  // layout is real would scroll to a column that does not exist yet.
+  const handlePickDay = useCallback((day: Day) => {
+    if (!foldedDays.has(day.id)) {
+      handleJumpToDay(day);
+      return;
+    }
+    const week = weeks.find((w) => w.days.some((d) => d.id === day.id));
+    const next = new Set(foldedDays);
+    week?.days.forEach((d) => next.delete(d.id));
+    applyFold(next);
+    requestAnimationFrame(() => requestAnimationFrame(() => handleJumpToDay(day)));
+  }, [foldedDays, weeks, applyFold, handleJumpToDay]);
 
   const preDragSnapshot = useRef<DayWithCards[] | null>(null);
   const crossColumnMoved = useRef(false);
@@ -577,6 +749,23 @@ export default function PlanBoard({ trip, initialDays }: Props) {
 
   const isPhotoBg = boardBg.type === "photo";
 
+  // One column renderer for both the flat and the week-grouped paths, so the
+  // two can never drift in what a column is handed. dayIndex stays the day's
+  // index in the flat days array — handleJumpToDay measures by it.
+  const renderColumn = (day: DayWithCards) => (
+    <DayColumn
+      key={day.id}
+      day={day}
+      cards={day.cards}
+      dayIndex={dayIndexById.get(day.id) ?? 0}
+      isPhotoBg={isPhotoBg}
+      onCardTap={(card) => setSelectedCard(card)}
+      onDelete={handleDelete}
+      onCreateCard={(title) => handleCreateCard(day.id, title)}
+      onAddFromSaved={() => setAddFromSavedDay(day)}
+    />
+  );
+
   const handleBgSave = async (url: string) => {
     const newBg: BoardBg = url
       ? { type: "photo", url, thumb: url }
@@ -756,8 +945,24 @@ export default function PlanBoard({ trip, initialDays }: Props) {
                   scroller and the scroller's flex-1 absorbs the rest with no calc. */}
               {days.length > 1 && (
                 <div className="hidden md:flex md:items-center md:gap-2.5 md:px-7 md:pt-3 md:pb-2 shrink-0">
-                  <DayPicker days={days} onSelect={handleJumpToDay} mode="jump" />
+                  <DayPicker
+                    days={days}
+                    onSelect={handlePickDay}
+                    mode="jump"
+                    foldedDayIds={foldedDays}
+                  />
                   <span className="text-[12px] text-activity/50">Jumps the board</span>
+                  {showWeeks && (
+                    <>
+                      <span aria-hidden className="w-px h-4 bg-[rgba(26,26,46,0.12)] mx-0.5" />
+                      <button type="button" onClick={handleFoldAll} className={CTRL_CHIP} style={{ letterSpacing: "-0.005em" }}>
+                        Fold all weeks
+                      </button>
+                      <button type="button" onClick={handleUnfoldAll} className={CTRL_CHIP} style={{ letterSpacing: "-0.005em" }}>
+                        Unfold all
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -794,33 +999,85 @@ export default function PlanBoard({ trip, initialDays }: Props) {
                     />
                   )}
 
-                  {/* Pinned day-header row — first flex-shrink-0 child of pad.
-                      Lives in the same X-scroller as the columns row, so it pans
-                      horizontally in lockstep with zero JS; the X-scroller never
-                      scrolls Y (overflow-y-hidden), so it stays pinned to the top
-                      structurally — no position:sticky needed. Cells mirror the
-                      column width (md:w-[280px]) and gap (md:gap-5) exactly. */}
-                  <div className="hidden md:flex md:flex-row md:flex-nowrap md:gap-5 md:min-w-max md:flex-shrink-0">
-                    {days.map((day) => (
-                      <DayHeaderCell key={day.id} day={day} />
-                    ))}
-                  </div>
+                  {showWeeks ? (
+                    <>
+                      {/* Week-bar row — a third flex-shrink-0 child of the pad
+                          div, above the pinned day-header row, so all three rows
+                          live in the one X-scroller and pan together with no JS.
+                          Each slot is exactly as wide as the week it labels and
+                          every row below reuses that same width, so bars,
+                          headers and columns cannot drift apart. The folded card
+                          is positioned out of flow inside its slot: in flow it
+                          would make this row as tall as a card and shove the
+                          whole board down the moment one week folded. */}
+                      <div className="hidden md:flex md:flex-row md:flex-nowrap md:gap-5 md:min-w-max md:flex-shrink-0 md:mb-3">
+                        {weekSlots.map(({ week, folded, width }) => (
+                          <div
+                            key={week.key}
+                            data-week-key={week.key}
+                            className="relative flex-shrink-0"
+                            style={{ width }}
+                          >
+                            {folded ? (
+                              <WeekFoldedCard week={week} onUnfold={() => handleUnfoldWeek(week)} />
+                            ) : (
+                              <WeekBar week={week} onFold={(e) => handleFoldWeek(e, week)} />
+                            )}
+                          </div>
+                        ))}
+                      </div>
 
-                  <div className="flex flex-row flex-nowrap gap-[10px] md:gap-5 md:min-w-max md:flex-1 md:min-h-0">
-                    {days.map((day, idx) => (
-                      <DayColumn
-                        key={day.id}
-                        day={day}
-                        cards={day.cards}
-                        dayIndex={idx}
-                        isPhotoBg={isPhotoBg}
-                        onCardTap={(card) => setSelectedCard(card)}
-                        onDelete={handleDelete}
-                        onCreateCard={(title) => handleCreateCard(day.id, title)}
-                        onAddFromSaved={() => setAddFromSavedDay(day)}
-                      />
-                    ))}
-                  </div>
+                      {/* Pinned day-header row, grouped by week. A folded week
+                          leaves an empty slot of the folded card's width — that
+                          is what keeps every later week's bar over its own
+                          columns. Empty slots have no height, so with every week
+                          folded this row collapses to nothing by itself: no
+                          guard, no reserved band. */}
+                      <div className="hidden md:flex md:flex-row md:flex-nowrap md:gap-5 md:min-w-max md:flex-shrink-0">
+                        {weekSlots.map(({ week, folded, width }) => (
+                          <div key={week.key} className="flex-shrink-0" style={{ width }}>
+                            {!folded && (
+                              <div className="flex flex-row flex-nowrap gap-5">
+                                {week.days.map((day) => (
+                                  <DayHeaderCell key={day.id} day={day} />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="flex flex-row flex-nowrap gap-5 md:min-w-max md:flex-1 md:min-h-0">
+                        {weekSlots.map(({ week, folded, width }) => (
+                          <div key={week.key} className="flex-shrink-0 md:h-full md:min-h-0" style={{ width }}>
+                            {!folded && (
+                              <div className="flex flex-row flex-nowrap gap-5 md:h-full md:min-h-0">
+                                {week.days.map((day) => renderColumn(day))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {/* Pinned day-header row — first flex-shrink-0 child of pad.
+                          Lives in the same X-scroller as the columns row, so it pans
+                          horizontally in lockstep with zero JS; the X-scroller never
+                          scrolls Y (overflow-y-hidden), so it stays pinned to the top
+                          structurally — no position:sticky needed. Cells mirror the
+                          column width (md:w-[280px]) and gap (md:gap-5) exactly. */}
+                      <div className="hidden md:flex md:flex-row md:flex-nowrap md:gap-5 md:min-w-max md:flex-shrink-0">
+                        {days.map((day) => (
+                          <DayHeaderCell key={day.id} day={day} />
+                        ))}
+                      </div>
+
+                      <div className="flex flex-row flex-nowrap gap-[10px] md:gap-5 md:min-w-max md:flex-1 md:min-h-0">
+                        {days.map((day) => renderColumn(day))}
+                      </div>
+                    </>
+                  )}
                 </div>
                 </div>
               </div>
@@ -1227,6 +1484,104 @@ function DayHeaderCell({ day }: { day: DayWithCards }) {
         }}>{dateLine}</p>
       )}
     </div>
+  );
+}
+
+// ── Week bar / folded week card ────────────────────────────────
+// Geometry and typography follow design-reference/long-trip/week-folding.html.
+// The mockup draws day headers inside each column; this board does not — only
+// the look of these two elements is taken from it, never its structure.
+
+const WEEK_LABEL: React.CSSProperties = {
+  fontFamily: "'DM Sans', system-ui, sans-serif",
+  fontSize: "9px",
+  fontWeight: 600,
+  letterSpacing: "0.14em",
+  textTransform: "uppercase",
+  color: "rgba(26,26,46,0.45)",
+  whiteSpace: "nowrap",
+};
+
+// The 20px sign circle. An affordance only — the whole bar and the whole card
+// are the control, so the glyph is aria-hidden and the button carries the label.
+const SIGN =
+  "w-5 h-5 flex-shrink-0 grid place-items-center rounded-full text-[15px] leading-none " +
+  "text-[rgba(26,26,46,0.45)] transition-colors " +
+  "group-hover:text-[#C4622D] group-hover:bg-[rgba(196,98,45,0.10)]";
+
+function WeekBar({
+  week,
+  onFold,
+}: {
+  week: PlanWeek<DayWithCards>;
+  onFold: (e: React.MouseEvent) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onFold}
+      aria-label={`Fold week ${week.weekNumber}, ${week.range}`}
+      title={`Fold ${week.range}`}
+      className="group w-full flex items-center gap-[11px] text-left rounded-[9px] px-[13px] py-2
+                 border border-[rgba(26,26,46,0.12)] bg-[rgba(26,26,46,0.025)]
+                 hover:border-[rgba(26,26,46,0.22)] hover:bg-[rgba(26,26,46,0.055)] transition-colors"
+    >
+      <span
+        className="font-display italic"
+        style={{ fontSize: "15px", fontWeight: 500, color: "#1A1A2E", letterSpacing: "-0.01em", whiteSpace: "nowrap" }}
+      >
+        {week.range}
+      </span>
+      <span style={WEEK_LABEL}>
+        Week {week.weekNumber}{week.isPartial ? " · part week" : ""}
+      </span>
+      <span aria-hidden className={`ml-auto ${SIGN}`}>−</span>
+    </button>
+  );
+}
+
+// Positioned out of flow inside its slot so folding never changes the height of
+// the week-bar row. Top-aligned with the bars and sharing their 8px top padding,
+// it occupies the vertical band the bar vacated — the "top" row's 20px min-height
+// is the sign circle's diameter, which puts the + in the band the − just left.
+// Horizontal parity is not achievable: the − sits at the right edge of a bar up
+// to ~2,080px wide, the + at the right edge of a 140px card.
+function WeekFoldedCard({
+  week,
+  onUnfold,
+}: {
+  week: PlanWeek<DayWithCards>;
+  onUnfold: () => void;
+}) {
+  const count = week.days.length;
+  return (
+    <button
+      type="button"
+      onClick={onUnfold}
+      aria-label={`Unfold week ${week.weekNumber}, ${week.range}`}
+      title={`Unfold ${week.range}`}
+      className="group absolute top-0 left-0 w-full text-left rounded-[9px] bg-white
+                 border border-[rgba(26,26,46,0.12)] hover:border-[rgba(26,26,46,0.24)]
+                 shadow-card hover:shadow-card-hover transition-all"
+      style={{ padding: "8px 13px 14px" }}
+    >
+      <span className="flex items-center justify-between gap-2" style={{ minHeight: 20 }}>
+        <span style={WEEK_LABEL}>Week {week.weekNumber}</span>
+        <span aria-hidden className={SIGN}>+</span>
+      </span>
+      <span
+        className="block font-display italic"
+        style={{ fontSize: "19px", lineHeight: 1.15, marginTop: "9px", color: "#1A1A2E", letterSpacing: "-0.01em" }}
+      >
+        {week.range}
+      </span>
+      <span
+        className="block"
+        style={{ fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: "10px", fontWeight: 500, color: "rgba(26,26,46,0.45)", marginTop: "4px" }}
+      >
+        {count} {count === 1 ? "day" : "days"}
+      </span>
+    </button>
   );
 }
 
