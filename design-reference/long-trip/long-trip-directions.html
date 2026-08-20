@@ -1,0 +1,1001 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fourteen Days in April</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Playfair+Display:ital,wght@1,500&display=swap">
+
+<style>
+/* ─────────────────────────────────────────────────────────────
+   FRAME — the spec sheet. Cool, technical, theme-aware.
+   Deliberately NOT Roam's palette so annotation never reads as UI.
+   ───────────────────────────────────────────────────────────── */
+:root {
+  --ground:   #F6F8F9;
+  --surface:  #FFFFFF;
+  --sunken:   #EDF1F3;
+  --ink:      #191D24;
+  --muted:    #59636F;
+  --faint:    #8A95A1;
+  --hair:     rgba(25, 29, 36, 0.13);
+  --hair-soft:rgba(25, 29, 36, 0.07);
+  --accent:   #1F6F68;
+  --accent-b: rgba(31, 111, 104, 0.10);
+  --warn:     #A8582A;
+  --warn-b:   rgba(168, 88, 42, 0.10);
+  --ok:       #2E6B45;
+  --ok-b:     rgba(46, 107, 69, 0.10);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:   #0F1216;
+    --surface:  #161A20;
+    --sunken:   #1C2129;
+    --ink:      #E6EAEF;
+    --muted:    #9AA5B2;
+    --faint:    #6E7986;
+    --hair:     rgba(230, 234, 239, 0.15);
+    --hair-soft:rgba(230, 234, 239, 0.08);
+    --accent:   #63B5AD;
+    --accent-b: rgba(99, 181, 173, 0.14);
+    --warn:     #D8935F;
+    --warn-b:   rgba(216, 147, 95, 0.14);
+    --ok:       #79B892;
+    --ok-b:     rgba(121, 184, 146, 0.14);
+  }
+}
+:root[data-theme="dark"] {
+  --ground:   #0F1216;
+  --surface:  #161A20;
+  --sunken:   #1C2129;
+  --ink:      #E6EAEF;
+  --muted:    #9AA5B2;
+  --faint:    #6E7986;
+  --hair:     rgba(230, 234, 239, 0.15);
+  --hair-soft:rgba(230, 234, 239, 0.08);
+  --accent:   #63B5AD;
+  --accent-b: rgba(99, 181, 173, 0.14);
+  --warn:     #D8935F;
+  --warn-b:   rgba(216, 147, 95, 0.14);
+  --ok:       #79B892;
+  --ok-b:     rgba(121, 184, 146, 0.14);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px 96px; }
+
+/* ── Masthead ─────────────────────────────────────────────── */
+.mast { padding: 64px 0 40px; border-bottom: 1px solid var(--hair); }
+.kicker {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px; font-weight: 500;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--accent); margin: 0 0 18px;
+}
+h1 {
+  font-size: clamp(30px, 4.6vw, 46px);
+  line-height: 1.08; letter-spacing: -0.022em;
+  font-weight: 600; margin: 0 0 18px; text-wrap: balance;
+  max-width: 19ch;
+}
+.standfirst {
+  font-size: 17px; line-height: 1.6; color: var(--muted);
+  max-width: 66ch; margin: 0;
+}
+.standfirst strong { color: var(--ink); font-weight: 600; }
+
+/* ── Measurement bar ──────────────────────────────────────── */
+.metrics {
+  display: grid; gap: 1px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  background: var(--hair-soft);
+  border: 1px solid var(--hair);
+  border-radius: 10px; overflow: hidden;
+  margin: 36px 0 0;
+}
+.metric { background: var(--surface); padding: 16px 18px; }
+.metric dt {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px; letter-spacing: 0.13em; text-transform: uppercase;
+  color: var(--faint); margin: 0 0 7px;
+}
+.metric dd {
+  margin: 0; font-size: 23px; font-weight: 600;
+  letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+}
+.metric dd small { font-size: 12px; font-weight: 400; color: var(--muted); letter-spacing: 0; }
+
+/* ── Sections ─────────────────────────────────────────────── */
+section { padding-top: 72px; }
+.sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 6px; flex-wrap: wrap; }
+.plate-id {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px; font-weight: 500; letter-spacing: 0.1em;
+  color: var(--surface); background: var(--ink);
+  padding: 3px 9px; border-radius: 5px;
+}
+.plate-id.is-today { background: var(--warn); }
+h2 { font-size: 27px; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
+.thesis { color: var(--muted); max-width: 68ch; margin: 10px 0 0; font-size: 15.5px; }
+.thesis strong { color: var(--ink); font-weight: 600; }
+
+/* ── Product panel (a Roam surface, shown as a screenshot) ── */
+.panel {
+  margin-top: 26px;
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.panel-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--hair);
+  background: var(--sunken);
+}
+.panel-bar span {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--faint);
+}
+.dots { display: flex; gap: 5px; }
+.dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--hair); }
+
+/* ─────────────────────────────────────────────────────────────
+   ROAM SURFACE — the product's own locked system.
+   Single visual world: painted explicitly, never inverted.
+   parchment #FAF7F2 · ink #1A1A2E · terracotta #C4622D
+   ───────────────────────────────────────────────────────────── */
+.roam {
+  --r-bg:     #FAF7F2;
+  --r-card:   #FFFFFF;
+  --r-ink:    #1A1A2E;
+  --r-mute:   rgba(26, 26, 46, 0.55);
+  --r-faint:  rgba(26, 26, 46, 0.30);
+  --r-hair:   rgba(26, 26, 46, 0.12);
+  --r-wash:   rgba(26, 26, 46, 0.025);
+  --r-acc:    #C4622D;
+  --r-acc-b:  rgba(196, 98, 45, 0.10);
+  --r-food:   #7C3AED;
+  background: var(--r-bg);
+  color: var(--r-ink);
+  font-family: "DM Sans", system-ui, sans-serif;
+}
+.roam-mast {
+  display: flex; align-items: center; gap: 12px;
+  height: 52px; padding: 0 18px;
+  background: #fff; border-bottom: 1px solid var(--r-hair);
+}
+.roam-title {
+  font-family: "Playfair Display", Georgia, serif;
+  font-style: italic; font-size: 16px; color: var(--r-ink);
+}
+.roam-sub { font-size: 11.5px; color: var(--r-mute); }
+
+/* Board */
+.board-scroll {
+  overflow-x: auto; overflow-y: hidden;
+  padding: 14px 18px 18px;
+  scrollbar-width: none;
+}
+.board-scroll::-webkit-scrollbar { display: none; }
+.board-scroll.showbar { scrollbar-width: thin; scrollbar-color: var(--r-faint) transparent; }
+.board-scroll.showbar::-webkit-scrollbar { display: block; height: 9px; }
+.board-scroll.showbar::-webkit-scrollbar-thumb {
+  background: rgba(26,26,46,0.28); border-radius: 99px;
+  border: 2px solid var(--r-bg);
+}
+.board-scroll.showbar::-webkit-scrollbar-track { background: transparent; }
+
+.board-row { display: flex; flex-wrap: nowrap; gap: 20px; min-width: max-content; align-items: flex-start; }
+.col { width: 280px; flex-shrink: 0; }
+.col-head { padding: 2px 4px 10px; }
+.col-day {
+  font-size: 9.5px; font-weight: 600; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--r-mute); margin: 0 0 4px;
+}
+.col-dow {
+  font-family: "Playfair Display", Georgia, serif;
+  font-style: italic; font-size: 22px; font-weight: 500;
+  line-height: 1.1; margin: 0 0 5px; letter-spacing: -0.01em;
+}
+.col-meta { font-size: 10px; font-weight: 500; color: var(--r-faint); margin: 0; letter-spacing: 0.02em; }
+.col-body { display: flex; flex-direction: column; gap: 8px; min-height: 64px; }
+.tile {
+  background: var(--r-card); border: 1px solid rgba(26,26,46,0.06);
+  border-radius: 11px; padding: 9px 11px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  display: flex; gap: 9px; align-items: flex-start;
+}
+.tile i { width: 6px; height: 6px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+.tile .t-a { background: var(--r-ink); }
+.tile .t-f { background: var(--r-food); }
+.tile .t-l { background: var(--r-acc); }
+.tile p { margin: 0; font-size: 12.5px; font-weight: 500; line-height: 1.3; }
+.tile em { display: block; font-style: normal; font-size: 10.5px; color: var(--r-faint); margin-top: 2px; font-variant-numeric: tabular-nums; }
+.add {
+  border: 1px dashed var(--r-hair); border-radius: 10px;
+  padding: 7px; text-align: center; font-size: 11px; color: var(--r-faint);
+}
+
+/* Edge fades (Direction A) */
+.board-frame { position: relative; }
+.fade {
+  position: absolute; top: 0; bottom: 0; width: 44px;
+  pointer-events: none; z-index: 3; opacity: 0; transition: opacity .18s;
+}
+.fade.l { left: 0;  background: linear-gradient(to right, var(--r-bg), transparent); }
+.fade.r { right: 0; background: linear-gradient(to left,  var(--r-bg), transparent); }
+.fade.on { opacity: 1; }
+
+/* Day picker chip — the control that already ships on Day view */
+.chiprow { display: flex; align-items: center; gap: 8px; padding: 10px 18px 0; flex-wrap: wrap; }
+.chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  border: 1px solid var(--r-hair); background: var(--r-wash);
+  border-radius: 99px; padding: 5px 12px;
+  font-size: 12px; font-weight: 500; color: var(--r-ink);
+  cursor: pointer; font-family: inherit;
+}
+.chip:hover { background: rgba(26,26,46,0.05); }
+.chip.on { background: var(--r-ink); color: #fff; border-color: var(--r-ink); }
+.chip.on .chip-sub { color: rgba(255,255,255,0.62); }
+.chip-sub { color: var(--r-mute); font-weight: 400; font-size: 11px; }
+.chip:focus-visible, .legbtn:focus-visible, .mchip:focus-visible { outline: 2px solid var(--r-acc); outline-offset: 2px; }
+
+/* Picker popover */
+.picker { position: relative; }
+.pop {
+  position: absolute; top: calc(100% + 8px); left: 0; z-index: 20;
+  width: 268px; max-height: 296px; overflow-y: auto;
+  background: var(--r-bg); border: 1px solid var(--r-hair);
+  border-radius: 12px; padding: 7px;
+  box-shadow: 0 8px 28px rgba(26,26,46,0.10);
+}
+.pop.hidden { display: none; }
+.pop-row {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 6px 9px; border: 0; background: transparent;
+  border-radius: 7px; cursor: pointer; text-align: left; font-family: inherit;
+}
+.pop-row:hover { background: rgba(26,26,46,0.045); }
+.pop-row.on { background: #fff; box-shadow: 0 0 0 1px var(--r-hair); }
+.pop-num {
+  font-family: "Playfair Display", Georgia, serif; font-style: italic;
+  font-size: 21px; width: 30px; text-align: center; color: var(--r-mute);
+}
+.pop-row.on .pop-num { color: var(--r-ink); }
+.pop-main { font-size: 12.5px; font-weight: 500; }
+.pop-sub  { font-size: 10.5px; color: var(--r-mute); }
+.pop-leg  { font-size: 9.5px; color: var(--r-acc); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
+
+/* Ruler / minimap (Direction B) */
+.ruler { display: flex; gap: 3px; padding: 12px 18px 0; align-items: flex-end; }
+.ruler b {
+  flex: 1; height: 5px; border-radius: 2px;
+  background: rgba(26,26,46,0.13); transition: background .16s, height .16s;
+}
+.ruler b.vis { background: var(--r-acc); height: 9px; }
+.ruler-note {
+  padding: 6px 18px 0; font-size: 10.5px; color: var(--r-mute);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Leg bands (Direction C) */
+.legrow { display: flex; flex-wrap: nowrap; gap: 20px; min-width: max-content; margin-bottom: 10px; }
+.legband {
+  border-radius: 9px; padding: 7px 12px; flex-shrink: 0;
+  background: var(--r-acc-b); border: 1px solid rgba(196,98,45,0.22);
+  display: flex; align-items: center; gap: 9px;
+}
+.legband h4 {
+  margin: 0; font-family: "Playfair Display", Georgia, serif;
+  font-style: italic; font-size: 15px; font-weight: 500; color: var(--r-ink);
+}
+.legband span { font-size: 10px; color: var(--r-mute); letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; }
+.legbtn {
+  margin-left: auto; border: 0; background: transparent; cursor: pointer;
+  font-size: 11px; color: var(--r-acc); font-weight: 600; font-family: inherit; padding: 2px 4px;
+}
+.col.collapsed { width: 148px; }
+.col.collapsed .col-body { min-height: 0; }
+.legsum {
+  background: #fff; border: 1px solid var(--r-hair); border-radius: 11px;
+  padding: 12px; text-align: center;
+}
+.legsum b { display: block; font-family: "Playfair Display", Georgia, serif; font-style: italic; font-size: 19px; font-weight: 500; }
+.legsum span { font-size: 10.5px; color: var(--r-mute); }
+
+/* ── Phone ────────────────────────────────────────────────── */
+.split { display: grid; grid-template-columns: 1fr; gap: 26px; }
+@media (min-width: 900px) { .split { grid-template-columns: 1fr 300px; align-items: start; } }
+.phone {
+  width: 280px; margin: 0 auto;
+  border: 9px solid #22262E; border-radius: 34px;
+  overflow: hidden; background: var(--r-bg);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.16);
+}
+.phone-top {
+  background: #fff; border-bottom: 1px solid var(--r-hair);
+  padding: 12px 12px 9px; text-align: center;
+}
+.phone-top .pt-title { font-family: "Playfair Display", Georgia, serif; font-style: italic; font-size: 14px; }
+.mstrip { display: flex; gap: 6px; padding: 9px 10px; overflow-x: auto; scrollbar-width: none; background: #fff; }
+.mstrip::-webkit-scrollbar { display: none; }
+.mchip {
+  flex-shrink: 0; border-radius: 11px; padding: 6px 9px;
+  background: rgba(26,26,46,0.05); border: 0; cursor: pointer;
+  font-family: inherit; text-align: center; min-width: 46px;
+}
+.mchip.on { background: var(--r-ink); }
+.mchip b { display: block; font-size: 10.5px; font-weight: 600; color: var(--r-ink); white-space: nowrap; }
+.mchip u { display: block; font-size: 9px; text-decoration: none; color: var(--r-mute); margin-top: 1px; white-space: nowrap; }
+.mchip.on b, .mchip.on u { color: #fff; }
+.mchip.on u { color: rgba(255,255,255,0.6); }
+.mbody { padding: 11px; display: flex; flex-direction: column; gap: 7px; min-height: 168px; }
+.mnote {
+  font-size: 10px; color: var(--r-mute); text-align: center;
+  padding: 7px 10px 11px; font-variant-numeric: tabular-nums;
+}
+.mdots { display: flex; gap: 5px; justify-content: center; padding: 7px 0 2px; background: #fff; }
+.mdots i { width: 5px; height: 5px; border-radius: 50%; background: rgba(26,26,46,0.22); }
+.mdots i.on { width: 15px; background: var(--r-ink); }
+.macc { background: #fff; }
+.macc-leg {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 12px; border-bottom: 1px solid var(--r-hair);
+  cursor: pointer;
+}
+.macc-leg b { font-family: "Playfair Display", Georgia, serif; font-style: italic; font-size: 14px; font-weight: 500; }
+.macc-leg span { font-size: 10px; color: var(--r-mute); letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; }
+.macc-days { display: flex; flex-direction: column; }
+.macc-day {
+  display: flex; align-items: baseline; gap: 9px;
+  padding: 7px 12px 7px 20px; border-bottom: 1px solid var(--r-hair);
+  font-size: 12px;
+}
+.macc-day em { font-style: normal; color: var(--r-mute); font-size: 10.5px; margin-left: auto; }
+
+/* ── Verdict blocks ───────────────────────────────────────── */
+.verdict {
+  margin-top: 22px; display: grid; gap: 1px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  background: var(--hair-soft); border: 1px solid var(--hair);
+  border-radius: 10px; overflow: hidden;
+}
+.vcell { background: var(--surface); padding: 14px 16px; }
+.vcell h5 {
+  margin: 0 0 6px; font-family: "IBM Plex Mono", monospace;
+  font-size: 10px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--faint);
+  font-weight: 500;
+}
+.vcell p { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--muted); }
+.vcell p b { color: var(--ink); font-weight: 600; }
+.tag {
+  display: inline-block; font-family: "IBM Plex Mono", monospace;
+  font-size: 10.5px; font-weight: 500; letter-spacing: 0.06em;
+  padding: 2px 8px; border-radius: 5px;
+}
+.tag.cheap { background: var(--ok-b);   color: var(--ok); }
+.tag.mid   { background: var(--accent-b); color: var(--accent); }
+.tag.deep  { background: var(--warn-b); color: var(--warn); }
+
+/* ── Callout ──────────────────────────────────────────────── */
+.callout {
+  margin-top: 30px; border-left: 3px solid var(--accent);
+  background: var(--surface); border-radius: 0 10px 10px 0;
+  padding: 18px 20px;
+}
+.callout h3 { margin: 0 0 8px; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+.callout p { margin: 0 0 10px; color: var(--muted); font-size: 14.5px; }
+.callout p:last-child { margin-bottom: 0; }
+.callout code {
+  font-family: "IBM Plex Mono", monospace; font-size: 12.5px;
+  background: var(--sunken); padding: 1px 5px; border-radius: 4px; color: var(--ink);
+}
+
+/* ── Decision table ───────────────────────────────────────── */
+.table-scroll { overflow-x: auto; margin-top: 24px; border: 1px solid var(--hair); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; background: var(--surface); }
+th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--hair-soft); font-size: 13.5px; vertical-align: top; }
+th {
+  font-family: "IBM Plex Mono", monospace; font-size: 10px; font-weight: 500;
+  letter-spacing: 0.13em; text-transform: uppercase; color: var(--faint);
+  background: var(--sunken);
+}
+tbody tr:last-child td { border-bottom: 0; }
+td b { font-weight: 600; }
+td span.na { color: var(--faint); }
+
+.foot {
+  margin-top: 72px; padding-top: 22px; border-top: 1px solid var(--hair);
+  font-family: "IBM Plex Mono", monospace; font-size: 11.5px;
+  color: var(--faint); line-height: 1.7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+
+  <header class="mast">
+    <p class="kicker">Roam · Plan board · design study</p>
+    <h1>Fourteen days in April</h1>
+    <p class="standfirst">
+      The <strong>Japan</strong> trip is 2–15 April 2028 — fourteen days, the first trip past
+      the envelope everything was designed against. The board doesn't break at fourteen;
+      it dissolves. Three ways out, on the same real data, so the difference is felt
+      rather than argued.
+    </p>
+
+    <dl class="metrics">
+      <div class="metric"><dt>Board width</dt><dd>4,236<small> px</small></dd></div>
+      <div class="metric"><dt>Formula</dt><dd style="font-size:19px">300N<small> + 36</small></dd></div>
+      <div class="metric"><dt>Visible at 1440</dt><dd>4.7<small> of 14</small></dd></div>
+      <div class="metric"><dt>Screen-widths</dt><dd>2.9<small> of panning</small></dd></div>
+      <div class="metric"><dt>Taps, D1→D14</dt><dd>13<small> on mobile</small></dd></div>
+    </dl>
+  </header>
+
+  <div class="callout">
+    <h3>What already ships — and why it isn't enough</h3>
+    <p>
+      The <code>Day N of M ▾</code> chip with a full day-list popover is <strong>built and live</strong>
+      on the desktop Day view. Weekday, date, day number, jump straight there. It is the right
+      pattern and every direction below extends it rather than replacing it.
+    </p>
+    <p>
+      It just doesn't reach the problem. It exists on <strong>Day view only</strong> — the Plan board,
+      where fourteen columns actually live, has no picker at all. It never came to mobile, where
+      the chips still read <code>Day 1 … Day 14</code> with no date. And the popover renders
+      <code>days.map</code> into a fixed-width container with no <code>max-height</code>, so past
+      roughly sixteen days it grows taller than the viewport and runs off the bottom of the screen
+      with nothing to scroll.
+    </p>
+  </div>
+
+  <!-- ── TODAY ─────────────────────────────────────────────── -->
+  <section id="today">
+    <div class="sec-head">
+      <span class="plate-id is-today">NOW</span>
+      <h2>What it does today</h2>
+    </div>
+    <p class="thesis">
+      One flat run of fourteen columns in a scroller with <strong>no visible scrollbar</strong>
+      (<code style="font-family:'IBM Plex Mono',monospace;font-size:12.5px">scrollbarWidth: "none"</code>),
+      no arrows, no fades. The only evidence that days 6–14 exist is a column clipped at the right edge.
+      Scroll it — the trip is there, it just never says so.
+    </p>
+
+    <div class="panel">
+      <div class="panel-bar"><div class="dots"><i></i><i></i><i></i></div><span>Plan · desktop · current build</span></div>
+      <div class="roam">
+        <div class="roam-mast">
+          <span class="roam-title">Japan</span>
+          <span class="roam-sub">2–15 Apr 2028</span>
+        </div>
+        <div class="board-scroll" data-board="today"><div class="board-row" data-row="today"></div></div>
+      </div>
+    </div>
+
+    <div class="verdict">
+      <div class="vcell"><h5>Reads as</h5><p>A four-day trip that mysteriously won't finish loading.</p></div>
+      <div class="vcell"><h5>Fails at</h5><p>Overview. You cannot see the <b>shape</b> of the plan, which is the entire point of a board.</p></div>
+      <div class="vcell"><h5>Mobile</h5><p>Thirteen arrow taps to reach Day 14. Dots are the only jump control, at <b>6px</b> each.</p></div>
+    </div>
+  </section>
+
+  <!-- ── A ─────────────────────────────────────────────────── -->
+  <section id="a">
+    <div class="sec-head">
+      <span class="plate-id">A</span>
+      <h2>Make the board honest</h2>
+      <span class="tag cheap">hours · no schema</span>
+    </div>
+    <p class="thesis">
+      Nothing new is invented. The scrollbar becomes visible, the edges fade to say
+      <em>there is more</em>, and <strong>the picker that already exists on Day view moves up
+      to the Plan masthead</strong> — where it scrolls the board to any day. Bounded to
+      296px so it stops growing off-screen.
+    </p>
+
+    <div class="split">
+      <div class="panel">
+        <div class="panel-bar"><div class="dots"><i></i><i></i><i></i></div><span>Plan · desktop · direction A</span></div>
+        <div class="roam">
+          <div class="roam-mast">
+            <span class="roam-title">Japan</span>
+            <span class="roam-sub">2–15 Apr 2028</span>
+          </div>
+          <div class="chiprow">
+            <div class="picker">
+              <button class="chip" id="pickBtn" aria-haspopup="menu" aria-expanded="false">
+                <span id="pickLabel">Day 1 of 14</span>
+                <span class="chip-sub" aria-hidden="true">▾</span>
+              </button>
+              <div class="pop hidden" id="pickPop" role="menu"></div>
+            </div>
+            <span class="chip-sub">Jumps the board · same control as Day view</span>
+          </div>
+          <div class="board-frame">
+            <div class="fade l" id="fadeL"></div>
+            <div class="fade r on" id="fadeR"></div>
+            <div class="board-scroll showbar" data-board="a"><div class="board-row" data-row="a"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-bar"><span>Day view · mobile</span></div>
+        <div class="phone">
+          <div class="phone-top"><div class="pt-title">Thursday, 6 April</div></div>
+          <div class="mstrip" id="mstripA"></div>
+          <div class="mbody" id="mbodyA"></div>
+          <p class="mnote">Chips carry weekday + date. You can find the Saturday.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="verdict">
+      <div class="vcell"><h5>Wins</h5><p>Cheapest possible fix. Reuses a shipped component. <b>No schema change.</b></p></div>
+      <div class="vcell"><h5>Doesn't solve</h5><p>You still only ever see <b>4.7 of 14</b> days. Overview is not restored, only navigation.</p></div>
+      <div class="vcell"><h5>Also fixes</h5><p>The unbounded popover bug, before it bites on a 20-day trip.</p></div>
+    </div>
+  </section>
+
+  <!-- ── B ─────────────────────────────────────────────────── -->
+  <section id="b">
+    <div class="sec-head">
+      <span class="plate-id">B</span>
+      <h2>Give the trip a spine</h2>
+      <span class="tag mid">days · no schema</span>
+    </div>
+    <p class="thesis">
+      A week strip above the board and a fourteen-tick ruler below it. The ruler is a
+      <strong>minimap</strong> — it shows which slice of the trip you're looking at and how much
+      lies either side. Weeks are derived from dates, so <strong>nothing is stored</strong>.
+      Click a week; the board pans.
+    </p>
+
+    <div class="split">
+      <div class="panel">
+        <div class="panel-bar"><div class="dots"><i></i><i></i><i></i></div><span>Plan · desktop · direction B</span></div>
+        <div class="roam">
+          <div class="roam-mast">
+            <span class="roam-title">Japan</span>
+            <span class="roam-sub">2–15 Apr 2028</span>
+          </div>
+          <div class="chiprow" id="weekChips"></div>
+          <div class="ruler" id="ruler"></div>
+          <p class="ruler-note" id="rulerNote">Showing days 1–5 of 14</p>
+          <div class="board-scroll showbar" data-board="b"><div class="board-row" data-row="b"></div></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-bar"><span>Plan · mobile</span></div>
+        <div class="phone">
+          <div class="phone-top"><div class="pt-title">Japan</div></div>
+          <div class="mstrip" id="mstripB"></div>
+          <div class="mdots" id="mdotsB"></div>
+          <div class="mbody" id="mbodyB"></div>
+          <p class="mnote">Dots page by week, not by day — 2 pages, not 14 dots.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="verdict">
+      <div class="vcell"><h5>Wins</h5><p>Restores overview with <b>zero data model change</b>. Scales to any length — a 30-day trip is 5 chips.</p></div>
+      <div class="vcell"><h5>Costs</h5><p>Weeks are arbitrary. A trip rarely changes city on a Sunday, so the spine is <b>real but meaningless</b>.</p></div>
+      <div class="vcell"><h5>Watch</h5><p>Two competing navigators (weeks + picker) unless A's chip is folded into this one.</p></div>
+    </div>
+  </section>
+
+  <!-- ── C ─────────────────────────────────────────────────── -->
+  <section id="c">
+    <div class="sec-head">
+      <span class="plate-id">C</span>
+      <h2>Group days into legs</h2>
+      <span class="tag deep">schema change</span>
+    </div>
+    <p class="thesis">
+      Fourteen days in Japan is not one trip, it's three: <strong>Tokyo, Kyoto, Osaka</strong>.
+      Days belong to a named leg with its own base. Collapse a leg and it becomes one summary
+      column — <strong>the whole trip fits on one screen</strong>. Try the collapse controls.
+    </p>
+
+    <div class="split">
+      <div class="panel">
+        <div class="panel-bar"><div class="dots"><i></i><i></i><i></i></div><span>Plan · desktop · direction C</span></div>
+        <div class="roam">
+          <div class="roam-mast">
+            <span class="roam-title">Japan</span>
+            <span class="roam-sub">3 legs · 14 days</span>
+          </div>
+          <div class="board-scroll showbar" data-board="c">
+            <div style="min-width:max-content">
+              <div class="legrow" id="legRow"></div>
+              <div class="board-row" data-row="c"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-bar"><span>Trip · mobile</span></div>
+        <div class="phone">
+          <div class="phone-top"><div class="pt-title">Japan</div></div>
+          <div class="macc" id="maccC"></div>
+          <p class="mnote">Three taps to any day, and the trip's structure is the navigation.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="verdict">
+      <div class="vcell"><h5>Wins</h5><p>The only option that restores <b>true overview</b> at any length, and the only one that matches how a long trip is actually planned.</p></div>
+      <div class="vcell"><h5>Unlocks</h5><p>Per-leg accommodation, per-leg map clustering, per-leg packing. The Cities layer the brief already promised.</p></div>
+      <div class="vcell"><h5>Costs</h5><p>A <code>segments</code> table (or <code>days.segment_id</code>), a leg editor, and a migration path for every existing trip.</p></div>
+    </div>
+  </section>
+
+  <!-- ── DECISION ──────────────────────────────────────────── -->
+  <section id="decide">
+    <div class="sec-head">
+      <span class="plate-id">↳</span>
+      <h2>The call</h2>
+    </div>
+    <p class="thesis">
+      A and C aren't rivals — A is the floor and C is the ceiling. B is the one that has to
+      justify itself, because it spends real build time on a spine that doesn't mean anything.
+    </p>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Direction</th><th>Overview restored</th><th>Schema</th><th>Reaches mobile</th><th>Fixes popover bug</th><th>Unlocks map / stays</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><b>A</b> · Affordances</td><td><span class="na">No — navigation only</span></td><td><b>None</b></td><td>Yes</td><td><b>Yes</b></td><td><span class="na">No</span></td></tr>
+          <tr><td><b>B</b> · Week spine</td><td><b>Yes</b>, arbitrarily sliced</td><td><b>None</b></td><td>Yes</td><td><span class="na">No</span></td><td><span class="na">No</span></td></tr>
+          <tr><td><b>C</b> · Legs</td><td><b>Yes</b>, meaningfully</td><td><code>segments</code></td><td>Yes</td><td><span class="na">No</span></td><td><b>Yes</b></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <h3>Recommendation</h3>
+      <p>
+        <strong>Ship A now</strong> as its own prompt — it is a few hours, touches no data, and
+        closes a real latent bug in the popover before a longer trip finds it.
+      </p>
+      <p>
+        <strong>Then decide between B and C once</strong>, and only once. If legs are going to
+        exist eventually — and the map's home-base clustering wants them — building B first means
+        building a navigator you will throw away. <strong>Skip B, go to C.</strong>
+      </p>
+      <p>
+        One issue at a time: A does not wait on the C decision, and C does not get batched into
+        A's prompt.
+      </p>
+    </div>
+  </section>
+
+  <p class="foot">
+    Roam · Plan board long-trip study<br>
+    Trip 34579915 · Japan · 2028-04-02 → 2028-04-15 · 14 days · 0 scheduled cards<br>
+    Columns rendered at true 280px / 20px gap. Card content illustrative.<br>
+    Prepared 20 Aug 2026 · decisions not yet locked
+  </p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var LEGS = [
+    { name: "Tokyo", base: "Shibuya", from: 1,  to: 5  },
+    { name: "Kyoto", base: "Gion",    from: 6,  to: 10 },
+    { name: "Osaka", base: "Namba",   from: 11, to: 14 }
+  ];
+
+  var PLAN = [
+    ["Haneda · arrival",     "l", "14:20"], ["Shibuya Sky",        "a", "18:00"], ["Ichiran Shibuya",   "f", "20:00"],
+    ["Meiji Jingū",          "a", "09:30"], ["Takeshita-dōri",     "a", "12:00"], ["Sushi Dai",         "f", "19:00"],
+    ["teamLab Planets",      "a", "10:00"], ["Tsukiji Outer Mkt",  "f", "13:30"],
+    ["Nikkō day trip",       "a", "07:45"],
+    ["Shinjuku Gyoen",       "a", "10:00"], ["Omoide Yokochō",     "f", "19:30"],
+    ["Shinkansen · Kyoto",   "l", "09:12"], ["Fushimi Inari",      "a", "15:00"],
+    ["Arashiyama bamboo",    "a", "08:00"], ["Tenryū-ji",          "a", "10:30"],
+    ["Kinkaku-ji",           "a", "09:00"], ["Nishiki Market",     "f", "12:30"],
+    ["Nara day trip",        "a", "08:30"],
+    ["Gion walk",            "a", "17:00"], ["Pontochō dinner",    "f", "19:30"],
+    ["Move to Osaka",        "l", "10:40"], ["Dōtonbori",          "a", "18:00"],
+    ["Osaka Castle",         "a", "09:30"], ["Kuromon Market",     "f", "12:00"],
+    ["Universal Studios",    "a", "08:30"],
+    ["Kansai · departure",   "l", "11:05"]
+  ];
+
+  // Deal the illustrative cards out across the fourteen days.
+  var SHAPE = [3,3,2,1,2,2,2,2,1,2,2,2,1,1];
+
+  var DAYS = [], cursor = 0;
+  for (var i = 0; i < 14; i++) {
+    var dt = new Date(Date.UTC(2028, 3, 2 + i));
+    var leg = LEGS.filter(function (L) { return i + 1 >= L.from && i + 1 <= L.to; })[0];
+    DAYS.push({
+      n: i + 1,
+      date: dt,
+      dow:  dt.toLocaleDateString("en-GB", { weekday: "long",  timeZone: "UTC" }),
+      dow3: dt.toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" }),
+      dnum: dt.getUTCDate(),
+      mon:  dt.toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" }),
+      leg:  leg,
+      cards: PLAN.slice(cursor, cursor += SHAPE[i])
+    });
+  }
+
+  function el(tag, cls, html) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (html !== undefined) n.innerHTML = html;
+    return n;
+  }
+
+  function tile(c) {
+    var t = el("div", "tile");
+    t.appendChild(el("i", "t-" + c[1]));
+    t.appendChild(el("div", null, "<p>" + c[0] + "<em>" + c[2] + "</em></p>"));
+    return t;
+  }
+
+  function column(d) {
+    var col = el("div", "col");
+    col.dataset.day = d.n;
+    var head = el("div", "col-head");
+    head.appendChild(el("p", "col-day", "Day " + d.n));
+    head.appendChild(el("p", "col-dow", d.dow));
+    head.appendChild(el("p", "col-meta",
+      d.dnum + " " + d.mon + " · " + d.cards.length + (d.cards.length === 1 ? " STOP" : " STOPS")));
+    col.appendChild(head);
+    var body = el("div", "col-body");
+    d.cards.forEach(function (c) { body.appendChild(tile(c)); });
+    body.appendChild(el("div", "add", "+ Add a card"));
+    col.appendChild(body);
+    return col;
+  }
+
+  ["today", "a", "b", "c"].forEach(function (key) {
+    var row = document.querySelector('[data-row="' + key + '"]');
+    DAYS.forEach(function (d) { row.appendChild(column(d)); });
+  });
+
+  var COL = 300; // 280px column + 20px gap
+
+  function scroller(key) { return document.querySelector('[data-board="' + key + '"]'); }
+  function scrollToDay(key, n) {
+    scroller(key).scrollTo({ left: Math.max(0, (n - 1) * COL - 8), behavior: "smooth" });
+  }
+
+  /* ── A · picker ─────────────────────────────────────────── */
+  var pop = document.getElementById("pickPop"),
+      btn = document.getElementById("pickBtn"),
+      lbl = document.getElementById("pickLabel"),
+      activeDay = 1;
+
+  DAYS.forEach(function (d) {
+    var r = el("button", "pop-row" + (d.n === 1 ? " on" : ""));
+    r.setAttribute("role", "menuitem");
+    r.innerHTML =
+      '<span class="pop-num">' + d.dnum + '</span>' +
+      '<span style="flex:1;min-width:0">' +
+        '<span class="pop-main" style="display:block">' + d.dow3 + ", " + d.dnum + " " + d.mon + '</span>' +
+        '<span class="pop-sub" style="display:block">Day ' + d.n + '</span>' +
+      '</span>' +
+      '<span class="pop-leg">' + d.leg.name + '</span>';
+    r.addEventListener("click", function () {
+      activeDay = d.n;
+      lbl.textContent = "Day " + d.n + " of 14";
+      Array.prototype.forEach.call(pop.children, function (c, i) { c.classList.toggle("on", i === d.n - 1); });
+      pop.classList.add("hidden");
+      btn.setAttribute("aria-expanded", "false");
+      scrollToDay("a", d.n);
+    });
+    pop.appendChild(r);
+  });
+
+  btn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    var open = pop.classList.toggle("hidden");
+    btn.setAttribute("aria-expanded", String(!open));
+  });
+  document.addEventListener("click", function () {
+    pop.classList.add("hidden");
+    btn.setAttribute("aria-expanded", "false");
+  });
+  pop.addEventListener("click", function (e) { e.stopPropagation(); });
+
+  var boardA = scroller("a"), fadeL = document.getElementById("fadeL"), fadeR = document.getElementById("fadeR");
+  function edges() {
+    fadeL.classList.toggle("on", boardA.scrollLeft > 4);
+    fadeR.classList.toggle("on", boardA.scrollLeft + boardA.clientWidth < boardA.scrollWidth - 4);
+  }
+  boardA.addEventListener("scroll", edges);
+  window.addEventListener("resize", edges);
+  edges();
+
+  /* ── B · weeks + ruler ──────────────────────────────────── */
+  var WEEKS = [
+    { label: "Week 1", range: "2 – 8 Apr",  from: 1, to: 7  },
+    { label: "Week 2", range: "9 – 15 Apr", from: 8, to: 14 }
+  ];
+  var chips = document.getElementById("weekChips");
+  WEEKS.forEach(function (w, i) {
+    var c = el("button", "chip" + (i === 0 ? " on" : ""));
+    c.innerHTML = w.label + ' <span class="chip-sub">' + w.range + "</span>";
+    c.addEventListener("click", function () {
+      Array.prototype.forEach.call(chips.children, function (x) { x.classList.remove("on"); });
+      c.classList.add("on");
+      scrollToDay("b", w.from);
+    });
+    chips.appendChild(c);
+  });
+
+  var ruler = document.getElementById("ruler"), note = document.getElementById("rulerNote");
+  DAYS.forEach(function () { ruler.appendChild(el("b")); });
+
+  var boardB = scroller("b");
+  function syncRuler() {
+    var first = Math.round(boardB.scrollLeft / COL) + 1;
+    var span  = Math.max(1, Math.floor(boardB.clientWidth / COL));
+    var last  = Math.min(14, first + span - 1);
+    Array.prototype.forEach.call(ruler.children, function (t, i) {
+      t.classList.toggle("vis", i + 1 >= first && i + 1 <= last);
+    });
+    note.textContent = "Showing days " + first + "–" + last + " of 14";
+    var wi = first <= 7 ? 0 : 1;
+    Array.prototype.forEach.call(chips.children, function (x, i) { x.classList.toggle("on", i === wi); });
+  }
+  boardB.addEventListener("scroll", syncRuler);
+  window.addEventListener("resize", syncRuler);
+  syncRuler();
+
+  /* ── C · legs ───────────────────────────────────────────── */
+  var legRow = document.getElementById("legRow"), rowC = document.querySelector('[data-row="c"]');
+  var collapsed = {};
+
+  function renderLegs() {
+    legRow.innerHTML = "";
+    LEGS.forEach(function (L) {
+      var count = L.to - L.from + 1;
+      var isC = !!collapsed[L.name];
+      var w = isC ? 148 : count * 280 + (count - 1) * 20;
+      var band = el("div", "legband");
+      band.style.width = w + "px";
+      band.innerHTML =
+        "<h4>" + L.name + "</h4>" +
+        (isC ? "" : "<span>" + count + " days · " + L.base + "</span>");
+      var b = el("button", "legbtn", isC ? "Expand" : "Collapse");
+      b.addEventListener("click", function () {
+        collapsed[L.name] = !collapsed[L.name];
+        renderLegs(); renderColsC();
+      });
+      band.appendChild(b);
+      legRow.appendChild(band);
+    });
+  }
+
+  function renderColsC() {
+    rowC.innerHTML = "";
+    LEGS.forEach(function (L) {
+      var days = DAYS.filter(function (d) { return d.leg.name === L.name; });
+      if (collapsed[L.name]) {
+        var col = el("div", "col collapsed");
+        var stops = days.reduce(function (s, d) { return s + d.cards.length; }, 0);
+        var body = el("div", "col-body");
+        body.appendChild(el("div", "legsum",
+          "<b>" + days.length + " days</b><span>" + stops + " stops<br>" +
+          days[0].dnum + "–" + days[days.length - 1].dnum + " " + days[0].mon + "</span>"));
+        col.appendChild(body);
+        rowC.appendChild(col);
+      } else {
+        days.forEach(function (d) { rowC.appendChild(column(d)); });
+      }
+    });
+  }
+  renderLegs(); renderColsC();
+
+  /* ── Mobile: A strip ────────────────────────────────────── */
+  var stripA = document.getElementById("mstripA"), bodyA = document.getElementById("mbodyA");
+  function paintA(n) {
+    bodyA.innerHTML = "";
+    DAYS[n - 1].cards.forEach(function (c) { bodyA.appendChild(tile(c)); });
+  }
+  DAYS.forEach(function (d) {
+    var c = el("button", "mchip" + (d.n === 5 ? " on" : ""));
+    c.innerHTML = "<b>" + d.dow3 + " " + d.dnum + "</b><u>Day " + d.n + "</u>";
+    c.addEventListener("click", function () {
+      Array.prototype.forEach.call(stripA.children, function (x) { x.classList.remove("on"); });
+      c.classList.add("on");
+      paintA(d.n);
+    });
+    stripA.appendChild(c);
+  });
+  paintA(5);
+
+  /* ── Mobile: B strip paged by week ──────────────────────── */
+  var stripB = document.getElementById("mstripB"),
+      bodyB  = document.getElementById("mbodyB"),
+      dotsB  = document.getElementById("mdotsB");
+  var weekIdx = 0, dayB = 1;
+
+  function paintB() {
+    stripB.innerHTML = "";
+    DAYS.filter(function (d) { return d.n >= WEEKS[weekIdx].from && d.n <= WEEKS[weekIdx].to; })
+        .forEach(function (d) {
+      var c = el("button", "mchip" + (d.n === dayB ? " on" : ""));
+      c.innerHTML = "<b>" + d.dow3 + " " + d.dnum + "</b><u>Day " + d.n + "</u>";
+      c.addEventListener("click", function () { dayB = d.n; paintB(); });
+      stripB.appendChild(c);
+    });
+    dotsB.innerHTML = "";
+    WEEKS.forEach(function (w, i) {
+      var dot = el("i", i === weekIdx ? "on" : "");
+      dot.style.cursor = "pointer";
+      dot.addEventListener("click", function () {
+        weekIdx = i; dayB = WEEKS[i].from; paintB();
+      });
+      dotsB.appendChild(dot);
+    });
+    bodyB.innerHTML = "";
+    DAYS[dayB - 1].cards.forEach(function (c) { bodyB.appendChild(tile(c)); });
+  }
+  paintB();
+
+  /* ── Mobile: C accordion ────────────────────────────────── */
+  var acc = document.getElementById("maccC");
+  var openLeg = "Kyoto";
+  function paintC() {
+    acc.innerHTML = "";
+    LEGS.forEach(function (L) {
+      var head = el("div", "macc-leg");
+      var count = L.to - L.from + 1;
+      head.innerHTML = "<b>" + L.name + "</b><span>" + count + " days</span>";
+      head.addEventListener("click", function () {
+        openLeg = openLeg === L.name ? null : L.name; paintC();
+      });
+      acc.appendChild(head);
+      if (openLeg === L.name) {
+        var box = el("div", "macc-days");
+        DAYS.filter(function (d) { return d.leg.name === L.name; }).forEach(function (d) {
+          box.appendChild(el("div", "macc-day",
+            "<span>" + d.dow3 + " " + d.dnum + "</span><em>" + d.cards.length + " stops</em>"));
+        });
+        acc.appendChild(box);
+      }
+    });
+  }
+  paintC();
+})();
+</script>
+
+</body>
+</html>
