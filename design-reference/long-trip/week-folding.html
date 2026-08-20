@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Eleven Days, One Villa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Playfair+Display:ital,wght@1,500&family=IBM+Plex+Mono:wght@400&display=swap">
+
+<style>
+/* Roam Plan view — single visual world, painted explicitly. */
+:root{
+  --bg:#FAF7F2; --card:#FFFFFF; --ink:#1A1A2E;
+  --mute:rgba(26,26,46,.55); --faint:rgba(26,26,46,.30);
+  --hair:rgba(26,26,46,.12); --wash:rgba(26,26,46,.025);
+  --acc:#C4622D; --food:#7C3AED; --beige:#EDE7DA;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:"DM Sans",system-ui,sans-serif;font-size:15px;
+  -webkit-font-smoothing:antialiased;display:flex;flex-direction:column;height:100dvh;overflow:hidden;
+}
+
+/* ── Masthead ── */
+.mast{display:flex;align-items:center;height:56px;padding:0 22px;background:#fff;border-bottom:1px solid rgba(26,26,46,.07);flex-shrink:0;gap:18px}
+.logo{font-family:"Playfair Display",Georgia,serif;font-style:italic;font-size:21px}
+.crumb{display:flex;align-items:baseline;gap:9px;font-family:"Playfair Display",Georgia,serif;font-style:italic;font-size:15px;color:var(--mute)}
+.crumb .sep{color:var(--faint);font-style:normal}
+.crumb .cur{color:var(--ink)}
+.crumb .dates{font-family:"DM Sans",sans-serif;font-style:normal;font-size:9.5px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
+.tabs{display:flex;gap:4px;margin-left:22px}
+.tab{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:99px;font-size:12.5px;font-weight:500;color:var(--mute);border:1px solid transparent;background:transparent;font-family:inherit;cursor:pointer}
+.tab.on{background:#fff;border-color:var(--hair);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.mast-right{margin-left:auto;display:flex;align-items:center;gap:14px;color:var(--mute)}
+.avatar{width:26px;height:26px;border-radius:50%;border:1px solid var(--hair);display:grid;place-items:center;font-size:11px}
+
+/* ── Control row ── */
+.ctrls{display:flex;align-items:center;gap:9px;padding:13px 22px 0;flex-shrink:0}
+.chip{border:1px solid var(--hair);background:var(--wash);border-radius:99px;padding:6px 13px;font-family:inherit;font-size:12px;font-weight:500;color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+.chip:hover{background:rgba(26,26,46,.05)}
+.chip .car{color:var(--mute);font-size:9px}
+.chip.ghost{background:transparent;border-color:transparent;color:var(--mute)}
+.chip.ghost:hover{background:rgba(26,26,46,.045);color:var(--ink)}
+.chip:focus-visible,.wfold:focus-visible,.weekbar button:focus-visible,.pop-row:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+
+/* ── Jump-to-day popover ── */
+.picker{position:relative}
+.pop{position:absolute;top:calc(100% + 9px);left:0;z-index:40;width:272px;max-height:296px;overflow-y:auto;
+ background:var(--bg);border:1px solid var(--hair);border-radius:12px;padding:7px;
+ box-shadow:0 8px 28px rgba(26,26,46,.12)}
+.pop.hidden{display:none}
+.pop-row{display:flex;align-items:center;gap:12px;width:100%;padding:7px 9px;border:0;background:transparent;border-radius:7px;cursor:pointer;text-align:left;font-family:inherit}
+.pop-row:hover{background:rgba(26,26,46,.05)}
+.pop-num{font-family:"Playfair Display",Georgia,serif;font-style:italic;font-size:21px;width:30px;text-align:center;color:var(--mute)}
+.pop-main{display:block;font-size:12.5px;font-weight:500}
+.pop-sub{display:block;font-size:10.5px;color:var(--mute)}
+.pop-fold{font-size:8.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--acc);margin-left:auto}
+
+/* ── Board ── */
+.board{flex:1;min-height:0;display:flex;gap:20px;align-items:flex-start;padding:16px 22px 24px;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;scrollbar-color:rgba(26,26,46,.28) transparent}
+.board::-webkit-scrollbar{height:10px}
+.board::-webkit-scrollbar-thumb{background:rgba(26,26,46,.28);border-radius:99px;border:2px solid var(--bg)}
+.weekgroup{display:flex;flex-direction:column;gap:12px;flex-shrink:0;height:100%;min-height:0}
+.weekbar{display:flex;align-items:center;gap:11px;padding:8px 13px;border-radius:9px;background:var(--wash);border:1px solid var(--hair);flex-shrink:0;width:100%;text-align:left;font-family:inherit;cursor:pointer;transition:background .14s,border-color .14s}
+.weekbar:hover{background:rgba(26,26,46,.055);border-color:rgba(26,26,46,.22)}
+.weekbar b{font-family:"Playfair Display",Georgia,serif;font-style:italic;font-size:15px;font-weight:500;white-space:nowrap;color:var(--ink)}
+.weekbar .lbl{font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);white-space:nowrap}
+.wsign{margin-left:auto;width:20px;height:20px;flex-shrink:0;display:grid;place-items:center;border-radius:50%;
+ font-size:15px;font-weight:400;line-height:1;color:var(--faint);transition:color .14s,background .14s}
+.weekbar:hover .wsign,.wfold:hover .wsign{color:var(--acc);background:rgba(196,98,45,.10)}
+.weekdays{display:flex;gap:20px;align-items:flex-start;flex:1;min-height:0}
+
+.col{width:280px;flex-shrink:0;display:flex;flex-direction:column;height:100%;min-height:0}
+.col-head{flex-shrink:0;padding:0 2px 11px}
+.col-day{font-size:9.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--mute);margin:0 0 4px}
+.col-dow{font-family:"Playfair Display",Georgia,serif;font-style:italic;font-size:22px;line-height:1.1;margin:0 0 5px;letter-spacing:-.01em}
+.col-date{font-size:10px;font-weight:500;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin:0}
+.cards{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:9px;padding-right:2px;scrollbar-width:none}
+.cards::-webkit-scrollbar{display:none}
+.tile{background:var(--card);border:1px solid rgba(26,26,46,.05);border-radius:12px;padding:9px;box-shadow:0 1px 3px rgba(0,0,0,.06);display:flex;gap:10px;align-items:center;flex-shrink:0}
+.thumb{width:38px;height:38px;border-radius:9px;flex-shrink:0;display:grid;place-items:center;font-size:14px}
+.th-a{background:rgba(26,26,46,.08)}.th-f{background:rgba(124,58,237,.10)}.th-l{background:rgba(196,98,45,.11)}.th-n{background:rgba(26,26,46,.045)}
+.tile .txt{min-width:0}
+.tile p{margin:0;font-size:12.5px;font-weight:500;line-height:1.3}
+.tile em{display:block;font-style:normal;font-size:10.5px;color:var(--faint);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.foot{flex-shrink:0;padding-top:9px;display:flex;flex-direction:column;gap:7px}
+.btn-saved{background:var(--beige);border:0;border-radius:10px;padding:10px;font-family:inherit;font-size:12.5px;font-weight:500;color:var(--ink);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px}
+.btn-add{background:transparent;border:1px dashed var(--hair);border-radius:10px;padding:10px;font-family:inherit;font-size:12.5px;color:var(--faint);cursor:pointer;font-style:italic}
+
+/* Folded week */
+/* Folded week — top-aligned with the week bars, so folding never moves the
+   control out from under the cursor. "Open" sits where "Fold" just was. */
+.wfold{width:140px;flex-shrink:0;align-self:flex-start;background:var(--card);border:1px solid var(--hair);
+ border-radius:9px;padding:8px 13px 14px;font-family:inherit;text-align:left;cursor:pointer;
+ box-shadow:0 1px 3px rgba(0,0,0,.05);transition:box-shadow .15s,border-color .15s;display:block}
+.wfold:hover{box-shadow:0 4px 12px rgba(0,0,0,.10);border-color:rgba(26,26,46,.24)}
+.wfold .top{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:20px}
+.wfold .wk{font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);white-space:nowrap}
+.wfold .wr{display:block;font-family:"Playfair Display",Georgia,serif;font-style:italic;font-size:19px;line-height:1.15;margin-top:9px}
+.wfold .wm{display:block;font-size:10px;font-weight:500;color:var(--faint);margin-top:4px}
+
+.stamp{position:fixed;right:14px;bottom:10px;font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--faint);letter-spacing:.04em;pointer-events:none}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+
+
+<div class="mast">
+  <span class="logo">Roam</span>
+  <div class="crumb">
+    <span>Journeys</span><span class="sep">›</span><span class="cur">Tuscany</span>
+    <span class="dates">Sep 4 – Sep 14</span>
+  </div>
+  <div class="tabs">
+    <button class="tab">Agenda</button>
+    <button class="tab on">Plan</button>
+    <button class="tab">Map</button>
+  </div>
+  <div class="mast-right"><span>+</span><span class="avatar">◍</span></div>
+</div>
+
+<div class="ctrls">
+  <div class="picker">
+    <button class="chip" id="jumpBtn" aria-haspopup="menu" aria-expanded="false">Jump to day <span class="car">▾</span></button>
+    <div class="pop hidden" id="jumpPop" role="menu"></div>
+  </div>
+  <button class="chip ghost" id="foldAll">Fold all weeks</button>
+  <button class="chip ghost" id="unfoldAll">Unfold all</button>
+</div>
+
+<div class="board" id="board"></div>
+
+<p class="stamp">Mockup · week folding · Tuscany 2027</p>
+
+<script>
+(function () {
+  "use strict";
+  var MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  var DOW = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+
+  var PLAN = [
+    [["Pisa International Airport","l","✈","2:20 PM · Arrival"],["Esselunga","l","▤","Pre-stock"],["Villa Bottino","l","⌂","Check-in"]],
+    [["Mura di Lucca","a","◈","By bike"],["Piazza dell'Anfiteatro","a","◈",""],["Gelateria Veneta","f","✦","Dessert"]],
+    [["Downtime — villa + pool","n","○",""]],
+    [["La Spezia Centrale","l","▤","Train"],["Vernazza","a","◈",""],["Monterosso beach","a","◈","Fegina"]],
+    [["Recovery day","n","○",""]],
+    [["Pescia","l","▤","Park + train"],["Cattedrale di Santa Maria","a","◈",""],["Brunelleschi's dome","a","◈","Climb"],["Edoardo il Gelato","f","✦","Dessert"]],
+    [["Lido di Camaiore","a","◈","Beach"]],
+    [["Cooking class at the villa","n","○",""]],
+    [["Museo Leonardiano","a","◈","Vinci"]],
+    [["Flex morning","n","○",""],["The Last Supper","n","○",""]],
+    [["Pisa International Airport","l","✈","Departure"]]
+  ];
+
+  var DAYS = PLAN.map(function (cards, i) {
+    var ms = Date.UTC(2027, 8, 4 + i), dt = new Date(ms);
+    return {
+      iso: ms, n: i + 1,
+      dow: DOW[dt.getUTCDay()],
+      date: MON[dt.getUTCMonth()] + " " + dt.getUTCDate(),
+      dnum: dt.getUTCDate(),
+      cards: cards
+    };
+  });
+
+  function el(t, c, h) { var n = document.createElement(t); if (c) n.className = c; if (h !== undefined) n.innerHTML = h; return n; }
+  function weekKey(ms) { var d = new Date(ms); return ms - ((d.getUTCDay() + 6) % 7) * 86400000; }
+
+  function weeks() {
+    var m = new Map();
+    DAYS.forEach(function (d) {
+      var k = weekKey(d.iso);
+      if (!m.has(k)) m.set(k, []);
+      m.get(k).push(d);
+    });
+    return [...m.entries()].sort(function (a, b) { return a[0] - b[0]; }).map(function (e, i) {
+      var f = e[1][0], l = e[1][e[1].length - 1];
+      return {
+        key: e[0], idx: i, days: e[1], partial: e[1].length < 7,
+        range: f.dnum + "–" + l.dnum + " " + MON[new Date(l.iso).getUTCMonth()]
+      };
+    });
+  }
+
+  var board = document.getElementById("board"), shut = {};
+
+  function column(day) {
+    var col = el("div", "col");
+    col.dataset.iso = day.iso;
+    var head = el("div", "col-head");
+    head.appendChild(el("p", "col-day", "Day " + day.n));
+    head.appendChild(el("p", "col-dow", day.dow));
+    head.appendChild(el("p", "col-date", day.date));
+    col.appendChild(head);
+    var list = el("div", "cards");
+    day.cards.forEach(function (c) {
+      var t = el("div", "tile");
+      t.appendChild(el("div", "thumb th-" + c[1], c[2]));
+      t.appendChild(el("div", "txt", "<p>" + c[0] + "</p>" + (c[3] ? "<em>" + c[3] + "</em>" : "")));
+      list.appendChild(t);
+    });
+    col.appendChild(list);
+    var foot = el("div", "foot");
+    foot.appendChild(el("button", "btn-saved", "&#9733; Add from saved"));
+    foot.appendChild(el("button", "btn-add", "+ Add a card"));
+    col.appendChild(foot);
+    return col;
+  }
+
+  function render() {
+    board.innerHTML = "";
+    weeks().forEach(function (wk) {
+      if (shut[wk.key]) {
+        var f = el("button", "wfold");
+        f.innerHTML =
+          '<span class="top"><span class="wk">Week ' + (wk.idx + 1) + '</span><span class="wsign" aria-hidden="true">+</span></span>' +
+          '<span class="wr">' + wk.range + "</span>" +
+          '<span class="wm">' + wk.days.length + (wk.days.length === 1 ? " day" : " days") + "</span>";
+        f.title = "Open " + wk.range;
+        f.setAttribute("aria-label", "Open week " + (wk.idx + 1) + ", " + wk.range);
+        f.addEventListener("click", function () { shut[wk.key] = false; render(); });
+        board.appendChild(f);
+        return;
+      }
+      var g = el("div", "weekgroup");
+      var bar = el("button", "weekbar");
+      bar.innerHTML = "<b>" + wk.range + "</b>" +
+        '<span class="lbl">Week ' + (wk.idx + 1) + (wk.partial ? " · part week" : "") + "</span>" +
+        '<span class="wsign" aria-hidden="true">&#8722;</span>';
+      bar.title = "Fold " + wk.range;
+      bar.setAttribute("aria-label", "Fold week " + (wk.idx + 1) + ", " + wk.range);
+      bar.addEventListener("click", function () { shut[wk.key] = true; render(); });
+      g.appendChild(bar);
+      var row = el("div", "weekdays");
+      wk.days.forEach(function (d) { row.appendChild(column(d)); });
+      g.appendChild(row);
+      board.appendChild(g);
+    });
+  }
+
+  /* Jump to day — reaches days inside folded weeks */
+  var jumpBtn = document.getElementById("jumpBtn"), pop = document.getElementById("jumpPop");
+
+  function scrollToDay(iso) {
+    var col = board.querySelector('[data-iso="' + iso + '"]');
+    if (!col) return;
+    var c = col.getBoundingClientRect(), b = board.getBoundingClientRect();
+    board.scrollTo({ left: board.scrollLeft + (c.left - b.left) - 22, behavior: "smooth" });
+  }
+
+  function buildPop() {
+    pop.innerHTML = "";
+    DAYS.forEach(function (day) {
+      var folded = !!shut[weekKey(day.iso)];
+      var r = el("button", "pop-row");
+      r.setAttribute("role", "menuitem");
+      r.innerHTML =
+        '<span class="pop-num">' + day.dnum + "</span>" +
+        '<span style="flex:1;min-width:0">' +
+          '<span class="pop-main">' + day.dow.slice(0, 3) + ", " + day.date + "</span>" +
+          '<span class="pop-sub">Day ' + day.n + "</span>" +
+        "</span>" +
+        (folded ? '<span class="pop-fold">folded</span>' : "");
+      r.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var k = weekKey(day.iso);
+        if (shut[k]) { shut[k] = false; render(); }
+        pop.classList.add("hidden");
+        jumpBtn.setAttribute("aria-expanded", "false");
+        setTimeout(function () { scrollToDay(day.iso); }, 60);
+      });
+      pop.appendChild(r);
+    });
+  }
+
+  jumpBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    var open = pop.classList.contains("hidden");
+    if (open) buildPop();
+    pop.classList.toggle("hidden", !open);
+    jumpBtn.setAttribute("aria-expanded", String(open));
+  });
+  document.addEventListener("click", function () { pop.classList.add("hidden"); jumpBtn.setAttribute("aria-expanded", "false"); });
+  pop.addEventListener("click", function (e) { e.stopPropagation(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") { pop.classList.add("hidden"); jumpBtn.setAttribute("aria-expanded", "false"); }
+  });
+
+  document.getElementById("foldAll").addEventListener("click", function () {
+    weeks().forEach(function (w) { shut[w.key] = true; });
+    render();
+  });
+  document.getElementById("unfoldAll").addEventListener("click", function () { shut = {}; render(); });
+
+  render();
+})();
+</script>
+
+</body>
+</html>
