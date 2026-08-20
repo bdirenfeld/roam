@@ -47,6 +47,13 @@ export default function DayStrip({ days, activeDayId, onDaySelect }: Props) {
             const isActive = day.id === activeDayId;
             const today    = todayKey !== null && day.date === todayKey;
 
+            // Local-parse (…T00:00:00) → the calendar date survives every
+            // timezone, so weekday + date-of-month need no client-only guard.
+            // Only the is-it-today check stays behind todayKey.
+            const dt      = new Date(day.date + "T00:00:00");
+            const dow     = dt.toLocaleDateString("en-GB", { weekday: "short" });
+            const dayNum  = dt.getDate();
+
             return (
               <button
                 key={day.id}
@@ -61,8 +68,13 @@ export default function DayStrip({ days, activeDayId, onDaySelect }: Props) {
                   }
                 `}
               >
-                <span className={`text-[11px] font-semibold whitespace-nowrap ${isActive ? "text-white" : "text-gray-700"}`}>
-                  Day {day.day_number}
+                <span className="flex flex-col items-start leading-none">
+                  <span className={`text-[10.5px] font-semibold whitespace-nowrap ${isActive ? "text-white" : "text-gray-700"}`}>
+                    {dow} {dayNum}
+                  </span>
+                  <span className={`text-[9px] mt-[2px] whitespace-nowrap ${isActive ? "text-white/60" : "text-gray-400"}`}>
+                    Day {day.day_number}
+                  </span>
                 </span>
 
                 {today && (

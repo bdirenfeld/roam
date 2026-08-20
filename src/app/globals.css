@@ -65,6 +65,22 @@ body {
   display: none;
 }
 
+/* Slim visible scrollbar for the desktop Plan X-scroller (Direction A).
+   Authored after @tailwind utilities so it wins on source order; Firefox
+   uses the inline scrollbar-width/scrollbar-color on the element itself. */
+.board-x-scroll::-webkit-scrollbar {
+  height: 9px;
+}
+.board-x-scroll::-webkit-scrollbar-thumb {
+  background: rgba(26, 26, 46, 0.28);
+  border-radius: 99px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.board-x-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 /* Card type accent colours — uniform slate grey border for all types */
 .card-type-logistics { border-left-color: #9CA3AF; }
 .card-type-activity  { border-left-color: #9CA3AF; }
