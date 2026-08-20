@@ -106,7 +106,10 @@ export default function DayPicker({ days, onSelect, mode, activeDayId, align = "
                 const dt = new Date(d.date + "T00:00:00");
                 const dow = dt.toLocaleDateString("en-GB", { weekday: "short" });
                 const dayNum = dt.getDate();
-                const monthName = dt.toLocaleDateString("en-GB", { month: "short" });
+                // en-US, matching DayHeaderCell and the week bars. en-GB
+                // abbreviates September as "Sept", which put "4 Sept" in this
+                // popover directly above a bar reading "4–5 Sep".
+                const monthName = dt.toLocaleDateString("en-US", { month: "short" });
                 const on = mode === "active" && d.id === activeDayId;
                 return (
                   <button
