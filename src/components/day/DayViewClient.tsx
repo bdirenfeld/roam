@@ -3,8 +3,9 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { DotsThree, CaretLeft, CaretRight, CaretDown } from "@phosphor-icons/react";
+import { DotsThree, CaretLeft, CaretRight } from "@phosphor-icons/react";
 import DayStrip from "@/components/day/DayStrip";
+import DayPicker from "@/components/day/DayPicker";
 import DayMap from "@/components/day/DayMap";
 import CardTimeline from "@/components/day/CardTimeline";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
@@ -294,7 +295,7 @@ function WeatherExpansion({
             })}
           </div>
           <div className="mt-[14px] mb-3" style={{ borderTop: "0.5px solid rgba(26,26,46,0.10)" }} />
-          <div className="text-[9px] font-medium uppercase tracking-[0.18em] text-activity/50 mb-3">7-day outlook</div>
+          <div className="text-[9px] font-medium uppercase tracking-[0.18em] text-activity/50 mb-3">Outlook</div>
           <div className="flex overflow-x-auto scrollbar-none">
             {days.map((d) => {
               const w = weatherByDate?.[d.date];
@@ -575,12 +576,6 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, re
     return m;
   }, [mappableCards]);
 
-  // Desktop-only — calendar popover for the "Day N of M ▾" chip.
-  const [dayMenuOpen, setDayMenuOpen] = useState(false);
-  useEffect(() => {
-    setDayMenuOpen(false);
-  }, [dayWithCards.id]);
-
   const handlePinTap = useCallback((cardId: string) => {
     const el = document.querySelector(`[data-card-id="${cardId}"]`);
     el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -699,92 +694,14 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, re
           <CaretRight size={16} weight="light" />
         </button>
 
-        {/* Day N of M ▾ chip with calendar popover */}
-        <div className="relative ml-1.5">
-          <button
-            onClick={() => setDayMenuOpen((o) => !o)}
-            aria-expanded={dayMenuOpen}
-            aria-haspopup="menu"
-            className="flex items-center gap-2 rounded-full border border-[rgba(26,26,46,0.12)] bg-[rgba(26,26,46,0.025)] px-3 py-1.5 text-[12px] font-medium text-activity hover:bg-[rgba(26,26,46,0.05)] transition-colors"
-            style={{ letterSpacing: "-0.005em" }}
-          >
-            <span>Day {currentIndex + 1} of {days.length}</span>
-            <span
-              aria-hidden
-              style={{
-                display: "inline-flex",
-                transform: dayMenuOpen ? "rotate(180deg)" : "none",
-                transition: "transform 120ms",
-                color: "rgba(26,26,46,0.55)",
-              }}
-            >
-              <CaretDown size={11} weight="light" />
-            </span>
-          </button>
-
-          {dayMenuOpen && (
-            <>
-              <div
-                className="fixed inset-0 z-40"
-                onClick={() => setDayMenuOpen(false)}
-              />
-              <div
-                role="menu"
-                className="absolute top-[calc(100%+10px)] left-0 z-50 w-[280px] rounded-xl border border-[rgba(26,26,46,0.12)] bg-[#FAF7F2] p-3"
-                style={{ boxShadow: "0 8px 28px rgba(26,26,46,0.08), 0 0 0 1px rgba(26,26,46,0.03)" }}
-              >
-                <div className="mt-1 flex flex-col gap-0.5">
-                  {days.map((d) => {
-                    const dt = new Date(d.date + "T00:00:00");
-                    const dow = dt.toLocaleDateString("en-GB", { weekday: "short" });
-                    const dayNum = dt.getDate();
-                    const monthName = dt.toLocaleDateString("en-GB", { month: "short" });
-                    const on = d.id === dayWithCards.id;
-                    return (
-                      <button
-                        key={d.id}
-                        role="menuitem"
-                        onClick={() => {
-                          setDayMenuOpen(false);
-                          handleDaySelect(d);
-                        }}
-                        className="flex items-center gap-3.5 w-full px-2.5 py-2 rounded-md text-left"
-                        style={{
-                          background: on ? "#fff" : "transparent",
-                          boxShadow: on ? "0 0 0 1px rgba(26,26,46,0.12)" : "none",
-                        }}
-                      >
-                        <span
-                          className="font-display italic text-[22px] w-8 text-center"
-                          style={{
-                            color: on ? "#1A1A2E" : "rgba(26,26,46,0.55)",
-                            letterSpacing: "-0.01em",
-                          }}
-                        >
-                          {dayNum}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <div
-                            className="text-[13px] font-medium text-activity"
-                            style={{ letterSpacing: "-0.005em" }}
-                          >
-                            {dow}, {dayNum} {monthName}
-                          </div>
-                          <div
-                            className="text-[11px] mt-px"
-                            style={{ color: "rgba(26,26,46,0.55)" }}
-                          >
-                            Day {d.day_number}
-                          </div>
-                        </div>
-                        {on && <div className="w-1 h-1 rounded-full bg-activity" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </>
-          )}
+        {/* Day N of M ▾ chip with calendar popover — shared DayPicker */}
+        <div className="ml-1.5">
+          <DayPicker
+            days={days}
+            onSelect={handleDaySelect}
+            mode="active"
+            activeDayId={dayWithCards.id}
+          />
         </div>
 
       </div>

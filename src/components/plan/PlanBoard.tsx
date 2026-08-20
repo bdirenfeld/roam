@@ -32,11 +32,12 @@ import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
 import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/plan/ConfirmationPreviewSheet";
 import DocumentsSheet from "@/components/plan/DocumentsSheet";
 import TriageView from "@/components/plan/TriageView";
+import DayPicker from "@/components/day/DayPicker";
 // BoardBg type (kept local — no longer uses external BoardBgPicker)
 type BoardBg =
   | { type: "color"; value: string }
   | { type: "photo"; url: string; thumb: string };
-import type { Trip, Card, DayWithCards, CardType, CardStatus } from "@/types/database";
+import type { Trip, Card, Day, DayWithCards, CardType, CardStatus } from "@/types/database";
 import { getPriceRange } from "@/lib/priceRange";
 import { formatTimeRange } from "@/lib/formatTime";
 import { getOpeningHoursConflict, openingHoursCaption } from "@/lib/openingHours";
@@ -221,11 +222,51 @@ export default function PlanBoard({ trip, initialDays }: Props) {
   const [mobileDayIdx, setMobileDayIdx] = useState(0);
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
 
+  // Desktop board X-scroller — jump-to-day scroll + conditional edge fades.
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [fades, setFades] = useState({ left: false, right: false });
+
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
     check();
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
+  }, []);
+
+  // Edge fades appear only on real overflow. Recompute on scroll and resize.
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el || isMobile) return;
+    const update = () => {
+      const left = el.scrollLeft > 0;
+      const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
+      setFades((prev) => (prev.left === left && prev.right === right ? prev : { left, right }));
+    };
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      el.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, [isMobile, days.length]);
+
+  // Jump the board horizontally to a day's column. Measures the column's real
+  // position via rect deltas (independent of any positioned ancestor) rather
+  // than hand-summing column width + gap + padding.
+  const handleJumpToDay = useCallback((day: Day) => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    const idx = daysRef.current.findIndex((d) => d.id === day.id);
+    const col = scroller.querySelector<HTMLElement>(`[data-col-idx="${idx}"]`);
+    if (!col) return;
+    const colRect = col.getBoundingClientRect();
+    const boxRect = scroller.getBoundingClientRect();
+    const PAD = 28; // md:px-7 — leave the column off the flush-left edge
+    scroller.scrollTo({
+      left: scroller.scrollLeft + (colRect.left - boxRect.left) - PAD,
+      behavior: "smooth",
+    });
   }, []);
 
   const daysRef = useRef(days);
@@ -633,12 +674,22 @@ export default function PlanBoard({ trip, initialDays }: Props) {
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
                   </button>
-                  <div className="text-center">
-                    <p className="text-sm font-bold text-gray-900">Day {currentMobileDay?.day_number}</p>
-                    {currentMobileDay?.date && (
-                      <p className="text-xs text-gray-400">{fmtDate(currentMobileDay.date)}</p>
-                    )}
-                  </div>
+                  {days.length > 1 ? (
+                    <DayPicker
+                      days={days}
+                      onSelect={(day) => setMobileDayIdx(days.findIndex((d) => d.id === day.id))}
+                      mode="active"
+                      activeDayId={currentMobileDay?.id}
+                      align="center"
+                    />
+                  ) : (
+                    <div className="text-center">
+                      <p className="text-sm font-bold text-gray-900">Day {currentMobileDay?.day_number}</p>
+                      {currentMobileDay?.date && (
+                        <p className="text-xs text-gray-400">{fmtDate(currentMobileDay.date)}</p>
+                      )}
+                    </div>
+                  )}
                   <button
                     onClick={() => setMobileDayIdx((prev) => Math.min(prev + 1, days.length - 1))}
                     disabled={safeMobileIdx >= days.length - 1}
@@ -700,15 +751,41 @@ export default function PlanBoard({ trip, initialDays }: Props) {
               onDragOver={handleDragOver}
               onDragEnd={handleDragEnd}
             >
-              {/* Single horizontal scroll container — both the pinned header row
-                  and the card columns live here so they pan together with no JS.
-                  overflow-x handles horizontal scroll; overflow-y:hidden clips
-                  vertical overflow while still establishing a proper scroll
-                  container so child columns can scroll independently on iOS. */}
-              <div
-                className="flex-1 overflow-x-auto overflow-y-hidden"
-                style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "none" } as React.CSSProperties}
-              >
+              {/* Jump-to-day control row — shrink-0 direct flex child of the board
+                  column. DndContext renders no DOM wrapper, so this sits above the
+                  scroller and the scroller's flex-1 absorbs the rest with no calc. */}
+              {days.length > 1 && (
+                <div className="hidden md:flex md:items-center md:gap-2.5 md:px-7 md:pt-3 md:pb-2 shrink-0">
+                  <DayPicker days={days} onSelect={handleJumpToDay} mode="jump" />
+                  <span className="text-[12px] text-activity/50">Jumps the board</span>
+                </div>
+              )}
+
+              {/* Board frame — relative so the edge fades can overlay the scroller. */}
+              <div className="relative flex-1 min-h-0 flex flex-col overflow-hidden">
+                {/* Edge fades — neutral scrim, reads over parchment and over any
+                    photo background. Shown only on real overflow (see effect). */}
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute left-0 top-0 bottom-0 z-10 transition-opacity duration-200"
+                  style={{ width: 44, background: "linear-gradient(to right, rgba(0,0,0,0.16), transparent)", opacity: fades.left ? 1 : 0 }}
+                />
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute right-0 top-0 bottom-0 z-10 transition-opacity duration-200"
+                  style={{ width: 44, background: "linear-gradient(to left, rgba(0,0,0,0.16), transparent)", opacity: fades.right ? 1 : 0 }}
+                />
+
+                {/* Single horizontal scroll container — both the pinned header row
+                    and the card columns live here so they pan together with no JS.
+                    overflow-x handles horizontal scroll; overflow-y:hidden clips
+                    vertical overflow while still establishing a proper scroll
+                    container so child columns can scroll independently on iOS. */}
+                <div
+                  ref={scrollerRef}
+                  className="board-x-scroll flex-1 min-h-0 overflow-x-auto overflow-y-hidden"
+                  style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "thin", scrollbarColor: "rgba(26,26,46,0.28) transparent" } as React.CSSProperties}
+                >
                 <div className="p-4 pb-28 md:px-7 md:pb-6 md:flex md:flex-col md:h-full md:min-h-0">
                   {(allEmpty || showTemplatePicker) && days.length > 0 && (
                     <TemplateBanner
@@ -744,6 +821,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
                       />
                     ))}
                   </div>
+                </div>
                 </div>
               </div>
 
@@ -944,7 +1022,7 @@ interface DayColumnProps {
   onAddFromSaved: () => void;
 }
 
-function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard, onAddFromSaved }: DayColumnProps) {
+function DayColumn({ day, cards, dayIndex, fullWidth, onCardTap, onDelete, onCreateCard, onAddFromSaved }: DayColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `${COL_PREFIX}${day.id}` });
   const [isInlineAdding, setIsInlineAdding] = useState(false);
   const [inlineTitle,    setInlineTitle]    = useState("");
@@ -972,7 +1050,7 @@ function DayColumn({ day, cards, fullWidth, onCardTap, onDelete, onCreateCard, o
   };
 
   return (
-    <div className={fullWidth ? "w-full h-full flex flex-col" : "w-[148px] min-w-[148px] flex-shrink-0 md:w-[280px] md:h-full md:min-h-0 flex flex-col"}>
+    <div data-col-idx={dayIndex} className={fullWidth ? "w-full h-full flex flex-col" : "w-[148px] min-w-[148px] flex-shrink-0 md:w-[280px] md:h-full md:min-h-0 flex flex-col"}>
       {/* Card column body */}
       <div
         style={fullWidth ? { backgroundColor: 'rgba(255,255,255,0.88)' } : undefined}
