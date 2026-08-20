@@ -15,6 +15,10 @@ interface Props {
   activeDayId?: string;
   /** Popover side. "center" anchors the popover to the trigger's centre. */
   align?: "left" | "center";
+  /** Desktop Plan board only. Days inside a folded week are still listed — the
+   *  picker is what guarantees a folded day stays reachable — and marked FOLDED
+   *  so the jump's extra step is not a surprise. */
+  foldedDayIds?: Set<string>;
 }
 
 // Shared day-picker chip + popover. Extracted from DayViewClient so the Plan
@@ -22,7 +26,7 @@ interface Props {
 // implementation. Two behaviours added during extraction: the popover is bounded
 // (max-height + internal scroll) so a long trip can't run off the viewport, and
 // in mode="active" the current row scrolls into view when the popover opens.
-export default function DayPicker({ days, onSelect, mode, activeDayId, align = "left" }: Props) {
+export default function DayPicker({ days, onSelect, mode, activeDayId, align = "left", foldedDayIds }: Props) {
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
   const activeRowRef = useRef<HTMLButtonElement>(null);
@@ -139,6 +143,19 @@ export default function DayPicker({ days, onSelect, mode, activeDayId, align = "
                         Day {d.day_number}
                       </div>
                     </div>
+                    {foldedDayIds?.has(d.id) && (
+                      <span
+                        style={{
+                          fontSize: "8.5px",
+                          fontWeight: 600,
+                          letterSpacing: "0.09em",
+                          textTransform: "uppercase",
+                          color: "#C4622D",
+                        }}
+                      >
+                        Folded
+                      </span>
+                    )}
                     {on && <div className="w-1 h-1 rounded-full bg-activity" />}
                   </button>
                 );
