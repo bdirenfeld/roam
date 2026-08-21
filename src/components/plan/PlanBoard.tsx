@@ -414,19 +414,21 @@ export default function PlanBoard({ trip, initialDays }: Props) {
     });
   }, [anchorWeek, applyFold, foldedDays]);
 
-  // All-folded and all-unfolded both leave no meaningful anchor — the board
-  // changes width wholesale — so both land at the start.
-  const handleFoldAll = useCallback(() => {
-    const next = new Set(foldedDays);
-    weeks.forEach((w) => w.days.forEach((d) => next.add(d.id)));
-    applyFold(next);
-    scrollBoardToStart();
-  }, [applyFold, foldedDays, weeks, scrollBoardToStart]);
+  // One control, labelled for what it will do next. Collapsing and expanding
+  // both change the board's width wholesale, leaving no meaningful anchor, so
+  // both land at the start.
+  const allCollapsed = weekSlots.length > 0 && weekSlots.every((s) => s.folded);
 
-  const handleUnfoldAll = useCallback(() => {
-    applyFold(new Set());
+  const handleToggleAll = useCallback(() => {
+    if (allCollapsed) {
+      applyFold(new Set());
+    } else {
+      const next = new Set(foldedDays);
+      weeks.forEach((w) => w.days.forEach((d) => next.add(d.id)));
+      applyFold(next);
+    }
     scrollBoardToStart();
-  }, [applyFold, scrollBoardToStart]);
+  }, [allCollapsed, applyFold, foldedDays, weeks, scrollBoardToStart]);
 
   // Jump to day sees through folds: the picker lists every day, so a pick can
   // land inside a folded week. Unfold it, let React commit and the browser lay
@@ -951,17 +953,15 @@ export default function PlanBoard({ trip, initialDays }: Props) {
                     mode="jump"
                     foldedDayIds={foldedDays}
                   />
-                  <span className="text-[12px] text-activity/50">Jumps the board</span>
                   {showWeeks && (
-                    <>
-                      <span aria-hidden className="w-px h-4 bg-[rgba(26,26,46,0.12)] mx-0.5" />
-                      <button type="button" onClick={handleFoldAll} className={CTRL_CHIP} style={{ letterSpacing: "-0.005em" }}>
-                        Fold all weeks
-                      </button>
-                      <button type="button" onClick={handleUnfoldAll} className={CTRL_CHIP} style={{ letterSpacing: "-0.005em" }}>
-                        Unfold all
-                      </button>
-                    </>
+                    <button
+                      type="button"
+                      onClick={handleToggleAll}
+                      className={CTRL_CHIP}
+                      style={{ letterSpacing: "-0.005em" }}
+                    >
+                      {allCollapsed ? "Expand all" : "Collapse all"}
+                    </button>
                   )}
                 </div>
               )}
@@ -1520,8 +1520,8 @@ function WeekBar({
     <button
       type="button"
       onClick={onFold}
-      aria-label={`Fold week ${week.weekNumber}, ${week.range}`}
-      title={`Fold ${week.range}`}
+      aria-label={`Collapse week ${week.weekNumber}, ${week.range}`}
+      title={`Collapse ${week.range}`}
       className="group w-full flex items-center gap-[11px] text-left rounded-[9px] px-[13px] py-2
                  border border-[rgba(26,26,46,0.12)] bg-[rgba(26,26,46,0.025)]
                  hover:border-[rgba(26,26,46,0.22)] hover:bg-[rgba(26,26,46,0.055)] transition-colors"
@@ -1558,8 +1558,8 @@ function WeekFoldedCard({
     <button
       type="button"
       onClick={onUnfold}
-      aria-label={`Unfold week ${week.weekNumber}, ${week.range}`}
-      title={`Unfold ${week.range}`}
+      aria-label={`Expand week ${week.weekNumber}, ${week.range}`}
+      title={`Expand ${week.range}`}
       className="group absolute top-0 left-0 w-full text-left rounded-[9px] bg-white
                  border border-[rgba(26,26,46,0.12)] hover:border-[rgba(26,26,46,0.24)]
                  shadow-card hover:shadow-card-hover transition-all"

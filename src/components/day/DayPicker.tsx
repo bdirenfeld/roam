@@ -15,9 +15,9 @@ interface Props {
   activeDayId?: string;
   /** Popover side. "center" anchors the popover to the trigger's centre. */
   align?: "left" | "center";
-  /** Desktop Plan board only. Days inside a folded week are still listed — the
-   *  picker is what guarantees a folded day stays reachable — and marked FOLDED
-   *  so the jump's extra step is not a surprise. */
+  /** Desktop Plan board only. Days inside a collapsed week are still listed —
+   *  the picker is what guarantees such a day stays reachable — and marked
+   *  COLLAPSED so the jump's extra step is not a surprise. */
   foldedDayIds?: Set<string>;
 }
 
@@ -156,7 +156,7 @@ export default function DayPicker({ days, onSelect, mode, activeDayId, align = "
                           color: "#C4622D",
                         }}
                       >
-                        Folded
+                        Collapsed
                       </span>
                     )}
                     {on && <div className="w-1 h-1 rounded-full bg-activity" />}
