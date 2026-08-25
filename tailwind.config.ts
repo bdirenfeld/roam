@@ -5,6 +5,11 @@ const config: Config = {
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    // Helpers under src/lib return class names as string literals (e.g.
+    // openingHoursTone). Without this glob Tailwind never sees them, so the
+    // class lands on the element with no rule behind it and the text silently
+    // renders in the inherited colour.
+    "./src/lib/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
     extend: {
