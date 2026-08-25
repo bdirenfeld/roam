@@ -722,22 +722,8 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
           </div>
         )}
 
-        {/* Durable pin legend — replaces the old one-time 3s toast */}
-        {hasToken && (
-          <div
-            className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-3 px-3 py-1.5 rounded-full text-[11px] font-medium text-gray-600 whitespace-nowrap"
-            style={{ background: "rgba(255,255,255,0.9)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
-          >
-            <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full border-2 border-[#1A1A2E] bg-white inline-block" />
-              Idea
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#1A1A2E] inline-block" />
-              Scheduled
-            </span>
-          </div>
-        )}
+        {/* Pin meanings (hollow = idea, filled = scheduled) are taught by the
+            intro card and the guide; no persistent legend on the map. */}
 
         {/* Pin-anchored popup */}
         {selectedCard && (
