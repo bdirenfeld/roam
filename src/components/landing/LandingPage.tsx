@@ -100,6 +100,9 @@ export default function LandingPage() {
             <div style={{ marginTop: 14 }}>
               <Terms color={ON_DARK_TERMS} />
             </div>
+            <div style={{ marginTop: 8 }}>
+              <GuideLink color={ON_DARK_TERMS} />
+            </div>
           </div>
           {/* caption */}
           <div style={{ position: "absolute", right: 16, bottom: 8 }}>
@@ -210,6 +213,9 @@ export default function LandingPage() {
             <div style={{ marginTop: 16 }}>
               <Terms color={ON_DARK_TERMS} />
             </div>
+            <div style={{ marginTop: 8 }}>
+              <GuideLink color={ON_DARK_TERMS} />
+            </div>
           </div>
           {/* caption */}
           <div style={{ position: "absolute", right: 40, bottom: 30 }}>
@@ -309,6 +315,23 @@ function SmallCaps({ children, color, size = 10 }: { children: React.ReactNode; 
     >
       {children}
     </span>
+  );
+}
+
+// Quiet link to the static quick-start guide (/public/guide.html — public,
+// no sign-in needed, so it also works for people stuck at login).
+function GuideLink({ color, align = "left" }: { color: string; align?: "left" | "center" }) {
+  return (
+    <p
+      className="font-sans"
+      style={{ fontSize: 11.5, lineHeight: 1.55, letterSpacing: "-0.003em", color, textAlign: align }}
+    >
+      New here?{" "}
+      <a href="/guide.html" style={{ textDecoration: "underline", textUnderlineOffset: 2, color: "inherit" }}>
+        Read the five-minute guide
+      </a>
+      .
+    </p>
   );
 }
 

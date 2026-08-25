@@ -100,18 +100,17 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
 
   const hasToken = !!process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
-  // One-time onboarding hint
+  // First-visit intro card — shown until dismissed or the first real pin is
+  // saved. Owner-only; the durable pin legend below replaces the old 3s toast.
   useEffect(() => {
-    if (!localStorage.getItem("roam_map_hint_v1")) setShowHint(true);
+    if (readOnly) return;
+    if (!localStorage.getItem("roam_map_intro_v1")) setShowHint(true);
+  }, [readOnly]);
+  const dismissIntro = useCallback(() => {
+    setShowHint(false);
+    localStorage.setItem("roam_map_intro_v1", "1");
   }, []);
-  useEffect(() => {
-    if (!showHint) return;
-    const t = setTimeout(() => {
-      setShowHint(false);
-      localStorage.setItem("roam_map_hint_v1", "1");
-    }, 3000);
-    return () => clearTimeout(t);
-  }, [showHint]);
+  const hasRealPins = localCards.some(isRealPlace);
 
   function computeAnchorPos(lat: number, lng: number): { x: number; y: number } | null {
     const map = mapInstRef.current;
@@ -570,7 +569,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
             href={`/trips/${trip.id}/settings`}
             className="md:hidden absolute top-4 left-14 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center"
             style={{ backdropFilter: "blur(8px)", zIndex: 10 }}
-            aria-label="Trip settings"
+            aria-label="Journey settings"
           >
             <DotsThree size={18} weight="light" color="#374151" />
           </Link>
@@ -701,18 +700,42 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
           )}
         </Link>
 
-        {/* One-time hint */}
-        {showHint && (
+        {/* First-visit intro — sits under the search bar until dismissed or
+            the first real pin lands. Owner-only. */}
+        {showHint && !hasRealPins && !readOnly && hasToken && (
           <div
-            className="absolute top-16 left-1/2 -translate-x-1/2 z-30 pointer-events-none"
-            style={{ animation: "fadeOut 500ms 2500ms ease-in forwards" }}
+            className="absolute top-16 left-1/2 -translate-x-1/2 z-30 w-[min(340px,calc(100%-32px))] bg-white rounded-2xl shadow-sheet border border-gray-100 px-5 py-4"
           >
-            <p
-              className="bg-gray-900/85 text-white text-[11px] font-medium px-3 py-1.5 rounded-full whitespace-nowrap"
-              style={{ backdropFilter: "blur(4px)" }}
-            >
-              Hollow pins are ideas · Filled pins are confirmed
+            <p className="text-[14px] font-semibold text-gray-900">Start your map</p>
+            <p className="text-[13px] text-gray-500 leading-[1.55] mt-1">
+              Search for any place you&rsquo;re curious about — a restaurant, a
+              museum, your hotel. Press <span className="font-semibold text-gray-700">Save to Map</span> and
+              it becomes a pin. You&rsquo;ll sort your pins into days later, on
+              the Plan tab.
             </p>
+            <button
+              onClick={dismissIntro}
+              className="mt-3 text-[13px] font-semibold text-[#C4622D]"
+            >
+              Got it
+            </button>
+          </div>
+        )}
+
+        {/* Durable pin legend — replaces the old one-time 3s toast */}
+        {hasToken && (
+          <div
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-3 px-3 py-1.5 rounded-full text-[11px] font-medium text-gray-600 whitespace-nowrap"
+            style={{ background: "rgba(255,255,255,0.9)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
+          >
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full border-2 border-[#1A1A2E] bg-white inline-block" />
+              Idea
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#1A1A2E] inline-block" />
+              Scheduled
+            </span>
           </div>
         )}
 

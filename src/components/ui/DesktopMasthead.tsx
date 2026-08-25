@@ -387,7 +387,7 @@ export default function DesktopMasthead() {
                   textDecoration: "none",
                 }}
               >
-                Trip settings
+                Journey settings
               </Link>
             )}
             <Link

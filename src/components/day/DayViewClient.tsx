@@ -638,7 +638,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, re
           <Link
             href={`/trips/${trip.id}/settings`}
             className="flex items-center justify-center w-11 h-11 text-gray-500 hover:text-gray-800 transition-colors flex-shrink-0"
-            aria-label="Trip settings"
+            aria-label="Journey settings"
           >
             <DotsThree size={20} weight="light" />
           </Link>

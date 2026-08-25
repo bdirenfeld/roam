@@ -54,7 +54,9 @@ export async function updateSession(request: NextRequest) {
   // (a guest is unpaid), so a real '/journey/' prefix match — NOT a bare
   // '/journey' that could catch a future '/journeys' — exempts it from BOTH the
   // auth bounce and the payment gate below.
-  const publicPaths = ['/login', '/auth', '/api/stripe/webhook', '/journey/']
+  // `/guide.html` is the static quick-start guide in /public — linked from the
+  // landing page and sent to people who can't log in yet, so it must be public.
+  const publicPaths = ['/login', '/auth', '/api/stripe/webhook', '/journey/', '/guide.html']
   // `/` is the logged-out marketing front door — exempt by EXACT match only.
   // (Adding '/' to publicPaths would make every path startsWith('/') public.)
   // The page itself redirects authenticated visitors on to /trips.

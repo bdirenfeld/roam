@@ -131,6 +131,14 @@ export default function CardTimeline({
           </div>
           <p className="text-sm font-semibold text-gray-500">Nothing planned yet</p>
           <p className="text-xs text-gray-400 mt-1">Free day — enjoy the spontaneity.</p>
+          {!readOnly && onGapTap && (
+            <button
+              onClick={() => onGapTap("", "")}
+              className="mt-5 px-6 py-2.5 rounded-full border border-dashed border-gray-300 text-[12px] italic text-gray-400 hover:text-gray-600 hover:border-gray-400 transition-colors"
+            >
+              + Add to this day
+            </button>
+          )}
         </div>
       ) : (
         <div>
@@ -161,6 +169,16 @@ export default function CardTimeline({
               </div>
             );
           })}
+          {/* Always-available add — the gap connector only appears between
+              timed cards ≥30 min apart, so untimed days need this row. */}
+          {!readOnly && onGapTap && (
+            <button
+              onClick={() => onGapTap("", "")}
+              className="w-full py-3 rounded-xl border border-dashed border-gray-200 text-[12px] italic text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-colors"
+            >
+              + Add to this day
+            </button>
+          )}
         </div>
       )}
     </div>

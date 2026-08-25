@@ -10,6 +10,7 @@
 import { useState } from "react";
 import { Link as LinkIcon, Copy, X } from "@phosphor-icons/react";
 import { createShareLink, revokeShareLink, removeGuest } from "@/lib/share-actions";
+import { COMPANION_ENABLED } from "@/lib/featureFlags";
 
 export interface ShareGuest {
   userId: string;
@@ -113,8 +114,9 @@ export default function ShareJourneySection({
             className="text-[14px] leading-[1.6] max-w-[62ch]"
             style={{ color: "rgba(26,26,46,0.6)" }}
           >
-            Invite a guest to view your days and your map, and ask the companion
-            for advice — they can&rsquo;t change a thing.
+            {COMPANION_ENABLED
+              ? <>Invite a guest to view your days and your map, and ask the companion for advice — they can&rsquo;t change a thing.</>
+              : <>Invite a guest to view your days and your map — they can&rsquo;t change a thing.</>}
           </p>
           <button
             onClick={handleCreate}

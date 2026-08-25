@@ -30,8 +30,8 @@ export default async function MapPage() {
           <line x1="15" y1="6" x2="15" y2="21" />
         </svg>
       </div>
-      <p className="text-sm font-semibold text-gray-700">No trips to map</p>
-      <p className="text-xs text-gray-400 mt-1">Create a trip first to see your pins here.</p>
+      <p className="text-sm font-semibold text-gray-700">No journeys to map</p>
+      <p className="text-xs text-gray-400 mt-1">Plan a journey first to see your pins here.</p>
     </div>
   );
 }

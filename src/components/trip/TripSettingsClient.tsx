@@ -127,7 +127,7 @@ export default function TripSettingsClient({ trip, days, initialPeople, initialS
 
   const handleSave = async () => {
     if (saving) return;
-    if (!title.trim()) { setError("Trip name is required."); return; }
+    if (!title.trim()) { setError("Journey name is required."); return; }
 
     setSaving(true);
     setWarning(null);
@@ -334,7 +334,7 @@ export default function TripSettingsClient({ trip, days, initialPeople, initialS
           </svg>
         </button>
         <span className="absolute left-0 right-0 text-center text-[16px] font-semibold text-gray-900 pointer-events-none">
-          Trip settings
+          Journey settings
         </span>
         <button
           onClick={handleSave}
@@ -402,7 +402,7 @@ export default function TripSettingsClient({ trip, days, initialPeople, initialS
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="flex-1 text-[14px] text-[#1A1A2E] bg-transparent outline-none placeholder:text-gray-300"
-              placeholder="Trip name"
+              placeholder="Journey name"
             />
           </div>
 
@@ -581,7 +581,7 @@ export default function TripSettingsClient({ trip, days, initialPeople, initialS
                 Delete &ldquo;{trip.title}&rdquo;?
               </h2>
               <p className="text-[14px] text-gray-500 leading-relaxed">
-                This will permanently remove the trip and all its cards. This cannot be undone.
+                This will permanently remove the journey and all its cards. This cannot be undone.
               </p>
             </div>
             <div className="flex-shrink-0 px-5 pt-4 pb-10 space-y-2.5">

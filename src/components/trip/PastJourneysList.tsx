@@ -192,7 +192,7 @@ export default function PastJourneysList({ trips, openDayByTrip }: Props) {
                 Delete &ldquo;{deleteTarget.title}&rdquo;?
               </h2>
               <p className="text-[14px] text-gray-500 leading-relaxed">
-                This will permanently remove the trip and all its cards. This cannot be undone.
+                This will permanently remove the journey and all its cards. This cannot be undone.
               </p>
             </div>
             <div className="flex-shrink-0 px-5 pt-4 pb-10 space-y-2.5">

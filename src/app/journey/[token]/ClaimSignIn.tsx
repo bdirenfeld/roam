@@ -8,6 +8,7 @@
 
 import { useTransition } from "react";
 import { signInWithGoogle } from "@/lib/auth-actions";
+import { COMPANION_ENABLED } from "@/lib/featureFlags";
 
 export default function ClaimSignIn({ token }: { token: string }) {
   const [pending, startTransition] = useTransition();
@@ -33,7 +34,9 @@ export default function ClaimSignIn({ token }: { token: string }) {
         className="mt-3 max-w-[34ch] text-[14px] leading-[1.6]"
         style={{ color: "rgba(26,26,46,0.55)" }}
       >
-        Sign in to view the itinerary and talk it through with your companion.
+        {COMPANION_ENABLED
+          ? "Sign in to view the itinerary and talk it through with your companion."
+          : "Sign in to see the plan and the map."}
       </p>
       <button
         onClick={() => startTransition(() => signInWithGoogle(`/journey/${token}`))}

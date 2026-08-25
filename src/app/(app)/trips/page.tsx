@@ -7,6 +7,7 @@ import type { Trip } from "@/types/database";
 import { fetchAndStoreCover } from "@/lib/unsplash";
 import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
 import { belongsInPastJourneys } from "@/lib/tripRecency";
+import { createSampleJourney } from "@/lib/sampleTrip/actions";
 
 export default async function TripsPage() {
   const supabase = await createClient();
@@ -145,6 +146,19 @@ export default async function TripsPage() {
           ) : (
             <EmptyState />
           )}
+          {/* Dev-only: the sample-trip button normally lives in EmptyState,
+              which an account with journeys never sees. This mirror makes the
+              flow testable locally. Stripped from production builds. */}
+          {process.env.NODE_ENV === "development" && (
+            <form action={createSampleJourney} className="mt-10 text-center">
+              <button
+                type="submit"
+                className="text-[12px] text-gray-300 underline underline-offset-2 hover:text-gray-500 transition-colors"
+              >
+                Create the sample trip (dev only)
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </div>
@@ -176,6 +190,16 @@ function EmptyState() {
         </svg>
         Plan a journey
       </Link>
+      {/* One-tap sample journey — shows what a finished trip looks like.
+          Clearly named, fully deletable; see src/lib/sampleTrip. */}
+      <form action={createSampleJourney} className="mt-3">
+        <button
+          type="submit"
+          className="text-[13px] text-gray-400 underline underline-offset-2 hover:text-gray-600 transition-colors"
+        >
+          or try a sample trip first
+        </button>
+      </form>
     </div>
   );
 }
