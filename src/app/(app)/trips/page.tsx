@@ -8,6 +8,7 @@ import { fetchAndStoreCover } from "@/lib/unsplash";
 import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
 import { belongsInPastJourneys } from "@/lib/tripRecency";
 import { createSampleJourney } from "@/lib/sampleTrip/actions";
+import AddToHomeScreenHint from "@/components/ui/AddToHomeScreenHint";
 
 export default async function TripsPage() {
   const supabase = await createClient();
@@ -105,6 +106,8 @@ export default async function TripsPage() {
         </div>
 
         <div className="px-4 pb-6 md:px-0 md:pb-0 md:mt-9">
+          {/* iPhone Safari only — one-time "Add to Home Screen" hint */}
+          <AddToHomeScreenHint />
           {trips && trips.length > 0 ? (
             <>
               {/* Upcoming — stacked on mobile, 2-up grid on desktop */}
