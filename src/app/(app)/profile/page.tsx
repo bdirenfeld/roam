@@ -69,8 +69,16 @@ export default async function ProfilePage() {
           />
         ) : null}
 
-        {/* Sign out — mobile only. At md:+ the dropdown in DesktopMasthead carries this. */}
-        <div className="mt-10 pt-4 border-t border-gray-100 md:hidden">
+        {/* Guide + sign out — mobile only. At md:+ the dropdown in DesktopMasthead carries these. */}
+        <div className="mt-10 pt-4 border-t border-gray-100 md:hidden flex items-center gap-6">
+          <a
+            href="/guide.html"
+            target="_blank"
+            rel="noopener"
+            className="text-sm font-semibold text-gray-400 hover:text-gray-500 transition-colors"
+          >
+            How Roam works
+          </a>
           <form action={signOut}>
             <button
               type="submit"
