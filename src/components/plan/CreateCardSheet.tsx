@@ -15,10 +15,11 @@ const TYPE_OPTIONS: { value: UiType; label: string }[] = [
 
 const SUB_TYPES: Record<CardType, { value: string; label: string }[]> = {
   activity: [
-    { value: "challenge",     label: "Challenge"     },
     { value: "guided",        label: "Guided"        },
     { value: "self_directed", label: "Self-Directed" },
     { value: "wellness",      label: "Wellness"      },
+    { value: "event",         label: "Event"         },
+    { value: "beach",         label: "Beach"         },
   ],
   food: [
     { value: "restaurant", label: "Restaurant" },

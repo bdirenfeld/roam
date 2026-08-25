@@ -77,6 +77,8 @@ const SUB_LABEL: Record<string, string> = {
   guided:           "Guided",
   hosted:           "Guided",
   wellness:         "Wellness",
+  beach:            "Beach",
+  challenge:        "Challenge",
   restaurant:       "Restaurant",
   coffee:           "Coffee",
   coffee_dessert:   "Coffee",

@@ -31,7 +31,7 @@ interface Props {
 // Sub-types whose visibility is controlled by the sidebar toggles
 const CONTROLLED_SUB_TYPES = new Set([
   "restaurant", "coffee", "dessert", "bar",
-  "guided", "self_directed", "wellness", "challenge", "event",
+  "guided", "self_directed", "wellness", "challenge", "event", "beach",
   "hotel", "transit", "grocery", "medical",
   "flight_arrival", "flight_departure",
 ]);

@@ -71,6 +71,7 @@ const SUB_TYPE_LABEL: Record<string, string> = {
   wellness:         "Wellness",
   event:            "Event",
   challenge:        "Challenge",
+  beach:            "Beach",
   restaurant:       "Restaurant",
   coffee:           "Coffee",
   coffee_dessert:   "Coffee",
@@ -99,8 +100,8 @@ const SUB_TYPE_OPTIONS: Record<string, { value: string; label: string }[]> = {
     { value: "guided",        label: "Guided"        },
     { value: "self_directed", label: "Self-Directed"  },
     { value: "wellness",      label: "Wellness"       },
-    { value: "challenge",     label: "Challenge"      },
     { value: "event",         label: "Event"          },
+    { value: "beach",         label: "Beach"          },
   ],
   food: [
     { value: "restaurant", label: "Restaurant" },
@@ -820,6 +821,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       case "activity/event":
         return <EventDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
       case "activity/challenge":
+        return <ChallengeDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
+      case "activity/beach":
+        // Beaches want the same free-notes sheet a challenge used
         return <ChallengeDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
       case "logistics/flight_departure":
         return <FlightArrivalDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;

@@ -40,6 +40,7 @@ const SUB_TYPE_SHORT: Record<string, string> = {
   self_directed:    "Self-directed",
   hosted:           "Guided",
   wellness:         "Wellness",
+  beach:            "Beach",
   restaurant:       "Restaurant",
   coffee_dessert:   "Coffee",
   drinks:           "Drinks",

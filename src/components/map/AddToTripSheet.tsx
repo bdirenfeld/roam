@@ -47,7 +47,7 @@ const SUB_TYPE_OPTIONS: Record<CardType, { label: string; value: string }[]> = {
     { label: "Self-directed", value: "self_directed"  },
     { label: "Wellness",      value: "wellness"       },
     { label: "Event",         value: "event"          },
-    { label: "Challenge",     value: "challenge"      },
+    { label: "Beach",         value: "beach"          },
   ],
   food: [
     { label: "Restaurant", value: "restaurant" },

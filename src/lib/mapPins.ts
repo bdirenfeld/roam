@@ -36,8 +36,12 @@ const ICONS: Record<string, (c: string) => string> = {
     `<path d="M12 22C12 22 3 17 3 10a9 9 0 0118 0c0 7-9 12-9 12z" stroke="${c}" stroke-width="1.8" fill="none"/><path d="M9 10a3 3 0 006 0" stroke="${c}" stroke-width="1.4" fill="none"/>`,
   event: (c) =>
     `<path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" fill="${c}"/>`,
+  // challenge is retired from the picker (races → event, climbs → self_directed)
+  // but stays here so legacy cards keep their pin.
   challenge: (c) =>
     `<path d="M14 2L5 15h7l-2 7 10-13h-7z" fill="${c}"/>`,
+  beach: (c) =>
+    `<path d="M4 12a8 8 0 0 1 16 0z" fill="${c}"/><path d="M12 12l3 9M3 21h18" stroke="${c}" stroke-width="1.8" stroke-linecap="round" fill="none"/>`,
   // Food
   restaurant: (c) =>
     `<path d="M17 3v18M11 3v5a4 4 0 01-8 0V3m4 0v5" stroke="${c}" stroke-width="1.8" stroke-linecap="round" fill="none"/>`,
@@ -144,6 +148,7 @@ const MATERIAL_ICONS: Record<string, string> = {
   wellness:         "spa",
   event:            "event",
   challenge:        "directions_run",
+  beach:            "beach_access",
   self_directed:    "directions_walk",
   // Food
   restaurant:       "restaurant",

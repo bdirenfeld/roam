@@ -27,6 +27,8 @@ const GROUPS: Group[] = [
       { label: "Guided",        subTypes: ["guided", "hosted"]  },
       { label: "Self-Directed", subTypes: ["self_directed"]     },
       { label: "Wellness",      subTypes: ["wellness"]          },
+      { label: "Event",         subTypes: ["event"]             },
+      { label: "Beach",         subTypes: ["beach"]             },
     ],
   },
   {
