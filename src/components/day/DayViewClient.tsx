@@ -577,11 +577,18 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, re
   }, [mappableCards]);
 
   const handlePinTap = useCallback((cardId: string) => {
+    // Scroll the list into position first so it's right when the sheet closes
     const el = document.querySelector(`[data-card-id="${cardId}"]`);
     el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     setHighlightedCardId(cardId);
     setTimeout(() => setHighlightedCardId(null), 1200);
-  }, []);
+    // Then open the card itself — tapping a pin should behave like tapping the card
+    const card = localCards.find((c) => c.id === cardId);
+    if (card) {
+      setSelectedCard(card);
+      setIsCardOpen(true);
+    }
+  }, [localCards]);
 
   const handleCardTap = useCallback((card: Card) => {
     setSelectedCard(card);

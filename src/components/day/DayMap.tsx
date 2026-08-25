@@ -110,6 +110,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
           markerInnerRef.current.set(card.id, inner);
 
           // Tap handler — fires onPinTap via stable ref
+          inner.style.cursor = "pointer";
           inner.addEventListener("click", () => onPinTapRef.current?.(card.id));
 
           // Sequence number badge — absolute overlay on the pin
@@ -168,6 +169,10 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
 
             acInner.appendChild(acIcon);
             acWrapper.appendChild(acInner);
+
+            // The hotel pin opens its card too — every pin on this map is tappable
+            acInner.style.cursor = "pointer";
+            acInner.addEventListener("click", () => onPinTapRef.current?.(ac.id));
 
             // Gold ★ badge — top-right corner, ~40% of pin size
             const starBadge = document.createElement("div");
