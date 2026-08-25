@@ -48,7 +48,7 @@ import {
 } from "@/lib/planWeeks";
 import { getPriceRange } from "@/lib/priceRange";
 import { formatTimeRange } from "@/lib/formatTime";
-import { getOpeningHoursConflict, openingHoursCaption } from "@/lib/openingHours";
+import { getOpeningHoursConflict, openingHoursCaption, openingHoursTone } from "@/lib/openingHours";
 
 import CardImage from "@/components/ui/CardImage";
 import { Trash, DotsThree, Image as ImageIcon, Gear, ShareNetwork, BookmarkSimple } from "@phosphor-icons/react";
@@ -1766,7 +1766,7 @@ function CardTile({
               {title}
             </p>
             {hoursSignal && (
-              <p className="text-[11px] text-activity mt-0.5 leading-snug truncate">
+              <p className={`text-[11px] ${openingHoursTone(hoursSignal)} mt-0.5 leading-snug truncate`}>
                 {openingHoursCaption(hoursSignal)}
               </p>
             )}

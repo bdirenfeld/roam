@@ -2,7 +2,7 @@ import type { Card, CardType } from "@/types/database";
 import { getMaterialIconHTML } from "@/lib/mapPins";
 import { getPriceRange } from "@/lib/priceRange";
 import { formatTimeRange } from "@/lib/formatTime";
-import { getOpeningHoursConflict, openingHoursCaption } from "@/lib/openingHours";
+import { getOpeningHoursConflict, openingHoursCaption, openingHoursTone } from "@/lib/openingHours";
 
 interface Props {
   card: Card;
@@ -163,7 +163,7 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
             {title}
           </p>
           {hoursSignal && (
-            <p className="text-[11px] text-activity mt-0.5 truncate leading-snug md:text-[12.5px] md:mt-[2px] md:tracking-[-0.005em]">
+            <p className={`text-[11px] ${openingHoursTone(hoursSignal)} mt-0.5 truncate leading-snug md:text-[12.5px] md:mt-[2px] md:tracking-[-0.005em]`}>
               {openingHoursCaption(hoursSignal)}
             </p>
           )}

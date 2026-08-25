@@ -10,6 +10,12 @@
 // day 0=Sunday…6=Saturday, time as a 4-char local string like "1000"). We read
 // `periods` only; `weekday_text` is the bottom sheet's concern.
 //
+// ALWAYS-OPEN SENTINEL: Google encodes "open 24 hours, every day" as a single
+// period with day 0, time "0000", and NO `close` key — it does NOT emit one
+// period per weekday. Read naively that looks like a Sunday-only place, so
+// every Mon–Sat card at a park or beach reported "Closed <day>". See
+// `isAlwaysOpen` below; the absent `close` is the whole signal.
+//
 // TIMEZONE ASSUMPTION: Google's times are in the PLACE's local time and the
 // card's start_time is assumed to be in that same timezone. v1 does no timezone
 // conversion — a cross-timezone card can read as fitting when it does not.
@@ -61,6 +67,35 @@ function readValidPeriods(hours: unknown): ValidPeriod[] {
   return valid;
 }
 
+/**
+ * True when `hours` is Google's "open 24 hours, every day" sentinel: exactly one
+ * period, opening Sunday at "0000", with no `close`.
+ *
+ * The missing `close` is what distinguishes it from a genuine Sunday-only place
+ * that happens to open at midnight — so check that first and bail if a real
+ * close time is present. `readValidPeriods` drops `close` entirely, which is why
+ * this has to run against the raw object rather than the normalized periods.
+ */
+function isAlwaysOpen(hours: unknown): boolean {
+  if (typeof hours !== "object" || hours === null) return false;
+  const periods = (hours as { periods?: unknown }).periods;
+  if (!Array.isArray(periods) || periods.length !== 1) return false;
+
+  const period = periods[0];
+  if (typeof period !== "object" || period === null) return false;
+
+  // A period with a real close time is an ordinary Sunday-only place, not 24/7.
+  const close = (period as { close?: unknown }).close;
+  if (close !== undefined && close !== null) return false;
+
+  const open = (period as { open?: unknown }).open;
+  if (typeof open !== "object" || open === null) return false;
+  return (
+    (open as { day?: unknown }).day === 0 &&
+    (open as { time?: unknown }).time === "0000"
+  );
+}
+
 /** Resolve a "YYYY-MM-DD" calendar date to a weekday index (0=Sun…6=Sat). */
 function weekdayIndex(dayDate: string): number | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dayDate);
@@ -75,8 +110,9 @@ function weekdayIndex(dayDate: string): number | null {
 /**
  * Decide the opening-hours conflict signal for a scheduled card, or null to
  * stay silent. Silent when: no start_time (nothing to compare), no date
- * (cannot resolve the weekday), a note card / missing / malformed hours, no
- * usable periods (unknown), or the scheduled time fits the day's hours.
+ * (cannot resolve the weekday), a note card / missing / malformed hours, the
+ * place is open 24/7, no usable periods (unknown), or the scheduled time fits
+ * the day's hours.
  */
 export function getOpeningHoursConflict(
   hours: unknown,
@@ -87,6 +123,10 @@ export function getOpeningHoursConflict(
   if (!startTime) return null;
   // No date → cannot resolve the weekday (day_id is nullable in production).
   if (!dayDate) return null;
+
+  // Open 24/7 → no scheduled time can ever clash. Must precede the periods
+  // logic, which would read the lone Sunday period as "closed Mon–Sat".
+  if (isAlwaysOpen(hours)) return null;
 
   const periods = readValidPeriods(hours);
   // No usable periods at all → hours are unknown, not "closed". Stay silent.
@@ -117,4 +157,20 @@ export function getOpeningHoursConflict(
 export function openingHoursCaption(signal: OpeningHoursSignal): string {
   if (signal.kind === "opens") return `Opens ${formatTimeValue(signal.opensAt)}`;
   return `Closed ${signal.weekday}s`;
+}
+
+/**
+ * Tailwind text colour for the caption, by severity. Both surfaces use this so
+ * the signal reads the same on the Plan board and in Agenda.
+ *
+ * `closed` is a hard conflict — the place is shut that day and the card cannot
+ * happen as scheduled — so it reads red. `opens` is soft: the card merely starts
+ * before the doors do, which is often deliberate (travel time, a first stop
+ * elsewhere), so it nudges in amber rather than crying wolf.
+ *
+ * Previously both rendered in `text-activity` (#1A1A2E, near-black), which made
+ * a conflict warning look identical to ordinary body copy.
+ */
+export function openingHoursTone(signal: OpeningHoursSignal): string {
+  return signal.kind === "closed" ? "text-red-600" : "text-amber-600";
 }
