@@ -53,6 +53,7 @@ import { getOpeningHoursConflict, openingHoursCaption, openingHoursTone } from "
 import CardImage from "@/components/ui/CardImage";
 import { Trash, DotsThree, Image as ImageIcon, Gear, ShareNetwork, BookmarkSimple } from "@phosphor-icons/react";
 import { getMaterialIconHTML } from "@/lib/mapPins";
+import { type DayWeather, weatherCache, fetchWeatherForTrip, getWeatherCategory, WeatherIcon } from "@/lib/weather";
 
 // ── Constants ──────────────────────────────────────────────────
 const COL_PREFIX = "col-";
@@ -219,6 +220,17 @@ export default function PlanBoard({ trip, initialDays }: Props) {
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [showBgPicker, setShowBgPicker] = useState(false);
   const [bgUrlInput, setBgUrlInput] = useState("");
+
+  // Per-day forecast for the column headers — same source/cache as the Agenda
+  const [weatherByDate, setWeatherByDate] = useState<Record<string, DayWeather> | null>(null);
+  useEffect(() => {
+    if (!trip.destination_lat || !trip.destination_lng) return;
+    const cached = weatherCache.get(trip.id);
+    if (cached) { setWeatherByDate(cached); return; }
+    fetchWeatherForTrip(trip.destination_lat, trip.destination_lng, trip.start_date, trip.end_date)
+      .then((data) => { weatherCache.set(trip.id, data); setWeatherByDate(data); })
+      .catch((err) => { console.error("[Roam] Weather fetch failed:", err); });
+  }, [trip.id, trip.destination_lat, trip.destination_lng, trip.start_date, trip.end_date]);
   const [bgPreviewError, setBgPreviewError] = useState(false);
   const [savingBg, setSavingBg] = useState(false);
   const [boardBg, setBoardBg] = useState<BoardBg>(() => {
@@ -1041,7 +1053,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
                             {!folded && (
                               <div className="flex flex-row flex-nowrap gap-5">
                                 {week.days.map((day) => (
-                                  <DayHeaderCell key={day.id} day={day} />
+                                  <DayHeaderCell key={day.id} day={day} weather={weatherByDate?.[day.date] ?? null} />
                                 ))}
                               </div>
                             )}
@@ -1071,7 +1083,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
                           column width (md:w-[280px]) and gap (md:gap-5) exactly. */}
                       <div className="hidden md:flex md:flex-row md:flex-nowrap md:gap-5 md:min-w-max md:flex-shrink-0">
                         {days.map((day) => (
-                          <DayHeaderCell key={day.id} day={day} />
+                          <DayHeaderCell key={day.id} day={day} weather={weatherByDate?.[day.date] ?? null} />
                         ))}
                       </div>
 
@@ -1435,7 +1447,7 @@ function DayColumn({ day, cards, dayIndex, fullWidth, onCardTap, onDelete, onCre
 // Lifted out of DayColumn into the pinned header row. Reads the day's
 // cards (live) so the STOP/H caption updates as cards move. Mirrors the
 // column width (md:w-[280px]) so each header sits exactly above its column.
-function DayHeaderCell({ day }: { day: DayWithCards }) {
+function DayHeaderCell({ day, weather }: { day: DayWithCards; weather?: DayWeather | null }) {
   const cards = day.cards;
   const dayOfWeek = day.date
     ? new Date(day.date + "T00:00:00").toLocaleDateString("en-US", { weekday: "long" })
@@ -1484,6 +1496,21 @@ function DayHeaderCell({ day }: { day: DayWithCards }) {
           letterSpacing: "0.14em",
           textTransform: "uppercase",
         }}>{dateLine}</p>
+      )}
+      {/* Tier 4 — Forecast (only when the date is inside the forecast window) */}
+      {weather && (
+        <div className="flex items-center gap-1.5" style={{ marginTop: "5px" }}>
+          <WeatherIcon category={getWeatherCategory(weather.condition_code)} size={12} />
+          <span style={{
+            fontFamily: "'DM Sans', system-ui, sans-serif",
+            fontSize: "10.5px",
+            fontWeight: 500,
+            color: "rgba(26, 26, 46, 0.60)",
+          }}>
+            {weather.high_c}° / {weather.low_c}°
+            {weather.precip_probability_max > 30 ? ` · ${weather.precip_probability_max}% rain` : ""}
+          </span>
+        </div>
       )}
     </div>
   );
