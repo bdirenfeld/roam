@@ -187,20 +187,6 @@ function fmtDate(dateStr: string): string {
   });
 }
 
-// Sum measurable durations for cards that have both start_time and end_time.
-// Cards modelling "moments" (flight arrival, hotel check-in) leave end_time
-// null by design — skip those. Negative diffs (bad data or cross-midnight)
-// drop to 0 since templates never use cross-midnight slots.
-function sumDurationMinutes(cards: Card[]): number {
-  return cards.reduce((sum, c) => {
-    if (!c.start_time || !c.end_time) return sum;
-    const [sh, sm] = c.start_time.split(":").map(Number);
-    const [eh, em] = c.end_time.split(":").map(Number);
-    const diff = (eh * 60 + em) - (sh * 60 + sm);
-    return sum + Math.max(0, diff);
-  }, 0);
-}
-
 // ── PlanBoard ──────────────────────────────────────────────────
 interface Props {
   trip: Trip;
@@ -1448,22 +1434,19 @@ function DayColumn({ day, cards, dayIndex, fullWidth, onCardTap, onDelete, onCre
 // cards (live) so the STOP/H caption updates as cards move. Mirrors the
 // column width (md:w-[280px]) so each header sits exactly above its column.
 function DayHeaderCell({ day, weather }: { day: DayWithCards; weather?: DayWeather | null }) {
-  const cards = day.cards;
   const dayOfWeek = day.date
     ? new Date(day.date + "T00:00:00").toLocaleDateString("en-US", { weekday: "long" })
     : null;
   const shortDateTitle = day.date
     ? new Date(day.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })
     : null;
-  const stopCount = cards.length;
-  const totalHours = Math.round(sumDurationMinutes(cards) / 60);
-  const dateLine = shortDateTitle
-    ? `${shortDateTitle}${stopCount > 0 ? ` · ${stopCount} ${stopCount === 1 ? "STOP" : "STOPS"}` : ""}${totalHours > 0 ? ` · ${totalHours}H` : ""}`
-    : null;
+  // Stop/hour counts were dropped (Brennan, Aug 26): the cards below the
+  // header already show how full a day is. The date line carries the
+  // forecast instead, keeping the header to three tiers.
 
   return (
     <div className="md:w-[280px] md:flex-shrink-0" style={{ padding: "14px 16px 12px" }}>
-      {/* Tier 1 — DAY NUMBER (small-caps) */}
+      {/* Tier 1 — DAY NUMBER · DATE (same small-caps register, one line) */}
       <p style={{
         fontFamily: "'DM Sans', system-ui, sans-serif",
         fontSize: "9.5px",
@@ -1472,7 +1455,7 @@ function DayHeaderCell({ day, weather }: { day: DayWithCards; weather?: DayWeath
         textTransform: "uppercase",
         color: "rgba(26, 26, 46, 0.55)",
         marginBottom: "4px",
-      }}>Day {day.day_number}</p>
+      }}>Day {day.day_number}{shortDateTitle ? ` · ${shortDateTitle}` : ""}</p>
       {/* Tier 2 — Day of week (italic Playfair, uppercased) */}
       {dayOfWeek && (
         <p style={{
@@ -1486,20 +1469,10 @@ function DayHeaderCell({ day, weather }: { day: DayWithCards; weather?: DayWeath
           marginBottom: "6px",
         }}>{dayOfWeek}</p>
       )}
-      {/* Tier 3 — Date (small-caps caption) */}
-      {dateLine && (
-        <p style={{
-          fontFamily: "'DM Sans', system-ui, sans-serif",
-          fontSize: "10px",
-          fontWeight: 500,
-          color: "rgba(26, 26, 46, 0.45)",
-          letterSpacing: "0.14em",
-          textTransform: "uppercase",
-        }}>{dateLine}</p>
-      )}
-      {/* Tier 4 — Forecast (only when the date is inside the forecast window) */}
+      {/* Tier 3 — Forecast (only inside the ~2-week window Open-Meteo covers;
+          far-out days simply have a two-line header) */}
       {weather && (
-        <div className="flex items-center gap-1.5" style={{ marginTop: "5px" }}>
+        <div className="flex items-center gap-1.5">
           <WeatherIcon category={getWeatherCategory(weather.condition_code)} size={12} />
           <span style={{
             fontFamily: "'DM Sans', system-ui, sans-serif",
@@ -1507,7 +1480,7 @@ function DayHeaderCell({ day, weather }: { day: DayWithCards; weather?: DayWeath
             fontWeight: 500,
             color: "rgba(26, 26, 46, 0.60)",
           }}>
-            {weather.high_c}° / {weather.low_c}°
+            {weather.high_c}°/{weather.low_c}°
             {weather.precip_probability_max > 30 ? ` · ${weather.precip_probability_max}% rain` : ""}
           </span>
         </div>
