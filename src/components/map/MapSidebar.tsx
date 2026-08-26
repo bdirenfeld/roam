@@ -58,7 +58,6 @@ const GROUPS: Group[] = [
 ];
 
 interface Props {
-  tripId: string;
   cards: Card[];
   activeSubTypes: Set<string>;
   setActiveSubTypes: (next: Set<string>) => void;
@@ -95,7 +94,6 @@ function PillToggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
 }
 
 export default function MapSidebar({
-  tripId,
   cards,
   activeSubTypes,
   setActiveSubTypes,
@@ -391,22 +389,8 @@ export default function MapSidebar({
         })}
       </div>
 
-      {/* ── Enrich button (temporary utility) ── */}
-      <button
-        onClick={async () => {
-          const res = await fetch("/api/places/enrich-trip", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ tripId }),
-          });
-          const data = await res.json() as { enriched: number; total: number };
-          alert(`Enriched ${data.enriched} of ${data.total} cards`);
-        }}
-        className="w-full text-[12.5px] py-3 flex-shrink-0 transition-colors"
-        style={{ color: "rgba(26,26,46,0.55)", borderTop: "1px solid rgba(26,26,46,0.10)" }}
-      >
-        Enrich all cards
-      </button>
+      {/* The old "Enrich all cards" repair button is gone (Brennan, Aug 26) —
+          /api/places/enrich-trip still exists for manual repairs if ever needed. */}
     </div>
   );
 }

@@ -17,7 +17,6 @@ const CAPTION_SOFT = "rgba(26,26,46,0.40)";
 const ON_DARK_BODY = "rgba(250,247,242,0.92)";
 const ON_DARK_TERMS = "rgba(250,247,242,0.70)";
 const ON_DARK_CAPTION = "rgba(250,247,242,0.85)";
-const ON_DARK_PRICE = "rgba(250,247,242,0.55)";
 
 // The three movements — numeral, italic word, body line, and the real app plate.
 // Plates are static screenshots cropped to hide Android system chrome (top status
@@ -98,9 +97,6 @@ export default function LandingPage() {
               <GoogleButton skin="light" full onClick={handleSignIn} pending={isPending} />
             </div>
             <div style={{ marginTop: 14 }}>
-              <Terms color={ON_DARK_TERMS} />
-            </div>
-            <div style={{ marginTop: 8 }}>
               <GuideLink color={ON_DARK_TERMS} />
             </div>
           </div>
@@ -156,12 +152,6 @@ export default function LandingPage() {
           <div style={{ marginTop: 24 }}>
             <GoogleButton skin="light" full onClick={handleSignIn} pending={isPending} />
           </div>
-          <p className="font-sans" style={{ marginTop: 14, fontSize: 12, lineHeight: 1.5, textAlign: "center", color: ON_DARK_PRICE }}>
-            $10, paid once after you sign in.
-          </p>
-          <div style={{ marginTop: 10 }}>
-            <Terms color="rgba(250,247,242,0.62)" align="center" />
-          </div>
         </div>
 
         {/* FOOTER */}
@@ -211,9 +201,6 @@ export default function LandingPage() {
               <GoogleButton skin="light" size="lg" onClick={handleSignIn} pending={isPending} />
             </div>
             <div style={{ marginTop: 16 }}>
-              <Terms color={ON_DARK_TERMS} />
-            </div>
-            <div style={{ marginTop: 8 }}>
               <GuideLink color={ON_DARK_TERMS} />
             </div>
           </div>
@@ -269,12 +256,6 @@ export default function LandingPage() {
             </h2>
             <div style={{ flex: "0 0 auto" }}>
               <GoogleButton skin="light" size="lg" onClick={handleSignIn} pending={isPending} />
-              <p className="font-sans" style={{ marginTop: 16, maxWidth: 320, fontSize: 12.5, lineHeight: 1.5, color: ON_DARK_PRICE }}>
-                $10, paid once after you sign in.
-              </p>
-              <div style={{ marginTop: 10, maxWidth: 320 }}>
-                <Terms color="rgba(250,247,242,0.62)" />
-              </div>
             </div>
           </div>
         </div>
@@ -335,25 +316,8 @@ function GuideLink({ color, align = "left" }: { color: string; align?: "left" | 
   );
 }
 
-function Terms({ color, align = "left" }: { color: string; align?: "left" | "center" }) {
-  // TODO: real legal URLs — Terms / Privacy as placeholder anchors for now.
-  return (
-    <p
-      className="font-sans"
-      style={{ fontSize: 11.5, lineHeight: 1.55, letterSpacing: "-0.003em", color, textAlign: align }}
-    >
-      By continuing you accept Roam&apos;s{" "}
-      <a href="#" style={{ textDecoration: "underline", textUnderlineOffset: 2, color: "inherit" }}>
-        Terms
-      </a>{" "}
-      and{" "}
-      <a href="#" style={{ textDecoration: "underline", textUnderlineOffset: 2, color: "inherit" }}>
-        Privacy Policy
-      </a>
-      .
-    </p>
-  );
-}
+// Terms/Privacy line removed (Brennan, Aug 26) — no real legal docs exist yet.
+// When they do, add a Terms component back under each GoogleButton, beside GuideLink.
 
 // Full-bleed background photo plate (hero).
 function PlatePhoto({ src, position }: { src: string; position: string }) {
