@@ -11,7 +11,7 @@
 // Climate comes from Open-Meteo's archive API, fetched lazily client-side
 // and cached at module level — the page render never waits on it.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -155,6 +155,20 @@ const GRID: CSSProperties = {
 const LANE_BORDER = "1px solid rgba(26,26,46,0.06)";
 const HATCH =
   "repeating-linear-gradient(45deg, rgba(26,26,46,0.10), rgba(26,26,46,0.10) 3px, transparent 3px, transparent 7px)";
+// Solid card background — the sticky label column and the edge fades must
+// paint the exact same colour, so no translucent card bg here.
+const CARD_BG = "#FCFAF7";
+// Lane-label cells stay pinned while the strip scrolls under them
+const STICKY_LABEL: CSSProperties = {
+  position: "sticky",
+  left: 0,
+  zIndex: 2,
+  background: CARD_BG,
+  alignSelf: "stretch",
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "center",
+};
 
 interface OpenWindow {
   key: string;
@@ -185,6 +199,21 @@ export default function YearView({ trips }: Props) {
   const [formStart, setFormStart] = useState("");
   const [formEnd, setFormEnd] = useState("");
   const [saving, setSaving] = useState(false);
+  // Popovers render position:fixed (anchored at open time) so the strip's
+  // overflow container can't clip them; these hold the anchor coordinates.
+  const [pickerPos, setPickerPos] = useState<{ top: number; left: number } | null>(null);
+  const [addPos, setAddPos] = useState<{ top: number; left: number } | null>(null);
+  // Edge fades on the horizontal strip — signal there's more to swipe
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [edges, setEdges] = useState({ left: false, right: false });
+  const updateEdges = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const left = el.scrollLeft > 2;
+    const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 2;
+    // Identity-stable: scrolling fires constantly, only edge flips re-render
+    setEdges((prev) => (prev.left === left && prev.right === right ? prev : { left, right }));
+  };
 
   useEffect(() => {
     let stored: string | null = null;
@@ -202,6 +231,12 @@ export default function YearView({ trips }: Props) {
       localStorage.setItem(OPEN_KEY, v ? "1" : "0");
     } catch {}
   };
+
+  // Measure scrollability once the strip is on screen (initial scroll stays
+  // at the left edge — the current month)
+  useEffect(() => {
+    if (openState === true) updateEdges();
+  }, [openState]);
 
   // ── Ideal travel windows: load, add, delete (RLS scopes to the user) ────
   useEffect(() => {
@@ -476,14 +511,52 @@ export default function YearView({ trips }: Props) {
 
   const isOpen = openState === true;
 
+  // Collapsed (and pre-mount): a slim disclosure row, not a card — it sits
+  // between the page header and the first journey card and must read as a
+  // section toggle, never an empty trip.
+  if (!isOpen) {
+    return (
+      <div
+        className="mx-4 md:mx-0 mt-1 md:mt-3"
+        style={{ borderBottom: "1px solid rgba(26,26,46,0.08)" }}
+      >
+        <button
+          onClick={() => setOpen(true)}
+          aria-expanded={false}
+          className="flex w-full items-center justify-between"
+          style={{ minHeight: 44 }}
+        >
+          <span
+            className="font-sans"
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              color: "rgba(26,26,46,0.5)",
+            }}
+          >
+            Your year
+          </span>
+          <span style={{ fontSize: 11.5, color: "rgba(26,26,46,0.4)" }}>▾</span>
+        </button>
+      </div>
+    );
+  }
+
   return (
     <section
-      className="mx-4 mt-4 md:mx-0 md:mt-6 rounded-[14px]"
-      style={{ border: "1px solid rgba(26,26,46,0.08)", background: "rgba(255,255,255,0.45)" }}
+      className="mx-4 mt-3 md:mx-0 md:mt-5 rounded-[14px]"
+      style={{ border: "1px solid rgba(26,26,46,0.08)", background: CARD_BG }}
     >
-      {/* Header row — always visible; the toggle persists per device */}
-      <div className={`flex items-baseline justify-between px-5 pt-4 md:px-6 ${isOpen ? "" : "pb-4"}`}>
-        <div
+      {/* Header row — whole row collapses the card */}
+      <button
+        onClick={() => setOpen(false)}
+        aria-expanded
+        className="flex w-full items-center justify-between px-4 md:px-5"
+        style={{ minHeight: 44 }}
+      >
+        <span
           className="font-sans"
           style={{
             fontSize: 12,
@@ -494,25 +567,26 @@ export default function YearView({ trips }: Props) {
           }}
         >
           Your year
-        </div>
-        <button
-          onClick={() => setOpen(!isOpen)}
-          className="font-sans"
-          style={{ fontSize: 11.5, color: "rgba(26,26,46,0.4)" }}
-          aria-expanded={isOpen}
-        >
-          {isOpen ? "Hide ▴" : "Show ▾"}
-        </button>
-      </div>
+        </span>
+        <span style={{ fontSize: 11.5, color: "rgba(26,26,46,0.4)" }}>Hide ▴</span>
+      </button>
 
-      {isOpen && (
-        <div className="px-5 pb-4 md:px-6">
+      {/* Body — on mobile the Open-windows list leads (vertical, actionable)
+          and the strip follows; desktop keeps the strip first */}
+      <div className="flex flex-col px-4 pb-3 md:px-5 md:pb-4">
+        <div
+          className={`order-2 md:order-1 relative ${
+            openWindows.length > 0
+              ? "mt-2 pt-1 border-t border-[rgba(26,26,46,0.06)] md:mt-0 md:pt-0 md:border-t-0"
+              : ""
+          }`}
+        >
           {/* The strip scrolls sideways on its own; the page never does */}
-          <div className="overflow-x-auto">
-            <div style={{ minWidth: 720 }}>
+          <div ref={scrollRef} onScroll={updateEdges} className="overflow-x-auto">
+            <div style={{ minWidth: 960 }}>
               {/* Month header — year shown where it changes */}
-              <div style={GRID} className="mt-3">
-                <div />
+              <div style={GRID} className="mt-2">
+                <div style={STICKY_LABEL} />
                 {months.map((m, i) => (
                   <div
                     key={m.getTime()}
@@ -538,8 +612,8 @@ export default function YearView({ trips }: Props) {
               </div>
 
               {/* Journeys lane — booked pills + dashed open windows */}
-              <div style={{ ...GRID, borderTop: LANE_BORDER }} className="items-center py-[7px]">
-                <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(26,26,46,0.6)" }}>
+              <div style={{ ...GRID, borderTop: LANE_BORDER }} className="items-center py-[6px]">
+                <div style={{ ...STICKY_LABEL, fontSize: 11, fontWeight: 600, color: "rgba(26,26,46,0.6)" }}>
                   Journeys
                 </div>
                 <div style={{ gridColumn: "2 / 14", position: "relative", height: 26 }}>
@@ -613,26 +687,40 @@ export default function YearView({ trips }: Props) {
               </div>
 
               {/* Ideal times lane — Brennan's own travel windows (teal pills) */}
-              <div style={{ ...GRID, borderTop: LANE_BORDER }} className="items-center py-[7px]">
-                <div style={{ position: "relative" }}>
+              <div style={{ ...GRID, borderTop: LANE_BORDER }} className="items-center py-[6px]">
+                <div style={{ ...STICKY_LABEL, alignItems: "flex-start" }}>
                   <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(26,26,46,0.6)" }}>
                     Ideal times
                   </div>
                   <button
-                    onClick={() => setAddOpen((v) => !v)}
-                    style={{ fontSize: 9.5, color: "rgba(26,26,46,0.4)" }}
+                    onClick={(e) => {
+                      const r = e.currentTarget.getBoundingClientRect();
+                      setAddPos({
+                        top: r.bottom + 4,
+                        left: Math.max(8, Math.min(r.left, window.innerWidth - 246)),
+                      });
+                      setAddOpen((v) => !v);
+                    }}
+                    className="flex items-center"
+                    style={{
+                      fontSize: 9.5,
+                      color: "rgba(26,26,46,0.4)",
+                      minHeight: 40,
+                      margin: "-10px 0 -12px",
+                    }}
                     aria-expanded={addOpen}
                   >
                     + Add window
                   </button>
-                  {addOpen && (
+                  {addOpen && addPos && (
                     <>
                       <div className="fixed inset-0 z-20" onClick={() => setAddOpen(false)} />
                       <div
-                        className="absolute z-30 bg-white rounded-xl p-2.5 space-y-2"
+                        className="z-30 bg-white rounded-xl p-2.5 space-y-2"
                         style={{
-                          top: 34,
-                          left: 0,
+                          position: "fixed",
+                          top: addPos.top,
+                          left: addPos.left,
                           width: 230,
                           border: "1px solid rgba(26,26,46,0.08)",
                           boxShadow: "0 8px 30px rgba(26,26,46,0.18)",
@@ -731,8 +819,8 @@ export default function YearView({ trips }: Props) {
               </div>
 
               {/* Birthdays lane — gold diamonds, names beneath */}
-              <div style={{ ...GRID, borderTop: LANE_BORDER }} className="items-center py-[7px]">
-                <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(26,26,46,0.6)" }}>
+              <div style={{ ...GRID, borderTop: LANE_BORDER }} className="items-center py-[6px]">
+                <div style={{ ...STICKY_LABEL, fontSize: 11, fontWeight: 600, color: "rgba(26,26,46,0.6)" }}>
                   Birthdays
                 </div>
                 <div style={{ gridColumn: "2 / 14", position: "relative", height: 32 }}>
@@ -768,8 +856,8 @@ export default function YearView({ trips }: Props) {
               </div>
 
               {/* School lane — hatched breaks, PA dots, faint stat dots */}
-              <div style={{ ...GRID, borderTop: LANE_BORDER }} className="items-center py-[7px]">
-                <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(26,26,46,0.6)" }}>
+              <div style={{ ...GRID, borderTop: LANE_BORDER }} className="items-center py-[6px]">
+                <div style={{ ...STICKY_LABEL, fontSize: 11, fontWeight: 600, color: "rgba(26,26,46,0.6)" }}>
                   School
                   <small
                     style={{ display: "block", fontWeight: 400, fontSize: 9.5, color: "rgba(26,26,46,0.35)" }}
@@ -849,45 +937,56 @@ export default function YearView({ trips }: Props) {
               </div>
 
               {/* Weather heat row — picked destination, months in window order */}
-              <div style={{ ...GRID, borderTop: LANE_BORDER }} className="items-center py-[7px]">
-                <div style={{ position: "relative" }}>
+              <div style={{ ...GRID, borderTop: LANE_BORDER }} className="items-center py-[6px]">
+                <div style={{ ...STICKY_LABEL, alignItems: "flex-start" }}>
+                  {/* 40px hit area; the visual pill is the inner span */}
                   <button
-                    onClick={() => {
+                    onClick={(e) => {
+                      const r = e.currentTarget.getBoundingClientRect();
+                      setPickerPos({
+                        top: r.bottom + 4,
+                        left: Math.max(8, Math.min(r.left, window.innerWidth - 236)),
+                      });
                       setPickerOpen((v) => !v);
                       setQuery("");
                       setResults([]);
                     }}
-                    className="font-sans"
+                    className="font-sans flex items-center"
                     title="Change destination"
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 5,
-                      background: "#F2EDE3",
-                      border: "1px solid rgba(26,26,46,0.12)",
-                      borderRadius: 999,
-                      padding: "3px 9px",
-                      fontSize: 10.5,
-                      fontWeight: 600,
-                      color: "#1A1A2E",
-                      maxWidth: 104,
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                    }}
+                    style={{ minHeight: 40, margin: "-7px 0", maxWidth: 106 }}
                   >
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {dest?.label ?? "…"}
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 5,
+                        background: "#F2EDE3",
+                        border: "1px solid rgba(26,26,46,0.12)",
+                        borderRadius: 999,
+                        padding: "3px 9px",
+                        fontSize: 10.5,
+                        fontWeight: 600,
+                        color: "#1A1A2E",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        maxWidth: "100%",
+                      }}
+                    >
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {dest?.label ?? "…"}
+                      </span>
+                      ▾
                     </span>
-                    ▾
                   </button>
-                  {pickerOpen && (
+                  {pickerOpen && pickerPos && (
                     <>
                       <div className="fixed inset-0 z-20" onClick={() => setPickerOpen(false)} />
                       <div
-                        className="absolute z-30 bg-white rounded-xl p-2"
+                        className="z-30 bg-white rounded-xl p-2"
                         style={{
-                          top: 30,
-                          left: 0,
+                          position: "fixed",
+                          top: pickerPos.top,
+                          left: pickerPos.left,
                           width: 220,
                           border: "1px solid rgba(26,26,46,0.08)",
                           boxShadow: "0 8px 30px rgba(26,26,46,0.18)",
@@ -969,9 +1068,37 @@ export default function YearView({ trips }: Props) {
             </div>
           </div>
 
-          {/* Open windows — the takeaway, in words */}
-          {openWindows.length > 0 && (
-            <div className="mt-3 pt-2.5" style={{ borderTop: LANE_BORDER }}>
+          {/* Edge fades — hint that the strip swipes. The left fade starts
+              after the sticky 110px label column. */}
+          {edges.left && (
+            <div
+              aria-hidden
+              className="pointer-events-none absolute top-0 bottom-0"
+              style={{
+                left: 110,
+                width: 24,
+                zIndex: 3,
+                background: `linear-gradient(to right, ${CARD_BG}, rgba(252,250,247,0))`,
+              }}
+            />
+          )}
+          {edges.right && (
+            <div
+              aria-hidden
+              className="pointer-events-none absolute top-0 bottom-0"
+              style={{
+                right: 0,
+                width: 24,
+                zIndex: 3,
+                background: `linear-gradient(to left, ${CARD_BG}, rgba(252,250,247,0))`,
+              }}
+            />
+          )}
+        </div>
+
+        {/* Open windows — the takeaway, in words; leads on mobile */}
+        {openWindows.length > 0 && (
+          <div className="order-1 md:order-2 md:mt-2.5 md:pt-2 md:border-t md:border-[rgba(26,26,46,0.06)]">
               <div
                 style={{
                   fontSize: 10,
@@ -1011,10 +1138,9 @@ export default function YearView({ trips }: Props) {
                   </div>
                 ))}
               </div>
-            </div>
-          )}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
     </section>
   );
 }
