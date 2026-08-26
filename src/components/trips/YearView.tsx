@@ -342,19 +342,65 @@ export default function YearView({ trips }: Props) {
     [trips, winStart, winEnd]
   );
 
-  // Birthday occurrence inside the window (annual → exactly one each)
-  const birthdays = useMemo(
-    () =>
-      FAMILY_DATES.map((f) => {
-        const inStartYear = new Date(winStart.getFullYear(), f.month - 1, f.day);
-        const date =
-          inStartYear >= winStart && inStartYear <= winEnd
-            ? inStartYear
-            : new Date(winStart.getFullYear() + 1, f.month - 1, f.day);
-        return { ...f, date };
-      }).filter((b) => b.date >= winStart && b.date <= winEnd),
-    [winStart, winEnd]
-  );
+  // Birthday occurrences inside the window (annual → exactly one each),
+  // grouped so name labels can never overlap: neighbouring markers whose
+  // labels would collide share one label block with the names stacked
+  // vertically (one per line). Diamonds keep their true date positions;
+  // only near-coincident diamonds (< 0.8% apart, e.g. Dylan/Gorav a day
+  // apart) collapse into one.
+  const birthdayGroups = useMemo(() => {
+    const occurrences = FAMILY_DATES.map((f) => {
+      const inStartYear = new Date(winStart.getFullYear(), f.month - 1, f.day);
+      const date =
+        inStartYear >= winStart && inStartYear <= winEnd
+          ? inStartYear
+          : new Date(winStart.getFullYear() + 1, f.month - 1, f.day);
+      return { name: f.name, date };
+    })
+      .filter((b) => b.date >= winStart && b.date <= winEnd)
+      .map((b) => ({ ...b, pos: posMid(b.date) }))
+      .sort((a, b) => a.pos - b.pos);
+
+    // Label width as % of the narrowest track the strip can render at
+    // (minWidth 960 − 110px label column ≈ 840px): DM Sans 8.5px ≈ 4.8px/char.
+    // Desktop tracks are wider, so this stays conservative there.
+    const widthPct = (name: string) => (name.length * 4.8 + 2) / 8.4;
+    const PAD = 0.6; // breathing room between adjacent label blocks, in %
+
+    const centerOf = (g: { members: { pos: number }[] }) =>
+      g.members.reduce((s, m) => s + m.pos, 0) / g.members.length;
+    const widthOf = (g: { members: { name: string }[] }) =>
+      Math.max(...g.members.map((m) => widthPct(m.name)));
+
+    // Merge neighbours until no two label blocks collide (centres converge,
+    // so this terminates; n is tiny)
+    const groups = occurrences.map((o) => ({ members: [o] }));
+    let merged = true;
+    while (merged) {
+      merged = false;
+      for (let i = 0; i < groups.length - 1; i++) {
+        const a = groups[i];
+        const b = groups[i + 1];
+        if (centerOf(b) - centerOf(a) < (widthOf(a) + widthOf(b)) / 2 + PAD) {
+          a.members.push(...b.members);
+          groups.splice(i + 1, 1);
+          merged = true;
+          break;
+        }
+      }
+    }
+    return groups.map((g) => ({
+      key: g.members.map((m) => m.name).join("-"),
+      center: centerOf(g),
+      members: g.members,
+    }));
+    // posMid is derived purely from winStart/winEnd
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [winStart, winEnd]);
+
+  // Lane grows with the deepest name stack so nothing clips
+  const bdayMaxLines = Math.max(1, ...birthdayGroups.map((g) => g.members.length));
+  const bdayLaneHeight = 15 + bdayMaxLines * 11;
 
   const schoolInWindow = useMemo(
     () =>
@@ -623,7 +669,7 @@ export default function YearView({ trips }: Props) {
                     return (
                       <Link
                         key={w.key}
-                        href="/trips/new"
+                        href={`/trips/new?start=${isoOf(w.start)}&end=${isoOf(w.end)}`}
                         title={`${w.name} · ${formatRange(w.coreStart, w.coreEnd)} — no journey planned`}
                         style={{
                           position: "absolute",
@@ -823,35 +869,59 @@ export default function YearView({ trips }: Props) {
                 <div style={{ ...STICKY_LABEL, fontSize: 11, fontWeight: 600, color: "rgba(26,26,46,0.6)" }}>
                   Birthdays
                 </div>
-                <div style={{ gridColumn: "2 / 14", position: "relative", height: 32 }}>
-                  {birthdays.map((b) => (
-                    <div
-                      key={b.name}
-                      title={`${b.name} · ${fmtMD(b.date)}`}
-                      style={{
-                        position: "absolute",
-                        left: `${posMid(b.date)}%`,
-                        top: 1,
-                        transform: "translateX(-50%)",
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                      }}
-                    >
-                      <i
-                        style={{
-                          width: 8,
-                          height: 8,
-                          background: "#D18A2E",
-                          transform: "rotate(45deg)",
-                          borderRadius: 2,
-                        }}
-                      />
-                      <span style={{ fontSize: 8.5, color: "rgba(26,26,46,0.55)", marginTop: 4 }}>
-                        {b.name}
-                      </span>
-                    </div>
-                  ))}
+                <div style={{ gridColumn: "2 / 14", position: "relative", height: bdayLaneHeight }}>
+                  {birthdayGroups.map((g) => {
+                    const title = g.members
+                      .map((m) => `${m.name} · ${fmtMD(m.date)}`)
+                      .join(", ");
+                    // Diamonds keep true positions; drop ones that would
+                    // paint on top of the previous diamond
+                    const diamondPositions: number[] = [];
+                    for (const m of g.members) {
+                      const prev = diamondPositions[diamondPositions.length - 1];
+                      if (prev === undefined || m.pos - prev >= 0.8) diamondPositions.push(m.pos);
+                    }
+                    return (
+                      <div key={g.key}>
+                        {diamondPositions.map((p) => (
+                          <i
+                            key={p}
+                            title={title}
+                            style={{
+                              position: "absolute",
+                              left: `${p}%`,
+                              top: 2,
+                              width: 8,
+                              height: 8,
+                              background: "#D18A2E",
+                              transform: "translateX(-50%) rotate(45deg)",
+                              borderRadius: 2,
+                            }}
+                          />
+                        ))}
+                        <div
+                          title={title}
+                          style={{
+                            position: "absolute",
+                            left: `${g.center}%`,
+                            top: 14,
+                            transform: "translateX(-50%)",
+                            textAlign: "center",
+                            lineHeight: "11px",
+                          }}
+                        >
+                          {g.members.map((m) => (
+                            <div
+                              key={m.name}
+                              style={{ fontSize: 8.5, color: "rgba(26,26,46,0.55)", whiteSpace: "nowrap" }}
+                            >
+                              {m.name}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -1129,7 +1199,7 @@ export default function YearView({ trips }: Props) {
                       {" · no journey planned"}
                     </div>
                     <Link
-                      href="/trips/new"
+                      href={`/trips/new?start=${isoOf(w.start)}&end=${isoOf(w.end)}`}
                       className="whitespace-nowrap"
                       style={{ fontSize: 11.5, fontWeight: 600, color: "#C4622D" }}
                     >

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef, useCallback, useMemo, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Camera } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -38,6 +38,17 @@ function fmtDate(dateStr: string): string {
   });
 }
 
+// A ?start=/&end= param is only trusted when it's a real ISO date — this
+// rejects malformed strings and rolled-over dates like 2027-02-30.
+function parseIsoParam(v: string | null): string | null {
+  if (!v || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
+  const [y, m, d] = v.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d
+    ? v
+    : null;
+}
+
 function countDays(start: string, end: string): number {
   const s = new Date(start + "T00:00:00");
   const e = new Date(end + "T00:00:00");
@@ -62,8 +73,17 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December",
 ];
 
-export default function NewTripPage() {
+function NewTripForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Dates handed over from "Your year" open windows (?start=…&end=…).
+  // Garbage params — invalid dates, or end before start — are ignored whole.
+  const seededDates = useMemo(() => {
+    const start = parseIsoParam(searchParams.get("start"));
+    const end = parseIsoParam(searchParams.get("end"));
+    return start && end && end >= start ? { start, end } : null;
+  }, [searchParams]);
 
   // Destination autocomplete
   const [destInput,       setDestInput]       = useState("");
@@ -85,16 +105,21 @@ export default function NewTripPage() {
   // Form fields
   const [tripName,      setTripName]      = useState("");
   const [tripNameDirty, setTripNameDirty] = useState(false);
-  const [startDate,     setStartDate]     = useState("");
-  const [endDate,       setEndDate]       = useState("");
+  const [startDate,     setStartDate]     = useState(seededDates?.start ?? "");
+  const [endDate,       setEndDate]       = useState(seededDates?.end ?? "");
   const [partySize,     setPartySize]     = useState(1);
   const [saving,        setSaving]        = useState(false);
   const [saveError,     setSaveError]     = useState<string | null>(null);
 
-  // Date picker state
+  // Date picker state — the calendar opens on the seeded start month when
+  // dates were handed over, otherwise on the current month
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [calYear,  setCalYear]  = useState(() => new Date().getFullYear());
-  const [calMonth, setCalMonth] = useState(() => new Date().getMonth());
+  const [calYear,  setCalYear]  = useState(() =>
+    seededDates ? Number(seededDates.start.slice(0, 4)) : new Date().getFullYear()
+  );
+  const [calMonth, setCalMonth] = useState(() =>
+    seededDates ? Number(seededDates.start.slice(5, 7)) - 1 : new Date().getMonth()
+  );
   const [pickStart, setPickStart] = useState<string | null>(null);
   const [pickEnd,   setPickEnd]   = useState<string | null>(null);
   const [pickPhase, setPickPhase] = useState<"start" | "end">("start");
@@ -674,5 +699,15 @@ export default function NewTripPage() {
       )}
 
     </div>
+  );
+}
+
+// useSearchParams requires a Suspense boundary on a statically prerendered
+// page (Next 14); the form itself is unchanged beyond date seeding.
+export default function NewTripPage() {
+  return (
+    <Suspense fallback={null}>
+      <NewTripForm />
+    </Suspense>
   );
 }
