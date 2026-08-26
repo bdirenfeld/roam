@@ -56,7 +56,9 @@ export async function updateSession(request: NextRequest) {
   // auth bounce and the payment gate below.
   // `/guide.html` is the static quick-start guide in /public — linked from the
   // landing page and sent to people who can't log in yet, so it must be public.
-  const publicPaths = ['/login', '/auth', '/api/stripe/webhook', '/journey/', '/guide.html']
+  // `/sw.js` + `/offline.html` power offline mode and must load without auth,
+  // or the service worker can never register from the logged-out landing page.
+  const publicPaths = ['/login', '/auth', '/api/stripe/webhook', '/journey/', '/guide.html', '/sw.js', '/offline.html']
   // `/` is the logged-out marketing front door — exempt by EXACT match only.
   // (Adding '/' to publicPaths would make every path startsWith('/') public.)
   // The page itself redirects authenticated visitors on to /trips.

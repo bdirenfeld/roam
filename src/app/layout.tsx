@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import ServiceWorkerRegistrar from "@/components/ui/ServiceWorkerRegistrar";
 
 export const metadata: Metadata = {
   title: "Roam",
@@ -48,6 +49,7 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased bg-parchment text-gray-900">
+        <ServiceWorkerRegistrar />
         {children}
       </body>
     </html>
