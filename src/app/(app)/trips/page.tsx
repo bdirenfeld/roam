@@ -9,6 +9,7 @@ import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
 import { belongsInPastJourneys, isPastJourney } from "@/lib/tripRecency";
 import { createSampleJourney } from "@/lib/sampleTrip/actions";
 import AddToHomeScreenHint from "@/components/ui/AddToHomeScreenHint";
+import YearView from "@/components/trips/YearView";
 
 export default async function TripsPage() {
   const supabase = await createClient();
@@ -108,6 +109,21 @@ export default async function TripsPage() {
             </div>
           </div>
         </div>
+
+        {/* Your year — 12-month planning strip; only once a journey has dates */}
+        {(trips ?? []).some((t: Trip) => t.start_date && t.end_date) && (
+          <YearView
+            trips={(trips ?? []).map((t: Trip) => ({
+              id: t.id,
+              title: t.title,
+              destination: t.destination,
+              start_date: t.start_date,
+              end_date: t.end_date,
+              archived: t.archived === true,
+              openDayId: openDayByTrip[t.id],
+            }))}
+          />
+        )}
 
         <div className="px-4 pb-6 md:px-0 md:pb-0 md:mt-9">
           {/* iPhone Safari only — one-time "Add to Home Screen" hint */}
