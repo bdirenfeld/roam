@@ -119,7 +119,7 @@ export default function CardTimeline({
   // mobile and in the narrow empty state.
   const renderAddControls = (row: boolean) =>
     !readOnly && (onAddFromSaved || onGapTap) ? (
-      <div className={`flex flex-col gap-2 ${row ? "md:flex-row md:max-w-[520px]" : ""}`}>
+      <div className={`flex flex-col gap-2 ${row ? "md:flex-row md:max-w-[520px] md:ml-[42px]" : ""}`}>
         {onAddFromSaved && (
           <button
             onClick={onAddFromSaved}
