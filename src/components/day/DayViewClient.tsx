@@ -21,8 +21,8 @@ import type { Trip, Day, DayWithCards, Card } from "@/types/database";
 // Plan board can render per-day forecasts too.
 import {
   type DayWeather,
-  weatherCache,
-  fetchWeatherForTrip,
+  fetchTripWeather,
+  dayStopsAnchor,
   getWeatherCategory,
   WeatherIcon,
   HourlyStrip,
@@ -262,29 +262,29 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, re
   const [weatherByDate, setWeatherByDate] = useState<Record<string, DayWeather> | null>(null);
   const [weatherExpanded, setWeatherExpanded] = useState(false);
 
+  // Only this day's forecast renders here, so only this day's stop-anchor is
+  // passed — if its stops are in a different city than the trip destination,
+  // that city's forecast overrides the date. (Repeat fetches are cache hits.)
   useEffect(() => {
     if (!trip.destination_lat || !trip.destination_lng) return;
-
-    const cached = weatherCache.get(trip.id);
-    if (cached) {
-      setWeatherByDate(cached);
-      return;
-    }
-
-    fetchWeatherForTrip(
-      trip.destination_lat,
-      trip.destination_lng,
-      trip.start_date,
-      trip.end_date
+    const a = dayStopsAnchor(dayWithCards.cards);
+    const anchors = a ? [{ date: dayWithCards.date, lat: a.lat, lng: a.lng }] : [];
+    fetchTripWeather(
+      {
+        id: trip.id,
+        destination_lat: trip.destination_lat,
+        destination_lng: trip.destination_lng,
+        start_date: trip.start_date,
+        end_date: trip.end_date,
+      },
+      anchors
     )
-      .then((data) => {
-        weatherCache.set(trip.id, data);
-        setWeatherByDate(data);
-      })
+      .then(setWeatherByDate)
       .catch((err) => {
         console.error("[Roam] Weather fetch failed:", err);
       });
-  }, [trip.id, trip.destination_lat, trip.destination_lng, trip.start_date, trip.end_date]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trip.id, trip.destination_lat, trip.destination_lng, trip.start_date, trip.end_date, dayWithCards.id]);
 
   // ── Day cross-fade ─────────────────────────────────────────────────────
   const [contentVisible, setContentVisible] = useState(false);

@@ -53,7 +53,7 @@ import { getOpeningHoursConflict, openingHoursCaption, openingHoursTone } from "
 import CardImage from "@/components/ui/CardImage";
 import { Trash, DotsThree, Image as ImageIcon, Gear, ShareNetwork, BookmarkSimple } from "@phosphor-icons/react";
 import { getMaterialIconHTML } from "@/lib/mapPins";
-import { type DayWeather, weatherCache, fetchWeatherForTrip, getWeatherCategory, WeatherIcon, HourlyStrip } from "@/lib/weather";
+import { type DayWeather, fetchTripWeather, dayStopsAnchor, getWeatherCategory, WeatherIcon, HourlyStrip } from "@/lib/weather";
 
 // ── Constants ──────────────────────────────────────────────────
 const COL_PREFIX = "col-";
@@ -207,16 +207,36 @@ export default function PlanBoard({ trip, initialDays }: Props) {
   const [showBgPicker, setShowBgPicker] = useState(false);
   const [bgUrlInput, setBgUrlInput] = useState("");
 
-  // Per-day forecast for the column headers — same source/cache as the Agenda
+  // Per-day forecast for the column headers — same source/cache as the Agenda.
+  // Days whose stops are in a different city get that city's forecast; the
+  // anchor key only changes when a day's stop-centroid crosses a city grid
+  // cell, so drag-reorders within a city never refetch.
   const [weatherByDate, setWeatherByDate] = useState<Record<string, DayWeather> | null>(null);
+  const dayAnchors = useMemo(
+    () =>
+      days.flatMap((d) => {
+        const a = dayStopsAnchor(d.cards);
+        return a ? [{ date: d.date, lat: a.lat, lng: a.lng }] : [];
+      }),
+    [days]
+  );
+  const anchorKey = dayAnchors.map((a) => `${a.date}@${a.lat.toFixed(1)},${a.lng.toFixed(1)}`).join("|");
   useEffect(() => {
     if (!trip.destination_lat || !trip.destination_lng) return;
-    const cached = weatherCache.get(trip.id);
-    if (cached) { setWeatherByDate(cached); return; }
-    fetchWeatherForTrip(trip.destination_lat, trip.destination_lng, trip.start_date, trip.end_date)
-      .then((data) => { weatherCache.set(trip.id, data); setWeatherByDate(data); })
+    fetchTripWeather(
+      {
+        id: trip.id,
+        destination_lat: trip.destination_lat,
+        destination_lng: trip.destination_lng,
+        start_date: trip.start_date,
+        end_date: trip.end_date,
+      },
+      dayAnchors
+    )
+      .then(setWeatherByDate)
       .catch((err) => { console.error("[Roam] Weather fetch failed:", err); });
-  }, [trip.id, trip.destination_lat, trip.destination_lng, trip.start_date, trip.end_date]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trip.id, trip.destination_lat, trip.destination_lng, trip.start_date, trip.end_date, anchorKey]);
   const [bgPreviewError, setBgPreviewError] = useState(false);
   const [savingBg, setSavingBg] = useState(false);
   const [boardBg, setBoardBg] = useState<BoardBg>(() => {

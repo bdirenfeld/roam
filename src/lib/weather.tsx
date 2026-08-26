@@ -16,8 +16,94 @@ export interface DayWeather {
 
 export type WeatherCategory = "sunny" | "partly-cloudy" | "cloudy" | "rain" | "snow" | "fog";
 
-// Module-level cache — survives client-side route changes within a session
+// Module-level cache — survives client-side route changes within a session.
+// Keyed per fetch point: `tripId` for the trip's home destination, and
+// `tripId:lat,lng` (1-decimal grid) for days spent in a different city.
 export const weatherCache = new Map<string, Record<string, DayWeather>>();
+
+// A day only gets its own forecast when its stops are in a genuinely
+// different city — not when you drive across town. ~40 km covers that.
+const DIFFERENT_CITY_KM = 40;
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Centroid of a day's scheduled stops. Returns null when no stop has coords
+// (note cards, skeleton cards) — the day then uses the trip destination.
+export function dayStopsAnchor(
+  cards: { place?: { lat: number | null; lng: number | null } | null }[]
+): { lat: number; lng: number } | null {
+  const pts = cards
+    .map((c) => c.place)
+    .filter((p): p is { lat: number; lng: number } => p?.lat != null && p?.lng != null);
+  if (pts.length === 0) return null;
+  return {
+    lat: pts.reduce((s, p) => s + p.lat, 0) / pts.length,
+    lng: pts.reduce((s, p) => s + p.lng, 0) / pts.length,
+  };
+}
+
+// Trip weather with per-city overrides. Fetches the trip destination's
+// forecast once, then — only for days whose stops sit in a different city —
+// fetches that city's forecast and overrides those dates. Days in the same
+// city as the destination (or with unknown stops) keep the base forecast.
+export async function fetchTripWeather(
+  trip: {
+    id: string;
+    destination_lat: number;
+    destination_lng: number;
+    start_date: string;
+    end_date: string;
+  },
+  dayAnchors?: { date: string; lat: number; lng: number }[]
+): Promise<Record<string, DayWeather>> {
+  const fetchPoint = async (lat: number, lng: number, key: string) => {
+    const cached = weatherCache.get(key);
+    if (cached) return cached;
+    const data = await fetchWeatherForTrip(lat, lng, trip.start_date, trip.end_date);
+    weatherCache.set(key, data);
+    return data;
+  };
+
+  const base = await fetchPoint(trip.destination_lat, trip.destination_lng, trip.id);
+  const result: Record<string, DayWeather> = { ...base };
+
+  const away = (dayAnchors ?? []).filter(
+    (a) => haversineKm(a.lat, a.lng, trip.destination_lat, trip.destination_lng) > DIFFERENT_CITY_KM
+  );
+  if (away.length === 0) return result;
+
+  // One fetch per distinct city: 1-decimal grid (~11 km) groups a city's days
+  const groups = new Map<string, { lat: number; lng: number; dates: string[] }>();
+  for (const a of away) {
+    const key = `${a.lat.toFixed(1)},${a.lng.toFixed(1)}`;
+    const g = groups.get(key);
+    if (g) g.dates.push(a.date);
+    else groups.set(key, { lat: a.lat, lng: a.lng, dates: [a.date] });
+  }
+
+  await Promise.all(
+    Array.from(groups.entries()).map(async ([key, g]) => {
+      try {
+        const data = await fetchPoint(g.lat, g.lng, `${trip.id}:${key}`);
+        for (const date of g.dates) {
+          if (data[date]) result[date] = data[date];
+        }
+      } catch {
+        // A failed city fetch just leaves those days on the base forecast
+      }
+    })
+  );
+
+  return result;
+}
 
 // ── Open-Meteo fetch ───────────────────────────────────────────────────────
 export async function fetchWeatherForTrip(
