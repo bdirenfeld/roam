@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { BookmarkSimple } from "@phosphor-icons/react";
 import CardSurface from "@/components/cards/CardSurface";
 import type { DayWithCards, Card } from "@/types/database";
 
@@ -8,6 +9,8 @@ interface Props {
   onCardTap?: (card: Card) => void;
   highlightedCardId?: string | null;
   onGapTap?: (gapStartTime: string, gapEndTime: string) => void;
+  /** Opens the "Add from saved" picker for this day (owner only). */
+  onAddFromSaved?: () => void;
   onToggleConfirmed?: (cardId: string) => void;
   /** Numbered-pin index per card, keyed by card id. Used at md:+ only;
    *  omit entries (or pass an empty map) to render rows without a pin number. */
@@ -103,11 +106,42 @@ export default function CardTimeline({
   onCardTap,
   highlightedCardId,
   onGapTap,
+  onAddFromSaved,
   onToggleConfirmed,
   cardNumberById,
   readOnly = false,
 }: Props) {
   const { cards } = dayWithCards;
+
+  // Shared add controls — "Add from saved" reads first, blank card second.
+  // Mirrors the Plan board's column footer so both views teach the same doors.
+  const addControls = !readOnly && (onAddFromSaved || onGapTap) && (
+    <div className="flex flex-col gap-2">
+      {onAddFromSaved && (
+        <button
+          onClick={onAddFromSaved}
+          className="w-full flex items-center justify-center gap-2 rounded-xl px-4 py-3 active:opacity-70 transition-opacity"
+          style={{
+            background: "#F2EDE3",
+            boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)",
+            fontFamily: "'DM Sans', system-ui, sans-serif",
+            fontWeight: 600, fontSize: "13.5px", color: "#1A1A2E", letterSpacing: "-0.005em",
+          }}
+        >
+          <BookmarkSimple size={14} weight="light" color="#1A1A2E" />
+          Add from saved
+        </button>
+      )}
+      {onGapTap && (
+        <button
+          onClick={() => onGapTap("", "")}
+          className="w-full py-3 rounded-xl border border-dashed border-gray-200 text-[12px] italic text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-colors"
+        >
+          + Add to this day
+        </button>
+      )}
+    </div>
+  );
 
   return (
     <div className="pb-8">
@@ -131,14 +165,7 @@ export default function CardTimeline({
           </div>
           <p className="text-sm font-semibold text-gray-500">Nothing planned yet</p>
           <p className="text-xs text-gray-400 mt-1">Free day — enjoy the spontaneity.</p>
-          {!readOnly && onGapTap && (
-            <button
-              onClick={() => onGapTap("", "")}
-              className="mt-5 px-6 py-2.5 rounded-full border border-dashed border-gray-300 text-[12px] italic text-gray-400 hover:text-gray-600 hover:border-gray-400 transition-colors"
-            >
-              + Add to this day
-            </button>
-          )}
+          {addControls && <div className="mt-6 w-full max-w-[320px]">{addControls}</div>}
         </div>
       ) : (
         <div>
@@ -170,15 +197,8 @@ export default function CardTimeline({
             );
           })}
           {/* Always-available add — the gap connector only appears between
-              timed cards ≥30 min apart, so untimed days need this row. */}
-          {!readOnly && onGapTap && (
-            <button
-              onClick={() => onGapTap("", "")}
-              className="w-full py-3 rounded-xl border border-dashed border-gray-200 text-[12px] italic text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-colors"
-            >
-              + Add to this day
-            </button>
-          )}
+              timed cards ≥30 min apart, so untimed days need these. */}
+          {addControls}
         </div>
       )}
     </div>

@@ -10,6 +10,7 @@ import DayMap from "@/components/day/DayMap";
 import CardTimeline from "@/components/day/CardTimeline";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import CreateCardSheet from "@/components/plan/CreateCardSheet";
+import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
 import Companion from "@/components/companion/Companion";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 import { createClient } from "@/lib/supabase/client";
@@ -249,6 +250,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, re
   const [isCardOpen, setIsCardOpen] = useState(false);
   const [swipeDir, setSwipeDir] = useState<"left" | "right" | null>(null);
   const [gapTimes, setGapTimes] = useState<{ start: string; end: string } | null>(null);
+  const [showAddFromSaved, setShowAddFromSaved] = useState(false);
 
   // Companion open state — hoisted from Companion so the desktop body grid can
   // flip between 2 columns (timeline + map) and 3 columns (timeline + map +
@@ -408,6 +410,21 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, re
   const handleGapTap = useCallback((startTime: string, endTime: string) => {
     setGapTimes({ start: startTime, end: endTime });
   }, []);
+
+  // Cards placed via the "Add from saved" picker — splice this day's in,
+  // sorted like handleCardCreated. The interested card stays untouched.
+  const handleSavedAdded = useCallback((added: Card[]) => {
+    const mine = added.filter((c) => c.day_id === dayWithCards.id);
+    if (!mine.length) return;
+    setLocalCards((prev) =>
+      [...prev, ...mine].sort((a, b) => {
+        if (!a.start_time && !b.start_time) return 0;
+        if (!a.start_time) return 1;
+        if (!b.start_time) return -1;
+        return a.start_time.localeCompare(b.start_time);
+      })
+    );
+  }, [dayWithCards.id]);
 
   const handleCardCreated = useCallback((card: Card) => {
     setLocalCards((prev) =>
@@ -621,6 +638,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, re
               onCardTap={handleCardTap}
               highlightedCardId={highlightedCardId}
               onGapTap={readOnly ? undefined : handleGapTap}
+              onAddFromSaved={readOnly ? undefined : () => setShowAddFromSaved(true)}
               onToggleConfirmed={readOnly ? undefined : handleToggleConfirmed}
               cardNumberById={cardNumberById}
               readOnly={readOnly}
@@ -653,6 +671,25 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, re
           initialStartTime={gapTimes.start}
           onClose={() => setGapTimes(null)}
           onCardCreated={handleCardCreated}
+        />
+      )}
+
+      {/* "Add from saved" — same picker the Plan board uses; scheduled ids
+          come from this day only (the trip-wide set isn't loaded here). */}
+      {showAddFromSaved && (
+        <LinkPlaceSheet
+          mode="create"
+          tripId={trip.id}
+          day={localDayWithCards}
+          scheduledPlaceIds={
+            new Set(
+              localCards
+                .filter((c) => c.status === "in_itinerary" && c.place_id)
+                .map((c) => c.place_id as string),
+            )
+          }
+          onAdded={handleSavedAdded}
+          onClose={() => setShowAddFromSaved(false)}
         />
       )}
 
