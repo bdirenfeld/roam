@@ -259,6 +259,7 @@ function WeatherExpansion({
   days,
   activeDayId,
   onDaySelect,
+  bare = false,
 }: {
   id: string;
   expanded: boolean;
@@ -267,11 +268,13 @@ function WeatherExpansion({
   days: Day[];
   activeDayId: string;
   onDaySelect: (day: Day) => void;
+  /** Desktop sits on parchment — skip the mobile white backdrop. */
+  bare?: boolean;
 }) {
   return (
     <div
       id={id}
-      className="overflow-hidden transition-[max-height] duration-300 ease-out bg-white"
+      className={`overflow-hidden transition-[max-height] duration-300 ease-out ${bare ? "" : "bg-white"}`}
       style={{ maxHeight: expanded ? "280px" : "0px" }}
     >
       {weather && (
@@ -711,6 +714,31 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, re
           />
         </div>
 
+        {/* Weather — same subtitle+expansion pair the mobile header has */}
+        <div className="ml-auto">
+          <WeatherSubtitle
+            weather={dayWeather}
+            expanded={weatherExpanded}
+            onToggle={() => setWeatherExpanded((v) => !v)}
+            controlsId="weather-expansion-desktop"
+          />
+        </div>
+      </div>
+
+      {/* Desktop-only weather expansion — full Hourly + Outlook panel */}
+      <div className="hidden md:block md:px-10">
+        <div className="max-w-[640px] ml-auto">
+          <WeatherExpansion
+            id="weather-expansion-desktop"
+            expanded={weatherExpanded}
+            weather={dayWeather}
+            weatherByDate={weatherByDate}
+            days={days}
+            activeDayId={dayWithCards.id}
+            onDaySelect={handleDaySelect}
+            bare
+          />
+        </div>
       </div>
 
       {/* Two-pane body — mobile: flex column (Companion → Map → Timeline).
