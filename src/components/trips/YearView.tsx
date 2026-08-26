@@ -29,6 +29,21 @@ interface TravelWindow {
   end_date: string;
 }
 
+// Weekend-trip wishlist (public.wishlist_destinations, RLS own-rows; seeded
+// from Brennan's "Weekend Trip Ideas" spreadsheet). Same not-in-generated-
+// types situation as travel_windows — calls cast the client.
+interface WishlistDest {
+  id: string;
+  name: string;
+  location: string | null;
+  lat: number | null;
+  lng: number | null;
+  drive_hours: number | null;
+  budget: string | null;
+  best_time: string | null;
+  why: string | null;
+}
+
 export interface YearViewTrip {
   id: string;
   title: string;
@@ -42,6 +57,9 @@ export interface YearViewTrip {
 
 interface Props {
   trips: YearViewTrip[];
+  // Header meta counts — YearView owns the "N upcoming · N past" line so the
+  // "Your year" trigger can sit inside it instead of floating as a stray row
+  counts: { upcoming: number; past: number; archived: number };
 }
 
 const OPEN_KEY = "roam_year_view_open";
@@ -129,6 +147,15 @@ const HEAT_STYLE: Record<HeatTone, { bg: string; fg: string }> = {
   rough: { bg: "#F5DAD2", fg: "#93402A" },
 };
 
+// Chip wording + sort order for the "go where?" suggestion sheet
+const TONE_WORD: Record<HeatTone, string> = {
+  great: "prime",
+  good:  "good",
+  fair:  "fair",
+  rough: "rough",
+};
+const TONE_RANK: Record<HeatTone, number> = { great: 0, good: 1, fair: 2, rough: 3 };
+
 interface GeoResult {
   name: string;
   admin1?: string;
@@ -170,6 +197,23 @@ const STICKY_LABEL: CSSProperties = {
   justifyContent: "center",
 };
 
+// Month-grid cells for the add-window date picker (same shape as the
+// trips/new calendar: leading nulls pad to the first weekday)
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+function buildCalendarCells(year: number, month: number): Array<string | null> {
+  const firstDow = new Date(year, month, 1).getDay();
+  const count = daysInMonth(year, month);
+  const cells: Array<string | null> = [];
+  for (let i = 0; i < firstDow; i++) cells.push(null);
+  for (let d = 1; d <= count; d++) {
+    cells.push(`${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
+  }
+  return cells;
+}
+
 interface OpenWindow {
   key: string;
   name: string; // "March break", "Family Day", "PA day", or an ideal window's label
@@ -181,7 +225,7 @@ interface OpenWindow {
   days: number; // inclusive days of the extended range
 }
 
-export default function YearView({ trips }: Props) {
+export default function YearView({ trips, counts }: Props) {
   // null until mounted — the body is client-only, so localStorage and the
   // viewport width can decide the default without a hydration mismatch.
   const [openState, setOpenState] = useState<boolean | null>(null);
@@ -199,10 +243,18 @@ export default function YearView({ trips }: Props) {
   const [formStart, setFormStart] = useState("");
   const [formEnd, setFormEnd] = useState("");
   const [saving, setSaving] = useState(false);
-  // Popovers render position:fixed (anchored at open time) so the strip's
-  // overflow container can't clip them; these hold the anchor coordinates.
+  // "Go where?" sheet: which open window is being planned, the wishlist,
+  // and per-destination climate (loaded lazily when the sheet first opens)
+  const [sheetWindow, setSheetWindow] = useState<OpenWindow | null>(null);
+  const [wishlist, setWishlist] = useState<WishlistDest[]>([]);
+  const [destClimate, setDestClimate] = useState<Record<string, MonthClimate[] | "error">>({});
+  // The destination picker renders position:fixed (anchored at open time) so
+  // the strip's overflow container can't clip it; this holds the anchor.
   const [pickerPos, setPickerPos] = useState<{ top: number; left: number } | null>(null);
-  const [addPos, setAddPos] = useState<{ top: number; left: number } | null>(null);
+  // Add-window sheet's calendar: viewed month + tap-start/tap-end phase
+  const [awYear, setAwYear] = useState(() => new Date().getFullYear());
+  const [awMonth, setAwMonth] = useState(() => new Date().getMonth());
+  const [awPhase, setAwPhase] = useState<"start" | "end">("start");
   // Edge fades on the horizontal strip — signal there's more to swipe
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [edges, setEdges] = useState({ left: false, right: false });
@@ -290,6 +342,101 @@ export default function YearView({ trips }: Props) {
     setFormLabel("");
     setFormStart("");
     setFormEnd("");
+  };
+
+  // ── Wishlist destinations (read-only here; managing them is elsewhere) ──
+  useEffect(() => {
+    let cancelled = false;
+    const supabase = createClient();
+    // Cast: wishlist_destinations isn't in the generated Database types yet
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any)
+      .from("wishlist_destinations")
+      .select("id, name, location, lat, lng, drive_hours, budget, best_time, why")
+      .order("drive_hours", { ascending: true })
+      .then(({ data }: { data: WishlistDest[] | null }) => {
+        if (!cancelled && data) setWishlist(data);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Climate per wishlist destination, fetched only once a sheet opens.
+  // climateCache dedupes across destinations and sheet opens; a failure
+  // marks the row "error" so it renders without a chip instead of blocking.
+  useEffect(() => {
+    if (!sheetWindow) return;
+    let cancelled = false;
+    for (const d of wishlist) {
+      if (d.lat == null || d.lng == null) continue;
+      if (destClimate[d.id]) continue;
+      fetchClimate(d.lat, d.lng)
+        .then((c) => {
+          if (!cancelled) setDestClimate((prev) => ({ ...prev, [d.id]: c }));
+        })
+        .catch(() => {
+          if (!cancelled) setDestClimate((prev) => ({ ...prev, [d.id]: "error" }));
+        });
+    }
+    return () => {
+      cancelled = true;
+    };
+    // destClimate is read as a skip-list, not a trigger
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sheetWindow, wishlist]);
+
+  // Escape closes whichever overlay is up (backdrop click also closes)
+  useEffect(() => {
+    if (!addOpen && !sheetWindow && !pickerOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setAddOpen(false);
+        setSheetWindow(null);
+        setPickerOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [addOpen, sheetWindow, pickerOpen]);
+
+  const openAddSheet = () => {
+    setFormLabel("");
+    setFormStart("");
+    setFormEnd("");
+    setAwPhase("start");
+    const now = new Date();
+    setAwYear(now.getFullYear());
+    setAwMonth(now.getMonth());
+    setAddOpen(true);
+  };
+
+  // Same tap-start-then-tap-end interaction as the trips/new date picker
+  const handleAwDay = (dateStr: string) => {
+    if (awPhase === "start" || !formStart) {
+      setFormStart(dateStr);
+      setFormEnd("");
+      setAwPhase("end");
+    } else if (dateStr < formStart) {
+      setFormStart(dateStr);
+      setFormEnd("");
+    } else {
+      setFormEnd(dateStr);
+      setAwPhase("start");
+    }
+  };
+
+  const awPrevMonth = () => {
+    if (awMonth === 0) {
+      setAwMonth(11);
+      setAwYear((y) => y - 1);
+    } else setAwMonth((m) => m - 1);
+  };
+  const awNextMonth = () => {
+    if (awMonth === 11) {
+      setAwMonth(0);
+      setAwYear((y) => y + 1);
+    } else setAwMonth((m) => m + 1);
   };
 
   const handleDeleteWindow = async (id: string) => {
@@ -467,14 +614,17 @@ export default function YearView({ trips }: Props) {
       if (seen.has(key)) continue; // Fri PA + Mon stat share one run
       seen.add(key);
       if (overlapsTrip(runStart, runEnd)) continue;
-      // Name the run after its stat holiday when it has one
-      const stat = singles.find((e) => {
+      // Name the run after its stat holiday when it has one. The only run
+      // holding two stats in an Ontario school year is Good Friday + Easter
+      // Monday — call that one "Easter" rather than picking a side.
+      const statsInRun = singles.filter((e) => {
         const ed = parseDate(e.start);
         return e.kind === "stat" && ed >= runStart && ed <= runEnd;
       });
       found.push({
         key,
-        name: stat ? stat.label : "PA day",
+        name:
+          statsInRun.length >= 2 ? "Easter" : statsInRun[0] ? statsInRun[0].label : "PA day",
         kind: "weekend",
         coreStart: runStart,
         coreEnd: runEnd,
@@ -503,8 +653,10 @@ export default function YearView({ trips }: Props) {
       });
     }
 
+    // Soonest first, uncapped — every open window in the rolling 12 months
+    // renders (a cap here once hid March break behind the fall windows)
     found.sort((a, b) => a.start.getTime() - b.start.getTime());
-    return found.slice(0, 5); // soonest first, capped
+    return found;
   }, [trips, travelWindows, todayD, winEnd]);
 
   // ── Destination default: next upcoming journey, else Lisbon ─────────────
@@ -557,69 +709,51 @@ export default function YearView({ trips }: Props) {
 
   const isOpen = openState === true;
 
-  // Collapsed (and pre-mount): a slim disclosure row, not a card — it sits
-  // between the page header and the first journey card and must read as a
-  // section toggle, never an empty trip.
-  if (!isOpen) {
-    return (
-      <div
-        className="mx-4 md:mx-0 mt-1 md:mt-3"
-        style={{ borderBottom: "1px solid rgba(26,26,46,0.08)" }}
-      >
-        <button
-          onClick={() => setOpen(true)}
-          aria-expanded={false}
-          className="flex w-full items-center justify-between"
-          style={{ minHeight: 44 }}
-        >
-          <span
-            className="font-sans"
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-              color: "rgba(26,26,46,0.5)",
-            }}
-          >
-            Your year
-          </span>
-          <span style={{ fontSize: 11.5, color: "rgba(26,26,46,0.4)" }}>▾</span>
-        </button>
-      </div>
-    );
-  }
+  const metaText = `${counts.upcoming} upcoming · ${counts.past} past${
+    counts.archived > 0 ? ` · ${counts.archived} archived` : ""
+  }`;
 
   return (
-    <section
-      className="mx-4 mt-3 md:mx-0 md:mt-5 rounded-[14px]"
-      style={{ border: "1px solid rgba(26,26,46,0.08)", background: CARD_BG }}
-    >
-      {/* Header row — whole row collapses the card */}
-      <button
-        onClick={() => setOpen(false)}
-        aria-expanded
-        className="flex w-full items-center justify-between px-4 md:px-5"
-        style={{ minHeight: 44 }}
+    <>
+      {/* Header meta line — owned by YearView so the "Your year" trigger is
+          part of the header, not a stray row. Same style the page used. */}
+      <div
+        className="px-4 md:px-0 -mt-1 md:mt-1 font-sans flex items-center flex-wrap"
+        style={{
+          fontSize: 10,
+          fontWeight: 500,
+          textTransform: "uppercase",
+          letterSpacing: "0.14em",
+          color: "rgba(26,26,46,0.55)",
+        }}
       >
-        <span
-          className="font-sans"
+        <span>{metaText}</span>
+        <button
+          onClick={() => setOpen(!isOpen)}
+          aria-expanded={isOpen}
+          className="uppercase"
           style={{
-            fontSize: 12,
+            fontSize: 10,
             fontWeight: 600,
-            letterSpacing: "0.12em",
-            textTransform: "uppercase",
-            color: "rgba(26,26,46,0.5)",
+            letterSpacing: "0.14em",
+            color: "rgba(26,26,46,0.8)",
+            // Comfortable tap target without disturbing the line's rhythm
+            padding: "12px 8px",
+            margin: "-12px -8px -12px 0",
           }}
         >
-          Your year
-        </span>
-        <span style={{ fontSize: 11.5, color: "rgba(26,26,46,0.4)" }}>Hide ▴</span>
-      </button>
+          &nbsp;· Your year {isOpen ? "▾" : "▸"}
+        </button>
+      </div>
 
+      {isOpen && (
+    <section
+      className="mx-4 mt-3 md:mx-0 md:mt-4 rounded-[14px]"
+      style={{ border: "1px solid rgba(26,26,46,0.08)", background: CARD_BG }}
+    >
       {/* Body — on mobile the Open-windows list leads (vertical, actionable)
           and the strip follows; desktop keeps the strip first */}
-      <div className="flex flex-col px-4 pb-3 md:px-5 md:pb-4">
+      <div className="flex flex-col px-4 pt-2 pb-3 md:px-5 md:pb-4">
         <div
           className={`order-2 md:order-1 relative ${
             openWindows.length > 0
@@ -667,9 +801,9 @@ export default function YearView({ trips }: Props) {
                     const left = posStart(maxDate(w.start, winStart));
                     const width = posEnd(minDate(w.end, winEnd)) - left;
                     return (
-                      <Link
+                      <button
                         key={w.key}
-                        href={`/trips/new?start=${isoOf(w.start)}&end=${isoOf(w.end)}`}
+                        onClick={() => setSheetWindow(w)}
                         title={`${w.name} · ${formatRange(w.coreStart, w.coreEnd)} — no journey planned`}
                         style={{
                           position: "absolute",
@@ -689,10 +823,11 @@ export default function YearView({ trips }: Props) {
                           whiteSpace: "nowrap",
                           overflow: "hidden",
                           textOverflow: "ellipsis",
+                          textAlign: "left",
                         }}
                       >
                         Open
-                      </Link>
+                      </button>
                     );
                   })}
                   {visibleTrips.map((t) => {
@@ -739,14 +874,7 @@ export default function YearView({ trips }: Props) {
                     Ideal times
                   </div>
                   <button
-                    onClick={(e) => {
-                      const r = e.currentTarget.getBoundingClientRect();
-                      setAddPos({
-                        top: r.bottom + 4,
-                        left: Math.max(8, Math.min(r.left, window.innerWidth - 246)),
-                      });
-                      setAddOpen((v) => !v);
-                    }}
+                    onClick={openAddSheet}
                     className="flex items-center"
                     style={{
                       fontSize: 9.5,
@@ -758,61 +886,6 @@ export default function YearView({ trips }: Props) {
                   >
                     + Add window
                   </button>
-                  {addOpen && addPos && (
-                    <>
-                      <div className="fixed inset-0 z-20" onClick={() => setAddOpen(false)} />
-                      <div
-                        className="z-30 bg-white rounded-xl p-2.5 space-y-2"
-                        style={{
-                          position: "fixed",
-                          top: addPos.top,
-                          left: addPos.left,
-                          width: 230,
-                          border: "1px solid rgba(26,26,46,0.08)",
-                          boxShadow: "0 8px 30px rgba(26,26,46,0.18)",
-                        }}
-                      >
-                        <input
-                          value={formLabel}
-                          onChange={(e) => setFormLabel(e.target.value)}
-                          placeholder="Label (optional)"
-                          className="w-full rounded-lg px-2.5 py-1.5"
-                          style={{
-                            fontSize: 12,
-                            border: "1px solid rgba(26,26,46,0.12)",
-                            background: "#FAF7F2",
-                            outline: "none",
-                          }}
-                        />
-                        <div className="flex gap-1.5">
-                          <input
-                            type="date"
-                            value={formStart}
-                            onChange={(e) => setFormStart(e.target.value)}
-                            aria-label="Start date"
-                            className="w-1/2 rounded-lg px-1.5 py-1"
-                            style={{ fontSize: 11, border: "1px solid rgba(26,26,46,0.12)", background: "#FAF7F2" }}
-                          />
-                          <input
-                            type="date"
-                            value={formEnd}
-                            onChange={(e) => setFormEnd(e.target.value)}
-                            aria-label="End date"
-                            className="w-1/2 rounded-lg px-1.5 py-1"
-                            style={{ fontSize: 11, border: "1px solid rgba(26,26,46,0.12)", background: "#FAF7F2" }}
-                          />
-                        </div>
-                        <button
-                          onClick={handleAddWindow}
-                          disabled={saving || !formStart || !formEnd || formEnd < formStart}
-                          className="w-full rounded-lg py-1.5 disabled:opacity-40 transition-opacity"
-                          style={{ fontSize: 12, fontWeight: 600, background: "#1A1A2E", color: "#FAF7F2" }}
-                        >
-                          {saving ? "Adding…" : "Add"}
-                        </button>
-                      </div>
-                    </>
-                  )}
                 </div>
                 <div style={{ gridColumn: "2 / 14", position: "relative", height: 26 }}>
                   {travelWindows
@@ -1181,36 +1254,307 @@ export default function YearView({ trips }: Props) {
                 Open windows
               </div>
               <div className="mt-1">
-                {openWindows.map((w) => (
-                  <div
-                    key={`list-${w.key}`}
-                    className="flex items-center justify-between gap-3 py-[5px]"
-                  >
-                    <div style={{ fontSize: 12, color: "rgba(26,26,46,0.75)", minWidth: 0 }}>
-                      <span style={{ fontWeight: 600, color: "#1A1A2E" }}>{w.name}</span>
-                      {" · "}
-                      {formatRange(w.coreStart, w.coreEnd)}
-                      {" · "}
-                      {w.kind === "break"
-                        ? `${w.days} days with weekends`
-                        : w.kind === "weekend"
-                          ? `${w.days}-day weekend`
-                          : `${w.days} days`}
-                      {" · no journey planned"}
-                    </div>
-                    <Link
-                      href={`/trips/new?start=${isoOf(w.start)}&end=${isoOf(w.end)}`}
-                      className="whitespace-nowrap"
-                      style={{ fontSize: 11.5, fontWeight: 600, color: "#C4622D" }}
+                {openWindows.map((w, i) => {
+                  // Tiny month prefix on the first row of each month so the
+                  // eye can jump straight to "MAR" in a ~11-row list
+                  const prev = openWindows[i - 1];
+                  const newMonth =
+                    !prev ||
+                    prev.coreStart.getMonth() !== w.coreStart.getMonth() ||
+                    prev.coreStart.getFullYear() !== w.coreStart.getFullYear();
+                  return (
+                    <button
+                      key={`list-${w.key}`}
+                      onClick={() => setSheetWindow(w)}
+                      className="flex w-full items-center justify-between gap-2 py-[4px] text-left"
                     >
-                      Plan it →
-                    </Link>
-                  </div>
-                ))}
+                      <span
+                        className="uppercase flex-shrink-0"
+                        style={{
+                          width: 28,
+                          fontSize: 9,
+                          fontWeight: 600,
+                          letterSpacing: "0.08em",
+                          color: "rgba(26,26,46,0.35)",
+                        }}
+                      >
+                        {newMonth ? w.coreStart.toLocaleDateString("en-US", { month: "short" }) : ""}
+                      </span>
+                      <div
+                        className="flex-1"
+                        style={{ fontSize: 12, color: "rgba(26,26,46,0.75)", minWidth: 0 }}
+                      >
+                        <span style={{ fontWeight: 600, color: "#1A1A2E" }}>{w.name}</span>
+                        {" · "}
+                        {formatRange(w.coreStart, w.coreEnd)}
+                        {" · "}
+                        {w.kind === "break"
+                          ? `${w.days} days with weekends`
+                          : w.kind === "weekend"
+                            ? `${w.days}-day weekend`
+                            : `${w.days} days`}
+                      </div>
+                      <span
+                        className="whitespace-nowrap flex-shrink-0"
+                        style={{ fontSize: 11.5, fontWeight: 600, color: "#C4622D" }}
+                      >
+                        Plan it →
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
           </div>
         )}
       </div>
+
+      {/* Add an ideal window — the app's sheet chrome + the same calendar
+          interaction as the trips/new date picker (tap start, tap end) */}
+      {addOpen && (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-[60]" onClick={() => setAddOpen(false)} />
+          <div
+            role="dialog"
+            aria-label="Add an ideal window"
+            className="fixed z-[60] bg-white flex flex-col bottom-0 left-0 right-0 rounded-t-2xl max-w-mobile mx-auto md:bottom-auto md:top-1/2 md:left-1/2 md:right-auto md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-2xl md:w-[400px] md:max-w-[calc(100vw-48px)] md:mx-0"
+            style={{ maxHeight: "88vh" }}
+          >
+            <div className="flex justify-center pt-3 pb-1 flex-shrink-0 md:hidden">
+              <div className="w-9 h-1 bg-gray-200 rounded-full" />
+            </div>
+            <p className="text-center font-display italic text-base text-gray-900 pt-1 pb-2 flex-shrink-0 md:pt-5">
+              Add an ideal window
+            </p>
+
+            <div className="flex-1 overflow-y-auto px-5 pb-2">
+              <input
+                value={formLabel}
+                onChange={(e) => setFormLabel(e.target.value)}
+                placeholder="Ski week, cottage, visit family…"
+                className="w-full text-[14px] border-b border-black/10 py-2.5 outline-none bg-transparent placeholder:text-gray-300 text-[#1A1A2E]"
+              />
+
+              {/* Month navigation */}
+              <div className="flex items-center justify-between mt-4 mb-3">
+                <button
+                  onClick={awPrevMonth}
+                  className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-700 transition-colors"
+                  aria-label="Previous month"
+                >
+                  ‹
+                </button>
+                <span className="text-[14px] font-semibold text-gray-800">
+                  {MONTH_NAMES[awMonth]} {awYear}
+                </span>
+                <button
+                  onClick={awNextMonth}
+                  className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-700 transition-colors"
+                  aria-label="Next month"
+                >
+                  ›
+                </button>
+              </div>
+
+              {/* Day-of-week headers */}
+              <div className="grid grid-cols-7 mb-1">
+                {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+                  <div
+                    key={i}
+                    className="h-6 flex items-center justify-center text-[9px] text-gray-400 uppercase"
+                  >
+                    {d}
+                  </div>
+                ))}
+              </div>
+
+              {/* Calendar grid */}
+              <div className="grid grid-cols-7">
+                {buildCalendarCells(awYear, awMonth).map((dateStr, i) => {
+                  if (!dateStr) return <div key={`e-${i}`} className="h-9" />;
+                  const dayNum = Number(dateStr.slice(8));
+                  const isSelected = dateStr === formStart || dateStr === formEnd;
+                  const inRange = !!(
+                    formStart &&
+                    formEnd &&
+                    dateStr > formStart &&
+                    dateStr < formEnd
+                  );
+                  return (
+                    <div
+                      key={dateStr}
+                      className={`relative h-9 flex items-center justify-center ${inRange ? "bg-[#1A1A2E]/10" : ""}`}
+                    >
+                      <button
+                        onClick={() => handleAwDay(dateStr)}
+                        className={`w-8 h-8 flex items-center justify-center text-[13px] transition-colors ${
+                          isSelected
+                            ? "bg-[#1A1A2E] text-white rounded-md"
+                            : "text-gray-800 hover:bg-gray-100 rounded-md"
+                        }`}
+                      >
+                        {dayNum}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Footer — live summary + Save */}
+            <div className="flex-shrink-0 flex items-center justify-between px-5 py-4 border-t border-gray-50">
+              <p className="font-display italic text-[12px] text-gray-400 flex-1 pr-3">
+                {formStart && formEnd
+                  ? `${formatRange(parseDate(formStart), parseDate(formEnd))} · ${daysBetweenInclusive(parseDate(formStart), parseDate(formEnd))} days`
+                  : formStart
+                    ? `${fmtMD(parseDate(formStart))} → …`
+                    : "Tap a start date"}
+              </p>
+              <button
+                onClick={handleAddWindow}
+                disabled={saving || !formStart || !formEnd}
+                className="bg-[#1A1A2E] text-white text-xs font-semibold rounded-full px-5 py-2 disabled:opacity-40 active:scale-95 transition-all"
+              >
+                {saving ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* "Go where?" — tapping an open window proposes wishlist destinations.
+          Bottom sheet on mobile, centered card on desktop. */}
+      {sheetWindow &&
+        (() => {
+          const windowMonth = sheetWindow.start.getMonth();
+          const directHref = `/trips/new?start=${isoOf(sheetWindow.start)}&end=${isoOf(sheetWindow.end)}`;
+          const rankOf = (d: WishlistDest) => {
+            const c = destClimate[d.id];
+            return Array.isArray(c) ? TONE_RANK[scoreMonth(c[windowMonth])] : 4;
+          };
+          const rows = [...wishlist].sort(
+            (a, b) => rankOf(a) - rankOf(b) || (a.drive_hours ?? 99) - (b.drive_hours ?? 99)
+          );
+          return (
+            <>
+              <div
+                className="fixed inset-0 bg-black/40 z-[60]"
+                onClick={() => setSheetWindow(null)}
+              />
+              <div
+                role="dialog"
+                aria-label={`Plan ${sheetWindow.name}`}
+                className="fixed z-[60] bg-white flex flex-col bottom-0 left-0 right-0 rounded-t-2xl max-w-mobile mx-auto md:bottom-auto md:top-1/2 md:left-1/2 md:right-auto md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-2xl md:w-[440px] md:max-w-[calc(100vw-48px)] md:mx-0"
+                style={{ maxHeight: "80vh" }}
+              >
+                {/* Drag-handle look, matching the app's other sheets */}
+                <div className="flex justify-center pt-3 pb-1 flex-shrink-0 md:hidden">
+                  <div className="w-9 h-1 bg-gray-200 rounded-full" />
+                </div>
+
+                <div className="px-5 pt-2 pb-2.5 flex-shrink-0 md:pt-5">
+                  <h2 className="font-display italic text-[20px] text-gray-900">
+                    {sheetWindow.name}
+                  </h2>
+                  <p className="mt-0.5" style={{ fontSize: 12, color: "rgba(26,26,46,0.55)" }}>
+                    {formatRange(sheetWindow.start, sheetWindow.end)} · {sheetWindow.days} days
+                  </p>
+                  <Link
+                    href={directHref}
+                    className="inline-block mt-1"
+                    style={{ fontSize: 11.5, color: "rgba(26,26,46,0.45)" }}
+                  >
+                    or just pick dates →
+                  </Link>
+                </div>
+
+                <div className="flex-1 overflow-y-auto px-2 pb-8 md:pb-3">
+                  {rows.length === 0 ? (
+                    <div className="px-3 py-6 text-center">
+                      <p style={{ fontSize: 12.5, color: "rgba(26,26,46,0.5)" }}>
+                        Nothing on your wishlist yet
+                      </p>
+                      <Link
+                        href={directHref}
+                        className="inline-block mt-2"
+                        style={{ fontSize: 12, fontWeight: 600, color: "#C4622D" }}
+                      >
+                        Plan with these dates →
+                      </Link>
+                    </div>
+                  ) : (
+                    rows.map((d) => {
+                      const hasCoords = d.lat != null && d.lng != null;
+                      const href = hasCoords
+                        ? `${directHref}&destName=${encodeURIComponent(d.name)}&destLoc=${encodeURIComponent(d.location ?? "")}&destLat=${d.lat}&destLng=${d.lng}`
+                        : directHref;
+                      const c = destClimate[d.id];
+                      const monthClimate = Array.isArray(c) ? c[windowMonth] : null;
+                      const tone = monthClimate ? scoreMonth(monthClimate) : null;
+                      const secondLine = [
+                        d.location,
+                        d.drive_hours != null ? `${d.drive_hours} h drive` : null,
+                        d.budget,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ");
+                      return (
+                        <Link
+                          key={d.id}
+                          href={href}
+                          className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
+                        >
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 13.5, fontWeight: 600, color: "#1A1A2E" }}>
+                              {d.name}
+                            </div>
+                            {secondLine && (
+                              <div
+                                className="truncate"
+                                style={{ fontSize: 11, color: "rgba(26,26,46,0.5)", marginTop: 1 }}
+                              >
+                                {secondLine}
+                              </div>
+                            )}
+                          </div>
+                          {monthClimate && tone ? (
+                            <span
+                              className="whitespace-nowrap flex-shrink-0"
+                              style={{
+                                background: HEAT_STYLE[tone].bg,
+                                color: HEAT_STYLE[tone].fg,
+                                borderRadius: 999,
+                                padding: "3px 8px",
+                                fontSize: 10.5,
+                                fontWeight: 600,
+                              }}
+                            >
+                              {monthClimate.high}° · {TONE_WORD[tone]}
+                            </span>
+                          ) : c === "error" || !hasCoords ? null : (
+                            <span
+                              className="whitespace-nowrap flex-shrink-0"
+                              style={{
+                                background: "rgba(26,26,46,0.05)",
+                                color: "rgba(26,26,46,0.3)",
+                                borderRadius: 999,
+                                padding: "3px 10px",
+                                fontSize: 10.5,
+                              }}
+                            >
+                              —
+                            </span>
+                          )}
+                        </Link>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </>
+          );
+        })()}
     </section>
+      )}
+    </>
   );
 }

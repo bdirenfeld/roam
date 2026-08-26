@@ -85,11 +85,35 @@ function NewTripForm() {
     return start && end && end >= start ? { start, end } : null;
   }, [searchParams]);
 
-  // Destination autocomplete
-  const [destInput,       setDestInput]       = useState("");
+  // Destination handed over from a wishlist suggestion (?destName=…&destLat=…).
+  // The whole set is ignored unless name is present and lat/lng are finite
+  // in-range numbers. Note Number(null) and Number("") are 0, hence the raw
+  // string guards before coercion.
+  const seededDest = useMemo(() => {
+    const name = searchParams.get("destName")?.trim();
+    const latRaw = searchParams.get("destLat");
+    const lngRaw = searchParams.get("destLng");
+    if (!name || !latRaw || !lngRaw) return null;
+    const lat = Number(latRaw);
+    const lng = Number(lngRaw);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+    const loc = searchParams.get("destLoc")?.trim();
+    // Display like an autocomplete description (e.g. "Niagara Falls, ON")
+    return { display: loc || name, lat, lng };
+  }, [searchParams]);
+
+  // Destination autocomplete — pre-seeded from ?destName/destLat/destLng
+  // exactly as an autocomplete pick would set it (display value + coords;
+  // no placeId, which only feeds the details lookup). Still fully editable.
+  const [destInput,       setDestInput]       = useState(seededDest?.display ?? "");
   const [suggestions,     setSuggestions]     = useState<DestinationPrediction[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [destination,     setDestination]     = useState<SelectedDestination | null>(null);
+  const [destination,     setDestination]     = useState<SelectedDestination | null>(
+    seededDest
+      ? { name: seededDest.display, placeId: "", lat: seededDest.lat, lng: seededDest.lng }
+      : null
+  );
   const [loadingDetails,  setLoadingDetails]  = useState(false);
   const sessionToken = useRef(crypto.randomUUID());
   const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -131,9 +155,11 @@ function NewTripForm() {
     }
   }, [destination, startDate, tripNameDirty]);
 
-  // Debounced city autocomplete
+  // Debounced city autocomplete. The second guard keeps the dropdown from
+  // popping open when the input merely reflects an already-confirmed
+  // destination (e.g. seeded from a wishlist link on mount).
   useEffect(() => {
-    if (destInput.length < 2) {
+    if (destInput.length < 2 || (destination && destInput === destination.name)) {
       setSuggestions([]);
       setShowSuggestions(false);
       return;
@@ -149,7 +175,7 @@ function NewTripForm() {
         setShowSuggestions(true);
       } catch { /* ignore */ }
     }, 300);
-  }, [destInput]);
+  }, [destInput, destination]);
 
   const handleSelectSuggestion = useCallback(async (p: DestinationPrediction) => {
     setDestInput(p.description);

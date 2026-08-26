@@ -19,7 +19,7 @@ export const FAMILY_DATES: FamilyDate[] = [
   { name: "Mia",     month: 8,  day: 7,  group: "immediate" },
   { name: "Bodhi",   month: 8,  day: 31, group: "immediate" },
   { name: "Finn",    month: 11, day: 25, group: "immediate" }, // the dog
-  { name: "Eisha",   month: 12, day: 1,  group: "immediate" },
+  { name: "Isha",    month: 12, day: 1,  group: "immediate" },
 
   // Extended family — confirmed by Brennan, Aug 2026
   { name: "Arlene",  month: 1,  day: 3,  group: "family" },
