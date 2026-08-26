@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowCounterClockwise, Trash } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import { setTripArchived } from "@/lib/tripArchive";
+import { isPastJourney } from "@/lib/tripRecency";
 import type { Trip } from "@/types/database";
 
 interface Props {
@@ -21,6 +22,15 @@ function formatDateShort(start: string, end: string): string {
   const eM = e.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
   if (sM === eM) return `${sM} ${s.getDate()}–${e.getDate()}`;
   return `${sM} ${s.getDate()} – ${eM} ${e.getDate()}`;
+}
+
+// An archived trip whose dates haven't passed gets an honest label —
+// it's shelved, not over.
+function dateLine(trip: Trip): string {
+  const base = formatDateShort(trip.start_date, trip.end_date);
+  return trip.archived === true && !isPastJourney(trip)
+    ? `${base} · still upcoming`
+    : base;
 }
 
 export default function PastJourneysList({ trips, openDayByTrip }: Props) {
@@ -110,7 +120,7 @@ export default function PastJourneysList({ trips, openDayByTrip }: Props) {
                   className="text-[9px] uppercase tracking-widest mt-0.5"
                   style={{ color: "#C4C0B8" }}
                 >
-                  {formatDateShort(trip.start_date, trip.end_date)}
+                  {dateLine(trip)}
                 </p>
               </div>
             </Link>
@@ -164,7 +174,7 @@ export default function PastJourneysList({ trips, openDayByTrip }: Props) {
                     color: "rgba(26,26,46,0.55)",
                   }}
                 >
-                  {formatDateShort(trip.start_date, trip.end_date)}
+                  {dateLine(trip)}
                 </div>
               </div>
             </Link>

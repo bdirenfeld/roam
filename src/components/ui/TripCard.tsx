@@ -2,8 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { DotsThree, PencilSimpleLine, Archive, Trash } from "@phosphor-icons/react";
 import TripCover from "./TripCover";
 import TripCoverEditModal from "./TripCoverEditModal";
+import { createClient } from "@/lib/supabase/client";
+import { setTripArchived } from "@/lib/tripArchive";
 import type { Trip } from "@/types/database";
 
 interface Props {
@@ -34,8 +38,32 @@ function formatDateCompact(start: string, end: string): string {
 }
 
 export default function TripCard({ trip, openDayId }: Props) {
+  const router = useRouter();
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(trip.cover_image_url ?? null);
   const [showModal,     setShowModal]     = useState(false);
+  const [menuOpen,      setMenuOpen]      = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting,      setDeleting]      = useState(false);
+
+  const handleArchive = async () => {
+    setMenuOpen(false);
+    const supabase = createClient();
+    const failure = await setTripArchived(supabase, trip.id, true);
+    if (failure) { console.error("Failed to archive journey:", failure); return; }
+    router.refresh();
+  };
+
+  const handleDelete = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    const supabase = createClient();
+    await supabase.from("cards").delete().eq("trip_id", trip.id);
+    await supabase.from("days").delete().eq("trip_id", trip.id);
+    await supabase.from("trips").delete().eq("id", trip.id);
+    setDeleting(false);
+    setConfirmDelete(false);
+    router.refresh();
+  };
 
   return (
     <>
@@ -64,19 +92,102 @@ export default function TripCard({ trip, openDayId }: Props) {
           </article>
         </Link>
 
-        {/* Pencil button — hover only, never on touch screens */}
+        {/* ··· menu — one deliberate door for manage actions. Hover-reveal on
+            desktop; always visible on touch (the old pencil was unreachable
+            on phones). Delete stays behind its own confirmation. */}
         <button
-          onClick={() => setShowModal(true)}
-          className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full flex items-center justify-center opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-opacity duration-150 [@media(hover:none)]:hidden"
+          onClick={() => setMenuOpen((v) => !v)}
+          className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full flex items-center justify-center opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity duration-150"
           style={{ background: "rgba(0,0,0,0.5)" }}
-          aria-label="Edit cover image"
+          aria-label={`Options for ${trip.title}`}
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-          </svg>
+          <DotsThree size={16} weight="bold" color="white" />
         </button>
+
+        {menuOpen && (
+          <>
+            <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)} />
+            <div
+              className="absolute top-10 right-2 z-30 w-[176px] bg-white rounded-xl overflow-hidden"
+              role="menu"
+              style={{
+                border: "1px solid rgba(26,26,46,0.08)",
+                boxShadow: "0 8px 30px rgba(26,26,46,0.18)",
+              }}
+            >
+              <button
+                role="menuitem"
+                onClick={() => { setMenuOpen(false); setShowModal(true); }}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] text-gray-800 hover:bg-gray-50 transition-colors"
+              >
+                <PencilSimpleLine size={14} weight="light" className="text-gray-500" />
+                Change cover
+              </button>
+              <button
+                role="menuitem"
+                onClick={handleArchive}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] text-gray-800 hover:bg-gray-50 transition-colors border-t border-black/5"
+              >
+                <Archive size={14} weight="light" className="text-gray-500" />
+                Archive
+              </button>
+              <button
+                role="menuitem"
+                onClick={() => { setMenuOpen(false); setConfirmDelete(true); }}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] text-red-500 hover:bg-red-50 transition-colors border-t border-black/5"
+              >
+                <Trash size={14} weight="light" className="text-red-400" />
+                Delete…
+              </button>
+            </div>
+          </>
+        )}
       </div>
+
+      {/* Delete confirmation — same sheet pattern as Past journeys */}
+      {confirmDelete && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/40 z-[60]"
+            onClick={() => !deleting && setConfirmDelete(false)}
+          />
+          <div
+            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl z-[60] max-w-mobile mx-auto flex flex-col"
+            style={{ maxHeight: "85vh" }}
+          >
+            <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+              <div className="w-9 h-1 bg-gray-200 rounded-full" />
+            </div>
+            <div className="flex-1 overflow-y-auto px-5 pt-3">
+              <h2 className="text-[22px] text-gray-900 mb-2 font-display italic">
+                Delete &ldquo;{trip.title}&rdquo;?
+              </h2>
+              <p className="text-[14px] text-gray-500 leading-relaxed">
+                This will permanently remove the journey and all its cards. This cannot be undone.
+              </p>
+            </div>
+            <div className="flex-shrink-0 px-5 pt-4 pb-10 space-y-2.5">
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="w-full py-3.5 rounded-xl bg-[#1A1A2E] text-white text-[15px] font-semibold disabled:opacity-50 active:scale-[0.99] transition-all"
+              >
+                {deleting ? "Deleting…" : "Delete permanently"}
+              </button>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                disabled={deleting}
+                className="w-full py-3.5 rounded-xl text-[15px] font-medium text-gray-500 active:scale-[0.99] transition-all disabled:opacity-40"
+                style={{ background: "white", border: "0.5px solid rgba(0,0,0,0.10)" }}
+              >
+                Keep this journey
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {showModal && (
         <TripCoverEditModal

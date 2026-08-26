@@ -6,7 +6,7 @@ import PastJourneysList from "@/components/trip/PastJourneysList";
 import type { Trip } from "@/types/database";
 import { fetchAndStoreCover } from "@/lib/unsplash";
 import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
-import { belongsInPastJourneys } from "@/lib/tripRecency";
+import { belongsInPastJourneys, isPastJourney } from "@/lib/tripRecency";
 import { createSampleJourney } from "@/lib/sampleTrip/actions";
 import AddToHomeScreenHint from "@/components/ui/AddToHomeScreenHint";
 
@@ -61,10 +61,13 @@ export default async function TripsPage() {
     if (openDay) openDayByTrip[tripId] = openDay.id;
   }
 
-  // A journey is "past" when explicitly archived, or by the read-time recency
-  // rule: its end_date is >7 days behind us. `status` plays no part.
+  // Dates are facts, archive is a choice — never mixed (Brennan, Aug 26):
+  // "Past journeys" holds only trips whose dates have passed; explicitly
+  // archived trips get their own section whatever their dates. `status`
+  // plays no part. (When the past list spans years, add year dividers here.)
   const upcoming = trips?.filter((t: Trip) => !belongsInPastJourneys(t)) ?? [];
-  const past = trips?.filter((t: Trip) => belongsInPastJourneys(t)) ?? [];
+  const past = trips?.filter((t: Trip) => !t.archived && isPastJourney(t)) ?? [];
+  const archivedTrips = trips?.filter((t: Trip) => t.archived === true) ?? [];
 
   return (
     <div>
@@ -101,6 +104,7 @@ export default async function TripsPage() {
               }}
             >
               {upcoming.length} upcoming · {past.length} past
+              {archivedTrips.length > 0 ? ` · ${archivedTrips.length} archived` : ""}
             </div>
           </div>
         </div>
@@ -140,9 +144,33 @@ export default async function TripsPage() {
                     <div className="flex-1" style={{ height: "0.5px", background: "#E8E3DA" }} />
                   </div>
 
-                  {/* Rows with inline Restore/Delete — the one surface for
-                      managing past journeys (settings has Restore too). */}
+                  {/* Date-past rows — delete only; there's nothing to restore. */}
                   <PastJourneysList trips={past} openDayByTrip={openDayByTrip} />
+                </>
+              )}
+
+              {/* Archived — shelved on purpose, whatever their dates. Only
+                  rendered when something is archived. Restore puts a future
+                  trip back in Upcoming; a date-past one lands in Past above. */}
+              {archivedTrips.length > 0 && (
+                <>
+                  <div className="mt-6 mb-3 flex items-center gap-3 md:mt-10 md:mb-3.5 md:gap-4">
+                    <div className="flex-1" style={{ height: "0.5px", background: "#E8E3DA" }} />
+                    <span
+                      className="md:hidden font-display italic text-sm"
+                      style={{ color: "#B8B4AC" }}
+                    >
+                      Archived
+                    </span>
+                    <span
+                      className="hidden md:inline font-display italic"
+                      style={{ fontSize: 15, color: "rgba(26,26,46,0.55)" }}
+                    >
+                      Archived
+                    </span>
+                    <div className="flex-1" style={{ height: "0.5px", background: "#E8E3DA" }} />
+                  </div>
+                  <PastJourneysList trips={archivedTrips} openDayByTrip={openDayByTrip} />
                 </>
               )}
             </>
