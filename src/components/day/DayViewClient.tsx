@@ -259,7 +259,6 @@ function WeatherExpansion({
   days,
   activeDayId,
   onDaySelect,
-  bare = false,
 }: {
   id: string;
   expanded: boolean;
@@ -268,13 +267,11 @@ function WeatherExpansion({
   days: Day[];
   activeDayId: string;
   onDaySelect: (day: Day) => void;
-  /** Desktop sits on parchment — skip the mobile white backdrop. */
-  bare?: boolean;
 }) {
   return (
     <div
       id={id}
-      className={`overflow-hidden transition-[max-height] duration-300 ease-out ${bare ? "" : "bg-white"}`}
+      className="overflow-hidden transition-[max-height] duration-300 ease-out bg-white"
       style={{ maxHeight: expanded ? "280px" : "0px" }}
     >
       {weather && (
@@ -714,30 +711,41 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, re
           />
         </div>
 
-        {/* Weather — same subtitle+expansion pair the mobile header has */}
-        <div className="ml-auto">
+        {/* Weather — compact chip; the full panel floats as a popover (like
+            DayPicker) so it costs no layout space */}
+        <div className="ml-auto relative">
           <WeatherSubtitle
             weather={dayWeather}
             expanded={weatherExpanded}
             onToggle={() => setWeatherExpanded((v) => !v)}
             controlsId="weather-expansion-desktop"
           />
-        </div>
-      </div>
-
-      {/* Desktop-only weather expansion — full Hourly + Outlook panel */}
-      <div className="hidden md:block md:px-10">
-        <div className="max-w-[640px] ml-auto">
-          <WeatherExpansion
-            id="weather-expansion-desktop"
-            expanded={weatherExpanded}
-            weather={dayWeather}
-            weatherByDate={weatherByDate}
-            days={days}
-            activeDayId={dayWithCards.id}
-            onDaySelect={handleDaySelect}
-            bare
-          />
+          {weatherExpanded && (
+            <>
+              <div
+                className="fixed inset-0 z-30"
+                onClick={() => setWeatherExpanded(false)}
+              />
+              <div
+                id="weather-expansion-desktop"
+                className="absolute right-0 top-full mt-2 z-40 w-[440px] bg-white rounded-2xl overflow-hidden"
+                style={{
+                  border: "1px solid rgba(26,26,46,0.12)",
+                  boxShadow: "0 8px 30px rgba(26,26,46,0.14)",
+                }}
+              >
+                <WeatherExpansion
+                  id="weather-expansion-desktop-panel"
+                  expanded
+                  weather={dayWeather}
+                  weatherByDate={weatherByDate}
+                  days={days}
+                  activeDayId={dayWithCards.id}
+                  onDaySelect={handleDaySelect}
+                />
+              </div>
+            </>
+          )}
         </div>
       </div>
 
