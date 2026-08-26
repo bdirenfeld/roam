@@ -24,17 +24,16 @@ export const FAMILY_DATES: FamilyDate[] = [
   // Extended family — confirmed by Brennan, Aug 2026
   { name: "Arlene",  month: 1,  day: 3,  group: "family" },
   { name: "Gary",    month: 2,  day: 10, group: "family" }, // date from Brennan directly
+  { name: "Ami",     month: 2,  day: 19, group: "family" }, // "Amelia" in the Outlook calendar
   { name: "Dylan",   month: 5,  day: 16, group: "family" },
-  { name: "Ami",     month: 9,  day: 13, group: "family" }, // from her 2020 party invite — confirm
+  { name: "Gorav",   month: 5,  day: 17, group: "family" }, // recurring Google Calendar event
   { name: "Jodi",    month: 11, day: 18, group: "family" },
-  // { name: "Gorov" } — Brennan wants him on; date not in any calendar, awaiting the date
 
   // ── ALREADY-EXTRACTED CANDIDATES (not rendered) ─────────────────────────
   // Pulled from the same Outlook calendar; awaiting Brennan's call on which
   // are parents / in-laws / close family. Promote by uncommenting a line
   // (and set group to "family").
   // { name: "Sheila",        month: 2,  day: 15, group: "family" },
-  // { name: "Amelia",        month: 2,  day: 19, group: "family" },
   // { name: "Norah",         month: 3,  day: 13, group: "family" },
   // { name: "Anna",          month: 3,  day: 20, group: "family" },
   // { name: "Will",          month: 6,  day: 1,  group: "family" },
