@@ -306,6 +306,40 @@ export default function DesktopMasthead() {
         </svg>
       </Link>
 
+      {/* How Roam works — always-visible help entry; the guide is also in the
+          profile dropdown, but a lost user looks for a "?", not a menu. */}
+      <a
+        href="/guide.html"
+        target="_blank"
+        rel="noopener"
+        title="How Roam works"
+        aria-label="How Roam works"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: CAPTION,
+          padding: 8,
+          marginRight: 6,
+          textDecoration: "none",
+        }}
+      >
+        <svg
+          width="17"
+          height="17"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <circle cx="12" cy="12" r="9" />
+          <path d="M9.2 9a2.8 2.8 0 0 1 5.44.9c0 1.87-2.64 2.35-2.64 3.85" />
+          <line x1="12" y1="17" x2="12" y2="17.01" />
+        </svg>
+      </a>
+
       {/* Profile dropdown — replaces the previous direct-link avatar. */}
       <div ref={menuRef} style={{ position: "relative" }}>
         <button
