@@ -29,6 +29,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { createClient } from "@/lib/supabase/client";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
+import CreateCardSheet from "@/components/plan/CreateCardSheet";
 import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/plan/ConfirmationPreviewSheet";
 import DocumentsSheet from "@/components/plan/DocumentsSheet";
 import TriageView from "@/components/plan/TriageView";
@@ -200,6 +201,8 @@ export default function PlanBoard({ trip, initialDays }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [addFromSavedDay, setAddFromSavedDay] = useState<DayWithCards | null>(null);
+  // Composer day — the board uses the same search-first sheet as the Agenda
+  const [composerDay, setComposerDay] = useState<DayWithCards | null>(null);
   const [pendingConf,  setPendingConf]  = useState<{ items: ParsedConfirmation[]; fileName: string; fileType: string } | null>(null);
   const [showDocs,     setShowDocs]     = useState(false);
   const [viewMode] = useState<"board" | "triage">("board");
@@ -730,38 +733,16 @@ export default function PlanBoard({ trip, initialDays }: Props) {
     );
   }, [supabase]);
 
-  // ── Inline card creation (board view) ───────────────────────
-  const handleCreateCard = useCallback(async (dayId: string, title: string) => {
-    const day = days.find((d) => d.id === dayId);
-    const endPos = day ? day.cards.reduce((m, c) => Math.max(m, c.position), 0) + 1 : 1;
-    const id = crypto.randomUUID();
-    const details = { title };
-    const newCard: Card = {
-      id, day_id: dayId, trip_id: trip.id,
-      start_time: null, end_time: null, position: endPos,
-      status: "in_itinerary", source_url: null,
-      details, ai_generated: false,
-      confirmed: false, created_at: new Date().toISOString(),
-      place_id: null, place: null,
-    };
+  // ── Card creation (board view) ──────────────────────────────
+  // The board opens the same CreateCardSheet the Agenda uses, so a card
+  // added here can be a searched Google place (pin, photo, hours) rather
+  // than a bare title. The sheet owns the insert; we splice the result in.
+  const handleComposerCreated = useCallback((card: Card) => {
     setDays((prev) =>
-      prev.map((d) => d.id === dayId ? { ...d, cards: [...d.cards, newCard] } : d)
+      prev.map((d) => (d.id === card.day_id ? { ...d, cards: [...d.cards, card] } : d))
     );
-
-    const { error } = await supabase.from("cards").insert({
-      id, day_id: dayId, trip_id: trip.id,
-      start_time: null, end_time: null, position: endPos,
-      status: "in_itinerary",
-      details, ai_generated: false,
-      place_id: null,
-    });
-    if (error) {
-      console.error("[PlanBoard.handleCreateCard] card insert failed:", error);
-      setDays((prev) =>
-        prev.map((d) => d.id === dayId ? { ...d, cards: d.cards.filter((c) => c.id !== id) } : d)
-      );
-    }
-  }, [days, trip.id, supabase]);
+    setComposerDay(null);
+  }, []);
 
   // ── Door 1: cards placed from the "Add from saved" picker ────
   // The picker writes via the shared helper and hands back the new card(s);
@@ -849,7 +830,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
       isPhotoBg={isPhotoBg}
       onCardTap={(card) => setSelectedCard(card)}
       onDelete={handleDelete}
-      onCreateCard={(title) => handleCreateCard(day.id, title)}
+      onOpenComposer={() => setComposerDay(day)}
       onAddFromSaved={() => setAddFromSavedDay(day)}
     />
   );
@@ -1011,7 +992,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
                     fullWidth
                     onCardTap={(card) => setSelectedCard(card)}
                     onDelete={handleDelete}
-                    onCreateCard={(title) => handleCreateCard(currentMobileDay.id, title)}
+                    onOpenComposer={() => setComposerDay(currentMobileDay)}
                     onAddFromSaved={() => setAddFromSavedDay(currentMobileDay)}
                   />
                 </div>
@@ -1177,6 +1158,20 @@ export default function PlanBoard({ trip, initialDays }: Props) {
           )}
         </div>
       )}{/* end board */}
+
+      {/* Card composer — same search-first sheet as the Agenda */}
+      {composerDay && (
+        <CreateCardSheet
+          dayId={composerDay.id}
+          tripId={trip.id}
+          endPosition={composerDay.cards.reduce((m, c) => Math.max(m, c.position), 0) + 1}
+          destination={trip.destination}
+          destinationLat={trip.destination_lat}
+          destinationLng={trip.destination_lng}
+          onClose={() => setComposerDay(null)}
+          onCardCreated={handleComposerCreated}
+        />
+      )}
 
       {pendingConf && (
         <ConfirmationPreviewSheet
@@ -1381,36 +1376,12 @@ interface DayColumnProps {
   fullWidth?: boolean;
   onCardTap: (card: Card) => void;
   onDelete: (cardId: string) => void;
-  onCreateCard: (title: string) => Promise<void>;
+  onOpenComposer: () => void;
   onAddFromSaved: () => void;
 }
 
-function DayColumn({ day, cards, dayIndex, fullWidth, onCardTap, onDelete, onCreateCard, onAddFromSaved }: DayColumnProps) {
+function DayColumn({ day, cards, dayIndex, fullWidth, onCardTap, onDelete, onOpenComposer, onAddFromSaved }: DayColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `${COL_PREFIX}${day.id}` });
-  const [isInlineAdding, setIsInlineAdding] = useState(false);
-  const [inlineTitle,    setInlineTitle]    = useState("");
-  const inlineRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (isInlineAdding) setTimeout(() => inlineRef.current?.focus(), 40);
-  }, [isInlineAdding]);
-
-  const submitInline = async () => {
-    const t = inlineTitle.trim();
-    setIsInlineAdding(false);
-    setInlineTitle("");
-    if (t) await onCreateCard(t);
-  };
-
-  const dismissInline = () => { setIsInlineAdding(false); setInlineTitle(""); };
-
-  // Placeholder presets — set the card TITLE only. No place, so no type and no
-  // times are written (handleCreateCard inserts place_id: null, no type).
-  const submitChip = async (label: string) => {
-    setIsInlineAdding(false);
-    setInlineTitle("");
-    await onCreateCard(label);
-  };
 
   return (
     <div data-col-idx={dayIndex} className={fullWidth ? "w-full h-full flex flex-col" : "w-[148px] min-w-[148px] flex-shrink-0 md:w-[280px] md:h-full md:min-h-0 flex flex-col"}>
@@ -1456,79 +1427,40 @@ function DayColumn({ day, cards, dayIndex, fullWidth, onCardTap, onDelete, onCre
             )}
           </div>
 
-          {/* Add a card — flush below last card, inside column surface */}
-          {isInlineAdding ? (
-            <div className="flex flex-col gap-2 shrink-0">
-              <div className="flex gap-1.5">
-                <input
-                  ref={inlineRef}
-                  value={inlineTitle}
-                  onChange={(e) => setInlineTitle(e.target.value)}
-                  placeholder="Name this stop..."
-                  className="flex-1 text-[13px] bg-white rounded-lg border border-gray-200 px-2.5 py-1.5 outline-none focus:border-gray-400 placeholder:text-gray-300 min-w-0"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") { e.preventDefault(); submitInline(); }
-                    if (e.key === "Escape") dismissInline();
-                  }}
-                  onBlur={() => setTimeout(dismissInline, 150)}
-                />
-                <button
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={submitInline}
-                  className="px-2.5 py-1.5 rounded-lg text-[12px] font-bold text-white flex-shrink-0"
-                  style={{ background: "#1A1A2E" }}
-                >
-                  Add
-                </button>
-              </div>
-              {/* Preset chips — one tap sets the title only (hairline pills) */}
-              <div className="flex flex-wrap gap-1.5 pl-2.5">
-                {["Dinner", "Lunch", "Free time"].map((c) => (
-                  <button
-                    key={c}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => submitChip(c)}
-                    className="px-2.5 py-1 rounded-full text-[12px] font-medium active:opacity-70 transition-opacity"
-                    style={{ boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)", color: "rgba(26,26,46,0.55)", letterSpacing: "-0.005em" }}
-                  >
-                    {c}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2 shrink-0">
-              {/* Door 1 — "Add from saved" reads first (quiet filled chip). */}
-              <button
-                onClick={onAddFromSaved}
-                className="w-full flex items-center justify-center gap-2 rounded-xl px-4 py-3 active:opacity-70 transition-opacity"
-                style={{
-                  background: "#F2EDE3",
-                  boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)",
-                  fontFamily: "'DM Sans', system-ui, sans-serif",
-                  fontWeight: 600, fontSize: "13.5px", color: "#1A1A2E", letterSpacing: "-0.005em",
-                }}
-              >
-                <BookmarkSimple size={14} weight="light" color="#1A1A2E" />
-                Add from saved
-              </button>
-              {/* Demoted — the existing blank-card composer trigger. */}
-              <button
-                onClick={() => setIsInlineAdding(true)}
-                className="w-full flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 active:opacity-70 transition-opacity"
-                style={{
-                  border: "1px dashed rgba(26,26,46,0.20)",
-                  fontFamily: "'Playfair Display', Georgia, serif", fontStyle: "italic",
-                  fontSize: "14px", color: "rgba(26,26,46,0.40)", letterSpacing: "-0.005em",
-                }}
-              >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(26,26,46,0.40)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                Add a card
-              </button>
-            </div>
-          )}
+          {/* Add a card — flush below last card, inside column surface.
+              Both doors now lead somewhere real: saved places, or a Google
+              search (the same sheet the Agenda uses). */}
+          <div className="flex flex-col gap-2 shrink-0">
+            {/* Door 1 — "Add from saved" reads first (quiet filled chip). */}
+            <button
+              onClick={onAddFromSaved}
+              className="w-full flex items-center justify-center gap-2 rounded-xl px-4 py-3 active:opacity-70 transition-opacity"
+              style={{
+                background: "#F2EDE3",
+                boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)",
+                fontFamily: "'DM Sans', system-ui, sans-serif",
+                fontWeight: 600, fontSize: "13.5px", color: "#1A1A2E", letterSpacing: "-0.005em",
+              }}
+            >
+              <BookmarkSimple size={14} weight="light" color="#1A1A2E" />
+              Add from saved
+            </button>
+            {/* Door 2 — search-first composer. */}
+            <button
+              onClick={onOpenComposer}
+              className="w-full flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 active:opacity-70 transition-opacity"
+              style={{
+                border: "1px dashed rgba(26,26,46,0.20)",
+                fontFamily: "'Playfair Display', Georgia, serif", fontStyle: "italic",
+                fontSize: "14px", color: "rgba(26,26,46,0.40)", letterSpacing: "-0.005em",
+              }}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(26,26,46,0.40)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Add a card
+            </button>
+          </div>
         </div>
       </div>{/* end card column body */}
     </div>

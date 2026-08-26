@@ -42,7 +42,12 @@ interface WishlistDest {
   budget: string | null;
   best_time: string | null;
   why: string | null;
+  // Precomputed monthly normals (12 elements, month-0 indexed). Null rows
+  // lazy-fetch and self-heal by writing the result back.
+  climate: MonthClimate[] | null;
 }
+
+const WISHLIST_COLS = "id, name, location, lat, lng, drive_hours, budget, best_time, why, climate";
 
 export interface YearViewTrip {
   id: string;
@@ -156,6 +161,16 @@ const TONE_WORD: Record<HeatTone, string> = {
 };
 const TONE_RANK: Record<HeatTone, number> = { great: 0, good: 1, fair: 2, rough: 3 };
 
+// Terse chip label: name the dominant problem when there is one, otherwise
+// the tone word — and nothing at all for a great month, where the green
+// already carries the message. e.g. "2° · cold", "24° · rainy", "22°".
+function chipLabel(c: MonthClimate, tone: HeatTone): string {
+  const reason =
+    c.high < 8 ? "cold" : c.high > 33 ? "hot" : c.rainShare >= 0.4 ? "rainy" : null;
+  if (reason) return `${c.high}° · ${reason}`;
+  return tone === "great" ? `${c.high}°` : `${c.high}° · ${TONE_WORD[tone]}`;
+}
+
 interface GeoResult {
   name: string;
   admin1?: string;
@@ -247,7 +262,21 @@ export default function YearView({ trips, counts }: Props) {
   // and per-destination climate (loaded lazily when the sheet first opens)
   const [sheetWindow, setSheetWindow] = useState<OpenWindow | null>(null);
   const [wishlist, setWishlist] = useState<WishlistDest[]>([]);
+  // Undo window for the two instant deletes (wishlist place, ideal window)
+  const [undo, setUndo] = useState<{ label: string; restore: () => Promise<void> } | null>(null);
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showUndo = (label: string, restore: () => Promise<void>) => {
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    setUndo({ label, restore });
+    undoTimerRef.current = setTimeout(() => setUndo(null), 6000);
+  };
   const [destClimate, setDestClimate] = useState<Record<string, MonthClimate[] | "error">>({});
+  // "+ Add a place" mini-form on the sheet
+  const [addPlaceOpen, setAddPlaceOpen] = useState(false);
+  const [placeQuery, setPlaceQuery] = useState("");
+  const [placeResults, setPlaceResults] = useState<GeoResult[]>([]);
+  const [placeSearching, setPlaceSearching] = useState(false);
+  const [addingPlace, setAddingPlace] = useState(false);
   // The destination picker renders position:fixed (anchored at open time) so
   // the strip's overflow container can't clip it; this holds the anchor.
   const [pickerPos, setPickerPos] = useState<{ top: number; left: number } | null>(null);
@@ -344,7 +373,7 @@ export default function YearView({ trips, counts }: Props) {
     setFormEnd("");
   };
 
-  // ── Wishlist destinations (read-only here; managing them is elsewhere) ──
+  // ── Wishlist destinations ───────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     const supabase = createClient();
@@ -352,7 +381,7 @@ export default function YearView({ trips, counts }: Props) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any)
       .from("wishlist_destinations")
-      .select("id, name, location, lat, lng, drive_hours, budget, best_time, why")
+      .select(WISHLIST_COLS)
       .order("drive_hours", { ascending: true })
       .then(({ data }: { data: WishlistDest[] | null }) => {
         if (!cancelled && data) setWishlist(data);
@@ -362,18 +391,34 @@ export default function YearView({ trips, counts }: Props) {
     };
   }, []);
 
-  // Climate per wishlist destination, fetched only once a sheet opens.
-  // climateCache dedupes across destinations and sheet opens; a failure
-  // marks the row "error" so it renders without a chip instead of blocking.
+  // Climate for a row: the precomputed column first (zero network), else
+  // whatever the lazy fetch has produced this session.
+  const climateOf = (d: WishlistDest): MonthClimate[] | "error" | null =>
+    (Array.isArray(d.climate) && d.climate.length === 12 ? d.climate : null) ??
+    destClimate[d.id] ??
+    null;
+
+  // Rows without a stored climate fetch it when a sheet first opens, then
+  // write it back so the row is free forever after (self-healing backfill —
+  // in practice only places added through "+ Add a place" land here).
   useEffect(() => {
     if (!sheetWindow) return;
     let cancelled = false;
+    const supabase = createClient();
     for (const d of wishlist) {
       if (d.lat == null || d.lng == null) continue;
+      if (Array.isArray(d.climate) && d.climate.length === 12) continue;
       if (destClimate[d.id]) continue;
       fetchClimate(d.lat, d.lng)
         .then((c) => {
-          if (!cancelled) setDestClimate((prev) => ({ ...prev, [d.id]: c }));
+          if (cancelled) return;
+          setDestClimate((prev) => ({ ...prev, [d.id]: c }));
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (supabase as any)
+            .from("wishlist_destinations")
+            .update({ climate: c })
+            .eq("id", d.id)
+            .then(() => {});
         })
         .catch(() => {
           if (!cancelled) setDestClimate((prev) => ({ ...prev, [d.id]: "error" }));
@@ -385,6 +430,147 @@ export default function YearView({ trips, counts }: Props) {
     // destClimate is read as a skip-list, not a trigger
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sheetWindow, wishlist]);
+
+  // Debounced geocoding for the add-a-place field
+  useEffect(() => {
+    const q = placeQuery.trim();
+    if (q.length < 2) {
+      setPlaceResults([]);
+      setPlaceSearching(false);
+      return;
+    }
+    setPlaceSearching(true);
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const rs = await geocode(q).catch(() => [] as GeoResult[]);
+      if (cancelled) return;
+      setPlaceResults(rs);
+      setPlaceSearching(false);
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [placeQuery]);
+
+  // Add a geocoded place to the wishlist. Climate is computed up front so
+  // the new row behaves like a seeded one; a failed fetch still inserts
+  // (climate null) and the lazy backfill picks it up next time.
+  const handleAddPlace = async (r: GeoResult) => {
+    if (addingPlace) return;
+    setAddingPlace(true);
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      setAddingPlace(false);
+      return;
+    }
+    const climateArr = await fetchClimate(r.latitude, r.longitude).catch(() => null);
+    const location = [r.admin1 || r.country].filter(Boolean).join("");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from("wishlist_destinations")
+      .insert({
+        user_id: user.id,
+        name: r.name,
+        location: location ? `${r.name}, ${location}` : r.name,
+        lat: r.latitude,
+        lng: r.longitude,
+        drive_hours: null,
+        budget: null,
+        best_time: null,
+        why: null,
+        source: "app",
+        climate: climateArr,
+      })
+      .select(WISHLIST_COLS)
+      .single();
+    setAddingPlace(false);
+    if (error || !data) {
+      console.error("Failed to add wishlist place:", error);
+      return;
+    }
+    setWishlist((prev) => [...prev, data as WishlistDest]);
+    setAddPlaceOpen(false);
+    setPlaceQuery("");
+    setPlaceResults([]);
+  };
+
+  // Instant delete, but never silent: the × sits close to the row's own tap
+  // target, so a mis-tap must be recoverable. Rows are re-inserted with their
+  // original id, which keeps the climate column and any future references.
+  const handleRemovePlace = async (id: string) => {
+    const prev = wishlist;
+    const row = wishlist.find((d) => d.id === id) ?? null;
+    setWishlist((w) => w.filter((d) => d.id !== id));
+    const supabase = createClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any)
+      .from("wishlist_destinations")
+      .delete()
+      .eq("id", id);
+    if (error) {
+      console.error("Failed to remove wishlist place:", error);
+      setWishlist(prev); // put it back rather than lie about the delete
+      return;
+    }
+    if (row) {
+      showUndo(`Removed ${row.name}`, async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: reErr } = await (supabase as any).from("wishlist_destinations").insert({
+          id: row.id, user_id: user.id, name: row.name, location: row.location,
+          lat: row.lat, lng: row.lng, drive_hours: row.drive_hours, budget: row.budget,
+          best_time: row.best_time, why: row.why, climate: row.climate,
+        });
+        if (!reErr) setWishlist((w) => (w.some((d) => d.id === row.id) ? w : [...w, row]));
+      });
+    }
+  };
+
+  // The destination chip appears in both the desktop lane and the mobile
+  // heat block; one definition, one shared popover (rendered once, fixed).
+  const destChip = (maxWidth: number) => (
+    <button
+      onClick={(e) => {
+        const r = e.currentTarget.getBoundingClientRect();
+        setPickerPos({
+          top: r.bottom + 4,
+          left: Math.max(8, Math.min(r.left, window.innerWidth - 236)),
+        });
+        setPickerOpen((v) => !v);
+        setQuery("");
+        setResults([]);
+      }}
+      className="font-sans flex items-center"
+      title="Change destination"
+      style={{ minHeight: 40, margin: "-7px 0", maxWidth }}
+    >
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 5,
+          background: "#F2EDE3",
+          border: "1px solid rgba(26,26,46,0.12)",
+          borderRadius: 999,
+          padding: "3px 9px",
+          fontSize: 10.5,
+          fontWeight: 600,
+          color: "#1A1A2E",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          maxWidth: "100%",
+        }}
+      >
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{dest?.label ?? "…"}</span>
+        ▾
+      </span>
+    </button>
+  );
 
   // Escape closes whichever overlay is up (backdrop click also closes)
   useEffect(() => {
@@ -440,6 +626,7 @@ export default function YearView({ trips, counts }: Props) {
   };
 
   const handleDeleteWindow = async (id: string) => {
+    const row = travelWindows.find((w) => w.id === id) ?? null;
     const supabase = createClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (supabase as any).from("travel_windows").delete().eq("id", id);
@@ -448,6 +635,24 @@ export default function YearView({ trips, counts }: Props) {
       return;
     }
     setTravelWindows((prev) => prev.filter((w) => w.id !== id));
+    if (row) {
+      showUndo(`Removed ${row.label || "window"}`, async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: reErr } = await (supabase as any).from("travel_windows").insert({
+          id: row.id, user_id: user.id, label: row.label,
+          start_date: row.start_date, end_date: row.end_date,
+        });
+        if (!reErr) {
+          setTravelWindows((prev) =>
+            prev.some((w) => w.id === row.id)
+              ? prev
+              : [...prev, row].sort((a, b) => a.start_date.localeCompare(b.start_date))
+          );
+        }
+      });
+    }
   };
 
   // ── Rolling 12-month window ─────────────────────────────────────────────
@@ -754,13 +959,10 @@ export default function YearView({ trips, counts }: Props) {
       {/* Body — on mobile the Open-windows list leads (vertical, actionable)
           and the strip follows; desktop keeps the strip first */}
       <div className="flex flex-col px-4 pt-2 pb-3 md:px-5 md:pb-4">
-        <div
-          className={`order-2 md:order-1 relative ${
-            openWindows.length > 0
-              ? "mt-2 pt-1 border-t border-[rgba(26,26,46,0.06)] md:mt-0 md:pt-0 md:border-t-0"
-              : ""
-          }`}
-        >
+        {/* The 5-lane strip is desktop-only. On a phone it was five lanes of
+            sideways swiping to reach what the Open-windows list already
+            says, so mobile gets the list + heat row + ideal pills instead. */}
+        <div className="hidden md:block order-2 md:order-1 relative">
           {/* The strip scrolls sideways on its own; the page never does */}
           <div ref={scrollRef} onScroll={updateEdges} className="overflow-x-auto">
             <div style={{ minWidth: 960 }}>
@@ -1083,100 +1285,7 @@ export default function YearView({ trips, counts }: Props) {
               <div style={{ ...GRID, borderTop: LANE_BORDER }} className="items-center py-[6px]">
                 <div style={{ ...STICKY_LABEL, alignItems: "flex-start" }}>
                   {/* 40px hit area; the visual pill is the inner span */}
-                  <button
-                    onClick={(e) => {
-                      const r = e.currentTarget.getBoundingClientRect();
-                      setPickerPos({
-                        top: r.bottom + 4,
-                        left: Math.max(8, Math.min(r.left, window.innerWidth - 236)),
-                      });
-                      setPickerOpen((v) => !v);
-                      setQuery("");
-                      setResults([]);
-                    }}
-                    className="font-sans flex items-center"
-                    title="Change destination"
-                    style={{ minHeight: 40, margin: "-7px 0", maxWidth: 106 }}
-                  >
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 5,
-                        background: "#F2EDE3",
-                        border: "1px solid rgba(26,26,46,0.12)",
-                        borderRadius: 999,
-                        padding: "3px 9px",
-                        fontSize: 10.5,
-                        fontWeight: 600,
-                        color: "#1A1A2E",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        maxWidth: "100%",
-                      }}
-                    >
-                      <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {dest?.label ?? "…"}
-                      </span>
-                      ▾
-                    </span>
-                  </button>
-                  {pickerOpen && pickerPos && (
-                    <>
-                      <div className="fixed inset-0 z-20" onClick={() => setPickerOpen(false)} />
-                      <div
-                        className="z-30 bg-white rounded-xl p-2"
-                        style={{
-                          position: "fixed",
-                          top: pickerPos.top,
-                          left: pickerPos.left,
-                          width: 220,
-                          border: "1px solid rgba(26,26,46,0.08)",
-                          boxShadow: "0 8px 30px rgba(26,26,46,0.18)",
-                        }}
-                      >
-                        <input
-                          autoFocus
-                          value={query}
-                          onChange={(e) => setQuery(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") runSearch();
-                          }}
-                          placeholder="Type a city, press Enter"
-                          className="w-full rounded-lg px-2.5 py-1.5"
-                          style={{
-                            fontSize: 12,
-                            border: "1px solid rgba(26,26,46,0.12)",
-                            background: "#FAF7F2",
-                            outline: "none",
-                          }}
-                        />
-                        {searching && (
-                          <div style={{ fontSize: 11, color: "rgba(26,26,46,0.4)", padding: "6px 4px 2px" }}>
-                            Searching…
-                          </div>
-                        )}
-                        {!searching &&
-                          results.map((r, i) => (
-                            <button
-                              key={`${r.latitude},${r.longitude},${i}`}
-                              onClick={() => {
-                                setDest({ label: r.name, lat: r.latitude, lng: r.longitude });
-                                setPickerOpen(false);
-                              }}
-                              className="w-full text-left rounded-lg px-2.5 py-1.5 hover:bg-gray-50 transition-colors"
-                              style={{ fontSize: 12, color: "#1A1A2E" }}
-                            >
-                              {r.name}
-                              <span style={{ color: "rgba(26,26,46,0.4)" }}>
-                                {r.admin1 ? `, ${r.admin1}` : ""}
-                                {r.country ? `, ${r.country}` : ""}
-                              </span>
-                            </button>
-                          ))}
-                      </div>
-                    </>
-                  )}
+                  {destChip(106)}
                 </div>
                 {months.map((m) => {
                   const c = climate?.[m.getMonth()];
@@ -1239,6 +1348,114 @@ export default function YearView({ trips, counts }: Props) {
           )}
         </div>
 
+        {/* ── Mobile substitute for the strip ────────────────────────────
+            Ideal windows as a plain wrapped pill row, and the heat row as a
+            6×2 grid (12 narrow cells don't survive a 390px screen). */}
+        <div
+          className={`md:hidden order-3 ${openWindows.length > 0 ? "mt-2.5 pt-2.5" : ""}`}
+          style={openWindows.length > 0 ? { borderTop: LANE_BORDER } : undefined}
+        >
+          <div className="flex items-center flex-wrap gap-1.5">
+            <span
+              className="uppercase"
+              style={{
+                fontSize: 9,
+                fontWeight: 600,
+                letterSpacing: "0.1em",
+                color: "rgba(26,26,46,0.4)",
+                marginRight: 2,
+              }}
+            >
+              Ideal times
+            </span>
+            {travelWindows
+              .filter((w) => parseDate(w.end_date) >= winStart && parseDate(w.start_date) <= winEnd)
+              .map((w) => (
+                <span
+                  key={w.id}
+                  className="inline-flex items-center"
+                  style={{
+                    borderRadius: 999,
+                    border: "1.5px solid rgba(53,118,110,0.55)",
+                    background: "rgba(53,118,110,0.08)",
+                    color: "#2F6E68",
+                    fontSize: 10.5,
+                    fontWeight: 600,
+                    padding: "3px 4px 3px 9px",
+                    maxWidth: "100%",
+                  }}
+                >
+                  <span className="truncate">
+                    {w.label || "Ideal window"} ·{" "}
+                    {formatRange(parseDate(w.start_date), parseDate(w.end_date))}
+                  </span>
+                  <button
+                    onClick={() => handleDeleteWindow(w.id)}
+                    aria-label={`Remove ${w.label || "ideal window"}`}
+                    className="flex items-center justify-center flex-shrink-0"
+                    style={{ width: 22, height: 22, fontSize: 12, color: "rgba(47,110,104,0.8)" }}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            <button
+              onClick={openAddSheet}
+              className="inline-flex items-center"
+              style={{
+                borderRadius: 999,
+                border: "1px dashed rgba(26,26,46,0.25)",
+                color: "rgba(26,26,46,0.5)",
+                fontSize: 10.5,
+                fontWeight: 600,
+                padding: "5px 10px",
+              }}
+            >
+              + Add window
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 mt-3">
+            <span
+              className="uppercase flex-shrink-0"
+              style={{
+                fontSize: 9,
+                fontWeight: 600,
+                letterSpacing: "0.1em",
+                color: "rgba(26,26,46,0.4)",
+              }}
+            >
+              Weather
+            </span>
+            {destChip(150)}
+          </div>
+          <div className="grid grid-cols-6 gap-1 mt-1.5">
+            {months.map((m) => {
+              const c = climate?.[m.getMonth()];
+              const tone = c ? scoreMonth(c) : null;
+              return (
+                <div
+                  key={`mheat-${m.getTime()}`}
+                  className="flex flex-col items-center justify-center"
+                  style={{
+                    height: 34,
+                    borderRadius: 6,
+                    background: tone ? HEAT_STYLE[tone].bg : "rgba(26,26,46,0.05)",
+                    color: tone ? HEAT_STYLE[tone].fg : "rgba(26,26,46,0.3)",
+                  }}
+                >
+                  <span style={{ fontSize: 8.5, opacity: 0.75, textTransform: "uppercase" }}>
+                    {m.toLocaleDateString("en-US", { month: "short" })}
+                  </span>
+                  <span style={{ fontSize: 11, fontWeight: 600, lineHeight: 1.1 }}>
+                    {c ? `${c.high}°` : "–"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Open windows — the takeaway, in words; leads on mobile */}
         {openWindows.length > 0 && (
           <div className="order-1 md:order-2 md:mt-2.5 md:pt-2 md:border-t md:border-[rgba(26,26,46,0.06)]">
@@ -1280,19 +1497,17 @@ export default function YearView({ trips, counts }: Props) {
                       >
                         {newMonth ? w.coreStart.toLocaleDateString("en-US", { month: "short" }) : ""}
                       </span>
+                      {/* One line, always: the text block truncates rather
+                          than wrapping, however long a window's label is */}
                       <div
-                        className="flex-1"
+                        className="flex-1 truncate"
                         style={{ fontSize: 12, color: "rgba(26,26,46,0.75)", minWidth: 0 }}
                       >
                         <span style={{ fontWeight: 600, color: "#1A1A2E" }}>{w.name}</span>
                         {" · "}
                         {formatRange(w.coreStart, w.coreEnd)}
                         {" · "}
-                        {w.kind === "break"
-                          ? `${w.days} days with weekends`
-                          : w.kind === "weekend"
-                            ? `${w.days}-day weekend`
-                            : `${w.days} days`}
+                        {w.days}d
                       </div>
                       <span
                         className="whitespace-nowrap flex-shrink-0"
@@ -1307,6 +1522,66 @@ export default function YearView({ trips, counts }: Props) {
           </div>
         )}
       </div>
+
+      {/* Destination picker popover — one instance, shared by the desktop
+          lane chip and the mobile heat chip (position:fixed, so it can live
+          outside the strip's overflow container) */}
+      {pickerOpen && pickerPos && (
+        <>
+          <div className="fixed inset-0 z-20" onClick={() => setPickerOpen(false)} />
+          <div
+            className="z-30 bg-white rounded-xl p-2"
+            style={{
+              position: "fixed",
+              top: pickerPos.top,
+              left: pickerPos.left,
+              width: 220,
+              border: "1px solid rgba(26,26,46,0.08)",
+              boxShadow: "0 8px 30px rgba(26,26,46,0.18)",
+            }}
+          >
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") runSearch();
+              }}
+              placeholder="Type a city, press Enter"
+              className="w-full rounded-lg px-2.5 py-1.5"
+              style={{
+                fontSize: 12,
+                border: "1px solid rgba(26,26,46,0.12)",
+                background: "#FAF7F2",
+                outline: "none",
+              }}
+            />
+            {searching && (
+              <div style={{ fontSize: 11, color: "rgba(26,26,46,0.4)", padding: "6px 4px 2px" }}>
+                Searching…
+              </div>
+            )}
+            {!searching &&
+              results.map((r, i) => (
+                <button
+                  key={`${r.latitude},${r.longitude},${i}`}
+                  onClick={() => {
+                    setDest({ label: r.name, lat: r.latitude, lng: r.longitude });
+                    setPickerOpen(false);
+                  }}
+                  className="w-full text-left rounded-lg px-2.5 py-1.5 hover:bg-gray-50 transition-colors"
+                  style={{ fontSize: 12, color: "#1A1A2E" }}
+                >
+                  {r.name}
+                  <span style={{ color: "rgba(26,26,46,0.4)" }}>
+                    {r.admin1 ? `, ${r.admin1}` : ""}
+                    {r.country ? `, ${r.country}` : ""}
+                  </span>
+                </button>
+              ))}
+          </div>
+        </>
+      )}
 
       {/* Add an ideal window — the app's sheet chrome + the same calendar
           interaction as the trips/new date picker (tap start, tap end) */}
@@ -1428,7 +1703,7 @@ export default function YearView({ trips, counts }: Props) {
           const windowMonth = sheetWindow.start.getMonth();
           const directHref = `/trips/new?start=${isoOf(sheetWindow.start)}&end=${isoOf(sheetWindow.end)}`;
           const rankOf = (d: WishlistDest) => {
-            const c = destClimate[d.id];
+            const c = climateOf(d);
             return Array.isArray(c) ? TONE_RANK[scoreMonth(c[windowMonth])] : 4;
           };
           const rows = [...wishlist].sort(
@@ -1487,7 +1762,7 @@ export default function YearView({ trips, counts }: Props) {
                       const href = hasCoords
                         ? `${directHref}&destName=${encodeURIComponent(d.name)}&destLoc=${encodeURIComponent(d.location ?? "")}&destLat=${d.lat}&destLng=${d.lng}`
                         : directHref;
-                      const c = destClimate[d.id];
+                      const c = climateOf(d);
                       const monthClimate = Array.isArray(c) ? c[windowMonth] : null;
                       const tone = monthClimate ? scoreMonth(monthClimate) : null;
                       const secondLine = [
@@ -1498,62 +1773,160 @@ export default function YearView({ trips, counts }: Props) {
                         .filter(Boolean)
                         .join(" · ");
                       return (
-                        <Link
-                          key={d.id}
-                          href={href}
-                          className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
-                        >
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ fontSize: 13.5, fontWeight: 600, color: "#1A1A2E" }}>
-                              {d.name}
-                            </div>
-                            {secondLine && (
-                              <div
-                                className="truncate"
-                                style={{ fontSize: 11, color: "rgba(26,26,46,0.5)", marginTop: 1 }}
-                              >
-                                {secondLine}
+                        <div key={d.id} className="group/wl relative">
+                          <Link
+                            href={href}
+                            className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
+                          >
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontSize: 13.5, fontWeight: 600, color: "#1A1A2E" }}>
+                                {d.name}
                               </div>
-                            )}
-                          </div>
-                          {monthClimate && tone ? (
-                            <span
-                              className="whitespace-nowrap flex-shrink-0"
-                              style={{
-                                background: HEAT_STYLE[tone].bg,
-                                color: HEAT_STYLE[tone].fg,
-                                borderRadius: 999,
-                                padding: "3px 8px",
-                                fontSize: 10.5,
-                                fontWeight: 600,
-                              }}
-                            >
-                              {monthClimate.high}° · {TONE_WORD[tone]}
+                              {secondLine && (
+                                <div
+                                  className="truncate"
+                                  style={{ fontSize: 11, color: "rgba(26,26,46,0.5)", marginTop: 1 }}
+                                >
+                                  {secondLine}
+                                </div>
+                              )}
+                            </div>
+                            {/* Chip sits clear of the remove button */}
+                            <span className="flex-shrink-0 pr-6">
+                              {monthClimate && tone ? (
+                                <span
+                                  className="whitespace-nowrap"
+                                  style={{
+                                    background: HEAT_STYLE[tone].bg,
+                                    color: HEAT_STYLE[tone].fg,
+                                    borderRadius: 999,
+                                    padding: "3px 8px",
+                                    fontSize: 10.5,
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  {chipLabel(monthClimate, tone)}
+                                </span>
+                              ) : c === "error" || !hasCoords ? null : (
+                                <span
+                                  className="whitespace-nowrap"
+                                  style={{
+                                    background: "rgba(26,26,46,0.05)",
+                                    color: "rgba(26,26,46,0.3)",
+                                    borderRadius: 999,
+                                    padding: "3px 10px",
+                                    fontSize: 10.5,
+                                  }}
+                                >
+                                  —
+                                </span>
+                              )}
                             </span>
-                          ) : c === "error" || !hasCoords ? null : (
-                            <span
-                              className="whitespace-nowrap flex-shrink-0"
-                              style={{
-                                background: "rgba(26,26,46,0.05)",
-                                color: "rgba(26,26,46,0.3)",
-                                borderRadius: 999,
-                                padding: "3px 10px",
-                                fontSize: 10.5,
-                              }}
-                            >
-                              —
-                            </span>
-                          )}
-                        </Link>
+                          </Link>
+                          {/* Remove — quiet on desktop until hover, always
+                              faintly there on touch. Deletes immediately. */}
+                          <button
+                            onClick={() => handleRemovePlace(d.id)}
+                            aria-label={`Remove ${d.name} from wishlist`}
+                            className="absolute top-1/2 -translate-y-1/2 right-1 flex items-center justify-center rounded-full opacity-0 [@media(hover:hover)]:group-hover/wl:opacity-100 [@media(hover:none)]:opacity-40 transition-opacity"
+                            style={{ width: 24, height: 24, fontSize: 13, color: "rgba(26,26,46,0.45)" }}
+                          >
+                            ×
+                          </button>
+                        </div>
                       );
                     })
                   )}
+
+                  {/* Add a place — geocoded, stored with its climate so it
+                      behaves like a seeded row from the next open onward */}
+                  <div className="px-3 pt-1">
+                    {!addPlaceOpen ? (
+                      <button
+                        onClick={() => setAddPlaceOpen(true)}
+                        style={{ fontSize: 12, fontWeight: 600, color: "rgba(26,26,46,0.45)" }}
+                      >
+                        + Add a place
+                      </button>
+                    ) : (
+                      <div>
+                        <input
+                          autoFocus
+                          value={placeQuery}
+                          onChange={(e) => setPlaceQuery(e.target.value)}
+                          placeholder="Search a city…"
+                          className="w-full rounded-lg px-2.5 py-2"
+                          style={{
+                            fontSize: 12.5,
+                            border: "1px solid rgba(26,26,46,0.12)",
+                            background: "#FAF7F2",
+                            outline: "none",
+                          }}
+                        />
+                        {addingPlace && (
+                          <div style={{ fontSize: 11, color: "rgba(26,26,46,0.4)", padding: "6px 2px" }}>
+                            Adding…
+                          </div>
+                        )}
+                        {!addingPlace && placeSearching && (
+                          <div style={{ fontSize: 11, color: "rgba(26,26,46,0.4)", padding: "6px 2px" }}>
+                            Searching…
+                          </div>
+                        )}
+                        {!addingPlace &&
+                          !placeSearching &&
+                          placeResults.map((r, i) => (
+                            <button
+                              key={`${r.latitude},${r.longitude},${i}`}
+                              onClick={() => handleAddPlace(r)}
+                              className="w-full text-left rounded-lg px-2.5 py-2 hover:bg-gray-50 transition-colors"
+                              style={{ fontSize: 12.5, color: "#1A1A2E" }}
+                            >
+                              {r.name}
+                              <span style={{ color: "rgba(26,26,46,0.4)" }}>
+                                {r.admin1 ? `, ${r.admin1}` : ""}
+                                {r.country ? `, ${r.country}` : ""}
+                              </span>
+                            </button>
+                          ))}
+                        <button
+                          onClick={() => {
+                            setAddPlaceOpen(false);
+                            setPlaceQuery("");
+                            setPlaceResults([]);
+                          }}
+                          className="mt-1"
+                          style={{ fontSize: 11.5, color: "rgba(26,26,46,0.4)" }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </>
           );
         })()}
     </section>
+      )}
+
+      {/* Undo toast — above the sheets (z-[60]) so it's reachable from them */}
+      {undo && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] bg-gray-900 text-white text-[13px] font-medium pl-4 pr-1.5 py-1.5 rounded-full shadow-lg flex items-center gap-3 animate-in fade-in">
+          <span className="truncate max-w-[45vw]">{undo.label}</span>
+          <button
+            onClick={() => {
+              const r = undo.restore;
+              if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+              setUndo(null);
+              r();
+            }}
+            className="px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 font-semibold transition-colors"
+          >
+            Undo
+          </button>
+        </div>
       )}
     </>
   );
