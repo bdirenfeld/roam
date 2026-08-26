@@ -249,7 +249,6 @@ export default function MapSidebar({
               {!sectionCollapsed && (
                 <div
                   className={`mb-2 rounded-lg overflow-hidden transition-opacity duration-200 ${typeOn ? "" : "opacity-40 pointer-events-none"}`}
-                  style={{ background: "rgba(255,255,255,0.6)" }}
                 >
                   {group.rows.map((row) => {
                     const on       = isRowOn(row);
