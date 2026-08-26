@@ -334,9 +334,9 @@ export default function DesktopMasthead() {
           strokeLinecap="round"
           strokeLinejoin="round"
         >
-          <circle cx="12" cy="12" r="9" />
-          <path d="M9.2 9a2.8 2.8 0 0 1 5.44.9c0 1.87-2.64 2.35-2.64 3.85" />
-          <line x1="12" y1="17" x2="12" y2="17.01" />
+          {/* Bare glyph, no enclosing circle — matches the bare + beside it */}
+          <path d="M7.8 8.6a4.2 4.2 0 1 1 7.3 2.85c-1.1 1.15-3.1 1.6-3.1 3.55" />
+          <line x1="12" y1="19.5" x2="12" y2="19.51" />
         </svg>
       </a>
 
