@@ -24,6 +24,7 @@ import {
   fetchWeatherForTrip,
   getWeatherCategory,
   WeatherIcon,
+  HourlyStrip,
 } from "@/lib/weather";
 
 // ── Condition advisory text ────────────────────────────────────────────────
@@ -76,9 +77,6 @@ function getConditionText(w: DayWeather): string | null {
 }
 
 // ── Weather expansion (hourly + 7-day) ────────────────────────────────────
-const HOURLY_INDICES = [8, 10, 12, 14, 16, 18, 20, 22];
-const HOURLY_LABELS = ["8a", "10a", "12p", "2p", "4p", "6p", "8p", "10p"];
-
 function WeatherExpansion({
   id,
   expanded,
@@ -105,23 +103,7 @@ function WeatherExpansion({
       {weather && (
         <div className="mx-4 my-[14px] rounded-[10px] p-[14px]" style={{ background: "rgba(26,26,46,0.025)" }}>
           <div className="text-[9px] font-medium uppercase tracking-[0.18em] text-activity/50 mb-3">Hourly</div>
-          <div className="flex overflow-x-auto scrollbar-none">
-            {HOURLY_INDICES.map((h, i) => {
-              const temp = weather.hourly_temp[h];
-              const precip = weather.hourly_precip[h] ?? 0;
-              const code = weather.hourly_condition_codes[h] ?? weather.condition_code;
-              return (
-                <div key={h} className="min-w-[46px] flex flex-col items-center">
-                  <div className="text-[9px] text-activity/50 lowercase">{HOURLY_LABELS[i]}</div>
-                  <div className="mt-[6px]"><WeatherIcon category={getWeatherCategory(code)} size={14} /></div>
-                  <div className="font-display italic text-[13px] text-activity mt-[4px]">{Math.round(temp)}°</div>
-                  <div className="text-[9px] mt-[2px]" style={{ color: precip >= 20 ? "#C4622D" : "rgba(26,26,46,0.35)" }}>
-                    {precip >= 20 ? `${precip}%` : "—"}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <HourlyStrip weather={weather} />
           <div className="mt-[14px] mb-3" style={{ borderTop: "0.5px solid rgba(26,26,46,0.10)" }} />
           <div className="text-[9px] font-medium uppercase tracking-[0.18em] text-activity/50 mb-3">Outlook</div>
           <div className="flex overflow-x-auto scrollbar-none">

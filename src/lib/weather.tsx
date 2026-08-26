@@ -182,3 +182,30 @@ export function WeatherIcon({ category, size = 13 }: { category: WeatherCategory
     </svg>
   );
 }
+
+// ── Hourly strip (8a–10p) — shared by the Agenda expansion and the Plan
+//    board's per-day popover ────────────────────────────────────────────────
+export const HOURLY_INDICES = [8, 10, 12, 14, 16, 18, 20, 22];
+export const HOURLY_LABELS = ["8a", "10a", "12p", "2p", "4p", "6p", "8p", "10p"];
+
+export function HourlyStrip({ weather }: { weather: DayWeather }) {
+  return (
+    <div className="flex overflow-x-auto scrollbar-none">
+      {HOURLY_INDICES.map((h, i) => {
+        const temp = weather.hourly_temp[h];
+        const precip = weather.hourly_precip[h] ?? 0;
+        const code = weather.hourly_condition_codes[h] ?? weather.condition_code;
+        return (
+          <div key={h} className="min-w-[46px] flex flex-col items-center">
+            <div className="text-[9px] text-activity/50 lowercase">{HOURLY_LABELS[i]}</div>
+            <div className="mt-[6px]"><WeatherIcon category={getWeatherCategory(code)} size={14} /></div>
+            <div className="font-display italic text-[13px] text-activity mt-[4px]">{Math.round(temp)}°</div>
+            <div className="text-[9px] mt-[2px]" style={{ color: precip >= 20 ? "#C4622D" : "rgba(26,26,46,0.35)" }}>
+              {precip >= 20 ? `${precip}%` : "—"}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}

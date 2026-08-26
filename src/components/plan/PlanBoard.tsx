@@ -53,7 +53,7 @@ import { getOpeningHoursConflict, openingHoursCaption, openingHoursTone } from "
 import CardImage from "@/components/ui/CardImage";
 import { Trash, DotsThree, Image as ImageIcon, Gear, ShareNetwork, BookmarkSimple } from "@phosphor-icons/react";
 import { getMaterialIconHTML } from "@/lib/mapPins";
-import { type DayWeather, weatherCache, fetchWeatherForTrip, getWeatherCategory, WeatherIcon } from "@/lib/weather";
+import { type DayWeather, weatherCache, fetchWeatherForTrip, getWeatherCategory, WeatherIcon, HourlyStrip } from "@/lib/weather";
 
 // ── Constants ──────────────────────────────────────────────────
 const COL_PREFIX = "col-";
@@ -1434,6 +1434,9 @@ function DayColumn({ day, cards, dayIndex, fullWidth, onCardTap, onDelete, onCre
 // cards (live) so the STOP/H caption updates as cards move. Mirrors the
 // column width (md:w-[280px]) so each header sits exactly above its column.
 function DayHeaderCell({ day, weather }: { day: DayWithCards; weather?: DayWeather | null }) {
+  const wxBtnRef = useRef<HTMLButtonElement>(null);
+  const [wxOpen, setWxOpen] = useState(false);
+  const [wxPos, setWxPos] = useState<{ left: number; top: number } | null>(null);
   const dayOfWeek = day.date
     ? new Date(day.date + "T00:00:00").toLocaleDateString("en-US", { weekday: "long" })
     : null;
@@ -1470,20 +1473,56 @@ function DayHeaderCell({ day, weather }: { day: DayWithCards; weather?: DayWeath
         }}>{dayOfWeek}</p>
       )}
       {/* Tier 3 — Forecast (only inside the ~2-week window Open-Meteo covers;
-          far-out days simply have a two-line header) */}
+          far-out days simply have a two-line header). Clicking opens the
+          hourly strip in a floating popover — position:fixed because the
+          pinned header row lives in an overflow-clipped X-scroller. */}
       {weather && (
-        <div className="flex items-center gap-1.5">
-          <WeatherIcon category={getWeatherCategory(weather.condition_code)} size={12} />
-          <span style={{
-            fontFamily: "'DM Sans', system-ui, sans-serif",
-            fontSize: "10.5px",
-            fontWeight: 500,
-            color: "rgba(26, 26, 46, 0.60)",
-          }}>
-            {weather.high_c}°/{weather.low_c}°
-            {weather.precip_probability_max > 30 ? ` · ${weather.precip_probability_max}% rain` : ""}
-          </span>
-        </div>
+        <>
+          <button
+            ref={wxBtnRef}
+            onClick={() => {
+              const rect = wxBtnRef.current?.getBoundingClientRect();
+              if (!rect) return;
+              setWxPos({
+                left: Math.max(8, Math.min(rect.left, window.innerWidth - 420)),
+                top: rect.bottom + 8,
+              });
+              setWxOpen(true);
+            }}
+            className="flex items-center gap-1.5 cursor-pointer"
+            aria-label="Hourly forecast"
+          >
+            <WeatherIcon category={getWeatherCategory(weather.condition_code)} size={12} />
+            <span style={{
+              fontFamily: "'DM Sans', system-ui, sans-serif",
+              fontSize: "10.5px",
+              fontWeight: 500,
+              color: "rgba(26, 26, 46, 0.60)",
+            }}>
+              {weather.high_c}°/{weather.low_c}°
+              {weather.precip_probability_max > 30 ? ` · ${weather.precip_probability_max}% rain` : ""}
+            </span>
+          </button>
+          {wxOpen && wxPos && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setWxOpen(false)} />
+              <div
+                className="fixed z-50 w-[404px] bg-white rounded-2xl p-4"
+                style={{
+                  left: wxPos.left,
+                  top: wxPos.top,
+                  border: "1px solid rgba(26,26,46,0.12)",
+                  boxShadow: "0 8px 30px rgba(26,26,46,0.14)",
+                }}
+              >
+                <div className="text-[9px] font-medium uppercase tracking-[0.18em] text-activity/50 mb-3">
+                  Hourly — {dayOfWeek}
+                </div>
+                <HourlyStrip weather={weather} />
+              </div>
+            </>
+          )}
+        </>
       )}
     </div>
   );
