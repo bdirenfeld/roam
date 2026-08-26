@@ -469,12 +469,15 @@ export default function TripSettingsClient({ trip, days, initialPeople, initialS
         )}
 
         {/* ── Share this journey — guest sharing ── */}
+        {/* id anchors the Plan menu's "Share itinerary" deep link (#share) */}
         {shareAvailable && (
-          <ShareJourneySection
-            tripId={trip.id}
-            initialShareToken={initialShareToken}
-            initialGuests={initialGuests}
-          />
+          <div id="share" style={{ scrollMarginTop: 24 }}>
+            <ShareJourneySection
+              tripId={trip.id}
+              initialShareToken={initialShareToken}
+              initialGuests={initialGuests}
+            />
+          </div>
         )}
 
         {/* ── Manage journey — quiet text links. An archived journey offers

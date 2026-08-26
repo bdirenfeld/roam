@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserCircle, Calendar, Columns, MapPin } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
+import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
 import { signOut } from "@/lib/auth-actions";
 import { isTripGuest } from "@/lib/trip-access-client";
 
@@ -93,10 +94,9 @@ export default function DesktopMasthead() {
             .single(),
           supabase
             .from("days")
-            .select("id")
+            .select("id, date")
             .eq("trip_id", currentTripId)
-            .order("day_number", { ascending: true })
-            .limit(1),
+            .order("day_number", { ascending: true }),
         ]);
         if (cancelled || !trip) return;
         const next: TripContext = {
@@ -104,7 +104,8 @@ export default function DesktopMasthead() {
           title: trip.title,
           start_date: trip.start_date,
           end_date: trip.end_date,
-          firstDayId: days?.[0]?.id ?? null,
+          // Mid-trip, the Agenda tab should land on today, not Day 1
+          firstDayId: resolveDefaultDay(days ?? [])?.id ?? null,
         };
         TRIP_CACHE.set(currentTripId, next);
         setTripCtx(next);

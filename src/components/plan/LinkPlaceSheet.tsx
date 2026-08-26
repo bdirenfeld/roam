@@ -356,7 +356,7 @@ export default function LinkPlaceSheet(props: Props) {
     : "Showing all saved places";
 
   const emptyCopy = isCreate
-    ? (q ? "No saved places match your search" : "No places saved yet — find them on the Map")
+    ? (q ? "No saved places match your search" : "Nothing saved yet — use “Add to this day” to search for places, or save some from the Map tab")
     : cardType
       ? `No ${TYPE_LABEL[cardType].toLowerCase()} places saved yet`
       : "No places saved yet — find them on the Map";

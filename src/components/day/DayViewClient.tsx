@@ -222,10 +222,23 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, re
 
   const handleCardUpdate = useCallback(
     (updated: Card) => {
-      setLocalCards((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+      // "Move to day" reports the card with its new day_id — it leaves this
+      // day's timeline. (An error rollback reports it back with this day's id,
+      // so the not-in-list branch re-adds it.)
+      if (updated.day_id && updated.day_id !== dayWithCards.id) {
+        setLocalCards((prev) => prev.filter((c) => c.id !== updated.id));
+        setSelectedCard(null);
+        setIsCardOpen(false);
+        return;
+      }
+      setLocalCards((prev) =>
+        prev.some((c) => c.id === updated.id)
+          ? prev.map((c) => (c.id === updated.id ? updated : c))
+          : [...prev, updated]
+      );
       setSelectedCard((prev) => (prev?.id === updated.id ? updated : prev));
     },
-    []
+    [dayWithCards.id]
   );
 
   const handleCardDelete = useCallback((cardId: string) => {
@@ -657,6 +670,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, re
           }}
           onCardUpdate={handleCardUpdate}
           onCardDelete={handleCardDelete}
+          days={days}
           tripDestination={trip.destination}
           readOnly={readOnly}
         />
@@ -669,6 +683,10 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, re
           tripId={trip.id}
           endPosition={localCards.reduce((m, c) => Math.max(m, c.position), 0) + 1}
           initialStartTime={gapTimes.start}
+          initialEndTime={gapTimes.end}
+          destination={trip.destination}
+          destinationLat={trip.destination_lat}
+          destinationLng={trip.destination_lng}
           onClose={() => setGapTimes(null)}
           onCardCreated={handleCardCreated}
         />

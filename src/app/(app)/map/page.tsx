@@ -11,13 +11,18 @@ export default async function MapPage() {
 
   const { data: trips } = await supabase
     .from("trips")
-    .select("id, status, start_date")
+    .select("id, status, start_date, end_date")
     .in("status", ["active", "planning"])
-    .order("start_date", { ascending: true })
-    .limit(1);
+    .order("start_date", { ascending: true });
 
   if (trips && trips.length > 0) {
-    redirect(`/trips/${trips[0].id}/map`);
+    // The current or next journey, not simply the earliest ever created:
+    // first trip that hasn't ended yet; if they've all ended, the most recent.
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const current =
+      trips.find((t) => !t.end_date || t.end_date >= todayStr) ?? trips[trips.length - 1];
+    redirect(`/trips/${current.id}/map`);
   }
 
   // No trips yet

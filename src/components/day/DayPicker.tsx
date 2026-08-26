@@ -58,6 +58,11 @@ export default function DayPicker({ days, onSelect, mode, activeDayId, align = "
   const activeIndex = activeDayId ? days.findIndex((d) => d.id === activeDayId) : -1;
   const label = mode === "active" ? `Day ${activeIndex + 1} of ${days.length}` : "Jump to day";
 
+  // Local calendar date (not toISOString, which flips near midnight in UTC).
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const todayDay = days.find((d) => d.date === todayStr) ?? null;
+
   return (
     <div className="relative">
       <button
@@ -101,6 +106,19 @@ export default function DayPicker({ days, onSelect, mode, activeDayId, align = "
               boxShadow: "0 8px 28px rgba(26,26,46,0.08), 0 0 0 1px rgba(26,26,46,0.03)",
             }}
           >
+            {todayDay && todayDay.id !== activeDayId && (
+              <button
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  onSelect(todayDay);
+                }}
+                className="w-full mb-1 px-2.5 py-2 rounded-md text-left text-[12px] font-semibold text-white"
+                style={{ background: "#1A1A2E" }}
+              >
+                Jump to today · Day {todayDay.day_number}
+              </button>
+            )}
             <div className="mt-1 flex flex-col gap-0.5">
               {days.map((d) => {
                 const dt = new Date(d.date + "T00:00:00");
@@ -146,6 +164,19 @@ export default function DayPicker({ days, onSelect, mode, activeDayId, align = "
                         Day {d.day_number}
                       </div>
                     </div>
+                    {d.date === todayStr && (
+                      <span
+                        style={{
+                          fontSize: "8.5px",
+                          fontWeight: 600,
+                          letterSpacing: "0.09em",
+                          textTransform: "uppercase",
+                          color: "#D18A2E",
+                        }}
+                      >
+                        Today
+                      </span>
+                    )}
                     {foldedDayIds?.has(d.id) && (
                       <span
                         style={{

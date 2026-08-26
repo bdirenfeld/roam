@@ -47,11 +47,12 @@ import {
   type PlanWeek,
 } from "@/lib/planWeeks";
 import { getPriceRange } from "@/lib/priceRange";
+import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
 import { formatTimeRange } from "@/lib/formatTime";
 import { getOpeningHoursConflict, openingHoursCaption, openingHoursTone } from "@/lib/openingHours";
 
 import CardImage from "@/components/ui/CardImage";
-import { Trash, DotsThree, Image as ImageIcon, Gear, ShareNetwork, BookmarkSimple } from "@phosphor-icons/react";
+import { Trash, DotsThree, Image as ImageIcon, Gear, ShareNetwork, BookmarkSimple, UploadSimple, Files } from "@phosphor-icons/react";
 import { getMaterialIconHTML } from "@/lib/mapPins";
 import { type DayWeather, fetchTripWeather, dayStopsAnchor, getWeatherCategory, WeatherIcon, HourlyStrip } from "@/lib/weather";
 
@@ -203,6 +204,29 @@ export default function PlanBoard({ trip, initialDays }: Props) {
   const [showDocs,     setShowDocs]     = useState(false);
   const [viewMode] = useState<"board" | "triage">("board");
   const [deleteToast, setDeleteToast] = useState<string | null>(null);
+  // Undo window after an instant delete — holds the removed card for re-insert
+  const [undoDelete, setUndoDelete] = useState<{ card: Card; dayId: string } | null>(null);
+  const undoDeleteRef = useRef<{ card: Card; dayId: string } | null>(null);
+  useEffect(() => { undoDeleteRef.current = undoDelete; }, [undoDelete]);
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Booking import — file → /api/confirmations/parse → ConfirmationPreviewSheet
+  const [importingConf, setImportingConf] = useState(false);
+  const handleImportFile = useCallback(async (file: File) => {
+    setImportingConf(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/confirmations/parse", { method: "POST", body: fd });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Couldn't read that file.");
+      setPendingConf({ items: json.parsed, fileName: file.name, fileType: file.type });
+    } catch (e) {
+      setDeleteToast(e instanceof Error ? e.message : "Couldn't read that file.");
+      setTimeout(() => setDeleteToast(null), 4000);
+    } finally {
+      setImportingConf(false);
+    }
+  }, []);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [showBgPicker, setShowBgPicker] = useState(false);
   const [bgUrlInput, setBgUrlInput] = useState("");
@@ -253,7 +277,12 @@ export default function PlanBoard({ trip, initialDays }: Props) {
   });
 
   const [isMobile, setIsMobile] = useState(false);
-  const [mobileDayIdx, setMobileDayIdx] = useState(0);
+  // Mid-trip, the mobile board opens on today's column, not Day 1
+  const [mobileDayIdx, setMobileDayIdx] = useState(() => {
+    const today = resolveDefaultDay(initialDays);
+    const idx = today ? initialDays.findIndex((d) => d.id === today.id) : 0;
+    return idx >= 0 ? idx : 0;
+  });
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
 
   // Desktop board X-scroller — jump-to-day scroll + conditional edge fades.
@@ -654,6 +683,8 @@ export default function PlanBoard({ trip, initialDays }: Props) {
 
   const handleDelete = useCallback(async (cardId: string) => {
     const snapshot = daysRef.current;
+    const fromDay = snapshot.find((d) => d.cards.some((c) => c.id === cardId));
+    const deleted = fromDay?.cards.find((c) => c.id === cardId) ?? null;
     setDays((prev) => prev.map((d) => ({ ...d, cards: d.cards.filter((c) => c.id !== cardId) })));
     setSelectedCard((prev) => (prev?.id === cardId ? null : prev));
     const { error } = await supabase.from("cards").delete().eq("id", cardId);
@@ -661,7 +692,42 @@ export default function PlanBoard({ trip, initialDays }: Props) {
       setDays(snapshot);
       setDeleteToast("Couldn't delete — please try again.");
       setTimeout(() => setDeleteToast(null), 3000);
+      return;
     }
+    // Deletes are instant (no confirm dialog), so offer a window to undo
+    if (deleted && fromDay) {
+      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+      setUndoDelete({ card: deleted, dayId: fromDay.id });
+      undoTimerRef.current = setTimeout(() => setUndoDelete(null), 6000);
+    }
+  }, [supabase]);
+
+  const handleUndoDelete = useCallback(async () => {
+    const u = undoDeleteRef.current;
+    if (!u) return;
+    setUndoDelete(null);
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    const { card } = u;
+    // Re-insert the row with its original id so attachments/links keep working
+    const { error } = await supabase.from("cards").insert({
+      id: card.id, day_id: card.day_id, trip_id: card.trip_id,
+      start_time: card.start_time, end_time: card.end_time,
+      position: card.position, status: card.status, source_url: card.source_url,
+      details: card.details, ai_generated: card.ai_generated,
+      confirmed: card.confirmed, place_id: card.place_id,
+    });
+    if (error) {
+      setDeleteToast("Couldn't restore the card.");
+      setTimeout(() => setDeleteToast(null), 3000);
+      return;
+    }
+    setDays((prev) =>
+      prev.map((d) =>
+        d.id === u.dayId
+          ? { ...d, cards: [...d.cards, card].sort((a, b) => a.position - b.position) }
+          : d
+      )
+    );
   }, [supabase]);
 
   // ── Inline card creation (board view) ───────────────────────
@@ -855,6 +921,8 @@ export default function PlanBoard({ trip, initialDays }: Props) {
               setBgPreviewError(false);
               setShowBgPicker(true);
             }}
+            onImportBooking={handleImportFile}
+            onOpenDocuments={() => setShowDocs(true)}
           />
         </div>
       </div>{/* end nav bar */}
@@ -1148,6 +1216,24 @@ export default function PlanBoard({ trip, initialDays }: Props) {
       {deleteToast && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white text-[13px] font-medium px-4 py-2.5 rounded-full shadow-lg pointer-events-none animate-in fade-in">
           {deleteToast}
+        </div>
+      )}
+
+      {undoDelete && !deleteToast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white text-[13px] font-medium pl-4 pr-1.5 py-1.5 rounded-full shadow-lg flex items-center gap-3 animate-in fade-in">
+          <span>Card deleted</span>
+          <button
+            onClick={handleUndoDelete}
+            className="px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 font-semibold transition-colors"
+          >
+            Undo
+          </button>
+        </div>
+      )}
+
+      {importingConf && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white text-[13px] font-medium px-4 py-2.5 rounded-full shadow-lg pointer-events-none animate-in fade-in">
+          Reading your booking…
         </div>
       )}
 
@@ -1647,9 +1733,20 @@ function WeekFoldedCard({
 }
 
 // ── MainMenu (consolidated top-right ··· menu) ────────────────
-function MainMenu({ tripId, onOpenBgPicker }: { tripId: string; onOpenBgPicker: () => void }) {
+function MainMenu({
+  tripId,
+  onOpenBgPicker,
+  onImportBooking,
+  onOpenDocuments,
+}: {
+  tripId: string;
+  onOpenBgPicker: () => void;
+  onImportBooking: (file: File) => void;
+  onOpenDocuments: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   return (
     <div className="relative">
@@ -1696,16 +1793,58 @@ function MainMenu({ tripId, onOpenBgPicker }: { tripId: string; onOpenBgPicker: 
             {/* Divider */}
             <div className="mx-3 my-0.5 border-t border-gray-100" />
 
-            {/* Share itinerary — coming soon */}
-            <div className="flex items-center gap-3 px-3 py-2.5 opacity-40 cursor-default">
+            {/* Import a booking → parse → preview cards */}
+            <button
+              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                <UploadSimple size={15} weight="light" className="text-gray-600" />
+              </div>
+              <div className="text-left">
+                <p className="text-[13px] font-medium text-gray-900 leading-snug">Import a booking</p>
+                <p className="text-[11px] text-gray-400 leading-snug">Flight or hotel confirmation → cards</p>
+              </div>
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf,image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (file) { setOpen(false); onImportBooking(file); }
+              }}
+            />
+
+            {/* Documents — previously uploaded confirmations */}
+            <button
+              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+              onClick={() => { setOpen(false); onOpenDocuments(); }}
+            >
+              <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                <Files size={15} weight="light" className="text-gray-600" />
+              </div>
+              <div className="text-left">
+                <p className="text-[13px] font-medium text-gray-900 leading-snug">Documents</p>
+                <p className="text-[11px] text-gray-400 leading-snug">Uploaded confirmations</p>
+              </div>
+            </button>
+
+            {/* Share itinerary — lives in Journey settings */}
+            <button
+              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+              onClick={() => { setOpen(false); router.push(`/trips/${tripId}/settings#share`); }}
+            >
               <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
                 <ShareNetwork size={15} weight="light" className="text-gray-600" />
               </div>
               <div className="text-left">
                 <p className="text-[13px] font-medium text-gray-900 leading-snug">Share itinerary</p>
-                <p className="text-[11px] text-gray-400 leading-snug">Coming soon</p>
+                <p className="text-[11px] text-gray-400 leading-snug">Invite someone to this journey</p>
               </div>
-            </div>
+            </button>
           </div>
         </>
       )}
