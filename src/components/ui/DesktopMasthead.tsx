@@ -438,23 +438,7 @@ export default function DesktopMasthead() {
             >
               Profile
             </Link>
-            {/* Static quick-start guide in /public — new tab so their place in the app is kept */}
-            <a
-              href="/guide.html"
-              target="_blank"
-              rel="noopener"
-              role="menuitem"
-              onClick={() => setOpen(false)}
-              style={{
-                display: "block",
-                padding: "11px 16px",
-                fontSize: 13,
-                color: INK,
-                textDecoration: "none",
-              }}
-            >
-              How Roam works
-            </a>
+            {/* "How Roam works" moved to the always-visible "?" in the masthead */}
             <form action={signOut}>
               <button
                 type="submit"
