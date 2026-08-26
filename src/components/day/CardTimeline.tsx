@@ -115,33 +115,36 @@ export default function CardTimeline({
 
   // Shared add controls — "Add from saved" reads first, blank card second.
   // Mirrors the Plan board's column footer so both views teach the same doors.
-  const addControls = !readOnly && (onAddFromSaved || onGapTap) && (
-    <div className="flex flex-col gap-2">
-      {onAddFromSaved && (
-        <button
-          onClick={onAddFromSaved}
-          className="w-full flex items-center justify-center gap-2 rounded-xl px-4 py-3 active:opacity-70 transition-opacity"
-          style={{
-            background: "#F2EDE3",
-            boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)",
-            fontFamily: "'DM Sans', system-ui, sans-serif",
-            fontWeight: 600, fontSize: "13.5px", color: "#1A1A2E", letterSpacing: "-0.005em",
-          }}
-        >
-          <BookmarkSimple size={14} weight="light" color="#1A1A2E" />
-          Add from saved
-        </button>
-      )}
-      {onGapTap && (
-        <button
-          onClick={() => onGapTap("", "")}
-          className="w-full py-3 rounded-xl border border-dashed border-gray-200 text-[12px] italic text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-colors"
-        >
-          + Add to this day
-        </button>
-      )}
-    </div>
-  );
+  // `row` lays them side by side (desktop footer); stacked reads better on
+  // mobile and in the narrow empty state.
+  const renderAddControls = (row: boolean) =>
+    !readOnly && (onAddFromSaved || onGapTap) ? (
+      <div className={`flex flex-col gap-2 ${row ? "md:flex-row md:max-w-[520px]" : ""}`}>
+        {onAddFromSaved && (
+          <button
+            onClick={onAddFromSaved}
+            className="w-full flex items-center justify-center gap-2 rounded-xl px-4 py-3 active:opacity-70 transition-opacity md:flex-1"
+            style={{
+              background: "#F2EDE3",
+              boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)",
+              fontFamily: "'DM Sans', system-ui, sans-serif",
+              fontWeight: 600, fontSize: "13.5px", color: "#1A1A2E", letterSpacing: "-0.005em",
+            }}
+          >
+            <BookmarkSimple size={14} weight="light" color="#1A1A2E" />
+            Add from saved
+          </button>
+        )}
+        {onGapTap && (
+          <button
+            onClick={() => onGapTap("", "")}
+            className="w-full py-3 rounded-xl border border-dashed border-gray-200 text-[12px] italic text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-colors md:flex-1"
+          >
+            + Add to this day
+          </button>
+        )}
+      </div>
+    ) : null;
 
   return (
     <div className="pb-8">
@@ -165,7 +168,7 @@ export default function CardTimeline({
           </div>
           <p className="text-sm font-semibold text-gray-500">Nothing planned yet</p>
           <p className="text-xs text-gray-400 mt-1">Free day — enjoy the spontaneity.</p>
-          {addControls && <div className="mt-6 w-full max-w-[320px]">{addControls}</div>}
+          <div className="mt-6 w-full max-w-[320px]">{renderAddControls(false)}</div>
         </div>
       ) : (
         <div>
@@ -198,7 +201,7 @@ export default function CardTimeline({
           })}
           {/* Always-available add — the gap connector only appears between
               timed cards ≥30 min apart, so untimed days need these. */}
-          {addControls}
+          {renderAddControls(true)}
         </div>
       )}
     </div>
