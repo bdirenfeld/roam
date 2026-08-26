@@ -21,16 +21,22 @@ export const FAMILY_DATES: FamilyDate[] = [
   { name: "Finn",    month: 11, day: 25, group: "immediate" }, // the dog
   { name: "Eisha",   month: 12, day: 1,  group: "immediate" },
 
+  // Extended family — confirmed by Brennan, Aug 2026
+  { name: "Arlene",  month: 1,  day: 3,  group: "family" },
+  { name: "Gary",    month: 2,  day: 10, group: "family" }, // date from Brennan directly
+  { name: "Dylan",   month: 5,  day: 16, group: "family" },
+  { name: "Ami",     month: 9,  day: 13, group: "family" }, // from her 2020 party invite — confirm
+  { name: "Jodi",    month: 11, day: 18, group: "family" },
+  // { name: "Gorov" } — Brennan wants him on; date not in any calendar, awaiting the date
+
   // ── ALREADY-EXTRACTED CANDIDATES (not rendered) ─────────────────────────
   // Pulled from the same Outlook calendar; awaiting Brennan's call on which
   // are parents / in-laws / close family. Promote by uncommenting a line
   // (and set group to "family").
-  // { name: "Arlene",        month: 1,  day: 3,  group: "family" },
   // { name: "Sheila",        month: 2,  day: 15, group: "family" },
   // { name: "Amelia",        month: 2,  day: 19, group: "family" },
   // { name: "Norah",         month: 3,  day: 13, group: "family" },
   // { name: "Anna",          month: 3,  day: 20, group: "family" },
-  // { name: "Dylan Seth",    month: 5,  day: 16, group: "family" },
   // { name: "Will",          month: 6,  day: 1,  group: "family" },
   // { name: "Lorne",         month: 7,  day: 18, group: "family" },
   // { name: "Alan",          month: 7,  day: 24, group: "family" },
@@ -45,7 +51,6 @@ export const FAMILY_DATES: FamilyDate[] = [
   // { name: "Neera Bua",     month: 9,  day: 10, group: "family" },
   // { name: "Jason",         month: 10, day: 16, group: "family" },
   // { name: "Shayna",        month: 10, day: 22, group: "family" },
-  // { name: "Jodi",          month: 11, day: 18, group: "family" },
   // { name: "Sam Direnfeld", month: 12, day: 3,  group: "family" },
   // { name: "Ian",           month: 12, day: 31, group: "family" },
   // { name: "Barry",         month: 12, day: 31, group: "family" },
