@@ -457,7 +457,8 @@ export default function YearView({ trips }: Props) {
     (supabase as any)
       .from("wishlist_destinations")
       .select(WISHLIST_COLS)
-      .order("drive_hours", { ascending: true })
+      // Alphabetical — it's a pick-list, so findability beats any ranking
+      .order("name", { ascending: true })
       .then(({ data }: { data: WishlistDest[] | null }) => {
         if (!cancelled && data) setWishlist(data);
       });
@@ -568,7 +569,9 @@ export default function YearView({ trips }: Props) {
       return;
     }
     const saved = data as WishlistDest;
-    setWishlist((prev) => [...prev, saved]);
+    setWishlist((prev) =>
+      [...prev, saved].sort((a, b) => a.name.localeCompare(b.name))
+    );
     // The auto-save is a side effect of a weather check — say so, and let
     // one tap take it back
     showUndo(`Added ${name} to wishlist`, async () => {
