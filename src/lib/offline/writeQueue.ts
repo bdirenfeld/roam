@@ -341,6 +341,39 @@ export type ExecuteResult =
 export type Executor = (entry: QueuedWrite) => Promise<ExecuteResult>;
 
 /**
+ * Transport failure (queue and retry) or server refusal (drop and surface)?
+ *
+ * This is the policy that decides whether a write is worth keeping, so it
+ * lives here with the queue rather than at the call site. supabase-js reports
+ * a dead network as an error OBJECT rather than a throw, so both shapes have
+ * to be sniffed. A PostgREST refusal always carries an HTTP status or a
+ * SQLSTATE-ish code; a fetch that never reached a server carries neither.
+ */
+export function isTransportFailure(err: unknown): boolean {
+  if (!err) return false;
+  const e = err as { message?: string; name?: string; status?: number; code?: string };
+  if (typeof e.status === "number" && e.status >= 400 && e.status < 600) return false;
+  const text = `${e.name ?? ""} ${e.message ?? ""}`.toLowerCase();
+  if (
+    text.includes("failed to fetch") ||
+    text.includes("networkerror") ||
+    text.includes("network request failed") ||
+    text.includes("load failed") ||
+    text.includes("fetch failed") ||
+    text.includes("aborted") ||
+    text.includes("aborterror") ||
+    text.includes("timeout") ||
+    text.includes("timed out")
+  ) {
+    return true;
+  }
+  // supabase-js sets code to "" on a transport failure; a real refusal always
+  // has one ("23505", "42501", "PGRST116", …).
+  if (e.code === "") return true;
+  return e.code === undefined && e.status === undefined && !e.message;
+}
+
+/**
  * Replay the queue FIFO. Stops at the first transport failure so ordering is
  * never broken by skipping ahead. Re-reads the queue each pass, so an edit
  * made while a drain is running is picked up rather than lost.

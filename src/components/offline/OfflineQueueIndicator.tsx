@@ -11,7 +11,8 @@
 // and disappears the moment the queue drains. No badge, no spinner, no
 // permanent "offline mode" chrome.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { CloudSlash, ArrowsClockwise, WarningCircle, X } from "@phosphor-icons/react";
 import {
   dismissFailures,
@@ -44,8 +45,10 @@ function describe(failure: QueueFailure): string {
 }
 
 export default function OfflineQueueIndicator() {
+  const router = useRouter();
   const [state, setState] = useState<QueueState>(EMPTY);
   const [online, setOnline] = useState(true);
+  const hadPending = useRef(false);
 
   // Queue state lives in localStorage, which does not exist on the server —
   // read it after mount, then follow it.
@@ -69,6 +72,17 @@ export default function OfflineQueueIndicator() {
       window.removeEventListener("offline", update);
     };
   }, []);
+
+  // When the queue empties, the service worker's page cache is still holding
+  // the payload the server sent BEFORE the sync — so a later reload offline
+  // would show pre-sync values with nothing left in the overlay to correct
+  // them. One refresh re-fetches the RSC payload, which the worker re-caches.
+  // Client state is preserved across a refresh, so nothing on screen jumps.
+  useEffect(() => {
+    const pendingNow = state.pending.length > 0;
+    if (hadPending.current && !pendingNow) router.refresh();
+    hadPending.current = pendingNow;
+  }, [state.pending.length, router]);
 
   const onDismiss = useCallback(() => dismissFailures(), []);
 

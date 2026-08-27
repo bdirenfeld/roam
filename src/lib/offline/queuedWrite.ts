@@ -20,31 +20,14 @@
 // offline, deliberately.
 
 import { createClient } from "@/lib/supabase/client";
-import { drain, enqueue, hasPending, type Executor, type QueuedWrite } from "./writeQueue";
-
-/** Supabase-js surfaces a dead network as an error object, not a throw, so
- *  both paths have to be sniffed. Anything that is NOT one of these is treated
- *  as a real server refusal and dropped rather than retried forever. */
-export function isTransportFailure(err: unknown): boolean {
-  if (!err) return false;
-  const e = err as { message?: string; name?: string; status?: number; code?: string };
-  // A PostgREST refusal always carries a SQLSTATE-ish code (e.g. "23505",
-  // "42501") or an HTTP status. A dead fetch carries neither.
-  if (typeof e.status === "number" && e.status >= 400 && e.status < 600) return false;
-  const text = `${e.name ?? ""} ${e.message ?? ""}`.toLowerCase();
-  return (
-    text.includes("failed to fetch") ||
-    text.includes("networkerror") ||
-    text.includes("network request failed") ||
-    text.includes("load failed") ||
-    text.includes("fetch failed") ||
-    text.includes("abort") ||
-    text.includes("timeout") ||
-    text.includes("timed out") ||
-    e.code === "" ||
-    (e.code === undefined && e.status === undefined)
-  );
-}
+import {
+  drain,
+  enqueue,
+  hasPending,
+  isTransportFailure,
+  type Executor,
+  type QueuedWrite,
+} from "./writeQueue";
 
 /** A hung request on plane wifi is indistinguishable from offline until it
  *  gives up, and supabase-js sets no default timeout. Eight seconds turns a
