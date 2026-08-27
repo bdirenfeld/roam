@@ -20,8 +20,8 @@ import type { Card, Place } from "@/types/database";
 /**
  * The next contiguous 1-based position on a day — the LIVE max, read at write
  * time, not from an in-memory snapshot. Exported because the Plan board's
- * Parked column moves an existing row onto a day rather than inserting a new
- * one, and both paths must agree on where "the end of the day" is.
+ * lists move an existing row onto a day rather than inserting a new one, and
+ * both paths must agree on where "the end of the day" is.
  */
 export async function nextPositionForDay(
   supabase: SupabaseClient,
@@ -31,6 +31,25 @@ export async function nextPositionForDay(
     .from("cards")
     .select("position")
     .eq("day_id", dayId)
+    .order("position", { ascending: false })
+    .limit(1);
+  return (rows?.[0]?.position ?? 0) + 1;
+}
+
+/**
+ * The same, for one of the board's named lists. `position` on a card is read
+ * within whichever container the card belongs to — a day or a list — so a list
+ * needs its own live max or two cards dropped in quick succession would land on
+ * the same number and the list's order would be arbitrary.
+ */
+export async function nextPositionForList(
+  supabase: SupabaseClient,
+  listId: string,
+): Promise<number> {
+  const { data: rows } = await supabase
+    .from("cards")
+    .select("position")
+    .eq("list_id", listId)
     .order("position", { ascending: false })
     .limit(1);
   return (rows?.[0]?.position ?? 0) + 1;

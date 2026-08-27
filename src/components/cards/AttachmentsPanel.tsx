@@ -271,6 +271,10 @@ export default function AttachmentsPanel({ card, onClose, onCardUpdate }: Props)
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [attachments, setAttachments]   = useState<CardAttachment[]>([]);
+  // Held in a ref so the count-reporting effect never has to depend on a
+  // callback identity that changes on every parent render.
+  const onCardUpdateRef = useRef(onCardUpdate);
+  useEffect(() => { onCardUpdateRef.current = onCardUpdate; }, [onCardUpdate]);
   const [isLoading,   setIsLoading]     = useState(true);
   const [isUploading, setIsUploading]   = useState(false);
   const [uploadError, setUploadError]   = useState<string | null>(null);
@@ -297,6 +301,21 @@ export default function AttachmentsPanel({ card, onClose, onCardUpdate }: Props)
   }, [card.id, supabase]);
 
   useEffect(() => { fetchAttachments(); }, [fetchAttachments]);
+
+  // Report the count up so the paperclip badge on the card face is right the
+  // moment a file lands, rather than staying stale until the page refetches.
+  // Keyed on the length alone: writing the count back re-renders this panel
+  // with a new `card`, and depending on that object would loop.
+  const reportedCount = useRef<number | null>(null);
+  useEffect(() => {
+    if (isLoading) return;
+    if (reportedCount.current === attachments.length) return;
+    reportedCount.current = attachments.length;
+    if (card.attachment_count !== attachments.length) {
+      onCardUpdateRef.current?.({ ...card, attachment_count: attachments.length });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attachments.length, isLoading]);
 
   // ── File upload ─────────────────────────────────────────────
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {

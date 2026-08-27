@@ -91,6 +91,7 @@ export default function NoteCardSheet({ dayId, tripId, endPosition, onClose, onC
       const newCard: Card = {
         id:           cardId,
         day_id:       dayId,
+        list_id:      null,
         trip_id:      tripId,
         start_time:   null,
         end_time:     null,

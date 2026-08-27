@@ -38,20 +38,20 @@ import DayPicker from "@/components/day/DayPicker";
 type BoardBg =
   | { type: "color"; value: string }
   | { type: "photo"; url: string; thumb: string };
-import type { Trip, Card, Day, DayWithCards, CardType, CardStatus } from "@/types/database";
+import type { Trip, Card, Day, DayWithCards, ListWithCards, CardType, CardStatus } from "@/types/database";
 import {
   groupDaysIntoWeeks,
   shouldShowWeeks,
   weekSlotWidth,
   readFoldedDays,
   writeFoldedDays,
-  readParkedCollapsed,
-  writeParkedCollapsed,
+  readCollapsedLists,
+  writeCollapsedLists,
   COL_W,
   FOLDED_W,
   type PlanWeek,
 } from "@/lib/planWeeks";
-import { nextPositionForDay } from "@/lib/scheduleCard";
+import { nextPositionForDay, nextPositionForList } from "@/lib/scheduleCard";
 import { getPriceRange } from "@/lib/priceRange";
 import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
 import { formatTimeRange } from "@/lib/formatTime";
@@ -67,12 +67,16 @@ import { type DayWeather, fetchTripWeather, dayStopsAnchor, getWeatherCategory, 
 // ── Constants ──────────────────────────────────────────────────
 const COL_PREFIX = "col-";
 
-// The Parked column's droppable id. It shares COL_PREFIX so every existing
-// `overId.startsWith(COL_PREFIX)` branch still classifies it as a column drop;
-// the suffix is not a UUID, so those branches' day lookups miss and fall
-// through to the explicit parked handling in handleDragEnd. Day ids are UUIDs,
-// so nothing can collide with it.
-const PARKED_COL = `${COL_PREFIX}__parked__`;
+// A list column's droppable id. Its OWN prefix rather than a suffix under
+// COL_PREFIX: every drop is resolved through one function (resolveDropTarget)
+// that has to say day-or-list before it says which, and a distinct prefix makes
+// that a string test instead of a lookup that happens to miss.
+const LIST_PREFIX = "list-";
+
+// The idle "+ Add a list" rail. Narrower than a column on purpose — it is an
+// affordance, not a place cards live — and it widens to a full column while a
+// name is being typed, because an input at 140px is a slot, not a field.
+const ADD_LIST_W = FOLDED_W;
 
 // The Direction A control-row chip — lifted verbatim from DayPicker's trigger
 // so "Fold all weeks" / "Unfold all" sit beside "Jump to day" as one family.
@@ -181,6 +185,7 @@ function makeCards(
   return skeletons.map((s, i) => ({
     id:           crypto.randomUUID(),
     day_id:       dayId,
+    list_id:      null,
     trip_id:      tripId,
     start_time:   s.start_time + ":00",
     end_time:     s.end_time ? s.end_time + ":00" : null,
@@ -209,29 +214,32 @@ interface Props {
   trip: Trip;
   initialDays: DayWithCards[];
   /**
-   * Cards that belong to the trip but no particular day — `day_id IS NULL AND
-   * status = 'interested'`. Its own prop rather than a synthetic day: nothing
-   * downstream (weeks, jump-to-day, weather anchors, template application,
-   * position persistence) should ever see it as a day.
+   * The traveller's own named columns and their cards, in `position` order.
+   * Their own prop rather than synthetic days: nothing downstream (weeks,
+   * jump-to-day, weather anchors, template application, day position
+   * persistence) should ever see a list as a day.
    */
-  initialParked: Card[];
+  initialLists: ListWithCards[];
   /** trips.notes — arrives with the page payload so notes work offline. */
   initialNotes: string | null;
 }
 
-export default function PlanBoard({ trip, initialDays, initialParked, initialNotes }: Props) {
+export default function PlanBoard({ trip, initialDays, initialLists, initialNotes }: Props) {
   const supabase = createClient();
   const [days, setDays] = useState<DayWithCards[]>(initialDays);
-  const [parked, setParked] = useState<Card[]>(initialParked);
-  const parkedRef = useRef(parked);
-  parkedRef.current = parked;
+  const [lists, setLists] = useState<ListWithCards[]>(initialLists);
+  const listsRef = useRef(lists);
+  listsRef.current = lists;
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [addFromSavedDay, setAddFromSavedDay] = useState<DayWithCards | null>(null);
   // Composer day — the board uses the same search-first sheet as the Agenda
   const [composerDay, setComposerDay] = useState<DayWithCards | null>(null);
-  // Same composer, aimed at the Parked column instead of a day.
-  const [parkedComposer, setParkedComposer] = useState(false);
+  // Same composer, aimed at one of the lists instead of a day.
+  const [composerList, setComposerList] = useState<ListWithCards | null>(null);
+  // A list being named for the first time. It is NOT a row yet: an abandoned
+  // name should leave nothing behind, so the insert waits for the commit.
+  const [draftList, setDraftList] = useState(false);
   const [pendingConf,  setPendingConf]  = useState<{ items: ParsedConfirmation[]; fileName: string; fileType: string } | null>(null);
   const [showDocs,     setShowDocs]     = useState(false);
   // Journey notes — the sheet unmounts on close, so the latest text is held
@@ -239,6 +247,11 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
   const [showNotes,    setShowNotes]    = useState(false);
   const [notes,        setNotes]        = useState<string | null>(initialNotes);
   const [deleteToast, setDeleteToast] = useState<string | null>(null);
+  // Every list operation fails the same way — say so and get out of the way.
+  const showToast = useCallback((msg: string) => {
+    setDeleteToast(msg);
+    setTimeout(() => setDeleteToast(null), 3000);
+  }, []);
   // Undo window after an instant delete — holds the removed card for re-insert
   const [undoDelete, setUndoDelete] = useState<{ card: Card; dayId: string } | null>(null);
   const undoDeleteRef = useRef<{ card: Card; dayId: string } | null>(null);
@@ -334,7 +347,7 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
 
   const [isMobile, setIsMobile] = useState(false);
   // Mid-trip, the mobile board opens on today's column, not Day 1.
-  // Index −1 is the Parked column (see PARKED_IDX below).
+  // Negative indices are the list slots that precede Day 1 (see below).
   const [mobileDayIdx, setMobileDayIdx] = useState(() => {
     const today = resolveDefaultDay(initialDays);
     const idx = today ? initialDays.findIndex((d) => d.id === today.id) : 0;
@@ -354,21 +367,30 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
   // cards on the client. One frame of unfolded board beats a mismatch.
   const [foldedDays, setFoldedDays] = useState<Set<string>>(() => new Set());
 
-  // Parked-column collapse — hydrated in a mount effect for the same reason
-  // foldedDays is: the server has no localStorage, and seeding from it in a
-  // useState initializer would render a 280px column on the server and a 140px
-  // rail on the client.
-  const [parkedCollapsed, setParkedCollapsed] = useState(false);
+  // Per-list collapse — a set of list ids, hydrated in a mount effect for the
+  // same reason foldedDays is: the server has no localStorage, and seeding from
+  // it in a useState initializer would render a 280px column on the server and
+  // a 140px rail on the client.
+  const [collapsedLists, setCollapsedLists] = useState<Set<string>>(() => new Set());
   useEffect(() => {
-    setParkedCollapsed(readParkedCollapsed(trip.id));
+    setCollapsedLists(readCollapsedLists(trip.id));
   }, [trip.id]);
-  const toggleParked = useCallback(() => {
-    setParkedCollapsed((prev) => {
-      const next = !prev;
-      writeParkedCollapsed(trip.id, next);
+  const toggleList = useCallback((listId: string) => {
+    setCollapsedLists((prev) => {
+      const next = new Set(prev);
+      if (next.has(listId)) next.delete(listId);
+      else next.add(listId);
+      writeCollapsedLists(trip.id, next);
       return next;
     });
   }, [trip.id]);
+  // Pixel width of every leading column, in board order, so the week-bar row
+  // and the pinned header row can reserve the same slots the columns row takes.
+  const listWidths = useMemo(
+    () => lists.map((l) => (collapsedLists.has(l.id) ? FOLDED_W : COL_W)),
+    [lists, collapsedLists],
+  );
+  const addListWidth = draftList ? COL_W : ADD_LIST_W;
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -395,8 +417,9 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
     };
     // foldedDays: folding changes scrollWidth by thousands of pixels without
     // changing days.length, so without it the fades would desync after a fold.
-    // parkedCollapsed moves the board by 140px for the same reason.
-  }, [isMobile, days.length, foldedDays, parkedCollapsed]);
+    // A list collapsing, appearing or being named moves the board for the same
+    // reason, which is what the two width arrays below cover.
+  }, [isMobile, days.length, foldedDays, listWidths, addListWidth]);
 
   // Jump the board horizontally to a day's column. Measures the column's real
   // position via rect deltas (independent of any positioned ancestor) rather
@@ -583,12 +606,12 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
     })
   );
 
-  // Parked is searched too, so the DragOverlay renders a parked card while it
-  // is being dragged onto a day.
+  // Lists are searched too, so the DragOverlay renders a list card while it is
+  // being dragged onto a day.
   const findCard = useCallback(
     (id: string) =>
       daysRef.current.flatMap((d) => d.cards).find((c) => c.id === id) ??
-      parkedRef.current.find((c) => c.id === id),
+      listsRef.current.flatMap((l) => l.cards).find((c) => c.id === id),
     []
   );
 
@@ -653,96 +676,270 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
     });
   }, []);
 
-  // ── Parked ⇄ day ─────────────────────────────────────────────
+  // ── List ⇄ day ───────────────────────────────────────────────
   // Both directions MOVE the same row. Elsewhere in Roam, scheduling a saved
   // place copies it (LinkPlaceSheet's create mode writes a new card and leaves
   // the interested one alone) because that pile is the map's saved pins and
-  // must survive being scheduled. Parked is not that pile — it holds cards the
+  // must survive being scheduled. A list is not that pile — it holds cards the
   // traveller deliberately put there, one at a time — so a copy would leave a
-  // duplicate behind on a list whose whole point is that its contents are
+  // duplicate behind on a column whose whole point is that its contents are
   // chosen. Dragging out empties the slot, which is what Trello does.
 
-  // Parked → day. Same row, now on a day: status 'in_itinerary', the target
-  // day's id, a contiguous 1-based position (the live max for that day, read at
-  // write time via the shared helper), and the parked flag removed.
-  const scheduleParkedOnDay = useCallback(async (card: Card, day: DayWithCards) => {
-    const position = await nextPositionForDay(supabase, day.id);
-    const details = { ...(card.details as Record<string, unknown>) };
-    delete details.parked;
+  /** Rewrite one list's cards, keeping every other list untouched. */
+  const setListCards = useCallback(
+    (listId: string, fn: (cards: Card[]) => Card[]) =>
+      setLists((prev) => prev.map((l) => (l.id === listId ? { ...l, cards: fn(l.cards) } : l))),
+    [],
+  );
 
-    const scheduled: Card = {
-      ...card,
-      day_id:   day.id,
-      status:   "in_itinerary",
-      position,
-      details:  details as Card["details"],
-    };
-
-    setParked((prev) => prev.filter((c) => c.id !== card.id));
-    setDays((prev) =>
-      prev.map((d) => (d.id === day.id ? { ...d, cards: [...d.cards, scheduled] } : d)),
-    );
-
-    const { error } = await supabase
-      .from("cards")
-      .update({ day_id: day.id, status: "in_itinerary", position, details })
-      .eq("id", card.id);
-
-    if (error) {
-      setParked((prev) => [...prev, card]);
-      setDays((prev) =>
-        prev.map((d) => (d.id === day.id ? { ...d, cards: d.cards.filter((c) => c.id !== card.id) } : d)),
+  // Contiguous 1-based positions within one list, written only for the cards
+  // whose number actually changed. A dayless card used to be written at
+  // position 0 regardless, so its column had no order to persist — that is the
+  // gap this closes.
+  const persistListOrder = useCallback(
+    async (cards: Card[]) => {
+      await Promise.all(
+        cards.flatMap((c, i) =>
+          c.position === i + 1
+            ? []
+            : [supabase.from("cards").update({ position: i + 1 }).eq("id", c.id)],
+        ),
       );
-      setDeleteToast("Couldn't add that to the day.");
-      setTimeout(() => setDeleteToast(null), 3000);
-    }
-  }, [supabase]);
+    },
+    [supabase],
+  );
 
-  // Day → Parked. The exact inverse: day_id null, status 'interested',
-  // position 0, parked flag set. Nothing is deleted and nothing depends on a
-  // sibling interested card existing — this is the traveller parking THIS card,
-  // so this card is what has to survive.
-  const unscheduleCard = useCallback(async (cardId: string) => {
-    const snapshot = daysRef.current;
-    const fromDay  = snapshot.find((d) => d.cards.some((c) => c.id === cardId));
-    const card     = fromDay?.cards.find((c) => c.id === cardId);
-    if (!card || !fromDay) return;
+  // List → day. Same row, now on a day: status 'in_itinerary', the target day's
+  // id, a contiguous 1-based position (the live max for that day, read at write
+  // time via the shared helper), and no list.
+  const scheduleListCardOnDay = useCallback(
+    async (card: Card, fromList: ListWithCards, day: DayWithCards) => {
+      const position = await nextPositionForDay(supabase, day.id);
+      const scheduled: Card = {
+        ...card,
+        day_id:  day.id,
+        list_id: null,
+        status:  "in_itinerary",
+        position,
+      };
 
-    const details = { ...(card.details as Record<string, unknown>), parked: true };
-    const parkedCard: Card = {
-      ...card,
-      day_id:   null as unknown as string, // nullable column, non-null on Card
-      status:   "interested",
-      position: 0,
-      details:  details as Card["details"],
+      setListCards(fromList.id, (cards) => cards.filter((c) => c.id !== card.id));
+      setDays((prev) =>
+        prev.map((d) => (d.id === day.id ? { ...d, cards: [...d.cards, scheduled] } : d)),
+      );
+      setSelectedCard((prev) => (prev?.id === card.id ? scheduled : prev));
+
+      const { error } = await supabase
+        .from("cards")
+        .update({ day_id: day.id, list_id: null, status: "in_itinerary", position })
+        .eq("id", card.id);
+
+      if (error) {
+        setListCards(fromList.id, (cards) => [...cards, card]);
+        setDays((prev) =>
+          prev.map((d) => (d.id === day.id ? { ...d, cards: d.cards.filter((c) => c.id !== card.id) } : d)),
+        );
+        showToast("Couldn't add that to the day.");
+      }
+    },
+    [supabase, setListCards, showToast],
+  );
+
+  // Day → list. The exact inverse: day_id null, status 'interested', the
+  // target list, and a real position at the end of it. Nothing is deleted and
+  // nothing depends on a sibling interested card existing — this is the
+  // traveller moving THIS card, so this card is what has to survive.
+  const unscheduleCardToList = useCallback(
+    async (cardId: string, list: ListWithCards) => {
+      const snapshot = daysRef.current;
+      const fromDay  = snapshot.find((d) => d.cards.some((c) => c.id === cardId));
+      const card     = fromDay?.cards.find((c) => c.id === cardId);
+      if (!card || !fromDay) return;
+
+      const position = await nextPositionForList(supabase, list.id);
+      const listed: Card = {
+        ...card,
+        day_id:  null as unknown as string, // nullable column, non-null on Card
+        list_id: list.id,
+        status:  "interested",
+        position,
+      };
+
+      setDays((prev) =>
+        prev.map((d) => (d.id === fromDay.id ? { ...d, cards: d.cards.filter((c) => c.id !== cardId) } : d)),
+      );
+      setListCards(list.id, (cards) => [...cards, listed]);
+      setSelectedCard((prev) => (prev?.id === cardId ? listed : prev));
+
+      const { error } = await supabase
+        .from("cards")
+        .update({ day_id: null, list_id: list.id, status: "interested", position })
+        .eq("id", cardId);
+
+      if (error) {
+        setDays(snapshot);
+        setListCards(list.id, (cards) => cards.filter((c) => c.id !== cardId));
+        showToast("Couldn't move that card — please try again.");
+      }
+    },
+    [supabase, setListCards, showToast],
+  );
+
+  // List → list. Only membership changes; the card keeps its day (none), its
+  // status and its content, and lands at the end of its new column.
+  const moveCardBetweenLists = useCallback(
+    async (card: Card, fromList: ListWithCards, toList: ListWithCards) => {
+      const position = await nextPositionForList(supabase, toList.id);
+      const moved: Card = { ...card, list_id: toList.id, position };
+
+      setLists((prev) =>
+        prev.map((l) => {
+          if (l.id === fromList.id) return { ...l, cards: l.cards.filter((c) => c.id !== card.id) };
+          if (l.id === toList.id)   return { ...l, cards: [...l.cards, moved] };
+          return l;
+        }),
+      );
+      setSelectedCard((prev) => (prev?.id === card.id ? moved : prev));
+
+      const { error } = await supabase
+        .from("cards")
+        .update({ list_id: toList.id, position })
+        .eq("id", card.id);
+
+      if (error) {
+        setLists((prev) =>
+          prev.map((l) => {
+            if (l.id === toList.id)   return { ...l, cards: l.cards.filter((c) => c.id !== card.id) };
+            if (l.id === fromList.id) return { ...l, cards: [...l.cards, card] };
+            return l;
+          }),
+        );
+        showToast("Couldn't move that card — please try again.");
+      }
+    },
+    [supabase, showToast],
+  );
+
+  // Reorder within one list, and persist it. A list is an ordered pile — "the
+  // two we're actually deciding between, then the rest" — so the order the
+  // traveller sets has to survive a refresh.
+  const reorderWithinList = useCallback(
+    async (list: ListWithCards, activeCardId: string, overCardId: string | null) => {
+      if (!overCardId || activeCardId === overCardId) return;
+      const oldIdx = list.cards.findIndex((c) => c.id === activeCardId);
+      const newIdx = list.cards.findIndex((c) => c.id === overCardId);
+      if (oldIdx < 0 || newIdx < 0 || oldIdx === newIdx) return;
+
+      const reordered = arrayMove(list.cards, oldIdx, newIdx).map((c, i) => ({ ...c, position: i + 1 }));
+      setListCards(list.id, () => reordered);
+
+      try {
+        await persistListOrder(reordered);
+      } catch {
+        setListCards(list.id, () => list.cards);
+        showToast("Couldn't save that order.");
+      }
+    },
+    [setListCards, persistListOrder, showToast],
+  );
+
+  // "+ Add a card" on a list — the same search-first sheet the day columns use,
+  // so a card here can be a real Google place (pin, photo, hours), not a bare
+  // title. Only the destination differs: no day, and a list.
+  const handleListCardCreated = useCallback((card: Card) => {
+    if (!card.list_id) return;
+    setListCards(card.list_id, (cards) => [...cards, card]);
+    setComposerList(null);
+  }, [setListCards]);
+
+  // ── List CRUD ────────────────────────────────────────────────
+  // A list is created only when it has a name: an abandoned "+ Add a list"
+  // leaves no row, so the board never grows an untitled column.
+  const handleCreateList = useCallback(async (rawTitle: string) => {
+    const title = rawTitle.trim();
+    setDraftList(false);
+    if (!title) return;
+
+    const id = crypto.randomUUID();
+    const position = listsRef.current.reduce((m, l) => Math.max(m, l.position), 0) + 1;
+    const optimistic: ListWithCards = {
+      id, trip_id: trip.id, title, position,
+      created_at: new Date().toISOString(), cards: [],
     };
-
-    setDays((prev) =>
-      prev.map((d) => (d.id === fromDay.id ? { ...d, cards: d.cards.filter((c) => c.id !== cardId) } : d)),
-    );
-    setParked((prev) => [...prev, parkedCard]);
-    setSelectedCard((prev) => (prev?.id === cardId ? parkedCard : prev));
+    setLists((prev) => [...prev, optimistic]);
 
     const { error } = await supabase
-      .from("cards")
-      .update({ day_id: null, status: "interested", position: 0, details })
-      .eq("id", cardId);
-
+      .from("trip_lists")
+      .insert({ id, trip_id: trip.id, title, position });
     if (error) {
-      setDays(snapshot);
-      setParked((prev) => prev.filter((c) => c.id !== cardId));
-      setDeleteToast("Couldn't park that card — please try again.");
-      setTimeout(() => setDeleteToast(null), 3000);
+      setLists((prev) => prev.filter((l) => l.id !== id));
+      showToast("Couldn't add that list.");
     }
-  }, [supabase]);
+  }, [supabase, trip.id, showToast]);
 
-  // "+ Add a card" on the Parked column — the same search-first sheet the day
-  // columns use, so a parked card can be a real Google place (pin, photo,
-  // hours), not a bare title. Only the destination differs: no day, and the
-  // parked flag.
-  const handleParkedCreated = useCallback((card: Card) => {
-    setParked((prev) => [...prev, card]);
-    setParkedComposer(false);
+  const handleRenameList = useCallback(async (listId: string, rawTitle: string) => {
+    const title = rawTitle.trim();
+    const before = listsRef.current.find((l) => l.id === listId);
+    // An empty name is a cancel, not a rename: a column with no name is
+    // unreachable in every menu that lists them.
+    if (!before || !title || title === before.title) return;
+
+    setLists((prev) => prev.map((l) => (l.id === listId ? { ...l, title } : l)));
+    const { error } = await supabase.from("trip_lists").update({ title }).eq("id", listId);
+    if (error) {
+      setLists((prev) => prev.map((l) => (l.id === listId ? { ...l, title: before.title } : l)));
+      showToast("Couldn't rename that list.");
+    }
+  }, [supabase, showToast]);
+
+  // Deleting a list deletes the LIST. `cards.list_id` is ON DELETE SET NULL, so
+  // its cards stay in the journey as saved places — the confirm copy says so,
+  // because a column named "Research" holding a week of work must not read as a
+  // one-click way to lose it.
+  const handleDeleteList = useCallback(async (listId: string) => {
+    const snapshot = listsRef.current;
+    if (!snapshot.some((l) => l.id === listId)) return;
+
+    setLists((prev) => prev.filter((l) => l.id !== listId));
+    setComposerList((prev) => (prev?.id === listId ? null : prev));
+    setCollapsedLists((prev) => {
+      if (!prev.has(listId)) return prev;
+      const next = new Set(prev);
+      next.delete(listId);
+      writeCollapsedLists(trip.id, next);
+      return next;
+    });
+
+    const { error } = await supabase.from("trip_lists").delete().eq("id", listId);
+    if (error) {
+      setLists(snapshot);
+      showToast("Couldn't delete that list.");
+    }
+  }, [supabase, trip.id, showToast]);
+
+  // ── Drop-target resolution ───────────────────────────────────
+  // Every drop asks the same question — day, list, or nothing — and asks it
+  // once, here. dnd-kit hands back either a column's droppable id or the id of
+  // the card being hovered, so both shapes resolve through this one function
+  // and no branch downstream has to re-derive what it landed on.
+  type DropTarget =
+    | { kind: "day"; day: DayWithCards }
+    | { kind: "list"; list: ListWithCards; overCardId: string | null }
+    | null;
+
+  const resolveDropTarget = useCallback((overId: string): DropTarget => {
+    if (overId.startsWith(LIST_PREFIX)) {
+      const list = listsRef.current.find((l) => l.id === overId.slice(LIST_PREFIX.length));
+      return list ? { kind: "list", list, overCardId: null } : null;
+    }
+    if (overId.startsWith(COL_PREFIX)) {
+      const day = daysRef.current.find((d) => d.id === overId.slice(COL_PREFIX.length));
+      return day ? { kind: "day", day } : null;
+    }
+    const inList = listsRef.current.find((l) => l.cards.some((c) => c.id === overId));
+    if (inList) return { kind: "list", list: inList, overCardId: overId };
+    const inDay = daysRef.current.find((d) => d.cards.some((c) => c.id === overId));
+    return inDay ? { kind: "day", day: inDay } : null;
   }, []);
 
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
@@ -763,27 +960,31 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
     const overId   = over.id as string;
     let finalDays  = daysRef.current;
 
-    // ── Parked → day: schedule it ──
-    // handleDragOver never previews these moves (a parked card is in no day, so
+    const target   = resolveDropTarget(overId);
+    const fromList = listsRef.current.find((l) => l.cards.some((c) => c.id === activeId));
+
+    // ── A card that lives on a list ──
+    // handleDragOver never previews these moves (a list card is in no day, so
     // its source lookup misses and it returns early), which means `days` is
     // still exactly the snapshot here and there is nothing to persist.
-    const dragged = parkedRef.current.find((c) => c.id === activeId);
-    if (dragged) {
-      const targetDay =
-        overId === PARKED_COL
-          ? undefined
-          : overId.startsWith(COL_PREFIX)
-            ? finalDays.find((d) => d.id === overId.slice(COL_PREFIX.length))
-            : finalDays.find((d) => d.cards.some((c) => c.id === overId));
-      if (targetDay) await scheduleParkedOnDay(dragged, targetDay);
+    if (fromList) {
+      const card = fromList.cards.find((c) => c.id === activeId)!;
+      if (!target) return;
+      if (target.kind === "day") {
+        await scheduleListCardOnDay(card, fromList, target.day);         // schedule
+      } else if (target.list.id === fromList.id) {
+        await reorderWithinList(fromList, activeId, target.overCardId);  // reorder
+      } else {
+        await moveCardBetweenLists(card, fromList, target.list);         // re-file
+      }
       return;
     }
 
-    // ── Day → Parked: unschedule ──
-    // Same story in reverse: dropping on Parked leaves `days` untouched during
-    // the drag, so unscheduleCard owns the whole state change.
-    if (overId === PARKED_COL || parkedRef.current.some((c) => c.id === overId)) {
-      await unscheduleCard(activeId);
+    // ── Day → list: unschedule ──
+    // Same story in reverse: dropping on a list leaves `days` untouched during
+    // the drag, so unscheduleCardToList owns the whole state change.
+    if (target?.kind === "list") {
+      await unscheduleCardToList(activeId, target.list);
       return;
     }
 
@@ -806,9 +1007,15 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
     } catch {
       setDays(snapshot);
     }
-  }, [persistChanges, scheduleParkedOnDay, unscheduleCard]);
+  }, [
+    persistChanges, resolveDropTarget, scheduleListCardOnDay,
+    unscheduleCardToList, moveCardBetweenLists, reorderWithinList,
+  ]);
 
-  // ── Mobile drag (within-day only) ─────────────────────────────
+  // ── Mobile drag (within one column only) ──────────────────────
+  // The phone shows one column at a time, so there is nowhere to drag ACROSS
+  // to — but a list is an ordered pile there too, so a reorder inside the
+  // visible list has to work and has to persist.
   const handleMobileDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
@@ -821,6 +1028,16 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
     const activeCardId = active.id as string;
     const overId = over.id as string;
     let finalDays = daysRef.current;
+
+    const fromList = listsRef.current.find((l) => l.cards.some((c) => c.id === activeCardId));
+    if (fromList) {
+      const target = resolveDropTarget(overId);
+      if (target?.kind === "list" && target.list.id === fromList.id) {
+        await reorderWithinList(fromList, activeCardId, target.overCardId);
+      }
+      return;
+    }
+
     if (activeCardId !== overId && !overId.startsWith(COL_PREFIX)) {
       const dayIdx = finalDays.findIndex((d) => d.cards.some((c) => c.id === activeCardId));
       if (dayIdx >= 0 && finalDays[dayIdx].cards.some((c) => c.id === overId)) {
@@ -839,7 +1056,7 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
     } catch {
       setDays(snapshot);
     }
-  }, [persistChanges]);
+  }, [persistChanges, resolveDropTarget, reorderWithinList]);
 
   // ── Swipe navigation ───────────────────────────────────────────
   const handleSwipeTouchStart = useCallback((e: React.TouchEvent) => {
@@ -854,29 +1071,36 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
     const dy = t.clientY - swipeStartRef.current.y;
     swipeStartRef.current = null;
     if (Math.abs(dx) > 50 && Math.abs(dy) < Math.abs(dx) * 0.6) {
-      // Swiping right off Day 1 lands on Parked, index −1.
+      // Swiping right off Day 1 walks back through the list slots (see below).
       if (dx < 0) setMobileDayIdx((prev) => Math.min(prev + 1, daysRef.current.length - 1));
-      else setMobileDayIdx((prev) => Math.max(prev - 1, -1));
+      else setMobileDayIdx((prev) => Math.max(prev - 1, -(listsRef.current.length + 1)));
     }
   }, []);
 
   // ── Card edits ────────────────────────────────────────────────
   const handleCardUpdate = useCallback((updated: Card) => {
-    // A parked card can be edited, or given a day, from the card sheet — the
+    // A list card can be edited, or given a day, from the card sheet — the
     // sheet rewrites day_id/status on the same row, the same move a drag makes,
-    // so mirror it here. It leaves details.parked set, which is harmless: the
-    // page's parked query requires day_id IS NULL, and the next trip to Parked
-    // sets the flag again anyway.
-    const wasParked = parkedRef.current.some((c) => c.id === updated.id);
-    if (wasParked) {
+    // so mirror it here. The sheet knows nothing about lists, so clearing
+    // `list_id` is ours to do: leaving it set would put the card on a list and
+    // on a day at once, and the page's list query would then have to guess.
+    const fromList = listsRef.current.find((l) => l.cards.some((c) => c.id === updated.id));
+    if (fromList) {
       if (updated.day_id) {
-        setParked((prev) => prev.filter((c) => c.id !== updated.id));
+        const scheduled: Card = { ...updated, list_id: null };
+        setListCards(fromList.id, (cards) => cards.filter((c) => c.id !== updated.id));
         setDays((prev) =>
-          prev.map((d) => (d.id === updated.day_id ? { ...d, cards: [...d.cards, updated] } : d)),
+          prev.map((d) => (d.id === updated.day_id ? { ...d, cards: [...d.cards, scheduled] } : d)),
         );
-      } else {
-        setParked((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+        setSelectedCard((prev) => (prev?.id === updated.id ? scheduled : prev));
+        supabase.from("cards").update({ list_id: null }).eq("id", updated.id).then(({ error }) => {
+          if (error) showToast("That card is on a day, but still shows on its list.");
+        });
+        return;
       }
+      setListCards(fromList.id, (cards) =>
+        cards.map((c) => (c.id === updated.id ? { ...updated, list_id: fromList.id } : c)),
+      );
       setSelectedCard((prev) => (prev?.id === updated.id ? updated : prev));
       return;
     }
@@ -892,22 +1116,26 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
       return prev.map((d) => ({ ...d, cards: d.cards.map((c) => (c.id === updated.id ? updated : c)) }));
     });
     setSelectedCard((prev) => (prev?.id === updated.id ? updated : prev));
-  }, []);
+  }, [setListCards, supabase, showToast]);
 
   const handleDelete = useCallback(async (cardId: string) => {
     const snapshot = daysRef.current;
-    const parkedSnapshot = parkedRef.current;
+    const listsSnapshot = listsRef.current;
     const fromDay = snapshot.find((d) => d.cards.some((c) => c.id === cardId));
     const deleted = fromDay?.cards.find((c) => c.id === cardId) ?? null;
     setDays((prev) => prev.map((d) => ({ ...d, cards: d.cards.filter((c) => c.id !== cardId) })));
-    // A parked card deleted from the card sheet is the saved place itself going
+    // A list card deleted from the card sheet is the saved place itself going
     // away — drop it here too, or the map pin and the column would disagree.
-    setParked((prev) => (prev.some((c) => c.id === cardId) ? prev.filter((c) => c.id !== cardId) : prev));
+    setLists((prev) =>
+      prev.some((l) => l.cards.some((c) => c.id === cardId))
+        ? prev.map((l) => ({ ...l, cards: l.cards.filter((c) => c.id !== cardId) }))
+        : prev,
+    );
     setSelectedCard((prev) => (prev?.id === cardId ? null : prev));
     const { error } = await supabase.from("cards").delete().eq("id", cardId);
     if (error) {
       setDays(snapshot);
-      setParked(parkedSnapshot);
+      setLists(listsSnapshot);
       setDeleteToast("Couldn't delete — please try again.");
       setTimeout(() => setDeleteToast(null), 3000);
       return;
@@ -928,7 +1156,7 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
     const { card } = u;
     // Re-insert the row with its original id so attachments/links keep working
     const { error } = await supabase.from("cards").insert({
-      id: card.id, day_id: card.day_id, trip_id: card.trip_id,
+      id: card.id, day_id: card.day_id, list_id: card.list_id, trip_id: card.trip_id,
       start_time: card.start_time, end_time: card.end_time,
       position: card.position, status: card.status, source_url: card.source_url,
       details: card.details, ai_generated: card.ai_generated,
@@ -1044,31 +1272,31 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
   const activeCard  = activeId ? findCard(activeId) : null;
   const allEmpty    = days.every((d) => d.cards.length === 0);
 
-  // ── Mobile: Parked is index −1 ───────────────────────────────
-  // The phone shows one column at a time, so Parked joins the same swipe
-  // sequence rather than getting a second navigation idiom — and it sits before
-  // Day 1, the position it holds on desktop. Index −1 rather than a re-based
-  // 0..n+1 scheme so every existing use of mobileDayIdx (the day picker, the
-  // dots, the arrows) still means "index into days".
+  // ── Mobile: the lists are the slots before Day 1 ─────────────
+  // The phone shows one column at a time, so the lists join the same swipe
+  // sequence rather than getting a second navigation idiom — and they sit
+  // before Day 1, the position they hold on desktop. Negative indices rather
+  // than a re-based 0..n scheme so every existing use of mobileDayIdx (the day
+  // picker, the dots, the arrows) still means "index into days".
   //
-  // It is in the sequence whether or not it has cards, because on a phone the
-  // only way to put something in Parked is the button inside it — hiding it
-  // when empty would make it unreachable exactly when you want to start using
-  // it. The board still OPENS on today's column, so Parked costs nothing until
-  // you swipe right past Day 1 or tap the first dot.
-  const PARKED_IDX = -1;
-  const mobileMinIdx = PARKED_IDX;
+  //   idx:   −(n+1) … −2      −1            0, 1, 2 …
+  //   slot:  lists[0…n−1]     + Add a list  days
+  //
+  // The "+ Add a list" pane is in the sequence whether or not any list exists,
+  // because on a phone it is the ONLY way to make the first one — hiding it
+  // would make lists unreachable exactly when you want to start using them. The
+  // board still OPENS on today's column, so all of this costs nothing until you
+  // swipe right past Day 1 or tap one of the leading dots.
+  const mobileMinIdx = -(lists.length + 1);
   const safeMobileIdx = Math.max(
     mobileMinIdx,
     Math.min(mobileDayIdx, Math.max(0, days.length - 1)),
   );
-  const showParkedMobile = safeMobileIdx === PARKED_IDX;
-  const currentMobileDay = showParkedMobile ? undefined : days[safeMobileIdx];
-
-  // ── Desktop: Parked is the first column ──────────────────────
-  // Always present, even when empty — it is the drop target that un-schedules a
-  // card, so it has to exist before there is anything in it.
-  const parkedWidth = parkedCollapsed ? FOLDED_W : COL_W;
+  // 0…n−1 is a list; n is the add-a-list pane; below zero is a day.
+  const mobileSlot = safeMobileIdx + lists.length + 1;
+  const currentMobileList = safeMobileIdx < 0 ? lists[mobileSlot] : undefined;
+  const showAddListMobile = safeMobileIdx < 0 && mobileSlot === lists.length;
+  const currentMobileDay = safeMobileIdx < 0 ? undefined : days[safeMobileIdx];
 
   const boardBgStyle: React.CSSProperties =
     boardBg.type === "photo"
@@ -1096,6 +1324,62 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
       onOpenComposer={() => setComposerDay(day)}
       onAddFromSaved={() => setAddFromSavedDay(day)}
     />
+  );
+
+  // ── The leading columns ──────────────────────────────────────
+  // Lists, then "+ Add a list", then Day 1. All three board rows (week bars,
+  // pinned headers, columns) need the same slots in the same order at the same
+  // widths, so each row reads one of these three fragments rather than
+  // re-deriving the geometry — that is what stops the rows drifting apart.
+  const listHeaderCells = (
+    <>
+      {lists.map((list) => (
+        <ListHeaderCell
+          key={list.id}
+          list={list}
+          collapsed={collapsedLists.has(list.id)}
+          onToggle={() => toggleList(list.id)}
+          onRename={(title) => handleRenameList(list.id, title)}
+          onDelete={() => handleDeleteList(list.id)}
+        />
+      ))}
+      {/* "+ Add a list" carries its own label, so its header slot is empty —
+          but the slot still has to exist or every day header would sit one
+          column left of its column. */}
+      <div aria-hidden className="hidden md:block md:flex-shrink-0" style={{ width: addListWidth }} />
+    </>
+  );
+
+  const listColumns = (
+    <>
+      {lists.map((list) => (
+        <ListColumn
+          key={list.id}
+          list={list}
+          collapsed={collapsedLists.has(list.id)}
+          onExpand={() => toggleList(list.id)}
+          onCardTap={(card) => setSelectedCard(card)}
+          onAddCard={() => setComposerList(list)}
+        />
+      ))}
+      <AddListColumn
+        drafting={draftList}
+        onStart={() => setDraftList(true)}
+        onCommit={handleCreateList}
+        onCancel={() => setDraftList(false)}
+      />
+    </>
+  );
+
+  // Week bars align by summing slot widths from the left edge, so the columns
+  // that now sit before Week 1 have to occupy slots in that row too.
+  const listSpacers = (
+    <>
+      {lists.map((list, i) => (
+        <div key={list.id} aria-hidden className="flex-shrink-0" style={{ width: listWidths[i] }} />
+      ))}
+      <div aria-hidden className="flex-shrink-0" style={{ width: addListWidth }} />
+    </>
   );
 
   const handleBgSave = async (url: string) => {
@@ -1194,15 +1478,21 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
                   </button>
-                  {showParkedMobile ? (
-                    /* The day picker lists days; Parked is not one, so the
-                       centre slot states where you are and the arrows/dots/swipe
-                       carry you back into the day sequence. */
-                    <div className="text-center">
-                      <p className="text-sm font-bold text-gray-900">Parked</p>
+                  {currentMobileList ? (
+                    /* The day picker lists days; a list is not one, so the
+                       centre slot carries the list's own name and the
+                       arrows/dots/swipe carry you back into the day sequence. */
+                    <div className="text-center min-w-0 px-2">
+                      <p className="text-sm font-bold text-gray-900 truncate">{currentMobileList.title}</p>
                       <p className="text-xs text-gray-400">
-                        {parked.length} {parked.length === 1 ? "card" : "cards"} · not on a day
+                        {currentMobileList.cards.length}{" "}
+                        {currentMobileList.cards.length === 1 ? "card" : "cards"} · not on a day
                       </p>
+                    </div>
+                  ) : showAddListMobile ? (
+                    <div className="text-center">
+                      <p className="text-sm font-bold text-gray-900">New list</p>
+                      <p className="text-xs text-gray-400">Name it whatever you like</p>
                     </div>
                   ) : days.length > 1 ? (
                     <DayPicker
@@ -1230,12 +1520,22 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
                 </div>
                 {days.length > 1 && (
                   <div className="flex items-center justify-center gap-1.5 py-1 bg-white">
-                    {/* Parked takes the leading dot, mirroring its leading
-                        column on desktop. */}
+                    {/* The lists take the leading dots, then the add-a-list
+                        pane — mirroring their leading columns on desktop. */}
+                    {lists.map((list, i) => (
+                      <button
+                        key={list.id}
+                        onClick={() => setMobileDayIdx(mobileMinIdx + i)}
+                        aria-label={list.title}
+                        className={`rounded-full transition-all duration-200 ${
+                          currentMobileList?.id === list.id ? "w-4 h-1.5 bg-gray-600" : "w-1.5 h-1.5 bg-gray-300"
+                        }`}
+                      />
+                    ))}
                     <button
-                      onClick={() => setMobileDayIdx(PARKED_IDX)}
-                      aria-label="Parked"
-                      className={`rounded-full transition-all duration-200 ${showParkedMobile ? "w-4 h-1.5 bg-gray-600" : "w-1.5 h-1.5 bg-gray-300"}`}
+                      onClick={() => setMobileDayIdx(-1)}
+                      aria-label="Add a list"
+                      className={`rounded-full transition-all duration-200 ${showAddListMobile ? "w-4 h-1.5 bg-gray-600" : "w-1.5 h-1.5 bg-gray-300"}`}
                     />
                     {days.map((_, i) => (
                       <button
@@ -1248,18 +1548,42 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
                 )}
               </div>
 
-              {/* Swipeable Parked content — same slot, same swipe handlers */}
-              {showParkedMobile && (
+              {/* Swipeable list content — same slot, same swipe handlers */}
+              {currentMobileList && (
                 <div
                   className="flex-1 min-h-0 overflow-hidden px-3 pt-2"
                   onTouchStart={handleSwipeTouchStart}
                   onTouchEnd={handleSwipeTouchEnd}
                 >
-                  <ParkedColumn
-                    cards={parked}
+                  <ListColumn
+                    list={currentMobileList}
                     fullWidth
                     onCardTap={(card) => setSelectedCard(card)}
-                    onAddCard={() => setParkedComposer(true)}
+                    onAddCard={() => setComposerList(currentMobileList)}
+                  />
+                </div>
+              )}
+
+              {/* The add-a-list pane — the only way to make the first list on a
+                  phone, so it is always in the sequence. */}
+              {showAddListMobile && (
+                <div
+                  className="flex-1 min-h-0 overflow-hidden px-3 pt-2"
+                  onTouchStart={handleSwipeTouchStart}
+                  onTouchEnd={handleSwipeTouchEnd}
+                >
+                  <AddListColumn
+                    fullWidth
+                    drafting={draftList}
+                    onStart={() => setDraftList(true)}
+                    onCommit={async (title) => {
+                      const named = title.trim().length > 0;
+                      await handleCreateList(title);
+                      // The new list takes the slot this pane was in, pushing
+                      // the pane one right; stay on the list just made.
+                      if (named) setMobileDayIdx((prev) => prev - 1);
+                    }}
+                    onCancel={() => setDraftList(false)}
                   />
                 </div>
               )}
@@ -1373,12 +1697,7 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
                           would make this row as tall as a card and shove the
                           whole board down the moment one week folded. */}
                       <div className="hidden md:flex md:flex-row md:flex-nowrap md:gap-5 md:min-w-max md:flex-shrink-0 md:mb-3">
-                        {/* Parked spacer. Week bars align by summing slot
-                            widths from the left edge, so the column that now
-                            sits before Week 1 has to occupy a slot here too —
-                            without it every bar would sit one column left of
-                            the week it labels. */}
-                        <div aria-hidden className="flex-shrink-0" style={{ width: parkedWidth }} />
+                        {listSpacers}
                         {weekSlots.map(({ week, folded, width }) => (
                           <div
                             key={week.key}
@@ -1402,11 +1721,7 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
                           folded this row collapses to nothing by itself: no
                           guard, no reserved band. */}
                       <div className="hidden md:flex md:flex-row md:flex-nowrap md:gap-5 md:min-w-max md:flex-shrink-0">
-                        <ParkedHeaderCell
-                          count={parked.length}
-                          collapsed={parkedCollapsed}
-                          onToggle={toggleParked}
-                        />
+                        {listHeaderCells}
                         {weekSlots.map(({ week, folded, width }) => (
                           <div key={week.key} className="flex-shrink-0" style={{ width }}>
                             {!folded && (
@@ -1421,13 +1736,7 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
                       </div>
 
                       <div className="flex flex-row flex-nowrap gap-5 md:min-w-max md:flex-1 md:min-h-0">
-                        <ParkedColumn
-                          cards={parked}
-                          collapsed={parkedCollapsed}
-                          onExpand={toggleParked}
-                          onCardTap={(card) => setSelectedCard(card)}
-                          onAddCard={() => setParkedComposer(true)}
-                        />
+                        {listColumns}
                         {weekSlots.map(({ week, folded, width }) => (
                           <div key={week.key} className="flex-shrink-0 md:h-full md:min-h-0" style={{ width }}>
                             {!folded && (
@@ -1448,24 +1757,14 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
                           structurally — no position:sticky needed. Cells mirror the
                           column width (md:w-[280px]) and gap (md:gap-5) exactly. */}
                       <div className="hidden md:flex md:flex-row md:flex-nowrap md:gap-5 md:min-w-max md:flex-shrink-0">
-                        <ParkedHeaderCell
-                          count={parked.length}
-                          collapsed={parkedCollapsed}
-                          onToggle={toggleParked}
-                        />
+                        {listHeaderCells}
                         {days.map((day) => (
                           <DayHeaderCell key={day.id} day={day} weather={weatherByDate?.[day.date] ?? null} />
                         ))}
                       </div>
 
                       <div className="flex flex-row flex-nowrap gap-[10px] md:gap-5 md:min-w-max md:flex-1 md:min-h-0">
-                        <ParkedColumn
-                          cards={parked}
-                          collapsed={parkedCollapsed}
-                          onExpand={toggleParked}
-                          onCardTap={(card) => setSelectedCard(card)}
-                          onAddCard={() => setParkedComposer(true)}
-                        />
+                        {listColumns}
                         {days.map((day) => renderColumn(day))}
                       </div>
                     </>
@@ -1496,20 +1795,21 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
         />
       )}
 
-      {/* Parked composer — the same sheet, with no day and the parked flag.
-          endPosition 0 because parked cards carry no ordering. */}
-      {parkedComposer && (
+      {/* List composer — the same sheet, with no day and a list. endPosition is
+          the end of THAT list, so a card added here keeps the order the
+          traveller can then drag it into. */}
+      {composerList && (
         <CreateCardSheet
           dayId={null}
+          listId={composerList.id}
           tripId={trip.id}
-          endPosition={0}
+          endPosition={composerList.cards.reduce((m, c) => Math.max(m, c.position), 0) + 1}
           initialStatus="interested"
-          extraDetails={{ parked: true }}
           destination={trip.destination}
           destinationLat={trip.destination_lat}
           destinationLng={trip.destination_lng}
-          onClose={() => setParkedComposer(false)}
-          onCardCreated={handleParkedCreated}
+          onClose={() => setComposerList(null)}
+          onCardCreated={handleListCardCreated}
         />
       )}
 
@@ -1917,82 +2217,225 @@ function DayHeaderCell({ day, weather }: { day: DayWithCards; weather?: DayWeath
   );
 }
 
-// ── Parked column ──────────────────────────────────────────────
-// Trello's "Logistics" list, translated: cards that belong to the journey but
-// no particular day. Membership is opt-in (details.parked) — see the page's
-// parked query for why unscheduled must not mean parked.
+// ── Named lists ────────────────────────────────────────────────
+// Trello's own columns, translated: cards that belong to the journey but no
+// particular day, filed under a name the traveller chose. One app-named bucket
+// flattened "Research", "Prep" and "Logistics" into one pile; three columns
+// with three names do not.
+//
+// Membership is opt-in (cards.list_id) — see the page's list query for why
+// unscheduled must not mean "on a list".
 //
 // The header borrows DayHeaderCell's three-tier register so it sits in the same
 // band as the day headers, and drops the two things that make a day a day: the
-// date line and the forecast.
+// date line and the forecast. The name occupies the weekday's slot, because the
+// name is what a list has instead of a date.
 
-function ParkedHeaderCell({
-  count,
+const LIST_TIER1: React.CSSProperties = {
+  fontFamily: "'DM Sans', system-ui, sans-serif",
+  fontSize: "9.5px",
+  fontWeight: 600,
+  letterSpacing: "0.18em",
+  textTransform: "uppercase",
+  color: "rgba(26, 26, 46, 0.55)",
+  whiteSpace: "nowrap",
+};
+
+const LIST_TIER2: React.CSSProperties = {
+  fontFamily: "'Playfair Display', Georgia, serif",
+  fontSize: "22px",
+  fontWeight: 500,
+  fontStyle: "italic",
+  color: "rgb(26, 26, 46)",
+  letterSpacing: "-0.01em",
+  lineHeight: 1.1,
+};
+
+function ListHeaderCell({
+  list,
   collapsed,
   onToggle,
+  onRename,
+  onDelete,
 }: {
-  count: number;
+  list: ListWithCards;
   collapsed: boolean;
   onToggle: () => void;
+  onRename: (title: string) => void;
+  onDelete: () => void;
 }) {
+  const [editing, setEditing]     = useState(false);
+  const [draft,   setDraft]       = useState(list.title);
+  const [menuOpen, setMenuOpen]   = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const inputRef  = useRef<HTMLInputElement>(null);
+  const menuBtnRef = useRef<HTMLButtonElement>(null);
+  // The header row lives in an overflow-clipped X-scroller, so the menu is
+  // position:fixed and measured off the button — the same trick DayHeaderCell
+  // uses for the hourly forecast.
+  const [menuPos, setMenuPos] = useState<{ left: number; top: number } | null>(null);
+
+  const count = list.cards.length;
+
+  const startEditing = useCallback(() => {
+    setDraft(list.title);
+    setEditing(true);
+    setTimeout(() => inputRef.current?.select(), 0);
+  }, [list.title]);
+
+  // Enter and blur both commit; Escape reverts. A rename is one word typed in
+  // passing, so committing on blur is what you'd expect — and an empty commit
+  // is treated as a cancel by handleRenameList, never as an unnamed column.
+  const commit = useCallback(() => {
+    setEditing(false);
+    onRename(draft);
+  }, [draft, onRename]);
+
+  const openMenu = useCallback(() => {
+    const rect = menuBtnRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setMenuPos({ left: Math.max(8, Math.min(rect.left - 150, window.innerWidth - 240)), top: rect.bottom + 6 });
+    setConfirming(false);
+    setMenuOpen(true);
+  }, []);
+
   return (
     <div
       className="hidden md:block md:flex-shrink-0"
-      style={{ width: collapsed ? FOLDED_W : COL_W }}
+      style={{ width: collapsed ? FOLDED_W : COL_W, padding: "14px 16px 12px" }}
     >
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-label={collapsed ? "Expand parked cards" : "Collapse parked cards"}
-        title={collapsed ? "Expand Parked" : "Collapse Parked"}
-        className="group w-full text-left"
-        style={{ padding: "14px 16px 12px" }}
-      >
-        {/* Tier 1 — where a day header reads "DAY 3 · SEP 6", this reads
-            "PARKED · 4": same register, and a count where a date would be is
-            the quickest way to see it is not a day. */}
-        <span className="flex items-center justify-between gap-2" style={{ minHeight: 20 }}>
-          <span style={{
-            fontFamily: "'DM Sans', system-ui, sans-serif",
-            fontSize: "9.5px",
-            fontWeight: 600,
-            letterSpacing: "0.18em",
-            textTransform: "uppercase",
-            color: "rgba(26, 26, 46, 0.55)",
-            whiteSpace: "nowrap",
-          }}>Parked{count > 0 ? ` · ${count}` : ""}</span>
-          <span aria-hidden className={SIGN}>{collapsed ? "+" : "−"}</span>
+      {/* Tier 1 — where a day header reads "DAY 3 · SEP 6", this reads
+          "LIST · 4": same register, and a count where a date would be is the
+          quickest way to see it is not a day. */}
+      <div className="flex items-center justify-between gap-1" style={{ minHeight: 20 }}>
+        <span style={LIST_TIER1}>List{count > 0 ? ` · ${count}` : ""}</span>
+        <span className="flex items-center gap-0.5">
+          {!collapsed && (
+            <button
+              ref={menuBtnRef}
+              type="button"
+              onClick={openMenu}
+              aria-label={`Options for ${list.title}`}
+              className="group w-5 h-5 grid place-items-center rounded-full text-[rgba(26,26,46,0.45)] hover:text-[#C4622D] hover:bg-[rgba(196,98,45,0.10)] transition-colors"
+            >
+              <DotsThree size={15} weight="bold" />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-label={collapsed ? `Expand ${list.title}` : `Collapse ${list.title}`}
+            title={collapsed ? "Expand" : "Collapse"}
+            className="group"
+          >
+            <span aria-hidden className={SIGN}>{collapsed ? "+" : "−"}</span>
+          </button>
         </span>
-        {/* Tier 2 — the weekday's slot, carrying Brennan's own phrase for what
-            this column is. Hidden while collapsed: 140px would wrap it. */}
-        {!collapsed && (
-          <span className="block" style={{
-            fontFamily: "'Playfair Display', Georgia, serif",
-            fontSize: "22px",
-            fontWeight: 500,
-            fontStyle: "italic",
-            color: "rgb(26, 26, 46)",
-            letterSpacing: "-0.01em",
-            lineHeight: 1.1,
-            marginTop: "4px",
-          }}>Not on a day</span>
-        )}
-        {/* Tier 3 (forecast) is deliberately absent — a parked card has no date
-            to have weather on. */}
-      </button>
+      </div>
+
+      {/* Tier 2 — the weekday's slot, carrying the name the traveller typed.
+          Tap it to rename. Hidden while collapsed: 140px would wrap it. */}
+      {!collapsed && (
+        editing ? (
+          <input
+            ref={inputRef}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commit();
+              if (e.key === "Escape") { setDraft(list.title); setEditing(false); }
+            }}
+            placeholder="Research, Prep, Ideas…"
+            aria-label="List name"
+            className="w-full bg-transparent outline-none border-b border-[rgba(26,26,46,0.25)] focus:border-[#C4622D] placeholder:text-[rgba(26,26,46,0.28)]"
+            style={{ ...LIST_TIER2, marginTop: "4px" }}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={startEditing}
+            title="Rename this list"
+            className="block w-full text-left truncate hover:opacity-70 transition-opacity"
+            style={{ ...LIST_TIER2, marginTop: "4px" }}
+          >
+            {list.title}
+          </button>
+        )
+      )}
+      {/* Tier 3 (forecast) is deliberately absent — a list has no date to have
+          weather on. */}
+
+      {menuOpen && menuPos && (
+        <>
+          <div className="fixed inset-0 z-40" onPointerDown={() => setMenuOpen(false)} />
+          <div
+            className="fixed z-50 w-[230px] bg-white rounded-xl py-1 overflow-hidden"
+            style={{
+              left: menuPos.left, top: menuPos.top,
+              border: "1px solid rgba(26,26,46,0.12)",
+              boxShadow: "0 8px 30px rgba(26,26,46,0.14)",
+            }}
+          >
+            {confirming ? (
+              <div className="px-3 py-2.5">
+                <p className="text-[12.5px] font-semibold text-gray-900 leading-snug">
+                  Delete &ldquo;{list.title}&rdquo;?
+                </p>
+                <p className="text-[11.5px] text-gray-500 leading-snug mt-1">
+                  {count === 0
+                    ? "It's empty, so nothing else changes."
+                    : `The ${count} ${count === 1 ? "card" : "cards"} on it stay in your journey as saved places — only the list goes.`}
+                </p>
+                <div className="flex gap-2 mt-2.5">
+                  <button
+                    onClick={() => setMenuOpen(false)}
+                    className="flex-1 py-1.5 rounded-lg text-[12px] font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => { setMenuOpen(false); onDelete(); }}
+                    className="flex-1 py-1.5 rounded-lg text-[12px] font-semibold text-white bg-[#C4622D] hover:opacity-90 transition-opacity"
+                  >
+                    Delete list
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <button
+                  onClick={() => { setMenuOpen(false); startEditing(); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 transition-colors text-left"
+                >
+                  <NotePencil size={14} weight="light" className="text-gray-500 flex-shrink-0" />
+                  <span className="text-[12.5px] font-medium text-gray-900">Rename</span>
+                </button>
+                <button
+                  onClick={() => setConfirming(true)}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 transition-colors text-left"
+                >
+                  <Trash size={14} weight="light" className="text-gray-500 flex-shrink-0" />
+                  <span className="text-[12.5px] font-medium text-gray-900">Delete list</span>
+                </button>
+              </>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
-function ParkedColumn({
-  cards,
+function ListColumn({
+  list,
   collapsed = false,
   fullWidth,
   onExpand,
   onCardTap,
   onAddCard,
 }: {
-  cards: Card[];
+  list: ListWithCards;
   collapsed?: boolean;
   /** Mobile: the column fills the swipe pane, and never collapses. */
   fullWidth?: boolean;
@@ -2000,9 +2443,10 @@ function ParkedColumn({
   onCardTap: (card: Card) => void;
   onAddCard: () => void;
 }) {
+  const cards = list.cards;
   // The droppable is the whole column, collapsed included — a 140px rail is a
   // perfectly good target for "get this off the calendar".
-  const { setNodeRef, isOver } = useDroppable({ id: PARKED_COL });
+  const { setNodeRef, isOver } = useDroppable({ id: `${LIST_PREFIX}${list.id}` });
 
   if (collapsed && !fullWidth) {
     return (
@@ -2014,13 +2458,13 @@ function ParkedColumn({
         <button
           type="button"
           onClick={onExpand}
-          aria-label="Expand parked cards"
+          aria-label={`Expand ${list.title}`}
           className={`group w-full text-left rounded-[9px] bg-white border transition-all shadow-card hover:shadow-card-hover ${
             isOver ? "border-[rgba(196,98,45,0.55)]" : "border-[rgba(26,26,46,0.12)] hover:border-[rgba(26,26,46,0.24)]"
           }`}
           style={{ padding: "12px 13px 14px" }}
         >
-          <span style={WEEK_LABEL}>Parked</span>
+          <span className="block truncate" style={WEEK_LABEL}>{list.title}</span>
           <span className="block" style={{
             fontFamily: "'DM Sans', system-ui, sans-serif",
             fontSize: "10px", fontWeight: 500,
@@ -2052,8 +2496,9 @@ function ParkedColumn({
           >
             <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
               {cards.map((card) => (
-                // dayDate null: a parked card has no date, so the opening-hours
-                // conflict signal stays silent rather than guessing one.
+                // dayDate null: a card on a list has no date, so the
+                // opening-hours conflict signal stays silent rather than
+                // guessing one.
                 <SortableCardTile
                   key={card.id}
                   card={card}
@@ -2064,12 +2509,12 @@ function ParkedColumn({
             </SortableContext>
 
             {cards.length === 0 && (
-              // The column is opt-in and starts empty on every journey, so the
-              // empty state has to read as an invitation, not as a gap.
+              // A list starts empty by definition, so the empty state has to
+              // read as an invitation, not as a gap.
               <div className={`h-16 rounded-lg border-2 border-dashed flex items-center justify-center transition-colors ${
                 isOver ? "border-[rgba(196,98,45,0.45)]" : "border-black/10"
               }`}>
-                <p className="text-xs text-black/25">Nothing parked yet</p>
+                <p className="text-xs text-black/25">Nothing here yet</p>
               </div>
             )}
           </div>
@@ -2087,9 +2532,104 @@ function ParkedColumn({
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(26,26,46,0.40)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
               </svg>
-              Park a card
+              Add a card
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── "+ Add a list" ─────────────────────────────────────────────
+// A quiet rail at the end of the lists, widening into a real field the moment
+// you tap it. Nothing is written until a name is committed, so an abandoned
+// attempt leaves no untitled column behind. The placeholder suggests a shape
+// without dictating one — these are the traveller's categories, not the app's.
+function AddListColumn({
+  drafting,
+  fullWidth,
+  onStart,
+  onCommit,
+  onCancel,
+}: {
+  drafting: boolean;
+  fullWidth?: boolean;
+  onStart: () => void;
+  onCommit: (title: string) => void;
+  onCancel: () => void;
+}) {
+  const [draft, setDraft] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (drafting) {
+      setDraft("");
+      setTimeout(() => inputRef.current?.focus(), 0);
+    }
+  }, [drafting]);
+
+  const commit = useCallback(() => {
+    onCommit(draft);
+    setDraft("");
+  }, [draft, onCommit]);
+
+  const shellCls = fullWidth
+    ? "w-full flex flex-col"
+    : "hidden md:flex md:flex-shrink-0 md:h-full md:min-h-0 md:flex-col";
+
+  if (!drafting) {
+    return (
+      <div className={shellCls} style={fullWidth ? undefined : { width: ADD_LIST_W }}>
+        <button
+          type="button"
+          onClick={onStart}
+          className="w-full flex items-center justify-center gap-1.5 rounded-xl px-3 py-3 active:opacity-70 hover:bg-black/[0.03] transition-all"
+          style={{
+            border: "1px dashed rgba(26,26,46,0.20)",
+            fontFamily: "'Playfair Display', Georgia, serif", fontStyle: "italic",
+            fontSize: "14px", color: "rgba(26,26,46,0.40)", letterSpacing: "-0.005em",
+          }}
+        >
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(26,26,46,0.40)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          Add a list
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className={shellCls} style={fullWidth ? undefined : { width: COL_W }}>
+      <div className="rounded-xl bg-white shadow-card p-3" style={{ border: "1px solid rgba(26,26,46,0.12)" }}>
+        <input
+          ref={inputRef}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commit();
+            if (e.key === "Escape") { setDraft(""); onCancel(); }
+          }}
+          placeholder="Research, Prep, Ideas…"
+          aria-label="New list name"
+          className="w-full bg-transparent outline-none border-b border-[rgba(26,26,46,0.15)] focus:border-[#C4622D] pb-1 placeholder:text-[rgba(26,26,46,0.28)]"
+          style={LIST_TIER2}
+        />
+        <div className="flex gap-2 mt-3">
+          <button
+            onClick={commit}
+            disabled={!draft.trim()}
+            className="flex-1 py-2 rounded-lg text-[12.5px] font-semibold text-white bg-[#1A1A2E] disabled:opacity-30 transition-opacity"
+          >
+            Add list
+          </button>
+          <button
+            onClick={() => { setDraft(""); onCancel(); }}
+            className="px-3 py-2 rounded-lg text-[12.5px] font-semibold text-gray-500 hover:bg-gray-100 transition-colors"
+          >
+            Cancel
+          </button>
         </div>
       </div>
     </div>
@@ -2368,8 +2908,8 @@ function SortableCardTile({
   card: Card;
   dayDate: string | null;
   onTap: () => void;
-  /** Omitted in the Parked column: the hover trash there would delete the card
-   *  outright, and the only non-destructive exit from Parked is a drag. */
+  /** Omitted on the lists: the hover trash there would delete the card
+   *  outright, and the only non-destructive exit from a list is a drag. */
   onDelete?: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =

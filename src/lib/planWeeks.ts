@@ -155,28 +155,35 @@ export function writeFoldedDays(tripId: string, dayIds: Set<string>): void {
   }
 }
 
-// ── Parked-column collapse ─────────────────────────────────────
-// The Parked column is not a week and never joins the week grouping above, but
-// its collapsed state is the same kind of per-trip board preference, read on
-// the same mount tick and written through the same failure rules. It lives
-// beside its sibling so the board has ONE module that touches localStorage,
-// and so the two can never drift on key shape or error handling.
+// ── List collapse ──────────────────────────────────────────────
+// The board's lists are user-created and unbounded — a traveller can invent
+// "Research", "Prep", "Logistics" and three more next week — so collapse state
+// is a SET of list ids under ONE key per trip, exactly the shape (and exactly
+// the failure rules) of the folded-days set above. A key per list would grow
+// localStorage with every list ever made and leave an orphan behind each time
+// one is deleted. It lives beside its sibling so the board has ONE module that
+// touches localStorage, and so the two can never drift on key shape or error
+// handling.
 
-const parkedKey = (tripId: string) => `roam_plan_parked_collapsed_${tripId}`;
+const collapsedListsKey = (tripId: string) => `roam_plan_collapsed_lists_${tripId}`;
 
-/** Missing, corrupt, or throwing storage all mean "expanded" — never a crash. */
-export function readParkedCollapsed(tripId: string): boolean {
+/** Missing, corrupt, or throwing storage all mean "nothing collapsed" — never a crash. */
+export function readCollapsedLists(tripId: string): Set<string> {
   try {
-    return localStorage.getItem(parkedKey(tripId)) === "1";
+    const raw = localStorage.getItem(collapsedListsKey(tripId));
+    if (!raw) return new Set();
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.filter((v): v is string => typeof v === "string"));
   } catch {
-    return false;
+    return new Set();
   }
 }
 
-export function writeParkedCollapsed(tripId: string, collapsed: boolean): void {
+export function writeCollapsedLists(tripId: string, listIds: Set<string>): void {
   try {
-    if (collapsed) localStorage.setItem(parkedKey(tripId), "1");
-    else localStorage.removeItem(parkedKey(tripId));
+    if (listIds.size === 0) localStorage.removeItem(collapsedListsKey(tripId));
+    else localStorage.setItem(collapsedListsKey(tripId), JSON.stringify(Array.from(listIds)));
   } catch {
     /* see writeFoldedDays */
   }

@@ -283,6 +283,9 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
       id:              crypto.randomUUID(),
       // Interested cards are unscheduled by rule: day_id null + status interested.
       day_id:          null as unknown as string,
+      // Saved from the map, so on no board list either — the Plan board's
+      // lists hold only what was deliberately filed there.
+      list_id:         null,
       trip_id:         tripId,
       start_time:      null,
       end_time:        null,

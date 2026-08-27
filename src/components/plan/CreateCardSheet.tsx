@@ -67,17 +67,23 @@ interface Prediction {
 interface Props {
   /**
    * The day this card lands on. `null` writes a dayless card — that is what the
-   * Plan board's Parked column uses, paired with `initialStatus: "interested"`
-   * and `extraDetails: { parked: true }`. Everything else about the sheet
-   * (Google search, place upsert, type inference) is identical either way.
+   * Plan board's named lists use, paired with `initialStatus: "interested"` and
+   * a `listId`. Everything else about the sheet (Google search, place upsert,
+   * type inference) is identical either way.
    */
   dayId: string | null;
+  /**
+   * The board list this card lands on, or null for a normal day card. Set
+   * together with `dayId: null` — a card belongs to a day or a list, never
+   * both.
+   */
+  listId?: string | null;
   tripId: string;
   endPosition: number;
   onClose: () => void;
   onCardCreated: (card: Card) => void;
   initialStatus?: Card["status"];
-  /** Merged into the new card's `details` — e.g. the Parked column's flag. */
+  /** Merged into the new card's `details`, for callers that seed extra keys. */
   extraDetails?: Record<string, unknown>;
   initialStartTime?: string;
   initialEndTime?: string;
@@ -88,7 +94,7 @@ interface Props {
 }
 
 export default function CreateCardSheet({
-  dayId, tripId, endPosition, onClose, onCardCreated,
+  dayId, listId = null, tripId, endPosition, onClose, onCardCreated,
   initialStatus, extraDetails, initialStartTime, initialEndTime,
   destination, destinationLat, destinationLng,
 }: Props) {
@@ -250,7 +256,7 @@ export default function CreateCardSheet({
     const endTimeFmt   = endTime   ? `${endTime.slice(0, 5)}:00`   : null;
     const cardId       = crypto.randomUUID();
     // cards.day_id is nullable in the database but typed non-null on Card. A
-    // parked card genuinely has no day, so the cast happens once, here.
+    // card on a list genuinely has no day, so the cast happens once, here.
     const cardDayId    = dayId as unknown as string;
 
     // ── Real place selected: same write path as the map's AddToTripSheet —
@@ -310,7 +316,7 @@ export default function CreateCardSheet({
       if (placeErr || !placeRow) { setSaving(false); return; }
 
       const { error } = await supabase.from("cards").insert({
-        id: cardId, day_id: cardDayId, trip_id: tripId,
+        id: cardId, day_id: cardDayId, list_id: listId, trip_id: tripId,
         start_time: startTimeFmt, end_time: endTimeFmt,
         position: endPosition, status: cardStatus,
         source_url: selected.mapsUrl ?? null,
@@ -333,7 +339,7 @@ export default function CreateCardSheet({
         price_level:     foodPriceLevel,
       };
       onCardCreated({
-        id: cardId, day_id: cardDayId, trip_id: tripId,
+        id: cardId, day_id: cardDayId, list_id: listId, trip_id: tripId,
         start_time: startTimeFmt, end_time: endTimeFmt,
         position: endPosition, status: cardStatus,
         source_url: selected.mapsUrl ?? null,
@@ -347,7 +353,7 @@ export default function CreateCardSheet({
     // ── No place: a plain text card (a note on the timeline) ──
     const details: Record<string, unknown> = { ...extraDetails, title: title.trim() };
     const { error } = await supabase.from("cards").insert({
-      id: cardId, day_id: cardDayId, trip_id: tripId,
+      id: cardId, day_id: cardDayId, list_id: listId, trip_id: tripId,
       start_time: startTimeFmt, end_time: endTimeFmt,
       position: endPosition, status: cardStatus,
       details, ai_generated: false,
@@ -356,7 +362,7 @@ export default function CreateCardSheet({
     setSaving(false);
     if (error) { console.error("[CreateCardSheet] card insert failed:", error); return; }
     onCardCreated({
-      id: cardId, day_id: cardDayId, trip_id: tripId,
+      id: cardId, day_id: cardDayId, list_id: listId, trip_id: tripId,
       start_time: startTimeFmt, end_time: endTimeFmt,
       position: endPosition, status: cardStatus,
       source_url: null, details, ai_generated: false,
@@ -365,7 +371,7 @@ export default function CreateCardSheet({
     });
   }, [
     title, startTime, endTime, saving, selected, type, subType,
-    dayId, tripId, endPosition, initialStatus, extraDetails, supabase, onCardCreated,
+    dayId, listId, tripId, endPosition, initialStatus, extraDetails, supabase, onCardCreated,
   ]);
 
   const canCreate = title.trim().length > 0 && !loadingPlace;
@@ -399,7 +405,9 @@ export default function CreateCardSheet({
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-3 pb-3 flex-shrink-0">
-          <h2 className="text-[17px] font-bold text-gray-900">Add to this day</h2>
+          <h2 className="text-[17px] font-bold text-gray-900">
+            {dayId ? "Add to this day" : "Add to this list"}
+          </h2>
           <button
             onClick={onClose}
             className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"

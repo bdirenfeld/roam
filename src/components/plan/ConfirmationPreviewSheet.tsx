@@ -192,6 +192,7 @@ export default function ConfirmationPreviewSheet({
         const newCard: Card = {
           id:           cardId,
           day_id:       draft.dayId,
+          list_id:      null,
           trip_id:      tripId,
           start_time:   startTime,
           end_time:     endTime,

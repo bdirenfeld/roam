@@ -35,13 +35,21 @@ export async function GET(request: Request) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Upsert user profile — safe to call every login; only updates changed fields
+  // Upsert user profile — safe to call every login, and the reason stored
+  // avatars stay fresh: Google rotates the photo URL when someone changes
+  // their picture, and the old one starts 404ing. Google returns it under
+  // `avatar_url` or `picture` depending on the flow, so read both — taking
+  // only the first would blank a perfectly good face on some sign-ins.
+  const meta = data.user.user_metadata ?? {};
   const { error: upsertError } = await supabase.from("users").upsert(
     {
       id: data.user.id,
       email: data.user.email!,
-      name: data.user.user_metadata?.full_name ?? null,
-      avatar_url: data.user.user_metadata?.avatar_url ?? null,
+      name: (meta.full_name as string | undefined) ?? (meta.name as string | undefined) ?? null,
+      avatar_url:
+        (meta.avatar_url as string | undefined) ??
+        (meta.picture as string | undefined) ??
+        null,
     },
     { onConflict: "id" }
   );

@@ -173,10 +173,31 @@ export interface Place {
   loved_at?: string | null
 }
 
+// ── Board lists ─────────────────────────────────────────────
+// public.trip_lists — a column on the Plan board that is not a day. The
+// traveller names it themselves ("Research", "Prep", "Ideas"); the app never
+// invents one and never ships a fixed set. Membership is `cards.list_id`, so a
+// card is on exactly one list or none, and `position` is the list's
+// left-to-right order on the board, ahead of Day 1.
+export interface TripList {
+  id: string
+  trip_id: string
+  title: string
+  position: number
+  created_at: string
+}
+
 export interface Card {
   id: string
   day_id: string
   trip_id: string
+  /**
+   * The board list this card sits on, or null. Mutually exclusive with a day
+   * in practice: scheduling a list card clears it, and parking a scheduled
+   * card clears `day_id`. `position` is read within whichever of the two the
+   * card belongs to. ON DELETE SET NULL — deleting a list keeps its cards.
+   */
+  list_id: string | null
   start_time: string | null
   end_time: string | null
   position: number
@@ -199,6 +220,11 @@ export interface Card {
 
 // View models — days with their cards
 export interface DayWithCards extends Day {
+  cards: Card[]
+}
+
+/** The same view model for a named list: its cards, in `position` order. */
+export interface ListWithCards extends TripList {
   cards: Card[]
 }
 
