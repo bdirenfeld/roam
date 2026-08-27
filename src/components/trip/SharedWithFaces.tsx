@@ -9,11 +9,10 @@
 // Owner-only: the guest list is read through a server action that asserts
 // ownership, so a guest viewing a shared journey simply renders nothing.
 
-import { useEffect, useState } from "react";
-import { Plus } from "@phosphor-icons/react";
-import { loadShareState } from "@/lib/share-actions";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Plus, Copy, Check, PaperPlaneTilt } from "@phosphor-icons/react";
+import { createShareLink, loadShareState } from "@/lib/share-actions";
 import type { ShareState } from "@/lib/share-actions";
-import { useTripSettings } from "@/components/overlays/AppOverlays";
 
 const INK = "#1A1A2E";
 const RULE = "rgba(26,26,46,0.10)";
@@ -25,8 +24,178 @@ function initialOf(name: string | null, email: string | null): string {
   return source ? source[0]!.toUpperCase() : "·";
 }
 
-export default function SharedWithFaces({ tripId }: { tripId: string }) {
-  const settings = useTripSettings();
+/**
+ * The share box behind the "+".
+ *
+ * Opening Settings to share was the wrong answer — sharing is one action, not
+ * a screen. Type an address and it composes the invite in your own mail app
+ * (Roam has no mail server, and pretending otherwise would mean invites that
+ * silently never arrive), or copy the link, or hand it to the phone's share
+ * sheet. The link is created on open, so there's no "create link" step to
+ * perform before the thing you came to do.
+ */
+function SharePopover({
+  tripId,
+  tripTitle,
+  onClose,
+}: {
+  tripId: string;
+  tripTitle: string | null;
+  onClose: () => void;
+}) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [error, setError] = useState(false);
+  const [email, setEmail] = useState("");
+  const [copied, setCopied] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const existing = await loadShareState(tripId);
+        const token = existing.shareToken ?? (await createShareLink(tripId));
+        if (!cancelled) setUrl(`${window.location.origin}/journey/${token}`);
+      } catch {
+        if (!cancelled) setError(true);
+      }
+    })();
+    setTimeout(() => inputRef.current?.focus(), 60);
+    return () => { cancelled = true; };
+  }, [tripId]);
+
+  // Escape and click-away, the same contract as every other popover here.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const onDown = (e: PointerEvent) => {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onDown);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onDown);
+    };
+  }, [onClose]);
+
+  const copy = useCallback(async () => {
+    if (!url) return;
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1600);
+  }, [url]);
+
+  const invite = useCallback(() => {
+    if (!url) return;
+    const to = email.trim();
+    const subject = encodeURIComponent(
+      tripTitle ? `Join me on ${tripTitle}` : "Join me on this journey",
+    );
+    const body = encodeURIComponent(
+      `Here's the plan — open this to see it:\n\n${url}\n`,
+    );
+    window.location.href = `mailto:${encodeURIComponent(to)}?subject=${subject}&body=${body}`;
+    onClose();
+  }, [email, url, tripTitle, onClose]);
+
+  return (
+    <div
+      ref={boxRef}
+      role="dialog"
+      aria-label="Share this journey"
+      style={{
+        position: "absolute",
+        top: "calc(100% + 8px)",
+        right: 0,
+        width: 288,
+        zIndex: 60,
+        background: "#fff",
+        border: `1px solid ${RULE}`,
+        borderRadius: 14,
+        boxShadow: "0 8px 28px rgba(26,26,46,0.10), 0 0 0 1px rgba(26,26,46,0.03)",
+        padding: 14,
+      }}
+    >
+      <p style={{ fontSize: 12.5, fontWeight: 600, color: INK, marginBottom: 8 }}>
+        Share this journey
+      </p>
+
+      <div style={{ display: "flex", gap: 6 }}>
+        <input
+          ref={inputRef}
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && email.trim()) invite(); }}
+          placeholder="their@email.com"
+          style={{
+            flex: 1, minWidth: 0, fontSize: 13, color: INK,
+            background: "#F7F3EA", border: `1px solid ${RULE}`,
+            borderRadius: 9, padding: "8px 10px", outline: "none",
+          }}
+        />
+        <button
+          onClick={invite}
+          disabled={!email.trim() || !url}
+          title="Compose the invite"
+          aria-label="Compose the invite"
+          style={{
+            flexShrink: 0, width: 34, borderRadius: 9,
+            background: email.trim() && url ? INK : "#EFEAE3",
+            color: email.trim() && url ? "#FAF7F2" : CAPTION,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <PaperPlaneTilt size={14} weight="light" />
+        </button>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
+        <button
+          onClick={copy}
+          disabled={!url}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            fontSize: 12, fontWeight: 600, color: CAPTION,
+          }}
+        >
+          {copied ? <Check size={12} weight="bold" /> : <Copy size={12} weight="light" />}
+          {copied ? "Copied" : "Copy link"}
+        </button>
+
+        {typeof navigator !== "undefined" && "share" in navigator && url && (
+          <button
+            onClick={() => {
+              void navigator.share({ title: tripTitle ?? "A journey", url });
+              onClose();
+            }}
+            style={{ fontSize: 12, fontWeight: 600, color: CAPTION }}
+          >
+            Share…
+          </button>
+        )}
+      </div>
+
+      <p style={{ fontSize: 10.5, color: CAPTION, marginTop: 10, lineHeight: 1.5 }}>
+        {error
+          ? "Couldn't create a link — try again."
+          : url
+            ? "Anyone with the link can see this journey, not change it."
+            : "Preparing the link…"}
+      </p>
+    </div>
+  );
+}
+
+export default function SharedWithFaces({
+  tripId,
+  tripTitle = null,
+}: {
+  tripId: string;
+  tripTitle?: string | null;
+}) {
+  const [shareOpen, setShareOpen] = useState(false);
   const [state, setState] = useState<ShareState | null>(null);
 
   useEffect(() => {
@@ -46,7 +215,7 @@ export default function SharedWithFaces({ tripId }: { tripId: string }) {
   const extra = guests.length - shown.length;
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+    <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
       {shown.length > 0 && (
         <div style={{ display: "flex", alignItems: "center" }}>
           {shown.map((g, i) => (
@@ -88,7 +257,8 @@ export default function SharedWithFaces({ tripId }: { tripId: string }) {
       )}
 
       <button
-        onClick={() => settings.open(tripId, { section: "share" })}
+        onClick={() => setShareOpen((v) => !v)}
+        aria-expanded={shareOpen}
         title={guests.length > 0 ? "Share with someone else" : "Share this journey"}
         aria-label={guests.length > 0 ? "Share with someone else" : "Share this journey"}
         style={{
@@ -105,6 +275,14 @@ export default function SharedWithFaces({ tripId }: { tripId: string }) {
       >
         <Plus size={11} weight="bold" />
       </button>
+
+      {shareOpen && (
+        <SharePopover
+          tripId={tripId}
+          tripTitle={tripTitle}
+          onClose={() => setShareOpen(false)}
+        />
+      )}
     </div>
   );
 }

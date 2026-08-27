@@ -22,7 +22,7 @@ const RULE = "rgba(26,26,46,0.10)";
 const CAPTION = "rgba(26,26,46,0.55)";
 const CAPTION_SOFT = "rgba(26,26,46,0.35)";
 
-type UserSummary = { name: string | null; email: string | null };
+type UserSummary = { name: string | null; email: string | null; avatarUrl: string | null };
 
 type TripContext = {
   id: string;
@@ -137,6 +137,12 @@ export default function DesktopMasthead() {
           (meta.name as string | undefined) ??
           null,
         email: u.email ?? null,
+        // Google returns the photo on the session; users.avatar_url holds the
+        // same value, so no extra round trip is needed to show a face.
+        avatarUrl:
+          (meta.avatar_url as string | undefined) ??
+          (meta.picture as string | undefined) ??
+          null,
       };
       USER_CACHE = next;
       setUser(next);
@@ -289,7 +295,7 @@ export default function DesktopMasthead() {
       {/* Who this journey is shared with — faces, not a settings screen. */}
       {showTripStrip && currentTripId && !guest && (
         <div style={{ marginRight: 14 }}>
-          <SharedWithFaces tripId={currentTripId} />
+          <SharedWithFaces tripId={currentTripId} tripTitle={tripCtx?.title ?? null} />
         </div>
       )}
 
@@ -383,7 +389,22 @@ export default function DesktopMasthead() {
             padding: 0,
           }}
         >
-          <UserCircle size={30} weight="light" />
+          {/* Your own Google photo — it's stored at sign-in, so the generic
+              glyph is only ever a fallback for an account without one (or a
+              rotated Google URL that no longer resolves). */}
+          {user?.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={user.avatarUrl}
+              alt=""
+              width={30}
+              height={30}
+              onError={() => setUser((u) => (u ? { ...u, avatarUrl: null } : u))}
+              style={{ width: 30, height: 30, borderRadius: "50%", objectFit: "cover" }}
+            />
+          ) : (
+            <UserCircle size={30} weight="light" />
+          )}
         </button>
 
         {open && (
