@@ -37,17 +37,21 @@ export default async function DayPage({ params }: Props) {
       .eq("day_id", dayId)
       .eq("status", "in_itinerary")
       .order("position"),
+    // Hotel cards for the accommodation pin. type/sub_type live on the joined
+    // places row, NOT on cards — filtering cards.type errored silently and
+    // left hotelCards empty forever, so the accommodation pin never rendered.
+    // The !inner join makes the place filter apply to the card rows.
     supabase
       .from("cards")
       .select(`
         *,
-        place:places (
+        place:places!inner (
           id, title, type, sub_type, lat, lng, address, google_place_id, cover_image_url, rating, price_level, website, phone, hours
         )
       `)
       .eq("trip_id", tripId)
-      .eq("type", "logistics")
-      .eq("sub_type", "hotel"),
+      .neq("status", "cut")
+      .eq("place.sub_type", "hotel"),
   ]);
 
   if (!trip) redirect("/trips");

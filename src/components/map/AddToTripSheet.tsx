@@ -283,12 +283,15 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
     setSaving(true);
 
     // ── Deduplication check ───────────────────────────────────
+    // cards carries no title/type columns — those live on places. The old
+    // filter errored silently, so the duplicate warning never fired. The
+    // honest duplicate signal is "this trip already has a card for this
+    // exact Google place".
     const { data: existing } = await supabase
       .from("cards")
-      .select("id")
+      .select("id, place:places!inner(google_place_id)")
       .eq("trip_id", tripId)
-      .ilike("title", place.name)
-      .eq("type", type)
+      .eq("place.google_place_id", place.placeId)
       .limit(1)
       .maybeSingle();
 

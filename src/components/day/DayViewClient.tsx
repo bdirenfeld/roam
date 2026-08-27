@@ -28,6 +28,17 @@ import {
   HourlyStrip,
 } from "@/lib/weather";
 
+// The agenda's single ordering rule: chronological, untimed cards last,
+// position as the tiebreak so untimed cards hold a stable order.
+function agendaOrder(a: Card, b: Card): number {
+  if (a.start_time && b.start_time) {
+    const t = a.start_time.localeCompare(b.start_time);
+    if (t !== 0) return t;
+  } else if (a.start_time) return -1;
+  else if (b.start_time) return 1;
+  return a.position - b.position;
+}
+
 // ── Condition advisory text ────────────────────────────────────────────────
 function getConditionText(w: DayWeather): string | null {
   const { high_c, low_c, precip_probability_max, wind_speed_max, snow, hourly_precip, hourly_temp } = w;
@@ -218,7 +229,16 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, re
   const router = useRouter();
   const supabase = createClient();
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
-  const [localCards, setLocalCards] = useState<Card[]>(dayWithCards.cards);
+  // ONE ordering rule for the agenda, applied to the initial server list and
+  // every later add: chronological, untimed cards last, position as the
+  // tiebreak. The server orders by position alone, so sorting only the adds
+  // (the old behaviour) made cards jump to a different spot after a refresh.
+  const [localCards, setLocalCards] = useState<Card[]>(() =>
+    [...dayWithCards.cards].sort(agendaOrder)
+  );
+  // Undo window after a delete — holds the removed row for re-insert
+  const [undoCard, setUndoCard] = useState<Card | null>(null);
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleCardUpdate = useCallback(
     (updated: Card) => {
@@ -232,9 +252,10 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, re
         return;
       }
       setLocalCards((prev) =>
-        prev.some((c) => c.id === updated.id)
+        (prev.some((c) => c.id === updated.id)
           ? prev.map((c) => (c.id === updated.id ? updated : c))
           : [...prev, updated]
+        ).sort(agendaOrder)
       );
       setSelectedCard((prev) => (prev?.id === updated.id ? updated : prev));
     },
@@ -242,10 +263,38 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, re
   );
 
   const handleCardDelete = useCallback((cardId: string) => {
-    setLocalCards((prev) => prev.filter((c) => c.id !== cardId));
+    setLocalCards((prev) => {
+      const gone = prev.find((c) => c.id === cardId) ?? null;
+      if (gone) {
+        if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+        setUndoCard(gone);
+        undoTimerRef.current = setTimeout(() => setUndoCard(null), 6000);
+      }
+      return prev.filter((c) => c.id !== cardId);
+    });
     setSelectedCard((prev) => (prev?.id === cardId ? null : prev));
     setIsCardOpen(false);
   }, []);
+
+  const handleUndoDelete = useCallback(async () => {
+    const card = undoCard;
+    if (!card) return;
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    setUndoCard(null);
+    // Re-insert with the original id so attachments and links keep working
+    const { error } = await supabase.from("cards").insert({
+      id: card.id, day_id: card.day_id, trip_id: card.trip_id,
+      start_time: card.start_time, end_time: card.end_time,
+      position: card.position, status: card.status, source_url: card.source_url,
+      details: card.details, ai_generated: card.ai_generated,
+      confirmed: card.confirmed, place_id: card.place_id,
+    });
+    if (!error) {
+      setLocalCards((prev) =>
+        prev.some((c) => c.id === card.id) ? prev : [...prev, card].sort(agendaOrder)
+      );
+    }
+  }, [undoCard, supabase]);
 
   const handleToggleConfirmed = useCallback(async (cardId: string) => {
     const card = localCards.find((c) => c.id === cardId);
@@ -429,25 +478,11 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, re
   const handleSavedAdded = useCallback((added: Card[]) => {
     const mine = added.filter((c) => c.day_id === dayWithCards.id);
     if (!mine.length) return;
-    setLocalCards((prev) =>
-      [...prev, ...mine].sort((a, b) => {
-        if (!a.start_time && !b.start_time) return 0;
-        if (!a.start_time) return 1;
-        if (!b.start_time) return -1;
-        return a.start_time.localeCompare(b.start_time);
-      })
-    );
+    setLocalCards((prev) => [...prev, ...mine].sort(agendaOrder));
   }, [dayWithCards.id]);
 
   const handleCardCreated = useCallback((card: Card) => {
-    setLocalCards((prev) =>
-      [...prev, card].sort((a, b) => {
-        if (!a.start_time && !b.start_time) return 0;
-        if (!a.start_time) return 1;
-        if (!b.start_time) return -1;
-        return a.start_time.localeCompare(b.start_time);
-      })
-    );
+    setLocalCards((prev) => [...prev, card].sort(agendaOrder));
     setGapTimes(null);
   }, []);
 
@@ -709,6 +744,19 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, re
           onAdded={handleSavedAdded}
           onClose={() => setShowAddFromSaved(false)}
         />
+      )}
+
+      {/* Undo toast after a delete — matches the Plan board's */}
+      {undoCard && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[70] bg-gray-900 text-white text-[13px] font-medium pl-4 pr-1.5 py-1.5 rounded-full shadow-lg flex items-center gap-3 animate-in fade-in">
+          <span>Card deleted</span>
+          <button
+            onClick={handleUndoDelete}
+            className="px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 font-semibold transition-colors"
+          >
+            Undo
+          </button>
+        </div>
       )}
 
     </div>

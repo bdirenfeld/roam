@@ -162,6 +162,7 @@ function makeCards(
   dayId: string,
   tripId: string,
   skeletons: SkeletonDef[],
+  basePosition = 0,
 ): Card[] {
   return skeletons.map((s, i) => ({
     id:           crypto.randomUUID(),
@@ -169,7 +170,7 @@ function makeCards(
     trip_id:      tripId,
     start_time:   s.start_time + ":00",
     end_time:     s.end_time ? s.end_time + ":00" : null,
-    position:     i + 1,
+    position:     basePosition + i + 1,
     status:       "in_itinerary" as CardStatus,
     source_url:   null,
     details:      { title: s.title },
@@ -775,12 +776,20 @@ export default function PlanBoard({ trip, initialDays }: Props) {
       if (isFirst) skeletons = DAY1_CARDS;
       else if (isLast) skeletons = LAST_DAY_CARDS;
       else skeletons = template.cards;
-      allNewCards.push(...makeCards(day.id, trip.id, skeletons));
+      // Continue numbering after the day's existing cards — starting at 1
+      // again collides with what's already there
+      const base = day.cards.reduce((m, c) => Math.max(m, c.position), 0);
+      allNewCards.push(...makeCards(day.id, trip.id, skeletons, base));
     });
 
-    // Optimistic update
+    // Optimistic update — APPEND, matching what the DB write below does.
+    // Replacing here made every existing card vanish from view until refresh.
+    const snapshot = daysRef.current;
     setDays((prev) =>
-      prev.map((day) => ({ ...day, cards: allNewCards.filter((c) => c.day_id === day.id) }))
+      prev.map((day) => ({
+        ...day,
+        cards: [...day.cards, ...allNewCards.filter((c) => c.day_id === day.id)],
+      }))
     );
 
     const rows = allNewCards.map((c) => ({
@@ -797,7 +806,10 @@ export default function PlanBoard({ trip, initialDays }: Props) {
       place_id:     null,
     }));
     const { error } = await supabase.from("cards").insert(rows);
-    if (error) console.error("[PlanBoard.handleApplyTemplate] card insert failed:", error);
+    if (error) {
+      console.error("[PlanBoard.handleApplyTemplate] card insert failed:", error);
+      setDays(snapshot);
+    }
   }, [days, trip.id, supabase]); // eslint-disable-line react-hooks/exhaustive-deps
 
 

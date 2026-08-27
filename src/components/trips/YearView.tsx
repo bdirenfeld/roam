@@ -20,6 +20,7 @@ import { FAMILY_DATES } from "@/lib/yearView/familyDates";
 import { SCHOOL_CALENDAR } from "@/lib/yearView/schoolCalendar";
 import { stormSeasonFor } from "@/lib/yearView/stormSeasons";
 import { bugSeasonFor } from "@/lib/yearView/bugSeasons";
+import { computeMonthlyHci, hciTone } from "@/lib/yearView/hci";
 
 // Brennan's own "ideal times to travel", stored per-user in Supabase
 // (public.travel_windows, RLS own-row). The table isn't in the generated
@@ -91,12 +92,17 @@ const formatRange = (a: Date, b: Date) =>
 
 // ── Climate (Open-Meteo archive), module-level cache ──────────────────────
 interface MonthClimate {
-  high: number; // mean daily max °C for the calendar month
+  high: number; // mean daily max °C for the calendar month — what cells display
   rainShare: number; // share of days with ≥1mm precipitation, 0..1
   // Mean total precipitation for the calendar month (mm, averaged across
   // the archive years). Optional: wishlist rows stored before this field
   // existed lack it — treated as unknown, no wet-season marker.
   precipMm?: number;
+  // HCI inputs (see lib/yearView/hci.ts) — optional for the same reason
+  feelsMax?: number; // monthly mean daily apparent-temperature max, °C
+  sunFrac?: number; // monthly mean sunshine/daylight fraction, 0..1
+  windMax?: number; // monthly mean daily max wind, km/h (API default unit)
+  hci?: number; // Holiday Climate Index score, 0–100
 }
 
 // Number of full archive years the aggregation spans
@@ -115,19 +121,34 @@ async function fetchClimate(lat: number, lng: number): Promise<MonthClimate[]> {
     longitude: String(lng),
     start_date: `${y - CLIMATE_YEARS}-01-01`, // past N full years
     end_date: `${y - 1}-12-31`,
-    daily: "temperature_2m_max,precipitation_sum",
+    daily:
+      "temperature_2m_max,precipitation_sum,apparent_temperature_max,sunshine_duration,daylight_duration,wind_speed_10m_max",
     timezone: "auto",
   });
   const res = await fetch(`https://archive-api.open-meteo.com/v1/archive?${params}`);
   if (!res.ok) throw new Error(`Open-Meteo archive responded ${res.status}`);
   const data = (await res.json()) as {
-    daily: { time: string[]; temperature_2m_max: (number | null)[]; precipitation_sum: (number | null)[] };
+    daily: {
+      time: string[];
+      temperature_2m_max: (number | null)[];
+      precipitation_sum: (number | null)[];
+      apparent_temperature_max: (number | null)[];
+      sunshine_duration: (number | null)[];
+      daylight_duration: (number | null)[];
+      wind_speed_10m_max: (number | null)[]; // km/h — the API's default unit
+    };
   };
 
   const sum = Array(12).fill(0) as number[];
   const cnt = Array(12).fill(0) as number[];
   const rainy = Array(12).fill(0) as number[];
   const totalMm = Array(12).fill(0) as number[];
+  const feelsSum = Array(12).fill(0) as number[];
+  const feelsCnt = Array(12).fill(0) as number[];
+  const sunSum = Array(12).fill(0) as number[];
+  const sunCnt = Array(12).fill(0) as number[];
+  const windSum = Array(12).fill(0) as number[];
+  const windCnt = Array(12).fill(0) as number[];
   for (let i = 0; i < data.daily.time.length; i++) {
     const mi = Number(data.daily.time[i].slice(5, 7)) - 1;
     const t = data.daily.temperature_2m_max[i];
@@ -137,12 +158,38 @@ async function fetchClimate(lat: number, lng: number): Promise<MonthClimate[]> {
     const mm = data.daily.precipitation_sum[i] ?? 0;
     totalMm[mi] += mm;
     if (mm >= 1) rainy[mi] += 1;
+    const feels = data.daily.apparent_temperature_max[i];
+    if (feels != null) {
+      feelsSum[mi] += feels;
+      feelsCnt[mi] += 1;
+    }
+    // Sunshine as a fraction of daylight (guarding polar-night zero days) —
+    // the HCI aesthetic facet's cloud proxy
+    const sunshine = data.daily.sunshine_duration[i];
+    const daylight = data.daily.daylight_duration[i];
+    if (sunshine != null && daylight != null && daylight > 0) {
+      sunSum[mi] += Math.min(1, sunshine / daylight);
+      sunCnt[mi] += 1;
+    }
+    const wind = data.daily.wind_speed_10m_max[i];
+    if (wind != null) {
+      windSum[mi] += wind;
+      windCnt[mi] += 1;
+    }
   }
-  const result: MonthClimate[] = sum.map((s, mi) => ({
-    high: cnt[mi] > 0 ? Math.round(s / cnt[mi]) : 0,
-    rainShare: cnt[mi] > 0 ? rainy[mi] / cnt[mi] : 1,
-    precipMm: Math.round(totalMm[mi] / CLIMATE_YEARS),
-  }));
+  const result: MonthClimate[] = sum.map((s, mi) => {
+    const profile: MonthClimate = {
+      high: cnt[mi] > 0 ? Math.round(s / cnt[mi]) : 0,
+      rainShare: cnt[mi] > 0 ? rainy[mi] / cnt[mi] : 1,
+      precipMm: Math.round(totalMm[mi] / CLIMATE_YEARS),
+      feelsMax: feelsCnt[mi] > 0 ? Math.round((feelsSum[mi] / feelsCnt[mi]) * 10) / 10 : undefined,
+      sunFrac: sunCnt[mi] > 0 ? Math.round((sunSum[mi] / sunCnt[mi]) * 100) / 100 : undefined,
+      windMax: windCnt[mi] > 0 ? Math.round((windSum[mi] / windCnt[mi]) * 10) / 10 : undefined,
+    };
+    const hci = computeMonthlyHci(profile);
+    if (hci != null) profile.hci = hci;
+    return profile;
+  });
   climateCache.set(key, result);
   return result;
 }
@@ -150,16 +197,35 @@ async function fetchClimate(lat: number, lng: number): Promise<MonthClimate[]> {
 type HeatTone = "great" | "good" | "fair" | "rough";
 
 function scoreMonth(c: MonthClimate): HeatTone {
+  // Deep-cold floor: mean daytime feels-like at or below −6°C (the HCI
+  // thermal table's bottom band) is "rough" for family travel whatever the
+  // sunshine math says. HCI:Urban is documented to over-rate winter months
+  // — snow arrives as low mm water-equivalent, so its precip facet scores
+  // a −12° January almost perfectly (Jay Peak Jan computes HCI 52 without
+  // this floor).
+  if (c.feelsMax != null && c.feelsMax <= -6) return "rough";
+
   let tone: HeatTone;
-  if (c.high >= 18 && c.high <= 28 && c.rainShare < 0.3) tone = "great";
-  else if (c.high >= 13 && c.high <= 31 && c.rainShare < 0.4) tone = "good";
-  else if (c.high >= 8 && c.high <= 33) tone = "fair";
-  else tone = "rough";
+  if (c.hci != null) {
+    // Published index when the profile carries it (all new fetches do)
+    tone = hciTone(c.hci);
+  } else {
+    // Legacy hand bands — only for rows stored before the HCI fields
+    if (c.high >= 18 && c.high <= 28 && c.rainShare < 0.3) tone = "great";
+    else if (c.high >= 13 && c.high <= 31 && c.rainShare < 0.4) tone = "good";
+    else if (c.high >= 8 && c.high <= 33) tone = "fair";
+    else tone = "rough";
+  }
   // A monsoon month can't be "great" however pleasant the temperature —
-  // ≥180mm mean rainfall caps the tone at fair. (Storm season deliberately
-  // does NOT downgrade: a hurricane is a risk, not a certainty; the glyph
-  // and legend carry it.)
+  // ≥180mm mean rainfall caps the tone at fair, layered over either path:
+  // HCI's precip facet works on mm/day means and under-penalizes
+  // concentrated monsoons. (Storm season deliberately does NOT downgrade:
+  // a hurricane is a risk, not a certainty; the glyph and legend carry it.)
   if ((c.precipMm ?? 0) >= 180 && (tone === "great" || tone === "good")) tone = "fair";
+  // Drizzle cap, the same disease at the other end: mm/day means also miss
+  // places where light rain falls every other day (west of Ireland rates
+  // 8/10 on precip in July). Rain on half the days can't be "great".
+  if (c.rainShare >= 0.5 && tone === "great") tone = "good";
   return tone;
 }
 
@@ -438,6 +504,9 @@ export default function YearView({ trips }: Props) {
     setUndo({ label, restore });
     undoTimerRef.current = setTimeout(() => setUndo(null), 6000);
   };
+  // Tapped heat cell (calendar month 0–11) — tooltips are hover-only, so on
+  // touch a tap surfaces the month's numbers in a strip under the grid
+  const [detailMonth, setDetailMonth] = useState<number | null>(null);
   // The destination picker renders position:fixed (anchored at open time) so
   // the strip's overflow container can't clip it; this holds the anchor.
   const [pickerPos, setPickerPos] = useState<
@@ -1077,6 +1146,25 @@ export default function YearView({ trips }: Props) {
     };
   }, [dest]);
 
+  // Tap-elsewhere dismisses the month detail strip (tapping another cell
+  // switches via the cells' own toggle handlers)
+  useEffect(() => {
+    if (detailMonth == null) return;
+    const onDocClick = (e: MouseEvent) => {
+      const t = e.target as Element | null;
+      if (t && t.closest("[data-heat-cell],[data-heat-detail]")) return;
+      setDetailMonth(null);
+    };
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  }, [detailMonth]);
+
+  // Reset the detail strip when the destination changes — the numbers on
+  // screen would otherwise silently swap under a stale selection
+  useEffect(() => {
+    setDetailMonth(null);
+  }, [dest]);
+
   // Storm/bug seasons for the picked destination — location decides the
   // label and which calendar months carry the glyph; unmatched places
   // (Tuscany, Budapest) get nothing
@@ -1123,6 +1211,35 @@ export default function YearView({ trips }: Props) {
       )}
     </div>
   );
+
+  // Tapped-month detail strip — the hover tooltip's numbers, readable on
+  // touch. Renders under whichever grid is on screen; wraps to a second
+  // line when season labels join in.
+  const detailClimate = detailMonth != null ? climate?.[detailMonth] : undefined;
+  const heatDetail =
+    detailMonth != null && detailClimate ? (
+      <div
+        data-heat-detail=""
+        className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5"
+        style={{ fontSize: 10.5, lineHeight: "15px", color: "rgba(26,26,46,0.6)" }}
+      >
+        <span style={{ fontWeight: 600, color: "#1A1A2E" }}>{MONTH_NAMES[detailMonth]}</span>
+        <span>
+          {[
+            `high ${detailClimate.high}°`,
+            detailClimate.feelsMax != null ? `feels ${Math.round(detailClimate.feelsMax)}°` : null,
+            `rain on ${Math.round(detailClimate.rainShare * 100)}% of days`,
+            detailClimate.precipMm != null ? `~${detailClimate.precipMm}mm` : null,
+            detailClimate.hci != null ? `HCI ${detailClimate.hci}` : null,
+            isWetMonth(detailClimate) ? "wet season" : null,
+            storm && storm.months.includes(detailMonth + 1) ? storm.label : null,
+            bugs && bugs.months.includes(detailMonth + 1) ? bugs.label : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </span>
+      </div>
+    ) : null;
 
   const isOpen = openState === true;
 
@@ -1487,14 +1604,21 @@ export default function YearView({ trips }: Props) {
                   const stormy = !!c && !!storm && storm.months.includes(m.getMonth() + 1);
                   const buggy = !!c && !!bugs && bugs.months.includes(m.getMonth() + 1);
                   return (
-                    <div
+                    <button
                       key={`heat-${m.getTime()}`}
+                      type="button"
+                      data-heat-cell=""
+                      onClick={() =>
+                        setDetailMonth((prev) => (prev === m.getMonth() ? null : m.getMonth()))
+                      }
                       title={
                         c
                           ? [
                               `Mean high ${c.high}°`,
+                              c.feelsMax != null ? `feels ${Math.round(c.feelsMax)}°` : null,
                               `rainy days ${Math.round(c.rainShare * 100)}%`,
                               c.precipMm != null ? `~${c.precipMm}mm rain` : null,
+                              c.hci != null ? `HCI ${c.hci}` : null,
                               stormy && storm ? storm.label : null,
                               buggy && bugs ? bugs.label : null,
                             ]
@@ -1515,6 +1639,10 @@ export default function YearView({ trips }: Props) {
                         fontWeight: 600,
                         background: tone ? HEAT_STYLE[tone].bg : "rgba(26,26,46,0.05)",
                         color: tone ? HEAT_STYLE[tone].fg : "rgba(26,26,46,0.3)",
+                        boxShadow:
+                          detailMonth === m.getMonth()
+                            ? "inset 0 0 0 1.5px rgba(26,26,46,0.4)"
+                            : undefined,
                       }}
                     >
                       {c ? `${c.high}°` : "–"}
@@ -1533,11 +1661,17 @@ export default function YearView({ trips }: Props) {
                           <BugGlyph size={7} />
                         </span>
                       )}
-                    </div>
+                    </button>
                   );
                 })}
               </div>
-              {/* Marker legend — GRID-aligned under the heat cells */}
+              {/* Tapped-month detail + marker legend — GRID-aligned */}
+              {heatDetail && (
+                <div style={GRID}>
+                  <div />
+                  <div style={{ gridColumn: "2 / 14", paddingTop: 5 }}>{heatDetail}</div>
+                </div>
+              )}
               {heatLegend && (
                 <div style={GRID}>
                   <div />
@@ -1633,27 +1767,24 @@ export default function YearView({ trips }: Props) {
               const stormy = !!c && !!storm && storm.months.includes(m.getMonth() + 1);
               const buggy = !!c && !!bugs && bugs.months.includes(m.getMonth() + 1);
               return (
-                <div
+                <button
                   key={`mheat-${m.getTime()}`}
-                  className="flex flex-col items-center justify-center"
-                  title={
-                    c
-                      ? [
-                          `Mean high ${c.high}°`,
-                          c.precipMm != null ? `~${c.precipMm}mm rain` : null,
-                          stormy && storm ? storm.label : null,
-                          buggy && bugs ? bugs.label : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")
-                      : undefined
+                  type="button"
+                  data-heat-cell=""
+                  onClick={() =>
+                    setDetailMonth((prev) => (prev === m.getMonth() ? null : m.getMonth()))
                   }
+                  className="flex flex-col items-center justify-center"
                   style={{
                     position: "relative",
                     height: 34,
                     borderRadius: 6,
                     background: tone ? HEAT_STYLE[tone].bg : "rgba(26,26,46,0.05)",
                     color: tone ? HEAT_STYLE[tone].fg : "rgba(26,26,46,0.3)",
+                    boxShadow:
+                      detailMonth === m.getMonth()
+                        ? "inset 0 0 0 1.5px rgba(26,26,46,0.4)"
+                        : undefined,
                   }}
                 >
                   <span style={{ fontSize: 8.5, opacity: 0.75, textTransform: "uppercase" }}>
@@ -1677,10 +1808,11 @@ export default function YearView({ trips }: Props) {
                       <BugGlyph size={7} />
                     </span>
                   )}
-                </div>
+                </button>
               );
             })}
           </div>
+          {heatDetail && <div className="mt-1.5">{heatDetail}</div>}
           <div className="mt-1.5">{heatLegend}</div>
         </div>
 
