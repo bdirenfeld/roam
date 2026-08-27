@@ -1,5 +1,21 @@
 import { useState } from "react";
-import { BookmarkSimple } from "@phosphor-icons/react";
+import { BookmarkSimple, DotsSixVertical } from "@phosphor-icons/react";
+import {
+  DndContext,
+  closestCenter,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import CardSurface from "@/components/cards/CardSurface";
 import type { DayWithCards, Card } from "@/types/database";
 
@@ -17,6 +33,9 @@ interface Props {
   cardNumberById?: Map<string, number>;
   /** Guest read-only — suppress the tappable gap connector's add affordance. */
   readOnly?: boolean;
+  /** Persist a new order for the day's UNTIMED cards (ids, top to bottom).
+   *  Timed cards are ordered by their times, so only these are draggable. */
+  onReorder?: (orderedUntimedIds: string[]) => void;
 }
 
 function minutesBetween(end: string | null, start: string | null): number {
@@ -101,6 +120,45 @@ function GapRow({ minutes, onTap }: { minutes: number; onTap: () => void }) {
   );
 }
 
+// A draggable untimed row. The drag listeners live on the grip alone so the
+// card itself stays tappable — a long-press-anywhere drag would fight both
+// the card tap and the day view's horizontal swipe navigation.
+function SortableUntimedRow({
+  card,
+  children,
+}: {
+  card: Card;
+  children: React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: card.id });
+
+  // Grip sits BESIDE the card, not over it — the card's own chevron already
+  // occupies its right edge.
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+      }}
+      className="flex items-center gap-0.5"
+    >
+      <div className="flex-1 min-w-0">{children}</div>
+      <button
+        {...attributes}
+        {...listeners}
+        className="flex-shrink-0 self-center mb-5 p-1.5 text-activity/20 hover:text-activity/45 touch-none cursor-grab active:cursor-grabbing"
+        aria-label={`Reorder ${(card.place?.title ?? (card.details as { title?: string })?.title) ?? "card"}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <DotsSixVertical size={15} weight="bold" />
+      </button>
+    </div>
+  );
+}
+
 export default function CardTimeline({
   dayWithCards,
   onCardTap,
@@ -110,8 +168,33 @@ export default function CardTimeline({
   onToggleConfirmed,
   cardNumberById,
   readOnly = false,
+  onReorder,
 }: Props) {
   const { cards } = dayWithCards;
+
+  // Timed cards are ordered by the clock; untimed ones have no natural order,
+  // so those are the ones worth dragging. (DayViewClient's sort already puts
+  // every untimed card after every timed one, so this split is contiguous.)
+  const timedCards = cards.filter((c) => c.start_time);
+  const untimedCards = cards.filter((c) => !c.start_time);
+  const canReorder = !readOnly && !!onReorder && untimedCards.length > 1;
+
+  const sensors = useSensors(
+    // Touch: hold briefly before dragging, so a tap stays a tap and a swipe
+    // across the screen still changes days.
+    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 6 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const ids = untimedCards.map((c) => c.id);
+    const from = ids.indexOf(String(active.id));
+    const to = ids.indexOf(String(over.id));
+    if (from < 0 || to < 0) return;
+    onReorder?.(arrayMove(ids, from, to));
+  };
 
   // Shared add controls — "Add from saved" reads first, blank card second.
   // Mirrors the Plan board's column footer so both views teach the same doors.
@@ -172,8 +255,8 @@ export default function CardTimeline({
         </div>
       ) : (
         <div>
-          {cards.map((card, index) => {
-            const nextCard = cards[index + 1];
+          {timedCards.map((card, index) => {
+            const nextCard = timedCards[index + 1];
             const gap = nextCard ? minutesBetween(card.end_time, nextCard.start_time) : 0;
 
             return (
@@ -199,6 +282,55 @@ export default function CardTimeline({
               </div>
             );
           })}
+
+          {/* Untimed cards — draggable among themselves. The quiet divider
+              explains why they sit last and why only these have a grip. */}
+          {untimedCards.length > 0 && timedCards.length > 0 && (
+            <div className="flex items-center gap-2 mb-3 pl-[33px]">
+              <span className="text-[10px] uppercase tracking-[0.1em] text-activity/35">
+                Anytime
+              </span>
+              <span className="flex-1 h-px bg-[rgba(26,26,46,0.07)]" />
+            </div>
+          )}
+
+          {canReorder ? (
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={untimedCards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+                {untimedCards.map((card) => (
+                  <SortableUntimedRow key={card.id} card={card}>
+                    <div data-card-id={card.id} className="mb-5">
+                      <CardSurface
+                        card={card}
+                        dayDate={dayWithCards.date}
+                        onTap={onCardTap ? () => onCardTap(card) : undefined}
+                        isHighlighted={highlightedCardId === card.id}
+                        onToggleConfirmed={
+                          onToggleConfirmed ? () => onToggleConfirmed(card.id) : undefined
+                        }
+                        pinIndex={cardNumberById?.get(card.id)}
+                      />
+                    </div>
+                  </SortableUntimedRow>
+                ))}
+              </SortableContext>
+            </DndContext>
+          ) : (
+            untimedCards.map((card) => (
+              <div key={card.id} data-card-id={card.id} className="mb-5">
+                <CardSurface
+                  card={card}
+                  dayDate={dayWithCards.date}
+                  onTap={onCardTap ? () => onCardTap(card) : undefined}
+                  isHighlighted={highlightedCardId === card.id}
+                  onToggleConfirmed={
+                    onToggleConfirmed ? () => onToggleConfirmed(card.id) : undefined
+                  }
+                  pinIndex={cardNumberById?.get(card.id)}
+                />
+              </div>
+            ))
+          )}
           {/* Always-available add — the gap connector only appears between
               timed cards ≥30 min apart, so untimed days need these. */}
           {renderAddControls(true)}

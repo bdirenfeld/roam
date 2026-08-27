@@ -32,7 +32,6 @@ import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
 import CreateCardSheet from "@/components/plan/CreateCardSheet";
 import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/plan/ConfirmationPreviewSheet";
 import DocumentsSheet from "@/components/plan/DocumentsSheet";
-import TriageView from "@/components/plan/TriageView";
 import DayPicker from "@/components/day/DayPicker";
 // BoardBg type (kept local — no longer uses external BoardBgPicker)
 type BoardBg =
@@ -206,7 +205,6 @@ export default function PlanBoard({ trip, initialDays }: Props) {
   const [composerDay, setComposerDay] = useState<DayWithCards | null>(null);
   const [pendingConf,  setPendingConf]  = useState<{ items: ParsedConfirmation[]; fileName: string; fileType: string } | null>(null);
   const [showDocs,     setShowDocs]     = useState(false);
-  const [viewMode] = useState<"board" | "triage">("board");
   const [deleteToast, setDeleteToast] = useState<string | null>(null);
   // Undo window after an instant delete — holds the removed card for re-insert
   const [undoDelete, setUndoDelete] = useState<{ card: Card; dayId: string } | null>(null);
@@ -734,6 +732,19 @@ export default function PlanBoard({ trip, initialDays }: Props) {
     );
   }, [supabase]);
 
+  // "Copy to another day" writes a brand-new card on the target day; the sheet
+  // hands it back so the board shows it without a refetch. The source card is
+  // untouched, so nothing else in state changes.
+  const handleCardCopied = useCallback((created: Card) => {
+    setDays((prev) =>
+      prev.map((d) =>
+        d.id === created.day_id
+          ? { ...d, cards: [...d.cards, created].sort((a, b) => a.position - b.position) }
+          : d
+      )
+    );
+  }, []);
+
   // ── Card creation (board view) ──────────────────────────────
   // The board opens the same CreateCardSheet the Agenda uses, so a card
   // added here can be a searched Google place (pin, photo, hours) rather
@@ -920,13 +931,8 @@ export default function PlanBoard({ trip, initialDays }: Props) {
         </div>
       </div>{/* end nav bar */}
 
-      {/* Triage view */}
-      {viewMode === "triage" && (
-        <TriageView tripId={trip.id} days={days} />
-      )}
-
       {/* Board */}
-      {viewMode === "board" && (
+      {(
         <div className="flex-1 flex flex-col overflow-hidden">
           {isMobile ? (
             /* ── Mobile: single-day view with swipe navigation ── */
@@ -1330,6 +1336,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
           onClose={() => setSelectedCard(null)}
           onCardUpdate={handleCardUpdate}
           onCardDelete={handleDelete}
+          onCardCopied={handleCardCopied}
           days={days}
           tripDestination={trip.destination}
         />

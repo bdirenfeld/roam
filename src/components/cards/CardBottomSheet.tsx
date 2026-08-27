@@ -5,8 +5,10 @@ import { Clock } from "@phosphor-icons/react";
 import type { Card, Day, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { formatTimeValue } from "@/lib/formatTime";
+import { scheduleCardOnDay } from "@/lib/scheduleCard";
 import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
 import AttachmentsPanel from "./AttachmentsPanel";
+import DayPickerOverlay from "./DayPickerOverlay";
 import PlacePhotoGallery from "./PlacePhotoGallery";
 import { NavigationSheet } from "@/components/ui/NavigationSheet";
 
@@ -44,6 +46,10 @@ interface Props {
   onCardUpdate?: (card: Card) => void;
   /** Called after the card is permanently deleted. */
   onCardDelete?: (cardId: string) => void;
+  /** Called with the NEW card written by "Copy to another day". The card this
+   *  sheet is showing is unchanged — the caller splices the new one into the
+   *  target day so the board/agenda updates without a refetch. */
+  onCardCopied?: (card: Card) => void;
   /** Days available for assignment (shows "Assign to Day" when card is interested) */
   days?: Day[];
   /** Trip destination string (e.g. "Rome, Italy") — used to derive country dial code */
@@ -455,7 +461,7 @@ function TitleEditor({
 }
 
 // ── Main component ─────────────────────────────────────────────
-export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDelete, days, tripDestination, readOnly = false }: Props) {
+export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDelete, onCardCopied, days, tripDestination, readOnly = false }: Props) {
   const supabase = createClient();
   const sheetRef = useRef<HTMLDivElement>(null);
   const dragX = useRef(0);
@@ -473,6 +479,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const [localCard, setLocalCard] = useState<Card>(card);
   const [showDayPicker,     setShowDayPicker]     = useState(false);
   const [showMovePicker,    setShowMovePicker]    = useState(false);
+  const [showCopyPicker,    setShowCopyPicker]    = useState(false);
+  const [isCopying,         setIsCopying]         = useState(false);
+  const [copyNotice,        setCopyNotice]        = useState<{ text: string; ok: boolean } | null>(null);
   const [showLinkSheet,     setShowLinkSheet]     = useState(false);
   const [showAttachments,   setShowAttachments]   = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -687,6 +696,41 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       }
     },
     [localCard, onCardUpdate, supabase],
+  );
+
+  // ── Copy to another day (in_itinerary) ───────────────────────
+  // Writes a brand-new card on the target day through the shared insert helper
+  // — same place, same details, same times, unconfirmed. THIS card is never
+  // touched, so the sheet keeps showing the original.
+  const handleCopyToDay = useCallback(
+    async (day: Day) => {
+      setShowCopyPicker(false);
+      if (day.id === localCard.day_id || isCopying) return;
+      setIsCopying(true);
+
+      const created = await scheduleCardOnDay(supabase, {
+        tripId:    localCard.trip_id,
+        dayId:     day.id,
+        placeId:   localCard.place_id,
+        place:     localCard.place ?? null,
+        details:   localCard.details,
+        startTime: localCard.start_time,
+        endTime:   localCard.end_time,
+        sourceUrl: localCard.source_url,
+      });
+
+      setIsCopying(false);
+      if (!created) {
+        setCopyNotice({ text: "Couldn't copy — please try again.", ok: false });
+        setTimeout(() => setCopyNotice(null), 3000);
+        return;
+      }
+
+      onCardCopied?.(created);
+      setCopyNotice({ text: `Copied to Day ${day.day_number}`, ok: true });
+      setTimeout(() => setCopyNotice(null), 3000);
+    },
+    [localCard, isCopying, onCardCopied, supabase],
   );
 
   // ── Type + sub-type change ─────────────────────────────────
@@ -1288,7 +1332,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             </div>
           )}
 
-          {/* Move to Day — for in_itinerary cards (useful on mobile) */}
+          {/* Move / Copy to Day — for in_itinerary cards (useful on mobile).
+              Copy sits under Move, outlined rather than filled: same family,
+              clearly the secondary of the two. */}
           {!readOnly && localCard.status === "in_itinerary" && days && days.length > 1 && !showDeleteConfirm && (
             <div className="px-5 pt-3 pb-2">
               <button
@@ -1297,6 +1343,18 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               >
                 Move to Day
               </button>
+              <button
+                onClick={() => setShowCopyPicker(true)}
+                disabled={isCopying}
+                className="mt-2 w-full py-2.5 rounded-xl bg-white border border-gray-200 text-gray-600 text-[13px] font-semibold hover:bg-gray-50 active:scale-[0.98] transition-all disabled:opacity-50"
+              >
+                {isCopying ? "Copying…" : "Copy to another day"}
+              </button>
+              {copyNotice && (
+                <p className={`text-[11px] text-center mt-2 ${copyNotice.ok ? "text-activity" : "text-red-500"}`}>
+                  {copyNotice.text}
+                </p>
+              )}
             </div>
           )}
 
@@ -1354,95 +1412,34 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
 
         {/* Move to day picker overlay */}
         {showMovePicker && days && (
-          <div className="absolute inset-0 z-10 bg-white rounded-t-2xl flex flex-col">
-            <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-gray-100 flex-shrink-0">
-              <h3 className="text-[16px] font-bold text-gray-900">Move to day</h3>
-              <button
-                onClick={() => setShowMovePicker(false)}
-                className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
-                aria-label="Close"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-            <div className="overflow-y-auto flex-1">
-              {days.map((day) => {
-                const isCurrent = day.id === localCard.day_id;
-                return (
-                  <button
-                    key={day.id}
-                    onClick={() => handleMoveToDay(day)}
-                    disabled={isCurrent}
-                    className={`w-full flex items-center gap-3 px-5 py-4 border-b border-gray-50 transition-colors text-left ${isCurrent ? "opacity-40 cursor-default" : "hover:bg-gray-50 active:bg-gray-100"}`}
-                  >
-                    <div className="w-8 h-8 rounded-full bg-teal-50 flex items-center justify-center flex-shrink-0">
-                      <span className="text-[12px] font-bold text-activity">{day.day_number}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[14px] font-medium text-gray-900">
-                        Day {day.day_number}{day.day_name ? ` — ${day.day_name}` : ""}
-                        {isCurrent && <span className="ml-2 text-[11px] text-gray-400 font-normal">current</span>}
-                      </p>
-                      {day.date && (
-                        <p className="text-[12px] text-gray-400">
-                          {new Date(day.date + "T00:00:00").toLocaleDateString("en-US", {
-                            weekday: "short", month: "short", day: "numeric",
-                          })}
-                        </p>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <DayPickerOverlay
+            title="Move to day"
+            days={days}
+            currentDayId={localCard.day_id}
+            onSelect={handleMoveToDay}
+            onClose={() => setShowMovePicker(false)}
+          />
+        )}
+
+        {/* Copy to day picker overlay — same list, different verb */}
+        {showCopyPicker && days && (
+          <DayPickerOverlay
+            title="Copy to day"
+            days={days}
+            currentDayId={localCard.day_id}
+            onSelect={handleCopyToDay}
+            onClose={() => setShowCopyPicker(false)}
+          />
         )}
 
         {/* Day picker overlay */}
         {showDayPicker && days && (
-          <div className="absolute inset-0 z-10 bg-white rounded-t-2xl flex flex-col">
-            <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-gray-100 flex-shrink-0">
-              <h3 className="text-[16px] font-bold text-gray-900">Assign to day</h3>
-              <button
-                onClick={() => setShowDayPicker(false)}
-                className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
-                aria-label="Close"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-            <div className="overflow-y-auto flex-1">
-              {days.map((day) => (
-                <button
-                  key={day.id}
-                  onClick={() => handleAssignToDay(day)}
-                  className="w-full flex items-center gap-3 px-5 py-4 border-b border-gray-50 hover:bg-gray-50 active:bg-gray-100 transition-colors text-left"
-                >
-                  <div className="w-8 h-8 rounded-full bg-teal-50 flex items-center justify-center flex-shrink-0">
-                    <span className="text-[12px] font-bold text-activity">{day.day_number}</span>
-                  </div>
-                  <div>
-                    <p className="text-[14px] font-medium text-gray-900">
-                      Day {day.day_number}{day.day_name ? ` — ${day.day_name}` : ""}
-                    </p>
-                    {day.date && (
-                      <p className="text-[12px] text-gray-400">
-                        {new Date(day.date + "T00:00:00").toLocaleDateString("en-US", {
-                          weekday: "short", month: "short", day: "numeric",
-                        })}
-                      </p>
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
+          <DayPickerOverlay
+            title="Assign to day"
+            days={days}
+            onSelect={handleAssignToDay}
+            onClose={() => setShowDayPicker(false)}
+          />
         )}
       </div>
     </div>

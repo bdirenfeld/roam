@@ -276,6 +276,19 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, re
     setIsCardOpen(false);
   }, []);
 
+  // A copy lands on ANOTHER day by definition, so this day's timeline is
+  // unchanged — but if the target happens to be this day (a future
+  // same-day copy), splice it in rather than silently dropping it.
+  const handleCardCopied = useCallback(
+    (card: Card) => {
+      if (card.day_id !== dayWithCards.id) return;
+      setLocalCards((prev) =>
+        prev.some((c) => c.id === card.id) ? prev : [...prev, card].sort(agendaOrder)
+      );
+    },
+    [dayWithCards.id]
+  );
+
   const handleUndoDelete = useCallback(async () => {
     const card = undoCard;
     if (!card) return;
@@ -486,6 +499,37 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, re
     setGapTimes(null);
   }, []);
 
+  // Drag-reorder of the day's untimed cards. Positions are rewritten across
+  // the WHOLE day (timed first, then the new untimed order) so they stay
+  // 1-based and contiguous, and so agendaOrder's tiebreak reproduces exactly
+  // what was just dropped.
+  const handleReorderUntimed = useCallback(
+    async (orderedUntimedIds: string[]) => {
+      const byId = new Map(localCards.map((c) => [c.id, c]));
+      const timed = localCards.filter((c) => c.start_time).sort(agendaOrder);
+      const untimed = orderedUntimedIds
+        .map((id) => byId.get(id))
+        .filter((c): c is Card => !!c);
+      if (untimed.length !== orderedUntimedIds.length) return;
+
+      const renumbered = [...timed, ...untimed].map((c, i) => ({ ...c, position: i + 1 }));
+      const snapshot = localCards;
+      setLocalCards(renumbered);
+
+      const changed = renumbered.filter((c) => byId.get(c.id)?.position !== c.position);
+      const results = await Promise.all(
+        changed.map((c) =>
+          supabase.from("cards").update({ position: c.position }).eq("id", c.id)
+        )
+      );
+      if (results.some((r) => r.error)) {
+        console.error("[Roam] Reorder failed:", results.find((r) => r.error)?.error);
+        setLocalCards(snapshot);
+      }
+    },
+    [localCards, supabase]
+  );
+
   const dayWeather = weatherByDate?.[dayWithCards.date] ?? null;
 
   return (
@@ -690,6 +734,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, re
               onToggleConfirmed={readOnly ? undefined : handleToggleConfirmed}
               cardNumberById={cardNumberById}
               readOnly={readOnly}
+              onReorder={readOnly ? undefined : handleReorderUntimed}
             />
           </div>
         </div>
@@ -705,6 +750,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, re
           }}
           onCardUpdate={handleCardUpdate}
           onCardDelete={handleCardDelete}
+          onCardCopied={handleCardCopied}
           days={days}
           tripDestination={trip.destination}
           readOnly={readOnly}
