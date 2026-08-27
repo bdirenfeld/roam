@@ -2,7 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import PlanBoard from "@/components/plan/PlanBoard";
 import { getTripAccess } from "@/lib/trip-access";
-import type { Trip, Day, Card, DayWithCards } from "@/types/database";
+import { withAttachmentCount } from "@/lib/attachmentCount";
+import type { Trip, Day, DayWithCards } from "@/types/database";
 
 interface Props {
   params: Promise<{ tripId: string }>;
@@ -36,7 +37,8 @@ export default async function PlanPage({ params }: Props) {
           *,
           place:places (
             id, title, type, sub_type, lat, lng, address, google_place_id, cover_image_url, rating, price_level, website, phone, hours, loved, loved_at
-          )
+          ),
+          card_attachments ( id )
         `)
         .eq("trip_id", tripId)
         .eq("status", "in_itinerary")
@@ -46,7 +48,7 @@ export default async function PlanPage({ params }: Props) {
   if (!trip) redirect("/trips");
 
   const dayList = (days ?? []) as Day[];
-  const cardList = (cards ?? []) as Card[];
+  const cardList = (cards ?? []).map(withAttachmentCount);
 
   // Group cards by day
   const daysWithCards: DayWithCards[] = dayList.map((day) => ({

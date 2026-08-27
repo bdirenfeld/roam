@@ -130,7 +130,24 @@ export interface FoodDetails {
   currency_code?: string
 }
 
-export type CardDetails = LogisticsDetails & ActivityDetails & FoodDetails & Record<string, unknown>
+// ── Card checklist ──────────────────────────────────────────
+// A Trello checklist living on ONE card: "AirBnB Checklist 0/11", "Packing
+// List". Stored in the card's existing `details` jsonb under `checklist`, so
+// there is no table and no migration — the array IS the checklist, and its
+// order is the display order. Rendered by components/cards/CardChecklist; the
+// x/y badge on every card face reads the same array.
+export interface ChecklistItem {
+  /** Stable for the life of the item — React keys, dnd-kit ids, jsonb rows. */
+  id: string
+  text: string
+  done: boolean
+}
+
+export interface ChecklistDetails {
+  checklist?: ChecklistItem[]
+}
+
+export type CardDetails = LogisticsDetails & ActivityDetails & FoodDetails & ChecklistDetails & Record<string, unknown>
 
 export interface Place {
   id: string
@@ -171,6 +188,13 @@ export interface Card {
   created_at: string
   place_id: string | null
   place?: Place | null
+  /**
+   * How many files are attached to this card. NOT a column — the server pages
+   * that feed the Plan board and the day view embed `card_attachments(id)` and
+   * count the rows, so a card face can show Trello's paperclip without a second
+   * query. Absent means "nobody counted", which renders as no badge.
+   */
+  attachment_count?: number
 }
 
 // View models — days with their cards

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useCallback, useState } from "react";
 import { Clock, Heart } from "@phosphor-icons/react";
-import type { Card, Day, Place } from "@/types/database";
+import type { Card, ChecklistItem, Day, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { formatTimeValue } from "@/lib/formatTime";
 import { scheduleCardOnDay } from "@/lib/scheduleCard";
@@ -11,6 +11,8 @@ import { readRecommendedBy } from "@/lib/recommendedBy";
 import FieldRow, { SectionLabel } from "./detail/FieldRow";
 import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
 import AttachmentsPanel from "./AttachmentsPanel";
+import CardChecklist from "./CardChecklist";
+import { readChecklist } from "./cardChecklistModel";
 import DayPickerOverlay from "./DayPickerOverlay";
 import PlacePhotoGallery from "./PlacePhotoGallery";
 import { NavigationSheet } from "@/components/ui/NavigationSheet";
@@ -675,6 +677,16 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       }
     },
     [localCard, onCardUpdate, supabase],
+  );
+
+  // ── Checklist ────────────────────────────────────────────────
+  // The panel hands back the WHOLE array every time — order is meaning here,
+  // so there is no per-item write to get out of sequence. Goes through the
+  // ordinary details save, which is optimistic and reverts the card if the
+  // write is refused; the panel re-seeds itself from that revert.
+  const saveChecklist = useCallback(
+    (items: ChecklistItem[]) => { void saveDetails("checklist", items); },
+    [saveDetails],
   );
 
   // ── Link place from map — repoint the card to the selected place ─
@@ -1348,6 +1360,16 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         <div className="relative flex-1 min-h-0">
           <div className="absolute inset-0 overflow-y-auto px-5 py-5">
             {renderDetail()}
+
+            {/* Checklist — the card's own list of things to tick off, the
+                Trello shape: many small checklists in context, not one long
+                trip-level one. Sits directly under the card's facts because
+                it is work on THIS card, above the provenance and reference
+                sections below. A guest reads it; only the owner works it. */}
+            <CardChecklist
+              items={readChecklist(localCard.details)}
+              onSave={readOnly ? undefined : saveChecklist}
+            />
 
             {/* Recommended by — a person, not a rating. The map's add flow can
                 set it at save time; this is where it gets added or corrected

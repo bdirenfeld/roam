@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import DayViewClient from "@/components/day/DayViewClient";
 import { getTripAccess } from "@/lib/trip-access";
+import { withAttachmentCount } from "@/lib/attachmentCount";
 import type { Card, DayWithCards, Trip, Day } from "@/types/database";
 
 interface Props {
@@ -32,7 +33,8 @@ export default async function DayPage({ params }: Props) {
         *,
         place:places (
           id, title, type, sub_type, lat, lng, address, google_place_id, cover_image_url, rating, price_level, website, phone, hours, loved, loved_at
-        )
+        ),
+        card_attachments ( id )
       `)
       .eq("day_id", dayId)
       .eq("status", "in_itinerary")
@@ -61,7 +63,9 @@ export default async function DayPage({ params }: Props) {
 
   const dayWithCards: DayWithCards = {
     ...currentDay,
-    cards: cards ?? [],
+    // Collapse the `card_attachments ( id )` embed into a count so the agenda
+    // cards can show Trello's paperclip without a second query.
+    cards: (cards ?? []).map(withAttachmentCount),
   };
 
   return (

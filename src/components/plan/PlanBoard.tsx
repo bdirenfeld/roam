@@ -27,6 +27,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { createClient } from "@/lib/supabase/client";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
+import CardBadges from "@/components/cards/CardBadges";
 import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
 import CreateCardSheet from "@/components/plan/CreateCardSheet";
 import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/plan/ConfirmationPreviewSheet";
@@ -2023,6 +2024,11 @@ function CardTile({
                 );
               })()
             )}
+            {/* Checklist progress and attachment count — Trello's card-face
+                indicators, and this board is the Trello-equivalent surface.
+                Renders nothing when the card has neither, so a card that has
+                never had a list is unchanged. */}
+            <CardBadges card={card} className="mt-1.5" />
           </div>
 
         </div>

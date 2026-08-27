@@ -5,6 +5,7 @@ import { formatTimeRange } from "@/lib/formatTime";
 import { getOpeningHoursConflict, openingHoursCaption, openingHoursTone } from "@/lib/openingHours";
 import { readRecommendedBy, recommendedByLine } from "@/lib/recommendedBy";
 import LovedHeart from "@/components/ui/LovedHeart";
+import CardBadges from "./CardBadges";
 
 interface Props {
   card: Card;
@@ -200,6 +201,10 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
               {recommendedByLine(recommender)}
             </p>
           )}
+          {/* Checklist progress and attachment count — Trello's card-face
+              indicators. Renders nothing when the card has neither, so a card
+              that has never had a list is unchanged. */}
+          <CardBadges card={card} className="mt-1" />
         </div>
 
         {/* Chevron — only when the card is tappable */}
