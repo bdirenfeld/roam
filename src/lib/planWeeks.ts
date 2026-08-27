@@ -181,3 +181,35 @@ export function writeParkedCollapsed(tripId: string, collapsed: boolean): void {
     /* see writeFoldedDays */
   }
 }
+
+// ── Photos on cards ────────────────────────────────────────────
+// Banner photos on the Plan board's card tiles. The third per-trip board
+// preference, living here for the same reason the other two do: one module
+// owns localStorage, so the three can never drift on key shape or on what a
+// throwing storage means.
+//
+// Default ON — banners are the point of the feature — so only an explicit "0"
+// turns them off, and the stored key is REMOVED when they go back on. That
+// inverts the parked convention above deliberately: absent must mean "on"
+// here, because absent is also what every existing trip and every private-mode
+// session reads.
+
+const photosKey = (tripId: string) => `roam_plan_card_photos_${tripId}`;
+
+/** Missing, corrupt, or throwing storage all mean "show photos" — the default. */
+export function readCardPhotos(tripId: string): boolean {
+  try {
+    return localStorage.getItem(photosKey(tripId)) !== "0";
+  } catch {
+    return true;
+  }
+}
+
+export function writeCardPhotos(tripId: string, on: boolean): void {
+  try {
+    if (on) localStorage.removeItem(photosKey(tripId));
+    else localStorage.setItem(photosKey(tripId), "0");
+  } catch {
+    /* see writeFoldedDays */
+  }
+}

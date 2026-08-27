@@ -47,6 +47,8 @@ import {
   writeFoldedDays,
   readParkedCollapsed,
   writeParkedCollapsed,
+  readCardPhotos,
+  writeCardPhotos,
   COL_W,
   FOLDED_W,
   type PlanWeek,
@@ -58,7 +60,7 @@ import { formatTimeRange } from "@/lib/formatTime";
 import { getOpeningHoursConflict, openingHoursCaption, openingHoursTone } from "@/lib/openingHours";
 
 import CardImage from "@/components/ui/CardImage";
-import { Trash, DotsThree, Image as ImageIcon, Gear, ShareNetwork, BookmarkSimple, UploadSimple, Files, NotePencil, MagnifyingGlass } from "@phosphor-icons/react";
+import { Trash, DotsThree, Image as ImageIcon, Images, Gear, ShareNetwork, BookmarkSimple, UploadSimple, Files, NotePencil, MagnifyingGlass } from "@phosphor-icons/react";
 import { useGlobalSearch } from "@/components/search/GlobalSearch";
 import { TripSettingsLink } from "@/components/overlays/AppOverlays";
 import { getMaterialIconHTML } from "@/lib/mapPins";
@@ -366,6 +368,23 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
     setParkedCollapsed((prev) => {
       const next = !prev;
       writeParkedCollapsed(trip.id, next);
+      return next;
+    });
+  }, [trip.id]);
+
+  // Banner photos on card tiles. Hydrated in a mount effect like its two
+  // siblings above, and for the same reason — but with the happier default:
+  // the initial state matches readCardPhotos' fallback, so the common case
+  // (never toggled) renders identically on the server and the client, and only
+  // a board deliberately switched to text-only pays one frame of banners.
+  const [cardPhotos, setCardPhotos] = useState(true);
+  useEffect(() => {
+    setCardPhotos(readCardPhotos(trip.id));
+  }, [trip.id]);
+  const toggleCardPhotos = useCallback(() => {
+    setCardPhotos((prev) => {
+      const next = !prev;
+      writeCardPhotos(trip.id, next);
       return next;
     });
   }, [trip.id]);
@@ -1091,6 +1110,7 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
       cards={day.cards}
       dayIndex={dayIndexById.get(day.id) ?? 0}
       isPhotoBg={isPhotoBg}
+      showPhoto={cardPhotos}
       onCardTap={(card) => setSelectedCard(card)}
       onDelete={handleDelete}
       onOpenComposer={() => setComposerDay(day)}
@@ -1161,6 +1181,8 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
           <MainMenu
             trip={trip}
             days={days}
+            cardPhotos={cardPhotos}
+            onToggleCardPhotos={toggleCardPhotos}
             onOpenBgPicker={() => {
               setBgUrlInput(boardBg.type === "photo" ? boardBg.url : "");
               setBgPreviewError(false);
@@ -1258,6 +1280,7 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
                   <ParkedColumn
                     cards={parked}
                     fullWidth
+                    showPhoto={cardPhotos}
                     onCardTap={(card) => setSelectedCard(card)}
                     onAddCard={() => setParkedComposer(true)}
                   />
@@ -1282,6 +1305,7 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
                     cards={currentMobileDay.cards}
                     dayIndex={safeMobileIdx}
                     isPhotoBg={isPhotoBg}
+                    showPhoto={cardPhotos}
                     fullWidth
                     onCardTap={(card) => setSelectedCard(card)}
                     onDelete={handleDelete}
@@ -1292,7 +1316,7 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
               )}
 
               <DragOverlay>
-                {activeCard && <CardTile card={activeCard} isOverlay />}
+                {activeCard && <CardTile card={activeCard} isOverlay showPhoto={cardPhotos} />}
               </DragOverlay>
             </DndContext>
           ) : (
@@ -1307,26 +1331,42 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
               {/* Jump-to-day control row — shrink-0 direct flex child of the board
                   column. DndContext renders no DOM wrapper, so this sits above the
                   scroller and the scroller's flex-1 absorbs the rest with no calc. */}
-              {days.length > 1 && (
-                <div className="hidden md:flex md:items-center md:gap-2.5 md:px-7 md:pt-3 md:pb-2 shrink-0">
+              {/* The row itself is no longer gated on day count: the photos
+                  chip below belongs on every board, and the ··· MainMenu that
+                  carries the same switch is mobile-only (md:hidden), so without
+                  this the desktop board — the fourteen-column one the toggle
+                  exists for — would have no way to reach it. */}
+              <div className="hidden md:flex md:items-center md:gap-2.5 md:px-7 md:pt-3 md:pb-2 shrink-0">
+                {days.length > 1 && (
                   <DayPicker
                     days={days}
                     onSelect={handlePickDay}
                     mode="jump"
                     foldedDayIds={foldedDays}
                   />
-                  {showWeeks && (
-                    <button
-                      type="button"
-                      onClick={handleToggleAll}
-                      className={CTRL_CHIP}
-                      style={{ letterSpacing: "-0.005em" }}
-                    >
-                      {allCollapsed ? "Expand all" : "Collapse all"}
-                    </button>
-                  )}
-                </div>
-              )}
+                )}
+                {showWeeks && (
+                  <button
+                    type="button"
+                    onClick={handleToggleAll}
+                    className={CTRL_CHIP}
+                    style={{ letterSpacing: "-0.005em" }}
+                  >
+                    {allCollapsed ? "Expand all" : "Collapse all"}
+                  </button>
+                )}
+                {/* Labelled for what it will do next, matching "Collapse all"
+                    beside it rather than naming the current state. */}
+                <button
+                  type="button"
+                  onClick={toggleCardPhotos}
+                  aria-pressed={cardPhotos}
+                  className={CTRL_CHIP}
+                  style={{ letterSpacing: "-0.005em" }}
+                >
+                  {cardPhotos ? "Hide photos" : "Show photos"}
+                </button>
+              </div>
 
               {/* Board frame — relative so the edge fades can overlay the scroller. */}
               <div className="relative flex-1 min-h-0 flex flex-col overflow-hidden">
@@ -1424,6 +1464,7 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
                         <ParkedColumn
                           cards={parked}
                           collapsed={parkedCollapsed}
+                          showPhoto={cardPhotos}
                           onExpand={toggleParked}
                           onCardTap={(card) => setSelectedCard(card)}
                           onAddCard={() => setParkedComposer(true)}
@@ -1462,6 +1503,7 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
                         <ParkedColumn
                           cards={parked}
                           collapsed={parkedCollapsed}
+                          showPhoto={cardPhotos}
                           onExpand={toggleParked}
                           onCardTap={(card) => setSelectedCard(card)}
                           onAddCard={() => setParkedComposer(true)}
@@ -1475,7 +1517,7 @@ export default function PlanBoard({ trip, initialDays, initialParked, initialNot
               </div>
 
               <DragOverlay>
-                {activeCard && <CardTile card={activeCard} isOverlay />}
+                {activeCard && <CardTile card={activeCard} isOverlay showPhoto={cardPhotos} />}
               </DragOverlay>
             </DndContext>
           )}
@@ -1725,13 +1767,15 @@ interface DayColumnProps {
   dayIndex: number;
   isPhotoBg?: boolean;
   fullWidth?: boolean;
+  /** Board-level "Photos on cards" preference — see MainMenu. */
+  showPhoto?: boolean;
   onCardTap: (card: Card) => void;
   onDelete: (cardId: string) => void;
   onOpenComposer: () => void;
   onAddFromSaved: () => void;
 }
 
-function DayColumn({ day, cards, dayIndex, fullWidth, onCardTap, onDelete, onOpenComposer, onAddFromSaved }: DayColumnProps) {
+function DayColumn({ day, cards, dayIndex, fullWidth, showPhoto, onCardTap, onDelete, onOpenComposer, onAddFromSaved }: DayColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `${COL_PREFIX}${day.id}` });
 
   return (
@@ -1765,6 +1809,7 @@ function DayColumn({ day, cards, dayIndex, fullWidth, onCardTap, onDelete, onOpe
                   key={card.id}
                   card={card}
                   dayDate={day.date}
+                  showPhoto={showPhoto}
                   onTap={() => onCardTap(card)}
                   onDelete={() => onDelete(card.id)}
                 />
@@ -1988,6 +2033,7 @@ function ParkedColumn({
   cards,
   collapsed = false,
   fullWidth,
+  showPhoto,
   onExpand,
   onCardTap,
   onAddCard,
@@ -1996,6 +2042,8 @@ function ParkedColumn({
   collapsed?: boolean;
   /** Mobile: the column fills the swipe pane, and never collapses. */
   fullWidth?: boolean;
+  /** Board-level "Photos on cards" preference — see MainMenu. */
+  showPhoto?: boolean;
   onExpand?: () => void;
   onCardTap: (card: Card) => void;
   onAddCard: () => void;
@@ -2058,6 +2106,7 @@ function ParkedColumn({
                   key={card.id}
                   card={card}
                   dayDate={null}
+                  showPhoto={showPhoto}
                   onTap={() => onCardTap(card)}
                 />
               ))}
@@ -2198,6 +2247,8 @@ function WeekFoldedCard({
 function MainMenu({
   trip,
   days,
+  cardPhotos,
+  onToggleCardPhotos,
   onOpenBgPicker,
   onImportBooking,
   onOpenDocuments,
@@ -2206,6 +2257,8 @@ function MainMenu({
   /** Handed to the Settings overlay as a seed — the board already has both. */
   trip: Trip;
   days: Day[];
+  cardPhotos: boolean;
+  onToggleCardPhotos: () => void;
   onOpenBgPicker: () => void;
   onImportBooking: (file: File) => void;
   onOpenDocuments: () => void;
@@ -2256,6 +2309,43 @@ function MainMenu({
                 <p className="text-[13px] font-medium text-gray-900 leading-snug">Change background</p>
                 <p className="text-[11px] text-gray-400 leading-snug">Paste an image URL</p>
               </div>
+            </button>
+
+            {/* Photos on cards — a board-appearance switch, so it sits beside
+                the background it shares a surface with. Banner cards are around
+                three times the height of text-only ones, which is the whole
+                point on a five-day board and a real cost on a fourteen-day one;
+                this is the way out that doesn't require choosing per card.
+                Closes the menu like every other item so the change is visible
+                the moment it's made. */}
+            <button
+              role="switch"
+              aria-checked={cardPhotos}
+              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+              onClick={() => { setOpen(false); onToggleCardPhotos(); }}
+            >
+              <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                <Images size={15} weight="light" className="text-gray-600" />
+              </div>
+              <div className="text-left">
+                <p className="text-[13px] font-medium text-gray-900 leading-snug">Photos on cards</p>
+                <p className="text-[11px] text-gray-400 leading-snug">
+                  {cardPhotos ? "On — banner across each card" : "Off — title and details only"}
+                </p>
+              </div>
+              {/* The state, stated twice: the caption says it in words and this
+                  says it at a glance. */}
+              <span
+                aria-hidden
+                className={`ml-auto flex-shrink-0 w-8 h-[18px] rounded-full transition-colors ${
+                  cardPhotos ? "bg-[#C4622D]" : "bg-gray-200"
+                }`}
+              >
+                <span
+                  className="block w-3.5 h-3.5 mt-[2px] rounded-full bg-white shadow-sm transition-transform"
+                  style={{ transform: `translateX(${cardPhotos ? 16 : 2}px)` }}
+                />
+              </span>
             </button>
 
             {/* Trip settings — opens over the board, which keeps its scroll.
@@ -2364,6 +2454,7 @@ function SortableCardTile({
   dayDate,
   onTap,
   onDelete,
+  showPhoto,
 }: {
   card: Card;
   dayDate: string | null;
@@ -2371,6 +2462,7 @@ function SortableCardTile({
   /** Omitted in the Parked column: the hover trash there would delete the card
    *  outright, and the only non-destructive exit from Parked is a drag. */
   onDelete?: () => void;
+  showPhoto?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: card.id });
@@ -2387,24 +2479,36 @@ function SortableCardTile({
       {...attributes}
       {...listeners}
     >
-      <CardTile card={card} dayDate={dayDate} onTap={onTap} onDelete={onDelete} />
+      <CardTile card={card} dayDate={dayDate} onTap={onTap} onDelete={onDelete} showPhoto={showPhoto} />
     </div>
   );
 }
 
 // ── CardTile ───────────────────────────────────────────────────
+// Banner height — fixed, never an aspect ratio. The tile renders ~256px wide in
+// a desktop column and ~342px wide in the mobile single-column board, so a 16:9
+// ratio would swing the image between 144px and 192px and turn every card into
+// a hero. Trello's covers are short, wide crops — about 80px on a 180px card —
+// and a photo card there is only modestly taller than a text one. Two fixed
+// numbers reproduce that: the crop gets wider as the column does, never taller.
+// With a one-line title this lands a card at roughly 140–150px.
+const BANNER_H = "h-[66px] md:h-[78px]";
+
 function CardTile({
   card,
   dayDate,
   onTap,
   onDelete,
   isOverlay,
+  showPhoto = false,
 }: {
   card: Card;
   dayDate?: string | null;
   onTap?: () => void;
   onDelete?: () => void;
   isOverlay?: boolean;
+  /** Board-level "Photos on cards" preference — see MainMenu. */
+  showPhoto?: boolean;
 }) {
   const place       = card.place;
   const det         = card.details as Record<string, unknown>;
@@ -2425,15 +2529,62 @@ function CardTile({
   // Opening-hours conflict signal — silent unless the scheduled time clashes.
   const hoursSignal = place ? getOpeningHoursConflict(place.hours, dayDate ?? null, card.start_time) : null;
 
+  // ── Banner photo ────────────────────────────────────────────
+  // Where the photo comes from: the place's own stored cover if it has one,
+  // otherwise the proxy the app already uses everywhere else, which resolves
+  // the Google photo from places.details.photos (and refreshes expired refs).
+  // A card with no place — a note — has no photo to show and never gets a
+  // banner slot.
+  //
+  // `bannerDead` is the "no letterboxing" rule: CardImage's chain ends in a
+  // grey initials placeholder, which is fine at 40×40 beside text and wrong as
+  // an 86px band across the card. When the chain runs out, the slot is removed
+  // and the tile is exactly what it was before this feature existed.
+  const [bannerDead, setBannerDead] = useState(false);
+  const bannerSrc = place ? (place.cover_image_url ?? `/api/places/photo?place_id=${place.id}`) : null;
+  useEffect(() => { setBannerDead(false); }, [bannerSrc]);
+  const banner = showPhoto && bannerSrc !== null && !bannerDead;
+
   return (
     <div
       className={`group relative bg-white rounded-xl border border-gray-100 shadow-card mb-2 select-none overflow-hidden border-l-[3px] ${borderClass} ${isOverlay ? "shadow-[0_8px_24px_0_rgba(0,0,0,0.14)] scale-[1.02]" : ""}`}
     >
+      {/* Full-bleed banner. The tile's own rounded-xl + overflow-hidden clips
+          the top corners, so the image needs no radius of its own; the 3px
+          type stripe runs down its left edge like Trello's. */}
+      {banner && (
+        // A div, not a button: the title button below is the card's one
+        // accessible, focusable control, and a second focus stop announcing the
+        // same card would be noise. The click is a convenience for the pointer.
+        // The tint underneath is the same one the 40×40 chip uses, so a photo
+        // still loading is a warm band rather than a white gap.
+        <div
+          onClick={onTap}
+          aria-hidden
+          className={`w-full overflow-hidden ${BANNER_H}`}
+          style={{ background: "#E8E3DA" }}
+        >
+          <CardImage
+            src={bannerSrc}
+            alt=""
+            className="w-full h-full object-cover"
+            lat={place?.lat}
+            lng={place?.lng}
+            subType={place?.sub_type}
+            title={title}
+            onUnavailable={() => setBannerDead(true)}
+          />
+        </div>
+      )}
+
       <button onClick={onTap} className="w-full text-left p-3 md:px-3 md:py-2.5">
         <div className="flex items-start gap-2.5 md:items-center md:gap-3">
 
-          {/* Mobile thumbnail — 60×60 (only when card is linked to a place) */}
-          {place && (
+          {/* Mobile thumbnail — 60×60 (only when card is linked to a place).
+              Suppressed under a banner: the same photo twice on one card, once
+              across the top and once beside the title, is the small-thumbnail
+              layout the banner exists to replace. */}
+          {place && !banner && (
             <CardImage
               src={`/api/places/photo?place_id=${place.id}`}
               alt=""
@@ -2448,25 +2599,29 @@ function CardTile({
           {/* Desktop photo chip — 40×40, place photo over the category icon.
               Mirrors the mobile proxy thumbnail (same /api/places/photo call);
               on load failure the photo hides and the category icon shows through
-              — the icon chip IS the fallback (per the Plan pinned-header mockup). */}
-          <div
-            className="hidden md:flex relative flex-shrink-0 items-center justify-center overflow-hidden text-[#1A1A2E]"
-            style={{ width: 40, height: 40, borderRadius: 9, background: "#E8E3DA", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.08)" }}
-          >
-            <span
-              // eslint-disable-next-line react/no-danger
-              dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(place?.sub_type, 16) }}
-            />
-            {place && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={`/api/places/photo?place_id=${place.id}`}
-                alt=""
-                className="absolute inset-0 w-full h-full object-cover"
-                onError={(e) => { e.currentTarget.style.display = "none"; }}
+              — the icon chip IS the fallback (per the Plan pinned-header mockup).
+              Hidden under a banner for the same reason the mobile thumbnail is,
+              which also hands the title the card's full width. */}
+          {!banner && (
+            <div
+              className="hidden md:flex relative flex-shrink-0 items-center justify-center overflow-hidden text-[#1A1A2E]"
+              style={{ width: 40, height: 40, borderRadius: 9, background: "#E8E3DA", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.08)" }}
+            >
+              <span
+                // eslint-disable-next-line react/no-danger
+                dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(place?.sub_type, 16) }}
               />
-            )}
-          </div>
+              {place && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={`/api/places/photo?place_id=${place.id}`}
+                  alt=""
+                  className="absolute inset-0 w-full h-full object-cover"
+                  onError={(e) => { e.currentTarget.style.display = "none"; }}
+                />
+              )}
+            </div>
+          )}
 
           {/* Text content */}
           <div className="flex-1 min-w-0">
@@ -2505,12 +2660,18 @@ function CardTile({
         </div>
       </button>
 
-      {/* Hover trash — desktop only, no menu or confirmation */}
+      {/* Hover trash — desktop only, no menu or confirmation. Over a banner it
+          sits on a photograph, where a grey glyph on white can vanish entirely,
+          so it carries its own scrim there. */}
       {!isOverlay && onDelete && (
         <button
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded-full text-gray-400 hover:text-red-400 hover:bg-red-50 transition-all"
+          className={`absolute top-2 right-2 opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded-full transition-all ${
+            banner
+              ? "bg-black/35 text-white backdrop-blur-sm hover:bg-red-500/85"
+              : "text-gray-400 hover:text-red-400 hover:bg-red-50"
+          }`}
           aria-label="Delete card"
         >
           <Trash size={14} weight="light" />

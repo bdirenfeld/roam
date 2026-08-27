@@ -8,7 +8,7 @@
  * Tier 3  Styled placeholder (warm grey + title initials) — never a broken img
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
@@ -45,6 +45,13 @@ interface Props {
   subType?: string | null;
   /** Card title — used for initials in the tier-3 placeholder. */
   title?: string;
+  /**
+   * Fired once when the chain reaches tier 3 — i.e. there is no real photo and
+   * no map tile, only the initials placeholder. Callers that would rather show
+   * nothing than a grey box (the Plan board's banner) use this to unmount the
+   * whole slot. Omit it and the placeholder renders exactly as it always has.
+   */
+  onUnavailable?: () => void;
 }
 
 type Tier = 1 | 2 | 3;
@@ -57,6 +64,7 @@ export default function CardImage({
   lng,
   subType,
   title = "",
+  onUnavailable,
 }: Props) {
   const [tier, setTier] = useState<Tier>(src ? 1 : 2);
 
@@ -70,6 +78,31 @@ export default function CardImage({
   const mapLat = lat ?? FALLBACK_LAT;
   const mapSrc = mapboxStaticUrl(mapLng, mapLat, zoom);
 
+  // Report "no image at all" from an effect, never from render — the caller
+  // typically responds by setting state, and doing that during a child's render
+  // is a React warning. Held in a ref so a caller passing an inline arrow
+  // doesn't re-fire the effect on every render.
+  const exhausted = tier === 3 || (tier === 2 && !mapSrc);
+  const onUnavailableRef = useRef(onUnavailable);
+  onUnavailableRef.current = onUnavailable;
+  useEffect(() => {
+    if (exhausted) onUnavailableRef.current?.();
+  }, [exhausted]);
+
+  // The board is server-rendered, so these <img> tags exist in the initial HTML
+  // and the browser starts fetching them long before React hydrates. An image
+  // that FAILS in that window fires its error event with no handler attached
+  // yet, and the onError props below never run — leaving the card stranded on a
+  // broken tier for the life of the page. A settled-but-zero-sized element is
+  // exactly that state, so re-check it the moment the ref lands and fall
+  // through by hand. Idempotent: setTier to the value it already holds is a
+  // no-op re-render, so the changing ref identity can't loop.
+  const settledCheck = (fail: () => void) => (node: HTMLImageElement | null) => {
+    if (node && node.complete && node.naturalWidth === 0) fail();
+  };
+  const failTier1 = () => setTier(mapSrc ? 2 : 3);
+  const failTier2 = () => setTier(3);
+
   // ── Tier 3 placeholder ────────────────────────────────────────
   const Placeholder = (
     <div
@@ -82,16 +115,19 @@ export default function CardImage({
     </div>
   );
 
-  if (tier === 3 || (tier === 2 && !mapSrc)) return Placeholder;
+  // A caller that handed us onUnavailable has said it would rather show
+  // nothing than the placeholder, so don't paint one on the way out.
+  if (exhausted) return onUnavailable ? null : Placeholder;
 
   if (tier === 2) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
+        ref={settledCheck(failTier2)}
         src={mapSrc!}
         alt={alt}
         className={className}
-        onError={() => setTier(3)}
+        onError={failTier2}
       />
     );
   }
@@ -100,10 +136,11 @@ export default function CardImage({
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
+      ref={settledCheck(failTier1)}
       src={src!}
       alt={alt}
       className={className}
-      onError={() => setTier(mapSrc ? 2 : 3)}
+      onError={failTier1}
     />
   );
 }
