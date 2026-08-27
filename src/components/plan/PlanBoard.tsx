@@ -688,11 +688,16 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
           return [{ id: card.id, day_id: day.id, position: newPos }];
         })
       );
-      await Promise.all(
+      const results = await Promise.all(
         updates.map((u) =>
           supabase.from("cards").update({ day_id: u.day_id, position: u.position }).eq("id", u.id)
         )
       );
+      // Same reason as persistListOrder: resolve-don't-throw means the
+      // try/catch in handleDragEnd and handleMobileDragEnd never fired, so a
+      // failed cross-column move looked like it worked until the next load.
+      const failed = results.find((r) => r.error);
+      if (failed?.error) throw new Error(failed.error.message);
     },
     [supabase]
   );
@@ -774,13 +779,18 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   // gap this closes.
   const persistListOrder = useCallback(
     async (cards: Card[]) => {
-      await Promise.all(
+      const results = await Promise.all(
         cards.flatMap((c, i) =>
           c.position === i + 1
             ? []
             : [supabase.from("cards").update({ position: i + 1 }).eq("id", c.id)],
         ),
       );
+      // supabase-js RESOLVES with { data, error } instead of throwing, so a
+      // caller's try/catch is dead code unless the failure is rethrown here.
+      // Without this a refused reorder was silently lost until a refresh.
+      const failed = results.find((r) => r.error);
+      if (failed?.error) throw new Error(failed.error.message);
     },
     [supabase],
   );
@@ -1158,12 +1168,15 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
     try {
       await persistChanges(snapshot, finalDays);
     } catch {
+      // A card springing back to where it was, with no word about why, reads
+      // as the drag having missed rather than the write having failed.
       setDays(snapshot);
+      showToast("Couldn't save that move.");
     }
   }, [
     persistChanges, resolveDropTarget, scheduleListCardOnDay,
     unscheduleCardToList, moveCardBetweenLists, reorderWithinList,
-    moveListToIndex,
+    moveListToIndex, showToast,
   ]);
 
   // Escape mid-drag fires onDragCancel, never onDragEnd, so without this the
@@ -1226,8 +1239,9 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
       await persistChanges(snapshot, finalDays);
     } catch {
       setDays(snapshot);
+      showToast("Couldn't save that move.");
     }
-  }, [persistChanges, resolveDropTarget, reorderWithinList]);
+  }, [persistChanges, resolveDropTarget, reorderWithinList, showToast]);
 
   // ── Swipe navigation ───────────────────────────────────────────
   const handleSwipeTouchStart = useCallback((e: React.TouchEvent) => {
