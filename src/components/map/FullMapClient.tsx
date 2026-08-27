@@ -560,9 +560,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
         <aside className="hidden md:flex md:w-[232px] flex-shrink-0 border-r overflow-y-auto z-20 flex-col" style={{ borderRightColor: "rgba(26,26,46,0.10)", background: "#FAF7F2" }}>
           <MapSidebar
             cards={localCards}
-            activeSubTypes={activeSubTypes}
-            setActiveSubTypes={handleSubTypesChange}
-            activeTypes={activeTypes}
+            activeSubTypes={activeSubTypes}            activeTypes={activeTypes}
             setActiveTypes={handleActiveTypesChange}
             activeStatuses={activeStatuses}
             setActiveStatuses={handleActiveStatusesChange}

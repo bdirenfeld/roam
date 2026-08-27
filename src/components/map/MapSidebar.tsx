@@ -71,9 +71,7 @@ export const SIDEBAR_SUB_TYPES: string[] = GROUPS.flatMap((g) =>
 
 interface Props {
   cards: Card[];
-  activeSubTypes: Set<string>;
-  setActiveSubTypes: (next: Set<string>) => void;
-  activeTypes: Set<CardType>;
+  activeSubTypes: Set<string>;  activeTypes: Set<CardType>;
   setActiveTypes: (next: Set<CardType>) => void;
   activeStatuses: Set<string>;
   setActiveStatuses: (next: Set<string>) => void;
@@ -109,9 +107,7 @@ function PillToggle({ on, onToggle, label }: { on: boolean; onToggle: () => void
 
 export default function MapSidebar({
   cards,
-  activeSubTypes,
-  setActiveSubTypes,
-  activeTypes,
+  activeSubTypes,  activeTypes,
   setActiveTypes,
   activeStatuses,
   setActiveStatuses,
@@ -164,34 +160,6 @@ export default function MapSidebar({
 
   function isRowOn(row: SubTypeRow): boolean {
     return row.subTypes.some((st) => activeSubTypes.has(st));
-  }
-
-  function toggleRow(row: SubTypeRow) {
-    const next = new Set(activeSubTypes);
-    if (isRowOn(row)) {
-      row.subTypes.forEach((st) => next.delete(st));
-    } else {
-      row.subTypes.forEach((st) => next.add(st));
-    }
-    setActiveSubTypes(next);
-  }
-
-  /** True when this row is the only sub-category currently switched on. */
-  function isRowIsolated(row: SubTypeRow): boolean {
-    return SIDEBAR_SUB_TYPES.every(
-      (st) => activeSubTypes.has(st) === row.subTypes.includes(st),
-    );
-  }
-
-  /**
-   * "Only" — show this row and nothing else. Pressing it on a row that is
-   * already isolated puts everything back, so the affordance is a clean
-   * round trip rather than a one-way door.
-   */
-  function isolateRow(row: SubTypeRow) {
-    setActiveSubTypes(
-      isRowIsolated(row) ? new Set(SIDEBAR_SUB_TYPES) : new Set(row.subTypes),
-    );
   }
 
   function cardsForRow(row: SubTypeRow): Card[] {
@@ -295,23 +263,22 @@ export default function MapSidebar({
                     const rowCards = cardsForRow(row);
                     const count    = rowCards.length;
                     const expanded = expandedRows.has(row.label);
-                    const isolated = isRowIsolated(row);
 
                     return (
                       <div key={row.label}>
-                        {/* Sub-category row — one gesture per meaning:
-                            label/caret = expand the place list, "Only" = isolate
-                            this row, pill = show/hide. Nothing here toggles
-                            visibility as a side effect of reading the list. */}
-                        <div className="group/row relative w-full flex items-center gap-1.5 pl-2 py-2 select-none">
-                          {/* Expand/collapse — the whole label area, not just the caret */}
+                        {/* Sub-category row = navigation, nothing else. Tap it
+                            to see the places under it. Visibility lives at the
+                            top of the sidebar (status pills + the three type
+                            toggles) — putting a switch on every line turned a
+                            list you read into a control panel you fight. */}
+                        <div className="w-full flex items-center pl-2 py-2 select-none">
                           <button
                             type="button"
                             onClick={() => toggleExpandRow(row.label)}
                             disabled={count === 0}
                             aria-expanded={count > 0 ? expanded : undefined}
                             aria-label={`${row.label} — ${count} ${count === 1 ? "place" : "places"}`}
-                            className="flex-1 min-w-0 flex items-center gap-2 text-left disabled:cursor-default"
+                            className="flex-1 min-w-0 flex items-center gap-2 pr-2 text-left disabled:cursor-default"
                           >
                             <svg
                               width="10" height="10" viewBox="0 0 24 24" fill="none"
@@ -345,33 +312,6 @@ export default function MapSidebar({
                               </span>
                             )}
                           </button>
-
-                          {/* "Only" — isolate this row. Always visible, quietly:
-                              this is the action people reach for when they click
-                              a category name, so hiding it behind hover would
-                              hide the fix. It brightens on hover and when the
-                              row is the isolated one. */}
-                          <button
-                            type="button"
-                            onClick={() => isolateRow(row)}
-                            aria-pressed={isolated}
-                            aria-label={isolated ? "Show all sub-categories again" : `Show only ${row.label}`}
-                            className={
-                              "flex-shrink-0 px-1 py-0.5 rounded text-[9px] tracking-[0.14em] uppercase font-semibold " +
-                              "transition-colors duration-150 hover:text-[#1A1A2E] " +
-                              (isolated ? "text-[#1A1A2E]" : "text-[rgba(26,26,46,0.30)]")
-                            }
-                          >
-                            Only
-                          </button>
-
-                          {/* Show/hide — a deliberate switch, same control the
-                              category headers use */}
-                          <PillToggle
-                            on={on}
-                            onToggle={() => toggleRow(row)}
-                            label={`${on ? "Hide" : "Show"} ${row.label} pins`}
-                          />
                         </div>
 
                         {/* Expanded card list — deep level */}
