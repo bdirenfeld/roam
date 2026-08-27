@@ -209,6 +209,11 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
             new mb.LngLatBounds(allCoords[0], allCoords[0]),
           );
           map.fitBounds(bounds, { padding: 50, maxZoom: 15 });
+        } else if (allCoords.length === 1) {
+          // A single stop still deserves the zoom — late-trip days often have
+          // one pin and no accommodation span, which used to leave the map
+          // sitting at the trip-wide default.
+          map.jumpTo({ center: allCoords[0], zoom: 14 });
         }
 
         requestAnimationFrame(() => { map.resize(); });

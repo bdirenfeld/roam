@@ -24,12 +24,17 @@ export default function DayStrip({ days, activeDayId, onDaySelect }: Props) {
     );
   }, []);
 
+  // First positioning is instant: day navigation remounts this strip, so a
+  // smooth scroll here replays a start-to-centre sweep on every day change —
+  // the "weird refresh" feel. Animate only for in-place active-day changes.
+  const hasPositioned = useRef(false);
   useEffect(() => {
     activeRef.current?.scrollIntoView({
-      behavior: "smooth",
+      behavior: hasPositioned.current ? "smooth" : "auto",
       block:    "nearest",
       inline:   "center",
     });
+    hasPositioned.current = true;
   }, [activeDayId]);
 
   const activeIndex = days.findIndex((d) => d.id === activeDayId);

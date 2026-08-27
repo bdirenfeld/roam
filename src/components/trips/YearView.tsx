@@ -311,6 +311,47 @@ const predSecondary = (p: Prediction) => {
   return rest || null;
 };
 
+// ── Drag-to-dismiss for mobile bottom sheets ──────────────────────────────
+// The app's standard sheet gesture (same numbers as plan/DocumentsSheet):
+// touchstart records y, touchmove translates the sheet with transition off,
+// touchend past 120px animates out and closes, otherwise springs back.
+// Handlers go on the handle/header region — never the scrollable list — so
+// scrolling the sheet's content can't fight the dismiss. The width guard
+// keeps a stray touch on desktop (touch laptops) from clobbering the md:
+// centering transforms with an inline translate.
+function useSheetDrag(onClose: () => void) {
+  const sheetRef = useRef<HTMLDivElement | null>(null);
+  const dragY = useRef(0);
+  const dragging = useRef(false);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (typeof window !== "undefined" && window.innerWidth >= 768) return;
+    dragY.current = e.touches[0].clientY;
+    dragging.current = true;
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (!dragging.current || !sheetRef.current) return;
+    const dy = Math.max(0, e.touches[0].clientY - dragY.current);
+    sheetRef.current.style.transform = `translateY(${dy}px)`;
+    sheetRef.current.style.transition = "none";
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (!dragging.current || !sheetRef.current) return;
+    dragging.current = false;
+    const dy = e.changedTouches[0].clientY - dragY.current;
+    if (dy > 120) {
+      sheetRef.current.style.transition = "transform 250ms cubic-bezier(0.32,0.72,0,1)";
+      sheetRef.current.style.transform = "translateY(100%)";
+      setTimeout(onClose, 240);
+    } else {
+      sheetRef.current.style.transition = "transform 300ms cubic-bezier(0.34,1.56,0.64,1)";
+      sheetRef.current.style.transform = "translateY(0)";
+    }
+  };
+
+  return { sheetRef, onTouchStart, onTouchMove, onTouchEnd };
+}
+
 // ── Shared grid: 90px label column + 12 equal month columns. The strip is
 // desktop-only and sized to fit its container exactly — no horizontal
 // scrolling, so no scrollbar, sticky labels, or edge fades. ───────────────
@@ -1085,6 +1126,10 @@ export default function YearView({ trips }: Props) {
 
   const isOpen = openState === true;
 
+  // Swipe-down dismissal for the two mobile sheets
+  const pickerDrag = useSheetDrag(() => setPickerOpen(false));
+  const addDrag = useSheetDrag(() => setAddOpen(false));
+
   return (
     <>
       {/* The only thing under the "Journeys" title: the way into the year.
@@ -1742,34 +1787,33 @@ export default function YearView({ trips }: Props) {
               onClick={() => setPickerOpen(false)}
             />
             <div
+              ref={pickerDrag.sheetRef}
               role="dialog"
-              aria-label="Choose a destination"
+              aria-label="Wishlist"
               className="fixed z-[60] bg-white flex flex-col bottom-0 left-0 right-0 rounded-t-2xl max-w-mobile mx-auto"
-              style={{ maxHeight: "80vh" }}
+              style={{ maxHeight: "80vh", willChange: "transform" }}
             >
-              <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
-                <div className="w-9 h-1 bg-gray-200 rounded-full" />
+              {/* Handle + title carry the swipe-down gesture; the list below
+                  scrolls in its own container and never fights it */}
+              <div
+                className="flex-shrink-0"
+                onTouchStart={pickerDrag.onTouchStart}
+                onTouchMove={pickerDrag.onTouchMove}
+                onTouchEnd={pickerDrag.onTouchEnd}
+              >
+                <div className="flex justify-center pt-3 pb-1">
+                  <div className="w-9 h-1 bg-gray-200 rounded-full" />
+                </div>
+                <p className="text-center font-display italic text-base text-gray-900 pt-1 pb-2">
+                  Wishlist
+                </p>
               </div>
-              <p className="text-center font-display italic text-base text-gray-900 pt-1 pb-2 flex-shrink-0">
-                Weather where?
-              </p>
-              {/* One scroll region: wishlist, then search beneath. The input
-                  deliberately has no autoFocus — a keyboard would bury the
-                  wishlist rows the sheet leads with. */}
+              {/* One scroll region: wishlist rows, then search beneath. The
+                  input deliberately has no autoFocus — a keyboard would bury
+                  the wishlist rows the sheet leads with. */}
               <div className="flex-1 overflow-y-auto px-3 pb-8">
                 {wishlist.length > 0 && (
                   <>
-                    <div
-                      className="uppercase px-2 pt-1 pb-1"
-                      style={{
-                        fontSize: 9.5,
-                        fontWeight: 600,
-                        letterSpacing: "0.12em",
-                        color: "rgba(26,26,46,0.4)",
-                      }}
-                    >
-                      Your wishlist
-                    </div>
                     {wishlist.map((d) => (
                       <div key={d.id} className="group/wl relative">
                         <button
@@ -1874,7 +1918,7 @@ export default function YearView({ trips }: Props) {
                           color: "rgba(26,26,46,0.4)",
                         }}
                       >
-                        Your wishlist
+                        Wishlist
                       </div>
                       {wishlist.map((d) => (
                         <div key={d.id} className="group/wl relative">
@@ -1959,17 +2003,27 @@ export default function YearView({ trips }: Props) {
         <>
           <div className="fixed inset-0 bg-black/40 z-[60]" onClick={() => setAddOpen(false)} />
           <div
+            ref={addDrag.sheetRef}
             role="dialog"
             aria-label="Add an ideal window"
             className="fixed z-[60] bg-white flex flex-col bottom-0 left-0 right-0 rounded-t-2xl max-w-mobile mx-auto md:bottom-auto md:top-1/2 md:left-1/2 md:right-auto md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-2xl md:w-[400px] md:max-w-[calc(100vw-48px)] md:mx-0"
-            style={{ maxHeight: "88vh" }}
+            style={{ maxHeight: "88vh", willChange: "transform" }}
           >
-            <div className="flex justify-center pt-3 pb-1 flex-shrink-0 md:hidden">
-              <div className="w-9 h-1 bg-gray-200 rounded-full" />
+            {/* Handle + title carry the swipe-down gesture (mobile only —
+                the hook no-ops at md+, where this renders as a modal) */}
+            <div
+              className="flex-shrink-0"
+              onTouchStart={addDrag.onTouchStart}
+              onTouchMove={addDrag.onTouchMove}
+              onTouchEnd={addDrag.onTouchEnd}
+            >
+              <div className="flex justify-center pt-3 pb-1 md:hidden">
+                <div className="w-9 h-1 bg-gray-200 rounded-full" />
+              </div>
+              <p className="text-center font-display italic text-base text-gray-900 pt-1 pb-2 md:pt-5">
+                Add an ideal window
+              </p>
             </div>
-            <p className="text-center font-display italic text-base text-gray-900 pt-1 pb-2 flex-shrink-0 md:pt-5">
-              Add an ideal window
-            </p>
 
             <div className="flex-1 overflow-y-auto px-5 pb-2">
               <input
