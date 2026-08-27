@@ -17,6 +17,25 @@ import type { Card, Place } from "@/types/database";
  * is deep-copied so the new card never shares a nested object with its source.
  * `confirmed` always starts false: a copy has not been booked.
  */
+/**
+ * The next contiguous 1-based position on a day — the LIVE max, read at write
+ * time, not from an in-memory snapshot. Exported because the Plan board's
+ * Parked column moves an existing row onto a day rather than inserting a new
+ * one, and both paths must agree on where "the end of the day" is.
+ */
+export async function nextPositionForDay(
+  supabase: SupabaseClient,
+  dayId: string,
+): Promise<number> {
+  const { data: rows } = await supabase
+    .from("cards")
+    .select("position")
+    .eq("day_id", dayId)
+    .order("position", { ascending: false })
+    .limit(1);
+  return (rows?.[0]?.position ?? 0) + 1;
+}
+
 export async function scheduleCardOnDay(
   supabase: SupabaseClient,
   args: {
@@ -37,13 +56,7 @@ export async function scheduleCardOnDay(
   } = args;
 
   // Live max position for this day → append to end.
-  const { data: rows } = await supabase
-    .from("cards")
-    .select("position")
-    .eq("day_id", dayId)
-    .order("position", { ascending: false })
-    .limit(1);
-  const position = (rows?.[0]?.position ?? 0) + 1;
+  const position = await nextPositionForDay(supabase, dayId);
 
   const id = crypto.randomUUID();
   const { data, error } = await supabase
