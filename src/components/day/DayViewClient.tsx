@@ -3,7 +3,8 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { DotsThree, CaretLeft, CaretRight, NotePencil, Gear } from "@phosphor-icons/react";
+import { DotsThree, CaretLeft, CaretRight, NotePencil, Gear, MagnifyingGlass } from "@phosphor-icons/react";
+import { useGlobalSearch } from "@/components/search/GlobalSearch";
 import DayStrip from "@/components/day/DayStrip";
 import DayPicker from "@/components/day/DayPicker";
 import DayMap from "@/components/day/DayMap";
@@ -237,6 +238,7 @@ function DayMenu({
 }) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
+  const search = useGlobalSearch();
 
   return (
     <div className="relative flex-shrink-0">
@@ -254,6 +256,21 @@ function DayMenu({
         <>
           <div className="fixed inset-0 z-40" onPointerDown={() => setOpen(false)} />
           <div className="absolute right-0 top-full mt-1.5 z-50 bg-white/97 backdrop-blur-xl rounded-xl shadow-xl w-[214px] py-1 overflow-hidden">
+            {/* Search — the mobile ⌕ lives in the app header, which doesn't
+                render inside a journey. This is how you reach it from a day. */}
+            <button
+              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+              onClick={() => { setOpen(false); search.open(); }}
+            >
+              <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                <MagnifyingGlass size={15} weight="light" className="text-gray-600" />
+              </div>
+              <div className="text-left">
+                <p className="text-[13px] font-medium text-gray-900 leading-snug">Search</p>
+                <p className="text-[11px] text-gray-400 leading-snug">Journeys, places, wishlist</p>
+              </div>
+            </button>
+
             <button
               className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
               onClick={() => { setOpen(false); onOpenNotes(); }}

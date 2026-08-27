@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserCircle, Calendar, Columns, MapPin } from "@phosphor-icons/react";
+import { SearchButton } from "@/components/search/GlobalSearch";
 import { createClient } from "@/lib/supabase/client";
 import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
 import { signOut } from "@/lib/auth-actions";
@@ -277,6 +278,14 @@ export default function DesktopMasthead() {
       </nav>
 
       <div style={{ flex: 1 }} />
+
+      {/* Search — the one way to find a place when you can't remember which
+          journey it's on. Also on "/" and ⌘/Ctrl-K from anywhere. */}
+      <SearchButton
+        className="inline-flex items-center justify-center p-2 mr-1.5 text-[rgba(26,26,46,0.55)]"
+        size={17}
+        strokeWidth={1.4}
+      />
 
       {/* Plan a journey — masthead-global new-trip entry, matches design canvas. */}
       <Link

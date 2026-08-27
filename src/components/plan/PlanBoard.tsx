@@ -53,7 +53,8 @@ import { formatTimeRange } from "@/lib/formatTime";
 import { getOpeningHoursConflict, openingHoursCaption, openingHoursTone } from "@/lib/openingHours";
 
 import CardImage from "@/components/ui/CardImage";
-import { Trash, DotsThree, Image as ImageIcon, Gear, ShareNetwork, BookmarkSimple, UploadSimple, Files, NotePencil } from "@phosphor-icons/react";
+import { Trash, DotsThree, Image as ImageIcon, Gear, ShareNetwork, BookmarkSimple, UploadSimple, Files, NotePencil, MagnifyingGlass } from "@phosphor-icons/react";
+import { useGlobalSearch } from "@/components/search/GlobalSearch";
 import { getMaterialIconHTML } from "@/lib/mapPins";
 import { type DayWeather, fetchTripWeather, dayStopsAnchor, getWeatherCategory, WeatherIcon, HourlyStrip } from "@/lib/weather";
 
@@ -1717,6 +1718,7 @@ function MainMenu({
 }) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
+  const search = useGlobalSearch();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   return (
@@ -1733,6 +1735,21 @@ function MainMenu({
         <>
           <div className="fixed inset-0 z-40" onPointerDown={() => setOpen(false)} />
           <div className="absolute right-0 top-full mt-1.5 z-50 bg-white/97 backdrop-blur-xl rounded-xl shadow-xl w-[210px] py-1 overflow-hidden">
+            {/* Search — the mobile ⌕ lives in the app header, which doesn't
+                render inside a journey. This is how you reach it from the board. */}
+            <button
+              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+              onClick={() => { setOpen(false); search.open(); }}
+            >
+              <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                <MagnifyingGlass size={15} weight="light" className="text-gray-600" />
+              </div>
+              <div className="text-left">
+                <p className="text-[13px] font-medium text-gray-900 leading-snug">Search</p>
+                <p className="text-[11px] text-gray-400 leading-snug">Journeys, places, wishlist</p>
+              </div>
+            </button>
+
             {/* Change background */}
             <button
               className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"

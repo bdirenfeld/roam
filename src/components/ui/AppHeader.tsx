@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { SearchButton } from "@/components/search/GlobalSearch";
 
 interface AppHeaderProps {
   avatarUrl?: string | null;
@@ -21,8 +22,16 @@ export default function AppHeader({ avatarUrl, subtitle, showNewTrip }: AppHeade
         )}
       </div>
 
-      {/* Right side: optional + button + profile avatar */}
+      {/* Right side: search + optional + button + profile avatar */}
       <div className="flex items-center gap-2">
+        {/* Search — opens the full-height search sheet. Bare glyph, same
+            weight as the masthead's, so the two headers read as one app. */}
+        <SearchButton
+          className="w-8 h-8 flex items-center justify-center text-[rgba(26,26,46,0.55)]"
+          size={18}
+          strokeWidth={1.5}
+        />
+
         {showNewTrip && (
           <Link href="/trips/new">
             <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "#1A1A2E" }}>
