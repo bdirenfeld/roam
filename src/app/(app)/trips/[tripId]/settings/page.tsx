@@ -67,9 +67,7 @@ export default async function TripSettingsPage({ params }: Props) {
     }));
   }
   const shareToken = (trip as { share_token: string | null }).share_token ?? null;
-  // trips.notes isn't in the generated Database types yet — read it the same
-  // way as share_token so the cast stays at the edge.
-  const notes = (trip as { notes: string | null }).notes ?? null;
+  const notes = (trip as Trip).notes ?? null;
 
   return (
     <TripSettingsClient

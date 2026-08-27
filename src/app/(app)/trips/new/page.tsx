@@ -206,9 +206,7 @@ function NewTripForm() {
         );
       }
       try {
-        // Cast: travel_windows isn't in the generated Database types yet
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: winRows } = await (supabase as any)
+        const { data: winRows } = await supabase
           .from("travel_windows")
           .select("id, label, start_date, end_date")
           .order("start_date", { ascending: true });
@@ -235,10 +233,13 @@ function NewTripForm() {
     [pickerTrips, pickerWindows, todayD, winEnd]
   );
 
-  // Chips: the four soonest open windows. Held back until the journeys read
-  // lands, so a window a journey already covers never flashes up as free.
+  // Chips: EVERY open window in the rolling year, soonest first, in a
+  // horizontal scroller. Capping at four hid most of the year — from late
+  // August that left exactly one PA day and no March break, which reads as
+  // missing data rather than a cap. Held back until the journeys read lands,
+  // so a window a journey already covers never flashes up as free.
   const quickWindows = useMemo(
-    () => (pickerReady ? openWindows.slice(0, 4) : []),
+    () => (pickerReady ? openWindows : []),
     [pickerReady, openWindows]
   );
 
@@ -525,8 +526,10 @@ function NewTripForm() {
         </span>
       </div>
 
-      {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto pb-24">
+      {/* Scrollable content. The form is a phone-shaped column by design —
+          on desktop it centres in a card-width measure instead of stretching
+          form rows across a 1900px screen. */}
+      <div className="flex-1 overflow-y-auto pb-24 w-full md:max-w-[620px] md:mx-auto md:my-8 md:rounded-2xl md:border md:border-black/[0.07] md:shadow-[0_1px_2px_rgba(26,26,46,0.04)] md:overflow-hidden">
 
         {/* Cover hero */}
         <button
@@ -696,7 +699,7 @@ function NewTripForm() {
         )}
 
         {/* Create button */}
-        <div className="px-5 mt-6">
+        <div className="px-5 mt-6 md:mb-6">
           <button
             onClick={handleCreate}
             disabled={!isValid || saving}
@@ -801,27 +804,36 @@ function NewTripForm() {
                   is capped at half the row so four chips are two rows on a
                   phone however long a saved window's label is. */}
               {quickWindows.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mb-3">
-                  {quickWindows.map((w) => {
-                    const wStart = isoOf(w.start);
-                    const wEnd   = isoOf(w.end);
-                    const active = pickStart === wStart && pickEnd === wEnd;
-                    return (
-                      <button
-                        key={w.key}
-                        onClick={() => handleQuickWindow(w)}
-                        title={`${fmtRange(wStart, wEnd)} · ${w.days} days`}
-                        style={{ maxWidth: "calc(50% - 3px)" }}
-                        className={`text-[11px] font-semibold rounded-full px-2.5 py-1.5 border whitespace-nowrap overflow-hidden text-ellipsis transition-colors ${
-                          active
-                            ? "bg-[#1A1A2E] text-[#FAF7F2] border-[#1A1A2E]"
-                            : "bg-[#F2EDE3] text-[#1A1A2E] border-black/10"
-                        }`}
-                      >
-                        {w.name}
-                      </button>
-                    );
-                  })}
+                <div className="relative mb-3">
+                  <div className="flex gap-1.5 overflow-x-auto scrollbar-none pr-6">
+                    {quickWindows.map((w) => {
+                      const wStart = isoOf(w.start);
+                      const wEnd   = isoOf(w.end);
+                      const active = pickStart === wStart && pickEnd === wEnd;
+                      // Month prefix so a row of "PA day" chips is tellable apart
+                      const mon = w.start.toLocaleDateString("en-US", { month: "short" });
+                      return (
+                        <button
+                          key={w.key}
+                          onClick={() => handleQuickWindow(w)}
+                          title={`${fmtRange(wStart, wEnd)} · ${w.days} days`}
+                          className={`flex-shrink-0 text-[11px] font-semibold rounded-full px-2.5 py-1.5 border whitespace-nowrap transition-colors ${
+                            active
+                              ? "bg-[#1A1A2E] text-[#FAF7F2] border-[#1A1A2E]"
+                              : "bg-[#F2EDE3] text-[#1A1A2E] border-black/10"
+                          }`}
+                        >
+                          <span className={active ? "opacity-60" : "opacity-40"}>{mon}</span>
+                          {" "}{w.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {/* Right-edge fade — signals there are more windows to scroll */}
+                  <div
+                    className="absolute right-0 top-0 bottom-0 w-6 pointer-events-none"
+                    style={{ background: "linear-gradient(to left, #fff, transparent)" }}
+                  />
                 </div>
               )}
 

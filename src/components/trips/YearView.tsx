@@ -32,9 +32,8 @@ import { bugSeasonFor } from "@/lib/yearView/bugSeasons";
 import { computeMonthlyHci, hciTone } from "@/lib/yearView/hci";
 
 // Brennan's own "ideal times to travel", stored per-user in Supabase
-// (public.travel_windows, RLS own-row). The table isn't in the generated
-// Database types yet, so calls below cast the client — deliberately kept to
-// this one component rather than regenerating types mid-flight.
+// (public.travel_windows, RLS own-row). Row shape also lives in
+// types/database.ts; this is the view-shaped subset the component selects.
 interface TravelWindow {
   id: string;
   label: string | null;
@@ -527,9 +526,7 @@ export default function YearView({ trips }: Props) {
   useEffect(() => {
     let cancelled = false;
     const supabase = createClient();
-    // Cast: travel_windows isn't in the generated Database types yet
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any)
+    supabase
       .from("travel_windows")
       .select("id, label, start_date, end_date")
       .order("start_date", { ascending: true })
@@ -552,8 +549,7 @@ export default function YearView({ trips }: Props) {
       setSaving(false);
       return;
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from("travel_windows")
       .insert({
         user_id: user.id,
@@ -581,9 +577,7 @@ export default function YearView({ trips }: Props) {
   useEffect(() => {
     let cancelled = false;
     const supabase = createClient();
-    // Cast: wishlist_destinations isn't in the generated Database types yet
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any)
+    supabase
       .from("wishlist_destinations")
       .select(WISHLIST_COLS)
       // Alphabetical — it's a pick-list, so findability beats any ranking
@@ -675,8 +669,7 @@ export default function YearView({ trips }: Props) {
     // a failed fetch still inserts (climate null).
     const climateArr = await fetchClimate(place.lat, place.lng).catch(() => null);
     const location = compactAddress(place.address, name);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from("wishlist_destinations")
       .insert({
         user_id: user.id,
@@ -704,8 +697,7 @@ export default function YearView({ trips }: Props) {
     // The auto-save is a side effect of a weather check — say so, and let
     // one tap take it back
     showUndo(`Added ${name} to wishlist`, async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error: delErr } = await (supabase as any)
+      const { error: delErr } = await supabase
         .from("wishlist_destinations")
         .delete()
         .eq("id", saved.id);
@@ -721,8 +713,7 @@ export default function YearView({ trips }: Props) {
     const row = wishlist.find((d) => d.id === id) ?? null;
     setWishlist((w) => w.filter((d) => d.id !== id));
     const supabase = createClient();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from("wishlist_destinations")
       .delete()
       .eq("id", id);
@@ -735,8 +726,7 @@ export default function YearView({ trips }: Props) {
       showUndo(`Removed ${row.name}`, async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { error: reErr } = await (supabase as any).from("wishlist_destinations").insert({
+        const { error: reErr } = await supabase.from("wishlist_destinations").insert({
           id: row.id, user_id: user.id, name: row.name, location: row.location,
           lat: row.lat, lng: row.lng, drive_hours: row.drive_hours, budget: row.budget,
           best_time: row.best_time, why: row.why, climate: row.climate,
@@ -848,8 +838,7 @@ export default function YearView({ trips }: Props) {
   const handleDeleteWindow = async (id: string) => {
     const row = travelWindows.find((w) => w.id === id) ?? null;
     const supabase = createClient();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase as any).from("travel_windows").delete().eq("id", id);
+    const { error } = await supabase.from("travel_windows").delete().eq("id", id);
     if (error) {
       console.error("Failed to delete travel window:", error);
       return;
@@ -859,8 +848,7 @@ export default function YearView({ trips }: Props) {
       showUndo(`Removed ${row.label || "window"}`, async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { error: reErr } = await (supabase as any).from("travel_windows").insert({
+        const { error: reErr } = await supabase.from("travel_windows").insert({
           id: row.id, user_id: user.id, label: row.label,
           start_date: row.start_date, end_date: row.end_date,
         });

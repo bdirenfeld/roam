@@ -21,8 +21,6 @@
 //    joined `places` row. Place filters therefore go through the embed
 //    (`place:places!inner(...)` + `.ilike("place.title", …)`), the same shape
 //    the day page uses for its hotel-card query.
-//  • `wishlist_destinations` isn't in the generated Database types yet, so
-//    that one call casts the client — same containment as trips/YearView.tsx.
 
 import {
   createContext,
@@ -250,9 +248,7 @@ async function runSearch(rawQuery: string): Promise<Results> {
       .neq("status", "cut")
       .ilike("place.address", like)
       .limit(FETCH_LIMIT),
-    // Cast: wishlist_destinations isn't in the generated Database types yet.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any)
+    supabase
       .from("wishlist_destinations")
       .select("id, name, location, climate")
       .or(`name.ilike.${like},location.ilike.${like}`)

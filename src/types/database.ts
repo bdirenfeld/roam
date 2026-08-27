@@ -38,6 +38,9 @@ export interface Trip {
   archived_at: string | null
   cover_image_url: string | null
   kanban_background_url: string | null
+  // Journey notes — one markdown-ish string ('## ' section, '- [ ] ' task,
+  // anything else a plain line). Rendered by components/trip/JourneyNotes.
+  notes: string | null
   created_at: string
 }
 
@@ -183,6 +186,40 @@ export interface Document {
 
 export interface TripWithDays extends Trip {
   days: DayWithCards[]
+}
+
+// ── "Your year" planning tables ─────────────────────────────
+// Both are RLS own-row and read/written from components/trips/YearView.
+
+/** public.travel_windows — the user's own "ideal times to travel". */
+export interface TravelWindow {
+  id: string
+  user_id: string
+  label: string | null
+  start_date: string
+  end_date: string
+  created_at: string
+}
+
+/** public.wishlist_destinations — places whose weather the user tracks.
+ *  `climate` holds a 12-element monthly profile (month-0 indexed) of
+ *  { high, rainShare, precipMm, feelsMax, sunFrac, windMax, hci }; the parsed
+ *  shape lives with the scoring code in lib/yearView, so it stays `unknown`
+ *  here rather than importing view types into the schema file. */
+export interface WishlistDestination {
+  id: string
+  user_id: string
+  name: string
+  location: string | null
+  lat: number | null
+  lng: number | null
+  drive_hours: number | null
+  budget: string | null
+  best_time: string | null
+  why: string | null
+  source: string
+  climate: unknown
+  created_at: string
 }
 
 export type AttachmentParseStatus = 'parsing' | 'parsed' | 'failed' | 'skipped'

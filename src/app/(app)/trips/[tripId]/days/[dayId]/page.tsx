@@ -70,9 +70,9 @@ export default async function DayPage({ params }: Props) {
       days={(days ?? []) as Day[]}
       dayWithCards={dayWithCards}
       hotelCards={(hotelCards ?? []) as Card[]}
-      // trips.notes isn't in the generated Database types yet; the select is
-      // `*`, so it arrives with the page payload and works offline.
-      initialNotes={(trip as { notes: string | null }).notes ?? null}
+      // Notes ride the `*` select, so they arrive with the page payload and
+      // work offline.
+      initialNotes={(trip as Trip).notes ?? null}
       readOnly={readOnly}
     />
   );

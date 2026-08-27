@@ -58,9 +58,9 @@ export default async function PlanPage({ params }: Props) {
     <PlanBoard
       trip={trip as Trip}
       initialDays={daysWithCards}
-      // trips.notes isn't in the generated Database types yet; the select is
-      // `*`, so it arrives with the page payload and works offline.
-      initialNotes={(trip as { notes: string | null }).notes ?? null}
+      // Notes ride the `*` select, so they arrive with the page payload and
+      // work offline.
+      initialNotes={(trip as Trip).notes ?? null}
     />
   );
 }

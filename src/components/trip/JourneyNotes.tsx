@@ -1,115 +1,72 @@
 "use client";
 
 // ── Journey notes ─────────────────────────────────────────────────────────
-// The journey facts that belong to no single day: the villa gate code, what
-// to pack, who's driving, whose passport still needs renewing. Approved mock:
-// a paper panel of free text lines, some with checkboxes, grouped under quiet
-// small-caps section labels.
+// The journey facts that belong to no single day: the villa gate code, what to
+// pack, who's driving, whose passport still needs renewing.
 //
-// STORAGE — one nullable `trips.notes` text column, plain markdown-ish text,
-// ONE string. No schema for items, so a note is always human-readable and can
-// be edited as a whole:
-//   "- [ ] "  / "- [x] "  → a checkbox line (tapping the line toggles it)
-//   "## "                 → a small-caps section label
-//   anything else         → a plain line
-// Toggling a checkbox rewrites only that one line of the string, so the
-// surrounding prose (and anything the format doesn't understand yet) survives
-// untouched.
+// This is a checklist you touch directly — a Trello checklist, not a text file.
+// Tap a box to tick it, tap the words to fix them, "+ Add an item" to write the
+// next one. There is no edit mode, no markdown, no syntax to remember: the
+// formatting characters exist in the column and nowhere the writer can see.
 //
-// `trips.notes` isn't in the generated Database types yet, so the two calls
-// that touch it cast the client — same deliberate containment as
-// travel_windows in trips/YearView.tsx.
+// STORAGE — still ONE string in `trips.notes`. The panel holds a parsed list,
+// mutates it, and serializes the whole thing back on every change. See
+// ./journeyNotesModel for the format and, more importantly, for how a line the
+// parser doesn't recognise is carried through untouched.
 //
-// Notes travel with the journey: any guest the journey is shared with reads
-// them (readOnly hides every edit affordance). They arrive with the page
-// payload — the server pages already `select("*")` from trips — so they are
-// there offline like the rest of the day view. Nothing here fetches on mount.
+// SAVING — text edits settle after a beat; a tick, an add, a delete and a
+// reorder go immediately, because those are the ones a writer would be
+// startled to lose. A pending save survives the panel closing.
+//
+// Notes travel with the journey: any guest it's shared with reads them
+// (readOnly renders the same checklist with every affordance removed). They
+// arrive with the page payload — the server pages already `select("*")` from
+// trips — so they are there offline like the rest of the day view.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Check, DotsSixVertical, Plus, X } from "@phosphor-icons/react";
+import {
+  DndContext,
+  closestCenter,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { createClient } from "@/lib/supabase/client";
+import {
+  insertItem,
+  makeItem,
+  parseNotes,
+  removeItem,
+  renameItem,
+  serializeNotes,
+  toggleItem,
+  type NoteItem,
+  type NoteItemKind,
+} from "./journeyNotesModel";
 
 const INK = "#1A1A2E";
 const PARCHMENT = "#FAF7F2";
 const HAIRLINE = "1px solid rgba(26,26,46,0.09)";
+const DONE_INK = "rgba(26,26,46,0.35)";
 
-// ── Format ────────────────────────────────────────────────────────────────
-const TASK_RE = /^\s*-\s\[([ xX])\]\s?(.*)$/;
-const SECTION_RE = /^\s*##\s+(.*)$/;
+/** Text edits settle; everything else saves on the spot. */
+const SAVE_DEBOUNCE_MS = 600;
 
-export type NoteLine =
-  | { kind: "section"; index: number; text: string }
-  | { kind: "task"; index: number; text: string; done: boolean }
-  | { kind: "text"; index: number; text: string }
-  | { kind: "blank"; index: number };
-
-export function parseNotes(raw: string): NoteLine[] {
-  const lines = raw.split("\n").map<NoteLine>((line, index) => {
-    const section = SECTION_RE.exec(line);
-    if (section) return { kind: "section", index, text: section[1].trim() };
-    const task = TASK_RE.exec(line);
-    if (task) {
-      return {
-        kind: "task",
-        index,
-        text: task[2].trim(),
-        done: task[1].toLowerCase() === "x",
-      };
-    }
-    if (line.trim() === "") return { kind: "blank", index };
-    return { kind: "text", index, text: line.trim() };
-  });
-
-  // Blank lines are spacing, not content: drop the leading and trailing ones
-  // and collapse runs, so a stray extra newline never opens a hole in the
-  // panel. The raw string keeps whatever the writer typed.
-  const out: NoteLine[] = [];
-  for (const line of lines) {
-    if (line.kind === "blank") {
-      if (out.length === 0) continue;
-      if (out[out.length - 1].kind === "blank") continue;
-    }
-    out.push(line);
-  }
-  while (out.length > 0 && out[out.length - 1].kind === "blank") out.pop();
-  return out;
-}
-
-/** Flip "- [ ] " ↔ "- [x] " on one line, leaving the rest of the string alone. */
-export function toggleTaskLine(raw: string, index: number): string {
-  const lines = raw.split("\n");
-  const line = lines[index];
-  if (line === undefined) return raw;
-  const match = TASK_RE.exec(line);
-  if (!match) return raw;
-  const next = match[1].toLowerCase() === "x" ? "[ ]" : "[x]";
-  lines[index] = line.replace(/\[[ xX]\]/, next);
-  return lines.join("\n");
-}
-
-const PLACEHOLDER = [
-  "## To sort",
-  "- [ ] Renew Bodhi's passport",
-  "- [ ] Book airport parking",
-  "",
-  "## Good to know",
-  "Villa gate code 4417 · caretaker Marco",
-].join("\n");
-
-// The empty state's worked example — rendered, not raw, so the invitation
-// shows what a note looks like rather than describing one.
-const EXAMPLE: NoteLine[] = [
-  { kind: "section", index: 0, text: "To sort" },
-  { kind: "task", index: 1, text: "Book airport parking", done: false },
-  { kind: "section", index: 2, text: "Good to know" },
-  { kind: "text", index: 3, text: "Villa gate code 4417 · caretaker Marco" },
-];
-
-// ── Panel ─────────────────────────────────────────────────────────────────
 interface Props {
   tripId: string;
   /** Server-fetched with the trip, so notes work offline like the day view. */
   initialNotes: string | null;
-  /** Guest view — rendered read-only, no Edit affordance. */
+  /** Guest view — a plain checklist, no editing. */
   readOnly?: boolean;
   /** Lets a host keep its own copy fresh so a re-opened sheet isn't stale. */
   onNotesChange?: (notes: string) => void;
@@ -118,7 +75,8 @@ interface Props {
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
-const SAVE_DEBOUNCE_MS = 700;
+/** Where the next new item will land, and what kind it will be. */
+type Composer = { anchorId: string | null; kind: NoteItemKind };
 
 export default function JourneyNotes({
   tripId,
@@ -129,11 +87,23 @@ export default function JourneyNotes({
 }: Props) {
   const supabase = createClient();
 
-  const [text, setText] = useState(initialNotes ?? "");
-  const [editing, setEditing] = useState(false);
+  const [items, setItems] = useState<NoteItem[]>(() => parseNotes(initialNotes ?? ""));
   const [saveState, setSaveState] = useState<SaveState>("idle");
 
-  // latest = what the writer has typed; saved = what the row already holds.
+  // Which row is open for editing, and the text being typed into it.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+
+  // The add row, once it has been tapped open.
+  const [composer, setComposer] = useState<Composer | null>(null);
+  const [composerDraft, setComposerDraft] = useState("");
+  const composerInput = useRef<HTMLInputElement>(null);
+
+  // The list as of this instant. Every handler reads this rather than `items`,
+  // so two quick taps can't be computed from the same stale snapshot.
+  const itemsRef = useRef(items);
+
+  // latest = what the writer has done; saved = what the row already holds.
   // Every save closes the gap between them, so an edit made mid-flight is
   // written by the loop below rather than lost.
   const latest = useRef(initialNotes ?? "");
@@ -142,8 +112,6 @@ export default function JourneyNotes({
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onChangeRef = useRef(onNotesChange);
   useEffect(() => { onChangeRef.current = onNotesChange; }, [onNotesChange]);
-
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const flush = useCallback(async () => {
     if (debounce.current) { clearTimeout(debounce.current); debounce.current = null; }
@@ -154,9 +122,7 @@ export default function JourneyNotes({
     setSaveState("saving");
     while (latest.current !== saved.current) {
       const attempt = latest.current;
-      // Cast: trips.notes isn't in the generated Database types yet
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from("trips")
         .update({ notes: attempt.trim() === "" ? null : attempt })
         .eq("id", tripId);
@@ -192,47 +158,112 @@ export default function JourneyNotes({
     };
   }, []);
 
-  // Grow the textarea to its content — no inner scrollbar to fight with.
-  useEffect(() => {
-    const el = textareaRef.current;
-    if (!editing || !el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  }, [editing, text]);
-
-  const handleType = useCallback((value: string) => {
-    setText(value);
-    latest.current = value;
-    if (debounce.current) clearTimeout(debounce.current);
+  /** The single door every change goes through: list in, list held, string saved. */
+  const applyItems = useCallback((next: NoteItem[], when: "now" | "soon") => {
+    itemsRef.current = next;
+    setItems(next);
+    latest.current = serializeNotes(next);
+    if (debounce.current) { clearTimeout(debounce.current); debounce.current = null; }
+    if (when === "now") { void flush(); return; }
     debounce.current = setTimeout(() => { void flush(); }, SAVE_DEBOUNCE_MS);
   }, [flush]);
 
-  const handleToggle = useCallback((index: number) => {
-    const next = toggleTaskLine(latest.current, index);
-    if (next === latest.current) return;
-    setText(next);
-    latest.current = next;
-    void flush();
-  }, [flush]);
+  // ── Rows ────────────────────────────────────────────────────────────────
+  const handleToggle = useCallback((id: string) => {
+    applyItems(toggleItem(itemsRef.current, id), "now");
+  }, [applyItems]);
 
-  const startEditing = useCallback(() => {
-    setEditing(true);
-    // Land the caret at the end of what's already written
-    requestAnimationFrame(() => {
-      const el = textareaRef.current;
-      if (!el) return;
-      el.focus();
-      el.setSelectionRange(el.value.length, el.value.length);
-    });
+  const handleDelete = useCallback((id: string) => {
+    if (editingId === id) setEditingId(null);
+    setComposer((c) => (c?.anchorId === id ? null : c));
+    applyItems(removeItem(itemsRef.current, id), "now");
+  }, [applyItems, editingId]);
+
+  const startEdit = useCallback((item: NoteItem) => {
+    setComposer(null);
+    setDraft(item.text);
+    setEditingId(item.id);
   }, []);
 
-  const finishEditing = useCallback(() => {
-    setEditing(false);
-    void flush();
-  }, [flush]);
+  /**
+   * Settle the row being edited. Emptied text removes the row — an item with
+   * nothing in it is not an item. Returns whether the row survived, which is
+   * what tells Enter whether there is anything to carry on from.
+   */
+  const commitEdit = useCallback((id: string, value: string): boolean => {
+    setEditingId(null);
+    const item = itemsRef.current.find((i) => i.id === id);
+    if (!item) return false;
 
-  const lines = useMemo(() => parseNotes(text), [text]);
-  const isEmpty = lines.length === 0;
+    const trimmed = value.trim();
+    if (trimmed === "") {
+      applyItems(removeItem(itemsRef.current, id), "now");
+      return false;
+    }
+    if (trimmed !== item.text) {
+      applyItems(renameItem(itemsRef.current, id, trimmed), "soon");
+    }
+    return true;
+  }, [applyItems]);
+
+  // ── The add row ─────────────────────────────────────────────────────────
+  const openComposer = useCallback((anchorId: string | null, kind: NoteItemKind) => {
+    setEditingId(null);
+    setComposerDraft("");
+    setComposer({ anchorId, kind });
+  }, []);
+
+  const closeComposer = useCallback(() => {
+    setComposer(null);
+    setComposerDraft("");
+  }, []);
+
+  /** Adds what's typed and immediately offers the next line, Trello-style. */
+  const submitComposer = useCallback(() => {
+    if (!composer) return;
+    const trimmed = composerDraft.trim();
+    if (trimmed === "") { closeComposer(); return; }
+
+    const item = makeItem(composer.kind, trimmed);
+    const next = insertItem(itemsRef.current, composer.anchorId, item);
+    applyItems(next, "now");
+    setComposerDraft("");
+    // Adding at the end keeps the input in the bottom slot, where it hasn't
+    // moved; adding mid-list walks it down one row.
+    const atEnd = next[next.length - 1]?.id === item.id;
+    setComposer({ anchorId: atEnd ? null : item.id, kind: composer.kind });
+    requestAnimationFrame(() => composerInput.current?.focus());
+  }, [applyItems, closeComposer, composer, composerDraft]);
+
+  /** Enter carries on: commit this row, then offer the next one below it. */
+  const handleRowEnter = useCallback((item: NoteItem) => {
+    if (!commitEdit(item.id, draft)) return; // emptied — the run ends here
+    const list = itemsRef.current;
+    const atEnd = list[list.length - 1]?.id === item.id;
+    openComposer(atEnd ? null : item.id, "task");
+  }, [commitEdit, draft, openComposer]);
+
+  // ── Reordering ──────────────────────────────────────────────────────────
+  const canReorder = !readOnly && items.length > 1;
+  const sensors = useSensors(
+    // Touch: hold briefly before dragging, so a tap stays a tap and a swipe
+    // across the screen still changes days.
+    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 6 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+  );
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const list = itemsRef.current;
+    const from = list.findIndex((i) => i.id === active.id);
+    const to = list.findIndex((i) => i.id === over.id);
+    if (from < 0 || to < 0) return;
+    applyItems(arrayMove(list, from, to), "now");
+  }, [applyItems]);
+
+  // ── Render ──────────────────────────────────────────────────────────────
+  const isEmpty = items.length === 0;
 
   const statusLabel =
     saveState === "saving" ? "Saving…"
@@ -240,13 +271,63 @@ export default function JourneyNotes({
     : saveState === "error" ? "Couldn’t save — still on this device"
     : "";
 
+  const composerNode = composer ? (
+    <div key="composer" className="flex items-start gap-1.5 py-[3px]">
+      {canReorder && <span className="w-[17px] flex-shrink-0" aria-hidden />}
+      {composer.kind === "task" ? (
+        <span
+          className="flex-shrink-0 w-6 h-6 -ml-1 flex items-center justify-center"
+          aria-hidden
+        >
+          <span
+            className="w-[15px] h-[15px] rounded-[4px]"
+            style={{ border: "1.4px solid rgba(26,26,46,0.22)" }}
+          />
+        </span>
+      ) : null}
+      <RowInput
+        inputRef={composerInput}
+        value={composerDraft}
+        section={composer.kind === "section"}
+        placeholder={composer.kind === "section" ? "Section name" : "Add an item"}
+        onChange={setComposerDraft}
+        onEnter={submitComposer}
+        onEscape={closeComposer}
+        onBlur={() => { submitComposer(); setComposer(null); }}
+      />
+    </div>
+  ) : null;
+
+  const rows: React.ReactNode[] = [];
+  items.forEach((item, i) => {
+    rows.push(
+      <NoteRow
+        key={item.id}
+        item={item}
+        first={i === 0}
+        readOnly={readOnly}
+        canReorder={canReorder}
+        editing={editingId === item.id}
+        draft={draft}
+        onDraftChange={setDraft}
+        onStartEdit={() => startEdit(item)}
+        onToggle={() => handleToggle(item.id)}
+        onDelete={() => handleDelete(item.id)}
+        onEnter={() => handleRowEnter(item)}
+        onEscape={() => setEditingId(null)}
+        onBlur={() => commitEdit(item.id, draft)}
+      />,
+    );
+    if (composer?.anchorId === item.id && composerNode) rows.push(composerNode);
+  });
+  if (composer?.anchorId === null && composerNode) rows.push(composerNode);
+
   return (
     <div className={className}>
-      {/* Control row — status on the left, the one affordance on the right.
-          Suppressed on an untouched empty note: the invitation below IS the
-          affordance, and an empty row above it is just a gap. */}
-      {!readOnly && (editing || !isEmpty) && (
-        <div className="flex items-center gap-3 pb-2 min-h-[22px]">
+      {/* Status only — there is no edit mode left to enter. Space is reserved
+          so the panel below never jumps when "Saving…" comes and goes. */}
+      {!readOnly && (
+        <div className="flex items-center pb-2 min-h-[22px]">
           <span
             className="font-display italic text-[11px] transition-opacity duration-200"
             style={{
@@ -257,186 +338,298 @@ export default function JourneyNotes({
           >
             {statusLabel}
           </span>
-          <button
-            type="button"
-            onClick={editing ? finishEditing : startEditing}
-            className="ml-auto text-[13px] font-medium text-[rgba(26,26,46,0.6)] hover:text-[#1A1A2E] transition-colors"
-          >
-            {editing ? "Done" : "Edit"}
-          </button>
         </div>
       )}
+
+      <div className="rounded-xl px-3.5 py-3" style={{ background: PARCHMENT, border: HAIRLINE }}>
+        {isEmpty && !composer && (
+          <p
+            className="font-display italic text-[15px]"
+            style={{ color: "rgba(26,26,46,0.5)", paddingBottom: readOnly ? 0 : 4 }}
+          >
+            {readOnly
+              ? "Nothing noted yet."
+              : "What belongs to no single day — a gate code, what to pack, a passport to renew."}
+          </p>
+        )}
+
+        {/* Every row goes through the same context, guests included: NoteRow
+            calls useSortable unconditionally (hooks don't take sides), and the
+            drag is switched off per row instead. */}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={items.map((i) => i.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {rows}
+          </SortableContext>
+        </DndContext>
+
+        {/* The add row is always there — the list's open door. It's absent only
+            while it IS the open input, a few pixels lower down. */}
+        {!readOnly && composer?.anchorId !== null && (
+          <div className="flex items-center gap-3 pt-1.5" style={{ marginTop: isEmpty ? 0 : 4 }}>
+            <button
+              type="button"
+              onClick={() => openComposer(null, "task")}
+              className="flex items-center gap-1.5 py-1 text-[13.5px] font-medium transition-colors hover:text-[#1A1A2E]"
+              style={{ color: "rgba(26,26,46,0.55)" }}
+            >
+              <Plus size={13} weight="bold" />
+              Add an item
+            </button>
+            <button
+              type="button"
+              onClick={() => openComposer(null, "section")}
+              className="py-1 text-[12.5px] transition-colors hover:text-[rgba(26,26,46,0.7)]"
+              style={{ color: "rgba(26,26,46,0.38)" }}
+            >
+              Add section
+            </button>
+          </div>
+        )}
+      </div>
+
+      <p className="mt-2.5 text-[11px] leading-[1.6]" style={{ color: "rgba(26,26,46,0.4)" }}>
+        {readOnly
+          ? "Notes from the traveller who shared this journey."
+          : "Shared with anyone you share this journey with."}
+      </p>
+    </div>
+  );
+}
+
+// ── One row ───────────────────────────────────────────────────────────────
+// A checkbox with a thumb-sized target, the words, and a delete that keeps out
+// of the way. The words are their own button — tapping them edits; tapping the
+// rest of the row ticks the box, which is the thing a checklist is for.
+function NoteRow({
+  item,
+  first,
+  readOnly,
+  canReorder,
+  editing,
+  draft,
+  onDraftChange,
+  onStartEdit,
+  onToggle,
+  onDelete,
+  onEnter,
+  onEscape,
+  onBlur,
+}: {
+  item: NoteItem;
+  /** A heading gets air above it — but not against the top of the panel. */
+  first: boolean;
+  readOnly: boolean;
+  canReorder: boolean;
+  editing: boolean;
+  draft: string;
+  onDraftChange: (value: string) => void;
+  onStartEdit: () => void;
+  onToggle: () => void;
+  onDelete: () => void;
+  onEnter: () => void;
+  onEscape: () => void;
+  onBlur: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: item.id, disabled: !canReorder || editing });
+
+  const isSection = item.kind === "section";
+  const isTask = item.kind === "task";
+
+  const textStyle: React.CSSProperties = isSection
+    ? {
+        color: "rgba(26,26,46,0.4)",
+        fontSize: 10.5,
+        fontWeight: 700,
+        textTransform: "uppercase",
+        letterSpacing: "0.12em",
+      }
+    : {
+        color: isTask && item.done ? DONE_INK : INK,
+        fontSize: 14,
+        lineHeight: 1.6,
+        textDecoration: isTask && item.done ? "line-through" : "none",
+      };
+
+  // Faint but present on touch; out of sight on desktop until the row is under
+  // the cursor. Nothing here is ever load-bearing enough to shout.
+  const quiet =
+    "transition-opacity opacity-40 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100";
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.45 : 1,
+        marginTop: isSection && !first ? 14 : 0,
+      }}
+      className="group flex items-start gap-1.5 py-[3px] rounded-md"
+    >
+      {canReorder && (
+        <button
+          {...attributes}
+          {...listeners}
+          type="button"
+          aria-label={`Reorder ${item.text || "item"}`}
+          className={`flex-shrink-0 w-[17px] h-6 -ml-1 flex items-center justify-center touch-none cursor-grab active:cursor-grabbing ${quiet}`}
+          style={{ color: "rgba(26,26,46,0.3)" }}
+        >
+          <DotsSixVertical size={13} weight="bold" />
+        </button>
+      )}
+
+      {isTask ? (
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={item.done}
+          aria-label={item.text}
+          disabled={readOnly}
+          onClick={onToggle}
+          className="flex-shrink-0 w-6 h-6 -ml-1 flex items-center justify-center rounded-md active:bg-[rgba(26,26,46,0.06)] transition-colors"
+        >
+          <span
+            className="w-[15px] h-[15px] rounded-[4px] flex items-center justify-center transition-colors"
+            style={{
+              borderWidth: 1.4,
+              borderStyle: "solid",
+              borderColor: item.done ? INK : "rgba(26,26,46,0.3)",
+              background: item.done ? INK : "transparent",
+            }}
+          >
+            {item.done && <Check size={10} weight="bold" color={PARCHMENT} />}
+          </span>
+        </button>
+      ) : item.kind === "text" ? (
+        // Keeps a plain line shoulder to shoulder with the ticked ones
+        <span className="flex-shrink-0 w-5" aria-hidden />
+      ) : null}
 
       {editing ? (
-        /* ── Editing — the raw text, exactly as stored ── */
+        <RowInput
+          value={draft}
+          section={isSection}
+          placeholder={isSection ? "Section name" : "Item"}
+          onChange={onDraftChange}
+          onEnter={onEnter}
+          onEscape={onEscape}
+          onBlur={onBlur}
+        />
+      ) : readOnly ? (
+        <span className="pt-[1px]" style={textStyle}>{item.text}</span>
+      ) : (
         <>
-          <div className="rounded-xl px-3.5 py-3" style={{ background: PARCHMENT, border: "1px solid rgba(26,26,46,0.16)" }}>
-            <textarea
-              ref={textareaRef}
-              value={text}
-              onChange={(e) => handleType(e.target.value)}
-              onBlur={() => { void flush(); }}
-              placeholder={PLACEHOLDER}
-              spellCheck
-              // autoFocus opens the keyboard on tap-to-edit; the rAF in
-              // startEditing then drops the caret at the end of the text.
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-              className="w-full resize-none bg-transparent outline-none text-[14px] leading-[1.7] placeholder:text-[rgba(26,26,46,0.28)]"
-              style={{ color: INK, minHeight: 190 }}
-            />
-          </div>
-          <p className="mt-2 text-[11px] leading-[1.7]" style={{ color: "rgba(26,26,46,0.42)" }}>
-            <code className="font-mono text-[10.5px] whitespace-pre">- [ ] task</code> makes a checkbox
-            {" · "}
-            <code className="font-mono text-[10.5px] whitespace-pre">## Section</code> makes a label
-            {" · "}
-            everything else stays a plain line.
-          </p>
-        </>
-      ) : isEmpty ? (
-        /* ── Empty ── */
-        readOnly ? (
-          <div className="rounded-xl px-3.5 py-4" style={{ background: PARCHMENT, border: HAIRLINE }}>
-            <p className="font-display italic text-[15px]" style={{ color: "rgba(26,26,46,0.5)" }}>
-              Nothing noted yet.
-            </p>
-          </div>
-        ) : (
           <button
             type="button"
-            onClick={startEditing}
-            className="w-full text-left rounded-xl px-3.5 py-4 transition-colors hover:brightness-[0.985]"
-            style={{ background: PARCHMENT, border: HAIRLINE }}
+            onClick={onStartEdit}
+            className="text-left pt-[1px] rounded-sm hover:bg-[rgba(26,26,46,0.035)] transition-colors"
+            style={textStyle}
           >
-            <p className="font-display italic text-[15px]" style={{ color: "rgba(26,26,46,0.55)" }}>
-              Nothing noted yet.
-            </p>
-            <p className="mt-1.5 text-[13px] leading-[1.6]" style={{ color: "rgba(26,26,46,0.5)" }}>
-              Notes hold what belongs to no single day — a gate code, what to pack,
-              who&rsquo;s driving, whose passport still needs renewing.
-            </p>
-            <div
-              className="mt-3.5 pt-3 pointer-events-none"
-              style={{ borderTop: "1px solid rgba(26,26,46,0.08)", opacity: 0.45 }}
-              aria-hidden
-            >
-              <NoteLines lines={EXAMPLE} readOnly onToggle={() => {}} />
-            </div>
-            <span className="mt-3 block text-[13px] font-medium" style={{ color: INK }}>
-              Start a note
-            </span>
+            {item.text}
           </button>
-        )
-      ) : (
-        /* ── Rendered ── */
-        <div className="rounded-xl px-3.5 py-3" style={{ background: PARCHMENT, border: HAIRLINE }}>
-          <NoteLines lines={lines} readOnly={readOnly} onToggle={handleToggle} />
-        </div>
-      )}
-
-      {!editing && (
-        <p className="mt-2.5 text-[11px] leading-[1.6]" style={{ color: "rgba(26,26,46,0.4)" }}>
-          {readOnly
-            ? "Notes from the traveller who shared this journey."
-            : "Free text with checkboxes. Shared with anyone you share this journey with."}
-        </p>
+          {/* The rest of the row belongs to the checkbox. Keyboard users have
+              the real one two elements to the left, so this stays out of the
+              tab order rather than duplicating it. */}
+          {isTask ? (
+            <button
+              type="button"
+              tabIndex={-1}
+              aria-hidden
+              onClick={onToggle}
+              className="flex-1 self-stretch min-w-[8px] cursor-default"
+            />
+          ) : (
+            <span className="flex-1" aria-hidden />
+          )}
+          <button
+            type="button"
+            onClick={onDelete}
+            aria-label={`Delete ${item.text || "item"}`}
+            className={`flex-shrink-0 w-6 h-6 -mr-1 flex items-center justify-center rounded-md ${quiet}`}
+            style={{ color: "rgba(26,26,46,0.4)" }}
+          >
+            <X size={12} weight="bold" />
+          </button>
+        </>
       )}
     </div>
   );
 }
 
-// ── Line rendering ────────────────────────────────────────────────────────
-function NoteLines({
-  lines,
-  readOnly,
-  onToggle,
+// ── The one input, wherever a line is being written ───────────────────────
+function RowInput({
+  value,
+  section,
+  placeholder,
+  onChange,
+  onEnter,
+  onEscape,
+  onBlur,
+  inputRef,
 }: {
-  lines: NoteLine[];
-  readOnly: boolean;
-  onToggle: (index: number) => void;
+  value: string;
+  section: boolean;
+  placeholder: string;
+  onChange: (value: string) => void;
+  onEnter: () => void;
+  onEscape: () => void;
+  onBlur: () => void;
+  inputRef?: React.RefObject<HTMLInputElement>;
 }) {
+  const own = useRef<HTMLInputElement>(null);
+  const ref = inputRef ?? own;
+
+  // Has the text now in the box already been dealt with? Enter and Escape say
+  // yes, so the blur that follows doesn't commit the same line twice; typing
+  // says no again. Kept here rather than in the panel because it is a fact
+  // about THIS box — a shared flag would let one input swallow another's blur.
+  const handled = useRef(false);
+
+  // Open with the caret after what's already written, so editing appends
+  // rather than threatening to replace.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+    // Mount only: re-running would drag the caret back on every keystroke.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
-    <>
-      {lines.map((line, i) => {
-        switch (line.kind) {
-          case "section":
-            return (
-              <div
-                key={`s-${line.index}`}
-                className="text-[10.5px] font-bold uppercase tracking-[0.12em] mb-1"
-                style={{ color: "rgba(26,26,46,0.4)", marginTop: i === 0 ? 0 : 15 }}
-              >
-                {line.text}
-              </div>
-            );
-
-          case "task": {
-            const box = (
-              <span
-                className="mt-[4px] w-[13px] h-[13px] rounded-[3.5px] flex-shrink-0 transition-colors"
-                style={{
-                  borderWidth: 1.4,
-                  borderStyle: "solid",
-                  borderColor: line.done ? INK : "rgba(26,26,46,0.3)",
-                  background: line.done ? INK : "transparent",
-                }}
-              />
-            );
-            const label = (
-              <span
-                className="text-[14px] leading-[1.6]"
-                style={{
-                  color: line.done ? "rgba(26,26,46,0.35)" : INK,
-                  textDecoration: line.done ? "line-through" : "none",
-                }}
-              >
-                {line.text}
-              </span>
-            );
-            if (readOnly) {
-              return (
-                <div key={`t-${line.index}`} className="flex items-start gap-2 py-[3px]">
-                  {box}
-                  {label}
-                </div>
-              );
-            }
-            // The whole line is the target — a 13px box is not a thumb.
-            return (
-              <button
-                key={`t-${line.index}`}
-                type="button"
-                role="checkbox"
-                aria-checked={line.done}
-                onClick={() => onToggle(line.index)}
-                className="w-full flex items-start gap-2 py-[3px] text-left rounded-md active:bg-[rgba(26,26,46,0.04)] transition-colors"
-              >
-                {box}
-                {label}
-              </button>
-            );
-          }
-
-          case "blank":
-            // A section already carries its own leading space
-            return lines[i + 1]?.kind === "section"
-              ? null
-              : <div key={`b-${line.index}`} className="h-[9px]" />;
-
-          default:
-            return (
-              <p
-                key={`p-${line.index}`}
-                className="text-[14px] leading-[1.6] py-[3px]"
-                style={{ color: INK }}
-              >
-                {line.text}
-              </p>
-            );
-        }
-      })}
-    </>
+    <input
+      ref={ref}
+      type="text"
+      value={value}
+      spellCheck
+      enterKeyHint="enter"
+      aria-label={placeholder}
+      placeholder={placeholder}
+      onChange={(e) => { handled.current = false; onChange(e.target.value); }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") { e.preventDefault(); handled.current = true; onEnter(); }
+        else if (e.key === "Escape") { e.preventDefault(); handled.current = true; onEscape(); }
+      }}
+      onBlur={() => { if (handled.current) return; onBlur(); }}
+      className="flex-1 min-w-0 bg-transparent outline-none border-b py-[1px] placeholder:text-[rgba(26,26,46,0.3)]"
+      style={{
+        color: INK,
+        borderColor: "rgba(26,26,46,0.22)",
+        fontSize: section ? 12 : 14,
+        lineHeight: 1.6,
+        fontWeight: section ? 600 : 400,
+        letterSpacing: section ? "0.06em" : undefined,
+      }}
+    />
   );
 }
 
