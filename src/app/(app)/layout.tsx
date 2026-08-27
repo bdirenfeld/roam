@@ -6,6 +6,7 @@ import BottomNav from "@/components/ui/BottomNav";
 import DesktopMasthead from "@/components/ui/DesktopMasthead";
 import { GlobalSearchProvider } from "@/components/search/GlobalSearch";
 import { AppOverlaysProvider } from "@/components/overlays/AppOverlays";
+import OfflineQueueIndicator from "@/components/offline/OfflineQueueIndicator";
 
 export default function AppLayout({
   children,
@@ -32,6 +33,9 @@ export default function AppLayout({
         <Suspense>
           <BottomNav />
         </Suspense>
+        {/* Mounted once, here: the queue is global, so the "will sync" pill is
+            too. It also owns the replay wiring (online / focus). */}
+        <OfflineQueueIndicator />
       </AppOverlaysProvider>
     </GlobalSearchProvider>
   );

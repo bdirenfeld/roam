@@ -4,6 +4,8 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import { Clock, Heart } from "@phosphor-icons/react";
 import type { Card, ChecklistItem, Day, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
+import { queuedUpdate } from "@/lib/offline/queuedWrite";
+import { applyOverlay } from "@/lib/offline/writeQueue";
 import { formatTimeValue } from "@/lib/formatTime";
 import { scheduleCardOnDay } from "@/lib/scheduleCard";
 import LovedHeart from "@/components/ui/LovedHeart";
@@ -481,7 +483,10 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const AXIS_LOCK_THRESHOLD = 8;
 
   // Local optimistic state
-  const [localCard, setLocalCard] = useState<Card>(card);
+  // Queued-but-unsent edits are laid over the incoming row on open. The Day
+  // view already does this for its list, but the sheet is also opened from the
+  // Plan board, whose cards come straight from the cached page payload.
+  const [localCard, setLocalCard] = useState<Card>(() => applyOverlay("cards", card));
   const [showDayPicker,     setShowDayPicker]     = useState(false);
   const [showMovePicker,    setShowMovePicker]    = useState(false);
   const [showCopyPicker,    setShowCopyPicker]    = useState(false);
@@ -563,6 +568,10 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   );
 
   // ── Persistence helpers ───────────────────────────────────
+  // OFFLINE — time edits and every other single-column save go through the
+  // write queue. When the write can't reach Supabase it is stored and replayed
+  // on reconnect, and the optimistic value stands instead of being rolled
+  // back. Only a real refusal (RLS, a deleted row) reverts, exactly as before.
   const saveTopLevel = useCallback(
     async (field: string, value: unknown) => {
       const prev = localCard;
@@ -570,10 +579,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       setLocalCard(updated);
       onCardUpdate?.(updated);
 
-      const { error } = await supabase
-        .from("cards")
-        .update({ [field]: value })
-        .eq("id", localCard.id);
+      const { error } = await queuedUpdate("cards", { id: localCard.id }, { [field]: value });
 
       if (error) {
         console.error("Failed to save", field, error.message);
@@ -581,7 +587,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         onCardUpdate?.(prev);
       }
     },
-    [localCard, onCardUpdate, supabase]
+    [localCard, onCardUpdate]
   );
 
   const saveDetails = useCallback(
@@ -597,10 +603,10 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       setLocalCard(updated);
       onCardUpdate?.(updated);
 
-      const { error } = await supabase
-        .from("cards")
-        .update({ details: newDetails })
-        .eq("id", localCard.id);
+      // Covers the checklist too — CardChecklist hands the WHOLE array back
+      // through this same door, so a tick made offline is queued as one
+      // `details` patch and replays intact.
+      const { error } = await queuedUpdate("cards", { id: localCard.id }, { details: newDetails });
 
       if (error) {
         console.error("Failed to save details.", field, error.message);
@@ -608,7 +614,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         onCardUpdate?.(prev);
       }
     },
-    [localCard, onCardUpdate, saveTopLevel, supabase]
+    [localCard, onCardUpdate, saveTopLevel]
   );
 
   const saveMenuUrl = useCallback(async () => {

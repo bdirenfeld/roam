@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { PencilSimple, Trash, BookmarkSimple } from "@phosphor-icons/react";
+import { PencilSimple, Trash, BookmarkSimple, Heart } from "@phosphor-icons/react";
 import type { Card, CardType, Day } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { scheduleCardOnDay } from "@/lib/scheduleCard";
@@ -239,6 +239,25 @@ function CardBody({
   const supabase         = createClient();
   const place            = card.place!;
   const details          = card.details as Record<string, unknown> | null;
+
+  // "We loved this" lives on the PLACE, so every card pointing at it inherits
+  // the mark. Optimistic; the card reverts if the write is refused. Setting it
+  // was previously only possible from the card sheet, which made the map — the
+  // screen you're actually on when you remember loving somewhere — a dead end.
+  const toggleLoved = useCallback(async () => {
+    if (!card.place_id || !onCardUpdate) return;
+    const next = !place.loved;
+    const lovedAt = next ? new Date().toISOString() : null;
+    onCardUpdate({ ...card, place: { ...place, loved: next, loved_at: lovedAt } });
+    const { error } = await supabase
+      .from("places")
+      .update({ loved: next, loved_at: lovedAt })
+      .eq("id", card.place_id);
+    if (error) {
+      console.error("[Roam] Saving loved failed:", error.message);
+      onCardUpdate({ ...card, place });
+    }
+  }, [card, place, onCardUpdate, supabase]);
   // Prefer the embedded place (world facts); fall back to card.details for
   // cards saved before the place row carried these fields (transitional).
   const phone            = place?.phone ?? (details?.phone as string | undefined) ?? undefined;
@@ -368,7 +387,27 @@ function CardBody({
           />
         )}
 
-        <h2 className="text-[15px] font-bold text-gray-900 leading-snug">{place.title}</h2>
+        {/* Title + the heart. Loving a place from the map was previously
+            impossible — you could see the mark here but only set it from the
+            card sheet, which is a dead end for anyone living on the map tab. */}
+        <div className="flex items-start gap-2">
+          <h2 className="flex-1 min-w-0 text-[15px] font-bold text-gray-900 leading-snug">{place.title}</h2>
+          {onCardUpdate && card.place_id && (
+            <button
+              onClick={toggleLoved}
+              aria-pressed={place.loved === true}
+              aria-label={place.loved ? "We loved this — tap to unset" : "We loved this"}
+              title="We loved this"
+              className="flex-shrink-0 -mt-0.5 p-1"
+            >
+              <Heart
+                size={15}
+                weight={place.loved ? "fill" : "light"}
+                color={place.loved ? "#C4622D" : "#9CA3AF"}
+              />
+            </button>
+          )}
+        </div>
 
         {rating !== undefined && (
           <div className="flex items-center gap-1.5 mt-1">

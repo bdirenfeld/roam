@@ -10,7 +10,7 @@ import AddToTripSheet from "./AddToTripSheet";
 import type { PlaceResult } from "./AddToTripSheet";
 import type { Trip, Day, Card, CardType } from "@/types/database";
 import { makeMaterialPinElement } from "@/lib/mapPins";
-import { Funnel, DotsThree } from "@phosphor-icons/react";
+import { Funnel, DotsThree, Heart } from "@phosphor-icons/react";
 
 // Purple circular pin for search result previews
 const TEMP_PIN_SVG =
@@ -722,6 +722,24 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
                     </button>
                   );
                 })}
+
+                {/* Loved — the same filter the desktop sidebar has. Roam is
+                    mobile-first; leaving it desktop-only made the one
+                    un-gameable signal in the app unreachable on a phone. */}
+                <button
+                  onClick={() => handleLovedOnlyChange(!lovedOnly)}
+                  aria-pressed={lovedOnly}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200"
+                  style={{
+                    backdropFilter: "blur(8px)",
+                    WebkitBackdropFilter: "blur(8px)",
+                    background: lovedOnly ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.5)",
+                    color: lovedOnly ? "#C4622D" : "#9CA3AF",
+                  }}
+                >
+                  <Heart size={11} weight={lovedOnly ? "fill" : "light"} color={lovedOnly ? "#C4622D" : "#9CA3AF"} />
+                  Loved
+                </button>
               </div>
               )}
             </div>

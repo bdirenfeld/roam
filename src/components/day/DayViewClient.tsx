@@ -17,6 +17,8 @@ import Companion from "@/components/companion/Companion";
 import { JourneyNotesSheet } from "@/components/trip/JourneyNotes";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 import { createClient } from "@/lib/supabase/client";
+import { queuedUpdate } from "@/lib/offline/queuedWrite";
+import { applyOverlayAll } from "@/lib/offline/writeQueue";
 import { COMPANION_ENABLED } from "@/lib/featureFlags";
 import type { Trip, Day, DayWithCards, Card } from "@/types/database";
 
@@ -331,8 +333,15 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   // every later add: chronological, untimed cards last, position as the
   // tiebreak. The server orders by position alone, so sorting only the adds
   // (the old behaviour) made cards jump to a different spot after a refresh.
+  //
+  // OFFLINE: the page payload is whatever the service worker cached, i.e. the
+  // SERVER's version of these rows. Anything edited offline and still queued
+  // is laid back over them here, in the initialiser, so a reload on a plane
+  // paints the ticked box / moved time / new order on the FIRST frame rather
+  // than flashing the stale value. Overlay values are absolute, so re-applying
+  // them after a sync that has already landed is a no-op.
   const [localCards, setLocalCards] = useState<Card[]>(() =>
-    [...dayWithCards.cards].sort(agendaOrder)
+    applyOverlayAll("cards", [...dayWithCards.cards]).sort(agendaOrder)
   );
   // Undo window after a delete — holds the removed row for re-insert
   const [undoCard, setUndoCard] = useState<Card | null>(null);
@@ -413,12 +422,15 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
     const newValue = !card.confirmed;
     setLocalCards((prev) => prev.map((c) => c.id === cardId ? { ...c, confirmed: newValue } : c));
     setSelectedCard((prev) => prev?.id === cardId ? { ...prev, confirmed: newValue } : prev);
-    const { error } = await supabase.from("cards").update({ confirmed: newValue }).eq("id", cardId);
+    // Queued when the write can't reach Supabase — the optimistic tick then
+    // stands, survives a reload, and replays on reconnect. Only a genuine
+    // refusal rolls back.
+    const { error } = await queuedUpdate("cards", { id: cardId }, { confirmed: newValue });
     if (error) {
       setLocalCards((prev) => prev.map((c) => c.id === cardId ? { ...c, confirmed: !newValue } : c));
       setSelectedCard((prev) => prev?.id === cardId ? { ...prev, confirmed: !newValue } : prev);
     }
-  }, [localCards, supabase]);
+  }, [localCards]);
 
   const [isCardOpen, setIsCardOpen] = useState(false);
   const [swipeDir, setSwipeDir] = useState<"left" | "right" | null>(null);
@@ -620,17 +632,25 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
       setLocalCards(renumbered);
 
       const changed = renumbered.filter((c) => byId.get(c.id)?.position !== c.position);
-      const results = await Promise.all(
-        changed.map((c) =>
-          supabase.from("cards").update({ position: c.position }).eq("id", c.id)
-        )
-      );
-      if (results.some((r) => r.error)) {
-        console.error("[Roam] Reorder failed:", results.find((r) => r.error)?.error);
+      // Sequential, not Promise.all: each row's write has to see the queue
+      // state left by the previous one, otherwise a batch that starts online
+      // and loses signal halfway can send some rows direct while queueing
+      // others — and replaying that queue would rewrite an order the server
+      // already has. One row at a time keeps the whole reorder in one mode.
+      let failure: string | null = null;
+      for (const c of changed) {
+        const { error } = await queuedUpdate("cards", { id: c.id }, { position: c.position });
+        // A refusal on the first row (RLS, a deleted card) will refuse the
+        // rest too — stop, so the rollback below leaves local state and the
+        // server agreeing rather than half-renumbered.
+        if (error) { failure = error.message; break; }
+      }
+      if (failure) {
+        console.error("[Roam] Reorder failed:", failure);
         setLocalCards(snapshot);
       }
     },
-    [localCards, supabase]
+    [localCards]
   );
 
   const dayWeather = weatherByDate?.[dayWithCards.date] ?? null;
