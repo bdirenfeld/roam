@@ -348,11 +348,10 @@ export default function MapSidebar({
                                       )}
                                     </div>
                                   ) : (
-                                    {/* The selected place is marked by lifting
-                                        IT, never by dimming everything else —
-                                        greying out the whole list to point at
-                                        one row punishes the other 20 places for
-                                        not being tapped. */}
+                                    // The selected place is marked by lifting IT,
+                                    // never by dimming everything else — greying
+                                    // out the whole list to point at one row
+                                    // punishes the other 20 for not being tapped.
                                     <div
                                       className="flex items-center rounded-lg transition-colors duration-200"
                                       style={{
