@@ -192,7 +192,10 @@ export default function MapSidebar({
 
         {/* ── Status filter pills ── */}
         <p className="text-[9.5px] tracking-[0.18em] uppercase font-semibold mb-2.5" style={{ color: "rgba(26,26,46,0.55)" }}>Status</p>
-        <div className="flex items-center gap-2 mb-1">
+        {/* Wraps: three pills don't fit the sidebar's width, so without this
+            the third is clipped at the edge and reads as a broken control
+            rather than a filter. */}
+        <div className="flex flex-wrap items-center gap-2 mb-1">
           {(
             [
               { status: "interested",   label: "Interested", hollow: true  },

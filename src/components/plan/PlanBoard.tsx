@@ -13,6 +13,8 @@ import {
   useSensor,
   useSensors,
   useDroppable,
+  useDraggable,
+  type CollisionDetection,
   type DragStartEvent,
   type DragOverEvent,
   type DragEndEvent,
@@ -58,7 +60,7 @@ import { formatTimeRange } from "@/lib/formatTime";
 import { getOpeningHoursConflict, openingHoursCaption, openingHoursTone } from "@/lib/openingHours";
 
 import CardImage from "@/components/ui/CardImage";
-import { Trash, DotsThree, Image as ImageIcon, Gear, ShareNetwork, BookmarkSimple, UploadSimple, Files, NotePencil, MagnifyingGlass } from "@phosphor-icons/react";
+import { Trash, DotsThree, DotsSixVertical, ArrowLeft, ArrowRight, Image as ImageIcon, Gear, ShareNetwork, BookmarkSimple, UploadSimple, Files, NotePencil, MagnifyingGlass } from "@phosphor-icons/react";
 import { useGlobalSearch } from "@/components/search/GlobalSearch";
 import { TripSettingsLink } from "@/components/overlays/AppOverlays";
 import { getMaterialIconHTML } from "@/lib/mapPins";
@@ -72,6 +74,21 @@ const COL_PREFIX = "col-";
 // that has to say day-or-list before it says which, and a distinct prefix makes
 // that a string test instead of a lookup that happens to miss.
 const LIST_PREFIX = "list-";
+
+// Reordering the list columns themselves. Two more prefixes, and the reason is
+// the same one that gave LIST_PREFIX its own namespace: the board now has TWO
+// kinds of draggable in ONE DndContext, and the only thing standing between
+// them is that a drag's kind can be read off its id.
+//
+//   LIST_DRAG_PREFIX  the id of a list column being dragged by its header grip
+//   LIST_SLOT_PREFIX  the droppable a list column can be dropped ON
+//
+// listCollision() below shows a list drag nothing but list slots, and shows
+// every other drag everything BUT list slots. That single filter is what makes
+// "a list can never land in a day column" and "a card can never land on the
+// reorder rail" true by construction rather than by a branch in each handler.
+const LIST_DRAG_PREFIX = "listdrag-";
+const LIST_SLOT_PREFIX = "listslot-";
 
 // The idle "+ Add a list" rail. Narrower than a column on purpose — it is an
 // affordance, not a place cards live — and it widens to a full column while a
@@ -201,6 +218,21 @@ function makeCards(
   }));
 }
 
+// ── Collision detection ────────────────────────────────────────
+// The one place the two kinds of drag are kept apart. Everything downstream —
+// handleDragOver, handleDragEnd, resolveDropTarget — can then assume that
+// whatever it was handed is a target of the right kind, because dnd-kit was
+// never allowed to nominate one of the wrong kind in the first place.
+const listCollision: CollisionDetection = (args) => {
+  const draggingList = String(args.active.id).startsWith(LIST_DRAG_PREFIX);
+  return closestCorners({
+    ...args,
+    droppableContainers: args.droppableContainers.filter(
+      (c) => String(c.id).startsWith(LIST_SLOT_PREFIX) === draggingList,
+    ),
+  });
+};
+
 // ── Helpers ────────────────────────────────────────────────────
 function fmtDate(dateStr: string): string {
   const [y, mo, d] = dateStr.split("-").map(Number);
@@ -208,6 +240,16 @@ function fmtDate(dateStr: string): string {
     weekday: "short", month: "short", day: "numeric",
   });
 }
+
+// ── Undo ───────────────────────────────────────────────────────
+// What a 6-second undo window is holding. Deleting a list keeps the whole
+// ListWithCards, not just the row: its cards survive the delete in the database
+// (cards.list_id is ON DELETE SET NULL) but they leave the board entirely, so
+// restoring the column means restoring the exact set of cards that was on it —
+// and their ids are what the re-file writes against.
+type UndoEntry =
+  | { kind: "card"; card: Card; dayId: string }
+  | { kind: "list"; list: ListWithCards; collapsed: boolean };
 
 // ── PlanBoard ──────────────────────────────────────────────────
 interface Props {
@@ -252,11 +294,20 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
     setDeleteToast(msg);
     setTimeout(() => setDeleteToast(null), 3000);
   }, []);
-  // Undo window after an instant delete — holds the removed card for re-insert
-  const [undoDelete, setUndoDelete] = useState<{ card: Card; dayId: string } | null>(null);
-  const undoDeleteRef = useRef<{ card: Card; dayId: string } | null>(null);
+  // Undo window after an instant delete — holds what was removed for re-insert.
+  // A card and a list are undone the same way (re-insert the row under its
+  // ORIGINAL id so nothing has to be repointed at a new one) and expire the
+  // same way, so they share one entry, one timer and one toast rather than
+  // growing a second undo mechanism beside the first.
+  const [undoDelete, setUndoDelete] = useState<UndoEntry | null>(null);
+  const undoDeleteRef = useRef<UndoEntry | null>(null);
   useEffect(() => { undoDeleteRef.current = undoDelete; }, [undoDelete]);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const startUndoWindow = useCallback((entry: UndoEntry) => {
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    setUndoDelete(entry);
+    undoTimerRef.current = setTimeout(() => setUndoDelete(null), 6000);
+  }, []);
   // Booking import — file → /api/confirmations/parse → ConfirmationPreviewSheet
   const [importingConf, setImportingConf] = useState(false);
   const handleImportFile = useCallback(async (file: File) => {
@@ -595,6 +646,13 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   const preDragSnapshot = useRef<DayWithCards[] | null>(null);
   const crossColumnMoved = useRef(false);
 
+  // A list column being dragged by its header grip, and the list its slot is
+  // currently over. Separate from `activeId` (a card) on purpose: the two never
+  // coexist, and keeping them apart means no handler has to ask "which kind is
+  // this?" of a single variable.
+  const [activeListId, setActiveListId] = useState<string | null>(null);
+  const [listOverId, setListOverId] = useState<string | null>(null);
+
   const sensors = useSensors(
     // Mouse: immediate drag after 8px movement — no delay on desktop
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -641,13 +699,31 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
 
   // ── Drag handlers ─────────────────────────────────────────────
   const handleDragStart = useCallback((event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
+    const id = String(event.active.id);
+    // A list drag touches no card and no day, so it takes none of the card
+    // drag's machinery — no `days` snapshot to roll back, nothing to preview.
+    if (id.startsWith(LIST_DRAG_PREFIX)) {
+      setActiveListId(id.slice(LIST_DRAG_PREFIX.length));
+      setListOverId(null);
+      return;
+    }
+    setActiveId(id);
     preDragSnapshot.current = daysRef.current;
     crossColumnMoved.current = false;
   }, []);
 
   const handleDragOver = useCallback((event: DragOverEvent) => {
     const { active, over } = event;
+
+    // Lists: the only thing to track live is which slot the column would land
+    // on, so the board can draw the insertion edge. listCollision guarantees
+    // `over` is a list slot or nothing.
+    if (String(active.id).startsWith(LIST_DRAG_PREFIX)) {
+      const id = String(over?.id ?? "");
+      setListOverId(id.startsWith(LIST_SLOT_PREFIX) ? id.slice(LIST_SLOT_PREFIX.length) : null);
+      return;
+    }
+
     if (!over) return;
 
     const activeId = active.id as string;
@@ -892,13 +968,71 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
     }
   }, [supabase, showToast]);
 
+  // ── List order ───────────────────────────────────────────────
+  // A list's position used to be set once, at creation, and never again, so
+  // putting "Prep" before "Research" meant deleting and remaking it. Both ways
+  // of reordering — the header drag and the menu's Move left/right — land here.
+  //
+  // Renumber the whole array 1..n and write ONLY the rows whose number actually
+  // changed, mirroring persistListOrder's approach for cards inside a list.
+  // Optimistic, with the pre-move array kept for rollback.
+  const applyListOrder = useCallback(
+    async (next: ListWithCards[], prev: ListWithCards[]) => {
+      const renumbered = next.map((l, i) => ({ ...l, position: i + 1 }));
+      setLists(renumbered);
+
+      const before = new Map(prev.map((l) => [l.id, l.position]));
+      const writes = renumbered.flatMap((l) =>
+        before.get(l.id) === l.position
+          ? []
+          : [supabase.from("trip_lists").update({ position: l.position }).eq("id", l.id)],
+      );
+      if (writes.length === 0) return;
+
+      // supabase-js resolves rather than throws, so the failure has to be read
+      // off each result — a try/catch here would never fire.
+      const results = await Promise.all(writes);
+      if (results.some((r) => r.error)) {
+        setLists(prev);
+        showToast("Couldn't save that order.");
+      }
+    },
+    [supabase, showToast],
+  );
+
+  /** Move a list to another index among the lists. Out-of-range is a no-op. */
+  const moveListToIndex = useCallback(
+    async (listId: string, toIndex: number) => {
+      const cur = listsRef.current;
+      const from = cur.findIndex((l) => l.id === listId);
+      if (from < 0 || toIndex < 0 || toIndex >= cur.length || toIndex === from) return;
+      await applyListOrder(arrayMove(cur, from, toIndex), cur);
+    },
+    [applyListOrder],
+  );
+
+  // The menu's Move left / Move right. Present on desktop for keyboard and
+  // screen-reader reach, and the ONLY way to reorder on a phone, where the
+  // board shows one column at a time and there is nothing to drag across to.
+  const handleMoveList = useCallback(
+    async (listId: string, delta: -1 | 1) => {
+      const from = listsRef.current.findIndex((l) => l.id === listId);
+      if (from < 0) return;
+      await moveListToIndex(listId, from + delta);
+    },
+    [moveListToIndex],
+  );
+
   // Deleting a list deletes the LIST. `cards.list_id` is ON DELETE SET NULL, so
   // its cards stay in the journey as saved places — the confirm copy says so,
   // because a column named "Research" holding a week of work must not read as a
-  // one-click way to lose it.
+  // one-click way to lose it. The name, the grouping and the order are the parts
+  // that genuinely go, which is what the undo window buys back.
   const handleDeleteList = useCallback(async (listId: string) => {
     const snapshot = listsRef.current;
-    if (!snapshot.some((l) => l.id === listId)) return;
+    const removed = snapshot.find((l) => l.id === listId);
+    if (!removed) return;
+    const wasCollapsed = collapsedLists.has(listId);
 
     setLists((prev) => prev.filter((l) => l.id !== listId));
     setComposerList((prev) => (prev?.id === listId ? null : prev));
@@ -914,8 +1048,10 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
     if (error) {
       setLists(snapshot);
       showToast("Couldn't delete that list.");
+      return;
     }
-  }, [supabase, trip.id, showToast]);
+    startUndoWindow({ kind: "list", list: removed, collapsed: wasCollapsed });
+  }, [supabase, trip.id, showToast, collapsedLists, startUndoWindow]);
 
   // ── Drop-target resolution ───────────────────────────────────
   // Every drop asks the same question — day, list, or nothing — and asks it
@@ -944,6 +1080,23 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
 
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event;
+
+    // ── A list column ──
+    // Dropping list A on list B's slot puts A at B's index — the same
+    // arrayMove semantics a sortable would give, without a second
+    // SortableContext whose transforms would only animate one of the two rows
+    // (header, column) a list is rendered in.
+    if (String(active.id).startsWith(LIST_DRAG_PREFIX)) {
+      const draggedId = String(active.id).slice(LIST_DRAG_PREFIX.length);
+      const overId = String(over?.id ?? "");
+      setActiveListId(null);
+      setListOverId(null);
+      if (!overId.startsWith(LIST_SLOT_PREFIX)) return;
+      const toIndex = listsRef.current.findIndex((l) => l.id === overId.slice(LIST_SLOT_PREFIX.length));
+      await moveListToIndex(draggedId, toIndex);
+      return;
+    }
+
     setActiveId(null);
 
     const snapshot = preDragSnapshot.current;
@@ -1010,7 +1163,21 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   }, [
     persistChanges, resolveDropTarget, scheduleListCardOnDay,
     unscheduleCardToList, moveCardBetweenLists, reorderWithinList,
+    moveListToIndex,
   ]);
+
+  // Escape mid-drag fires onDragCancel, never onDragEnd, so without this the
+  // board kept an overlay (and, for a card, a half-applied cross-column
+  // preview) after a cancelled drag. Both contexts use it.
+  const handleDragCancel = useCallback(() => {
+    setActiveId(null);
+    setActiveListId(null);
+    setListOverId(null);
+    const snapshot = preDragSnapshot.current;
+    preDragSnapshot.current = null;
+    crossColumnMoved.current = false;
+    if (snapshot) setDays(snapshot);
+  }, []);
 
   // ── Mobile drag (within one column only) ──────────────────────
   // The phone shows one column at a time, so there is nowhere to drag ACROSS
@@ -1018,6 +1185,10 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   // visible list has to work and has to persist.
   const handleMobileDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event;
+    // No grip is rendered on a phone (the header cells are desktop-only) and
+    // the slot droppables are disabled there, so a list drag cannot start —
+    // this only says so out loud.
+    if (String(active.id).startsWith(LIST_DRAG_PREFIX)) return;
     setActiveId(null);
     const snapshot = preDragSnapshot.current;
     preDragSnapshot.current = null;
@@ -1142,17 +1313,53 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
     }
     // Deletes are instant (no confirm dialog), so offer a window to undo
     if (deleted && fromDay) {
-      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-      setUndoDelete({ card: deleted, dayId: fromDay.id });
-      undoTimerRef.current = setTimeout(() => setUndoDelete(null), 6000);
+      startUndoWindow({ kind: "card", card: deleted, dayId: fromDay.id });
     }
-  }, [supabase]);
+  }, [supabase, startUndoWindow]);
 
   const handleUndoDelete = useCallback(async () => {
     const u = undoDeleteRef.current;
     if (!u) return;
     setUndoDelete(null);
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+
+    // ── A list ──
+    // Re-insert under the ORIGINAL id, so the cards can simply be pointed back
+    // at it — nothing else on the board (collapse state, composer target,
+    // mobile slot index) has to be rewritten to a new id.
+    if (u.kind === "list") {
+      const { list } = u;
+      const cardIds = list.cards.map((c) => c.id);
+      const { error } = await supabase.from("trip_lists").insert({
+        id: list.id, trip_id: list.trip_id, title: list.title, position: list.position,
+      });
+      if (error) {
+        showToast("Couldn't restore that list.");
+        return;
+      }
+      // ON DELETE SET NULL emptied list_id on exactly these rows; put it back on
+      // exactly these rows. A card deleted in the meantime just isn't matched.
+      let cardsRestored = true;
+      if (cardIds.length) {
+        const { error: cardErr } = await supabase
+          .from("cards").update({ list_id: list.id }).in("id", cardIds);
+        if (cardErr) {
+          cardsRestored = false;
+          showToast("The list is back, but its cards aren't on it.");
+        }
+      }
+      const restored = cardsRestored ? list : { ...list, cards: [] };
+      setLists((prev) => [...prev, restored].sort((a, b) => a.position - b.position));
+      if (u.collapsed) {
+        setCollapsedLists((prev) => {
+          const next = new Set(prev).add(list.id);
+          writeCollapsedLists(trip.id, next);
+          return next;
+        });
+      }
+      return;
+    }
+
     const { card } = u;
     // Re-insert the row with its original id so attachments/links keep working
     const { error } = await supabase.from("cards").insert({
@@ -1174,7 +1381,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
           : d
       )
     );
-  }, [supabase]);
+  }, [supabase, showToast, trip.id]);
 
   // "Copy to another day" writes a brand-new card on the target day; the sheet
   // hands it back so the board shows it without a refetch. The source card is
@@ -1326,6 +1533,20 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
     />
   );
 
+  // Where a dragged list would land. Resolved once, here, for the same reason
+  // the week slots are: a list is rendered across TWO rows (header cell,
+  // column), and both have to agree about which column is lifted and which
+  // gutter the insertion bar belongs in.
+  const listDragIdx = activeListId ? lists.findIndex((l) => l.id === activeListId) : -1;
+  const listOverIdx = listOverId ? lists.findIndex((l) => l.id === listOverId) : -1;
+  const dropEdgeAt = (i: number): "left" | "right" | null => {
+    if (listDragIdx < 0 || listOverIdx < 0 || i !== listOverIdx || listOverIdx === listDragIdx) return null;
+    // Dropping on a slot takes its index, so the dragged column arrives on the
+    // far side of the slot from where it started.
+    return listOverIdx > listDragIdx ? "right" : "left";
+  };
+  const activeList = activeListId ? lists.find((l) => l.id === activeListId) ?? null : null;
+
   // ── The leading columns ──────────────────────────────────────
   // Lists, then "+ Add a list", then Day 1. All three board rows (week bars,
   // pinned headers, columns) need the same slots in the same order at the same
@@ -1333,11 +1554,15 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   // re-deriving the geometry — that is what stops the rows drifting apart.
   const listHeaderCells = (
     <>
-      {lists.map((list) => (
+      {lists.map((list, i) => (
         <ListHeaderCell
           key={list.id}
           list={list}
           collapsed={collapsedLists.has(list.id)}
+          dragging={list.id === activeListId}
+          canMoveLeft={i > 0}
+          canMoveRight={i < lists.length - 1}
+          onMove={(delta) => handleMoveList(list.id, delta)}
           onToggle={() => toggleList(list.id)}
           onRename={(title) => handleRenameList(list.id, title)}
           onDelete={() => handleDeleteList(list.id)}
@@ -1352,11 +1577,13 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
 
   const listColumns = (
     <>
-      {lists.map((list) => (
+      {lists.map((list, i) => (
         <ListColumn
           key={list.id}
           list={list}
           collapsed={collapsedLists.has(list.id)}
+          dragging={list.id === activeListId}
+          dropEdge={dropEdgeAt(i)}
           onExpand={() => toggleList(list.id)}
           onCardTap={(card) => setSelectedCard(card)}
           onAddCard={() => setComposerList(list)}
@@ -1464,9 +1691,10 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
             /* ── Mobile: single-day view with swipe navigation ── */
             <DndContext
               sensors={sensors}
-              collisionDetection={closestCorners}
+              collisionDetection={listCollision}
               onDragStart={handleDragStart}
               onDragEnd={handleMobileDragEnd}
+              onDragCancel={handleDragCancel}
             >
               {/* Day navigation header + dots — sticky on mobile */}
               <div className="sticky top-0 z-20 bg-white flex-shrink-0">
@@ -1482,12 +1710,33 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
                     /* The day picker lists days; a list is not one, so the
                        centre slot carries the list's own name and the
                        arrows/dots/swipe carry you back into the day sequence. */
-                    <div className="text-center min-w-0 px-2">
-                      <p className="text-sm font-bold text-gray-900 truncate">{currentMobileList.title}</p>
-                      <p className="text-xs text-gray-400">
-                        {currentMobileList.cards.length}{" "}
-                        {currentMobileList.cards.length === 1 ? "card" : "cards"} · not on a day
-                      </p>
+                    <div className="flex items-center gap-1 min-w-0 px-2">
+                      <div className="text-center min-w-0">
+                        <p className="text-sm font-bold text-gray-900 truncate">{currentMobileList.title}</p>
+                        <p className="text-xs text-gray-400">
+                          {currentMobileList.cards.length}{" "}
+                          {currentMobileList.cards.length === 1 ? "card" : "cards"} · not on a day
+                        </p>
+                      </div>
+                      {/* The phone shows one column at a time, so there is
+                          nothing to drag a column across to — Move left/right
+                          in this menu IS the reorder here. Renaming stays
+                          desktop-only: it is an inline edit of the header cell,
+                          which this pane does not render. */}
+                      <ListMenu
+                        list={currentMobileList}
+                        cardCount={currentMobileList.cards.length}
+                        canMoveLeft={mobileSlot > 0}
+                        canMoveRight={mobileSlot < lists.length - 1}
+                        onMove={(delta) => {
+                          handleMoveList(currentMobileList.id, delta);
+                          // Follow the list to its new slot rather than
+                          // leaving the traveller staring at its neighbour.
+                          setMobileDayIdx((prev) => prev + delta);
+                        }}
+                        onDelete={() => handleDeleteList(currentMobileList.id)}
+                        triggerClassName="w-7 h-7 grid place-items-center rounded-full text-gray-400 hover:bg-gray-100 transition-colors flex-shrink-0"
+                      />
                     </div>
                   ) : showAddListMobile ? (
                     <div className="text-center">
@@ -1623,10 +1872,15 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
             /* ── Desktop: multi-column Kanban ── */
             <DndContext
               sensors={sensors}
-              collisionDetection={closestCorners}
+              // ONE context, two kinds of draggable. See listCollision: a list
+              // drag and a card drag are shown disjoint sets of droppables, so
+              // the existing card behaviour (day↔list, list↔list, within-list)
+              // is untouched and a list can never be nominated a day's target.
+              collisionDetection={listCollision}
               onDragStart={handleDragStart}
               onDragOver={handleDragOver}
               onDragEnd={handleDragEnd}
+              onDragCancel={handleDragCancel}
             >
               {/* Jump-to-day control row — shrink-0 direct flex child of the board
                   column. DndContext renders no DOM wrapper, so this sits above the
@@ -1774,7 +2028,9 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
               </div>
 
               <DragOverlay>
-                {activeCard && <CardTile card={activeCard} isOverlay />}
+                {activeList
+                  ? <ListDragChip list={activeList} />
+                  : activeCard && <CardTile card={activeCard} isOverlay />}
               </DragOverlay>
             </DndContext>
           )}
@@ -1866,7 +2122,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
 
       {undoDelete && !deleteToast && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white text-[13px] font-medium pl-4 pr-1.5 py-1.5 rounded-full shadow-lg flex items-center gap-3 animate-in fade-in">
-          <span>Card deleted</span>
+          <span>{undoDelete.kind === "list" ? "List deleted" : "Card deleted"}</span>
           <button
             onClick={handleUndoDelete}
             className="px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 font-semibold transition-colors"
@@ -2254,26 +2510,37 @@ const LIST_TIER2: React.CSSProperties = {
 function ListHeaderCell({
   list,
   collapsed,
+  dragging,
+  canMoveLeft,
+  canMoveRight,
+  onMove,
   onToggle,
   onRename,
   onDelete,
 }: {
   list: ListWithCards;
   collapsed: boolean;
+  /** This column is the one currently being dragged. */
+  dragging: boolean;
+  canMoveLeft: boolean;
+  canMoveRight: boolean;
+  onMove: (delta: -1 | 1) => void;
   onToggle: () => void;
   onRename: (title: string) => void;
   onDelete: () => void;
 }) {
   const [editing, setEditing]     = useState(false);
   const [draft,   setDraft]       = useState(list.title);
-  const [menuOpen, setMenuOpen]   = useState(false);
-  const [confirming, setConfirming] = useState(false);
   const inputRef  = useRef<HTMLInputElement>(null);
-  const menuBtnRef = useRef<HTMLButtonElement>(null);
-  // The header row lives in an overflow-clipped X-scroller, so the menu is
-  // position:fixed and measured off the button — the same trick DayHeaderCell
-  // uses for the hourly forecast.
-  const [menuPos, setMenuPos] = useState<{ left: number; top: number } | null>(null);
+
+  // The drag node is the whole header cell (it gives dnd-kit a column-wide rect
+  // to measure); the listeners go on the grip alone. The header itself stays a
+  // plain tap target so a click on the name still opens the inline rename — a
+  // header-as-handle would have had to distinguish the two by distance, and
+  // guessing wrong either eats the rename or starts a drag nobody asked for.
+  // `attributes` is deliberately not taken: it carries role="button",
+  // tabIndex and the keyboard drag activator, and the grip is pointer-only.
+  const { listeners, setNodeRef } = useDraggable({ id: `${LIST_DRAG_PREFIX}${list.id}` });
 
   const count = list.cards.length;
 
@@ -2291,35 +2558,52 @@ function ListHeaderCell({
     onRename(draft);
   }, [draft, onRename]);
 
-  const openMenu = useCallback(() => {
-    const rect = menuBtnRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    setMenuPos({ left: Math.max(8, Math.min(rect.left - 150, window.innerWidth - 240)), top: rect.bottom + 6 });
-    setConfirming(false);
-    setMenuOpen(true);
-  }, []);
-
   return (
     <div
-      className="hidden md:block md:flex-shrink-0"
-      style={{ width: collapsed ? FOLDED_W : COL_W, padding: "14px 16px 12px" }}
+      ref={setNodeRef}
+      className="hidden md:block md:flex-shrink-0 transition-opacity"
+      style={{
+        width: collapsed ? FOLDED_W : COL_W,
+        padding: "14px 16px 12px",
+        opacity: dragging ? 0.35 : 1,
+      }}
     >
       {/* Tier 1 — where a day header reads "DAY 3 · SEP 6", this reads
           "LIST · 4": same register, and a count where a date would be is the
           quickest way to see it is not a day. */}
-      <div className="flex items-center justify-between gap-1" style={{ minHeight: 20 }}>
-        <span style={LIST_TIER1}>List{count > 0 ? ` · ${count}` : ""}</span>
+      <div className="group/hdr flex items-center justify-between gap-1" style={{ minHeight: 20 }}>
+        <span className="flex items-center gap-1 min-w-0">
+          {/* The grip. Pointer-only by design: it carries no keyboard activator
+              and no tab stop, because a 25px-per-arrow-key drag across 280px
+              columns is not an accessible path — Move left / Move right in the
+              menu is, and it writes the identical order. Hidden while
+              collapsed, matching the menu: a 140px rail has no room for it. */}
+          {!collapsed && (
+            <span
+              {...listeners}
+              aria-hidden
+              title="Drag to reorder this list"
+              className="grid place-items-center w-4 h-5 -ml-1 flex-shrink-0 cursor-grab active:cursor-grabbing
+                         text-[rgba(26,26,46,0.22)] group-hover/hdr:text-[rgba(26,26,46,0.45)]
+                         hover:!text-[#C4622D] transition-colors touch-none"
+            >
+              <DotsSixVertical size={14} weight="bold" />
+            </span>
+          )}
+          <span style={LIST_TIER1}>List{count > 0 ? ` · ${count}` : ""}</span>
+        </span>
         <span className="flex items-center gap-0.5">
           {!collapsed && (
-            <button
-              ref={menuBtnRef}
-              type="button"
-              onClick={openMenu}
-              aria-label={`Options for ${list.title}`}
-              className="group w-5 h-5 grid place-items-center rounded-full text-[rgba(26,26,46,0.45)] hover:text-[#C4622D] hover:bg-[rgba(196,98,45,0.10)] transition-colors"
-            >
-              <DotsThree size={15} weight="bold" />
-            </button>
+            <ListMenu
+              list={list}
+              cardCount={count}
+              canMoveLeft={canMoveLeft}
+              canMoveRight={canMoveRight}
+              onMove={onMove}
+              onStartRename={startEditing}
+              onDelete={onDelete}
+              triggerClassName="w-5 h-5 grid place-items-center rounded-full text-[rgba(26,26,46,0.45)] hover:text-[#C4622D] hover:bg-[rgba(196,98,45,0.10)] transition-colors"
+            />
           )}
           <button
             type="button"
@@ -2365,14 +2649,74 @@ function ListHeaderCell({
       )}
       {/* Tier 3 (forecast) is deliberately absent — a list has no date to have
           weather on. */}
+    </div>
+  );
+}
 
-      {menuOpen && menuPos && (
+// ── ListMenu ───────────────────────────────────────────────────
+// One menu, both surfaces. The desktop header cell and the phone's list pane
+// need the same verbs against the same list, and the delete confirm in
+// particular has to say the same true thing in both places — so it is written
+// once. Rename is desktop-only (it is an inline edit of the header cell, which
+// the phone pane does not render), so it appears only when a handler is given.
+function ListMenu({
+  list,
+  cardCount,
+  canMoveLeft,
+  canMoveRight,
+  onMove,
+  onStartRename,
+  onDelete,
+  triggerClassName,
+}: {
+  list: ListWithCards;
+  cardCount: number;
+  canMoveLeft: boolean;
+  canMoveRight: boolean;
+  onMove: (delta: -1 | 1) => void;
+  onStartRename?: () => void;
+  onDelete: () => void;
+  triggerClassName: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  // Both call sites live inside an overflow-clipped scroller, so the popover is
+  // position:fixed and measured off the button — the same trick DayHeaderCell
+  // uses for the hourly forecast.
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+
+  const openMenu = useCallback(() => {
+    const rect = btnRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setPos({ left: Math.max(8, Math.min(rect.left - 150, window.innerWidth - 240)), top: rect.bottom + 6 });
+    setConfirming(false);
+    setOpen(true);
+  }, []);
+
+  const ITEM =
+    "w-full flex items-center gap-2.5 px-3 py-2 transition-colors text-left " +
+    "enabled:hover:bg-gray-50 disabled:opacity-35 disabled:cursor-default";
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={openMenu}
+        aria-label={`Options for ${list.title}`}
+        className={triggerClassName}
+      >
+        <DotsThree size={15} weight="bold" />
+      </button>
+
+      {open && pos && (
         <>
-          <div className="fixed inset-0 z-40" onPointerDown={() => setMenuOpen(false)} />
+          <div className="fixed inset-0 z-40" onPointerDown={() => setOpen(false)} />
           <div
             className="fixed z-50 w-[230px] bg-white rounded-xl py-1 overflow-hidden"
             style={{
-              left: menuPos.left, top: menuPos.top,
+              left: pos.left, top: pos.top,
               border: "1px solid rgba(26,26,46,0.12)",
               boxShadow: "0 8px 30px rgba(26,26,46,0.14)",
             }}
@@ -2382,20 +2726,22 @@ function ListHeaderCell({
                 <p className="text-[12.5px] font-semibold text-gray-900 leading-snug">
                   Delete &ldquo;{list.title}&rdquo;?
                 </p>
+                {/* Says what actually happens: the column and its name go, the
+                    cards do not. */}
                 <p className="text-[11.5px] text-gray-500 leading-snug mt-1">
-                  {count === 0
-                    ? "It's empty, so nothing else changes."
-                    : `The ${count} ${count === 1 ? "card" : "cards"} on it stay in your journey as saved places — only the list goes.`}
+                  {cardCount === 0
+                    ? "It's empty, so nothing else changes. You can undo for a few seconds."
+                    : `The ${cardCount} ${cardCount === 1 ? "card" : "cards"} on it leave the board but stay in your journey as saved places — you'll find ${cardCount === 1 ? "it" : "them"} under “Add from saved”. Only the list and its grouping go, and you can undo for a few seconds.`}
                 </p>
                 <div className="flex gap-2 mt-2.5">
                   <button
-                    onClick={() => setMenuOpen(false)}
+                    onClick={() => setOpen(false)}
                     className="flex-1 py-1.5 rounded-lg text-[12px] font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={() => { setMenuOpen(false); onDelete(); }}
+                    onClick={() => { setOpen(false); onDelete(); }}
                     className="flex-1 py-1.5 rounded-lg text-[12px] font-semibold text-white bg-[#C4622D] hover:opacity-90 transition-opacity"
                   >
                     Delete list
@@ -2404,17 +2750,32 @@ function ListHeaderCell({
               </div>
             ) : (
               <>
+                {onStartRename && (
+                  <button onClick={() => { setOpen(false); onStartRename(); }} className={ITEM}>
+                    <NotePencil size={14} weight="light" className="text-gray-500 flex-shrink-0" />
+                    <span className="text-[12.5px] font-medium text-gray-900">Rename</span>
+                  </button>
+                )}
+                {/* The keyboard- and phone-reachable half of reordering. Same
+                    write as the drag: renumber 1..n, save what changed. */}
                 <button
-                  onClick={() => { setMenuOpen(false); startEditing(); }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 transition-colors text-left"
+                  onClick={() => { setOpen(false); onMove(-1); }}
+                  disabled={!canMoveLeft}
+                  className={ITEM}
                 >
-                  <NotePencil size={14} weight="light" className="text-gray-500 flex-shrink-0" />
-                  <span className="text-[12.5px] font-medium text-gray-900">Rename</span>
+                  <ArrowLeft size={14} weight="light" className="text-gray-500 flex-shrink-0" />
+                  <span className="text-[12.5px] font-medium text-gray-900">Move left</span>
                 </button>
                 <button
-                  onClick={() => setConfirming(true)}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 transition-colors text-left"
+                  onClick={() => { setOpen(false); onMove(1); }}
+                  disabled={!canMoveRight}
+                  className={ITEM}
                 >
+                  <ArrowRight size={14} weight="light" className="text-gray-500 flex-shrink-0" />
+                  <span className="text-[12.5px] font-medium text-gray-900">Move right</span>
+                </button>
+                <div className="mx-3 my-0.5 border-t border-gray-100" />
+                <button onClick={() => setConfirming(true)} className={ITEM}>
                   <Trash size={14} weight="light" className="text-gray-500 flex-shrink-0" />
                   <span className="text-[12.5px] font-medium text-gray-900">Delete list</span>
                 </button>
@@ -2423,6 +2784,30 @@ function ListHeaderCell({
           </div>
         </>
       )}
+    </>
+  );
+}
+
+// ── ListDragChip ───────────────────────────────────────────────
+// What follows the cursor while a column is being dragged. A list is rendered
+// across two rows (header cell, column) so there is no single node to lift —
+// this is a purpose-made stand-in, borrowing the collapsed rail's face so what
+// you are carrying still reads as that column.
+function ListDragChip({ list }: { list: ListWithCards }) {
+  const n = list.cards.length;
+  return (
+    <div
+      className="rounded-[9px] bg-white border border-[rgba(196,98,45,0.55)] shadow-[0_8px_24px_0_rgba(0,0,0,0.16)] cursor-grabbing"
+      style={{ width: FOLDED_W, padding: "12px 13px 14px", transform: "rotate(-2deg)" }}
+    >
+      <span className="block truncate" style={WEEK_LABEL}>{list.title}</span>
+      <span className="block" style={{
+        fontFamily: "'DM Sans', system-ui, sans-serif",
+        fontSize: "10px", fontWeight: 500,
+        color: "rgba(26,26,46,0.45)", marginTop: "6px",
+      }}>
+        {n} {n === 1 ? "card" : "cards"}
+      </span>
     </div>
   );
 }
@@ -2431,6 +2816,8 @@ function ListColumn({
   list,
   collapsed = false,
   fullWidth,
+  dragging = false,
+  dropEdge = null,
   onExpand,
   onCardTap,
   onAddCard,
@@ -2439,6 +2826,10 @@ function ListColumn({
   collapsed?: boolean;
   /** Mobile: the column fills the swipe pane, and never collapses. */
   fullWidth?: boolean;
+  /** This column is the one being dragged — lift it out of the board's plane. */
+  dragging?: boolean;
+  /** Which gutter the dragged column would land in, if this is the target. */
+  dropEdge?: "left" | "right" | null;
   onExpand?: () => void;
   onCardTap: (card: Card) => void;
   onAddCard: () => void;
@@ -2447,15 +2838,36 @@ function ListColumn({
   // The droppable is the whole column, collapsed included — a 140px rail is a
   // perfectly good target for "get this off the calendar".
   const { setNodeRef, isOver } = useDroppable({ id: `${LIST_PREFIX}${list.id}` });
+  // A SECOND droppable on the same column, for a different kind of drag: this
+  // one accepts a list, the one above accepts a card. They never compete
+  // because listCollision only ever offers one of them per drag. Disabled on
+  // the phone, where a column IS the whole pane and there is nothing to
+  // reorder against.
+  const { setNodeRef: setSlotRef } = useDroppable({
+    id: `${LIST_SLOT_PREFIX}${list.id}`,
+    disabled: fullWidth,
+  });
+
+  // The 3px bar in the 20px gutter: where the dragged column will land.
+  const edge = dropEdge && (
+    <span
+      aria-hidden
+      className={`absolute top-0 bottom-0 w-[3px] rounded-full bg-[#C4622D] ${
+        dropEdge === "left" ? "-left-[11px]" : "-right-[11px]"
+      }`}
+    />
+  );
 
   if (collapsed && !fullWidth) {
     return (
       <div
-        ref={setNodeRef}
-        className="hidden md:block md:flex-shrink-0 md:h-full md:min-h-0"
-        style={{ width: FOLDED_W }}
+        ref={setSlotRef}
+        className="relative hidden md:block md:flex-shrink-0 md:h-full md:min-h-0 transition-opacity"
+        style={{ width: FOLDED_W, opacity: dragging ? 0.35 : 1 }}
       >
+        {edge}
         <button
+          ref={setNodeRef}
           type="button"
           onClick={onExpand}
           aria-label={`Expand ${list.title}`}
@@ -2478,7 +2890,12 @@ function ListColumn({
   }
 
   return (
-    <div className={fullWidth ? "w-full h-full flex flex-col" : "w-[148px] min-w-[148px] flex-shrink-0 md:w-[280px] md:h-full md:min-h-0 flex flex-col"}>
+    <div
+      ref={setSlotRef}
+      className={`relative transition-opacity ${fullWidth ? "w-full h-full flex flex-col" : "w-[148px] min-w-[148px] flex-shrink-0 md:w-[280px] md:h-full md:min-h-0 flex flex-col"}`}
+      style={{ opacity: dragging ? 0.35 : 1 }}
+    >
+      {edge}
       <div
         style={fullWidth ? { backgroundColor: "rgba(255,255,255,0.88)" } : undefined}
         className={`rounded-xl overflow-hidden flex flex-col scrollbar-none [touch-action:pan-y] ${
