@@ -44,7 +44,8 @@ export const STORM_SEASONS: StormSeason[] = [
       [24, 41, 123, 146], // Japan
       [21.5, 25.5, 119.5, 122.5], // Taiwan
       [5, 19, 117, 127], // Philippines
-      [18, 31, 105, 123], // SE China coast (Hainan–Shanghai)
+      [18, 24.5, 106, 117], // S China coast (Hainan, Guangxi, Guangdong, Hong Kong)
+      [23, 32, 116, 123], // SE China coast (Fujian, Zhejiang, Shanghai) — inland cities like Chongqing stay out
       [8, 21, 104, 110], // Vietnam coast
     ],
   },

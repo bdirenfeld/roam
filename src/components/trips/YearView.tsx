@@ -19,6 +19,7 @@ import { createClient } from "@/lib/supabase/client";
 import { FAMILY_DATES } from "@/lib/yearView/familyDates";
 import { SCHOOL_CALENDAR } from "@/lib/yearView/schoolCalendar";
 import { stormSeasonFor } from "@/lib/yearView/stormSeasons";
+import { bugSeasonFor } from "@/lib/yearView/bugSeasons";
 
 // Brennan's own "ideal times to travel", stored per-user in Supabase
 // (public.travel_windows, RLS own-row). The table isn't in the generated
@@ -198,11 +199,39 @@ const StormGlyph = ({ size = 8 }: { size?: number }) => (
   </svg>
 );
 
+const BugGlyph = ({ size = 7 }: { size?: number }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="#4A5D23"
+    aria-hidden
+    style={{ flexShrink: 0, display: "block" }}
+  >
+    <ellipse cx="12" cy="14" rx="5" ry="7" />
+    <circle cx="12" cy="5.5" r="3" />
+    <path
+      stroke="#4A5D23"
+      strokeWidth="1.8"
+      fill="none"
+      strokeLinecap="round"
+      d="M7 9 3 6 M7 14H2.5 M7 19l-4 3 M17 9l4-3 M17 14h4.5 M17 19l4 3"
+    />
+  </svg>
+);
+
 const HEAT_STYLE: Record<HeatTone, { bg: string; fg: string }> = {
   great: { bg: "#DCE8D4", fg: "#3F5D33" },
   good:  { bg: "#EDE9D8", fg: "#6B6538" },
   fair:  { bg: "#F3E4CE", fg: "#8A5F2E" },
   rough: { bg: "#F5DAD2", fg: "#93402A" },
+};
+const HEAT_TONES: HeatTone[] = ["great", "good", "fair", "rough"];
+const TONE_LABEL: Record<HeatTone, string> = {
+  great: "Great",
+  good: "Good",
+  fair: "Fair",
+  rough: "Rough",
 };
 
 
@@ -1007,30 +1036,52 @@ export default function YearView({ trips }: Props) {
     };
   }, [dest]);
 
-  // Storm season for the picked destination — location decides the label
-  // and which calendar months carry the glyph; inland places match nothing
+  // Storm/bug seasons for the picked destination — location decides the
+  // label and which calendar months carry the glyph; unmatched places
+  // (Tuscany, Budapest) get nothing
   const storm = useMemo(() => (dest ? stormSeasonFor(dest.lat, dest.lng) : null), [dest]);
+  const bugs = useMemo(() => (dest ? bugSeasonFor(dest.lat, dest.lng) : null), [dest]);
 
-  // Legend under the heat row — rendered only when a marker is on screen
+  // Legend under the heat row — always on, leading with the four colour
+  // tones (Brennan: "there's no legend of what the colours mean"); the
+  // marker entries join the line only while such a marker is on screen
   const wetVisible = !!climate && climate.some((c) => isWetMonth(c));
-  const heatLegend =
-    climate && (wetVisible || storm) ? (
-      <div
-        className="flex items-center flex-wrap gap-x-3 gap-y-0.5"
-        style={{ fontSize: 9.5, color: "rgba(26,26,46,0.45)" }}
-      >
-        {wetVisible && (
-          <span className="inline-flex items-center gap-1">
-            <DropGlyph size={7} /> wet season
-          </span>
-        )}
-        {storm && (
-          <span className="inline-flex items-center gap-1">
-            <StormGlyph size={8} /> {storm.label}
-          </span>
-        )}
-      </div>
-    ) : null;
+  const heatLegend = (
+    <div
+      className="flex items-center flex-wrap gap-x-3 gap-y-1"
+      style={{ fontSize: 9.5, color: "rgba(26,26,46,0.45)" }}
+    >
+      {HEAT_TONES.map((t) => (
+        <span key={t} className="inline-flex items-center gap-1">
+          <span
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: 2.5,
+              background: HEAT_STYLE[t].bg,
+              border: "1px solid rgba(26,26,46,0.08)",
+            }}
+          />
+          {TONE_LABEL[t]}
+        </span>
+      ))}
+      {wetVisible && (
+        <span className="inline-flex items-center gap-1">
+          <DropGlyph size={7} /> wet season
+        </span>
+      )}
+      {climate && storm && (
+        <span className="inline-flex items-center gap-1">
+          <StormGlyph size={8} /> {storm.label}
+        </span>
+      )}
+      {climate && bugs && (
+        <span className="inline-flex items-center gap-1">
+          <BugGlyph size={8} /> {bugs.label}
+        </span>
+      )}
+    </div>
+  );
 
   const isOpen = openState === true;
 
@@ -1389,6 +1440,7 @@ export default function YearView({ trips }: Props) {
                   const tone = c ? scoreMonth(c) : null;
                   const wet = !!c && isWetMonth(c);
                   const stormy = !!c && !!storm && storm.months.includes(m.getMonth() + 1);
+                  const buggy = !!c && !!bugs && bugs.months.includes(m.getMonth() + 1);
                   return (
                     <div
                       key={`heat-${m.getTime()}`}
@@ -1399,6 +1451,7 @@ export default function YearView({ trips }: Props) {
                               `rainy days ${Math.round(c.rainShare * 100)}%`,
                               c.precipMm != null ? `~${c.precipMm}mm rain` : null,
                               stormy && storm ? storm.label : null,
+                              buggy && bugs ? bugs.label : null,
                             ]
                               .filter(Boolean)
                               .join(" · ")
@@ -1428,6 +1481,11 @@ export default function YearView({ trips }: Props) {
                       {stormy && (
                         <span style={{ position: "absolute", top: 2, right: 3 }}>
                           <StormGlyph size={7} />
+                        </span>
+                      )}
+                      {buggy && (
+                        <span style={{ position: "absolute", bottom: 2, right: 3 }}>
+                          <BugGlyph size={7} />
                         </span>
                       )}
                     </div>
@@ -1528,6 +1586,7 @@ export default function YearView({ trips }: Props) {
               const tone = c ? scoreMonth(c) : null;
               const wet = !!c && isWetMonth(c);
               const stormy = !!c && !!storm && storm.months.includes(m.getMonth() + 1);
+              const buggy = !!c && !!bugs && bugs.months.includes(m.getMonth() + 1);
               return (
                 <div
                   key={`mheat-${m.getTime()}`}
@@ -1538,6 +1597,7 @@ export default function YearView({ trips }: Props) {
                           `Mean high ${c.high}°`,
                           c.precipMm != null ? `~${c.precipMm}mm rain` : null,
                           stormy && storm ? storm.label : null,
+                          buggy && bugs ? bugs.label : null,
                         ]
                           .filter(Boolean)
                           .join(" · ")
@@ -1567,11 +1627,16 @@ export default function YearView({ trips }: Props) {
                       <StormGlyph size={7} />
                     </span>
                   )}
+                  {buggy && (
+                    <span style={{ position: "absolute", bottom: 2, right: 3 }}>
+                      <BugGlyph size={7} />
+                    </span>
+                  )}
                 </div>
               );
             })}
           </div>
-          {heatLegend && <div className="mt-1.5">{heatLegend}</div>}
+          <div className="mt-1.5">{heatLegend}</div>
         </div>
 
         {/* Open windows — the takeaway, in words; leads on mobile. At md+
