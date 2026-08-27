@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { SearchButton } from "@/components/search/GlobalSearch";
+import { NewJourneyLink, ProfileLink } from "@/components/overlays/AppOverlays";
 
 interface AppHeaderProps {
   avatarUrl?: string | null;
@@ -32,19 +33,22 @@ export default function AppHeader({ avatarUrl, subtitle, showNewTrip }: AppHeade
           strokeWidth={1.5}
         />
 
+        {/* "+" and the avatar open their screens in place. Both stay real
+            links to /trips/new and /profile, so ctrl/cmd-click still opens
+            the page — see components/overlays/AppOverlays.tsx. */}
         {showNewTrip && (
-          <Link href="/trips/new">
+          <NewJourneyLink title="Plan a journey" ariaLabel="Plan a journey">
             <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "#1A1A2E" }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round">
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
             </div>
-          </Link>
+          </NewJourneyLink>
         )}
 
         {/* Profile avatar */}
-        <Link href="/profile">
+        <ProfileLink title="Profile" ariaLabel="Profile">
           <div className="w-8 h-8 rounded-full bg-gray-100 overflow-hidden flex items-center justify-center border border-gray-200">
             {avatarUrl ? (
               <Image src={avatarUrl} alt="Profile" width={32} height={32} className="object-cover" />
@@ -55,7 +59,7 @@ export default function AppHeader({ avatarUrl, subtitle, showNewTrip }: AppHeade
               </svg>
             )}
           </div>
-        </Link>
+        </ProfileLink>
       </div>
     </header>
   );

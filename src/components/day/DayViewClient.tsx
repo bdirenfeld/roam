@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { DotsThree, CaretLeft, CaretRight, NotePencil, Gear, MagnifyingGlass } from "@phosphor-icons/react";
 import { useGlobalSearch } from "@/components/search/GlobalSearch";
+import { TripSettingsLink } from "@/components/overlays/AppOverlays";
 import DayStrip from "@/components/day/DayStrip";
 import DayPicker from "@/components/day/DayPicker";
 import DayMap from "@/components/day/DayMap";
@@ -226,18 +227,20 @@ interface Props {
 // belong to no single day are reachable ON the day. A guest gets the menu too
 // (notes are shared) — with the owner-only settings row removed.
 function DayMenu({
-  tripId,
+  trip,
+  days,
   readOnly,
   onOpenNotes,
   triggerClassName,
 }: {
-  tripId: string;
+  /** Handed to the Settings overlay as a seed — the day view already has it. */
+  trip: Trip;
+  days: Day[];
   readOnly: boolean;
   onOpenNotes: () => void;
   triggerClassName: string;
 }) {
   const [open, setOpen] = useState(false);
-  const router = useRouter();
   const search = useGlobalSearch();
 
   return (
@@ -284,10 +287,17 @@ function DayMenu({
               </div>
             </button>
 
+            {/* Settings opens over the day rather than replacing it. Still a
+                link to the route, so ctrl/cmd-click opens the page. The trip
+                and its days ride along, so the overlay only has to fetch the
+                travellers and the sharing state. */}
             {!readOnly && (
-              <button
+              <TripSettingsLink
+                tripId={trip.id}
+                trip={trip}
+                days={days}
                 className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-                onClick={() => { setOpen(false); router.push(`/trips/${tripId}/settings`); }}
+                onBeforeOpen={() => setOpen(false)}
               >
                 <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
                   <Gear size={15} weight="light" className="text-gray-600" />
@@ -296,7 +306,7 @@ function DayMenu({
                   <p className="text-[13px] font-medium text-gray-900 leading-snug">Settings</p>
                   <p className="text-[11px] text-gray-400 leading-snug">Dates, travellers, cover</p>
                 </div>
-              </button>
+              </TripSettingsLink>
             )}
           </div>
         </>
@@ -654,7 +664,8 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
 
         <span className="flex-1" />
         <DayMenu
-          tripId={trip.id}
+          trip={trip}
+          days={days}
           readOnly={readOnly}
           onOpenNotes={() => setShowNotes(true)}
           triggerClassName="flex items-center justify-center w-11 h-11 text-gray-500 hover:text-gray-800 transition-colors"
@@ -759,7 +770,8 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
         {/* ··· — same menu as the mobile header, so notes are one tap away
             from the day on desktop too */}
         <DayMenu
-          tripId={trip.id}
+          trip={trip}
+          days={days}
           readOnly={readOnly}
           onOpenNotes={() => setShowNotes(true)}
           triggerClassName="flex items-center justify-center w-8 h-8 rounded-full text-[rgba(26,26,46,0.55)] hover:text-activity hover:bg-[rgba(26,26,46,0.05)] transition-colors"

@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import Link from "next/link";
 import AppHeader from "@/components/ui/AppHeader";
+import { NewJourneyLink } from "@/components/overlays/AppOverlays";
 import TripCard from "@/components/ui/TripCard";
 import PastJourneysList from "@/components/trip/PastJourneysList";
 import type { Trip } from "@/types/database";
@@ -219,18 +219,15 @@ function EmptyState() {
       <p className="text-xs text-gray-400 mt-1 mb-5 max-w-[220px]">
         Plan your first journey, or wait for one to be shared with you.
       </p>
-      {/* Routes to /trips/new; middleware sends an unpaid traveller on to
-          /checkout (the paywall) and a paid one to the form — never a dead end. */}
-      <Link
-        href="/trips/new"
-        className="inline-flex items-center gap-2 bg-activity text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-sm hover:opacity-90 active:scale-95 transition-all"
-      >
+      {/* Opens the form in place rather than routing away; still a link to
+          /trips/new so ctrl/cmd-click opens the page. */}
+      <NewJourneyLink className="inline-flex items-center gap-2 bg-activity text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-sm hover:opacity-90 active:scale-95 transition-all">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
           <line x1="12" y1="5" x2="12" y2="19" />
           <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
         Plan a journey
-      </Link>
+      </NewJourneyLink>
       {/* One-tap sample journey — shows what a finished trip looks like.
           Clearly named, fully deletable; see src/lib/sampleTrip. */}
       <form action={createSampleJourney} className="mt-3">

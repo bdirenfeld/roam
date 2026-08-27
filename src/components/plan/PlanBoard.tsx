@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   DndContext,
   DragOverlay,
@@ -55,6 +54,7 @@ import { getOpeningHoursConflict, openingHoursCaption, openingHoursTone } from "
 import CardImage from "@/components/ui/CardImage";
 import { Trash, DotsThree, Image as ImageIcon, Gear, ShareNetwork, BookmarkSimple, UploadSimple, Files, NotePencil, MagnifyingGlass } from "@phosphor-icons/react";
 import { useGlobalSearch } from "@/components/search/GlobalSearch";
+import { TripSettingsLink } from "@/components/overlays/AppOverlays";
 import { getMaterialIconHTML } from "@/lib/mapPins";
 import { type DayWeather, fetchTripWeather, dayStopsAnchor, getWeatherCategory, WeatherIcon, HourlyStrip } from "@/lib/weather";
 
@@ -927,7 +927,8 @@ export default function PlanBoard({ trip, initialDays, initialNotes }: Props) {
         {/* Right: single ··· menu */}
         <div className="ml-auto z-10">
           <MainMenu
-            tripId={trip.id}
+            trip={trip}
+            days={days}
             onOpenBgPicker={() => {
               setBgUrlInput(boardBg.type === "photo" ? boardBg.url : "");
               setBgPreviewError(false);
@@ -1704,20 +1705,22 @@ function WeekFoldedCard({
 
 // ── MainMenu (consolidated top-right ··· menu) ────────────────
 function MainMenu({
-  tripId,
+  trip,
+  days,
   onOpenBgPicker,
   onImportBooking,
   onOpenDocuments,
   onOpenNotes,
 }: {
-  tripId: string;
+  /** Handed to the Settings overlay as a seed — the board already has both. */
+  trip: Trip;
+  days: Day[];
   onOpenBgPicker: () => void;
   onImportBooking: (file: File) => void;
   onOpenDocuments: () => void;
   onOpenNotes: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const router = useRouter();
   const search = useGlobalSearch();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -1764,10 +1767,14 @@ function MainMenu({
               </div>
             </button>
 
-            {/* Trip settings */}
-            <button
+            {/* Trip settings — opens over the board, which keeps its scroll.
+                Still a link to the route, so ctrl/cmd-click opens the page. */}
+            <TripSettingsLink
+              tripId={trip.id}
+              trip={trip}
+              days={days}
               className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-              onClick={() => { setOpen(false); router.push(`/trips/${tripId}/settings`); }}
+              onBeforeOpen={() => setOpen(false)}
             >
               <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
                 <Gear size={15} weight="light" className="text-gray-600" />
@@ -1776,7 +1783,7 @@ function MainMenu({
                 <p className="text-[13px] font-medium text-gray-900 leading-snug">Settings</p>
                 <p className="text-[11px] text-gray-400 leading-snug">Dates, travellers, cover</p>
               </div>
-            </button>
+            </TripSettingsLink>
 
             {/* Journey notes — opens in place; the board keeps its scroll */}
             <button
@@ -1834,10 +1841,16 @@ function MainMenu({
               </div>
             </button>
 
-            {/* Share itinerary — lives in Journey settings */}
-            <button
+            {/* Share itinerary — lives in Journey settings. The #share deep
+                link still works as a URL; in the overlay the section is
+                scrolled into view instead. */}
+            <TripSettingsLink
+              tripId={trip.id}
+              trip={trip}
+              days={days}
+              section="share"
               className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-              onClick={() => { setOpen(false); router.push(`/trips/${tripId}/settings#share`); }}
+              onBeforeOpen={() => setOpen(false)}
             >
               <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
                 <ShareNetwork size={15} weight="light" className="text-gray-600" />
@@ -1846,7 +1859,7 @@ function MainMenu({
                 <p className="text-[13px] font-medium text-gray-900 leading-snug">Share itinerary</p>
                 <p className="text-[11px] text-gray-400 leading-snug">Invite someone to this journey</p>
               </div>
-            </button>
+            </TripSettingsLink>
           </div>
         </>
       )}

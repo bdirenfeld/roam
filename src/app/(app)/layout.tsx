@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import BottomNav from "@/components/ui/BottomNav";
 import DesktopMasthead from "@/components/ui/DesktopMasthead";
 import { GlobalSearchProvider } from "@/components/search/GlobalSearch";
+import { AppOverlaysProvider } from "@/components/overlays/AppOverlays";
 
 export default function AppLayout({
   children,
@@ -20,13 +21,18 @@ export default function AppLayout({
     // the masthead and the app header, the two ··· menus, "/" and ⌘/Ctrl-K)
     // drives the same overlay rather than each screen keeping its own.
     <GlobalSearchProvider>
-      <DesktopMasthead />
-      <div className="mobile-container flex flex-col bg-white md:bg-transparent md:!min-h-[calc(100dvh-64px)]">
-        <main className={isDayView ? "flex-1" : "flex-1 pb-20 md:pb-0"}>{children}</main>
-      </div>
-      <Suspense>
-        <BottomNav />
-      </Suspense>
+      {/* Plan a journey, Trip settings and Profile are mounted once here too,
+          so every trigger in the app opens the screen in place instead of
+          navigating away. The routes still exist for links and bookmarks. */}
+      <AppOverlaysProvider>
+        <DesktopMasthead />
+        <div className="mobile-container flex flex-col bg-white md:bg-transparent md:!min-h-[calc(100dvh-64px)]">
+          <main className={isDayView ? "flex-1" : "flex-1 pb-20 md:pb-0"}>{children}</main>
+        </div>
+        <Suspense>
+          <BottomNav />
+        </Suspense>
+      </AppOverlaysProvider>
     </GlobalSearchProvider>
   );
 }

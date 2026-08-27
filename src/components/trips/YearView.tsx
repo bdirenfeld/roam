@@ -5,8 +5,9 @@
 // family birthdays, the TDSB school calendar, and a climate heat row for a
 // picked destination. The point of the section is the "open windows" —
 // school breaks and 3+ day weekends with no journey booked yet, drawn as
-// dashed pills and listed below the strip; tapping one goes straight to
-// /trips/new with the dates prefilled.
+// dashed pills and listed below the strip; tapping one opens "Plan a journey"
+// in place with the dates prefilled (ctrl/cmd-click still opens
+// /trips/new?start=…&end=… as a page — see overlays/AppOverlays.tsx).
 //
 // Static inputs live in src/lib/yearView/ (familyDates, schoolCalendar).
 // Climate comes from Open-Meteo's archive API, fetched lazily client-side
@@ -15,6 +16,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import Link from "next/link";
+import { NewJourneyLink } from "@/components/overlays/AppOverlays";
 import { createClient } from "@/lib/supabase/client";
 import { FAMILY_DATES } from "@/lib/yearView/familyDates";
 import { SCHOOL_CALENDAR } from "@/lib/yearView/schoolCalendar";
@@ -1746,9 +1748,9 @@ export default function YearView({ trips }: Props) {
                     prev.coreStart.getMonth() !== w.coreStart.getMonth() ||
                     prev.coreStart.getFullYear() !== w.coreStart.getFullYear();
                   return (
-                    <Link
+                    <NewJourneyLink
                       key={`list-${w.key}`}
-                      href={`/trips/new?start=${isoOf(w.start)}&end=${isoOf(w.end)}`}
+                      seed={{ start: isoOf(w.start), end: isoOf(w.end) }}
                       className="flex w-full items-center justify-between gap-2 py-[4px] text-left"
                       style={{ breakInside: "avoid" }}
                     >
@@ -1782,7 +1784,7 @@ export default function YearView({ trips }: Props) {
                       >
                         ›
                       </span>
-                    </Link>
+                    </NewJourneyLink>
                   );
                 })}
               </div>

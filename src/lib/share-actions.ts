@@ -63,6 +63,51 @@ export async function revokeShareLink(tripId: string): Promise<void> {
   if (error) throw new Error("Could not revoke link");
 }
 
+export interface ShareState {
+  /** False when SUPABASE_SERVICE_ROLE_KEY is absent — sharing can't work. */
+  shareAvailable: boolean;
+  shareToken: string | null;
+  guests: { userId: string; name: string | null; email: string | null }[];
+}
+
+/**
+ * Read the sharing state for the Trip settings screen.
+ *
+ * The settings *page* gets this inline from its own server render. The Trip
+ * settings *overlay* has only a browser client, and neither the share token's
+ * siblings nor a guest's `users` row are readable by the owner under RLS — so
+ * it asks for the same three facts here, behind the same ownership assertion
+ * every mutation in this file uses.
+ */
+export async function loadShareState(tripId: string): Promise<ShareState> {
+  await assertOwner(tripId);
+
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return { shareAvailable: false, shareToken: null, guests: [] };
+  }
+
+  const admin = createAdminClient();
+  const [{ data: trip }, { data: members }] = await Promise.all([
+    admin.from("trips").select("share_token").eq("id", tripId).maybeSingle(),
+    admin.from("trip_members").select("user_id").eq("trip_id", tripId).eq("role", "guest"),
+  ]);
+
+  const guestIds = (members ?? []).map((m) => m.user_id);
+  const { data: guestUsers } = guestIds.length
+    ? await admin.from("users").select("id, name, email").in("id", guestIds)
+    : { data: [] as { id: string; name: string | null; email: string | null }[] };
+
+  return {
+    shareAvailable: true,
+    shareToken: trip?.share_token ?? null,
+    guests: (guestUsers ?? []).map((u) => ({
+      userId: u.id,
+      name: u.name,
+      email: u.email,
+    })),
+  };
+}
+
 /** Remove a single guest — deletes only their membership row. */
 export async function removeGuest(tripId: string, userId: string): Promise<void> {
   await assertOwner(tripId);

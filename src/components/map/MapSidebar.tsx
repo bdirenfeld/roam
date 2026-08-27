@@ -57,6 +57,18 @@ const GROUPS: Group[] = [
   },
 ];
 
+/**
+ * Every sub-type the sidebar puts behind a row toggle, flattened.
+ *
+ * FullMapClient derives its CONTROLLED_SUB_TYPES from this so the two lists
+ * can't drift: before, aliases like `coffee_dessert`, `fine_dining` and
+ * `cocktail_bar` sat in a sidebar row but not in the controlled set, so
+ * switching "Coffee" off left the coffee-dessert pins sitting on the map.
+ */
+export const SIDEBAR_SUB_TYPES: string[] = GROUPS.flatMap((g) =>
+  g.rows.flatMap((r) => r.subTypes),
+);
+
 interface Props {
   cards: Card[];
   activeSubTypes: Set<string>;
@@ -70,11 +82,13 @@ interface Props {
 }
 
 // ── Pill toggle (28×16 px) ────────────────────────────────────
-function PillToggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+function PillToggle({ on, onToggle, label }: { on: boolean; onToggle: () => void; label?: string }) {
   return (
     <button
-      onClick={(e) => { e.stopPropagation(); onToggle(); }}
+      type="button"
+      onClick={onToggle}
       aria-pressed={on}
+      aria-label={label}
       className="flex-shrink-0"
     >
       <div
@@ -162,6 +176,24 @@ export default function MapSidebar({
     setActiveSubTypes(next);
   }
 
+  /** True when this row is the only sub-category currently switched on. */
+  function isRowIsolated(row: SubTypeRow): boolean {
+    return SIDEBAR_SUB_TYPES.every(
+      (st) => activeSubTypes.has(st) === row.subTypes.includes(st),
+    );
+  }
+
+  /**
+   * "Only" — show this row and nothing else. Pressing it on a row that is
+   * already isolated puts everything back, so the affordance is a clean
+   * round trip rather than a one-way door.
+   */
+  function isolateRow(row: SubTypeRow) {
+    setActiveSubTypes(
+      isRowIsolated(row) ? new Set(SIDEBAR_SUB_TYPES) : new Set(row.subTypes),
+    );
+  }
+
   function cardsForRow(row: SubTypeRow): Card[] {
     return cards.filter(
       (c) => c.place?.sub_type != null && row.subTypes.includes(c.place.sub_type) && c.place.lat != null && c.place.lng != null,
@@ -227,12 +259,16 @@ export default function MapSidebar({
               {/* Category header: caret+label expands/collapses; PillToggle on right */}
               <div className="flex items-center gap-2 mb-1">
                 <button
+                  type="button"
                   className="flex items-center gap-1.5 flex-1 min-w-0 py-1.5 text-left"
                   onClick={() => toggleSection(group.label)}
+                  aria-expanded={!sectionCollapsed}
+                  aria-label={`${group.label} categories`}
                 >
                   <svg
                     width="10" height="10" viewBox="0 0 24 24" fill="none"
                     stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"
+                    aria-hidden="true"
                     className="flex-shrink-0 transition-transform duration-200"
                     style={{ transform: sectionCollapsed ? "rotate(-90deg)" : "rotate(0deg)" }}
                   >
@@ -242,7 +278,11 @@ export default function MapSidebar({
                     {group.label}
                   </span>
                 </button>
-                <PillToggle on={typeOn} onToggle={() => toggleTopLevelType(group.typeKey)} />
+                <PillToggle
+                  on={typeOn}
+                  onToggle={() => toggleTopLevelType(group.typeKey)}
+                  label={`${typeOn ? "Hide" : "Show"} all ${group.label} pins`}
+                />
               </div>
 
               {/* Subcategory rows */}
@@ -255,23 +295,29 @@ export default function MapSidebar({
                     const rowCards = cardsForRow(row);
                     const count    = rowCards.length;
                     const expanded = expandedRows.has(row.label);
+                    const isolated = isRowIsolated(row);
 
                     return (
                       <div key={row.label}>
-                        {/* Sub-category row: clicking label/count = toggle on/off; caret = expand (stopPropagation) */}
-                        <div
-                          className="w-full flex items-center gap-2 pl-3 pr-3 py-2 cursor-pointer select-none"
-                          onClick={() => toggleRow(row)}
-                        >
-                          {/* Left caret — stopPropagation prevents toggleRow from also firing */}
+                        {/* Sub-category row — one gesture per meaning:
+                            label/caret = expand the place list, "Only" = isolate
+                            this row, pill = show/hide. Nothing here toggles
+                            visibility as a side effect of reading the list. */}
+                        <div className="group/row relative w-full flex items-center gap-1.5 pl-2 py-2 select-none">
+                          {/* Expand/collapse — the whole label area, not just the caret */}
                           <button
-                            className="flex-shrink-0 p-0.5"
-                            onClick={(e) => { e.stopPropagation(); if (count > 0) toggleExpandRow(row.label); }}
+                            type="button"
+                            onClick={() => toggleExpandRow(row.label)}
+                            disabled={count === 0}
+                            aria-expanded={count > 0 ? expanded : undefined}
+                            aria-label={`${row.label} — ${count} ${count === 1 ? "place" : "places"}`}
+                            className="flex-1 min-w-0 flex items-center gap-2 text-left disabled:cursor-default"
                           >
                             <svg
                               width="10" height="10" viewBox="0 0 24 24" fill="none"
                               stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"
-                              className="transition-transform duration-200"
+                              aria-hidden="true"
+                              className="flex-shrink-0 transition-transform duration-200"
                               style={{
                                 transform: expanded ? "rotate(0deg)" : "rotate(-90deg)",
                                 opacity: count > 0 ? 1 : 0,
@@ -279,25 +325,53 @@ export default function MapSidebar({
                             >
                               <polyline points="6 9 12 15 18 9" />
                             </svg>
+
+                            {/* Label */}
+                            <span
+                              title={row.label}
+                              className="flex-1 min-w-0 truncate text-[13px] transition-opacity duration-200"
+                              style={{ color: "#1A1A2E", opacity: on ? 1 : 0.25 }}
+                            >
+                              {row.label}
+                            </span>
+
+                            {/* Count badge */}
+                            {count > 0 && (
+                              <span
+                                className="text-[12px] flex-shrink-0 transition-opacity duration-200"
+                                style={{ color: "rgba(26,26,46,0.45)", opacity: on ? 1 : 0.25 }}
+                              >
+                                {count}
+                              </span>
+                            )}
                           </button>
 
-                          {/* Label */}
-                          <span
-                            className="flex-1 text-[13px] transition-opacity duration-200"
-                            style={{ color: "#1A1A2E", opacity: on ? 1 : 0.25 }}
+                          {/* "Only" — isolate this row. Always visible, quietly:
+                              this is the action people reach for when they click
+                              a category name, so hiding it behind hover would
+                              hide the fix. It brightens on hover and when the
+                              row is the isolated one. */}
+                          <button
+                            type="button"
+                            onClick={() => isolateRow(row)}
+                            aria-pressed={isolated}
+                            aria-label={isolated ? "Show all sub-categories again" : `Show only ${row.label}`}
+                            className={
+                              "flex-shrink-0 px-1 py-0.5 rounded text-[9px] tracking-[0.14em] uppercase font-semibold " +
+                              "transition-colors duration-150 hover:text-[#1A1A2E] " +
+                              (isolated ? "text-[#1A1A2E]" : "text-[rgba(26,26,46,0.30)]")
+                            }
                           >
-                            {row.label}
-                          </span>
+                            Only
+                          </button>
 
-                          {/* Count badge */}
-                          {count > 0 && (
-                            <span
-                              className="text-[12px] flex-shrink-0 transition-opacity duration-200"
-                              style={{ color: "rgba(26,26,46,0.45)", opacity: on ? 1 : 0.25 }}
-                            >
-                              {count}
-                            </span>
-                          )}
+                          {/* Show/hide — a deliberate switch, same control the
+                              category headers use */}
+                          <PillToggle
+                            on={on}
+                            onToggle={() => toggleRow(row)}
+                            label={`${on ? "Hide" : "Show"} ${row.label} pins`}
+                          />
                         </div>
 
                         {/* Expanded card list — deep level */}

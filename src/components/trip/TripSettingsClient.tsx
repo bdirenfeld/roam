@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Camera } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
@@ -8,6 +8,7 @@ import { setTripArchived } from "@/lib/tripArchive";
 import TravellersSection, { type Person } from "@/components/trip/TravellersSection";
 import ShareJourneySection, { type ShareGuest } from "@/components/trip/ShareJourneySection";
 import JourneyNotes from "@/components/trip/JourneyNotes";
+import { NESTED_SHEET_ATTR } from "@/components/ui/Overlay";
 import { TRAVELLERS_ENABLED } from "@/lib/featureFlags";
 import type { Trip, Day } from "@/types/database";
 
@@ -24,6 +25,20 @@ interface Props {
   // False when SUPABASE_SERVICE_ROLE_KEY is absent from the environment —
   // sharing can't work without it, so the section is hidden entirely.
   shareAvailable: boolean;
+  /**
+   * Chrome only. "page" is the standalone screen — full height, desktop
+   * reading measure, back chevron. "overlay" hands the frame to the host and
+   * swaps the chevron for a close cross. The form itself is identical.
+   */
+  variant?: "page" | "overlay";
+  /** Back / close. Defaults to router.back(). */
+  onDismiss?: () => void;
+  /** Settings saved. Defaults to router.back(); the overlay refreshes and closes. */
+  onSaved?: () => void;
+  /** The journey is gone (archived, restored or deleted) — nothing to return to. */
+  onLeft?: () => void;
+  /** Section to bring into view on open — the Plan menu's #share deep link. */
+  scrollTo?: "share" | "notes" | null;
 }
 
 function fmtDate(dateStr: string): string {
@@ -57,8 +72,49 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December",
 ];
 
-export default function TripSettingsClient({ trip, days, initialPeople, initialShareToken, initialGuests, initialNotes, shareAvailable }: Props) {
+export default function TripSettingsClient({
+  trip,
+  days,
+  initialPeople,
+  initialShareToken,
+  initialGuests,
+  initialNotes,
+  shareAvailable,
+  variant = "page",
+  onDismiss,
+  onSaved,
+  onLeft,
+  scrollTo = null,
+}: Props) {
   const router = useRouter();
+  const overlay = variant === "overlay";
+  const scrollerRef = useRef<HTMLDivElement>(null);
+
+  const dismiss = useCallback(() => {
+    if (onDismiss) onDismiss();
+    else router.back();
+  }, [onDismiss, router]);
+
+  // Archive / restore / delete all end the same way: there is no longer a
+  // sensible "back" for this journey, so land on the journeys list.
+  const leave = useCallback(() => {
+    if (onLeft) onLeft();
+    else {
+      router.push("/trips");
+      router.refresh();
+    }
+  }, [onLeft, router]);
+
+  // The Plan board's "Share itinerary" carries #share. On the page the browser
+  // resolves the hash itself; inside the overlay the section lives in this
+  // component's own scroller, so bring it into view by hand. Scoped to that
+  // scroller — never document.getElementById, which would find the page's copy
+  // if both were ever mounted.
+  useEffect(() => {
+    if (!scrollTo) return;
+    const node = scrollerRef.current?.querySelector(`#${scrollTo}`);
+    node?.scrollIntoView({ block: "start" });
+  }, [scrollTo]);
 
   // Form state
   const [title, setTitle] = useState(trip.title);
@@ -223,7 +279,10 @@ export default function TripSettingsClient({ trip, days, initialPeople, initialS
         await supabase.from("days").insert(newDaysToInsert);
       }
 
-      router.back();
+      // Saved. On the page that means going back the way you came; in an
+      // overlay the host refreshes the screen underneath and closes.
+      if (onSaved) onSaved();
+      else router.back();
     } catch {
       setError("An unexpected error occurred. Please try again.");
       setSaving(false);
@@ -238,8 +297,7 @@ export default function TripSettingsClient({ trip, days, initialPeople, initialS
       setError("Couldn't archive this journey — please try again.");
       return;
     }
-    router.push("/");
-    router.refresh();
+    leave();
   };
 
   const handleRestore = async () => {
@@ -250,8 +308,7 @@ export default function TripSettingsClient({ trip, days, initialPeople, initialS
       setError("Couldn't restore this journey — please try again.");
       return;
     }
-    router.push("/");
-    router.refresh();
+    leave();
   };
 
   const handleDelete = async () => {
@@ -261,7 +318,7 @@ export default function TripSettingsClient({ trip, days, initialPeople, initialS
     await supabase.from("cards").delete().eq("trip_id", trip.id);
     await supabase.from("days").delete().eq("trip_id", trip.id);
     await supabase.from("trips").delete().eq("id", trip.id);
-    router.push("/");
+    leave();
   };
 
   // ── Calendar picker helpers ─────────────────────────────────────────────────
@@ -309,6 +366,21 @@ export default function TripSettingsClient({ trip, days, initialPeople, initialS
     setShowDatePicker(false);
   };
 
+  // Escape closes the innermost thing first. Inside an overlay this listener
+  // runs alongside the shell's, which skips Escape while a nested sheet is
+  // marked open — so one keypress backs out of the picker, not the screen.
+  useEffect(() => {
+    if (!showDatePicker && !showCoverSheet && !showDeleteConfirm) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setShowDatePicker(false);
+      setShowCoverSheet(false);
+      setShowDeleteConfirm(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [showDatePicker, showCoverSheet, showDeleteConfirm]);
+
   const calCells = buildCalendarDays(calYear, calMonth);
 
   const calNights =
@@ -323,18 +395,26 @@ export default function TripSettingsClient({ trip, days, initialPeople, initialS
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col min-h-dvh bg-white">
-      {/* Sticky header */}
+    <div className={overlay ? "flex flex-col h-full min-h-0 bg-white" : "flex flex-col min-h-dvh bg-white"}>
+      {/* Sticky header. Same row in both hosts; only the dismiss glyph
+          changes — a back chevron on the page, a close cross in the overlay. */}
       <div className="flex items-center h-11 border-b border-gray-100 flex-shrink-0 relative bg-white sticky top-0 z-10">
         <button
-          onClick={() => router.back()}
+          onClick={dismiss}
           className="flex items-center justify-center w-11 h-11 text-gray-500 hover:text-gray-800 transition-colors flex-shrink-0"
-          aria-label="Back"
+          aria-label={overlay ? "Close" : "Back"}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
+          {overlay ? (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          ) : (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          )}
         </button>
         <span className="absolute left-0 right-0 text-center text-[16px] font-semibold text-gray-900 pointer-events-none">
           Settings
@@ -348,8 +428,16 @@ export default function TripSettingsClient({ trip, days, initialPeople, initialS
         </button>
       </div>
 
-      {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto md:max-w-[880px] md:mx-auto md:w-full md:px-10 md:pt-12 md:pb-16">
+      {/* Scrollable content. pb-24 in the overlay is the phone keyboard's room
+          to scroll the last field clear of itself. */}
+      <div
+        ref={scrollerRef}
+        className={
+          overlay
+            ? "flex-1 min-h-0 overflow-y-auto w-full pb-24 scroll-pb-24"
+            : "flex-1 min-h-0 overflow-y-auto md:max-w-[880px] md:mx-auto md:w-full md:px-10 md:pt-12 md:pb-16"
+        }
+      >
 
         {/* ── Cover hero ── */}
         <button
@@ -520,21 +608,24 @@ export default function TripSettingsClient({ trip, days, initialPeople, initialS
 
       </div>{/* end scrollable */}
 
-      {/* ── Cover photo URL sheet ── */}
+      {/* ── Cover photo URL sheet ──
+          z-[90] clears the overlay shell at z-[80]; on the page route nothing
+          sits above it either way. NESTED_SHEET_ATTR tells that shell to leave
+          Escape alone while this is up. */}
       {showCoverSheet && (
-        <>
+        <div {...NESTED_SHEET_ATTR}>
           <div
-            className="fixed inset-0 bg-black/40 z-[60]"
+            className="fixed inset-0 bg-black/40 z-[90]"
             onClick={() => setShowCoverSheet(false)}
           />
           <div
-            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl z-[60] max-w-mobile mx-auto flex flex-col"
-            style={{ maxHeight: "85vh" }}
+            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl z-[90] max-w-mobile mx-auto flex flex-col"
+            style={{ maxHeight: "85%" }}
           >
             <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
               <div className="w-9 h-1 bg-gray-200 rounded-full" />
             </div>
-            <div className="flex-1 overflow-y-auto px-5 pt-3 pb-2">
+            <div className="flex-1 min-h-0 overflow-y-auto px-5 pt-3 pb-2">
               <p className="text-center font-display italic text-base text-gray-900 mb-5">
                 Change cover
               </p>
@@ -581,24 +672,24 @@ export default function TripSettingsClient({ trip, days, initialPeople, initialS
               </button>
             </div>
           </div>
-        </>
+        </div>
       )}
 
       {/* ── Delete confirmation sheet ── */}
       {showDeleteConfirm && (
-        <>
+        <div {...NESTED_SHEET_ATTR}>
           <div
-            className="fixed inset-0 bg-black/40 z-[60]"
+            className="fixed inset-0 bg-black/40 z-[90]"
             onClick={() => setShowDeleteConfirm(false)}
           />
           <div
-            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl z-[60] max-w-mobile mx-auto flex flex-col"
-            style={{ maxHeight: "85vh" }}
+            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl z-[90] max-w-mobile mx-auto flex flex-col"
+            style={{ maxHeight: "85%" }}
           >
             <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
               <div className="w-9 h-1 bg-gray-200 rounded-full" />
             </div>
-            <div className="flex-1 overflow-y-auto px-5 pt-3">
+            <div className="flex-1 min-h-0 overflow-y-auto px-5 pt-3">
               <h2 className="text-[22px] text-gray-900 mb-2 font-display italic">
                 Delete &ldquo;{trip.title}&rdquo;?
               </h2>
@@ -623,19 +714,19 @@ export default function TripSettingsClient({ trip, days, initialPeople, initialS
               </button>
             </div>
           </div>
-        </>
+        </div>
       )}
 
       {/* ── Date range picker sheet ── */}
       {showDatePicker && (
-        <>
+        <div {...NESTED_SHEET_ATTR}>
           <div
-            className="fixed inset-0 bg-black/40 z-[60]"
+            className="fixed inset-0 bg-black/40 z-[90]"
             onClick={() => setShowDatePicker(false)}
           />
           <div
-            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl z-[60] max-w-mobile mx-auto flex flex-col"
-            style={{ maxHeight: "90vh" }}
+            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl z-[90] max-w-mobile mx-auto flex flex-col"
+            style={{ maxHeight: "90%" }}
           >
             {/* Drag handle */}
             <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
@@ -647,7 +738,7 @@ export default function TripSettingsClient({ trip, days, initialPeople, initialS
               Select dates
             </p>
 
-            <div className="flex-1 overflow-y-auto px-4 pb-2">
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-2">
               {/* Month navigation */}
               <div className="flex items-center justify-between mb-4">
                 <button
@@ -728,7 +819,7 @@ export default function TripSettingsClient({ trip, days, initialPeople, initialS
               </button>
             </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   );

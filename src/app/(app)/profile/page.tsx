@@ -1,9 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import AppHeader from "@/components/ui/AppHeader";
-import Image from "next/image";
-import ProfileClient from "@/components/profile/ProfileClient";
-import { signOut } from "@/lib/auth-actions";
+import ProfileForm from "@/components/profile/ProfileForm";
 
+// The real route. The masthead dropdown and the mobile avatar now open the
+// same screen as an overlay, but /profile stays a page so a bookmark, a
+// shared link, or a ctrl/cmd-click still renders it in full.
 export default async function ProfilePage() {
   const supabase = await createClient();
   const {
@@ -21,74 +22,22 @@ export default async function ProfilePage() {
     <div>
       <AppHeader avatarUrl={avatarUrl} />
 
-      <div className="px-4 pt-6 pb-8 md:max-w-[880px] md:mx-auto md:px-10 md:pt-12 md:pb-16">
-        {/* Avatar + name — display only, pulled from Google OAuth.
-            At md:+ the avatar grows to 72×72, name becomes Playfair italic 30,
-            and a hairline rule closes the identity block. */}
-        <div className="flex items-center gap-4 mb-8 md:gap-[22px] md:mb-0 md:pb-7 md:border-b md:border-[rgba(26,26,46,0.12)]">
-          <div className="w-16 h-16 md:w-[72px] md:h-[72px] rounded-full bg-gray-100 overflow-hidden flex items-center justify-center border border-gray-200 flex-shrink-0">
-            {avatarUrl ? (
-              <Image
-                src={avatarUrl}
-                alt={displayName ?? "Avatar"}
-                width={72}
-                height={72}
-                className="object-cover w-full h-full"
-              />
-            ) : (
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.5">
-                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
-            )}
-          </div>
-          <div className="min-w-0">
-            <p className="text-base font-bold text-gray-900 md:font-display md:italic md:font-medium md:text-[30px] md:font-normal md:text-[#1A1A2E] md:leading-tight md:tracking-[-0.01em]">
-              {displayName}
-            </p>
-            <p className="text-sm text-gray-400 mt-0.5 md:text-[14px] md:text-[rgba(26,26,46,0.55)] md:mt-1 md:tracking-[-0.005em]">
-              {user?.email}
-            </p>
-          </div>
-        </div>
-
-        {/* Editable travel profile + save */}
-        {user && profile ? (
-          <ProfileClient
-            userId={user.id}
-            initialHomeAirport={profile.home_airport ?? null}
-            initialHomeCountry={profile.home_country ?? null}
-            initialPassportCountry={profile.passport_country ?? null}
-          />
-        ) : user ? (
-          <ProfileClient
-            userId={user.id}
-            initialHomeAirport={null}
-            initialHomeCountry={null}
-            initialPassportCountry={null}
-          />
-        ) : null}
-
-        {/* Guide + sign out — mobile only. At md:+ the dropdown in DesktopMasthead carries these. */}
-        <div className="mt-10 pt-4 border-t border-gray-100 md:hidden flex items-center gap-6">
-          <a
-            href="/guide.html"
-            target="_blank"
-            rel="noopener"
-            className="text-sm font-semibold text-gray-400 hover:text-gray-500 transition-colors"
-          >
-            How Roam works
-          </a>
-          <form action={signOut}>
-            <button
-              type="submit"
-              className="text-sm font-semibold text-gray-400 hover:text-gray-500 transition-colors"
-            >
-              Sign out
-            </button>
-          </form>
-        </div>
-      </div>
+      {/* No user means the middleware already bounced them; render nothing
+          rather than a half-populated profile. */}
+      {user && (
+        <ProfileForm
+          variant="page"
+          initial={{
+            userId: user.id,
+            email: user.email ?? null,
+            displayName,
+            avatarUrl,
+            homeAirport: profile?.home_airport ?? null,
+            homeCountry: profile?.home_country ?? null,
+            passportCountry: profile?.passport_country ?? null,
+          }}
+        />
+      )}
     </div>
   );
 }

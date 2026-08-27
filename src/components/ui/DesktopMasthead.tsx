@@ -5,6 +5,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserCircle, Calendar, Columns, MapPin } from "@phosphor-icons/react";
 import { SearchButton } from "@/components/search/GlobalSearch";
+import {
+  NewJourneyLink,
+  ProfileLink,
+  TripSettingsLink,
+} from "@/components/overlays/AppOverlays";
 import { createClient } from "@/lib/supabase/client";
 import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
 import { signOut } from "@/lib/auth-actions";
@@ -287,11 +292,12 @@ export default function DesktopMasthead() {
         strokeWidth={1.4}
       />
 
-      {/* Plan a journey — masthead-global new-trip entry, matches design canvas. */}
-      <Link
-        href="/trips/new"
+      {/* Plan a journey — masthead-global new-trip entry, matches design
+          canvas. Opens the form in place; still a link to /trips/new so
+          ctrl/cmd-click opens the page. */}
+      <NewJourneyLink
         title="Plan a journey"
-        aria-label="Plan a journey"
+        ariaLabel="Plan a journey"
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -314,7 +320,7 @@ export default function DesktopMasthead() {
         >
           <path d="M12 5v14M5 12h14" />
         </svg>
-      </Link>
+      </NewJourneyLink>
 
       {/* How Roam works — always-visible help entry; the guide is also in the
           profile dropdown, but a lost user looks for a "?", not a menu. */}
@@ -418,11 +424,14 @@ export default function DesktopMasthead() {
                 </div>
               )}
             </div>
-            {currentTripId && !guest && (
-              <Link
-                href={`/trips/${currentTripId}/settings`}
+            {/* Settings and Profile open as overlays over whatever is on
+                screen. Both remain real links, so ctrl/cmd-click still opens
+                the route. Settings is dropped when you are already on it. */}
+            {currentTripId && !guest && segment !== "settings" && (
+              <TripSettingsLink
+                tripId={currentTripId}
                 role="menuitem"
-                onClick={() => setOpen(false)}
+                onBeforeOpen={() => setOpen(false)}
                 style={{
                   display: "block",
                   padding: "11px 16px",
@@ -432,12 +441,11 @@ export default function DesktopMasthead() {
                 }}
               >
                 Settings
-              </Link>
+              </TripSettingsLink>
             )}
-            <Link
-              href="/profile"
+            <ProfileLink
               role="menuitem"
-              onClick={() => setOpen(false)}
+              onBeforeOpen={() => setOpen(false)}
               style={{
                 display: "block",
                 padding: "11px 16px",
@@ -447,7 +455,7 @@ export default function DesktopMasthead() {
               }}
             >
               Profile
-            </Link>
+            </ProfileLink>
             {/* "How Roam works" moved to the always-visible "?" in the masthead */}
             <form action={signOut}>
               <button

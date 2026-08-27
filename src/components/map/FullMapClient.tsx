@@ -4,7 +4,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import MapPinPopup from "./MapPinPopup";
-import MapSidebar from "./MapSidebar";
+import MapSidebar, { SIDEBAR_SUB_TYPES } from "./MapSidebar";
 import PlaceSearch from "./PlaceSearch";
 import AddToTripSheet from "./AddToTripSheet";
 import type { PlaceResult } from "./AddToTripSheet";
@@ -28,13 +28,12 @@ interface Props {
   readOnly?: boolean;
 }
 
-// Sub-types whose visibility is controlled by the sidebar toggles
-const CONTROLLED_SUB_TYPES = new Set([
-  "restaurant", "coffee", "dessert", "bar",
-  "guided", "self_directed", "wellness", "challenge", "event", "beach",
-  "hotel", "transit", "grocery", "medical",
-  "flight_arrival", "flight_departure",
-]);
+// Sub-types whose visibility is controlled by the sidebar toggles. Derived
+// from the sidebar's own rows so the two lists can never disagree — a sub-type
+// that sits under a row but not in here silently ignores that row's toggle.
+// (Retired `challenge` is deliberately absent: no row offers it, so leaving it
+// uncontrolled keeps legacy pins visible under the Activity type toggle.)
+const CONTROLLED_SUB_TYPES = new Set<string>(SIDEBAR_SUB_TYPES);
 
 // Skeleton card titles (Day DNA templates) — these never have real locations
 const SKELETON_PREFIXES = [
@@ -217,12 +216,43 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
     MARKERS.set(card.id, { marker: mbMarker, type: place.type, cardRef });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /**
+   * Un-hide exactly what a card needs to be visible — nothing more.
+   *
+   * Picking a place in the sidebar must not reshuffle the filters, but flying
+   * to a pin that the current filters have removed from the map is a silent
+   * failure: you land on an empty street. So if this card's type, status or
+   * sub-type is switched off, switch that one thing back on. Goes through the
+   * setters, never the refs, so state and syncVisibility stay in step.
+   */
+  function revealCard(card: Card) {
+    const place = card.place;
+    if (!place) return;
+
+    if (!activeTypesRef.current.has(place.type)) {
+      handleActiveTypesChange(new Set(activeTypesRef.current).add(place.type));
+    }
+
+    const status = card.status ?? "";
+    if (status && !activeStatusesRef.current.has(status)) {
+      handleActiveStatusesChange(new Set(activeStatusesRef.current).add(status));
+    }
+
+    const sub = place.sub_type;
+    if (sub && CONTROLLED_SUB_TYPES.has(sub) && !activeSubTypesRef.current.has(sub)) {
+      handleSubTypesChange(new Set(activeSubTypesRef.current).add(sub));
+    }
+  }
+
   // ── Sidebar card select: fly to pin + open sheet ─────────────
   function handleSidebarCardSelect(card: Card) {
     const map = mapInstRef.current;
     const place = card.place!;
     const lat = place.lat;
     const lng = place.lng;
+    // Reveal first: syncVisibility must have put the marker back on the map
+    // before we reach for its element below.
+    revealCard(card);
     if (map && lat != null && lng != null) {
       map.flyTo({ center: [lng, lat], zoom: 14 });
     }
