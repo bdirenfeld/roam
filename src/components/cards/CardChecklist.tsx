@@ -264,15 +264,21 @@ export default function CardChecklist({ items: incoming, onSave }: Props) {
   // "Add an item" row would claim every card is a checklist card; most aren't.
   if (!started) {
     if (readOnly) return null;
+    // Labelled like every other section in the sheet. Without the label this
+    // read as a stray grey link at the bottom of a long scroll — present in
+    // the DOM, invisible in practice.
     return (
-      <div className="mt-5 pt-4 border-t border-gray-100">
+      <div className="mb-5 pb-4 border-b border-gray-100">
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.08em] mb-2">
+          Checklist
+        </p>
         <button
           type="button"
           onClick={() => { setStarted(true); openComposer(null); }}
-          className="flex items-center gap-1.5 text-[12px] text-gray-400 hover:text-gray-600 transition-colors"
+          className="flex items-center gap-2 text-[13px] text-gray-600 hover:text-gray-900 transition-colors"
         >
-          <span className="w-4 h-4 rounded-[4px] border border-gray-300 flex items-center justify-center flex-shrink-0">
-            <Check size={9} weight="bold" className="text-gray-300" />
+          <span className="w-[18px] h-[18px] rounded-[5px] border border-gray-300 flex items-center justify-center flex-shrink-0">
+            <Check size={10} weight="bold" className="text-gray-400" />
           </span>
           Add a checklist
         </button>
@@ -324,7 +330,7 @@ export default function CardChecklist({ items: incoming, onSave }: Props) {
   if (composerAnchor === null && composerNode) rows.push(composerNode);
 
   return (
-    <div className="mt-5 pt-4 border-t border-gray-100">
+    <div className="mb-5 pb-4 border-b border-gray-100">
       {/* Heading and the count, on one line — the same x/y the card face shows,
           so the badge outside and the panel inside are visibly one fact. */}
       <div className="flex items-baseline justify-between gap-3 mb-3">

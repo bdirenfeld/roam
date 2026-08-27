@@ -1359,17 +1359,17 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         {/* Scrollable detail content */}
         <div className="relative flex-1 min-h-0">
           <div className="absolute inset-0 overflow-y-auto px-5 py-5">
-            {renderDetail()}
-
             {/* Checklist — the card's own list of things to tick off, the
                 Trello shape: many small checklists in context, not one long
-                trip-level one. Sits directly under the card's facts because
-                it is work on THIS card, above the provenance and reference
-                sections below. A guest reads it; only the owner works it. */}
+                trip-level one. FIRST, not last: below the detail fields it
+                sat under a long scroll in grey and was effectively hidden.
+                A guest reads it; only the owner works it. */}
             <CardChecklist
               items={readChecklist(localCard.details)}
               onSave={readOnly ? undefined : saveChecklist}
             />
+
+            {renderDetail()}
 
             {/* Recommended by — a person, not a rating. The map's add flow can
                 set it at save time; this is where it gets added or corrected
