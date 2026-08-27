@@ -28,11 +28,11 @@ function initialOf(name: string | null, email: string | null): string {
  * The share box behind the "+".
  *
  * Opening Settings to share was the wrong answer — sharing is one action, not
- * a screen. Type an address and it composes the invite in your own mail app
- * (Roam has no mail server, and pretending otherwise would mean invites that
- * silently never arrive), or copy the link, or hand it to the phone's share
- * sheet. The link is created on open, so there's no "create link" step to
- * perform before the thing you came to do.
+ * a screen. Type an address, press send, and the invite is sent by the app.
+ * When no mail provider is configured the route says so and this composes in
+ * the traveller's own mail client instead — a stopgap, never the design.
+ * The link is created on open, so there is no "create link" step standing in
+ * front of the thing you came to do.
  */
 function SharePopover({
   tripId,
@@ -47,6 +47,8 @@ function SharePopover({
   const [error, setError] = useState(false);
   const [email, setEmail] = useState("");
   const [copied, setCopied] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
 
@@ -86,18 +88,41 @@ function SharePopover({
     setTimeout(() => setCopied(false), 1600);
   }, [url]);
 
-  const invite = useCallback(() => {
-    if (!url) return;
+  // Press send and it sends. If no mail provider is configured the route says
+  // so plainly and we compose locally instead — a fallback, not the design.
+  const invite = useCallback(async () => {
     const to = email.trim();
-    const subject = encodeURIComponent(
-      tripTitle ? `Join me on ${tripTitle}` : "Join me on this journey",
-    );
-    const body = encodeURIComponent(
-      `Here's the plan — open this to see it:\n\n${url}\n`,
-    );
-    window.location.href = `mailto:${encodeURIComponent(to)}?subject=${subject}&body=${body}`;
-    onClose();
-  }, [email, url, tripTitle, onClose]);
+    if (!to || sending) return;
+    setSending(true);
+    setSent(false);
+    try {
+      const res = await fetch("/api/share/send-invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trip_id: tripId, email: to }),
+      });
+      const data = (await res.json()) as { sent?: boolean; reason?: string; url?: string };
+      if (data.sent) {
+        setSent(true);
+        setEmail("");
+        setTimeout(onClose, 1400);
+        return;
+      }
+      const link = data.url ?? url;
+      if (link) {
+        const subject = encodeURIComponent(
+          tripTitle ? `Join me on ${tripTitle}` : "Join me on this journey",
+        );
+        const body = encodeURIComponent(`Here's the plan — open this to see it:\n\n${link}\n`);
+        window.location.href = `mailto:${encodeURIComponent(to)}?subject=${subject}&body=${body}`;
+        onClose();
+      }
+    } catch {
+      setError(true);
+    } finally {
+      setSending(false);
+    }
+  }, [email, sending, tripId, url, tripTitle, onClose]);
 
   return (
     <div
@@ -138,8 +163,8 @@ function SharePopover({
         <button
           onClick={invite}
           disabled={!email.trim() || !url}
-          title="Compose the invite"
-          aria-label="Compose the invite"
+          title="Send the invite"
+          aria-label="Send the invite"
           style={{
             flexShrink: 0, width: 34, borderRadius: 9,
             background: email.trim() && url ? INK : "#EFEAE3",
@@ -178,7 +203,11 @@ function SharePopover({
       </div>
 
       <p style={{ fontSize: 10.5, color: CAPTION, marginTop: 10, lineHeight: 1.5 }}>
-        {error
+        {sent
+          ? "Invite sent."
+          : sending
+          ? "Sending…"
+          : error
           ? "Couldn't create a link — try again."
           : url
             ? "Anyone with the link can see this journey, not change it."
