@@ -323,7 +323,6 @@ export default function MapSidebar({
                               const isConfirming = confirmDeleteId === card.id;
                               const isDeleting_  = deletingId === card.id;
                               const isFocused    = focusedCardId === card.id;
-                              const dimmed       = focusedCardId !== null && !isFocused;
                               return (
                                 <div key={card.id} className="group relative">
                                   {isConfirming ? (
@@ -349,21 +348,37 @@ export default function MapSidebar({
                                       )}
                                     </div>
                                   ) : (
+                                    {/* The selected place is marked by lifting
+                                        IT, never by dimming everything else —
+                                        greying out the whole list to point at
+                                        one row punishes the other 20 places for
+                                        not being tapped. */}
                                     <div
-                                      className="flex items-center rounded-lg hover:bg-white/60 transition-colors duration-200"
-                                      style={{ opacity: dimmed ? 0.25 : 1 }}
+                                      className="flex items-center rounded-lg transition-colors duration-200"
+                                      style={{
+                                        background: isFocused ? "#FFFFFF" : undefined,
+                                        boxShadow: isFocused
+                                          ? "inset 0 0 0 1px rgba(26,26,46,0.12)"
+                                          : undefined,
+                                      }}
                                     >
                                       <button
                                         onClick={() => handleCardClick(card)}
-                                        className="flex-1 flex items-center gap-2 pl-12 pr-2 py-1.5 text-left min-w-0"
+                                        className="flex-1 flex items-center gap-2 pl-12 pr-2 py-1.5 text-left min-w-0 rounded-lg hover:bg-white/60 transition-colors duration-200"
                                       >
                                         <span
-                                          className="flex-shrink-0 opacity-70"
-                                          style={{ color: iconColor }}
+                                          className="flex-shrink-0"
+                                          style={{ color: iconColor, opacity: isFocused ? 1 : 0.7 }}
                                           // eslint-disable-next-line react/no-danger
                                           dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(card.place!.sub_type, 12) }}
                                         />
-                                        <span className="flex-1 text-[11px] italic text-gray-600 truncate leading-snug">
+                                        <span
+                                          className="flex-1 text-[11px] italic truncate leading-snug"
+                                          style={{
+                                            color: isFocused ? "#1A1A2E" : "#4B5563",
+                                            fontWeight: isFocused ? 600 : 400,
+                                          }}
+                                        >
                                           {card.place!.title}
                                         </span>
                                       </button>
