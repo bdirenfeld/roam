@@ -1236,22 +1236,29 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                     <LovedHeart size={15} />
                   </span>
                 ) : (
+                  // Just a heart. The worded pill spent a whole row saying what
+                  // a heart already says, and it sat beside Maps/Website/Call
+                  // as though it were another destination rather than a mark.
                   <button
                     onClick={toggleLoved}
                     aria-pressed={isLoved}
                     aria-label={isLoved ? "We loved this — tap to unset" : "We loved this"}
-                    title={isLoved ? "We loved this" : undefined}
-                    style={isLoved
-                      ? { display: "flex", alignItems: "center", padding: "7px 2px", background: "transparent", border: "none" }
-                      : { display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 20, border: "0.5px solid #E5E0D8", background: "#fff", fontSize: 11, color: "#4B5563" }}
+                    title={isLoved ? "We loved this" : "We loved this"}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: 30,
+                      height: 30,
+                      borderRadius: 20,
+                      border: isLoved ? "none" : "0.5px solid #E5E0D8",
+                      background: isLoved ? "transparent" : "#fff",
+                    }}
                   >
                     {isLoved ? (
-                      <LovedHeart size={15} />
+                      <LovedHeart size={16} />
                     ) : (
-                      <>
-                        <Heart size={12} weight="light" color="#4B5563" />
-                        We loved this
-                      </>
+                      <Heart size={14} weight="light" color="#4B5563" />
                     )}
                   </button>
                 )
