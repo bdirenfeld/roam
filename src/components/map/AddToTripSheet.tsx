@@ -130,21 +130,6 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
 
   const targetDay = days.find((d) => d.id === targetDayId) ?? null;
 
-  // The day strip scrolls by thumb on a phone; a mouse has no horizontal
-  // gesture, so a vertical wheel over the strip scrolls it and the arrows
-  // nudge it a chip-width at a time. Same treatment as the journey planner's
-  // quick-window chips.
-  const dayScrollerRef = useRef<HTMLDivElement>(null);
-  const handleDayWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
-    const el = dayScrollerRef.current;
-    if (!el || el.scrollWidth <= el.clientWidth) return;
-    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; // already horizontal
-    el.scrollLeft += e.deltaY;
-  }, []);
-  const nudgeDays = useCallback((dir: 1 | -1) => {
-    dayScrollerRef.current?.scrollBy({ left: dir * 160, behavior: "smooth" });
-  }, []);
-
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -537,65 +522,28 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
           {days.length > 0 && (
             <div className="mb-4">
               <p className="text-[11px] text-gray-400 mb-1.5 ml-0.5">Put it on a day (optional)</p>
-              <div className="relative">
-                <div
-                  ref={dayScrollerRef}
-                  onWheel={handleDayWheel}
-                  className="flex gap-1.5 overflow-x-auto scrollbar-none pr-6"
-                >
-                  <button
-                    onClick={() => setTargetDayId(null)}
-                    className={`flex-shrink-0 text-[11px] font-semibold rounded-full px-2.5 py-1.5 border whitespace-nowrap transition-colors ${
-                      targetDayId === null
-                        ? "bg-[#1A1A2E] text-[#FAF7F2] border-[#1A1A2E]"
-                        : "bg-[#F2EDE3] text-[#1A1A2E] border-black/10"
-                    }`}
-                  >
-                    Save to the map only
-                  </button>
-                  {days.map((d) => {
-                    const active = targetDayId === d.id;
-                    return (
-                      <button
-                        key={d.id}
-                        onClick={() => setTargetDayId(d.id)}
-                        className={`flex-shrink-0 text-[11px] font-semibold rounded-full px-2.5 py-1.5 border whitespace-nowrap transition-colors ${
-                          active
-                            ? "bg-[#1A1A2E] text-[#FAF7F2] border-[#1A1A2E]"
-                            : "bg-[#F2EDE3] text-[#1A1A2E] border-black/10"
-                        }`}
-                      >
-                        Day {d.day_number}
-                        <span className={active ? "opacity-60" : "opacity-40"}> · {fmtDayChip(d.date)}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                {/* Right-edge fade — signals there are more days to scroll */}
-                <div
-                  className="absolute right-0 top-0 bottom-0 w-6 pointer-events-none"
-                  style={{ background: "linear-gradient(to left, #fff, transparent)" }}
-                />
-                {/* A mouse can't swipe a strip: arrows do on desktop what a
-                    thumb does on a phone. Hidden on touch, where they'd just
-                    cover chips. */}
-                <button
-                  type="button"
-                  onClick={() => nudgeDays(-1)}
-                  aria-label="Earlier days"
-                  className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white border border-black/10 shadow-sm items-center justify-center text-[#1A1A2E]"
-                >
-                  ‹
-                </button>
-                <button
-                  type="button"
-                  onClick={() => nudgeDays(1)}
-                  aria-label="Later days"
-                  className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white border border-black/10 shadow-sm items-center justify-center text-[#1A1A2E]"
-                >
-                  ›
-                </button>
-              </div>
+              {/* A select, not a chip strip: a 12-day journey doesn't fit in a
+                  row, and nudge arrows over the chips were worse than the
+                  problem. One tap opens the whole journey at any length. */}
+              <select
+                value={targetDayId ?? ""}
+                onChange={(e) => setTargetDayId(e.target.value || null)}
+                aria-label="Put it on a day"
+                className="w-full text-[13px] text-[#1A1A2E] bg-[#F2EDE3] border border-black/10 rounded-xl px-3 py-2.5 outline-none appearance-none"
+                style={{
+                  backgroundImage:
+                    "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%231A1A2E' stroke-width='2.5' stroke-linecap='round'><polyline points='6 9 12 15 18 9'/></svg>\")",
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "right 12px center",
+                }}
+              >
+                <option value="">Save to the map only</option>
+                {days.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    Day {d.day_number} · {fmtDayChip(d.date)}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
 

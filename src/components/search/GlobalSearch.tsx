@@ -38,6 +38,8 @@ import { AirplaneTilt, Star } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
 import { getIconSVG } from "@/lib/mapPins";
+import LovedHeart from "@/components/ui/LovedHeart";
+import { readRecommendedBy, recommendedByLine } from "@/lib/recommendedBy";
 
 const INK = "#1A1A2E";
 const PARCHMENT = "#FAF7F2";
@@ -105,6 +107,8 @@ interface Hit {
   href: string;
   /** Sub-type icon markup for place rows; groups without one use a Phosphor glyph. */
   iconSvg?: string;
+  /** Place rows only — draws the heart and floats the row up its group. */
+  loved?: boolean;
 }
 
 interface Group {
@@ -191,7 +195,14 @@ interface CardRow {
   trip_id: string;
   day_id: string | null;
   status: string;
-  place: { id: string; title: string; address: string | null; sub_type: string | null } | null;
+  details: Record<string, unknown> | null;
+  place: {
+    id: string;
+    title: string;
+    address: string | null;
+    sub_type: string | null;
+    loved: boolean | null;
+  } | null;
   trip: { id: string; title: string } | null;
   day: { id: string; day_number: number } | null;
 }
@@ -204,8 +215,8 @@ interface WishRow {
 }
 
 const CARD_SELECT = `
-  id, trip_id, day_id, status,
-  place:places!inner ( id, title, address, sub_type ),
+  id, trip_id, day_id, status, details,
+  place:places!inner ( id, title, address, sub_type, loved ),
   trip:trips ( id, title ),
   day:days ( id, day_number )
 `;
@@ -213,11 +224,20 @@ const CARD_SELECT = `
 /**
  * Runs the three groups' queries in parallel and shapes the hits.
  *
- * Saved places take two of the four calls: a place hit can come from either
- * the place's title or its address, and PostgREST can't OR across an embedded
- * resource with the dotted-filter form that's proven in this codebase. Two
- * `ilike`s merged client-side beats one clever filter that might silently
- * return nothing (exactly the bug the day page's hotel query hit).
+ * Saved places take three of the five calls: a place hit can come from the
+ * place's title, its address, or the name of the person who recommended it,
+ * and PostgREST can't OR across an embedded resource with the dotted-filter
+ * form that's proven in this codebase. Three `ilike`s merged client-side beats
+ * one clever filter that might silently return nothing (exactly the bug the
+ * day page's hotel query hit).
+ *
+ * The recommender filter runs against `cards.details` (jsonb) with PostgREST's
+ * `->>` path operator. Verified live against this project's REST endpoint
+ * before it was relied on: `details->>recommended_by=ilike.*` returns 200,
+ * while the same shape over a non-existent base column returns 42703
+ * "column cards.nope does not exist" — proof the path is parsed, not treated
+ * as a literal column name. If it ever regresses it fails like any other
+ * group: logged once, that group dropped, the rest still render.
  */
 async function runSearch(rawQuery: string): Promise<Results> {
   const q = sanitize(rawQuery);
@@ -227,7 +247,7 @@ async function runSearch(rawQuery: string): Promise<Results> {
   const like = `%${q}%`;
   const needle = q.toLowerCase();
 
-  const [tripsRes, placesByTitle, placesByAddress, wishRes] = await Promise.all([
+  const [tripsRes, placesByTitle, placesByAddress, placesByRecommender, wishRes] = await Promise.all([
     // `days` rides along on the embed so a journey row already knows which day
     // to open — no second round trip before the results can render.
     supabase
@@ -248,6 +268,14 @@ async function runSearch(rawQuery: string): Promise<Results> {
       .neq("status", "cut")
       .ilike("place.address", like)
       .limit(FETCH_LIMIT),
+    // "Who told me about that place in Rome?" — searching the recommender is
+    // the whole point of recording one.
+    supabase
+      .from("cards")
+      .select(CARD_SELECT)
+      .neq("status", "cut")
+      .ilike("details->>recommended_by", like)
+      .limit(FETCH_LIMIT),
     supabase
       .from("wishlist_destinations")
       .select("id, name, location, climate")
@@ -262,6 +290,7 @@ async function runSearch(rawQuery: string): Promise<Results> {
     ["journeys", tripsRes],
     ["places (title)", placesByTitle],
     ["places (address)", placesByAddress],
+    ["places (recommended by)", placesByRecommender],
     ["wishlist", wishRes],
   ] as [string, { error: unknown }][]) {
     if (res?.error) console.error(`[Roam] Search — ${label} query failed:`, res.error);
@@ -299,6 +328,7 @@ async function runSearch(rawQuery: string): Promise<Results> {
   const cardRows = [
     ...((placesByTitle.data ?? []) as unknown as CardRow[]),
     ...((placesByAddress.data ?? []) as unknown as CardRow[]),
+    ...((placesByRecommender.data ?? []) as unknown as CardRow[]),
   ];
   const byPlace = new Map<string, { hit: Hit; scheduled: boolean; dayNumber: number }>();
   for (const row of cardRows) {
@@ -317,6 +347,13 @@ async function runSearch(rawQuery: string): Promise<Results> {
       if (!better) continue;
     }
 
+    // Name the recommender in the context line. A row that surfaced BECAUSE
+    // you typed a person's name has to say so, or the hit looks like a bug.
+    const recommender = readRecommendedBy(row.details);
+    const where = scheduled
+      ? `${trip.title} · Day ${row.day!.day_number}`
+      : `${trip.title} · saved, not scheduled`;
+
     byPlace.set(key, {
       scheduled,
       dayNumber,
@@ -324,9 +361,8 @@ async function runSearch(rawQuery: string): Promise<Results> {
         key: `card:${key}`,
         group: "places",
         title: place.title,
-        context: scheduled
-          ? `${trip.title} · Day ${row.day!.day_number}`
-          : `${trip.title} · saved, not scheduled`,
+        loved: place.loved === true,
+        context: recommender ? `${where} · ${recommendedByLine(recommender)}` : where,
         // Scheduled places open the day they sit on; an interested or
         // unscheduled card has no day, so its home is the journey's map.
         href: scheduled
@@ -336,9 +372,16 @@ async function runSearch(rawQuery: string): Promise<Results> {
       },
     });
   }
+  // Loved places first, alphabetical within each half. The group cap is 6, so
+  // without this a place you already know you love can fall off the bottom in
+  // favour of one you have never been to.
   const placeHits = Array.from(byPlace.values())
     .map((entry) => entry.hit)
-    .sort((a, b) => a.title.localeCompare(b.title));
+    .sort(
+      (a, b) =>
+        Number(b.loved === true) - Number(a.loved === true) ||
+        a.title.localeCompare(b.title),
+    );
 
   // ── Wishlist ────────────────────────────────────────────────────────────
   // Every wishlist row lands on /trips — the year view there is where a
@@ -679,11 +722,14 @@ function GlobalSearchOverlay({ onClose }: { onClose: () => void }) {
                       )}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span
-                        className="block text-[13.5px] truncate"
-                        style={{ color: INK, letterSpacing: "-0.005em" }}
-                      >
-                        {hit.title}
+                      <span className="flex items-center gap-1.5 min-w-0">
+                        <span
+                          className="min-w-0 text-[13.5px] truncate"
+                          style={{ color: INK, letterSpacing: "-0.005em" }}
+                        >
+                          {hit.title}
+                        </span>
+                        {hit.loved && <LovedHeart size={11} />}
                       </span>
                       <span className="block text-[11.5px] truncate" style={{ color: CAPTION }}>
                         {hit.context}

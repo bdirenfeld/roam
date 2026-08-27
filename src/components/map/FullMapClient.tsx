@@ -82,6 +82,9 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
   const activeSubTypesRef  = useRef<Set<string>>(makeInitialSubTypes());
   const activeTypesRef     = useRef<Set<CardType>>(new Set(["activity", "food", "logistics"] as CardType[]));
   const activeStatusesRef  = useRef<Set<string>>(new Set(["interested", "in_itinerary"]));
+  // "We loved this" as a filter — off by default, and composed with the type,
+  // sub-type and status filters rather than replacing any of them.
+  const lovedOnlyRef       = useRef<boolean>(false);
 
   const selectedCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
   const [anchorPos, setAnchorPos] = useState<{ x: number; y: number } | null>(null);
@@ -96,6 +99,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
   const [activeStatuses, setActiveStatusesState] = useState<Set<string>>(
     () => new Set(["interested", "in_itinerary"]),
   );
+  const [lovedOnly, setLovedOnlyState] = useState(false);
   const [pendingPlace, setPendingPlace] = useState<PlaceResult | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -146,7 +150,8 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
         !CONTROLLED_SUB_TYPES.has(sub) ||
         activeSubTypesRef.current.has(sub);
       const statusOk = activeStatusesRef.current.has(card.status ?? "");
-      const show = activeTypesRef.current.has(type) && subTypeOk && statusOk;
+      const lovedOk  = !lovedOnlyRef.current || card.place!.loved === true;
+      const show = activeTypesRef.current.has(type) && subTypeOk && statusOk && lovedOk;
       if (show) marker.addTo(map); else marker.remove();
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -166,6 +171,12 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
   function handleActiveStatusesChange(next: Set<string>) {
     activeStatusesRef.current = next;
     setActiveStatusesState(new Set(next));
+    syncVisibility();
+  }
+
+  function handleLovedOnlyChange(next: boolean) {
+    lovedOnlyRef.current = next;
+    setLovedOnlyState(next);
     syncVisibility();
   }
 
@@ -193,8 +204,9 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
       !CONTROLLED_SUB_TYPES.has(place.sub_type) ||
       activeSubTypesRef.current.has(place.sub_type);
     const statusOk = activeStatusesRef.current.has(card.status ?? "");
+    const lovedOk  = !lovedOnlyRef.current || place.loved === true;
 
-    if (activeTypesRef.current.has(place.type) && subTypeOk && statusOk) {
+    if (activeTypesRef.current.has(place.type) && subTypeOk && statusOk && lovedOk) {
       mbMarker.addTo(map);
     }
 
@@ -241,6 +253,10 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
     const sub = place.sub_type;
     if (sub && CONTROLLED_SUB_TYPES.has(sub) && !activeSubTypesRef.current.has(sub)) {
       handleSubTypesChange(new Set(activeSubTypesRef.current).add(sub));
+    }
+
+    if (lovedOnlyRef.current && place.loved !== true) {
+      handleLovedOnlyChange(false);
     }
   }
 
@@ -578,6 +594,8 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
             setActiveTypes={handleActiveTypesChange}
             activeStatuses={activeStatuses}
             setActiveStatuses={handleActiveStatusesChange}
+            lovedOnly={lovedOnly}
+            setLovedOnly={handleLovedOnlyChange}
             onCardSelect={handleSidebarCardSelect}
             onCardDelete={handleCardDelete}
           />

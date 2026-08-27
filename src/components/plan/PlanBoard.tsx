@@ -286,6 +286,27 @@ export default function PlanBoard({ trip, initialDays, initialNotes }: Props) {
     return { type: "color", value: "#ffffff" };
   });
 
+  // A board that looks like where you're going. Runs once per journey: the
+  // route fills kanban_background_url only when it's empty, so a background
+  // picked by hand is never overwritten — and a journey that already has one
+  // costs a single cheap read.
+  useEffect(() => {
+    if (trip.kanban_background_url) return;
+    let cancelled = false;
+    fetch("/api/trips/fetch-board-bg", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ trip_id: trip.id }),
+    })
+      .then((r) => r.json())
+      .then((d: { url?: string | null }) => {
+        if (cancelled || !d.url) return;
+        setBoardBg({ type: "photo", url: d.url, thumb: d.url });
+      })
+      .catch(() => { /* a plain white board is a fine fallback */ });
+    return () => { cancelled = true; };
+  }, [trip.id, trip.kanban_background_url]);
+
   const [isMobile, setIsMobile] = useState(false);
   // Mid-trip, the mobile board opens on today's column, not Day 1
   const [mobileDayIdx, setMobileDayIdx] = useState(() => {

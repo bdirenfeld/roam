@@ -1,9 +1,12 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { Heart } from "@phosphor-icons/react";
 import type { Card, CardType } from "@/types/database";
 import { getMaterialIconHTML, PIN_COLORS } from "@/lib/mapPins";
 import { createClient } from "@/lib/supabase/client";
+import LovedHeart, { LOVED_ACCENT } from "@/components/ui/LovedHeart";
+import { readRecommendedBy, recommendedByLine } from "@/lib/recommendedBy";
 
 // ── Sub-type groups shown in the sidebar ─────────────────────
 interface SubTypeRow {
@@ -75,6 +78,11 @@ interface Props {
   setActiveTypes: (next: Set<CardType>) => void;
   activeStatuses: Set<string>;
   setActiveStatuses: (next: Set<string>) => void;
+  /** Narrows every list and every pin to places marked "we loved this".
+   *  Composes with the status pills and the type toggles — it is one more
+   *  filter, never a mode. */
+  lovedOnly: boolean;
+  setLovedOnly: (next: boolean) => void;
   onCardSelect: (card: Card) => void;
   onCardDelete?: (cardId: string) => void;
 }
@@ -111,6 +119,8 @@ export default function MapSidebar({
   setActiveTypes,
   activeStatuses,
   setActiveStatuses,
+  lovedOnly,
+  setLovedOnly,
   onCardSelect,
   onCardDelete,
 }: Props) {
@@ -164,7 +174,10 @@ export default function MapSidebar({
 
   function cardsForRow(row: SubTypeRow): Card[] {
     return cards.filter(
-      (c) => c.place?.sub_type != null && row.subTypes.includes(c.place.sub_type) && c.place.lat != null && c.place.lng != null,
+      (c) => c.place?.sub_type != null && row.subTypes.includes(c.place.sub_type) && c.place.lat != null && c.place.lng != null
+        // The Loved chip narrows the lists and the counts, not just the pins —
+        // a row reading "6" over three visible places would be a lie.
+        && (!lovedOnly || c.place.loved === true),
     );
   }
 
@@ -213,6 +226,24 @@ export default function MapSidebar({
               </button>
             );
           })}
+
+          {/* Loved — the same shape as the status pills because it behaves the
+              same way: one more narrowing, composed with everything else. It
+              sits here rather than on each row; a control per place turns a
+              list you read into a panel you fight. */}
+          <button
+            onClick={() => setLovedOnly(!lovedOnly)}
+            aria-pressed={lovedOnly}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium transition-all border"
+            style={
+              lovedOnly
+                ? { background: "rgba(196,98,45,0.08)", color: LOVED_ACCENT, borderColor: LOVED_ACCENT }
+                : { background: "transparent", color: "#9CA3AF", borderColor: "#D1D5DB" }
+            }
+          >
+            <Heart size={9} weight="fill" color={lovedOnly ? LOVED_ACCENT : "#D1D5DB"} />
+            Loved
+          </button>
         </div>
 
         <hr className="my-3" style={{ borderTopColor: "rgba(26,26,46,0.10)" }} />
@@ -323,6 +354,8 @@ export default function MapSidebar({
                               const isConfirming = confirmDeleteId === card.id;
                               const isDeleting_  = deletingId === card.id;
                               const isFocused    = focusedCardId === card.id;
+                              const isLoved      = card.place!.loved === true;
+                              const recommender  = readRecommendedBy(card.details);
                               return (
                                 <div key={card.id} className="group relative">
                                   {isConfirming ? (
@@ -371,14 +404,27 @@ export default function MapSidebar({
                                           // eslint-disable-next-line react/no-danger
                                           dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(card.place!.sub_type, 12) }}
                                         />
-                                        <span
-                                          className="flex-1 text-[11px] italic truncate leading-snug"
-                                          style={{
-                                            color: isFocused ? "#1A1A2E" : "#4B5563",
-                                            fontWeight: isFocused ? 600 : 400,
-                                          }}
-                                        >
-                                          {card.place!.title}
+                                        <span className="flex-1 min-w-0">
+                                          <span className="flex items-center gap-1 min-w-0">
+                                            <span
+                                              className="min-w-0 text-[11px] italic truncate leading-snug"
+                                              style={{
+                                                color: isFocused ? "#1A1A2E" : "#4B5563",
+                                                fontWeight: isFocused ? 600 : 400,
+                                              }}
+                                            >
+                                              {card.place!.title}
+                                            </span>
+                                            {isLoved && <LovedHeart size={9} />}
+                                          </span>
+                                          {recommender && (
+                                            <span
+                                              className="block text-[10px] truncate leading-snug"
+                                              style={{ color: "rgba(26,26,46,0.45)" }}
+                                            >
+                                              {recommendedByLine(recommender)}
+                                            </span>
+                                          )}
                                         </span>
                                       </button>
                                       <button

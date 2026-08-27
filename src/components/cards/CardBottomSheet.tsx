@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useCallback, useState } from "react";
-import { Clock } from "@phosphor-icons/react";
+import { Clock, Heart } from "@phosphor-icons/react";
 import type { Card, Day, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { formatTimeValue } from "@/lib/formatTime";
 import { scheduleCardOnDay } from "@/lib/scheduleCard";
+import LovedHeart from "@/components/ui/LovedHeart";
+import { readRecommendedBy } from "@/lib/recommendedBy";
+import FieldRow, { SectionLabel } from "./detail/FieldRow";
 import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
 import AttachmentsPanel from "./AttachmentsPanel";
 import DayPickerOverlay from "./DayPickerOverlay";
@@ -614,6 +617,66 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     setMenuInputValue("");
   }, [menuInputValue, saveDetails]);
 
+  // ── "We loved this" ──────────────────────────────────────────
+  // Lives on the PLACE, not the card: you loved the restaurant, not the
+  // Tuesday you ate at it, so every card pointing at it inherits the mark.
+  // Optimistic, and the whole card reverts if the write is refused.
+  const toggleLoved = useCallback(async () => {
+    const p = localCard.place;
+    if (!p || !localCard.place_id) return;
+
+    const prev    = localCard;
+    const next    = !p.loved;
+    const lovedAt = next ? new Date().toISOString() : null;
+    const updated: Card = {
+      ...localCard,
+      place: { ...p, loved: next, loved_at: lovedAt },
+    };
+    setLocalCard(updated);
+    onCardUpdate?.(updated);
+
+    const { error } = await supabase
+      .from("places")
+      .update({ loved: next, loved_at: lovedAt })
+      .eq("id", localCard.place_id);
+
+    if (error) {
+      console.error("Failed to save loved on places", error.message);
+      setLocalCard(prev);
+      onCardUpdate?.(prev);
+    }
+  }, [localCard, onCardUpdate, supabase]);
+
+  // ── Recommended by ───────────────────────────────────────────
+  // The map's add flow writes this at save time; this makes it editable after
+  // the fact. Clearing it DELETES the key rather than writing null, matching
+  // MapPinPopup — the pin styling reads `!!details.recommended_by`.
+  const saveRecommendedBy = useCallback(
+    async (value: string) => {
+      const trimmed = value.trim();
+      const prev = localCard;
+      const newDetails = { ...localCard.details } as Record<string, unknown>;
+      if (trimmed) newDetails.recommended_by = trimmed;
+      else delete newDetails.recommended_by;
+
+      const updated = { ...localCard, details: newDetails as Card["details"] };
+      setLocalCard(updated);
+      onCardUpdate?.(updated);
+
+      const { error } = await supabase
+        .from("cards")
+        .update({ details: newDetails })
+        .eq("id", localCard.id);
+
+      if (error) {
+        console.error("Failed to save recommended_by", error.message);
+        setLocalCard(prev);
+        onCardUpdate?.(prev);
+      }
+    },
+    [localCard, onCardUpdate, supabase],
+  );
+
   // ── Link place from map — repoint the card to the selected place ─
   // Clean relink: set place_id to the selected pin's place. If the card
   // already pointed at a different place, this replaces it. Nothing else
@@ -823,6 +886,13 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
 
   const duration = durationLabel(localCard.start_time, localCard.end_time);
   const badge = bookingBadge(localCard.details);
+
+  // A note has no place to love and nobody recommended it — both signals are
+  // place-linked cards only. A guest sees the heart only once it is set.
+  const canLove       = !!place && !!localCard.place_id;
+  const isLoved       = place?.loved === true;
+  const showLoved     = canLove && (!readOnly || isLoved);
+  const recommendedBy = readRecommendedBy(localCard.details);
 
   // ── Route to sub-type component ───────────────────────────
   const key = place ? `${place.type}/${place.sub_type ?? ""}` : "note";
@@ -1142,9 +1212,38 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             <p className="mt-0.5 truncate" style={{ fontSize: 11, color: "#C4CAD0" }}>{addressLine}</p>
           )}
 
-          {/* Action pills: Maps · Website · Call · Menu */}
-          {(place?.lat != null && place.lng != null || (localCard.details as Record<string, unknown>)?.place_id != null || website || phone || place?.type === "food") && (
-            <div className="flex flex-wrap mt-3" style={{ gap: 6 }}>
+          {/* Action pills: We loved this · Maps · Website · Call · Menu */}
+          {(showLoved || place?.lat != null && place.lng != null || (localCard.details as Record<string, unknown>)?.place_id != null || website || phone || place?.type === "food") && (
+            <div className="flex flex-wrap items-center mt-3" style={{ gap: 6 }}>
+              {/* "We loved this" — the only review that counts here. Unset it
+                  is an ordinary pill; set, it collapses to the filled heart,
+                  because a place you loved should not still be asking. */}
+              {showLoved && (
+                readOnly ? (
+                  <span className="flex items-center" style={{ padding: "7px 2px" }}>
+                    <LovedHeart size={15} />
+                  </span>
+                ) : (
+                  <button
+                    onClick={toggleLoved}
+                    aria-pressed={isLoved}
+                    aria-label={isLoved ? "We loved this — tap to unset" : "We loved this"}
+                    title={isLoved ? "We loved this" : undefined}
+                    style={isLoved
+                      ? { display: "flex", alignItems: "center", padding: "7px 2px", background: "transparent", border: "none" }
+                      : { display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 20, border: "0.5px solid #E5E0D8", background: "#fff", fontSize: 11, color: "#4B5563" }}
+                  >
+                    {isLoved ? (
+                      <LovedHeart size={15} />
+                    ) : (
+                      <>
+                        <Heart size={12} weight="light" color="#4B5563" />
+                        We loved this
+                      </>
+                    )}
+                  </button>
+                )
+              )}
               {(place?.lat != null && place.lng != null || (localCard.details as Record<string, unknown>)?.place_id != null) && (
                 <button
                   onClick={() => setNavSheetOpen(true)}
@@ -1249,6 +1348,22 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         <div className="relative flex-1 min-h-0">
           <div className="absolute inset-0 overflow-y-auto px-5 py-5">
             {renderDetail()}
+
+            {/* Recommended by — a person, not a rating. The map's add flow can
+                set it at save time; this is where it gets added or corrected
+                afterwards, so a place saved before you knew who sent you there
+                can still be credited. Follows the sheet's field convention:
+                hidden when empty until "Add details" is on. */}
+            {place && (recommendedBy || (!readOnly && showEmptyFields)) && (
+              <div className="mt-5 pt-4 border-t border-gray-100">
+                <SectionLabel>Recommended by</SectionLabel>
+                <FieldRow
+                  value={recommendedBy}
+                  placeholder="Who recommended this…"
+                  onSave={readOnly ? undefined : saveRecommendedBy}
+                />
+              </div>
+            )}
 
             {/* Full weekly hours — the deliberate lookup surface. Always shown
                 when the place carries hours; absent for notes and hours-less places. */}

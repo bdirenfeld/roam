@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useCallback, type CSSProperties } from "re
 import type { Card, CardType, DayWithCards } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { scheduleCardOnDay } from "@/lib/scheduleCard";
+import LovedHeart from "@/components/ui/LovedHeart";
+import { readRecommendedBy, recommendedByLine } from "@/lib/recommendedBy";
 
 /**
  * Two modes share this sheet:
@@ -180,10 +182,15 @@ function CreateRow({
   card: Card; scheduled: boolean; selected: boolean; last: boolean; onToggle: (c: Card) => void;
 }) {
   const place = card.place!;
-  const meta = [
-    place.address,
-    place.rating != null ? `★ ${place.rating.toFixed(1)}` : null,
-  ].filter(Boolean).join(" · ");
+  // A name you trust outranks an address and a crowd-sourced star, so when a
+  // recommender is on the card it takes the secondary line outright.
+  const recommender = readRecommendedBy(card.details);
+  const meta = recommender
+    ? recommendedByLine(recommender)
+    : [
+        place.address,
+        place.rating != null ? `★ ${place.rating.toFixed(1)}` : null,
+      ].filter(Boolean).join(" · ");
   return (
     <button
       onClick={() => onToggle(card)}
@@ -194,7 +201,10 @@ function CreateRow({
         <SubTypeIcon subType={place.sub_type ?? ""} color={INK} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="truncate" style={{ fontFamily: DM, fontWeight: 500, fontSize: "14px", color: INK, letterSpacing: "-0.005em" }}>{place.title}</p>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <p className="min-w-0 truncate" style={{ fontFamily: DM, fontWeight: 500, fontSize: "14px", color: INK, letterSpacing: "-0.005em" }}>{place.title}</p>
+          {place.loved === true && <LovedHeart size={11} />}
+        </div>
         <div className="flex items-center gap-2 mt-0.5">
           {meta && <span className="truncate" style={{ fontFamily: DM, fontSize: "11.5px", color: CAP, letterSpacing: "-0.005em" }}>{meta}</span>}
           {scheduled && (
@@ -254,8 +264,12 @@ export default function LinkPlaceSheet(props: Props) {
   // keeping positions contiguous. The saved cards are never touched.
   const handleCommit = useCallback(async () => {
     if (props.mode !== "create" || selectedIds.size === 0) return;
+    // Same loved-first sort the list renders with, so "sheet order" still
+    // means what you can see.
     const ordered = TYPE_ORDER.flatMap((type) =>
-      places.filter((p) => p.place!.type === type && selectedIds.has(p.id)));
+      places
+        .filter((p) => p.place!.type === type && selectedIds.has(p.id))
+        .sort((a, b) => Number(b.place!.loved === true) - Number(a.place!.loved === true)));
     const created: Card[] = [];
     for (const card of ordered) {
       if (!card.place_id) continue;
@@ -290,7 +304,7 @@ export default function LinkPlaceSheet(props: Props) {
       .select(`
         *,
         place:places (
-          id, title, type, sub_type, lat, lng, address, google_place_id, cover_image_url, rating, price_level, website, phone, hours
+          id, title, type, sub_type, lat, lng, address, google_place_id, cover_image_url, rating, price_level, website, phone, hours, loved, loved_at
         )
       `)
       .eq("trip_id", tripId)
@@ -347,8 +361,16 @@ export default function LinkPlaceSheet(props: Props) {
         (p.place!.address ?? "").toLowerCase().includes(q))
     : places;
 
+  // Loved places rise to the top of their own group — never out of it, so the
+  // Food / Activity / Logistics reading order still holds. Ties keep the
+  // fetched order, which is the only ordering this list ever had.
   const grouped = TYPE_ORDER
-    .map((type) => ({ type, cards: visible.filter((p) => p.place!.type === type) }))
+    .map((type) => ({
+      type,
+      cards: visible
+        .filter((p) => p.place!.type === type)
+        .sort((a, b) => Number(b.place!.loved === true) - Number(a.place!.loved === true)),
+    }))
     .filter((g) => g.cards.length > 0);
 
   const subtitle = cardType
@@ -479,7 +501,8 @@ export default function LinkPlaceSheet(props: Props) {
                   </div>
 
                   {cards.map((card) => {
-                    const rating = card.place!.rating;
+                    const rating      = card.place!.rating;
+                    const recommender = readRecommendedBy(card.details);
                     return (
                       <button
                         key={card.id}
@@ -495,10 +518,15 @@ export default function LinkPlaceSheet(props: Props) {
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-semibold text-gray-900 truncate">{card.place!.title}</p>
-                          {card.place!.address && (
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <p className="min-w-0 text-[13px] font-semibold text-gray-900 truncate">{card.place!.title}</p>
+                            {card.place!.loved === true && <LovedHeart size={11} />}
+                          </div>
+                          {recommender ? (
+                            <p className="text-[11px] text-gray-400 mt-0.5 truncate">{recommendedByLine(recommender)}</p>
+                          ) : card.place!.address ? (
                             <p className="text-[11px] text-gray-400 mt-0.5 truncate">{card.place!.address}</p>
-                          )}
+                          ) : null}
                           {rating !== null && (
                             <p className="text-[11px] text-amber-500 font-medium mt-0.5">★ {rating.toFixed(1)}</p>
                           )}

@@ -149,6 +149,11 @@ export interface Place {
   website?: string | null
   phone?: string | null
   hours?: unknown
+  // "We loved this" — set by hand, one traveller's own verdict. The one review
+  // in the app that isn't performative, so it sorts and filters rather than
+  // decorates. Optional for the same reason as the fields above.
+  loved?: boolean
+  loved_at?: string | null
 }
 
 export interface Card {

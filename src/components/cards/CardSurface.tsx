@@ -3,6 +3,8 @@ import { getMaterialIconHTML } from "@/lib/mapPins";
 import { getPriceRange } from "@/lib/priceRange";
 import { formatTimeRange } from "@/lib/formatTime";
 import { getOpeningHoursConflict, openingHoursCaption, openingHoursTone } from "@/lib/openingHours";
+import { readRecommendedBy, recommendedByLine } from "@/lib/recommendedBy";
+import LovedHeart from "@/components/ui/LovedHeart";
 
 interface Props {
   card: Card;
@@ -77,6 +79,10 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
     ? flightRoute(det, timeRange)
     : (place?.address ?? subLabel);
   const surfRating = place?.type === "food" ? place.rating : null;
+  // The two trustworthy signals: a place this family already loved, and the
+  // person who sent them there. Both stay quiet — a glyph and one small line.
+  const isLoved    = place?.loved === true;
+  const recommender = readRecommendedBy(det);
   const priceRange = place?.type === "food"
     ? getPriceRange(place.price_level ?? undefined, det?.currency_code as string | undefined)
     : null;
@@ -160,9 +166,12 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
               {subLabel}
             </p>
           )}
-          <p className="text-[13px] font-bold text-gray-900 truncate leading-snug md:text-[15.5px] md:font-medium md:text-activity md:tracking-[-0.005em]">
-            {title}
-          </p>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <p className="min-w-0 text-[13px] font-bold text-gray-900 truncate leading-snug md:text-[15.5px] md:font-medium md:text-activity md:tracking-[-0.005em]">
+              {title}
+            </p>
+            {isLoved && <LovedHeart size={11} />}
+          </div>
           {hoursSignal && (
             <p className={`text-[11px] ${openingHoursTone(hoursSignal)} mt-0.5 truncate leading-snug md:text-[12.5px] md:mt-[2px] md:tracking-[-0.005em]`}>
               {openingHoursCaption(hoursSignal)}
@@ -182,6 +191,13 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
           {priceRange && (
             <p className="text-[10px] font-semibold text-amber-500 mt-0.5 leading-snug md:text-[11.5px] md:mt-[2px]">
               {surfRating !== null ? `★ ${surfRating.toFixed(1)} · ` : ""}{priceRange}
+            </p>
+          )}
+          {/* Who sent you here. Sits last so it reads as provenance, not as
+              another fact about the place. */}
+          {recommender && (
+            <p className="text-[10.5px] text-activity/50 mt-0.5 truncate leading-snug md:text-[11.5px] md:mt-[2px] md:tracking-[-0.005em]">
+              {recommendedByLine(recommender)}
             </p>
           )}
         </div>

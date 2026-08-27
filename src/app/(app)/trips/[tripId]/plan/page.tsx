@@ -35,7 +35,7 @@ export default async function PlanPage({ params }: Props) {
         .select(`
           *,
           place:places (
-            id, title, type, sub_type, lat, lng, address, google_place_id, cover_image_url, rating, price_level, website, phone, hours
+            id, title, type, sub_type, lat, lng, address, google_place_id, cover_image_url, rating, price_level, website, phone, hours, loved, loved_at
           )
         `)
         .eq("trip_id", tripId)

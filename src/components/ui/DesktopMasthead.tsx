@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserCircle, Calendar, Columns, MapPin, NotePencil } from "@phosphor-icons/react";
 import { SearchButton } from "@/components/search/GlobalSearch";
+import SharedWithFaces from "@/components/trip/SharedWithFaces";
 import {
   NewJourneyLink,
   ProfileLink,
@@ -284,6 +285,13 @@ export default function DesktopMasthead() {
       </nav>
 
       <div style={{ flex: 1 }} />
+
+      {/* Who this journey is shared with — faces, not a settings screen. */}
+      {showTripStrip && currentTripId && !guest && (
+        <div style={{ marginRight: 14 }}>
+          <SharedWithFaces tripId={currentTripId} />
+        </div>
+      )}
 
       {/* Search — the one way to find a place when you can't remember which
           journey it's on. Also on "/" and ⌘/Ctrl-K from anywhere. */}

@@ -67,7 +67,7 @@ export interface ShareState {
   /** False when SUPABASE_SERVICE_ROLE_KEY is absent — sharing can't work. */
   shareAvailable: boolean;
   shareToken: string | null;
-  guests: { userId: string; name: string | null; email: string | null }[];
+  guests: { userId: string; name: string | null; email: string | null; avatarUrl: string | null }[];
 }
 
 /**
@@ -94,8 +94,8 @@ export async function loadShareState(tripId: string): Promise<ShareState> {
 
   const guestIds = (members ?? []).map((m) => m.user_id);
   const { data: guestUsers } = guestIds.length
-    ? await admin.from("users").select("id, name, email").in("id", guestIds)
-    : { data: [] as { id: string; name: string | null; email: string | null }[] };
+    ? await admin.from("users").select("id, name, email, avatar_url").in("id", guestIds)
+    : { data: [] as { id: string; name: string | null; email: string | null; avatar_url: string | null }[] };
 
   return {
     shareAvailable: true,
@@ -104,6 +104,7 @@ export async function loadShareState(tripId: string): Promise<ShareState> {
       userId: u.id,
       name: u.name,
       email: u.email,
+      avatarUrl: u.avatar_url ?? null,
     })),
   };
 }
