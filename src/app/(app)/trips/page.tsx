@@ -70,8 +70,7 @@ export default async function TripsPage() {
   const past = trips?.filter((t: Trip) => !t.archived && isPastJourney(t)) ?? [];
   const archivedTrips = trips?.filter((t: Trip) => t.archived === true) ?? [];
 
-  // When YearView renders it owns the meta line (counts + "Your year"
-  // trigger); the page only draws its own meta line when YearView doesn't.
+  // The year strip only means anything once a journey has real dates.
   const hasDatedTrips = (trips ?? []).some((t: Trip) => t.start_date && t.end_date);
 
   return (
@@ -98,21 +97,9 @@ export default async function TripsPage() {
             >
               Journeys
             </h2>
-            {!hasDatedTrips && (
-              <div
-                className="font-sans mt-1"
-                style={{
-                  fontSize: 10,
-                  fontWeight: 500,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.14em",
-                  color: "rgba(26,26,46,0.55)",
-                }}
-              >
-                {upcoming.length} upcoming · {past.length} past
-                {archivedTrips.length > 0 ? ` · ${archivedTrips.length} archived` : ""}
-              </div>
-            )}
+            {/* Trip counts used to sit here; Brennan reads them as noise.
+                The only thing under the title now is YearView's own
+                "Your year" control, rendered below. */}
           </div>
         </div>
 
@@ -129,11 +116,6 @@ export default async function TripsPage() {
               archived: t.archived === true,
               openDayId: openDayByTrip[t.id],
             }))}
-            counts={{
-              upcoming: upcoming.length,
-              past: past.length,
-              archived: archivedTrips.length,
-            }}
           />
         )}
 

@@ -62,9 +62,6 @@ export interface YearViewTrip {
 
 interface Props {
   trips: YearViewTrip[];
-  // Header meta counts — YearView owns the "N upcoming · N past" line so the
-  // "Your year" trigger can sit inside it instead of floating as a stray row
-  counts: { upcoming: number; past: number; archived: number };
 }
 
 const OPEN_KEY = "roam_year_view_open";
@@ -171,22 +168,81 @@ function chipLabel(c: MonthClimate, tone: HeatTone): string {
   return tone === "great" ? `${c.high}°` : `${c.high}° · ${TONE_WORD[tone]}`;
 }
 
-interface GeoResult {
-  name: string;
-  admin1?: string;
-  country?: string;
-  latitude: number;
-  longitude: number;
+// ── Place search — the app's Google Places routes ─────────────────────────
+// Open-Meteo's geocoder is city-only and answers "Tuscany" with a suburb in
+// Alberta, so both pickers here go through /api/places/*, unrestricted (no
+// `types` filter) so a region, a city or a single resort all resolve.
+interface Prediction {
+  place_id: string;
+  description: string;
+  structured_formatting?: { main_text: string; secondary_text?: string };
 }
 
-async function geocode(q: string): Promise<GeoResult[]> {
-  const res = await fetch(
-    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=5&language=en&format=json`
-  );
-  if (!res.ok) return [];
-  const data = (await res.json()) as { results?: GeoResult[] };
-  return data.results ?? [];
+interface ResolvedPlace {
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
 }
+
+async function fetchPredictions(input: string, token: string): Promise<Prediction[]> {
+  const params = new URLSearchParams({ input, sessiontoken: token });
+  const res = await fetch(`/api/places/autocomplete?${params}`);
+  if (!res.ok) return [];
+  const data = (await res.json()) as { predictions?: Prediction[] };
+  return (data.predictions ?? []).slice(0, 6);
+}
+
+async function fetchPlaceDetails(placeId: string, token: string): Promise<ResolvedPlace | null> {
+  const res = await fetch(
+    `/api/places/details?place_id=${encodeURIComponent(placeId)}&sessiontoken=${encodeURIComponent(token)}`
+  );
+  if (!res.ok) return null;
+  const data = (await res.json()) as {
+    result?: {
+      name?: string;
+      formatted_address?: string;
+      geometry?: { location?: { lat: number; lng: number } };
+    };
+  };
+  const loc = data.result?.geometry?.location;
+  if (!data.result || !loc || typeof loc.lat !== "number" || typeof loc.lng !== "number") {
+    return null;
+  }
+  return {
+    name: data.result.name ?? "",
+    address: data.result.formatted_address ?? "",
+    lat: loc.lat,
+    lng: loc.lng,
+  };
+}
+
+// Resolve a bare name (a trip's destination, or the "Lisbon" fallback) to
+// coordinates through the same pipeline: first prediction wins.
+async function resolvePlaceByName(name: string, token: string): Promise<ResolvedPlace | null> {
+  const preds = await fetchPredictions(name, token);
+  if (preds.length === 0) return null;
+  return fetchPlaceDetails(preds[0].place_id, token);
+}
+
+// A wishlist row's second line: the tail of a formatted address, so
+// "Tuscany, Italy" survives intact and a resort's street address collapses
+// to "Town, Country" beside its own name.
+function compactAddress(address: string, fallback: string): string {
+  const parts = address.split(",").map((s) => s.trim()).filter(Boolean);
+  if (parts.length === 0) return fallback;
+  return parts.slice(-2).join(", ");
+}
+
+// The label under the chip / on the row — Google's main_text when present
+const predMain = (p: Prediction) =>
+  p.structured_formatting?.main_text ?? p.description.split(",")[0];
+const predSecondary = (p: Prediction) => {
+  const s = p.structured_formatting?.secondary_text;
+  if (s) return s;
+  const rest = p.description.split(",").slice(1).join(",").trim();
+  return rest || null;
+};
 
 // ── Shared grid: 110px label column + 12 equal month columns ──────────────
 const GRID: CSSProperties = {
@@ -200,6 +256,10 @@ const HATCH =
 // Solid card background — the sticky label column and the edge fades must
 // paint the exact same colour, so no translucent card bg here.
 const CARD_BG = "#FCFAF7";
+// Desktop destination popover — size is fixed so the flip-above maths can
+// run before the element exists
+const PICKER_W = 250;
+const PICKER_H = 300;
 // Lane-label cells stay pinned while the strip scrolls under them
 const STICKY_LABEL: CSSProperties = {
   position: "sticky",
@@ -240,7 +300,7 @@ interface OpenWindow {
   days: number; // inclusive days of the extended range
 }
 
-export default function YearView({ trips, counts }: Props) {
+export default function YearView({ trips }: Props) {
   // null until mounted — the body is client-only, so localStorage and the
   // viewport width can decide the default without a hydration mismatch.
   const [openState, setOpenState] = useState<boolean | null>(null);
@@ -249,8 +309,12 @@ export default function YearView({ trips, counts }: Props) {
   const [climateError, setClimateError] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<GeoResult[]>([]);
+  const [results, setResults] = useState<Prediction[]>([]);
   const [searching, setSearching] = useState(false);
+  const [resolving, setResolving] = useState(false);
+  // One Places session token, regenerated after each pick (Google bills a
+  // session as autocomplete-keystrokes + the details call that closes it)
+  const sessionToken = useRef(crypto.randomUUID());
   // Ideal travel windows (Supabase-backed) + the inline add form
   const [travelWindows, setTravelWindows] = useState<TravelWindow[]>([]);
   const [addOpen, setAddOpen] = useState(false);
@@ -274,12 +338,14 @@ export default function YearView({ trips, counts }: Props) {
   // "+ Add a place" mini-form on the sheet
   const [addPlaceOpen, setAddPlaceOpen] = useState(false);
   const [placeQuery, setPlaceQuery] = useState("");
-  const [placeResults, setPlaceResults] = useState<GeoResult[]>([]);
+  const [placeResults, setPlaceResults] = useState<Prediction[]>([]);
   const [placeSearching, setPlaceSearching] = useState(false);
   const [addingPlace, setAddingPlace] = useState(false);
   // The destination picker renders position:fixed (anchored at open time) so
   // the strip's overflow container can't clip it; this holds the anchor.
-  const [pickerPos, setPickerPos] = useState<{ top: number; left: number } | null>(null);
+  const [pickerPos, setPickerPos] = useState<
+    { top?: number; bottom?: number; left: number } | null
+  >(null);
   // Add-window sheet's calendar: viewed month + tap-start/tap-end phase
   const [awYear, setAwYear] = useState(() => new Date().getFullYear());
   const [awMonth, setAwMonth] = useState(() => new Date().getMonth());
@@ -431,7 +497,7 @@ export default function YearView({ trips, counts }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sheetWindow, wishlist]);
 
-  // Debounced geocoding for the add-a-place field
+  // Debounced place search for the add-a-place field
   useEffect(() => {
     const q = placeQuery.trim();
     if (q.length < 2) {
@@ -442,7 +508,7 @@ export default function YearView({ trips, counts }: Props) {
     setPlaceSearching(true);
     let cancelled = false;
     const t = setTimeout(async () => {
-      const rs = await geocode(q).catch(() => [] as GeoResult[]);
+      const rs = await fetchPredictions(q, sessionToken.current).catch(() => [] as Prediction[]);
       if (cancelled) return;
       setPlaceResults(rs);
       setPlaceSearching(false);
@@ -453,12 +519,55 @@ export default function YearView({ trips, counts }: Props) {
     };
   }, [placeQuery]);
 
+  // Debounced place search for the weather destination picker
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) {
+      setResults([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const rs = await fetchPredictions(q, sessionToken.current).catch(() => [] as Prediction[]);
+      if (cancelled) return;
+      setResults(rs);
+      setSearching(false);
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [query]);
+
+  // Picking a destination for the heat row: resolve to coordinates, then
+  // close. The chip shows Google's short name ("Tuscany", not the address).
+  const handlePickDestination = async (p: Prediction) => {
+    if (resolving) return;
+    setResolving(true);
+    const place = await fetchPlaceDetails(p.place_id, sessionToken.current).catch(() => null);
+    sessionToken.current = crypto.randomUUID();
+    setResolving(false);
+    if (!place) return;
+    setDest({ label: place.name || predMain(p), lat: place.lat, lng: place.lng });
+    setPickerOpen(false);
+    setQuery("");
+    setResults([]);
+  };
+
   // Add a geocoded place to the wishlist. Climate is computed up front so
   // the new row behaves like a seeded one; a failed fetch still inserts
   // (climate null) and the lazy backfill picks it up next time.
-  const handleAddPlace = async (r: GeoResult) => {
+  const handleAddPlace = async (p: Prediction) => {
     if (addingPlace) return;
     setAddingPlace(true);
+    const place = await fetchPlaceDetails(p.place_id, sessionToken.current).catch(() => null);
+    sessionToken.current = crypto.randomUUID();
+    if (!place) {
+      setAddingPlace(false);
+      return;
+    }
     const supabase = createClient();
     const {
       data: { user },
@@ -467,17 +576,18 @@ export default function YearView({ trips, counts }: Props) {
       setAddingPlace(false);
       return;
     }
-    const climateArr = await fetchClimate(r.latitude, r.longitude).catch(() => null);
-    const location = [r.admin1 || r.country].filter(Boolean).join("");
+    const climateArr = await fetchClimate(place.lat, place.lng).catch(() => null);
+    const name = place.name || predMain(p);
+    const location = compactAddress(place.address, name);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase as any)
       .from("wishlist_destinations")
       .insert({
         user_id: user.id,
-        name: r.name,
-        location: location ? `${r.name}, ${location}` : r.name,
-        lat: r.latitude,
-        lng: r.longitude,
+        name,
+        location,
+        lat: place.lat,
+        lng: place.lng,
         drive_hours: null,
         budget: null,
         best_time: null,
@@ -536,11 +646,17 @@ export default function YearView({ trips, counts }: Props) {
   const destChip = (maxWidth: number) => (
     <button
       onClick={(e) => {
-        const r = e.currentTarget.getBoundingClientRect();
-        setPickerPos({
-          top: r.bottom + 4,
-          left: Math.max(8, Math.min(r.left, window.innerWidth - 236)),
-        });
+        // Anchor to the whole weather lane, not the chip, so the popover
+        // clears the heat cells it filters. Flips above when the viewport
+        // has no room below — still never covering the heat row itself.
+        const chip = e.currentTarget.getBoundingClientRect();
+        const lane = e.currentTarget.closest("[data-lane]")?.getBoundingClientRect() ?? chip;
+        const left = Math.max(8, Math.min(chip.left, window.innerWidth - PICKER_W - 8));
+        setPickerPos(
+          window.innerHeight - lane.bottom >= PICKER_H + 12
+            ? { top: lane.bottom + 6, left }
+            : { bottom: window.innerHeight - lane.top + 6, left }
+        );
         setPickerOpen((v) => !v);
         setQuery("");
         setResults([]);
@@ -872,12 +988,13 @@ export default function YearView({ trips, counts }: Props) {
     const name = (next?.destination || "Lisbon").split(",")[0].trim();
     let cancelled = false;
     (async () => {
-      let rs = await geocode(name).catch(() => [] as GeoResult[]);
-      if (rs.length === 0 && name !== "Lisbon") {
-        rs = await geocode("Lisbon").catch(() => [] as GeoResult[]);
+      // A throwaway token: this resolution isn't a user-typed session
+      let place = await resolvePlaceByName(name, crypto.randomUUID()).catch(() => null);
+      if (!place && name !== "Lisbon") {
+        place = await resolvePlaceByName("Lisbon", crypto.randomUUID()).catch(() => null);
       }
-      if (!cancelled && rs[0]) {
-        setDest({ label: rs[0].name, lat: rs[0].latitude, lng: rs[0].longitude });
+      if (!cancelled && place) {
+        setDest({ label: place.name || name, lat: place.lat, lng: place.lng });
       }
     })();
     return () => {
@@ -904,50 +1021,30 @@ export default function YearView({ trips, counts }: Props) {
     };
   }, [dest]);
 
-  const runSearch = async () => {
-    const q = query.trim();
-    if (!q) return;
-    setSearching(true);
-    setResults(await geocode(q).catch(() => [] as GeoResult[]));
-    setSearching(false);
-  };
-
   const isOpen = openState === true;
-
-  const metaText = `${counts.upcoming} upcoming · ${counts.past} past${
-    counts.archived > 0 ? ` · ${counts.archived} archived` : ""
-  }`;
 
   return (
     <>
-      {/* Header meta line — owned by YearView so the "Your year" trigger is
-          part of the header, not a stray row. Same style the page used. */}
-      <div
-        className="px-4 md:px-0 -mt-1 md:mt-1 font-sans flex items-center flex-wrap"
-        style={{
-          fontSize: 10,
-          fontWeight: 500,
-          textTransform: "uppercase",
-          letterSpacing: "0.14em",
-          color: "rgba(26,26,46,0.55)",
-        }}
-      >
-        <span>{metaText}</span>
+      {/* The only thing under the "Journeys" title: the way into the year.
+          Counts lived here once and told Brennan nothing he wanted. */}
+      <div className="px-4 md:px-0 flex">
         <button
           onClick={() => setOpen(!isOpen)}
           aria-expanded={isOpen}
-          className="uppercase"
+          className="font-sans uppercase flex items-center"
           style={{
             fontSize: 10,
             fontWeight: 600,
             letterSpacing: "0.14em",
-            color: "rgba(26,26,46,0.8)",
-            // Comfortable tap target without disturbing the line's rhythm
-            padding: "12px 8px",
-            margin: "-12px -8px -12px 0",
+            color: "rgba(26,26,46,0.55)",
+            // 44px tap target that doesn't add 44px of visual space
+            minHeight: 44,
+            paddingRight: 8,
+            marginTop: -12,
+            marginBottom: -12,
           }}
         >
-          &nbsp;· Your year {isOpen ? "▾" : "▸"}
+          Your year&nbsp;{isOpen ? "▾" : "▸"}
         </button>
       </div>
 
@@ -1282,7 +1379,11 @@ export default function YearView({ trips, counts }: Props) {
               </div>
 
               {/* Weather heat row — picked destination, months in window order */}
-              <div style={{ ...GRID, borderTop: LANE_BORDER }} className="items-center py-[6px]">
+              <div
+                data-lane="weather"
+                style={{ ...GRID, borderTop: LANE_BORDER }}
+                className="items-center py-[6px]"
+              >
                 <div style={{ ...STICKY_LABEL, alignItems: "flex-start" }}>
                   {/* 40px hit area; the visual pill is the inner span */}
                   {destChip(106)}
@@ -1523,63 +1624,140 @@ export default function YearView({ trips, counts }: Props) {
         )}
       </div>
 
-      {/* Destination picker popover — one instance, shared by the desktop
-          lane chip and the mobile heat chip (position:fixed, so it can live
-          outside the strip's overflow container) */}
-      {pickerOpen && pickerPos && (
+      {/* Destination picker. Below md it's a real bottom sheet — anchored to
+          a chip it was a floating white box sitting on top of the very grid
+          it filters, which read as a rendering bug. Desktop keeps an
+          anchored popover, positioned clear of the heat row. */}
+      {pickerOpen && (
         <>
-          <div className="fixed inset-0 z-20" onClick={() => setPickerOpen(false)} />
-          <div
-            className="z-30 bg-white rounded-xl p-2"
-            style={{
-              position: "fixed",
-              top: pickerPos.top,
-              left: pickerPos.left,
-              width: 220,
-              border: "1px solid rgba(26,26,46,0.08)",
-              boxShadow: "0 8px 30px rgba(26,26,46,0.18)",
-            }}
-          >
-            <input
-              autoFocus
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") runSearch();
-              }}
-              placeholder="Type a city, press Enter"
-              className="w-full rounded-lg px-2.5 py-1.5"
-              style={{
-                fontSize: 12,
-                border: "1px solid rgba(26,26,46,0.12)",
-                background: "#FAF7F2",
-                outline: "none",
-              }}
+          {/* Mobile: sheet */}
+          <div className="md:hidden">
+            <div
+              className="fixed inset-0 bg-black/40 z-[60]"
+              onClick={() => setPickerOpen(false)}
             />
-            {searching && (
-              <div style={{ fontSize: 11, color: "rgba(26,26,46,0.4)", padding: "6px 4px 2px" }}>
-                Searching…
+            <div
+              role="dialog"
+              aria-label="Choose a destination"
+              className="fixed z-[60] bg-white flex flex-col bottom-0 left-0 right-0 rounded-t-2xl max-w-mobile mx-auto"
+              style={{ maxHeight: "80vh" }}
+            >
+              <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+                <div className="w-9 h-1 bg-gray-200 rounded-full" />
               </div>
-            )}
-            {!searching &&
-              results.map((r, i) => (
-                <button
-                  key={`${r.latitude},${r.longitude},${i}`}
-                  onClick={() => {
-                    setDest({ label: r.name, lat: r.latitude, lng: r.longitude });
-                    setPickerOpen(false);
+              <p className="text-center font-display italic text-base text-gray-900 pt-1 pb-3 flex-shrink-0">
+                Weather where?
+              </p>
+              <div className="px-5 flex-shrink-0">
+                <input
+                  autoFocus
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search a city or region"
+                  className="w-full rounded-xl px-3 py-2.5"
+                  style={{
+                    fontSize: 14,
+                    border: "1px solid rgba(26,26,46,0.12)",
+                    background: "#FAF7F2",
+                    outline: "none",
                   }}
-                  className="w-full text-left rounded-lg px-2.5 py-1.5 hover:bg-gray-50 transition-colors"
-                  style={{ fontSize: 12, color: "#1A1A2E" }}
-                >
-                  {r.name}
-                  <span style={{ color: "rgba(26,26,46,0.4)" }}>
-                    {r.admin1 ? `, ${r.admin1}` : ""}
-                    {r.country ? `, ${r.country}` : ""}
-                  </span>
-                </button>
-              ))}
+                />
+              </div>
+              <div className="flex-1 overflow-y-auto px-3 pt-1 pb-8">
+                {resolving || searching ? (
+                  <div style={{ fontSize: 12.5, color: "rgba(26,26,46,0.4)", padding: "10px 8px" }}>
+                    {resolving ? "Loading…" : "Searching…"}
+                  </div>
+                ) : results.length === 0 && query.trim().length >= 2 ? (
+                  <div style={{ fontSize: 12.5, color: "rgba(26,26,46,0.4)", padding: "10px 8px" }}>
+                    Nothing found
+                  </div>
+                ) : (
+                  results.map((p) => (
+                    <button
+                      key={p.place_id}
+                      onClick={() => handlePickDestination(p)}
+                      className="w-full text-left rounded-xl px-3 py-2.5 hover:bg-gray-50 transition-colors"
+                    >
+                      <div style={{ fontSize: 14, color: "#1A1A2E" }}>{predMain(p)}</div>
+                      {predSecondary(p) && (
+                        <div
+                          className="truncate"
+                          style={{ fontSize: 11.5, color: "rgba(26,26,46,0.45)", marginTop: 1 }}
+                        >
+                          {predSecondary(p)}
+                        </div>
+                      )}
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
+
+          {/* Desktop: anchored popover with a real surface */}
+          {pickerPos && (
+            <div className="hidden md:block">
+              <div className="fixed inset-0 z-20" onClick={() => setPickerOpen(false)} />
+              <div
+                className="z-30 rounded-xl p-2 flex flex-col"
+                style={{
+                  position: "fixed",
+                  top: pickerPos.top,
+                  bottom: pickerPos.bottom,
+                  left: pickerPos.left,
+                  width: PICKER_W,
+                  maxHeight: PICKER_H,
+                  background: "#FFFFFF",
+                  border: "1px solid rgba(26,26,46,0.12)",
+                  boxShadow: "0 12px 36px rgba(26,26,46,0.22)",
+                }}
+              >
+                <input
+                  autoFocus
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search a city or region"
+                  className="w-full rounded-lg px-2.5 py-2 flex-shrink-0"
+                  style={{
+                    fontSize: 12.5,
+                    border: "1px solid rgba(26,26,46,0.12)",
+                    background: "#FAF7F2",
+                    outline: "none",
+                  }}
+                />
+                <div className="overflow-y-auto mt-1">
+                  {resolving || searching ? (
+                    <div style={{ fontSize: 11.5, color: "rgba(26,26,46,0.4)", padding: "6px 4px" }}>
+                      {resolving ? "Loading…" : "Searching…"}
+                    </div>
+                  ) : results.length === 0 && query.trim().length >= 2 ? (
+                    <div style={{ fontSize: 11.5, color: "rgba(26,26,46,0.4)", padding: "6px 4px" }}>
+                      Nothing found
+                    </div>
+                  ) : (
+                    results.map((p) => (
+                      <button
+                        key={p.place_id}
+                        onClick={() => handlePickDestination(p)}
+                        className="w-full text-left rounded-lg px-2.5 py-1.5 hover:bg-gray-50 transition-colors"
+                      >
+                        <div style={{ fontSize: 12.5, color: "#1A1A2E" }}>{predMain(p)}</div>
+                        {predSecondary(p) && (
+                          <div
+                            className="truncate"
+                            style={{ fontSize: 10.5, color: "rgba(26,26,46,0.45)" }}
+                          >
+                            {predSecondary(p)}
+                          </div>
+                        )}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -1854,7 +2032,7 @@ export default function YearView({ trips, counts }: Props) {
                           autoFocus
                           value={placeQuery}
                           onChange={(e) => setPlaceQuery(e.target.value)}
-                          placeholder="Search a city…"
+                          placeholder="Search a city or region"
                           className="w-full rounded-lg px-2.5 py-2"
                           style={{
                             fontSize: 12.5,
@@ -1875,18 +2053,21 @@ export default function YearView({ trips, counts }: Props) {
                         )}
                         {!addingPlace &&
                           !placeSearching &&
-                          placeResults.map((r, i) => (
+                          placeResults.map((p) => (
                             <button
-                              key={`${r.latitude},${r.longitude},${i}`}
-                              onClick={() => handleAddPlace(r)}
+                              key={p.place_id}
+                              onClick={() => handleAddPlace(p)}
                               className="w-full text-left rounded-lg px-2.5 py-2 hover:bg-gray-50 transition-colors"
-                              style={{ fontSize: 12.5, color: "#1A1A2E" }}
                             >
-                              {r.name}
-                              <span style={{ color: "rgba(26,26,46,0.4)" }}>
-                                {r.admin1 ? `, ${r.admin1}` : ""}
-                                {r.country ? `, ${r.country}` : ""}
-                              </span>
+                              <div style={{ fontSize: 12.5, color: "#1A1A2E" }}>{predMain(p)}</div>
+                              {predSecondary(p) && (
+                                <div
+                                  className="truncate"
+                                  style={{ fontSize: 10.5, color: "rgba(26,26,46,0.45)" }}
+                                >
+                                  {predSecondary(p)}
+                                </div>
+                              )}
                             </button>
                           ))}
                         <button
