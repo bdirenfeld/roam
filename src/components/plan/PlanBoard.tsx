@@ -32,6 +32,7 @@ import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
 import CreateCardSheet from "@/components/plan/CreateCardSheet";
 import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/plan/ConfirmationPreviewSheet";
 import DocumentsSheet from "@/components/plan/DocumentsSheet";
+import { JourneyNotesSheet } from "@/components/trip/JourneyNotes";
 import DayPicker from "@/components/day/DayPicker";
 // BoardBg type (kept local — no longer uses external BoardBgPicker)
 type BoardBg =
@@ -52,7 +53,7 @@ import { formatTimeRange } from "@/lib/formatTime";
 import { getOpeningHoursConflict, openingHoursCaption, openingHoursTone } from "@/lib/openingHours";
 
 import CardImage from "@/components/ui/CardImage";
-import { Trash, DotsThree, Image as ImageIcon, Gear, ShareNetwork, BookmarkSimple, UploadSimple, Files } from "@phosphor-icons/react";
+import { Trash, DotsThree, Image as ImageIcon, Gear, ShareNetwork, BookmarkSimple, UploadSimple, Files, NotePencil } from "@phosphor-icons/react";
 import { getMaterialIconHTML } from "@/lib/mapPins";
 import { type DayWeather, fetchTripWeather, dayStopsAnchor, getWeatherCategory, WeatherIcon, HourlyStrip } from "@/lib/weather";
 
@@ -193,9 +194,11 @@ function fmtDate(dateStr: string): string {
 interface Props {
   trip: Trip;
   initialDays: DayWithCards[];
+  /** trips.notes — arrives with the page payload so notes work offline. */
+  initialNotes: string | null;
 }
 
-export default function PlanBoard({ trip, initialDays }: Props) {
+export default function PlanBoard({ trip, initialDays, initialNotes }: Props) {
   const supabase = createClient();
   const [days, setDays] = useState<DayWithCards[]>(initialDays);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -205,6 +208,10 @@ export default function PlanBoard({ trip, initialDays }: Props) {
   const [composerDay, setComposerDay] = useState<DayWithCards | null>(null);
   const [pendingConf,  setPendingConf]  = useState<{ items: ParsedConfirmation[]; fileName: string; fileType: string } | null>(null);
   const [showDocs,     setShowDocs]     = useState(false);
+  // Journey notes — the sheet unmounts on close, so the latest text is held
+  // here; re-opening it shows what was just written, not the page payload.
+  const [showNotes,    setShowNotes]    = useState(false);
+  const [notes,        setNotes]        = useState<string | null>(initialNotes);
   const [deleteToast, setDeleteToast] = useState<string | null>(null);
   // Undo window after an instant delete — holds the removed card for re-insert
   const [undoDelete, setUndoDelete] = useState<{ card: Card; dayId: string } | null>(null);
@@ -927,6 +934,7 @@ export default function PlanBoard({ trip, initialDays }: Props) {
             }}
             onImportBooking={handleImportFile}
             onOpenDocuments={() => setShowDocs(true)}
+            onOpenNotes={() => setShowNotes(true)}
           />
         </div>
       </div>{/* end nav bar */}
@@ -1223,6 +1231,16 @@ export default function PlanBoard({ trip, initialDays }: Props) {
 
       {showDocs && (
         <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} />
+      )}
+
+      {/* Journey notes — bottom sheet on mobile, modal at md+ */}
+      {showNotes && (
+        <JourneyNotesSheet
+          tripId={trip.id}
+          initialNotes={notes}
+          onNotesChange={setNotes}
+          onClose={() => setShowNotes(false)}
+        />
       )}
 
 
@@ -1689,11 +1707,13 @@ function MainMenu({
   onOpenBgPicker,
   onImportBooking,
   onOpenDocuments,
+  onOpenNotes,
 }: {
   tripId: string;
   onOpenBgPicker: () => void;
   onImportBooking: (file: File) => void;
   onOpenDocuments: () => void;
+  onOpenNotes: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
@@ -1738,6 +1758,20 @@ function MainMenu({
               <div className="text-left">
                 <p className="text-[13px] font-medium text-gray-900 leading-snug">Journey settings</p>
                 <p className="text-[11px] text-gray-400 leading-snug">Dates, travellers, cover</p>
+              </div>
+            </button>
+
+            {/* Journey notes — opens in place; the board keeps its scroll */}
+            <button
+              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+              onClick={() => { setOpen(false); onOpenNotes(); }}
+            >
+              <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                <NotePencil size={15} weight="light" className="text-gray-600" />
+              </div>
+              <div className="text-left">
+                <p className="text-[13px] font-medium text-gray-900 leading-snug">Journey notes</p>
+                <p className="text-[11px] text-gray-400 leading-snug">Codes, packing, who&rsquo;s driving</p>
               </div>
             </button>
 

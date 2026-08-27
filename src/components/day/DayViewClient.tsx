@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { DotsThree, CaretLeft, CaretRight } from "@phosphor-icons/react";
+import { DotsThree, CaretLeft, CaretRight, NotePencil, Gear } from "@phosphor-icons/react";
 import DayStrip from "@/components/day/DayStrip";
 import DayPicker from "@/components/day/DayPicker";
 import DayMap from "@/components/day/DayMap";
@@ -12,6 +12,7 @@ import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import CreateCardSheet from "@/components/plan/CreateCardSheet";
 import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
 import Companion from "@/components/companion/Companion";
+import { JourneyNotesSheet } from "@/components/trip/JourneyNotes";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 import { createClient } from "@/lib/supabase/client";
 import { COMPANION_ENABLED } from "@/lib/featureFlags";
@@ -213,8 +214,78 @@ interface Props {
   days: Day[];
   dayWithCards: DayWithCards;
   hotelCards: Card[];
+  /** trips.notes — arrives with the page payload so notes work offline. */
+  initialNotes: string | null;
   /** Guest view — every plan-edit affordance is suppressed; the companion stays. */
   readOnly?: boolean;
+}
+
+// ── ··· menu ──────────────────────────────────────────────────────────────
+// Journey notes open here rather than on a settings page, so the facts that
+// belong to no single day are reachable ON the day. A guest gets the menu too
+// (notes are shared) — with the owner-only settings row removed.
+function DayMenu({
+  tripId,
+  readOnly,
+  onOpenNotes,
+  triggerClassName,
+}: {
+  tripId: string;
+  readOnly: boolean;
+  onOpenNotes: () => void;
+  triggerClassName: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const router = useRouter();
+
+  return (
+    <div className="relative flex-shrink-0">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={triggerClassName}
+        aria-label="More options"
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <DotsThree size={20} weight="light" />
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onPointerDown={() => setOpen(false)} />
+          <div className="absolute right-0 top-full mt-1.5 z-50 bg-white/97 backdrop-blur-xl rounded-xl shadow-xl w-[214px] py-1 overflow-hidden">
+            <button
+              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+              onClick={() => { setOpen(false); onOpenNotes(); }}
+            >
+              <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                <NotePencil size={15} weight="light" className="text-gray-600" />
+              </div>
+              <div className="text-left">
+                <p className="text-[13px] font-medium text-gray-900 leading-snug">Journey notes</p>
+                <p className="text-[11px] text-gray-400 leading-snug">Codes, packing, who&rsquo;s driving</p>
+              </div>
+            </button>
+
+            {!readOnly && (
+              <button
+                className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                onClick={() => { setOpen(false); router.push(`/trips/${tripId}/settings`); }}
+              >
+                <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                  <Gear size={15} weight="light" className="text-gray-600" />
+                </div>
+                <div className="text-left">
+                  <p className="text-[13px] font-medium text-gray-900 leading-snug">Journey settings</p>
+                  <p className="text-[11px] text-gray-400 leading-snug">Dates, travellers, cover</p>
+                </div>
+              </button>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 function formatDayTitle(dateStr: string): string {
@@ -225,7 +296,7 @@ function formatDayTitle(dateStr: string): string {
   return `${dayName}, ${dayNum} ${monthName}`;
 }
 
-export default function DayViewClient({ trip, days, dayWithCards, hotelCards, readOnly = false }: Props) {
+export default function DayViewClient({ trip, days, dayWithCards, hotelCards, initialNotes, readOnly = false }: Props) {
   const router = useRouter();
   const supabase = createClient();
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
@@ -326,6 +397,11 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, re
   const [swipeDir, setSwipeDir] = useState<"left" | "right" | null>(null);
   const [gapTimes, setGapTimes] = useState<{ start: string; end: string } | null>(null);
   const [showAddFromSaved, setShowAddFromSaved] = useState(false);
+
+  // Journey notes — the sheet unmounts on close, so the latest text is held
+  // here; re-opening it shows what was just written, not the page payload.
+  const [showNotes, setShowNotes] = useState(false);
+  const [notes, setNotes] = useState<string | null>(initialNotes);
 
   // Companion open state — hoisted from Companion so the desktop body grid can
   // flip between 2 columns (timeline + map) and 3 columns (timeline + map +
@@ -560,16 +636,12 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, re
         </div>
 
         <span className="flex-1" />
-        {!readOnly && (
-          <Link
-            href={`/trips/${trip.id}/settings`}
-            className="flex items-center justify-center w-11 h-11 text-gray-500 hover:text-gray-800 transition-colors flex-shrink-0"
-            aria-label="Journey settings"
-          >
-            <DotsThree size={20} weight="light" />
-          </Link>
-        )}
-        {readOnly && <span className="w-11 flex-shrink-0" />}
+        <DayMenu
+          tripId={trip.id}
+          readOnly={readOnly}
+          onOpenNotes={() => setShowNotes(true)}
+          triggerClassName="flex items-center justify-center w-11 h-11 text-gray-500 hover:text-gray-800 transition-colors"
+        />
       </div>
 
       {/* Day strip — md:hidden lives inside DayStrip itself */}
@@ -666,6 +738,15 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, re
             </>
           )}
         </div>
+
+        {/* ··· — same menu as the mobile header, so notes are one tap away
+            from the day on desktop too */}
+        <DayMenu
+          tripId={trip.id}
+          readOnly={readOnly}
+          onOpenNotes={() => setShowNotes(true)}
+          triggerClassName="flex items-center justify-center w-8 h-8 rounded-full text-[rgba(26,26,46,0.55)] hover:text-activity hover:bg-[rgba(26,26,46,0.05)] transition-colors"
+        />
       </div>
 
       {/* Two-pane body — mobile: flex column (Companion → Map → Timeline).
@@ -739,6 +820,17 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, re
           </div>
         </div>
       </div>
+
+      {/* Journey notes — bottom sheet on mobile, modal at md+ */}
+      {showNotes && (
+        <JourneyNotesSheet
+          tripId={trip.id}
+          initialNotes={notes}
+          readOnly={readOnly}
+          onNotesChange={setNotes}
+          onClose={() => setShowNotes(false)}
+        />
+      )}
 
       {/* Card detail bottom sheet */}
       {selectedCard && (
