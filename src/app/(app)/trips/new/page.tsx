@@ -4,8 +4,31 @@ import { useState, useEffect, useRef, useCallback, useMemo, Suspense } from "rea
 import { useRouter, useSearchParams } from "next/navigation";
 import { Camera } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
+import {
+  computeOpenWindows,
+  isoOf,
+  addDays,
+} from "@/lib/yearView/openWindows";
+import type { OpenWindow, TravelWindowRow } from "@/lib/yearView/openWindows";
 
 const UNSPLASH_KEY = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY;
+
+// The user's journeys, read once when the picker opens so the verdict line
+// can say "you're already going somewhere then".
+interface PickerTrip {
+  id: string;
+  title: string;
+  start_date: string;
+  end_date: string;
+  archived: boolean;
+}
+
+// Verdict tones — the same four-tone palette the year strip's heat row uses
+const VERDICT_STYLE = {
+  good: { bg: "#DCE8D4", fg: "#3F5D33" },
+  mid:  { bg: "#EDE9D8", fg: "#6B6538" },
+  bad:  { bg: "#F5DAD2", fg: "#93402A" },
+} as const;
 
 interface DestinationPrediction {
   description: string;
@@ -47,6 +70,15 @@ function parseIsoParam(v: string | null): string | null {
   return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d
     ? v
     : null;
+}
+
+// "Aug 18–29" inside one month, "Aug 28 – Sep 2" across two
+function fmtRange(startIso: string, endIso: string): string {
+  const a = new Date(startIso + "T00:00:00");
+  const b = new Date(endIso + "T00:00:00");
+  return a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear()
+    ? `${a.toLocaleDateString("en-US", { month: "short" })} ${a.getDate()}–${b.getDate()}`
+    : `${fmtDate(startIso)} – ${fmtDate(endIso)}`;
 }
 
 function countDays(start: string, end: string): number {
@@ -147,6 +179,117 @@ function NewTripForm() {
   const [pickStart, setPickStart] = useState<string | null>(null);
   const [pickEnd,   setPickEnd]   = useState<string | null>(null);
   const [pickPhase, setPickPhase] = useState<"start" | "end">("start");
+
+  // Planning context for the picker — the user's journeys (for the overlap
+  // warning) and their saved ideal windows (which feed the quick chips
+  // alongside the school/stat calendar). Fetched once, the first time the
+  // picker opens; the page is already a client component.
+  const [pickerTrips,   setPickerTrips]   = useState<PickerTrip[]>([]);
+  const [pickerWindows, setPickerWindows] = useState<TravelWindowRow[]>([]);
+  const [pickerReady,   setPickerReady]   = useState(false);
+  const pickerFetched = useRef(false);
+
+  useEffect(() => {
+    if (!showDatePicker || pickerFetched.current) return;
+    pickerFetched.current = true;
+    let cancelled = false;
+    (async () => {
+      const supabase = createClient();
+      // RLS scopes both reads to the signed-in user
+      const { data: tripRows } = await supabase
+        .from("trips")
+        .select("id, title, start_date, end_date, archived");
+      // Undated journeys can't overlap anything — drop them at the door
+      if (!cancelled && tripRows) {
+        setPickerTrips(
+          tripRows.filter((t): t is PickerTrip => !!t.start_date && !!t.end_date)
+        );
+      }
+      try {
+        // Cast: travel_windows isn't in the generated Database types yet
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: winRows } = await (supabase as any)
+          .from("travel_windows")
+          .select("id, label, start_date, end_date")
+          .order("start_date", { ascending: true });
+        if (!cancelled && winRows) setPickerWindows(winRows as TravelWindowRow[]);
+      } catch {
+        // No saved windows is not an error — the school/stat chips stand alone
+      }
+      if (!cancelled) setPickerReady(true);
+    })();
+    return () => { cancelled = true; };
+  }, [showDatePicker]);
+
+  // Same rolling 12-month horizon the "Your year" strip plans against
+  const { todayD, winEnd } = useMemo(() => {
+    const now = new Date();
+    return {
+      todayD: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+      winEnd: addDays(new Date(now.getFullYear(), now.getMonth() + 12, 1), -1),
+    };
+  }, []);
+
+  const openWindows = useMemo(
+    () => computeOpenWindows({ trips: pickerTrips, travelWindows: pickerWindows, todayD, winEnd }),
+    [pickerTrips, pickerWindows, todayD, winEnd]
+  );
+
+  // Chips: the four soonest open windows. Held back until the journeys read
+  // lands, so a window a journey already covers never flashes up as free.
+  const quickWindows = useMemo(
+    () => (pickerReady ? openWindows.slice(0, 4) : []),
+    [pickerReady, openWindows]
+  );
+
+  // Year row — this year and the next two
+  const yearOptions = useMemo(() => {
+    const y = new Date().getFullYear();
+    return [y, y + 1, y + 2];
+  }, []);
+
+  // Verdict on the picked range: a booked journey outranks everything, then
+  // a clean fit inside an open window, then a near miss. Nothing notable
+  // gets no line rather than a shrug.
+  const verdict = useMemo(() => {
+    if (!pickStart || !pickEnd || !pickerReady) return null;
+    const days = countDays(pickStart, pickEnd);
+    const dayLabel = `${days} day${days !== 1 ? "s" : ""}`;
+
+    const clash = pickerTrips.find(
+      (t) => !t.archived && t.start_date <= pickEnd && t.end_date >= pickStart
+    );
+    if (clash) {
+      return {
+        tone: "bad" as const,
+        text: `Overlaps ${clash.title} · ${fmtRange(clash.start_date, clash.end_date)}`,
+      };
+    }
+
+    const inside = openWindows.find(
+      (w) => isoOf(w.start) <= pickStart && isoOf(w.end) >= pickEnd
+    );
+    if (inside) {
+      return {
+        tone: "good" as const,
+        text: `${inside.name} · ${dayLabel} · no journey booked`,
+      };
+    }
+
+    // Partly overlapping, or butted right up against, an open window
+    const near = openWindows.find(
+      (w) =>
+        isoOf(addDays(w.start, -1)) <= pickEnd && isoOf(addDays(w.end, 1)) >= pickStart
+    );
+    if (near) {
+      const overlapping = isoOf(near.start) <= pickEnd && isoOf(near.end) >= pickStart;
+      return {
+        tone: "mid" as const,
+        text: `${dayLabel} · ${overlapping ? "partly in" : "just outside"} ${near.name} (${fmtRange(isoOf(near.start), isoOf(near.end))})`,
+      };
+    }
+    return null;
+  }, [pickStart, pickEnd, pickerReady, pickerTrips, openWindows]);
 
   // Auto-suggest trip name when destination or start date changes
   useEffect(() => {
@@ -254,6 +397,15 @@ function NewTripForm() {
   const nextMonth = () => {
     if (calMonth === 11) { setCalMonth(0); setCalYear((y) => y + 1); }
     else setCalMonth((m) => m + 1);
+  };
+
+  // One tap fills the range and moves the calendar to it
+  const handleQuickWindow = (w: OpenWindow) => {
+    setPickStart(isoOf(w.start));
+    setPickEnd(isoOf(w.end));
+    setPickPhase("start");
+    setCalYear(w.start.getFullYear());
+    setCalMonth(w.start.getMonth());
   };
 
   const handleDayClick = (dateStr: string) => {
@@ -644,6 +796,53 @@ function NewTripForm() {
             </p>
 
             <div className="flex-1 overflow-y-auto px-4 pb-2">
+              {/* Quick windows — the next four school breaks, long weekends
+                  and saved ideal windows with no journey on them. Each chip
+                  is capped at half the row so four chips are two rows on a
+                  phone however long a saved window's label is. */}
+              {quickWindows.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {quickWindows.map((w) => {
+                    const wStart = isoOf(w.start);
+                    const wEnd   = isoOf(w.end);
+                    const active = pickStart === wStart && pickEnd === wEnd;
+                    return (
+                      <button
+                        key={w.key}
+                        onClick={() => handleQuickWindow(w)}
+                        title={`${fmtRange(wStart, wEnd)} · ${w.days} days`}
+                        style={{ maxWidth: "calc(50% - 3px)" }}
+                        className={`text-[11px] font-semibold rounded-full px-2.5 py-1.5 border whitespace-nowrap overflow-hidden text-ellipsis transition-colors ${
+                          active
+                            ? "bg-[#1A1A2E] text-[#FAF7F2] border-[#1A1A2E]"
+                            : "bg-[#F2EDE3] text-[#1A1A2E] border-black/10"
+                        }`}
+                      >
+                        {w.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Year row — three taps' reach instead of twelve "next month" */}
+              <div className="flex gap-1 mb-2">
+                {yearOptions.map((y) => (
+                  <button
+                    key={y}
+                    onClick={() => setCalYear(y)}
+                    aria-pressed={y === calYear}
+                    className={`text-[10px] font-semibold rounded-md px-2.5 py-1 transition-colors ${
+                      y === calYear
+                        ? "bg-[#1A1A2E] text-[#FAF7F2]"
+                        : "bg-[#1A1A2E]/[0.05] text-[rgba(26,26,46,0.5)]"
+                    }`}
+                  >
+                    {y}
+                  </button>
+                ))}
+              </div>
+
               {/* Month navigation */}
               <div className="flex items-center justify-between mb-4">
                 <button
@@ -705,6 +904,19 @@ function NewTripForm() {
                   );
                 })}
               </div>
+
+              {/* Verdict — is this range any good? */}
+              {verdict && (
+                <div
+                  className="mt-3 rounded-lg px-2.5 py-2 text-[11px] leading-[1.5]"
+                  style={{
+                    background: VERDICT_STYLE[verdict.tone].bg,
+                    color:      VERDICT_STYLE[verdict.tone].fg,
+                  }}
+                >
+                  {verdict.text}
+                </div>
+              )}
             </div>
 
             {/* Footer — summary + Done */}
