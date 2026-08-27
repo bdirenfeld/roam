@@ -56,11 +56,32 @@ import {
 
 const INK = "#1A1A2E";
 const PARCHMENT = "#FAF7F2";
+const PARCHMENT_CLEAR = "rgba(250,247,242,0)";
 const HAIRLINE = "1px solid rgba(26,26,46,0.09)";
 const DONE_INK = "rgba(26,26,46,0.35)";
 
 /** Text edits settle; everything else saves on the spot. */
 const SAVE_DEBOUNCE_MS = 600;
+
+/**
+ * How tall the list is allowed to get before it starts scrolling inside
+ * itself. Forty items should not push the rest of the settings page into
+ * next week — but a short list still takes only the room it needs.
+ */
+const INLINE_LIST_MAX = "min(46vh, 420px)";
+
+/**
+ * Where this panel is standing.
+ *
+ * "inline"  — a section of a page that keeps scrolling past it, so the list
+ *             caps itself and scrolls internally.
+ * "sheet"   — JourneyNotesSheet, which is already a scroll area of its own;
+ *             the panel fills it rather than nesting a second scroller.
+ *
+ * Either way the add row sits OUTSIDE the scrolling part, pinned under it, so
+ * the fortieth item never puts "+ Add an item" out of reach.
+ */
+export type JourneyNotesHost = "inline" | "sheet";
 
 interface Props {
   tripId: string;
@@ -71,6 +92,50 @@ interface Props {
   /** Lets a host keep its own copy fresh so a re-opened sheet isn't stale. */
   onNotesChange?: (notes: string) => void;
   className?: string;
+  /** Defaults to the page case; the sheet passes its own. */
+  host?: JourneyNotesHost;
+}
+
+/**
+ * Watches the scrolling part of the panel so the edges can say "there's more".
+ * Measures the content wrapper too — a list grows without the box around it
+ * changing size, and that growth is exactly what we need to notice.
+ */
+function useListEdges() {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [edges, setEdges] = useState({ overflowing: false, atTop: true, atBottom: true });
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const measure = () => {
+      const slack = el.scrollHeight - el.clientHeight;
+      setEdges({
+        overflowing: slack > 2,
+        atTop: el.scrollTop <= 2,
+        atBottom: slack <= 2 || el.scrollTop >= slack - 2,
+      });
+    };
+
+    measure();
+    el.addEventListener("scroll", measure, { passive: true });
+
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(measure);
+      ro.observe(el);
+      if (contentRef.current) ro.observe(contentRef.current);
+    }
+
+    return () => {
+      el.removeEventListener("scroll", measure);
+      ro?.disconnect();
+    };
+  }, []);
+
+  return { scrollRef, contentRef, ...edges };
 }
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -84,8 +149,11 @@ export default function JourneyNotes({
   readOnly = false,
   onNotesChange,
   className = "",
+  host = "inline",
 }: Props) {
   const supabase = createClient();
+  const inline = host === "inline";
+  const edges = useListEdges();
 
   const [items, setItems] = useState<NoteItem[]>(() => parseNotes(initialNotes ?? ""));
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -94,10 +162,25 @@ export default function JourneyNotes({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
 
-  // The add row, once it has been tapped open.
+  // The add row, once it has been tapped open. Mirrored into refs because the
+  // add buttons and the composer's own blur can fire in either order: whoever
+  // runs second must see what the first one already did, not the render it was
+  // created in. Everything below goes through putComposer/putComposerDraft so
+  // the ref and the state can never disagree.
   const [composer, setComposer] = useState<Composer | null>(null);
   const [composerDraft, setComposerDraft] = useState("");
   const composerInput = useRef<HTMLInputElement>(null);
+  const composerRef = useRef<Composer | null>(null);
+  const composerDraftRef = useRef("");
+
+  const putComposer = useCallback((next: Composer | null) => {
+    composerRef.current = next;
+    setComposer(next);
+  }, []);
+  const putComposerDraft = useCallback((next: string) => {
+    composerDraftRef.current = next;
+    setComposerDraft(next);
+  }, []);
 
   // The list as of this instant. Every handler reads this rather than `items`,
   // so two quick taps can't be computed from the same stale snapshot.
@@ -175,15 +258,16 @@ export default function JourneyNotes({
 
   const handleDelete = useCallback((id: string) => {
     if (editingId === id) setEditingId(null);
-    setComposer((c) => (c?.anchorId === id ? null : c));
+    // The composer was hanging off this row; it has nowhere to be now.
+    if (composerRef.current?.anchorId === id) putComposer(null);
     applyItems(removeItem(itemsRef.current, id), "now");
-  }, [applyItems, editingId]);
+  }, [applyItems, editingId, putComposer]);
 
   const startEdit = useCallback((item: NoteItem) => {
-    setComposer(null);
+    putComposer(null);
     setDraft(item.text);
     setEditingId(item.id);
-  }, []);
+  }, [putComposer]);
 
   /**
    * Settle the row being edited. Emptied text removes the row — an item with
@@ -207,33 +291,75 @@ export default function JourneyNotes({
   }, [applyItems]);
 
   // ── The add row ─────────────────────────────────────────────────────────
-  const openComposer = useCallback((anchorId: string | null, kind: NoteItemKind) => {
-    setEditingId(null);
-    setComposerDraft("");
-    setComposer({ anchorId, kind });
+
+  /** Put the caret in the composer and make sure the composer is on screen. */
+  const focusComposer = useCallback(() => {
+    requestAnimationFrame(() => {
+      const el = composerInput.current;
+      if (!el) return;
+      el.focus();
+      el.scrollIntoView({ block: "nearest" });
+    });
   }, []);
 
+  const openComposer = useCallback((anchorId: string | null, kind: NoteItemKind) => {
+    setEditingId(null);
+    putComposerDraft("");
+    putComposer({ anchorId, kind });
+  }, [putComposer, putComposerDraft]);
+
   const closeComposer = useCallback(() => {
-    setComposer(null);
-    setComposerDraft("");
-  }, []);
+    putComposer(null);
+    putComposerDraft("");
+  }, [putComposer, putComposerDraft]);
 
   /** Adds what's typed and immediately offers the next line, Trello-style. */
   const submitComposer = useCallback(() => {
-    if (!composer) return;
-    const trimmed = composerDraft.trim();
+    const open = composerRef.current;
+    if (!open) return;
+    const trimmed = composerDraftRef.current.trim();
     if (trimmed === "") { closeComposer(); return; }
 
-    const item = makeItem(composer.kind, trimmed);
-    const next = insertItem(itemsRef.current, composer.anchorId, item);
+    const item = makeItem(open.kind, trimmed);
+    const next = insertItem(itemsRef.current, open.anchorId, item);
     applyItems(next, "now");
-    setComposerDraft("");
+    putComposerDraft("");
     // Adding at the end keeps the input in the bottom slot, where it hasn't
     // moved; adding mid-list walks it down one row.
     const atEnd = next[next.length - 1]?.id === item.id;
-    setComposer({ anchorId: atEnd ? null : item.id, kind: composer.kind });
-    requestAnimationFrame(() => composerInput.current?.focus());
-  }, [applyItems, closeComposer, composer, composerDraft]);
+    putComposer({ anchorId: atEnd ? null : item.id, kind: open.kind });
+    focusComposer();
+  }, [applyItems, closeComposer, focusComposer, putComposer, putComposerDraft]);
+
+  /**
+   * Land whatever is half-typed, without offering another line. This is what
+   * lets the two add buttons stay live while a composer is open: switching
+   * from writing an item to naming a section keeps the item you'd typed. If a
+   * blur already banked it, the draft ref is empty and this adds nothing —
+   * which is the whole reason it reads refs and not the render's copy.
+   */
+  const settleComposer = useCallback(() => {
+    const open = composerRef.current;
+    const trimmed = composerDraftRef.current.trim();
+    if (open && trimmed !== "") {
+      const item = makeItem(open.kind, trimmed);
+      applyItems(insertItem(itemsRef.current, open.anchorId, item), "now");
+    }
+    putComposer(null);
+    putComposerDraft("");
+  }, [applyItems, putComposer, putComposerDraft]);
+
+  /**
+   * The add row, either button. Both stay reachable whatever else is open —
+   * starting a list must never be the thing that hides "Add section".
+   */
+  const handleAdd = useCallback((kind: NoteItemKind) => {
+    settleComposer();
+    setEditingId(null);
+    putComposerDraft("");
+    putComposer({ anchorId: null, kind });
+    focusComposer();
+  }, [focusComposer, putComposer, putComposerDraft, settleComposer]);
 
   /** Enter carries on: commit this row, then offer the next one below it. */
   const handleRowEnter = useCallback((item: NoteItem) => {
@@ -271,29 +397,20 @@ export default function JourneyNotes({
     : saveState === "error" ? "Couldn’t save — still on this device"
     : "";
 
+  // The composer is a place to write, not a row that exists yet: no decorative
+  // checkbox to sit behind, and the caret starts flush with the left edge the
+  // rows themselves start from.
   const composerNode = composer ? (
     <div key="composer" className="flex items-start gap-1.5 py-[3px]">
-      {canReorder && <span className="w-[17px] flex-shrink-0" aria-hidden />}
-      {composer.kind === "task" ? (
-        <span
-          className="flex-shrink-0 w-6 h-6 -ml-1 flex items-center justify-center"
-          aria-hidden
-        >
-          <span
-            className="w-[15px] h-[15px] rounded-[4px]"
-            style={{ border: "1.4px solid rgba(26,26,46,0.22)" }}
-          />
-        </span>
-      ) : null}
       <RowInput
         inputRef={composerInput}
         value={composerDraft}
         section={composer.kind === "section"}
         placeholder={composer.kind === "section" ? "Section name" : "Add an item"}
-        onChange={setComposerDraft}
+        onChange={putComposerDraft}
         onEnter={submitComposer}
         onEscape={closeComposer}
-        onBlur={() => { submitComposer(); setComposer(null); }}
+        onBlur={() => { submitComposer(); putComposer(null); }}
       />
     </div>
   ) : null;
@@ -323,11 +440,11 @@ export default function JourneyNotes({
   if (composer?.anchorId === null && composerNode) rows.push(composerNode);
 
   return (
-    <div className={className}>
+    <div className={`${className} ${inline ? "" : "flex flex-col min-h-0 flex-1"}`}>
       {/* Status only — there is no edit mode left to enter. Space is reserved
           so the panel below never jumps when "Saving…" comes and goes. */}
       {!readOnly && (
-        <div className="flex items-center pb-2 min-h-[22px]">
+        <div className="flex items-center pb-2 min-h-[22px] flex-shrink-0">
           <span
             className="font-display italic text-[11px] transition-opacity duration-200"
             style={{
@@ -341,41 +458,83 @@ export default function JourneyNotes({
         </div>
       )}
 
-      <div className="rounded-xl px-3.5 py-3" style={{ background: PARCHMENT, border: HAIRLINE }}>
-        {isEmpty && !composer && (
-          <p
-            className="font-display italic text-[15px]"
-            style={{ color: "rgba(26,26,46,0.5)", paddingBottom: readOnly ? 0 : 4 }}
+      {/* The panel is two parts: a list that scrolls, and an add row that
+          doesn't. Forty items scroll past under a fixed door. */}
+      <div
+        className={`rounded-xl overflow-hidden flex flex-col min-h-0 ${inline ? "" : "flex-1"}`}
+        style={{ background: PARCHMENT, border: HAIRLINE }}
+      >
+        <div className={`relative min-h-0 ${inline ? "" : "flex-1"}`}>
+          <div
+            ref={edges.scrollRef}
+            className={`h-full overflow-y-auto overscroll-contain px-3.5 pt-3 ${readOnly ? "pb-3" : "pb-1"}`}
+            style={inline ? { maxHeight: INLINE_LIST_MAX } : undefined}
           >
-            {readOnly
-              ? "Nothing noted yet."
-              : "What belongs to no single day — a gate code, what to pack, a passport to renew."}
-          </p>
-        )}
+            <div ref={edges.contentRef}>
+              {isEmpty && !composer && (
+                <p
+                  className="font-display italic text-[15px]"
+                  style={{ color: "rgba(26,26,46,0.5)", paddingBottom: readOnly ? 0 : 4 }}
+                >
+                  {readOnly
+                    ? "Nothing noted yet."
+                    : "What belongs to no single day — a gate code, what to pack, a passport to renew."}
+                </p>
+              )}
 
-        {/* Every row goes through the same context, guests included: NoteRow
-            calls useSortable unconditionally (hooks don't take sides), and the
-            drag is switched off per row instead. */}
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={items.map((i) => i.id)}
-            strategy={verticalListSortingStrategy}
+              {/* Every row goes through the same context, guests included:
+                  NoteRow calls useSortable unconditionally (hooks don't take
+                  sides), and the drag is switched off per row instead. */}
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={items.map((i) => i.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {rows}
+                </SortableContext>
+              </DndContext>
+            </div>
+          </div>
+
+          {/* The list fading under its own edge is the whole message: there is
+              more this way. Nothing here is clickable. */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-0 h-5 transition-opacity duration-150"
+            style={{
+              opacity: edges.atTop ? 0 : 1,
+              background: `linear-gradient(to bottom, ${PARCHMENT}, ${PARCHMENT_CLEAR})`,
+            }}
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-5 transition-opacity duration-150"
+            style={{
+              opacity: edges.atBottom ? 0 : 1,
+              background: `linear-gradient(to top, ${PARCHMENT}, ${PARCHMENT_CLEAR})`,
+            }}
+          />
+        </div>
+
+        {/* The list's open door — always both halves of it, always outside the
+            scroller. Writing an item must never be the thing that hides "Add
+            section", and the fortieth item must never push either out of
+            reach. `onMouseDown` keeps the click alive: without it the open
+            composer blurs, the row it occupied collapses, and mouse-up lands
+            somewhere else entirely. */}
+        {!readOnly && (
+          <div
+            className="flex-shrink-0 flex items-center gap-3 px-3.5 pt-2 pb-3"
+            style={{ borderTop: edges.overflowing ? HAIRLINE : "1px solid transparent" }}
           >
-            {rows}
-          </SortableContext>
-        </DndContext>
-
-        {/* The add row is always there — the list's open door. It's absent only
-            while it IS the open input, a few pixels lower down. */}
-        {!readOnly && composer?.anchorId !== null && (
-          <div className="flex items-center gap-3 pt-1.5" style={{ marginTop: isEmpty ? 0 : 4 }}>
             <button
               type="button"
-              onClick={() => openComposer(null, "task")}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => handleAdd("task")}
               className="flex items-center gap-1.5 py-1 text-[13.5px] font-medium transition-colors hover:text-[#1A1A2E]"
               style={{ color: "rgba(26,26,46,0.55)" }}
             >
@@ -384,7 +543,8 @@ export default function JourneyNotes({
             </button>
             <button
               type="button"
-              onClick={() => openComposer(null, "section")}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => handleAdd("section")}
               className="py-1 text-[12.5px] transition-colors hover:text-[rgba(26,26,46,0.7)]"
               style={{ color: "rgba(26,26,46,0.38)" }}
             >
@@ -394,7 +554,10 @@ export default function JourneyNotes({
         )}
       </div>
 
-      <p className="mt-2.5 text-[11px] leading-[1.6]" style={{ color: "rgba(26,26,46,0.4)" }}>
+      <p
+        className="mt-2.5 text-[11px] leading-[1.6] flex-shrink-0"
+        style={{ color: "rgba(26,26,46,0.4)" }}
+      >
         {readOnly
           ? "Notes from the traveller who shared this journey."
           : "Shared with anyone you share this journey with."}
@@ -463,6 +626,13 @@ function NoteRow({
   const quiet =
     "transition-opacity opacity-40 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100";
 
+  // A heading opens a group, so it gets air and a rule above it — otherwise an
+  // item and a section that happen to share a word ("TEST" over "TEST") read as
+  // one line rendered twice at two sizes, and two headings in a row read as a
+  // gap rather than as two groups. Not against the top of the panel, though:
+  // the first line in the list has nothing to be divided from.
+  const opensGroup = isSection && !first;
+
   return (
     <div
       ref={setNodeRef}
@@ -470,7 +640,9 @@ function NoteRow({
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.45 : 1,
-        marginTop: isSection && !first ? 14 : 0,
+        marginTop: opensGroup ? 14 : 0,
+        paddingTop: opensGroup ? 9 : undefined,
+        borderTop: opensGroup ? HAIRLINE : undefined,
       }}
       className="group flex items-start gap-1.5 py-[3px] rounded-md"
     >
@@ -717,12 +889,16 @@ export function JourneyNotesSheet({
           </p>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 pb-8">
+        {/* The sheet no longer scrolls as a whole: the notes list inside it
+            does, so the add row stays pinned at the bottom of the panel rather
+            than sailing off past the fold. One scroller, not two. */}
+        <div className="flex-1 min-h-0 flex flex-col px-5 pb-6">
           <JourneyNotes
             tripId={tripId}
             initialNotes={initialNotes}
             readOnly={readOnly}
             onNotesChange={onNotesChange}
+            host="sheet"
           />
         </div>
       </div>

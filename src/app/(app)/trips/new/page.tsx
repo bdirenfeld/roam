@@ -243,6 +243,20 @@ function NewTripForm() {
     [pickerReady, openWindows]
   );
 
+  // The chip strip scrolls by thumb on a phone; on desktop a mouse has no
+  // horizontal gesture, so a vertical wheel over the strip scrolls it and the
+  // arrows nudge it a chip-width at a time.
+  const chipScrollerRef = useRef<HTMLDivElement>(null);
+  const handleChipWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    const el = chipScrollerRef.current;
+    if (!el || el.scrollWidth <= el.clientWidth) return;
+    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; // already horizontal
+    el.scrollLeft += e.deltaY;
+  }, []);
+  const nudgeChips = useCallback((dir: 1 | -1) => {
+    chipScrollerRef.current?.scrollBy({ left: dir * 160, behavior: "smooth" });
+  }, []);
+
   // Year row — this year and the next two
   const yearOptions = useMemo(() => {
     const y = new Date().getFullYear();
@@ -805,7 +819,11 @@ function NewTripForm() {
                   phone however long a saved window's label is. */}
               {quickWindows.length > 0 && (
                 <div className="relative mb-3">
-                  <div className="flex gap-1.5 overflow-x-auto scrollbar-none pr-6">
+                  <div
+                    ref={chipScrollerRef}
+                    onWheel={handleChipWheel}
+                    className="flex gap-1.5 overflow-x-auto scrollbar-none pr-6"
+                  >
                     {quickWindows.map((w) => {
                       const wStart = isoOf(w.start);
                       const wEnd   = isoOf(w.end);
@@ -834,6 +852,25 @@ function NewTripForm() {
                     className="absolute right-0 top-0 bottom-0 w-6 pointer-events-none"
                     style={{ background: "linear-gradient(to left, #fff, transparent)" }}
                   />
+                  {/* A mouse can't swipe a strip: arrows do on desktop what a
+                      thumb does on a phone. Hidden on touch, where they'd just
+                      cover chips. */}
+                  <button
+                    type="button"
+                    onClick={() => nudgeChips(-1)}
+                    aria-label="Earlier windows"
+                    className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white border border-black/10 shadow-sm items-center justify-center text-[#1A1A2E]"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => nudgeChips(1)}
+                    aria-label="Later windows"
+                    className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white border border-black/10 shadow-sm items-center justify-center text-[#1A1A2E]"
+                  >
+                    ›
+                  </button>
                 </div>
               )}
 

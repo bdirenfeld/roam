@@ -572,7 +572,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
             href={`/trips/${trip.id}/settings`}
             className="md:hidden absolute top-4 left-14 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center"
             style={{ backdropFilter: "blur(8px)", zIndex: 10 }}
-            aria-label="Journey settings"
+            aria-label="Settings"
           >
             <DotsThree size={18} weight="light" color="#374151" />
           </Link>

@@ -337,7 +337,7 @@ export default function TripSettingsClient({ trip, days, initialPeople, initialS
           </svg>
         </button>
         <span className="absolute left-0 right-0 text-center text-[16px] font-semibold text-gray-900 pointer-events-none">
-          Journey settings
+          Settings
         </span>
         <button
           onClick={handleSave}

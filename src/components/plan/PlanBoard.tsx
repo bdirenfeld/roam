@@ -1773,7 +1773,7 @@ function MainMenu({
                 <Gear size={15} weight="light" className="text-gray-600" />
               </div>
               <div className="text-left">
-                <p className="text-[13px] font-medium text-gray-900 leading-snug">Journey settings</p>
+                <p className="text-[13px] font-medium text-gray-900 leading-snug">Settings</p>
                 <p className="text-[11px] text-gray-400 leading-snug">Dates, travellers, cover</p>
               </div>
             </button>
