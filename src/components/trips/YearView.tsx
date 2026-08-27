@@ -18,6 +18,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { FAMILY_DATES } from "@/lib/yearView/familyDates";
 import { SCHOOL_CALENDAR } from "@/lib/yearView/schoolCalendar";
+import { stormSeasonFor } from "@/lib/yearView/stormSeasons";
 
 // Brennan's own "ideal times to travel", stored per-user in Supabase
 // (public.travel_windows, RLS own-row). The table isn't in the generated
@@ -91,7 +92,14 @@ const formatRange = (a: Date, b: Date) =>
 interface MonthClimate {
   high: number; // mean daily max °C for the calendar month
   rainShare: number; // share of days with ≥1mm precipitation, 0..1
+  // Mean total precipitation for the calendar month (mm, averaged across
+  // the archive years). Optional: wishlist rows stored before this field
+  // existed lack it — treated as unknown, no wet-season marker.
+  precipMm?: number;
 }
+
+// Number of full archive years the aggregation spans
+const CLIMATE_YEARS = 5;
 
 const climateCache = new Map<string, MonthClimate[]>();
 
@@ -104,7 +112,7 @@ async function fetchClimate(lat: number, lng: number): Promise<MonthClimate[]> {
   const params = new URLSearchParams({
     latitude: String(lat),
     longitude: String(lng),
-    start_date: `${y - 5}-01-01`, // past 5 full years
+    start_date: `${y - CLIMATE_YEARS}-01-01`, // past N full years
     end_date: `${y - 1}-12-31`,
     daily: "temperature_2m_max,precipitation_sum",
     timezone: "auto",
@@ -118,17 +126,21 @@ async function fetchClimate(lat: number, lng: number): Promise<MonthClimate[]> {
   const sum = Array(12).fill(0) as number[];
   const cnt = Array(12).fill(0) as number[];
   const rainy = Array(12).fill(0) as number[];
+  const totalMm = Array(12).fill(0) as number[];
   for (let i = 0; i < data.daily.time.length; i++) {
     const mi = Number(data.daily.time[i].slice(5, 7)) - 1;
     const t = data.daily.temperature_2m_max[i];
     if (t == null) continue;
     sum[mi] += t;
     cnt[mi] += 1;
-    if ((data.daily.precipitation_sum[i] ?? 0) >= 1) rainy[mi] += 1;
+    const mm = data.daily.precipitation_sum[i] ?? 0;
+    totalMm[mi] += mm;
+    if (mm >= 1) rainy[mi] += 1;
   }
   const result: MonthClimate[] = sum.map((s, mi) => ({
     high: cnt[mi] > 0 ? Math.round(s / cnt[mi]) : 0,
     rainShare: cnt[mi] > 0 ? rainy[mi] / cnt[mi] : 1,
+    precipMm: Math.round(totalMm[mi] / CLIMATE_YEARS),
   }));
   climateCache.set(key, result);
   return result;
@@ -137,11 +149,54 @@ async function fetchClimate(lat: number, lng: number): Promise<MonthClimate[]> {
 type HeatTone = "great" | "good" | "fair" | "rough";
 
 function scoreMonth(c: MonthClimate): HeatTone {
-  if (c.high >= 18 && c.high <= 28 && c.rainShare < 0.3) return "great";
-  if (c.high >= 13 && c.high <= 31 && c.rainShare < 0.4) return "good";
-  if (c.high >= 8 && c.high <= 33) return "fair";
-  return "rough";
+  let tone: HeatTone;
+  if (c.high >= 18 && c.high <= 28 && c.rainShare < 0.3) tone = "great";
+  else if (c.high >= 13 && c.high <= 31 && c.rainShare < 0.4) tone = "good";
+  else if (c.high >= 8 && c.high <= 33) tone = "fair";
+  else tone = "rough";
+  // A monsoon month can't be "great" however pleasant the temperature —
+  // ≥180mm mean rainfall caps the tone at fair. (Storm season deliberately
+  // does NOT downgrade: a hurricane is a risk, not a certainty; the glyph
+  // and legend carry it.)
+  if ((c.precipMm ?? 0) >= 180 && (tone === "great" || tone === "good")) tone = "fair";
+  return tone;
 }
+
+// Wet-season marker: heavy total rainfall, or moderately heavy rainfall
+// falling on most days. Unknown precipMm (old stored rows) → no marker.
+const isWetMonth = (c: MonthClimate) =>
+  c.precipMm != null && (c.precipMm >= 180 || (c.precipMm >= 120 && c.rainShare >= 0.55));
+
+// Tiny marker glyphs — SVG, legible at cell-corner sizes on both breakpoints
+const DropGlyph = ({ size = 7 }: { size?: number }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="#3A7CA5"
+    aria-hidden
+    style={{ flexShrink: 0, display: "block" }}
+  >
+    <path d="M12 2C12 2 5 10.5 5 15a7 7 0 0 0 14 0C19 10.5 12 2 12 2z" />
+  </svg>
+);
+
+const StormGlyph = ({ size = 8 }: { size?: number }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="rgba(26,26,46,0.6)"
+    strokeWidth={3}
+    strokeLinecap="round"
+    aria-hidden
+    style={{ flexShrink: 0, display: "block" }}
+  >
+    <path d="M20 12a8 8 0 1 0-8 8" />
+    <path d="M8 12a4 4 0 1 1 4 4" />
+  </svg>
+);
 
 const HEAT_STYLE: Record<HeatTone, { bg: string; fg: string }> = {
   great: { bg: "#DCE8D4", fg: "#3F5D33" },
@@ -227,28 +282,25 @@ const predSecondary = (p: Prediction) => {
   return rest || null;
 };
 
-// ── Shared grid: 110px label column + 12 equal month columns ──────────────
+// ── Shared grid: 90px label column + 12 equal month columns. The strip is
+// desktop-only and sized to fit its container exactly — no horizontal
+// scrolling, so no scrollbar, sticky labels, or edge fades. ───────────────
 const GRID: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "110px repeat(12, 1fr)",
+  gridTemplateColumns: "90px repeat(12, 1fr)",
   columnGap: 5,
 };
 const LANE_BORDER = "1px solid rgba(26,26,46,0.06)";
 const HATCH =
   "repeating-linear-gradient(45deg, rgba(26,26,46,0.10), rgba(26,26,46,0.10) 3px, transparent 3px, transparent 7px)";
-// Solid card background — the sticky label column and the edge fades must
-// paint the exact same colour, so no translucent card bg here.
+// Solid card background (the picker popover and pills sit on it)
 const CARD_BG = "#FCFAF7";
 // Desktop destination popover — size is fixed so the flip-above maths can
 // run before the element exists
 const PICKER_W = 250;
 const PICKER_H = 380; // tall enough for the wishlist + search without scrolling at 10 rows
-// Lane-label cells stay pinned while the strip scrolls under them
-const STICKY_LABEL: CSSProperties = {
-  position: "sticky",
-  left: 0,
-  zIndex: 2,
-  background: CARD_BG,
+// Lane-label cells — first grid column, vertically centred
+const LABEL_CELL: CSSProperties = {
   alignSelf: "stretch",
   display: "flex",
   flexDirection: "column",
@@ -325,18 +377,6 @@ export default function YearView({ trips }: Props) {
   const [awYear, setAwYear] = useState(() => new Date().getFullYear());
   const [awMonth, setAwMonth] = useState(() => new Date().getMonth());
   const [awPhase, setAwPhase] = useState<"start" | "end">("start");
-  // Edge fades on the horizontal strip — signal there's more to swipe
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const [edges, setEdges] = useState({ left: false, right: false });
-  const updateEdges = () => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const left = el.scrollLeft > 2;
-    const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 2;
-    // Identity-stable: scrolling fires constantly, only edge flips re-render
-    setEdges((prev) => (prev.left === left && prev.right === right ? prev : { left, right }));
-  };
-
   useEffect(() => {
     let stored: string | null = null;
     try {
@@ -353,12 +393,6 @@ export default function YearView({ trips }: Props) {
       localStorage.setItem(OPEN_KEY, v ? "1" : "0");
     } catch {}
   };
-
-  // Measure scrollability once the strip is on screen (initial scroll stays
-  // at the left edge — the current month)
-  useEffect(() => {
-    if (openState === true) updateEdges();
-  }, [openState]);
 
   // ── Ideal travel windows: load, add, delete (RLS scopes to the user) ────
   useEffect(() => {
@@ -454,9 +488,21 @@ export default function YearView({ trips }: Props) {
     };
   }, [query]);
 
-  // Selecting a saved wishlist place for the heat row — one tap, no typing
+  // Selecting a saved wishlist place for the heat row — one tap, no typing.
+  // Rows with a stored climate seed the module cache first, so the heat row
+  // renders instantly with zero network.
   const handlePickWishlist = (d: WishlistDest) => {
     if (d.lat == null || d.lng == null) return;
+    // Seed the cache only from CURRENT-shape profiles. A row stored before
+    // precipMm existed would otherwise paint the heat row with no wet-season
+    // markers and never self-heal, since a cache hit skips the archive fetch.
+    if (
+      Array.isArray(d.climate) &&
+      d.climate.length === 12 &&
+      d.climate[0]?.precipMm != null
+    ) {
+      climateCache.set(`${d.lat.toFixed(2)},${d.lng.toFixed(2)}`, d.climate);
+    }
     setDest({ label: d.name, lat: d.lat, lng: d.lng });
     setPickerOpen(false);
     setQuery("");
@@ -521,7 +567,18 @@ export default function YearView({ trips }: Props) {
       console.error("Failed to save wishlist place:", error);
       return;
     }
-    setWishlist((prev) => [...prev, data as WishlistDest]);
+    const saved = data as WishlistDest;
+    setWishlist((prev) => [...prev, saved]);
+    // The auto-save is a side effect of a weather check — say so, and let
+    // one tap take it back
+    showUndo(`Added ${name} to wishlist`, async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: delErr } = await (supabase as any)
+        .from("wishlist_destinations")
+        .delete()
+        .eq("id", saved.id);
+      if (!delErr) setWishlist((w) => w.filter((d) => d.id !== saved.id));
+    });
   };
 
   // Instant delete, but never silent: the × sits close to the row's own tap
@@ -723,6 +780,17 @@ export default function YearView({ trips }: Props) {
           parseDate(t.start_date) <= winEnd
       ),
     [trips, winStart, winEnd]
+  );
+
+  // Ideal windows that fall inside the rolling window — the lane and the
+  // mobile pill row only render when this is non-empty (an empty lane is
+  // just a band of blank parchment)
+  const idealInWindow = useMemo(
+    () =>
+      travelWindows.filter(
+        (w) => parseDate(w.end_date) >= winStart && parseDate(w.start_date) <= winEnd
+      ),
+    [travelWindows, winStart, winEnd]
   );
 
   // Birthday occurrences inside the window (annual → exactly one each),
@@ -936,6 +1004,31 @@ export default function YearView({ trips }: Props) {
     };
   }, [dest]);
 
+  // Storm season for the picked destination — location decides the label
+  // and which calendar months carry the glyph; inland places match nothing
+  const storm = useMemo(() => (dest ? stormSeasonFor(dest.lat, dest.lng) : null), [dest]);
+
+  // Legend under the heat row — rendered only when a marker is on screen
+  const wetVisible = !!climate && climate.some((c) => isWetMonth(c));
+  const heatLegend =
+    climate && (wetVisible || storm) ? (
+      <div
+        className="flex items-center flex-wrap gap-x-3 gap-y-0.5"
+        style={{ fontSize: 9.5, color: "rgba(26,26,46,0.45)" }}
+      >
+        {wetVisible && (
+          <span className="inline-flex items-center gap-1">
+            <DropGlyph size={7} /> wet season
+          </span>
+        )}
+        {storm && (
+          <span className="inline-flex items-center gap-1">
+            <StormGlyph size={8} /> {storm.label}
+          </span>
+        )}
+      </div>
+    ) : null;
+
   const isOpen = openState === true;
 
   return (
@@ -971,16 +1064,15 @@ export default function YearView({ trips }: Props) {
       {/* Body — on mobile the Open-windows list leads (vertical, actionable)
           and the strip follows; desktop keeps the strip first */}
       <div className="flex flex-col px-4 pt-2 pb-3 md:px-5 md:pb-4">
-        {/* The 5-lane strip is desktop-only. On a phone it was five lanes of
-            sideways swiping to reach what the Open-windows list already
-            says, so mobile gets the list + heat row + ideal pills instead. */}
-        <div className="hidden md:block order-2 md:order-1 relative">
-          {/* The strip scrolls sideways on its own; the page never does */}
-          <div ref={scrollRef} onScroll={updateEdges} className="overflow-x-auto">
-            <div style={{ minWidth: 960 }}>
+        {/* The strip is desktop-only and fills its container exactly — the
+            12 columns flex, nothing scrolls, no scrollbar, no cut months.
+            On a phone it was five lanes of sideways swiping to reach what
+            the Open-windows list already says, so mobile gets the list +
+            heat row + ideal pills instead. */}
+        <div className="hidden md:block order-2 md:order-1">
               {/* Month header — year shown where it changes */}
-              <div style={GRID} className="mt-2">
-                <div style={STICKY_LABEL} />
+              <div style={GRID} className="mt-1.5">
+                <div style={LABEL_CELL} />
                 {months.map((m, i) => (
                   <div
                     key={m.getTime()}
@@ -991,7 +1083,7 @@ export default function YearView({ trips }: Props) {
                       letterSpacing: "0.08em",
                       textTransform: "uppercase",
                       color: "rgba(26,26,46,0.38)",
-                      paddingBottom: 8,
+                      paddingBottom: 5,
                     }}
                   >
                     {m.toLocaleDateString("en-US", { month: "short" })}
@@ -1005,51 +1097,25 @@ export default function YearView({ trips }: Props) {
                 ))}
               </div>
 
-              {/* Journeys lane — booked pills + dashed open windows */}
-              <div style={{ ...GRID, borderTop: LANE_BORDER }} className="items-center py-[6px]">
-                <div style={{ ...STICKY_LABEL, fontSize: 11, fontWeight: 600, color: "rgba(26,26,46,0.6)" }}>
+              {/* Journeys lane — real journeys only. Open windows live in
+                  the list below; their dashed pills degraded into confetti
+                  at narrow spans and told you less than the list does. */}
+              <div style={{ ...GRID, borderTop: LANE_BORDER }} className="items-center py-[5px]">
+                <div style={{ ...LABEL_CELL, fontSize: 11, fontWeight: 600, color: "rgba(26,26,46,0.6)" }}>
                   Journeys
                 </div>
                 <div style={{ gridColumn: "2 / 14", position: "relative", height: 26 }}>
-                  {openWindows.map((w) => {
-                    const left = posStart(maxDate(w.start, winStart));
-                    const width = posEnd(minDate(w.end, winEnd)) - left;
-                    return (
-                      <Link
-                        key={w.key}
-                        href={`/trips/new?start=${isoOf(w.start)}&end=${isoOf(w.end)}`}
-                        title={`${w.name} · ${formatRange(w.coreStart, w.coreEnd)} — no journey planned`}
-                        style={{
-                          position: "absolute",
-                          left: `${left}%`,
-                          width: `${width}%`,
-                          minWidth: 18,
-                          top: 2,
-                          height: 22,
-                          borderRadius: 999,
-                          border: "1.5px dashed rgba(26,26,46,0.35)",
-                          background: "transparent",
-                          color: "rgba(26,26,46,0.55)",
-                          fontSize: 10.5,
-                          fontWeight: 600,
-                          lineHeight: "19px",
-                          padding: "0 8px",
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          textAlign: "left",
-                        }}
-                      >
-                        Open
-                      </Link>
-                    );
-                  })}
                   {visibleTrips.map((t) => {
                     const start = parseDate(t.start_date);
                     const end = parseDate(t.end_date);
                     const past = end < todayD;
                     const left = posStart(maxDate(start, winStart));
                     const width = posEnd(minDate(end, winEnd)) - left;
+                    // A pill never shrinks below a readable minimum: a short
+                    // span renders at 56px with an ellipsized label (it may
+                    // overhang its true dates slightly — better than a
+                    // one-letter circle), clamped inside the track.
+                    const pillWidth = `clamp(56px, ${width}%, 100%)`;
                     return (
                       <Link
                         key={t.id}
@@ -1057,9 +1123,8 @@ export default function YearView({ trips }: Props) {
                         title={`${t.title} · ${formatRange(start, end)}`}
                         style={{
                           position: "absolute",
-                          left: `${left}%`,
-                          width: `${width}%`,
-                          minWidth: 18,
+                          left: `min(${left}%, calc(100% - ${pillWidth}))`,
+                          width: pillWidth,
                           top: 2,
                           height: 22,
                           borderRadius: 999,
@@ -1081,9 +1146,12 @@ export default function YearView({ trips }: Props) {
                 </div>
               </div>
 
-              {/* Ideal times lane — Brennan's own travel windows (teal pills) */}
-              <div style={{ ...GRID, borderTop: LANE_BORDER }} className="items-center py-[6px]">
-                <div style={{ ...STICKY_LABEL, alignItems: "flex-start" }}>
+              {/* Ideal times lane — only when there's something to show; an
+                  empty lane is a band of blank parchment. With no windows,
+                  "+ Add window" moves to the Open-windows header instead. */}
+              {idealInWindow.length > 0 && (
+              <div style={{ ...GRID, borderTop: LANE_BORDER }} className="items-center py-[5px]">
+                <div style={{ ...LABEL_CELL, alignItems: "flex-start" }}>
                   <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(26,26,46,0.6)" }}>
                     Ideal times
                   </div>
@@ -1102,11 +1170,7 @@ export default function YearView({ trips }: Props) {
                   </button>
                 </div>
                 <div style={{ gridColumn: "2 / 14", position: "relative", height: 26 }}>
-                  {travelWindows
-                    .filter(
-                      (w) => parseDate(w.end_date) >= winStart && parseDate(w.start_date) <= winEnd
-                    )
-                    .map((w) => {
+                  {idealInWindow.map((w) => {
                       const left = posStart(maxDate(parseDate(w.start_date), winStart));
                       const width = posEnd(minDate(parseDate(w.end_date), winEnd)) - left;
                       return (
@@ -1150,10 +1214,11 @@ export default function YearView({ trips }: Props) {
                     })}
                 </div>
               </div>
+              )}
 
               {/* Birthdays lane — gold diamonds, names beneath */}
-              <div style={{ ...GRID, borderTop: LANE_BORDER }} className="items-center py-[6px]">
-                <div style={{ ...STICKY_LABEL, fontSize: 11, fontWeight: 600, color: "rgba(26,26,46,0.6)" }}>
+              <div style={{ ...GRID, borderTop: LANE_BORDER }} className="items-center py-[5px]">
+                <div style={{ ...LABEL_CELL, fontSize: 11, fontWeight: 600, color: "rgba(26,26,46,0.6)" }}>
                   Birthdays
                 </div>
                 <div style={{ gridColumn: "2 / 14", position: "relative", height: bdayLaneHeight }}>
@@ -1213,8 +1278,8 @@ export default function YearView({ trips }: Props) {
               </div>
 
               {/* School lane — hatched breaks, PA dots, faint stat dots */}
-              <div style={{ ...GRID, borderTop: LANE_BORDER }} className="items-center py-[6px]">
-                <div style={{ ...STICKY_LABEL, fontSize: 11, fontWeight: 600, color: "rgba(26,26,46,0.6)" }}>
+              <div style={{ ...GRID, borderTop: LANE_BORDER }} className="items-center py-[5px]">
+                <div style={{ ...LABEL_CELL, fontSize: 11, fontWeight: 600, color: "rgba(26,26,46,0.6)" }}>
                   School
                   <small
                     style={{ display: "block", fontWeight: 400, fontSize: 9.5, color: "rgba(26,26,46,0.35)" }}
@@ -1297,26 +1362,49 @@ export default function YearView({ trips }: Props) {
               <div
                 data-lane="weather"
                 style={{ ...GRID, borderTop: LANE_BORDER }}
-                className="items-center py-[6px]"
+                className="items-center py-[5px]"
               >
-                <div style={{ ...STICKY_LABEL, alignItems: "flex-start" }}>
+                <div style={{ ...LABEL_CELL, alignItems: "flex-start" }}>
+                  {/* Stacked label: tiny WEATHER caption over the pill, so
+                      the pill reads as an openable control (matches mobile) */}
+                  <div
+                    className="uppercase"
+                    style={{
+                      fontSize: 9,
+                      fontWeight: 600,
+                      letterSpacing: "0.1em",
+                      color: "rgba(26,26,46,0.4)",
+                    }}
+                  >
+                    Weather
+                  </div>
                   {/* 40px hit area; the visual pill is the inner span */}
-                  {destChip(106)}
+                  {destChip(86)}
                 </div>
                 {months.map((m) => {
                   const c = climate?.[m.getMonth()];
                   const tone = c ? scoreMonth(c) : null;
+                  const wet = !!c && isWetMonth(c);
+                  const stormy = !!c && !!storm && storm.months.includes(m.getMonth() + 1);
                   return (
                     <div
                       key={`heat-${m.getTime()}`}
                       title={
                         c
-                          ? `Mean high ${c.high}° · rainy days ${Math.round(c.rainShare * 100)}%`
+                          ? [
+                              `Mean high ${c.high}°`,
+                              `rainy days ${Math.round(c.rainShare * 100)}%`,
+                              c.precipMm != null ? `~${c.precipMm}mm rain` : null,
+                              stormy && storm ? storm.label : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")
                           : climateError
                             ? "Climate data unavailable"
                             : "Loading climate…"
                       }
                       style={{
+                        position: "relative",
                         height: 26,
                         borderRadius: 6,
                         display: "flex",
@@ -1329,39 +1417,27 @@ export default function YearView({ trips }: Props) {
                       }}
                     >
                       {c ? `${c.high}°` : "–"}
+                      {wet && (
+                        <span style={{ position: "absolute", top: 2, left: 3 }}>
+                          <DropGlyph size={6} />
+                        </span>
+                      )}
+                      {stormy && (
+                        <span style={{ position: "absolute", top: 2, right: 3 }}>
+                          <StormGlyph size={7} />
+                        </span>
+                      )}
                     </div>
                   );
                 })}
               </div>
-            </div>
-          </div>
-
-          {/* Edge fades — hint that the strip swipes. The left fade starts
-              after the sticky 110px label column. */}
-          {edges.left && (
-            <div
-              aria-hidden
-              className="pointer-events-none absolute top-0 bottom-0"
-              style={{
-                left: 110,
-                width: 24,
-                zIndex: 3,
-                background: `linear-gradient(to right, ${CARD_BG}, rgba(252,250,247,0))`,
-              }}
-            />
-          )}
-          {edges.right && (
-            <div
-              aria-hidden
-              className="pointer-events-none absolute top-0 bottom-0"
-              style={{
-                right: 0,
-                width: 24,
-                zIndex: 3,
-                background: `linear-gradient(to left, ${CARD_BG}, rgba(252,250,247,0))`,
-              }}
-            />
-          )}
+              {/* Marker legend — GRID-aligned under the heat cells */}
+              {heatLegend && (
+                <div style={GRID}>
+                  <div />
+                  <div style={{ gridColumn: "2 / 14", paddingTop: 4 }}>{heatLegend}</div>
+                </div>
+              )}
         </div>
 
         {/* ── Mobile substitute for the strip ────────────────────────────
@@ -1384,9 +1460,7 @@ export default function YearView({ trips }: Props) {
             >
               Ideal times
             </span>
-            {travelWindows
-              .filter((w) => parseDate(w.end_date) >= winStart && parseDate(w.start_date) <= winEnd)
-              .map((w) => (
+            {idealInWindow.map((w) => (
                 <span
                   key={w.id}
                   className="inline-flex items-center"
@@ -1414,7 +1488,7 @@ export default function YearView({ trips }: Props) {
                     ×
                   </button>
                 </span>
-              ))}
+            ))}
             <button
               onClick={openAddSheet}
               className="inline-flex items-center"
@@ -1449,11 +1523,25 @@ export default function YearView({ trips }: Props) {
             {months.map((m) => {
               const c = climate?.[m.getMonth()];
               const tone = c ? scoreMonth(c) : null;
+              const wet = !!c && isWetMonth(c);
+              const stormy = !!c && !!storm && storm.months.includes(m.getMonth() + 1);
               return (
                 <div
                   key={`mheat-${m.getTime()}`}
                   className="flex flex-col items-center justify-center"
+                  title={
+                    c
+                      ? [
+                          `Mean high ${c.high}°`,
+                          c.precipMm != null ? `~${c.precipMm}mm rain` : null,
+                          stormy && storm ? storm.label : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")
+                      : undefined
+                  }
                   style={{
+                    position: "relative",
                     height: 34,
                     borderRadius: 6,
                     background: tone ? HEAT_STYLE[tone].bg : "rgba(26,26,46,0.05)",
@@ -1466,34 +1554,60 @@ export default function YearView({ trips }: Props) {
                   <span style={{ fontSize: 11, fontWeight: 600, lineHeight: 1.1 }}>
                     {c ? `${c.high}°` : "–"}
                   </span>
+                  {wet && (
+                    <span style={{ position: "absolute", top: 2, left: 3 }}>
+                      <DropGlyph size={6} />
+                    </span>
+                  )}
+                  {stormy && (
+                    <span style={{ position: "absolute", top: 2, right: 3 }}>
+                      <StormGlyph size={7} />
+                    </span>
+                  )}
                 </div>
               );
             })}
           </div>
+          {heatLegend && <div className="mt-1.5">{heatLegend}</div>}
         </div>
 
-        {/* Open windows — the takeaway, in words; leads on mobile */}
+        {/* Open windows — the takeaway, in words; leads on mobile. At md+
+            the rows flow into two columns so the section uses the card's
+            width instead of leaving a sea of parchment on the right. */}
         {openWindows.length > 0 && (
-          <div className="order-1 md:order-2 md:mt-2.5 md:pt-2 md:border-t md:border-[rgba(26,26,46,0.06)]">
-              <div
-                style={{
-                  fontSize: 10,
-                  fontWeight: 600,
-                  letterSpacing: "0.12em",
-                  textTransform: "uppercase",
-                  color: "rgba(26,26,46,0.4)",
-                }}
-              >
-                Open windows
+          <div className="order-1 md:order-2 md:mt-2 md:pt-1.5 md:border-t md:border-[rgba(26,26,46,0.06)]">
+              <div className="flex items-baseline justify-between">
+                <div
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 600,
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    color: "rgba(26,26,46,0.4)",
+                  }}
+                >
+                  Open windows
+                </div>
+                {/* With no ideal windows the strip has no Ideal-times lane;
+                    the add affordance lives here instead (desktop only —
+                    mobile keeps its chip in the pill row) */}
+                {idealInWindow.length === 0 && (
+                  <button
+                    onClick={openAddSheet}
+                    className="hidden md:flex items-center"
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 600,
+                      color: "rgba(26,26,46,0.4)",
+                      minHeight: 32,
+                      margin: "-8px 0",
+                    }}
+                  >
+                    + Add an ideal window
+                  </button>
+                )}
               </div>
-              {/* One quiet hint instead of eleven orange links */}
-              <div
-                className="font-display italic"
-                style={{ fontSize: 11, color: "rgba(26,26,46,0.45)", marginTop: 2 }}
-              >
-                Tap a window to plan it
-              </div>
-              <div className="mt-1">
+              <div className="mt-1 md:columns-2 md:gap-x-10">
                 {openWindows.map((w, i) => {
                   // Tiny month prefix on the first row of each month so the
                   // eye can jump straight to "MAR" in a ~11-row list
@@ -1507,6 +1621,7 @@ export default function YearView({ trips }: Props) {
                       key={`list-${w.key}`}
                       href={`/trips/new?start=${isoOf(w.start)}&end=${isoOf(w.end)}`}
                       className="flex w-full items-center justify-between gap-2 py-[4px] text-left"
+                      style={{ breakInside: "avoid" }}
                     >
                       <span
                         className="uppercase flex-shrink-0"
