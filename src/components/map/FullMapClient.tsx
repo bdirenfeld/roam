@@ -45,6 +45,10 @@ const SKELETON_PREFIXES = [
 ];
 
 function isSkeletonCard(card: Card): boolean {
+  // A skeleton is a placeholder, which by definition never came from Google.
+  // Without this guard the title match alone hides genuine places whose names
+  // start with a skeleton word — "Lunch Lady", "Dinner Bell", "Arrival Bar".
+  if (card.place?.google_place_id) return false;
   const lower = (card.place?.title ?? "").toLowerCase();
   return SKELETON_PREFIXES.some((s) => lower.startsWith(s));
 }
