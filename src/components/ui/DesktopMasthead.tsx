@@ -3,12 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { UserCircle, Calendar, Columns, MapPin } from "@phosphor-icons/react";
+import { UserCircle, Calendar, Columns, MapPin, NotePencil } from "@phosphor-icons/react";
 import { SearchButton } from "@/components/search/GlobalSearch";
 import {
   NewJourneyLink,
   ProfileLink,
   TripSettingsLink,
+  useJourneyNotes,
 } from "@/components/overlays/AppOverlays";
 import { createClient } from "@/lib/supabase/client";
 import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
@@ -539,6 +540,33 @@ function TripTabs({
           </Link>
         );
       })}
+
+      {/* Journey notes — content, not configuration, so it lives beside the
+          tabs rather than inside Settings. A glyph instead of a fourth tab:
+          four tabs is too many, and the badge says whether it's worth opening. */}
+      <NotesGlyph tripId={tripId} />
     </div>
+  );
+}
+
+/** Note glyph beside the journey's tabs. Opens the notes overlay. */
+function NotesGlyph({ tripId }: { tripId: string }) {
+  const notes = useJourneyNotes();
+  return (
+    <button
+      onClick={() => notes.open(tripId)}
+      title="Journey notes"
+      aria-label="Journey notes"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        padding: "8px 10px",
+        borderRadius: 999,
+        color: CAPTION,
+        background: "transparent",
+      }}
+    >
+      <NotePencil size={16} weight="light" />
+    </button>
   );
 }

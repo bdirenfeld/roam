@@ -224,6 +224,7 @@ function CardBody({
   onClose,
   onCardUpdate,
   onCardDelete,
+  onCardCreated,
   days,
   tripId,
 }: {
@@ -231,6 +232,7 @@ function CardBody({
   onClose: () => void;
   onCardUpdate?: (updated: Card) => void;
   onCardDelete?: (cardId: string) => void;
+  onCardCreated?: (created: Card) => void;
   days?: Day[];
   tripId?: string;
 }) {
@@ -265,8 +267,13 @@ function CardBody({
       tripId, dayId: day.id, placeId: card.place_id, place: card.place,
     });
     setScheduling(false);
-    if (newCard) onClose();
-  }, [tripId, card.place_id, card.place, scheduling, supabase, onClose]);
+    if (newCard) {
+      // Hand the scheduled card back so its pin lands on the map now, in the
+      // filled "scheduled" styling — not on the next page load.
+      onCardCreated?.(newCard);
+      onClose();
+    }
+  }, [tripId, card.place_id, card.place, scheduling, supabase, onCardCreated, onClose]);
 
   function handleTrashClick() {
     if (card.status === "in_itinerary") {
@@ -403,7 +410,7 @@ function CardBody({
                   <span style={{ fontWeight: 600, fontSize: "13.5px", color: "#1A1A2E", letterSpacing: "-0.005em" }}>Day {d.day_number}</span>
                   <span style={{ color: "rgba(26,26,46,0.40)", fontSize: "11px" }}>·</span>
                   <span className="flex-1" style={{ fontSize: "13px", color: "rgba(26,26,46,0.55)", letterSpacing: "-0.005em" }}>
-                    {new Date(d.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    {new Date(d.date + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
                   </span>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(26,26,46,0.40)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="9 18 15 12 9 6" />
@@ -513,11 +520,13 @@ interface Props {
   onClose: () => void;
   onCardUpdate?: (updated: Card) => void;
   onCardDelete?: (cardId: string) => void;
+  /** Fired with the new in_itinerary card when this pin is added to a day. */
+  onCardCreated?: (created: Card) => void;
   days?: Day[];
   tripId?: string;
 }
 
-export default function MapPinPopup({ card, anchorPos, onClose, onCardUpdate, onCardDelete, days, tripId }: Props) {
+export default function MapPinPopup({ card, anchorPos, onClose, onCardUpdate, onCardDelete, onCardCreated, days, tripId }: Props) {
   if (anchorPos) {
     const vw        = typeof window !== "undefined" ? window.innerWidth : 800;
     const rawLeft   = anchorPos.x - POPUP_W / 2;
@@ -542,7 +551,7 @@ export default function MapPinPopup({ card, anchorPos, onClose, onCardUpdate, on
           className="bg-white rounded-2xl overflow-hidden flex flex-col"
           style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.20)", maxHeight: "65vh" }}
         >
-          <CardBody card={card} onClose={onClose} onCardUpdate={onCardUpdate} onCardDelete={onCardDelete} days={days} tripId={tripId} />
+          <CardBody card={card} onClose={onClose} onCardUpdate={onCardUpdate} onCardDelete={onCardDelete} onCardCreated={onCardCreated} days={days} tripId={tripId} />
         </div>
 
         {/* Downward triangle */}
@@ -574,7 +583,7 @@ export default function MapPinPopup({ card, anchorPos, onClose, onCardUpdate, on
         className="relative bg-white rounded-2xl overflow-hidden w-full max-w-sm animate-in zoom-in-95 duration-200 max-h-[85dvh] flex flex-col"
         style={{ boxShadow: "0 20px 60px rgba(0,0,0,0.25)" }}
       >
-        <CardBody card={card} onClose={onClose} onCardUpdate={onCardUpdate} onCardDelete={onCardDelete} days={days} tripId={tripId} />
+        <CardBody card={card} onClose={onClose} onCardUpdate={onCardUpdate} onCardDelete={onCardDelete} onCardCreated={onCardCreated} days={days} tripId={tripId} />
       </div>
     </div>
   );

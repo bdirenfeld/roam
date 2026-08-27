@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import type { Card, CardType, Place } from "@/types/database";
+import type { Card, CardType, Day, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
+import { scheduleCardOnDay } from "@/lib/scheduleCard";
 import { PIN_COLORS } from "@/lib/mapPins";
 import CardImage from "@/components/ui/CardImage";
 
@@ -30,7 +31,12 @@ export interface PlaceResult {
 interface Props {
   place: PlaceResult;
   tripId: string;
-  dayId: string;
+  /**
+   * The journey's days, so a place can go straight onto one instead of landing
+   * in the saved pile for a second trip through the app later. Empty is fine —
+   * the day row simply doesn't render and every save is map-only.
+   */
+  days: Day[];
   onClose: () => void;
   onCardCreated: (card: Card) => void;
 }
@@ -99,7 +105,15 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
-export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCreated }: Props) {
+/** "Mon 18" — the weekday is what a traveller actually picks a day by. */
+function fmtDayChip(date: string): string {
+  return new Date(date + "T00:00:00").toLocaleDateString("en-US", {
+    weekday: "short",
+    day:     "numeric",
+  });
+}
+
+export default function AddToTripSheet({ place, tripId, days, onClose, onCardCreated }: Props) {
   const supabase = createClient();
   const sheetRef = useRef<HTMLDivElement>(null);
   const dragY    = useRef(0);
@@ -110,6 +124,26 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
   const [recommendedBy,  setRecommendedBy]  = useState("");
   const [saving,         setSaving]         = useState(false);
   const [showDupConfirm, setShowDupConfirm] = useState(false);
+  // null = map only, which is the default: saving a place has never implied
+  // committing it to a day, and it still doesn't.
+  const [targetDayId,    setTargetDayId]    = useState<string | null>(null);
+
+  const targetDay = days.find((d) => d.id === targetDayId) ?? null;
+
+  // The day strip scrolls by thumb on a phone; a mouse has no horizontal
+  // gesture, so a vertical wheel over the strip scrolls it and the arrows
+  // nudge it a chip-width at a time. Same treatment as the journey planner's
+  // quick-window chips.
+  const dayScrollerRef = useRef<HTMLDivElement>(null);
+  const handleDayWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    const el = dayScrollerRef.current;
+    if (!el || el.scrollWidth <= el.clientWidth) return;
+    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; // already horizontal
+    el.scrollLeft += e.deltaY;
+  }, []);
+  const nudgeDays = useCallback((dir: 1 | -1) => {
+    dayScrollerRef.current?.scrollBy({ left: dir * 160, behavior: "smooth" });
+  }, []);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -242,6 +276,24 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
       price_level:     foodPriceLevel,
     };
 
+    // ── Straight onto a day ──────────────────────────────────────
+    // One shared chokepoint writes every scheduled card (status in_itinerary,
+    // 1-based position = live max on that day + 1). The pin-popup door and the
+    // plan board use the same helper, so the two paths cannot drift apart.
+    if (targetDayId) {
+      const scheduled = await scheduleCardOnDay(supabase, {
+        tripId,
+        dayId:     targetDayId,
+        placeId:   placeRow.id,
+        place:     joinedPlace,
+        details,
+        sourceUrl: place.mapsUrl ?? null,
+      });
+      setSaving(false);
+      if (scheduled) onCardCreated(scheduled);
+      return;
+    }
+
     const newCard: Card = {
       id:              crypto.randomUUID(),
       // Interested cards are unscheduled by rule: day_id null + status interested.
@@ -275,7 +327,7 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
 
     setSaving(false);
     if (!error) onCardCreated(newCard);
-  }, [type, subType, recommendedBy, place, dayId, tripId, supabase, onCardCreated]);
+  }, [type, subType, recommendedBy, place, targetDayId, tripId, supabase, onCardCreated]);
 
   const handleSave = useCallback(async () => {
     if (!type || saving) return;
@@ -334,7 +386,7 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
             <div className="bg-white rounded-2xl shadow-sheet p-5 w-full max-w-xs">
               <p className="text-[15px] font-bold text-gray-900 mb-1">Already saved</p>
               <p className="text-[13px] text-gray-500 mb-5 leading-relaxed">
-                &ldquo;{place.name}&rdquo; is already in your trip. Save it again anyway?
+                &ldquo;{place.name}&rdquo; is already in your journey. Save it again anyway?
               </p>
               <div className="flex gap-3">
                 <button
@@ -479,6 +531,74 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
             </div>
           )}
 
+          {/* ── Day strip ── Saving a place and scheduling it used to be two
+              separate journeys through the app. The default is still an
+              unscheduled pin; picking a day writes it onto the plan in one go. */}
+          {days.length > 0 && (
+            <div className="mb-4">
+              <p className="text-[11px] text-gray-400 mb-1.5 ml-0.5">Put it on a day (optional)</p>
+              <div className="relative">
+                <div
+                  ref={dayScrollerRef}
+                  onWheel={handleDayWheel}
+                  className="flex gap-1.5 overflow-x-auto scrollbar-none pr-6"
+                >
+                  <button
+                    onClick={() => setTargetDayId(null)}
+                    className={`flex-shrink-0 text-[11px] font-semibold rounded-full px-2.5 py-1.5 border whitespace-nowrap transition-colors ${
+                      targetDayId === null
+                        ? "bg-[#1A1A2E] text-[#FAF7F2] border-[#1A1A2E]"
+                        : "bg-[#F2EDE3] text-[#1A1A2E] border-black/10"
+                    }`}
+                  >
+                    Save to the map only
+                  </button>
+                  {days.map((d) => {
+                    const active = targetDayId === d.id;
+                    return (
+                      <button
+                        key={d.id}
+                        onClick={() => setTargetDayId(d.id)}
+                        className={`flex-shrink-0 text-[11px] font-semibold rounded-full px-2.5 py-1.5 border whitespace-nowrap transition-colors ${
+                          active
+                            ? "bg-[#1A1A2E] text-[#FAF7F2] border-[#1A1A2E]"
+                            : "bg-[#F2EDE3] text-[#1A1A2E] border-black/10"
+                        }`}
+                      >
+                        Day {d.day_number}
+                        <span className={active ? "opacity-60" : "opacity-40"}> · {fmtDayChip(d.date)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* Right-edge fade — signals there are more days to scroll */}
+                <div
+                  className="absolute right-0 top-0 bottom-0 w-6 pointer-events-none"
+                  style={{ background: "linear-gradient(to left, #fff, transparent)" }}
+                />
+                {/* A mouse can't swipe a strip: arrows do on desktop what a
+                    thumb does on a phone. Hidden on touch, where they'd just
+                    cover chips. */}
+                <button
+                  type="button"
+                  onClick={() => nudgeDays(-1)}
+                  aria-label="Earlier days"
+                  className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white border border-black/10 shadow-sm items-center justify-center text-[#1A1A2E]"
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  onClick={() => nudgeDays(1)}
+                  aria-label="Later days"
+                  className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white border border-black/10 shadow-sm items-center justify-center text-[#1A1A2E]"
+                >
+                  ›
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Recommended by */}
           <div className="mb-4">
             <input
@@ -502,7 +622,11 @@ export default function AddToTripSheet({ place, tripId, dayId, onClose, onCardCr
             }`}
             style={canSave ? { background: typeColor! } : undefined}
           >
-            {saving ? "Checking…" : "Save to Map"}
+            {saving
+              ? "Checking…"
+              : targetDay
+              ? `Add to Day ${targetDay.day_number}`
+              : "Save to the map only"}
           </button>
         </div>
       </div>

@@ -31,6 +31,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import Overlay from "@/components/ui/Overlay";
+import { JourneyNotesSheet } from "@/components/trip/JourneyNotes";
 import type { Person } from "@/components/trip/TravellersSection";
 import { createClient } from "@/lib/supabase/client";
 import { isTripGuest } from "@/lib/trip-access-client";
@@ -88,12 +89,25 @@ interface ProfileController {
 const ProfileCtx = createContext<ProfileController>({ open: () => {} });
 export const useProfile = () => useContext(ProfileCtx);
 
+/**
+ * Journey notes. Notes are trip CONTENT — the gate code, what to pack — not
+ * configuration, so they open from a glyph beside the journey's tabs rather
+ * than from inside Settings, and from anywhere without a page change.
+ */
+interface JourneyNotesController {
+  open: (tripId: string, initialNotes?: string | null) => void;
+}
+const JourneyNotesCtx = createContext<JourneyNotesController>({ open: () => {} });
+export const useJourneyNotes = () => useContext(JourneyNotesCtx);
+
 /** Mounted once, in (app)/layout, inside GlobalSearchProvider. */
 export function AppOverlaysProvider({ children }: { children: ReactNode }) {
   return (
     <NewJourneyProvider>
       <TripSettingsProvider>
-        <ProfileProvider>{children}</ProfileProvider>
+        <ProfileProvider>
+          <JourneyNotesProvider>{children}</JourneyNotesProvider>
+        </ProfileProvider>
       </TripSettingsProvider>
     </NewJourneyProvider>
   );
@@ -156,6 +170,57 @@ function ProfileProvider({ children }: { children: ReactNode }) {
         </Overlay>
       )}
     </ProfileCtx.Provider>
+  );
+}
+
+// ── Journey notes ─────────────────────────────────────────────────────────
+
+function JourneyNotesProvider({ children }: { children: ReactNode }) {
+  const [request, setRequest] = useState<
+    { tripId: string; initialNotes: string | null; nonce: number } | null
+  >(null);
+  const [loaded, setLoaded] = useState<string | null>(null);
+
+  const open = useCallback((tripId: string, initialNotes?: string | null) => {
+    setLoaded(initialNotes ?? null);
+    setRequest((prev) => ({
+      tripId,
+      initialNotes: initialNotes ?? null,
+      nonce: (prev?.nonce ?? 0) + 1,
+    }));
+  }, []);
+  const close = useCallback(() => setRequest(null), []);
+  const value = useMemo(() => ({ open }), [open]);
+
+  // Opened from a surface that doesn't already hold the journey's notes (the
+  // masthead glyph, say): fetch them behind the open rather than blocking it.
+  useEffect(() => {
+    if (!request || request.initialNotes != null) return;
+    let cancelled = false;
+    const supabase = createClient();
+    supabase
+      .from("trips")
+      .select("notes")
+      .eq("id", request.tripId)
+      .single()
+      .then(({ data }) => {
+        if (!cancelled) setLoaded((data as { notes: string | null } | null)?.notes ?? "");
+      });
+    return () => { cancelled = true; };
+  }, [request]);
+
+  return (
+    <JourneyNotesCtx.Provider value={value}>
+      {children}
+      {request && (
+        <JourneyNotesSheet
+          key={request.nonce}
+          tripId={request.tripId}
+          initialNotes={loaded}
+          onClose={close}
+        />
+      )}
+    </JourneyNotesCtx.Provider>
   );
 }
 
@@ -311,7 +376,6 @@ function TripSettingsBody({
       initialPeople={people}
       initialShareToken={share.shareToken}
       initialGuests={share.guests}
-      initialNotes={trip.notes ?? null}
       shareAvailable={share.shareAvailable}
       variant="overlay"
       onDismiss={onClose}

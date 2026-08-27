@@ -361,11 +361,25 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
     setPendingPlace(null);
   }
 
+  /**
+   * A card that has just been written — from the add sheet or from a pin's
+   * "Add to day" — becomes a live pin here.
+   *
+   * revealCard runs first, and it matters most for a card saved straight onto a
+   * day: with "In Itinerary" toggled off, the pin would be created and
+   * immediately filtered out, so the save would look like it failed. Same
+   * spirit as flying to a hidden pin from the sidebar.
+   */
+  function registerNewCard(card: Card) {
+    revealCard(card);
+    addPinToMap(card);
+    setLocalCards((prev) => [...prev, card]);
+  }
+
   function handlePlaceCardCreated(card: Card) {
     if (tempPinRef.current) { tempPinRef.current.remove(); tempPinRef.current = null; }
     setPendingPlace(null);
-    addPinToMap(card);
-    setLocalCards((prev) => [...prev, card]);
+    registerNewCard(card);
   }
 
   // ── Handle card delete from sidebar or sheet ─────────────────
@@ -740,9 +754,9 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
             <p className="text-[14px] font-semibold text-gray-900">Start your map</p>
             <p className="text-[13px] text-gray-500 leading-[1.55] mt-1">
               Search for any place you&rsquo;re curious about — a restaurant, a
-              museum, your hotel. Press <span className="font-semibold text-gray-700">Save to Map</span> and
-              it becomes a pin. You&rsquo;ll sort your pins into days later, on
-              the Plan tab.
+              museum, your hotel. Save it and it becomes a pin. If you already
+              know when you&rsquo;re going, pick a day in the same step — otherwise
+              leave it on the map and sort it into a day later.
             </p>
             <button
               onClick={dismissIntro}
@@ -764,17 +778,21 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
             onClose={() => { deselectPin(); setSelectedCard(null); }}
             onCardUpdate={readOnly ? undefined : handleCardUpdate}
             onCardDelete={readOnly ? undefined : (cardId) => { deselectPin(); handleCardDelete(cardId); }}
+            onCardCreated={readOnly ? undefined : (created) => { deselectPin(); registerNewCard(created); }}
             days={readOnly ? undefined : days}
             tripId={readOnly ? undefined : trip.id}
           />
         )}
 
         {/* Add to Trip sheet */}
-        {pendingPlace && days.length > 0 && (
+        {/* Add to Trip sheet. No longer gated on the journey having days — the
+            sheet only needed one before, to fill a dayId it then ignored. A
+            dayless journey now still gets map-only saves. */}
+        {pendingPlace && (
           <AddToTripSheet
             place={pendingPlace}
             tripId={trip.id}
-            dayId={days[0].id}
+            days={days}
             onClose={handleAddToTripClose}
             onCardCreated={handlePlaceCardCreated}
           />

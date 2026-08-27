@@ -66,18 +66,14 @@ export default async function TripSettingsPage({ params }: Props) {
       email: u.email,
     }));
   }
-  const shareToken = (trip as { share_token: string | null }).share_token ?? null;
-  const notes = (trip as Trip).notes ?? null;
-
+  const shareToken = (trip as { share_token: string | null }).share_token ?? null;
   return (
     <TripSettingsClient
       trip={trip as Trip}
       days={(days ?? []) as Day[]}
       initialPeople={(people ?? []) as Person[]}
       initialShareToken={shareToken}
-      initialGuests={guests}
-      initialNotes={notes}
-      shareAvailable={shareAvailable}
+      initialGuests={guests}      shareAvailable={shareAvailable}
     />
   );
 }

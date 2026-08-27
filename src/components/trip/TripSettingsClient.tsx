@@ -7,7 +7,6 @@ import { createClient } from "@/lib/supabase/client";
 import { setTripArchived } from "@/lib/tripArchive";
 import TravellersSection, { type Person } from "@/components/trip/TravellersSection";
 import ShareJourneySection, { type ShareGuest } from "@/components/trip/ShareJourneySection";
-import JourneyNotes from "@/components/trip/JourneyNotes";
 import { NESTED_SHEET_ATTR } from "@/components/ui/Overlay";
 import { TRAVELLERS_ENABLED } from "@/lib/featureFlags";
 import type { Trip, Day } from "@/types/database";
@@ -20,8 +19,6 @@ interface Props {
   initialPeople: Person[];
   initialShareToken: string | null;
   initialGuests: ShareGuest[];
-  /** trips.notes — server-fetched with the trip, so it works offline. */
-  initialNotes: string | null;
   // False when SUPABASE_SERVICE_ROLE_KEY is absent from the environment —
   // sharing can't work without it, so the section is hidden entirely.
   shareAvailable: boolean;
@@ -78,7 +75,6 @@ export default function TripSettingsClient({
   initialPeople,
   initialShareToken,
   initialGuests,
-  initialNotes,
   shareAvailable,
   variant = "page",
   onDismiss,
@@ -562,18 +558,10 @@ export default function TripSettingsClient({
         {/* ── Notes — the journey facts that belong to no single day. This is
             the always-available home; the Day and Plan ··· menus open the same
             notes in a sheet. ── */}
-        <section id="notes" className="px-5" style={{ scrollMarginTop: 24 }}>
-          <div className="pt-6 pb-3.5">
-            <h2 className="font-display italic font-medium text-[22px] text-[#1A1A2E] leading-tight">
-              Notes
-            </h2>
-          </div>
-          <JourneyNotes
-            tripId={trip.id}
-            initialNotes={initialNotes}
-            className="max-w-[620px]"
-          />
-        </section>
+        {/* Notes used to live here. They're journey CONTENT — the gate code,
+            what to pack — not configuration, so they moved to the note glyph
+            beside the journey's tabs, reachable from any screen without
+            leaving it. */}
 
         {/* ── Share this journey — guest sharing ── */}
         {/* id anchors the Plan menu's "Share itinerary" deep link (#share) */}
