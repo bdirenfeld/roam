@@ -5,7 +5,8 @@
 // family birthdays, the TDSB school calendar, and a climate heat row for a
 // picked destination. The point of the section is the "open windows" —
 // school breaks and 3+ day weekends with no journey booked yet, drawn as
-// dashed pills and listed below the strip with a "Plan it" link.
+// dashed pills and listed below the strip; tapping one goes straight to
+// /trips/new with the dates prefilled.
 //
 // Static inputs live in src/lib/yearView/ (familyDates, schoolCalendar).
 // Climate comes from Open-Meteo's archive API, fetched lazily client-side
@@ -149,24 +150,6 @@ const HEAT_STYLE: Record<HeatTone, { bg: string; fg: string }> = {
   rough: { bg: "#F5DAD2", fg: "#93402A" },
 };
 
-// Chip wording + sort order for the "go where?" suggestion sheet
-const TONE_WORD: Record<HeatTone, string> = {
-  great: "prime",
-  good:  "good",
-  fair:  "fair",
-  rough: "rough",
-};
-const TONE_RANK: Record<HeatTone, number> = { great: 0, good: 1, fair: 2, rough: 3 };
-
-// Terse chip label: name the dominant problem when there is one, otherwise
-// the tone word — and nothing at all for a great month, where the green
-// already carries the message. e.g. "2° · cold", "24° · rainy", "22°".
-function chipLabel(c: MonthClimate, tone: HeatTone): string {
-  const reason =
-    c.high < 8 ? "cold" : c.high > 33 ? "hot" : c.rainShare >= 0.4 ? "rainy" : null;
-  if (reason) return `${c.high}° · ${reason}`;
-  return tone === "great" ? `${c.high}°` : `${c.high}° · ${TONE_WORD[tone]}`;
-}
 
 // ── Place search — the app's Google Places routes ─────────────────────────
 // Open-Meteo's geocoder is city-only and answers "Tuscany" with a suburb in
@@ -259,7 +242,7 @@ const CARD_BG = "#FCFAF7";
 // Desktop destination popover — size is fixed so the flip-above maths can
 // run before the element exists
 const PICKER_W = 250;
-const PICKER_H = 300;
+const PICKER_H = 380; // tall enough for the wishlist + search without scrolling at 10 rows
 // Lane-label cells stay pinned while the strip scrolls under them
 const STICKY_LABEL: CSSProperties = {
   position: "sticky",
@@ -322,9 +305,8 @@ export default function YearView({ trips }: Props) {
   const [formStart, setFormStart] = useState("");
   const [formEnd, setFormEnd] = useState("");
   const [saving, setSaving] = useState(false);
-  // "Go where?" sheet: which open window is being planned, the wishlist,
-  // and per-destination climate (loaded lazily when the sheet first opens)
-  const [sheetWindow, setSheetWindow] = useState<OpenWindow | null>(null);
+  // The wishlist — "places whose weather I care about". It lives inside the
+  // destination picker, decoupled from the open-windows planning path.
   const [wishlist, setWishlist] = useState<WishlistDest[]>([]);
   // Undo window for the two instant deletes (wishlist place, ideal window)
   const [undo, setUndo] = useState<{ label: string; restore: () => Promise<void> } | null>(null);
@@ -334,13 +316,6 @@ export default function YearView({ trips }: Props) {
     setUndo({ label, restore });
     undoTimerRef.current = setTimeout(() => setUndo(null), 6000);
   };
-  const [destClimate, setDestClimate] = useState<Record<string, MonthClimate[] | "error">>({});
-  // "+ Add a place" mini-form on the sheet
-  const [addPlaceOpen, setAddPlaceOpen] = useState(false);
-  const [placeQuery, setPlaceQuery] = useState("");
-  const [placeResults, setPlaceResults] = useState<Prediction[]>([]);
-  const [placeSearching, setPlaceSearching] = useState(false);
-  const [addingPlace, setAddingPlace] = useState(false);
   // The destination picker renders position:fixed (anchored at open time) so
   // the strip's overflow container can't clip it; this holds the anchor.
   const [pickerPos, setPickerPos] = useState<
@@ -457,68 +432,6 @@ export default function YearView({ trips }: Props) {
     };
   }, []);
 
-  // Climate for a row: the precomputed column first (zero network), else
-  // whatever the lazy fetch has produced this session.
-  const climateOf = (d: WishlistDest): MonthClimate[] | "error" | null =>
-    (Array.isArray(d.climate) && d.climate.length === 12 ? d.climate : null) ??
-    destClimate[d.id] ??
-    null;
-
-  // Rows without a stored climate fetch it when a sheet first opens, then
-  // write it back so the row is free forever after (self-healing backfill —
-  // in practice only places added through "+ Add a place" land here).
-  useEffect(() => {
-    if (!sheetWindow) return;
-    let cancelled = false;
-    const supabase = createClient();
-    for (const d of wishlist) {
-      if (d.lat == null || d.lng == null) continue;
-      if (Array.isArray(d.climate) && d.climate.length === 12) continue;
-      if (destClimate[d.id]) continue;
-      fetchClimate(d.lat, d.lng)
-        .then((c) => {
-          if (cancelled) return;
-          setDestClimate((prev) => ({ ...prev, [d.id]: c }));
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (supabase as any)
-            .from("wishlist_destinations")
-            .update({ climate: c })
-            .eq("id", d.id)
-            .then(() => {});
-        })
-        .catch(() => {
-          if (!cancelled) setDestClimate((prev) => ({ ...prev, [d.id]: "error" }));
-        });
-    }
-    return () => {
-      cancelled = true;
-    };
-    // destClimate is read as a skip-list, not a trigger
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sheetWindow, wishlist]);
-
-  // Debounced place search for the add-a-place field
-  useEffect(() => {
-    const q = placeQuery.trim();
-    if (q.length < 2) {
-      setPlaceResults([]);
-      setPlaceSearching(false);
-      return;
-    }
-    setPlaceSearching(true);
-    let cancelled = false;
-    const t = setTimeout(async () => {
-      const rs = await fetchPredictions(q, sessionToken.current).catch(() => [] as Prediction[]);
-      if (cancelled) return;
-      setPlaceResults(rs);
-      setPlaceSearching(false);
-    }, 300);
-    return () => {
-      cancelled = true;
-      clearTimeout(t);
-    };
-  }, [placeQuery]);
-
   // Debounced place search for the weather destination picker
   useEffect(() => {
     const q = query.trim();
@@ -541,43 +454,50 @@ export default function YearView({ trips }: Props) {
     };
   }, [query]);
 
-  // Picking a destination for the heat row: resolve to coordinates, then
-  // close. The chip shows Google's short name ("Tuscany", not the address).
-  const handlePickDestination = async (p: Prediction) => {
+  // Selecting a saved wishlist place for the heat row — one tap, no typing
+  const handlePickWishlist = (d: WishlistDest) => {
+    if (d.lat == null || d.lng == null) return;
+    setDest({ label: d.name, lat: d.lat, lng: d.lng });
+    setPickerOpen(false);
+    setQuery("");
+    setResults([]);
+  };
+
+  // A search pick does two things: selects the place for the heat row
+  // (immediately — the picker closes before the insert lands) and saves it
+  // to the wishlist with its climate computed, unless an equivalent row is
+  // already there. "The wishlist is places whose weather I care about."
+  const handleSearchPick = async (p: Prediction) => {
     if (resolving) return;
     setResolving(true);
     const place = await fetchPlaceDetails(p.place_id, sessionToken.current).catch(() => null);
     sessionToken.current = crypto.randomUUID();
     setResolving(false);
     if (!place) return;
-    setDest({ label: place.name || predMain(p), lat: place.lat, lng: place.lng });
+    const name = place.name || predMain(p);
+    setDest({ label: name, lat: place.lat, lng: place.lng });
     setPickerOpen(false);
     setQuery("");
     setResults([]);
-  };
 
-  // Add a geocoded place to the wishlist. Climate is computed up front so
-  // the new row behaves like a seeded one; a failed fetch still inserts
-  // (climate null) and the lazy backfill picks it up next time.
-  const handleAddPlace = async (p: Prediction) => {
-    if (addingPlace) return;
-    setAddingPlace(true);
-    const place = await fetchPlaceDetails(p.place_id, sessionToken.current).catch(() => null);
-    sessionToken.current = crypto.randomUUID();
-    if (!place) {
-      setAddingPlace(false);
-      return;
-    }
+    const alreadySaved = wishlist.some(
+      (d) =>
+        d.name.trim().toLowerCase() === name.trim().toLowerCase() ||
+        (d.lat != null &&
+          d.lng != null &&
+          Math.abs(d.lat - place.lat) < 0.05 &&
+          Math.abs(d.lng - place.lng) < 0.05)
+    );
+    if (alreadySaved) return;
+
     const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    if (!user) {
-      setAddingPlace(false);
-      return;
-    }
+    if (!user) return;
+    // Climate computed up front so the new row behaves like a seeded one;
+    // a failed fetch still inserts (climate null).
     const climateArr = await fetchClimate(place.lat, place.lng).catch(() => null);
-    const name = place.name || predMain(p);
     const location = compactAddress(place.address, name);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase as any)
@@ -597,15 +517,11 @@ export default function YearView({ trips }: Props) {
       })
       .select(WISHLIST_COLS)
       .single();
-    setAddingPlace(false);
     if (error || !data) {
-      console.error("Failed to add wishlist place:", error);
+      console.error("Failed to save wishlist place:", error);
       return;
     }
     setWishlist((prev) => [...prev, data as WishlistDest]);
-    setAddPlaceOpen(false);
-    setPlaceQuery("");
-    setPlaceResults([]);
   };
 
   // Instant delete, but never silent: the × sits close to the row's own tap
@@ -690,17 +606,16 @@ export default function YearView({ trips }: Props) {
 
   // Escape closes whichever overlay is up (backdrop click also closes)
   useEffect(() => {
-    if (!addOpen && !sheetWindow && !pickerOpen) return;
+    if (!addOpen && !pickerOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setAddOpen(false);
-        setSheetWindow(null);
         setPickerOpen(false);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [addOpen, sheetWindow, pickerOpen]);
+  }, [addOpen, pickerOpen]);
 
   const openAddSheet = () => {
     setFormLabel("");
@@ -1100,9 +1015,9 @@ export default function YearView({ trips }: Props) {
                     const left = posStart(maxDate(w.start, winStart));
                     const width = posEnd(minDate(w.end, winEnd)) - left;
                     return (
-                      <button
+                      <Link
                         key={w.key}
-                        onClick={() => setSheetWindow(w)}
+                        href={`/trips/new?start=${isoOf(w.start)}&end=${isoOf(w.end)}`}
                         title={`${w.name} · ${formatRange(w.coreStart, w.coreEnd)} — no journey planned`}
                         style={{
                           position: "absolute",
@@ -1126,7 +1041,7 @@ export default function YearView({ trips }: Props) {
                         }}
                       >
                         Open
-                      </button>
+                      </Link>
                     );
                   })}
                   {visibleTrips.map((t) => {
@@ -1571,6 +1486,13 @@ export default function YearView({ trips }: Props) {
               >
                 Open windows
               </div>
+              {/* One quiet hint instead of eleven orange links */}
+              <div
+                className="font-display italic"
+                style={{ fontSize: 11, color: "rgba(26,26,46,0.45)", marginTop: 2 }}
+              >
+                Tap a window to plan it
+              </div>
               <div className="mt-1">
                 {openWindows.map((w, i) => {
                   // Tiny month prefix on the first row of each month so the
@@ -1581,9 +1503,9 @@ export default function YearView({ trips }: Props) {
                     prev.coreStart.getMonth() !== w.coreStart.getMonth() ||
                     prev.coreStart.getFullYear() !== w.coreStart.getFullYear();
                   return (
-                    <button
+                    <Link
                       key={`list-${w.key}`}
-                      onClick={() => setSheetWindow(w)}
+                      href={`/trips/new?start=${isoOf(w.start)}&end=${isoOf(w.end)}`}
                       className="flex w-full items-center justify-between gap-2 py-[4px] text-left"
                     >
                       <span
@@ -1611,12 +1533,12 @@ export default function YearView({ trips }: Props) {
                         {w.days}d
                       </div>
                       <span
-                        className="whitespace-nowrap flex-shrink-0"
-                        style={{ fontSize: 11.5, fontWeight: 600, color: "#C4622D" }}
+                        className="flex-shrink-0"
+                        style={{ fontSize: 13, color: "rgba(26,26,46,0.3)", lineHeight: 1 }}
                       >
-                        Plan it →
+                        ›
                       </span>
-                    </button>
+                    </Link>
                   );
                 })}
               </div>
@@ -1624,10 +1546,10 @@ export default function YearView({ trips }: Props) {
         )}
       </div>
 
-      {/* Destination picker. Below md it's a real bottom sheet — anchored to
-          a chip it was a floating white box sitting on top of the very grid
-          it filters, which read as a rendering bug. Desktop keeps an
-          anchored popover, positioned clear of the heat row. */}
+      {/* Destination picker — the wishlist lives here now. Saved places
+          first (tap = show its weather, × = remove), then the Google search,
+          whose pick both selects for the heat row and saves to the wishlist.
+          Bottom sheet below md; anchored popover on desktop. */}
       {pickerOpen && (
         <>
           {/* Mobile: sheet */}
@@ -1645,25 +1567,69 @@ export default function YearView({ trips }: Props) {
               <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
                 <div className="w-9 h-1 bg-gray-200 rounded-full" />
               </div>
-              <p className="text-center font-display italic text-base text-gray-900 pt-1 pb-3 flex-shrink-0">
+              <p className="text-center font-display italic text-base text-gray-900 pt-1 pb-2 flex-shrink-0">
                 Weather where?
               </p>
-              <div className="px-5 flex-shrink-0">
-                <input
-                  autoFocus
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search a city or region"
-                  className="w-full rounded-xl px-3 py-2.5"
-                  style={{
-                    fontSize: 14,
-                    border: "1px solid rgba(26,26,46,0.12)",
-                    background: "#FAF7F2",
-                    outline: "none",
-                  }}
-                />
-              </div>
-              <div className="flex-1 overflow-y-auto px-3 pt-1 pb-8">
+              {/* One scroll region: wishlist, then search beneath. The input
+                  deliberately has no autoFocus — a keyboard would bury the
+                  wishlist rows the sheet leads with. */}
+              <div className="flex-1 overflow-y-auto px-3 pb-8">
+                {wishlist.length > 0 && (
+                  <>
+                    <div
+                      className="uppercase px-2 pt-1 pb-1"
+                      style={{
+                        fontSize: 9.5,
+                        fontWeight: 600,
+                        letterSpacing: "0.12em",
+                        color: "rgba(26,26,46,0.4)",
+                      }}
+                    >
+                      Your wishlist
+                    </div>
+                    {wishlist.map((d) => (
+                      <div key={d.id} className="group/wl relative">
+                        <button
+                          onClick={() => handlePickWishlist(d)}
+                          disabled={d.lat == null || d.lng == null}
+                          className="w-full text-left rounded-xl px-2 py-2 pr-9 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                        >
+                          <div style={{ fontSize: 14, color: "#1A1A2E" }}>{d.name}</div>
+                          {d.location && d.location !== d.name && (
+                            <div
+                              className="truncate"
+                              style={{ fontSize: 11.5, color: "rgba(26,26,46,0.45)", marginTop: 1 }}
+                            >
+                              {d.location}
+                            </div>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleRemovePlace(d.id)}
+                          aria-label={`Remove ${d.name} from wishlist`}
+                          className="absolute top-1/2 -translate-y-1/2 right-1 flex items-center justify-center rounded-full opacity-0 [@media(hover:hover)]:group-hover/wl:opacity-100 [@media(hover:none)]:opacity-40 transition-opacity"
+                          style={{ width: 28, height: 28, fontSize: 14, color: "rgba(26,26,46,0.45)" }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </>
+                )}
+                <div className={`px-2 pb-1 ${wishlist.length > 0 ? "pt-3" : "pt-1"}`}>
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search a city or region"
+                    className="w-full rounded-xl px-3 py-2.5"
+                    style={{
+                      fontSize: 14,
+                      border: "1px solid rgba(26,26,46,0.12)",
+                      background: "#FAF7F2",
+                      outline: "none",
+                    }}
+                  />
+                </div>
                 {resolving || searching ? (
                   <div style={{ fontSize: 12.5, color: "rgba(26,26,46,0.4)", padding: "10px 8px" }}>
                     {resolving ? "Loading…" : "Searching…"}
@@ -1676,7 +1642,7 @@ export default function YearView({ trips }: Props) {
                   results.map((p) => (
                     <button
                       key={p.place_id}
-                      onClick={() => handlePickDestination(p)}
+                      onClick={() => handleSearchPick(p)}
                       className="w-full text-left rounded-xl px-3 py-2.5 hover:bg-gray-50 transition-colors"
                     >
                       <div style={{ fontSize: 14, color: "#1A1A2E" }}>{predMain(p)}</div>
@@ -1713,20 +1679,63 @@ export default function YearView({ trips }: Props) {
                   boxShadow: "0 12px 36px rgba(26,26,46,0.22)",
                 }}
               >
-                <input
-                  autoFocus
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search a city or region"
-                  className="w-full rounded-lg px-2.5 py-2 flex-shrink-0"
-                  style={{
-                    fontSize: 12.5,
-                    border: "1px solid rgba(26,26,46,0.12)",
-                    background: "#FAF7F2",
-                    outline: "none",
-                  }}
-                />
-                <div className="overflow-y-auto mt-1">
+                <div className="overflow-y-auto">
+                  {wishlist.length > 0 && (
+                    <>
+                      <div
+                        className="uppercase px-1 pb-1"
+                        style={{
+                          fontSize: 9,
+                          fontWeight: 600,
+                          letterSpacing: "0.12em",
+                          color: "rgba(26,26,46,0.4)",
+                        }}
+                      >
+                        Your wishlist
+                      </div>
+                      {wishlist.map((d) => (
+                        <div key={d.id} className="group/wl relative">
+                          <button
+                            onClick={() => handlePickWishlist(d)}
+                            disabled={d.lat == null || d.lng == null}
+                            className="w-full text-left rounded-lg px-1.5 py-1.5 pr-7 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                          >
+                            <div style={{ fontSize: 12.5, color: "#1A1A2E" }}>{d.name}</div>
+                            {d.location && d.location !== d.name && (
+                              <div
+                                className="truncate"
+                                style={{ fontSize: 10.5, color: "rgba(26,26,46,0.45)" }}
+                              >
+                                {d.location}
+                              </div>
+                            )}
+                          </button>
+                          <button
+                            onClick={() => handleRemovePlace(d.id)}
+                            aria-label={`Remove ${d.name} from wishlist`}
+                            className="absolute top-1/2 -translate-y-1/2 right-0.5 flex items-center justify-center rounded-full opacity-0 group-hover/wl:opacity-100 transition-opacity"
+                            style={{ width: 22, height: 22, fontSize: 12, color: "rgba(26,26,46,0.45)" }}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                  <div className={wishlist.length > 0 ? "pt-2" : ""}>
+                    <input
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="Search a city or region"
+                      className="w-full rounded-lg px-2.5 py-2"
+                      style={{
+                        fontSize: 12.5,
+                        border: "1px solid rgba(26,26,46,0.12)",
+                        background: "#FAF7F2",
+                        outline: "none",
+                      }}
+                    />
+                  </div>
                   {resolving || searching ? (
                     <div style={{ fontSize: 11.5, color: "rgba(26,26,46,0.4)", padding: "6px 4px" }}>
                       {resolving ? "Loading…" : "Searching…"}
@@ -1739,7 +1748,7 @@ export default function YearView({ trips }: Props) {
                     results.map((p) => (
                       <button
                         key={p.place_id}
-                        onClick={() => handlePickDestination(p)}
+                        onClick={() => handleSearchPick(p)}
                         className="w-full text-left rounded-lg px-2.5 py-1.5 hover:bg-gray-50 transition-colors"
                       >
                         <div style={{ fontSize: 12.5, color: "#1A1A2E" }}>{predMain(p)}</div>
@@ -1874,221 +1883,6 @@ export default function YearView({ trips }: Props) {
         </>
       )}
 
-      {/* "Go where?" — tapping an open window proposes wishlist destinations.
-          Bottom sheet on mobile, centered card on desktop. */}
-      {sheetWindow &&
-        (() => {
-          const windowMonth = sheetWindow.start.getMonth();
-          const directHref = `/trips/new?start=${isoOf(sheetWindow.start)}&end=${isoOf(sheetWindow.end)}`;
-          const rankOf = (d: WishlistDest) => {
-            const c = climateOf(d);
-            return Array.isArray(c) ? TONE_RANK[scoreMonth(c[windowMonth])] : 4;
-          };
-          const rows = [...wishlist].sort(
-            (a, b) => rankOf(a) - rankOf(b) || (a.drive_hours ?? 99) - (b.drive_hours ?? 99)
-          );
-          return (
-            <>
-              <div
-                className="fixed inset-0 bg-black/40 z-[60]"
-                onClick={() => setSheetWindow(null)}
-              />
-              <div
-                role="dialog"
-                aria-label={`Plan ${sheetWindow.name}`}
-                className="fixed z-[60] bg-white flex flex-col bottom-0 left-0 right-0 rounded-t-2xl max-w-mobile mx-auto md:bottom-auto md:top-1/2 md:left-1/2 md:right-auto md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-2xl md:w-[440px] md:max-w-[calc(100vw-48px)] md:mx-0"
-                style={{ maxHeight: "80vh" }}
-              >
-                {/* Drag-handle look, matching the app's other sheets */}
-                <div className="flex justify-center pt-3 pb-1 flex-shrink-0 md:hidden">
-                  <div className="w-9 h-1 bg-gray-200 rounded-full" />
-                </div>
-
-                <div className="px-5 pt-2 pb-2.5 flex-shrink-0 md:pt-5">
-                  <h2 className="font-display italic text-[20px] text-gray-900">
-                    {sheetWindow.name}
-                  </h2>
-                  <p className="mt-0.5" style={{ fontSize: 12, color: "rgba(26,26,46,0.55)" }}>
-                    {formatRange(sheetWindow.start, sheetWindow.end)} · {sheetWindow.days} days
-                  </p>
-                  <Link
-                    href={directHref}
-                    className="inline-block mt-1"
-                    style={{ fontSize: 11.5, color: "rgba(26,26,46,0.45)" }}
-                  >
-                    or just pick dates →
-                  </Link>
-                </div>
-
-                <div className="flex-1 overflow-y-auto px-2 pb-8 md:pb-3">
-                  {rows.length === 0 ? (
-                    <div className="px-3 py-6 text-center">
-                      <p style={{ fontSize: 12.5, color: "rgba(26,26,46,0.5)" }}>
-                        Nothing on your wishlist yet
-                      </p>
-                      <Link
-                        href={directHref}
-                        className="inline-block mt-2"
-                        style={{ fontSize: 12, fontWeight: 600, color: "#C4622D" }}
-                      >
-                        Plan with these dates →
-                      </Link>
-                    </div>
-                  ) : (
-                    rows.map((d) => {
-                      const hasCoords = d.lat != null && d.lng != null;
-                      const href = hasCoords
-                        ? `${directHref}&destName=${encodeURIComponent(d.name)}&destLoc=${encodeURIComponent(d.location ?? "")}&destLat=${d.lat}&destLng=${d.lng}`
-                        : directHref;
-                      const c = climateOf(d);
-                      const monthClimate = Array.isArray(c) ? c[windowMonth] : null;
-                      const tone = monthClimate ? scoreMonth(monthClimate) : null;
-                      const secondLine = [
-                        d.location,
-                        d.drive_hours != null ? `${d.drive_hours} h drive` : null,
-                        d.budget,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ");
-                      return (
-                        <div key={d.id} className="group/wl relative">
-                          <Link
-                            href={href}
-                            className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
-                          >
-                            <div style={{ minWidth: 0 }}>
-                              <div style={{ fontSize: 13.5, fontWeight: 600, color: "#1A1A2E" }}>
-                                {d.name}
-                              </div>
-                              {secondLine && (
-                                <div
-                                  className="truncate"
-                                  style={{ fontSize: 11, color: "rgba(26,26,46,0.5)", marginTop: 1 }}
-                                >
-                                  {secondLine}
-                                </div>
-                              )}
-                            </div>
-                            {/* Chip sits clear of the remove button */}
-                            <span className="flex-shrink-0 pr-6">
-                              {monthClimate && tone ? (
-                                <span
-                                  className="whitespace-nowrap"
-                                  style={{
-                                    background: HEAT_STYLE[tone].bg,
-                                    color: HEAT_STYLE[tone].fg,
-                                    borderRadius: 999,
-                                    padding: "3px 8px",
-                                    fontSize: 10.5,
-                                    fontWeight: 600,
-                                  }}
-                                >
-                                  {chipLabel(monthClimate, tone)}
-                                </span>
-                              ) : c === "error" || !hasCoords ? null : (
-                                <span
-                                  className="whitespace-nowrap"
-                                  style={{
-                                    background: "rgba(26,26,46,0.05)",
-                                    color: "rgba(26,26,46,0.3)",
-                                    borderRadius: 999,
-                                    padding: "3px 10px",
-                                    fontSize: 10.5,
-                                  }}
-                                >
-                                  —
-                                </span>
-                              )}
-                            </span>
-                          </Link>
-                          {/* Remove — quiet on desktop until hover, always
-                              faintly there on touch. Deletes immediately. */}
-                          <button
-                            onClick={() => handleRemovePlace(d.id)}
-                            aria-label={`Remove ${d.name} from wishlist`}
-                            className="absolute top-1/2 -translate-y-1/2 right-1 flex items-center justify-center rounded-full opacity-0 [@media(hover:hover)]:group-hover/wl:opacity-100 [@media(hover:none)]:opacity-40 transition-opacity"
-                            style={{ width: 24, height: 24, fontSize: 13, color: "rgba(26,26,46,0.45)" }}
-                          >
-                            ×
-                          </button>
-                        </div>
-                      );
-                    })
-                  )}
-
-                  {/* Add a place — geocoded, stored with its climate so it
-                      behaves like a seeded row from the next open onward */}
-                  <div className="px-3 pt-1">
-                    {!addPlaceOpen ? (
-                      <button
-                        onClick={() => setAddPlaceOpen(true)}
-                        style={{ fontSize: 12, fontWeight: 600, color: "rgba(26,26,46,0.45)" }}
-                      >
-                        + Add a place
-                      </button>
-                    ) : (
-                      <div>
-                        <input
-                          autoFocus
-                          value={placeQuery}
-                          onChange={(e) => setPlaceQuery(e.target.value)}
-                          placeholder="Search a city or region"
-                          className="w-full rounded-lg px-2.5 py-2"
-                          style={{
-                            fontSize: 12.5,
-                            border: "1px solid rgba(26,26,46,0.12)",
-                            background: "#FAF7F2",
-                            outline: "none",
-                          }}
-                        />
-                        {addingPlace && (
-                          <div style={{ fontSize: 11, color: "rgba(26,26,46,0.4)", padding: "6px 2px" }}>
-                            Adding…
-                          </div>
-                        )}
-                        {!addingPlace && placeSearching && (
-                          <div style={{ fontSize: 11, color: "rgba(26,26,46,0.4)", padding: "6px 2px" }}>
-                            Searching…
-                          </div>
-                        )}
-                        {!addingPlace &&
-                          !placeSearching &&
-                          placeResults.map((p) => (
-                            <button
-                              key={p.place_id}
-                              onClick={() => handleAddPlace(p)}
-                              className="w-full text-left rounded-lg px-2.5 py-2 hover:bg-gray-50 transition-colors"
-                            >
-                              <div style={{ fontSize: 12.5, color: "#1A1A2E" }}>{predMain(p)}</div>
-                              {predSecondary(p) && (
-                                <div
-                                  className="truncate"
-                                  style={{ fontSize: 10.5, color: "rgba(26,26,46,0.45)" }}
-                                >
-                                  {predSecondary(p)}
-                                </div>
-                              )}
-                            </button>
-                          ))}
-                        <button
-                          onClick={() => {
-                            setAddPlaceOpen(false);
-                            setPlaceQuery("");
-                            setPlaceResults([]);
-                          }}
-                          className="mt-1"
-                          style={{ fontSize: 11.5, color: "rgba(26,26,46,0.4)" }}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </>
-          );
-        })()}
     </section>
       )}
 
