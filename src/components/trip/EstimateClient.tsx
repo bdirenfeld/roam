@@ -56,9 +56,13 @@ export default function EstimateClient({
     [a, cardBudgets, uncostedExcursions, fx],
   );
 
-  // The rate is CAD per 1 unit of local, so home → local divides. Guard the
-  // zero the user passes through while typing "1.4" from scratch.
-  const inLocal = fx > 0 ? est.total / fx : 0;
+  // What you'll actually hand over abroad: the lines marked local, shown back
+  // in local money. The rate is CAD per 1 unit of local, so converting home →
+  // local divides. Guard the zero you pass through while typing "1.4".
+  const localCad = est.lines
+    .filter((l) => l.enabled && l.local)
+    .reduce((s, l) => s + l.amount, 0);
+  const localSpend = fx > 0 ? localCad / fx : 0;
   const symbol =
     ({ EUR: "€", GBP: "£", USD: "$", JPY: "¥", CHF: "CHF ", MXN: "$" } as Record<
       string,
@@ -73,6 +77,16 @@ export default function EstimateClient({
   };
   const toggle = (key: keyof Assumptions) => {
     setA((p) => ({ ...p, [key]: !p[key] }));
+    setSaved(false);
+  };
+  /** Flip one line between "I pay this at home" and "I pay this there". */
+  const toggleLocal = (key: string) => {
+    setA((p) => ({
+      ...p,
+      localLines: p.localLines.includes(key)
+        ? p.localLines.filter((k) => k !== key)
+        : [...p.localLines, key],
+    }));
     setSaved(false);
   };
 
@@ -195,20 +209,36 @@ export default function EstimateClient({
         }
         middle={
           <>
-            <div className="w-[52px] shrink-0">
+            {/* The unit cost is entered in whatever money you'll be quoted in.
+                Tap the symbol to flip the line between home and local — the
+                amount column stays CAD either way. */}
+            <div className="w-[68px] shrink-0 flex items-center gap-0.5">
               {line.readOnly ? (
-                <div className="text-[12.5px] text-right" style={{ color: SIENNA }}>
+                <div
+                  className="w-full text-[12.5px] text-right"
+                  style={{ color: SIENNA }}
+                >
                   {line.unitDisplay ?? cad(line.unit)}
                 </div>
               ) : (
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  value={String(line.unit)}
-                  onChange={(e) => setNum(line.unitKey, e.target.value)}
-                  className="w-full rounded-md px-1 py-1.5 text-[12.5px] text-right"
-                  style={box(dim)}
-                />
+                <>
+                  <button
+                    onClick={() => toggleLocal(line.key)}
+                    aria-label={`${line.label} is paid in ${line.local ? currency : "CAD"} — tap to change`}
+                    className="w-[13px] shrink-0 text-[11.5px] text-center"
+                    style={{ color: line.local ? SIENNA : SOFT }}
+                  >
+                    {line.local ? symbol || currency.slice(0, 1) : "$"}
+                  </button>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={String(line.unit)}
+                    onChange={(e) => setNum(line.unitKey, e.target.value)}
+                    className="flex-1 min-w-0 rounded-md px-1 py-1.5 text-[12.5px] text-right"
+                    style={box(dim)}
+                  />
+                </>
               )}
             </div>
             {line.readOnly ? (
@@ -351,7 +381,7 @@ export default function EstimateClient({
             amount={cad(est.contingency)}
             middle={
               <>
-                <div className="w-[52px] shrink-0">
+                <div className="w-[68px] shrink-0">
                   <input
                     type="number"
                     inputMode="decimal"
@@ -378,7 +408,7 @@ export default function EstimateClient({
             amount={`${est.pointsCredit > 0 ? "−" : ""}${cad(est.pointsCredit)}`}
             middle={
               <>
-                <div className="w-[52px] shrink-0">
+                <div className="w-[68px] shrink-0">
                   <input
                     type="number"
                     inputMode="decimal"
@@ -403,15 +433,15 @@ export default function EstimateClient({
             }
           />
 
-          {/* The same total in the money you'll actually be quoted abroad. The
-              rate also drives the excursions roll-up, since those cards carry
-              their own currency. */}
+          {/* Not a second total — the slice of the journey you pay for on the
+              ground, shown back in that money. Everything marked with the local
+              symbol above lands here. */}
           <Shell
             labelColor={CAPTION}
             amountColor={CAPTION}
             label={
               <span className="flex items-center gap-1.5">
-                In
+                Paid in
                 <input
                   value={currency}
                   onChange={(e) => {
@@ -426,7 +456,7 @@ export default function EstimateClient({
             }
             middle={
               <>
-                <div className="w-[52px] shrink-0">
+                <div className="w-[68px] shrink-0">
                   <input
                     type="number"
                     inputMode="decimal"
@@ -453,7 +483,7 @@ export default function EstimateClient({
             }
             amount={
               fx > 0
-                ? `${symbol}${Math.round(inLocal).toLocaleString("en-CA")}`
+                ? `${symbol}${Math.round(localSpend).toLocaleString("en-CA")}`
                 : "—"
             }
           />

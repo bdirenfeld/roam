@@ -57,6 +57,8 @@ export interface Assumptions {
   contingencyPct: number;
   /** Dollars covered by card points, deducted from the total. */
   pointsCredit: number;
+  /** Line keys whose unit cost is entered in the local currency. */
+  localLines: string[];
 }
 
 export interface EstimateLine {
@@ -71,6 +73,8 @@ export interface EstimateLine {
   /** Word after the count box — "people", "nights", "days". */
   countLabel: string;
   enabled: boolean;
+  /** Unit cost is entered in local currency and converted for the total. */
+  local: boolean;
   enabledKey?: keyof Assumptions;
   /** Excursions is the one row you don't type into — it comes from the cards. */
   readOnly?: boolean;
@@ -123,6 +127,12 @@ export function defaultAssumptions(
 
     contingencyPct: 10,
     pointsCredit: 0,
+    // Nothing starts local. The seeded unit costs above are home-currency
+    // figures, so presuming groceries are foreign would quietly multiply a
+    // domestic journey by the exchange rate. Tap the symbol on a line to move
+    // it; excursions are the exception and convert themselves, because each
+    // card carries the currency it was priced in.
+    localLines: [],
   };
 }
 
@@ -159,7 +169,8 @@ export function compute(
   );
   const excursions = a.excursionsOverride != null ? a.excursionsOverride : rolled;
 
-  const raw: EstimateLine[] = [
+  // Pre-conversion shape: `local` is decided in the map below.
+  const raw: Omit<EstimateLine, "local">[] = [
     {
       key: "flights",
       label: "Flights",
@@ -281,10 +292,19 @@ export function compute(
     },
   ];
 
-  const lines: EstimateLine[] = raw.map((l) => ({
-    ...l,
-    amount: money(l.amount),
-  }));
+  // A local line's unit cost is entered in the destination's money, so it is
+  // converted before it joins the total — the total is always home currency.
+  // Excursions is the exception: it already arrives converted, because each
+  // card carries its own currency.
+  const lines: EstimateLine[] = raw.map((l) => {
+    const local = l.key === "excursions" || a.localLines.includes(l.key);
+    const convert = local && l.key !== "excursions";
+    return {
+      ...l,
+      local,
+      amount: money(convert ? l.amount * fxToCad : l.amount),
+    };
+  });
 
   const subtotal = lines.reduce((s, l) => s + (l.enabled ? l.amount : 0), 0);
   const contingency = money((subtotal * a.contingencyPct) / 100);
