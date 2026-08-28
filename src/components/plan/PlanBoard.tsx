@@ -1978,7 +1978,17 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
                             style={{ width }}
                           >
                             {folded ? (
-                              <WeekFoldedCard week={week} onUnfold={() => handleUnfoldWeek(week)} />
+                              /* With every week folded the columns below hold
+                                 nothing but the lists, so the folded cards are
+                                 the board — drop them onto the same card line
+                                 the lists and "Add a list" sit on. Mixed with
+                                 unfolded weeks they stay at 0, level with the
+                                 week bars they share the row with. */
+                              <WeekFoldedCard
+                                week={week}
+                                topOffset={allCollapsed ? 12 : 0}
+                                onUnfold={() => handleUnfoldWeek(week)}
+                              />
                             ) : (
                               <WeekBar week={week} onFold={(e) => handleFoldWeek(e, week)} />
                             )}
@@ -3009,9 +3019,12 @@ function AddListColumn({
     setDraft("");
   }, [draft, onCommit]);
 
+  // pt-3 matches the p-3 every column wraps its cards in. Without it the rail
+  // starts 12px above the first card of every neighbour — the whole reason it
+  // read as unaligned. Being a column means obeying the column's own padding.
   const shellCls = fullWidth
     ? "w-full flex flex-col"
-    : "hidden md:flex md:flex-shrink-0 md:h-full md:min-h-0 md:flex-col";
+    : "hidden md:flex md:flex-shrink-0 md:h-full md:min-h-0 md:flex-col md:pt-3";
 
   if (!drafting) {
     return (
@@ -3133,9 +3146,14 @@ function WeekBar({
 // to ~2,080px wide, the + at the right edge of a 140px card.
 function WeekFoldedCard({
   week,
+  topOffset = 0,
   onUnfold,
 }: {
   week: PlanWeek<DayWithCards>;
+  /** Drop onto the card line when the whole board is folded — see the call
+   *  site. The card is out of flow, so this shifts it without giving the
+   *  week-bar row height and pushing every column below it down. */
+  topOffset?: number;
   onUnfold: () => void;
 }) {
   const count = week.days.length;
@@ -3145,24 +3163,24 @@ function WeekFoldedCard({
       onClick={onUnfold}
       aria-label={`Expand week ${week.weekNumber}, ${week.range}`}
       title={`Expand ${week.range}`}
-      className="group absolute top-0 left-0 w-full text-left rounded-[9px] bg-white
+      className="group absolute left-0 w-full text-left rounded-[9px] bg-white
                  border border-[rgba(26,26,46,0.12)] hover:border-[rgba(26,26,46,0.24)]
                  shadow-card hover:shadow-card-hover transition-all"
-      style={{ padding: "8px 13px 14px" }}
+      style={{ top: topOffset, padding: "7px 12px 11px" }}
     >
-      <span className="flex items-center justify-between gap-2" style={{ minHeight: 20 }}>
+      <span className="flex items-center justify-between gap-2" style={{ minHeight: 18 }}>
         <span style={WEEK_LABEL}>Week {week.weekNumber}</span>
         <span aria-hidden className={SIGN}>+</span>
       </span>
       <span
         className="block font-display italic"
-        style={{ fontSize: "19px", lineHeight: 1.15, marginTop: "9px", color: "#1A1A2E", letterSpacing: "-0.01em" }}
+        style={{ fontSize: "17px", lineHeight: 1.1, marginTop: "6px", color: "#1A1A2E", letterSpacing: "-0.01em" }}
       >
         {week.range}
       </span>
       <span
         className="block"
-        style={{ fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: "10px", fontWeight: 500, color: "rgba(26,26,46,0.45)", marginTop: "4px" }}
+        style={{ fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: "9.5px", fontWeight: 500, color: "rgba(26,26,46,0.45)", marginTop: "3px" }}
       >
         {count} {count === 1 ? "day" : "days"}
       </span>
