@@ -21,23 +21,7 @@
 // unmount so closing the sheet mid-keystroke still writes.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, DotsSixVertical, Plus, X } from "@phosphor-icons/react";
-import {
-  DndContext,
-  closestCenter,
-  MouseSensor,
-  TouchSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-  arrayMove,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { Check, Plus, X } from "@phosphor-icons/react";
 import type { ChecklistItem } from "@/types/database";
 import {
   insertChecklistItem,
@@ -50,8 +34,6 @@ import { SectionLabel } from "./detail/FieldRow";
 
 const INK = "#1A1A2E";
 const DONE_INK = "rgba(26,26,46,0.35)";
-const PARCHMENT = "#FAF7F2";
-const HAIRLINE = "1px solid rgba(26,26,46,0.09)";
 
 /** Text edits settle; everything else saves on the spot. Matches JourneyNotes. */
 const SAVE_DEBOUNCE_MS = 600;
@@ -239,24 +221,10 @@ export default function CardChecklist({ items: incoming, onSave }: Props) {
     openComposer(atEnd ? null : item.id);
   }, [commitEdit, draft, openComposer]);
 
-  // ── Reordering ──────────────────────────────────────────────────────────
-  const canReorder = !readOnly && items.length > 1;
-  const sensors = useSensors(
-    // Touch: hold briefly before dragging, so a tap stays a tap and a swipe
-    // across the sheet still belongs to the sheet.
-    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 6 } }),
-    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
-  );
-
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const list = itemsRef.current;
-    const from = list.findIndex((i) => i.id === active.id);
-    const to = list.findIndex((i) => i.id === over.id);
-    if (from < 0 || to < 0) return;
-    applyItems(arrayMove(list, from, to), "now");
-  }, [applyItems]);
+  // Drag-to-reorder used to live here, inherited from the journey-notes panel.
+  // It cost a grip column, a hover state and a drag context on lists that are
+  // written once and then ticked — a grocery list is worked top to bottom, not
+  // rearranged. Removed; the rows keep the order they were written in.
 
   // ── Render ──────────────────────────────────────────────────────────────
 
@@ -313,7 +281,6 @@ export default function CardChecklist({ items: incoming, onSave }: Props) {
         key={item.id}
         item={item}
         readOnly={readOnly}
-        canReorder={canReorder}
         editing={editingId === item.id}
         draft={draft}
         onDraftChange={setDraft}
@@ -345,34 +312,26 @@ export default function CardChecklist({ items: incoming, onSave }: Props) {
         )}
       </div>
 
-      <div className="rounded-xl px-3.5 pt-3 pb-1" style={{ background: PARCHMENT, border: HAIRLINE }}>
-        {/* Every row goes through the same context, guests included:
-            ChecklistRow calls useSortable unconditionally (hooks don't take
-            sides), and the drag is switched off per row instead. */}
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-            {rows}
-          </SortableContext>
-        </DndContext>
+      {/* No panel. A tinted, bordered box inside an already-white sheet read as
+          a card within a card; the rows are the content, so they sit on the
+          sheet's own ground like every other section. */}
+      {rows}
 
-        {/* The list's open door. `onMouseDown` keeps the click alive: without
-            it the open composer blurs, the row it occupied collapses, and
-            mouse-up lands somewhere else entirely. */}
-        {!readOnly && (
-          <div className="pt-1 pb-2">
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => openComposer(null)}
-              className="flex items-center gap-1.5 py-1 text-[13.5px] font-medium transition-colors hover:text-[#1A1A2E]"
-              style={{ color: "rgba(26,26,46,0.55)" }}
-            >
-              <Plus size={13} weight="bold" />
-              Add an item
-            </button>
-          </div>
-        )}
-      </div>
+      {/* The list's open door. `onMouseDown` keeps the click alive: without
+          it the open composer blurs, the row it occupied collapses, and
+          mouse-up lands somewhere else entirely. */}
+      {!readOnly && (
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => openComposer(null)}
+          className="flex items-center gap-1.5 mt-1 py-1 text-[13.5px] font-medium transition-colors hover:text-[#1A1A2E]"
+          style={{ color: "rgba(26,26,46,0.55)" }}
+        >
+          <Plus size={13} weight="bold" />
+          Add an item
+        </button>
+      )}
     </div>
   );
 }
@@ -384,7 +343,6 @@ export default function CardChecklist({ items: incoming, onSave }: Props) {
 function ChecklistRow({
   item,
   readOnly,
-  canReorder,
   editing,
   draft,
   onDraftChange,
@@ -397,7 +355,6 @@ function ChecklistRow({
 }: {
   item: ChecklistItem;
   readOnly: boolean;
-  canReorder: boolean;
   editing: boolean;
   draft: string;
   onDraftChange: (value: string) => void;
@@ -408,9 +365,6 @@ function ChecklistRow({
   onEscape: () => void;
   onBlur: () => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: item.id, disabled: !canReorder || editing });
-
   // Ticked text stays exactly where it was and loses its ink — the list keeps
   // its shape as it empties, so "what's left" is read by contrast, not by
   // hunting for what moved.
@@ -427,28 +381,7 @@ function ChecklistRow({
     "transition-opacity opacity-40 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100";
 
   return (
-    <div
-      ref={setNodeRef}
-      style={{
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.45 : 1,
-      }}
-      className="group flex items-start gap-1.5 py-[3px] rounded-md"
-    >
-      {canReorder && (
-        <button
-          {...attributes}
-          {...listeners}
-          type="button"
-          aria-label={`Reorder ${item.text || "item"}`}
-          className={`flex-shrink-0 w-[17px] h-6 -ml-1 flex items-center justify-center touch-none cursor-grab active:cursor-grabbing ${quiet}`}
-          style={{ color: "rgba(26,26,46,0.3)" }}
-        >
-          <DotsSixVertical size={13} weight="bold" />
-        </button>
-      )}
-
+    <div className="group flex items-start gap-1.5 py-[3px] rounded-md">
       <button
         type="button"
         role="checkbox"
@@ -467,7 +400,7 @@ function ChecklistRow({
             background: item.done ? INK : "transparent",
           }}
         >
-          {item.done && <Check size={10} weight="bold" color={PARCHMENT} />}
+          {item.done && <Check size={10} weight="bold" color="#FFFFFF" />}
         </span>
       </button>
 
