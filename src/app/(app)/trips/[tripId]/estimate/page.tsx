@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import EstimateClient from "@/components/trip/EstimateClient";
 import { getTripAccess } from "@/lib/trip-access";
 import type { Assumptions, CardBudget } from "@/lib/budget/model";
-import { defaultAssumptions } from "@/lib/budget/model";
+import { defaultAssumptions, cardBudgetToCad } from "@/lib/budget/model";
 
 interface Props {
   params: Promise<{ tripId: string }>;
@@ -50,9 +50,10 @@ export default async function EstimatePage({ params }: Props) {
 
   const partySize = trip.party_size ?? 1;
   const nights = Math.max((days ?? []).length - 1, 1);
+  const fxToCad = Number(saved?.fx_to_cad ?? 1.47);
 
   // An excursion is any scheduled activity card. Those carrying details.budget
-  // roll into the estimate; the rest are counted so the screen can say plainly
+  // seed the Excursions line; the rest are counted so the screen can say plainly
   // how much of the itinerary is still uncosted.
   const cardBudgets: CardBudget[] = [];
   let uncostedExcursions = 0;
@@ -64,8 +65,19 @@ export default async function EstimatePage({ params }: Props) {
     else uncostedExcursions += 1;
   }
 
+  // The single FX conversion on this screen, done here so the client never has
+  // to think about currency: cards are priced in whatever they were quoted in,
+  // and the Excursions line arrives already in home currency.
+  const rolledCad = Math.round(
+    cardBudgets.reduce((s, b) => s + cardBudgetToCad(b, partySize, fxToCad), 0),
+  );
+
+  const seeded = defaultAssumptions(partySize, nights);
   const assumptions: Assumptions = {
-    ...defaultAssumptions(partySize, nights),
+    ...seeded,
+    excursionsTotal: rolledCad,
+    // Anything the traveller has actually set wins, including a hand-typed
+    // excursions figure that disagrees with the cards.
     ...((saved?.assumptions ?? {}) as Partial<Assumptions>),
   };
 
@@ -79,16 +91,8 @@ export default async function EstimatePage({ params }: Props) {
       tripId={tripId}
       tripTitle={trip.title ?? "Journey"}
       initialAssumptions={assumptions}
-      cardBudgets={cardBudgets}
       uncostedExcursions={uncostedExcursions}
-      initialFxToCad={Number(saved?.fx_to_cad ?? 1.47)}
-      // Seeded from whatever currency the costed cards use, so a European
-      // journey opens on EUR without being asked.
-      initialCurrency={
-        saved?.currency ??
-        cardBudgets.find((b) => b.currency && b.currency !== "CAD")?.currency ??
-        "EUR"
-      }
+      rolledExcursionCount={cardBudgets.length}
       dateRange={dateRange}
     />
   );

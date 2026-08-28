@@ -8,8 +8,14 @@
  * typed over, because changing them here is faster than navigating to Settings
  * to find out what they are.
  *
- * Two groups: things that happen on every trip, and things that might. Optional
- * rows keep their numbers when unticked and simply drop out of the total.
+ * Two groups: the costs every journey carries, and the ones only some do.
+ * Additional rows keep their numbers when unticked and simply drop out.
+ *
+ * Everything is in home currency. Excursions is seeded from the costed cards —
+ * converted once, on the server, at the journey's stored rate — and is then an
+ * ordinary editable number like every other line. That is the whole of the FX
+ * story on this screen: one conversion, out of sight, on a figure you can
+ * overwrite.
  *
  * Points are a single deduction rather than a per-line toggle. Card points are
  * fungible cash — they can cover part of a fare, all of it, or the villa — so a
@@ -34,16 +40,16 @@ export interface Assumptions {
   nights: number;
   days: number;
 
-  // Every trip
+  // Standard
   flightPerPerson: number;
   nightlyRate: number;
   groceriesPerDay: number;
   perMealOut: number;
   mealsOut: number;
-  /** null = use the roll-up from costed cards. */
-  excursionsOverride: number | null;
+  /** Seeded from the costed cards, then yours to overwrite. */
+  excursionsTotal: number;
 
-  // Might happen
+  // Additional
   carEnabled: boolean;
   carDayRate: number;
   dogEnabled: boolean;
@@ -57,14 +63,12 @@ export interface Assumptions {
   contingencyPct: number;
   /** Dollars covered by card points, deducted from the total. */
   pointsCredit: number;
-  /** Line keys whose unit cost is entered in the local currency. */
-  localLines: string[];
 }
 
 export interface EstimateLine {
   key: string;
   label: string;
-  group: "always" | "optional";
+  group: "standard" | "additional";
   amount: number;
   unit: number;
   unitKey: keyof Assumptions;
@@ -73,13 +77,11 @@ export interface EstimateLine {
   /** Word after the count box — "people", "nights", "days". */
   countLabel: string;
   enabled: boolean;
-  /** Unit cost is entered in local currency and converted for the total. */
-  local: boolean;
   enabledKey?: keyof Assumptions;
-  /** Excursions is the one row you don't type into — it comes from the cards. */
-  readOnly?: boolean;
-  unitDisplay?: string;
-  note?: string;
+  /** A flat sum: one editable figure, no × count. */
+  lump?: boolean;
+  /** Where a lump figure came from, shown where the count would be. */
+  hint?: string;
 }
 
 export interface Estimate {
@@ -110,7 +112,7 @@ export function defaultAssumptions(
     groceriesPerDay: 145,
     perMealOut: 60 * Math.max(partySize, 1),
     mealsOut: Math.max(2, Math.round(nights / 3)),
-    excursionsOverride: null,
+    excursionsTotal: 0,
 
     // Smart rather than arbitrary: a multi-night journey almost always needs a
     // car and leaves the dog behind; tourist tax is destination-specific, so it
@@ -127,15 +129,10 @@ export function defaultAssumptions(
 
     contingencyPct: 10,
     pointsCredit: 0,
-    // Nothing starts local. The seeded unit costs above are home-currency
-    // figures, so presuming groceries are foreign would quietly multiply a
-    // domestic journey by the exchange rate. Tap the symbol on a line to move
-    // it; excursions are the exception and convert themselves, because each
-    // card carries the currency it was priced in.
-    localLines: [],
   };
 }
 
+/** Card budgets carry their own currency; this is the one place FX applies. */
 export function cardBudgetToCad(
   b: CardBudget,
   partySize: number,
@@ -148,34 +145,17 @@ export function cardBudgetToCad(
 
 export function compute(
   a: Assumptions,
-  opts: {
-    cardBudgets: CardBudget[];
-    uncostedExcursions: number;
-    fxToCad: number;
-  },
+  opts: { uncostedExcursions: number; rolledExcursionCount: number },
 ): Estimate {
-  const { cardBudgets, fxToCad } = opts;
   const people = Math.max(a.people, 1);
   const days = Math.max(a.days, 1);
 
-  const rolled = cardBudgets.reduce(
-    (s, b) => s + cardBudgetToCad(b, people, fxToCad),
-    0,
-  );
-  const foreign = cardBudgets.find((b) => b.currency && b.currency !== "CAD");
-  const rawForeign = cardBudgets.reduce(
-    (s, b) => s + (b.per === "person" ? b.amount * people : b.amount),
-    0,
-  );
-  const excursions = a.excursionsOverride != null ? a.excursionsOverride : rolled;
-
-  // Pre-conversion shape: `local` is decided in the map below.
-  const raw: Omit<EstimateLine, "local">[] = [
+  const lines: EstimateLine[] = [
     {
       key: "flights",
       label: "Flights",
-      group: "always",
-      amount: a.flightPerPerson * people,
+      group: "standard",
+      amount: money(a.flightPerPerson * people),
       unit: a.flightPerPerson,
       unitKey: "flightPerPerson",
       count: a.people,
@@ -186,8 +166,8 @@ export function compute(
     {
       key: "accommodation",
       label: "Accommodation",
-      group: "always",
-      amount: a.nightlyRate * a.nights,
+      group: "standard",
+      amount: money(a.nightlyRate * a.nights),
       unit: a.nightlyRate,
       unitKey: "nightlyRate",
       count: a.nights,
@@ -198,8 +178,8 @@ export function compute(
     {
       key: "groceries",
       label: "Groceries",
-      group: "always",
-      amount: a.groceriesPerDay * days,
+      group: "standard",
+      amount: money(a.groceriesPerDay * days),
       unit: a.groceriesPerDay,
       unitKey: "groceriesPerDay",
       count: a.days,
@@ -210,8 +190,8 @@ export function compute(
     {
       key: "restaurants",
       label: "Restaurants",
-      group: "always",
-      amount: a.perMealOut * a.mealsOut,
+      group: "standard",
+      amount: money(a.perMealOut * a.mealsOut),
       unit: a.perMealOut,
       unitKey: "perMealOut",
       count: a.mealsOut,
@@ -222,25 +202,24 @@ export function compute(
     {
       key: "excursions",
       label: "Excursions",
-      group: "always",
-      amount: excursions,
-      unit: excursions,
-      unitKey: "excursionsOverride",
-      count: cardBudgets.length,
-      countKey: "excursionsOverride",
-      countLabel: cardBudgets.length === 1 ? "card" : "cards",
+      group: "standard",
+      amount: money(a.excursionsTotal),
+      unit: a.excursionsTotal,
+      unitKey: "excursionsTotal",
+      count: 0,
+      countKey: "excursionsTotal",
+      countLabel: "",
       enabled: true,
-      readOnly: a.excursionsOverride == null,
-      unitDisplay:
-        a.excursionsOverride == null && foreign
-          ? `${foreign.currency === "EUR" ? "€" : ""}${money(rawForeign)}`
-          : undefined,
+      lump: true,
+      hint: opts.rolledExcursionCount
+        ? `from ${opts.rolledExcursionCount} ${opts.rolledExcursionCount === 1 ? "card" : "cards"}`
+        : undefined,
     },
     {
       key: "car",
       label: "Car hire",
-      group: "optional",
-      amount: a.carEnabled ? a.carDayRate * days : 0,
+      group: "additional",
+      amount: money(a.carEnabled ? a.carDayRate * days : 0),
       unit: a.carDayRate,
       unitKey: "carDayRate",
       count: a.days,
@@ -248,13 +227,12 @@ export function compute(
       countLabel: "days",
       enabled: a.carEnabled,
       enabledKey: "carEnabled",
-      note: "all-in per day — rental, fuel and tolls",
     },
     {
       key: "dog",
       label: "Finn",
-      group: "optional",
-      amount: a.dogEnabled ? a.dogNightlyRate * a.dogNights : 0,
+      group: "additional",
+      amount: money(a.dogEnabled ? a.dogNightlyRate * a.dogNights : 0),
       unit: a.dogNightlyRate,
       unitKey: "dogNightlyRate",
       count: a.dogNights,
@@ -266,8 +244,8 @@ export function compute(
     {
       key: "extras",
       label: "Gifts",
-      group: "optional",
-      amount: a.extrasEnabled ? a.extrasPerDay * days : 0,
+      group: "additional",
+      amount: money(a.extrasEnabled ? a.extrasPerDay * days : 0),
       unit: a.extrasPerDay,
       unitKey: "extrasPerDay",
       count: a.days,
@@ -279,8 +257,8 @@ export function compute(
     {
       key: "touristTax",
       label: "Tourist tax",
-      group: "optional",
-      amount: a.touristTaxEnabled ? a.touristTaxPerNight * a.nights : 0,
+      group: "additional",
+      amount: money(a.touristTaxEnabled ? a.touristTaxPerNight * a.nights : 0),
       unit: a.touristTaxPerNight,
       unitKey: "touristTaxPerNight",
       count: a.nights,
@@ -288,23 +266,8 @@ export function compute(
       countLabel: "nights",
       enabled: a.touristTaxEnabled,
       enabledKey: "touristTaxEnabled",
-      note: "whole party, per night",
     },
   ];
-
-  // A local line's unit cost is entered in the destination's money, so it is
-  // converted before it joins the total — the total is always home currency.
-  // Excursions is the exception: it already arrives converted, because each
-  // card carries its own currency.
-  const lines: EstimateLine[] = raw.map((l) => {
-    const local = l.key === "excursions" || a.localLines.includes(l.key);
-    const convert = local && l.key !== "excursions";
-    return {
-      ...l,
-      local,
-      amount: money(convert ? l.amount * fxToCad : l.amount),
-    };
-  });
 
   const subtotal = lines.reduce((s, l) => s + (l.enabled ? l.amount : 0), 0);
   const contingency = money((subtotal * a.contingencyPct) / 100);
@@ -321,6 +284,6 @@ export function compute(
     perPerson: money(total / people),
     perDay: money(total / days),
     uncostedExcursions: opts.uncostedExcursions,
-    rolledExcursionCount: cardBudgets.length,
+    rolledExcursionCount: opts.rolledExcursionCount,
   };
 }

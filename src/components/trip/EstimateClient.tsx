@@ -7,7 +7,6 @@ import { createClient } from "@/lib/supabase/client";
 import {
   compute,
   type Assumptions,
-  type CardBudget,
   type EstimateLine,
 } from "@/lib/budget/model";
 
@@ -23,10 +22,8 @@ interface Props {
   tripId: string;
   tripTitle: string;
   initialAssumptions: Assumptions;
-  cardBudgets: CardBudget[];
   uncostedExcursions: number;
-  initialFxToCad: number;
-  initialCurrency: string;
+  rolledExcursionCount: number;
   dateRange: string;
 }
 
@@ -37,37 +34,20 @@ export default function EstimateClient({
   tripId,
   tripTitle,
   initialAssumptions,
-  cardBudgets,
   uncostedExcursions,
-  initialFxToCad,
-  initialCurrency,
+  rolledExcursionCount,
   dateRange,
 }: Props) {
   const router = useRouter();
   const [a, setA] = useState<Assumptions>(initialAssumptions);
-  const [open, setOpen] = useState({ always: true, optional: true });
-  const [fx, setFx] = useState(initialFxToCad);
-  const [currency, setCurrency] = useState(initialCurrency);
+  const [open, setOpen] = useState({ standard: true, additional: true });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   const est = useMemo(
-    () => compute(a, { cardBudgets, uncostedExcursions, fxToCad: fx }),
-    [a, cardBudgets, uncostedExcursions, fx],
+    () => compute(a, { uncostedExcursions, rolledExcursionCount }),
+    [a, uncostedExcursions, rolledExcursionCount],
   );
-
-  // What you'll actually hand over abroad: the lines marked local, shown back
-  // in local money. The rate is CAD per 1 unit of local, so converting home →
-  // local divides. Guard the zero you pass through while typing "1.4".
-  const localCad = est.lines
-    .filter((l) => l.enabled && l.local)
-    .reduce((s, l) => s + l.amount, 0);
-  const localSpend = fx > 0 ? localCad / fx : 0;
-  const symbol =
-    ({ EUR: "€", GBP: "£", USD: "$", JPY: "¥", CHF: "CHF ", MXN: "$" } as Record<
-      string,
-      string
-    >)[currency.toUpperCase()] ?? "";
 
   const setNum = (key: keyof Assumptions, raw: string) => {
     const v = raw === "" ? 0 : Number(raw);
@@ -77,16 +57,6 @@ export default function EstimateClient({
   };
   const toggle = (key: keyof Assumptions) => {
     setA((p) => ({ ...p, [key]: !p[key] }));
-    setSaved(false);
-  };
-  /** Flip one line between "I pay this at home" and "I pay this there". */
-  const toggleLocal = (key: string) => {
-    setA((p) => ({
-      ...p,
-      localLines: p.localLines.includes(key)
-        ? p.localLines.filter((k) => k !== key)
-        : [...p.localLines, key],
-    }));
     setSaved(false);
   };
 
@@ -102,8 +72,6 @@ export default function EstimateClient({
           trip_id: tripId,
           user_id: user.id,
           assumptions: a as unknown as Record<string, unknown>,
-          fx_to_cad: fx,
-          currency: currency.toUpperCase().slice(0, 3),
           updated_at: new Date().toISOString(),
         },
         { onConflict: "trip_id" },
@@ -121,11 +89,10 @@ export default function EstimateClient({
   });
 
   /**
-   * Every row on this screen — group bars, line items and the summary rows —
-   * is built from this one shell. The leading 16px slot and the trailing amount
-   * column are what make the left and right edges line up; deriving them from a
-   * shared structure rather than hand-tuned padding is what stops the group
-   * headings drifting a few pixels off the labels beneath them.
+   * Every row on this screen is built from this one shell. The leading 16px
+   * slot and the trailing amount column are what make the left and right edges
+   * line up; deriving them from a shared structure rather than hand-tuned
+   * padding is what stops the group headings drifting off the labels beneath.
    */
   const Shell = ({
     leading,
@@ -159,7 +126,7 @@ export default function EstimateClient({
         </div>
         {middle}
         <div
-          className="w-[56px] shrink-0 text-right text-[13.5px]"
+          className="w-[62px] shrink-0 text-right text-[13.5px]"
           style={{ color: amountColor }}
         >
           {amount}
@@ -209,51 +176,31 @@ export default function EstimateClient({
         }
         middle={
           <>
-            {/* The unit cost is entered in whatever money you'll be quoted in.
-                Tap the symbol to flip the line between home and local — the
-                amount column stays CAD either way. */}
-            <div className="w-[68px] shrink-0 flex items-center gap-0.5">
-              {line.readOnly ? (
-                <div
-                  className="w-full text-[12.5px] text-right"
-                  style={{ color: SIENNA }}
-                >
-                  {line.unitDisplay ?? cad(line.unit)}
-                </div>
-              ) : (
-                <>
-                  <button
-                    onClick={() => toggleLocal(line.key)}
-                    aria-label={`${line.label} is paid in ${line.local ? currency : "CAD"} — tap to change`}
-                    className="w-[13px] shrink-0 text-[11.5px] text-center"
-                    style={{ color: line.local ? SIENNA : SOFT }}
-                  >
-                    {line.local ? symbol || currency.slice(0, 1) : "$"}
-                  </button>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    value={String(line.unit)}
-                    onChange={(e) => setNum(line.unitKey, e.target.value)}
-                    className="flex-1 min-w-0 rounded-md px-1 py-1.5 text-[12.5px] text-right"
-                    style={box(dim)}
-                  />
-                </>
-              )}
+            <div className="w-[58px] shrink-0">
+              <input
+                type="number"
+                inputMode="decimal"
+                value={String(line.unit)}
+                onChange={(e) => setNum(line.unitKey, e.target.value)}
+                className="w-full rounded-md px-1.5 py-1.5 text-[12.5px] text-right"
+                style={box(dim)}
+              />
             </div>
-            {line.readOnly ? (
+            {line.lump ? (
+              /* A flat sum — no multiplier. Says where the figure came from
+                 instead, and stays editable. */
               <div
-                className="shrink-0 text-[11.5px] text-center w-[42px] sm:w-[88px]"
+                className="shrink-0 text-[11px] w-[44px] sm:w-[92px] pl-1 truncate"
                 style={{ color: SIENNA }}
               >
-                <span className="sm:hidden">×{line.count}</span>
-                <span className="hidden sm:inline">
-                  from {line.count} {line.countLabel}
-                </span>
+                {line.hint ?? ""}
               </div>
             ) : (
               <>
-                <span className="text-[11px] shrink-0" style={{ color: off ? SOFT : CAPTION }}>
+                <span
+                  className="text-[11px] shrink-0"
+                  style={{ color: off ? SOFT : CAPTION }}
+                >
                   ×
                 </span>
                 <div className="w-[30px] shrink-0">
@@ -282,8 +229,8 @@ export default function EstimateClient({
     );
   };
 
-  const always = est.lines.filter((l) => l.group === "always");
-  const optional = est.lines.filter((l) => l.group === "optional");
+  const standard = est.lines.filter((l) => l.group === "standard");
+  const additional = est.lines.filter((l) => l.group === "additional");
   const sum = (ls: EstimateLine[]) =>
     ls.reduce((s, l) => s + (l.enabled ? l.amount : 0), 0);
 
@@ -292,7 +239,7 @@ export default function EstimateClient({
     label,
     lines,
   }: {
-    id: "always" | "optional";
+    id: "standard" | "additional";
     label: string;
     lines: EstimateLine[];
   }) => (
@@ -356,6 +303,9 @@ export default function EstimateClient({
           className="bg-white rounded-2xl overflow-hidden"
           style={{ boxShadow: `0 0 0 1px ${RULE}` }}
         >
+          {/* The only total on the screen. It updates live, so a second one at
+              the foot of the list was duplication — and it was the one whose
+              Playfair numerals overran their column. */}
           <div style={{ padding: `18px ${PAD}px 15px` }}>
             <div
               className="font-display italic text-[36px] leading-none mb-1.5"
@@ -368,11 +318,11 @@ export default function EstimateClient({
             </div>
           </div>
 
-          <GroupBar id="always" label="Every trip" lines={always} />
-          {open.always && always.map((l) => <Row key={l.key} line={l} />)}
+          <GroupBar id="standard" label="Standard" lines={standard} />
+          {open.standard && standard.map((l) => <Row key={l.key} line={l} />)}
 
-          <GroupBar id="optional" label="Might happen" lines={optional} />
-          {open.optional && optional.map((l) => <Row key={l.key} line={l} />)}
+          <GroupBar id="additional" label="Additional" lines={additional} />
+          {open.additional && additional.map((l) => <Row key={l.key} line={l} />)}
 
           <Shell
             labelColor={CAPTION}
@@ -381,18 +331,18 @@ export default function EstimateClient({
             amount={cad(est.contingency)}
             middle={
               <>
-                <div className="w-[68px] shrink-0">
+                <div className="w-[58px] shrink-0">
                   <input
                     type="number"
                     inputMode="decimal"
                     value={String(a.contingencyPct)}
                     onChange={(e) => setNum("contingencyPct", e.target.value)}
-                    className="w-full rounded-md px-1 py-1.5 text-[12.5px] text-right"
+                    className="w-full rounded-md px-1.5 py-1.5 text-[12.5px] text-right"
                     style={box(INK)}
                   />
                 </div>
                 <span
-                  className="text-[11px] shrink-0 w-[42px] sm:w-[88px] pl-1"
+                  className="text-[11px] shrink-0 w-[44px] sm:w-[92px] pl-1"
                   style={{ color: SOFT }}
                 >
                   %
@@ -408,83 +358,18 @@ export default function EstimateClient({
             amount={`${est.pointsCredit > 0 ? "−" : ""}${cad(est.pointsCredit)}`}
             middle={
               <>
-                <div className="w-[68px] shrink-0">
+                <div className="w-[58px] shrink-0">
                   <input
                     type="number"
                     inputMode="decimal"
                     value={String(a.pointsCredit)}
                     onChange={(e) => setNum("pointsCredit", e.target.value)}
-                    className="w-full rounded-md px-1 py-1.5 text-[12.5px] text-right"
+                    className="w-full rounded-md px-1.5 py-1.5 text-[12.5px] text-right"
                     style={box(est.pointsCredit > 0 ? SIENNA : INK)}
                   />
                 </div>
-                <span className="shrink-0 w-[42px] sm:w-[88px]" />
+                <span className="shrink-0 w-[44px] sm:w-[92px]" />
               </>
-            }
-          />
-
-          <Shell
-            pv={14}
-            labelColor={INK}
-            amountColor={INK}
-            label={<span className="text-[14px]">Total</span>}
-            amount={
-              <span className="font-display italic text-[20px]">{cad(est.total)}</span>
-            }
-          />
-
-          {/* Not a second total — the slice of the journey you pay for on the
-              ground, shown back in that money. Everything marked with the local
-              symbol above lands here. */}
-          <Shell
-            labelColor={CAPTION}
-            amountColor={CAPTION}
-            label={
-              <span className="flex items-center gap-1.5">
-                Paid in
-                <input
-                  value={currency}
-                  onChange={(e) => {
-                    setCurrency(e.target.value.toUpperCase().slice(0, 3));
-                    setSaved(false);
-                  }}
-                  aria-label="Local currency code"
-                  className="w-[44px] rounded px-1 py-0.5 text-[12px] text-center uppercase"
-                  style={box(INK)}
-                />
-              </span>
-            }
-            middle={
-              <>
-                <div className="w-[68px] shrink-0">
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    step="0.01"
-                    value={String(fx)}
-                    onChange={(e) => {
-                      const v = Number(e.target.value);
-                      if (!Number.isNaN(v)) setFx(v);
-                      setSaved(false);
-                    }}
-                    aria-label={`CAD per 1 ${currency}`}
-                    className="w-full rounded-md px-1 py-1.5 text-[12.5px] text-right"
-                    style={box(INK)}
-                  />
-                </div>
-                <span
-                  className="text-[11px] shrink-0 w-[42px] sm:w-[88px] pl-1 truncate"
-                  style={{ color: SOFT }}
-                >
-                  <span className="hidden sm:inline">CAD per 1 {currency}</span>
-                  <span className="sm:hidden">rate</span>
-                </span>
-              </>
-            }
-            amount={
-              fx > 0
-                ? `${symbol}${Math.round(localSpend).toLocaleString("en-CA")}`
-                : "—"
             }
           />
         </div>
@@ -493,7 +378,7 @@ export default function EstimateClient({
           <p className="text-[11.5px] mt-3 px-2" style={{ color: SIENNA, lineHeight: 1.6 }}>
             {uncostedExcursions} scheduled{" "}
             {uncostedExcursions === 1 ? "excursion carries" : "excursions carry"} no
-            cost yet, so the real figure is higher than this.
+            cost yet, so the seeded figure is light.
           </p>
         )}
 
