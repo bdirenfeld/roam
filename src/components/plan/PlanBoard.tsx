@@ -1964,7 +1964,11 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
                           is positioned out of flow inside its slot: in flow it
                           would make this row as tall as a card and shove the
                           whole board down the moment one week folded. */}
-                      <div className="hidden md:flex md:flex-row md:flex-nowrap md:gap-5 md:min-w-max md:flex-shrink-0 md:mb-3">
+                      {/* The gap below this row is for the week BARS. Folded
+                          cards are out of flow, so with every week folded the
+                          row is 0px and that gap would just push "Add a list"
+                          off the top edge of the cards it sits beside. */}
+                      <div className={`hidden md:flex md:flex-row md:flex-nowrap md:gap-5 md:min-w-max md:flex-shrink-0 ${allCollapsed ? "" : "md:mb-3"}`}>
                         {listSpacers}
                         {weekSlots.map(({ week, folded, width }) => (
                           <div
@@ -3015,11 +3019,12 @@ function AddListColumn({
         <button
           type="button"
           onClick={onStart}
-          className="w-full flex items-center justify-center gap-1.5 rounded-xl px-3 py-3 active:opacity-70 hover:bg-black/[0.03] transition-all"
+          className="w-full flex items-center justify-center gap-1.5 rounded-[9px] px-3 py-2 active:opacity-70 hover:bg-black/[0.03] transition-all"
           style={{
             border: "1px dashed rgba(26,26,46,0.20)",
             fontFamily: "'Playfair Display', Georgia, serif", fontStyle: "italic",
-            fontSize: "14px", color: "rgba(26,26,46,0.40)", letterSpacing: "-0.005em",
+            fontSize: "13.5px", lineHeight: 1.2,
+            color: "rgba(26,26,46,0.40)", letterSpacing: "-0.005em",
           }}
         >
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(26,26,46,0.40)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
