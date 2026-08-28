@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CaretLeft, Check } from "@phosphor-icons/react";
+import { CaretLeft, CaretDown, Check } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import {
   compute,
@@ -17,9 +17,7 @@ const SOFT = "rgba(26,26,46,0.35)";
 const RULE = "rgba(26,26,46,0.10)";
 const SIENNA = "#C4622D";
 
-/** Rows and group headers share this left edge so every label lines up. */
-const PAD = 16;
-const INDENT = 40; // PAD + tick column + gap
+const PAD = 14;
 
 interface Props {
   tripId: string;
@@ -45,6 +43,7 @@ export default function EstimateClient({
 }: Props) {
   const router = useRouter();
   const [a, setA] = useState<Assumptions>(initialAssumptions);
+  const [open, setOpen] = useState({ always: true, optional: true });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -88,31 +87,83 @@ export default function EstimateClient({
     setSaving(false);
   };
 
-  const boxStyle = (dim: string) => ({
+  const box = (dim: string) => ({
     background: "#FAF7F2",
     border: `1px solid ${RULE}`,
     color: dim,
   });
 
   /**
-   * One line, at every width. The columns are narrow enough to survive a 360px
-   * phone: tick, label, unit, count, amount. Both numbers are editable — the
-   * count is seeded from the journey but typing over it here beats navigating
-   * to Settings to find out what it is.
+   * Every row on this screen — group bars, line items and the summary rows —
+   * is built from this one shell. The leading 16px slot and the trailing amount
+   * column are what make the left and right edges line up; deriving them from a
+   * shared structure rather than hand-tuned padding is what stops the group
+   * headings drifting a few pixels off the labels beneath them.
    */
+  const Shell = ({
+    leading,
+    label,
+    labelColor,
+    middle,
+    amount,
+    amountColor,
+    onClick,
+    tint,
+    pv = 10,
+  }: {
+    leading?: React.ReactNode;
+    label: React.ReactNode;
+    labelColor: string;
+    middle?: React.ReactNode;
+    amount: React.ReactNode;
+    amountColor: string;
+    onClick?: () => void;
+    tint?: string;
+    pv?: number;
+  }) => {
+    const inner = (
+      <div className="flex items-center gap-1 w-full">
+        <div className="w-4 shrink-0 flex items-center">{leading}</div>
+        <div
+          className="flex-1 min-w-0 text-[13.5px] truncate text-left"
+          style={{ color: labelColor }}
+        >
+          {label}
+        </div>
+        {middle}
+        <div
+          className="w-[56px] shrink-0 text-right text-[13.5px]"
+          style={{ color: amountColor }}
+        >
+          {amount}
+        </div>
+      </div>
+    );
+    const style = {
+      borderTop: `1px solid ${RULE}`,
+      padding: `${pv}px ${PAD}px`,
+      background: tint,
+    };
+    return onClick ? (
+      <button onClick={onClick} className="w-full" style={style}>
+        {inner}
+      </button>
+    ) : (
+      <div style={style}>{inner}</div>
+    );
+  };
+
   const Row = ({ line }: { line: EstimateLine }) => {
     const off = !line.enabled;
     const dim = off ? SOFT : INK;
     return (
-      <div
-        className="flex items-center gap-1.5"
-        style={{
-          borderTop: `1px solid ${RULE}`,
-          padding: `10px ${PAD}px`,
-        }}
-      >
-        <div className="w-4 shrink-0">
-          {line.enabledKey && (
+      <Shell
+        labelColor={dim}
+        amountColor={dim}
+        label={line.label}
+        amount={off ? "—" : cad(line.amount)}
+        leading={
+          line.enabledKey && (
             <button
               onClick={() => toggle(line.enabledKey as keyof Assumptions)}
               aria-label={`${line.enabled ? "Exclude" : "Include"} ${line.label}`}
@@ -127,166 +178,132 @@ export default function EstimateClient({
             >
               {line.enabled ? "✓" : ""}
             </button>
-          )}
-        </div>
-
-        <div
-          className="flex-1 min-w-0 text-[14px] truncate"
-          style={{ color: dim, marginLeft: 8 }}
-          title={line.note ?? line.label}
-        >
-          {line.label}
-        </div>
-
-        {/* Unit cost */}
-        <div className="w-[56px] shrink-0">
-          {line.readOnly ? (
-            <div className="text-[13px] text-right" style={{ color: SIENNA }}>
-              {line.unitDisplay ?? cad(line.unit)}
-            </div>
-          ) : (
-            <input
-              type="number"
-              inputMode="decimal"
-              value={String(line.unit)}
-              onChange={(e) => setNum(line.unitKey, e.target.value)}
-              className="w-full rounded-md px-1.5 py-1.5 text-[13px] text-right"
-              style={boxStyle(dim)}
-            />
-          )}
-        </div>
-
-        {line.readOnly ? (
-          /* Excursions isn't unit × count — €504 is the whole roll-up, so
-             "× 10 cards" would misread. One span across the same columns. */
-          <div
-            className="shrink-0 text-[12px] text-center w-[48px] sm:w-[96px]"
-            style={{ color: SIENNA }}
-          >
-            <span className="sm:hidden">{line.count}↑</span>
-            <span className="hidden sm:inline">
-              from {line.count} {line.countLabel}
-            </span>
-          </div>
-        ) : (
+          )
+        }
+        middle={
           <>
-            <span
-              className="text-[12px] shrink-0 px-0.5"
-              style={{ color: off ? SOFT : CAPTION }}
-            >
-              ×
-            </span>
-            <div className="w-[34px] shrink-0">
-              <input
-                type="number"
-                inputMode="numeric"
-                value={String(line.count)}
-                onChange={(e) => setNum(line.countKey, e.target.value)}
-                className="w-full rounded px-0.5 py-1 text-[12.5px] text-center"
-                style={boxStyle(dim)}
-              />
+            <div className="w-[52px] shrink-0">
+              {line.readOnly ? (
+                <div className="text-[12.5px] text-right" style={{ color: SIENNA }}>
+                  {line.unitDisplay ?? cad(line.unit)}
+                </div>
+              ) : (
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={String(line.unit)}
+                  onChange={(e) => setNum(line.unitKey, e.target.value)}
+                  className="w-full rounded-md px-1 py-1.5 text-[12.5px] text-right"
+                  style={box(dim)}
+                />
+              )}
             </div>
-            {/* The word is the first thing to go on a narrow screen: "Flights
-                × 7" is unambiguous, a truncated label is not. */}
-            <span
-              className="hidden sm:inline text-[12px] shrink-0 w-[46px]"
-              style={{ color: off ? SOFT : CAPTION }}
-            >
-              {line.countLabel}
-            </span>
+            {line.readOnly ? (
+              <div
+                className="shrink-0 text-[11.5px] text-center w-[42px] sm:w-[88px]"
+                style={{ color: SIENNA }}
+              >
+                <span className="sm:hidden">×{line.count}</span>
+                <span className="hidden sm:inline">
+                  from {line.count} {line.countLabel}
+                </span>
+              </div>
+            ) : (
+              <>
+                <span className="text-[11px] shrink-0" style={{ color: off ? SOFT : CAPTION }}>
+                  ×
+                </span>
+                <div className="w-[30px] shrink-0">
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    value={String(line.count)}
+                    onChange={(e) => setNum(line.countKey, e.target.value)}
+                    className="w-full rounded px-0.5 py-1 text-[12px] text-center"
+                    style={box(dim)}
+                  />
+                </div>
+                {/* First thing to go on a narrow screen — "Flights × 7" reads
+                    fine, a truncated label does not. */}
+                <span
+                  className="hidden sm:inline text-[12px] shrink-0 w-[46px]"
+                  style={{ color: off ? SOFT : CAPTION }}
+                >
+                  {line.countLabel}
+                </span>
+              </>
+            )}
           </>
-        )}
-
-        <div
-          className="w-[60px] shrink-0 text-right text-[14px]"
-          style={{ color: dim }}
-        >
-          {off ? "—" : cad(line.amount)}
-        </div>
-      </div>
+        }
+      />
     );
   };
 
-  /** Subtotal / contingency / points — same column grid, no tick, no count. */
-  const SumRow = ({
-    label,
-    valueKey,
-    suffix,
-    amount,
-    negative,
-    tint,
-  }: {
-    label: string;
-    valueKey?: keyof Assumptions;
-    suffix?: string;
-    amount: number;
-    negative?: boolean;
-    tint?: string;
-  }) => (
-    <div
-      className="flex items-center gap-1.5"
-      style={{ borderTop: `1px solid ${RULE}`, padding: `10px ${PAD}px` }}
-    >
-      <div className="w-4 shrink-0" />
-      <div
-        className="flex-1 min-w-0 text-[14px] truncate"
-        style={{ color: tint ?? CAPTION, marginLeft: 8 }}
-      >
-        {label}
-      </div>
-      <div className="w-[56px] shrink-0">
-        {valueKey && (
-          <input
-            type="number"
-            inputMode="decimal"
-            value={String(a[valueKey])}
-            onChange={(e) => setNum(valueKey, e.target.value)}
-            className="w-full rounded-md px-1.5 py-1.5 text-[13px] text-right"
-            style={boxStyle(tint ?? INK)}
-          />
-        )}
-      </div>
-      {/* Matches the ×/count/word columns above so the amounts stay in line. */}
-      <span
-        className="shrink-0 text-[12px] pl-1 w-[42px] sm:w-[92px]"
-        style={{ color: SOFT }}
-      >
-        {suffix}
-      </span>
-      <div
-        className="w-[60px] shrink-0 text-right text-[14px]"
-        style={{ color: tint ?? INK }}
-      >
-        {negative && amount > 0 ? "−" : ""}
-        {cad(amount)}
-      </div>
-    </div>
-  );
-
   const always = est.lines.filter((l) => l.group === "always");
   const optional = est.lines.filter((l) => l.group === "optional");
+  const sum = (ls: EstimateLine[]) =>
+    ls.reduce((s, l) => s + (l.enabled ? l.amount : 0), 0);
+
+  const GroupBar = ({
+    id,
+    label,
+    lines,
+  }: {
+    id: "always" | "optional";
+    label: string;
+    lines: EstimateLine[];
+  }) => (
+    <Shell
+      pv={11}
+      tint="rgba(26,26,46,0.025)"
+      onClick={() => setOpen((p) => ({ ...p, [id]: !p[id] }))}
+      labelColor={CAPTION}
+      amountColor={CAPTION}
+      amount={cad(sum(lines))}
+      leading={
+        <CaretDown
+          size={12}
+          weight="bold"
+          color={SOFT}
+          style={{
+            transform: open[id] ? "none" : "rotate(-90deg)",
+            transition: "transform 140ms",
+          }}
+        />
+      }
+      label={
+        <span className="text-[11px] uppercase tracking-wider">
+          {label}
+          {!open[id] && (
+            <span className="normal-case tracking-normal" style={{ color: SOFT }}>
+              {" "}
+              · {lines.filter((l) => l.enabled).length} items
+            </span>
+          )}
+        </span>
+      }
+    />
+  );
 
   return (
     <div
       className="min-h-screen bg-parchment pb-24"
-      // No masthead and no bottom nav on this screen, so it would otherwise run
-      // straight under the status bar on a phone.
       style={{ paddingTop: "max(1.25rem, env(safe-area-inset-top))" }}
     >
-      <div className="mx-auto w-full max-w-[560px] px-4 pt-2">
+      <div className="mx-auto w-full max-w-[560px] px-3 pt-2">
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-1 mb-5"
+          className="flex items-center gap-1 mb-5 px-1"
           style={{ color: CAPTION, fontSize: 13 }}
         >
           <CaretLeft size={15} weight="light" />
           {tripTitle}
         </button>
 
-        <h1 className="font-display italic text-[29px]" style={{ color: INK }}>
+        <h1 className="font-display italic text-[29px] px-1" style={{ color: INK }}>
           Estimate
         </h1>
-        <p className="text-[13px] mb-6" style={{ color: CAPTION }}>
+        <p className="text-[13px] mb-5 px-1" style={{ color: CAPTION }}>
           {a.people} {a.people === 1 ? "traveller" : "travellers"} · {a.nights}{" "}
           {a.nights === 1 ? "night" : "nights"}
           {dateRange ? ` · ${dateRange}` : ""}
@@ -296,52 +313,86 @@ export default function EstimateClient({
           className="bg-white rounded-2xl overflow-hidden"
           style={{ boxShadow: `0 0 0 1px ${RULE}` }}
         >
-          <div style={{ padding: `20px ${PAD}px 16px` }}>
+          <div style={{ padding: `18px ${PAD}px 15px` }}>
             <div
-              className="font-display italic text-[36px] leading-none mb-2"
+              className="font-display italic text-[36px] leading-none mb-1.5"
               style={{ color: INK }}
             >
               {cad(est.total)}
             </div>
-            <div className="text-[13px]" style={{ color: CAPTION }}>
+            <div className="text-[12.5px]" style={{ color: CAPTION }}>
               {cad(est.perPerson)} per person &nbsp;·&nbsp; {cad(est.perDay)} per day
             </div>
           </div>
 
-          <GroupHead label="Every trip" />
-          {always.map((l) => (
-            <Row key={l.key} line={l} />
-          ))}
+          <GroupBar id="always" label="Every trip" lines={always} />
+          {open.always && always.map((l) => <Row key={l.key} line={l} />)}
 
-          <GroupHead label="Might happen" aside="— tick what applies" />
-          {optional.map((l) => (
-            <Row key={l.key} line={l} />
-          ))}
+          <GroupBar id="optional" label="Might happen" lines={optional} />
+          {open.optional && optional.map((l) => <Row key={l.key} line={l} />)}
 
-          <SumRow label="Contingency" valueKey="contingencyPct" suffix="%" amount={est.contingency} />
-          <SumRow
-            label="Paid with points"
-            valueKey="pointsCredit"
-            amount={est.pointsCredit}
-            negative
-            tint={est.pointsCredit > 0 ? SIENNA : undefined}
+          <Shell
+            labelColor={CAPTION}
+            amountColor={INK}
+            label="Contingency"
+            amount={cad(est.contingency)}
+            middle={
+              <>
+                <div className="w-[52px] shrink-0">
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={String(a.contingencyPct)}
+                    onChange={(e) => setNum("contingencyPct", e.target.value)}
+                    className="w-full rounded-md px-1 py-1.5 text-[12.5px] text-right"
+                    style={box(INK)}
+                  />
+                </div>
+                <span
+                  className="text-[11px] shrink-0 w-[42px] sm:w-[88px] pl-1"
+                  style={{ color: SOFT }}
+                >
+                  %
+                </span>
+              </>
+            }
           />
 
-          <div
-            className="flex items-center justify-between py-4"
-            style={{ borderTop: `1px solid ${RULE}`, padding: `16px ${PAD}px` }}
-          >
-            <span className="text-[14px]" style={{ color: INK }}>
-              Total
-            </span>
-            <span className="font-display italic text-[22px]" style={{ color: INK }}>
-              {cad(est.total)}
-            </span>
-          </div>
+          <Shell
+            labelColor={est.pointsCredit > 0 ? SIENNA : CAPTION}
+            amountColor={est.pointsCredit > 0 ? SIENNA : INK}
+            label="Paid with points"
+            amount={`${est.pointsCredit > 0 ? "−" : ""}${cad(est.pointsCredit)}`}
+            middle={
+              <>
+                <div className="w-[52px] shrink-0">
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={String(a.pointsCredit)}
+                    onChange={(e) => setNum("pointsCredit", e.target.value)}
+                    className="w-full rounded-md px-1 py-1.5 text-[12.5px] text-right"
+                    style={box(est.pointsCredit > 0 ? SIENNA : INK)}
+                  />
+                </div>
+                <span className="shrink-0 w-[42px] sm:w-[88px]" />
+              </>
+            }
+          />
+
+          <Shell
+            pv={14}
+            labelColor={INK}
+            amountColor={INK}
+            label={<span className="text-[14px]">Total</span>}
+            amount={
+              <span className="font-display italic text-[20px]">{cad(est.total)}</span>
+            }
+          />
         </div>
 
         {uncostedExcursions > 0 && (
-          <p className="text-[11.5px] mt-3 px-1" style={{ color: SIENNA, lineHeight: 1.6 }}>
+          <p className="text-[11.5px] mt-3 px-2" style={{ color: SIENNA, lineHeight: 1.6 }}>
             {uncostedExcursions} scheduled{" "}
             {uncostedExcursions === 1 ? "excursion carries" : "excursions carry"} no
             cost yet, so the real figure is higher than this.
@@ -358,24 +409,6 @@ export default function EstimateClient({
           {saving ? "Saving…" : saved ? "Saved" : "Save"}
         </button>
       </div>
-    </div>
-  );
-}
-
-function GroupHead({ label, aside }: { label: string; aside?: string }) {
-  return (
-    <div
-      className="text-[11px] uppercase tracking-wider"
-      style={{
-        color: SOFT,
-        background: "rgba(26,26,46,0.015)",
-        padding: `14px ${PAD}px 6px ${INDENT}px`,
-      }}
-    >
-      {label}
-      {aside && (
-        <span className="normal-case tracking-normal text-[11.5px]"> {aside}</span>
-      )}
     </div>
   );
 }

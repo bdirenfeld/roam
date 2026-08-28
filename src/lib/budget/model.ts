@@ -254,7 +254,7 @@ export function compute(
     },
     {
       key: "extras",
-      label: "Gifts & extras",
+      label: "Gifts",
       group: "optional",
       amount: a.extrasEnabled ? a.extrasPerDay * days : 0,
       unit: a.extrasPerDay,
