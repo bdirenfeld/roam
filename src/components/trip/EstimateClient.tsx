@@ -290,23 +290,22 @@ export default function EstimateClient({
           {tripTitle}
         </button>
 
-        <h1 className="font-display italic text-[29px] px-1" style={{ color: INK }}>
-          Estimate
-        </h1>
-        <p className="text-[13px] mb-5 px-1" style={{ color: CAPTION }}>
-          {a.people} {a.people === 1 ? "traveller" : "travellers"} · {a.nights}{" "}
-          {a.nights === 1 ? "night" : "nights"}
-          {dateRange ? ` · ${dateRange}` : ""}
-        </p>
-
         <div
           className="bg-white rounded-2xl overflow-hidden"
           style={{ boxShadow: `0 0 0 1px ${RULE}` }}
         >
-          {/* The only total on the screen. It updates live, so a second one at
-              the foot of the list was duplication — and it was the one whose
-              Playfair numerals overran their column. */}
-          <div style={{ padding: `18px ${PAD}px 15px` }}>
+          {/* No "Estimate" heading: you tapped Estimate to get here, and a
+              figure this size says what it is. The party and dates ride above
+              the number as its context rather than as a block of their own. */}
+          <div style={{ padding: `16px ${PAD}px 15px` }}>
+            <div
+              className="text-[10.5px] uppercase tracking-wider mb-2"
+              style={{ color: SOFT }}
+            >
+              {a.people} {a.people === 1 ? "traveller" : "travellers"} · {a.nights}{" "}
+              {a.nights === 1 ? "night" : "nights"}
+              {dateRange ? ` · ${dateRange}` : ""}
+            </div>
             <div
               className="font-display italic text-[36px] leading-none mb-1.5"
               style={{ color: INK }}
@@ -372,6 +371,24 @@ export default function EstimateClient({
               </>
             }
           />
+
+          {/* Deliberately NOT a Shell. The amount column is a fixed 62px, which
+              the Playfair numerals overran — that was the clipping on the
+              right. Here the figure sizes to its own content. */}
+          <div
+            className="flex items-baseline justify-between gap-3"
+            style={{ borderTop: `1px solid ${RULE}`, padding: `14px ${PAD}px` }}
+          >
+            <span className="text-[14px] shrink-0" style={{ color: INK }}>
+              Total
+            </span>
+            <span
+              className="font-display italic text-[21px] text-right"
+              style={{ color: INK }}
+            >
+              {cad(est.total)}
+            </span>
+          </div>
         </div>
 
         {uncostedExcursions > 0 && (
