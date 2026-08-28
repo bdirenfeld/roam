@@ -82,6 +82,13 @@ export default async function EstimatePage({ params }: Props) {
       cardBudgets={cardBudgets}
       uncostedExcursions={uncostedExcursions}
       initialFxToCad={Number(saved?.fx_to_cad ?? 1.47)}
+      // Seeded from whatever currency the costed cards use, so a European
+      // journey opens on EUR without being asked.
+      initialCurrency={
+        saved?.currency ??
+        cardBudgets.find((b) => b.currency && b.currency !== "CAD")?.currency ??
+        "EUR"
+      }
       dateRange={dateRange}
     />
   );

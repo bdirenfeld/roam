@@ -26,6 +26,7 @@ interface Props {
   cardBudgets: CardBudget[];
   uncostedExcursions: number;
   initialFxToCad: number;
+  initialCurrency: string;
   dateRange: string;
 }
 
@@ -39,19 +40,30 @@ export default function EstimateClient({
   cardBudgets,
   uncostedExcursions,
   initialFxToCad,
+  initialCurrency,
   dateRange,
 }: Props) {
   const router = useRouter();
   const [a, setA] = useState<Assumptions>(initialAssumptions);
   const [open, setOpen] = useState({ always: true, optional: true });
+  const [fx, setFx] = useState(initialFxToCad);
+  const [currency, setCurrency] = useState(initialCurrency);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   const est = useMemo(
-    () =>
-      compute(a, { cardBudgets, uncostedExcursions, fxToCad: initialFxToCad }),
-    [a, cardBudgets, uncostedExcursions, initialFxToCad],
+    () => compute(a, { cardBudgets, uncostedExcursions, fxToCad: fx }),
+    [a, cardBudgets, uncostedExcursions, fx],
   );
+
+  // The rate is CAD per 1 unit of local, so home → local divides. Guard the
+  // zero the user passes through while typing "1.4" from scratch.
+  const inLocal = fx > 0 ? est.total / fx : 0;
+  const symbol =
+    ({ EUR: "€", GBP: "£", USD: "$", JPY: "¥", CHF: "CHF ", MXN: "$" } as Record<
+      string,
+      string
+    >)[currency.toUpperCase()] ?? "";
 
   const setNum = (key: keyof Assumptions, raw: string) => {
     const v = raw === "" ? 0 : Number(raw);
@@ -76,7 +88,8 @@ export default function EstimateClient({
           trip_id: tripId,
           user_id: user.id,
           assumptions: a as unknown as Record<string, unknown>,
-          fx_to_cad: initialFxToCad,
+          fx_to_cad: fx,
+          currency: currency.toUpperCase().slice(0, 3),
           updated_at: new Date().toISOString(),
         },
         { onConflict: "trip_id" },
@@ -387,6 +400,61 @@ export default function EstimateClient({
             label={<span className="text-[14px]">Total</span>}
             amount={
               <span className="font-display italic text-[20px]">{cad(est.total)}</span>
+            }
+          />
+
+          {/* The same total in the money you'll actually be quoted abroad. The
+              rate also drives the excursions roll-up, since those cards carry
+              their own currency. */}
+          <Shell
+            labelColor={CAPTION}
+            amountColor={CAPTION}
+            label={
+              <span className="flex items-center gap-1.5">
+                In
+                <input
+                  value={currency}
+                  onChange={(e) => {
+                    setCurrency(e.target.value.toUpperCase().slice(0, 3));
+                    setSaved(false);
+                  }}
+                  aria-label="Local currency code"
+                  className="w-[44px] rounded px-1 py-0.5 text-[12px] text-center uppercase"
+                  style={box(INK)}
+                />
+              </span>
+            }
+            middle={
+              <>
+                <div className="w-[52px] shrink-0">
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    value={String(fx)}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      if (!Number.isNaN(v)) setFx(v);
+                      setSaved(false);
+                    }}
+                    aria-label={`CAD per 1 ${currency}`}
+                    className="w-full rounded-md px-1 py-1.5 text-[12.5px] text-right"
+                    style={box(INK)}
+                  />
+                </div>
+                <span
+                  className="text-[11px] shrink-0 w-[42px] sm:w-[88px] pl-1 truncate"
+                  style={{ color: SOFT }}
+                >
+                  <span className="hidden sm:inline">CAD per 1 {currency}</span>
+                  <span className="sm:hidden">rate</span>
+                </span>
+              </>
+            }
+            amount={
+              fx > 0
+                ? `${symbol}${Math.round(inLocal).toLocaleString("en-CA")}`
+                : "—"
             }
           />
         </div>
