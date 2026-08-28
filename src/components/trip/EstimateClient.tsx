@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CaretLeft, CaretDown, Check } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
@@ -18,6 +18,214 @@ const SIENNA = "#C4622D";
 
 const PAD = 14;
 
+const cad = (n: number) =>
+  "$" + Math.round(n).toLocaleString("en-CA", { maximumFractionDigits: 0 });
+
+const box = (dim: string) => ({
+  background: "#FAF7F2",
+  border: `1px solid ${RULE}`,
+  color: dim,
+});
+
+/**
+ * These three live at module scope on purpose. Defined inside the component
+ * body they were a NEW component type on every render, so React unmounted and
+ * remounted the whole subtree for each keystroke — which destroys the input
+ * element and takes the caret with it. Typing one digit into a price threw you
+ * out of the cell. Stable identity is what keeps focus.
+ */
+function Shell({
+  leading,
+  label,
+  labelColor,
+  middle,
+  amount,
+  amountColor,
+  onClick,
+  tint,
+  pv = 10,
+}: {
+  leading?: React.ReactNode;
+  label: React.ReactNode;
+  labelColor: string;
+  middle?: React.ReactNode;
+  amount: React.ReactNode;
+  amountColor: string;
+  onClick?: () => void;
+  tint?: string;
+  pv?: number;
+}) {
+  const inner = (
+    <div className="flex items-center gap-1 w-full">
+      <div className="w-4 shrink-0 flex items-center">{leading}</div>
+      <div
+        className="flex-1 min-w-0 text-[13.5px] truncate text-left"
+        style={{ color: labelColor }}
+      >
+        {label}
+      </div>
+      {middle}
+      <div
+        className="w-[62px] shrink-0 text-right text-[13.5px]"
+        style={{ color: amountColor }}
+      >
+        {amount}
+      </div>
+    </div>
+  );
+  const style = {
+    borderTop: `1px solid ${RULE}`,
+    padding: `${pv}px ${PAD}px`,
+    background: tint,
+  };
+  return onClick ? (
+    <button onClick={onClick} className="w-full" style={style}>
+      {inner}
+    </button>
+  ) : (
+    <div style={style}>{inner}</div>
+  );
+}
+
+function Row({
+  line,
+  setNum,
+  toggle,
+}: {
+  line: EstimateLine;
+  setNum: (key: keyof Assumptions, raw: string) => void;
+  toggle: (key: keyof Assumptions) => void;
+}) {
+  const off = !line.enabled;
+  // 0 means "not priced yet", not "free". An unpriced row shows a dash rather
+  // than $0, so an empty budget reads as empty instead of as costless.
+  const unset = line.unit === 0;
+  const dim = off ? SOFT : INK;
+  return (
+    <Shell
+      labelColor={dim}
+      amountColor={off || unset ? SOFT : dim}
+      label={line.label}
+      amount={off || unset ? "—" : cad(line.amount)}
+      leading={
+        line.enabledKey && (
+          <button
+            onClick={() => toggle(line.enabledKey as keyof Assumptions)}
+            aria-label={`${line.enabled ? "Exclude" : "Include"} ${line.label}`}
+            className="w-[15px] h-[15px] rounded flex items-center justify-center"
+            style={{
+              background: line.enabled ? INK : "#FAF7F2",
+              border: `1px solid ${line.enabled ? INK : "rgba(26,26,46,0.22)"}`,
+              color: "#fff",
+              fontSize: 9.5,
+              lineHeight: 1,
+            }}
+          >
+            {line.enabled ? "✓" : ""}
+          </button>
+        )
+      }
+      middle={
+        <>
+          <div className="w-[58px] shrink-0">
+            <input
+              type="number"
+              inputMode="decimal"
+              value={unset ? "" : String(line.unit)}
+              onChange={(e) => setNum(line.unitKey, e.target.value)}
+              aria-label={`${line.label} unit cost`}
+              className="w-full rounded-md px-1.5 py-1.5 text-[12.5px] text-right"
+              style={box(dim)}
+            />
+          </div>
+          {line.lump ? (
+            <div
+              className="shrink-0 text-[11px] w-[44px] sm:w-[92px] pl-1 truncate"
+              style={{ color: SIENNA }}
+            >
+              {line.hint ?? ""}
+            </div>
+          ) : (
+            <>
+              <span
+                className="text-[11px] shrink-0"
+                style={{ color: off ? SOFT : CAPTION }}
+              >
+                ×
+              </span>
+              <div className="w-[30px] shrink-0">
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={String(line.count)}
+                  onChange={(e) => setNum(line.countKey, e.target.value)}
+                  aria-label={`${line.label} ${line.countLabel}`}
+                  className="w-full rounded px-0.5 py-1 text-[12px] text-center"
+                  style={box(dim)}
+                />
+              </div>
+              {/* First thing to go on a narrow screen — "Flights × 7" reads
+                  fine, a truncated label does not. */}
+              <span
+                className="hidden sm:inline text-[12px] shrink-0 w-[46px]"
+                style={{ color: off ? SOFT : CAPTION }}
+              >
+                {line.countLabel}
+              </span>
+            </>
+          )}
+        </>
+      }
+    />
+  );
+}
+
+function GroupBar({
+  label,
+  lines,
+  isOpen,
+  onToggle,
+}: {
+  label: string;
+  lines: EstimateLine[];
+  isOpen: boolean;
+  onToggle: () => void;
+}) {
+  const subtotal = lines.reduce((s, l) => s + (l.enabled ? l.amount : 0), 0);
+  return (
+    <Shell
+      pv={11}
+      tint="rgba(26,26,46,0.025)"
+      onClick={onToggle}
+      labelColor={CAPTION}
+      amountColor={CAPTION}
+      amount={cad(subtotal)}
+      leading={
+        <CaretDown
+          size={12}
+          weight="bold"
+          color={SOFT}
+          style={{
+            transform: isOpen ? "none" : "rotate(-90deg)",
+            transition: "transform 140ms",
+          }}
+        />
+      }
+      label={
+        <span className="text-[11px] uppercase tracking-wider">
+          {label}
+          {!isOpen && (
+            <span className="normal-case tracking-normal" style={{ color: SOFT }}>
+              {" "}
+              · {lines.filter((l) => l.enabled).length} items
+            </span>
+          )}
+        </span>
+      }
+    />
+  );
+}
+
 interface Props {
   tripId: string;
   tripTitle: string;
@@ -26,9 +234,6 @@ interface Props {
   rolledExcursionCount: number;
   dateRange: string;
 }
-
-const cad = (n: number) =>
-  "$" + Math.round(n).toLocaleString("en-CA", { maximumFractionDigits: 0 });
 
 export default function EstimateClient({
   tripId,
@@ -49,16 +254,17 @@ export default function EstimateClient({
     [a, uncostedExcursions, rolledExcursionCount],
   );
 
-  const setNum = (key: keyof Assumptions, raw: string) => {
+  const setNum = useCallback((key: keyof Assumptions, raw: string) => {
     const v = raw === "" ? 0 : Number(raw);
     if (Number.isNaN(v)) return;
     setA((p) => ({ ...p, [key]: v }));
     setSaved(false);
-  };
-  const toggle = (key: keyof Assumptions) => {
+  }, []);
+
+  const toggle = useCallback((key: keyof Assumptions) => {
     setA((p) => ({ ...p, [key]: !p[key] }));
     setSaved(false);
-  };
+  }, []);
 
   const save = async () => {
     setSaving(true);
@@ -82,202 +288,8 @@ export default function EstimateClient({
     setSaving(false);
   };
 
-  const box = (dim: string) => ({
-    background: "#FAF7F2",
-    border: `1px solid ${RULE}`,
-    color: dim,
-  });
-
-  /**
-   * Every row on this screen is built from this one shell. The leading 16px
-   * slot and the trailing amount column are what make the left and right edges
-   * line up; deriving them from a shared structure rather than hand-tuned
-   * padding is what stops the group headings drifting off the labels beneath.
-   */
-  const Shell = ({
-    leading,
-    label,
-    labelColor,
-    middle,
-    amount,
-    amountColor,
-    onClick,
-    tint,
-    pv = 10,
-  }: {
-    leading?: React.ReactNode;
-    label: React.ReactNode;
-    labelColor: string;
-    middle?: React.ReactNode;
-    amount: React.ReactNode;
-    amountColor: string;
-    onClick?: () => void;
-    tint?: string;
-    pv?: number;
-  }) => {
-    const inner = (
-      <div className="flex items-center gap-1 w-full">
-        <div className="w-4 shrink-0 flex items-center">{leading}</div>
-        <div
-          className="flex-1 min-w-0 text-[13.5px] truncate text-left"
-          style={{ color: labelColor }}
-        >
-          {label}
-        </div>
-        {middle}
-        <div
-          className="w-[62px] shrink-0 text-right text-[13.5px]"
-          style={{ color: amountColor }}
-        >
-          {amount}
-        </div>
-      </div>
-    );
-    const style = {
-      borderTop: `1px solid ${RULE}`,
-      padding: `${pv}px ${PAD}px`,
-      background: tint,
-    };
-    return onClick ? (
-      <button onClick={onClick} className="w-full" style={style}>
-        {inner}
-      </button>
-    ) : (
-      <div style={style}>{inner}</div>
-    );
-  };
-
-  const Row = ({ line }: { line: EstimateLine }) => {
-    const off = !line.enabled;
-    // 0 means "not priced yet", not "free". An unpriced row shows a dash rather
-    // than $0, so an empty budget reads as empty instead of as costless.
-    const unset = line.unit === 0;
-    const dim = off ? SOFT : INK;
-    return (
-      <Shell
-        labelColor={dim}
-        amountColor={off || unset ? SOFT : dim}
-        label={line.label}
-        amount={off || unset ? "—" : cad(line.amount)}
-        leading={
-          line.enabledKey && (
-            <button
-              onClick={() => toggle(line.enabledKey as keyof Assumptions)}
-              aria-label={`${line.enabled ? "Exclude" : "Include"} ${line.label}`}
-              className="w-[15px] h-[15px] rounded flex items-center justify-center"
-              style={{
-                background: line.enabled ? INK : "#FAF7F2",
-                border: `1px solid ${line.enabled ? INK : "rgba(26,26,46,0.22)"}`,
-                color: "#fff",
-                fontSize: 9.5,
-                lineHeight: 1,
-              }}
-            >
-              {line.enabled ? "✓" : ""}
-            </button>
-          )
-        }
-        middle={
-          <>
-            <div className="w-[58px] shrink-0">
-              <input
-                type="number"
-                inputMode="decimal"
-                value={unset ? "" : String(line.unit)}
-                onChange={(e) => setNum(line.unitKey, e.target.value)}
-                aria-label={`${line.label} unit cost`}
-                className="w-full rounded-md px-1.5 py-1.5 text-[12.5px] text-right"
-                style={box(dim)}
-              />
-            </div>
-            {line.lump ? (
-              /* A flat sum — no multiplier. Says where the figure came from
-                 instead, and stays editable. */
-              <div
-                className="shrink-0 text-[11px] w-[44px] sm:w-[92px] pl-1 truncate"
-                style={{ color: SIENNA }}
-              >
-                {line.hint ?? ""}
-              </div>
-            ) : (
-              <>
-                <span
-                  className="text-[11px] shrink-0"
-                  style={{ color: off ? SOFT : CAPTION }}
-                >
-                  ×
-                </span>
-                <div className="w-[30px] shrink-0">
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    value={String(line.count)}
-                    onChange={(e) => setNum(line.countKey, e.target.value)}
-                    className="w-full rounded px-0.5 py-1 text-[12px] text-center"
-                    style={box(dim)}
-                  />
-                </div>
-                {/* First thing to go on a narrow screen — "Flights × 7" reads
-                    fine, a truncated label does not. */}
-                <span
-                  className="hidden sm:inline text-[12px] shrink-0 w-[46px]"
-                  style={{ color: off ? SOFT : CAPTION }}
-                >
-                  {line.countLabel}
-                </span>
-              </>
-            )}
-          </>
-        }
-      />
-    );
-  };
-
   const standard = est.lines.filter((l) => l.group === "standard");
   const additional = est.lines.filter((l) => l.group === "additional");
-  const sum = (ls: EstimateLine[]) =>
-    ls.reduce((s, l) => s + (l.enabled ? l.amount : 0), 0);
-
-  const GroupBar = ({
-    id,
-    label,
-    lines,
-  }: {
-    id: "standard" | "additional";
-    label: string;
-    lines: EstimateLine[];
-  }) => (
-    <Shell
-      pv={11}
-      tint="rgba(26,26,46,0.025)"
-      onClick={() => setOpen((p) => ({ ...p, [id]: !p[id] }))}
-      labelColor={CAPTION}
-      amountColor={CAPTION}
-      amount={cad(sum(lines))}
-      leading={
-        <CaretDown
-          size={12}
-          weight="bold"
-          color={SOFT}
-          style={{
-            transform: open[id] ? "none" : "rotate(-90deg)",
-            transition: "transform 140ms",
-          }}
-        />
-      }
-      label={
-        <span className="text-[11px] uppercase tracking-wider">
-          {label}
-          {!open[id] && (
-            <span className="normal-case tracking-normal" style={{ color: SOFT }}>
-              {" "}
-              · {lines.filter((l) => l.enabled).length} items
-            </span>
-          )}
-        </span>
-      }
-    />
-  );
 
   return (
     <div
@@ -321,11 +333,27 @@ export default function EstimateClient({
             </div>
           </div>
 
-          <GroupBar id="standard" label="Standard" lines={standard} />
-          {open.standard && standard.map((l) => <Row key={l.key} line={l} />)}
+          <GroupBar
+            label="Standard"
+            lines={standard}
+            isOpen={open.standard}
+            onToggle={() => setOpen((p) => ({ ...p, standard: !p.standard }))}
+          />
+          {open.standard &&
+            standard.map((l) => (
+              <Row key={l.key} line={l} setNum={setNum} toggle={toggle} />
+            ))}
 
-          <GroupBar id="additional" label="Additional" lines={additional} />
-          {open.additional && additional.map((l) => <Row key={l.key} line={l} />)}
+          <GroupBar
+            label="Additional"
+            lines={additional}
+            isOpen={open.additional}
+            onToggle={() => setOpen((p) => ({ ...p, additional: !p.additional }))}
+          />
+          {open.additional &&
+            additional.map((l) => (
+              <Row key={l.key} line={l} setNum={setNum} toggle={toggle} />
+            ))}
 
           <Shell
             labelColor={CAPTION}
@@ -340,6 +368,7 @@ export default function EstimateClient({
                     inputMode="decimal"
                     value={String(a.contingencyPct)}
                     onChange={(e) => setNum("contingencyPct", e.target.value)}
+                    aria-label="Contingency percent"
                     className="w-full rounded-md px-1.5 py-1.5 text-[12.5px] text-right"
                     style={box(INK)}
                   />
@@ -367,6 +396,7 @@ export default function EstimateClient({
                     inputMode="decimal"
                     value={a.pointsCredit === 0 ? "" : String(a.pointsCredit)}
                     onChange={(e) => setNum("pointsCredit", e.target.value)}
+                    aria-label="Amount paid with points"
                     className="w-full rounded-md px-1.5 py-1.5 text-[12.5px] text-right"
                     style={box(est.pointsCredit > 0 ? SIENNA : INK)}
                   />
