@@ -78,8 +78,6 @@ export default async function EstimatePage({ params }: Props) {
     <EstimateClient
       tripId={tripId}
       tripTitle={trip.title ?? "Journey"}
-      partySize={partySize}
-      nights={nights}
       initialAssumptions={assumptions}
       cardBudgets={cardBudgets}
       uncostedExcursions={uncostedExcursions}

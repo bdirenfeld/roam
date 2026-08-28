@@ -2,16 +2,18 @@
  * Journey estimate — the costing model behind the Estimate screen.
  *
  * Nine lines, deliberately. The screen exists to let you assess a journey at a
- * glance and adjust the unit costs, not to account for it — so every row is one
- * editable unit cost times a stated multiplier, and anything that doesn't move
- * the answer was cut rather than kept "for completeness".
+ * glance and adjust the numbers, not to account for it — so every row is the
+ * same shape, unit cost × count, and both are editable. Nothing is derived and
+ * locked: the party size and the nights are seeded from the journey but can be
+ * typed over, because changing them here is faster than navigating to Settings
+ * to find out what they are.
  *
  * Two groups: things that happen on every trip, and things that might. Optional
- * rows keep their numbers when unticked and simply drop out of the total, so you
- * can flick one on and watch the total move without losing the assumption.
+ * rows keep their numbers when unticked and simply drop out of the total.
  *
- * Everything computes in CAD. Card budgets carry their own currency and convert
- * at the journey's stored rate — flights are booked at home, excursions abroad.
+ * Points are a single deduction rather than a per-line toggle. Card points are
+ * fungible cash — they can cover part of a fare, all of it, or the villa — so a
+ * tick on one row would force a false choice.
  */
 
 export type Confidence = "quoted" | "estimated" | "placeholder";
@@ -27,13 +29,14 @@ export interface CardBudget {
 }
 
 export interface Assumptions {
+  // Counts, seeded from the journey but editable here.
+  people: number;
+  nights: number;
+  days: number;
+
   // Every trip
   flightPerPerson: number;
-  flightsOnPoints: boolean;
-  /** Award seats still bill taxes, bags and seat selection. */
-  flightTaxesPerPerson: number;
   nightlyRate: number;
-  accommodationOnPoints: boolean;
   groceriesPerDay: number;
   perMealOut: number;
   mealsOut: number;
@@ -49,9 +52,11 @@ export interface Assumptions {
   extrasEnabled: boolean;
   extrasPerDay: number;
   touristTaxEnabled: boolean;
-  touristTaxPerPersonPerNight: number;
+  touristTaxPerNight: number;
 
   contingencyPct: number;
+  /** Dollars covered by card points, deducted from the total. */
+  pointsCredit: number;
 }
 
 export interface EstimateLine {
@@ -59,31 +64,25 @@ export interface EstimateLine {
   label: string;
   group: "always" | "optional";
   amount: number;
-  /** The editable unit cost, and which assumption it writes to. */
   unit: number;
   unitKey: keyof Assumptions;
-  /** Text after the unit box, e.g. "× 7 people". */
-  multiplier: string;
-  /** Set when the count itself is editable (meals out, dog nights). */
-  countKey?: keyof Assumptions;
-  count?: number;
-  countLabel?: string;
-  /** Optional rows carry a tick; unticked rows contribute nothing. */
+  count: number;
+  countKey: keyof Assumptions;
+  /** Word after the count box — "people", "nights", "days". */
+  countLabel: string;
   enabled: boolean;
   enabledKey?: keyof Assumptions;
-  /** Flights and accommodation can be paid with points. */
-  pointsKey?: keyof Assumptions;
-  onPoints?: boolean;
-  /** Excursions is read-only — it comes from the cards. */
+  /** Excursions is the one row you don't type into — it comes from the cards. */
   readOnly?: boolean;
   unitDisplay?: string;
-  hint?: string;
+  note?: string;
 }
 
 export interface Estimate {
   lines: EstimateLine[];
   subtotal: number;
   contingency: number;
+  pointsCredit: number;
   total: number;
   perPerson: number;
   perDay: number;
@@ -98,11 +97,12 @@ export function defaultAssumptions(
   nights: number,
 ): Assumptions {
   return {
+    people: partySize,
+    nights,
+    days: nights,
+
     flightPerPerson: 1370,
-    flightsOnPoints: false,
-    flightTaxesPerPerson: 140,
     nightlyRate: 650,
-    accommodationOnPoints: false,
     groceriesPerDay: 145,
     perMealOut: 60 * Math.max(partySize, 1),
     mealsOut: Math.max(2, Math.round(nights / 3)),
@@ -119,9 +119,10 @@ export function defaultAssumptions(
     extrasEnabled: true,
     extrasPerDay: 60,
     touristTaxEnabled: false,
-    touristTaxPerPersonPerNight: 3,
+    touristTaxPerNight: 3 * Math.max(partySize, 1),
 
     contingencyPct: 10,
+    pointsCredit: 0,
   };
 }
 
@@ -138,58 +139,50 @@ export function cardBudgetToCad(
 export function compute(
   a: Assumptions,
   opts: {
-    partySize: number;
-    nights: number;
     cardBudgets: CardBudget[];
     uncostedExcursions: number;
     fxToCad: number;
   },
 ): Estimate {
-  const { partySize, nights, cardBudgets, fxToCad } = opts;
-  const days = Math.max(nights, 1);
+  const { cardBudgets, fxToCad } = opts;
+  const people = Math.max(a.people, 1);
+  const days = Math.max(a.days, 1);
 
   const rolled = cardBudgets.reduce(
-    (s, b) => s + cardBudgetToCad(b, partySize, fxToCad),
+    (s, b) => s + cardBudgetToCad(b, people, fxToCad),
     0,
   );
   const foreign = cardBudgets.find((b) => b.currency && b.currency !== "CAD");
   const rawForeign = cardBudgets.reduce(
-    (s, b) => s + (b.per === "person" ? b.amount * partySize : b.amount),
+    (s, b) => s + (b.per === "person" ? b.amount * people : b.amount),
     0,
   );
-
-  // On points the fare is covered but the taxes are not — zeroing the whole row
-  // would flatter the estimate by roughly a thousand dollars on a party of seven.
-  const flightUnit = a.flightsOnPoints
-    ? a.flightTaxesPerPerson
-    : a.flightPerPerson;
+  const excursions = a.excursionsOverride != null ? a.excursionsOverride : rolled;
 
   const raw: EstimateLine[] = [
     {
       key: "flights",
       label: "Flights",
       group: "always",
-      amount: flightUnit * partySize,
-      unit: flightUnit,
-      unitKey: a.flightsOnPoints ? "flightTaxesPerPerson" : "flightPerPerson",
-      multiplier: `× ${partySize} ${partySize === 1 ? "person" : "people"}`,
+      amount: a.flightPerPerson * people,
+      unit: a.flightPerPerson,
+      unitKey: "flightPerPerson",
+      count: a.people,
+      countKey: "people",
+      countLabel: "people",
       enabled: true,
-      pointsKey: "flightsOnPoints",
-      onPoints: a.flightsOnPoints,
-      hint: a.flightsOnPoints ? "taxes & fees — fare on points" : undefined,
     },
     {
       key: "accommodation",
       label: "Accommodation",
       group: "always",
-      amount: a.accommodationOnPoints ? 0 : a.nightlyRate * nights,
+      amount: a.nightlyRate * a.nights,
       unit: a.nightlyRate,
       unitKey: "nightlyRate",
-      multiplier: `× ${nights} ${nights === 1 ? "night" : "nights"}`,
+      count: a.nights,
+      countKey: "nights",
+      countLabel: "nights",
       enabled: true,
-      pointsKey: "accommodationOnPoints",
-      onPoints: a.accommodationOnPoints,
-      hint: a.accommodationOnPoints ? "covered by points" : undefined,
     },
     {
       key: "groceries",
@@ -198,7 +191,9 @@ export function compute(
       amount: a.groceriesPerDay * days,
       unit: a.groceriesPerDay,
       unitKey: "groceriesPerDay",
-      multiplier: `× ${days} days`,
+      count: a.days,
+      countKey: "days",
+      countLabel: "days",
       enabled: true,
     },
     {
@@ -208,25 +203,21 @@ export function compute(
       amount: a.perMealOut * a.mealsOut,
       unit: a.perMealOut,
       unitKey: "perMealOut",
-      multiplier: "×",
-      countKey: "mealsOut",
       count: a.mealsOut,
-      countLabel: "meals out",
+      countKey: "mealsOut",
+      countLabel: "meals",
       enabled: true,
     },
     {
       key: "excursions",
       label: "Excursions",
       group: "always",
-      amount: a.excursionsOverride != null ? a.excursionsOverride : rolled,
-      unit: a.excursionsOverride ?? rolled,
+      amount: excursions,
+      unit: excursions,
       unitKey: "excursionsOverride",
-      multiplier:
-        a.excursionsOverride != null
-          ? "set by hand"
-          : cardBudgets.length
-            ? `from ${cardBudgets.length} costed ${cardBudgets.length === 1 ? "card" : "cards"}`
-            : "no cards carry a cost yet",
+      count: cardBudgets.length,
+      countKey: "excursionsOverride",
+      countLabel: cardBudgets.length === 1 ? "card" : "cards",
       enabled: true,
       readOnly: a.excursionsOverride == null,
       unitDisplay:
@@ -241,10 +232,12 @@ export function compute(
       amount: a.carEnabled ? a.carDayRate * days : 0,
       unit: a.carDayRate,
       unitKey: "carDayRate",
-      multiplier: `× ${days} days`,
+      count: a.days,
+      countKey: "days",
+      countLabel: "days",
       enabled: a.carEnabled,
       enabledKey: "carEnabled",
-      hint: "all-in per day — rental, fuel and tolls",
+      note: "all-in per day — rental, fuel and tolls",
     },
     {
       key: "dog",
@@ -253,9 +246,8 @@ export function compute(
       amount: a.dogEnabled ? a.dogNightlyRate * a.dogNights : 0,
       unit: a.dogNightlyRate,
       unitKey: "dogNightlyRate",
-      multiplier: "×",
-      countKey: "dogNights",
       count: a.dogNights,
+      countKey: "dogNights",
       countLabel: "nights",
       enabled: a.dogEnabled,
       enabledKey: "dogEnabled",
@@ -267,7 +259,9 @@ export function compute(
       amount: a.extrasEnabled ? a.extrasPerDay * days : 0,
       unit: a.extrasPerDay,
       unitKey: "extrasPerDay",
-      multiplier: `× ${days} days`,
+      count: a.days,
+      countKey: "days",
+      countLabel: "days",
       enabled: a.extrasEnabled,
       enabledKey: "extrasEnabled",
     },
@@ -275,14 +269,15 @@ export function compute(
       key: "touristTax",
       label: "Tourist tax",
       group: "optional",
-      amount: a.touristTaxEnabled
-        ? a.touristTaxPerPersonPerNight * partySize * nights
-        : 0,
-      unit: a.touristTaxPerPersonPerNight,
-      unitKey: "touristTaxPerPersonPerNight",
-      multiplier: `× ${partySize} people × ${nights} nights`,
+      amount: a.touristTaxEnabled ? a.touristTaxPerNight * a.nights : 0,
+      unit: a.touristTaxPerNight,
+      unitKey: "touristTaxPerNight",
+      count: a.nights,
+      countKey: "nights",
+      countLabel: "nights",
       enabled: a.touristTaxEnabled,
       enabledKey: "touristTaxEnabled",
+      note: "whole party, per night",
     },
   ];
 
@@ -293,14 +288,17 @@ export function compute(
 
   const subtotal = lines.reduce((s, l) => s + (l.enabled ? l.amount : 0), 0);
   const contingency = money((subtotal * a.contingencyPct) / 100);
-  const total = subtotal + contingency;
+  // Points can't take the journey below zero, however good the redemption.
+  const pointsCredit = Math.min(Math.max(a.pointsCredit, 0), subtotal + contingency);
+  const total = subtotal + contingency - pointsCredit;
 
   return {
     lines,
     subtotal,
     contingency,
+    pointsCredit,
     total,
-    perPerson: money(total / Math.max(partySize, 1)),
+    perPerson: money(total / people),
     perDay: money(total / days),
     uncostedExcursions: opts.uncostedExcursions,
     rolledExcursionCount: cardBudgets.length,
