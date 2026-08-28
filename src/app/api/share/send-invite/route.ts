@@ -15,6 +15,23 @@ import { createShareLink } from "@/lib/share-actions";
  * SHARE_FROM_EMAIL, default onboarding@resend.dev which needs no domain
  * verification and is fine for a handful of invites).
  */
+/**
+ * Is sending actually configured in THIS deployment? Answers without sending
+ * anything, because "press send and see whether Outlook opens" is a poor way
+ * to debug an environment variable. Reports only whether the key is present
+ * and which sender is in use — never the key itself.
+ */
+export async function GET() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+
+  return NextResponse.json({
+    configured: !!process.env.RESEND_API_KEY,
+    from: process.env.SHARE_FROM_EMAIL ?? "Roam <onboarding@resend.dev>",
+  });
+}
+
 export async function POST(request: NextRequest) {
   const { trip_id: tripId, email } = (await request.json()) as {
     trip_id?: string;
@@ -89,9 +106,17 @@ export async function POST(request: NextRequest) {
     });
 
     if (!res.ok) {
-      const detail = await res.text();
-      console.error("[Roam] Invite send failed:", res.status, detail);
-      return NextResponse.json({ sent: false, reason: "provider-error", url }, { status: 502 });
+      const raw = await res.text();
+      console.error("[Roam] Invite send failed:", res.status, raw);
+      // Hand the provider's own words back. Resend says exactly what's wrong
+      // ("domain is not verified", "API key is invalid") and swallowing that
+      // leaves the only person who can fix it guessing.
+      let detail = `Resend refused it (${res.status}).`;
+      try {
+        const parsed = JSON.parse(raw) as { message?: string; error?: string };
+        if (parsed.message || parsed.error) detail = String(parsed.message ?? parsed.error);
+      } catch { /* keep the status-code version */ }
+      return NextResponse.json({ sent: false, reason: "provider-error", detail, url }, { status: 502 });
     }
     return NextResponse.json({ sent: true, url });
   } catch (err) {

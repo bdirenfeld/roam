@@ -48,6 +48,7 @@ function SharePopover({
   const [email, setEmail] = useState("");
   const [copied, setCopied] = useState(false);
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
@@ -95,17 +96,28 @@ function SharePopover({
     if (!to || sending) return;
     setSending(true);
     setSent(false);
+    setSendError(null);
     try {
       const res = await fetch("/api/share/send-invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ trip_id: tripId, email: to }),
       });
-      const data = (await res.json()) as { sent?: boolean; reason?: string; url?: string };
+      const data = (await res.json()) as {
+        sent?: boolean; reason?: string; url?: string; detail?: string;
+      };
       if (data.sent) {
         setSent(true);
         setEmail("");
         setTimeout(onClose, 1400);
+        return;
+      }
+      // A provider that's configured but REFUSED the send (bad key, unverified
+      // from-domain) must not look like a provider that isn't configured.
+      // Falling back to the mail client for both made the two indistinguishable
+      // — the failure has to be legible or it can't be fixed.
+      if (data.reason === "provider-error") {
+        setSendError(data.detail ?? "The mail provider refused it. Check the Resend key and sender domain.");
         return;
       }
       const link = data.url ?? url;
@@ -203,7 +215,9 @@ function SharePopover({
       </div>
 
       <p style={{ fontSize: 10.5, color: CAPTION, marginTop: 10, lineHeight: 1.5 }}>
-        {sent
+        {sendError
+          ? sendError
+          : sent
           ? "Invite sent."
           : sending
           ? "Sending…"
