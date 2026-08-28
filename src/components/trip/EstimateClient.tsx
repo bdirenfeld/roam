@@ -139,7 +139,7 @@ export default function EstimateClient({
         </div>
 
         {/* Unit cost */}
-        <div className="w-[58px] shrink-0">
+        <div className="w-[56px] shrink-0">
           {line.readOnly ? (
             <div className="text-[13px] text-right" style={{ color: SIENNA }}>
               {line.unitDisplay ?? cad(line.unit)}
@@ -156,35 +156,49 @@ export default function EstimateClient({
           )}
         </div>
 
-        {/* × count */}
-        <span className="text-[12px] shrink-0" style={{ color: off ? SOFT : CAPTION }}>
-          ×
-        </span>
-        <div className="w-[34px] shrink-0">
-          {line.readOnly ? (
-            <div className="text-[12px] text-center" style={{ color: SIENNA }}>
-              {line.count}
+        {line.readOnly ? (
+          /* Excursions isn't unit × count — €504 is the whole roll-up, so
+             "× 10 cards" would misread. One span across the same columns. */
+          <div
+            className="shrink-0 text-[12px] text-center w-[48px] sm:w-[96px]"
+            style={{ color: SIENNA }}
+          >
+            <span className="sm:hidden">{line.count}↑</span>
+            <span className="hidden sm:inline">
+              from {line.count} {line.countLabel}
+            </span>
+          </div>
+        ) : (
+          <>
+            <span
+              className="text-[12px] shrink-0 px-0.5"
+              style={{ color: off ? SOFT : CAPTION }}
+            >
+              ×
+            </span>
+            <div className="w-[34px] shrink-0">
+              <input
+                type="number"
+                inputMode="numeric"
+                value={String(line.count)}
+                onChange={(e) => setNum(line.countKey, e.target.value)}
+                className="w-full rounded px-0.5 py-1 text-[12.5px] text-center"
+                style={boxStyle(dim)}
+              />
             </div>
-          ) : (
-            <input
-              type="number"
-              inputMode="numeric"
-              value={String(line.count)}
-              onChange={(e) => setNum(line.countKey, e.target.value)}
-              className="w-full rounded px-0.5 py-1 text-[12.5px] text-center"
-              style={boxStyle(dim)}
-            />
-          )}
-        </div>
-        <span
-          className="text-[12px] shrink-0 w-[42px]"
-          style={{ color: line.readOnly ? SIENNA : off ? SOFT : CAPTION }}
-        >
-          {line.countLabel}
-        </span>
+            {/* The word is the first thing to go on a narrow screen: "Flights
+                × 7" is unambiguous, a truncated label is not. */}
+            <span
+              className="hidden sm:inline text-[12px] shrink-0 w-[46px]"
+              style={{ color: off ? SOFT : CAPTION }}
+            >
+              {line.countLabel}
+            </span>
+          </>
+        )}
 
         <div
-          className="w-[62px] shrink-0 text-right text-[14px]"
+          className="w-[60px] shrink-0 text-right text-[14px]"
           style={{ color: dim }}
         >
           {off ? "—" : cad(line.amount)}
@@ -220,7 +234,7 @@ export default function EstimateClient({
       >
         {label}
       </div>
-      <div className="w-[58px] shrink-0">
+      <div className="w-[56px] shrink-0">
         {valueKey && (
           <input
             type="number"
@@ -232,12 +246,15 @@ export default function EstimateClient({
           />
         )}
       </div>
-      <span className="w-[34px] shrink-0 text-[12px]" style={{ color: SOFT }}>
+      {/* Matches the ×/count/word columns above so the amounts stay in line. */}
+      <span
+        className="shrink-0 text-[12px] pl-1 w-[42px] sm:w-[92px]"
+        style={{ color: SOFT }}
+      >
         {suffix}
       </span>
-      <span className="w-[42px] shrink-0" />
       <div
-        className="w-[62px] shrink-0 text-right text-[14px]"
+        className="w-[60px] shrink-0 text-right text-[14px]"
         style={{ color: tint ?? INK }}
       >
         {negative && amount > 0 ? "−" : ""}
