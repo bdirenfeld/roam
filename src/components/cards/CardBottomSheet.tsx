@@ -494,6 +494,17 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   // sheet — a quarter of a phone screen, held for two actions used
   // occasionally, while the notes you opened the card to read got a third.
   const [showCardMenu,      setShowCardMenu]      = useState(false);
+
+  // The hero sizes itself to the screen it is on. 150 is right on a normal
+  // phone and greedy on a short one — an SE, or any phone with the keyboard
+  // up — where the same 150px is a much larger share of what is left.
+  const [photoHeight, setPhotoHeight] = useState(150);
+  useEffect(() => {
+    const measure = () => setPhotoHeight(window.innerHeight < 700 ? 110 : 150);
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
   const [isCopying,         setIsCopying]         = useState(false);
   const [copyNotice,        setCopyNotice]        = useState<{ text: string; ok: boolean } | null>(null);
   const [showLinkSheet,     setShowLinkSheet]     = useState(false);
@@ -974,13 +985,6 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     }
   }
 
-  // ── Address display ────────────────────────────────────────
-  const addressLine = place?.address ?? (
-    place?.lat != null && place.lng != null
-      ? `${place.lat.toFixed(4)}, ${place.lng.toFixed(4)}`
-      : null
-  );
-
   return (
     <>
     <div
@@ -1018,7 +1022,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               fallbackLat={place.lat}
               fallbackLng={place.lng}
               title={place.title}
-              height={150}
+              height={photoHeight}
             />
             {/* Gradient overlay so drag handle is visible */}
             <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent pointer-events-none" style={{ zIndex: 20 }} />
@@ -1275,10 +1279,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             )}
           </div>
 
-          {/* Address */}
-          {addressLine && (
-            <p className="mt-0.5 truncate" style={{ fontSize: 11, color: "#C4CAD0" }}>{addressLine}</p>
-          )}
+          {/* The address used to sit here in grey, truncated mid-street. It
+              cost a line of a phone screen to half-say what Maps says properly
+              one tap away. */}
 
           {/* Action pills: We loved this · Maps · Website · Call · Menu */}
           {(showLoved || place?.lat != null && place.lng != null || (localCard.details as Record<string, unknown>)?.place_id != null || website || phone || place?.type === "food") && (
