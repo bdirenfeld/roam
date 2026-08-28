@@ -149,13 +149,16 @@ export default function EstimateClient({
 
   const Row = ({ line }: { line: EstimateLine }) => {
     const off = !line.enabled;
+    // 0 means "not priced yet", not "free". An unpriced row shows a dash rather
+    // than $0, so an empty budget reads as empty instead of as costless.
+    const unset = line.unit === 0;
     const dim = off ? SOFT : INK;
     return (
       <Shell
         labelColor={dim}
-        amountColor={dim}
+        amountColor={off || unset ? SOFT : dim}
         label={line.label}
-        amount={off ? "—" : cad(line.amount)}
+        amount={off || unset ? "—" : cad(line.amount)}
         leading={
           line.enabledKey && (
             <button
@@ -180,8 +183,9 @@ export default function EstimateClient({
               <input
                 type="number"
                 inputMode="decimal"
-                value={String(line.unit)}
+                value={unset ? "" : String(line.unit)}
                 onChange={(e) => setNum(line.unitKey, e.target.value)}
+                aria-label={`${line.label} unit cost`}
                 className="w-full rounded-md px-1.5 py-1.5 text-[12.5px] text-right"
                 style={box(dim)}
               />
@@ -361,7 +365,7 @@ export default function EstimateClient({
                   <input
                     type="number"
                     inputMode="decimal"
-                    value={String(a.pointsCredit)}
+                    value={a.pointsCredit === 0 ? "" : String(a.pointsCredit)}
                     onChange={(e) => setNum("pointsCredit", e.target.value)}
                     className="w-full rounded-md px-1.5 py-1.5 text-[12.5px] text-right"
                     style={box(est.pointsCredit > 0 ? SIENNA : INK)}

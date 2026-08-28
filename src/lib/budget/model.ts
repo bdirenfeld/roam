@@ -103,14 +103,17 @@ export function defaultAssumptions(
   nights: number,
 ): Assumptions {
   return {
+    // Counts are true — they come from the journey. Prices are left unset:
+    // a seeded price looks researched, anchors whatever you type next, and
+    // months later reads as fact. The counts alone give each row its shape.
     people: partySize,
     nights,
     days: nights,
 
-    flightPerPerson: 1370,
-    nightlyRate: 650,
-    groceriesPerDay: 145,
-    perMealOut: 60 * Math.max(partySize, 1),
+    flightPerPerson: 0,
+    nightlyRate: 0,
+    groceriesPerDay: 0,
+    perMealOut: 0,
     mealsOut: Math.max(2, Math.round(nights / 3)),
     excursionsTotal: 0,
 
@@ -118,14 +121,14 @@ export function defaultAssumptions(
     // car and leaves the dog behind; tourist tax is destination-specific, so it
     // stays off until the traveller says otherwise.
     carEnabled: nights >= 2,
-    carDayRate: 210,
+    carDayRate: 0,
     dogEnabled: nights >= 1,
-    dogNightlyRate: 75,
+    dogNightlyRate: 0,
     dogNights: nights + 1,
     extrasEnabled: true,
-    extrasPerDay: 60,
+    extrasPerDay: 0,
     touristTaxEnabled: false,
-    touristTaxPerNight: 3 * Math.max(partySize, 1),
+    touristTaxPerNight: 0,
 
     contingencyPct: 10,
     pointsCredit: 0,
