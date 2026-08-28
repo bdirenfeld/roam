@@ -1004,14 +1004,34 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           onTouchEnd={handleTouchEnd}
           className="flex-shrink-0"
         >
-        {/* The photo used to sit here, pinned above the header, holding 220px
-            of a phone screen for as long as the card was open. It now lives at
-            the top of the scrolling content, so it greets you and then gets out
-            of the way. The drag handle stays behind — it belongs to the part
-            you drag, which is the header. */}
-        <div className="relative w-full pt-2.5 flex justify-center cursor-grab">
-          <div className="w-9 h-[3px] rounded-full bg-gray-200" />
-        </div>
+        {/* Cover photo hero — swipeable gallery (only when card is linked to a
+            place). It stays pinned at the top: it is how you recognise the card
+            you opened, and scrolling it away cost more than it gave back. What
+            it gives up instead is height — 150 rather than 220, which is still
+            a photograph and no longer a quarter of a phone screen. */}
+        {place ? (
+          <div className="relative w-full overflow-hidden">
+            <PlacePhotoGallery
+              key={place.id}
+              placeId={place.id}
+              hasGooglePhotos={!!place.google_place_id}
+              fallbackLat={place.lat}
+              fallbackLng={place.lng}
+              title={place.title}
+              height={150}
+            />
+            {/* Gradient overlay so drag handle is visible */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent pointer-events-none" style={{ zIndex: 20 }} />
+            {/* Drag handle on top of photo */}
+            <div className="absolute top-2.5 left-0 right-0 flex justify-center cursor-grab" style={{ zIndex: 21 }}>
+              <div className="w-9 h-[3px] rounded-full bg-white/60" />
+            </div>
+          </div>
+        ) : (
+          <div className="relative w-full pt-2.5 flex justify-center cursor-grab">
+            <div className="w-9 h-[3px] rounded-full bg-gray-200" />
+          </div>
+        )}
 
         {/* Header */}
         <div className="px-5 pt-3 pb-4 border-b border-gray-100">
@@ -1402,23 +1422,6 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         {/* Scrollable detail content */}
         <div className="relative flex-1 min-h-0">
           <div className="absolute inset-0 overflow-y-auto px-5 py-5">
-            {/* Cover photo — full-bleed at the top of the scroll, so it reads
-                as the head of the content rather than a fixed band above it.
-                Negative margins cancel the scroller's own padding. */}
-            {place && (
-              <div className="relative w-full overflow-hidden -mx-5 -mt-5 mb-5" style={{ width: "calc(100% + 2.5rem)" }}>
-                <PlacePhotoGallery
-                  key={place.id}
-                  placeId={place.id}
-                  hasGooglePhotos={!!place.google_place_id}
-                  fallbackLat={place.lat}
-                  fallbackLng={place.lng}
-                  title={place.title}
-                  height={200}
-                />
-              </div>
-            )}
-
             {/* Checklist — the card's own list of things to tick off, the
                 Trello shape: many small checklists in context, not one long
                 trip-level one. FIRST, not last: below the detail fields it
