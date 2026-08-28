@@ -28,8 +28,10 @@ export default function BottomNav() {
 
   // Only show inside a trip route (/trips/[uuid]/*)
   const insideTrip = !!tripId && UUID_RE.test(tripId);
-  // Hide on the trip settings page — it has its own back/save header
-  const isSettingsPage = pathname?.endsWith("/settings");
+  // Hide on trip settings and the estimate — both have their own back header,
+  // and the estimate's save button sits where the nav would.
+  const isSettingsPage =
+    pathname?.endsWith("/settings") || pathname?.endsWith("/estimate");
 
   // A guest doesn't get the Plan tab (the Plan board is owner-only).
   const [guest, setGuest] = useState(false);

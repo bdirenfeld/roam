@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { DotsThree, CaretLeft, CaretRight, NotePencil, Gear, MagnifyingGlass } from "@phosphor-icons/react";
+import { DotsThree, CaretLeft, CaretRight, NotePencil, Gear, MagnifyingGlass, Coins } from "@phosphor-icons/react";
 import { useGlobalSearch } from "@/components/search/GlobalSearch";
 import { TripSettingsLink } from "@/components/overlays/AppOverlays";
 import DayStrip from "@/components/day/DayStrip";
@@ -288,6 +288,26 @@ function DayMenu({
                 <p className="text-[11px] text-gray-400 leading-snug">Codes, packing, who&rsquo;s driving</p>
               </div>
             </button>
+
+            {/* Estimate. The masthead carries a glyph for it, but the masthead
+                is hidden below md — this menu is the only way to reach it on a
+                phone. Owner-only: a guest reading the journey has no business
+                seeing what it costs. */}
+            {!readOnly && (
+              <Link
+                href={`/trips/${trip.id}/estimate`}
+                className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                onClick={() => setOpen(false)}
+              >
+                <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                  <Coins size={15} weight="light" className="text-gray-600" />
+                </div>
+                <div className="text-left">
+                  <p className="text-[13px] font-medium text-gray-900 leading-snug">Estimate</p>
+                  <p className="text-[11px] text-gray-400 leading-snug">Flights, villa, excursions</p>
+                </div>
+              </Link>
+            )}
 
             {/* Settings opens over the day rather than replacing it. Still a
                 link to the route, so ctrl/cmd-click opens the page. The trip

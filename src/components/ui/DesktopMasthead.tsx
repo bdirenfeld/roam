@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { UserCircle, Calendar, Columns, MapPin, NotePencil } from "@phosphor-icons/react";
+import { UserCircle, Calendar, Columns, MapPin, NotePencil, Coins } from "@phosphor-icons/react";
 import { SearchButton } from "@/components/search/GlobalSearch";
 import SharedWithFaces from "@/components/trip/SharedWithFaces";
 import {
@@ -60,12 +60,15 @@ export default function DesktopMasthead() {
   // Derive trip ID + section segment from the current path. Matches
   // /trips/{id}, /trips/{id}/plan, /trips/{id}/days/{dayId}, /trips/{id}/map,
   // /trips/{id}/settings. Excludes /trips, /trips/new, and non-trip routes.
-  const tripMatch = /^\/trips\/([^/]+)(?:\/(days|plan|map|settings))?/.exec(pathname);
+  const tripMatch = /^\/trips\/([^/]+)(?:\/(days|plan|map|settings|estimate))?/.exec(pathname);
   const currentTripId =
     tripMatch && tripMatch[1] !== "new" ? tripMatch[1] : null;
   const segment = (tripMatch?.[2] ?? null) as
-    | "days" | "plan" | "map" | "settings" | null;
-  const showTripStrip = !!currentTripId && segment !== "settings";
+    | "days" | "plan" | "map" | "settings" | "estimate" | null;
+  // Settings and Estimate are standalone screens with their own back header —
+  // the journey strip would be a second, competing chrome.
+  const ownHeader = segment === "settings" || segment === "estimate";
+  const showTripStrip = !!currentTripId && !ownHeader;
 
   const [user, setUser] = useState<UserSummary | null>(USER_CACHE);
   const [open, setOpen] = useState(false);
@@ -521,7 +524,7 @@ function TripTabs({
   guest = false,
 }: {
   tripId: string;
-  segment: "days" | "plan" | "map" | "settings" | null;
+  segment: "days" | "plan" | "map" | "settings" | "estimate" | null;
   firstDayId: string | null;
   guest?: boolean;
 }) {
@@ -574,7 +577,33 @@ function TripTabs({
           tabs rather than inside Settings. A glyph instead of a fourth tab:
           four tabs is too many, and the badge says whether it's worth opening. */}
       <NotesGlyph tripId={tripId} />
+
+      {/* The estimate is the owner's own figure, so it never shows for a guest.
+          A glyph for the same reason as notes — it is a screen you visit
+          occasionally, not a way of reading the journey. */}
+      {!guest && <EstimateGlyph tripId={tripId} />}
     </div>
+  );
+}
+
+/** Coins glyph beside the journey's tabs. Opens the estimate screen. */
+function EstimateGlyph({ tripId }: { tripId: string }) {
+  return (
+    <Link
+      href={`/trips/${tripId}/estimate`}
+      title="Estimate"
+      aria-label="Estimate"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        padding: "8px 10px",
+        borderRadius: 999,
+        color: CAPTION,
+        background: "transparent",
+      }}
+    >
+      <Coins size={16} weight="light" />
+    </Link>
   );
 }
 
