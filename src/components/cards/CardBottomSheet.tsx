@@ -490,6 +490,10 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const [showDayPicker,     setShowDayPicker]     = useState(false);
   const [showMovePicker,    setShowMovePicker]    = useState(false);
   const [showCopyPicker,    setShowCopyPicker]    = useState(false);
+  // Move and Copy used to own a permanent 110px shelf at the bottom of the
+  // sheet — a quarter of a phone screen, held for two actions used
+  // occasionally, while the notes you opened the card to read got a third.
+  const [showCardMenu,      setShowCardMenu]      = useState(false);
   const [isCopying,         setIsCopying]         = useState(false);
   const [copyNotice,        setCopyNotice]        = useState<{ text: string; ok: boolean } | null>(null);
   const [showLinkSheet,     setShowLinkSheet]     = useState(false);
@@ -1000,30 +1004,14 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           onTouchEnd={handleTouchEnd}
           className="flex-shrink-0"
         >
-        {/* Cover photo hero — swipeable gallery (only when card is linked to a place) */}
-        {place ? (
-          <div className="relative w-full overflow-hidden">
-            <PlacePhotoGallery
-              key={place.id}
-              placeId={place.id}
-              hasGooglePhotos={!!place.google_place_id}
-              fallbackLat={place.lat}
-              fallbackLng={place.lng}
-              title={place.title}
-              height={220}
-            />
-            {/* Gradient overlay so drag handle is visible */}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent pointer-events-none" style={{ zIndex: 20 }} />
-            {/* Drag handle on top of photo */}
-            <div className="absolute top-2.5 left-0 right-0 flex justify-center cursor-grab" style={{ zIndex: 21 }}>
-              <div className="w-9 h-[3px] rounded-full bg-white/60" />
-            </div>
-          </div>
-        ) : (
-          <div className="relative w-full pt-2.5 flex justify-center cursor-grab">
-            <div className="w-9 h-[3px] rounded-full bg-gray-200" />
-          </div>
-        )}
+        {/* The photo used to sit here, pinned above the header, holding 220px
+            of a phone screen for as long as the card was open. It now lives at
+            the top of the scrolling content, so it greets you and then gets out
+            of the way. The drag handle stays behind — it belongs to the part
+            you drag, which is the header. */}
+        <div className="relative w-full pt-2.5 flex justify-center cursor-grab">
+          <div className="w-9 h-[3px] rounded-full bg-gray-200" />
+        </div>
 
         {/* Header */}
         <div className="px-5 pt-3 pb-4 border-b border-gray-100">
@@ -1122,6 +1110,48 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                     <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
                   </svg>
                 </button>
+              )}
+              {/* Move / Copy — occasional actions, so they live behind a ⋯
+                  beside the icons that were already here rather than on a
+                  shelf of their own. */}
+              {!readOnly && localCard.status === "in_itinerary" && days && days.length > 1 && (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowCardMenu((v) => !v)}
+                    aria-expanded={showCardMenu}
+                    aria-label="More actions"
+                    className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="#6B7280">
+                      <circle cx="5" cy="12" r="1.9" /><circle cx="12" cy="12" r="1.9" /><circle cx="19" cy="12" r="1.9" />
+                    </svg>
+                  </button>
+                  {showCardMenu && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowCardMenu(false)} />
+                      <div
+                        role="menu"
+                        className="absolute right-0 top-9 z-50 w-44 bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden"
+                      >
+                        <button
+                          role="menuitem"
+                          onClick={() => { setShowCardMenu(false); setShowMovePicker(true); }}
+                          className="w-full text-left px-3.5 py-2.5 text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          Move to Day
+                        </button>
+                        <button
+                          role="menuitem"
+                          disabled={isCopying}
+                          onClick={() => { setShowCardMenu(false); setShowCopyPicker(true); }}
+                          className="w-full text-left px-3.5 py-2.5 text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors border-t border-gray-100 disabled:opacity-50"
+                        >
+                          {isCopying ? "Copying…" : "Copy to another day"}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               )}
               <button
                 onClick={onClose}
@@ -1372,6 +1402,23 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         {/* Scrollable detail content */}
         <div className="relative flex-1 min-h-0">
           <div className="absolute inset-0 overflow-y-auto px-5 py-5">
+            {/* Cover photo — full-bleed at the top of the scroll, so it reads
+                as the head of the content rather than a fixed band above it.
+                Negative margins cancel the scroller's own padding. */}
+            {place && (
+              <div className="relative w-full overflow-hidden -mx-5 -mt-5 mb-5" style={{ width: "calc(100% + 2.5rem)" }}>
+                <PlacePhotoGallery
+                  key={place.id}
+                  placeId={place.id}
+                  hasGooglePhotos={!!place.google_place_id}
+                  fallbackLat={place.lat}
+                  fallbackLng={place.lng}
+                  title={place.title}
+                  height={200}
+                />
+              </div>
+            )}
+
             {/* Checklist — the card's own list of things to tick off, the
                 Trello shape: many small checklists in context, not one long
                 trip-level one. FIRST, not last: below the detail fields it
@@ -1468,7 +1515,12 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none" />
         </div>
 
-        {/* Bottom action area */}
+        {/* Bottom action area. Rendered only when it has something to say —
+            an empty one still drew its top border and reserved padding, which
+            is the shelf we just removed reappearing as a stripe. */}
+        {(showDeleteConfirm
+          || !!copyNotice
+          || (!readOnly && localCard.status === "interested" && !!days && days.length > 0)) && (
         <div className="flex-shrink-0 border-t border-gray-100 bg-white">
           {/* Assign to Day — only for unplaced cards */}
           {!readOnly && localCard.status === "interested" && days && days.length > 0 && !showDeleteConfirm && (
@@ -1482,29 +1534,14 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             </div>
           )}
 
-          {/* Move / Copy to Day — for in_itinerary cards (useful on mobile).
-              Copy sits under Move, outlined rather than filled: same family,
-              clearly the secondary of the two. */}
-          {!readOnly && localCard.status === "in_itinerary" && days && days.length > 1 && !showDeleteConfirm && (
-            <div className="px-5 pt-3 pb-2">
-              <button
-                onClick={() => setShowMovePicker(true)}
-                className="w-full py-2.5 rounded-xl bg-gray-100 text-gray-700 text-[13px] font-semibold hover:bg-gray-200 active:scale-[0.98] transition-all"
-              >
-                Move to Day
-              </button>
-              <button
-                onClick={() => setShowCopyPicker(true)}
-                disabled={isCopying}
-                className="mt-2 w-full py-2.5 rounded-xl bg-white border border-gray-200 text-gray-600 text-[13px] font-semibold hover:bg-gray-50 active:scale-[0.98] transition-all disabled:opacity-50"
-              >
-                {isCopying ? "Copying…" : "Copy to another day"}
-              </button>
-              {copyNotice && (
-                <p className={`text-[11px] text-center mt-2 ${copyNotice.ok ? "text-activity" : "text-red-500"}`}>
-                  {copyNotice.text}
-                </p>
-              )}
+          {/* Move / Copy now live behind the ⋯ in the header. What they left
+              behind is the confirmation, which becomes a toast: it has
+              something to say for three seconds, not a permanent shelf. */}
+          {copyNotice && !showDeleteConfirm && (
+            <div className="px-5 pt-3 pb-3">
+              <p className={`text-[12px] text-center font-medium ${copyNotice.ok ? "text-activity" : "text-red-500"}`}>
+                {copyNotice.text}
+              </p>
             </div>
           )}
 
@@ -1536,6 +1573,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             </div>
           )}
         </div>
+        )}
 
         {/* Attachments panel */}
         {showAttachments && (
