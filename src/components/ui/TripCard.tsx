@@ -71,23 +71,41 @@ export default function TripCard({ trip, openDayId }: Props) {
         <Link href={openDayId ? `/trips/${trip.id}/days/${openDayId}` : `/trips/${trip.id}`} className="block">
           <article className="rounded-2xl overflow-hidden border border-gray-100 bg-white active:scale-[0.99] transition-all duration-150 [@media(hover:hover)]:group-hover:shadow-[0_0_0_1.5px_rgba(196,98,45,0.3)]">
 
-            {/* Full-bleed cover — ~60% of card height */}
-            <TripCover
-              destination={trip.destination}
-              coverImageUrl={coverImageUrl}
-              lat={trip.destination_lat}
-              lng={trip.destination_lng}
-              className="w-full h-[140px] md:h-[260px]"
-            />
+            {/* The name and dates sit on the photograph rather than in a white
+                block beneath it. That block was ~90px of chrome per card; at
+                four journeys the page became a scroll. A card is now just the
+                picture and its caption. */}
+            <div className="relative">
+              <TripCover
+                destination={trip.destination}
+                coverImageUrl={coverImageUrl}
+                lat={trip.destination_lat}
+                lng={trip.destination_lng}
+                className="w-full h-[168px] md:h-[260px]"
+              />
 
-            {/* Editorial content — name + date range */}
-            <div className="px-4 pt-3 pb-4">
-              <h3 className="text-xl font-normal text-gray-900 leading-snug">
-                {trip.title}
-              </h3>
-              <p className="text-xs tracking-widest uppercase text-gray-400 mt-1">
-                {formatDateCompact(trip.start_date, trip.end_date)}
-              </p>
+              {/* Scrim — the photographs vary, so the caption needs its own
+                  ground rather than trusting whatever is behind it. */}
+              <div
+                className="absolute inset-x-0 bottom-0 pointer-events-none"
+                style={{
+                  height: "62%",
+                  background:
+                    "linear-gradient(to top, rgba(12,12,20,0.78) 0%, rgba(12,12,20,0.42) 45%, rgba(12,12,20,0) 100%)",
+                }}
+              />
+
+              <div className="absolute inset-x-0 bottom-0 px-4 pb-3.5">
+                <h3 className="text-[19px] md:text-xl font-normal text-white leading-snug">
+                  {trip.title}
+                </h3>
+                <p
+                  className="text-[10.5px] tracking-widest uppercase mt-0.5"
+                  style={{ color: "rgba(255,255,255,0.72)" }}
+                >
+                  {formatDateCompact(trip.start_date, trip.end_date)}
+                </p>
+              </div>
             </div>
           </article>
         </Link>

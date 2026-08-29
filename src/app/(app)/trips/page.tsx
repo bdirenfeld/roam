@@ -87,28 +87,9 @@ export default async function TripsPage() {
       {/* Desktop bounded column; mobile passes through */}
       <div className="md:max-w-[1100px] md:mx-auto md:px-14 md:pt-10 md:pb-12">
 
-        {/* Page header */}
-        <div className="px-4 pt-5 pb-3 md:px-0 md:pt-0 md:pb-0">
-          {/* Mobile */}
-          <h2
-            className="md:hidden font-display italic font-normal text-base"
-            style={{ color: "#1A1A2E" }}
-          >
-            Journeys
-          </h2>
-          {/* Desktop — static header + trip-count meta */}
-          <div className="hidden md:block">
-            <h2
-              className="font-display italic font-normal"
-              style={{ fontSize: 24, letterSpacing: "-0.01em", lineHeight: 1.2, color: "#1A1A2E" }}
-            >
-              Journeys
-            </h2>
-            {/* Trip counts used to sit here; Brennan reads them as noise.
-                The only thing under the title now is YearView's own
-                "Your year" control, rendered below. */}
-          </div>
-        </div>
+        {/* No page heading. Both headers already say Journeys immediately
+            above this, and repeating it cost a line for nothing. */}
+        <div className="pt-3 md:pt-0" />
 
         {/* Your year — meta line + 12-month planning strip; only once a
             journey has dates */}
