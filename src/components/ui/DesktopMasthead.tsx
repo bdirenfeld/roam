@@ -335,7 +335,7 @@ export default function DesktopMasthead() {
       {/* Everything reached occasionally, named, in one menu — including Plan
           a journey, which is why this renders off a journey as well as on one.
           The phone has shown this list all along; this is it at desktop width. */}
-      <MastheadMenu tripId={currentTripId} guest={guest} />
+      <MastheadMenu tripId={currentTripId} tripTitle={tripCtx?.title ?? null} guest={guest} />
 
       {/* Profile dropdown — replaces the previous direct-link avatar. */}
       <div ref={menuRef} style={{ position: "relative" }}>

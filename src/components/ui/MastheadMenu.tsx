@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Coins, NotePencil, Compass } from "@phosphor-icons/react";
+import { Coins, NotePencil, Compass, ShareNetwork } from "@phosphor-icons/react";
 import { EstimateLink, NewJourneyLink, useJourneyNotes } from "@/components/overlays/AppOverlays";
+import ShareJourneySheet from "@/components/trip/ShareJourneySheet";
 
 const INK = "#1A1A2E";
 const CAPTION = "rgba(26,26,46,0.55)";
@@ -61,12 +62,15 @@ function Label({ title, sub }: { title: string; sub: string }) {
  */
 export default function MastheadMenu({
   tripId,
+  tripTitle,
   guest,
 }: {
   tripId: string | null;
+  tripTitle: string | null;
   guest: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [showShare, setShowShare] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const notes = useJourneyNotes();
 
@@ -161,6 +165,22 @@ export default function MastheadMenu({
                 <Label title="Journey notes" sub="Codes, packing, who’s driving" />
               </button>
 
+              {!guest && (
+                <button
+                  role="menuitem"
+                  onClick={() => {
+                    setOpen(false);
+                    setShowShare(true);
+                  }}
+                  style={itemStyle}
+                >
+                  <span style={glyphStyle}>
+                    <ShareNetwork size={16} weight="light" />
+                  </span>
+                  <Label title="Share journey" sub="Send a read-only link" />
+                </button>
+              )}
+
               {/* The estimate is the owner's own figure — never a guest's. */}
               {!guest && (
                 <EstimateLink
@@ -179,6 +199,14 @@ export default function MastheadMenu({
             </>
           )}
         </div>
+      )}
+
+      {showShare && tripId && (
+        <ShareJourneySheet
+          tripId={tripId}
+          tripTitle={tripTitle ?? "this journey"}
+          onClose={() => setShowShare(false)}
+        />
       )}
     </div>
   );

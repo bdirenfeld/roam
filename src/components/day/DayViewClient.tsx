@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { DotsThree, CaretLeft, CaretRight, NotePencil, Gear, MagnifyingGlass, Coins } from "@phosphor-icons/react";
+import { DotsThree, CaretLeft, CaretRight, NotePencil, Gear, MagnifyingGlass, Coins, ShareNetwork } from "@phosphor-icons/react";
 import { useGlobalSearch } from "@/components/search/GlobalSearch";
 import { TripSettingsLink, EstimateLink } from "@/components/overlays/AppOverlays";
 import DayStrip from "@/components/day/DayStrip";
@@ -11,6 +11,7 @@ import DayPicker from "@/components/day/DayPicker";
 import DayMap from "@/components/day/DayMap";
 import CardTimeline from "@/components/day/CardTimeline";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
+import ShareJourneySheet from "@/components/trip/ShareJourneySheet";
 import CreateCardSheet from "@/components/plan/CreateCardSheet";
 import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
 import Companion from "@/components/companion/Companion";
@@ -233,6 +234,7 @@ function DayMenu({
   days,
   readOnly,
   onOpenNotes,
+  onOpenShare,
   triggerClassName,
 }: {
   /** Handed to the Settings overlay as a seed — the day view already has it. */
@@ -240,6 +242,7 @@ function DayMenu({
   days: Day[];
   readOnly: boolean;
   onOpenNotes: () => void;
+  onOpenShare: () => void;
   triggerClassName: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -307,6 +310,25 @@ function DayMenu({
                   <p className="text-[11px] text-gray-400 leading-snug">Flights, villa, excursions</p>
                 </div>
               </EstimateLink>
+            )}
+
+            {/* Sharing was reachable only from inside Settings, which on a
+                phone is four steps down and invisible unless you already knew
+                it was there. The desktop at least had the faces in the
+                masthead; a phone had nothing. */}
+            {!readOnly && (
+              <button
+                className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                onClick={() => { setOpen(false); onOpenShare(); }}
+              >
+                <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                  <ShareNetwork size={15} weight="light" className="text-gray-600" />
+                </div>
+                <div className="text-left">
+                  <p className="text-[13px] font-medium text-gray-900 leading-snug">Share journey</p>
+                  <p className="text-[11px] text-gray-400 leading-snug">Send a read-only link</p>
+                </div>
+              </button>
             )}
 
             {/* Settings opens over the day rather than replacing it. Still a
@@ -460,6 +482,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   // Journey notes — the sheet unmounts on close, so the latest text is held
   // here; re-opening it shows what was just written, not the page payload.
   const [showNotes, setShowNotes] = useState(false);
+  const [showShare, setShowShare] = useState(false);
   const [notes, setNotes] = useState<string | null>(initialNotes);
 
   // Companion open state — hoisted from Companion so the desktop body grid can
@@ -734,6 +757,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           days={days}
           readOnly={readOnly}
           onOpenNotes={() => setShowNotes(true)}
+          onOpenShare={() => setShowShare(true)}
           triggerClassName="flex items-center justify-center w-11 h-11 text-gray-500 hover:text-gray-800 transition-colors"
         />
       </div>
@@ -840,6 +864,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           days={days}
           readOnly={readOnly}
           onOpenNotes={() => setShowNotes(true)}
+          onOpenShare={() => setShowShare(true)}
           triggerClassName="flex items-center justify-center w-8 h-8 rounded-full text-[rgba(26,26,46,0.55)] hover:text-activity hover:bg-[rgba(26,26,46,0.05)] transition-colors"
         />
       </div>
@@ -924,6 +949,14 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           readOnly={readOnly}
           onNotesChange={setNotes}
           onClose={() => setShowNotes(false)}
+        />
+      )}
+
+      {showShare && (
+        <ShareJourneySheet
+          tripId={trip.id}
+          tripTitle={trip.title}
+          onClose={() => setShowShare(false)}
         />
       )}
 
