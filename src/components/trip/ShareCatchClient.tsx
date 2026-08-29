@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { Check } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
@@ -29,6 +29,11 @@ export default function ShareCatchClient({
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
   const [saved, setSaved] = useState(false);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // A pending debounce must not outlive the page — a share-target tab is often
+  // closed the moment the tag is tapped.
+  useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current); }, []);
 
   const persist = async (next: { note?: string; tags?: string[] }) => {
     if (!ideaId) return;
@@ -100,13 +105,33 @@ export default function ShareCatchClient({
         </div>
 
         {/* A TikTok hands over a shortlink and nothing else. */}
+        {/* Saves as you stop typing, not on blur.
+            On a phone there is nothing to blur *to*: the keyboard covers the
+            page, a bare text input doesn't submit on the keyboard's Go, and the
+            heading says "Saved" the whole time — so the only honest reading was
+            that typing a title did nothing. Enter also closes the keyboard, and
+            enterKeyHint labels that key "done" rather than "go". */}
         <input
           value={note}
+          enterKeyHint="done"
           onChange={(e) => {
-            setNote(e.target.value);
+            const v = e.target.value;
+            setNote(v);
             setSaved(false);
+            if (saveTimer.current) clearTimeout(saveTimer.current);
+            saveTimer.current = setTimeout(() => persist({ note: v }), 600);
           }}
-          onBlur={() => persist({ note })}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter") return;
+            e.preventDefault();
+            if (saveTimer.current) clearTimeout(saveTimer.current);
+            persist({ note });
+            e.currentTarget.blur();
+          }}
+          onBlur={() => {
+            if (saveTimer.current) clearTimeout(saveTimer.current);
+            persist({ note });
+          }}
           placeholder="Which place is this?"
           className="w-full rounded-xl px-3.5 py-3 text-[14px] mb-4"
           style={{ background: "#fff", border: `1px solid ${RULE}`, color: INK }}
