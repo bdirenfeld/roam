@@ -4,6 +4,7 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import { Clock, Heart } from "@phosphor-icons/react";
 import type { Card, ChecklistItem, Day, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
+import { useSheetDrag } from "@/hooks/useSheetDrag";
 import { queuedUpdate } from "@/lib/offline/queuedWrite";
 import { applyOverlay } from "@/lib/offline/writeQueue";
 import { formatTimeValue } from "@/lib/formatTime";
@@ -470,19 +471,12 @@ function TitleEditor({
 // ── Main component ─────────────────────────────────────────────
 export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDelete, onCardCopied, days, tripDestination, readOnly = false }: Props) {
   const supabase = createClient();
-  const sheetRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const startedAtTop = useRef(true);
-  const dragX = useRef(0);
-  const dragY = useRef(0);
-  const isDragging = useRef(false);
   // Axis lock for the photo hero: a touch starts "pending" and only commits to
   // a vertical sheet drag once the gesture has moved far enough to reveal its
   // intent. A horizontally-dominant swipe releases the sheet entirely so the
   // gallery's native scroll-snap owns it — otherwise a diagonal photo swipe
   // drags the sheet down and >120px of drift dismisses it mid-swipe.
-  const dragAxis = useRef<"pending" | "vertical" | "horizontal">("pending");
-  const AXIS_LOCK_THRESHOLD = 8;
 
   // Local optimistic state
   // Queued-but-unsent edits are laid over the incoming row on open. The Day
@@ -535,74 +529,11 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     return () => { document.body.style.overflow = prev; };
   }, []);
 
-  // ── Drag-to-dismiss ────────────────────────────────────────
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    dragX.current = e.touches[0].clientX;
-    dragY.current = e.touches[0].clientY;
-    // Nothing is committed yet — the first significant move picks the axis.
-    dragAxis.current = "pending";
-    isDragging.current = false;
-    // The gesture works anywhere on the sheet, but the body still has to be
-    // scrollable: only claim the drag when the content is already at the top.
-    // Mid-scroll, a downward swipe means "scroll up", not "close".
-    startedAtTop.current = (scrollRef.current?.scrollTop ?? 0) <= 0;
-  }, []);
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!sheetRef.current) return;
-    const dx = e.touches[0].clientX - dragX.current;
-    const dy = e.touches[0].clientY - dragY.current;
-
-    if (!startedAtTop.current) return;
-
-    if (dragAxis.current === "pending") {
-      // Wait for enough travel to read intent, then lock for the whole gesture.
-      if (Math.abs(dx) < AXIS_LOCK_THRESHOLD && Math.abs(dy) < AXIS_LOCK_THRESHOLD) return;
-      if (Math.abs(dx) > Math.abs(dy)) {
-        dragAxis.current = "horizontal"; // hand the gesture to the gallery
-        return;
-      }
-      dragAxis.current = "vertical";
-      isDragging.current = true;
-    }
-
-    if (dragAxis.current !== "vertical" || !isDragging.current) return;
-    sheetRef.current.style.transform = `translateY(${Math.max(0, dy)}px)`;
-    sheetRef.current.style.transition = "none";
-  }, []);
-
-  const handleTouchEnd = useCallback(
-    (e: React.TouchEvent) => {
-      const axis = dragAxis.current;
-      dragAxis.current = "pending"; // re-evaluated on the next touchstart
-      if (axis !== "vertical" || !isDragging.current || !sheetRef.current) return;
-      isDragging.current = false;
-      const dy = e.changedTouches[0].clientY - dragY.current;
-      if (dy > 120) {
-        sheetRef.current.style.transition = "transform 250ms cubic-bezier(0.32,0.72,0,1)";
-        sheetRef.current.style.transform = "translateY(100%)";
-        setTimeout(onClose, 240);
-      } else {
-        sheetRef.current.style.transition = "transform 300ms cubic-bezier(0.34,1.56,0.64,1)";
-        sheetRef.current.style.transform = "translateY(0)";
-      }
-    },
-    [onClose]
-  );
-
-  // Android fires touchcancel readily — the scroller claims the gesture, a
-  // second finger lands, the system takes over. touchend never arrives, so
-  // without this the inline transform written by handleTouchMove stays on the
-  // sheet with `transition: none` and it sits frozen wherever the finger
-  // stopped, never closing. Spring it back and drop the inline styles so the
-  // class-based animation owns the sheet again.
-  const handleTouchCancel = useCallback(() => {
-    dragAxis.current = "pending";
-    if (!isDragging.current || !sheetRef.current) return;
-    isDragging.current = false;
-    sheetRef.current.style.transition = "transform 300ms cubic-bezier(0.34,1.56,0.64,1)";
-    sheetRef.current.style.transform = "translateY(0)";
-  }, []);
+  // Drag-to-dismiss lives in useSheetDrag, shared with every other sheet.
+  // scrollRef is handed over because this sheet scrolls an inner body under a
+  // pinned hero — asking the sheet for its own scrollTop would read 0 forever
+  // and claim every downward swipe as a dismissal.
+  const drag = useSheetDrag(onClose, scrollRef);
 
   // ── Persistence helpers ───────────────────────────────────
   // OFFLINE — time edits and every other single-column save go through the
@@ -1018,15 +949,15 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
 
       {/* Sheet */}
       <div
-        ref={sheetRef}
+        ref={drag.sheetRef}
         onClick={(e) => e.stopPropagation()}
         // Swipe-to-dismiss is bound to the whole sheet, not just the handle —
         // you shouldn't have to find a 40px strip to close a card. The body
         // still scrolls: the drag is only claimed when it's already at the top.
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onTouchCancel={handleTouchCancel}
+        onTouchStart={drag.onTouchStart}
+        onTouchMove={drag.onTouchMove}
+        onTouchEnd={drag.onTouchEnd}
+        onTouchCancel={drag.onTouchCancel}
         className="relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet h-[95dvh] max-h-[95dvh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300 ease-spring"
         style={{ willChange: "transform" }}
       >

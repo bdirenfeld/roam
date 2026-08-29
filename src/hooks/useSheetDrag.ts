@@ -24,7 +24,13 @@ import { useCallback, useRef } from "react";
 const DISMISS_PX = 120;
 const AXIS_LOCK_PX = 8;
 
-export function useSheetDrag(onClose: () => void) {
+export function useSheetDrag(
+  onClose: () => void,
+  /** The element that scrolls, when it isn't the sheet itself. CardBottomSheet
+   *  scrolls an inner body under a pinned hero, so asking the sheet for its own
+   *  scrollTop there would always read 0 and claim every downward swipe. */
+  scrollRef?: React.RefObject<HTMLElement | null>
+) {
   const sheetRef = useRef<HTMLDivElement>(null);
   const startY = useRef(0);
   const startX = useRef(0);
@@ -37,9 +43,10 @@ export function useSheetDrag(onClose: () => void) {
     startY.current = e.touches[0].clientY;
     axis.current = "pending";
     dragging.current = false;
-    // The sheet itself is the scroller, so "at the top" is its own scrollTop.
-    startedAtTop.current = (sheetRef.current?.scrollTop ?? 0) <= 0;
-  }, []);
+    // Mid-scroll, a downward swipe means "scroll up", not "close".
+    const scroller = scrollRef?.current ?? sheetRef.current;
+    startedAtTop.current = (scroller?.scrollTop ?? 0) <= 0;
+  }, [scrollRef]);
 
   const onTouchMove = useCallback((e: React.TouchEvent) => {
     if (!sheetRef.current || !startedAtTop.current) return;

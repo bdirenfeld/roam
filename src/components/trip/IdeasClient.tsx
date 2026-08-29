@@ -380,7 +380,9 @@ export default function IdeasClient({
     return journeys
       .map((j) => ({ j, n: m.get(j.id) ?? 0 }))
       .filter((x) => x.n > 0)
-      .sort((a, b) => b.n - a.n);
+      // Alphabetical, like the tags below them: a menu you can learn the shape
+      // of beats one that reshuffles as counts change.
+      .sort((a, b) => a.j.title.localeCompare(b.j.title));
   }, [live, journeys]);
 
   const filterLabel =
