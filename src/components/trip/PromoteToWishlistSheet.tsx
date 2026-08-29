@@ -72,6 +72,8 @@ type Props = {
    *  Sardinia is unreal 😍"), which is why this is editable and why nothing is
    *  geocoded until a real place is picked. */
   initialQuery: string;
+  /** The link this idea came from — rides along onto any pin it creates. */
+  ideaUrl: string | null;
   /** Journeys still worth adding to — a finished trip is not somewhere to put
    *  a restaurant. */
   journeys: JourneySummary[];
@@ -82,6 +84,7 @@ type Props = {
 export default function PromoteToWishlistSheet({
   ideaId,
   initialQuery,
+  ideaUrl,
   journeys,
   onClose,
   onDone,
@@ -163,7 +166,7 @@ export default function PromoteToWishlistSheet({
       setBusy(false);
       return;
     }
-    const res = await pinPlaceToJourney(supabase, user.id, j.id, picked);
+    const res = await pinPlaceToJourney(supabase, user.id, j.id, picked, ideaUrl);
     if (!res.ok) {
       setError(res.message);
       setBusy(false);

@@ -41,7 +41,11 @@ export async function pinPlaceToJourney(
   supabase: SupabaseClient,
   userId: string,
   tripId: string,
-  place: ResolvedPlace
+  place: ResolvedPlace,
+  /** The link the idea came from. Stored on the card so tapping the pin on the
+   *  map leads back to the reel or thread you saved it from — remembering why
+   *  a place is on the list is most of what an idea is for. */
+  sourceUrl?: string | null
 ): Promise<PinResult> {
   // World facts live on `places`, keyed by Google's id — upsert so saving the
   // same spot from two ideas doesn't fork the record.
@@ -88,6 +92,7 @@ export async function pinPlaceToJourney(
     position: 0,
     status: "interested",
     place_id: placeRow.id,
+    source_url: sourceUrl ?? null,
     details: null,
   });
 

@@ -8,6 +8,35 @@ import { scheduleCardOnDay } from "@/lib/scheduleCard";
 import { PIN_COLORS } from "@/lib/mapPins";
 import PlacePhotoGallery from "@/components/cards/PlacePhotoGallery";
 
+/**
+ * "https://vt.tiktok.com/ZSVWDnuF8/" → "TikTok".
+ *
+ * The domain is the part you recognise; the subdomain and the path are noise on
+ * a chip this size. Named sites get their own capitalisation because "Tiktok"
+ * and "Youtube" look like typos.
+ */
+function sourceLabel(url: string): string {
+  const KNOWN: Record<string, string> = {
+    tiktok: "TikTok",
+    instagram: "Instagram",
+    youtube: "YouTube",
+    reddit: "Reddit",
+    lonelyplanet: "Lonely Planet",
+    tripadvisor: "Tripadvisor",
+    airbnb: "Airbnb",
+  };
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    const parts = host.split(".").filter(Boolean);
+    const name = parts.length > 1 ? parts[parts.length - 2] : parts[0];
+    if (!name) return "Source";
+    return KNOWN[name] ?? name.charAt(0).toUpperCase() + name.slice(1);
+  } catch {
+    // A stored value that isn't a URL still deserves a working chip.
+    return "Source";
+  }
+}
+
 // ── Constants ────────────────────────────────────────────────
 const SUB_TYPE_LABEL: Record<string, string> = {
   restaurant:       "Restaurant",
@@ -476,9 +505,9 @@ function CardBody({
                   Maps
                 </a>
               )}
-              {(website || card.source_url) && (
+              {website && (
                 <a
-                  href={(website || card.source_url)!}
+                  href={website}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-gray-200 bg-gray-50 text-[11px] font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
@@ -489,6 +518,26 @@ function CardBody({
                     <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
                   </svg>
                   Website
+                </a>
+              )}
+
+              {/* Where the place came from, named — "TikTok", not "Website".
+                  It used to be shown only when the place had no site of its
+                  own, and labelled as the site: a restaurant with a homepage
+                  silently swallowed the reel you found it in. Remembering why
+                  a place is on the list is most of what a saved link is for. */}
+              {card.source_url && card.source_url !== website && (
+                <a
+                  href={card.source_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-gray-200 bg-gray-50 text-[11px] font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5" />
+                    <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.5-1.5" />
+                  </svg>
+                  {sourceLabel(card.source_url)}
                 </a>
               )}
               {phone && (

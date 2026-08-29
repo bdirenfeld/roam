@@ -389,6 +389,7 @@ export default function IdeasClient({
         <PromoteToWishlistSheet
           ideaId={promoting.id}
           initialQuery={promoting.title ?? ""}
+          ideaUrl={promoting.url}
           journeys={journeys}
           onClose={() => setPromoting(null)}
           onDone={(outcome: PromoteOutcome) => {
