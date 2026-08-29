@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BookmarkSimple, DotsSixVertical } from "@phosphor-icons/react";
+import { DotsSixVertical } from "@phosphor-icons/react";
 import {
   DndContext,
   closestCenter,
@@ -55,9 +55,16 @@ function gapLabel(minutes: number): string {
 // Tappable timeline connector between activity cards.
 // Left column is 33px — matches icon center (3px border + 12px p-3 + 18px half of w-9).
 // Pressed state managed locally so each gap row is independent.
+/**
+ * The free time between two entries.
+ *
+ * Between boxed cards this was a connector and read as one — a dotted spine
+ * joining two surfaces. Against hairline entries there is nothing left to
+ * connect, so the spine and the framed row read as a broken record of their
+ * own. It is a quiet line now, hanging in the same rail as the times.
+ */
 function GapRow({ minutes, onTap }: { minutes: number; onTap: () => void }) {
   const [pressed, setPressed] = useState(false);
-  const lineHeight = minutes < 120 ? 36 : 56;
 
   return (
     <button
@@ -66,56 +73,16 @@ function GapRow({ minutes, onTap }: { minutes: number; onTap: () => void }) {
       onPointerUp={() => setPressed(false)}
       onPointerLeave={() => setPressed(false)}
       onPointerCancel={() => setPressed(false)}
-      className="w-full mt-4 flex items-center py-[6px] rounded-lg"
-      style={{ backgroundColor: pressed ? "rgba(196,98,45,0.05)" : undefined }}
+      className="w-full flex gap-3 md:gap-5 py-2"
       aria-label={`Add to this gap — ${gapLabel(minutes)}`}
     >
-      {/* Dotted vertical spine — right-aligned in a 33px column to sit on the icon axis */}
-      <div className="w-[33px] flex-shrink-0 flex justify-end">
-        <div
-          style={{
-            width: "1px",
-            height: `${lineHeight}px`,
-            backgroundImage: pressed
-              ? "linear-gradient(to bottom, rgba(196,98,45,0.55) 50%, transparent 50%)"
-              : "linear-gradient(to bottom, rgba(26,26,46,0.22) 50%, transparent 50%)",
-            backgroundSize: "1px 5px",
-            backgroundRepeat: "repeat-y",
-          }}
-        />
-      </div>
-
-      {/* Label row: duration on left, add affordance on right */}
-      <div className="flex-1 flex items-center justify-between px-[11px]">
-        <span
-          className={`text-[11px] italic font-normal leading-none ${
-            pressed ? "text-activity/70" : "text-activity/50"
-          }`}
-        >
-          {gapLabel(minutes)}
-        </span>
-        <span
-          className={`flex items-center gap-[5px] ${
-            pressed ? "text-[#C4622D] font-medium" : "text-activity/[0.45]"
-          }`}
-        >
-          <svg
-            width="11"
-            height="11"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={pressed ? 2.5 : 2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          <span className="text-[10px]">Add</span>
-        </span>
-      </div>
+      <span className="w-[52px] md:w-[74px] shrink-0" />
+      <span
+        className="text-[11px] md:text-[11.5px] italic"
+        style={{ color: pressed ? "#C4622D" : "rgba(26,26,46,0.28)" }}
+      >
+        {gapLabel(minutes)} · add
+      </span>
     </button>
   );
 }
@@ -202,28 +169,31 @@ export default function CardTimeline({
   // mobile and in the narrow empty state.
   const renderAddControls = (row: boolean) =>
     !readOnly && (onAddFromSaved || onGapTap) ? (
-      <div className={`flex flex-col gap-2 ${row ? "md:flex-row md:max-w-[520px] md:ml-[42px]" : ""}`}>
-        {onAddFromSaved && (
-          <button
-            onClick={onAddFromSaved}
-            className="w-full flex items-center justify-center gap-2 rounded-xl px-4 py-3 active:opacity-70 transition-opacity md:flex-1"
-            style={{
-              background: "#F2EDE3",
-              boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)",
-              fontFamily: "'DM Sans', system-ui, sans-serif",
-              fontWeight: 600, fontSize: "13.5px", color: "#1A1A2E", letterSpacing: "-0.005em",
-            }}
-          >
-            <BookmarkSimple size={14} weight="light" color="#1A1A2E" />
-            Add from saved
-          </button>
-        )}
+      // A beige filled button and a dashed box were the last two SaaS
+      // defaults on this screen. One line, in the page's own voice.
+      <div
+        className={`flex items-center gap-3 pt-4 ${row ? "md:ml-[94px]" : ""}`}
+        style={{ fontFamily: "'Playfair Display', Georgia, serif", fontStyle: "italic" }}
+      >
         {onGapTap && (
           <button
             onClick={() => onGapTap("", "")}
-            className="w-full py-3 rounded-xl border border-dashed border-gray-200 text-[12px] italic text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-colors md:flex-1"
+            className="text-[14px]"
+            style={{ color: "rgba(26,26,46,0.45)" }}
           >
-            + Add to this day
+            Add a place
+          </button>
+        )}
+        {onGapTap && onAddFromSaved && (
+          <span style={{ color: "rgba(26,26,46,0.2)" }}>·</span>
+        )}
+        {onAddFromSaved && (
+          <button
+            onClick={onAddFromSaved}
+            className="text-[14px]"
+            style={{ color: "rgba(26,26,46,0.45)" }}
+          >
+            Add from saved
           </button>
         )}
       </div>

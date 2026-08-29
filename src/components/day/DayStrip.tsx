@@ -47,7 +47,7 @@ export default function DayStrip({ days, activeDayId, onDaySelect }: Props) {
   return (
     <div className="bg-white md:hidden" style={{ borderBottom: "1px solid rgba(26,26,46,0.10)" }}>
       <div className="relative">
-        <div className="flex gap-5 px-4 pt-1 overflow-x-auto scrollbar-none">
+        <div className="flex gap-5 px-4 pt-1.5 pb-3 overflow-x-auto scrollbar-none">
           {days.map((day) => {
             const isActive = day.id === activeDayId;
             const today    = todayKey !== null && day.date === todayKey;
