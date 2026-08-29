@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CaretLeft } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
+import { useSheetDrag } from "@/hooks/useSheetDrag";
 import PromoteToWishlistSheet from "./PromoteToWishlistSheet";
 import SetLocationSheet from "./SetLocationSheet";
 import type { JourneySummary, PromoteOutcome, ResolvedIdeaPlace } from "./PromoteToWishlistSheet";
@@ -322,6 +323,9 @@ export default function IdeasClient({
   const [ideas, setIdeas] = useState(initial);
   const [filter, setFilter] = useState<IdeaFilter>({ kind: "all" });
   const [filterOpen, setFilterOpen] = useState(false);
+  const [filterQuery, setFilterQuery] = useState("");
+  const closeFilter = useCallback(() => { setFilterOpen(false); setFilterQuery(""); }, []);
+  const filterDrag = useSheetDrag(closeFilter);
   const [openId, setOpenId] = useState<string | null>(null);
   const [promoting, setPromoting] = useState<Idea | null>(null);
   const [locating, setLocating] = useState<Idea | null>(null);
@@ -395,9 +399,26 @@ export default function IdeasClient({
   const tagCounts = useMemo(() => {
     const m = new Map<string, number>();
     for (const i of live) for (const t of i.tags ?? []) m.set(t, (m.get(t) ?? 0) + 1);
-    return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
+    // Alphabetical, not by count: you are looking for a tag you already have
+    // in mind, and a list that reorders itself as counts change is one you have
+    // to read every time instead of knowing where things are.
+    return Array.from(m.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [live]);
   const allTags = useMemo(() => tagCounts.map(([t]) => t), [tagCounts]);
+
+  // Narrowing the menu itself. Substring, case-insensitive — you are typing
+  // the start of a tag you already know exists, not running a search.
+  const fq = filterQuery.trim().toLowerCase();
+  const matches = (label: string) => !fq || label.toLowerCase().includes(fq);
+  const shownJourneys = journeyCounts.filter(({ j }) => matches(j.title));
+  const shownTags = tagCounts.filter(([t]) => matches(t));
+
+  const pickFilter = (next: IdeaFilter) => {
+    setFilter(next);
+    setFilterOpen(false);
+    setFilterQuery("");
+  };
+
 
   const toggleTag = (i: Idea, t: string) => {
     const cur = i.tags ?? [];
@@ -475,10 +496,15 @@ export default function IdeasClient({
           tags because "what did I save for Puglia" is the question you ask
           while planning; tags are how you browse. */}
       {filterOpen && (
-        <div className="fixed inset-0 z-[70] flex items-end justify-center" onClick={() => setFilterOpen(false)}>
+        <div className="fixed inset-0 z-[70] flex items-end justify-center" onClick={closeFilter}>
           <div className="absolute inset-0 bg-black/30" />
           <div
+            ref={filterDrag.sheetRef}
             onClick={(e) => e.stopPropagation()}
+            onTouchStart={filterDrag.onTouchStart}
+            onTouchMove={filterDrag.onTouchMove}
+            onTouchEnd={filterDrag.onTouchEnd}
+            onTouchCancel={filterDrag.onTouchCancel}
             className="relative w-full max-w-[560px] rounded-t-2xl px-4 pt-3 pb-6 overflow-y-auto"
             style={{
               background: "#FAF7F2",
@@ -489,52 +515,76 @@ export default function IdeasClient({
           >
             <div className="mx-auto mb-3" style={{ width: 34, height: 4, borderRadius: 2, background: "rgba(26,26,46,0.16)" }} />
 
-            <FilterOption
-              label="All ideas"
-              count={live.length}
-              selected={filter.kind === "all"}
-              onSelect={() => { setFilter({ kind: "all" }); setFilterOpen(false); }}
-            />
-            <FilterOption
-              label="Not yet used"
-              count={unusedCount}
-              selected={filter.kind === "unused"}
-              onSelect={() => { setFilter({ kind: "unused" }); setFilterOpen(false); }}
+            {/* Type to narrow. Not autofocused: opening the sheet to tap a tag
+                you can already see shouldn't throw a keyboard over it. */}
+            <input
+              value={filterQuery}
+              onChange={(e) => setFilterQuery(e.target.value)}
+              placeholder="Search journeys and tags"
+              className="w-full rounded-lg px-3 py-2.5 text-[14px] outline-none mb-1"
+              style={{ background: "#fff", border: `1px solid ${RULE}`, color: INK }}
             />
 
-            {journeyCounts.length > 0 && (
+            {matches("All ideas") && (
+              <FilterOption
+                label="All ideas"
+                count={live.length}
+                selected={filter.kind === "all"}
+                onSelect={() => pickFilter({ kind: "all" })}
+              />
+            )}
+            {matches("Not yet used") && (
+              <FilterOption
+                label="Not yet used"
+                count={unusedCount}
+                selected={filter.kind === "unused"}
+                onSelect={() => pickFilter({ kind: "unused" })}
+              />
+            )}
+
+            {shownJourneys.length > 0 && (
               <>
                 <p className="text-[9px] uppercase mt-3 mb-1 px-0.5" style={{ letterSpacing: "0.14em", color: SOFT }}>
                   Saved for a journey
                 </p>
-                {journeyCounts.map(({ j, n }) => (
+                {shownJourneys.map(({ j, n }) => (
                   <FilterOption
                     key={j.id}
                     label={j.title}
                     count={n}
                     selected={filter.kind === "journey" && filter.value === j.id}
-                    onSelect={() => { setFilter({ kind: "journey", value: j.id }); setFilterOpen(false); }}
+                    onSelect={() => pickFilter({ kind: "journey", value: j.id })}
                   />
                 ))}
               </>
             )}
 
-            {tagCounts.length > 0 && (
+            {shownTags.length > 0 && (
               <>
                 <p className="text-[9px] uppercase mt-3 mb-1 px-0.5" style={{ letterSpacing: "0.14em", color: SOFT }}>
                   Tags
                 </p>
-                {tagCounts.map(([t, n]) => (
+                {shownTags.map(([t, n]) => (
                   <FilterOption
                     key={t}
                     label={t}
                     count={n}
                     selected={filter.kind === "tag" && filter.value === t}
-                    onSelect={() => { setFilter({ kind: "tag", value: t }); setFilterOpen(false); }}
+                    onSelect={() => pickFilter({ kind: "tag", value: t })}
                   />
                 ))}
               </>
             )}
+
+            {filterQuery.trim() &&
+              shownJourneys.length === 0 &&
+              shownTags.length === 0 &&
+              !matches("All ideas") &&
+              !matches("Not yet used") && (
+                <p className="text-[13px] py-3 px-0.5" style={{ color: SOFT }}>
+                  Nothing matches &ldquo;{filterQuery.trim()}&rdquo;.
+                </p>
+              )}
           </div>
         </div>
       )}

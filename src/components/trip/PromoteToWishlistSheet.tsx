@@ -12,6 +12,7 @@ import type { Prediction, ResolvedPlace } from "@/lib/places/predictions";
 import { fetchClimate, compactAddress } from "@/lib/wishlist/climate";
 import type { MonthClimate } from "@/lib/wishlist/climate";
 import { pinPlaceToJourney } from "@/lib/wishlist/pinToJourney";
+import { useSheetDrag } from "@/hooks/useSheetDrag";
 
 const INK = "#1A1A2E";
 const CAPTION = "rgba(26,26,46,0.55)";
@@ -104,6 +105,7 @@ export default function PromoteToWishlistSheet({
   onClose,
   onDone,
 }: Props) {
+  const drag = useSheetDrag(onClose);
   const [step, setStep] = useState<"search" | "target" | "wishlist" | "added">(
     resolvedPlace ? "target" : "search"
   );
@@ -324,7 +326,12 @@ export default function PromoteToWishlistSheet({
           the top of the screen: the list was cut off with nothing to say so,
           and no way to tell whether you were seeing all of it. */}
       <div
+        ref={drag.sheetRef}
         onClick={(e) => e.stopPropagation()}
+        onTouchStart={drag.onTouchStart}
+        onTouchMove={drag.onTouchMove}
+        onTouchEnd={drag.onTouchEnd}
+        onTouchCancel={drag.onTouchCancel}
         className="relative w-full max-w-[560px] rounded-t-2xl px-4 pt-3 pb-6 overflow-y-auto"
         style={{
           background: PARCHMENT,

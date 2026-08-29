@@ -10,6 +10,7 @@ import {
 } from "@/lib/places/predictions";
 import type { Prediction } from "@/lib/places/predictions";
 import type { ResolvedIdeaPlace } from "./PromoteToWishlistSheet";
+import { useSheetDrag } from "@/hooks/useSheetDrag";
 
 const INK = "#1A1A2E";
 const CAPTION = "rgba(26,26,46,0.55)";
@@ -40,6 +41,7 @@ export default function SetLocationSheet({
   onClose: () => void;
   onSet: (place: ResolvedIdeaPlace) => void;
 }) {
+  const drag = useSheetDrag(onClose);
   const [query, setQuery] = useState(initialQuery);
   const [preds, setPreds] = useState<Prediction[]>([]);
   const [busy, setBusy] = useState(false);
@@ -100,7 +102,12 @@ export default function SetLocationSheet({
     <div className="fixed inset-0 z-[70] flex items-end justify-center" onClick={onClose}>
       <div className="absolute inset-0 bg-black/30" />
       <div
+        ref={drag.sheetRef}
         onClick={(e) => e.stopPropagation()}
+        onTouchStart={drag.onTouchStart}
+        onTouchMove={drag.onTouchMove}
+        onTouchEnd={drag.onTouchEnd}
+        onTouchCancel={drag.onTouchCancel}
         className="relative w-full max-w-[560px] rounded-t-2xl px-4 pt-3 pb-6 overflow-y-auto"
         style={{
           background: PARCHMENT,
