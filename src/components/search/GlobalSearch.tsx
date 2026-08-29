@@ -773,10 +773,14 @@ export function SearchButton({
   className,
   size = 17,
   strokeWidth = 1.4,
+  label,
 }: {
   className?: string;
   size?: number;
   strokeWidth?: number;
+  /** Renders the button as a labelled control with its keyboard shortcut,
+   *  for places with room for words. A lens alone is a memory test. */
+  label?: string;
 }) {
   const { open } = useGlobalSearch();
   return (
@@ -786,9 +790,35 @@ export function SearchButton({
       title="Search"
       aria-label="Search"
       className={className}
-      style={{ background: "transparent", border: "none", cursor: "pointer" }}
+      style={
+        label
+          ? {
+              background: "#FCFBF9",
+              border: "1px solid rgba(26,26,46,0.16)",
+              cursor: "pointer",
+            }
+          : { background: "transparent", border: "none", cursor: "pointer" }
+      }
     >
       <SearchGlyph size={size} strokeWidth={strokeWidth} />
+      {label && (
+        <>
+          <span style={{ fontSize: 12.5, color: "rgba(26,26,46,0.7)" }}>{label}</span>
+          {/* ⌘K is really bound (see the keydown handler above), so the badge
+              is a fact rather than decoration. */}
+          <span
+            style={{
+              fontSize: 10,
+              padding: "1px 5px",
+              borderRadius: 4,
+              color: "rgba(26,26,46,0.35)",
+              border: "1px solid rgba(26,26,46,0.13)",
+            }}
+          >
+            ⌘K
+          </span>
+        </>
+      )}
     </button>
   );
 }

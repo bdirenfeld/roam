@@ -3,15 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { UserCircle, Calendar, Columns, MapPin, NotePencil, Coins } from "@phosphor-icons/react";
+import { UserCircle, Calendar, Columns, MapPin } from "@phosphor-icons/react";
 import { SearchButton } from "@/components/search/GlobalSearch";
 import SharedWithFaces from "@/components/trip/SharedWithFaces";
+import JourneyMenu from "@/components/ui/JourneyMenu";
 import {
   NewJourneyLink,
   ProfileLink,
   TripSettingsLink,
-  EstimateLink,
-  useJourneyNotes,
 } from "@/components/overlays/AppOverlays";
 import { createClient } from "@/lib/supabase/client";
 import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
@@ -328,9 +327,10 @@ export default function DesktopMasthead() {
       {/* Search — the one way to find a place when you can't remember which
           journey it's on. Also on "/" and ⌘/Ctrl-K from anywhere. */}
       <SearchButton
-        className="inline-flex items-center justify-center p-2 mr-1.5 text-[rgba(26,26,46,0.55)]"
-        size={17}
-        strokeWidth={1.4}
+        className="inline-flex items-center gap-[7px] h-[33px] pl-[10px] pr-[13px] mr-2 rounded-lg text-[rgba(26,26,46,0.55)]"
+        size={15}
+        strokeWidth={1.6}
+        label="Search"
       />
 
 
@@ -343,60 +343,32 @@ export default function DesktopMasthead() {
         style={{
           display: "inline-flex",
           alignItems: "center",
-          justifyContent: "center",
-          color: CAPTION,
-          padding: 8,
+          gap: 6,
+          height: 33,
+          padding: "0 13px",
           marginRight: 6,
+          borderRadius: 8,
+          background: INK,
+          color: "#FAF7F2",
+          fontSize: 12.5,
           textDecoration: "none",
+          whiteSpace: "nowrap",
         }}
       >
         <svg
-          width="17"
-          height="17"
+          width="14"
+          height="14"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          strokeWidth="1.4"
+          strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
         >
           <path d="M12 5v14M5 12h14" />
         </svg>
+        Plan a journey
       </NewJourneyLink>
-
-      {/* How Roam works — always-visible help entry; the guide is also in the
-          profile dropdown, but a lost user looks for a "?", not a menu. */}
-      <a
-        href="/guide.html"
-        target="_blank"
-        rel="noopener"
-        title="How Roam works"
-        aria-label="How Roam works"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: CAPTION,
-          padding: 8,
-          marginRight: 6,
-          textDecoration: "none",
-        }}
-      >
-        <svg
-          width="17"
-          height="17"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          {/* Bare glyph, no enclosing circle — matches the bare + beside it */}
-          <path d="M7.8 8.6a4.2 4.2 0 1 1 7.3 2.85c-1.1 1.15-3.1 1.6-3.1 3.55" />
-          <line x1="12" y1="19.5" x2="12" y2="19.51" />
-        </svg>
-      </a>
 
       {/* Profile dropdown — replaces the previous direct-link avatar. */}
       <div ref={menuRef} style={{ position: "relative" }}>
@@ -597,58 +569,11 @@ function TripTabs({
         );
       })}
 
-      {/* Journey notes — content, not configuration, so it lives beside the
-          tabs rather than inside Settings. A glyph instead of a fourth tab:
-          four tabs is too many, and the badge says whether it's worth opening. */}
-      <NotesGlyph tripId={tripId} />
-
-      {/* The estimate is the owner's own figure, so it never shows for a guest.
-          A glyph for the same reason as notes — it is a screen you visit
-          occasionally, not a way of reading the journey. */}
-      {!guest && <EstimateGlyph tripId={tripId} />}
+      {/* Notes and the estimate were two bare glyphs here — a pencil and a
+          stack of coins, each a memory test. They are named items in one menu
+          now, the same menu the phone has always shown, so a new journey
+          screen gets added in one place instead of two. */}
+      <JourneyMenu tripId={tripId} guest={guest} />
     </div>
-  );
-}
-
-/** Coins glyph beside the journey's tabs. Opens the estimate over the page. */
-function EstimateGlyph({ tripId }: { tripId: string }) {
-  return (
-    <EstimateLink
-      tripId={tripId}
-      title="Estimate"
-      ariaLabel="Estimate"
-      style={{
-        display: "flex",
-        alignItems: "center",
-        padding: "8px 10px",
-        borderRadius: 999,
-        color: CAPTION,
-        background: "transparent",
-      }}
-    >
-      <Coins size={16} weight="light" />
-    </EstimateLink>
-  );
-}
-
-/** Note glyph beside the journey's tabs. Opens the notes overlay. */
-function NotesGlyph({ tripId }: { tripId: string }) {
-  const notes = useJourneyNotes();
-  return (
-    <button
-      onClick={() => notes.open(tripId)}
-      title="Journey notes"
-      aria-label="Journey notes"
-      style={{
-        display: "flex",
-        alignItems: "center",
-        padding: "8px 10px",
-        borderRadius: 999,
-        color: CAPTION,
-        background: "transparent",
-      }}
-    >
-      <NotePencil size={16} weight="light" />
-    </button>
   );
 }
