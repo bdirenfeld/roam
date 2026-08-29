@@ -30,7 +30,13 @@ body {
   margin: 0 auto;
   min-height: 100dvh;
   position: relative;
-  overflow-x: hidden;
+  /* `clip`, not `hidden`. When one axis is not `visible`, `hidden` computes the
+     other axis to `auto` and turns this into a scroll container — and
+     `position: sticky` resolves against the nearest scroll container, not the
+     viewport. That made every sticky header inside pin to the top of a box that
+     was itself scrolling away, so the day header slid off screen. `clip` clips
+     identically without creating a scroll container. */
+  overflow-x: clip;
 }
 
 /* Desktop unfolds the mobile column at the md: breakpoint (768px).
