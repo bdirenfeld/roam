@@ -46,6 +46,11 @@ export default function ShareJourneySheet({
   const [error, setError] = useState<string | null>(null);
   const [confirmRevoke, setConfirmRevoke] = useState(false);
 
+  const [email, setEmail] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     loadShareState(tripId)
@@ -99,6 +104,68 @@ export default function ShareJourneySheet({
     }
   }, [url, tripTitle]);
 
+  /**
+   * Send the invite through Resend.
+   *
+   * The route mints the share link itself when there isn't one, so this works
+   * before any link exists — typing an address is the whole interaction.
+   *
+   * Three outcomes, kept distinct on purpose. Sent is sent. A provider that is
+   * configured but refused (bad key, unverified sender domain) reports what it
+   * said, because a silent fall back to the mail client makes a broken key look
+   * identical to no key at all. Anything else hands off to the device's mail
+   * app with the link already in the body.
+   */
+  const sendInvite = useCallback(async () => {
+    const to = email.trim();
+    if (!to || sending) return;
+    setSending(true);
+    setSentTo(null);
+    setSendError(null);
+    try {
+      const res = await fetch("/api/share/send-invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trip_id: tripId, email: to }),
+      });
+      const data = (await res.json()) as {
+        sent?: boolean;
+        reason?: string;
+        url?: string;
+        detail?: string;
+        error?: string;
+      };
+
+      if (data.sent) {
+        setSentTo(to);
+        setEmail("");
+        // The link now exists whether or not it did a moment ago.
+        loadShareState(tripId).then(setState).catch(() => {});
+        return;
+      }
+      if (data.error) {
+        setSendError(data.error);
+        return;
+      }
+      if (data.reason === "provider-error") {
+        setSendError(data.detail ?? "The mail provider refused it.");
+        return;
+      }
+      const link = data.url ?? url;
+      if (link) {
+        const subject = encodeURIComponent(`Join me on ${tripTitle}`);
+        const body = encodeURIComponent(`Here's the plan — open this to see it:\n\n${link}\n`);
+        window.location.href = `mailto:${encodeURIComponent(to)}?subject=${subject}&body=${body}`;
+      } else {
+        setSendError("Couldn't send that. Try the link instead.");
+      }
+    } catch {
+      setSendError("Couldn't send that. Your connection may be down.");
+    } finally {
+      setSending(false);
+    }
+  }, [email, sending, tripId, tripTitle, url]);
+
   const revoke = useCallback(async () => {
     if (busy) return;
     setBusy(true);
@@ -143,27 +210,76 @@ export default function ShareJourneySheet({
           </p>
         )}
 
+        {state?.shareAvailable && (
+          <>
+            <p className="text-[12.5px] mt-1 mb-3" style={{ color: SOFT }}>
+              They can read the journey. They can&rsquo;t change it, and they can&rsquo;t see what
+              it costs.
+            </p>
+
+            {/* Email is the primary way to share. The route mints the link
+                itself when there isn't one, so an address is the whole
+                interaction — no "create a link first" step. */}
+            <div className="flex gap-2">
+              <input
+                type="email"
+                inputMode="email"
+                autoCapitalize="none"
+                autoCorrect="off"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && sendInvite()}
+                placeholder="Their email address"
+                className="flex-1 min-w-0 rounded-lg px-3 py-2.5 text-[14px] outline-none"
+                style={{ background: "#fff", border: `1px solid ${RULE}`, color: INK }}
+              />
+              <button
+                onClick={sendInvite}
+                disabled={sending || !email.trim()}
+                className="rounded-lg px-4 text-[14px] shrink-0"
+                style={{
+                  background: INK,
+                  color: PARCHMENT,
+                  opacity: sending || !email.trim() ? 0.5 : 1,
+                }}
+              >
+                {sending ? "Sending…" : "Send"}
+              </button>
+            </div>
+
+            {sentTo && (
+              <p className="text-[12.5px] mt-2" style={{ color: INK }}>
+                Sent to {sentTo}.
+              </p>
+            )}
+            {sendError && (
+              <p className="text-[12.5px] mt-2" style={{ color: SIENNA }}>
+                {sendError}
+              </p>
+            )}
+          </>
+        )}
+
         {state?.shareAvailable && !state.shareToken && (
           <>
-            <p className="text-[12.5px] mt-1 mb-4" style={{ color: SOFT }}>
-              Anyone with the link can read this journey. They can&rsquo;t change it, and they
-              can&rsquo;t see what it costs.
-            </p>
+            <div className="mt-4 mb-3" style={{ borderTop: `1px solid ${RULE}` }} />
             <button
               onClick={create}
               disabled={busy}
-              className="w-full rounded-lg py-3 text-[14px]"
-              style={{ background: INK, color: PARCHMENT, opacity: busy ? 0.6 : 1 }}
+              className="w-full rounded-lg py-2.5 text-[14px]"
+              style={{ border: `1px solid ${RULE}`, color: CAPTION, opacity: busy ? 0.6 : 1 }}
             >
-              {busy ? "Creating…" : "Create a link"}
+              {busy ? "Creating…" : "Or create a link to send yourself"}
             </button>
           </>
         )}
 
         {state?.shareAvailable && state.shareToken && url && (
           <>
+            <div className="mt-4 mb-3" style={{ borderTop: `1px solid ${RULE}` }} />
+
             <p
-              className="text-[12px] mt-2 mb-3 px-3 py-2.5 rounded-lg truncate"
+              className="text-[12px] mb-2 px-3 py-2.5 rounded-lg truncate"
               style={{ background: "#fff", border: `1px solid ${RULE}`, color: CAPTION }}
             >
               {url.replace(/^https?:\/\//, "")}
@@ -171,10 +287,10 @@ export default function ShareJourneySheet({
 
             <button
               onClick={share}
-              className="w-full rounded-lg py-3 text-[14px]"
-              style={{ background: INK, color: PARCHMENT }}
+              className="w-full rounded-lg py-2.5 text-[14px]"
+              style={{ border: `1px solid ${RULE}`, color: CAPTION }}
             >
-              {copied ? "Link copied" : "Share link"}
+              {copied ? "Link copied" : "Send the link another way"}
             </button>
 
             {state.guests.length > 0 && (
