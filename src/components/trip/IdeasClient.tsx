@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CaretLeft, ArrowSquareOut, Plus } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
+import PromoteToWishlistSheet from "./PromoteToWishlistSheet";
 
 const INK = "#1A1A2E";
 const CAPTION = "rgba(26,26,46,0.55)";
@@ -20,6 +21,9 @@ export interface Idea {
   status: string;
   tags: string[] | null;
   created_at: string;
+  /** Set once the idea has been promoted to a wishlist destination. The idea
+   *  stays either way — the saved link is still what you want when planning. */
+  wishlist_destination_id: string | null;
 }
 
 export default function IdeasClient({ initial }: { initial: Idea[] }) {
@@ -28,6 +32,12 @@ export default function IdeasClient({ initial }: { initial: Idea[] }) {
   const [filter, setFilter] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [draftTag, setDraftTag] = useState("");
+  // The promote sheet is held here, at the top of the component, and rendered
+  // once at the root — never inside Item. Item is redefined on every render, so
+  // anything mounted inside it is torn down and remade on each keystroke, which
+  // is what cost the Estimate screen its input focus.
+  const [promoting, setPromoting] = useState<Idea | null>(null);
+  const [justAdded, setJustAdded] = useState<string | null>(null);
 
   const save = async (id: string, patch: Partial<Idea>) => {
     setIdeas((p) => p.map((i) => (i.id === id ? { ...i, ...patch } : i)));
@@ -138,6 +148,28 @@ export default function IdeasClient({ initial }: { initial: Idea[] }) {
           </div>
         )}
 
+        {/* The step that was missing: a saved link becomes a real destination
+            with coordinates and a climate profile, so it can be planned. */}
+        <div className="mt-2.5">
+          {i.wishlist_destination_id ? (
+            <button
+              onClick={() => router.push("/trips#your-year")}
+              className="font-display italic text-[13.5px]"
+              style={{ color: SIENNA }}
+            >
+              On your wishlist
+            </button>
+          ) : (
+            <button
+              onClick={() => setPromoting(i)}
+              className="font-display italic text-[13.5px]"
+              style={{ color: CAPTION }}
+            >
+              Add to wishlist
+            </button>
+          )}
+        </div>
+
         {i.status === "inbox" && (
           <div className="flex gap-2 mt-2.5">
             <button
@@ -236,6 +268,33 @@ export default function IdeasClient({ initial }: { initial: Idea[] }) {
         <Group label="Inbox" items={inbox} />
         <Group label="Kept" items={kept} />
       </div>
+
+      {promoting && (
+        <PromoteToWishlistSheet
+          ideaId={promoting.id}
+          initialQuery={promoting.title ?? ""}
+          onClose={() => setPromoting(null)}
+          onPromoted={(destinationId, name) => {
+            setIdeas((p) =>
+              p.map((x) =>
+                x.id === promoting.id ? { ...x, wishlist_destination_id: destinationId } : x
+              )
+            );
+            setPromoting(null);
+            setJustAdded(name);
+          }}
+        />
+      )}
+
+      {justAdded && (
+        <button
+          onClick={() => setJustAdded(null)}
+          className="fixed left-1/2 -translate-x-1/2 bottom-24 z-[80] rounded-full px-4 py-2 text-[13px]"
+          style={{ background: INK, color: "#fff" }}
+        >
+          {justAdded} added to your wishlist
+        </button>
+      )}
     </div>
   );
 }

@@ -31,7 +31,11 @@ import {
 import type { OpenWindow } from "@/lib/yearView/openWindows";
 import { stormSeasonFor } from "@/lib/yearView/stormSeasons";
 import { bugSeasonFor } from "@/lib/yearView/bugSeasons";
-import { computeMonthlyHci, hciTone } from "@/lib/yearView/hci";
+import { hciTone } from "@/lib/yearView/hci";
+import { fetchClimate, compactAddress, seedClimateCache } from "@/lib/wishlist/climate";
+import type { MonthClimate } from "@/lib/wishlist/climate";
+import { fetchPredictions, fetchPlaceDetails, predMain, predSecondary } from "@/lib/places/predictions";
+import type { Prediction, ResolvedPlace } from "@/lib/places/predictions";
 
 // Brennan's own "ideal times to travel", stored per-user in Supabase
 // (public.travel_windows, RLS own-row). Row shape also lives in
@@ -92,109 +96,6 @@ const formatRange = (a: Date, b: Date) =>
     ? `${a.toLocaleDateString("en-US", { month: "short" })} ${a.getDate()}–${b.getDate()}`
     : `${fmtMD(a)} – ${fmtMD(b)}`;
 
-// ── Climate (Open-Meteo archive), module-level cache ──────────────────────
-interface MonthClimate {
-  high: number; // mean daily max °C for the calendar month — what cells display
-  rainShare: number; // share of days with ≥1mm precipitation, 0..1
-  // Mean total precipitation for the calendar month (mm, averaged across
-  // the archive years). Optional: wishlist rows stored before this field
-  // existed lack it — treated as unknown, no wet-season marker.
-  precipMm?: number;
-  // HCI inputs (see lib/yearView/hci.ts) — optional for the same reason
-  feelsMax?: number; // monthly mean daily apparent-temperature max, °C
-  sunFrac?: number; // monthly mean sunshine/daylight fraction, 0..1
-  windMax?: number; // monthly mean daily max wind, km/h (API default unit)
-  hci?: number; // Holiday Climate Index score, 0–100
-}
-
-// Number of full archive years the aggregation spans
-const CLIMATE_YEARS = 5;
-
-const climateCache = new Map<string, MonthClimate[]>();
-
-async function fetchClimate(lat: number, lng: number): Promise<MonthClimate[]> {
-  const key = `${lat.toFixed(2)},${lng.toFixed(2)}`;
-  const cached = climateCache.get(key);
-  if (cached) return cached;
-
-  const y = new Date().getFullYear();
-  const params = new URLSearchParams({
-    latitude: String(lat),
-    longitude: String(lng),
-    start_date: `${y - CLIMATE_YEARS}-01-01`, // past N full years
-    end_date: `${y - 1}-12-31`,
-    daily:
-      "temperature_2m_max,precipitation_sum,apparent_temperature_max,sunshine_duration,daylight_duration,wind_speed_10m_max",
-    timezone: "auto",
-  });
-  const res = await fetch(`https://archive-api.open-meteo.com/v1/archive?${params}`);
-  if (!res.ok) throw new Error(`Open-Meteo archive responded ${res.status}`);
-  const data = (await res.json()) as {
-    daily: {
-      time: string[];
-      temperature_2m_max: (number | null)[];
-      precipitation_sum: (number | null)[];
-      apparent_temperature_max: (number | null)[];
-      sunshine_duration: (number | null)[];
-      daylight_duration: (number | null)[];
-      wind_speed_10m_max: (number | null)[]; // km/h — the API's default unit
-    };
-  };
-
-  const sum = Array(12).fill(0) as number[];
-  const cnt = Array(12).fill(0) as number[];
-  const rainy = Array(12).fill(0) as number[];
-  const totalMm = Array(12).fill(0) as number[];
-  const feelsSum = Array(12).fill(0) as number[];
-  const feelsCnt = Array(12).fill(0) as number[];
-  const sunSum = Array(12).fill(0) as number[];
-  const sunCnt = Array(12).fill(0) as number[];
-  const windSum = Array(12).fill(0) as number[];
-  const windCnt = Array(12).fill(0) as number[];
-  for (let i = 0; i < data.daily.time.length; i++) {
-    const mi = Number(data.daily.time[i].slice(5, 7)) - 1;
-    const t = data.daily.temperature_2m_max[i];
-    if (t == null) continue;
-    sum[mi] += t;
-    cnt[mi] += 1;
-    const mm = data.daily.precipitation_sum[i] ?? 0;
-    totalMm[mi] += mm;
-    if (mm >= 1) rainy[mi] += 1;
-    const feels = data.daily.apparent_temperature_max[i];
-    if (feels != null) {
-      feelsSum[mi] += feels;
-      feelsCnt[mi] += 1;
-    }
-    // Sunshine as a fraction of daylight (guarding polar-night zero days) —
-    // the HCI aesthetic facet's cloud proxy
-    const sunshine = data.daily.sunshine_duration[i];
-    const daylight = data.daily.daylight_duration[i];
-    if (sunshine != null && daylight != null && daylight > 0) {
-      sunSum[mi] += Math.min(1, sunshine / daylight);
-      sunCnt[mi] += 1;
-    }
-    const wind = data.daily.wind_speed_10m_max[i];
-    if (wind != null) {
-      windSum[mi] += wind;
-      windCnt[mi] += 1;
-    }
-  }
-  const result: MonthClimate[] = sum.map((s, mi) => {
-    const profile: MonthClimate = {
-      high: cnt[mi] > 0 ? Math.round(s / cnt[mi]) : 0,
-      rainShare: cnt[mi] > 0 ? rainy[mi] / cnt[mi] : 1,
-      precipMm: Math.round(totalMm[mi] / CLIMATE_YEARS),
-      feelsMax: feelsCnt[mi] > 0 ? Math.round((feelsSum[mi] / feelsCnt[mi]) * 10) / 10 : undefined,
-      sunFrac: sunCnt[mi] > 0 ? Math.round((sunSum[mi] / sunCnt[mi]) * 100) / 100 : undefined,
-      windMax: windCnt[mi] > 0 ? Math.round((windSum[mi] / windCnt[mi]) * 10) / 10 : undefined,
-    };
-    const hci = computeMonthlyHci(profile);
-    if (hci != null) profile.hci = hci;
-    return profile;
-  });
-  climateCache.set(key, result);
-  return result;
-}
 
 type HeatTone = "great" | "good" | "fair" | "rough";
 
@@ -303,54 +204,6 @@ const TONE_LABEL: Record<HeatTone, string> = {
 };
 
 
-// ── Place search — the app's Google Places routes ─────────────────────────
-// Open-Meteo's geocoder is city-only and answers "Tuscany" with a suburb in
-// Alberta, so both pickers here go through /api/places/*, unrestricted (no
-// `types` filter) so a region, a city or a single resort all resolve.
-interface Prediction {
-  place_id: string;
-  description: string;
-  structured_formatting?: { main_text: string; secondary_text?: string };
-}
-
-interface ResolvedPlace {
-  name: string;
-  address: string;
-  lat: number;
-  lng: number;
-}
-
-async function fetchPredictions(input: string, token: string): Promise<Prediction[]> {
-  const params = new URLSearchParams({ input, sessiontoken: token });
-  const res = await fetch(`/api/places/autocomplete?${params}`);
-  if (!res.ok) return [];
-  const data = (await res.json()) as { predictions?: Prediction[] };
-  return (data.predictions ?? []).slice(0, 6);
-}
-
-async function fetchPlaceDetails(placeId: string, token: string): Promise<ResolvedPlace | null> {
-  const res = await fetch(
-    `/api/places/details?place_id=${encodeURIComponent(placeId)}&sessiontoken=${encodeURIComponent(token)}`
-  );
-  if (!res.ok) return null;
-  const data = (await res.json()) as {
-    result?: {
-      name?: string;
-      formatted_address?: string;
-      geometry?: { location?: { lat: number; lng: number } };
-    };
-  };
-  const loc = data.result?.geometry?.location;
-  if (!data.result || !loc || typeof loc.lat !== "number" || typeof loc.lng !== "number") {
-    return null;
-  }
-  return {
-    name: data.result.name ?? "",
-    address: data.result.formatted_address ?? "",
-    lat: loc.lat,
-    lng: loc.lng,
-  };
-}
 
 // Resolve a bare name (a trip's destination, or the "Lisbon" fallback) to
 // coordinates through the same pipeline: first prediction wins.
@@ -359,25 +212,6 @@ async function resolvePlaceByName(name: string, token: string): Promise<Resolved
   if (preds.length === 0) return null;
   return fetchPlaceDetails(preds[0].place_id, token);
 }
-
-// A wishlist row's second line: the tail of a formatted address, so
-// "Tuscany, Italy" survives intact and a resort's street address collapses
-// to "Town, Country" beside its own name.
-function compactAddress(address: string, fallback: string): string {
-  const parts = address.split(",").map((s) => s.trim()).filter(Boolean);
-  if (parts.length === 0) return fallback;
-  return parts.slice(-2).join(", ");
-}
-
-// The label under the chip / on the row — Google's main_text when present
-const predMain = (p: Prediction) =>
-  p.structured_formatting?.main_text ?? p.description.split(",")[0];
-const predSecondary = (p: Prediction) => {
-  const s = p.structured_formatting?.secondary_text;
-  if (s) return s;
-  const rest = p.description.split(",").slice(1).join(",").trim();
-  return rest || null;
-};
 
 // ── Drag-to-dismiss for mobile bottom sheets ──────────────────────────────
 // The app's standard sheet gesture (same numbers as plan/DocumentsSheet):
@@ -627,7 +461,7 @@ export default function YearView({ trips }: Props) {
       d.climate.length === 12 &&
       d.climate[0]?.precipMm != null
     ) {
-      climateCache.set(`${d.lat.toFixed(2)},${d.lng.toFixed(2)}`, d.climate);
+      seedClimateCache(d.lat, d.lng, d.climate);
     }
     setDest({ label: d.name, lat: d.lat, lng: d.lng });
     setPickerOpen(false);
