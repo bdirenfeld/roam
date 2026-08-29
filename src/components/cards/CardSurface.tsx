@@ -116,11 +116,19 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
 
   const isFlight = place?.sub_type === "flight_arrival" || place?.sub_type === "flight_departure";
 
-  // What the entry says about itself, in priority: the flight route, then the
-  // note you actually wrote, then the address.
+  // What the entry says about itself.
+  //
+  // `details.summary` is the field for this — one line, written when the card
+  // is written. It used to be scraped out of `notes` at render time, which is
+  // a guess that breaks on whatever shape the notes happen to take: a card
+  // opening with **Intent** put "**Intent**" on its own face. Scraping stays
+  // only as a fallback for cards written before the field existed.
+  const summary = typeof det?.summary === "string" && det.summary.trim()
+    ? det.summary.trim()
+    : null;
   const detail = isFlight
     ? flightRoute(det, timeRange)
-    : (noteLead(det) ?? place?.address ?? subLabel);
+    : (summary ?? noteLead(det) ?? place?.address ?? subLabel);
 
   const surfRating = place?.type === "food" ? place.rating : null;
   const isLoved    = place?.loved === true;

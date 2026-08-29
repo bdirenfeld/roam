@@ -45,7 +45,12 @@ export default function DayStrip({ days, activeDayId, onDaySelect }: Props) {
   }, [activeDayId]);
 
   return (
-    <div className="bg-white md:hidden" style={{ borderBottom: "1px solid rgba(26,26,46,0.10)" }}>
+    // Pins directly beneath the 58px day header, so the day you are on and the
+    // way to the next one both stay put while the entries scroll.
+    <div
+      className="sticky top-[58px] z-20 bg-white md:hidden"
+      style={{ borderBottom: "1px solid rgba(26,26,46,0.10)" }}
+    >
       <div className="relative">
         <div className="flex gap-5 px-4 pt-1.5 pb-3 overflow-x-auto scrollbar-none">
           {days.map((day) => {

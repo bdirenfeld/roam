@@ -689,7 +689,11 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   return (
     <div className="flex flex-col h-dvh md:block md:h-auto">
       {/* Mobile-only trip header — h-[58px] is constant; the subtitle row always reserves its height */}
-      <div className="relative flex items-center bg-white border-b border-gray-100 flex-shrink-0 h-[58px] md:hidden">
+      {/* Sticky, not just flex-shrink-0. It sits in an h-dvh column so it
+          should never scroll — but something outside that column does the
+          scrolling on a phone, and the date and the way back went with it.
+          Pinning it explicitly holds regardless of which element moves. */}
+      <div className="sticky top-0 z-30 relative flex items-center bg-white border-b border-gray-100 flex-shrink-0 h-[58px] md:hidden">
         <Link
           href="/"
           className="flex items-center justify-center w-11 h-11 text-gray-500 hover:text-gray-800 transition-colors flex-shrink-0"
