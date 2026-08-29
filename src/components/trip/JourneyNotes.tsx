@@ -476,9 +476,7 @@ export default function JourneyNotes({
                   className="font-display italic text-[15px]"
                   style={{ color: "rgba(26,26,46,0.5)", paddingBottom: readOnly ? 0 : 4 }}
                 >
-                  {readOnly
-                    ? "Nothing noted yet."
-                    : "What belongs to no single day — a gate code, what to pack, a passport to renew."}
+                  Nothing noted yet.
                 </p>
               )}
 
@@ -560,7 +558,7 @@ export default function JourneyNotes({
       >
         {readOnly
           ? "Notes from the traveller who shared this journey."
-          : "Shared with anyone you share this journey with."}
+          : "Guests can see these."}
       </p>
     </div>
   );

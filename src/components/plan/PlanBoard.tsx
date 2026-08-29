@@ -2758,8 +2758,8 @@ function ListMenu({
                     cards do not. */}
                 <p className="text-[11.5px] text-gray-500 leading-snug mt-1">
                   {cardCount === 0
-                    ? "It's empty, so nothing else changes. You can undo for a few seconds."
-                    : `The ${cardCount} ${cardCount === 1 ? "card" : "cards"} on it leave the board but stay in your journey as saved places — you'll find ${cardCount === 1 ? "it" : "them"} under “Add from saved”. Only the list and its grouping go, and you can undo for a few seconds.`}
+                    ? "Nothing else changes."
+                    : `The ${cardCount} ${cardCount === 1 ? "card stays" : "cards stay"} in your journey, under “Add from saved”.`}
                 </p>
                 <div className="flex gap-2 mt-2.5">
                   <button

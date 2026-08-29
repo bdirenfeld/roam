@@ -249,8 +249,7 @@ export default function CardTimeline({
               <line x1="3" y1="10" x2="21" y2="10" />
             </svg>
           </div>
-          <p className="text-sm font-semibold text-gray-500">Nothing planned yet</p>
-          <p className="text-xs text-gray-400 mt-1">Free day — enjoy the spontaneity.</p>
+          <p className="text-sm font-semibold text-gray-500">Nothing planned yet</p>
           <div className="mt-6 w-full max-w-[320px]">{renderAddControls(false)}</div>
         </div>
       ) : (

@@ -1,0 +1,58 @@
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import ShareCatchClient from "@/components/trip/ShareCatchClient";
+
+interface Props {
+  searchParams: Promise<{ title?: string; text?: string; url?: string }>;
+}
+
+/**
+ * Where Android drops anything shared to Roam.
+ *
+ * Declared in the manifest as a share_target, so once the app is installed to
+ * the home screen it appears in the system share sheet — TikTok, Instagram,
+ * Reddit, Chrome. Apps pass what they feel like: a URL, a caption, sometimes
+ * only text with a link buried in it. Take whatever turns up and sort it out.
+ */
+export default async function SharePage({ searchParams }: Props) {
+  const { title, text, url } = await searchParams;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  // Some apps put the link in `text` rather than `url`.
+  const link = url || text?.match(/https?:\/\/\S+/)?.[0] || null;
+  const caption = title || (text && text !== link ? text : null) || null;
+  let source: string | null = null;
+  try {
+    if (link) source = new URL(link).hostname.replace(/^www\./, "");
+  } catch {
+    source = null;
+  }
+
+  // Saved on arrival, before any interaction. The point of the feature is
+  // catching something mid-scroll; making the save conditional on finishing a
+  // form would lose exactly the ones worth keeping.
+  const { data: idea } = await supabase
+    .from("ideas")
+    .insert({
+      user_id: user.id,
+      url: link,
+      title: caption,
+      source,
+      status: "inbox",
+    })
+    .select("id")
+    .single();
+
+  return (
+    <ShareCatchClient
+      ideaId={idea?.id ?? null}
+      title={caption}
+      link={link}
+      source={source}
+    />
+  );
+}

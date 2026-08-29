@@ -10,6 +10,7 @@ import { belongsInPastJourneys, isPastJourney } from "@/lib/tripRecency";
 import { createSampleJourney } from "@/lib/sampleTrip/actions";
 import AddToHomeScreenHint from "@/components/ui/AddToHomeScreenHint";
 import YearView from "@/components/trips/YearView";
+import Link from "next/link";
 
 export default async function TripsPage() {
   const supabase = await createClient();
@@ -17,7 +18,7 @@ export default async function TripsPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: profile }, { data: rawTrips }, { data: allDays }] = await Promise.all([
+  const [{ data: profile }, { data: rawTrips }, { data: allDays }, { count: ideaCount }] = await Promise.all([
     supabase.from("users").select("avatar_url").eq("id", user?.id ?? "").single(),
     supabase
       .from("trips")
@@ -28,6 +29,12 @@ export default async function TripsPage() {
       .from("days")
       .select("id, trip_id, date")
       .order("day_number", { ascending: true }),
+    // Unsorted captures only — the badge is a to-triage count, not a total.
+    supabase
+      .from("ideas")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user?.id ?? "")
+      .eq("status", "inbox"),
   ]);
 
   // Backfill cover images for trips that have a destination but no cover yet
@@ -118,6 +125,27 @@ export default async function TripsPage() {
             }))}
           />
         )}
+
+        {/* Ideas inbox. Sits here rather than in the masthead because the
+            masthead is hidden below md, and this is the one screen reachable
+            from a phone. */}
+        <div className="px-4 md:px-0 mt-1">
+          <Link
+            href="/ideas"
+            className="inline-flex items-center gap-1.5 text-[13px]"
+            style={{ color: "rgba(26,26,46,0.55)" }}
+          >
+            Ideas
+            {(ideaCount ?? 0) > 0 && (
+              <span
+                className="text-[11px] rounded-full px-1.5 py-0.5"
+                style={{ background: "rgba(196,98,45,0.12)", color: "#C4622D" }}
+              >
+                {ideaCount}
+              </span>
+            )}
+          </Link>
+        </div>
 
         <div className="px-4 pb-6 md:px-0 md:pb-0 md:mt-9">
           {/* iPhone Safari only — one-time "Add to Home Screen" hint */}
