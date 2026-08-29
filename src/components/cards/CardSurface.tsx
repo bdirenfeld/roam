@@ -1,4 +1,5 @@
 import type { Card } from "@/types/database";
+import { getMaterialIconHTML } from "@/lib/mapPins";
 import { getPriceRange } from "@/lib/priceRange";
 import { formatTimeRange } from "@/lib/formatTime";
 import { getOpeningHoursConflict, openingHoursCaption, openingHoursTone } from "@/lib/openingHours";
@@ -14,9 +15,10 @@ interface Props {
   onTap?: () => void;
   isHighlighted?: boolean;
   onToggleConfirmed?: () => void;
-  /** Numbered pin index matching this card's marker on the map. Shown at every
-   *  width, in the time rail — it is the only thing tying a row to its pin
-   *  since the category glyph gave way to the photograph. */
+  /** Numbered pin index matching this card's marker on the map. Accepted but
+   *  no longer drawn: as a filled disc it shouted over the names it indexed,
+   *  and as a bare numeral it read as debris. The category glyph does the
+   *  tying instead — matching a fork to a fork beats matching 3 to 3. */
   pinIndex?: number;
 }
 
@@ -51,6 +53,23 @@ function flightRoute(det: Record<string, unknown> | null, timeRange: string | nu
     return timeRange ? `${base} · ${timeRange}` : base;
   }
   return typeof det?.airline === "string" ? det.airline : null;
+}
+
+/**
+ * Street and city, not the postal code and country.
+ * "Piazza Franco Anelli, 70013 Castellana Grotte BA, Italy" → "Piazza Franco
+ * Anelli, Castellana Grotte".
+ */
+function shortAddress(a?: string | null): string | null {
+  if (!a) return null;
+  const parts = a.split(",").map((s) => s.trim()).filter(Boolean);
+  if (!parts.length) return null;
+  const street = parts[0];
+  const city = parts[1]
+    ?.replace(/^\d[\d\s-]*/, "")        // leading postcode
+    .replace(/\s+[A-Z]{2}$/, "")        // trailing province code
+    .trim();
+  return city ? `${street}, ${city}` : street;
 }
 
 /** "6:00 pm" for the rail. The range still shows in the line beneath. */
@@ -106,7 +125,7 @@ function noteLead(det: Record<string, unknown> | null): string | null {
  * photograph is used. The app already had those pictures and the agenda was
  * throwing them away for an identical grey placeholder.
  */
-export default function CardSurface({ card, dayDate, onTap, isHighlighted, onToggleConfirmed, pinIndex }: Props) {
+export default function CardSurface({ card, dayDate, onTap, isHighlighted, onToggleConfirmed }: Props) {
   const place     = card.place;
   const det       = card.details as Record<string, unknown> | null;
   const subLabel  = place?.sub_type ? (SUB_TYPE_SHORT[place.sub_type] ?? null) : null;
@@ -117,19 +136,19 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
 
   const isFlight = place?.sub_type === "flight_arrival" || place?.sub_type === "flight_departure";
 
-  // What the entry says about itself.
+  // What the entry says about itself — the same shape on every row.
   //
-  // `details.summary` is the field for this — one line, written when the card
-  // is written. It used to be scraped out of `notes` at render time, which is
-  // a guess that breaks on whatever shape the notes happen to take: a card
-  // opening with **Intent** put "**Intent**" on its own face. Scraping stays
-  // only as a fallback for cards written before the field existed.
-  const summary = typeof det?.summary === "string" && det.summary.trim()
-    ? det.summary.trim()
-    : null;
+  // This briefly showed the notes: first the first line, then a `summary`
+  // field backfilled out of that same prose. Both read inconsistently, because
+  // notes aren't written to one pattern — one card describes a place, the next
+  // gives instructions, and either can truncate mid-word. The row shows facts
+  // instead: what kind of thing it is and where it is. The writing is still
+  // there, in the card, when you open it.
   const detail = isFlight
     ? flightRoute(det, timeRange)
-    : (summary ?? noteLead(det) ?? place?.address ?? subLabel);
+    : place
+      ? [subLabel, shortAddress(place.address)].filter(Boolean).join(" · ") || null
+      : noteLead(det);
 
   const surfRating = place?.type === "food" ? place.rating : null;
   const isLoved    = place?.loved === true;
@@ -154,19 +173,20 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
     >
       {/* The rail. Untimed entries keep the column so every title starts on
           the same line — an empty rail reads as "anytime", not as a gap.
-          The map-pin number lives here rather than on the photograph: every
-          entry has a rail, but only some have a picture, and the number is
-          what ties a row to its marker now the category glyph is gone. */}
+          The category glyph sits here, above the time — bare, at the weight
+          of a caption, the same shape the map marker carries. 
+*/}
       <div className="w-[52px] md:w-[74px] shrink-0 pt-[3px] flex flex-col items-start gap-[3px]">
-        {/* A numeral, not a badge. Filled discs matched the map markers but
-            read as louder than the names they were indexing. */}
-        {pinIndex != null && (
+        {/* The category glyph, bare — the same fork, bed or flag the map
+            marker carries. Matching a shape is quicker than matching a digit,
+            and this is what tied rows to pins before the redesign. What was
+            wrong then was the grey rounded box around it, not the glyph. */}
+        {place && (
           <span
-            className="text-[10px] md:text-[10.5px]"
-            style={{ color: "rgba(26,26,46,0.28)", lineHeight: 1 }}
-          >
-            {pinIndex}
-          </span>
+            className="block opacity-40"
+            // eslint-disable-next-line react/no-danger
+            dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(place.sub_type ?? null, 15) }}
+          />
         )}
         {rail && (
           <span
