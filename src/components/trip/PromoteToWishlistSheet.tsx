@@ -421,7 +421,11 @@ export default function PromoteToWishlistSheet({
                 }}
               >
                 <span className="flex-1 min-w-0">
-                  <span className="block text-[13.5px]" style={{ color: shelved ? CAPTION : INK }}>
+                  {/* Full ink, archived or not. Greying the title read as
+                      "disabled" — Brennan thought an archived journey was being
+                      refused when it was only being de-emphasised. The small
+                      label is enough to say it is shelved. */}
+                  <span className="block text-[13.5px]" style={{ color: INK }}>
                     {j.title}
                     {idx === 0 && !shelved && km <= NEARBY_KM && (
                       <span

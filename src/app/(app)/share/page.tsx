@@ -66,6 +66,10 @@ export default async function SharePage({ searchParams }: Props) {
     .from("trips")
     .select("id, title, destination, destination_lat, destination_lng, end_date, archived")
     .eq("user_id", user.id)
+    // Archived stays — a shelved journey is still one you might be collecting
+    // for. Finished does not: you cannot add a restaurant to a trip you have
+    // already taken.
+    .gte("end_date", new Date().toISOString().slice(0, 10))
     .order("start_date", { ascending: true });
 
   const knownTags = Array.from(counts.entries())
