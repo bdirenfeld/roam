@@ -13,10 +13,6 @@ const SOFT = "rgba(26,26,46,0.35)";
 const RULE = "rgba(26,26,46,0.10)";
 const SIENNA = "#C4622D";
 
-/** Kept is the library, and the half that grows without limit. Past this many
- *  it folds away behind its own count, the same as Past journeys. */
-const KEPT_COLLAPSE_AT = 10;
-
 export interface Idea {
   id: string;
   url: string | null;
@@ -63,9 +59,9 @@ function IdeaRow({
   open,
   allTags,
   onToggle,
-  onSave,
   onToggleTag,
   onPromote,
+  onRemove,
   onOpenWishlist,
   journeys,
 }: {
@@ -73,9 +69,9 @@ function IdeaRow({
   open: boolean;
   allTags: string[];
   onToggle: () => void;
-  onSave: (id: string, patch: Partial<Idea>) => void;
   onToggleTag: (idea: Idea, tag: string) => void;
   onPromote: (idea: Idea) => void;
+  onRemove: () => void;
   onOpenWishlist: () => void;
   journeys: JourneySummary[];
 }) {
@@ -100,9 +96,10 @@ function IdeaRow({
 
   return (
     <div style={{ borderTop: `1px solid ${RULE}` }}>
+      <div className="flex items-baseline">
       <button
         onClick={onToggle}
-        className="w-full text-left flex items-baseline gap-2.5 px-4 py-2.5"
+        className="flex-1 min-w-0 text-left flex items-baseline gap-2.5 pl-4 pr-2 py-2.5"
       >
         <span className="flex-1 min-w-0">
           <span className="block text-[13.5px] truncate" style={{ color: INK }}>
@@ -122,6 +119,19 @@ function IdeaRow({
           {open ? "⌄" : "›"}
         </span>
       </button>
+
+      {/* Removing an idea is one tap on the row itself. It used to be a "Pass"
+          button hidden inside the expanded state, next to a "Keep" that only
+          moved it between two sections. */}
+      <button
+        onClick={onRemove}
+        aria-label={`Remove ${ideaTitle(idea)}`}
+        className="shrink-0 pr-4 pl-1 py-2.5 text-[15px] leading-none"
+        style={{ color: "rgba(26,26,46,0.22)" }}
+      >
+        ×
+      </button>
+      </div>
 
       {open && (
         <div className="px-4 pb-3" style={{ background: "#FCFBF8" }}>
@@ -167,25 +177,6 @@ function IdeaRow({
             >
               Tag
             </button>
-
-            {idea.status === "inbox" && (
-              <>
-                <button
-                  onClick={() => onSave(idea.id, { status: "kept" })}
-                  className="px-3 py-1.5 rounded-full text-[11.5px]"
-                  style={{ border: `1px solid ${RULE}`, color: CAPTION }}
-                >
-                  Keep
-                </button>
-                <button
-                  onClick={() => onSave(idea.id, { status: "passed" })}
-                  className="px-3 py-1.5 rounded-full text-[11.5px]"
-                  style={{ border: `1px solid ${RULE}`, color: CAPTION }}
-                >
-                  Pass
-                </button>
-              </>
-            )}
           </div>
 
           {tagging && (
@@ -250,7 +241,6 @@ export default function IdeasClient({
   const [openId, setOpenId] = useState<string | null>(null);
   const [promoting, setPromoting] = useState<Idea | null>(null);
   const [justAdded, setJustAdded] = useState<string | null>(null);
-  const [keptOpen, setKeptOpen] = useState(false);
 
   const save = async (id: string, patch: Partial<Idea>) => {
     setIdeas((p) => p.map((i) => (i.id === id ? { ...i, ...patch } : i)));
@@ -267,9 +257,13 @@ export default function IdeasClient({
   }, [ideas]);
   const allTags = useMemo(() => tagCounts.map(([t]) => t), [tagCounts]);
 
-  const visible = filter ? ideas.filter((i) => (i.tags ?? []).includes(filter)) : ideas;
-  const inbox = visible.filter((i) => i.status === "inbox");
-  const kept = visible.filter((i) => i.status === "kept");
+  // One list, filtered by tag. There used to be an Inbox and a Kept section on
+  // an email-triage model, but tagging something already *is* keeping it —
+  // pressing Keep afterwards recorded nothing new, and "Inbox" only ever meant
+  // "you haven't pressed the redundant button yet". Removed is the one state
+  // left, and it just means gone from the list.
+  const live = ideas.filter((i) => i.status !== "passed");
+  const visible = filter ? live.filter((i) => (i.tags ?? []).includes(filter)) : live;
 
   const toggleTag = (i: Idea, t: string) => {
     const cur = i.tags ?? [];
@@ -284,17 +278,13 @@ export default function IdeasClient({
         open={openId === i.id}
         allTags={allTags}
         onToggle={() => setOpenId(openId === i.id ? null : i.id)}
-        onSave={save}
         onToggleTag={toggleTag}
         onPromote={setPromoting}
+        onRemove={() => save(i.id, { status: "passed" })}
         onOpenWishlist={() => router.push("/trips#your-year")}
         journeys={journeys}
       />
     ));
-
-  // Kept folds away once it is long enough to bury the inbox. Filtering is a
-  // deliberate search, so a filtered view opens it rather than hiding matches.
-  const keptCollapsed = !keptOpen && !filter && kept.length > KEPT_COLLAPSE_AT;
 
   return (
     <div
@@ -326,7 +316,7 @@ export default function IdeasClient({
                   : { border: `1px solid ${RULE}`, color: CAPTION }
               }
             >
-              All · {ideas.length}
+              All · {live.length}
             </button>
             {tagCounts.map(([t, n]) => (
               <button
@@ -345,42 +335,18 @@ export default function IdeasClient({
           </div>
         )}
 
-        {ideas.length === 0 && (
+        {live.length === 0 && (
           <p className="text-[13px] px-1" style={{ color: SOFT }}>
             Nothing saved yet.
           </p>
         )}
 
-        {(inbox.length > 0 || kept.length > 0) && (
+        {visible.length > 0 && (
           <div
             className="bg-white rounded-2xl overflow-hidden mb-4"
             style={{ boxShadow: `0 0 0 1px ${RULE}` }}
           >
-            {inbox.length > 0 && (
-              <>
-                <div
-                  className="px-4 pt-3 pb-1.5 text-[11px] uppercase tracking-wider"
-                  style={{ color: SOFT }}
-                >
-                  Inbox · {inbox.length}
-                </div>
-                {rowsFor(inbox)}
-              </>
-            )}
-
-            {kept.length > 0 && (
-              <>
-                <button
-                  onClick={() => setKeptOpen((v) => !v)}
-                  className="w-full flex items-center justify-between px-4 pt-3 pb-1.5 text-[11px] uppercase tracking-wider"
-                  style={{ color: SOFT, borderTop: inbox.length ? `1px solid ${RULE}` : undefined }}
-                >
-                  <span>Kept · {kept.length}</span>
-                  {kept.length > KEPT_COLLAPSE_AT && !filter && <span>{keptCollapsed ? "▸" : "▾"}</span>}
-                </button>
-                {!keptCollapsed && rowsFor(kept)}
-              </>
-            )}
+            {rowsFor(visible)}
           </div>
         )}
       </div>
