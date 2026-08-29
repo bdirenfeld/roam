@@ -12,7 +12,7 @@
 //   - Everything else (POSTs, Supabase, auth): never touched.
 //
 // Bump VERSION to invalidate every cache on the next deploy.
-const VERSION = "roam-sw-v1";
+const VERSION = "roam-sw-v2";
 const PAGE_CACHE = `${VERSION}-pages`;
 const STATIC_CACHE = `${VERSION}-static`;
 const PHOTO_CACHE = `${VERSION}-photos`;
@@ -37,8 +37,7 @@ function isImmutableAsset(url) {
   return (
     url.origin === self.location.origin &&
     (url.pathname.startsWith("/_next/static/") ||
-      url.pathname.startsWith("/icons/") ||
-      url.pathname === "/manifest.json")
+      url.pathname.startsWith("/icons/"))
   );
 }
 

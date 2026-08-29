@@ -7,6 +7,10 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // manifest.json and sw.js are public static files. Running them through
+    // session handling redirects them for an unauthenticated fetch, and Chrome
+    // can't install or update a PWA whose manifest 307s — which is what kept
+    // the share target from appearing.
+    '/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
