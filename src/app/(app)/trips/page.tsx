@@ -130,7 +130,7 @@ export default async function TripsPage() {
               {past.length > 0 && (
                 <CollapsibleSection
                   label="Past journeys"
-                  className="mt-7 mb-3 md:mt-0"
+                  className="mt-7 mb-3 md:mt-10"
                 >
                   <PastJourneysList trips={past} openDayByTrip={openDayByTrip} />
                 </CollapsibleSection>
