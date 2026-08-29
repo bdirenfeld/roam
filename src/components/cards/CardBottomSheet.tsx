@@ -590,6 +590,20 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     [onClose]
   );
 
+  // Android fires touchcancel readily — the scroller claims the gesture, a
+  // second finger lands, the system takes over. touchend never arrives, so
+  // without this the inline transform written by handleTouchMove stays on the
+  // sheet with `transition: none` and it sits frozen wherever the finger
+  // stopped, never closing. Spring it back and drop the inline styles so the
+  // class-based animation owns the sheet again.
+  const handleTouchCancel = useCallback(() => {
+    dragAxis.current = "pending";
+    if (!isDragging.current || !sheetRef.current) return;
+    isDragging.current = false;
+    sheetRef.current.style.transition = "transform 300ms cubic-bezier(0.34,1.56,0.64,1)";
+    sheetRef.current.style.transform = "translateY(0)";
+  }, []);
+
   // ── Persistence helpers ───────────────────────────────────
   // OFFLINE — time edits and every other single-column save go through the
   // write queue. When the write can't reach Supabase it is stored and replayed
@@ -1012,6 +1026,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchCancel}
         className="relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet h-[95dvh] max-h-[95dvh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300 ease-spring"
         style={{ willChange: "transform" }}
       >
