@@ -145,6 +145,39 @@ export default function PromoteToWishlistSheet({
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  /**
+   * Resolve the name on open, rather than asking.
+   *
+   * An idea captured before place resolution existed has no coordinates, but it
+   * does have a name — and asking "which place is this?" when the row already
+   * says "castiglioncello" is the app making you answer a question it can
+   * answer itself. First prediction wins, exactly as the Year View's own
+   * name→coordinates path does, and the chosen place is shown with a Change
+   * beside it so a wrong guess costs one tap.
+   *
+   * Only when there is nothing to go on, or Google returns nothing, does the
+   * search box appear.
+   */
+  const autoTried = useRef(false);
+  useEffect(() => {
+    if (resolvedPlace || autoTried.current) return;
+    const q = initialQuery.trim();
+    if (q.length < 3) return;
+    autoTried.current = true;
+    let cancelled = false;
+    (async () => {
+      setBusy(true);
+      const preds = await fetchPredictions(q, token.current);
+      const best = preds[0] ? await fetchPlaceDetails(preds[0].place_id, token.current) : null;
+      if (cancelled) return;
+      setBusy(false);
+      if (!best) return; // stay on search — nothing was found to go on
+      setPicked(best);
+      setStep("target");
+    })();
+    return () => { cancelled = true; };
+  }, [initialQuery, resolvedPlace]);
+
   // Journeys, live ones first and nearest first within each group. The
   // coordinates were just resolved, so offering the journey that contains them
   // is a guess the app can actually make — but a shelved or finished journey
@@ -349,6 +382,19 @@ export default function PromoteToWishlistSheet({
             </p>
             <p className="text-[11.5px] mb-3" style={{ color: SOFT }}>
               {compactAddress(picked.address, picked.name)}
+              {" · "}
+              <button
+                onClick={() => {
+                  setPicked(null);
+                  setQuery(initialQuery);
+                  setPreds([]);
+                  setStep("search");
+                }}
+                className="underline"
+                style={{ color: CAPTION }}
+              >
+                Change
+              </button>
             </p>
 
             {ranked.map(({ j, km, shelved }, idx) => (
