@@ -56,7 +56,9 @@ function formatDateRange(start: string, end: string): string {
  */
 export default function DesktopMasthead() {
   const pathname = usePathname() ?? "";
-  const onJourneys = !pathname.startsWith("/trips/");
+  const onJourneys =
+    !pathname.startsWith("/trips/") && !pathname.startsWith("/ideas");
+  const onIdeas = pathname.startsWith("/ideas");
 
   // Derive trip ID + section segment from the current path. Matches
   // /trips/{id}, /trips/{id}/plan, /trips/{id}/days/{dayId}, /trips/{id}/map,
@@ -223,6 +225,26 @@ export default function DesktopMasthead() {
           }}
         >
           Journeys
+        </Link>
+
+        {/* Ideas is a destination, not a utility — you browse it and stay a
+            while. That is why it sits in the nav rather than as a glyph
+            beside the avatar. */}
+        <Link
+          href="/ideas"
+          className="font-display italic"
+          style={{
+            padding: "6px 2px",
+            marginLeft: 18,
+            fontWeight: onIdeas ? 500 : 400,
+            fontSize: 17,
+            color: onIdeas ? INK : CAPTION,
+            letterSpacing: "-0.005em",
+            borderBottom: onIdeas ? `1px solid ${INK}` : "1px solid transparent",
+            textDecoration: "none",
+          }}
+        >
+          Ideas
         </Link>
 
         {showTripStrip && currentTripId && (

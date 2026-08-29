@@ -7,16 +7,36 @@ interface AppHeaderProps {
   avatarUrl?: string | null;
   subtitle?: string;
   showNewTrip?: boolean;
+  /** Untriaged captures — shows as a dot beside Ideas. */
+  ideaCount?: number;
 }
 
-export default function AppHeader({ avatarUrl, subtitle, showNewTrip }: AppHeaderProps) {
+export default function AppHeader({ avatarUrl, subtitle, showNewTrip, ideaCount = 0 }: AppHeaderProps) {
   return (
     <header className="flex md:hidden items-center justify-between px-4 py-3 border-b border-gray-100 bg-white sticky top-0 z-30">
-      <div>
+      <div className="flex items-baseline gap-2.5 min-w-0">
         <Link href="/">
           <span className="font-display italic text-xl text-gray-900">
             Roam
           </span>
+        </Link>
+        <span className="text-gray-300 text-sm">|</span>
+        <Link href="/trips">
+          <span className="font-display italic text-[15px] text-gray-900">
+            Journeys
+          </span>
+        </Link>
+        {/* Top-level, not a glyph: Ideas is somewhere you browse. */}
+        <Link href="/ideas" className="relative">
+          <span className="font-display italic text-[15px] text-gray-400">
+            Ideas
+          </span>
+          {ideaCount > 0 && (
+            <span
+              className="absolute -top-0.5 -right-2 w-[6px] h-[6px] rounded-full"
+              style={{ background: "#C4622D" }}
+            />
+          )}
         </Link>
         {subtitle && (
           <p className="text-xs text-gray-500 font-medium -mt-0.5">{subtitle}</p>
