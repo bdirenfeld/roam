@@ -1142,27 +1142,30 @@ export default function YearView({ trips }: Props) {
           whether there's anything worth opening. As a row it sits with the
           journeys it describes and carries its own reason to tap. */}
       {!isOpen && (
-        <div className="px-4 md:px-0 mt-4 md:mt-6">
+        <div className="px-4 md:px-0">
           <button
             onClick={() => setOpen(true)}
-            className="w-full flex items-center justify-between rounded-[12px] bg-white px-3.5 py-3"
-            style={{ boxShadow: "0 0 0 1px rgba(26,26,46,0.08)" }}
+            aria-expanded={false}
+            className="flex items-center gap-1.5 mt-7 mb-3 md:mt-10"
           >
-            <span className="flex items-baseline gap-2.5">
-              <span
-                className="font-display italic text-[15px]"
-                style={{ color: "rgba(26,26,46,1)" }}
-              >
-                Your year
-              </span>
-              {openWindows.length > 0 && (
-                <span className="text-[11.5px]" style={{ color: "rgba(26,26,46,0.35)" }}>
-                  {openWindows.length} open{" "}
-                  {openWindows.length === 1 ? "window" : "windows"}
-                </span>
-              )}
+            <span
+              className="font-display italic text-sm md:text-[15px]"
+              style={{ color: "rgba(26,26,46,0.55)" }}
+            >
+              Your year
             </span>
-            <span style={{ color: "rgba(26,26,46,0.3)", fontSize: 15 }}>&rsaquo;</span>
+            <svg
+              width="11"
+              height="11"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#B8B4AC"
+              strokeWidth="3"
+              strokeLinecap="round"
+              style={{ transform: "rotate(-90deg)" }}
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
           </button>
         </div>
       )}
