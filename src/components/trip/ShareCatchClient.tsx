@@ -28,7 +28,11 @@ export default function ShareCatchClient({
   const [note, setNote] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
-  const [saved, setSaved] = useState(false);
+  // The heading is the only feedback on this screen, so it has to be the truth
+  // rather than a greeting. It was the static word "Saved" from the moment the
+  // page opened — which was true of the link, and told you nothing about the
+  // title you were typing underneath it.
+  const [status, setStatus] = useState<"saved" | "saving" | "error">("saved");
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // A pending debounce must not outlive the page — a share-target tab is often
@@ -37,12 +41,14 @@ export default function ShareCatchClient({
 
   const persist = async (next: { note?: string; tags?: string[] }) => {
     if (!ideaId) return;
+    setStatus("saving");
     const supabase = createClient();
-    await supabase
+    const { error } = await supabase
       .from("ideas")
       .update({ note: next.note ?? note, tags: next.tags ?? tags })
       .eq("id", ideaId);
-    setSaved(true);
+    // A failed write used to be indistinguishable from a successful one.
+    setStatus(error ? "error" : "saved");
   };
 
   const toggleTag = (t: string) => {
@@ -84,11 +90,20 @@ export default function ShareCatchClient({
     >
       <div className="mx-auto w-full max-w-[520px]">
         <div className="flex items-center gap-2 mb-4">
-          <Check size={18} weight="light" color={INK} />
-          <span className="font-display italic text-[24px]" style={{ color: INK }}>
-            Saved
+          {status === "saved" && <Check size={18} weight="light" color={INK} />}
+          <span
+            className="font-display italic text-[24px]"
+            style={{ color: status === "error" ? SIENNA : INK }}
+          >
+            {status === "saved" ? "Saved" : status === "saving" ? "Saving…" : "Not saved"}
           </span>
         </div>
+
+        {status === "error" && (
+          <p className="text-[12.5px] -mt-2 mb-4" style={{ color: SIENNA }}>
+            Your connection dropped. It&rsquo;ll save when you edit again.
+          </p>
+        )}
 
         <div
           className="bg-white rounded-2xl p-4 mb-4"
@@ -104,20 +119,20 @@ export default function ShareCatchClient({
           )}
         </div>
 
-        {/* A TikTok hands over a shortlink and nothing else. */}
-        {/* Saves as you stop typing, not on blur.
-            On a phone there is nothing to blur *to*: the keyboard covers the
-            page, a bare text input doesn't submit on the keyboard's Go, and the
-            heading says "Saved" the whole time — so the only honest reading was
-            that typing a title did nothing. Enter also closes the keyboard, and
-            enterKeyHint labels that key "done" rather than "go". */}
+        {/* A TikTok hands over a shortlink and nothing else.
+            Saves as you stop typing, not on blur: on a phone there is nothing
+            to blur *to* — the keyboard covers the page and a bare text input
+            doesn't submit on the keyboard's Go. Enter commits and closes the
+            keyboard, and enterKeyHint labels that key "done" rather than "go".
+            The heading above reports the result; there is no Save button
+            because there is nothing left for one to do. */}
         <input
           value={note}
           enterKeyHint="done"
           onChange={(e) => {
             const v = e.target.value;
             setNote(v);
-            setSaved(false);
+            setStatus("saving");
             if (saveTimer.current) clearTimeout(saveTimer.current);
             saveTimer.current = setTimeout(() => persist({ note: v }), 600);
           }}
@@ -163,7 +178,7 @@ export default function ShareCatchClient({
         <Link
           href="/ideas"
           className="block text-center text-[13px]"
-          style={{ color: saved ? SIENNA : CAPTION }}
+          style={{ color: CAPTION }}
         >
           All ideas
         </Link>
