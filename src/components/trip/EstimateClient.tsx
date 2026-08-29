@@ -355,15 +355,28 @@ export default function EstimateClient({
   const additional = est.lines.filter((l) => l.group === "additional");
 
   return (
+    // Overlay.tsx's contract: the hosted screen is a flex column with a
+    // `flex-1 min-h-0 overflow-y-auto` body. Without it the sheet has no
+    // scrolling region at all and the list is simply stuck.
     <div
-      className={variant === "overlay" ? "pb-8" : "min-h-screen bg-parchment pb-24"}
+      className={
+        variant === "overlay"
+          ? "h-full flex flex-col bg-parchment"
+          : "min-h-screen bg-parchment pb-24"
+      }
       style={
         variant === "overlay"
           ? undefined
           : { paddingTop: "max(1.25rem, env(safe-area-inset-top))" }
       }
     >
-      <div className="mx-auto w-full max-w-[560px] px-3 pt-2">
+      <div
+        className={
+          variant === "overlay"
+            ? "flex-1 min-h-0 overflow-y-auto mx-auto w-full max-w-[560px] px-3 pt-2 pb-24"
+            : "mx-auto w-full max-w-[560px] px-3 pt-2"
+        }
+      >
         <button
           onClick={() => (onDismiss ? onDismiss() : router.back())}
           className="flex items-center gap-1 mb-5 px-1"

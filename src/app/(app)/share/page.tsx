@@ -47,12 +47,30 @@ export default async function SharePage({ searchParams }: Props) {
     .select("id")
     .single();
 
+  // Tags already in use, most-used first. Reusing one is a tap; the point is
+  // that tagging happens now, while you still remember why you saved it.
+  const { data: tagged } = await supabase
+    .from("ideas")
+    .select("tags")
+    .eq("user_id", user.id);
+  const counts = new Map<string, number>();
+  for (const row of tagged ?? []) {
+    for (const t of (row.tags ?? []) as string[]) {
+      counts.set(t, (counts.get(t) ?? 0) + 1);
+    }
+  }
+  const knownTags = Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 12)
+    .map(([t]) => t);
+
   return (
     <ShareCatchClient
       ideaId={idea?.id ?? null}
       title={caption}
       link={link}
       source={source}
+      knownTags={knownTags}
     />
   );
 }

@@ -10,6 +10,7 @@ import { belongsInPastJourneys, isPastJourney } from "@/lib/tripRecency";
 import { createSampleJourney } from "@/lib/sampleTrip/actions";
 import AddToHomeScreenHint from "@/components/ui/AddToHomeScreenHint";
 import YearView from "@/components/trips/YearView";
+import CollapsibleSection from "@/components/trip/CollapsibleSection";
 
 export default async function TripsPage() {
   const supabase = await createClient();
@@ -139,55 +140,25 @@ export default async function TripsPage() {
                 </div>
               )}
 
-              {/* Past journeys */}
+              {/* Past journeys — folded away by default. Date-past rows are
+                  delete-only; there's nothing to restore. */}
               {past.length > 0 && (
-                <>
-                  {/* Hairline divider with centered label */}
-                  <div className="mt-6 mb-3 flex items-center gap-3 md:mt-0 md:mb-3.5 md:gap-4">
-                    <div className="flex-1" style={{ height: "0.5px", background: "#E8E3DA" }} />
-                    <span
-                      className="md:hidden font-display italic text-sm"
-                      style={{ color: "#B8B4AC" }}
-                    >
-                      Past journeys
-                    </span>
-                    <span
-                      className="hidden md:inline font-display italic"
-                      style={{ fontSize: 15, color: "rgba(26,26,46,0.55)" }}
-                    >
-                      Past journeys
-                    </span>
-                    <div className="flex-1" style={{ height: "0.5px", background: "#E8E3DA" }} />
-                  </div>
-
-                  {/* Date-past rows — delete only; there's nothing to restore. */}
+                <CollapsibleSection
+                  label="Past journeys"
+                  count={past.length}
+                  className="mt-6 mb-3 md:mt-0 md:mb-3.5"
+                >
                   <PastJourneysList trips={past} openDayByTrip={openDayByTrip} />
-                </>
+                </CollapsibleSection>
               )}
 
               {/* Archived — shelved on purpose, whatever their dates. Only
                   rendered when something is archived. Restore puts a future
                   trip back in Upcoming; a date-past one lands in Past above. */}
               {archivedTrips.length > 0 && (
-                <>
-                  <div className="mt-6 mb-3 flex items-center gap-3 md:mt-10 md:mb-3.5 md:gap-4">
-                    <div className="flex-1" style={{ height: "0.5px", background: "#E8E3DA" }} />
-                    <span
-                      className="md:hidden font-display italic text-sm"
-                      style={{ color: "#B8B4AC" }}
-                    >
-                      Archived
-                    </span>
-                    <span
-                      className="hidden md:inline font-display italic"
-                      style={{ fontSize: 15, color: "rgba(26,26,46,0.55)" }}
-                    >
-                      Archived
-                    </span>
-                    <div className="flex-1" style={{ height: "0.5px", background: "#E8E3DA" }} />
-                  </div>
+                <CollapsibleSection label="Archived" count={archivedTrips.length}>
                   <PastJourneysList trips={archivedTrips} openDayByTrip={openDayByTrip} />
-                </>
+                </CollapsibleSection>
               )}
             </>
           ) : (

@@ -9,35 +9,76 @@ const INK = "#1A1A2E";
 const CAPTION = "rgba(26,26,46,0.55)";
 const SOFT = "rgba(26,26,46,0.35)";
 const RULE = "rgba(26,26,46,0.10)";
+const SIENNA = "#C4622D";
 
 export default function ShareCatchClient({
   ideaId,
   title,
   link,
   source,
+  knownTags,
 }: {
   ideaId: string | null;
   title: string | null;
   link: string | null;
   source: string | null;
+  /** Tags already in use, most-used first — tapping one is the whole flow. */
+  knownTags: string[];
 }) {
   const [note, setNote] = useState("");
-  const [savedNote, setSavedNote] = useState(false);
+  const [tags, setTags] = useState<string[]>([]);
+  const [newTag, setNewTag] = useState("");
+  const [saved, setSaved] = useState(false);
 
-  const saveNote = async () => {
+  const persist = async (next: { note?: string; tags?: string[] }) => {
     if (!ideaId) return;
     const supabase = createClient();
-    await supabase.from("ideas").update({ note }).eq("id", ideaId);
-    setSavedNote(true);
+    await supabase
+      .from("ideas")
+      .update({ note: next.note ?? note, tags: next.tags ?? tags })
+      .eq("id", ideaId);
+    setSaved(true);
   };
+
+  const toggleTag = (t: string) => {
+    const next = tags.includes(t) ? tags.filter((x) => x !== t) : [...tags, t];
+    setTags(next);
+    persist({ tags: next });
+  };
+
+  const addNewTag = () => {
+    const t = newTag.trim().toLowerCase();
+    if (!t || tags.includes(t)) return setNewTag("");
+    const next = [...tags, t];
+    setTags(next);
+    setNewTag("");
+    persist({ tags: next });
+  };
+
+  const chip = (t: string, on: boolean) => (
+    <button
+      key={t}
+      onClick={() => toggleTag(t)}
+      className="px-3 py-1.5 rounded-full text-[12.5px]"
+      style={
+        on
+          ? { background: SIENNA, color: "#fff" }
+          : { border: `1px solid ${RULE}`, color: CAPTION, background: "#fff" }
+      }
+    >
+      {t}
+    </button>
+  );
+
+  const unused = knownTags.filter((t) => !tags.includes(t));
 
   return (
     <div
       className="min-h-screen bg-parchment px-4"
-      style={{ paddingTop: "max(2rem, env(safe-area-inset-top))" }}
+      style={{ paddingTop: "max(1.5rem, env(safe-area-inset-top))" }}
     >
       <div className="mx-auto w-full max-w-[520px]">
-        <div className="flex items-center gap-2 mb-5">
+        <div className="flex items-center gap-2 mb-4">
           <Check size={18} weight="light" color={INK} />
           <span className="font-display italic text-[24px]" style={{ color: INK }}>
             Saved
@@ -58,32 +99,46 @@ export default function ShareCatchClient({
           )}
         </div>
 
-        {/* A TikTok hands over a shortlink and nothing else, so without a word
-            or two here it is unidentifiable by March. */}
+        {/* A TikTok hands over a shortlink and nothing else. */}
         <input
           value={note}
           onChange={(e) => {
             setNote(e.target.value);
-            setSavedNote(false);
+            setSaved(false);
           }}
-          onBlur={saveNote}
+          onBlur={() => persist({ note })}
           placeholder="Which place is this?"
-          className="w-full rounded-xl px-3.5 py-3 text-[14px] mb-3"
+          className="w-full rounded-xl px-3.5 py-3 text-[14px] mb-4"
           style={{ background: "#fff", border: `1px solid ${RULE}`, color: INK }}
         />
 
-        <button
-          onClick={saveNote}
-          className="w-full rounded-full py-3 text-[14px]"
-          style={{ background: INK, color: "#fff" }}
-        >
-          {savedNote ? "Saved" : "Add note"}
-        </button>
+        <div className="flex flex-wrap gap-2 mb-3">
+          {tags.map((t) => chip(t, true))}
+          {unused.map((t) => chip(t, false))}
+        </div>
+
+        <div className="flex gap-2 mb-5">
+          <input
+            value={newTag}
+            onChange={(e) => setNewTag(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addNewTag()}
+            placeholder="New tag"
+            className="flex-1 rounded-xl px-3.5 py-2.5 text-[13.5px]"
+            style={{ background: "#fff", border: `1px solid ${RULE}`, color: INK }}
+          />
+          <button
+            onClick={addNewTag}
+            className="px-4 rounded-xl text-[13.5px]"
+            style={{ border: `1px solid ${RULE}`, color: CAPTION, background: "#fff" }}
+          >
+            Add
+          </button>
+        </div>
 
         <Link
           href="/ideas"
-          className="block text-center text-[13px] mt-4"
-          style={{ color: CAPTION }}
+          className="block text-center text-[13px]"
+          style={{ color: saved ? SIENNA : CAPTION }}
         >
           All ideas
         </Link>
