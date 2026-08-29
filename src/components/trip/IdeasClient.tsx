@@ -50,6 +50,24 @@ function ideaTitle(i: Idea): string {
 }
 
 /**
+ * A still map of where the idea is, for the expanded row.
+ *
+ * Recognition, not exploration: you are checking that "Castiglioncello" is the
+ * stretch of coast you remember, and a picture answers that. Panning and
+ * zooming would turn a list row into an application, and the journey's own map
+ * is where exploring belongs.
+ */
+function staticMapUrl(place: ResolvedIdeaPlace | null): string | null {
+  const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+  if (!place || !token) return null;
+  return (
+    `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/` +
+    `pin-s+c4622d(${place.lng},${place.lat})/` +
+    `${place.lng},${place.lat},11,0/640x300@2x?access_token=${token}`
+  );
+}
+
+/**
  * One idea, two lines.
  *
  * At module scope on purpose. Defined inside IdeasClient it would be a new
@@ -83,6 +101,7 @@ function IdeaRow({
 
   const tags = idea.tags ?? [];
   const src = shortSource(idea.source);
+  const mapUrl = staticMapUrl(idea.place);
 
   // What became of it. The meta line already carries source and tags; the
   // outcome joins them, so you can see at a glance which ideas you have
@@ -138,6 +157,22 @@ function IdeaRow({
 
       {open && (
         <div className="px-4 pb-3" style={{ background: "#FCFBF8" }}>
+          {mapUrl && idea.place && (
+            <div className="mb-2.5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={mapUrl}
+                alt={`Map showing ${idea.place.name}`}
+                className="w-full rounded-lg"
+                style={{ aspectRatio: "64 / 30", objectFit: "cover", border: `1px solid ${RULE}` }}
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+              />
+              <p className="text-[10.5px] mt-1" style={{ color: SOFT }}>
+                {idea.place.address}
+              </p>
+            </div>
+          )}
+
           <div className="flex flex-wrap gap-1.5">
             {/* One action, not two. An idea can produce a destination *and*
                 pins — a Puglia guide justifies the region on the wishlist and
