@@ -145,8 +145,7 @@ export default async function TripsPage() {
               {past.length > 0 && (
                 <CollapsibleSection
                   label="Past journeys"
-                  count={past.length}
-                  className="mt-6 mb-3 md:mt-0 md:mb-3.5"
+                  className="mt-7 mb-3 md:mt-0"
                 >
                   <PastJourneysList trips={past} openDayByTrip={openDayByTrip} />
                 </CollapsibleSection>
@@ -156,7 +155,7 @@ export default async function TripsPage() {
                   rendered when something is archived. Restore puts a future
                   trip back in Upcoming; a date-past one lands in Past above. */}
               {archivedTrips.length > 0 && (
-                <CollapsibleSection label="Archived" count={archivedTrips.length}>
+                <CollapsibleSection label="Archived">
                   <PastJourneysList trips={archivedTrips} openDayByTrip={openDayByTrip} />
                 </CollapsibleSection>
               )}
