@@ -116,7 +116,9 @@ export default function TripCard({ trip, openDayId }: Props) {
         <button
           onClick={() => setMenuOpen((v) => !v)}
           className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full flex items-center justify-center opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity duration-150"
-          style={{ background: "rgba(0,0,0,0.5)" }}
+          // Permanently visible on touch, so it has to sit quietly on the
+          // photograph rather than punch a dark hole in it.
+          style={{ background: "rgba(0,0,0,0.24)", backdropFilter: "blur(6px)" }}
           aria-label={`Options for ${trip.title}`}
           aria-haspopup="menu"
           aria-expanded={menuOpen}

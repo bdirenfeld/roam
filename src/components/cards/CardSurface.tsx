@@ -1,5 +1,4 @@
-import type { Card, CardType } from "@/types/database";
-import { getMaterialIconHTML } from "@/lib/mapPins";
+import type { Card } from "@/types/database";
 import { getPriceRange } from "@/lib/priceRange";
 import { formatTimeRange } from "@/lib/formatTime";
 import { getOpeningHoursConflict, openingHoursCaption, openingHoursTone } from "@/lib/openingHours";
@@ -31,12 +30,6 @@ function isConfirmable(card: Card): boolean {
   );
 }
 
-const TYPE_COLOR: Record<CardType, { border: string; icon: string; bg: string }> = {
-  logistics: { border: "border-l-gray-400", icon: "text-gray-500", bg: "bg-gray-100" },
-  activity:  { border: "border-l-gray-400", icon: "text-gray-500", bg: "bg-gray-100" },
-  food:      { border: "border-l-gray-400", icon: "text-gray-500", bg: "bg-gray-100" },
-};
-
 const SUB_TYPE_SHORT: Record<string, string> = {
   flight_arrival:   "Arrival",
   flight_departure: "Departure",
@@ -56,169 +49,168 @@ function flightRoute(det: Record<string, unknown> | null, timeRange: string | nu
     const base = `${origin} → ${arriving}`;
     return timeRange ? `${base} · ${timeRange}` : base;
   }
-  // Fall back to airline name
   return typeof det?.airline === "string" ? det.airline : null;
 }
 
+/** "6:00 pm" for the rail. The range still shows in the line beneath. */
+function railTime(start: string | null): string | null {
+  if (!start) return null;
+  const [h, m] = start.split(":").map(Number);
+  if (Number.isNaN(h)) return null;
+  const suffix = h < 12 ? "am" : "pm";
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hour12}:${String(m ?? 0).padStart(2, "0")} ${suffix}`;
+}
+
+/** First sentence of the notes — what the card actually says about the place. */
+function noteLead(det: Record<string, unknown> | null): string | null {
+  const notes = typeof det?.notes === "string" ? det.notes : null;
+  if (!notes) return null;
+  const firstLine = notes.split("\n").find((l) => l.trim().length > 0);
+  if (!firstLine) return null;
+  const trimmed = firstLine.trim();
+  return trimmed.length > 150 ? trimmed.slice(0, 148).trimEnd() + "…" : trimmed;
+}
+
+/**
+ * One entry in a day.
+ *
+ * This was a bordered, shadowed card with a grey pin icon on every row and a
+ * chevron on the end — five SaaS defaults stacked up. It is a page now: the
+ * time hangs in a left rail, the name is set in the display face, hairlines
+ * separate rather than boxes contain, and where the place has a photograph the
+ * photograph is used. The app already had those pictures and the agenda was
+ * throwing them away for an identical grey placeholder.
+ */
 export default function CardSurface({ card, dayDate, onTap, isHighlighted, onToggleConfirmed, pinIndex }: Props) {
   const place     = card.place;
-  const det        = card.details as Record<string, unknown> | null;
-  // Unlinked cards default to activity-style color for the icon block
-  const placeType: CardType = place?.type ?? "activity";
-  const colors    = TYPE_COLOR[placeType];
+  const det       = card.details as Record<string, unknown> | null;
   const subLabel  = place?.sub_type ? (SUB_TYPE_SHORT[place.sub_type] ?? null) : null;
   const timeRange = formatTimeRange(card.start_time, card.end_time);
-  // Opening-hours conflict signal — silent unless the scheduled time clashes.
   const hoursSignal = place ? getOpeningHoursConflict(place.hours, dayDate ?? null, card.start_time) : null;
   const noteSnippet = !place ? (det?.notes as string | undefined) : undefined;
   const title     = place?.title ?? (det?.title as string | undefined) ?? noteSnippet?.slice(0, 60) ?? "(untitled note)";
 
   const isFlight = place?.sub_type === "flight_arrival" || place?.sub_type === "flight_departure";
 
-  // Subtitle: flights get a route string; others prefer address, fall back to sub-type label
-  const subtitle = isFlight
+  // What the entry says about itself, in priority: the flight route, then the
+  // note you actually wrote, then the address.
+  const detail = isFlight
     ? flightRoute(det, timeRange)
-    : (place?.address ?? subLabel);
+    : (noteLead(det) ?? place?.address ?? subLabel);
+
   const surfRating = place?.type === "food" ? place.rating : null;
-  // The two trustworthy signals: a place this family already loved, and the
-  // person who sent them there. Both stay quiet — a glyph and one small line.
   const isLoved    = place?.loved === true;
   const recommender = readRecommendedBy(det);
   const priceRange = place?.type === "food"
     ? getPriceRange(place.price_level ?? undefined, det?.currency_code as string | undefined)
     : null;
 
-  // At md:+, the outer button becomes a row containing a numbered-pin column
-  // (when pinIndex is set) plus the inner card. At mobile, the inner card
-  // carries all the visual styling and the outer is a thin wrapper — keeps
-  // mobile pixel-identical.
-  // Guest read-only renders a plain div (no press feedback, no chevron) so a
-  // dead tap never implies an editable surface. Cast keeps the dynamic tag
-  // type-checking against the shared (button-compatible) prop set.
+  const rail = railTime(card.start_time);
+  const confirmed = isConfirmable(card) && card.confirmed;
+
   const interactive = !!onTap;
   const Wrapper = (interactive ? "button" : "div") as "button";
 
   return (
     <Wrapper
       onClick={onTap}
-      className={`w-full text-left transition-all duration-150 mb-2.5 md:mb-2 md:flex md:items-stretch md:gap-3.5 ${
-        interactive ? "active:scale-[0.99]" : ""
+      className={`w-full text-left flex gap-3 md:gap-5 py-3.5 md:py-[18px] transition-colors ${
+        isHighlighted ? "card-highlight" : ""
       }`}
+      style={{ borderBottom: "1px solid rgba(26,26,46,0.10)" }}
     >
-      {/* Desktop-only numbered pin column — matches the map marker badge */}
-      <div className="hidden md:flex md:flex-shrink-0 md:w-7 md:flex-col md:items-center md:pt-[18px]">
-        {pinIndex != null && (
-          <div
-            className="w-[22px] h-[22px] rounded-full flex items-center justify-center"
-            style={{ background: "#1A1A2E" }}
-          >
-            <span
-              className="text-[11px] font-semibold leading-none"
-              style={{ color: "#FAF7F2", fontFeatureSettings: '"tnum"' }}
-            >
-              {pinIndex}
-            </span>
-          </div>
-        )}
+      {/* The rail. Untimed entries keep the column so every title starts on
+          the same line — an empty rail reads as "anytime", not as a gap. */}
+      <div
+        className="w-[52px] md:w-[74px] shrink-0 pt-[5px] text-[10px] md:text-[10.5px] uppercase"
+        style={{ letterSpacing: "0.1em", color: "rgba(26,26,46,0.35)" }}
+      >
+        {rail}
       </div>
 
-      {/* Card body — mobile classes are unchanged; md: overrides apply the editorial card */}
-      <div
-        className={`flex items-center gap-3 p-3 rounded-xl border border-gray-100 border-l-[3px] shadow-card hover:shadow-card-hover bg-white md:flex-1 md:min-w-0 md:gap-3.5 md:p-[14px] md:px-[18px] md:rounded-[14px] md:border-l md:shadow-[0_1px_2px_rgba(26,26,46,0.04),0_0_0_1px_rgba(26,26,46,0.12)] ${colors.border}${isHighlighted ? " card-highlight" : ""}`}
-      >
-        {/* Category icon */}
-        <div className={`relative w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 md:rounded-full md:bg-[rgba(26,26,46,0.05)] ${colors.bg} ${colors.icon}`}>
-          {/* eslint-disable-next-line react/no-danger */}
-          <div dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(place?.sub_type ?? null, 18) }} />
-          {isConfirmable(card) && card.confirmed && onToggleConfirmed && (
+      <div className="flex-1 min-w-0">
+        {(subLabel || pinIndex != null) && (
+          <p
+            className="hidden md:flex md:items-center md:gap-2 text-[9.5px] font-medium uppercase leading-none mb-[5px]"
+            style={{ letterSpacing: "0.18em", color: "rgba(26,26,46,0.4)" }}
+          >
+            {pinIndex != null && (
+              <span
+                className="inline-flex items-center justify-center w-[17px] h-[17px] rounded-full"
+                style={{ background: "#1A1A2E", color: "#FAF7F2", fontSize: 9.5, letterSpacing: 0 }}
+              >
+                {pinIndex}
+              </span>
+            )}
+            {subLabel}
+          </p>
+        )}
+
+        <div className="flex items-center gap-1.5 min-w-0">
+          <p
+            className="min-w-0 font-display text-[17px] md:text-[20px] leading-[1.24] truncate"
+            style={{ color: "#1A1A2E" }}
+          >
+            {title}
+          </p>
+          {isLoved && <LovedHeart size={11} />}
+          {confirmed && onToggleConfirmed && (
             <button
               onClick={(e) => { e.stopPropagation(); onToggleConfirmed(); }}
               aria-label="Confirmed — tap to unconfirm"
-              style={{
-                position: "absolute",
-                bottom: -2,
-                right: -2,
-                width: 12,
-                height: 12,
-                borderRadius: "50%",
-                backgroundColor: "#1A1A2E",
-                border: "1.5px solid #FAF7F2",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: 0,
-              }}
+              className="shrink-0 inline-flex items-center justify-center"
+              style={{ width: 13, height: 13, borderRadius: "50%", background: "#1A1A2E" }}
             >
-              <svg width="6" height="6" viewBox="0 0 7 7" fill="none">
-                <polyline points="1,3.5 2.8,5.5 6,1.5" stroke="#FAF7F2" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+              <svg width="7" height="7" viewBox="0 0 7 7" fill="none">
+                <polyline points="1,3.5 2.8,5.5 6,1.5" stroke="#FAF7F2" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
           )}
         </div>
 
-        {/* Title + subtitle */}
-        <div className="flex-1 min-w-0">
-          {/* Desktop-only kind small-caps caption */}
-          {subLabel && (
-            <p
-              className="hidden md:block text-[9.5px] font-medium uppercase leading-none text-activity/50 mb-[3px]"
-              style={{ letterSpacing: "0.18em" }}
-            >
-              {subLabel}
-            </p>
-          )}
-          <div className="flex items-center gap-1.5 min-w-0">
-            <p className="min-w-0 text-[13px] font-bold text-gray-900 truncate leading-snug md:text-[15.5px] md:font-medium md:text-activity md:tracking-[-0.005em]">
-              {title}
-            </p>
-            {isLoved && <LovedHeart size={11} />}
-          </div>
-          {hoursSignal && (
-            <p className={`text-[11px] ${openingHoursTone(hoursSignal)} mt-0.5 truncate leading-snug md:text-[12.5px] md:mt-[2px] md:tracking-[-0.005em]`}>
-              {openingHoursCaption(hoursSignal)}
-            </p>
-          )}
-          {(timeRange || subtitle) && (
-            <p className="text-[11px] text-gray-600 mt-0.5 truncate leading-snug md:text-[12.5px] md:text-activity/50 md:mt-[2px] md:tracking-[-0.005em]">
-              {isFlight ? subtitle : (
-                <>
-                  {timeRange}
-                  {timeRange && subtitle && <span className="mx-1">·</span>}
-                  {subtitle}
-                </>
-              )}
-            </p>
-          )}
-          {priceRange && (
-            <p className="text-[10px] font-semibold text-amber-500 mt-0.5 leading-snug md:text-[11.5px] md:mt-[2px]">
-              {surfRating !== null ? `★ ${surfRating.toFixed(1)} · ` : ""}{priceRange}
-            </p>
-          )}
-          {/* Who sent you here. Sits last so it reads as provenance, not as
-              another fact about the place. */}
-          {recommender && (
-            <p className="text-[10.5px] text-activity/50 mt-0.5 truncate leading-snug md:text-[11.5px] md:mt-[2px] md:tracking-[-0.005em]">
-              {recommendedByLine(recommender)}
-            </p>
-          )}
-          {/* Checklist progress and attachment count — Trello's card-face
-              indicators. Renders nothing when the card has neither, so a card
-              that has never had a list is unchanged. */}
-          <CardBadges card={card} className="mt-1" />
-        </div>
-
-        {/* Chevron — only when the card is tappable */}
-        {interactive && (
-          <>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2.5" strokeLinecap="round" className="flex-shrink-0 md:hidden">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(26,26,46,0.30)" strokeWidth="1.3" strokeLinecap="round" className="hidden md:block md:flex-shrink-0">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </>
+        {hoursSignal && (
+          <p className={`text-[11.5px] md:text-[12.5px] mt-[3px] truncate leading-snug ${openingHoursTone(hoursSignal)}`}>
+            {openingHoursCaption(hoursSignal)}
+          </p>
         )}
+
+        {detail && (
+          <p
+            className="text-[12.5px] md:text-[13px] mt-[3px] leading-[1.45] line-clamp-2"
+            style={{ color: "rgba(26,26,46,0.55)" }}
+          >
+            {detail}
+          </p>
+        )}
+
+        {priceRange && (
+          <p className="text-[11px] md:text-[11.5px] font-medium mt-[3px] leading-snug" style={{ color: "#C4622D" }}>
+            {surfRating !== null ? `★ ${surfRating.toFixed(1)} · ` : ""}{priceRange}
+          </p>
+        )}
+
+        {recommender && (
+          <p className="text-[11px] md:text-[11.5px] mt-[3px] truncate leading-snug" style={{ color: "rgba(26,26,46,0.4)" }}>
+            {recommendedByLine(recommender)}
+          </p>
+        )}
+
+        <CardBadges card={card} className="mt-1.5" />
       </div>
+
+      {/* The photograph, where there is one. Note cards and unlinked entries
+          get nothing rather than a placeholder — the asymmetry is honest. */}
+      {place?.id && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={`/api/places/photo?place_id=${place.id}&index=0`}
+          alt=""
+          loading="lazy"
+          className="w-[52px] h-[52px] md:w-[76px] md:h-[76px] rounded-lg object-cover shrink-0 bg-[rgba(26,26,46,0.04)]"
+          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+        />
+      )}
     </Wrapper>
   );
 }

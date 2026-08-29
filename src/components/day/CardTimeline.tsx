@@ -249,7 +249,7 @@ export default function CardTimeline({
               <line x1="3" y1="10" x2="21" y2="10" />
             </svg>
           </div>
-          <p className="text-sm font-semibold text-gray-500">Nothing planned yet</p>
+          <p className="text-sm font-semibold text-gray-500">Nothing planned yet</p>
           <div className="mt-6 w-full max-w-[320px]">{renderAddControls(false)}</div>
         </div>
       ) : (
@@ -259,7 +259,7 @@ export default function CardTimeline({
             const gap = nextCard ? minutesBetween(card.end_time, nextCard.start_time) : 0;
 
             return (
-              <div key={card.id} data-card-id={card.id} className="mb-5">
+              <div key={card.id} data-card-id={card.id} className="">
                 <CardSurface
                   card={card}
                   dayDate={dayWithCards.date}
@@ -298,7 +298,7 @@ export default function CardTimeline({
               <SortableContext items={untimedCards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
                 {untimedCards.map((card) => (
                   <SortableUntimedRow key={card.id} card={card}>
-                    <div data-card-id={card.id} className="mb-5">
+                    <div data-card-id={card.id} className="">
                       <CardSurface
                         card={card}
                         dayDate={dayWithCards.date}
@@ -316,7 +316,7 @@ export default function CardTimeline({
             </DndContext>
           ) : (
             untimedCards.map((card) => (
-              <div key={card.id} data-card-id={card.id} className="mb-5">
+              <div key={card.id} data-card-id={card.id} className="">
                 <CardSurface
                   card={card}
                   dayDate={dayWithCards.date}
