@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Check } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -25,6 +25,7 @@ export default function ShareCatchClient({
   /** Tags already in use, most-used first — tapping one is the whole flow. */
   knownTags: string[];
 }) {
+  const router = useRouter();
   const [note, setNote] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
@@ -124,8 +125,8 @@ export default function ShareCatchClient({
             to blur *to* — the keyboard covers the page and a bare text input
             doesn't submit on the keyboard's Go. Enter commits and closes the
             keyboard, and enterKeyHint labels that key "done" rather than "go".
-            The heading above reports the result; there is no Save button
-            because there is nothing left for one to do. */}
+            The heading above reports the result, and Done at the foot is the
+            way out. */}
         <input
           value={note}
           enterKeyHint="done"
@@ -175,13 +176,26 @@ export default function ShareCatchClient({
           </button>
         </div>
 
-        <Link
-          href="/ideas"
-          className="block text-center text-[13px]"
-          style={{ color: CAPTION }}
+        {/* The way out, and the only button on the screen.
+            It was centred grey text, which reads as a caption rather than a
+            control — the screen looked like it had no exit at all.
+
+            It says "Done", not "Saved": a button names what it does, and one
+            labelled "Saved" would be claiming something it can't know while a
+            write is still in flight. The heading above carries the state; this
+            waits for it, so you can't leave mid-save and wonder afterwards. */}
+        <button
+          onClick={() => router.push("/ideas")}
+          disabled={status === "saving"}
+          className="block w-full text-center rounded-xl py-3 text-[14px]"
+          style={{
+            background: INK,
+            color: "#FAF7F2",
+            opacity: status === "saving" ? 0.5 : 1,
+          }}
         >
-          All ideas
-        </Link>
+          {status === "saving" ? "Saving…" : "Done"}
+        </button>
       </div>
     </div>
   );
