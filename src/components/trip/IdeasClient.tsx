@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { CaretLeft } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import PromoteToWishlistSheet from "./PromoteToWishlistSheet";
+import SetLocationSheet from "./SetLocationSheet";
 import type { JourneySummary, PromoteOutcome, ResolvedIdeaPlace } from "./PromoteToWishlistSheet";
 
 const INK = "#1A1A2E";
@@ -12,6 +13,12 @@ const CAPTION = "rgba(26,26,46,0.55)";
 const SOFT = "rgba(26,26,46,0.35)";
 const RULE = "rgba(26,26,46,0.10)";
 const SIENNA = "#C4622D";
+
+type IdeaFilter =
+  | { kind: "all" }
+  | { kind: "unused" }
+  | { kind: "journey"; value: string }
+  | { kind: "tag"; value: string };
 
 export interface Idea {
   id: string;
@@ -49,6 +56,32 @@ function ideaTitle(i: Idea): string {
   return i.note || i.title || i.url || "Untitled";
 }
 
+function FilterOption({
+  label,
+  count,
+  selected,
+  onSelect,
+}: {
+  label: string;
+  count: number;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      onClick={onSelect}
+      className="w-full flex items-baseline justify-between gap-3 py-2 px-0.5 text-left"
+    >
+      <span className="text-[13.5px] truncate" style={{ color: selected ? SIENNA : INK }}>
+        {label}
+      </span>
+      <span className="text-[11.5px] shrink-0" style={{ color: selected ? SIENNA : SOFT }}>
+        {count}
+      </span>
+    </button>
+  );
+}
+
 /**
  * A still map of where the idea is, for the expanded row.
  *
@@ -82,6 +115,7 @@ function IdeaRow({
   onToggle,
   onToggleTag,
   onPromote,
+  onSetLocation,
   onRemove,
   onOpenWishlist,
   journeys,
@@ -92,6 +126,7 @@ function IdeaRow({
   onToggle: () => void;
   onToggleTag: (idea: Idea, tag: string) => void;
   onPromote: (idea: Idea) => void;
+  onSetLocation: (idea: Idea) => void;
   onRemove: () => void;
   onOpenWishlist: () => void;
   journeys: JourneySummary[];
@@ -186,6 +221,16 @@ function IdeaRow({
               Add to a journey
             </button>
 
+            {!idea.place && (
+              <button
+                onClick={() => onSetLocation(idea)}
+                className="px-3 py-1.5 rounded-full text-[11.5px]"
+                style={{ border: `1px solid ${RULE}`, color: CAPTION }}
+              >
+                Set location
+              </button>
+            )}
+
             {idea.wishlist_destination_id && (
               <button
                 onClick={onOpenWishlist}
@@ -275,9 +320,11 @@ export default function IdeasClient({
 }) {
   const router = useRouter();
   const [ideas, setIdeas] = useState(initial);
-  const [filter, setFilter] = useState<string | null>(null);
+  const [filter, setFilter] = useState<IdeaFilter>({ kind: "all" });
+  const [filterOpen, setFilterOpen] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [promoting, setPromoting] = useState<Idea | null>(null);
+  const [locating, setLocating] = useState<Idea | null>(null);
   const [justAdded, setJustAdded] = useState<string | null>(null);
 
   // × deletes. It used to set status "passed" and hide the row, which left the
@@ -303,7 +350,43 @@ export default function IdeasClient({
   // "you haven't pressed the redundant button yet". Removed is the one state
   // left, and it just means gone from the list.
   const live = useMemo(() => ideas.filter((i) => i.status !== "passed"), [ideas]);
-  const visible = filter ? live.filter((i) => (i.tags ?? []).includes(filter)) : live;
+
+  // One filter, three kinds of question. Tags answer "show me beach things",
+  // journeys answer "show me what I saved for Puglia" — the question you
+  // actually ask when planning — and "not yet used" answers "what have I done
+  // nothing with". A row of tag chips could only ever answer the first, and
+  // wrapped into a wall once there were more than a handful.
+  const visible = useMemo(() => {
+    if (filter.kind === "tag") return live.filter((i) => (i.tags ?? []).includes(filter.value));
+    if (filter.kind === "journey") return live.filter((i) => i.pinned_trip_id === filter.value);
+    if (filter.kind === "unused")
+      return live.filter((i) => i.pins_added === 0 && !i.wishlist_destination_id);
+    return live;
+  }, [live, filter]);
+
+  const unusedCount = useMemo(
+    () => live.filter((i) => i.pins_added === 0 && !i.wishlist_destination_id).length,
+    [live]
+  );
+
+  // Only journeys that actually hold something — an empty row is a dead end.
+  const journeyCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const i of live) if (i.pinned_trip_id) m.set(i.pinned_trip_id, (m.get(i.pinned_trip_id) ?? 0) + 1);
+    return journeys
+      .map((j) => ({ j, n: m.get(j.id) ?? 0 }))
+      .filter((x) => x.n > 0)
+      .sort((a, b) => b.n - a.n);
+  }, [live, journeys]);
+
+  const filterLabel =
+    filter.kind === "all"
+      ? "All ideas"
+      : filter.kind === "unused"
+        ? "Not yet used"
+        : filter.kind === "journey"
+          ? journeys.find((j) => j.id === filter.value)?.title ?? "A journey"
+          : filter.value;
 
   // Every tag in use, with counts — the closest thing to Pinterest boards,
   // except an idea can sit in several at once. Counted over `live`, the same
@@ -331,6 +414,7 @@ export default function IdeasClient({
         onToggle={() => setOpenId(openId === i.id ? null : i.id)}
         onToggleTag={toggleTag}
         onPromote={setPromoting}
+        onSetLocation={setLocating}
         onRemove={() => remove(i.id)}
         onOpenWishlist={() => router.push("/trips#your-year")}
         journeys={journeys}
@@ -356,34 +440,19 @@ export default function IdeasClient({
           Ideas
         </h1>
 
-        {tagCounts.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-4 px-1">
-            <button
-              onClick={() => setFilter(null)}
-              className="px-3 py-1.5 rounded-full text-[12.5px]"
-              style={
-                filter === null
-                  ? { background: INK, color: "#fff" }
-                  : { border: `1px solid ${RULE}`, color: CAPTION }
-              }
-            >
-              All · {live.length}
-            </button>
-            {tagCounts.map(([t, n]) => (
-              <button
-                key={t}
-                onClick={() => setFilter(filter === t ? null : t)}
-                className="px-3 py-1.5 rounded-full text-[12.5px]"
-                style={
-                  filter === t
-                    ? { background: SIENNA, color: "#fff" }
-                    : { border: `1px solid ${RULE}`, color: CAPTION }
-                }
-              >
-                {t} · {n}
-              </button>
-            ))}
-          </div>
+        {live.length > 0 && (
+          <button
+            onClick={() => setFilterOpen(true)}
+            className="w-full flex items-center justify-between gap-2 mb-4 px-3 py-2.5 rounded-xl"
+            style={{ background: "#fff", border: `1px solid ${RULE}` }}
+          >
+            <span className="text-[13.5px] truncate" style={{ color: INK }}>
+              {filterLabel}
+            </span>
+            <span className="text-[11.5px] shrink-0" style={{ color: SOFT }}>
+              {visible.length} ⌄
+            </span>
+          </button>
         )}
 
         {live.length === 0 && (
@@ -401,6 +470,86 @@ export default function IdeasClient({
           </div>
         )}
       </div>
+
+      {/* One filter, grouped by the question it answers. Journeys sit above
+          tags because "what did I save for Puglia" is the question you ask
+          while planning; tags are how you browse. */}
+      {filterOpen && (
+        <div className="fixed inset-0 z-[70] flex items-end justify-center" onClick={() => setFilterOpen(false)}>
+          <div className="absolute inset-0 bg-black/30" />
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-[560px] rounded-t-2xl px-4 pt-3 pb-6 overflow-y-auto"
+            style={{
+              background: "#FAF7F2",
+              borderTop: `1px solid ${RULE}`,
+              maxHeight: "82dvh",
+              overscrollBehavior: "contain",
+            }}
+          >
+            <div className="mx-auto mb-3" style={{ width: 34, height: 4, borderRadius: 2, background: "rgba(26,26,46,0.16)" }} />
+
+            <FilterOption
+              label="All ideas"
+              count={live.length}
+              selected={filter.kind === "all"}
+              onSelect={() => { setFilter({ kind: "all" }); setFilterOpen(false); }}
+            />
+            <FilterOption
+              label="Not yet used"
+              count={unusedCount}
+              selected={filter.kind === "unused"}
+              onSelect={() => { setFilter({ kind: "unused" }); setFilterOpen(false); }}
+            />
+
+            {journeyCounts.length > 0 && (
+              <>
+                <p className="text-[9px] uppercase mt-3 mb-1 px-0.5" style={{ letterSpacing: "0.14em", color: SOFT }}>
+                  Saved for a journey
+                </p>
+                {journeyCounts.map(({ j, n }) => (
+                  <FilterOption
+                    key={j.id}
+                    label={j.title}
+                    count={n}
+                    selected={filter.kind === "journey" && filter.value === j.id}
+                    onSelect={() => { setFilter({ kind: "journey", value: j.id }); setFilterOpen(false); }}
+                  />
+                ))}
+              </>
+            )}
+
+            {tagCounts.length > 0 && (
+              <>
+                <p className="text-[9px] uppercase mt-3 mb-1 px-0.5" style={{ letterSpacing: "0.14em", color: SOFT }}>
+                  Tags
+                </p>
+                {tagCounts.map(([t, n]) => (
+                  <FilterOption
+                    key={t}
+                    label={t}
+                    count={n}
+                    selected={filter.kind === "tag" && filter.value === t}
+                    onSelect={() => { setFilter({ kind: "tag", value: t }); setFilterOpen(false); }}
+                  />
+                ))}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {locating && (
+        <SetLocationSheet
+          ideaId={locating.id}
+          initialQuery={ideaTitle(locating) === "Untitled" ? "" : ideaTitle(locating)}
+          onClose={() => setLocating(null)}
+          onSet={(place) => {
+            setIdeas((p) => p.map((x) => (x.id === locating.id ? { ...x, place } : x)));
+            setLocating(null);
+          }}
+        />
+      )}
 
       {promoting && (
         <PromoteToWishlistSheet
