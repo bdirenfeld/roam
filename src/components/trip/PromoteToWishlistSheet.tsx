@@ -320,10 +320,18 @@ export default function PromoteToWishlistSheet({
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center" onClick={onClose}>
       <div className="absolute inset-0 bg-black/30" />
+      {/* Capped and scrollable. With ten journeys the sheet simply grew past
+          the top of the screen: the list was cut off with nothing to say so,
+          and no way to tell whether you were seeing all of it. */}
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-[560px] rounded-t-2xl px-4 pt-3 pb-6"
-        style={{ background: PARCHMENT, borderTop: `1px solid ${RULE}` }}
+        className="relative w-full max-w-[560px] rounded-t-2xl px-4 pt-3 pb-6 overflow-y-auto"
+        style={{
+          background: PARCHMENT,
+          borderTop: `1px solid ${RULE}`,
+          maxHeight: "85dvh",
+          overscrollBehavior: "contain",
+        }}
       >
         <div
           className="mx-auto mb-3.5"
@@ -377,10 +385,13 @@ export default function PromoteToWishlistSheet({
 
         {step === "target" && picked && (
           <>
+            {/* Stays put while the journey list scrolls under it — otherwise
+                you lose sight of which place you are filing. */}
+            <div className="sticky -top-3 -mx-4 px-4 pt-1 pb-2 z-10" style={{ background: PARCHMENT }}>
             <p className="font-display italic text-[17px]" style={{ color: INK }}>
               {picked.name}
             </p>
-            <p className="text-[11.5px] mb-3" style={{ color: SOFT }}>
+            <p className="text-[11.5px]" style={{ color: SOFT }}>
               {compactAddress(picked.address, picked.name)}
               {" · "}
               <button
@@ -396,6 +407,7 @@ export default function PromoteToWishlistSheet({
                 Change
               </button>
             </p>
+            </div>
 
             {ranked.map(({ j, km, shelved }, idx) => (
               <button
@@ -457,12 +469,17 @@ export default function PromoteToWishlistSheet({
               </p>
             )}
 
+            {/* Closes. It used to reset to the search box — which was a screen
+                you had come *through* when the sheet always asked, and is a
+                screen you have never seen now that the place resolves itself.
+                Going "back" to somewhere you have never been is not back.
+                Changing the place is what Change beside the address is for. */}
             <button
-              onClick={startAnother}
+              onClick={onClose}
               className="mt-2 text-[13px]"
               style={{ color: CAPTION }}
             >
-              Back
+              Cancel
             </button>
           </>
         )}
