@@ -3,15 +3,13 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { DotsThree, CaretLeft, CaretRight, NotePencil, Gear, MagnifyingGlass, Coins, ShareNetwork } from "@phosphor-icons/react";
-import { useGlobalSearch } from "@/components/search/GlobalSearch";
-import { TripSettingsLink, EstimateLink } from "@/components/overlays/AppOverlays";
+import { CaretLeft, CaretRight } from "@phosphor-icons/react";
 import DayStrip from "@/components/day/DayStrip";
 import DayPicker from "@/components/day/DayPicker";
 import DayMap from "@/components/day/DayMap";
 import CardTimeline from "@/components/day/CardTimeline";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
-import ShareJourneySheet from "@/components/trip/ShareJourneySheet";
+import AppMenu from "@/components/ui/AppMenu";
 import CreateCardSheet from "@/components/plan/CreateCardSheet";
 import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
 import Companion from "@/components/companion/Companion";
@@ -229,136 +227,6 @@ interface Props {
 // Journey notes open here rather than on a settings page, so the facts that
 // belong to no single day are reachable ON the day. A guest gets the menu too
 // (notes are shared) — with the owner-only settings row removed.
-function DayMenu({
-  trip,
-  days,
-  readOnly,
-  onOpenNotes,
-  onOpenShare,
-  triggerClassName,
-}: {
-  /** Handed to the Settings overlay as a seed — the day view already has it. */
-  trip: Trip;
-  days: Day[];
-  readOnly: boolean;
-  onOpenNotes: () => void;
-  onOpenShare: () => void;
-  triggerClassName: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const search = useGlobalSearch();
-
-  return (
-    <div className="relative flex-shrink-0">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className={triggerClassName}
-        aria-label="More options"
-        aria-haspopup="menu"
-        aria-expanded={open}
-      >
-        <DotsThree size={20} weight="light" />
-      </button>
-
-      {open && (
-        <>
-          <div className="fixed inset-0 z-40" onPointerDown={() => setOpen(false)} />
-          <div className="absolute right-0 top-full mt-1.5 z-50 bg-white/97 backdrop-blur-xl rounded-xl shadow-xl w-[214px] py-1 overflow-hidden">
-            {/* Search — the mobile ⌕ lives in the app header, which doesn't
-                render inside a journey. This is how you reach it from a day. */}
-            <button
-              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-              onClick={() => { setOpen(false); search.open(); }}
-            >
-              <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                <MagnifyingGlass size={15} weight="light" className="text-gray-600" />
-              </div>
-              <div className="text-left">
-                <p className="text-[13px] font-medium text-gray-900 leading-snug">Search</p>
-                <p className="text-[11px] text-gray-400 leading-snug">Journeys, places, wishlist</p>
-              </div>
-            </button>
-
-            <button
-              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-              onClick={() => { setOpen(false); onOpenNotes(); }}
-            >
-              <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                <NotePencil size={15} weight="light" className="text-gray-600" />
-              </div>
-              <div className="text-left">
-                <p className="text-[13px] font-medium text-gray-900 leading-snug">Journey notes</p>
-                <p className="text-[11px] text-gray-400 leading-snug">Codes, packing, who&rsquo;s driving</p>
-              </div>
-            </button>
-
-            {/* Estimate. The masthead carries a glyph for it, but the masthead
-                is hidden below md — this menu is the only way to reach it on a
-                phone. Owner-only: a guest reading the journey has no business
-                seeing what it costs. */}
-            {!readOnly && (
-              <EstimateLink
-                tripId={trip.id}
-                className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-                onBeforeOpen={() => setOpen(false)}
-              >
-                <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                  <Coins size={15} weight="light" className="text-gray-600" />
-                </div>
-                <div className="text-left">
-                  <p className="text-[13px] font-medium text-gray-900 leading-snug">Estimate</p>
-                  <p className="text-[11px] text-gray-400 leading-snug">Flights, villa, excursions</p>
-                </div>
-              </EstimateLink>
-            )}
-
-            {/* Sharing was reachable only from inside Settings, which on a
-                phone is four steps down and invisible unless you already knew
-                it was there. The desktop at least had the faces in the
-                masthead; a phone had nothing. */}
-            {!readOnly && (
-              <button
-                className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-                onClick={() => { setOpen(false); onOpenShare(); }}
-              >
-                <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                  <ShareNetwork size={15} weight="light" className="text-gray-600" />
-                </div>
-                <div className="text-left">
-                  <p className="text-[13px] font-medium text-gray-900 leading-snug">Share journey</p>
-                  <p className="text-[11px] text-gray-400 leading-snug">Send a read-only link</p>
-                </div>
-              </button>
-            )}
-
-            {/* Settings opens over the day rather than replacing it. Still a
-                link to the route, so ctrl/cmd-click opens the page. The trip
-                and its days ride along, so the overlay only has to fetch the
-                travellers and the sharing state. */}
-            {!readOnly && (
-              <TripSettingsLink
-                tripId={trip.id}
-                trip={trip}
-                days={days}
-                className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-                onBeforeOpen={() => setOpen(false)}
-              >
-                <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                  <Gear size={15} weight="light" className="text-gray-600" />
-                </div>
-                <div className="text-left">
-                  <p className="text-[13px] font-medium text-gray-900 leading-snug">Settings</p>
-                  <p className="text-[11px] text-gray-400 leading-snug">Dates, travellers, cover</p>
-                </div>
-              </TripSettingsLink>
-            )}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
 function formatDayTitle(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
   const dayName = d.toLocaleDateString("en-GB", { weekday: "long" });
@@ -482,7 +350,6 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   // Journey notes — the sheet unmounts on close, so the latest text is held
   // here; re-opening it shows what was just written, not the page payload.
   const [showNotes, setShowNotes] = useState(false);
-  const [showShare, setShowShare] = useState(false);
   const [notes, setNotes] = useState<string | null>(initialNotes);
 
   // Companion open state — hoisted from Companion so the desktop body grid can
@@ -752,12 +619,14 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
         </div>
 
         <span className="flex-1" />
-        <DayMenu
+        <AppMenu
+          variant="mobile"
+          tripId={trip.id}
+          tripTitle={trip.title}
           trip={trip}
           days={days}
-          readOnly={readOnly}
-          onOpenNotes={() => setShowNotes(true)}
-          onOpenShare={() => setShowShare(true)}
+          guest={readOnly}
+          showSearch
           triggerClassName="flex items-center justify-center w-11 h-11 text-gray-500 hover:text-gray-800 transition-colors"
         />
       </div>
@@ -859,12 +728,14 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
 
         {/* ··· — same menu as the mobile header, so notes are one tap away
             from the day on desktop too */}
-        <DayMenu
+        <AppMenu
+          variant="mobile"
+          tripId={trip.id}
+          tripTitle={trip.title}
           trip={trip}
           days={days}
-          readOnly={readOnly}
-          onOpenNotes={() => setShowNotes(true)}
-          onOpenShare={() => setShowShare(true)}
+          guest={readOnly}
+          showSearch
           triggerClassName="flex items-center justify-center w-8 h-8 rounded-full text-[rgba(26,26,46,0.55)] hover:text-activity hover:bg-[rgba(26,26,46,0.05)] transition-colors"
         />
       </div>
@@ -949,14 +820,6 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           readOnly={readOnly}
           onNotesChange={setNotes}
           onClose={() => setShowNotes(false)}
-        />
-      )}
-
-      {showShare && (
-        <ShareJourneySheet
-          tripId={trip.id}
-          tripTitle={trip.title}
-          onClose={() => setShowShare(false)}
         />
       )}
 

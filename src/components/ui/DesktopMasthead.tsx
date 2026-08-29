@@ -6,10 +6,9 @@ import { usePathname } from "next/navigation";
 import { UserCircle, Calendar, Columns, MapPin } from "@phosphor-icons/react";
 import { SearchButton } from "@/components/search/GlobalSearch";
 import SharedWithFaces from "@/components/trip/SharedWithFaces";
-import MastheadMenu from "@/components/ui/MastheadMenu";
+import AppMenu from "@/components/ui/AppMenu";
 import {
   ProfileLink,
-  TripSettingsLink,
 } from "@/components/overlays/AppOverlays";
 import { createClient } from "@/lib/supabase/client";
 import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
@@ -335,7 +334,13 @@ export default function DesktopMasthead() {
       {/* Everything reached occasionally, named, in one menu — including Plan
           a journey, which is why this renders off a journey as well as on one.
           The phone has shown this list all along; this is it at desktop width. */}
-      <MastheadMenu tripId={currentTripId} tripTitle={tripCtx?.title ?? null} guest={guest} />
+      <AppMenu
+        variant="desktop"
+        tripId={currentTripId}
+        tripTitle={tripCtx?.title ?? null}
+        guest={guest}
+        triggerClassName="inline-flex items-center justify-center w-[33px] h-[33px] rounded-lg text-[rgba(26,26,46,0.55)] hover:bg-[rgba(26,26,46,0.06)] transition-colors"
+      />
 
       {/* Profile dropdown — replaces the previous direct-link avatar. */}
       <div ref={menuRef} style={{ position: "relative" }}>
@@ -420,25 +425,11 @@ export default function DesktopMasthead() {
                 </div>
               )}
             </div>
-            {/* Settings and Profile open as overlays over whatever is on
-                screen. Both remain real links, so ctrl/cmd-click still opens
-                the route. Settings is dropped when you are already on it. */}
-            {currentTripId && !guest && segment !== "settings" && (
-              <TripSettingsLink
-                tripId={currentTripId}
-                role="menuitem"
-                onBeforeOpen={() => setOpen(false)}
-                style={{
-                  display: "block",
-                  padding: "11px 16px",
-                  fontSize: 13,
-                  color: INK,
-                  textDecoration: "none",
-                }}
-              >
-                Settings
-              </TripSettingsLink>
-            )}
+            {/* Journey settings used to sit here, which put the same screen
+                behind two different doors depending on the width — this menu on
+                desktop, the day view's menu on a phone. It lives with the rest
+                of the journey now, in AppMenu. This dropdown is yours: your
+                profile, your session. */}
             <ProfileLink
               role="menuitem"
               onBeforeOpen={() => setOpen(false)}
