@@ -675,6 +675,17 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
 
   const dayWeather = weatherByDate?.[dayWithCards.date] ?? null;
 
+  // Whether a forecast could ever exist for this day. Open-Meteo runs about a
+  // fortnight ahead, so anything beyond that is permanently weatherless and the
+  // title can take the space the chip would have used. Computed from the date so
+  // the size is settled on first paint — no shift when the fetch resolves.
+  const weatherReachable = (() => {
+    const day = new Date(dayWithCards.date + "T00:00:00").getTime();
+    const now = new Date().setHours(0, 0, 0, 0);
+    const days = Math.round((day - now) / 86_400_000);
+    return days >= -1 && days <= 16;
+  })();
+
   return (
     <div className="flex flex-col h-dvh md:block md:h-auto">
       {/* Mobile-only trip header — h-[58px] is constant; the subtitle row always reserves its height */}
@@ -689,17 +700,28 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           </svg>
         </Link>
 
-        {/* Center: date title + weather subtitle */}
+        {/* Center: date title + weather subtitle.
+            The title grows when no forecast will ever sit under it. Open-Meteo
+            only reaches about a fortnight out, so a 2027 journey is never
+            getting a weather line and the date can have the room. Decided from
+            the date, not from whether the fetch has landed — keying it on the
+            data would shrink the title the moment weather arrived. */}
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-[2px] pointer-events-none">
-          <span className="font-display italic text-[15px] text-gray-900">
+          <span
+            className={`font-display italic text-gray-900 ${
+              weatherReachable ? "text-[15px]" : "text-[19px]"
+            }`}
+          >
             {formatDayTitle(dayWithCards.date)}
           </span>
-          <WeatherSubtitle
-            weather={dayWeather}
-            expanded={weatherExpanded}
-            onToggle={() => setWeatherExpanded((v) => !v)}
-            controlsId="weather-expansion"
-          />
+          {weatherReachable && (
+            <WeatherSubtitle
+              weather={dayWeather}
+              expanded={weatherExpanded}
+              onToggle={() => setWeatherExpanded((v) => !v)}
+              controlsId="weather-expansion"
+            />
+          )}
         </div>
 
         <span className="flex-1" />
