@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { CaretLeft } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import PromoteToWishlistSheet from "./PromoteToWishlistSheet";
-import type { JourneySummary, PromoteOutcome } from "./PromoteToWishlistSheet";
+import type { JourneySummary, PromoteOutcome, ResolvedIdeaPlace } from "./PromoteToWishlistSheet";
 
 const INK = "#1A1A2E";
 const CAPTION = "rgba(26,26,46,0.55)";
@@ -30,6 +30,9 @@ export interface Idea {
    *  count rather than a single outcome — and an idea can do both. */
   pins_added: number;
   pinned_trip_id: string | null;
+  /** Resolved through Google Places when the idea was captured, when it named
+   *  somewhere real. Lets promoting skip the search step. */
+  place: ResolvedIdeaPlace | null;
 }
 
 /** "vt.tiktok.com" → "tiktok". The row has one line for provenance and the
@@ -145,7 +148,7 @@ function IdeaRow({
               className="px-3 py-1.5 rounded-full text-[11.5px]"
               style={{ background: INK, color: "#fff" }}
             >
-              Save a place
+              Add to a journey
             </button>
 
             {idea.wishlist_destination_id && (
@@ -242,28 +245,41 @@ export default function IdeasClient({
   const [promoting, setPromoting] = useState<Idea | null>(null);
   const [justAdded, setJustAdded] = useState<string | null>(null);
 
+  // × deletes. It used to set status "passed" and hide the row, which left the
+  // idea in memory and in the table — and the tag counts kept counting things
+  // Brennan had deleted. A hidden state nothing can reach is not a feature, it
+  // is a place for bugs to live.
+  const remove = async (id: string) => {
+    setIdeas((p) => p.filter((i) => i.id !== id));
+    if (openId === id) setOpenId(null);
+    const supabase = createClient();
+    await supabase.from("ideas").delete().eq("id", id);
+  };
+
   const save = async (id: string, patch: Partial<Idea>) => {
     setIdeas((p) => p.map((i) => (i.id === id ? { ...i, ...patch } : i)));
     const supabase = createClient();
     await supabase.from("ideas").update(patch).eq("id", id);
   };
 
-  // Every tag in use, with counts — the closest thing to Pinterest boards,
-  // except an idea can sit in several at once.
-  const tagCounts = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const i of ideas) for (const t of i.tags ?? []) m.set(t, (m.get(t) ?? 0) + 1);
-    return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
-  }, [ideas]);
-  const allTags = useMemo(() => tagCounts.map(([t]) => t), [tagCounts]);
-
   // One list, filtered by tag. There used to be an Inbox and a Kept section on
   // an email-triage model, but tagging something already *is* keeping it —
   // pressing Keep afterwards recorded nothing new, and "Inbox" only ever meant
   // "you haven't pressed the redundant button yet". Removed is the one state
   // left, and it just means gone from the list.
-  const live = ideas.filter((i) => i.status !== "passed");
+  const live = useMemo(() => ideas.filter((i) => i.status !== "passed"), [ideas]);
   const visible = filter ? live.filter((i) => (i.tags ?? []).includes(filter)) : live;
+
+  // Every tag in use, with counts — the closest thing to Pinterest boards,
+  // except an idea can sit in several at once. Counted over `live`, the same
+  // set the All chip counts: reading "All · 2" beside "tuscany · 6" is a lie
+  // about a list you can see the whole of.
+  const tagCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const i of live) for (const t of i.tags ?? []) m.set(t, (m.get(t) ?? 0) + 1);
+    return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
+  }, [live]);
+  const allTags = useMemo(() => tagCounts.map(([t]) => t), [tagCounts]);
 
   const toggleTag = (i: Idea, t: string) => {
     const cur = i.tags ?? [];
@@ -280,7 +296,7 @@ export default function IdeasClient({
         onToggle={() => setOpenId(openId === i.id ? null : i.id)}
         onToggleTag={toggleTag}
         onPromote={setPromoting}
-        onRemove={() => save(i.id, { status: "passed" })}
+        onRemove={() => remove(i.id)}
         onOpenWishlist={() => router.push("/trips#your-year")}
         journeys={journeys}
       />
@@ -356,6 +372,7 @@ export default function IdeasClient({
           ideaId={promoting.id}
           initialQuery={promoting.title ?? ""}
           ideaUrl={promoting.url}
+          resolvedPlace={promoting.place}
           journeys={journeys}
           onClose={() => setPromoting(null)}
           onDone={(outcome: PromoteOutcome) => {

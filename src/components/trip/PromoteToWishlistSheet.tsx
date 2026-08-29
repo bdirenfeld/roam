@@ -31,6 +31,15 @@ export interface JourneySummary {
   destination_lng: number | null;
 }
 
+export interface ResolvedIdeaPlace {
+  placeId: string;
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+  types?: string[];
+}
+
 export type PromoteOutcome =
   | { kind: "wishlist"; destinationId: string; name: string }
   | { kind: "pins"; tripId: string; tripTitle: string; count: number };
@@ -74,6 +83,9 @@ type Props = {
   initialQuery: string;
   /** The link this idea came from — rides along onto any pin it creates. */
   ideaUrl: string | null;
+  /** Resolved when the idea was captured. When present the search step is
+   *  skipped: the question it asks has already been answered. */
+  resolvedPlace: ResolvedIdeaPlace | null;
   /** Journeys still worth adding to — a finished trip is not somewhere to put
    *  a restaurant. */
   journeys: JourneySummary[];
@@ -85,14 +97,19 @@ export default function PromoteToWishlistSheet({
   ideaId,
   initialQuery,
   ideaUrl,
+  resolvedPlace,
   journeys,
   onClose,
   onDone,
 }: Props) {
-  const [step, setStep] = useState<"search" | "target" | "wishlist" | "added">("search");
+  const [step, setStep] = useState<"search" | "target" | "wishlist" | "added">(
+    resolvedPlace ? "target" : "search"
+  );
   const [query, setQuery] = useState(initialQuery);
   const [preds, setPreds] = useState<Prediction[]>([]);
-  const [picked, setPicked] = useState<ResolvedPlace | null>(null);
+  const [picked, setPicked] = useState<ResolvedPlace | null>(
+    resolvedPlace ? { ...resolvedPlace, types: resolvedPlace.types ?? [] } : null
+  );
   const [climate, setClimate] = useState<MonthClimate[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [duplicate, setDuplicate] = useState<string | null>(null);

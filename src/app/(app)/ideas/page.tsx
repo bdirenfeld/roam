@@ -14,7 +14,7 @@ export default async function IdeasPage() {
     supabase
       .from("ideas")
       .select(
-        "id, url, title, note, source, status, tags, created_at, wishlist_destination_id, pins_added, pinned_trip_id"
+        "id, url, title, note, source, status, tags, created_at, wishlist_destination_id, pins_added, pinned_trip_id, place"
       )
       .eq("user_id", user.id)
       .order("created_at", { ascending: false }),

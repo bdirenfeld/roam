@@ -4,6 +4,13 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Check } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
+import {
+  fetchPredictions,
+  fetchPlaceDetails,
+  predMain,
+  predSecondary,
+} from "@/lib/places/predictions";
+import type { Prediction } from "@/lib/places/predictions";
 
 const INK = "#1A1A2E";
 const CAPTION = "rgba(26,26,46,0.55)";
@@ -36,20 +43,80 @@ export default function ShareCatchClient({
   const [status, setStatus] = useState<"saved" | "saving" | "error">("saved");
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Naming the place here rather than later. A title is whatever you type; a
+  // *place* has coordinates, and only a place can become a pin on a map. So the
+  // field suggests real ones as you type — and picking one resolves it now, so
+  // promoting this idea later skips the search entirely.
+  //
+  // Suggestions, never a requirement: a reel about Puglia in general is not a
+  // single place, and free text has to keep working.
+  const [preds, setPreds] = useState<Prediction[]>([]);
+  const [resolved, setResolved] = useState<{ name: string; address: string } | null>(null);
+  const placeToken = useRef(
+    typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now())
+  );
+
   // A pending debounce must not outlive the page — a share-target tab is often
   // closed the moment the tag is tapped.
   useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current); }, []);
 
-  const persist = async (next: { note?: string; tags?: string[] }) => {
+  const persist = async (next: {
+    note?: string;
+    tags?: string[];
+    place?: Record<string, unknown> | null;
+  }) => {
     if (!ideaId) return;
     setStatus("saving");
     const supabase = createClient();
-    const { error } = await supabase
-      .from("ideas")
-      .update({ note: next.note ?? note, tags: next.tags ?? tags })
-      .eq("id", ideaId);
+    const patch: Record<string, unknown> = {
+      note: next.note ?? note,
+      tags: next.tags ?? tags,
+    };
+    // Only touch `place` when this write is about the place — otherwise a tag
+    // tap would wipe a place resolved a moment earlier.
+    if (next.place !== undefined) patch.place = next.place;
+    const { error } = await supabase.from("ideas").update(patch).eq("id", ideaId);
     // A failed write used to be indistinguishable from a successful one.
     setStatus(error ? "error" : "saved");
+  };
+
+  // Predictions, debounced. Silent once a place has been picked — the field is
+  // then showing an answer, not a query.
+  useEffect(() => {
+    if (resolved) return;
+    const q = note.trim();
+    if (q.length < 3) {
+      setPreds([]);
+      return;
+    }
+    const t = setTimeout(async () => {
+      setPreds(await fetchPredictions(q, placeToken.current));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [note, resolved]);
+
+  const choosePlace = async (p: Prediction) => {
+    setPreds([]);
+    const place = await fetchPlaceDetails(p.place_id, placeToken.current);
+    if (!place) {
+      // Keep what was typed — a failed lookup shouldn't cost the words.
+      setStatus("error");
+      return;
+    }
+    setNote(place.name);
+    setResolved({ name: place.name, address: place.address });
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    persist({
+      note: place.name,
+      place: {
+        placeId: place.placeId,
+        name: place.name,
+        address: place.address,
+        lat: place.lat,
+        lng: place.lng,
+        types: place.types,
+      },
+    });
   };
 
   const toggleTag = (t: string) => {
@@ -134,6 +201,15 @@ export default function ShareCatchClient({
             const v = e.target.value;
             setNote(v);
             setStatus("saving");
+            // Editing after picking means the pick no longer describes what is
+            // in the box, so the resolved place is dropped rather than left
+            // silently attached to different words.
+            if (resolved) {
+              setResolved(null);
+              if (saveTimer.current) clearTimeout(saveTimer.current);
+              saveTimer.current = setTimeout(() => persist({ note: v, place: null }), 600);
+              return;
+            }
             if (saveTimer.current) clearTimeout(saveTimer.current);
             saveTimer.current = setTimeout(() => persist({ note: v }), 600);
           }}
@@ -149,9 +225,45 @@ export default function ShareCatchClient({
             persist({ note });
           }}
           placeholder="Which place is this?"
-          className="w-full rounded-xl px-3.5 py-3 text-[14px] mb-4"
+          className="w-full rounded-xl px-3.5 py-3 text-[14px]"
           style={{ background: "#fff", border: `1px solid ${RULE}`, color: INK }}
         />
+
+        {/* Real places, as you type. Picking one binds coordinates to the idea
+            now, so it can become a pin later without being searched for again.
+            Ignoring them and typing freely is equally fine. */}
+        {preds.length > 0 && (
+          <div
+            className="rounded-xl mt-1.5 overflow-hidden"
+            style={{ background: "#fff", border: `1px solid ${RULE}` }}
+          >
+            {preds.map((p) => (
+              <button
+                key={p.place_id}
+                onClick={() => choosePlace(p)}
+                className="w-full text-left px-3.5 py-2.5"
+                style={{ borderBottom: `1px solid ${RULE}` }}
+              >
+                <span className="block text-[13.5px]" style={{ color: INK }}>
+                  {predMain(p)}
+                </span>
+                {predSecondary(p) && (
+                  <span className="block text-[11.5px] mt-[1px]" style={{ color: SOFT }}>
+                    {predSecondary(p)}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {resolved && (
+          <p className="text-[11.5px] mt-1.5 px-1" style={{ color: SOFT }}>
+            {resolved.address} · can be pinned to a map
+          </p>
+        )}
+
+        <div className="mb-4" />
 
         <div className="flex flex-wrap gap-2 mb-3">
           {tags.map((t) => chip(t, true))}
