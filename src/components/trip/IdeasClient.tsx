@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CaretLeft, ArrowSquareOut, Plus } from "@phosphor-icons/react";
+import { CaretLeft } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import PromoteToWishlistSheet from "./PromoteToWishlistSheet";
 
@@ -11,6 +11,10 @@ const CAPTION = "rgba(26,26,46,0.55)";
 const SOFT = "rgba(26,26,46,0.35)";
 const RULE = "rgba(26,26,46,0.10)";
 const SIENNA = "#C4622D";
+
+/** Kept is the library, and the half that grows without limit. Past this many
+ *  it folds away behind its own count, the same as Past journeys. */
+const KEPT_COLLAPSE_AT = 10;
 
 export interface Idea {
   id: string;
@@ -26,18 +30,195 @@ export interface Idea {
   wishlist_destination_id: string | null;
 }
 
+/** "vt.tiktok.com" → "tiktok". The row has one line for provenance and the
+ *  subdomain is never the part you recognise. */
+function shortSource(source: string | null): string | null {
+  if (!source) return null;
+  const host = source.replace(/^https?:\/\//, "").split("/")[0];
+  const parts = host.split(".").filter((p) => p && p !== "www");
+  if (parts.length <= 1) return parts[0] ?? null;
+  return parts[parts.length - 2];
+}
+
+function ideaTitle(i: Idea): string {
+  return i.note || i.title || i.url || "Untitled";
+}
+
+/**
+ * One idea, two lines.
+ *
+ * At module scope on purpose. Defined inside IdeasClient it would be a new
+ * component type on every render, so the tag input below would be unmounted and
+ * remade on each keystroke and lose focus — the same defect that made the
+ * Estimate screen unusable.
+ */
+function IdeaRow({
+  idea,
+  open,
+  allTags,
+  onToggle,
+  onSave,
+  onToggleTag,
+  onPromote,
+  onOpenWishlist,
+}: {
+  idea: Idea;
+  open: boolean;
+  allTags: string[];
+  onToggle: () => void;
+  onSave: (id: string, patch: Partial<Idea>) => void;
+  onToggleTag: (idea: Idea, tag: string) => void;
+  onPromote: (idea: Idea) => void;
+  onOpenWishlist: () => void;
+}) {
+  const [tagging, setTagging] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  const tags = idea.tags ?? [];
+  const src = shortSource(idea.source);
+  const meta = [src, tags.length ? tags.join(", ") : null].filter(Boolean);
+
+  return (
+    <div style={{ borderTop: `1px solid ${RULE}` }}>
+      <button
+        onClick={onToggle}
+        className="w-full text-left flex items-baseline gap-2.5 px-4 py-2.5"
+      >
+        <span className="flex-1 min-w-0">
+          <span className="block text-[13.5px] truncate" style={{ color: INK }}>
+            {ideaTitle(idea)}
+          </span>
+          {meta.length > 0 && (
+            <span className="block text-[10.5px] truncate mt-[1px]" style={{ color: SOFT }}>
+              {src}
+              {src && tags.length > 0 && " · "}
+              {tags.length > 0 && <span style={{ color: SIENNA }}>{tags.join(", ")}</span>}
+            </span>
+          )}
+        </span>
+        <span className="shrink-0 text-[13px]" style={{ color: "rgba(26,26,46,0.25)" }}>
+          {open ? "⌄" : "›"}
+        </span>
+      </button>
+
+      {open && (
+        <div className="px-4 pb-3" style={{ background: "#FCFBF8" }}>
+          <div className="flex flex-wrap gap-1.5">
+            {idea.wishlist_destination_id ? (
+              <button
+                onClick={onOpenWishlist}
+                className="px-3 py-1.5 rounded-full text-[11.5px]"
+                style={{ background: "rgba(196,98,45,0.12)", color: SIENNA }}
+              >
+                On your wishlist
+              </button>
+            ) : (
+              <button
+                onClick={() => onPromote(idea)}
+                className="px-3 py-1.5 rounded-full text-[11.5px]"
+                style={{ background: INK, color: "#fff" }}
+              >
+                Add to wishlist
+              </button>
+            )}
+
+            {idea.url && (
+              <a
+                href={idea.url}
+                target="_blank"
+                rel="noreferrer"
+                className="px-3 py-1.5 rounded-full text-[11.5px]"
+                style={{ border: `1px solid ${RULE}`, color: CAPTION }}
+              >
+                Open link
+              </a>
+            )}
+
+            <button
+              onClick={() => setTagging((v) => !v)}
+              className="px-3 py-1.5 rounded-full text-[11.5px]"
+              style={{ border: `1px solid ${RULE}`, color: CAPTION }}
+            >
+              Tag
+            </button>
+
+            {idea.status === "inbox" && (
+              <>
+                <button
+                  onClick={() => onSave(idea.id, { status: "kept" })}
+                  className="px-3 py-1.5 rounded-full text-[11.5px]"
+                  style={{ border: `1px solid ${RULE}`, color: CAPTION }}
+                >
+                  Keep
+                </button>
+                <button
+                  onClick={() => onSave(idea.id, { status: "passed" })}
+                  className="px-3 py-1.5 rounded-full text-[11.5px]"
+                  style={{ border: `1px solid ${RULE}`, color: CAPTION }}
+                >
+                  Pass
+                </button>
+              </>
+            )}
+          </div>
+
+          {tagging && (
+            <div className="mt-2.5">
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {tags.map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => onToggleTag(idea, t)}
+                    className="px-2.5 py-1 rounded-full text-[11px]"
+                    style={{ background: "rgba(196,98,45,0.12)", color: SIENNA }}
+                  >
+                    {t} ×
+                  </button>
+                ))}
+                {allTags
+                  .filter((t) => !tags.includes(t))
+                  .map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => onToggleTag(idea, t)}
+                      className="px-2.5 py-1 rounded-full text-[11px]"
+                      style={{ border: `1px solid ${RULE}`, color: CAPTION }}
+                    >
+                      {t}
+                    </button>
+                  ))}
+              </div>
+              <input
+                autoFocus
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter") return;
+                  const t = draft.trim().toLowerCase();
+                  if (t) onToggleTag(idea, t);
+                  setDraft("");
+                  setTagging(false);
+                }}
+                placeholder="New tag"
+                className="w-full rounded-lg px-3 py-2 text-[12.5px] outline-none"
+                style={{ background: "#fff", border: `1px solid ${RULE}`, color: INK }}
+              />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function IdeasClient({ initial }: { initial: Idea[] }) {
   const router = useRouter();
   const [ideas, setIdeas] = useState(initial);
   const [filter, setFilter] = useState<string | null>(null);
-  const [editing, setEditing] = useState<string | null>(null);
-  const [draftTag, setDraftTag] = useState("");
-  // The promote sheet is held here, at the top of the component, and rendered
-  // once at the root — never inside Item. Item is redefined on every render, so
-  // anything mounted inside it is torn down and remade on each keystroke, which
-  // is what cost the Estimate screen its input focus.
+  const [openId, setOpenId] = useState<string | null>(null);
   const [promoting, setPromoting] = useState<Idea | null>(null);
   const [justAdded, setJustAdded] = useState<string | null>(null);
+  const [keptOpen, setKeptOpen] = useState(false);
 
   const save = async (id: string, patch: Partial<Idea>) => {
     setIdeas((p) => p.map((i) => (i.id === id ? { ...i, ...patch } : i)));
@@ -52,163 +233,35 @@ export default function IdeasClient({ initial }: { initial: Idea[] }) {
     for (const i of ideas) for (const t of i.tags ?? []) m.set(t, (m.get(t) ?? 0) + 1);
     return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
   }, [ideas]);
+  const allTags = useMemo(() => tagCounts.map(([t]) => t), [tagCounts]);
 
-  const visible = filter
-    ? ideas.filter((i) => (i.tags ?? []).includes(filter))
-    : ideas;
+  const visible = filter ? ideas.filter((i) => (i.tags ?? []).includes(filter)) : ideas;
   const inbox = visible.filter((i) => i.status === "inbox");
   const kept = visible.filter((i) => i.status === "kept");
 
   const toggleTag = (i: Idea, t: string) => {
     const cur = i.tags ?? [];
-    save(i.id, {
-      tags: cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t],
-    });
+    save(i.id, { tags: cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t] });
   };
 
-  const Item = ({ i }: { i: Idea }) => {
-    const isEditing = editing === i.id;
-    return (
-      <div className="px-4 py-3" style={{ borderTop: `1px solid ${RULE}` }}>
-        <div className="flex items-start gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="text-[14px]" style={{ color: INK }}>
-              {i.note || i.title || i.url || "Untitled"}
-            </div>
-            <div className="text-[11.5px] mt-0.5" style={{ color: SOFT }}>
-              {i.source ?? "no link"}
-            </div>
-          </div>
-          {i.url && (
-            <a
-              href={i.url}
-              target="_blank"
-              rel="noreferrer"
-              className="shrink-0 p-1"
-              aria-label="Open"
-            >
-              <ArrowSquareOut size={16} weight="light" color={SOFT} />
-            </a>
-          )}
-        </div>
+  const rowsFor = (items: Idea[]) =>
+    items.map((i) => (
+      <IdeaRow
+        key={i.id}
+        idea={i}
+        open={openId === i.id}
+        allTags={allTags}
+        onToggle={() => setOpenId(openId === i.id ? null : i.id)}
+        onSave={save}
+        onToggleTag={toggleTag}
+        onPromote={setPromoting}
+        onOpenWishlist={() => router.push("/trips#your-year")}
+      />
+    ));
 
-        <div className="flex flex-wrap items-center gap-1.5 mt-2">
-          {(i.tags ?? []).map((t) => (
-            <button
-              key={t}
-              onClick={() => toggleTag(i, t)}
-              className="px-2.5 py-1 rounded-full text-[11.5px]"
-              style={{ background: "rgba(196,98,45,0.12)", color: SIENNA }}
-            >
-              {t}
-            </button>
-          ))}
-          <button
-            onClick={() => {
-              setEditing(isEditing ? null : i.id);
-              setDraftTag("");
-            }}
-            className="px-1.5 py-1 rounded-full"
-            aria-label="Add tag"
-          >
-            <Plus size={12} weight="bold" color={SOFT} />
-          </button>
-        </div>
-
-        {isEditing && (
-          <div className="mt-2">
-            <div className="flex flex-wrap gap-1.5 mb-2">
-              {tagCounts
-                .filter(([t]) => !(i.tags ?? []).includes(t))
-                .map(([t]) => (
-                  <button
-                    key={t}
-                    onClick={() => toggleTag(i, t)}
-                    className="px-2.5 py-1 rounded-full text-[11.5px]"
-                    style={{ border: `1px solid ${RULE}`, color: CAPTION }}
-                  >
-                    {t}
-                  </button>
-                ))}
-            </div>
-            <input
-              value={draftTag}
-              onChange={(e) => setDraftTag(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key !== "Enter") return;
-                const t = draftTag.trim().toLowerCase();
-                if (t) toggleTag(i, t);
-                setDraftTag("");
-                setEditing(null);
-              }}
-              placeholder="New tag"
-              className="w-full rounded-lg px-3 py-2 text-[12.5px]"
-              style={{ background: "#FAF7F2", border: `1px solid ${RULE}`, color: INK }}
-            />
-          </div>
-        )}
-
-        {/* The step that was missing: a saved link becomes a real destination
-            with coordinates and a climate profile, so it can be planned. */}
-        <div className="mt-2.5">
-          {i.wishlist_destination_id ? (
-            <button
-              onClick={() => router.push("/trips#your-year")}
-              className="font-display italic text-[13.5px]"
-              style={{ color: SIENNA }}
-            >
-              On your wishlist
-            </button>
-          ) : (
-            <button
-              onClick={() => setPromoting(i)}
-              className="font-display italic text-[13.5px]"
-              style={{ color: CAPTION }}
-            >
-              Add to wishlist
-            </button>
-          )}
-        </div>
-
-        {i.status === "inbox" && (
-          <div className="flex gap-2 mt-2.5">
-            <button
-              onClick={() => save(i.id, { status: "kept" })}
-              className="px-3 py-1.5 rounded-full text-[12px]"
-              style={{ background: INK, color: "#fff" }}
-            >
-              Keep
-            </button>
-            <button
-              onClick={() => save(i.id, { status: "passed" })}
-              className="px-3 py-1.5 rounded-full text-[12px]"
-              style={{ border: `1px solid ${RULE}`, color: CAPTION }}
-            >
-              Pass
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const Group = ({ label, items }: { label: string; items: Idea[] }) =>
-    items.length === 0 ? null : (
-      <div
-        className="bg-white rounded-2xl overflow-hidden mb-4"
-        style={{ boxShadow: `0 0 0 1px ${RULE}` }}
-      >
-        <div
-          className="px-4 pt-3 pb-1.5 text-[11px] uppercase tracking-wider"
-          style={{ color: SOFT }}
-        >
-          {label} · {items.length}
-        </div>
-        {items.map((i) => (
-          <Item key={i.id} i={i} />
-        ))}
-      </div>
-    );
+  // Kept folds away once it is long enough to bury the inbox. Filtering is a
+  // deliberate search, so a filtered view opens it rather than hiding matches.
+  const keptCollapsed = !keptOpen && !filter && kept.length > KEPT_COLLAPSE_AT;
 
   return (
     <div
@@ -265,8 +318,38 @@ export default function IdeasClient({ initial }: { initial: Idea[] }) {
           </p>
         )}
 
-        <Group label="Inbox" items={inbox} />
-        <Group label="Kept" items={kept} />
+        {(inbox.length > 0 || kept.length > 0) && (
+          <div
+            className="bg-white rounded-2xl overflow-hidden mb-4"
+            style={{ boxShadow: `0 0 0 1px ${RULE}` }}
+          >
+            {inbox.length > 0 && (
+              <>
+                <div
+                  className="px-4 pt-3 pb-1.5 text-[11px] uppercase tracking-wider"
+                  style={{ color: SOFT }}
+                >
+                  Inbox · {inbox.length}
+                </div>
+                {rowsFor(inbox)}
+              </>
+            )}
+
+            {kept.length > 0 && (
+              <>
+                <button
+                  onClick={() => setKeptOpen((v) => !v)}
+                  className="w-full flex items-center justify-between px-4 pt-3 pb-1.5 text-[11px] uppercase tracking-wider"
+                  style={{ color: SOFT, borderTop: inbox.length ? `1px solid ${RULE}` : undefined }}
+                >
+                  <span>Kept · {kept.length}</span>
+                  {kept.length > KEPT_COLLAPSE_AT && !filter && <span>{keptCollapsed ? "▸" : "▾"}</span>}
+                </button>
+                {!keptCollapsed && rowsFor(kept)}
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {promoting && (
