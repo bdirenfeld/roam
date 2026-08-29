@@ -18,6 +18,12 @@ export interface ResolvedPlace {
   address: string;
   lat: number;
   lng: number;
+  /** Google's id. `places` upserts on (user_id, google_place_id), so pinning a
+   *  place to a journey needs it — a wishlist destination does not. */
+  placeId: string;
+  /** Google's category list, used to guess type/sub_type when pinning so the
+   *  card doesn't land as a generic activity. Empty when Google gives none. */
+  types: string[];
 }
 
 export async function fetchPredictions(input: string, token: string): Promise<Prediction[]> {
@@ -37,6 +43,7 @@ export async function fetchPlaceDetails(placeId: string, token: string): Promise
     result?: {
       name?: string;
       formatted_address?: string;
+      types?: string[];
       geometry?: { location?: { lat: number; lng: number } };
     };
   };
@@ -45,6 +52,8 @@ export async function fetchPlaceDetails(placeId: string, token: string): Promise
     return null;
   }
   return {
+    placeId,
+    types: data.result.types ?? [],
     name: data.result.name ?? "",
     address: data.result.formatted_address ?? "",
     lat: loc.lat,

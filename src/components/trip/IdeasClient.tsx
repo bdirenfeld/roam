@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { CaretLeft } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import PromoteToWishlistSheet from "./PromoteToWishlistSheet";
+import type { JourneySummary, PromoteOutcome } from "./PromoteToWishlistSheet";
 
 const INK = "#1A1A2E";
 const CAPTION = "rgba(26,26,46,0.55)";
@@ -28,6 +29,11 @@ export interface Idea {
   /** Set once the idea has been promoted to a wishlist destination. The idea
    *  stays either way — the saved link is still what you want when planning. */
   wishlist_destination_id: string | null;
+  /** How many places this idea produced as journey pins, and where they went.
+   *  A thread of fifteen restaurants is one idea and many places, so this is a
+   *  count rather than a single outcome — and an idea can do both. */
+  pins_added: number;
+  pinned_trip_id: string | null;
 }
 
 /** "vt.tiktok.com" → "tiktok". The row has one line for provenance and the
@@ -61,6 +67,7 @@ function IdeaRow({
   onToggleTag,
   onPromote,
   onOpenWishlist,
+  journeys,
 }: {
   idea: Idea;
   open: boolean;
@@ -70,13 +77,26 @@ function IdeaRow({
   onToggleTag: (idea: Idea, tag: string) => void;
   onPromote: (idea: Idea) => void;
   onOpenWishlist: () => void;
+  journeys: JourneySummary[];
 }) {
   const [tagging, setTagging] = useState(false);
   const [draft, setDraft] = useState("");
 
   const tags = idea.tags ?? [];
   const src = shortSource(idea.source);
-  const meta = [src, tags.length ? tags.join(", ") : null].filter(Boolean);
+
+  // What became of it. The meta line already carries source and tags; the
+  // outcome joins them, so you can see at a glance which ideas you have
+  // actually done something with.
+  const pinnedTo = idea.pinned_trip_id
+    ? journeys.find((j) => j.id === idea.pinned_trip_id)?.title ?? "a journey"
+    : null;
+  const outcome =
+    idea.pins_added > 0 && pinnedTo
+      ? `${idea.pins_added} ${idea.pins_added === 1 ? "pin" : "pins"} on ${pinnedTo}`
+      : idea.wishlist_destination_id
+        ? "on your wishlist"
+        : null;
 
   return (
     <div style={{ borderTop: `1px solid ${RULE}` }}>
@@ -88,11 +108,13 @@ function IdeaRow({
           <span className="block text-[13.5px] truncate" style={{ color: INK }}>
             {ideaTitle(idea)}
           </span>
-          {meta.length > 0 && (
+          {(src || tags.length > 0 || outcome) && (
             <span className="block text-[10.5px] truncate mt-[1px]" style={{ color: SOFT }}>
               {src}
               {src && tags.length > 0 && " · "}
               {tags.length > 0 && <span style={{ color: SIENNA }}>{tags.join(", ")}</span>}
+              {outcome && (src || tags.length > 0) && " · "}
+              {outcome && <span style={{ color: SIENNA }}>{outcome}</span>}
             </span>
           )}
         </span>
@@ -104,21 +126,25 @@ function IdeaRow({
       {open && (
         <div className="px-4 pb-3" style={{ background: "#FCFBF8" }}>
           <div className="flex flex-wrap gap-1.5">
-            {idea.wishlist_destination_id ? (
+            {/* One action, not two. An idea can produce a destination *and*
+                pins — a Puglia guide justifies the region on the wishlist and
+                three restaurants on the trip — so this stays available after
+                it has already been used once. */}
+            <button
+              onClick={() => onPromote(idea)}
+              className="px-3 py-1.5 rounded-full text-[11.5px]"
+              style={{ background: INK, color: "#fff" }}
+            >
+              Save a place
+            </button>
+
+            {idea.wishlist_destination_id && (
               <button
                 onClick={onOpenWishlist}
                 className="px-3 py-1.5 rounded-full text-[11.5px]"
                 style={{ background: "rgba(196,98,45,0.12)", color: SIENNA }}
               >
                 On your wishlist
-              </button>
-            ) : (
-              <button
-                onClick={() => onPromote(idea)}
-                className="px-3 py-1.5 rounded-full text-[11.5px]"
-                style={{ background: INK, color: "#fff" }}
-              >
-                Add to wishlist
               </button>
             )}
 
@@ -211,7 +237,13 @@ function IdeaRow({
   );
 }
 
-export default function IdeasClient({ initial }: { initial: Idea[] }) {
+export default function IdeasClient({
+  initial,
+  journeys,
+}: {
+  initial: Idea[];
+  journeys: JourneySummary[];
+}) {
   const router = useRouter();
   const [ideas, setIdeas] = useState(initial);
   const [filter, setFilter] = useState<string | null>(null);
@@ -256,6 +288,7 @@ export default function IdeasClient({ initial }: { initial: Idea[] }) {
         onToggleTag={toggleTag}
         onPromote={setPromoting}
         onOpenWishlist={() => router.push("/trips#your-year")}
+        journeys={journeys}
       />
     ));
 
@@ -356,15 +389,24 @@ export default function IdeasClient({ initial }: { initial: Idea[] }) {
         <PromoteToWishlistSheet
           ideaId={promoting.id}
           initialQuery={promoting.title ?? ""}
+          journeys={journeys}
           onClose={() => setPromoting(null)}
-          onPromoted={(destinationId, name) => {
+          onDone={(outcome: PromoteOutcome) => {
             setIdeas((p) =>
               p.map((x) =>
-                x.id === promoting.id ? { ...x, wishlist_destination_id: destinationId } : x
+                x.id !== promoting.id
+                  ? x
+                  : outcome.kind === "wishlist"
+                    ? { ...x, wishlist_destination_id: outcome.destinationId }
+                    : { ...x, pins_added: outcome.count, pinned_trip_id: outcome.tripId }
               )
             );
             setPromoting(null);
-            setJustAdded(name);
+            setJustAdded(
+              outcome.kind === "wishlist"
+                ? `${outcome.name} added to your wishlist`
+                : `${outcome.count} ${outcome.count === 1 ? "place" : "places"} added to ${outcome.tripTitle}`
+            );
           }}
         />
       )}
@@ -375,7 +417,7 @@ export default function IdeasClient({ initial }: { initial: Idea[] }) {
           className="fixed left-1/2 -translate-x-1/2 bottom-24 z-[80] rounded-full px-4 py-2 text-[13px]"
           style={{ background: INK, color: "#fff" }}
         >
-          {justAdded} added to your wishlist
+          {justAdded}
         </button>
       )}
     </div>

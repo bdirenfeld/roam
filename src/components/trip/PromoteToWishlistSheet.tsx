@@ -11,28 +11,53 @@ import {
 import type { Prediction, ResolvedPlace } from "@/lib/places/predictions";
 import { fetchClimate, compactAddress } from "@/lib/wishlist/climate";
 import type { MonthClimate } from "@/lib/wishlist/climate";
+import { pinPlaceToJourney } from "@/lib/wishlist/pinToJourney";
 
 const INK = "#1A1A2E";
 const CAPTION = "rgba(26,26,46,0.55)";
-const SOFT = "rgba(26,26,46,0.35)";
-const RULE = "rgba(26,26,46,0.10)";
+const SOFT = "rgba(26,26,46,0.42)";
+const RULE = "rgba(26,26,46,0.12)";
 const SIENNA = "#C4622D";
 const PARCHMENT = "#FAF7F2";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+/** A journey you could pin a place to. */
+export interface JourneySummary {
+  id: string;
+  title: string;
+  destination: string | null;
+  destination_lat: number | null;
+  destination_lng: number | null;
+}
+
+export type PromoteOutcome =
+  | { kind: "wishlist"; destinationId: string; name: string }
+  | { kind: "pins"; tripId: string; tripTitle: string; count: number };
+
+/** Great-circle km — used only to decide which journey to offer first. */
+function distanceKm(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(bLat - aLat);
+  const dLng = toRad(bLng - aLng);
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
+
+/** Close enough that the journey is the obvious answer rather than a guess. */
+const NEARBY_KM = 150;
+
 /**
- * The months worth going in, as a plain phrase.
- *
- * Ranked on HCI where the profile carries it and on the daily max otherwise,
- * then read back in calendar order so "Jun – Sep" comes out the right way
- * round. Contiguous runs print as a range, scattered months as a list — a
- * Mediterranean summer and a shoulder-season city shouldn't be forced into
- * the same shape.
+ * The months worth going in, as a plain phrase. Ranked on HCI where the profile
+ * carries it and on daily max otherwise, then read back in calendar order so
+ * "Jun – Sep" comes out the right way round.
  */
 function bestMonths(climate: MonthClimate[]): string | null {
   if (climate.length !== 12) return null;
-  const scored = climate.map((c, i) => ({ i, s: c.hci ?? (30 - Math.abs(24 - c.high)) }));
+  const scored = climate.map((c, i) => ({ i, s: c.hci ?? 30 - Math.abs(24 - c.high) }));
   const top = [...scored].sort((a, b) => b.s - a.s).slice(0, 4).map((m) => m.i).sort((a, b) => a - b);
   if (top.length === 0) return null;
   const contiguous = top.every((m, k) => k === 0 || m === top[k - 1] + 1);
@@ -44,19 +69,24 @@ function bestMonths(climate: MonthClimate[]): string | null {
 type Props = {
   ideaId: string;
   /** Seeds the search box. Idea titles are often unsearchable ("this beach in
-   *  Sardinia is unreal 😍"), which is exactly why this is editable and why
-   *  nothing is geocoded until a real place is picked. */
+   *  Sardinia is unreal 😍"), which is why this is editable and why nothing is
+   *  geocoded until a real place is picked. */
   initialQuery: string;
+  /** Journeys still worth adding to — a finished trip is not somewhere to put
+   *  a restaurant. */
+  journeys: JourneySummary[];
   onClose: () => void;
-  onPromoted: (destinationId: string, name: string) => void;
+  onDone: (outcome: PromoteOutcome) => void;
 };
 
 export default function PromoteToWishlistSheet({
   ideaId,
   initialQuery,
+  journeys,
   onClose,
-  onPromoted,
+  onDone,
 }: Props) {
+  const [step, setStep] = useState<"search" | "target" | "wishlist" | "added">("search");
   const [query, setQuery] = useState(initialQuery);
   const [preds, setPreds] = useState<Prediction[]>([]);
   const [picked, setPicked] = useState<ResolvedPlace | null>(null);
@@ -65,16 +95,17 @@ export default function PromoteToWishlistSheet({
   const [duplicate, setDuplicate] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // One Places session token for the whole picker — Google bills autocomplete
-  // plus details as a single session when they share it.
+  // Everything this one idea has produced in this sitting — a Reddit thread of
+  // fifteen restaurants shouldn't mean reopening the idea fifteen times.
+  const [addedTo, setAddedTo] = useState<JourneySummary | null>(null);
+  const [addedNames, setAddedNames] = useState<string[]>([]);
+
   const token = useRef(
     typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now())
   );
 
-  // Predictions, debounced. Skipped entirely once a place is picked, so
-  // confirming doesn't flicker a fresh list behind the summary.
   useEffect(() => {
-    if (picked) return;
+    if (step !== "search") return;
     const q = query.trim();
     if (q.length < 3) {
       setPreds([]);
@@ -84,7 +115,7 @@ export default function PromoteToWishlistSheet({
       setPreds(await fetchPredictions(q, token.current));
     }, 220);
     return () => clearTimeout(t);
-  }, [query, picked]);
+  }, [query, step]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -92,40 +123,90 @@ export default function PromoteToWishlistSheet({
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  // Journeys, nearest first. The coordinates were just resolved, so offering
+  // the journey that contains them is a guess the app can actually make.
+  const ranked = picked
+    ? [...journeys]
+        .map((j) => ({
+          j,
+          km:
+            j.destination_lat != null && j.destination_lng != null
+              ? distanceKm(picked.lat, picked.lng, j.destination_lat, j.destination_lng)
+              : Number.POSITIVE_INFINITY,
+        }))
+        .sort((a, b) => a.km - b.km)
+    : [];
+
   const choose = async (p: Prediction) => {
     setBusy(true);
     setError(null);
     const place = await fetchPlaceDetails(p.place_id, token.current);
+    setBusy(false);
     if (!place) {
       setError("Couldn't read that place back from Google. Pick another.");
-      setBusy(false);
       return;
     }
     setPicked(place);
+    setStep("target");
+  };
 
-    // Already on the wishlist? Same test the Year View uses — name, or within
-    // roughly 5km — so the two screens agree on what counts as the same place.
+  const pinTo = async (j: JourneySummary) => {
+    if (!picked) return;
+    setBusy(true);
+    setError(null);
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      setError("You're signed out. Sign in and try again.");
+      setBusy(false);
+      return;
+    }
+    const res = await pinPlaceToJourney(supabase, user.id, j.id, picked);
+    if (!res.ok) {
+      setError(res.message);
+      setBusy(false);
+      return;
+    }
+    const names = res.duplicate ? addedNames : [...addedNames, res.placeName];
+    if (!res.duplicate) {
+      await supabase
+        .from("ideas")
+        .update({ pins_added: names.length, pinned_trip_id: j.id })
+        .eq("id", ideaId);
+    }
+    setAddedNames(names);
+    setAddedTo(j);
+    setDuplicate(res.duplicate ? res.placeName : null);
+    setBusy(false);
+    setStep("added");
+  };
+
+  const chooseWishlist = async () => {
+    if (!picked) return;
+    setBusy(true);
+    setError(null);
+    setStep("wishlist");
+
     const supabase = createClient();
     const { data: existing } = await supabase
       .from("wishlist_destinations")
       .select("id, name, lat, lng");
     const hit = (existing ?? []).find(
       (d: { name: string; lat: number | null; lng: number | null }) =>
-        d.name.trim().toLowerCase() === place.name.trim().toLowerCase() ||
+        d.name.trim().toLowerCase() === picked.name.trim().toLowerCase() ||
         (d.lat != null &&
           d.lng != null &&
-          Math.abs(d.lat - place.lat) < 0.05 &&
-          Math.abs(d.lng - place.lng) < 0.05)
+          Math.abs(d.lat - picked.lat) < 0.05 &&
+          Math.abs(d.lng - picked.lng) < 0.05)
     );
     setDuplicate(hit ? hit.name : null);
-
-    // Climate up front so the row behaves like one added from the Year View.
-    // A failed fetch still saves — the destination is worth more than the graph.
-    setClimate(await fetchClimate(place.lat, place.lng).catch(() => null));
+    setClimate(await fetchClimate(picked.lat, picked.lng).catch(() => null));
     setBusy(false);
   };
 
-  const commit = async () => {
+  const commitWishlist = async () => {
     if (!picked) return;
     setBusy(true);
     setError(null);
@@ -162,7 +243,16 @@ export default function PromoteToWishlistSheet({
       return;
     }
     await supabase.from("ideas").update({ wishlist_destination_id: data.id }).eq("id", ideaId);
-    onPromoted(data.id as string, data.name as string);
+    onDone({ kind: "wishlist", destinationId: data.id as string, name: data.name as string });
+  };
+
+  const startAnother = () => {
+    setPicked(null);
+    setPreds([]);
+    setQuery("");
+    setDuplicate(null);
+    setError(null);
+    setStep("search");
   };
 
   return (
@@ -178,10 +268,10 @@ export default function PromoteToWishlistSheet({
           style={{ width: 34, height: 4, borderRadius: 2, background: "rgba(26,26,46,0.16)" }}
         />
 
-        {!picked ? (
+        {step === "search" && (
           <>
             <p className="font-display italic text-[17px] mb-3" style={{ color: INK }}>
-              Which place is this?
+              {addedNames.length > 0 ? "What else is in this one?" : "Which place is this?"}
             </p>
             <input
               autoFocus
@@ -215,8 +305,86 @@ export default function PromoteToWishlistSheet({
                 </p>
               )}
             </div>
+            {error && (
+              <p className="text-[13px] mt-2" style={{ color: SIENNA }}>
+                {error}
+              </p>
+            )}
           </>
-        ) : (
+        )}
+
+        {step === "target" && picked && (
+          <>
+            <p className="font-display italic text-[17px]" style={{ color: INK }}>
+              {picked.name}
+            </p>
+            <p className="text-[11.5px] mb-3" style={{ color: SOFT }}>
+              {compactAddress(picked.address, picked.name)}
+            </p>
+
+            {ranked.map(({ j, km }, idx) => (
+              <button
+                key={j.id}
+                onClick={() => pinTo(j)}
+                disabled={busy}
+                className="w-full text-left flex gap-3 items-start p-3 mb-1.5 rounded-xl"
+                style={{
+                  background: "#fff",
+                  border: `1px solid ${idx === 0 && km <= NEARBY_KM ? INK : RULE}`,
+                }}
+              >
+                <span className="flex-1 min-w-0">
+                  <span className="block text-[13.5px]" style={{ color: INK }}>
+                    {j.title}
+                    {idx === 0 && km <= NEARBY_KM && (
+                      <span
+                        className="ml-1.5 text-[9px] uppercase"
+                        style={{ letterSpacing: "0.1em", color: SIENNA }}
+                      >
+                        nearby
+                      </span>
+                    )}
+                  </span>
+                  <span className="block text-[11px] mt-[1px]" style={{ color: SOFT }}>
+                    Save as a pin on this journey
+                  </span>
+                </span>
+              </button>
+            ))}
+
+            <button
+              onClick={chooseWishlist}
+              disabled={busy}
+              className="w-full text-left flex gap-3 items-start p-3 mb-1.5 rounded-xl"
+              style={{ background: "#fff", border: `1px solid ${RULE}` }}
+            >
+              <span className="flex-1 min-w-0">
+                <span className="block text-[13.5px]" style={{ color: INK }}>
+                  Wishlist
+                </span>
+                <span className="block text-[11px] mt-[1px]" style={{ color: SOFT }}>
+                  Track its weather through the year
+                </span>
+              </span>
+            </button>
+
+            {error && (
+              <p className="text-[13px] mt-1" style={{ color: SIENNA }}>
+                {error}
+              </p>
+            )}
+
+            <button
+              onClick={startAnother}
+              className="mt-2 text-[13px]"
+              style={{ color: CAPTION }}
+            >
+              Back
+            </button>
+          </>
+        )}
+
+        {step === "wishlist" && picked && (
           <>
             <p className="font-display italic text-[17px] mb-2.5" style={{ color: INK }}>
               {picked.name}
@@ -233,7 +401,7 @@ export default function PromoteToWishlistSheet({
                   label="Coordinates"
                   value={`${picked.lat.toFixed(4)}, ${picked.lng.toFixed(4)}`}
                 />
-                <Row label="Climate" value={climate ? "5 years, monthly" : "Unavailable"} />
+                <Row label="Climate" value={busy ? "Fetching…" : climate ? "5 years, monthly" : "Unavailable"} />
                 {climate && bestMonths(climate) && (
                   <Row label="Best months" value={bestMonths(climate) as string} last />
                 )}
@@ -249,7 +417,7 @@ export default function PromoteToWishlistSheet({
             <div className="flex gap-2.5 mt-4">
               {!duplicate && (
                 <button
-                  onClick={commit}
+                  onClick={commitWishlist}
                   disabled={busy}
                   className="flex-1 rounded-lg py-2.5 text-[14px]"
                   style={{ background: INK, color: PARCHMENT, opacity: busy ? 0.6 : 1 }}
@@ -258,18 +426,62 @@ export default function PromoteToWishlistSheet({
                 </button>
               )}
               <button
-                onClick={() => {
-                  setPicked(null);
-                  setClimate(null);
-                  setDuplicate(null);
-                  setError(null);
-                }}
+                onClick={() => { setDuplicate(null); setError(null); setStep("target"); }}
                 className="rounded-lg py-2.5 px-4 text-[14px]"
                 style={{ border: `1px solid ${RULE}`, color: CAPTION }}
               >
-                {duplicate ? "Pick another" : "Back"}
+                Back
               </button>
             </div>
+          </>
+        )}
+
+        {step === "added" && addedTo && (
+          <>
+            <p className="font-display italic text-[17px]" style={{ color: INK }}>
+              Added to {addedTo.title}
+            </p>
+            <p className="text-[11.5px] mb-3" style={{ color: SOFT }}>
+              From this idea
+            </p>
+
+            {addedNames.map((n) => (
+              <div
+                key={n}
+                className="flex justify-between gap-3 py-1.5 text-[13px]"
+                style={{ borderBottom: `1px solid ${RULE}`, color: INK }}
+              >
+                <span>{n}</span>
+              </div>
+            ))}
+
+            {duplicate && (
+              <p className="text-[13px] mt-2.5" style={{ color: SOFT }}>
+                {duplicate} was already on this journey.
+              </p>
+            )}
+
+            <button
+              onClick={startAnother}
+              className="w-full rounded-lg py-2.5 mt-4 text-[14px]"
+              style={{ background: INK, color: PARCHMENT }}
+            >
+              Add another from this idea
+            </button>
+            <button
+              onClick={() =>
+                onDone({
+                  kind: "pins",
+                  tripId: addedTo.id,
+                  tripTitle: addedTo.title,
+                  count: addedNames.length,
+                })
+              }
+              className="w-full rounded-lg py-2.5 mt-2 text-[14px]"
+              style={{ border: `1px solid ${RULE}`, color: CAPTION }}
+            >
+              Done
+            </button>
           </>
         )}
       </div>
