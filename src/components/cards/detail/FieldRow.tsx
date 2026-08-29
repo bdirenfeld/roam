@@ -30,6 +30,25 @@ interface FieldRowProps {
   hideWhenEmpty?: boolean;
 }
 
+/**
+ * Notes are written with **bold** headings — Intent, Know before you go — and
+ * the read view printed the asterisks. Renders those as bold and leaves
+ * everything else exactly as typed; the edit view still shows the raw text, so
+ * what you wrote is what you get back.
+ */
+function renderEmphasis(text: string) {
+  const parts = text.split(/(\*\*[^*\n]+\*\*)/g);
+  return parts.map((part, i) =>
+    /^\*\*[^*\n]+\*\*$/.test(part) ? (
+      <strong key={i} className="font-semibold">
+        {part.slice(2, -2)}
+      </strong>
+    ) : (
+      part
+    ),
+  );
+}
+
 export default function FieldRow({
   icon,
   label,
@@ -116,7 +135,7 @@ export default function FieldRow({
               canEdit ? "cursor-pointer hover:bg-gray-50 -mx-1 px-1 py-0.5" : "",
             ].join(" ")}
           >
-            {isEmpty ? placeholder : value}
+            {isEmpty ? placeholder : multiline ? renderEmphasis(value ?? "") : value}
           </p>
         )}
       </div>

@@ -1292,8 +1292,14 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               one tap away. */}
 
           {/* Action pills: We loved this · Maps · Website · Call · Menu */}
+          {/* One row, scrolled — not wrapped. Five pills don't fit a phone, and
+              wrapping dropped Menu onto a line of its own, where it read as a
+              different kind of thing. */}
           {(showLoved || place?.lat != null && place.lng != null || (localCard.details as Record<string, unknown>)?.place_id != null || website || phone || place?.type === "food") && (
-            <div className="flex flex-wrap items-center mt-3" style={{ gap: 6 }}>
+            <div
+              className="flex items-center mt-3 overflow-x-auto scrollbar-none"
+              style={{ gap: 6, flexWrap: "nowrap" }}
+            >
               {/* "We loved this" — the only review that counts here. Unset it
                   is an ordinary pill; set, it collapses to the filled heart,
                   because a place you loved should not still be asking. */}
