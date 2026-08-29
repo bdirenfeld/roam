@@ -72,3 +72,31 @@ The benchmark: someone opens Roam in a Centurion Lounge and the person next to t
 - Neutral muted text: **`text-activity/50`** (warm Ink at 50% opacity, `rgba(26,26,46,0.5)`) — warmer than `text-gray-500` on parchment. A named semantic alias (`text-ink-muted`) is a future cleanup.
 - Condition/weather icons: inline hex is intentional — these are semantic accents (`#D18A2E` amber, `#3A7CA5` rain blue, `#8B8680` grey) not neutral tokens
 - Icons within SVG-heavy UI (weather): use inline Lucide SVG paths at 13×13, `strokeWidth=2`, rather than icon components, to avoid wrapper divs in tight layouts
+
+## Verification limits — READ BEFORE CHANGING MOBILE LAYOUT
+- **Claude cannot see Roam at phone width.** Localhost bounces to login (the Supabase session cookie is scoped to the vercel.app domain) and Chrome's `resize_window` does not narrow the viewport — `innerWidth` stays 1920.
+- Therefore: **a mobile-only layout change is proposed, never pushed.** Reasoning about `sticky`, `overflow`, and scroll containers from source is not verification. On 2026-08-29 three consecutive "fixes" for a scrolling issue were shipped blind; two rendered duplicated/ghosted entries on Brennan's phone and were reverted (`64e69a2`, `bea4276`).
+- `.mobile-container` sets `overflow-x: hidden`, which per spec computes the other axis to `auto` and makes it a **scroll container** — so `position: sticky` inside resolves against that box, not the viewport. Swapping to `overflow-x: clip` is the textbook fix and it still broke the render. **Leave it alone.**
+- Known, accepted, cosmetic: the day header scrolls away at the bottom of a long day.
+- Known, NOT a layout bug: a ghost card from the previous day can stay welded to a fixed screen position above the nav bar. It is a GPU compositing artifact on Android Chrome (stale layer never repainted), triggered by `animate-in slide-in-from-*` on day change plus Mapbox's `will-change: transform`. Diagnostic: if it does not scroll with the document, it is paint, not DOM.
+
+## Card faces (agenda rows) — what a row is allowed to say
+- A row shows **facts, not prose**: category label + short address ("Restaurant · 235 Mulberry St, New York"); flights show `ORIGIN → DEST · time`. Notes are never surfaced on a card face — they read inconsistently and truncate mid-word. The writing lives inside the card.
+- The left rail carries the bare category glyph above the time. **Numbered pins were tried and rejected** — as filled discs they shouted over the names, as bare numerals they read as debris. Matching a fork to a fork beats matching 3 to 3.
+- Photographs come from `/api/places/photo?place_id=…&index=0` and hide themselves `onError`. Places without one get nothing rather than a grey placeholder — the asymmetry is honest.
+- `places.cover_image_url` is null for every row; photos are fetched client-side. Do not treat a null there as a missing image.
+
+## Estimate (trip budget)
+- Table `trip_budgets` (trip_id PK, user_id, currency, fx_to_cad, `assumptions` jsonb, `basis` jsonb), own-rows RLS.
+- Nine lines in two groups (`standard` / `additional`). Model in `src/lib/budget/model.ts`; `src/lib/budget/load.ts` is shared by the route and the overlay so the two can never drift.
+- Defaults ship with **prices blank and counts real** — the app never invents a price. `suggest()` fills them from a great-circle flight band and per-card `details.budget`.
+- **Sub-components must live at module scope.** Defining `Row`/`Shell` inside the component body gives them a new identity every render, which remounts the subtree and destroys the focused `<input>` — that was the "typing one digit kicks me out of the cell" bug.
+
+## Ideas capture (share target)
+- `public/manifest.json` declares a `share_target` at `/share`, so Roam appears in the Android share sheet from TikTok, Instagram, Reddit, Lonely Planet.
+- Two things break this silently and both have bitten: `public/sw.js` caching `/manifest.json` as an immutable asset (**bump `VERSION` on every sw.js change**), and `src/middleware.ts` intercepting `manifest.json`/`sw.js` (the matcher must exclude both).
+- Table `ideas` (id, user_id, url, title, note, source, status, `tags text[]`), own-rows RLS, GIN index on tags.
+- **Unfinished:** nothing promotes an Idea to the wishlist — the capture → resolve → wishlist pipeline stops one step short, pending geocoding.
+
+## Mobile reachability trap
+- `DesktopMasthead` is `hidden md:flex`. Anything whose only entry point is added there is **invisible on a phone**. This has shipped twice (the estimate entry point, then ideas). Every new destination needs a mobile door.
