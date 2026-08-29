@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CaretLeft, CaretDown, Check } from "@phosphor-icons/react";
+import { CaretLeft, CaretDown, Check, X } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import {
   compute,
@@ -249,6 +249,10 @@ interface Props {
   dateRange: string;
   distanceKm: number;
   peak: boolean;
+  /** "page" is the standalone route; "overlay" hands the frame to the host. */
+  variant?: "page" | "overlay";
+  /** Close, when hosted in an overlay. Defaults to router.back(). */
+  onDismiss?: () => void;
 }
 
 export default function EstimateClient({
@@ -261,6 +265,8 @@ export default function EstimateClient({
   dateRange,
   distanceKm,
   peak,
+  variant = "page",
+  onDismiss,
 }: Props) {
   const router = useRouter();
   const [a, setA] = useState<Assumptions>(initialAssumptions);
@@ -350,16 +356,24 @@ export default function EstimateClient({
 
   return (
     <div
-      className="min-h-screen bg-parchment pb-24"
-      style={{ paddingTop: "max(1.25rem, env(safe-area-inset-top))" }}
+      className={variant === "overlay" ? "pb-8" : "min-h-screen bg-parchment pb-24"}
+      style={
+        variant === "overlay"
+          ? undefined
+          : { paddingTop: "max(1.25rem, env(safe-area-inset-top))" }
+      }
     >
       <div className="mx-auto w-full max-w-[560px] px-3 pt-2">
         <button
-          onClick={() => router.back()}
+          onClick={() => (onDismiss ? onDismiss() : router.back())}
           className="flex items-center gap-1 mb-5 px-1"
           style={{ color: CAPTION, fontSize: 13 }}
         >
-          <CaretLeft size={15} weight="light" />
+          {variant === "overlay" ? (
+            <X size={14} weight="light" />
+          ) : (
+            <CaretLeft size={15} weight="light" />
+          )}
           {tripTitle}
         </button>
 

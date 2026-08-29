@@ -37,6 +37,8 @@ import { createClient } from "@/lib/supabase/client";
 import { isTripGuest } from "@/lib/trip-access-client";
 import { buildNewJourneyHref } from "@/lib/newJourneySeed";
 import type { NewJourneySeed } from "@/lib/newJourneySeed";
+import { loadEstimate } from "@/lib/budget/load";
+import type { EstimateData } from "@/lib/budget/load";
 import { loadShareState } from "@/lib/share-actions";
 import type { ShareState } from "@/lib/share-actions";
 import type { Day, Trip } from "@/types/database";
@@ -55,6 +57,9 @@ const ProfileForm = dynamic(() => import("@/components/profile/ProfileForm"), {
   ssr: false,
 });
 const TripSettingsClient = dynamic(() => import("@/components/trip/TripSettingsClient"), {
+  ssr: false,
+});
+const EstimateClient = dynamic(() => import("@/components/trip/EstimateClient"), {
   ssr: false,
 });
 
@@ -83,6 +88,12 @@ interface TripSettingsController {
 const TripSettingsCtx = createContext<TripSettingsController>({ open: () => {} });
 export const useTripSettings = () => useContext(TripSettingsCtx);
 
+interface EstimateController {
+  open: (tripId: string) => void;
+}
+const EstimateCtx = createContext<EstimateController>({ open: () => {} });
+export const useEstimate = () => useContext(EstimateCtx);
+
 interface ProfileController {
   open: () => void;
 }
@@ -106,7 +117,9 @@ export function AppOverlaysProvider({ children }: { children: ReactNode }) {
     <NewJourneyProvider>
       <TripSettingsProvider>
         <ProfileProvider>
-          <JourneyNotesProvider>{children}</JourneyNotesProvider>
+          <EstimateProvider>
+            <JourneyNotesProvider>{children}</JourneyNotesProvider>
+          </EstimateProvider>
         </ProfileProvider>
       </TripSettingsProvider>
     </NewJourneyProvider>
@@ -147,6 +160,115 @@ function NewJourneyProvider({ children }: { children: ReactNode }) {
         </Overlay>
       )}
     </NewJourneyCtx.Provider>
+  );
+}
+
+// ── Estimate ────────────────────────────────
+
+function EstimateProvider({ children }: { children: ReactNode }) {
+  const [tripId, setTripId] = useState<string | null>(null);
+  const open = useCallback((id: string) => setTripId(id), []);
+  const close = useCallback(() => setTripId(null), []);
+  const value = useMemo(() => ({ open }), [open]);
+
+  return (
+    <EstimateCtx.Provider value={value}>
+      {children}
+      {tripId && (
+        <Overlay onClose={close} label="Estimate">
+          <EstimateOverlayBody tripId={tripId} onClose={close} />
+        </Overlay>
+      )}
+    </EstimateCtx.Provider>
+  );
+}
+
+/** Reads the same loader the route uses, through the browser client. */
+function EstimateOverlayBody({
+  tripId,
+  onClose,
+}: {
+  tripId: string;
+  onClose: () => void;
+}) {
+  const [data, setData] = useState<EstimateData | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadEstimate(createClient(), tripId)
+      .then((d) => {
+        if (cancelled) return;
+        if (d) setData(d);
+        else setFailed(true);
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tripId]);
+
+  if (failed) {
+    return (
+      <p className="px-5 py-10 text-center text-[13px] text-gray-400">
+        Couldn&rsquo;t load the estimate.
+      </p>
+    );
+  }
+  if (!data) {
+    return (
+      <p className="px-5 py-10 text-center text-[13px] text-gray-400">Loading&hellip;</p>
+    );
+  }
+  return (
+    <EstimateClient
+      tripId={tripId}
+      tripTitle={data.tripTitle}
+      initialAssumptions={data.assumptions}
+      initialBasis={data.basis}
+      uncostedExcursions={data.uncostedExcursions}
+      rolledExcursionCount={data.rolledExcursionCount}
+      dateRange={data.dateRange}
+      distanceKm={data.distanceKm}
+      peak={data.peak}
+      variant="overlay"
+      onDismiss={onClose}
+    />
+  );
+}
+
+/** Trigger — a real link to the route, overlay on a plain click. */
+export function EstimateLink({
+  tripId,
+  className,
+  style,
+  title,
+  ariaLabel,
+  role,
+  children,
+  onBeforeOpen,
+}: TriggerProps & { tripId: string }) {
+  const { open } = useEstimate();
+  return (
+    <Link
+      href={"/trips/" + tripId + "/estimate"}
+      prefetch={false}
+      className={className}
+      style={style}
+      title={title}
+      aria-label={ariaLabel}
+      role={role}
+      onClick={(e) => {
+        if (opensElsewhere(e)) return;
+        e.preventDefault();
+        onBeforeOpen?.();
+        open(tripId);
+      }}
+    >
+      {children}
+    </Link>
   );
 }
 

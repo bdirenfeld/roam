@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { DotsThree, CaretLeft, CaretRight, NotePencil, Gear, MagnifyingGlass, Coins } from "@phosphor-icons/react";
 import { useGlobalSearch } from "@/components/search/GlobalSearch";
-import { TripSettingsLink } from "@/components/overlays/AppOverlays";
+import { TripSettingsLink, EstimateLink } from "@/components/overlays/AppOverlays";
 import DayStrip from "@/components/day/DayStrip";
 import DayPicker from "@/components/day/DayPicker";
 import DayMap from "@/components/day/DayMap";

@@ -10,6 +10,7 @@ import {
   NewJourneyLink,
   ProfileLink,
   TripSettingsLink,
+  EstimateLink,
   useJourneyNotes,
 } from "@/components/overlays/AppOverlays";
 import { createClient } from "@/lib/supabase/client";
@@ -586,13 +587,13 @@ function TripTabs({
   );
 }
 
-/** Coins glyph beside the journey's tabs. Opens the estimate screen. */
+/** Coins glyph beside the journey's tabs. Opens the estimate over the page. */
 function EstimateGlyph({ tripId }: { tripId: string }) {
   return (
-    <Link
-      href={`/trips/${tripId}/estimate`}
+    <EstimateLink
+      tripId={tripId}
       title="Estimate"
-      aria-label="Estimate"
+      ariaLabel="Estimate"
       style={{
         display: "flex",
         alignItems: "center",
@@ -603,7 +604,7 @@ function EstimateGlyph({ tripId }: { tripId: string }) {
       }}
     >
       <Coins size={16} weight="light" />
-    </Link>
+    </EstimateLink>
   );
 }
 
