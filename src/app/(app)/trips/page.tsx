@@ -91,23 +91,7 @@ export default async function TripsPage() {
             above this, and repeating it cost a line for nothing. */}
 
 
-        {/* Your year — meta line + 12-month planning strip; only once a
-            journey has dates */}
-        {hasDatedTrips && (
-          <YearView
-            trips={(trips ?? []).map((t: Trip) => ({
-              id: t.id,
-              title: t.title,
-              destination: t.destination,
-              start_date: t.start_date,
-              end_date: t.end_date,
-              archived: t.archived === true,
-              openDayId: openDayByTrip[t.id],
-            }))}
-          />
-        )}
-
-        <div className="px-4 pb-6 md:px-0 md:pb-0 md:mt-9">
+        <div className="px-4 pb-6 md:px-0 md:pb-0 md:mt-2">
           {/* iPhone Safari only — one-time "Add to Home Screen" hint */}
           <AddToHomeScreenHint />
           {trips && trips.length > 0 ? (
@@ -118,6 +102,26 @@ export default async function TripsPage() {
                   {upcoming.map((trip: Trip) => (
                     <TripCard key={trip.id} trip={trip} openDayId={openDayByTrip[trip.id]} />
                   ))}
+                </div>
+              )}
+
+              {/* Your year sits with the journeys it describes, below them
+                  rather than above — it answers "when should we go", which is
+                  a question you sit down to ask, not something you pass on the
+                  way in. Only once a journey has real dates. */}
+              {hasDatedTrips && (
+                <div className="-mx-4 md:mx-0">
+                  <YearView
+                    trips={(trips ?? []).map((t: Trip) => ({
+                      id: t.id,
+                      title: t.title,
+                      destination: t.destination,
+                      start_date: t.start_date,
+                      end_date: t.end_date,
+                      archived: t.archived === true,
+                      openDayId: openDayByTrip[t.id],
+                    }))}
+                  />
                 </div>
               )}
 

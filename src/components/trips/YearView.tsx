@@ -16,7 +16,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
 import { NewJourneyLink } from "@/components/overlays/AppOverlays";
 import { createClient } from "@/lib/supabase/client";
 import { FAMILY_DATES } from "@/lib/yearView/familyDates";
@@ -467,8 +466,6 @@ export default function YearView({ trips }: Props) {
   // null until mounted — the body is client-only, so localStorage and the
   // viewport width can decide the default without a hydration mismatch.
   const [openState, setOpenState] = useState<boolean | null>(null);
-  const router = useRouter();
-  const searchParams = useSearchParams();
   const [dest, setDest] = useState<{ label: string; lat: number; lng: number } | null>(null);
   const [climate, setClimate] = useState<MonthClimate[] | null>(null);
   const [climateError, setClimateError] = useState(false);
@@ -525,15 +522,7 @@ export default function YearView({ trips }: Props) {
     try {
       localStorage.setItem(OPEN_KEY, v ? "1" : "0");
     } catch {}
-    // Drop the header glyph query on close, or tapping it again would land on
-    // a URL the effect below reads as "already open".
-    if (!v && searchParams?.get("year")) router.replace("/trips", { scroll: false });
   };
-
-  // The calendar glyph in the header navigates here with ?year=1.
-  useEffect(() => {
-    if (searchParams?.get("year") === "1") setOpenState(true);
-  }, [searchParams]);
 
   // ── Ideal travel windows: load, add, delete (RLS scopes to the user) ────
   useEffect(() => {
@@ -1146,11 +1135,37 @@ export default function YearView({ trips }: Props) {
 
   return (
     <>
-      {/* No trigger line here any more. It used to sit under the "Journeys"
-          title as its subtitle; with that title gone it was an orphan label
-          holding a whole row for a five-word toggle. The way in is now the
-          calendar glyph in the header — Your year is a lens you open, read
-          and close, which is what a glyph is for. */}
+      {/* A row, not a label and not a header glyph.
+          It began as the subtitle of the "Journeys" title; when that title went
+          it was an orphan holding a whole line. Moving it to the header made
+          the top row seven things at one weight — and a glyph can't tell you
+          whether there's anything worth opening. As a row it sits with the
+          journeys it describes and carries its own reason to tap. */}
+      {!isOpen && (
+        <div className="px-4 md:px-0 mt-4 md:mt-6">
+          <button
+            onClick={() => setOpen(true)}
+            className="w-full flex items-center justify-between rounded-[12px] bg-white px-3.5 py-3"
+            style={{ boxShadow: "0 0 0 1px rgba(26,26,46,0.08)" }}
+          >
+            <span className="flex items-baseline gap-2.5">
+              <span
+                className="font-display italic text-[15px]"
+                style={{ color: "rgba(26,26,46,1)" }}
+              >
+                Your year
+              </span>
+              {openWindows.length > 0 && (
+                <span className="text-[11.5px]" style={{ color: "rgba(26,26,46,0.35)" }}>
+                  {openWindows.length} open{" "}
+                  {openWindows.length === 1 ? "window" : "windows"}
+                </span>
+              )}
+            </span>
+            <span style={{ color: "rgba(26,26,46,0.3)", fontSize: 15 }}>&rsaquo;</span>
+          </button>
+        </div>
+      )}
 
       {isOpen && (
     <section

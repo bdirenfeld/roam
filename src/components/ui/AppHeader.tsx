@@ -1,7 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
 import { SearchButton } from "@/components/search/GlobalSearch";
-import { CalendarBlank } from "@phosphor-icons/react/dist/ssr";
 import { NewJourneyLink, ProfileLink } from "@/components/overlays/AppOverlays";
 
 interface AppHeaderProps {
@@ -16,14 +15,11 @@ export default function AppHeader({ avatarUrl, subtitle, showNewTrip, ideaCount 
   return (
     <header className="flex md:hidden items-center justify-between px-4 py-3 border-b border-gray-100 bg-white sticky top-0 z-30">
       <div className="flex items-baseline gap-2.5 min-w-0">
-        <Link href="/">
-          <span className="font-display italic text-xl text-gray-900">
-            Roam
-          </span>
-        </Link>
-        <span className="text-gray-300 text-sm">|</span>
+        {/* No wordmark on a phone. You opened the app from its own icon;
+            repeating the name spent about a third of a 360px row. Journeys is
+            the page title and the nav at once. */}
         <Link href="/trips">
-          <span className="font-display italic text-[15px] text-gray-900">
+          <span className="font-display italic text-[20px] text-gray-900">
             Journeys
           </span>
         </Link>
@@ -53,17 +49,6 @@ export default function AppHeader({ avatarUrl, subtitle, showNewTrip, ideaCount 
           size={18}
           strokeWidth={1.5}
         />
-
-        {/* Your year — a lens you open, read and close, so a glyph rather
-            than nav. It used to hold a whole row of the page below. */}
-        <Link
-          href="/trips?year=1"
-          title="Your year"
-          aria-label="Your year"
-          className="w-8 h-8 flex items-center justify-center text-[rgba(26,26,46,0.55)]"
-        >
-          <CalendarBlank size={18} weight="light" />
-        </Link>
 
         {/* "+" and the avatar open their screens in place. Both stay real
             links to /trips/new and /profile, so ctrl/cmd-click still opens
