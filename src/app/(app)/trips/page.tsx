@@ -89,7 +89,7 @@ export default async function TripsPage() {
 
         {/* No page heading. Both headers already say Journeys immediately
             above this, and repeating it cost a line for nothing. */}
-        <div className="pt-3 md:pt-0" />
+
 
         {/* Your year — meta line + 12-month planning strip; only once a
             journey has dates */}

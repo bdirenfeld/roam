@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { SearchButton } from "@/components/search/GlobalSearch";
+import { CalendarBlank } from "@phosphor-icons/react/dist/ssr";
 import { NewJourneyLink, ProfileLink } from "@/components/overlays/AppOverlays";
 
 interface AppHeaderProps {
@@ -52,6 +53,17 @@ export default function AppHeader({ avatarUrl, subtitle, showNewTrip, ideaCount 
           size={18}
           strokeWidth={1.5}
         />
+
+        {/* Your year — a lens you open, read and close, so a glyph rather
+            than nav. It used to hold a whole row of the page below. */}
+        <Link
+          href="/trips?year=1"
+          title="Your year"
+          aria-label="Your year"
+          className="w-8 h-8 flex items-center justify-center text-[rgba(26,26,46,0.55)]"
+        >
+          <CalendarBlank size={18} weight="light" />
+        </Link>
 
         {/* "+" and the avatar open their screens in place. Both stay real
             links to /trips/new and /profile, so ctrl/cmd-click still opens

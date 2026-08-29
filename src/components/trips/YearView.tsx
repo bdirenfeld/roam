@@ -16,6 +16,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { NewJourneyLink } from "@/components/overlays/AppOverlays";
 import { createClient } from "@/lib/supabase/client";
 import { FAMILY_DATES } from "@/lib/yearView/familyDates";
@@ -466,6 +467,8 @@ export default function YearView({ trips }: Props) {
   // null until mounted — the body is client-only, so localStorage and the
   // viewport width can decide the default without a hydration mismatch.
   const [openState, setOpenState] = useState<boolean | null>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [dest, setDest] = useState<{ label: string; lat: number; lng: number } | null>(null);
   const [climate, setClimate] = useState<MonthClimate[] | null>(null);
   const [climateError, setClimateError] = useState(false);
@@ -522,7 +525,15 @@ export default function YearView({ trips }: Props) {
     try {
       localStorage.setItem(OPEN_KEY, v ? "1" : "0");
     } catch {}
+    // Drop the header glyph query on close, or tapping it again would land on
+    // a URL the effect below reads as "already open".
+    if (!v && searchParams?.get("year")) router.replace("/trips", { scroll: false });
   };
+
+  // The calendar glyph in the header navigates here with ?year=1.
+  useEffect(() => {
+    if (searchParams?.get("year") === "1") setOpenState(true);
+  }, [searchParams]);
 
   // ── Ideal travel windows: load, add, delete (RLS scopes to the user) ────
   useEffect(() => {
@@ -1135,34 +1146,43 @@ export default function YearView({ trips }: Props) {
 
   return (
     <>
-      {/* The only thing under the "Journeys" title: the way into the year.
-          Counts lived here once and told Brennan nothing he wanted. */}
-      <div className="px-4 md:px-0 flex">
-        <button
-          onClick={() => setOpen(!isOpen)}
-          aria-expanded={isOpen}
-          className="font-sans uppercase flex items-center"
-          style={{
-            fontSize: 10,
-            fontWeight: 600,
-            letterSpacing: "0.14em",
-            color: "rgba(26,26,46,0.55)",
-            // 44px tap target that doesn't add 44px of visual space
-            minHeight: 44,
-            paddingRight: 8,
-            marginTop: -12,
-            marginBottom: -12,
-          }}
-        >
-          Your year&nbsp;{isOpen ? "▾" : "▸"}
-        </button>
-      </div>
+      {/* No trigger line here any more. It used to sit under the "Journeys"
+          title as its subtitle; with that title gone it was an orphan label
+          holding a whole row for a five-word toggle. The way in is now the
+          calendar glyph in the header — Your year is a lens you open, read
+          and close, which is what a glyph is for. */}
 
       {isOpen && (
     <section
       className="mx-4 mt-3 md:mx-0 md:mt-4 rounded-[14px]"
       style={{ border: "1px solid rgba(26,26,46,0.08)", background: CARD_BG }}
     >
+      {/* The panel names and closes itself, now that the trigger outside is
+          gone. */}
+      <div className="flex items-center justify-between px-4 md:px-5 pt-3">
+        <span
+          className="font-sans uppercase"
+          style={{
+            fontSize: 10,
+            fontWeight: 600,
+            letterSpacing: "0.14em",
+            color: "rgba(26,26,46,0.55)",
+          }}
+        >
+          Your year
+        </span>
+        <button
+          onClick={() => setOpen(false)}
+          aria-label="Close your year"
+          className="flex items-center justify-center"
+          style={{ width: 28, height: 28, marginRight: -6, color: "rgba(26,26,46,0.35)" }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
       {/* Body — on mobile the Open-windows list leads (vertical, actionable)
           and the strip follows; desktop keeps the strip first */}
       <div className="flex flex-col px-4 pt-2 pb-3 md:px-5 md:pb-4">

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { UserCircle, Calendar, Columns, MapPin, NotePencil, Coins } from "@phosphor-icons/react";
+import { UserCircle, Calendar, Columns, MapPin, NotePencil, Coins, CalendarBlank } from "@phosphor-icons/react";
 import { SearchButton } from "@/components/search/GlobalSearch";
 import SharedWithFaces from "@/components/trip/SharedWithFaces";
 import {
@@ -332,6 +332,18 @@ export default function DesktopMasthead() {
         size={17}
         strokeWidth={1.4}
       />
+
+      {/* Your year — a lens you open, read and close, so a glyph rather than
+          nav. It used to hold a whole row of the page below. */}
+      <Link
+        href="/trips?year=1"
+        title="Your year"
+        aria-label="Your year"
+        className="inline-flex items-center justify-center p-2 mr-1.5"
+        style={{ color: CAPTION }}
+      >
+        <CalendarBlank size={17} weight="light" />
+      </Link>
 
       {/* Plan a journey — masthead-global new-trip entry, matches design
           canvas. Opens the form in place; still a link to /trips/new so
