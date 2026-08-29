@@ -18,14 +18,14 @@ export default async function IdeasPage() {
       )
       .eq("user_id", user.id)
       .order("created_at", { ascending: false }),
-    // Journeys still worth adding a place to. A finished trip is not somewhere
-    // to put a restaurant, and archived ones would bury the list you want.
+    // Every journey, archived included: a shelved journey is still somewhere
+    // you might be collecting places for, and deciding otherwise for Brennan
+    // just means he cannot do the thing he asked for. The sheet labels the
+    // shelved ones and offers the live ones first.
     supabase
       .from("trips")
-      .select("id, title, destination, destination_lat, destination_lng, end_date")
+      .select("id, title, destination, destination_lat, destination_lng, end_date, archived")
       .eq("user_id", user.id)
-      .eq("archived", false)
-      .gte("end_date", new Date().toISOString().slice(0, 10))
       .order("start_date", { ascending: true }),
   ]);
 

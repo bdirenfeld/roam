@@ -29,6 +29,8 @@ export interface JourneySummary {
   destination: string | null;
   destination_lat: number | null;
   destination_lng: number | null;
+  end_date: string | null;
+  archived: boolean;
 }
 
 export interface ResolvedIdeaPlace {
@@ -143,18 +145,25 @@ export default function PromoteToWishlistSheet({
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  // Journeys, nearest first. The coordinates were just resolved, so offering
-  // the journey that contains them is a guess the app can actually make.
+  // Journeys, live ones first and nearest first within each group. The
+  // coordinates were just resolved, so offering the journey that contains them
+  // is a guess the app can actually make — but a shelved or finished journey
+  // should never outrank one you are still planning, however close it is.
+  const today = new Date().toISOString().slice(0, 10);
+  const isShelved = (j: JourneySummary) =>
+    j.archived || (j.end_date != null && j.end_date < today);
+
   const ranked = picked
     ? [...journeys]
         .map((j) => ({
           j,
+          shelved: isShelved(j),
           km:
             j.destination_lat != null && j.destination_lng != null
               ? distanceKm(picked.lat, picked.lng, j.destination_lat, j.destination_lng)
               : Number.POSITIVE_INFINITY,
         }))
-        .sort((a, b) => a.km - b.km)
+        .sort((a, b) => (a.shelved === b.shelved ? a.km - b.km : a.shelved ? 1 : -1))
     : [];
 
   const choose = async (p: Prediction) => {
@@ -342,7 +351,7 @@ export default function PromoteToWishlistSheet({
               {compactAddress(picked.address, picked.name)}
             </p>
 
-            {ranked.map(({ j, km }, idx) => (
+            {ranked.map(({ j, km, shelved }, idx) => (
               <button
                 key={j.id}
                 onClick={() => pinTo(j)}
@@ -350,18 +359,26 @@ export default function PromoteToWishlistSheet({
                 className="w-full text-left flex gap-3 items-start p-3 mb-1.5 rounded-xl"
                 style={{
                   background: "#fff",
-                  border: `1px solid ${idx === 0 && km <= NEARBY_KM ? INK : RULE}`,
+                  border: `1px solid ${idx === 0 && !shelved && km <= NEARBY_KM ? INK : RULE}`,
                 }}
               >
                 <span className="flex-1 min-w-0">
-                  <span className="block text-[13.5px]" style={{ color: INK }}>
+                  <span className="block text-[13.5px]" style={{ color: shelved ? CAPTION : INK }}>
                     {j.title}
-                    {idx === 0 && km <= NEARBY_KM && (
+                    {idx === 0 && !shelved && km <= NEARBY_KM && (
                       <span
                         className="ml-1.5 text-[9px] uppercase"
                         style={{ letterSpacing: "0.1em", color: SIENNA }}
                       >
                         nearby
+                      </span>
+                    )}
+                    {shelved && (
+                      <span
+                        className="ml-1.5 text-[9px] uppercase"
+                        style={{ letterSpacing: "0.1em", color: SOFT }}
+                      >
+                        {j.archived ? "archived" : "past"}
                       </span>
                     )}
                   </span>
