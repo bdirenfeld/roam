@@ -62,14 +62,37 @@ function railTime(start: string | null): string | null {
   return `${hour12}:${String(m ?? 0).padStart(2, "0")} ${suffix}`;
 }
 
-/** First sentence of the notes — what the card actually says about the place. */
+/**
+ * The first thing the notes actually SAY about the place.
+ *
+ * Not simply the first line: notes are written with headings — `**Intent**`,
+ * `KNOW BEFORE YOU GO`, `BRING`, `COST` — and taking line one literally put
+ * "**Intent**" on the face of the card. Walk past the headings and the
+ * bullet marks to the first real sentence.
+ */
 function noteLead(det: Record<string, unknown> | null): string | null {
   const notes = typeof det?.notes === "string" ? det.notes : null;
   if (!notes) return null;
-  const firstLine = notes.split("\n").find((l) => l.trim().length > 0);
-  if (!firstLine) return null;
-  const trimmed = firstLine.trim();
-  return trimmed.length > 150 ? trimmed.slice(0, 148).trimEnd() + "…" : trimmed;
+
+  for (const raw of notes.split("\n")) {
+    const line = raw.trim();
+    if (!line) continue;
+    // A whole line wrapped in ** ** is a heading, not a sentence.
+    if (/^\*{1,2}.+\*{1,2}$/.test(line)) continue;
+    // Markdown headings and horizontal rules.
+    if (/^(#{1,6}\s|[-=_]{3,}$)/.test(line)) continue;
+
+    const clean = line
+      .replace(/^[•·\-*>\s]+/, "")
+      .replace(/\*\*/g, "")
+      .trim();
+    if (!clean) continue;
+    // Caps-only labels: COST, BRING, THE LIST, BE REALISTIC.
+    if (clean.length < 44 && clean === clean.toUpperCase() && /[A-Z]/.test(clean)) continue;
+
+    return clean.length > 150 ? clean.slice(0, 148).trimEnd() + "…" : clean;
+  }
+  return null;
 }
 
 /**
