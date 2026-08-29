@@ -3,7 +3,12 @@ import { redirect } from "next/navigation";
 import EstimateClient from "@/components/trip/EstimateClient";
 import { getTripAccess } from "@/lib/trip-access";
 import type { Assumptions, CardBudget } from "@/lib/budget/model";
-import { defaultAssumptions, cardBudgetToCad } from "@/lib/budget/model";
+import {
+  defaultAssumptions,
+  cardBudgetToCad,
+  greatCircleKm,
+  HOME,
+} from "@/lib/budget/model";
 
 interface Props {
   params: Promise<{ tripId: string }>;
@@ -34,7 +39,9 @@ export default async function EstimatePage({ params }: Props) {
     await Promise.all([
       supabase
         .from("trips")
-        .select("id, title, start_date, end_date, party_size")
+        .select(
+          "id, title, start_date, end_date, party_size, destination_lat, destination_lng",
+        )
         .eq("id", tripId)
         .single(),
       supabase.from("days").select("id").eq("trip_id", tripId),
@@ -86,14 +93,27 @@ export default async function EstimatePage({ params }: Props) {
       ? `${fmt(trip.start_date)} – ${fmt(trip.end_date)}, ${new Date(trip.end_date + "T12:00:00").getFullYear()}`
       : "";
 
+  // Inputs the suggestion derives from, rather than guesses at.
+  const lat = trip.destination_lat as number | null;
+  const lng = trip.destination_lng as number | null;
+  const distanceKm =
+    lat != null && lng != null
+      ? greatCircleKm(HOME.lat, HOME.lng, lat, lng)
+      : 0;
+  const month = trip.start_date ? Number(trip.start_date.slice(5, 7)) : 0;
+  const peak = month === 7 || month === 8 || month === 12;
+
   return (
     <EstimateClient
       tripId={tripId}
       tripTitle={trip.title ?? "Journey"}
       initialAssumptions={assumptions}
+      initialBasis={(saved?.basis ?? {}) as Record<string, string>}
       uncostedExcursions={uncostedExcursions}
       rolledExcursionCount={cardBudgets.length}
       dateRange={dateRange}
+      distanceKm={distanceKm}
+      peak={peak}
     />
   );
 }

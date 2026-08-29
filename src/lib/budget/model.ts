@@ -290,3 +290,78 @@ export function compute(
     rolledExcursionCount: opts.rolledExcursionCount,
   };
 }
+
+/* ------------------------------------------------------------------ *
+ * Suggestion
+ *
+ * Structure comes from the journey — distance, party size, nights, season.
+ * The rates are priors: reasonable mid-market figures, not quotes. Each one
+ * returns the basis it was derived from so the screen can answer "how did you
+ * get that" months later.
+ * ------------------------------------------------------------------ */
+
+export interface Suggestion {
+  values: Partial<Assumptions>;
+  basis: Record<string, string>;
+}
+
+export const HOME = { lat: 43.6532, lng: -79.3832 }; // Toronto
+
+export function greatCircleKm(
+  aLat: number,
+  aLng: number,
+  bLat: number,
+  bLng: number,
+): number {
+  const r = Math.PI / 180;
+  return Math.round(
+    Math.acos(
+      Math.min(
+        1,
+        Math.sin(aLat * r) * Math.sin(bLat * r) +
+          Math.cos(aLat * r) * Math.cos(bLat * r) * Math.cos((bLng - aLng) * r),
+      ),
+    ) * 6371,
+  );
+}
+
+const near = (n: number, to: number) => Math.round(n / to) * to;
+
+export function suggest(
+  a: Assumptions,
+  ctx: { distanceKm: number; peak: boolean },
+): Suggestion {
+  const people = Math.max(a.people, 1);
+  const km = ctx.distanceKm;
+
+  const band =
+    km < 800 ? 240 : km < 2500 ? 480 : km < 6000 ? 880 : km < 10000 ? 1050 : 1500;
+  const bandName =
+    km < 800 ? "short-haul" : km < 2500 ? "medium-haul" : km < 6000 ? "long-haul" : km < 10000 ? "long-haul" : "ultra-long-haul";
+  const fare = near(band * (ctx.peak ? 1.15 : 1), 10);
+  const bedrooms = Math.max(1, Math.ceil(people / 2));
+  const vehicles = people > 5 ? 2 : 1;
+
+  return {
+    values: {
+      flightPerPerson: fare,
+      nightlyRate: near(150 + bedrooms * 110, 10),
+      groceriesPerDay: near(22 * people, 10),
+      perMealOut: near(57 * people, 10),
+      carDayRate: near(vehicles * 105, 10),
+      dogNightlyRate: 75,
+      extrasPerDay: near(9 * people, 10),
+      touristTaxPerNight: near(3 * people, 1),
+    },
+    basis: {
+      flights: `${km.toLocaleString("en-CA")} km from Toronto · ${bandName}${ctx.peak ? " · +15% peak season" : ""}`,
+      accommodation: `${people} people needs ${bedrooms} bedrooms`,
+      groceries: `$22 per person per day × ${people}`,
+      restaurants: `$57 a head × ${people}`,
+      car: `${vehicles} ${vehicles === 1 ? "vehicle" : "vehicles"} · includes fuel and tolls`,
+      dog: `boarding rate · ${a.dogNights} nights`,
+      extras: `$9 per person per day × ${people}`,
+      touristTax: `$3 per person per night × ${people}`,
+    },
+  };
+}

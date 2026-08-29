@@ -6,9 +6,22 @@ import { CaretLeft, CaretDown, Check } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import {
   compute,
+  suggest,
   type Assumptions,
   type EstimateLine,
 } from "@/lib/budget/model";
+
+/** Assumption key → line key, for the rows a suggestion can fill. */
+const FILLS: [keyof Assumptions, string][] = [
+  ["flightPerPerson", "flights"],
+  ["nightlyRate", "accommodation"],
+  ["groceriesPerDay", "groceries"],
+  ["perMealOut", "restaurants"],
+  ["carDayRate", "car"],
+  ["dogNightlyRate", "dog"],
+  ["extrasPerDay", "extras"],
+  ["touristTaxPerNight", "touristTax"],
+];
 
 const INK = "#1A1A2E";
 const CAPTION = "rgba(26,26,46,0.55)";
@@ -230,21 +243,33 @@ interface Props {
   tripId: string;
   tripTitle: string;
   initialAssumptions: Assumptions;
+  initialBasis: Record<string, string>;
   uncostedExcursions: number;
   rolledExcursionCount: number;
   dateRange: string;
+  distanceKm: number;
+  peak: boolean;
 }
 
 export default function EstimateClient({
   tripId,
   tripTitle,
   initialAssumptions,
+  initialBasis,
   uncostedExcursions,
   rolledExcursionCount,
   dateRange,
+  distanceKm,
+  peak,
 }: Props) {
   const router = useRouter();
   const [a, setA] = useState<Assumptions>(initialAssumptions);
+  const [basis, setBasis] = useState<Record<string, string>>(initialBasis);
+  const [prev, setPrev] = useState<{
+    a: Assumptions;
+    basis: Record<string, string>;
+  } | null>(null);
+  const [why, setWhy] = useState(false);
   const [open, setOpen] = useState({ standard: true, additional: true });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -258,8 +283,37 @@ export default function EstimateClient({
     const v = raw === "" ? 0 : Number(raw);
     if (Number.isNaN(v)) return;
     setA((p) => ({ ...p, [key]: v }));
+    setPrev(null); // editing by hand ends the undo window
     setSaved(false);
   }, []);
+
+  const emptyKeys = FILLS.filter(([k]) => a[k] === 0);
+
+  const runSuggest = () => {
+    const s = suggest(a, { distanceKm, peak });
+    const next = { ...a };
+    const added: Record<string, string> = {};
+    for (const [key, lineKey] of emptyKeys) {
+      const v = s.values[key];
+      if (typeof v === "number") {
+        (next[key] as number) = v;
+        added[lineKey] = s.basis[lineKey];
+      }
+    }
+    setPrev({ a, basis });
+    setA(next);
+    setBasis({ ...basis, ...added });
+    setWhy(true);
+    setSaved(false);
+  };
+
+  const undo = () => {
+    if (!prev) return;
+    setA(prev.a);
+    setBasis(prev.basis);
+    setPrev(null);
+    setSaved(false);
+  };
 
   const toggle = useCallback((key: keyof Assumptions) => {
     setA((p) => ({ ...p, [key]: !p[key] }));
@@ -278,6 +332,9 @@ export default function EstimateClient({
           trip_id: tripId,
           user_id: user.id,
           assumptions: a as unknown as Record<string, unknown>,
+          // Kept so the working survives the session — the question comes in
+          // March, not thirty seconds after the button.
+          basis,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "trip_id" },
@@ -425,19 +482,97 @@ export default function EstimateClient({
           </div>
         </div>
 
-        {uncostedExcursions > 0 && (
-          <p className="text-[11.5px] mt-3 px-2" style={{ color: SIENNA, lineHeight: 1.6 }}>
-            {uncostedExcursions} scheduled{" "}
-            {uncostedExcursions === 1 ? "excursion carries" : "excursions carry"} no
-            cost yet, so the seeded figure is light.
-          </p>
+        {Object.keys(basis).length > 0 && (
+          <div
+            className="bg-white rounded-2xl overflow-hidden mt-3"
+            style={{ boxShadow: `0 0 0 1px ${RULE}` }}
+          >
+            <button
+              onClick={() => setWhy((w) => !w)}
+              className="w-full flex items-center justify-between"
+              style={{ padding: `12px ${PAD}px` }}
+            >
+              <span
+                className="text-[11px] uppercase tracking-wider"
+                style={{ color: SOFT }}
+              >
+                How this was worked out
+              </span>
+              <CaretDown
+                size={12}
+                weight="bold"
+                color={SOFT}
+                style={{ transform: why ? "none" : "rotate(-90deg)" }}
+              />
+            </button>
+            {why && (
+              <div style={{ padding: `0 ${PAD}px 12px` }}>
+                {est.lines
+                  .filter((l) => basis[l.key])
+                  .map((l) => (
+                    <div
+                      key={l.key}
+                      className="flex gap-2 py-2"
+                      style={{ borderTop: `1px solid rgba(26,26,46,0.06)` }}
+                    >
+                      <span
+                        className="w-[76px] shrink-0 text-[11.5px]"
+                        style={{ color: INK }}
+                      >
+                        {l.label}
+                      </span>
+                      <span
+                        className="w-[46px] shrink-0 text-right text-[11.5px]"
+                        style={{ color: INK }}
+                      >
+                        {cad(l.unit)}
+                      </span>
+                      <span
+                        className="flex-1 text-[11px]"
+                        style={{ color: CAPTION, lineHeight: 1.45 }}
+                      >
+                        {basis[l.key]}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {emptyKeys.length > 0 && (
+          <button
+            onClick={runSuggest}
+            className="w-full rounded-full py-3 text-[13.5px] mt-4"
+            style={
+              emptyKeys.length === FILLS.length
+                ? { background: INK, color: "#fff" }
+                : { border: `1px solid rgba(26,26,46,0.22)`, color: INK }
+            }
+          >
+            Estimate from this trip
+          </button>
+        )}
+
+        {prev && (
+          <button
+            onClick={undo}
+            className="w-full text-[12px] mt-2.5"
+            style={{ color: SIENNA }}
+          >
+            Undo
+          </button>
         )}
 
         <button
           onClick={save}
           disabled={saving}
-          className="w-full rounded-full py-3.5 text-[14px] flex items-center justify-center gap-2 mt-5"
-          style={{ background: INK, color: "#fff", opacity: saving ? 0.6 : 1 }}
+          className="w-full rounded-full py-3.5 text-[14px] flex items-center justify-center gap-2 mt-3"
+          style={
+            emptyKeys.length === FILLS.length
+              ? { border: `1px solid rgba(26,26,46,0.22)`, color: INK, opacity: saving ? 0.6 : 1 }
+              : { background: INK, color: "#fff", opacity: saving ? 0.6 : 1 }
+          }
         >
           {saved && <Check size={14} weight="light" />}
           {saving ? "Saving…" : saved ? "Saved" : "Save"}
