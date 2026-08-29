@@ -471,6 +471,8 @@ function TitleEditor({
 export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDelete, onCardCopied, days, tripDestination, readOnly = false }: Props) {
   const supabase = createClient();
   const sheetRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const startedAtTop = useRef(true);
   const dragX = useRef(0);
   const dragY = useRef(0);
   const isDragging = useRef(false);
@@ -540,12 +542,18 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     // Nothing is committed yet — the first significant move picks the axis.
     dragAxis.current = "pending";
     isDragging.current = false;
+    // The gesture works anywhere on the sheet, but the body still has to be
+    // scrollable: only claim the drag when the content is already at the top.
+    // Mid-scroll, a downward swipe means "scroll up", not "close".
+    startedAtTop.current = (scrollRef.current?.scrollTop ?? 0) <= 0;
   }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!sheetRef.current) return;
     const dx = e.touches[0].clientX - dragX.current;
     const dy = e.touches[0].clientY - dragY.current;
+
+    if (!startedAtTop.current) return;
 
     if (dragAxis.current === "pending") {
       // Wait for enough travel to read intent, then lock for the whole gesture.
@@ -998,16 +1006,16 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       <div
         ref={sheetRef}
         onClick={(e) => e.stopPropagation()}
+        // Swipe-to-dismiss is bound to the whole sheet, not just the handle —
+        // you shouldn't have to find a 40px strip to close a card. The body
+        // still scrolls: the drag is only claimed when it's already at the top.
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         className="relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet h-[95dvh] max-h-[95dvh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300 ease-spring"
         style={{ willChange: "transform" }}
       >
-        {/* Drag handle + header — touch-to-dismiss only from this area */}
-        <div
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          className="flex-shrink-0"
-        >
+        <div className="flex-shrink-0">
         {/* Cover photo hero — swipeable gallery (only when card is linked to a
             place). It stays pinned at the top: it is how you recognise the card
             you opened, and scrolling it away cost more than it gave back. What
@@ -1424,7 +1432,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
 
         {/* Scrollable detail content */}
         <div className="relative flex-1 min-h-0">
-          <div className="absolute inset-0 overflow-y-auto px-5 py-5">
+          <div ref={scrollRef} className="absolute inset-0 overflow-y-auto px-5 py-5">
             {/* Checklist — the card's own list of things to tick off, the
                 Trello shape: many small checklists in context, not one long
                 trip-level one. FIRST, not last: below the detail fields it
