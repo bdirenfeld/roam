@@ -158,10 +158,12 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
           entry has a rail, but only some have a picture, and the number is
           what ties a row to its marker now the category glyph is gone. */}
       <div className="w-[52px] md:w-[74px] shrink-0 pt-[3px] flex flex-col items-start gap-[3px]">
+        {/* A numeral, not a badge. Filled discs matched the map markers but
+            read as louder than the names they were indexing. */}
         {pinIndex != null && (
           <span
-            className="inline-flex items-center justify-center w-[16px] h-[16px] rounded-full"
-            style={{ background: "#1A1A2E", color: "#FAF7F2", fontSize: 9.5, lineHeight: 1 }}
+            className="text-[10px] md:text-[10.5px]"
+            style={{ color: "rgba(26,26,46,0.28)", lineHeight: 1 }}
           >
             {pinIndex}
           </span>
