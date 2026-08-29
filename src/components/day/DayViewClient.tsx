@@ -294,10 +294,10 @@ function DayMenu({
                 phone. Owner-only: a guest reading the journey has no business
                 seeing what it costs. */}
             {!readOnly && (
-              <Link
-                href={`/trips/${trip.id}/estimate`}
+              <EstimateLink
+                tripId={trip.id}
                 className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-                onClick={() => setOpen(false)}
+                onBeforeOpen={() => setOpen(false)}
               >
                 <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
                   <Coins size={15} weight="light" className="text-gray-600" />
@@ -306,7 +306,7 @@ function DayMenu({
                   <p className="text-[13px] font-medium text-gray-900 leading-snug">Estimate</p>
                   <p className="text-[11px] text-gray-400 leading-snug">Flights, villa, excursions</p>
                 </div>
-              </Link>
+              </EstimateLink>
             )}
 
             {/* Settings opens over the day rather than replacing it. Still a
