@@ -33,10 +33,46 @@ function dateLine(trip: Trip): string {
     : base;
 }
 
+/**
+ * Past journeys, grouped by the year they ended.
+ *
+ * Years appear in the order they first occur, and journeys keep the order they
+ * arrived in — the list is already date-sorted upstream, and re-sorting here
+ * would quietly disagree with it.
+ *
+ * A single year gets no divider. Labelling one group "2026" tells you nothing
+ * you can't see from the dates on every row; the divider only earns its space
+ * once there is a boundary to mark.
+ */
+function groupByYear(trips: Trip[]): { year: string; trips: Trip[] }[] {
+  const groups: { year: string; trips: Trip[] }[] = [];
+  for (const trip of trips) {
+    const year = (trip.end_date ?? trip.start_date ?? "").slice(0, 4) || "—";
+    const last = groups.find((g) => g.year === year);
+    if (last) last.trips.push(trip);
+    else groups.push({ year, trips: [trip] });
+  }
+  return groups;
+}
+
+function YearDivider({ year, first }: { year: string; first: boolean }) {
+  return (
+    <p
+      className={`text-[9px] uppercase tracking-widest ${first ? "" : "mt-5"} mb-1.5`}
+      style={{ color: "#C4C0B8" }}
+    >
+      {year}
+    </p>
+  );
+}
+
 export default function PastJourneysList({ trips, openDayByTrip }: Props) {
   const router = useRouter();
   const [deleteTarget, setDeleteTarget] = useState<Trip | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const groups = groupByYear(trips);
+  const showYears = groups.length > 1;
 
   const hrefFor = (trip: Trip) =>
     openDayByTrip[trip.id]
@@ -96,7 +132,10 @@ export default function PastJourneysList({ trips, openDayByTrip }: Props) {
     <>
       {/* Mobile — compact rows */}
       <div className="md:hidden">
-        {trips.map((trip) => (
+        {groups.map((group, gi) => (
+          <div key={group.year}>
+            {showYears && <YearDivider year={group.year} first={gi === 0} />}
+            {group.trips.map((trip) => (
           <div
             key={trip.id}
             className="flex items-center gap-3 py-3 border-b border-black/5"
@@ -126,12 +165,17 @@ export default function PastJourneysList({ trips, openDayByTrip }: Props) {
             </Link>
             {actions(trip)}
           </div>
+            ))}
+          </div>
         ))}
       </div>
 
       {/* Desktop — editorial rows with circular cover */}
       <div className="hidden md:block">
-        {trips.map((trip) => (
+        {groups.map((group, gi) => (
+          <div key={group.year}>
+            {showYears && <YearDivider year={group.year} first={gi === 0} />}
+            {group.trips.map((trip) => (
           <div
             key={trip.id}
             className="flex items-center gap-[18px] py-[14px] px-1"
@@ -179,6 +223,8 @@ export default function PastJourneysList({ trips, openDayByTrip }: Props) {
               </div>
             </Link>
             {actions(trip)}
+          </div>
+            ))}
           </div>
         ))}
       </div>
