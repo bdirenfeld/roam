@@ -6,9 +6,8 @@ import { usePathname } from "next/navigation";
 import { UserCircle, Calendar, Columns, MapPin } from "@phosphor-icons/react";
 import { SearchButton } from "@/components/search/GlobalSearch";
 import SharedWithFaces from "@/components/trip/SharedWithFaces";
-import JourneyMenu from "@/components/ui/JourneyMenu";
+import MastheadMenu from "@/components/ui/MastheadMenu";
 import {
-  NewJourneyLink,
   ProfileLink,
   TripSettingsLink,
 } from "@/components/overlays/AppOverlays";
@@ -333,42 +332,10 @@ export default function DesktopMasthead() {
         label="Search"
       />
 
-
-      {/* Plan a journey — masthead-global new-trip entry, matches design
-          canvas. Opens the form in place; still a link to /trips/new so
-          ctrl/cmd-click opens the page. */}
-      <NewJourneyLink
-        title="Plan a journey"
-        ariaLabel="Plan a journey"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          height: 33,
-          padding: "0 13px",
-          marginRight: 6,
-          borderRadius: 8,
-          background: INK,
-          color: "#FAF7F2",
-          fontSize: 12.5,
-          textDecoration: "none",
-          whiteSpace: "nowrap",
-        }}
-      >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M12 5v14M5 12h14" />
-        </svg>
-        Plan a journey
-      </NewJourneyLink>
+      {/* Everything reached occasionally, named, in one menu — including Plan
+          a journey, which is why this renders off a journey as well as on one.
+          The phone has shown this list all along; this is it at desktop width. */}
+      <MastheadMenu tripId={currentTripId} guest={guest} />
 
       {/* Profile dropdown — replaces the previous direct-link avatar. */}
       <div ref={menuRef} style={{ position: "relative" }}>
@@ -568,12 +535,6 @@ function TripTabs({
           </Link>
         );
       })}
-
-      {/* Notes and the estimate were two bare glyphs here — a pencil and a
-          stack of coins, each a memory test. They are named items in one menu
-          now, the same menu the phone has always shown, so a new journey
-          screen gets added in one place instead of two. */}
-      <JourneyMenu tripId={tripId} guest={guest} />
     </div>
   );
 }
