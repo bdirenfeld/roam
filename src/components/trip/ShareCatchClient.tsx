@@ -11,6 +11,8 @@ import {
   predSecondary,
 } from "@/lib/places/predictions";
 import type { Prediction } from "@/lib/places/predictions";
+import PromoteToWishlistSheet from "./PromoteToWishlistSheet";
+import type { JourneySummary, ResolvedIdeaPlace } from "./PromoteToWishlistSheet";
 
 const INK = "#1A1A2E";
 const CAPTION = "rgba(26,26,46,0.55)";
@@ -24,6 +26,7 @@ export default function ShareCatchClient({
   link,
   source,
   knownTags,
+  journeys,
 }: {
   ideaId: string | null;
   title: string | null;
@@ -31,6 +34,7 @@ export default function ShareCatchClient({
   source: string | null;
   /** Tags already in use, most-used first — tapping one is the whole flow. */
   knownTags: string[];
+  journeys: JourneySummary[];
 }) {
   const router = useRouter();
   const [note, setNote] = useState("");
@@ -51,7 +55,9 @@ export default function ShareCatchClient({
   // Suggestions, never a requirement: a reel about Puglia in general is not a
   // single place, and free text has to keep working.
   const [preds, setPreds] = useState<Prediction[]>([]);
-  const [resolved, setResolved] = useState<{ name: string; address: string } | null>(null);
+  const [resolved, setResolved] = useState<ResolvedIdeaPlace | null>(null);
+  const [promoting, setPromoting] = useState(false);
+  const [addedTo, setAddedTo] = useState<string | null>(null);
   const placeToken = useRef(
     typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now())
   );
@@ -104,7 +110,14 @@ export default function ShareCatchClient({
       return;
     }
     setNote(place.name);
-    setResolved({ name: place.name, address: place.address });
+    setResolved({
+      placeId: place.placeId,
+      name: place.name,
+      address: place.address,
+      lat: place.lat,
+      lng: place.lng,
+      types: place.types,
+    });
     if (saveTimer.current) clearTimeout(saveTimer.current);
     persist({
       note: place.name,
@@ -150,6 +163,16 @@ export default function ShareCatchClient({
   );
 
   const unused = knownTags.filter((t) => !tags.includes(t));
+
+  // Zoomed out far enough to place it in its region rather than filling the
+  // frame with one street — recognising "the Tuscan coast" is the job.
+  const mapToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+  const mapUrl =
+    resolved && mapToken
+      ? `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/` +
+        `pin-s+c4622d(${resolved.lng},${resolved.lat})/` +
+        `${resolved.lng},${resolved.lat},11,0/640x360@2x?access_token=${mapToken}`
+      : null;
 
   return (
     <div
@@ -258,9 +281,30 @@ export default function ShareCatchClient({
         )}
 
         {resolved && (
-          <p className="text-[11.5px] mt-1.5 px-1" style={{ color: SOFT }}>
-            {resolved.address} · can be pinned to a map
-          </p>
+          <>
+            <p className="text-[11.5px] mt-1.5 px-1" style={{ color: SOFT }}>
+              {resolved.address}
+            </p>
+
+            {/* Where it actually is. An address is a string you have to decode;
+                a map shows you at a glance that the beach in the reel really is
+                on the Tuscan coast, which is the thing you want to check before
+                saving it.
+
+                A static image, not a Mapbox GL canvas: this screen is opened
+                mid-scroll and the library is far too heavy for a picture you
+                only need to recognise, never pan. */}
+            {mapUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={mapUrl}
+                alt={`Map showing ${resolved.name}`}
+                className="w-full rounded-xl mt-2"
+                style={{ aspectRatio: "16 / 9", objectFit: "cover", border: `1px solid ${RULE}` }}
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+              />
+            )}
+          </>
         )}
 
         <div className="mb-4" />
@@ -296,19 +340,60 @@ export default function ShareCatchClient({
             labelled "Saved" would be claiming something it can't know while a
             write is still in flight. The heading above carries the state; this
             waits for it, so you can't leave mid-save and wonder afterwards. */}
+        {/* Once the place is named, the journey picker belongs here. Sending
+            you to the Ideas list to find the thing you just saved, in order to
+            do the obvious next thing with it, is a detour the app has no reason
+            to make you take. */}
+        {ideaId && (
+          <button
+            onClick={() => setPromoting(true)}
+            disabled={status === "saving"}
+            className="block w-full text-center rounded-xl py-3 text-[14px] mb-2"
+            style={{
+              background: INK,
+              color: "#FAF7F2",
+              opacity: status === "saving" ? 0.5 : 1,
+            }}
+          >
+            Add to a journey
+          </button>
+        )}
+
+        {addedTo && (
+          <p className="text-[12.5px] text-center mb-2" style={{ color: SIENNA }}>
+            Added to {addedTo}.
+          </p>
+        )}
+
         <button
           onClick={() => router.push("/ideas")}
           disabled={status === "saving"}
           className="block w-full text-center rounded-xl py-3 text-[14px]"
           style={{
-            background: INK,
-            color: "#FAF7F2",
+            border: `1px solid ${RULE}`,
+            background: "transparent",
+            color: CAPTION,
             opacity: status === "saving" ? 0.5 : 1,
           }}
         >
           {status === "saving" ? "Saving…" : "Done"}
         </button>
       </div>
+
+      {promoting && ideaId && (
+        <PromoteToWishlistSheet
+          ideaId={ideaId}
+          initialQuery={note || title || ""}
+          ideaUrl={link}
+          resolvedPlace={resolved}
+          journeys={journeys}
+          onClose={() => setPromoting(false)}
+          onDone={(outcome) => {
+            setPromoting(false);
+            setAddedTo(outcome.kind === "pins" ? outcome.tripTitle : "your wishlist");
+          }}
+        />
+      )}
     </div>
   );
 }

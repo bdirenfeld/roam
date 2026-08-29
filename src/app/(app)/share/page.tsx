@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import ShareCatchClient from "@/components/trip/ShareCatchClient";
+import type { JourneySummary } from "@/components/trip/PromoteToWishlistSheet";
 
 interface Props {
   searchParams: Promise<{ title?: string; text?: string; url?: string }>;
@@ -59,6 +60,14 @@ export default async function SharePage({ searchParams }: Props) {
       counts.set(t, (counts.get(t) ?? 0) + 1);
     }
   }
+  // Journeys, so a place named here can go straight onto one without a detour
+  // through the Ideas list to find the thing you just saved.
+  const { data: trips } = await supabase
+    .from("trips")
+    .select("id, title, destination, destination_lat, destination_lng, end_date, archived")
+    .eq("user_id", user.id)
+    .order("start_date", { ascending: true });
+
   const knownTags = Array.from(counts.entries())
     .sort((a, b) => b[1] - a[1])
     .slice(0, 12)
@@ -71,6 +80,7 @@ export default async function SharePage({ searchParams }: Props) {
       link={link}
       source={source}
       knownTags={knownTags}
+      journeys={(trips ?? []) as JourneySummary[]}
     />
   );
 }

@@ -370,7 +370,10 @@ export default function IdeasClient({
       {promoting && (
         <PromoteToWishlistSheet
           ideaId={promoting.id}
-          initialQuery={promoting.title ?? ""}
+          // The same text the row shows. The share caption is what was being
+          // passed, and TikTok rarely sends one — so the box opened empty
+          // under a row that plainly had a name on it.
+          initialQuery={ideaTitle(promoting) === "Untitled" ? "" : ideaTitle(promoting)}
           ideaUrl={promoting.url}
           resolvedPlace={promoting.place}
           journeys={journeys}
