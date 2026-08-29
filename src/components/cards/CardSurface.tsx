@@ -14,8 +14,9 @@ interface Props {
   onTap?: () => void;
   isHighlighted?: boolean;
   onToggleConfirmed?: () => void;
-  /** Numbered pin index that matches this card's marker on the map.
-   *  Rendered only at md:+. Mobile is unaffected when omitted. */
+  /** Numbered pin index matching this card's marker on the map. Shown at every
+   *  width, in the time rail — it is the only thing tying a row to its pin
+   *  since the category glyph gave way to the photograph. */
   pinIndex?: number;
 }
 
@@ -152,28 +153,35 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
       style={{ borderBottom: "1px solid rgba(26,26,46,0.10)" }}
     >
       {/* The rail. Untimed entries keep the column so every title starts on
-          the same line — an empty rail reads as "anytime", not as a gap. */}
-      <div
-        className="w-[52px] md:w-[74px] shrink-0 pt-[5px] text-[10px] md:text-[10.5px] uppercase"
-        style={{ letterSpacing: "0.1em", color: "rgba(26,26,46,0.35)" }}
-      >
-        {rail}
+          the same line — an empty rail reads as "anytime", not as a gap.
+          The map-pin number lives here rather than on the photograph: every
+          entry has a rail, but only some have a picture, and the number is
+          what ties a row to its marker now the category glyph is gone. */}
+      <div className="w-[52px] md:w-[74px] shrink-0 pt-[3px] flex flex-col items-start gap-[3px]">
+        {pinIndex != null && (
+          <span
+            className="inline-flex items-center justify-center w-[16px] h-[16px] rounded-full"
+            style={{ background: "#1A1A2E", color: "#FAF7F2", fontSize: 9.5, lineHeight: 1 }}
+          >
+            {pinIndex}
+          </span>
+        )}
+        {rail && (
+          <span
+            className="text-[10px] md:text-[10.5px] uppercase"
+            style={{ letterSpacing: "0.1em", color: "rgba(26,26,46,0.35)" }}
+          >
+            {rail}
+          </span>
+        )}
       </div>
 
       <div className="flex-1 min-w-0">
-        {(subLabel || pinIndex != null) && (
+        {subLabel && (
           <p
-            className="hidden md:flex md:items-center md:gap-2 text-[9.5px] font-medium uppercase leading-none mb-[5px]"
+            className="hidden md:block text-[9.5px] font-medium uppercase leading-none mb-[5px]"
             style={{ letterSpacing: "0.18em", color: "rgba(26,26,46,0.4)" }}
           >
-            {pinIndex != null && (
-              <span
-                className="inline-flex items-center justify-center w-[17px] h-[17px] rounded-full"
-                style={{ background: "#1A1A2E", color: "#FAF7F2", fontSize: 9.5, letterSpacing: 0 }}
-              >
-                {pinIndex}
-              </span>
-            )}
             {subLabel}
           </p>
         )}
