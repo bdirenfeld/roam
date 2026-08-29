@@ -851,7 +851,12 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           children (entry pull, panel) become direct grid items at md:+ and
           can be placed in separate columns. */}
       <div
-        className={`flex-1 min-h-0 flex flex-col md:grid md:items-start md:px-10 md:pt-6 md:pb-16 md:flex-none md:min-h-0 ${
+        // overflow-y-auto is what makes this the scrolling region. Without it
+        // nothing inside scrolls, the content overflows the h-dvh column, and
+        // the document scrolls instead — taking the header and the date strip
+        // with it. Sticky couldn't hold them because their container is exactly
+        // one viewport tall and so has no range to stick within.
+        className={`flex-1 min-h-0 flex flex-col overflow-y-auto md:overflow-visible md:grid md:items-start md:px-10 md:pt-6 md:pb-16 md:flex-none md:min-h-0 ${
           companionOpen
             ? "md:grid-cols-[minmax(340px,1fr)_minmax(340px,1fr)_400px] md:gap-6"
             : "md:grid-cols-[minmax(420px,1fr)_minmax(420px,1fr)] md:gap-10"
