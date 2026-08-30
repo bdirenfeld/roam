@@ -1,85 +1,122 @@
 ---
 name: m365-admin
-description: Diagnose and apply Microsoft 365 / Entra ID tenant settings — especially granting admin consent for the Claude M365 connector and restricting it to an approved list of users. Use when someone asks to connect Claude (or another third-party app) to a Microsoft 365 mailbox and hits "admin approval required", or when asked to change app consent policy, enterprise app assignment, or who is allowed to use a connector.
+description: Give someone access to the Claude Microsoft 365 connector, or take it away. Use when a person hits "admin approval required" connecting Claude to their work mailbox, or when asked who is allowed to use the connector.
 ---
 
-# Microsoft 365 tenant administration
+# Claude M365 connector access
 
-This skill turns a request like *"Justin wants Claude connected to his mailbox"* into: the exact setting that is blocking it, the exact change to make, and a runnable command — then applies it if this session can, or hands it over cleanly if it cannot.
+One job: let a named person connect Claude to their work mailbox, and nobody else.
 
-## Step 0 — Establish whether you can execute (do this first, every time)
+Two settings do it. **Admin consent** turns the connector on for the tenant. **Assignment** limits it to a list of people. Always both — consent alone opens it to everyone in the company.
 
-**You cannot change tenant settings through the M365 connector.** The `mcp__*_M365__*` tools are user-delegated Graph tools scoped to mail, calendar, SharePoint and Teams for one mailbox. They contain no identity-management surface — no `servicePrincipal`, `oauth2PermissionGrant`, `appRoleAssignment`, or `authorizationPolicy` write. Never claim a tenant change was made through them.
+## 1. Check the tenant is Brennan's
 
-There is exactly one execution path: **Microsoft Graph PowerShell over Bash.** Probe for it before promising anything:
+Only an admin of the tenant that owns the mailbox can do this. Brennan administers **elevateservicegroup.com**, tenant `5bfae7fb-2c24-4232-b562-c9dc3ebf16f7`.
+
+If the address is in another domain, check whether it's the same tenant:
 
 ```bash
-pwsh -NoProfile -Command "Get-MgContext | Format-List Account,TenantId,Scopes" 2>&1
+pwsh -NoProfile -Command "Get-MgDomain | Select-Object Id,IsVerified"
 ```
 
-- **Returns a context with the scopes below** → you can execute. Proceed to Step 3 and run the change.
-- **`pwsh` missing, or context is empty/wrong tenant** → you are in advise mode. Produce the diagnosis and the exact script, tell the user which of the two setup commands to run, and stop. Do not pretend.
+Not in that list → stop. That company's own admin has to do it. Say so; offer to write them the instructions.
 
-Remote/sandboxed sessions (Claude Code on the web) will almost always be advise mode: no tenant credential, and login.microsoftonline.com is usually blocked by egress. That is fine — the diagnosis and script are the deliverable there.
+## 2. Check you can actually run commands
 
-To get into execute mode the user runs, once, on a machine where they are the admin:
+```bash
+pwsh -NoProfile -Command "Get-MgContext | Format-List Account,TenantId,Scopes"
+```
+
+**Empty or `pwsh` missing** → you can't make the change. Give Brennan the commands below and stop. Don't imply anything happened. (Remote Claude Code sessions are always this case.)
+
+**Returns a context** → you can run step 3.
+
+The M365 connector tools (`mcp__*_M365__*`) are mail and calendar only. They cannot change tenant settings. Never say a change was made through them.
+
+Setup, once, on Brennan's own machine:
 
 ```bash
 pwsh -Command "Install-Module Microsoft.Graph -Scope CurrentUser -Force"
-pwsh -Command "Connect-MgGraph -Scopes 'Application.ReadWrite.All','AppRoleAssignment.ReadWrite.All','Policy.ReadWrite.Authorization','User.Read.All','Group.ReadWrite.All'"
+pwsh -Command "Connect-MgGraph -Scopes 'Application.ReadWrite.All','AppRoleAssignment.ReadWrite.All','User.Read.All'"
 ```
 
-## Step 1 — Identify the tenant, and say so out loud
+## 3. Grant consent — once per tenant, in a browser
 
-**Every setting here is per-tenant, and only an admin of *that* tenant can change it.** This is the single most common way this request goes wrong: someone asks you to enable Claude for an address in a domain the user does not administer.
+Skip if already done (step 4 will tell you). Brennan opens both URLs as Global Admin:
 
-Before doing anything, name the tenant that owns the mailbox in question. Brennan administers **elevateservicegroup.com**, tenant ID `5bfae7fb-2c24-4232-b562-c9dc3ebf16f7` (verify with `(Get-MgContext).TenantId`).
-
-If the mailbox is in a different domain — a partner company, a university, a client — check whether it is a domain of the same tenant:
-
-```bash
-pwsh -NoProfile -Command "Get-MgDomain | Select-Object Id,IsVerified,IsDefault"
+```
+https://login.microsoftonline.com/5bfae7fb-2c24-4232-b562-c9dc3ebf16f7/adminconsent?client_id=07c030f6-5743-41b7-ba00-0a6e85f37c17
+https://login.microsoftonline.com/5bfae7fb-2c24-4232-b562-c9dc3ebf16f7/adminconsent?client_id=08ad6f98-a4f8-4635-bb8d-f1a3044760f0
 ```
 
-If it is not in that list, stop and say so plainly: that tenant's own admin has to make the change, and you can give them the identical instructions to forward. Do not guess that two companies share a tenant because one person works with both.
+Both are needed — they're the two halves of the connector ("M365 MCP Server for Claude" and "M365 MCP Client for Claude"). Consenting to one leaves it broken confusingly.
 
-## Step 2 — Diagnose which setting is actually blocking
+**Check the application ID on the consent screen matches the URL** before approving. A mismatch means it isn't Anthropic's app — stop.
 
-Match the symptom, then apply the matching recipe from `references/entra-recipes.md`. Prefer the narrowest change that unblocks the person.
+**Then run step 4 immediately.** Until you do, every licensed user in the tenant can connect.
 
-| Symptom | Blocking setting | Recipe |
-|---|---|---|
-| "Need admin approval" / "admin has not consented" on first connect | The Claude apps have no tenant-wide admin consent | **A** |
-| Consent granted, but you want only certain people to use it | `Assignment required` is No on the enterprise apps | **B** |
-| Users cannot consent to *any* third-party app | Tenant user-consent policy is "Do not allow" | **C** |
-| Users keep emailing you for approvals one at a time | Admin consent workflow is off | **D** |
-| Connected, but writes fail / only reads work | Consent granted for a narrower scope set than requested | **E** |
-| "Your organization's access policy blocks the MCP server" | Conditional Access or app-specific block, not consent | **F** |
+## 4. Set the access list
 
-**The default answer for "person X wants Claude on their work mailbox" is A + B together.** Recipe A grants the tenant consent once; recipe B is the permission list — it flips the apps to require assignment and then admits only named people. A without B silently opens the connector to everyone in the tenant, which is almost never what was asked for.
+Edit `$allowed`, confirm with Brennan who's on it, then run.
 
-## Step 3 — Propose, confirm, then apply
+```powershell
+$allowed = @(
+  'brennan.direnfeld@elevateservicegroup.com'
+)
 
-These changes are tenant-wide, outward-facing, and affect other people's access to company mail. So:
+foreach ($appId in '07c030f6-5743-41b7-ba00-0a6e85f37c17','08ad6f98-a4f8-4635-bb8d-f1a3044760f0') {
+  $sp = Get-MgServicePrincipal -Filter "appId eq '$appId'"
+  if (-not $sp) { Write-Warning "Consent not granted yet — do step 3 first."; continue }
 
-1. **State the change in one sentence before making it** — which setting, on which tenant, affecting whom. Name the blast radius: recipe A grants a third-party app delegated access to mail, calendar, files and chat for every user who connects it; recipe C changes the consent posture for the entire organization.
-2. **Get explicit confirmation for that specific change.** Approval to enable Claude for Justin is not approval to loosen the org-wide consent policy. Ask again when the scope widens.
-3. **Apply it**, then **verify by reading the state back** — never report success from the absence of an error.
-4. **Report what actually changed**, including anything you skipped.
+  Update-MgServicePrincipal -ServicePrincipalId $sp.Id -AppRoleAssignmentRequired:$true
 
-Recipe C (org-wide user consent) is the one to be most careful with — it is the setting most likely to be quietly loosened and never tightened again. Recommend A + B instead unless the user explicitly wants the global change.
+  foreach ($upn in $allowed) {
+    $user = Get-MgUser -UserId $upn -ErrorAction SilentlyContinue
+    if (-not $user) { Write-Warning "No such user: $upn"; continue }
+    $has = Get-MgServicePrincipalAppRoleAssignedTo -ServicePrincipalId $sp.Id |
+             Where-Object PrincipalId -eq $user.Id
+    if ($has) { continue }
+    New-MgServicePrincipalAppRoleAssignedTo -ServicePrincipalId $sp.Id -BodyParameter @{
+      principalId = $user.Id
+      resourceId  = $sp.Id
+      appRoleId   = [Guid]::Empty.Guid
+    } | Out-Null
+  }
 
-## Step 4 — Tell the user what they must do by hand
+  Write-Host "`n$($sp.DisplayName) — restricted to:"
+  Get-MgServicePrincipalAppRoleAssignedTo -ServicePrincipalId $sp.Id |
+    Select-Object PrincipalDisplayName | Format-Table
+}
+```
 
-Admin consent itself is a browser flow — it cannot be fully scripted, and it should not be. Always end by handing over:
+Report the printed list back. Don't call it done on the absence of an error.
 
-- The admin consent URLs for both Claude apps (see recipe A), with the tenant ID filled in.
-- What the person requesting access does next: reconnect the connector in Claude, and re-consent if new scopes appear.
+## 5. Tell the person to connect
 
-## Ground rules
+They add the Microsoft 365 connector in Claude and sign in. If Claude asks for permissions it didn't have before, re-run step 3.
 
-- **Least privilege by default.** Narrow app-specific consent beats a loosened global policy, every time.
-- **Verify the app before consenting.** Confirm the publisher and application ID in the consent prompt match what is written in the recipes. The IDs there were gathered from public documentation, not from this tenant — treat a mismatch as a stop sign and re-derive them from the actual consent prompt.
-- **Never grant application (app-only) permissions** where delegated will do. Delegated access is bounded by what the signed-in user can already see; app-only permissions read every mailbox in the tenant.
-- **Never disable Conditional Access, MFA, or security defaults** to make a connector work. If CA is the blocker, scope an exclusion narrowly and say exactly what was excluded — or leave it and report it.
-- **Log it.** After any change, offer to note what was changed, for whom, who approved it, and when. These are the changes an auditor asks about.
+## Removing someone
+
+```powershell
+$who = 'justin@igcfcm.com'
+foreach ($appId in '07c030f6-5743-41b7-ba00-0a6e85f37c17','08ad6f98-a4f8-4635-bb8d-f1a3044760f0') {
+  $sp = Get-MgServicePrincipal -Filter "appId eq '$appId'"
+  Get-MgServicePrincipalAppRoleAssignedTo -ServicePrincipalId $sp.Id |
+    Where-Object PrincipalDisplayName -eq (Get-MgUser -UserId $who).DisplayName |
+    ForEach-Object { Remove-MgServicePrincipalAppRoleAssignedTo -ServicePrincipalId $sp.Id -AppRoleAssignmentId $_.Id }
+}
+Revoke-MgUserSignInSession -UserId $who   # kills their live session now
+```
+
+## If it still doesn't work
+
+**"Needs admin approval"** — consent didn't take. Redo step 3.
+
+**"Your organization's access policy blocks the MCP server"** — not a consent problem. Either they aren't on the list (re-run step 4) or Conditional Access is blocking them. Never turn off Conditional Access or MFA to fix this; report it and let Brennan decide.
+
+## Rules
+
+- Say which setting, on which tenant, affecting whom — then get a yes before changing it.
+- Approval for one person is not approval for the next one. Ask each time.
+- Never widen the org-wide user consent policy for this. It doesn't help (the connector's permissions need admin consent regardless) and it weakens the tenant.
+- Offer to note what changed, for whom, and who approved it.
