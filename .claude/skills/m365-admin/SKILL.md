@@ -1,72 +1,79 @@
 ---
 name: m365-admin
-description: Talk through a requested change to the Microsoft 365 tenant — app access, mailboxes, licences, accounts — decide whether it makes sense, then hand back an action Brennan can tap through on his phone. Use whenever someone asks for M365 access, permissions, or an admin change.
+description: Someone asked Brennan for a Microsoft 365 change — app access, a mailbox, a licence, an account. Talk it through, then hand back the single link or short tap-path that DOES it on a phone. Use for any M365 access, permissions, or admin request.
 ---
 
 # Microsoft 365 change requests
 
-Someone asked Brennan for something that needs an admin. This skill is the conversation about it, ending in something he can do on a phone in under a minute.
+Brennan is on a phone and he is the admin of **elevateservicegroup.com / tficanada.com**, tenant `5bfae7fb-2c24-4232-b562-c9dc3ebf16f7`.
 
-**Assume phone unless told otherwise.** The deliverable is a link to tap or a short path through the admin app — never a PowerShell script. If a change genuinely can't be done on mobile, say that instead of handing over commands he can't run.
+## The rule that makes this skill worth having
 
-Brennan is the admin of **elevateservicegroup.com**, tenant `5bfae7fb-2c24-4232-b562-c9dc3ebf16f7`.
+**Hand him the action, not an investigation.**
 
-## Talk it through first
+Most of these changes are *idempotent* — doing them when they're already done costs nothing. So don't tell him to go check state and branch on what he finds. He can't read a Graph console on a phone, and neither can you. Just give him the thing that makes the desired state true either way.
 
-Four questions, in order. Answer them in the reply — briefly, not as a form.
+> ✗ "Check whether consent is tenant-wide; if it's only yours, open the consent URL."
+> ✓ "Open these two links. Now it's tenant-wide regardless of what it was."
 
-**1. Is it his to change?** Only an admin of the tenant that owns the account can do anything. If the address is a domain outside elevateservicegroup.com — a partner company, a client, a university — it's their admin's job. Say so early; the rest of the conversation is moot. Offer to draft the note he forwards them.
+Only ask him to look something up when the answer changes *what* he'd do, not merely whether he needs to bother. "It might already be fine" is never a reason to make him look.
 
-**2. What does it actually open up?** Say who gets access to what, in plain terms. "Read and send mail as any user who connects it" is useful. "Grants Mail.ReadWrite" is not. If it's a change to the whole tenant rather than one person, say that loudly — that's the difference between a favour and a policy.
+State what the action does before he taps it, and say if it's one of the few things that isn't reversible.
 
-**3. Is there a narrower version?** Usually yes, and usually it's the right answer: one person instead of everyone, read instead of write, a group he can remove someone from later. Offer it. If the narrow version is more taps, say so and let him pick.
+## What you cannot do
 
-**4. Can he undo it?** Some changes are a toggle. Some — consenting to an app, deleting a mailbox — aren't cleanly reversible. Say which this is before he taps.
+You have mail, calendar, SharePoint and Teams for his mailboxes. **Nothing that reads or writes Entra** — no consent grants, no app assignments, no user admin. There is no connector for it either; don't go looking again. `pwsh` + `Connect-MgGraph` on a laptop is the only execution path, and it doesn't exist on a phone.
 
-Then give a recommendation. Not a menu of options: say what you'd do and why. He can overrule it.
+So never say a tenant change was made. He taps; he tells you it's done.
 
-## Then hand him the tap path
+What you *can* do is find things out from mail and files, which is usually the valuable half — who asked, what tenant an address is really in, whether a migration already happened.
 
-Give the smallest number of taps that gets it done, in order, with the real button names. Two entry points cover almost everything:
+## Check the tenant by probing the address, not the domain
 
-- **admin.microsoft.com** — people, licences, mailboxes, groups. Also the **Microsoft 365 Admin** app (iOS/Android), which is better than the mobile browser for anything user-related.
-- **entra.microsoft.com** — apps, sign-ins, who's allowed to use what. Mobile browser only; workable but fiddly.
+**A migrated mailbox keeps its original domain.** `justin@jjamechanicalltd.com` living in the TFI tenant is what a successful migration looks like — the platform moved, the address didn't. Never conclude from the domain that an address is external, and never assume migration means a rename to `@elevateservicegroup.com`.
 
-Common ones:
+Probe the actual address with `find_meeting_availability`, alongside a known-good in-tenant control (`spencer.sabo@elevateservicegroup.com`):
 
-| Request | Phone action |
-|---|---|
-| Reset someone's password | Admin app → Users → *person* → Reset password |
-| Unblock / block an account | Admin app → Users → *person* → Block sign-in |
-| Add or remove a licence | Admin app → Users → *person* → Licences |
-| Offboard someone | Admin app → Users → *person* → Block sign-in, then reset password |
-| Add someone to a group or DL | admin.microsoft.com → Teams & groups → *group* → Members |
-| Give access to a shared mailbox | admin.microsoft.com → Teams & groups → Shared mailboxes → *mailbox* → Members |
-| Third-party app needs admin approval | Admin consent link — see below |
-| Stop an app being used by everyone | entra.microsoft.com → Enterprise applications → *app* → Properties → Assignment required = Yes, then Users and groups → add only the approved people |
-| Who currently has access to an app | entra.microsoft.com → Enterprise applications → *app* → Users and groups |
+- Returns a slot with confidence 100 → in the tenant.
+- `AttendeesUnavailableOrUnknown` while the control resolves → not in the tenant.
 
-If a request isn't on this list, work out the path rather than reaching for PowerShell. Almost everything user- or licence-shaped is in the admin app.
+Probe one address per call; a batch fails as a whole and tells you nothing. If it's not in the tenant, stop — that company's admin owns it. Offer to draft the note he forwards.
 
-## App consent — the one that comes up most
+Roster spreadsheets are stale by design. The directory wins.
 
-An app asking for tenant access is approved by opening one URL, signing in as admin, and tapping Accept. Works fine on a phone.
+## Actions
+
+**Third-party app blocked / "needs admin approval"** — send the consent link. One tap, admin sign-in, Accept:
 
 ```
 https://login.microsoftonline.com/5bfae7fb-2c24-4232-b562-c9dc3ebf16f7/adminconsent?client_id=APP_ID
 ```
 
-Before sending it: **check the application ID on the consent screen matches the one in the link.** A mismatch means it isn't the app you think it is.
+The **Claude M365 connector is two apps** and both need it, or it breaks confusingly:
+`07c030f6-5743-41b7-ba00-0a6e85f37c17` (server) and `08ad6f98-a4f8-4635-bb8d-f1a3044760f0` (client).
 
-Two things worth saying every time this comes up:
+Consent covers the **whole tenant**, not the person who asked. Say that. If it should be limited to some people, follow with the assignment row below — again as an action, not a check.
 
-- Consent applies to the **whole tenant**, not the person who asked. If it should only be some people, follow with the assignment row in the table above — otherwise everyone can connect it.
-- The **Claude M365 connector is two apps**, and both need consent or it breaks in a confusing way: `07c030f6-5743-41b7-ba00-0a6e85f37c17` (server) and `08ad6f98-a4f8-4635-bb8d-f1a3044760f0` (client).
+Before he taps: the application ID on the consent screen should match the link. A mismatch means it isn't the app you think.
+
+| Request | Tap path |
+|---|---|
+| Let one person use an app | entra.microsoft.com → Enterprise applications → *app* → Users and groups → Add user |
+| Limit an app to a list | same screen → Properties → Assignment required = Yes, then add the people |
+| Reset a password | Microsoft 365 Admin app → Users → *person* → Reset password |
+| Block / unblock an account | Admin app → Users → *person* → Block sign-in |
+| Add or remove a licence | Admin app → Users → *person* → Licences |
+| Offboard someone | Admin app → Users → *person* → Block sign-in, then Reset password |
+| Group or DL membership | admin.microsoft.com → Teams & groups → *group* → Members |
+| Shared mailbox access | admin.microsoft.com → Teams & groups → Shared mailboxes → *mailbox* → Members |
+
+The **Microsoft 365 Admin** app (iOS/Android) beats mobile Safari for anything user- or licence-shaped. entra.microsoft.com is browser-only and fiddly — keep those paths to as few taps as you can.
+
+Not on the list? Work out the path. Don't reach for PowerShell.
 
 ## Rules
 
-- One person's approval doesn't cover the next person. Ask each time.
-- Never suggest turning off MFA, Conditional Access, or security defaults to make something work. Say what's blocking it and let him decide.
-- Never suggest loosening the tenant-wide user consent policy to solve one person's access problem. It usually doesn't even work, and it weakens everything.
-- Don't claim a change happened. These tools read mail and calendar; they can't touch tenant settings. He taps, then tells you it's done.
+- One person's approval doesn't cover the next. Ask each time.
+- Never suggest disabling MFA, Conditional Access, or security defaults. Name the blocker and let him decide.
+- Never suggest loosening the tenant-wide user consent policy for one person's access problem — the connector's permissions need admin consent regardless, so it doesn't even work.
 - Offer to note what changed, for whom, and who approved it.
