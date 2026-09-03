@@ -113,3 +113,7 @@ The benchmark: someone opens Roam in a Centurion Lounge and the person next to t
 - `CardBottomSheet` delete has **no confirm**: every host (PlanBoard, DayViewClient, FullMapClient) offers a 6-second undo through `onCardDelete`. A new host that mounts the sheet must provide undo or it gets an unrecoverable delete.
 - Notes and recommended-by are never gated behind "Add details" for the owner. The standalone notes row in the sheet hides itself when `showEmptyFields` is on so the detail component's own row doesn't duplicate it.
 - The full tap-count audit and remaining batches live in memory (`roam-click-audit`).
+
+## Unscheduling (lib/scheduleCard.ts → unscheduleCard)
+- Scheduling COPIES, so "take off this day" = delete the scheduled row, after making sure an `interested` copy of the place exists on the journey (one is written if not). Callers then fire `onCardDelete(card.id)` so the host's existing 6-second undo applies. The map popup also fires `onCardCreated` for the copy it may have written, so the hollow pin appears without a reload.
+- The shared `AppMenu` now carries Ideas (a plain link) and, on the phone only, Profile. Desktop keeps Profile/Sign out in the masthead avatar dropdown.
