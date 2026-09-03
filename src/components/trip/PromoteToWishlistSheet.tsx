@@ -549,6 +549,12 @@ export default function PromoteToWishlistSheet({
 
         {step === "added" && addedTo && (
           <>
+            <AutoDismiss
+              ms={1800}
+              onFire={() =>
+                onDone({ kind: "pins", tripId: addedTo.id, tripTitle: addedTo.title, count: addedNames.length })
+              }
+            />
             <p className="font-display italic text-[17px]" style={{ color: INK }}>
               Added to {addedTo.title}
             </p>
@@ -612,4 +618,19 @@ function Row({ label, value, last }: { label: string; value: string; last?: bool
       </span>
     </div>
   );
+}
+
+/**
+ * Fires once after `ms` unless unmounted first. The "Added" step mounts it and
+ * "Add another from this idea" replaces the step, which unmounts it — so the
+ * acknowledgement closes itself for the common case and never races a person
+ * who is still using the sheet (click audit, Sep 2026).
+ */
+function AutoDismiss({ ms, onFire }: { ms: number; onFire: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onFire, ms);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return null;
 }

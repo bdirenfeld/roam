@@ -445,6 +445,14 @@ export default function NewJourneyForm({
       } else {
         setPickEnd(dateStr);
         setPickPhase("start");
+        // The second tap finishes the range, so it also closes the picker.
+        // "Done" confirmed what the traveller had just done (click audit,
+        // Sep 2026); it stays for the single-day case and for re-opening.
+        if (pickStart) {
+          setStartDate(pickStart);
+          setEndDate(dateStr);
+          setShowDatePicker(false);
+        }
       }
     }
   };

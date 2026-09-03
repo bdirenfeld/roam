@@ -177,9 +177,11 @@ function SubTypeIcon({ subType, color }: { subType: string; color: string }) {
 
 // One saved-place row in create mode: tap toggles selection; the footer commits.
 function CreateRow({
-  card, scheduled, selected, last, onToggle,
+  card, scheduled, selected, last, onToggle, onQuickAdd,
 }: {
   card: Card; scheduled: boolean; selected: boolean; last: boolean; onToggle: (c: Card) => void;
+  /** Place just this one on the day and close — the one-place case, which is most of them. */
+  onQuickAdd?: (c: Card) => void;
 }) {
   const place = card.place!;
   // A name you trust outranks an address and a crowd-sourced star, so when a
@@ -215,6 +217,22 @@ function CreateRow({
           )}
         </div>
       </div>
+      {/* Quick add — one tap places this one and closes. The ring beside it
+          still builds a batch for the "Add N" bar; the pill is the shortcut
+          for the common case of one place (click audit: 5 taps → 4). */}
+      {!selected && onQuickAdd && (
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(e) => { e.stopPropagation(); onQuickAdd(card); }}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onQuickAdd(card); } }}
+          className="flex-shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors hover:bg-[rgba(26,26,46,0.06)]"
+          style={{ color: INK, boxShadow: `inset 0 0 0 1px ${RULE}`, fontFamily: DM }}
+          aria-label={`Add ${place.title} to this day`}
+        >
+          Add
+        </span>
+      )}
       {/* Selection ring → ink fill + check */}
       {selected ? (
         <span className="w-[22px] h-[22px] rounded-full flex items-center justify-center flex-shrink-0" style={{ background: INK }}>
@@ -281,6 +299,16 @@ export default function LinkPlaceSheet(props: Props) {
     if (created.length) props.onAdded?.(created);
     onClose();
   }, [props, selectedIds, places, supabase, tripId, onClose]);
+
+  // One place, one tap: schedule it and close, skipping the "Add N" bar.
+  const handleQuickAdd = useCallback(async (card: Card) => {
+    if (props.mode !== "create" || !card.place_id) return;
+    const newCard = await scheduleCardOnDay(supabase, {
+      tripId, dayId: props.day.id, placeId: card.place_id, place: card.place,
+    });
+    if (newCard) props.onAdded?.([newCard]);
+    onClose();
+  }, [props, supabase, tripId, onClose]);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -483,6 +511,7 @@ export default function LinkPlaceSheet(props: Props) {
                       selected={selectedIds.has(card.id)}
                       last={i === cards.length - 1}
                       onToggle={handleToggle}
+                      onQuickAdd={handleQuickAdd}
                     />
                   ))}
                 </div>

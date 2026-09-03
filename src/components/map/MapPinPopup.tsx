@@ -132,48 +132,32 @@ function TypeEditor({
     return opts.find((o) => o.value === card.place!.sub_type)?.value ?? opts[0]?.value ?? "";
   }
 
-  const initDetails    = card.details as Record<string, unknown> | null;
   const [editType,       setEditType]       = useState<CardType>(card.place!.type);
   const [editSubType,    setEditSubType]    = useState<string>(initSubType(card.place!.type));
-  const [editRecommendedBy, setEditRecommendedBy] = useState<string>((initDetails?.recommended_by as string | undefined) ?? "");
   const [saving,         setSaving]         = useState(false);
 
+  // Picking a type only narrows the sub-type row; nothing is written until a
+  // sub-type is tapped, so a mis-tap on the type pill costs nothing.
   function pickType(t: CardType) {
     setEditType(t);
     const opts = SUB_TYPE_OPTIONS[t] ?? [];
     setEditSubType(opts[0]?.value ?? "");
   }
 
-  const handleSave = useCallback(async () => {
-    if (saving) return;
+  // Commit on selection. Category lives on the PLACE, so this is one update
+  // and the popup restyles through onSaved; the card's details are untouched.
+  const commit = useCallback(async (t: CardType, st: string) => {
+    if (saving || !card.place_id) return;
     setSaving(true);
-    const prevDetails = (card.details as Record<string, unknown> | null) ?? {};
-    const updatedDetails = { ...prevDetails };
-    if (editRecommendedBy.trim()) {
-      updatedDetails.recommended_by = editRecommendedBy.trim();
-    } else {
-      delete updatedDetails.recommended_by;
-    }
-    if (card.place_id) {
-      const { error: placeErr } = await supabase
-        .from("places")
-        .update({ type: editType, sub_type: editSubType })
-        .eq("id", card.place_id);
-      if (placeErr) { setSaving(false); return; }
-    }
-
     const { error } = await supabase
-      .from("cards")
-      .update({ details: updatedDetails })
-      .eq("id", card.id);
+      .from("places")
+      .update({ type: t, sub_type: st })
+      .eq("id", card.place_id);
     setSaving(false);
-    if (!error) {
-      const updatedPlace = card.place
-        ? { ...card.place, type: editType, sub_type: editSubType }
-        : card.place;
-      onSaved({ ...card, details: updatedDetails, place: updatedPlace });
+    if (!error && card.place) {
+      onSaved({ ...card, place: { ...card.place, type: t, sub_type: st } });
     }
-  }, [saving, editType, editSubType, editRecommendedBy, card, supabase, onSaved]);
+  }, [saving, card, supabase, onSaved]);
 
   const typeColor = PIN_COLORS[editType];
 
@@ -206,7 +190,7 @@ function TypeEditor({
           return (
             <button
               key={value}
-              onClick={() => setEditSubType(value)}
+              onClick={() => { setEditSubType(value); void commit(editType, value); }}
               className="px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-all"
               style={sel
                 ? { background: typeColor, color: "white", border: `1px solid ${typeColor}` }
@@ -218,25 +202,12 @@ function TypeEditor({
         })}
       </div>
 
-      {/* Recommended by */}
-      <input
-        type="text"
-        value={editRecommendedBy}
-        onChange={(e) => setEditRecommendedBy(e.target.value)}
-        placeholder="Recommended by…"
-        className="w-full px-2 py-1 text-[11px] text-gray-700 bg-white border border-gray-200 rounded-lg placeholder-gray-400 focus:outline-none focus:border-gray-300 transition-colors mb-2.5"
-      />
-
-      {/* Save / Cancel */}
-      <div className="flex gap-2">
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="flex-1 py-1 rounded-lg text-[11px] font-semibold text-white transition-colors"
-          style={{ background: typeColor }}
-        >
-          {saving ? "Saving…" : "Save"}
-        </button>
+      {/* No Save row: picking a sub-type commits, the way the card sheet's
+          picker already does, so a category change is two taps from the pin
+          instead of four. The recommended-by field that used to sit here is
+          now edited on the popup itself (DetailsField). */}
+      <div className="flex items-center justify-between">
+        <span className="text-[10.5px] text-gray-400">{saving ? "Saving…" : "Tap a sub-type to save"}</span>
         <button
           onClick={onCancel}
           className="px-3 py-1 rounded-lg text-[11px] font-medium text-gray-500 bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
