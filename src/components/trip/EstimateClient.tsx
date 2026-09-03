@@ -358,10 +358,17 @@ export default function EstimateClient({
     // Overlay.tsx's contract: the hosted screen is a flex column with a
     // `flex-1 min-h-0 overflow-y-auto` body. Without it the sheet has no
     // scrolling region at all and the list is simply stuck.
+    //
+    // The root is a flex ITEM of the overlay card (`flex-1 min-h-0`), not
+    // `h-full`. On desktop the card is `h-auto max-h-[86vh]`, and a percentage
+    // height against an auto-height parent resolves to auto — so `h-full`
+    // grew to the content, the card clipped it at 86vh, and the body below
+    // never had a bound to scroll inside. Brennan hit exactly that: the
+    // desktop Estimate stopped at Contingency with no way down.
     <div
       className={
         variant === "overlay"
-          ? "h-full flex flex-col bg-parchment"
+          ? "flex-1 min-h-0 flex flex-col bg-parchment"
           : "min-h-screen bg-parchment pb-24"
       }
       style={
