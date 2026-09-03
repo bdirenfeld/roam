@@ -107,3 +107,9 @@ The benchmark: someone opens Roam in a Centurion Lounge and the person next to t
 ## Map pin popup (MapPinPopup.tsx)
 - `details.notes` and `details.recommended_by` are edited in place on the popup via `DetailsField` (tap the line; dotted link when empty). Each save merges one key and calls `onCardUpdate` so the pin restyles. The type editor behind the pencil still carries its own recommended-by input.
 - A scheduled copy of a place is a separate card: `recommended_by` set on the interested card does **not** carry to the in_itinerary card, and the map shows the scheduled (filled) pin first. `scheduleCardOnDay` should copy it; until it does, set both.
+
+## Card sheet and save sheet — click-audit conventions (Sep 2026)
+- `AddToTripSheet` pre-picks type/sub_type from `place.details.types` via `lib/places/inferType` (the bulk importer's table). A miss leaves the pills unselected; never make the pill mandatory again — it was the most-taxed tap in the app.
+- `CardBottomSheet` delete has **no confirm**: every host (PlanBoard, DayViewClient, FullMapClient) offers a 6-second undo through `onCardDelete`. A new host that mounts the sheet must provide undo or it gets an unrecoverable delete.
+- Notes and recommended-by are never gated behind "Add details" for the owner. The standalone notes row in the sheet hides itself when `showEmptyFields` is on so the detail component's own row doesn't duplicate it.
+- The full tap-count audit and remaining batches live in memory (`roam-click-audit`).
