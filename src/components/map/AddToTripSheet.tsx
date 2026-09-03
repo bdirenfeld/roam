@@ -55,6 +55,7 @@ const SUB_TYPE_OPTIONS: Record<CardType, { label: string; value: string }[]> = {
     { label: "Wellness",      value: "wellness"       },
     { label: "Event",         value: "event"          },
     { label: "Beach",         value: "beach"          },
+    { label: "Shopping",      value: "shopping"       },
   ],
   food: [
     { label: "Restaurant", value: "restaurant" },
@@ -83,7 +84,8 @@ const KEYWORD_RULES: { pattern: RegExp; subType: string; forTypes: CardType[] }[
   { pattern: /station|termini|train|bus/i,                  subType: "hotel",           forTypes: ["logistics"] },
   { pattern: /massage|spa|wellness|reflexology/i,           subType: "wellness",        forTypes: ["activity"]  },
   { pattern: /cooking class|corso/i,                        subType: "guided",          forTypes: ["activity"]  },
-  { pattern: /caff[eè]|caffe|coffee|gelato|espresso/i,      subType: "coffee",          forTypes: ["food"]      },
+  { pattern: /gelat|pasticc|dolc|dessert|cannol|biscott/i,  subType: "dessert",         forTypes: ["food"]      },
+  { pattern: /caff[eè]|caffe|coffee|espresso|forno|bakery|panetteria/i, subType: "coffee", forTypes: ["food"] },
   { pattern: /\bbar\b|cocktail|aperitivo/i,                 subType: "bar",             forTypes: ["food"]      },
 ];
 
@@ -128,8 +130,15 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
   // leaves the pills unselected exactly as before.
   const googleTypes = (place.details as { types?: string[] } | null | undefined)?.types;
   const inferred = inferType(googleTypes);
+  // Google's generic "food" says nothing about gelato vs. espresso vs. dinner;
+  // the name usually does, so a generic food hit is refined by the sheet's own
+  // keyword rules. A specific Google category (cafe, bakery, bar) is kept.
+  const initialSubType =
+    inferred.type === "food" && inferred.sub_type === "restaurant"
+      ? suggestSubType(place.name, "food")
+      : inferred.sub_type;
   const [type,           setType]           = useState<CardType | null>(inferred.type);
-  const [subType,        setSubType]        = useState<string | null>(inferred.sub_type);
+  const [subType,        setSubType]        = useState<string | null>(initialSubType);
   const [recommendedBy,  setRecommendedBy]  = useState("");
   const [saving,         setSaving]         = useState(false);
   const [showDupConfirm, setShowDupConfirm] = useState(false);

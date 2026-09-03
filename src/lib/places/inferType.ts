@@ -16,6 +16,10 @@ const RULES: ReadonlyArray<readonly [string, RoamType, string]> = [
   ["dessert",                 "food",      "dessert"],
   ["bar",                     "food",      "bar"],
   ["night_club",              "food",      "bar"],
+  // Generic "food" must sit above the retail rules: Google's legacy details
+  // tag a gelateria as ["food","point_of_interest","store","establishment"],
+  // and without this row "store" won and a gelateria became a shop.
+  ["food",                    "food",      "restaurant"],
   ["lodging",                 "logistics", "hotel"],
   ["hotel",                   "logistics", "hotel"],
   ["airport",                 "logistics", "flight_arrival"],
