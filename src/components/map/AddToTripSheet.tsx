@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { inferType } from "@/lib/places/inferType";
 import type { Card, CardType, Day, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { scheduleCardOnDay } from "@/lib/scheduleCard";
@@ -119,8 +120,16 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
   const dragY    = useRef(0);
   const dragging = useRef(false);
 
-  const [type,           setType]           = useState<CardType | null>(null);
-  const [subType,        setSubType]        = useState<string | null>(null);
+  // Pre-pick the category from Google's own `types` — the same rule table the
+  // bulk importer trusts — so Save is live the moment the sheet opens. The
+  // type pill used to be a mandatory tap on every single save even when Google
+  // had already said "restaurant" (Brennan's click audit, Sep 2026). The pills
+  // stay, so a wrong guess is one tap to fix; a miss (no usable Google type)
+  // leaves the pills unselected exactly as before.
+  const googleTypes = (place.details as { types?: string[] } | null | undefined)?.types;
+  const inferred = inferType(googleTypes);
+  const [type,           setType]           = useState<CardType | null>(inferred.type);
+  const [subType,        setSubType]        = useState<string | null>(inferred.sub_type);
   const [recommendedBy,  setRecommendedBy]  = useState("");
   const [saving,         setSaving]         = useState(false);
   const [showDupConfirm, setShowDupConfirm] = useState(false);

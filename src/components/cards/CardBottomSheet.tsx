@@ -345,6 +345,14 @@ function toDbTime(v: string): string {
  * "--:-- --" empty state. A real <input type="time"> sits collapsed underneath
  * as the click target, so clicking the chip reliably opens the native picker.
  */
+/** "09:30" + 90 → "11:00". Wraps past midnight; returns null on bad input. */
+function addMinutesToTime(hhmm: string, minutes: number): string | null {
+  const m = /^(\d{1,2}):(\d{2})/.exec(hhmm);
+  if (!m) return null;
+  const total = ((Number(m[1]) * 60 + Number(m[2]) + minutes) % 1440 + 1440) % 1440;
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
+
 function TimeChip({
   value,
   placeholder,
@@ -742,9 +750,14 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         console.error("Failed to move to day", error.message);
         setLocalCard(prev);
         onCardUpdate?.(prev);
+        return;
       }
+      // The card is now on another day; the sheet closes the way the map
+      // popup's "Add to day" does, instead of staying open on a card that has
+      // left the column you were looking at.
+      onClose();
     },
-    [localCard, onCardUpdate, supabase],
+    [localCard, onCardUpdate, onClose, supabase],
   );
 
   // ── Copy to another day (in_itinerary) ───────────────────────
@@ -1076,7 +1089,11 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               )}
               {!readOnly && (
                 <button
-                  onClick={() => setShowDeleteConfirm(true)}
+                  // No confirm dialog: the delete is instant and every host
+                  // (board, agenda, map) already offers a six-second undo,
+                  // which is the same model the desktop board's hover trash
+                  // uses. The modal was a second, stricter model for one act.
+                  onClick={handleDelete}
                   className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
                   aria-label="Delete card"
                 >
@@ -1089,9 +1106,25 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   </svg>
                 </button>
               )}
-              {/* Move / Copy — occasional actions, so they live behind a ⋯
-                  beside the icons that were already here rather than on a
-                  shelf of their own. */}
+              {/* Move to day — promoted out of the ⋯ into the header. On a
+                  phone it was five taps (card, ⋯, Move, day, close); now it is
+                  three, and the sheet closes itself on success. */}
+              {!readOnly && localCard.status === "in_itinerary" && days && days.length > 1 && (
+                <button
+                  onClick={() => setShowMovePicker(true)}
+                  className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                  aria-label="Move to another day"
+                  title="Move to another day"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="5" width="18" height="16" rx="2" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                    <polyline points="11 14 14 17 11 20" />
+                  </svg>
+                </button>
+              )}
+              {/* Copy — occasional, so it stays behind the ⋯ beside the icons
+                  that were already here rather than on a shelf of its own. */}
               {!readOnly && localCard.status === "in_itinerary" && days && days.length > 1 && (
                 <div className="relative">
                   <button
@@ -1154,6 +1187,15 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             ) : (
               <h2 className="text-[19px] font-bold text-gray-900 leading-snug">{displayTitle}</h2>
             )}
+            {/* The address, in words. The sheet had Maps, Website and Call
+                buttons but never said where the place was — on a journey
+                spanning eight towns that is the first thing you want. The
+                country is dropped; the town is the point. */}
+            {place?.address && (
+              <p className="text-[12.5px] leading-snug mt-1" style={{ color: "rgba(26,26,46,0.55)" }}>
+                {place.address.replace(/,\s*[^,]+$/, "")}
+              </p>
+            )}
           </div>
 
           {/* Editable time row */}
@@ -1175,24 +1217,37 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   onSave={(hhmm) => saveTopLevel("start_time", toDbTime(hhmm))}
                 />
 
-                {/* Separator + end time (or "+" to add end time) */}
-                {localCard.start_time && (
-                  localCard.end_time ? (
-                    <>
-                      <span className="text-gray-300 text-sm select-none">–</span>
-                      <TimeChip
-                        value={localCard.end_time}
-                        placeholder="End time"
-                        onSave={(hhmm) => saveTopLevel("end_time", toDbTime(hhmm))}
-                      />
-                    </>
-                  ) : (
-                    <TimeChip
-                      value={null}
-                      placeholder="+ end time"
-                      onSave={(hhmm) => saveTopLevel("end_time", toDbTime(hhmm))}
-                    />
-                  )
+                {/* End time — always shown. It used to appear only once a start
+                    time was saved, which forced the order and cost a second
+                    trip into the sheet (click audit, Sep 2026). */}
+                <span className="text-gray-300 text-sm select-none">–</span>
+                <TimeChip
+                  value={localCard.end_time}
+                  placeholder={localCard.start_time ? "+ end time" : "End time"}
+                  onSave={(hhmm) => saveTopLevel("end_time", toDbTime(hhmm))}
+                />
+
+                {/* Duration presets — one tap writes the end time from the
+                    start. Shown only while there is a start and no end, so a
+                    card with both stays as tidy as it was. */}
+                {localCard.start_time && !localCard.end_time && (
+                  <span className="inline-flex items-center gap-1 ml-1">
+                    {([["30m", 30], ["1h", 60], ["2h", 120]] as const).map(([label, mins]) => (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() => {
+                          const end = addMinutesToTime(toInputTime(localCard.start_time), mins);
+                          if (end) saveTopLevel("end_time", toDbTime(end));
+                        }}
+                        className="rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors hover:bg-black/[0.04]"
+                        style={{ color: "rgba(26,26,46,0.55)", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)" }}
+                        aria-label={`End ${label} after the start`}
+                      >
+                        +{label}
+                      </button>
+                    ))}
+                  </span>
                 )}
               </>
             )}
@@ -1397,12 +1452,32 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
 
             {renderDetail()}
 
+            {/* Notes, always reachable. The detail components render notes
+                when there are any and hide the empty row until "Add details"
+                is on; this row fills that gap so a first note is one tap, not
+                a hunt for the gate. It steps aside when the component's own
+                empty row is showing, so the field never appears twice. */}
+            {place && !readOnly && !showEmptyFields && !(localCard.details as { notes?: string } | null)?.notes && (
+              <div className="mt-5 pt-4 border-t border-gray-100">
+                <SectionLabel>Notes</SectionLabel>
+                <FieldRow
+                  value=""
+                  placeholder="Add a note…"
+                  multiline
+                  onSave={(v) => saveDetails("notes", v.trim())}
+                />
+              </div>
+            )}
+
             {/* Recommended by — a person, not a rating. The map's add flow can
                 set it at save time; this is where it gets added or corrected
                 afterwards, so a place saved before you knew who sent you there
                 can still be credited. Follows the sheet's field convention:
                 hidden when empty until "Add details" is on. */}
-            {place && (recommendedBy || (!readOnly && showEmptyFields)) && (
+            {/* Always shown for the owner (no longer behind "Add details"): it
+                is one of the two fields people actually fill, and the gate
+                cost a tap and a scroll on every first edit — click audit. */}
+            {place && (recommendedBy || !readOnly) && (
               <div className="mt-5 pt-4 border-t border-gray-100">
                 <SectionLabel>Recommended by</SectionLabel>
                 <FieldRow
