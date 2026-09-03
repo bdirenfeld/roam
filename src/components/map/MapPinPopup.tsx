@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, type ReactNode } from "react";
 import { PencilSimple, Trash, BookmarkSimple, Heart } from "@phosphor-icons/react";
 import type { Card, CardType, Day } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { scheduleCardOnDay } from "@/lib/scheduleCard";
 import { PIN_COLORS } from "@/lib/mapPins";
+import { readRecommendedBy, recommendedByLine } from "@/lib/recommendedBy";
 import PlacePhotoGallery from "@/components/cards/PlacePhotoGallery";
 
 /**
@@ -247,6 +248,124 @@ function TypeEditor({
   );
 }
 
+// ── Tap-to-edit detail (notes, recommended by) ───────────────
+// One field, one write. Both "who told you about this" and "what you wanted
+// to remember" used to be reachable only from the card sheet or, for the
+// recommender, buried inside the type editor behind a pencil labelled "Edit
+// type". On the map you're looking at the pin, so the pin is where you edit.
+// Each save merges a single key into `details` and hands the card back up so
+// the pin restyles (recommended pins draw differently) without a reload.
+function DetailsField({
+  card,
+  fieldKey,
+  value,
+  render,
+  emptyLabel,
+  placeholder,
+  multiline,
+  accent,
+  onSaved,
+}: {
+  card: Card;
+  fieldKey: "notes" | "recommended_by";
+  value: string | null;
+  render: (v: string) => ReactNode;
+  emptyLabel: string;
+  placeholder: string;
+  multiline?: boolean;
+  accent: string;
+  onSaved?: (updated: Card) => void;
+}) {
+  const supabase = createClient();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft]     = useState(value ?? "");
+  const [saving, setSaving]   = useState(false);
+  const [failed, setFailed]   = useState(false);
+
+  const open = () => { setDraft(value ?? ""); setFailed(false); setEditing(true); };
+
+  const save = useCallback(async () => {
+    if (saving) return;
+    setSaving(true);
+    const prev = (card.details as Record<string, unknown> | null) ?? {};
+    const next = { ...prev };
+    const trimmed = draft.trim();
+    if (trimmed) next[fieldKey] = trimmed;
+    else delete next[fieldKey];
+    const { error } = await supabase.from("cards").update({ details: next }).eq("id", card.id);
+    setSaving(false);
+    if (error) {
+      console.error(`[Roam] Saving ${fieldKey} failed:`, error.message);
+      setFailed(true);
+      return;
+    }
+    onSaved?.({ ...card, details: next });
+    setEditing(false);
+  }, [saving, draft, fieldKey, card, supabase, onSaved]);
+
+  if (editing) {
+    const shared = "w-full px-2 py-1 text-[11px] text-gray-700 bg-white border border-gray-200 rounded-lg placeholder-gray-400 focus:outline-none focus:border-gray-300 transition-colors";
+    return (
+      <div className="mt-1.5 mb-1">
+        {multiline ? (
+          <textarea
+            autoFocus
+            rows={4}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder={placeholder}
+            className={`${shared} resize-none leading-snug`}
+          />
+        ) : (
+          <input
+            autoFocus
+            type="text"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setEditing(false); }}
+            placeholder={placeholder}
+            className={shared}
+          />
+        )}
+        {failed && <p className="text-[11px] text-red-600 mt-1">Couldn&apos;t save — try again.</p>}
+        <div className="flex gap-2 mt-1.5">
+          <button
+            onClick={save}
+            disabled={saving}
+            className="flex-1 py-1 rounded-lg text-[11px] font-semibold text-white transition-colors disabled:opacity-60"
+            style={{ background: accent }}
+          >
+            {saving ? "Saving…" : "Save"}
+          </button>
+          <button
+            onClick={() => setEditing(false)}
+            className="px-3 py-1 rounded-lg text-[11px] font-medium text-gray-500 bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Read-only viewers (shared journeys) see the value and no affordance.
+  if (!onSaved) return value ? <>{render(value)}</> : null;
+
+  return value ? (
+    <button onClick={open} className="block w-full text-left group" aria-label={`Edit ${fieldKey === "notes" ? "note" : "recommender"}`}>
+      {render(value)}
+      <span className="sr-only">Tap to edit</span>
+    </button>
+  ) : (
+    <button
+      onClick={open}
+      className="mt-1 text-[11px] text-gray-400 hover:text-gray-600 transition-colors underline decoration-dotted underline-offset-2"
+    >
+      {emptyLabel}
+    </button>
+  );
+}
+
 // ── Shared card body ─────────────────────────────────────────
 function CardBody({
   card,
@@ -293,7 +412,9 @@ function CardBody({
   const rating           = place.rating ?? undefined;
   const userRatingsTotal = details?.userRatingsTotal as number | undefined;
   const website          = place?.website ?? (details?.website as string | undefined) ?? undefined;
-  const recommendedBy    = details?.recommended_by as string | undefined;
+  const recommendedBy    = readRecommendedBy(details);
+  const notesRaw         = details?.notes;
+  const notes            = typeof notesRaw === "string" && notesRaw.trim() ? notesRaw.trim() : null;
   const subTypeLabel     = place.sub_type ? (SUB_TYPE_LABEL[place.sub_type] ?? place.sub_type) : null;
 
   const [isEditing, setIsEditing]               = useState(false);
@@ -447,10 +568,43 @@ function CardBody({
             )}
           </div>
         )}
-        {recommendedBy && (
-          <p className="text-[11px] text-gray-400 mt-1 leading-snug">
-            <span className="text-amber-400">★</span> Recommended by {recommendedBy}
-          </p>
+        {/* Who told you, and what you wanted to remember — both editable
+            right here. Tap the line to change it; the quiet dotted link
+            appears only when the field is empty and you can write. */}
+        <DetailsField
+          card={card}
+          fieldKey="recommended_by"
+          value={recommendedBy}
+          accent={PIN_COLORS[place.type]}
+          onSaved={onCardUpdate}
+          emptyLabel="Who recommended it?"
+          placeholder="Recommended by…"
+          render={(v) => (
+            <p className="text-[11px] text-gray-400 mt-1 leading-snug">
+              <span className="text-amber-400">★</span> {recommendedByLine(v)}
+            </p>
+          )}
+        />
+        <DetailsField
+          card={card}
+          fieldKey="notes"
+          value={notes}
+          multiline
+          accent={PIN_COLORS[place.type]}
+          onSaved={onCardUpdate}
+          emptyLabel="Add a note"
+          placeholder="What you wanted to remember about this place…"
+          render={(v) => (
+            <p
+              className="text-[12px] text-gray-600 mt-1.5 leading-snug whitespace-pre-line"
+              style={{ display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}
+            >
+              {v}
+            </p>
+          )}
+        />
+        {notes && notes.length > 200 && (
+          <p className="text-[10px] text-gray-400 mt-0.5">Tap the note to read or edit all of it.</p>
         )}
 
         {showDayList && canAddToDay ? (
