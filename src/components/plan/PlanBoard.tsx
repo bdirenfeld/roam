@@ -2431,6 +2431,23 @@ function DayColumn({ day, cards, dayIndex, fullWidth, onCardTap, onDelete, onOpe
   );
 }
 
+// ── placeTown ──────────────────────────────────────────────────
+// "Via Buranco, 14, 19016 Monterosso al Mare SP, Italy" → "Monterosso al Mare".
+// Google's formatted_address puts the locality in the second-to-last segment,
+// as "<postcode> <town> <province code>" in Italy and "<town>, <state> <zip>"
+// elsewhere. Strip a leading postcode and a trailing 2-letter province, and
+// give up (null) rather than guess when the address has fewer than three parts.
+function placeTown(address?: string | null): string | null {
+  if (!address) return null;
+  const parts = address.split(",").map((s) => s.trim()).filter(Boolean);
+  if (parts.length < 3) return null;
+  let seg = parts[parts.length - 2];
+  seg = seg.replace(/^\d{4,6}\s+/, "");          // Italian / EU postcode first
+  seg = seg.replace(/\s+[A-Z]{2}$/, "");          // Italian province code last
+  seg = seg.replace(/\s+\d{4,6}(-\d{4})?$/, "");  // US-style zip last
+  return seg.length > 0 && seg.length <= 40 ? seg : null;
+}
+
 // ── DayHeaderCell ──────────────────────────────────────────────
 // Lifted out of DayColumn into the pinned header row. Reads the day's
 // cards (live) so the STOP/H caption updates as cards move. Mirrors the
@@ -3568,6 +3585,12 @@ function CardTile({
                 const parts: React.ReactNode[] = [];
                 if (timeRange) parts.push(timeRange);
                 if (subLabel && !isNote) parts.push(subLabel);
+                // The town, not the street. On a board of Vernazza, Monterosso,
+                // Lucca and Florence cards the question is which town a stop is
+                // in, never which street (Brennan, Sep 2026); the full address
+                // is on the Agenda row and in the card.
+                const town = placeTown(place?.address);
+                if (town) parts.push(town);
                 if (tileRating !== null) parts.push(<span key="r" className="text-amber-500">★ {tileRating.toFixed(1)}</span>);
                 if (priceRange) parts.push(priceRange);
                 if (parts.length === 0) return null;
