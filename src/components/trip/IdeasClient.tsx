@@ -315,9 +315,13 @@ function IdeaRow({
 export default function IdeasClient({
   initial,
   journeys,
+  backTo = null,
 }: {
   initial: Idea[];
   journeys: JourneySummary[];
+  /** The journey this page was opened from, so the back link returns there
+   *  instead of dropping you on the journeys index (Brennan, Sep 2026). */
+  backTo?: { href: string; title: string } | null;
 }) {
   const router = useRouter();
   const [ideas, setIdeas] = useState(initial);
@@ -451,12 +455,12 @@ export default function IdeasClient({
     >
       <div className="mx-auto w-full max-w-[560px]">
         <button
-          onClick={() => router.push("/trips")}
+          onClick={() => router.push(backTo ? backTo.href : "/trips")}
           className="flex items-center gap-1 mb-5 px-1"
           style={{ color: CAPTION, fontSize: 13 }}
         >
           <CaretLeft size={15} weight="light" />
-          Journeys
+          {backTo ? backTo.title : "Journeys"}
         </button>
 
         <h1 className="font-display italic text-[29px] px-1 mb-4" style={{ color: INK }}>

@@ -209,7 +209,9 @@ export default function AppMenu({
               from inside a journey they were two screens away (click audit,
               batch 5). Ideas is a plain link — it is its own page. */}
           <Link
-            href="/ideas"
+            // `from` lets the Ideas page offer a way back to the journey you
+            // left — without it you land on the inbox with no route home.
+            href={tripId ? `/ideas?from=${tripId}` : "/ideas"}
             role="menuitem"
             onClick={() => setOpen(false)}
             style={itemStyle}

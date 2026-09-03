@@ -3,12 +3,25 @@ import { redirect } from "next/navigation";
 import IdeasClient, { type Idea } from "@/components/trip/IdeasClient";
 import type { JourneySummary } from "@/components/trip/PromoteToWishlistSheet";
 
-export default async function IdeasPage() {
+export default async function IdeasPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ from?: string }> | { from?: string };
+}) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  // `?from=<tripId>` is set by the journey menu's Ideas row. Resolve it to a
+  // title so the page can say "‹ Tuscany" rather than "‹ Journeys".
+  const sp = (await searchParams) ?? {};
+  const fromId = typeof sp.from === "string" && /^[0-9a-f-]{36}$/i.test(sp.from) ? sp.from : null;
+  const { data: fromTrip } = fromId
+    ? await supabase.from("trips").select("id, title").eq("id", fromId).eq("user_id", user.id).maybeSingle()
+    : { data: null };
+  const backTo = fromTrip ? { href: `/trips/${fromTrip.id}`, title: fromTrip.title ?? "Journey" } : null;
 
   const [{ data: ideas }, { data: trips }] = await Promise.all([
     supabase
@@ -37,6 +50,7 @@ export default async function IdeasPage() {
     <IdeasClient
       initial={(ideas ?? []) as Idea[]}
       journeys={(trips ?? []) as JourneySummary[]}
+      backTo={backTo}
     />
   );
 }

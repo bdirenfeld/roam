@@ -1124,41 +1124,11 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   </svg>
                 </button>
               )}
-              {/* Take off this day — beside delete, for a scheduled card. */}
-              {!readOnly && localCard.status === "in_itinerary" && onCardDelete && (
-                <button
-                  onClick={handleUnschedule}
-                  disabled={isDeleting}
-                  className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors disabled:opacity-50"
-                  aria-label="Take off this day (keeps the place saved)"
-                  title="Take off this day"
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="9 14 4 9 9 4" />
-                    <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
-                  </svg>
-                </button>
-              )}
-              {/* Move to day — promoted out of the ⋯ into the header. On a
-                  phone it was five taps (card, ⋯, Move, day, close); now it is
-                  three, and the sheet closes itself on success. */}
-              {!readOnly && localCard.status === "in_itinerary" && days && days.length > 1 && (
-                <button
-                  onClick={() => setShowMovePicker(true)}
-                  className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
-                  aria-label="Move to another day"
-                  title="Move to another day"
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="5" width="18" height="16" rx="2" />
-                    <line x1="3" y1="10" x2="21" y2="10" />
-                    <polyline points="11 14 14 17 11 20" />
-                  </svg>
-                </button>
-              )}
-              {/* Copy — occasional, so it stays behind the ⋯ beside the icons
-                  that were already here rather than on a shelf of its own. */}
-              {!readOnly && localCard.status === "in_itinerary" && days && days.length > 1 && (
+              {/* Move / Copy / Take off this day — behind the ⋯. Brennan tried
+                  Move and Take-off as header buttons (Sep 2026) and found the
+                  row cluttered, so the header keeps its glyphs and the verbs
+                  live here. The sheet still closes itself after a move. */}
+              {!readOnly && localCard.status === "in_itinerary" && days && days.length > 0 && (
                 <div className="relative">
                   <button
                     onClick={() => setShowCardMenu((v) => !v)}
@@ -1177,21 +1147,35 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                         role="menu"
                         className="absolute right-0 top-9 z-50 w-44 bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden"
                       >
-                        <button
-                          role="menuitem"
-                          onClick={() => { setShowCardMenu(false); setShowMovePicker(true); }}
-                          className="w-full text-left px-3.5 py-2.5 text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                        >
-                          Move to Day
-                        </button>
-                        <button
-                          role="menuitem"
-                          disabled={isCopying}
-                          onClick={() => { setShowCardMenu(false); setShowCopyPicker(true); }}
-                          className="w-full text-left px-3.5 py-2.5 text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors border-t border-gray-100 disabled:opacity-50"
-                        >
-                          {isCopying ? "Copying…" : "Copy to another day"}
-                        </button>
+                        {days.length > 1 && (
+                          <button
+                            role="menuitem"
+                            onClick={() => { setShowCardMenu(false); setShowMovePicker(true); }}
+                            className="w-full text-left px-3.5 py-2.5 text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                          >
+                            Move to Day
+                          </button>
+                        )}
+                        {days.length > 1 && (
+                          <button
+                            role="menuitem"
+                            disabled={isCopying}
+                            onClick={() => { setShowCardMenu(false); setShowCopyPicker(true); }}
+                            className="w-full text-left px-3.5 py-2.5 text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors border-t border-gray-100 disabled:opacity-50"
+                          >
+                            {isCopying ? "Copying…" : "Copy to another day"}
+                          </button>
+                        )}
+                        {onCardDelete && (
+                          <button
+                            role="menuitem"
+                            disabled={isDeleting}
+                            onClick={() => { setShowCardMenu(false); void handleUnschedule(); }}
+                            className="w-full text-left px-3.5 py-2.5 text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors border-t border-gray-100 disabled:opacity-50"
+                          >
+                            Take off this day
+                          </button>
+                        )}
                       </div>
                     </>
                   )}
@@ -1507,10 +1491,11 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 afterwards, so a place saved before you knew who sent you there
                 can still be credited. Follows the sheet's field convention:
                 hidden when empty until "Add details" is on. */}
-            {/* Always shown for the owner (no longer behind "Add details"): it
-                is one of the two fields people actually fill, and the gate
-                cost a tap and a scroll on every first edit — click audit. */}
-            {place && (recommendedBy || !readOnly) && (
+            {/* Shown when set, or when "Add details" is on. Brennan tried it
+                always-on (Sep 2026) and found the card cluttered; the casual
+                place to add a recommender is the map popup, which edits it
+                inline. */}
+            {place && (recommendedBy || (!readOnly && showEmptyFields)) && (
               <div className="mt-5 pt-4 border-t border-gray-100">
                 <SectionLabel>Recommended by</SectionLabel>
                 <FieldRow
