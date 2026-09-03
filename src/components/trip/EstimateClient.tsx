@@ -313,6 +313,22 @@ export default function EstimateClient({
     setSaved(false);
   };
 
+  // Clear every price at once, counts untouched. Without this, blanking the
+  // sheet on a phone meant tapping into each field and backspacing — Brennan,
+  // Sep 2026. Zero is how the model spells "blank" (the field renders empty
+  // at 0), and it goes through the same undo window as a suggestion.
+  const filledKeys = FILLS.filter(([k]) => a[k] !== 0);
+  const runClear = () => {
+    const next = { ...a };
+    for (const [key] of FILLS) (next[key] as number) = 0;
+    next.excursionsTotal = 0;
+    next.pointsCredit = 0;
+    setPrev({ a, basis });
+    setA(next);
+    setBasis({});
+    setSaved(false);
+  };
+
   const undo = () => {
     if (!prev) return;
     setA(prev.a);
@@ -585,6 +601,16 @@ export default function EstimateClient({
             }
           >
             Estimate from this trip
+          </button>
+        )}
+
+        {(filledKeys.length > 0 || a.excursionsTotal !== 0 || a.pointsCredit !== 0) && (
+          <button
+            onClick={runClear}
+            className="w-full text-[12px] mt-2.5"
+            style={{ color: "rgba(26,26,46,0.55)" }}
+          >
+            Clear all prices
           </button>
         )}
 
