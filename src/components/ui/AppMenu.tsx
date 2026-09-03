@@ -136,7 +136,11 @@ export default function AppMenu({
   const owner = !guest;
 
   return (
-    <div ref={ref} className={`relative flex-shrink-0 ${wrapperClassName ?? ""}`}>
+    // A host that floats the control passes its own positioning; the default
+    // is `relative` so the dropdown anchors to the trigger. Never both: with
+    // `relative` and `absolute` on one element Tailwind's later rule wins and
+    // the map's floated menu landed in flow, under the canvas.
+    <div ref={ref} className={`flex-shrink-0 ${wrapperClassName ?? "relative"}`}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
