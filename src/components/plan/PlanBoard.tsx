@@ -269,6 +269,26 @@ interface Props {
 export default function PlanBoard({ trip, initialDays, initialLists, initialNotes }: Props) {
   const supabase = createClient();
   const [days, setDays] = useState<DayWithCards[]>(initialDays);
+
+  // A day's title — "Lucca day", "Cinque Terre", "Rest" — so the column says
+  // what the day is instead of making you infer it from the cards (Brennan,
+  // Sep 2026). Stored on days.theme, which the schema already carried and
+  // nothing displayed. Optimistic; reverts if the write is refused. An empty
+  // commit clears the title rather than saving a blank.
+  const handleRenameDay = useCallback(async (dayId: string, raw: string) => {
+    const theme = raw.trim() || null;
+    let previous: string | null = null;
+    setDays((prev) => prev.map((d) => {
+      if (d.id !== dayId) return d;
+      previous = d.theme ?? null;
+      return { ...d, theme };
+    }));
+    const { error } = await supabase.from("days").update({ theme }).eq("id", dayId);
+    if (error) {
+      console.error("[Roam] Saving day title failed:", error.message);
+      setDays((prev) => prev.map((d) => (d.id === dayId ? { ...d, theme: previous } : d)));
+    }
+  }, [supabase]);
   const [lists, setLists] = useState<ListWithCards[]>(initialLists);
   const listsRef = useRef(lists);
   listsRef.current = lists;
@@ -1781,6 +1801,15 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
                   </button>
                 </div>
+                {/* The day's title on a phone: one read-only caption under the
+                    pager, rendered only when a title exists so an untitled
+                    day's header is exactly what it was. Editing is desktop-
+                    only, like list rename. */}
+                {currentMobileDay?.theme && (
+                  <p className="text-center truncate px-6 pb-1 bg-white" style={{ fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: "12px", color: "rgba(26, 26, 46, 0.65)" }}>
+                    {currentMobileDay.theme}
+                  </p>
+                )}
                 {days.length > 1 && (
                   <div className="flex items-center justify-center gap-1.5 py-1 bg-white">
                     {/* The lists take the leading dots, then the add-a-list
@@ -2009,7 +2038,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
                             {!folded && (
                               <div className="flex flex-row flex-nowrap gap-5">
                                 {week.days.map((day) => (
-                                  <DayHeaderCell key={day.id} day={day} weather={weatherByDate?.[day.date] ?? null} />
+                                  <DayHeaderCell key={day.id} day={day} weather={weatherByDate?.[day.date] ?? null} onRename={handleRenameDay} />
                                 ))}
                               </div>
                             )}
@@ -2041,7 +2070,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
                       <div className="hidden md:flex md:flex-row md:flex-nowrap md:gap-5 md:min-w-max md:flex-shrink-0">
                         {listHeaderCells}
                         {days.map((day) => (
-                          <DayHeaderCell key={day.id} day={day} weather={weatherByDate?.[day.date] ?? null} />
+                          <DayHeaderCell key={day.id} day={day} weather={weatherByDate?.[day.date] ?? null} onRename={handleRenameDay} />
                         ))}
                       </div>
 
@@ -2406,8 +2435,22 @@ function DayColumn({ day, cards, dayIndex, fullWidth, onCardTap, onDelete, onOpe
 // Lifted out of DayColumn into the pinned header row. Reads the day's
 // cards (live) so the STOP/H caption updates as cards move. Mirrors the
 // column width (md:w-[280px]) so each header sits exactly above its column.
-function DayHeaderCell({ day, weather }: { day: DayWithCards; weather?: DayWeather | null }) {
+function DayHeaderCell({ day, weather, onRename }: { day: DayWithCards; weather?: DayWeather | null; onRename?: (dayId: string, theme: string) => void }) {
   const wxBtnRef = useRef<HTMLButtonElement>(null);
+  // Day title — the optional line under the weekday. Same commit rules as a
+  // list rename: Enter and blur commit, Escape reverts.
+  const titleRef = useRef<HTMLInputElement>(null);
+  const [titleEditing, setTitleEditing] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(day.theme ?? "");
+  const startTitleEdit = () => {
+    setTitleDraft(day.theme ?? "");
+    setTitleEditing(true);
+    setTimeout(() => titleRef.current?.select(), 0);
+  };
+  const commitTitle = () => {
+    setTitleEditing(false);
+    if (onRename && titleDraft.trim() !== (day.theme ?? "")) onRename(day.id, titleDraft);
+  };
   const [wxOpen, setWxOpen] = useState(false);
   const [wxPos, setWxPos] = useState<{ left: number; top: number } | null>(null);
   const dayOfWeek = day.date
@@ -2445,6 +2488,52 @@ function DayHeaderCell({ day, weather }: { day: DayWithCards; weather?: DayWeath
           marginBottom: "6px",
         }}>{dayOfWeek}</p>
       )}
+      {/* Tier 2½ — the day's title, typed by the traveller. Reads as a caption
+          under the weekday; tap to edit. When empty and editable, a faint
+          dotted prompt so the affordance exists without shouting. Read-only
+          viewers see the title or nothing. */}
+      {titleEditing ? (
+        <input
+          ref={titleRef}
+          value={titleDraft}
+          onChange={(e) => setTitleDraft(e.target.value)}
+          onBlur={commitTitle}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commitTitle();
+            if (e.key === "Escape") { setTitleDraft(day.theme ?? ""); setTitleEditing(false); }
+          }}
+          placeholder="Lucca day, Rest, Cinque Terre…"
+          aria-label={`Title for day ${day.day_number}`}
+          className="w-full bg-transparent outline-none border-b border-[rgba(26,26,46,0.25)] focus:border-[#C4622D] placeholder:text-[rgba(26,26,46,0.28)]"
+          style={{ fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: "12.5px", color: "rgb(26, 26, 46)", marginBottom: "6px", padding: "1px 0" }}
+        />
+      ) : day.theme ? (
+        onRename ? (
+          <button
+            type="button"
+            onClick={startTitleEdit}
+            title="Rename this day"
+            className="block w-full text-left truncate hover:opacity-70 transition-opacity"
+            style={{ fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: "12.5px", color: "rgba(26, 26, 46, 0.72)", marginBottom: "6px", padding: "1px 0" }}
+          >
+            {day.theme}
+          </button>
+        ) : (
+          <p className="truncate" style={{ fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: "12.5px", color: "rgba(26, 26, 46, 0.72)", marginBottom: "6px", padding: "1px 0" }}>
+            {day.theme}
+          </p>
+        )
+      ) : onRename ? (
+        <button
+          type="button"
+          onClick={startTitleEdit}
+          className="block text-left underline decoration-dotted underline-offset-2 hover:text-[#C4622D] transition-colors"
+          style={{ fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: "11.5px", color: "rgba(26, 26, 46, 0.35)", marginBottom: "6px", padding: "1px 0" }}
+        >
+          Name this day
+        </button>
+      ) : null}
+
       {/* Tier 3 — Forecast (only inside the ~2-week window Open-Meteo covers;
           far-out days simply have a two-line header). Clicking opens the
           hourly strip in a floating popover — position:fixed because the
