@@ -10,7 +10,8 @@ import AddToTripSheet from "./AddToTripSheet";
 import type { PlaceResult } from "./AddToTripSheet";
 import type { Trip, Day, Card, CardType } from "@/types/database";
 import { makeMaterialPinElement } from "@/lib/mapPins";
-import { Funnel, DotsThree, Heart } from "@phosphor-icons/react";
+import { Funnel, Heart } from "@phosphor-icons/react";
+import AppMenu from "@/components/ui/AppMenu";
 
 // Purple circular pin for search result previews
 const TEMP_PIN_SVG =
@@ -626,17 +627,21 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
           </svg>
         </Link>
 
-        {/* Trip settings — mobile only, owner only */}
-        {!readOnly && (
-          <Link
-            href={`/trips/${trip.id}/settings`}
-            className="md:hidden absolute top-4 left-14 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center"
-            style={{ backdropFilter: "blur(8px)", zIndex: 10 }}
-            aria-label="Settings"
-          >
-            <DotsThree size={18} weight="light" color="#374151" />
-          </Link>
-        )}
+        {/* The app's one menu — phone only (desktop has it in the masthead).
+            This used to be a bare ⋯ that navigated to the Settings PAGE and
+            threw away pan, zoom and filters; it also sat under the search
+            pill, so nobody found it. Now it is the same menu as the Agenda,
+            beside the avatar, and Settings opens as an overlay over the map. */}
+        <AppMenu
+          variant="mobile"
+          tripId={trip.id}
+          tripTitle={trip.title}
+          trip={trip}
+          days={days}
+          guest={readOnly}
+          wrapperClassName="md:hidden absolute top-4 right-14 z-10"
+          triggerClassName="w-8 h-8 rounded-full bg-white/80 backdrop-blur-md flex items-center justify-center text-[#374151]"
+        />
 
         {/* Place search — the add-a-place entry; owner only */}
         {!readOnly && (

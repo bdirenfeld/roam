@@ -63,6 +63,7 @@ import CardImage from "@/components/ui/CardImage";
 import { Trash, DotsThree, DotsSixVertical, ArrowLeft, ArrowRight, Image as ImageIcon, Gear, ShareNetwork, BookmarkSimple, UploadSimple, Files, NotePencil, MagnifyingGlass } from "@phosphor-icons/react";
 import { useGlobalSearch } from "@/components/search/GlobalSearch";
 import { TripSettingsLink } from "@/components/overlays/AppOverlays";
+import AppMenu from "@/components/ui/AppMenu";
 import { getMaterialIconHTML } from "@/lib/mapPins";
 import { type DayWeather, fetchTripWeather, dayStopsAnchor, getWeatherCategory, WeatherIcon, HourlyStrip } from "@/lib/weather";
 
@@ -268,6 +269,8 @@ interface Props {
 
 export default function PlanBoard({ trip, initialDays, initialLists, initialNotes }: Props) {
   const supabase = createClient();
+  // Hidden file input behind the menu's "Import a booking" row.
+  const importInputRef = useRef<HTMLInputElement>(null);
   const [days, setDays] = useState<DayWithCards[]>(initialDays);
 
   // A day's title — "Lucca day", "Cinque Terre", "Rest" — so the column says
@@ -1670,7 +1673,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
         <div className="flex items-center gap-1 z-10">
           <Link
             href="/"
-            className="flex items-center justify-center w-9 h-9 rounded-full transition-colors text-white/70 md:text-[#1A1A2E]"
+            className={`flex items-center justify-center w-9 h-9 rounded-full transition-colors ${isPhotoBg ? "text-white/70" : "text-[#1A1A2E]"} md:text-[#1A1A2E]`}
             aria-label="Back to home"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -1681,7 +1684,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
           {firstDay && (
             <Link
               href={`/trips/${trip.id}/days/${firstDay.id}`}
-              className="flex items-center gap-1 text-xs font-semibold transition-colors text-white/70 md:text-[#1A1A2E]"
+              className={`flex items-center gap-1 text-xs font-semibold transition-colors ${isPhotoBg ? "text-white/70" : "text-[#1A1A2E]"} md:text-[#1A1A2E]`}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -1693,9 +1696,11 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
         </div>
 
         {/* Center: trip title */}
-        <span className="absolute inset-0 hidden md:flex items-center justify-center pointer-events-none">
+        {/* The journey's name — now on the phone too. The board is the screen
+            you swipe days on, and it never said which journey you were in. */}
+        <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <span
-            className="font-display italic text-[15px] md:text-[#1A1A2E]"
+            className={`font-display italic text-[15px] ${isPhotoBg ? "text-white" : "text-[#1A1A2E]"} md:text-[#1A1A2E]`}
           >
             {trip.title}
           </span>
@@ -1703,17 +1708,45 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
 
         {/* Right: single ··· menu */}
         <div className="ml-auto z-10">
-          <MainMenu
+          {/* The app's one menu (same as the Agenda and the masthead) plus
+              the three rows only the board has. The bespoke MainMenu this
+              replaces had a different list with no Estimate — click audit. */}
+          <input
+            ref={importInputRef}
+            type="file"
+            accept="application/pdf,image/*,.eml,.txt"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) handleImportFile(f);
+              e.currentTarget.value = "";
+            }}
+          />
+          <AppMenu
+            variant="mobile"
+            tripId={trip.id}
+            tripTitle={trip.title}
             trip={trip}
             days={days}
-            onOpenBgPicker={() => {
-              setBgUrlInput(boardBg.type === "photo" ? boardBg.url : "");
-              setBgPreviewError(false);
-              setShowBgPicker(true);
-            }}
-            onImportBooking={handleImportFile}
-            onOpenDocuments={() => setShowDocs(true)}
-            onOpenNotes={() => setShowNotes(true)}
+            showSearch
+            triggerClassName={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${isPhotoBg ? "bg-white/20 backdrop-blur-sm border border-white/25 text-white" : "bg-black/[0.06] border border-black/[0.08] text-[#1A1A2E]"}`}
+            extra={[
+              {
+                key: "bg", title: "Change background", sub: "Paste an image URL",
+                icon: <ImageIcon size={15} weight="light" />,
+                onClick: () => { setBgUrlInput(boardBg.type === "photo" ? boardBg.url : ""); setBgPreviewError(false); setShowBgPicker(true); },
+              },
+              {
+                key: "import", title: "Import a booking", sub: "Flight or hotel confirmation → cards",
+                icon: <UploadSimple size={15} weight="light" />,
+                onClick: () => importInputRef.current?.click(),
+              },
+              {
+                key: "docs", title: "Documents", sub: "Uploaded confirmations",
+                icon: <Files size={15} weight="light" />,
+                onClick: () => setShowDocs(true),
+              },
+            ]}
           />
         </div>
       </div>{/* end nav bar */}
@@ -3291,170 +3324,6 @@ function WeekFoldedCard({
         {count} {count === 1 ? "day" : "days"}
       </span>
     </button>
-  );
-}
-
-// ── MainMenu (consolidated top-right ··· menu) ────────────────
-function MainMenu({
-  trip,
-  days,
-  onOpenBgPicker,
-  onImportBooking,
-  onOpenDocuments,
-  onOpenNotes,
-}: {
-  /** Handed to the Settings overlay as a seed — the board already has both. */
-  trip: Trip;
-  days: Day[];
-  onOpenBgPicker: () => void;
-  onImportBooking: (file: File) => void;
-  onOpenDocuments: () => void;
-  onOpenNotes: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const search = useGlobalSearch();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="w-8 h-8 flex items-center justify-center rounded-full transition-colors bg-white/20 backdrop-blur-sm border border-white/25 text-white md:bg-black/[0.06] md:border-black/[0.08] md:text-[#1A1A2E]"
-        aria-label="More options"
-      >
-        <DotsThree size={18} weight="bold" />
-      </button>
-
-      {open && (
-        <>
-          <div className="fixed inset-0 z-40" onPointerDown={() => setOpen(false)} />
-          <div className="absolute right-0 top-full mt-1.5 z-50 bg-white/97 backdrop-blur-xl rounded-xl shadow-xl w-[210px] py-1 overflow-hidden">
-            {/* Search — the mobile ⌕ lives in the app header, which doesn't
-                render inside a journey. This is how you reach it from the board. */}
-            <button
-              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-              onClick={() => { setOpen(false); search.open(); }}
-            >
-              <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                <MagnifyingGlass size={15} weight="light" className="text-gray-600" />
-              </div>
-              <div className="text-left">
-                <p className="text-[13px] font-medium text-gray-900 leading-snug">Search</p>
-                <p className="text-[11px] text-gray-400 leading-snug">Journeys, places, wishlist</p>
-              </div>
-            </button>
-
-            {/* Change background */}
-            <button
-              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-              onClick={() => { setOpen(false); onOpenBgPicker(); }}
-            >
-              <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                <ImageIcon size={15} weight="light" className="text-gray-600" />
-              </div>
-              <div className="text-left">
-                <p className="text-[13px] font-medium text-gray-900 leading-snug">Change background</p>
-                <p className="text-[11px] text-gray-400 leading-snug">Paste an image URL</p>
-              </div>
-            </button>
-
-            {/* Trip settings — opens over the board, which keeps its scroll.
-                Still a link to the route, so ctrl/cmd-click opens the page. */}
-            <TripSettingsLink
-              tripId={trip.id}
-              trip={trip}
-              days={days}
-              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-              onBeforeOpen={() => setOpen(false)}
-            >
-              <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                <Gear size={15} weight="light" className="text-gray-600" />
-              </div>
-              <div className="text-left">
-                <p className="text-[13px] font-medium text-gray-900 leading-snug">Settings</p>
-                <p className="text-[11px] text-gray-400 leading-snug">Dates, travellers, cover</p>
-              </div>
-            </TripSettingsLink>
-
-            {/* Journey notes — opens in place; the board keeps its scroll */}
-            <button
-              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-              onClick={() => { setOpen(false); onOpenNotes(); }}
-            >
-              <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                <NotePencil size={15} weight="light" className="text-gray-600" />
-              </div>
-              <div className="text-left">
-                <p className="text-[13px] font-medium text-gray-900 leading-snug">Journey notes</p>
-                <p className="text-[11px] text-gray-400 leading-snug">Codes, packing, who&rsquo;s driving</p>
-              </div>
-            </button>
-
-            {/* Divider */}
-            <div className="mx-3 my-0.5 border-t border-gray-100" />
-
-            {/* Import a booking → parse → preview cards */}
-            <button
-              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                <UploadSimple size={15} weight="light" className="text-gray-600" />
-              </div>
-              <div className="text-left">
-                <p className="text-[13px] font-medium text-gray-900 leading-snug">Import a booking</p>
-                <p className="text-[11px] text-gray-400 leading-snug">Flight or hotel confirmation → cards</p>
-              </div>
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="application/pdf,image/*"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                e.target.value = "";
-                if (file) { setOpen(false); onImportBooking(file); }
-              }}
-            />
-
-            {/* Documents — previously uploaded confirmations */}
-            <button
-              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-              onClick={() => { setOpen(false); onOpenDocuments(); }}
-            >
-              <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                <Files size={15} weight="light" className="text-gray-600" />
-              </div>
-              <div className="text-left">
-                <p className="text-[13px] font-medium text-gray-900 leading-snug">Documents</p>
-                <p className="text-[11px] text-gray-400 leading-snug">Uploaded confirmations</p>
-              </div>
-            </button>
-
-            {/* Share itinerary — lives in Journey settings. The #share deep
-                link still works as a URL; in the overlay the section is
-                scrolled into view instead. */}
-            <TripSettingsLink
-              tripId={trip.id}
-              trip={trip}
-              days={days}
-              section="share"
-              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-              onBeforeOpen={() => setOpen(false)}
-            >
-              <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                <ShareNetwork size={15} weight="light" className="text-gray-600" />
-              </div>
-              <div className="text-left">
-                <p className="text-[13px] font-medium text-gray-900 leading-snug">Share itinerary</p>
-                <p className="text-[11px] text-gray-400 leading-snug">Invite someone to this journey</p>
-              </div>
-            </TripSettingsLink>
-          </div>
-        </>
-      )}
-    </div>
   );
 }
 

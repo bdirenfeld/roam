@@ -51,6 +51,8 @@ export default function AppMenu({
   guest = false,
   showSearch = false,
   triggerClassName,
+  wrapperClassName,
+  extra,
 }: {
   variant: "mobile" | "desktop";
   tripId: string | null;
@@ -62,6 +64,14 @@ export default function AppMenu({
   /** Desktop has a labelled Search button of its own; a phone does not. */
   showSearch?: boolean;
   triggerClassName: string;
+  /** Positions the whole control (trigger + menu); the map floats it. */
+  wrapperClassName?: string;
+  /**
+   * Rows a host adds under the shared ones — the Plan board's "Change
+   * background", "Import a booking", "Documents". They render in the same
+   * register as the rest, so the menu reads as one list, not two.
+   */
+  extra?: { key: string; title: string; sub: string; icon: React.ReactNode; onClick: () => void }[];
 }) {
   const [open, setOpen] = useState(false);
   const [showShare, setShowShare] = useState(false);
@@ -126,7 +136,7 @@ export default function AppMenu({
   const owner = !guest;
 
   return (
-    <div ref={ref} className="relative flex-shrink-0">
+    <div ref={ref} className={`relative flex-shrink-0 ${wrapperClassName ?? ""}`}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -256,6 +266,29 @@ export default function AppMenu({
                   <Label title="Journey settings" sub="Dates, travellers, cover" />
                 </TripSettingsLink>
               )}
+            </>
+          )}
+
+          {extra && extra.length > 0 && (
+            <>
+              <div
+                style={{
+                  height: 1,
+                  background: "rgba(26,26,46,0.08)",
+                  margin: mobile ? "4px 0" : "5px 11px",
+                }}
+              />
+              {extra.map((item) => (
+                <button
+                  key={item.key}
+                  role="menuitem"
+                  onClick={() => { setOpen(false); item.onClick(); }}
+                  style={itemStyle}
+                >
+                  <span style={glyphStyle}>{item.icon}</span>
+                  <Label title={item.title} sub={item.sub} />
+                </button>
+              ))}
             </>
           )}
         </div>
