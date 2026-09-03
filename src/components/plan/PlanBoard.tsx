@@ -60,9 +60,7 @@ import { formatTimeRange } from "@/lib/formatTime";
 import { getOpeningHoursConflict, openingHoursCaption, openingHoursTone } from "@/lib/openingHours";
 
 import CardImage from "@/components/ui/CardImage";
-import { Trash, DotsThree, DotsSixVertical, ArrowLeft, ArrowRight, Image as ImageIcon, Gear, ShareNetwork, BookmarkSimple, UploadSimple, Files, NotePencil, MagnifyingGlass } from "@phosphor-icons/react";
-import { useGlobalSearch } from "@/components/search/GlobalSearch";
-import { TripSettingsLink } from "@/components/overlays/AppOverlays";
+import { Trash, DotsThree, DotsSixVertical, ArrowLeft, ArrowRight, Image as ImageIcon, BookmarkSimple, UploadSimple, Files, NotePencil } from "@phosphor-icons/react";
 import AppMenu from "@/components/ui/AppMenu";
 import { getMaterialIconHTML } from "@/lib/mapPins";
 import { type DayWeather, fetchTripWeather, dayStopsAnchor, getWeatherCategory, WeatherIcon, HourlyStrip } from "@/lib/weather";
