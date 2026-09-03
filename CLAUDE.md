@@ -100,3 +100,10 @@ The benchmark: someone opens Roam in a Centurion Lounge and the person next to t
 
 ## Mobile reachability trap
 - `DesktopMasthead` is `hidden md:flex`. Anything whose only entry point is added there is **invisible on a phone**. This has shipped twice (the estimate entry point, then ideas). Every new destination needs a mobile door.
+
+## Overlay-hosted screens (Overlay.tsx)
+- A screen mounted inside `Overlay` must make its root a **flex item of the card** — `flex-1 min-h-0 flex flex-col` — never `h-full`. The desktop card is `h-auto max-h-[86vh]`, so a percentage height resolves to auto, the card clips at 86vh and the `flex-1 min-h-0 overflow-y-auto` body inside never gets a bound. That was the "Estimate won't scroll on desktop" bug (fixed in `a967532`). Mobile hid it because the sheet is a fixed `h-[92dvh]`.
+
+## Map pin popup (MapPinPopup.tsx)
+- `details.notes` and `details.recommended_by` are edited in place on the popup via `DetailsField` (tap the line; dotted link when empty). Each save merges one key and calls `onCardUpdate` so the pin restyles. The type editor behind the pencil still carries its own recommended-by input.
+- A scheduled copy of a place is a separate card: `recommended_by` set on the interested card does **not** carry to the in_itinerary card, and the map shows the scheduled (filled) pin first. `scheduleCardOnDay` should copy it; until it does, set both.
