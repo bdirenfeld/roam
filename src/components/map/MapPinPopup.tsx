@@ -4,7 +4,7 @@ import { useState, useCallback, type ReactNode } from "react";
 import { PencilSimple, Trash, BookmarkSimple, Heart } from "@phosphor-icons/react";
 import type { Card, CardType, Day } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
-import { scheduleCardOnDay } from "@/lib/scheduleCard";
+import { scheduleCardOnDay, unscheduleCard } from "@/lib/scheduleCard";
 import { PIN_COLORS } from "@/lib/mapPins";
 import { readRecommendedBy, recommendedByLine } from "@/lib/recommendedBy";
 import PlacePhotoGallery from "@/components/cards/PlacePhotoGallery";
@@ -415,14 +415,29 @@ function CardBody({
     }
   }, [tripId, card.place_id, card.place, scheduling, supabase, onCardCreated, onClose]);
 
+  // A scheduled pin used to refuse ("remove it from your day plan first")
+  // and offer nothing to do it with. It now offers the action itself.
   function handleTrashClick() {
     if (card.status === "in_itinerary") {
       setShowItineraryMsg(true);
-      setTimeout(() => setShowItineraryMsg(false), 3500);
     } else {
       setShowDeleteConfirm(true);
     }
   }
+
+  const handleUnschedule = useCallback(async () => {
+    setIsDeleting(true);
+    const { ok, created } = await unscheduleCard(supabase, card);
+    setIsDeleting(false);
+    if (!ok) {
+      setDeleteError("Couldn't take it off the day — please try again.");
+      setTimeout(() => setDeleteError(null), 3000);
+      return;
+    }
+    if (created) onCardCreated?.(created);
+    onCardDelete?.(card.id);
+    onClose();
+  }, [card, onCardCreated, onCardDelete, onClose, supabase]);
 
   const handleDelete = useCallback(async () => {
     setIsDeleting(true);
@@ -718,7 +733,26 @@ function CardBody({
         {/* In-itinerary message */}
         {showItineraryMsg && (
           <div className="mt-3 p-3 bg-amber-50 rounded-xl border border-amber-100">
-            <p className="text-[12px] text-amber-700">This place is in your itinerary — remove it from your day plan first.</p>
+            <p className="text-[12px] font-medium text-gray-800 mb-2.5">
+              This place is on {(() => { const d = days?.find((x) => x.id === card.day_id); return d ? `Day ${d.day_number}` : "a day"; })()}. Take it off the day? The place stays saved on the map.
+            </p>
+            {deleteError && <p className="text-[11px] text-red-600 mb-2">{deleteError}</p>}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowItineraryMsg(false)}
+                className="flex-1 py-1.5 rounded-lg text-[11px] font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
+              >
+                Keep it
+              </button>
+              <button
+                onClick={handleUnschedule}
+                disabled={isDeleting}
+                className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold text-white transition-colors disabled:opacity-60"
+                style={{ background: "#C4622D" }}
+              >
+                {isDeleting ? "Working…" : "Take it off the day"}
+              </button>
+            </div>
           </div>
         )}
       </div>

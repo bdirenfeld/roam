@@ -104,3 +104,55 @@ export async function scheduleCardOnDay(
 
   return { ...(data as Card), place };
 }
+
+/**
+ * Take a scheduled card off its day without losing the place.
+ *
+ * Scheduling copies (see above), so the normal case is: an `interested` copy
+ * of the same place already exists on the journey and the scheduled row is
+ * simply deleted — the map pin and the saved pile are untouched. When there is
+ * no saved copy (the card was created straight onto a day) one is written
+ * first, so nothing the traveller chose disappears. Either way the caller
+ * ends up deleting `card.id`, which every host already knows how to undo.
+ *
+ * Returns the saved copy that was created (for hosts that render pins), or
+ * null when one already existed; `ok` is false only when the delete failed.
+ */
+export async function unscheduleCard(
+  supabase: SupabaseClient,
+  card: Card,
+): Promise<{ ok: boolean; created: Card | null }> {
+  let created: Card | null = null;
+  if (card.place_id) {
+    const { data: existing } = await supabase
+      .from("cards")
+      .select("id")
+      .eq("trip_id", card.trip_id)
+      .eq("place_id", card.place_id)
+      .eq("status", "interested")
+      .limit(1)
+      .maybeSingle();
+    if (!existing) {
+      const { data } = await supabase
+        .from("cards")
+        .insert({
+          id:           crypto.randomUUID(),
+          day_id:       null,
+          trip_id:      card.trip_id,
+          place_id:     card.place_id,
+          status:       "interested",
+          position:     0,
+          source_url:   card.source_url,
+          details:      JSON.parse(JSON.stringify(card.details ?? {})) as Card["details"],
+          ai_generated: card.ai_generated,
+          confirmed:    false,
+        })
+        .select()
+        .single();
+      if (data) created = { ...(data as Card), place: card.place ?? null };
+    }
+  }
+  const { error } = await supabase.from("cards").delete().eq("id", card.id);
+  if (error) console.error("[unscheduleCard] delete failed:", error.message);
+  return { ok: !error, created };
+}

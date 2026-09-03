@@ -9,10 +9,14 @@ import {
   MagnifyingGlass,
   NotePencil,
   ShareNetwork,
+  Lightbulb,
+  UserCircle,
 } from "@phosphor-icons/react";
+import Link from "next/link";
 import {
   EstimateLink,
   NewJourneyLink,
+  ProfileLink,
   TripSettingsLink,
   useJourneyNotes,
 } from "@/components/overlays/AppOverlays";
@@ -201,6 +205,21 @@ export default function AppMenu({
             <Label title="Plan a journey" sub="Somewhere new, from scratch" />
           </NewJourneyLink>
 
+          {/* Ideas and Profile used to live only on the journeys index, so
+              from inside a journey they were two screens away (click audit,
+              batch 5). Ideas is a plain link — it is its own page. */}
+          <Link
+            href="/ideas"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            style={itemStyle}
+          >
+            <span style={glyphStyle}>
+              <Lightbulb size={15} weight="light" />
+            </span>
+            <Label title="Ideas" sub="Saved from TikTok, Maps and links" />
+          </Link>
+
           {tripId && (
             <>
               <div
@@ -293,6 +312,27 @@ export default function AppMenu({
                   <Label title={item.title} sub={item.sub} />
                 </button>
               ))}
+            </>
+          )}
+
+          {/* Profile last, on the phone only: the desktop masthead has its own
+              avatar dropdown with Profile and Sign out. Sign out lives inside
+              the Profile overlay. */}
+          {mobile && (
+            <>
+              <div style={{ height: 1, background: "rgba(26,26,46,0.08)", margin: "4px 0" }} />
+              <ProfileLink
+                title="Profile"
+                ariaLabel="Profile"
+                role="menuitem"
+                onBeforeOpen={() => setOpen(false)}
+                style={itemStyle}
+              >
+                <span style={glyphStyle}>
+                  <UserCircle size={15} weight="light" />
+                </span>
+                <Label title="Profile" sub="Your details, sign out" />
+              </ProfileLink>
             </>
           )}
         </div>

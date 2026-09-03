@@ -8,7 +8,7 @@ import { useSheetDrag } from "@/hooks/useSheetDrag";
 import { queuedUpdate } from "@/lib/offline/queuedWrite";
 import { applyOverlay } from "@/lib/offline/writeQueue";
 import { formatTimeValue } from "@/lib/formatTime";
-import { scheduleCardOnDay } from "@/lib/scheduleCard";
+import { scheduleCardOnDay, unscheduleCard } from "@/lib/scheduleCard";
 import LovedHeart from "@/components/ui/LovedHeart";
 import { readRecommendedBy } from "@/lib/recommendedBy";
 import FieldRow, { SectionLabel } from "./detail/FieldRow";
@@ -708,6 +708,24 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     onClose();
   }, [localCard.id, onCardDelete, onClose, supabase]);
 
+  // ── Take off this day ────────────────────────────────────────
+  // The card leaves the day and the place stays saved (a saved copy is written
+  // if none exists). From the host's point of view this is a delete, so the
+  // host's six-second undo covers it. Before this, the only way off a day on a
+  // phone was deleting the card outright (click audit, batch 5).
+  const handleUnschedule = useCallback(async () => {
+    setIsDeleting(true);
+    const { ok } = await unscheduleCard(supabase, localCard);
+    setIsDeleting(false);
+    if (!ok) {
+      setDeleteError("Couldn't take it off the day — please try again.");
+      setTimeout(() => setDeleteError(null), 3000);
+      return;
+    }
+    onCardDelete?.(localCard.id);
+    onClose();
+  }, [localCard, onCardDelete, onClose, supabase]);
+
   // ── Assign to day ─────────────────────────────────────────
   const handleAssignToDay = useCallback(
     async (day: Day) => {
@@ -1103,6 +1121,21 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                     <path d="M10 11v6" />
                     <path d="M14 11v6" />
                     <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                  </svg>
+                </button>
+              )}
+              {/* Take off this day — beside delete, for a scheduled card. */}
+              {!readOnly && localCard.status === "in_itinerary" && onCardDelete && (
+                <button
+                  onClick={handleUnschedule}
+                  disabled={isDeleting}
+                  className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors disabled:opacity-50"
+                  aria-label="Take off this day (keeps the place saved)"
+                  title="Take off this day"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 14 4 9 9 4" />
+                    <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
                   </svg>
                 </button>
               )}
