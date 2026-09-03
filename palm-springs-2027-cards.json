@@ -1,0 +1,1073 @@
+{
+  "_meta": {
+    "trip": "Palm Springs — March 2027",
+    "title": "Palm Springs",
+    "destination": "Palm Springs, CA, USA",
+    "destination_lat": 33.8303,
+    "destination_lng": -116.5453,
+    "arrival": "2027-03-12",
+    "departure": "2027-03-21",
+    "nights": 9,
+    "user_id": "ece938aa-db7b-4436-bb59-442cc0dc5e10",
+    "trip_id": "TBD — create trip row first",
+    "party": "5 — Brennan (42), Sai (39), Mia (9), Isha (7), Bodhi (4)",
+    "party_ages": [42, 39, 9, 7, 4],
+    "trip_purpose": "Nine nights of desert sun over March break. A pool house as the anchor, one outing a day at most, and the afternoons left alone. Two proper days out (the Tramway, Joshua Tree); everything else is close, cheap and easy to abandon.",
+    "base": "Airbnb pool house, TBD — Movie Colony / Deepwell / Twin Palms, 3 bedrooms minimum, heated pool, walkable to Palm Canyon Drive",
+    "region_bias": { "lat": 33.8303, "lng": -116.5453, "radius_m": 80000 },
+
+    "_why_these_dates": "TDSB March break is 15–19 March 2027. Fly out the Friday before, home the Sunday after: nine nights, ten days, the kids miss no school. The BNP Paribas Open at Indian Wells runs 28 Feb – 14 Mar, so the first weekend overlaps the tennis finals — rental prices are highest that weekend and Highway 111 through Indian Wells is slow; nothing in this plan goes east of Rancho Mirage until the Monday.",
+
+    "_flights": "Air Canada is the only nonstop YYZ–PSP, seasonal (roughly December to April). Westbound leaves mid-morning and lands early afternoon, ~5h20. Eastbound leaves early afternoon, lands Toronto late evening. Book the moment the March schedule loads; the nonstop sells out over March break and the alternative is a Vancouver or LA connection.",
+
+    "_drive_times_from_downtown": {
+      "Palm Springs International Airport": "10 min",
+      "Aerial Tramway Valley Station": "15 min",
+      "Indian Canyons / Tahquitz Canyon": "10 min",
+      "Rancho Mirage (Sunnylands, Children's Discovery Museum)": "20 min",
+      "Palm Desert (Living Desert)": "30 min",
+      "Joshua Tree (West Entrance via Hwy 62)": "55 min; ~1h15 back via the south entrance and I-10",
+      "Cabazon (Dinosaurs, Desert Hills outlets)": "25 min west on I-10",
+      "Whitewater Preserve": "25 min"
+    },
+
+    "_enrichment_warning": "Do NOT insert these as direct DB card inserts. Every place goes through resolution (pass 1) and enrichment (pass 2) so it lands with google_place_id, lat/lng, hours, rating and photos. The home base is the one exception: no Google listing until a booking exists, so it is a note card until then.",
+
+    "_open_decisions": [
+      "Pick and book the Airbnb. Until then the check-in card is a note card and the nightly rate in the Estimate is a band, not a quote.",
+      "Confirm the Air Canada nonstop is loaded for 12 and 21 March 2027 and book it.",
+      "Aerial Tramway: book a timed ticket for the Saturday afternoon as soon as the window opens.",
+      "Spencer's and Trio take reservations; the rest walk in."
+    ]
+  },
+
+  "step_1_places_to_enrich": {
+    "_how": "Run `npx ts-node --esm scripts/import-tuscany-2027.ts --input palm-springs-2027-cards.json` from a machine with .env.local (GOOGLE_PLACES_API_KEY + SUPABASE_SERVICE_KEY). Review scripts/out/palm-springs-2027-resolution.json, then re-run with --live. Every entry sets type/sub_type explicitly so inference never decides.",
+    "_confidence_key": "high = well-known, should resolve first try. low = expect trouble; check the match before --live.",
+
+    "logistics": [
+      {
+        "title": "Palm Springs International Airport",
+        "search": "Palm Springs International Airport, Palm Springs, CA",
+        "type": "logistics",
+        "sub_type": "flight_arrival",
+        "confidence": "high"
+      },
+      {
+        "title": "Palm Springs pool house",
+        "search": null,
+        "type": "logistics",
+        "sub_type": "hotel",
+        "confidence": "low",
+        "note": "No listing chosen yet. Once booked, create the places row by hand with the listing's coordinates — do not resolve a neighbourhood name, it will land on a geography."
+      },
+      {
+        "title": "Ralphs",
+        "search": "Ralphs, 425 S Sunrise Way, Palm Springs, CA",
+        "type": "logistics",
+        "sub_type": "grocery",
+        "confidence": "high",
+        "note": "sub_type set explicitly — grocery has no reliable inference."
+      }
+    ],
+
+    "activities": [
+      {
+        "title": "Palm Springs Aerial Tramway",
+        "search": "Palm Springs Aerial Tramway, Tram Way, Palm Springs, CA",
+        "type": "activity",
+        "sub_type": "self_directed",
+        "confidence": "high"
+      },
+      {
+        "title": "Indian Canyons",
+        "search": "Indian Canyons, S Palm Canyon Dr, Palm Springs, CA",
+        "type": "activity",
+        "sub_type": "challenge",
+        "confidence": "high",
+        "note": "Should resolve to the Indian Canyons entrance / trading post, not the Agua Caliente reservation as a geography. Check the types."
+      },
+      {
+        "title": "Tahquitz Canyon",
+        "search": "Tahquitz Canyon Visitor Center, W Mesquite Ave, Palm Springs, CA",
+        "type": "activity",
+        "sub_type": "challenge",
+        "confidence": "high"
+      },
+      {
+        "title": "The Living Desert Zoo and Gardens",
+        "search": "The Living Desert Zoo and Gardens, Palm Desert, CA",
+        "type": "activity",
+        "sub_type": "self_directed",
+        "confidence": "high"
+      },
+      {
+        "title": "Hidden Valley Nature Trail",
+        "search": "Hidden Valley Nature Trail, Joshua Tree National Park",
+        "type": "activity",
+        "sub_type": "challenge",
+        "confidence": "high"
+      },
+      {
+        "title": "Skull Rock",
+        "search": "Skull Rock, Joshua Tree National Park",
+        "type": "activity",
+        "sub_type": "self_directed",
+        "confidence": "high"
+      },
+      {
+        "title": "Cholla Cactus Garden",
+        "search": "Cholla Cactus Garden, Joshua Tree National Park",
+        "type": "activity",
+        "sub_type": "self_directed",
+        "confidence": "high"
+      },
+      {
+        "title": "Keys View",
+        "search": "Keys View, Joshua Tree National Park",
+        "type": "activity",
+        "sub_type": "self_directed",
+        "confidence": "high"
+      },
+      {
+        "title": "Palm Springs Art Museum",
+        "search": "Palm Springs Art Museum, N Museum Dr, Palm Springs, CA",
+        "type": "activity",
+        "sub_type": "guided",
+        "confidence": "high"
+      },
+      {
+        "title": "Moorten Botanical Garden",
+        "search": "Moorten Botanical Garden, S Palm Canyon Dr, Palm Springs, CA",
+        "type": "activity",
+        "sub_type": "self_directed",
+        "confidence": "high"
+      },
+      {
+        "title": "Children's Discovery Museum of the Desert",
+        "search": "Children's Discovery Museum of the Desert, Rancho Mirage, CA",
+        "type": "activity",
+        "sub_type": "guided",
+        "confidence": "high"
+      },
+      {
+        "title": "Sunnylands Center & Gardens",
+        "search": "Sunnylands Center & Gardens, Rancho Mirage, CA",
+        "type": "activity",
+        "sub_type": "self_directed",
+        "confidence": "high"
+      },
+      {
+        "title": "Palm Springs Air Museum",
+        "search": "Palm Springs Air Museum, N Gene Autry Trail, Palm Springs, CA",
+        "type": "activity",
+        "sub_type": "guided",
+        "confidence": "high"
+      },
+      {
+        "title": "VillageFest",
+        "search": "Palm Springs VillageFest, N Palm Canyon Dr, Palm Springs, CA",
+        "type": "activity",
+        "sub_type": "event",
+        "confidence": "medium",
+        "note": "A Thursday-night street fair, so Google may return the organiser's office or Palm Canyon Drive itself. Anything on N Palm Canyon Dr downtown is fine; a `route` type is not."
+      },
+      {
+        "title": "Palm Springs Certified Farmers' Market",
+        "search": "Palm Springs Certified Farmers Market, Palm Springs Cultural Center, E Baristo Rd",
+        "type": "activity",
+        "sub_type": "shopping",
+        "confidence": "medium",
+        "note": "Saturdays only, at the Palm Springs Cultural Center. If it resolves to the Cultural Center, accept that."
+      },
+      {
+        "title": "Ruth Hardy Park",
+        "search": "Ruth Hardy Park, Palm Springs, CA",
+        "type": "activity",
+        "sub_type": "self_directed",
+        "confidence": "high"
+      },
+      {
+        "title": "Cabazon Dinosaurs",
+        "search": "Cabazon Dinosaurs, Seminole Dr, Cabazon, CA",
+        "type": "activity",
+        "sub_type": "self_directed",
+        "confidence": "high"
+      },
+      {
+        "title": "Desert Hills Premium Outlets",
+        "search": "Desert Hills Premium Outlets, Cabazon, CA",
+        "type": "activity",
+        "sub_type": "shopping",
+        "confidence": "high"
+      },
+      {
+        "title": "Whitewater Preserve",
+        "search": "Whitewater Preserve, Whitewater Canyon Rd, Whitewater, CA",
+        "type": "activity",
+        "sub_type": "challenge",
+        "confidence": "high"
+      },
+      {
+        "title": "Shields Date Garden",
+        "search": "Shields Date Garden, Indio, CA",
+        "type": "activity",
+        "sub_type": "shopping",
+        "confidence": "high"
+      },
+      {
+        "title": "Salvation Mountain",
+        "search": "Salvation Mountain, Niland, CA",
+        "type": "activity",
+        "sub_type": "self_directed",
+        "confidence": "high"
+      },
+      {
+        "title": "Cabot's Pueblo Museum",
+        "search": "Cabot's Pueblo Museum, Desert Hot Springs, CA",
+        "type": "activity",
+        "sub_type": "guided",
+        "confidence": "high"
+      }
+    ],
+
+    "food": [
+      {
+        "title": "Las Casuelas Terraza",
+        "search": "Las Casuelas Terraza, S Palm Canyon Dr, Palm Springs, CA",
+        "type": "food",
+        "sub_type": "restaurant",
+        "confidence": "high"
+      },
+      {
+        "title": "Elmer's Restaurant",
+        "search": "Elmer's Restaurant, E Palm Canyon Dr, Palm Springs, CA",
+        "type": "food",
+        "sub_type": "restaurant",
+        "confidence": "high"
+      },
+      {
+        "title": "Sherman's Deli & Bakery",
+        "search": "Sherman's Deli & Bakery, S Indian Canyon Dr, Palm Springs, CA",
+        "type": "food",
+        "sub_type": "restaurant",
+        "confidence": "high"
+      },
+      {
+        "title": "Bill's Pizza",
+        "search": "Bill's Pizza, S Palm Canyon Dr, Palm Springs, CA",
+        "type": "food",
+        "sub_type": "restaurant",
+        "confidence": "high"
+      },
+      {
+        "title": "Joshua Tree Saloon",
+        "search": "Joshua Tree Saloon, Twentynine Palms Hwy, Joshua Tree, CA",
+        "type": "food",
+        "sub_type": "restaurant",
+        "confidence": "high"
+      },
+      {
+        "title": "Trio Restaurant",
+        "search": "Trio Restaurant, N Palm Canyon Dr, Palm Springs, CA",
+        "type": "food",
+        "sub_type": "restaurant",
+        "confidence": "high"
+      },
+      {
+        "title": "Tac/Quila",
+        "search": "Tac/Quila, N Palm Canyon Dr, Palm Springs, CA",
+        "type": "food",
+        "sub_type": "restaurant",
+        "confidence": "high"
+      },
+      {
+        "title": "Spencer's Restaurant",
+        "search": "Spencer's Restaurant, W Baristo Rd, Palm Springs, CA",
+        "type": "food",
+        "sub_type": "restaurant",
+        "confidence": "high"
+      },
+      {
+        "title": "Cheeky's",
+        "search": "Cheeky's, N Palm Canyon Dr, Palm Springs, CA",
+        "type": "food",
+        "sub_type": "restaurant",
+        "confidence": "high"
+      },
+      {
+        "title": "Koffi South",
+        "search": "Koffi, S Palm Canyon Dr, Palm Springs, CA",
+        "type": "food",
+        "sub_type": "coffee",
+        "confidence": "medium",
+        "note": "Three Koffi locations. Take the one on S Palm Canyon Dr; any of them is acceptable."
+      },
+      {
+        "title": "Ernest Coffee",
+        "search": "Ernest Coffee, N Palm Canyon Dr, Palm Springs, CA",
+        "type": "food",
+        "sub_type": "coffee",
+        "confidence": "high"
+      },
+      {
+        "title": "Great Shakes",
+        "search": "Great Shakes, S Palm Canyon Dr, Palm Springs, CA",
+        "type": "food",
+        "sub_type": "dessert",
+        "confidence": "high"
+      },
+      {
+        "title": "Ice Cream & Shop(pe)",
+        "search": "Ice Cream & Shop(pe), N Palm Canyon Dr, Palm Springs, CA",
+        "type": "food",
+        "sub_type": "dessert",
+        "confidence": "medium"
+      },
+      {
+        "title": "Farm",
+        "search": "Farm restaurant, La Plaza, N Palm Canyon Dr, Palm Springs, CA",
+        "type": "food",
+        "sub_type": "restaurant",
+        "confidence": "medium",
+        "note": "Generic name. Must land inside La Plaza on N Palm Canyon Dr."
+      },
+      {
+        "title": "Norma's at the Parker",
+        "search": "Norma's, Parker Palm Springs, E Palm Canyon Dr",
+        "type": "food",
+        "sub_type": "restaurant",
+        "confidence": "high"
+      },
+      {
+        "title": "Rooster and the Pig",
+        "search": "Rooster and the Pig, N Palm Canyon Dr, Palm Springs, CA",
+        "type": "food",
+        "sub_type": "restaurant",
+        "confidence": "high"
+      },
+      {
+        "title": "Mr. Lyons",
+        "search": "Mr. Lyons Steakhouse, E Palm Canyon Dr, Palm Springs, CA",
+        "type": "food",
+        "sub_type": "restaurant",
+        "confidence": "high"
+      },
+      {
+        "title": "Crossroads Cafe",
+        "search": "Crossroads Cafe, Twentynine Palms Hwy, Joshua Tree, CA",
+        "type": "food",
+        "sub_type": "restaurant",
+        "confidence": "high"
+      }
+    ]
+  },
+
+  "step_2_days": [
+    {
+      "date": "2027-03-12",
+      "label": "Day 1 · Friday — Arrive",
+      "shape": "travel only",
+      "cards": [
+        {
+          "position": 1,
+          "status": "in_itinerary",
+          "place_ref": "Palm Springs International Airport",
+          "start_time": "12:40",
+          "details": {
+            "origin_airport": "YYZ",
+            "arriving_at": "PSP",
+            "notes": "Air Canada nonstop, wheels down early afternoon. PSP is tiny and open-air: you are outside in the sun within twenty minutes of landing. Collect the car (minivan or three-row SUV, five people plus a week of luggage) and go.",
+            "prep": "Boosters for Isha and Bodhi come with the rental or in the checked bags. Sunscreen and hats in the carry-on; it is 25°C on the kerb.",
+            "energy": "low"
+          }
+        },
+        {
+          "position": 2,
+          "status": "in_itinerary",
+          "place_ref": "Ralphs",
+          "start_time": "14:00",
+          "details": {
+            "notes": "First shop before check-in, while everyone is still docile from the flight. Big American supermarket, ten minutes from downtown.",
+            "order": "Breakfast for nine mornings, pool snacks, a case of water, wine, whatever the kids eat on night one. Ice for the cooler for Joshua Tree day.",
+            "energy": "low"
+          }
+        },
+        {
+          "position": 3,
+          "status": "in_itinerary",
+          "place_id": null,
+          "start_time": "15:30",
+          "details": {
+            "title": "Check in to the pool house",
+            "notes": "Straight into the pool. Nothing else planned today. The house is the holiday: unpack properly, find the towels, set the pool heater if it has one.",
+            "prep": "Confirm heated pool in the listing before booking. March water is 17°C unheated; heated is the difference between the kids swimming and not.",
+            "confirmation": "TBD — Airbnb booking ref",
+            "energy": "low"
+          }
+        },
+        {
+          "position": 4,
+          "status": "in_itinerary",
+          "place_ref": "Las Casuelas Terraza",
+          "start_time": "18:00",
+          "details": {
+            "notes": "Palm Springs institution since 1979: a misted patio under the palms, mariachi on the weekend, guacamole made at the table. Loud enough that the kids are invisible. Walk-in, early.",
+            "order": "Table-side guacamole, the fajitas for the table, a margarita for the adults who are not driving.",
+            "energy": "low"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2027-03-13",
+      "label": "Day 2 · Saturday — Up the mountain",
+      "shape": "one outing, afternoon",
+      "cards": [
+        {
+          "position": 1,
+          "status": "in_itinerary",
+          "place_ref": "Elmer's Restaurant",
+          "start_time": "08:30",
+          "details": {
+            "notes": "The German pancake, a foot across and dusted with icing sugar, arrives at the table and Bodhi will not speak for four minutes. Old-school diner service, fast, kid-proof.",
+            "order": "German pancake to share, the Dutch baby with lemon, eggs for whoever wants them.",
+            "energy": "low"
+          }
+        },
+        {
+          "position": 2,
+          "status": "in_itinerary",
+          "place_id": null,
+          "start_time": "10:30",
+          "details": {
+            "title": "Pool. Nothing else.",
+            "notes": "The rhythm for the whole journey starts here: a slow morning at the house, one thing in the afternoon. First full day is deliberately empty until 2pm."
+          }
+        },
+        {
+          "position": 3,
+          "status": "in_itinerary",
+          "place_ref": "Palm Springs Aerial Tramway",
+          "start_time": "14:00",
+          "details": {
+            "notes": "The world's largest rotating tramcar climbs 2,600 m in ten minutes, from desert floor to pine forest. In mid-March there is almost always snow at the top: the kids go from a pool to a snowball fight in an hour. Two easy trails from the Mountain Station; the Desert View loop is 20 minutes and enough.",
+            "prep": "Book a timed ticket online the day sales open. Pack a proper layer for everyone — it is 15°C colder at the top, often below freezing. Closed shoes.",
+            "tips": "Afternoon light is better for the valley views and the queue is shorter than at opening. Last car down is around 9:45pm, so no rush.",
+            "cost": "Adults $36.95, children 3–10 $20.95",
+            "duration": "3 hours door to door",
+            "energy": "medium",
+            "budget": { "amount": 137, "currency": "USD", "per": "party", "basis": "2 adults × $36.95 + 3 children × $20.95", "confidence": "quoted" }
+          }
+        },
+        {
+          "position": 4,
+          "status": "in_itinerary",
+          "place_id": null,
+          "start_time": "18:30",
+          "details": {
+            "title": "Cook at the house",
+            "notes": "Something on the grill. Every rental here has one."
+          }
+        }
+      ]
+    },
+    {
+      "date": "2027-03-14",
+      "label": "Day 3 · Sunday — The canyons",
+      "shape": "morning out, afternoon home",
+      "cards": [
+        {
+          "position": 1,
+          "status": "in_itinerary",
+          "place_ref": "Indian Canyons",
+          "start_time": "08:30",
+          "details": {
+            "notes": "Agua Caliente land, ten minutes from downtown. Andreas Canyon is the one for this party: a one-mile loop along a stream under a thousand fan palms, flat, shaded, with rocks to climb on. Palm Canyon Trading Post afterwards for a view over the largest fan-palm oasis in the world.",
+            "prep": "Gates open at 8; be there at 8:30 before the sun is on the trail. Water for everyone, a snack for the halfway rock.",
+            "cost": "Adults $12, children 6–12 $6, under 6 free",
+            "duration": "2.5 hours",
+            "energy": "medium",
+            "budget": { "amount": 36, "currency": "USD", "per": "party", "basis": "2 adults × $12 + Mia and Isha × $6; Bodhi free", "confidence": "quoted" }
+          }
+        },
+        {
+          "position": 2,
+          "status": "in_itinerary",
+          "place_ref": "Sherman's Deli & Bakery",
+          "start_time": "12:30",
+          "details": {
+            "notes": "A New York deli that took the desert seriously. Sandwiches the size of a shoebox, a bakery case the kids will stand in front of, a patio that faces the mountain.",
+            "order": "Split the pastrami on rye, a matzo ball soup for the table, black-and-white cookies for the car.",
+            "energy": "low"
+          }
+        },
+        {
+          "position": 3,
+          "status": "in_itinerary",
+          "place_id": null,
+          "start_time": "14:00",
+          "details": {
+            "title": "Afternoon at the house",
+            "notes": "Pool, nap for Bodhi, a book for whoever gets to it first."
+          }
+        }
+      ]
+    },
+    {
+      "date": "2027-03-15",
+      "label": "Day 4 · Monday — Giraffes",
+      "shape": "morning out, afternoon home",
+      "cards": [
+        {
+          "position": 1,
+          "status": "in_itinerary",
+          "place_ref": "The Living Desert Zoo and Gardens",
+          "start_time": "09:00",
+          "details": {
+            "notes": "The best zoo of its size in the country: desert animals from three continents in a garden setting, with a giraffe platform where the kids hand over lettuce leaf by leaf. Also a model railway, a carousel and a hummingbird aviary. Half a day is right.",
+            "prep": "Buy tickets online the night before; the gate queue is long over March break. Giraffe feeding runs 9am to 3pm, so go to the giraffes first.",
+            "tips": "The tennis crowd has gone home after Sunday's final, so Highway 111 through Indian Wells is clear again.",
+            "cost": "Adults $27.95, children 3–12 $17.95 online; giraffe feeding $10 each",
+            "duration": "4 hours",
+            "energy": "medium",
+            "budget": { "amount": 160, "currency": "USD", "per": "party", "basis": "2 × $27.95 + 3 × $17.95 + five giraffe feeds at $10", "confidence": "quoted" }
+          }
+        },
+        {
+          "position": 2,
+          "status": "in_itinerary",
+          "place_id": null,
+          "start_time": "13:30",
+          "details": {
+            "title": "Lunch and pool at the house",
+            "notes": "Back by 1:30. This is the hottest part of the day and the pool is where it should be spent."
+          }
+        },
+        {
+          "position": 3,
+          "status": "in_itinerary",
+          "place_ref": "Bill's Pizza",
+          "start_time": "17:30",
+          "details": {
+            "notes": "Sourdough-crust pizza on Palm Canyon Drive, the one restaurant in town where every family with kids under ten ends up. Counter order, patio tables, no fuss.",
+            "order": "Two large: a margherita and the sausage-and-fennel. A salad nobody will touch.",
+            "energy": "low"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2027-03-16",
+      "label": "Day 5 · Tuesday — Joshua Tree",
+      "shape": "big day out",
+      "cards": [
+        {
+          "position": 1,
+          "status": "in_itinerary",
+          "place_ref": "Hidden Valley Nature Trail",
+          "start_time": "09:30",
+          "details": {
+            "notes": "In through the West Entrance off Highway 62, an hour from the house. Hidden Valley is the park in one mile: a loop through a boulder-ringed valley where cattle rustlers hid their herds, with rocks the kids can scramble on for as long as you let them. Go first, before the car park fills.",
+            "prep": "Leave the house by 8:15. Cooler with lunch and two litres of water per person — there is no food or water anywhere inside the park. Full tank of fuel. A carrier for Bodhi.",
+            "cost": "$30 per vehicle, valid seven days",
+            "duration": "1.5 hours on the trail",
+            "energy": "high",
+            "budget": { "amount": 30, "currency": "USD", "per": "party", "basis": "National Park vehicle pass, covers the whole day", "confidence": "quoted" }
+          }
+        },
+        {
+          "position": 2,
+          "status": "in_itinerary",
+          "place_ref": "Skull Rock",
+          "start_time": "11:30",
+          "details": {
+            "notes": "A ten-minute stop on Park Boulevard. The rock looks exactly like a skull and the kids will want a photograph inside its eye socket. Jumbo Rocks campground next door has more boulders if there is energy left.",
+            "energy": "low",
+            "budget": { "amount": 0, "currency": "USD", "per": "party", "basis": "Covered by the vehicle pass", "confidence": "quoted" }
+          }
+        },
+        {
+          "position": 3,
+          "status": "in_itinerary",
+          "place_ref": "Joshua Tree Saloon",
+          "start_time": "12:45",
+          "details": {
+            "notes": "Back out the West Entrance to the town of Joshua Tree for lunch: burgers, a shaded patio, a jukebox, a pool table the kids will circle. Fifteen minutes from Hidden Valley. Skip this and eat the cooler lunch at Skull Rock if the morning ran long.",
+            "order": "Burgers, the chili, lemonade by the pitcher.",
+            "energy": "low"
+          }
+        },
+        {
+          "position": 4,
+          "status": "in_itinerary",
+          "place_ref": "Cholla Cactus Garden",
+          "start_time": "15:00",
+          "details": {
+            "notes": "Re-enter and drive south down Pinto Basin Road to where the Mojave becomes the Colorado Desert: a quarter-mile boardwalk through thousands of teddy-bear cholla glowing gold in the low sun. Then out the south entrance to I-10 and home in 1h15, so the day is a loop rather than a retrace.",
+            "prep": "Hands in pockets. Cholla spines jump onto skin and are wretched to remove. Bodhi is carried on the boardwalk.",
+            "duration": "30 minutes",
+            "energy": "low",
+            "budget": { "amount": 0, "currency": "USD", "per": "party", "basis": "Covered by the vehicle pass", "confidence": "quoted" }
+          }
+        },
+        {
+          "position": 5,
+          "status": "in_itinerary",
+          "place_id": null,
+          "start_time": "18:30",
+          "details": {
+            "title": "Takeaway at the house",
+            "notes": "Nobody is cooking after Joshua Tree. Pick something up on Palm Canyon Drive on the way through."
+          }
+        }
+      ]
+    },
+    {
+      "date": "2027-03-17",
+      "label": "Day 6 · Wednesday — Nothing much",
+      "shape": "downtime",
+      "cards": [
+        {
+          "position": 1,
+          "status": "in_itinerary",
+          "place_ref": "Koffi South",
+          "start_time": "08:30",
+          "details": {
+            "notes": "The local coffee. A courtyard on South Palm Canyon with a fountain and dogs under the tables. Pastries for the kids, a flat white that holds up.",
+            "primary": "Koffi South",
+            "backup": "Ernest Coffee on N Palm Canyon, if you are already up that end",
+            "energy": "low"
+          }
+        },
+        {
+          "position": 2,
+          "status": "in_itinerary",
+          "place_ref": "Ruth Hardy Park",
+          "start_time": "09:30",
+          "details": {
+            "notes": "The neighbourhood park in the Movie Colony: a good playground under big trees, tennis courts, a lawn for a ball. Half an hour of running around before the heat.",
+            "energy": "low",
+            "budget": { "amount": 0, "currency": "USD", "per": "party", "basis": "Free", "confidence": "quoted" }
+          }
+        },
+        {
+          "position": 3,
+          "status": "in_itinerary",
+          "place_id": null,
+          "start_time": "11:00",
+          "details": {
+            "title": "The day off",
+            "notes": "Day six after Joshua Tree is the day the plan leaves alone. Pool, lunch on the patio, whatever anyone wants. The art museum is there at three if the afternoon needs a shape; it is not required."
+          }
+        },
+        {
+          "position": 4,
+          "status": "in_itinerary",
+          "place_ref": "Palm Springs Art Museum",
+          "start_time": "15:00",
+          "details": {
+            "notes": "A serious museum in a serious building: modern and contemporary work, a strong sculpture garden the kids can walk through, and a Chihuly. Ninety minutes. Free for under-18s, so the cost is two adult tickets.",
+            "tips": "Optional. If the pool has won, let it.",
+            "cost": "Adults $18, under 18 free",
+            "duration": "1.5 hours",
+            "energy": "low",
+            "budget": { "amount": 36, "currency": "USD", "per": "party", "basis": "2 adults × $18, children free", "confidence": "estimated" }
+          }
+        },
+        {
+          "position": 5,
+          "status": "in_itinerary",
+          "place_ref": "Trio Restaurant",
+          "start_time": "18:00",
+          "details": {
+            "notes": "Mid-century room on the north end of Palm Canyon, an American bistro menu that does the children's plates properly and a Yankee pot roast for the grown-ups. The most reliable good dinner in town for a family of five.",
+            "order": "Pot roast, the meatloaf, the kids' pasta. Book a 6pm table.",
+            "energy": "low"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2027-03-18",
+      "label": "Day 7 · Thursday — Rancho Mirage, then the street fair",
+      "shape": "morning out, evening out",
+      "cards": [
+        {
+          "position": 1,
+          "status": "in_itinerary",
+          "place_ref": "Children's Discovery Museum of the Desert",
+          "start_time": "09:30",
+          "details": {
+            "notes": "Hands-on museum pitched at exactly Bodhi's and Isha's ages: a rock-climbing wall, a pretend grocery store, a paint-your-own VW Beetle, water tables outside. Mia will pretend to be too old for it for eleven minutes.",
+            "cost": "About $12 a person",
+            "duration": "2 hours",
+            "energy": "medium",
+            "budget": { "amount": 60, "currency": "USD", "per": "party", "basis": "5 × ~$12 general admission", "confidence": "estimated" }
+          }
+        },
+        {
+          "position": 2,
+          "status": "in_itinerary",
+          "place_ref": "Sunnylands Center & Gardens",
+          "start_time": "12:00",
+          "details": {
+            "notes": "The Annenberg estate where presidents were entertained. The gardens are free and open Wednesday to Sunday: nine acres of desert planting laid out like a painting, a reflecting pool, lawns the kids can run on, and a café with a good lunch. Ten minutes from the museum.",
+            "tips": "Skip the house tour with this party; the gardens are the point. Check the café is open before relying on it.",
+            "cost": "Free",
+            "duration": "1.5 hours including lunch",
+            "energy": "low",
+            "budget": { "amount": 0, "currency": "USD", "per": "party", "basis": "Gardens are free", "confidence": "quoted" }
+          }
+        },
+        {
+          "position": 3,
+          "status": "in_itinerary",
+          "place_id": null,
+          "start_time": "14:00",
+          "details": {
+            "title": "Pool, and an early rest",
+            "notes": "Home by two. Tonight runs late by this family's standards."
+          }
+        },
+        {
+          "position": 4,
+          "status": "in_itinerary",
+          "place_ref": "VillageFest",
+          "start_time": "18:00",
+          "details": {
+            "notes": "Every Thursday night Palm Canyon Drive closes to cars and becomes a street fair: food stalls, farmers' produce, buskers, a lot of dogs. Dinner is whatever each person points at. The one evening of the journey that is properly out.",
+            "tips": "Park on Indian Canyon Drive and walk over. Runs 6 to 10pm in spring; you will be done by 8.",
+            "cost": "Free to walk; budget dinner from the stalls",
+            "energy": "medium",
+            "budget": { "amount": 0, "currency": "USD", "per": "party", "basis": "Free entry; dinner counted under Restaurants", "confidence": "quoted" }
+          }
+        },
+        {
+          "position": 5,
+          "status": "in_itinerary",
+          "place_ref": "Great Shakes",
+          "start_time": "19:30",
+          "details": {
+            "notes": "Milkshakes with a mini doughnut on the straw, a block from the fair. The end of the evening.",
+            "order": "Date shake for the adults; it is the Coachella Valley's one true dessert.",
+            "energy": "low"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2027-03-19",
+      "label": "Day 8 · Friday — Waterfall and warbirds",
+      "shape": "morning out, afternoon out",
+      "cards": [
+        {
+          "position": 1,
+          "status": "in_itinerary",
+          "place_ref": "Tahquitz Canyon",
+          "start_time": "08:00",
+          "details": {
+            "notes": "A two-mile loop up a canyon to a sixty-foot waterfall that runs hardest in March after the winter rain. Rocky and stepped in places, so Mia and Isha walk it and Bodhi rides part of the way. Worth every step: the falls are the single best sight within the city limits.",
+            "prep": "Opens 7:30; be on the trail by 8 while the canyon is in shade. Proper shoes, hats, water. Ranger-led walks run mornings if you want the story told.",
+            "cost": "Adults $15, children 6–12 $7, under 6 free",
+            "duration": "2.5 hours",
+            "energy": "high",
+            "budget": { "amount": 44, "currency": "USD", "per": "party", "basis": "2 adults × $15 + Mia and Isha × $7; Bodhi free", "confidence": "quoted" }
+          }
+        },
+        {
+          "position": 2,
+          "status": "in_itinerary",
+          "place_id": null,
+          "start_time": "11:30",
+          "details": {
+            "title": "Lunch and pool at the house",
+            "notes": "Recover from the climb. Out again after Bodhi's nap."
+          }
+        },
+        {
+          "position": 3,
+          "status": "in_itinerary",
+          "place_ref": "Palm Springs Air Museum",
+          "start_time": "14:00",
+          "details": {
+            "notes": "Hangars full of flying Second World War aircraft you can walk up to and, in several cases, climb into. Volunteers who flew them. On a good day something taxis out and takes off. The children's favourite museum in the valley, by a distance.",
+            "cost": "Adults $22, children 6–12 $12, under 6 free",
+            "duration": "2 hours",
+            "energy": "low",
+            "budget": { "amount": 68, "currency": "USD", "per": "party", "basis": "2 adults × $22 + Mia and Isha × $12; Bodhi free", "confidence": "estimated" }
+          }
+        },
+        {
+          "position": 4,
+          "status": "in_itinerary",
+          "place_ref": "Tac/Quila",
+          "start_time": "18:00",
+          "details": {
+            "notes": "Modern Mexican in a bright room on North Palm Canyon: a long tequila list for the adults and street-corn and quesadillas that do the job for the kids. Livelier than Las Casuelas, still easy with children at six.",
+            "order": "Elote, the carnitas tacos, the tres leches for the table.",
+            "energy": "low"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2027-03-20",
+      "label": "Day 9 · Saturday — Dinosaurs and a last swim",
+      "shape": "morning out, afternoon home, dinner out",
+      "cards": [
+        {
+          "position": 1,
+          "status": "in_itinerary",
+          "place_ref": "Palm Springs Certified Farmers' Market",
+          "start_time": "08:45",
+          "details": {
+            "notes": "Saturday morning market at the Cultural Center: dates, citrus, tamales, pastries for breakfast on the go. Twenty minutes, then west on the I-10.",
+            "energy": "low",
+            "budget": { "amount": 0, "currency": "USD", "per": "party", "basis": "Free entry; breakfast counted under Groceries", "confidence": "quoted" }
+          }
+        },
+        {
+          "position": 2,
+          "status": "in_itinerary",
+          "place_ref": "Cabazon Dinosaurs",
+          "start_time": "10:30",
+          "details": {
+            "notes": "Two enormous concrete dinosaurs beside the freeway, famous from Pee-wee's Big Adventure. You climb inside the brontosaurus. The paid dinosaur park behind has fifty more, a fossil dig and a robotic T. rex. Twenty-five minutes from the house.",
+            "cost": "Roadside dinosaurs free; the park about $15 a person",
+            "duration": "1.5 hours",
+            "energy": "medium",
+            "budget": { "amount": 70, "currency": "USD", "per": "party", "basis": "5 × ~$14 for the dinosaur park", "confidence": "estimated" }
+          }
+        },
+        {
+          "position": 3,
+          "status": "in_itinerary",
+          "place_ref": "Desert Hills Premium Outlets",
+          "start_time": "12:00",
+          "details": {
+            "notes": "Next door to the dinosaurs. Lunch in the food court, then an hour split: one adult takes the kids to the playground and the toy shop, the other gets an hour alone. Swap if wanted.",
+            "tips": "Prices are meaningfully lower than Toronto; this is where the gifts line in the Estimate gets spent.",
+            "energy": "low"
+          }
+        },
+        {
+          "position": 4,
+          "status": "in_itinerary",
+          "place_id": null,
+          "start_time": "14:30",
+          "details": {
+            "title": "Last afternoon in the pool",
+            "notes": "Start packing whatever is dry."
+          }
+        },
+        {
+          "position": 5,
+          "status": "in_itinerary",
+          "place_ref": "Spencer's Restaurant",
+          "start_time": "17:30",
+          "details": {
+            "notes": "The farewell dinner. A patio under the mountain at the old Tennis Club, white tablecloths, a menu the kids can eat from and a room that does not mind them at 5:30. The one reservation of the journey to make early.",
+            "order": "Book the patio. The lamb, the sea bass, a kids' steak frites.",
+            "confirmation": "TBD — reservation",
+            "energy": "low"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2027-03-21",
+      "label": "Day 10 · Sunday — Home",
+      "shape": "travel",
+      "cards": [
+        {
+          "position": 1,
+          "status": "in_itinerary",
+          "place_ref": "Cheeky's",
+          "start_time": "08:00",
+          "details": {
+            "notes": "The best breakfast in Palm Springs and everyone knows it: a weekly-changing menu, a bacon flight, huevos rancheros worth the wait. Put a name down at 8 and stand in line with a coffee. Fits before a mid-morning checkout.",
+            "order": "Bacon flight for the table, the custard French toast for the kids.",
+            "energy": "low"
+          }
+        },
+        {
+          "position": 2,
+          "status": "in_itinerary",
+          "place_ref": "Moorten Botanical Garden",
+          "start_time": "09:45",
+          "details": {
+            "notes": "A one-acre family cactus garden from 1938, with a 'cactarium' greenhouse and tortoises. Forty-five minutes, on the way back to the house to load the car. A quiet last thing.",
+            "cost": "Adults $5, children $2",
+            "duration": "45 minutes",
+            "energy": "low",
+            "budget": { "amount": 14, "currency": "USD", "per": "party", "basis": "2 × $5 + 2 × $2; Bodhi free", "confidence": "quoted" }
+          }
+        },
+        {
+          "position": 3,
+          "status": "in_itinerary",
+          "place_id": null,
+          "start_time": "10:45",
+          "details": {
+            "title": "Check out",
+            "notes": "Load the car, one last sweep for chargers and swimsuits on the line."
+          }
+        },
+        {
+          "position": 4,
+          "status": "in_itinerary",
+          "place_ref": "Palm Springs International Airport",
+          "start_time": "13:35",
+          "details": {
+            "origin_airport": "PSP",
+            "arriving_at": "YYZ",
+            "notes": "Return the car by 11:45 for the early-afternoon Air Canada nonstop. PSP security is ten minutes; the lounge is the sun outside the terminal. Lands Toronto late evening.",
+            "energy": "low"
+          }
+        }
+      ]
+    }
+  ],
+
+  "step_3_interested_pile": {
+    "_why": "Scheduling is copy, not move — the interested pile never shrinks. Unscheduled cards, day_id null, status 'interested', position 0, ready to pull onto any afternoon that wants a shape.",
+    "cards": [
+      {
+        "place_ref": "Whitewater Preserve",
+        "status": "interested",
+        "day_id": null,
+        "details": {
+          "notes": "A year-round river in a canyon 25 minutes from the house, with a wading pool, trout ponds and picnic lawns. The easy Canyon View loop is 3.5 miles; the kids will stay at the water. The swap for Tahquitz if the falls are dry."
+        }
+      },
+      {
+        "place_ref": "Keys View",
+        "status": "interested",
+        "day_id": null,
+        "details": {
+          "notes": "The Joshua Tree overlook: the whole Coachella Valley, the Salton Sea and the San Andreas Fault from 1,580 m. Twenty minutes off Park Boulevard. Add to Joshua Tree day only if the morning has gone quickly."
+        }
+      },
+      {
+        "place_ref": "Shields Date Garden",
+        "status": "interested",
+        "day_id": null,
+        "details": {
+          "notes": "Indio, 35 minutes east. The original date shake since 1924, a walk through the date grove, and a 1950s film called 'Romance and Sex Life of the Date' that is unexpectedly a highlight. Pairs with anything in Palm Desert."
+        }
+      },
+      {
+        "place_ref": "Salvation Mountain",
+        "status": "interested",
+        "day_id": null,
+        "details": {
+          "notes": "A painted hill of adobe and hay near the Salton Sea, 90 minutes each way. Extraordinary, and too far for this party unless one adult wants a solo drive."
+        }
+      },
+      {
+        "place_ref": "Cabot's Pueblo Museum",
+        "status": "interested",
+        "day_id": null,
+        "details": {
+          "notes": "A hand-built Hopi-style pueblo in Desert Hot Springs, 25 minutes. Guided tours only, an hour, best with the older two."
+        }
+      },
+      {
+        "place_ref": "Ernest Coffee",
+        "status": "interested",
+        "day_id": null,
+        "details": {
+          "notes": "The other good coffee, in the Uptown Design District. Stumptown beans, shares a wall with Bootlegger Tiki."
+        }
+      },
+      {
+        "place_ref": "Ice Cream & Shop(pe)",
+        "status": "interested",
+        "day_id": null,
+        "details": {
+          "notes": "Small-batch ice cream on N Palm Canyon in a shop that also sells mid-century objects. The after-dinner walk."
+        }
+      },
+      {
+        "place_ref": "Farm",
+        "status": "interested",
+        "day_id": null,
+        "details": {
+          "notes": "French-Provençal breakfast in a courtyard inside La Plaza. The alternative to Cheeky's if the line is too long."
+        }
+      },
+      {
+        "place_ref": "Norma's at the Parker",
+        "status": "interested",
+        "day_id": null,
+        "details": {
+          "notes": "Brunch at the Parker, the Jonathan Adler hotel. Expensive and worth it once; the grounds are the reason to go and the kids can roam them."
+        }
+      },
+      {
+        "place_ref": "Rooster and the Pig",
+        "status": "interested",
+        "day_id": null,
+        "details": {
+          "notes": "Vietnamese-American, small room, no reservations, the best food-per-dollar in town. Adults only or with the kids at 5pm sharp."
+        }
+      },
+      {
+        "place_ref": "Mr. Lyons",
+        "status": "interested",
+        "day_id": null,
+        "details": {
+          "notes": "The steakhouse. A dinner for two if a sitter appears; the Airbnb host will usually know one."
+        }
+      },
+      {
+        "place_ref": "Crossroads Cafe",
+        "status": "interested",
+        "day_id": null,
+        "details": {
+          "notes": "The other Joshua Tree lunch: a low-key café with big plates and good vegetarian options. Swap for the Saloon if the kids need quieter."
+        }
+      }
+    ]
+  },
+
+  "step_4_estimate": {
+    "_how": "Written to trip_budgets after the trip row exists. Home currency CAD; card budgets are in USD and convert once at fx_to_cad.",
+    "currency": "USD",
+    "fx_to_cad": 1.39,
+    "assumptions": {
+      "people": 5,
+      "nights": 9,
+      "days": 10,
+      "flightPerPerson": 1050,
+      "nightlyRate": 900,
+      "groceriesPerDay": 130,
+      "perMealOut": 260,
+      "mealsOut": 6,
+      "excursionsTotal": 910,
+      "carEnabled": true,
+      "carDayRate": 150,
+      "dogEnabled": true,
+      "dogNightlyRate": 75,
+      "dogNights": 10,
+      "extrasEnabled": true,
+      "extrasPerDay": 50,
+      "touristTaxEnabled": false,
+      "touristTaxPerNight": 0,
+      "contingencyPct": 10,
+      "pointsCredit": 0
+    },
+    "basis": {
+      "flights": "Air Canada seasonal nonstop YYZ–PSP, economy, March break demand — one-way fares start around $399 so a return lands near $1,050 a head",
+      "accommodation": "3-bedroom pool home, Movie Colony / Deepwell: ~US$500 a night + 12.5% Palm Springs TOT + cleaning and Airbnb service fee ≈ US$650 all-in ≈ CAD 900",
+      "groceries": "Breakfast and most lunches at the house for five — ~$26 a person a day",
+      "restaurants": "Six dinners out at ~$52 a head including tax and 20% tip; the other three nights are the grill and a takeaway",
+      "excursions": "Rolled from 16 costed activity cards, US$655 at 1.39",
+      "car": "Minivan or three-row SUV from PSP, ~US$110 a day with taxes, fees and fuel",
+      "dog": "Finn boarded in Toronto, 10 nights at $75",
+      "extras": "Outlets day and souvenirs, $50 a day across the party",
+      "touristTax": "Folded into the nightly rate above; Palm Springs charges 12.5% transient occupancy tax on rentals"
+    }
+  }
+}

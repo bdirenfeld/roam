@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 /**
- * Roam — Tuscany September 2027 place resolution + enrichment
+ * Roam — itinerary place resolution + enrichment
  *
- * One-off import helper. NOT imported by app code. Adds no route, no UI.
+ * Import helper. NOT imported by app code. Adds no route, no UI. Written for
+ * Tuscany 2027 and since generalised: pass any itinerary JSON in the same shape
+ * with `--input <file>` (default: tuscany-2027-cards.json). The input's
+ * `_meta.region_bias` ({lat, lng, radius_m}) steers Text Search toward the
+ * destination; without it the Tuscany bias applies.
  *
  * WHY THIS SCRIPT EXISTS
  * ----------------------
@@ -30,10 +34,13 @@
  * USAGE — run from the repo root (paths resolve against cwd)
  * -----
  *   # Pass 1 — resolve only, no writes:
- *   npx ts-node --esm scripts/import-tuscany-2027.ts
+ *   npx ts-node --esm scripts/import-tuscany-2027.ts --input palm-springs-2027-cards.json
  *
  *   # Pass 2 — enrich + insert places (requires the explicit flag):
- *   npx ts-node --esm scripts/import-tuscany-2027.ts --live
+ *   npx ts-node --esm scripts/import-tuscany-2027.ts --input palm-springs-2027-cards.json --live
+ *
+ * Output files land in scripts/out/ named after the input file:
+ *   <input-basename>-resolution.json  (pass 1)   <input-basename>-import.json  (pass 2)
  *
  * Credentials are read from .env.local in the repo root (never from argv, never
  * printed). Required keys:
@@ -62,13 +69,26 @@ const OWNER_USER_ID = 'ece938aa-db7b-4436-bb59-442cc0dc5e10'
  * with `ts-node --esm`.
  */
 const REPO_ROOT       = process.cwd()
-const INPUT_JSON      = path.join(REPO_ROOT, 'tuscany-2027-cards.json')
-const OUT_DIR         = path.join(REPO_ROOT, 'scripts', 'out')
-const RESOLUTION_JSON = path.join(OUT_DIR, 'tuscany-2027-resolution.json')
-const IMPORT_JSON     = path.join(OUT_DIR, 'tuscany-2027-import.json')
 
-/** Bias Text Search toward Tuscany so bare names don't resolve to another country. */
-const REGION_BIAS = { lat: 43.7711, lng: 11.2486, radiusMeters: 100_000 }
+function argValue(flag: string): string | null {
+  const i = process.argv.indexOf(flag)
+  return i !== -1 && process.argv[i + 1] ? process.argv[i + 1] : null
+}
+
+const INPUT_JSON      = path.resolve(REPO_ROOT, argValue('--input') ?? 'tuscany-2027-cards.json')
+const INPUT_BASE      = path.basename(INPUT_JSON).replace(/-cards\.json$|\.json$/, '')
+const OUT_DIR         = path.join(REPO_ROOT, 'scripts', 'out')
+const RESOLUTION_JSON = path.join(OUT_DIR, `${INPUT_BASE}-resolution.json`)
+const IMPORT_JSON     = path.join(OUT_DIR, `${INPUT_BASE}-import.json`)
+
+/**
+ * Bias Text Search toward the destination so bare names don't resolve to
+ * another country. Overridden by `_meta.region_bias` in the input JSON;
+ * the default is Tuscany, which the original input predates this field.
+ */
+let REGION_BIAS = { lat: 43.7711, lng: 11.2486, radiusMeters: 100_000 }
+/** Trip label for the console banners, from `_meta.trip`. */
+let TRIP_LABEL = INPUT_BASE
 
 /** Politeness delay between Google calls, milliseconds. */
 const THROTTLE_MS = 150
@@ -303,6 +323,17 @@ function readInputPlaces(): PlaceToEnrich[] {
     process.exit(1)
   }
 
+  const meta = parsed['_meta'] as Record<string, unknown> | undefined
+  if (meta && typeof meta.trip === 'string') TRIP_LABEL = meta.trip
+  const bias = meta?.region_bias as { lat?: unknown; lng?: unknown; radius_m?: unknown } | undefined
+  if (bias && typeof bias.lat === 'number' && typeof bias.lng === 'number') {
+    REGION_BIAS = {
+      lat: bias.lat,
+      lng: bias.lng,
+      radiusMeters: typeof bias.radius_m === 'number' ? bias.radius_m : 100_000,
+    }
+  }
+
   const raw = parsed['step_1_places_to_enrich']
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     console.error('❌  Expected a `step_1_places_to_enrich` object at the top level.')
@@ -389,7 +420,7 @@ async function runResolve(apiKey: string): Promise<void> {
   const pending = places.filter((p) => p.search === null)
   const target  = places.filter((p) => p.search !== null)
 
-  console.log('🔎  Roam — Tuscany 2027 place resolution (PASS 1, read-only)')
+  console.log(`🔎  Roam — ${TRIP_LABEL} place resolution (PASS 1, read-only)`)
   console.log('━'.repeat(78))
   console.log(`    ${places.length} entries — ${target.length} to resolve, ${pending.length} skipped (search: null)\n`)
 
@@ -534,11 +565,12 @@ async function runEnrich(apiKey: string, supabaseUrl: string, serviceKey: string
   }
 
   const { resolved } = JSON.parse(fs.readFileSync(RESOLUTION_JSON, 'utf8')) as { resolved: ResolvedEntry[] }
+  if (fs.existsSync(INPUT_JSON)) readInputPlaces() // sets TRIP_LABEL; validates the input is still coherent
   const supabase = createClient(supabaseUrl, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 
-  console.log('🍅  Roam — Tuscany 2027 enrichment (PASS 2, LIVE — writes `places`)')
+  console.log(`🍅  Roam — ${TRIP_LABEL} enrichment (PASS 2, LIVE — writes \`places\`)`)
   console.log('━'.repeat(78))
 
   const usable  = resolved.filter((r) => r.google_place_id)
