@@ -111,7 +111,7 @@ export async function loadEstimate(
   const cardBudgets: CardBudget[] = [];
   // Every activity on a day, for the breakdown table: priced, free (0), or
   // blank (no cost yet). `priced` and `freeCount` feed the footnote.
-  type Activity = { cardId: string; title: string; amount: number | null; currency: string; per: "person" | "party"; details: Record<string, unknown> };
+  type Activity = { cardId: string; title: string; amount: number | null; currency: string; per: "person" | "party"; people: number; details: Record<string, unknown> };
   const activities: Activity[] = [];
   const priced: { title: string; amount: number; currency: string; per: string }[] = [];
   let freeCount = 0;
@@ -119,13 +119,18 @@ export async function loadEstimate(
   for (const c of cards ?? []) {
     const place = c.places as { type?: string; title?: string } | null;
     if (place?.type !== "activity") continue;
-    const det = c.details as { budget?: CardBudget; cost_per_person?: number } | null;
+    const det = c.details as { budget?: CardBudget; cost_per_person?: number; cost_people?: number } | null;
     const title = place.title ?? "a card";
     const details = (c.details ?? {}) as Record<string, unknown>;
+    // How many pay on this card — set from the Estimate table; default is the party.
+    const people = typeof det?.cost_people === "number" && det.cost_people >= 0 ? det.cost_people : partySize;
+    // Rolled at that headcount: a per-person budget becomes a party figure.
+    const asParty = (b: CardBudget): CardBudget =>
+      b.per === "person" && people !== partySize ? { ...b, amount: b.amount * people, per: "party" } : b;
     if (det?.budget && typeof det.budget.amount === "number") {
-      cardBudgets.push(det.budget);
+      cardBudgets.push(asParty(det.budget));
       const per = det.budget.per === "person" ? "person" : "party";
-      activities.push({ cardId: c.id as string, title, amount: det.budget.amount, currency: det.budget.currency ?? "", per, details });
+      activities.push({ cardId: c.id as string, title, amount: det.budget.amount, currency: det.budget.currency ?? "", per, people, details });
       if (det.budget.amount > 0) priced.push({ title, amount: det.budget.amount, currency: det.budget.currency ?? "", per });
       else freeCount += 1;
     }
@@ -133,13 +138,13 @@ export async function loadEstimate(
     // you were quoted in, so it converts like a budget in any currency but
     // CAD.
     else if (typeof det?.cost_per_person === "number") {
-      cardBudgets.push({ amount: det.cost_per_person, currency: "local", per: "person", confidence: "estimated" });
-      activities.push({ cardId: c.id as string, title, amount: det.cost_per_person, currency: "", per: "person", details });
+      cardBudgets.push(asParty({ amount: det.cost_per_person, currency: "local", per: "person", confidence: "estimated" }));
+      activities.push({ cardId: c.id as string, title, amount: det.cost_per_person, currency: "", per: "person", people, details });
       if (det.cost_per_person > 0) priced.push({ title, amount: det.cost_per_person, currency: "", per: "person" });
       else freeCount += 1;
     }
     else {
-      activities.push({ cardId: c.id as string, title, amount: null, currency: "", per: "person", details });
+      activities.push({ cardId: c.id as string, title, amount: null, currency: "", per: "person", people, details });
       uncostedExcursions += 1;
     }
   }
@@ -180,8 +185,8 @@ export async function loadEstimate(
         amount: x.amount,
         currency: x.currency,
         per: x.per,
-        people: x.per === "person" ? partySize : 1,
-        totalCad: x.amount == null ? 0 : cardBudgetToCad({ amount: x.amount, currency: x.currency || "local", per: x.per }, partySize, fxToCad),
+        people: x.per === "person" ? x.people : 1,
+        totalCad: x.amount == null ? 0 : cardBudgetToCad({ amount: x.amount, currency: x.currency || "local", per: x.per }, x.per === "person" ? x.people : 1, fxToCad),
         details: x.details,
       }))
       // Priced largest first, then the free ones, then the blanks.

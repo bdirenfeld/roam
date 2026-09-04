@@ -314,6 +314,29 @@ export default function EstimateClient({
     return x.currency === "CAD" ? base : base * rate;
   }, []);
   const itemsTotal = items.reduce((sum, x) => sum + rowTotal(x, fx), 0);
+  const setItemPeople = (cardId: string, raw: string) => {
+    const people = raw.trim() === "" ? 0 : Math.max(0, Math.floor(Number(raw)));
+    if (Number.isNaN(people)) return;
+    setItems((prev) => prev.map((x) => (x.cardId === cardId ? { ...x, people } : x)));
+    setSaved(false);
+  };
+  // Who pays on this card. Written to details.cost_people; the loader reads
+  // it back as the row's headcount and rolls the line at that count.
+  const saveItemPeople = async (cardId: string, raw: string) => {
+    const people = raw.trim() === "" ? 0 : Math.max(0, Math.floor(Number(raw)));
+    if (Number.isNaN(people)) return;
+    const found = items.find((i) => i.cardId === cardId);
+    if (!found) return;
+    const x: ExcursionItem = { ...found, people };
+    const details: Record<string, unknown> = { ...x.details, cost_people: people };
+    const { error } = await queuedUpdate("cards", { id: cardId }, { details });
+    if (error) { toast({ message: "Couldn't save that. Try again." }); return; }
+    setItems((prev) => prev.map((i) => (i.cardId === cardId ? { ...i, people, details } : i)));
+    if (!excursionsTyped) {
+      const next = Math.round(items.reduce((sum, i) => sum + rowTotal(i.cardId === cardId ? x : i, fx), 0));
+      setA((prev) => ({ ...prev, excursionsTotal: next }));
+    }
+  };
   const setItemAmount = (cardId: string, raw: string) => {
     const amount = raw.trim() === "" ? null : Number(raw);
     if (amount !== null && Number.isNaN(amount)) return;
@@ -674,7 +697,25 @@ export default function EstimateClient({
                                   />
                                 </span>
                               </td>
-                              <td className="py-[3px] pl-2 text-right tabular-nums">{x.people}</td>
+                              <td className="py-[3px] pl-2 text-right tabular-nums">
+                                {x.per === "person" ? (
+                                  <input
+                                    type="number"
+                                    inputMode="numeric"
+                                    min="0"
+                                    step="1"
+                                    value={String(x.people)}
+                                    onChange={(e) => setItemPeople(x.cardId, e.target.value)}
+                                    onBlur={(e) => void saveItemPeople(x.cardId, e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                                    aria-label={`${x.title} people`}
+                                    className="w-[34px] rounded-md px-1 py-0.5 text-[11px] text-right"
+                                    style={box(INK)}
+                                  />
+                                ) : (
+                                  x.people
+                                )}
+                              </td>
                               <td className="py-[3px] pl-2 text-right tabular-nums" style={{ color: x.amount == null ? SOFT : INK }}>
                                 {x.amount == null ? "—" : cad(rowTotal(x, fx))}
                               </td>
@@ -694,7 +735,7 @@ export default function EstimateClient({
                       </table>
                       <p className="mt-1.5 text-[11px]" style={{ color: CAPTION, lineHeight: 1.45 }}>
                         {items.some((x) => x.currency !== "CAD") ? `Converted at ${fx} to the dollar. ` : ""}
-                        Type a cost here and the card and the line follow; a figure typed on the line itself wins. Blank means no cost yet; 0 means free.
+                        Cost and people are per row and save to the card; the line follows unless you typed a figure on it. Blank cost means no cost yet; 0 means free.
                       </p>
                     </div>
                   ) : (
