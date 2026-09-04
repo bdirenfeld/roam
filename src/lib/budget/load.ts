@@ -92,12 +92,16 @@ export async function loadEstimate(
     ),
   );
 
+  // Anything actually set wins, including a hand-typed excursions figure
+  // that disagrees with the cards — except a saved zero, which is what
+  // "Clear all prices" leaves behind and what an empty box saves as. A zero
+  // is "nothing typed", so the cards' own sum shows through it.
+  const savedA = { ...((saved?.assumptions ?? {}) as Partial<Assumptions>) };
+  if (!savedA.excursionsTotal) delete savedA.excursionsTotal;
   const assumptions: Assumptions = {
     ...defaultAssumptions(partySize, nights),
     excursionsTotal: rolledCad,
-    // Anything actually set wins, including a hand-typed excursions figure
-    // that disagrees with the cards.
-    ...((saved?.assumptions ?? {}) as Partial<Assumptions>),
+    ...savedA,
   };
 
   const lat = trip.destination_lat as number | null;
