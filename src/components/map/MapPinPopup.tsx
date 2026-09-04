@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, type ReactNode } from "react";
+import { useState, useCallback, useRef, type ReactNode } from "react";
 import { PencilSimple, Trash, BookmarkSimple, Heart } from "@phosphor-icons/react";
 import type { Card, CardType, Day } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
@@ -366,8 +366,11 @@ function CardBody({
   // the mark. Optimistic; the card reverts if the write is refused. Setting it
   // was previously only possible from the card sheet, which made the map — the
   // screen you're actually on when you remember loving somewhere — a dead end.
+  const lovedBusy = useRef(false);
   const toggleLoved = useCallback(async () => {
-    if (!card.place_id || !onCardUpdate) return;
+    if (!card.place_id || !onCardUpdate || lovedBusy.current) return;
+    lovedBusy.current = true;
+    try {
     const next = !place.loved;
     const lovedAt = next ? new Date().toISOString() : null;
     onCardUpdate({ ...card, place: { ...place, loved: next, loved_at: lovedAt } });
@@ -378,6 +381,9 @@ function CardBody({
     if (error) {
       toast({ message: "Couldn't save that. Try again." });
       onCardUpdate({ ...card, place });
+    }
+    } finally {
+      lovedBusy.current = false;
     }
   }, [card, place, onCardUpdate, supabase, toast]);
   // Prefer the embedded place (world facts); fall back to card.details for

@@ -424,7 +424,7 @@ export default function TripSettingsClient({
         <button
           onClick={handleSave}
           disabled={saving}
-          className="absolute right-4 text-[15px] font-semibold text-[#1A1A2E] disabled:opacity-40 transition-opacity"
+          className="absolute right-1 px-3 h-11 text-[15px] font-semibold text-[#1A1A2E] disabled:opacity-40 transition-opacity"
         >
           {saving ? "Saving…" : "Save"}
         </button>
@@ -605,7 +605,7 @@ export default function TripSettingsClient({
         <div className="py-8 flex items-center justify-center gap-3">
           <button
             onClick={trip.archived ? handleRestore : handleArchive}
-            className="text-[12px] text-gray-400 italic cursor-pointer active:opacity-60 transition-opacity"
+            className="text-[12px] text-gray-400 italic cursor-pointer active:opacity-60 transition-opacity px-3 py-3"
             style={{ fontFamily: "inherit" }}
           >
             {trip.archived ? "Restore this journey" : "Archive this journey"}
@@ -613,7 +613,7 @@ export default function TripSettingsClient({
           <span className="text-gray-300 text-[12px]">·</span>
           <button
             onClick={() => setShowDeleteConfirm(true)}
-            className="text-[12px] text-red-300 cursor-pointer active:opacity-60 transition-opacity"
+            className="text-[12px] text-red-300 cursor-pointer active:opacity-60 transition-opacity px-3 py-3"
           >
             Delete permanently
           </button>

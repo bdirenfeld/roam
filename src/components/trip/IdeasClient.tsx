@@ -58,6 +58,17 @@ function ideaTitle(i: Idea): string {
   return i.note || i.title || i.url || "Untitled";
 }
 
+/** One line for the row. The note is the body, not the title. */
+function ideaHeadline(i: Idea): string {
+  if (i.title?.trim()) return i.title.trim();
+  const firstLine = i.note?.split(/\n|—|\. /)[0]?.trim();
+  if (firstLine) return firstLine.length > 72 ? firstLine.slice(0, 69).trimEnd() + "…" : firstLine;
+  if (i.url) {
+    try { return new URL(i.url).hostname.replace(/^www\./, "") + " link"; } catch { return i.url; }
+  }
+  return "Untitled";
+}
+
 function FilterOption({
   label,
   count,
@@ -162,7 +173,7 @@ function IdeaRow({
       >
         <span className="flex-1 min-w-0">
           <span className="block text-[13.5px] truncate" style={{ color: INK }}>
-            {ideaTitle(idea)}
+            {ideaHeadline(idea)}
           </span>
           {(src || tags.length > 0 || outcome) && (
             <span className="block text-[10.5px] truncate mt-[1px]" style={{ color: SOFT }}>
@@ -184,9 +195,9 @@ function IdeaRow({
           moved it between two sections. */}
       <button
         onClick={onRemove}
-        aria-label={`Remove ${ideaTitle(idea)}`}
-        className="shrink-0 pr-4 pl-1 py-2.5 text-[15px] leading-none"
-        style={{ color: "rgba(26,26,46,0.22)" }}
+        aria-label={`Remove ${ideaHeadline(idea)}`}
+        className="shrink-0 w-11 h-11 mr-1 grid place-items-center text-[17px] leading-none rounded-full"
+        style={{ color: "rgba(26,26,46,0.28)" }}
       >
         ×
       </button>
@@ -194,6 +205,22 @@ function IdeaRow({
 
       {open && (
         <div className="px-4 pb-3" style={{ background: "#FCFBF8" }}>
+          {idea.note && idea.note.trim() !== ideaHeadline(idea) && (
+            <p className="text-[13px] leading-snug whitespace-pre-wrap mb-2.5 pt-1" style={{ color: "rgba(26,26,46,0.75)" }}>
+              {idea.note}
+            </p>
+          )}
+          {idea.url && (
+            <a
+              href={idea.url}
+              target="_blank"
+              rel="noopener"
+              className="block text-[11.5px] truncate mb-2.5 underline underline-offset-2"
+              style={{ color: SOFT }}
+            >
+              {idea.url}
+            </a>
+          )}
           {mapUrl && idea.place && (
             <div className="mb-2.5">
               {/* eslint-disable-next-line @next/next/no-img-element */}

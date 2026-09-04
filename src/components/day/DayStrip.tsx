@@ -52,7 +52,7 @@ export default function DayStrip({ days, activeDayId, onDaySelect }: Props) {
       style={{ borderBottom: "1px solid rgba(26,26,46,0.10)" }}
     >
       <div className="relative">
-        <div className="flex gap-5 px-4 pt-1.5 pb-3 overflow-x-auto scrollbar-none">
+        <div className="flex gap-2 px-3 pt-1.5 pb-3 overflow-x-auto scrollbar-none">
           {days.map((day) => {
             const isActive = day.id === activeDayId;
             const today    = todayKey !== null && day.date === todayKey;
@@ -68,7 +68,7 @@ export default function DayStrip({ days, activeDayId, onDaySelect }: Props) {
                 key={day.id}
                 ref={isActive ? activeRef : null}
                 onClick={() => onDaySelect(day)}
-                className="flex-shrink-0 text-center pb-2"
+                className="flex-shrink-0 min-w-[40px] text-center pb-2"
                 style={{
                   boxShadow: isActive ? "inset 0 -1.5px 0 #1A1A2E" : undefined,
                 }}
@@ -80,7 +80,7 @@ export default function DayStrip({ days, activeDayId, onDaySelect }: Props) {
                   {dayNum}
                 </span>
                 <span
-                  className="block text-[8.5px] uppercase mt-[3px] whitespace-nowrap"
+                  className="block text-[10px] uppercase mt-[3px] whitespace-nowrap"
                   style={{
                     letterSpacing: "0.15em",
                     color: today

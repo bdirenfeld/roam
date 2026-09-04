@@ -1776,6 +1776,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
               <div className="sticky top-0 z-20 bg-white flex-shrink-0">
                 <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
                   <button
+                    aria-label="Previous day"
                     onClick={() => setMobileDayIdx((prev) => Math.max(prev - 1, mobileMinIdx))}
                     disabled={safeMobileIdx === mobileMinIdx}
                     className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-600 disabled:opacity-25"
@@ -1836,6 +1837,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
                     </div>
                   )}
                   <button
+                    aria-label="Next day"
                     onClick={() => setMobileDayIdx((prev) => Math.min(prev + 1, days.length - 1))}
                     disabled={safeMobileIdx >= days.length - 1}
                     className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-600 disabled:opacity-25"
