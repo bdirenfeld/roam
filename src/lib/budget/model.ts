@@ -214,8 +214,13 @@ export function compute(
       countLabel: "",
       enabled: true,
       lump: true,
-      hint: opts.rolledExcursionCount
-        ? `from ${opts.rolledExcursionCount} ${opts.rolledExcursionCount === 1 ? "card" : "cards"}`
+      hint: opts.rolledExcursionCount || opts.uncostedExcursions
+        ? [
+            opts.rolledExcursionCount
+              ? `from ${opts.rolledExcursionCount} ${opts.rolledExcursionCount === 1 ? "card" : "cards"}`
+              : null,
+            opts.uncostedExcursions ? `${opts.uncostedExcursions} uncosted` : null,
+          ].filter(Boolean).join(" · ")
         : undefined,
     },
     {

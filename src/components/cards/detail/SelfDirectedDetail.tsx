@@ -11,7 +11,8 @@ interface Props {
 }
 
 export default function SelfDirectedDetail({ card, onSaveDetails, showEmpty = false }: Props) {
-  const d = card.details as { flow?: unknown[]; notes?: string };
+  const d = card.details as {
+    cost_per_person?: number; flow?: unknown[]; notes?: string };
   const save = (field: string) =>
     onSaveDetails ? (v: string) => onSaveDetails(field, v || null) : undefined;
   const hide = !showEmpty;
@@ -82,6 +83,18 @@ export default function SelfDirectedDetail({ card, onSaveDetails, showEmpty = fa
           <SectionLabel>Notes</SectionLabel>
           <FieldRow value={d.notes} placeholder="Add notes…"
             onSave={save("notes")} multiline hideWhenEmpty={hide} />
+        </div>
+      )}
+      {/* Cost per person — what the Estimate's Excursions line adds up.
+          Typed in the currency you were quoted in. */}
+      {(showEmpty || d.cost_per_person != null) && (
+        <div>
+          <SectionLabel>Cost</SectionLabel>
+          <FieldRow icon="💳" label="Cost per person"
+            value={d.cost_per_person != null ? String(d.cost_per_person) : undefined}
+            placeholder="Add cost…"
+            onSave={onSaveDetails ? (v) => onSaveDetails("cost_per_person", v ? parseFloat(v) : null) : undefined}
+            hideWhenEmpty={hide} />
         </div>
       )}
     </div>

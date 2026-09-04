@@ -12,6 +12,7 @@ interface Props {
 
 export default function EventDetail({ card, onSaveDetails, showEmpty = false }: Props) {
   const d = card.details as {
+    cost_per_person?: number;
     venue?: string;
     gates_open?: string;
     what_to_bring?: string[];
@@ -51,6 +52,18 @@ export default function EventDetail({ card, onSaveDetails, showEmpty = false }: 
           <SectionLabel>Notes</SectionLabel>
           <FieldRow value={d.notes} placeholder="Add notes…"
             onSave={save("notes")} multiline hideWhenEmpty={hide} />
+        </div>
+      )}
+      {/* Cost per person — what the Estimate's Excursions line adds up.
+          Typed in the currency you were quoted in. */}
+      {(showEmpty || d.cost_per_person != null) && (
+        <div>
+          <SectionLabel>Cost</SectionLabel>
+          <FieldRow icon="💳" label="Cost per person"
+            value={d.cost_per_person != null ? String(d.cost_per_person) : undefined}
+            placeholder="Add cost…"
+            onSave={onSaveDetails ? (v) => onSaveDetails("cost_per_person", v ? parseFloat(v) : null) : undefined}
+            hideWhenEmpty={hide} />
         </div>
       )}
     </div>

@@ -72,8 +72,14 @@ export async function loadEstimate(
   for (const c of cards ?? []) {
     const place = c.places as { type?: string } | null;
     if (place?.type !== "activity") continue;
-    const b = (c.details as { budget?: CardBudget } | null)?.budget;
-    if (b && typeof b.amount === "number") cardBudgets.push(b);
+    const det = c.details as { budget?: CardBudget; cost_per_person?: number } | null;
+    if (det?.budget && typeof det.budget.amount === "number") cardBudgets.push(det.budget);
+    // The card sheet's own "Cost per person" field — typed in the currency
+    // you were quoted in, so it converts like a budget in any currency
+    // but CAD. Two fields for one idea used to be two fields; this is the
+    // bridge until the planning skill writes cost_per_person too.
+    else if (typeof det?.cost_per_person === "number")
+      cardBudgets.push({ amount: det.cost_per_person, currency: "local", per: "person", confidence: "estimated" });
     else uncostedExcursions += 1;
   }
 
