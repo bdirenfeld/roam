@@ -247,7 +247,7 @@ export function compute(
     },
     {
       key: "dog",
-      label: "Finn",
+      label: "Dog boarding",
       group: "additional",
       amount: money(a.dogEnabled ? a.dogNightlyRate * a.dogNights : 0),
       unit: a.dogNightlyRate,

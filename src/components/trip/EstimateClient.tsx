@@ -446,11 +446,19 @@ export default function EstimateClient({
     }
   };
 
+  // What the excursions table adds up to, at today's rate. "Clear all prices"
+  // and "Estimate" both take the line from here: the cards keep their costs
+  // through a clear, and a suggestion has nothing of its own to say about
+  // excursions (the line went blank until a reload before this — Brennan,
+  // Sep 2026).
+  const rowsTotal = () => Math.round(items.reduce((sum, i) => sum + rowTotal(i, fx), 0));
+
   const runSuggest = () => {
     void findPrices();
     const s = suggest(a, { distanceKm, peak });
     const next = { ...a };
     if (distanceKm < 80) { next.carEnabled = false; next.dogEnabled = false; }
+    if (!excursionsTyped) next.excursionsTotal = rowsTotal();
     const added: Record<string, string> = {};
     for (const [key, lineKey] of emptyKeys) {
       const v = s.values[key];
@@ -474,7 +482,9 @@ export default function EstimateClient({
   const runClear = () => {
     const next = { ...a };
     for (const [key] of FILLS) (next[key] as number) = 0;
-    next.excursionsTotal = 0;
+    // The cards keep their costs; the line follows them again.
+    next.excursionsTotal = rowsTotal();
+    setExcursionsTyped(false);
     next.pointsCredit = 0;
     setPrev({ a, basis });
     setA(next);
