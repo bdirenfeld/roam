@@ -451,8 +451,13 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
     () => new Set(initialLists.filter((l) => l.cards.length === 0).map((l) => l.id)),
   );
   useEffect(() => {
-    setCollapsedLists(readCollapsedLists(trip.id));
-  }, [trip.id]);
+    // The stored preference (lists you folded by hand) plus every list that is
+    // empty right now. An empty list you expanded and left empty folds again
+    // next visit, which is the point: the blank column never greets you.
+    const stored = readCollapsedLists(trip.id);
+    for (const l of initialLists) if (l.cards.length === 0) stored.add(l.id);
+    setCollapsedLists(stored);
+  }, [trip.id, initialLists]);
   const toggleList = useCallback((listId: string) => {
     setCollapsedLists((prev) => {
       const next = new Set(prev);
