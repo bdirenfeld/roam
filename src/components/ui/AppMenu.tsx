@@ -3,30 +3,23 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Coins,
-  Compass,
   DotsThree,
   Gear,
-  MagnifyingGlass,
   NotePencil,
   ShareNetwork,
   Lightbulb,
-  UserCircle,
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import {
   EstimateLink,
-  NewJourneyLink,
-  ProfileLink,
   TripSettingsLink,
   useJourneyNotes,
 } from "@/components/overlays/AppOverlays";
-import { useGlobalSearch } from "@/components/search/GlobalSearch";
 import ShareJourneySheet from "@/components/trip/ShareJourneySheet";
 import type { Trip, Day } from "@/types/database";
 
 const INK = "#1A1A2E";
 const CAPTION = "rgba(26,26,46,0.55)";
-const SOFT = "rgba(26,26,46,0.42)";
 const RULE = "rgba(26,26,46,0.12)";
 
 /**
@@ -53,7 +46,6 @@ export default function AppMenu({
   trip,
   days,
   guest = false,
-  showSearch = false,
   triggerClassName,
   wrapperClassName,
   extra,
@@ -65,8 +57,6 @@ export default function AppMenu({
   trip?: Trip;
   days?: Day[];
   guest?: boolean;
-  /** Desktop has a labelled Search button of its own; a phone does not. */
-  showSearch?: boolean;
   triggerClassName: string;
   /** Positions the whole control (trigger + menu); the map floats it. */
   wrapperClassName?: string;
@@ -81,7 +71,6 @@ export default function AppMenu({
   const [showShare, setShowShare] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const notes = useJourneyNotes();
-  const search = useGlobalSearch();
 
   useEffect(() => {
     if (!open) return;
@@ -126,14 +115,10 @@ export default function AppMenu({
     flex: "none",
   };
 
-  const Label = ({ title, sub }: { title: string; sub: string }) => (
-    <span>
-      <span style={{ display: "block", fontSize: mobile ? 13 : 14, color: INK, lineHeight: 1.3, fontWeight: mobile ? 500 : 400 }}>
-        {title}
-      </span>
-      <span style={{ display: "block", fontSize: mobile ? 11 : 11.5, color: SOFT, marginTop: 1 }}>
-        {sub}
-      </span>
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const Label = ({ title, sub: _sub }: { title: string; sub?: string }) => (
+    <span style={{ display: "block", fontSize: mobile ? 14 : 14, color: INK, lineHeight: 1.3, fontWeight: mobile ? 500 : 400, alignSelf: "center" }}>
+      {title}
     </span>
   );
 
@@ -178,60 +163,8 @@ export default function AppMenu({
                 }
           }
         >
-          {/* The phone's only route to search — the app header that carries it
-              doesn't render inside a journey. */}
-          {showSearch && (
-            <button
-              role="menuitem"
-              onClick={() => { setOpen(false); search.open(); }}
-              style={itemStyle}
-            >
-              <span style={glyphStyle}>
-                <MagnifyingGlass size={15} weight="light" />
-              </span>
-              <Label title="Search" sub="Journeys, places, wishlist" />
-            </button>
-          )}
-
-          <NewJourneyLink
-            title="Plan a journey"
-            ariaLabel="Plan a journey"
-            onBeforeOpen={() => setOpen(false)}
-            style={itemStyle}
-          >
-            <span style={glyphStyle}>
-              <Compass size={15} weight="light" />
-            </span>
-            <Label title="Plan a journey" sub="Somewhere new, from scratch" />
-          </NewJourneyLink>
-
-          {/* Ideas and Profile used to live only on the journeys index, so
-              from inside a journey they were two screens away (click audit,
-              batch 5). Ideas is a plain link — it is its own page. */}
-          <Link
-            // `from` lets the Ideas page offer a way back to the journey you
-            // left — without it you land on the inbox with no route home.
-            href={tripId ? `/ideas?from=${tripId}` : "/ideas"}
-            role="menuitem"
-            onClick={() => setOpen(false)}
-            style={itemStyle}
-          >
-            <span style={glyphStyle}>
-              <Lightbulb size={15} weight="light" />
-            </span>
-            <Label title="Ideas" sub="Saved from TikTok, Maps and links" />
-          </Link>
-
           {tripId && (
             <>
-              <div
-                style={{
-                  height: 1,
-                  background: "rgba(26,26,46,0.08)",
-                  margin: mobile ? "4px 0" : "5px 11px",
-                }}
-              />
-
               <button
                 role="menuitem"
                 onClick={() => { setOpen(false); notes.open(tripId); }}
@@ -240,7 +173,7 @@ export default function AppMenu({
                 <span style={glyphStyle}>
                   <NotePencil size={15} weight="light" />
                 </span>
-                <Label title="Journey notes" sub="Codes, packing, who’s driving" />
+                <Label title="Journey notes" />
               </button>
 
               {owner && (
@@ -252,7 +185,7 @@ export default function AppMenu({
                   <span style={glyphStyle}>
                     <ShareNetwork size={15} weight="light" />
                   </span>
-                  <Label title="Share journey" sub="Email it, or send a link" />
+                  <Label title="Share journey" />
                 </button>
               )}
 
@@ -268,7 +201,7 @@ export default function AppMenu({
                   <span style={glyphStyle}>
                     <Coins size={15} weight="light" />
                   </span>
-                  <Label title="Estimate" sub="Flights, villa, excursions" />
+                  <Label title="Estimate" />
                 </EstimateLink>
               )}
 
@@ -288,7 +221,7 @@ export default function AppMenu({
                   <span style={glyphStyle}>
                     <Gear size={15} weight="light" />
                   </span>
-                  <Label title="Journey settings" sub="Dates, travellers, cover" />
+                  <Label title="Journey settings" />
                 </TripSettingsLink>
               )}
             </>
@@ -317,26 +250,30 @@ export default function AppMenu({
             </>
           )}
 
-          {/* Profile last, on the phone only: the desktop masthead has its own
-              avatar dropdown with Profile and Sign out. Sign out lives inside
-              the Profile overlay. */}
-          {mobile && (
-            <>
-              <div style={{ height: 1, background: "rgba(26,26,46,0.08)", margin: "4px 0" }} />
-              <ProfileLink
-                title="Profile"
-                ariaLabel="Profile"
-                role="menuitem"
-                onBeforeOpen={() => setOpen(false)}
-                style={itemStyle}
-              >
-                <span style={glyphStyle}>
-                  <UserCircle size={15} weight="light" />
-                </span>
-                <Label title="Profile" sub="Your details, sign out" />
-              </ProfileLink>
-            </>
+          {/* Ideas, last. It is its own page; `from` gives it a way back to
+              the journey you left. Search, Plan a journey and Profile used to
+              sit here too — they belong to the app, not this journey, and
+              live in the phone header and on the Journeys page. */}
+          {tripId && (
+            <div
+              style={{
+                height: 1,
+                background: "rgba(26,26,46,0.08)",
+                margin: mobile ? "4px 0" : "5px 11px",
+              }}
+            />
           )}
+          <Link
+            href={tripId ? `/ideas?from=${tripId}` : "/ideas"}
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            style={itemStyle}
+          >
+            <span style={glyphStyle}>
+              <Lightbulb size={15} weight="light" />
+            </span>
+            <Label title="Ideas" />
+          </Link>
         </div>
       )}
 

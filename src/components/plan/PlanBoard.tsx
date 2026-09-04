@@ -60,7 +60,8 @@ import { formatTimeRange } from "@/lib/formatTime";
 import { getOpeningHoursConflict, openingHoursCaption, openingHoursTone } from "@/lib/openingHours";
 
 import CardImage from "@/components/ui/CardImage";
-import { Trash, DotsThree, DotsSixVertical, ArrowLeft, ArrowRight, Image as ImageIcon, BookmarkSimple, UploadSimple, Files, NotePencil } from "@phosphor-icons/react";
+import { Trash, DotsThree, DotsSixVertical, ArrowLeft, ArrowRight, BookmarkSimple, Files, NotePencil, MagnifyingGlass } from "@phosphor-icons/react";
+import { useGlobalSearch } from "@/components/search/GlobalSearch";
 import AppMenu from "@/components/ui/AppMenu";
 import { getMaterialIconHTML } from "@/lib/mapPins";
 import { type DayWeather, fetchTripWeather, dayStopsAnchor, getWeatherCategory, WeatherIcon, HourlyStrip } from "@/lib/weather";
@@ -267,7 +268,8 @@ interface Props {
 
 export default function PlanBoard({ trip, initialDays, initialLists, initialNotes }: Props) {
   const supabase = createClient();
-  // Hidden file input behind the menu's "Import a booking" row.
+  const search = useGlobalSearch();
+  // Hidden file input behind the Bookings sheet's Upload button.
   const importInputRef = useRef<HTMLInputElement>(null);
   const [days, setDays] = useState<DayWithCards[]>(initialDays);
 
@@ -1731,27 +1733,27 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
               e.currentTarget.value = "";
             }}
           />
+          <button
+            type="button"
+            onClick={() => search.open()}
+            aria-label="Search"
+            className={`w-8 h-8 mr-2 flex items-center justify-center rounded-full transition-colors ${isPhotoBg ? "bg-white/20 backdrop-blur-sm border border-white/25 text-white" : "bg-black/[0.06] border border-black/[0.08] text-[#1A1A2E]"}`}
+          >
+            <MagnifyingGlass size={16} weight="light" />
+          </button>
           <AppMenu
             variant="mobile"
             tripId={trip.id}
             tripTitle={trip.title}
             trip={trip}
             days={days}
-            showSearch
             triggerClassName={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${isPhotoBg ? "bg-white/20 backdrop-blur-sm border border-white/25 text-white" : "bg-black/[0.06] border border-black/[0.08] text-[#1A1A2E]"}`}
             extra={[
+              // The board background stays a feature (its sheet is below), but
+              // not a menu row: Brennan parked it, and the menu is for what a
+              // journey needs. Bookings is the one row a host adds.
               {
-                key: "bg", title: "Change background", sub: "Paste an image URL",
-                icon: <ImageIcon size={15} weight="light" />,
-                onClick: () => { setBgUrlInput(boardBg.type === "photo" ? boardBg.url : ""); setBgPreviewError(false); setShowBgPicker(true); },
-              },
-              {
-                key: "import", title: "Import a booking", sub: "Flight or hotel confirmation → cards",
-                icon: <UploadSimple size={15} weight="light" />,
-                onClick: () => importInputRef.current?.click(),
-              },
-              {
-                key: "docs", title: "Documents", sub: "Uploaded confirmations",
+                key: "bookings", title: "Bookings", sub: "",
                 icon: <Files size={15} weight="light" />,
                 onClick: () => setShowDocs(true),
               },
@@ -1996,19 +1998,11 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
                   <span className="flex-1" />
                   <button
                     type="button"
-                    onClick={() => importInputRef.current?.click()}
-                    className={CTRL_CHIP}
-                    style={{ letterSpacing: "-0.005em" }}
-                  >
-                    Import a booking
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => setShowDocs(true)}
                     className={CTRL_CHIP}
                     style={{ letterSpacing: "-0.005em" }}
                   >
-                    Documents
+                    Bookings
                   </button>
                 </div>
               )}
@@ -2221,7 +2215,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
       )}
 
       {showDocs && (
-        <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} />
+        <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} onImport={() => { setShowDocs(false); importInputRef.current?.click(); }} />
       )}
 
       {/* Journey notes — bottom sheet on mobile, modal at md+ */}

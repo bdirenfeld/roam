@@ -135,3 +135,12 @@ The benchmark: someone opens Roam in a Centurion Lounge and the person next to t
   "no error, zero rows" refusal a guest hits.
 - Any overlay, sheet or confirm that is not on `Overlay.tsx` calls `useEscapeKey(onClose,
   active)`. Hooks stay unconditional: pass `active` for a confirm that is only sometimes open.
+
+## The journey menu (ui/AppMenu.tsx) stays at six plain rows
+Journey notes · Share journey · Estimate · Bookings (host-provided `extra`) · Journey settings ·
+Ideas. No subtitles. Nothing app-level (Search, Plan a journey, Profile) goes in it: Search is a
+glyph in the phone header and a button in the masthead, Plan a journey is the "+" on Journeys,
+Profile is the avatar. Brennan's phone verdict, Sep 2026: "way too much in a menu". Before adding a
+row, ask whether it is about *this journey*; if not, it belongs on the Journeys page or the header.
+Same rule for sheets: two sheets doing one job in two styles get merged (the Add-to-this-day sheet
+lists saved places first, Google after, in the house parchment).

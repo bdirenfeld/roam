@@ -13,7 +13,8 @@ import AppMenu from "@/components/ui/AppMenu";
 import { useToast } from "@/components/ui/Toast";
 import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/plan/ConfirmationPreviewSheet";
 import DocumentsSheet from "@/components/plan/DocumentsSheet";
-import { UploadSimple, Files } from "@phosphor-icons/react";
+import { Files, MagnifyingGlass } from "@phosphor-icons/react";
+import { useGlobalSearch } from "@/components/search/GlobalSearch";
 import CreateCardSheet from "@/components/plan/CreateCardSheet";
 import Companion from "@/components/companion/Companion";
 import { JourneyNotesSheet } from "@/components/trip/JourneyNotes";
@@ -310,9 +311,9 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
     }
   }, []);
   const agendaMenuExtra = readOnly ? undefined : [
-    { key: "import", title: "Import a booking", sub: "Flight or hotel confirmation → cards", icon: <UploadSimple size={15} weight="light" />, onClick: () => importInputRef.current?.click() },
-    { key: "docs", title: "Documents", sub: "Uploaded confirmations", icon: <Files size={15} weight="light" />, onClick: () => setShowDocs(true) },
+    { key: "bookings", title: "Bookings", sub: "", icon: <Files size={15} weight="light" />, onClick: () => setShowDocs(true) },
   ];
+  const search = useGlobalSearch();
 
   const handleCardUpdate = useCallback(
     (updated: Card) => {
@@ -670,6 +671,16 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
         </div>
 
         <span className="flex-1" />
+        {/* Search, one tap from the header. It was a row in the menu, where
+            the thing you use most sat among nine others. */}
+        <button
+          type="button"
+          onClick={() => search.open()}
+          aria-label="Search"
+          className="flex items-center justify-center w-11 h-11 text-gray-500 hover:text-gray-800 transition-colors"
+        >
+          <MagnifyingGlass size={19} weight="light" />
+        </button>
         <AppMenu
           variant="mobile"
           tripId={trip.id}
@@ -677,7 +688,6 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           trip={trip}
           days={days}
           guest={readOnly}
-          showSearch
           extra={agendaMenuExtra}
           triggerClassName="flex items-center justify-center w-11 h-11 text-gray-500 hover:text-gray-800 transition-colors"
         />
@@ -828,24 +838,14 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
             menu on one screen (Brennan, Sep 2026). The phone keeps its menu
             because the masthead doesn't render there. */}
         {!readOnly && (
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => importInputRef.current?.click()}
-              className="rounded-full border border-[rgba(26,26,46,0.12)] bg-[rgba(26,26,46,0.025)] px-3 py-1.5 text-[12px] font-medium text-activity hover:bg-[rgba(26,26,46,0.05)] transition-colors"
-              style={{ letterSpacing: "-0.005em" }}
-            >
-              Import a booking
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowDocs(true)}
-              className="rounded-full border border-[rgba(26,26,46,0.12)] bg-[rgba(26,26,46,0.025)] px-3 py-1.5 text-[12px] font-medium text-activity hover:bg-[rgba(26,26,46,0.05)] transition-colors"
-              style={{ letterSpacing: "-0.005em" }}
-            >
-              Documents
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setShowDocs(true)}
+            className="rounded-full border border-[rgba(26,26,46,0.12)] bg-[rgba(26,26,46,0.025)] px-3 py-1.5 text-[12px] font-medium text-activity hover:bg-[rgba(26,26,46,0.05)] transition-colors"
+            style={{ letterSpacing: "-0.005em" }}
+          >
+            Bookings
+          </button>
         )}
       </div>
 
@@ -1005,7 +1005,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           }}
         />
       )}
-      {showDocs && <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} />}
+      {showDocs && <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} onImport={() => { setShowDocs(false); importInputRef.current?.click(); }} />}
       {(importingConf || importError) && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[70] px-4 py-2 rounded-full bg-[#1A1A2E] text-white text-[12.5px] shadow-lg">
           {importError ?? "Reading your booking…"}

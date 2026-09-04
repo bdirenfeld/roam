@@ -8,6 +8,8 @@ import { useToast } from "@/components/ui/Toast";
 interface Props {
   tripId:  string;
   onClose: () => void;
+  /** Opens the host's file picker — the same parse → preview → cards flow. */
+  onImport?: () => void;
 }
 
 const DOC_LABEL: Record<string, string> = {
@@ -62,7 +64,7 @@ function fmtDate(dateStr: string): string {
   });
 }
 
-export default function DocumentsSheet({ tripId, onClose }: Props) {
+export default function DocumentsSheet({ tripId, onClose, onImport }: Props) {
   const supabase = createClient();
   const { toast } = useToast();
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -173,8 +175,8 @@ export default function DocumentsSheet({ tripId, onClose }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-3 pb-3 border-b border-gray-100 flex-shrink-0">
           <div>
-            <h3 className="text-[15px] font-bold text-gray-900">Documents</h3>
-            <p className="text-[11px] text-gray-400 mt-0.5">Uploaded confirmations</p>
+            <h3 className="text-[15px] font-bold text-gray-900">Bookings</h3>
+            <p className="text-[11px] text-gray-400 mt-0.5">Confirmations you’ve uploaded</p>
           </div>
           <button
             onClick={onClose}
@@ -186,6 +188,22 @@ export default function DocumentsSheet({ tripId, onClose }: Props) {
             </svg>
           </button>
         </div>
+
+        {/* Upload — it used to be a separate menu row; the empty state below
+            said "Upload…" while this sheet had no way to (UX audit, Sep 2026). */}
+        {onImport && (
+          <div className="px-5 pt-3 flex-shrink-0">
+            <button
+              type="button"
+              onClick={onImport}
+              className="w-full py-3 rounded-xl text-[14px] font-semibold"
+              style={{ background: "#1A1A2E", color: "#FAF7F2" }}
+            >
+              Upload a booking
+            </button>
+            <p className="text-[11px] text-gray-400 mt-1.5 text-center">A flight or hotel confirmation becomes cards on the right day.</p>
+          </div>
+        )}
 
         {/* List */}
         <div className="flex-1 overflow-y-auto pb-6">
