@@ -119,7 +119,18 @@ function Row({
     <Shell
       labelColor={dim}
       amountColor={off || unset ? SOFT : dim}
-      label={line.label}
+      label={
+        line.lump && line.hint ? (
+          <>
+            <span className="block truncate">{line.label}</span>
+            <span className="block truncate text-[10.5px] leading-tight" style={{ color: SIENNA }}>
+              {line.hint}
+            </span>
+          </>
+        ) : (
+          line.label
+        )
+      }
       amount={off || unset ? "—" : cad(line.amount)}
       leading={
         line.enabledKey && (
@@ -153,12 +164,9 @@ function Row({
             />
           </div>
           {line.lump ? (
-            <div
-              className="shrink-0 text-[11px] w-[44px] sm:w-[92px] pl-1 truncate"
-              style={{ color: SIENNA }}
-            >
-              {line.hint ?? ""}
-            </div>
+            // Spacer only: keeps the amount column aligned with the × rows.
+            // The hint sits under the row name, where it has room.
+            <div className="shrink-0 w-[44px] sm:w-[92px]" aria-hidden />
           ) : (
             <>
               <span
