@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Card, Place } from "@/types/database";
+import { queuedInsert, queuedDelete } from "@/lib/offline/queuedWrite";
 
 /**
  * Shared insert helper for placing a saved place onto a day. Both "doors" funnel
@@ -75,27 +76,28 @@ export async function scheduleCardOnDay(
   } = args;
 
   // Live max position for this day → append to end.
-  const position = await nextPositionForDay(supabase, dayId);
+  // Offline the position lookup can't run; "after everything" is the honest
+  // answer and the agenda orders by time first anyway.
+  let position = 9999;
+  try { position = await nextPositionForDay(supabase, dayId); } catch { /* offline */ }
 
   const id = crypto.randomUUID();
-  const { data, error } = await supabase
-    .from("cards")
-    .insert({
-      id,
-      day_id:       dayId,
-      trip_id:      tripId,
-      place_id:     placeId,
-      status:       "in_itinerary",
-      position,
-      start_time:   startTime,
-      end_time:     endTime,
-      source_url:   sourceUrl,
-      details:      JSON.parse(JSON.stringify(details)) as Card["details"],
-      ai_generated: false,
-      confirmed:    false,
-    })
-    .select()
-    .single();
+  const row = {
+    id,
+    day_id:       dayId,
+    trip_id:      tripId,
+    place_id:     placeId,
+    status:       "in_itinerary" as const,
+    position,
+    start_time:   startTime,
+    end_time:     endTime,
+    source_url:   sourceUrl,
+    details:      JSON.parse(JSON.stringify(details)) as Card["details"],
+    ai_generated: false,
+    confirmed:    false,
+  };
+  const { error } = await queuedInsert("cards", row);
+  const data = error ? null : { ...row, list_id: null, created_at: new Date().toISOString() };
 
   if (error || !data) {
     console.error("[scheduleCardOnDay] card insert failed:", error);
@@ -152,7 +154,7 @@ export async function unscheduleCard(
       if (data) created = { ...(data as Card), place: card.place ?? null };
     }
   }
-  const { error } = await supabase.from("cards").delete().eq("id", card.id);
+  const { error } = await queuedDelete("cards", { id: card.id });
   if (error) console.error("[unscheduleCard] delete failed:", error.message);
   return { ok: !error, created };
 }

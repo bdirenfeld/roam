@@ -256,6 +256,27 @@ export function hasPending(table: string, match: Record<string, string>): boolea
   return getPending().some((e) => rowKey(e.table, e.match) === key);
 }
 
+/** Is there a queued INSERT for this row — a row the server has never seen? */
+export function hasPendingInsert(table: string, match: Record<string, string>): boolean {
+  const key = rowKey(table, match);
+  return getPending().some((e) => e.operation === "insert" && rowKey(e.table, e.match) === key);
+}
+
+/**
+ * Drop every queued entry for a row. A delete queued behind a queued insert
+ * cancels it — nothing needs to reach the server. Entries mid-flight are left
+ * alone. Returns how many were dropped.
+ */
+export function removePending(table: string, match: Record<string, string>): number {
+  const key = rowKey(table, match);
+  const pending = getPending();
+  const kept = pending.filter((e) => rowKey(e.table, e.match) !== key || inFlight.has(e.id));
+  if (kept.length === pending.length) return 0;
+  writeList(PENDING_KEY, kept);
+  notify();
+  return pending.length - kept.length;
+}
+
 // ── Overlay ────────────────────────────────────────────────────────────────
 // The other half of the crux. Cached reads return the SERVER's row; these
 // helpers lay the queued column values back over it, so a reload while offline

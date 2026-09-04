@@ -15,7 +15,7 @@ import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/
 import DocumentsSheet from "@/components/plan/DocumentsSheet";
 import AppMenu from "@/components/ui/AppMenu";
 import { useToast } from "@/components/ui/Toast";
-import { createClient } from "@/lib/supabase/client";
+import { queuedInsert } from "@/lib/offline/queuedWrite";
 
 // Purple circular pin for search result previews
 const TEMP_PIN_SVG =
@@ -451,7 +451,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
         toast({
           message: "Removed from the map",
           undo: async () => {
-            const { error } = await createClient().from("cards").insert({
+            const { error } = await queuedInsert("cards", {
               id: gone.id, day_id: gone.day_id, trip_id: gone.trip_id,
               start_time: gone.start_time, end_time: gone.end_time,
               position: gone.position, status: gone.status, source_url: gone.source_url,

@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import type { Card, CardType, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
+import { queuedInsert } from "@/lib/offline/queuedWrite";
 import { useToast } from "@/components/ui/Toast";
 import { scheduleCardOnDay } from "@/lib/scheduleCard";
 import { useSheetDrag } from "@/hooks/useSheetDrag";
@@ -408,7 +409,8 @@ export default function CreateCardSheet({
 
     // ── No place: a plain text card (a note on the timeline) ──
     const details: Record<string, unknown> = { ...extraDetails, title: title.trim() };
-    const { error } = await supabase.from("cards").insert({
+    // A plain note needs nothing from the network, so it queues offline.
+    const { error } = await queuedInsert("cards", {
       id: cardId, day_id: cardDayId, list_id: listId, trip_id: tripId,
       start_time: startTimeFmt, end_time: endTimeFmt,
       position: endPosition, status: cardStatus,

@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, type ReactNode } from "react";
 import { PencilSimple, Trash, BookmarkSimple, Heart } from "@phosphor-icons/react";
 import type { Card, CardType, Day } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
+import { queuedDelete } from "@/lib/offline/queuedWrite";
 import { useToast } from "@/components/ui/Toast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { scheduleCardOnDay, unscheduleCard } from "@/lib/scheduleCard";
@@ -450,7 +451,7 @@ function CardBody({
 
   const handleDelete = useCallback(async () => {
     setIsDeleting(true);
-    const { error } = await supabase.from("cards").delete().eq("id", card.id);
+    const { error } = await queuedDelete("cards", { id: card.id });
     setIsDeleting(false);
     if (error) {
       setDeleteError("Couldn't remove — please try again.");

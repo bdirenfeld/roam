@@ -20,7 +20,7 @@ import Companion from "@/components/companion/Companion";
 import { JourneyNotesSheet } from "@/components/trip/JourneyNotes";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 import { createClient } from "@/lib/supabase/client";
-import { queuedUpdate } from "@/lib/offline/queuedWrite";
+import { queuedUpdate, queuedInsert } from "@/lib/offline/queuedWrite";
 import { applyOverlayAll } from "@/lib/offline/writeQueue";
 import { COMPANION_ENABLED } from "@/lib/featureFlags";
 import type { Trip, Day, DayWithCards, Card } from "@/types/database";
@@ -347,7 +347,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
         toast({
           message: "Card deleted",
           undo: async () => {
-            const { error } = await supabase.from("cards").insert({
+            const { error } = await queuedInsert("cards", {
               id: gone.id, day_id: gone.day_id, trip_id: gone.trip_id,
               start_time: gone.start_time, end_time: gone.end_time,
               position: gone.position, status: gone.status, source_url: gone.source_url,

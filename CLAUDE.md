@@ -169,3 +169,16 @@ Ink `#1A1A2E` over white: 0.62 alpha = 4.8:1 (AA for small text) — this is CAP
 — this is SOFT, for hints and placeholders only, never for something a person must read; 0.55
 (3.85:1) and 0.42/0.35 were the old tiers and fail. The accent is `#B0541F` (5.1:1 on white,
 4.75 on parchment); `#C4622D` was 4.09 and is gone. Don't reintroduce either.
+
+## Offline writes: three helpers, not raw Supabase (lib/offline/queuedWrite.ts)
+`queuedUpdate`, `queuedInsert`, `queuedDelete` return `{ queued, error }`. Offline or on a hung
+request they enqueue and return `queued: true` — keep the optimistic UI, never roll back. A
+`queuedDelete` of a row whose insert is still queued cancels the insert and sends nothing. The
+caller gives inserts their id (`crypto.randomUUID()`), so the local row and the server row agree.
+Routed through these: card delete (sheet, pin popup, map sidebar, board, unschedule), card
+restore/undo, note cards, template cards, list create/rename/delete, schedule-to-day.
+NOT queued, on purpose: anything that needs the network to be meaningful — saving a Google
+place (needs the places upsert), bookings import (parse API), sharing (email), the estimate.
+The indicator shows "You're offline…" whenever the browser is, and "N changes will sync" once
+something is queued. Queued inserts are not overlaid on cached reads: after a reload while still
+offline, a card created offline is absent until it syncs. Known and accepted.

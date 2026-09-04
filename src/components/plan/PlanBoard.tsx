@@ -28,6 +28,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { createClient } from "@/lib/supabase/client";
+import { queuedUpdate, queuedInsert, queuedDelete } from "@/lib/offline/queuedWrite";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import CardBadges from "@/components/cards/CardBadges";
 import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
@@ -1009,7 +1010,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
     if (!before || !title || title === before.title) return;
 
     setLists((prev) => prev.map((l) => (l.id === listId ? { ...l, title } : l)));
-    const { error } = await supabase.from("trip_lists").update({ title }).eq("id", listId);
+    const { error } = await queuedUpdate("trip_lists", { id: listId }, { title });
     if (error) {
       setLists((prev) => prev.map((l) => (l.id === listId ? { ...l, title: before.title } : l)));
       showToast("Couldn't rename that list.");
@@ -1092,7 +1093,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
       return next;
     });
 
-    const { error } = await supabase.from("trip_lists").delete().eq("id", listId);
+    const { error } = await queuedDelete("trip_lists", { id: listId });
     if (error) {
       setLists(snapshot);
       showToast("Couldn't delete that list.");
@@ -1355,7 +1356,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
         : prev,
     );
     setSelectedCard((prev) => (prev?.id === cardId ? null : prev));
-    const { error } = await supabase.from("cards").delete().eq("id", cardId);
+    const { error } = await queuedDelete("cards", { id: cardId });
     if (error) {
       setDays(snapshot);
       setLists(listsSnapshot);
@@ -1381,7 +1382,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
     if (u.kind === "list") {
       const { list } = u;
       const cardIds = list.cards.map((c) => c.id);
-      const { error } = await supabase.from("trip_lists").insert({
+      const { error } = await queuedInsert("trip_lists", {
         id: list.id, trip_id: list.trip_id, title: list.title, position: list.position,
       });
       if (error) {
@@ -1413,7 +1414,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
 
     const { card } = u;
     // Re-insert the row with its original id so attachments/links keep working
-    const { error } = await supabase.from("cards").insert({
+    const { error } = await queuedInsert("cards", {
       id: card.id, day_id: card.day_id, list_id: card.list_id, trip_id: card.trip_id,
       start_time: card.start_time, end_time: card.end_time,
       position: card.position, status: card.status, source_url: card.source_url,
@@ -1518,7 +1519,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
       ai_generated: false,
       place_id:     null,
     }));
-    const { error } = await supabase.from("cards").insert(rows);
+    const { error } = await queuedInsert("cards", rows as unknown as Record<string, unknown>[]);
     if (error) {
       console.error("[PlanBoard.handleApplyTemplate] card insert failed:", error);
       setDays(snapshot);

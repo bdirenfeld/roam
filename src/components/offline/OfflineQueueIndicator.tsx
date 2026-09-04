@@ -88,7 +88,7 @@ export default function OfflineQueueIndicator() {
 
   const count = state.pending.length;
   const failures = state.failures;
-  if (count === 0 && failures.length === 0) return null;
+  if (count === 0 && failures.length === 0 && online) return null;
 
   return (
     <div
@@ -129,6 +129,21 @@ export default function OfflineQueueIndicator() {
           >
             <X size={13} weight="light" />
           </button>
+        </div>
+      )}
+
+      {!online && count === 0 && (
+        <div
+          className="pointer-events-none inline-flex items-center gap-1.5 rounded-full bg-white pl-2.5 pr-3 py-1.5 animate-in fade-in"
+          style={{
+            border: "1px solid rgba(26,26,46,0.12)",
+            boxShadow: "0 4px 16px rgba(26,26,46,0.10)",
+          }}
+        >
+          <CloudSlash size={13} weight="light" color="#1A1A2E" />
+          <span className="text-[11px] font-medium leading-none text-activity/70">
+            You&rsquo;re offline. Changes will sync when you&rsquo;re back.
+          </span>
         </div>
       )}
 

@@ -6,7 +6,7 @@ import type { Card, ChecklistItem, Day, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
 import { useSheetDrag } from "@/hooks/useSheetDrag";
-import { queuedUpdate } from "@/lib/offline/queuedWrite";
+import { queuedUpdate, queuedDelete } from "@/lib/offline/queuedWrite";
 import { applyOverlay } from "@/lib/offline/writeQueue";
 import { formatTimeValue } from "@/lib/formatTime";
 import { scheduleCardOnDay, unscheduleCard } from "@/lib/scheduleCard";
@@ -702,7 +702,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   // ── Delete card ──────────────────────────────────────────────
   const handleDelete = useCallback(async () => {
     setIsDeleting(true);
-    const { error } = await supabase.from("cards").delete().eq("id", localCard.id);
+    const { error } = await queuedDelete("cards", { id: localCard.id });
     setIsDeleting(false);
     if (error) {
       setDeleteError("Couldn't delete — please try again.");

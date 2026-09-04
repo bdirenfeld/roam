@@ -24,6 +24,8 @@ import {
   drain,
   enqueue,
   hasPending,
+  hasPendingInsert,
+  removePending,
   isTransportFailure,
   type Executor,
   type QueuedWrite,
@@ -105,6 +107,94 @@ export async function queuedUpdate(
 }
 
 // ── Replay ─────────────────────────────────────────────────────────────────
+
+async function runInsert(table: string, payload: unknown): Promise<{ error: unknown }> {
+  const supabase = createClient();
+  const signal = timeoutSignal();
+  const query = supabase.from(table).insert(payload as Record<string, unknown>);
+  const { error } = await (signal ? query.abortSignal(signal) : query);
+  return { error };
+}
+
+async function runDelete(table: string, match: Record<string, string>): Promise<{ error: unknown }> {
+  const supabase = createClient();
+  const signal = timeoutSignal();
+  const query = supabase.from(table).delete().match(match);
+  const { error } = await (signal ? query.abortSignal(signal) : query);
+  return { error };
+}
+
+function refusal(err: unknown): QueuedWriteResult {
+  const message = err instanceof Error ? err.message : ((err as { message?: string })?.message ?? "Write refused");
+  return { queued: false, error: { message } };
+}
+
+/**
+ * Insert a row (or rows — the first one's id is the queue key), falling back
+ * to the queue offline. The caller has already given the row its id, so the
+ * optimistic UI and the eventual server row agree. (UX audit, Sep 2026:
+ * offline, creating a card failed silently; now it waits.)
+ */
+export async function queuedInsert(
+  table: string,
+  payload: Record<string, unknown> | Record<string, unknown>[],
+): Promise<QueuedWriteResult> {
+  const first = Array.isArray(payload) ? payload[0] : payload;
+  const match = { id: String(first?.id ?? "") };
+  const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+  if (offline) {
+    enqueue(table, "insert", match, payload as Record<string, unknown>);
+    return { queued: true, error: null };
+  }
+  try {
+    const { error } = await runInsert(table, payload);
+    if (!error) return { queued: false, error: null };
+    if (isTransportFailure(error)) {
+      enqueue(table, "insert", match, payload as Record<string, unknown>);
+      return { queued: true, error: null };
+    }
+    return refusal(error);
+  } catch (err) {
+    if (isTransportFailure(err)) {
+      enqueue(table, "insert", match, payload as Record<string, unknown>);
+      return { queued: true, error: null };
+    }
+    return refusal(err);
+  }
+}
+
+/**
+ * Delete a row, falling back to the queue offline. A row the server has never
+ * seen (a queued insert) is simply cancelled: nothing to send.
+ */
+export async function queuedDelete(
+  table: string,
+  match: Record<string, string>,
+): Promise<QueuedWriteResult> {
+  const neverSent = hasPendingInsert(table, match);
+  removePending(table, match);
+  if (neverSent) return { queued: false, error: null };
+  const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+  if (offline) {
+    enqueue(table, "delete", match, {});
+    return { queued: true, error: null };
+  }
+  try {
+    const { error } = await runDelete(table, match);
+    if (!error) return { queued: false, error: null };
+    if (isTransportFailure(error)) {
+      enqueue(table, "delete", match, {});
+      return { queued: true, error: null };
+    }
+    return refusal(error);
+  } catch (err) {
+    if (isTransportFailure(err)) {
+      enqueue(table, "delete", match, {});
+      return { queued: true, error: null };
+    }
+    return refusal(err);
+  }
+}
 
 const executor: Executor = async (entry: QueuedWrite) => {
   const supabase = createClient();

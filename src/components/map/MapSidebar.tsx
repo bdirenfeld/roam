@@ -5,6 +5,7 @@ import { Heart } from "@phosphor-icons/react";
 import type { Card, CardType } from "@/types/database";
 import { getMaterialIconHTML, PIN_COLORS } from "@/lib/mapPins";
 import { createClient } from "@/lib/supabase/client";
+import { queuedDelete } from "@/lib/offline/queuedWrite";
 import LovedHeart, { LOVED_ACCENT } from "@/components/ui/LovedHeart";
 import { readRecommendedBy, recommendedByLine } from "@/lib/recommendedBy";
 
@@ -134,7 +135,7 @@ export default function MapSidebar({
 
   const handleDeleteCard = useCallback(async (cardId: string) => {
     setDeletingId(cardId);
-    const { error } = await supabase.from("cards").delete().eq("id", cardId);
+    const { error } = await queuedDelete("cards", { id: cardId });
     setDeletingId(null);
     if (error) {
       setConfirmDeleteId(null);
