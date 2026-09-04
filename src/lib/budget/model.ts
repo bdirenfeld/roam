@@ -103,6 +103,8 @@ const money = (n: number) => Math.round(n);
 export function defaultAssumptions(
   partySize: number,
   nights: number,
+  /** The journey is at home (within ~80 km): no car hire, no boarding for the dog. */
+  home = false,
 ): Assumptions {
   return {
     // Counts are true — they come from the journey. Prices are left unset:
@@ -122,9 +124,9 @@ export function defaultAssumptions(
     // Smart rather than arbitrary: a multi-night journey almost always needs a
     // car and leaves the dog behind; tourist tax is destination-specific, so it
     // stays off until the traveller says otherwise.
-    carEnabled: nights >= 2,
+    carEnabled: !home && nights >= 2,
     carDayRate: 0,
-    dogEnabled: nights >= 1,
+    dogEnabled: !home && nights >= 1,
     dogNightlyRate: 0,
     dogNights: nights + 1,
     extrasEnabled: true,
@@ -219,13 +221,12 @@ export function compute(
       countLabel: "",
       enabled: true,
       lump: true,
-      hint: opts.rolledExcursionCount || opts.uncostedExcursions
-        ? [
-            opts.rolledExcursionCount
-              ? `from ${opts.rolledExcursionCount} ${opts.rolledExcursionCount === 1 ? "card" : "cards"}`
-              : null,
-            opts.uncostedExcursions ? `${opts.uncostedExcursions} uncosted` : null,
-          ].filter(Boolean).join(" · ")
+      // "4 of 9 without a cost" — one figure a reader can act on. The old
+      // "from 5 cards · 4 uncosted" clipped and read as five cards in total.
+      hint: opts.rolledExcursionCount + opts.uncostedExcursions > 0
+        ? (opts.uncostedExcursions
+            ? `${opts.uncostedExcursions} of ${opts.rolledExcursionCount + opts.uncostedExcursions} without a cost`
+            : `all ${opts.rolledExcursionCount} priced`)
         : undefined,
     },
     {
@@ -348,7 +349,10 @@ export function suggest(
     km < 800 ? 240 : km < 2500 ? 480 : km < 6000 ? 880 : km < 10000 ? 1050 : 1500;
   const bandName =
     km < 800 ? "short-haul" : km < 2500 ? "medium-haul" : km < 6000 ? "long-haul" : km < 10000 ? "long-haul" : "ultra-long-haul";
-  const fare = near(band * (ctx.peak ? 1.15 : 1), 10);
+  // At home there is no fare. Toronto & the GTA came out with $1,400 of
+  // flights before this (Brennan, Sep 2026).
+  const home = km < 80;
+  const fare = home ? 0 : near(band * (ctx.peak ? 1.15 : 1), 10);
   const bedrooms = Math.max(1, Math.ceil(people / 2));
   const vehicles = people > 5 ? 2 : 1;
 
@@ -364,7 +368,7 @@ export function suggest(
       touristTaxPerNight: near(3 * people, 1),
     },
     basis: {
-      flights: `${km.toLocaleString("en-CA")} km from Toronto · ${bandName}${ctx.peak ? " · +15% peak season" : ""}`,
+      flights: home ? "at home · no flights" : `${km.toLocaleString("en-CA")} km from Toronto · ${bandName}${ctx.peak ? " · +15% peak season" : ""}`,
       accommodation: `${people} people needs ${bedrooms} bedrooms`,
       groceries: `$22 per person per day × ${people}`,
       restaurants: `$57 a head × ${people}`,

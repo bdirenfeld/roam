@@ -126,7 +126,7 @@ function Row({
         line.lump && line.hint ? (
           <>
             <span className="block truncate">{line.label}</span>
-            <span className="block truncate text-[10.5px] leading-tight" style={{ color: SIENNA }}>
+            <span className="block text-[10.5px] leading-tight" style={{ color: SIENNA }}>
               {line.hint}
             </span>
           </>
@@ -280,8 +280,6 @@ export default function EstimateClient({
   tripTitle,
   initialAssumptions,
   initialBasis,
-  uncostedExcursions,
-  rolledExcursionCount,
   fxToCad,
   fxSource,
   fxReferenceMonth,
@@ -383,8 +381,12 @@ export default function EstimateClient({
   const [excursionsTyped, setExcursionsTyped] = useState(false);
 
   const est = useMemo(
-    () => compute(a, { uncostedExcursions, rolledExcursionCount }),
-    [a, uncostedExcursions, rolledExcursionCount],
+    () =>
+      compute(a, {
+        uncostedExcursions: items.filter((x) => x.amount == null).length,
+        rolledExcursionCount: items.filter((x) => x.amount != null).length,
+      }),
+    [a, items],
   );
 
   const setNum = useCallback((key: keyof Assumptions, raw: string) => {
@@ -431,6 +433,7 @@ export default function EstimateClient({
         const rows = items.map((i) => { const f = byId.get(i.cardId); return f ? { ...i, amount: f.amount, per: "person" as const } : i; });
         setA((prev) => ({ ...prev, excursionsTotal: Math.round(rows.reduce((sum, i) => sum + rowTotal(i, fx), 0)) }));
       }
+      setBasis((prev) => (prev.excursions ? prev : { ...prev, excursions: "Looked up by the app; each row says where its figure came from." }));
       const foundN = found.filter((f) => f.amount != null && f.kind === "found").length;
       const guessN = byId.size - foundN;
       toast({ message: `${byId.size} ${byId.size === 1 ? "price" : "prices"} added${foundN ? `, ${foundN} found online` : ""}${guessN ? `, ${guessN} ${guessN === 1 ? "guess" : "guesses"}` : ""}.` });
@@ -447,6 +450,7 @@ export default function EstimateClient({
     void findPrices();
     const s = suggest(a, { distanceKm, peak });
     const next = { ...a };
+    if (distanceKm < 80) { next.carEnabled = false; next.dogEnabled = false; }
     const added: Record<string, string> = {};
     for (const [key, lineKey] of emptyKeys) {
       const v = s.values[key];

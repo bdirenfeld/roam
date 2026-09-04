@@ -21,13 +21,19 @@ const BY_COUNTRY: Record<string, string> = {
   czechia: "CZK", "czech republic": "CZK", poland: "PLN", hungary: "HUF", turkey: "TRY", thailand: "THB",
   vietnam: "VND", indonesia: "IDR", singapore: "SGD", india: "INR", "south africa": "ZAR", morocco: "MAD",
   "united arab emirates": "AED", dubai: "AED", israel: "ILS", brazil: "BRL", argentina: "ARS",
-  chile: "CLP", peru: "PEN", colombia: "COP", "costa rica": "CRC", "hong kong": "HKD", china: "CNY",
+  chile: "CLP", peru: "PEN", colombia: "COP", "hong kong": "HKD", china: "CNY",
+  // Countries where what a traveller buys is priced in US dollars, whatever
+  // the local unit. Costa Rica's tours and parks quote in USD, not colones.
+  "costa rica": "USD", panama: "USD", ecuador: "USD", belize: "USD", cambodia: "USD", "el salvador": "USD",
+  "puerto rico": "USD", bahamas: "USD",
   "south korea": "KRW", korea: "KRW", philippines: "PHP", malaysia: "MYR",
 };
 
 /** "Tuscany, Italy" → "EUR"; unknown → null. Looks at every comma part. */
 export function currencyForDestination(destination: string | null | undefined): string | null {
   if (!destination) return null;
+  // Home first: "Toronto & the GTA" has no comma and no country.
+  if (/\b(toronto|ontario|gta|canada|ontario|quebec|montr[eé]al|vancouver|muskoka)\b/i.test(destination)) return HOME;
   const parts = destination.toLowerCase().split(",").map((s) => s.trim()).reverse();
   for (const part of parts) {
     if (BY_COUNTRY[part]) return BY_COUNTRY[part];

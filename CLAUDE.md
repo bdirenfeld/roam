@@ -212,3 +212,10 @@ in the journey currency. The route writes `cost_per_person`, `budget` and
 `cost_source{kind: found|guess, url, note}` to the card so nothing is looked up twice. Table tag
 order: booked › ticket › found (links to the page) › guess › est. There is no separate button
 — Brennan: "why can't this be part of the Estimate button itself?" — and it never runs unasked.
+
+## Estimate defaults learned from the seven-journey audit (Sep 2026)
+Unknown country → home currency (CAD), never euros. Within ~80 km of home → no fare, car hire
+and dog boarding off (`defaultAssumptions(..., home)` and `suggest`). Countries where tourism
+is priced in US dollars (Costa Rica, Panama, Ecuador, Belize, Cambodia…) map to USD in
+`currency.ts`, not their local unit. The Excursions hint is "N of M without a cost" and may wrap.
+Counts, rows and the table follow the `items` state, so a lookup updates them without a reload.

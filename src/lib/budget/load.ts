@@ -173,7 +173,9 @@ export async function loadEstimate(
   const nights = Math.max((days ?? []).length - 1, 1);
   // The cards' currency, from the destination; the rate from the market today,
   // unless a rate was typed and saved. 1.47 is the last resort.
-  const cardCurrency = currencyForDestination(trip.destination as string | null) ?? "EUR";
+  // Unknown country means home currency, not euros ("Toronto & the GTA"
+  // read "dollars per euro" before this).
+  const cardCurrency = currencyForDestination(trip.destination as string | null) ?? HOME_CURRENCY;
   // The column is NOT NULL, so "typed" is a flag in the saved assumptions.
   const savedFx = saved?.fx_to_cad != null ? Number(saved.fx_to_cad) : null;
   const fxTyped = Boolean((saved?.assumptions as { fxTyped?: boolean } | null)?.fxTyped) && savedFx != null;
@@ -254,14 +256,16 @@ export async function loadEstimate(
   // is "nothing typed", so the cards' own sum shows through it.
   const savedA = { ...((saved?.assumptions ?? {}) as Partial<Assumptions>) };
   if (!savedA.excursionsTotal) delete savedA.excursionsTotal;
+  const lat = trip.destination_lat as number | null;
+  const lng = trip.destination_lng as number | null;
+  // Within ~80 km of home: no car hire and no boarding for the dog by default.
+  const atHome = lat != null && lng != null && greatCircleKm(HOME.lat, HOME.lng, lat, lng) < 80;
   const assumptions: Assumptions = {
-    ...defaultAssumptions(partySize, nights),
+    ...defaultAssumptions(partySize, nights, atHome),
     excursionsTotal: rolledCad,
     ...savedA,
   };
 
-  const lat = trip.destination_lat as number | null;
-  const lng = trip.destination_lng as number | null;
 
   return {
     tripTitle: trip.title ?? "Journey",
