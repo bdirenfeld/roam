@@ -1717,8 +1717,8 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
           </span>
         </span>
 
-        {/* Right: single ··· menu */}
-        <div className="ml-auto z-10">
+        {/* Right: search and the ··· menu, side by side. */}
+        <div className="ml-auto z-10 flex items-center gap-2">
           {/* The app's one menu (same as the Agenda and the masthead) plus
               the three rows only the board has. The bespoke MainMenu this
               replaces had a different list with no Estimate — click audit. */}
@@ -1737,7 +1737,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
             type="button"
             onClick={() => search.open()}
             aria-label="Search"
-            className={`w-8 h-8 mr-2 flex items-center justify-center rounded-full transition-colors ${isPhotoBg ? "bg-white/20 backdrop-blur-sm border border-white/25 text-white" : "bg-black/[0.06] border border-black/[0.08] text-[#1A1A2E]"}`}
+            className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${isPhotoBg ? "bg-white/20 backdrop-blur-sm border border-white/25 text-white" : "bg-black/[0.06] border border-black/[0.08] text-[#1A1A2E]"}`}
           >
             <MagnifyingGlass size={16} weight="light" />
           </button>

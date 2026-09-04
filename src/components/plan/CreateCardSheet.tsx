@@ -457,7 +457,7 @@ export default function CreateCardSheet({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        className="relative w-full max-w-mobile mx-auto bg-[#FAF7F2] rounded-t-2xl shadow-sheet max-h-[80dvh] flex flex-col animate-in slide-in-from-bottom duration-300"
+        className="relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet max-h-[80dvh] flex flex-col animate-in slide-in-from-bottom duration-300"
         style={{ willChange: "transform" }}
       >
         {/* Drag handle */}
@@ -491,7 +491,7 @@ export default function CreateCardSheet({
           {/* Search / title input — one box does both */}
           {!selected && (
             <>
-              <div className="flex items-center gap-2.5 mb-3 px-3.5 py-2.5 rounded-full" style={{ background: "#F2EDE3" }}>
+              <div className="flex items-center gap-2.5 mb-3 px-3.5 py-2.5 rounded-full" style={{ background: "#F3F4F6" }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(26,26,46,0.45)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
                   <circle cx="11" cy="11" r="8" />
                   <line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -516,9 +516,9 @@ export default function CreateCardSheet({
               {savedMatches.length > 0 && (
                 <div className="mb-3">
                   <p className="mb-1.5 px-1 text-[9.5px] font-semibold uppercase" style={{ letterSpacing: "0.18em", color: "rgba(26,26,46,0.55)" }}>
-                    Saved
+                    Saved on your map
                   </p>
-                  <div className="rounded-xl bg-white overflow-hidden" style={{ boxShadow: "0 0 0 1px rgba(26,26,46,0.10)" }}>
+                  <div className="rounded-xl bg-[#FCFBF8] overflow-hidden" style={{ boxShadow: "0 0 0 1px rgba(26,26,46,0.10)" }}>
                     {savedMatches.map((c, i) => (
                       <button
                         key={c.id}
