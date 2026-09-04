@@ -121,3 +121,17 @@ The benchmark: someone opens Roam in a Centurion Lounge and the person next to t
 ## Bottom sheets: the whole sheet swipes (hooks/useSheetDrag.ts)
 - Bind `useSheetDrag` handlers on the sheet ROOT, never only the handle — Brennan has asked for this twice. Pass `{ mobileOnly: true }` for sheets that become centred modals at md+. The hook finds the nearest scrollable ancestor of the touch target, so a list inside the sheet still scrolls and a swipe only dismisses when that list is at the top; wire `onTouchCancel` too.
 - Do not write another local `useSheetDrag`; GlobalSearch, JourneyNotes and YearView now delegate to the shared one. Seven older sheets (AddToTripSheet, BoardBgPicker, ConfirmationPreviewSheet, CreateCardSheet, DocumentsSheet, LinkPlaceSheet, NoteCardSheet) bind on their root with hand-rolled handlers and no scroll guard — migrate them when touched.
+
+## Feedback: one toast, undo on every delete, Escape on every overlay (ui/Toast.tsx, hooks/useEscapeKey.ts)
+- `useToast()` is the only way to tell the user something failed or was undone. No new
+  toast pills, no per-host undo bars. `toast({ message })` for a notice (3 s);
+  `toast({ message, undo })` for a delete (6 s, re-insert under the ORIGINAL id so
+  attachments and links keep pointing at it). The Plan board still carries its own
+  bar (card + list undo) — fold it in when you next touch it, don't add a third.
+- Every Supabase write in a user action reads its `error`. On refusal: restore the local
+  state, then `toast({ message: "Couldn't … Try again." })`. A `console.error` alone is
+  a silent failure and the UX audit (Sep 2026) counted 32 of them; don't add a 33rd.
+- Journey hard-delete goes through `lib/deleteJourney.ts`, which also detects the RLS
+  "no error, zero rows" refusal a guest hits.
+- Any overlay, sheet or confirm that is not on `Overlay.tsx` calls `useEscapeKey(onClose,
+  active)`. Hooks stay unconditional: pass `active` for a confirm that is only sometimes open.

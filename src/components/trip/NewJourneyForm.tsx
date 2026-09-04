@@ -16,6 +16,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Camera } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/Toast";
 import { NESTED_SHEET_ATTR } from "@/components/ui/Overlay";
 import type { NewJourneySeed } from "@/lib/newJourneySeed";
 import {
@@ -132,6 +133,7 @@ export default function NewJourneyForm({
   onCreated,
 }: Props) {
   const router = useRouter();
+  const { toast } = useToast();
   const overlay = variant === "overlay";
 
   const seededDates = seed?.start && seed?.end ? { start: seed.start, end: seed.end } : null;
@@ -537,7 +539,15 @@ export default function NewJourneyForm({
       });
     }
     if (days.length > 0) {
-      await supabase.from("days").insert(days);
+      // Unchecked, this left a journey with no days and a screen that said
+      // "No days in this trip yet." with nothing to do (UX audit, Sep 2026).
+      const { error: daysErr } = await supabase.from("days").insert(days);
+      if (daysErr) {
+        toast({
+          message: "The journey was created but its days weren't. Open Journey settings and save the dates to add them.",
+          duration: 8000,
+        });
+      }
     }
 
     // Only fire the background cover fetch if we don't already have one
@@ -553,7 +563,7 @@ export default function NewJourneyForm({
     // the traveller lands on the new map, not on the map behind a sheet.
     if (onCreated) onCreated(tripId);
     else router.push(`/trips/${tripId}/map`);
-  }, [isValid, saving, destination, tripName, startDate, endDate, partySize, coverUrl, router, onCreated]);
+  }, [isValid, saving, destination, tripName, startDate, endDate, partySize, coverUrl, router, onCreated, toast]);
 
   return (
     <div className={overlay ? "flex flex-col h-full min-h-0 bg-white" : "flex flex-col min-h-dvh bg-white"}>

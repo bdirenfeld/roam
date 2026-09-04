@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { createClient } from "@/lib/supabase/client";
 import type { Trip } from "@/types/database";
 
@@ -19,6 +20,7 @@ function fmtDate(d: string) {
 }
 
 export default function TripCoverEditModal({ trip, onClose, onSuccess }: Props) {
+  useEscapeKey(onClose);
   const [pendingFile, setPendingFile]   = useState<File | null>(null);
   const [previewUrl,  setPreviewUrl]    = useState<string | null>(null);
   const [urlInput,    setUrlInput]      = useState("");

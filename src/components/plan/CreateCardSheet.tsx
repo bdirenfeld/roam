@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import type { Card, CardType, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/Toast";
 import type { PlaceResult } from "@/components/map/AddToTripSheet";
 
 const SUB_TYPES: Record<CardType, { value: string; label: string }[]> = {
@@ -98,6 +99,7 @@ export default function CreateCardSheet({
   initialStatus, extraDetails, initialStartTime, initialEndTime,
   destination, destinationLat, destinationLng,
 }: Props) {
+  const { toast } = useToast();
   const supabase  = createClient();
   const sheetRef  = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);
@@ -323,7 +325,7 @@ export default function CreateCardSheet({
         details, place_id: placeRow.id,
       });
       setSaving(false);
-      if (error) { console.error("[CreateCardSheet] card insert failed:", error); return; }
+      if (error) { toast({ message: "Couldn't add that. Try again." }); return; }
 
       const joinedPlace: Place = {
         id:              placeRow.id,
@@ -360,7 +362,7 @@ export default function CreateCardSheet({
       place_id: null,
     });
     setSaving(false);
-    if (error) { console.error("[CreateCardSheet] card insert failed:", error); return; }
+    if (error) { toast({ message: "Couldn't add that. Try again." }); return; }
     onCardCreated({
       id: cardId, day_id: cardDayId, list_id: listId, trip_id: tripId,
       start_time: startTimeFmt, end_time: endTimeFmt,
@@ -371,7 +373,7 @@ export default function CreateCardSheet({
     });
   }, [
     title, startTime, endTime, saving, selected, type, subType,
-    dayId, listId, tripId, endPosition, initialStatus, extraDetails, supabase, onCardCreated,
+    dayId, listId, tripId, endPosition, initialStatus, extraDetails, supabase, onCardCreated, toast,
   ]);
 
   const canCreate = title.trim().length > 0 && !loadingPlace;

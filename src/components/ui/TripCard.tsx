@@ -9,6 +9,7 @@ import TripCoverEditModal from "./TripCoverEditModal";
 import { createClient } from "@/lib/supabase/client";
 import { deleteJourney } from "@/lib/deleteJourney";
 import { useToast } from "@/components/ui/Toast";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { setTripArchived } from "@/lib/tripArchive";
 import type { Trip } from "@/types/database";
 
@@ -46,6 +47,7 @@ export default function TripCard({ trip, openDayId }: Props) {
   const [menuOpen,      setMenuOpen]      = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting,      setDeleting]      = useState(false);
+  useEscapeKey(() => setConfirmDelete(false), confirmDelete && !deleting);
 
   const handleArchive = async () => {
     setMenuOpen(false);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { Plus } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -221,6 +222,7 @@ function TravellerSheet({
   onRemoved: (repacked: Person[]) => void;
   onClose: () => void;
 }) {
+  useEscapeKey(onClose);
   const [name, setName] = useState(person?.name ?? "");
   const [birthdate, setBirthdate] = useState(person?.birthdate ?? "");
   const [notes, setNotes] = useState(person?.notes ?? "");

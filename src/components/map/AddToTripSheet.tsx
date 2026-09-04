@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { inferType } from "@/lib/places/inferType";
 import type { Card, CardType, Day, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/Toast";
 import { scheduleCardOnDay } from "@/lib/scheduleCard";
 import { PIN_COLORS } from "@/lib/mapPins";
 import CardImage from "@/components/ui/CardImage";
@@ -118,6 +119,7 @@ function fmtDayChip(date: string): string {
 
 export default function AddToTripSheet({ place, tripId, days, onClose, onCardCreated }: Props) {
   const supabase = createClient();
+  const { toast } = useToast();
   const sheetRef = useRef<HTMLDivElement>(null);
   const dragY    = useRef(0);
   const dragging = useRef(false);
@@ -330,8 +332,9 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
     });
 
     setSaving(false);
-    if (!error) onCardCreated(newCard);
-  }, [type, subType, place, targetDayId, tripId, supabase, onCardCreated]);
+    if (error) { toast({ message: "Couldn't save that place. Try again." }); return; }
+    onCardCreated(newCard);
+  }, [type, subType, place, targetDayId, tripId, supabase, onCardCreated, toast]);
 
   const handleSave = useCallback(async () => {
     if (!type || saving) return;

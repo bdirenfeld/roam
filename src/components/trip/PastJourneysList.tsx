@@ -7,6 +7,7 @@ import { ArrowCounterClockwise, Trash } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import { deleteJourney } from "@/lib/deleteJourney";
 import { useToast } from "@/components/ui/Toast";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { setTripArchived } from "@/lib/tripArchive";
 import { isPastJourney } from "@/lib/tripRecency";
 import type { Trip } from "@/types/database";
@@ -72,6 +73,8 @@ export default function PastJourneysList({ trips, openDayByTrip }: Props) {
   const router = useRouter();
   const [deleteTarget, setDeleteTarget] = useState<Trip | null>(null);
   const [deleting, setDeleting] = useState(false);
+  // A destructive confirm with no keyboard exit is a trap (UX audit, finding 5).
+  useEscapeKey(() => setDeleteTarget(null), deleteTarget !== null && !deleting);
 
   const groups = groupByYear(trips);
   const showYears = groups.length > 1;

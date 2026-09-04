@@ -4,6 +4,7 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import { Clock, Heart } from "@phosphor-icons/react";
 import type { Card, ChecklistItem, Day, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/Toast";
 import { useSheetDrag } from "@/hooks/useSheetDrag";
 import { queuedUpdate } from "@/lib/offline/queuedWrite";
 import { applyOverlay } from "@/lib/offline/writeQueue";
@@ -476,6 +477,9 @@ function TitleEditor({
 
 // ── Main component ─────────────────────────────────────────────
 export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDelete, onCardCopied, days, tripDestination, readOnly = false }: Props) {
+  // Every field save reverts on refusal; it also says so now (UX audit,
+  // Sep 2026, finding 1). Before, eight sites logged to the console only.
+  const { toast } = useToast();
   const supabase = createClient();
   const scrollRef = useRef<HTMLDivElement>(null);
   // Axis lock for the photo hero: a touch starts "pending" and only commits to
@@ -556,11 +560,12 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
 
       if (error) {
         console.error("Failed to save", field, error.message);
+        toast({ message: "Couldn't save that. Try again." });
         setLocalCard(prev);
         onCardUpdate?.(prev);
       }
     },
-    [localCard, onCardUpdate]
+    [localCard, onCardUpdate, toast]
   );
 
   const saveDetails = useCallback(
@@ -583,11 +588,12 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
 
       if (error) {
         console.error("Failed to save details.", field, error.message);
+        toast({ message: "Couldn't save that. Try again." });
         setLocalCard(prev);
         onCardUpdate?.(prev);
       }
     },
-    [localCard, onCardUpdate, saveTopLevel]
+    [localCard, onCardUpdate, saveTopLevel, toast]
   );
 
   const saveMenuUrl = useCallback(async () => {
@@ -623,10 +629,11 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
 
     if (error) {
       console.error("Failed to save loved on places", error.message);
+      toast({ message: "Couldn't save that. Try again." });
       setLocalCard(prev);
       onCardUpdate?.(prev);
     }
-  }, [localCard, onCardUpdate, supabase]);
+  }, [localCard, onCardUpdate, supabase, toast]);
 
   // ── Recommended by ───────────────────────────────────────────
   // The map's add flow writes this at save time; this makes it editable after
@@ -651,11 +658,12 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
 
       if (error) {
         console.error("Failed to save recommended_by", error.message);
+        toast({ message: "Couldn't save that. Try again." });
         setLocalCard(prev);
         onCardUpdate?.(prev);
       }
     },
-    [localCard, onCardUpdate, supabase],
+    [localCard, onCardUpdate, supabase, toast],
   );
 
   // ── Checklist ────────────────────────────────────────────────
@@ -739,11 +747,12 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
 
       if (error) {
         console.error("Failed to assign to day", error.message);
+        toast({ message: "Couldn't save that. Try again." });
         setLocalCard(prev);
         onCardUpdate?.(prev);
       }
     },
-    [localCard, onCardUpdate, supabase],
+    [localCard, onCardUpdate, supabase, toast],
   );
 
   // ── Move to different day (in_itinerary) ─────────────────────
@@ -763,6 +772,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
 
       if (error) {
         console.error("Failed to move to day", error.message);
+        toast({ message: "Couldn't save that. Try again." });
         setLocalCard(prev);
         onCardUpdate?.(prev);
         return;
@@ -772,7 +782,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       // left the column you were looking at.
       onClose();
     },
-    [localCard, onCardUpdate, onClose, supabase],
+    [localCard, onCardUpdate, onClose, supabase, toast],
   );
 
   // ── Copy to another day (in_itinerary) ───────────────────────
@@ -831,12 +841,13 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           .eq("id", localCard.place_id);
         if (placeErr) {
           console.error("Failed to save type/sub_type on places", placeErr.message);
+          toast({ message: "Couldn't save that. Try again." });
           setLocalCard(prev);
           onCardUpdate?.(prev);
         }
       }
     },
-    [localCard, onCardUpdate, supabase],
+    [localCard, onCardUpdate, supabase, toast],
   );
 
   const saveTitle = useCallback(
@@ -856,12 +867,13 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           .eq("id", localCard.place_id);
         if (placeErr) {
           console.error("Failed to save title on places", placeErr.message);
+          toast({ message: "Couldn't save that. Try again." });
           setLocalCard(prev);
           onCardUpdate?.(prev);
         }
       }
     },
-    [localCard, onCardUpdate, supabase],
+    [localCard, onCardUpdate, supabase, toast],
   );
 
   // ── Derived display values ─────────────────────────────────

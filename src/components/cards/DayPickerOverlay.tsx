@@ -1,6 +1,7 @@
 "use client";
 
 import type { Day } from "@/types/database";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 
 /**
  * The day list the bottom sheet slides over itself. One overlay serves every
@@ -25,6 +26,7 @@ export default function DayPickerOverlay({
   onSelect: (day: Day) => void;
   onClose: () => void;
 }) {
+  useEscapeKey(onClose);
   return (
     <div className="absolute inset-0 z-10 bg-white rounded-t-2xl flex flex-col">
       <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-gray-100 flex-shrink-0">

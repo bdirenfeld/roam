@@ -1,5 +1,7 @@
 'use client'
 
+import { useEscapeKey } from "@/hooks/useEscapeKey"
+
 interface NavigationSheetProps {
   isOpen: boolean
   onClose: () => void
@@ -10,6 +12,7 @@ interface NavigationSheetProps {
 }
 
 export function NavigationSheet({ isOpen, onClose, placeName, placeId, lat, lng }: NavigationSheetProps) {
+  useEscapeKey(onClose, isOpen)
   if (!isOpen) return null
 
   const googleMapsUrl = placeId

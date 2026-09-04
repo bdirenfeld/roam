@@ -4,6 +4,8 @@ import { useState, useCallback, type ReactNode } from "react";
 import { PencilSimple, Trash, BookmarkSimple, Heart } from "@phosphor-icons/react";
 import type { Card, CardType, Day } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/Toast";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { scheduleCardOnDay, unscheduleCard } from "@/lib/scheduleCard";
 import { PIN_COLORS } from "@/lib/mapPins";
 import { readRecommendedBy, recommendedByLine } from "@/lib/recommendedBy";
@@ -355,6 +357,7 @@ function CardBody({
   days?: Day[];
   tripId?: string;
 }) {
+  const { toast } = useToast();
   const supabase         = createClient();
   const place            = card.place!;
   const details          = card.details as Record<string, unknown> | null;
@@ -373,10 +376,10 @@ function CardBody({
       .update({ loved: next, loved_at: lovedAt })
       .eq("id", card.place_id);
     if (error) {
-      console.error("[Roam] Saving loved failed:", error.message);
+      toast({ message: "Couldn't save that. Try again." });
       onCardUpdate({ ...card, place });
     }
-  }, [card, place, onCardUpdate, supabase]);
+  }, [card, place, onCardUpdate, supabase, toast]);
   // Prefer the embedded place (world facts); fall back to card.details for
   // cards saved before the place row carried these fields (transitional).
   const phone            = place?.phone ?? (details?.phone as string | undefined) ?? undefined;
@@ -774,6 +777,7 @@ interface Props {
 }
 
 export default function MapPinPopup({ card, anchorPos, onClose, onCardUpdate, onCardDelete, onCardCreated, days, tripId }: Props) {
+  useEscapeKey(onClose);
   if (anchorPos) {
     const vw        = typeof window !== "undefined" ? window.innerWidth : 800;
     const rawLeft   = anchorPos.x - POPUP_W / 2;
