@@ -8,7 +8,8 @@ import { deleteJourney } from "@/lib/deleteJourney";
 import { useToast } from "@/components/ui/Toast";
 import { setTripArchived } from "@/lib/tripArchive";
 import TravellersSection, { type Person } from "@/components/trip/TravellersSection";
-import ShareJourneySheet, { type ShareGuest } from "@/components/trip/ShareJourneySheet";
+import { type ShareGuest } from "@/components/trip/ShareJourneySheet";
+import { createShareLink, revokeShareLink, removeGuest } from "@/lib/share-actions";
 import { NESTED_SHEET_ATTR } from "@/components/ui/Overlay";
 import { TRAVELLERS_ENABLED } from "@/lib/featureFlags";
 import type { Trip, Day } from "@/types/database";
@@ -116,12 +117,18 @@ export default function TripSettingsClient({
 
   // Form state
   const [title, setTitle] = useState(trip.title);
-  const [showShare, setShowShare] = useState(false);
-  // Share by typing an email, right here. The row used to open a sheet with
-  // the same field one tap further away (Brennan, from his phone, Sep 2026).
+  // Sharing, all of it, right here: email + Send, the link + Copy, who has
+  // it. It used to be a row that opened a sheet with the same fields one tap
+  // further away (Brennan, from his phone, Sep 2026).
   const [shareEmail, setShareEmail] = useState("");
   const [shareSending, setShareSending] = useState(false);
   const [shareSentTo, setShareSentTo] = useState<string | null>(null);
+  const [shareToken, setShareToken] = useState<string | null>(initialShareToken);
+  const [guests, setGuests] = useState<ShareGuest[]>(initialGuests);
+  const [linkBusy, setLinkBusy] = useState(false);
+  const [confirmRevoke, setConfirmRevoke] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  const shareUrl = shareToken && typeof window !== "undefined" ? `${window.location.origin}/journey/${shareToken}` : null;
   const [destination, setDestination] = useState(trip.destination);
   const [startDate, setStartDate] = useState(trip.start_date);
   const [endDate, setEndDate] = useState(trip.end_date);
@@ -332,12 +339,16 @@ export default function TripSettingsClient({
       if (data.sent) {
         setShareSentTo(to);
         setShareEmail("");
+        if (!shareToken) {
+          const m = data.url?.match(/\/journey\/([^/?#]+)/);
+          if (m) setShareToken(m[1]);
+        }
         toast({ message: `Sent to ${to}` });
         return;
       }
       if (data.error) { toast({ message: data.error }); return; }
       if (data.reason === "provider-error") { toast({ message: data.detail ?? "The mail provider refused it." }); return; }
-      const link = data.url ?? (initialShareToken ? `${window.location.origin}/journey/${initialShareToken}` : null);
+      const link = data.url ?? shareUrl;
       if (link) {
         const subject = encodeURIComponent(`Join me on ${trip.title ?? "this journey"}`);
         const body = encodeURIComponent(`Here's the plan — open this to see it:\n\n${link}\n`);
@@ -349,6 +360,55 @@ export default function TripSettingsClient({
       toast({ message: "Couldn't send that. Your connection may be down." });
     } finally {
       setShareSending(false);
+    }
+  };
+
+  const createLink = async () => {
+    if (linkBusy) return;
+    setLinkBusy(true);
+    try {
+      const token = await createShareLink(trip.id);
+      setShareToken(token);
+    } catch {
+      toast({ message: "Couldn't create the link. Try again." });
+    } finally {
+      setLinkBusy(false);
+    }
+  };
+  const copyLink = async () => {
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast({ message: "Link copied" });
+    } catch {
+      toast({ message: "Couldn't copy. Long-press the link to copy it." });
+    }
+  };
+  const revokeLink = async () => {
+    if (linkBusy) return;
+    setLinkBusy(true);
+    try {
+      await revokeShareLink(trip.id);
+      setShareToken(null);
+      setGuests([]);
+      setConfirmRevoke(false);
+      toast({ message: "Link revoked. Nobody can open it now." });
+    } catch {
+      toast({ message: "Couldn't revoke the link. Try again." });
+    } finally {
+      setLinkBusy(false);
+    }
+  };
+  const dropGuest = async (userId: string) => {
+    const gone = guests.find((g) => g.userId === userId);
+    setGuests((prev) => prev.filter((g) => g.userId !== userId));
+    setConfirmRemove(null);
+    try {
+      await removeGuest(trip.id, userId);
+      toast({ message: `Removed ${gone?.name ?? gone?.email ?? "them"}` });
+    } catch {
+      if (gone) setGuests((prev) => [...prev, gone]);
+      toast({ message: "Couldn't remove them. Try again." });
     }
   };
 
@@ -645,22 +705,97 @@ export default function TripSettingsClient({
             <p className="text-[12px] mt-2" style={{ color: "rgba(26,26,46,0.55)" }}>
               {shareSentTo
                 ? `Sent to ${shareSentTo}. They can read the journey, not change it.`
-                : initialGuests.length > 0
-                  ? `${initialGuests.length} ${initialGuests.length === 1 ? "person can" : "people can"} see it. They can read it, not change it.`
-                  : "They get a link by email. They can read the journey, not change it."}
+                : "They can read the journey, not change it, and they can't see what it costs."}
             </p>
-            <button
-              type="button"
-              onClick={() => setShowShare(true)}
-              className="text-[12px] mt-1.5 underline underline-offset-2"
-              style={{ color: "rgba(26,26,46,0.55)" }}
-            >
-              {initialShareToken ? "Copy the link, or see who has it" : "Send a link instead"}
-            </button>
+
+            {/* The link: copy it, or make one. */}
+            <div className="mt-3 flex items-center gap-2">
+              {shareUrl ? (
+                <>
+                  <span
+                    className="flex-1 min-w-0 truncate h-10 leading-10 px-3 rounded-xl bg-gray-50 border border-gray-200 text-[12.5px]"
+                    style={{ color: "rgba(26,26,46,0.7)" }}
+                  >
+                    {shareUrl.replace(/^https?:\/\//, "")}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={copyLink}
+                    className="h-10 px-3.5 rounded-xl text-[13px] font-semibold flex-shrink-0"
+                    style={{ boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.14)", color: "#1A1A2E" }}
+                  >
+                    Copy link
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={createLink}
+                  disabled={linkBusy}
+                  className="h-10 px-3.5 rounded-xl text-[13px] font-semibold disabled:opacity-40"
+                  style={{ boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.14)", color: "#1A1A2E" }}
+                >
+                  {linkBusy ? "Making a link…" : "Make a link to copy"}
+                </button>
+              )}
+            </div>
+
+            {/* Who has it. */}
+            {guests.length > 0 && (
+              <ul className="mt-3 divide-y divide-gray-100">
+                {guests.map((g) => (
+                  <li key={g.userId} className="flex items-center gap-3 py-2">
+                    <span className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold flex-shrink-0" style={{ background: "#E7E0D5", color: "#1A1A2E" }}>
+                      {(g.name ?? g.email ?? "?").trim().charAt(0).toUpperCase()}
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-[13.5px] truncate text-[#1A1A2E]">{g.name ?? g.email}</span>
+                      {g.name && g.email && <span className="block text-[11.5px] truncate" style={{ color: "rgba(26,26,46,0.55)" }}>{g.email}</span>}
+                    </span>
+                    {confirmRemove === g.userId ? (
+                      <span className="flex items-center gap-2 text-[12px]">
+                        <button type="button" onClick={() => dropGuest(g.userId)} className="font-semibold" style={{ color: "#A8372B" }}>Remove</button>
+                        <button type="button" onClick={() => setConfirmRemove(null)} style={{ color: "rgba(26,26,46,0.55)" }}>Keep</button>
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmRemove(g.userId)}
+                        aria-label={`Remove ${g.name ?? g.email ?? "this guest"}`}
+                        className="w-9 h-9 grid place-items-center rounded-full text-[16px]"
+                        style={{ color: "rgba(26,26,46,0.35)" }}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {shareUrl && guests.length === 0 && (
+              <p className="text-[12px] mt-2.5" style={{ color: "rgba(26,26,46,0.45)" }}>Nobody has opened it yet.</p>
+            )}
+
+            {/* Revoke, quietly, with an inline confirm. */}
+            {shareUrl && (
+              confirmRevoke ? (
+                <p className="text-[12px] mt-3 flex items-center gap-3">
+                  <span style={{ color: "rgba(26,26,46,0.7)" }}>Revoke the link? Everyone loses access.</span>
+                  <button type="button" onClick={revokeLink} disabled={linkBusy} className="font-semibold" style={{ color: "#A8372B" }}>Revoke</button>
+                  <button type="button" onClick={() => setConfirmRevoke(false)} style={{ color: "rgba(26,26,46,0.55)" }}>Keep</button>
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmRevoke(true)}
+                  className="text-[12px] mt-3 underline underline-offset-2"
+                  style={{ color: "rgba(26,26,46,0.45)" }}
+                >
+                  Revoke the link
+                </button>
+              )
+            )}
           </div>
-        )}
-        {showShare && (
-          <ShareJourneySheet tripId={trip.id} tripTitle={trip.title ?? "this journey"} onClose={() => setShowShare(false)} />
         )}
 
         {/* ── Manage journey — quiet text links. An archived journey offers

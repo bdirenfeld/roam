@@ -117,6 +117,7 @@ export default function CreateCardSheet({
   const [startTime]   = useState(initialStartTime ?? "");
   const [endTime]     = useState(initialEndTime ?? "");
   const [saving,      setSaving]      = useState(false);
+  const [autoAdd,     setAutoAdd]     = useState(false);
 
   // ── Google search state — the title input doubles as the search box ──
   const [predictions,  setPredictions]  = useState<Prediction[]>([]);
@@ -283,6 +284,10 @@ export default function CreateCardSheet({
       const guess = inferType((result.types as string[]) ?? [], result.name);
       setType(guess.type);
       setSubType(guess.subType);
+      // One tap adds it — the same as a saved place (Brennan, from his
+      // phone, Sep 2026: "does it make sense that you only have the ability
+      // to add it as a note?"). Type and time are fixed on the card after.
+      setAutoAdd(true);
     } catch {
       // network error — stay in plain-text mode
     } finally {
@@ -427,6 +432,12 @@ export default function CreateCardSheet({
 
   const canCreate = title.trim().length > 0 && !loadingPlace;
 
+  useEffect(() => {
+    if (!autoAdd || !selected || !type || saving) return;
+    setAutoAdd(false);
+    void handleCreate();
+  }, [autoAdd, selected, type, saving, handleCreate]);
+
   const pillStyle = (isSelected: boolean): React.CSSProperties => isSelected
     ? { background: "#1A1A2E", color: "white", border: "1px solid #1A1A2E" }
     : { background: "transparent", color: "#6B7280", border: "1px solid #E5E7EB" };
@@ -546,7 +557,8 @@ export default function CreateCardSheet({
                     <button
                       key={p.place_id}
                       onClick={() => handlePick(p)}
-                      className={`w-full flex items-start gap-3 px-4 py-3 hover:bg-gray-50 active:bg-gray-100 transition-colors text-left ${
+                      disabled={loadingPlace || saving}
+                      className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 active:bg-gray-100 transition-colors text-left disabled:opacity-60 ${
                         i < predictions.length - 1 ? "border-b border-gray-50" : ""
                       }`}
                     >
@@ -566,6 +578,9 @@ export default function CreateCardSheet({
                           </span>
                         )}
                       </div>
+                      <span className="flex-shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium" style={{ color: "#1A1A2E", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.12)" }}>
+                        Add
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -634,7 +649,20 @@ export default function CreateCardSheet({
 
           {/* Add — only once there is something to add: a picked place, or
               typed text that becomes a plain note. No grey button waiting. */}
-          {(selected || title.trim().length > 0) && (
+          {!selected && title.trim().length > 0 && predictions.length > 0 && (
+            <div className="pb-8 pt-1 text-center">
+              <button
+                type="button"
+                onClick={handleCreate}
+                disabled={!canCreate || saving}
+                className="text-[12.5px] underline underline-offset-2 disabled:opacity-40"
+                style={{ color: "rgba(26,26,46,0.55)" }}
+              >
+                None of these — add &ldquo;{title.trim()}&rdquo; as a note
+              </button>
+            </div>
+          )}
+          {(selected || (title.trim().length > 0 && predictions.length === 0)) && (
           <div className="pb-8 pt-1">
             <button
               onClick={handleCreate}
@@ -644,7 +672,7 @@ export default function CreateCardSheet({
                 ? { background: "#1A1A2E", color: "white" }
                 : { background: "#F3F4F6", color: "#D1D5DB", cursor: "not-allowed" }}
             >
-              {saving ? "Adding…" : selected ? `Add ${selected.name}` : "Add as a note"}
+              {saving || loadingPlace ? "Adding…" : selected ? `Add ${selected.name}` : "Add as a note"}
             </button>
           </div>
           )}
