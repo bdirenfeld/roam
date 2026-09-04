@@ -1678,7 +1678,10 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
       style={boardBgStyle}
     >
       {/* Nav bar — mobile only (md:hidden). Desktop nav lives in Masthead. */}
-      <div className="md:hidden relative flex items-center h-11 px-3 flex-shrink-0">
+      {/* z-30: the ⋯ menu drops out of this bar and must paint over the sticky
+          day picker below it (z-20). Without it the menu's first rows hid
+          behind "Day 1 of 12" (Brennan, from his phone, Sep 2026). */}
+      <div className="md:hidden relative z-30 flex items-center h-11 px-3 flex-shrink-0">
         {/* Left: back buttons */}
         <div className="flex items-center gap-1 z-10">
           <Link
