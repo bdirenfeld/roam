@@ -8,8 +8,14 @@ import { deleteJourney } from "@/lib/deleteJourney";
 import { useToast } from "@/components/ui/Toast";
 import { setTripArchived } from "@/lib/tripArchive";
 import TravellersSection, { type Person } from "@/components/trip/TravellersSection";
-import { type ShareGuest } from "@/components/trip/ShareJourneySheet";
-import { createShareLink, revokeShareLink, removeGuest } from "@/lib/share-actions";
+import { createShareLink, revokeShareLink, removeGuest, loadShareState } from "@/lib/share-actions";
+
+/** A guest on a shared journey, as the Settings page loads it server-side. */
+export interface ShareGuest {
+  userId: string;
+  name: string | null;
+  email: string | null;
+}
 import { NESTED_SHEET_ATTR } from "@/components/ui/Overlay";
 import { TRAVELLERS_ENABLED } from "@/lib/featureFlags";
 import type { Trip, Day } from "@/types/database";
@@ -129,6 +135,13 @@ export default function TripSettingsClient({
   const [confirmRevoke, setConfirmRevoke] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const shareUrl = shareToken && typeof window !== "undefined" ? `${window.location.origin}/journey/${shareToken}` : null;
+  const refreshShare = useCallback(() => {
+    if (!shareAvailable) return;
+    loadShareState(trip.id)
+      .then((s) => { setShareToken(s.shareToken); setGuests(s.guests); })
+      .catch(() => { /* the server-rendered state stands */ });
+  }, [shareAvailable, trip.id]);
+  useEffect(() => { refreshShare(); }, [refreshShare]);
   const [destination, setDestination] = useState(trip.destination);
   const [startDate, setStartDate] = useState(trip.start_date);
   const [endDate, setEndDate] = useState(trip.end_date);
@@ -339,10 +352,7 @@ export default function TripSettingsClient({
       if (data.sent) {
         setShareSentTo(to);
         setShareEmail("");
-        if (!shareToken) {
-          const m = data.url?.match(/\/journey\/([^/?#]+)/);
-          if (m) setShareToken(m[1]);
-        }
+        refreshShare();
         toast({ message: `Sent to ${to}` });
         return;
       }

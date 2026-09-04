@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import TripSettingsClient from "@/components/trip/TripSettingsClient";
 import { getTripAccess } from "@/lib/trip-access";
 import type { Person } from "@/components/trip/TravellersSection";
-import type { ShareGuest } from "@/components/trip/ShareJourneySheet";
+import type { ShareGuest } from "@/components/trip/TripSettingsClient";
 import type { Trip, Day } from "@/types/database";
 
 interface Props {

@@ -20,7 +20,7 @@ type IdeaFilter =
   | { kind: "all" }
   | { kind: "unused" }
   | { kind: "journey"; value: string }
-  | { kind: "tag"; value: string };
+  | { kind: "tags"; values: string[] };
 
 export interface Idea {
   id: string;
@@ -435,7 +435,9 @@ export default function IdeasClient({
   // nothing with". A row of tag chips could only ever answer the first, and
   // wrapped into a wall once there were more than a handful.
   const visible = useMemo(() => {
-    if (filter.kind === "tag") return live.filter((i) => (i.tags ?? []).includes(filter.value));
+    // Every chosen tag must be on the idea: "tuscany" + "beach" narrows to
+    // the beach ideas for Tuscany (Brennan, Sep 2026).
+    if (filter.kind === "tags") return live.filter((i) => filter.values.every((t) => (i.tags ?? []).includes(t)));
     if (filter.kind === "journey") return live.filter((i) => i.pinned_trip_id === filter.value);
     if (filter.kind === "unused")
       return live.filter((i) => i.pins_added === 0 && !i.wishlist_destination_id);
@@ -466,7 +468,7 @@ export default function IdeasClient({
         ? "Not yet used"
         : filter.kind === "journey"
           ? journeys.find((j) => j.id === filter.value)?.title ?? "A journey"
-          : filter.value;
+          : filter.values.join(" + ");
 
   // Every tag in use, with counts — the closest thing to Pinterest boards,
   // except an idea can sit in several at once. Counted over `live`, the same
@@ -492,6 +494,16 @@ export default function IdeasClient({
   const pickFilter = (next: IdeaFilter) => {
     setFilter(next);
     setFilterOpen(false);
+    setFilterQuery("");
+  };
+  // Tags toggle and the sheet stays open, so a second and third can follow.
+  const chosenTags = filter.kind === "tags" ? filter.values : [];
+  const toggleFilterTag = (t: string) => {
+    setFilter((prev) => {
+      const cur = prev.kind === "tags" ? prev.values : [];
+      const next = cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t];
+      return next.length ? { kind: "tags", values: next } : { kind: "all" };
+    });
     setFilterQuery("");
   };
 
@@ -537,6 +549,9 @@ export default function IdeasClient({
           Ideas
         </h1>
 
+        {/* The filter and the paste field stay in view while the list scrolls
+            (Brennan, from his phone, Sep 2026). */}
+        <div className="sticky top-0 z-20 -mx-3 px-3 pt-2 bg-white md:bg-parchment">
         {live.length > 0 && (
           <button
             onClick={() => setFilterOpen(true)}
@@ -576,6 +591,7 @@ export default function IdeasClient({
             Save
           </button>
         </form>
+        </div>
 
         {visible.length > 0 && (
           <div
@@ -615,10 +631,32 @@ export default function IdeasClient({
             <input
               value={filterQuery}
               onChange={(e) => setFilterQuery(e.target.value)}
-              placeholder="Search journeys and tags"
+              onKeyDown={(e) => {
+                if (e.key !== "Enter") return;
+                e.preventDefault();
+                const hit = shownTags[0]?.[0];
+                if (hit) toggleFilterTag(hit);
+              }}
+              placeholder={chosenTags.length ? "Add another tag" : "Search journeys and tags"}
               className="w-full rounded-lg px-3 py-2.5 text-[14px] outline-none mb-1"
               style={{ background: "#fff", border: `1px solid ${RULE}`, color: INK }}
             />
+            {chosenTags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {chosenTags.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => toggleFilterTag(t)}
+                    className="inline-flex items-center gap-1 rounded-full pl-2.5 pr-2 py-1 text-[12px]"
+                    style={{ background: INK, color: "#fff" }}
+                    aria-label={`Remove ${t}`}
+                  >
+                    {t} <span aria-hidden>×</span>
+                  </button>
+                ))}
+              </div>
+            )}
 
             {matches("All ideas") && (
               <FilterOption
@@ -664,8 +702,8 @@ export default function IdeasClient({
                     key={t}
                     label={t}
                     count={n}
-                    selected={filter.kind === "tag" && filter.value === t}
-                    onSelect={() => pickFilter({ kind: "tag", value: t })}
+                    selected={chosenTags.includes(t)}
+                    onSelect={() => toggleFilterTag(t)}
                   />
                 ))}
               </>
@@ -680,6 +718,17 @@ export default function IdeasClient({
                   Nothing matches &ldquo;{filterQuery.trim()}&rdquo;.
                 </p>
               )}
+
+            {chosenTags.length > 0 && (
+              <button
+                type="button"
+                onClick={closeFilter}
+                className="w-full mt-3 py-3 rounded-xl text-[14px] font-semibold"
+                style={{ background: INK, color: "#fff" }}
+              >
+                Show {visible.length} {visible.length === 1 ? "idea" : "ideas"}
+              </button>
+            )}
           </div>
         </div>
       )}

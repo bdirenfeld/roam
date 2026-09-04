@@ -12,7 +12,7 @@
 import { useEffect, useState } from "react";
 import { Plus } from "@phosphor-icons/react";
 import { loadShareState } from "@/lib/share-actions";
-import ShareJourneySheet from "@/components/trip/ShareJourneySheet";
+import { TripSettingsLink } from "@/components/overlays/AppOverlays";
 import type { ShareState } from "@/lib/share-actions";
 
 const INK = "#1A1A2E";
@@ -27,12 +27,11 @@ function initialOf(name: string | null, email: string | null): string {
 
 export default function SharedWithFaces({
   tripId,
-  tripTitle = null,
 }: {
   tripId: string;
+  /** Kept for callers; the "+" opens Settings, which knows the title. */
   tripTitle?: string | null;
 }) {
-  const [shareOpen, setShareOpen] = useState(false);
   const [state, setState] = useState<ShareState | null>(null);
 
   useEffect(() => {
@@ -93,11 +92,11 @@ export default function SharedWithFaces({
         </div>
       )}
 
-      <button
-        onClick={() => setShareOpen((v) => !v)}
-        aria-expanded={shareOpen}
+      <TripSettingsLink
+        tripId={tripId}
+        section="share"
         title={guests.length > 0 ? "Share with someone else" : "Share this journey"}
-        aria-label={guests.length > 0 ? "Share with someone else" : "Share this journey"}
+        ariaLabel={guests.length > 0 ? "Share with someone else" : "Share this journey"}
         style={{
           width: 24,
           height: 24,
@@ -111,18 +110,7 @@ export default function SharedWithFaces({
         }}
       >
         <Plus size={11} weight="bold" />
-      </button>
-
-      {/* One sharing flow for the whole app: the "+" opens the same sheet the
-          menu's "Share journey" opens. The popover this replaced was a third
-          copy of the invite with its own wording (simplification audit). */}
-      {shareOpen && (
-        <ShareJourneySheet
-          tripId={tripId}
-          tripTitle={tripTitle ?? "this journey"}
-          onClose={() => setShareOpen(false)}
-        />
-      )}
+      </TripSettingsLink>
     </div>
   );
 }

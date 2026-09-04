@@ -62,6 +62,7 @@ import { getOpeningHoursConflict, openingHoursCaption, openingHoursTone } from "
 import CardImage from "@/components/ui/CardImage";
 import { Trash, DotsThree, DotsSixVertical, ArrowLeft, ArrowRight, BookmarkSimple, Files, NotePencil, MagnifyingGlass } from "@phosphor-icons/react";
 import { useGlobalSearch } from "@/components/search/GlobalSearch";
+import { useToast } from "@/components/ui/Toast";
 import AppMenu from "@/components/ui/AppMenu";
 import { getMaterialIconHTML } from "@/lib/mapPins";
 import { type DayWeather, fetchTripWeather, dayStopsAnchor, getWeatherCategory, WeatherIcon, HourlyStrip } from "@/lib/weather";
@@ -269,6 +270,7 @@ interface Props {
 export default function PlanBoard({ trip, initialDays, initialLists, initialNotes }: Props) {
   const supabase = createClient();
   const search = useGlobalSearch();
+  const { toast } = useToast();
   // Hidden file input behind the Bookings sheet's Upload button.
   const importInputRef = useRef<HTMLInputElement>(null);
   const [days, setDays] = useState<DayWithCards[]>(initialDays);
@@ -311,12 +313,11 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   // here; re-opening it shows what was just written, not the page payload.
   const [showNotes,    setShowNotes]    = useState(false);
   const [notes,        setNotes]        = useState<string | null>(initialNotes);
-  const [deleteToast, setDeleteToast] = useState<string | null>(null);
   // Every list operation fails the same way — say so and get out of the way.
-  const showToast = useCallback((msg: string) => {
-    setDeleteToast(msg);
-    setTimeout(() => setDeleteToast(null), 3000);
-  }, []);
+  // Through the app's one toast (ui/Toast.tsx); the board's own pill was the
+  // last private copy.
+  const showToast = useCallback((msg: string) => { toast({ message: msg }); }, [toast]);
+  const handleUndoRef = useRef<() => void>(() => {});
   // Undo window after an instant delete — holds what was removed for re-insert.
   // A card and a list are undone the same way (re-insert the row under its
   // ORIGINAL id so nothing has to be repointed at a new one) and expire the
@@ -330,7 +331,11 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
     setUndoDelete(entry);
     undoTimerRef.current = setTimeout(() => setUndoDelete(null), 6000);
-  }, []);
+    toast({
+      message: entry.kind === "list" ? "List deleted" : "Card deleted",
+      undo: () => handleUndoRef.current(),
+    });
+  }, [toast]);
   // Booking import — file → /api/confirmations/parse → ConfirmationPreviewSheet
   const [importingConf, setImportingConf] = useState(false);
   const handleImportFile = useCallback(async (file: File) => {
@@ -343,8 +348,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
       if (!res.ok) throw new Error(json.error || "Couldn't read that file.");
       setPendingConf({ items: json.parsed, fileName: file.name, fileType: file.type });
     } catch (e) {
-      setDeleteToast(e instanceof Error ? e.message : "Couldn't read that file.");
-      setTimeout(() => setDeleteToast(null), 4000);
+      toast({ message: e instanceof Error ? e.message : "Couldn't read that file.", duration: 4000 });
     } finally {
       setImportingConf(false);
     }
@@ -1355,8 +1359,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
     if (error) {
       setDays(snapshot);
       setLists(listsSnapshot);
-      setDeleteToast("Couldn't delete — please try again.");
-      setTimeout(() => setDeleteToast(null), 3000);
+      toast({ message: "Couldn't delete — please try again." });
       return;
     }
     // Deletes are instant (no confirm dialog), so offer a window to undo
@@ -1418,8 +1421,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
       confirmed: card.confirmed, place_id: card.place_id,
     });
     if (error) {
-      setDeleteToast("Couldn't restore the card.");
-      setTimeout(() => setDeleteToast(null), 3000);
+      toast({ message: "Couldn't restore the card." });
       return;
     }
     setDays((prev) =>
@@ -1430,6 +1432,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
       )
     );
   }, [supabase, showToast, trip.id]);
+  handleUndoRef.current = () => { void handleUndoDelete(); };
 
   // "Copy to another day" writes a brand-new card on the target day; the sheet
   // hands it back so the board shows it without a refetch. The source card is
@@ -2221,24 +2224,6 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
         />
       )}
 
-
-      {deleteToast && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white text-[13px] font-medium px-4 py-2.5 rounded-full shadow-lg pointer-events-none animate-in fade-in">
-          {deleteToast}
-        </div>
-      )}
-
-      {undoDelete && !deleteToast && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white text-[13px] font-medium pl-4 pr-1.5 py-1.5 rounded-full shadow-lg flex items-center gap-3 animate-in fade-in">
-          <span>{undoDelete.kind === "list" ? "List deleted" : "Card deleted"}</span>
-          <button
-            onClick={handleUndoDelete}
-            className="px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 font-semibold transition-colors"
-          >
-            Undo
-          </button>
-        </div>
-      )}
 
       {importingConf && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white text-[13px] font-medium px-4 py-2.5 rounded-full shadow-lg pointer-events-none animate-in fade-in">

@@ -15,7 +15,6 @@ import {
   TripSettingsLink,
   useJourneyNotes,
 } from "@/components/overlays/AppOverlays";
-import ShareJourneySheet from "@/components/trip/ShareJourneySheet";
 import type { Trip, Day } from "@/types/database";
 
 const INK = "#1A1A2E";
@@ -42,7 +41,6 @@ const RULE = "rgba(26,26,46,0.12)";
 export default function AppMenu({
   variant,
   tripId,
-  tripTitle,
   trip,
   days,
   guest = false,
@@ -68,7 +66,6 @@ export default function AppMenu({
   extra?: { key: string; title: string; sub: string; icon: React.ReactNode; onClick: () => void }[];
 }) {
   const [open, setOpen] = useState(false);
-  const [showShare, setShowShare] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const notes = useJourneyNotes();
 
@@ -219,17 +216,26 @@ export default function AppMenu({
                 </EstimateLink>
               )}
 
+              {/* Sharing lives in one place — the block in Settings with the
+                  email field, the link and who has it. This row opens it
+                  there, scrolled to it. The sheet it used to open was a
+                  second copy of the same fields (Brennan, Sep 2026). */}
               {owner && (
-                <button
+                <TripSettingsLink
+                  tripId={tripId}
+                  section="share"
+                  trip={trip}
+                  days={days}
                   role="menuitem"
-                  onClick={() => { setOpen(false); setShowShare(true); }}
+                  ariaLabel="Share journey"
+                  onBeforeOpen={() => setOpen(false)}
                   style={itemStyle}
                 >
                   <span style={glyphStyle}>
                     <ShareNetwork size={15} weight="light" />
                   </span>
                   <Label title="Share journey" />
-                </button>
+                </TripSettingsLink>
               )}
 
               {/* Settings used to sit in the profile dropdown on desktop and in
@@ -273,13 +279,6 @@ export default function AppMenu({
         </div>
       )}
 
-      {showShare && tripId && (
-        <ShareJourneySheet
-          tripId={tripId}
-          tripTitle={tripTitle ?? "this journey"}
-          onClose={() => setShowShare(false)}
-        />
-      )}
     </div>
   );
 }
