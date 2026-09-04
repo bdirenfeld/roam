@@ -27,10 +27,10 @@ import {
   NewConversationGate,
 } from "./ProposalCard";
 
-const SIENNA = "#C4622D";
+const SIENNA = "#B0541F";
 const INK = "#1A1A2E";
 const RULE = "rgba(26,26,46,0.12)";
-const CAPTION = "rgba(26,26,46,0.55)";
+const CAPTION = "rgba(26,26,46,0.62)";
 const CAPTION_SOFT = "rgba(26,26,46,0.40)";
 const LABEL = "rgba(26,26,46,0.85)";
 

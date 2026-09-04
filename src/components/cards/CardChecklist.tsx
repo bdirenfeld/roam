@@ -326,7 +326,7 @@ export default function CardChecklist({ items: incoming, onSave }: Props) {
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => openComposer(null)}
           className="flex items-center gap-1.5 mt-1 py-1 text-[13.5px] font-medium transition-colors hover:text-[#1A1A2E]"
-          style={{ color: "rgba(26,26,46,0.55)" }}
+          style={{ color: "rgba(26,26,46,0.62)" }}
         >
           <Plus size={13} weight="bold" />
           Add an item

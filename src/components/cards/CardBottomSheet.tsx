@@ -1220,7 +1220,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 spanning eight towns that is the first thing you want. The
                 country is dropped; the town is the point. */}
             {place?.address && (
-              <p className="text-[12.5px] leading-snug mt-1" style={{ color: "rgba(26,26,46,0.55)" }}>
+              <p className="text-[12.5px] leading-snug mt-1" style={{ color: "rgba(26,26,46,0.62)" }}>
                 {place.address.replace(/,\s*[^,]+$/, "")}
               </p>
             )}
@@ -1269,7 +1269,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                           if (end) saveTopLevel("end_time", toDbTime(end));
                         }}
                         className="rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors hover:bg-black/[0.04]"
-                        style={{ color: "rgba(26,26,46,0.55)", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)" }}
+                        style={{ color: "rgba(26,26,46,0.62)", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)" }}
                         aria-label={`End ${label} after the start`}
                       >
                         +{label}

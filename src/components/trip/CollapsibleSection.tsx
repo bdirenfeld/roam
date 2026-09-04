@@ -35,7 +35,7 @@ export default function CollapsibleSection({
       >
         <span
           className="font-display italic text-sm md:text-[15px]"
-          style={{ color: "rgba(26,26,46,0.55)" }}
+          style={{ color: "rgba(26,26,46,0.62)" }}
         >
           {label}
         </span>

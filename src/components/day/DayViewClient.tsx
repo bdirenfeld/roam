@@ -142,8 +142,8 @@ function WeatherExpansion({
                     opacity: isActive ? 1 : 0.45,
                   }}
                 >
-                  <div className="text-[8px] uppercase tracking-[0.1em]" style={{ color: isActive ? "#C4622D" : "#1A1A2E" }}>{dow}</div>
-                  <div className="font-display italic text-[12px] mt-[2px]" style={{ color: isActive ? "#C4622D" : "#1A1A2E" }}>{dt.getDate()}</div>
+                  <div className="text-[8px] uppercase tracking-[0.1em]" style={{ color: isActive ? "#B0541F" : "#1A1A2E" }}>{dow}</div>
+                  <div className="font-display italic text-[12px] mt-[2px]" style={{ color: isActive ? "#B0541F" : "#1A1A2E" }}>{dt.getDate()}</div>
                   {w && (
                     <>
                       <div className="mt-[4px]"><WeatherIcon category={getWeatherCategory(w.condition_code)} size={11} /></div>
@@ -656,7 +656,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
             {formatDayTitle(dayWithCards.date)}
           </span>
           {dayTitle && (
-            <span className="font-display italic text-[11.5px] leading-none" style={{ color: "rgba(26,26,46,0.55)" }}>
+            <span className="font-display italic text-[11.5px] leading-none" style={{ color: "rgba(26,26,46,0.62)" }}>
               {dayTitle}
             </span>
           )}
@@ -720,7 +720,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           onClick={goToPrevDay}
           disabled={!prevDay}
           aria-label="Previous day"
-          className="flex items-center justify-center p-1.5 text-[rgba(26,26,46,0.55)] disabled:opacity-30 disabled:cursor-default cursor-pointer hover:text-activity transition-colors"
+          className="flex items-center justify-center p-1.5 text-[rgba(26,26,46,0.62)] disabled:opacity-30 disabled:cursor-default cursor-pointer hover:text-activity transition-colors"
         >
           <CaretLeft size={16} weight="light" />
         </button>
@@ -780,7 +780,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           onClick={goToNextDay}
           disabled={!nextDay}
           aria-label="Next day"
-          className="flex items-center justify-center p-1.5 text-[rgba(26,26,46,0.55)] disabled:opacity-30 disabled:cursor-default cursor-pointer hover:text-activity transition-colors"
+          className="flex items-center justify-center p-1.5 text-[rgba(26,26,46,0.62)] disabled:opacity-30 disabled:cursor-default cursor-pointer hover:text-activity transition-colors"
         >
           <CaretRight size={16} weight="light" />
         </button>

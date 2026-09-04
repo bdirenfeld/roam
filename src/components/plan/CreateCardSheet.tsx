@@ -513,7 +513,7 @@ export default function CreateCardSheet({
               {/* Saved first — one tap puts the place on the day and closes. */}
               {savedGroups.map((g) => (
                 <div className="mb-3" key={g.type}>
-                  <p className="mb-1.5 px-1 text-[9.5px] font-semibold uppercase" style={{ letterSpacing: "0.18em", color: "rgba(26,26,46,0.55)" }}>
+                  <p className="mb-1.5 px-1 text-[9.5px] font-semibold uppercase" style={{ letterSpacing: "0.18em", color: "rgba(26,26,46,0.62)" }}>
                     {g.label} · saved on your map
                   </p>
                   <div className="rounded-xl bg-[#FCFBF8] overflow-hidden" style={{ boxShadow: "0 0 0 1px rgba(26,26,46,0.10)" }}>
@@ -533,7 +533,7 @@ export default function CreateCardSheet({
                         <span className="min-w-0 flex-1">
                           <span className="block text-[14px] font-medium text-[#1A1A2E] truncate" style={{ letterSpacing: "-0.005em" }}>{c.place!.title}</span>
                           {c.place!.address && (
-                            <span className="block text-[11.5px] truncate mt-0.5" style={{ color: "rgba(26,26,46,0.55)" }}>{c.place!.address}</span>
+                            <span className="block text-[11.5px] truncate mt-0.5" style={{ color: "rgba(26,26,46,0.62)" }}>{c.place!.address}</span>
                           )}
                         </span>
                         <span className="flex-shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium" style={{ color: "#1A1A2E", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.12)" }}>
@@ -547,7 +547,7 @@ export default function CreateCardSheet({
 
               {/* Predictions — the world beyond the pile. */}
               {predictions.length > 0 && savedMatches.length > 0 && (
-                <p className="mb-1.5 px-1 text-[9.5px] font-semibold uppercase" style={{ letterSpacing: "0.18em", color: "rgba(26,26,46,0.55)" }}>
+                <p className="mb-1.5 px-1 text-[9.5px] font-semibold uppercase" style={{ letterSpacing: "0.18em", color: "rgba(26,26,46,0.62)" }}>
                   Everywhere else
                 </p>
               )}
@@ -656,7 +656,7 @@ export default function CreateCardSheet({
                 onClick={handleCreate}
                 disabled={!canCreate || saving}
                 className="text-[12.5px] underline underline-offset-2 disabled:opacity-40"
-                style={{ color: "rgba(26,26,46,0.55)" }}
+                style={{ color: "rgba(26,26,46,0.62)" }}
               >
                 None of these — add &ldquo;{title.trim()}&rdquo; as a note
               </button>

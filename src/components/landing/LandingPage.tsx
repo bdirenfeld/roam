@@ -7,7 +7,7 @@ import { signInWithGoogle } from "@/lib/auth-actions";
 // Sienna is a decorative accent here only — the small hero rule and the section
 // eyebrows. It is never used as an alarm/error color on this surface.
 const INK = "#1A1A2E";
-const SIENNA = "#C4622D";
+const SIENNA = "#B0541F";
 const PARCHMENT = "#FAF7F2";
 const INK_SOFT = "#3A3A4E";
 const RULE_STRONG = "rgba(26,26,46,0.20)";

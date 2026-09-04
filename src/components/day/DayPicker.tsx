@@ -80,7 +80,7 @@ export default function DayPicker({ days, onSelect, mode, activeDayId, align = "
             display: "inline-flex",
             transform: open ? "rotate(180deg)" : "none",
             transition: "transform 120ms",
-            color: "rgba(26,26,46,0.55)",
+            color: "rgba(26,26,46,0.62)",
           }}
         >
           <CaretDown size={11} weight="light" />
@@ -147,7 +147,7 @@ export default function DayPicker({ days, onSelect, mode, activeDayId, align = "
                     <span
                       className="font-display italic text-[22px] w-8 text-center"
                       style={{
-                        color: on ? "#1A1A2E" : "rgba(26,26,46,0.55)",
+                        color: on ? "#1A1A2E" : "rgba(26,26,46,0.62)",
                         letterSpacing: "-0.01em",
                       }}
                     >
@@ -160,7 +160,7 @@ export default function DayPicker({ days, onSelect, mode, activeDayId, align = "
                       >
                         {dow}, {dayNum} {monthName}
                       </div>
-                      <div className="text-[11px] mt-px" style={{ color: "rgba(26,26,46,0.55)" }}>
+                      <div className="text-[11px] mt-px" style={{ color: "rgba(26,26,46,0.62)" }}>
                         Day {d.day_number}
                       </div>
                     </div>
@@ -184,7 +184,7 @@ export default function DayPicker({ days, onSelect, mode, activeDayId, align = "
                           fontWeight: 600,
                           letterSpacing: "0.09em",
                           textTransform: "uppercase",
-                          color: "#C4622D",
+                          color: "#B0541F",
                         }}
                       >
                         Collapsed

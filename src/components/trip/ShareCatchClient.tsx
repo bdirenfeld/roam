@@ -15,10 +15,10 @@ import PromoteToWishlistSheet from "./PromoteToWishlistSheet";
 import type { JourneySummary, ResolvedIdeaPlace } from "./PromoteToWishlistSheet";
 
 const INK = "#1A1A2E";
-const CAPTION = "rgba(26,26,46,0.55)";
-const SOFT = "rgba(26,26,46,0.35)";
+const CAPTION = "rgba(26,26,46,0.62)";
+const SOFT = "rgba(26,26,46,0.5)"; // 3.3:1 — the faint tier; captions are 0.62 (4.8:1)
 const RULE = "rgba(26,26,46,0.10)";
-const SIENNA = "#C4622D";
+const SIENNA = "#B0541F";
 
 export default function ShareCatchClient({
   ideaId,

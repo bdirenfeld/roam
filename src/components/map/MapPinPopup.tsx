@@ -548,7 +548,7 @@ function CardBody({
               <Heart
                 size={15}
                 weight={place.loved ? "fill" : "light"}
-                color={place.loved ? "#C4622D" : "#9CA3AF"}
+                color={place.loved ? "#B0541F" : "#9CA3AF"}
               />
             </button>
           )}
@@ -607,7 +607,7 @@ function CardBody({
           <div className="mt-3">
             <div className="flex items-center gap-1.5 px-1 pb-2">
               <button onClick={() => setShowDayList(false)} className="p-0.5 flex" aria-label="Back">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(26,26,46,0.55)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(26,26,46,0.62)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="15 18 9 12 15 6" />
                 </svg>
               </button>
@@ -626,7 +626,7 @@ function CardBody({
                 >
                   <span style={{ fontWeight: 600, fontSize: "13.5px", color: "#1A1A2E", letterSpacing: "-0.005em" }}>Day {d.day_number}</span>
                   <span style={{ color: "rgba(26,26,46,0.40)", fontSize: "11px" }}>·</span>
-                  <span className="flex-1" style={{ fontSize: "13px", color: "rgba(26,26,46,0.55)", letterSpacing: "-0.005em" }}>
+                  <span className="flex-1" style={{ fontSize: "13px", color: "rgba(26,26,46,0.62)", letterSpacing: "-0.005em" }}>
                     {new Date(d.date + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
                   </span>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(26,26,46,0.40)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
@@ -757,7 +757,7 @@ function CardBody({
                 onClick={handleUnschedule}
                 disabled={isDeleting}
                 className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold text-white transition-colors disabled:opacity-60"
-                style={{ background: "#C4622D" }}
+                style={{ background: "#B0541F" }}
               >
                 {isDeleting ? "Working…" : "Take it off the day"}
               </button>

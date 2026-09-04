@@ -165,7 +165,7 @@ export default function TripCoverEditModal({ trip, onClose, onSuccess }: Props) 
             <div
               className="border-2 border-dashed rounded-xl py-6 flex flex-col items-center gap-1.5 transition-colors"
               style={{
-                borderColor: isDragOver ? "#C4622D" : "#D4CFC8",
+                borderColor: isDragOver ? "#B0541F" : "#D4CFC8",
                 background:  isDragOver ? "#FEF3EA"  : "transparent",
               }}
               onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
@@ -183,7 +183,7 @@ export default function TripCoverEditModal({ trip, onClose, onSuccess }: Props) 
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 className="text-[12px] font-semibold mt-0.5"
-                style={{ color: "#C4622D" }}
+                style={{ color: "#B0541F" }}
               >
                 or browse files
               </button>
@@ -220,7 +220,7 @@ export default function TripCoverEditModal({ trip, onClose, onSuccess }: Props) 
           />
 
           {error && (
-            <p className="text-[12px]" style={{ color: "#C4622D" }}>{error}</p>
+            <p className="text-[12px]" style={{ color: "#B0541F" }}>{error}</p>
           )}
 
           {/* Save */}

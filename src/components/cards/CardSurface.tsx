@@ -239,14 +239,14 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
         {detail && (
           <p
             className="text-[12.5px] md:text-[13px] mt-[3px] leading-[1.45] line-clamp-2"
-            style={{ color: "rgba(26,26,46,0.55)" }}
+            style={{ color: "rgba(26,26,46,0.62)" }}
           >
             {detail}
           </p>
         )}
 
         {priceRange && (
-          <p className="text-[11px] md:text-[11.5px] font-medium mt-[3px] leading-snug" style={{ color: "#C4622D" }}>
+          <p className="text-[11px] md:text-[11.5px] font-medium mt-[3px] leading-snug" style={{ color: "#B0541F" }}>
             {surfRating !== null ? `★ ${surfRating.toFixed(1)} · ` : ""}{priceRange}
           </p>
         )}

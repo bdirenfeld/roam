@@ -191,7 +191,7 @@ export default function MapSidebar({
       <div className="flex-1 overflow-y-auto" style={{ padding: "14px 18px" }}>
 
         {/* ── Status filter pills ── */}
-        <p className="text-[9.5px] tracking-[0.18em] uppercase font-semibold mb-2.5" style={{ color: "rgba(26,26,46,0.55)" }}>Status</p>
+        <p className="text-[9.5px] tracking-[0.18em] uppercase font-semibold mb-2.5" style={{ color: "rgba(26,26,46,0.62)" }}>Status</p>
         {/* Wraps: three pills don't fit the sidebar's width, so without this
             the third is clipped at the edge and reads as a broken control
             rather than a filter. */}
@@ -279,7 +279,7 @@ export default function MapSidebar({
                   >
                     <polyline points="6 9 12 15 18 9" />
                   </svg>
-                  <span className="text-[9.5px] tracking-[0.18em] uppercase font-semibold" style={{ color: "rgba(26,26,46,0.55)" }}>
+                  <span className="text-[9.5px] tracking-[0.18em] uppercase font-semibold" style={{ color: "rgba(26,26,46,0.62)" }}>
                     {group.label}
                   </span>
                 </button>

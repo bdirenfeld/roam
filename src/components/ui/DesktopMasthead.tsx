@@ -18,7 +18,7 @@ import { isTripGuest } from "@/lib/trip-access-client";
 
 const INK = "#1A1A2E";
 const RULE = "rgba(26,26,46,0.10)";
-const CAPTION = "rgba(26,26,46,0.55)";
+const CAPTION = "rgba(26,26,46,0.62)";
 const CAPTION_SOFT = "rgba(26,26,46,0.35)";
 
 type UserSummary = { name: string | null; email: string | null; avatarUrl: string | null };
@@ -347,7 +347,7 @@ export default function DesktopMasthead() {
       {/* Search — the one way to find a place when you can't remember which
           journey it's on. Also on "/" and ⌘/Ctrl-K from anywhere. */}
       <SearchButton
-        className="inline-flex items-center gap-[7px] h-[33px] pl-[10px] pr-[13px] mr-2 rounded-lg text-[rgba(26,26,46,0.55)]"
+        className="inline-flex items-center gap-[7px] h-[33px] pl-[10px] pr-[13px] mr-2 rounded-lg text-[rgba(26,26,46,0.62)]"
         size={15}
         strokeWidth={1.6}
         label="Search"
@@ -362,7 +362,7 @@ export default function DesktopMasthead() {
         rel="noopener"
         aria-label="How Roam works"
         title="How Roam works"
-        className="inline-flex items-center justify-center w-[33px] h-[33px] mr-1 rounded-lg text-[rgba(26,26,46,0.55)] hover:bg-[rgba(26,26,46,0.06)] transition-colors"
+        className="inline-flex items-center justify-center w-[33px] h-[33px] mr-1 rounded-lg text-[rgba(26,26,46,0.62)] hover:bg-[rgba(26,26,46,0.06)] transition-colors"
       >
         <Question size={17} weight="light" />
       </a>
@@ -375,7 +375,7 @@ export default function DesktopMasthead() {
         tripId={currentTripId}
         tripTitle={tripCtx?.title ?? null}
         guest={guest}
-        triggerClassName="inline-flex items-center justify-center w-[33px] h-[33px] rounded-lg text-[rgba(26,26,46,0.55)] hover:bg-[rgba(26,26,46,0.06)] transition-colors"
+        triggerClassName="inline-flex items-center justify-center w-[33px] h-[33px] rounded-lg text-[rgba(26,26,46,0.62)] hover:bg-[rgba(26,26,46,0.06)] transition-colors"
       />
 
       {/* Profile dropdown — replaces the previous direct-link avatar. */}

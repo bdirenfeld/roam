@@ -18,7 +18,7 @@ import {
 import type { Trip, Day } from "@/types/database";
 
 const INK = "#1A1A2E";
-const CAPTION = "rgba(26,26,46,0.55)";
+const CAPTION = "rgba(26,26,46,0.62)";
 const RULE = "rgba(26,26,46,0.12)";
 
 /**

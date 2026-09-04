@@ -146,8 +146,8 @@ export default function ProfileForm({ initial = null, variant = "page", onDismis
               <p
                 className={
                   overlay
-                    ? "text-[13px] text-[rgba(26,26,46,0.55)] mt-1 truncate"
-                    : "text-sm text-gray-400 mt-0.5 md:text-[14px] md:text-[rgba(26,26,46,0.55)] md:mt-1 md:tracking-[-0.005em]"
+                    ? "text-[13px] text-[rgba(26,26,46,0.62)] mt-1 truncate"
+                    : "text-sm text-gray-400 mt-0.5 md:text-[14px] md:text-[rgba(26,26,46,0.62)] md:mt-1 md:tracking-[-0.005em]"
                 }
               >
                 {data.email}

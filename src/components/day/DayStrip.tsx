@@ -84,9 +84,9 @@ export default function DayStrip({ days, activeDayId, onDaySelect }: Props) {
                   style={{
                     letterSpacing: "0.15em",
                     color: today
-                      ? "#C4622D"
+                      ? "#B0541F"
                       : isActive
-                        ? "rgba(26,26,46,0.55)"
+                        ? "rgba(26,26,46,0.62)"
                         : "rgba(26,26,46,0.28)",
                   }}
                 >

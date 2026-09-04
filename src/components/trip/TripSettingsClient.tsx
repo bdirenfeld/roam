@@ -712,7 +712,7 @@ export default function TripSettingsClient({
                 {shareSending ? "Sending…" : "Send"}
               </button>
             </form>
-            <p className="text-[12px] mt-2" style={{ color: "rgba(26,26,46,0.55)" }}>
+            <p className="text-[12px] mt-2" style={{ color: "rgba(26,26,46,0.62)" }}>
               {shareSentTo
                 ? `Sent to ${shareSentTo}. They can read the journey, not change it.`
                 : "They can read the journey, not change it, and they can't see what it costs."}
@@ -760,12 +760,12 @@ export default function TripSettingsClient({
                     </span>
                     <span className="flex-1 min-w-0">
                       <span className="block text-[13.5px] truncate text-[#1A1A2E]">{g.name ?? g.email}</span>
-                      {g.name && g.email && <span className="block text-[11.5px] truncate" style={{ color: "rgba(26,26,46,0.55)" }}>{g.email}</span>}
+                      {g.name && g.email && <span className="block text-[11.5px] truncate" style={{ color: "rgba(26,26,46,0.62)" }}>{g.email}</span>}
                     </span>
                     {confirmRemove === g.userId ? (
                       <span className="flex items-center gap-2 text-[12px]">
                         <button type="button" onClick={() => dropGuest(g.userId)} className="font-semibold" style={{ color: "#A8372B" }}>Remove</button>
-                        <button type="button" onClick={() => setConfirmRemove(null)} style={{ color: "rgba(26,26,46,0.55)" }}>Keep</button>
+                        <button type="button" onClick={() => setConfirmRemove(null)} style={{ color: "rgba(26,26,46,0.62)" }}>Keep</button>
                       </span>
                     ) : (
                       <button
@@ -792,7 +792,7 @@ export default function TripSettingsClient({
                 <p className="text-[12px] mt-3 flex items-center gap-3">
                   <span style={{ color: "rgba(26,26,46,0.7)" }}>Revoke the link? Everyone loses access.</span>
                   <button type="button" onClick={revokeLink} disabled={linkBusy} className="font-semibold" style={{ color: "#A8372B" }}>Revoke</button>
-                  <button type="button" onClick={() => setConfirmRevoke(false)} style={{ color: "rgba(26,26,46,0.55)" }}>Keep</button>
+                  <button type="button" onClick={() => setConfirmRevoke(false)} style={{ color: "rgba(26,26,46,0.62)" }}>Keep</button>
                 </p>
               ) : (
                 <button

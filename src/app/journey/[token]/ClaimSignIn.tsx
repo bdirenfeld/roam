@@ -32,7 +32,7 @@ export default function ClaimSignIn({ token }: { token: string }) {
       </h1>
       <p
         className="mt-3 max-w-[34ch] text-[14px] leading-[1.6]"
-        style={{ color: "rgba(26,26,46,0.55)" }}
+        style={{ color: "rgba(26,26,46,0.62)" }}
       >
         {COMPANION_ENABLED
           ? "Sign in to view the itinerary and talk it through with your companion."

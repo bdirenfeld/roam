@@ -31,7 +31,7 @@ export default function AppHeader({ avatarUrl, subtitle, showNewTrip, ideaCount 
           {ideaCount > 0 && (
             <span
               className="absolute -top-0.5 -right-2 w-[6px] h-[6px] rounded-full"
-              style={{ background: "#C4622D" }}
+              style={{ background: "#B0541F" }}
             />
           )}
         </Link>
@@ -45,7 +45,7 @@ export default function AppHeader({ avatarUrl, subtitle, showNewTrip, ideaCount 
         {/* Search — opens the full-height search sheet. Bare glyph, same
             weight as the masthead's, so the two headers read as one app. */}
         <SearchButton
-          className="w-8 h-8 flex items-center justify-center text-[rgba(26,26,46,0.55)]"
+          className="w-8 h-8 flex items-center justify-center text-[rgba(26,26,46,0.62)]"
           size={18}
           strokeWidth={1.5}
         />

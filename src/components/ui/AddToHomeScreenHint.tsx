@@ -71,7 +71,7 @@ export default function AddToHomeScreenHint() {
           setShow(false);
           localStorage.setItem(DISMISS_KEY, "1");
         }}
-        className="mt-2.5 text-[13px] font-semibold text-[#C4622D]"
+        className="mt-2.5 text-[13px] font-semibold text-[#B0541F]"
       >
         Got it
       </button>

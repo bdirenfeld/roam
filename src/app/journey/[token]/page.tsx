@@ -31,7 +31,7 @@ function InvitationUnavailable() {
       </h1>
       <p
         className="mt-3 max-w-[34ch] text-[14px] leading-[1.6]"
-        style={{ color: "rgba(26,26,46,0.55)" }}
+        style={{ color: "rgba(26,26,46,0.62)" }}
       >
         The link may have been withdrawn, or it was never quite right. Ask your
         host to share it again.

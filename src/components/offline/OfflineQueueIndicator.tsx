@@ -104,7 +104,7 @@ export default function OfflineQueueIndicator() {
             boxShadow: "0 8px 30px rgba(26,26,46,0.14)",
           }}
         >
-          <WarningCircle size={16} weight="light" className="mt-[1px] flex-shrink-0" color="#C4622D" />
+          <WarningCircle size={16} weight="light" className="mt-[1px] flex-shrink-0" color="#B0541F" />
           <div className="min-w-0 flex-1">
             <p className="text-[12px] font-medium leading-snug text-activity">
               {failures.length === 1

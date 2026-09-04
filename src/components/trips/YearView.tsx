@@ -964,7 +964,7 @@ export default function YearView({ trips }: Props) {
           >
             <span
               className="font-display italic text-sm md:text-[15px]"
-              style={{ color: "rgba(26,26,46,0.55)" }}
+              style={{ color: "rgba(26,26,46,0.62)" }}
             >
               Your year
             </span>
@@ -998,7 +998,7 @@ export default function YearView({ trips }: Props) {
             fontSize: 10,
             fontWeight: 600,
             letterSpacing: "0.14em",
-            color: "rgba(26,26,46,0.55)",
+            color: "rgba(26,26,46,0.62)",
           }}
         >
           Your year
@@ -1219,7 +1219,7 @@ export default function YearView({ trips }: Props) {
                           {g.members.map((m) => (
                             <div
                               key={m.name}
-                              style={{ fontSize: 8.5, color: "rgba(26,26,46,0.55)", whiteSpace: "nowrap" }}
+                              style={{ fontSize: 8.5, color: "rgba(26,26,46,0.62)", whiteSpace: "nowrap" }}
                             >
                               {m.name}
                             </div>
@@ -1285,7 +1285,7 @@ export default function YearView({ trips }: Props) {
                           width: 6,
                           height: 6,
                           borderRadius: "50%",
-                          background: "#C4622D",
+                          background: "#B0541F",
                           opacity: 0.75,
                           transform: "translateX(-50%)",
                         }}

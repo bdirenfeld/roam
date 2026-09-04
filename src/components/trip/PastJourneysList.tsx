@@ -219,7 +219,7 @@ export default function PastJourneysList({ trips, openDayByTrip }: Props) {
                     fontWeight: 500,
                     textTransform: "uppercase",
                     letterSpacing: "0.14em",
-                    color: "rgba(26,26,46,0.55)",
+                    color: "rgba(26,26,46,0.62)",
                   }}
                 >
                   {dateLine(trip)}

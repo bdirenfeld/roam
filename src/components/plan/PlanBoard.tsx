@@ -2526,7 +2526,7 @@ function DayHeaderCell({ day, weather, onRename }: { day: DayWithCards; weather?
         fontWeight: 600,
         letterSpacing: "0.18em",
         textTransform: "uppercase",
-        color: "rgba(26, 26, 46, 0.55)",
+        color: "rgba(26, 26, 46, 0.62)",
         marginBottom: "4px",
       }}>Day {day.day_number}{shortDateTitle ? ` · ${shortDateTitle}` : ""}</p>
       {/* Tier 2 — Day of week (italic Playfair). On an untitled day the
@@ -2583,7 +2583,7 @@ function DayHeaderCell({ day, weather, onRename }: { day: DayWithCards; weather?
           }}
           placeholder="Lucca day, Rest, Cinque Terre…"
           aria-label={`Title for day ${day.day_number}`}
-          className="w-full bg-transparent outline-none border-b border-[rgba(26,26,46,0.25)] focus:border-[#C4622D] placeholder:text-[rgba(26,26,46,0.28)]"
+          className="w-full bg-transparent outline-none border-b border-[rgba(26,26,46,0.25)] focus:border-[#B0541F] placeholder:text-[rgba(26,26,46,0.28)]"
           style={{ fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: "12.5px", color: "rgb(26, 26, 46)", marginBottom: "6px", padding: "1px 0" }}
         />
       ) : day.theme ? (
@@ -2683,7 +2683,7 @@ const LIST_TIER1: React.CSSProperties = {
   fontWeight: 600,
   letterSpacing: "0.18em",
   textTransform: "uppercase",
-  color: "rgba(26, 26, 46, 0.55)",
+  color: "rgba(26, 26, 46, 0.62)",
   whiteSpace: "nowrap",
 };
 
@@ -2775,7 +2775,7 @@ function ListHeaderCell({
               title="Drag to reorder this list"
               className="grid place-items-center w-4 h-5 -ml-1 flex-shrink-0 cursor-grab active:cursor-grabbing
                          text-[rgba(26,26,46,0.22)] group-hover/hdr:text-[rgba(26,26,46,0.45)]
-                         hover:!text-[#C4622D] transition-colors touch-none"
+                         hover:!text-[#B0541F] transition-colors touch-none"
             >
               <DotsSixVertical size={14} weight="bold" />
             </span>
@@ -2792,7 +2792,7 @@ function ListHeaderCell({
               onMove={onMove}
               onStartRename={startEditing}
               onDelete={onDelete}
-              triggerClassName="w-5 h-5 grid place-items-center rounded-full text-[rgba(26,26,46,0.45)] hover:text-[#C4622D] hover:bg-[rgba(196,98,45,0.10)] transition-colors"
+              triggerClassName="w-5 h-5 grid place-items-center rounded-full text-[rgba(26,26,46,0.45)] hover:text-[#B0541F] hover:bg-[rgba(196,98,45,0.10)] transition-colors"
             />
           )}
           <button
@@ -2824,7 +2824,7 @@ function ListHeaderCell({
             }}
             placeholder="Research, Prep, Ideas…"
             aria-label="List name"
-            className="w-full bg-transparent outline-none border-b border-[rgba(26,26,46,0.25)] focus:border-[#C4622D] placeholder:text-[rgba(26,26,46,0.28)]"
+            className="w-full bg-transparent outline-none border-b border-[rgba(26,26,46,0.25)] focus:border-[#B0541F] placeholder:text-[rgba(26,26,46,0.28)]"
             style={{ ...LIST_TIER2, marginTop: "4px" }}
           />
         ) : (
@@ -2934,7 +2934,7 @@ function ListMenu({
                   </button>
                   <button
                     onClick={() => { setOpen(false); onDelete(); }}
-                    className="flex-1 py-1.5 rounded-lg text-[12px] font-semibold text-white bg-[#C4622D] hover:opacity-90 transition-opacity"
+                    className="flex-1 py-1.5 rounded-lg text-[12px] font-semibold text-white bg-[#B0541F] hover:opacity-90 transition-opacity"
                   >
                     Delete list
                   </button>
@@ -3044,7 +3044,7 @@ function ListColumn({
   const edge = dropEdge && (
     <span
       aria-hidden
-      className={`absolute top-0 bottom-0 w-[3px] rounded-full bg-[#C4622D] ${
+      className={`absolute top-0 bottom-0 w-[3px] rounded-full bg-[#B0541F] ${
         dropEdge === "left" ? "-left-[11px]" : "-right-[11px]"
       }`}
     />
@@ -3226,7 +3226,7 @@ function AddListColumn({
           }}
           placeholder="Research, Prep, Ideas…"
           aria-label="New list name"
-          className="w-full bg-transparent outline-none border-b border-[rgba(26,26,46,0.15)] focus:border-[#C4622D] pb-1 placeholder:text-[rgba(26,26,46,0.28)]"
+          className="w-full bg-transparent outline-none border-b border-[rgba(26,26,46,0.15)] focus:border-[#B0541F] pb-1 placeholder:text-[rgba(26,26,46,0.28)]"
           style={LIST_TIER2}
         />
         <div className="flex gap-2 mt-3">
@@ -3269,7 +3269,7 @@ const WEEK_LABEL: React.CSSProperties = {
 const SIGN =
   "w-5 h-5 flex-shrink-0 grid place-items-center rounded-full text-[15px] leading-none " +
   "text-[rgba(26,26,46,0.45)] transition-colors " +
-  "group-hover:text-[#C4622D] group-hover:bg-[rgba(196,98,45,0.10)]";
+  "group-hover:text-[#B0541F] group-hover:bg-[rgba(196,98,45,0.10)]";
 
 function WeekBar({
   week,

@@ -17,7 +17,7 @@ import type { ShareState } from "@/lib/share-actions";
 
 const INK = "#1A1A2E";
 const RULE = "rgba(26,26,46,0.10)";
-const CAPTION = "rgba(26,26,46,0.55)";
+const CAPTION = "rgba(26,26,46,0.62)";
 
 /** First initial of a name, else of an email, else a dot. */
 function initialOf(name: string | null, email: string | null): string {

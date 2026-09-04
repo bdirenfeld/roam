@@ -45,7 +45,7 @@ import { readRecommendedBy, recommendedByLine } from "@/lib/recommendedBy";
 const INK = "#1A1A2E";
 const PARCHMENT = "#FFFFFF"; // the overlay is white: parchment is only the desktop ground
 const RULE = "rgba(26,26,46,0.10)";
-const CAPTION = "rgba(26,26,46,0.45)";
+const CAPTION = "rgba(26,26,46,0.62)";
 const CAPTION_SOFT = "rgba(26,26,46,0.35)";
 const HEADING = "rgba(26,26,46,0.40)";
 const HIGHLIGHT = "rgba(26,26,46,0.05)";

@@ -24,7 +24,7 @@ import {
 } from "@phosphor-icons/react";
 import type { AddProposal, CutProposal, MoveProposal, ProposalIcon } from "@/lib/companion/types";
 
-const SIENNA = "#C4622D";
+const SIENNA = "#B0541F";
 const INK = "#1A1A2E";
 const PARCHMENT = "#FAF7F2";
 const RULE = "rgba(26,26,46,0.12)";
@@ -83,7 +83,7 @@ export function ProposalCard({
           {proposal.heading}
         </p>
         {proposal.lede && (
-          <p className="mt-1.5 text-[12.5px] leading-[1.55]" style={{ color: "rgba(26,26,46,0.55)" }}>
+          <p className="mt-1.5 text-[12.5px] leading-[1.55]" style={{ color: "rgba(26,26,46,0.62)" }}>
             {proposal.lede}
           </p>
         )}
@@ -126,7 +126,7 @@ export function ProposalCard({
                   {p.name}
                 </div>
                 {p.meta && (
-                  <div className="mt-0.5 text-[11.5px]" style={{ color: "rgba(26,26,46,0.55)" }}>
+                  <div className="mt-0.5 text-[11.5px]" style={{ color: "rgba(26,26,46,0.62)" }}>
                     {p.meta}
                   </div>
                 )}
@@ -148,7 +148,7 @@ export function ProposalCard({
       >
         <span
           className="font-display text-[12.5px] italic"
-          style={{ color: "rgba(26,26,46,0.55)" }}
+          style={{ color: "rgba(26,26,46,0.62)" }}
         >
           Nothing changes until you approve.
         </span>
@@ -158,7 +158,7 @@ export function ProposalCard({
             onClick={onDiscard}
             disabled={busy}
             className="bg-transparent text-[13px] font-medium disabled:opacity-40"
-            style={{ color: "rgba(26,26,46,0.55)" }}
+            style={{ color: "rgba(26,26,46,0.62)" }}
           >
             Discard
           </button>
@@ -203,7 +203,7 @@ export function DiscardedAck() {
   return (
     <p
       className="font-display text-[14px] italic animate-in fade-in duration-300"
-      style={{ color: "rgba(26,26,46,0.55)" }}
+      style={{ color: "rgba(26,26,46,0.62)" }}
     >
       Discarded — nothing moved.
     </p>
@@ -253,14 +253,14 @@ export function CutProposalCard({
           {proposal.heading}
         </p>
         {proposal.lede && (
-          <p className="mt-1.5 text-[12.5px] leading-[1.55]" style={{ color: "rgba(26,26,46,0.55)" }}>
+          <p className="mt-1.5 text-[12.5px] leading-[1.55]" style={{ color: "rgba(26,26,46,0.62)" }}>
             {proposal.lede}
           </p>
         )}
         {proposal.reason && (
           <p
             className="mt-1.5 font-display text-[12.5px] italic leading-[1.55]"
-            style={{ color: "rgba(26,26,46,0.55)" }}
+            style={{ color: "rgba(26,26,46,0.62)" }}
           >
             “{proposal.reason}”
           </p>
@@ -296,7 +296,7 @@ export function CutProposalCard({
               >
                 {c.title}
               </div>
-              <div className="mt-0.5 text-[11.5px]" style={{ color: "rgba(26,26,46,0.55)" }}>
+              <div className="mt-0.5 text-[11.5px]" style={{ color: "rgba(26,26,46,0.62)" }}>
                 {c.meta}
               </div>
             </div>
@@ -311,7 +311,7 @@ export function CutProposalCard({
       >
         <span
           className="font-display text-[12.5px] italic"
-          style={{ color: "rgba(26,26,46,0.55)" }}
+          style={{ color: "rgba(26,26,46,0.62)" }}
         >
           Nothing changes until you approve.
         </span>
@@ -321,7 +321,7 @@ export function CutProposalCard({
             onClick={onDiscard}
             disabled={busy}
             className="bg-transparent text-[13px] font-medium disabled:opacity-40"
-            style={{ color: "rgba(26,26,46,0.55)" }}
+            style={{ color: "rgba(26,26,46,0.62)" }}
           >
             Discard
           </button>
@@ -386,7 +386,7 @@ export function RestoredAck() {
   return (
     <p
       className="font-display text-[14px] italic animate-in fade-in duration-300"
-      style={{ color: "rgba(26,26,46,0.55)" }}
+      style={{ color: "rgba(26,26,46,0.62)" }}
     >
       Restored — back where it was.
     </p>
@@ -436,7 +436,7 @@ export function MoveProposalCard({
           {proposal.heading}
         </p>
         {proposal.lede && (
-          <p className="mt-1.5 text-[12.5px] leading-[1.55]" style={{ color: "rgba(26,26,46,0.55)" }}>
+          <p className="mt-1.5 text-[12.5px] leading-[1.55]" style={{ color: "rgba(26,26,46,0.62)" }}>
             {proposal.lede}
           </p>
         )}
@@ -464,7 +464,7 @@ export function MoveProposalCard({
           </div>
           <div
             className="mt-1 flex flex-wrap items-center gap-1.5 text-[11.5px]"
-            style={{ color: "rgba(26,26,46,0.55)" }}
+            style={{ color: "rgba(26,26,46,0.62)" }}
           >
             <span>
               Day {proposal.source_day_number} · {proposal.card_time}
@@ -482,7 +482,7 @@ export function MoveProposalCard({
       >
         <span
           className="font-display text-[12.5px] italic"
-          style={{ color: "rgba(26,26,46,0.55)" }}
+          style={{ color: "rgba(26,26,46,0.62)" }}
         >
           Nothing changes until you approve.
         </span>
@@ -492,7 +492,7 @@ export function MoveProposalCard({
             onClick={onDiscard}
             disabled={busy}
             className="bg-transparent text-[13px] font-medium disabled:opacity-40"
-            style={{ color: "rgba(26,26,46,0.55)" }}
+            style={{ color: "rgba(26,26,46,0.62)" }}
           >
             Discard
           </button>
@@ -564,7 +564,7 @@ export function NewConversationGate({
         >
           Start a new conversation?
         </p>
-        <p className="mt-1.5 text-[12.5px] leading-[1.55]" style={{ color: "rgba(26,26,46,0.55)" }}>
+        <p className="mt-1.5 text-[12.5px] leading-[1.55]" style={{ color: "rgba(26,26,46,0.62)" }}>
           This one stays saved — nothing is lost.
         </p>
       </div>
@@ -576,7 +576,7 @@ export function NewConversationGate({
           type="button"
           onClick={onCancel}
           className="bg-transparent text-[13px] font-medium"
-          style={{ color: "rgba(26,26,46,0.55)" }}
+          style={{ color: "rgba(26,26,46,0.62)" }}
         >
           Keep this one
         </button>

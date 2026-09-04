@@ -80,14 +80,14 @@ export default function ProfileClient({
               rule and an italic-Playfair underlined Edit button, matching the
               desktop canvas. */}
           <div className="flex items-baseline justify-between mb-3 md:gap-3.5 md:mb-4">
-            <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-gray-400 md:text-[rgba(26,26,46,0.55)]">
+            <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-gray-400 md:text-[rgba(26,26,46,0.62)]">
               Travel profile
             </p>
             <div className="hidden md:block md:flex-1 md:h-px md:bg-[rgba(26,26,46,0.12)] md:-translate-y-[3px]" />
             <button
               type="button"
               onClick={enterEdit}
-              className="font-display italic text-[13px] text-gray-400 active:opacity-60 transition-opacity md:text-[14px] md:text-[rgba(26,26,46,0.55)] md:underline md:underline-offset-[3px] md:decoration-[rgba(26,26,46,0.12)]"
+              className="font-display italic text-[13px] text-gray-400 active:opacity-60 transition-opacity md:text-[14px] md:text-[rgba(26,26,46,0.62)] md:underline md:underline-offset-[3px] md:decoration-[rgba(26,26,46,0.12)]"
             >
               Edit
             </button>
@@ -103,7 +103,7 @@ export default function ProfileClient({
       ) : (
         <div className="space-y-4">
           <div className="flex items-baseline justify-between md:gap-3.5">
-            <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-gray-400 md:text-[rgba(26,26,46,0.55)]">
+            <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-gray-400 md:text-[rgba(26,26,46,0.62)]">
               Travel profile
             </p>
             <div className="hidden md:block md:flex-1 md:h-px md:bg-[rgba(26,26,46,0.12)] md:-translate-y-[3px]" />
@@ -111,7 +111,7 @@ export default function ProfileClient({
               type="button"
               onClick={cancel}
               disabled={saving}
-              className="font-display italic text-[13px] text-gray-400 active:opacity-60 transition-opacity disabled:opacity-40 md:text-[14px] md:text-[rgba(26,26,46,0.55)]"
+              className="font-display italic text-[13px] text-gray-400 active:opacity-60 transition-opacity disabled:opacity-40 md:text-[14px] md:text-[rgba(26,26,46,0.62)]"
             >
               Cancel
             </button>

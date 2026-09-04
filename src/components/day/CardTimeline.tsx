@@ -79,7 +79,7 @@ function GapRow({ minutes, onTap }: { minutes: number; onTap: () => void }) {
       <span className="w-[52px] md:w-[74px] shrink-0" />
       <span
         className="text-[11px] md:text-[11.5px] italic"
-        style={{ color: pressed ? "#C4622D" : "rgba(26,26,46,0.28)" }}
+        style={{ color: pressed ? "#B0541F" : "rgba(26,26,46,0.28)" }}
       >
         {gapLabel(minutes)} · add
       </span>

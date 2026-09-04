@@ -4,7 +4,7 @@ import { Heart } from "@phosphor-icons/react";
 
 /** The house accent. The heart is burnt sienna, never red — a loved place is a
  *  quiet mark beside a name, not a warning and not a like button. */
-export const LOVED_ACCENT = "#C4622D";
+export const LOVED_ACCENT = "#B0541F";
 
 /**
  * The single "we loved this" mark, shared by every surface that lists places

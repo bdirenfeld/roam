@@ -286,7 +286,7 @@ export function HourlyStrip({ weather }: { weather: DayWeather }) {
             <div className="text-[9px] text-activity/50 lowercase">{HOURLY_LABELS[i]}</div>
             <div className="mt-[6px]"><WeatherIcon category={getWeatherCategory(code)} size={14} /></div>
             <div className="font-display italic text-[13px] text-activity mt-[4px]">{Math.round(temp)}°</div>
-            <div className="text-[9px] mt-[2px]" style={{ color: precip >= 20 ? "#C4622D" : "rgba(26,26,46,0.35)" }}>
+            <div className="text-[9px] mt-[2px]" style={{ color: precip >= 20 ? "#B0541F" : "rgba(26,26,46,0.35)" }}>
               {precip >= 20 ? `${precip}%` : "—"}
             </div>
           </div>

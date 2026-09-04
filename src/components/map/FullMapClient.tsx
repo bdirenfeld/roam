@@ -801,10 +801,10 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
                     backdropFilter: "blur(8px)",
                     WebkitBackdropFilter: "blur(8px)",
                     background: lovedOnly ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.5)",
-                    color: lovedOnly ? "#C4622D" : "#9CA3AF",
+                    color: lovedOnly ? "#B0541F" : "#9CA3AF",
                   }}
                 >
-                  <Heart size={11} weight={lovedOnly ? "fill" : "light"} color={lovedOnly ? "#C4622D" : "#9CA3AF"} />
+                  <Heart size={11} weight={lovedOnly ? "fill" : "light"} color={lovedOnly ? "#B0541F" : "#9CA3AF"} />
                   Loved
                 </button>
               </div>
@@ -863,7 +863,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
             </p>
             <button
               onClick={dismissIntro}
-              className="mt-3 text-[13px] font-semibold text-[#C4622D]"
+              className="mt-3 text-[13px] font-semibold text-[#B0541F]"
             >
               Got it
             </button>

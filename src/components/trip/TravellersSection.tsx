@@ -402,7 +402,7 @@ function TravellerSheet({
                 onClick={handleRemove}
                 disabled={busy}
                 className="font-display italic text-[14px] disabled:opacity-40"
-                style={{ color: "#C4622D" }}
+                style={{ color: "#B0541F" }}
               >
                 Remove from this journey
               </button>

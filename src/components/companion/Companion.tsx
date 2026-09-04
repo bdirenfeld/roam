@@ -16,7 +16,7 @@ import type {
 import CompanionPanel, { type ThreadItem } from "./CompanionPanel";
 import { COMPANION_ENABLED } from "@/lib/featureFlags";
 
-const SIENNA = "#C4622D";
+const SIENNA = "#B0541F";
 const INK = "#1A1A2E";
 const PARCHMENT = "#FAF7F2";
 const RULE = "rgba(26,26,46,0.12)";

@@ -163,3 +163,9 @@ in the currency you were quoted in). `lib/budget/load.ts` reads `details.budget`
 `cost_per_person` (converted like any non-CAD budget), else counts the card as uncosted; the
 Excursions line's hint reads "from N cards · M uncosted". The planning skill writes `budget`;
 the card sheet writes `cost_per_person`; both feed the same line.
+
+## Text tones (contrast, Sep 2026)
+Ink `#1A1A2E` over white: 0.62 alpha = 4.8:1 (AA for small text) — this is CAPTION; 0.5 = 3.3:1
+— this is SOFT, for hints and placeholders only, never for something a person must read; 0.55
+(3.85:1) and 0.42/0.35 were the old tiers and fail. The accent is `#B0541F` (5.1:1 on white,
+4.75 on parchment); `#C4622D` was 4.09 and is gone. Don't reintroduce either.
