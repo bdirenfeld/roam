@@ -573,7 +573,7 @@ function CardBody({
           accent={PIN_COLORS[place.type]}
           onSaved={onCardUpdate}
           emptyLabel="Who recommended it?"
-          placeholder="Recommended by…"
+          placeholder="Who recommended this…"
           render={(v) => (
             <p className="text-[11px] text-gray-400 mt-1 leading-snug">
               <span className="text-amber-400">★</span> {recommendedByLine(v)}

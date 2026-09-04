@@ -36,7 +36,7 @@ export default function RestaurantDetail({ card, onSaveDetails, showEmpty = fals
       {(showEmpty || d.notes) && (
         <div>
           <SectionLabel>Notes</SectionLabel>
-          <FieldRow value={d.notes as string | undefined} placeholder="Add notes…"
+          <FieldRow value={d.notes as string | undefined} placeholder="Add a note…"
             onSave={save("notes")} multiline hideWhenEmpty={hide} />
         </div>
       )}

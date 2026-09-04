@@ -298,11 +298,12 @@ export default function ConfirmationPreviewSheet({
                 <div className="px-5 py-4 space-y-4">
                   {/* Title */}
                   <div>
-                    <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                    <label htmlFor={`conf-${idx}-title`} className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
                       Title
                     </label>
                     <input
                       type="text"
+                      id={`conf-${idx}-title`}
                       value={draft.title}
                       onChange={(e) => patchDraft(idx, { title: e.target.value })}
                       className="w-full mt-1 px-3 py-2 text-[14px] text-gray-900 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-300 focus:bg-white transition-colors"
@@ -311,7 +312,7 @@ export default function ConfirmationPreviewSheet({
 
                   {/* Day assignment */}
                   <div>
-                    <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                    <label htmlFor={`conf-${idx}-day`} className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
                       Day
                       {parsed.date && (
                         <span className="ml-1 font-normal normal-case text-gray-400">
@@ -320,6 +321,7 @@ export default function ConfirmationPreviewSheet({
                       )}
                     </label>
                     <select
+                      id={`conf-${idx}-day`}
                       value={draft.dayId}
                       onChange={(e) => patchDraft(idx, { dayId: e.target.value })}
                       className="w-full mt-1 px-3 py-2 text-[14px] text-gray-900 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-300 appearance-none"
@@ -336,23 +338,25 @@ export default function ConfirmationPreviewSheet({
                   {/* Times */}
                   <div className="flex gap-3">
                     <div className="flex-1">
-                      <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                      <label htmlFor={`conf-${idx}-start`} className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
                         {parsed.type.startsWith("flight") ? "Departs" : "Start time"}
                       </label>
                       <input
                         type="time"
-                        value={draft.time}
+                        id={`conf-${idx}-start`}
+                      value={draft.time}
                         onChange={(e) => patchDraft(idx, { time: e.target.value })}
                         className="w-full mt-1 px-3 py-2 text-[14px] text-gray-900 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-300"
                       />
                     </div>
                     <div className="flex-1">
-                      <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                      <label htmlFor={`conf-${idx}-end`} className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
                         {parsed.type.startsWith("flight") ? "Arrives" : "End time"}
                       </label>
                       <input
                         type="time"
-                        value={draft.endTime}
+                        id={`conf-${idx}-end`}
+                      value={draft.endTime}
                         onChange={(e) => patchDraft(idx, { endTime: e.target.value })}
                         className="w-full mt-1 px-3 py-2 text-[14px] text-gray-900 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-300"
                       />
@@ -362,12 +366,13 @@ export default function ConfirmationPreviewSheet({
                   {/* Address */}
                   {(draft.address || parsed.type !== "flight_arrival" && parsed.type !== "flight_departure") && (
                     <div>
-                      <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                      <label htmlFor={`conf-${idx}-address`} className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
                         {parsed.type.startsWith("flight") ? "Airport" : "Address / Venue"}
                       </label>
                       <input
                         type="text"
-                        value={draft.address}
+                        id={`conf-${idx}-address`}
+                      value={draft.address}
                         onChange={(e) => patchDraft(idx, { address: e.target.value })}
                         className="w-full mt-1 px-3 py-2 text-[14px] text-gray-900 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-300 focus:bg-white transition-colors"
                       />
@@ -377,11 +382,12 @@ export default function ConfirmationPreviewSheet({
                   {/* Notes — flight number, seat, etc. */}
                   {(draft.notes || parsed.type.startsWith("flight")) && (
                     <div>
-                      <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                      <label htmlFor={`conf-${idx}-notes`} className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
                         Notes
                       </label>
                       <textarea
-                        value={draft.notes}
+                        id={`conf-${idx}-notes`}
+                      value={draft.notes}
                         onChange={(e) => patchDraft(idx, { notes: e.target.value })}
                         placeholder={parsed.type.startsWith("flight") ? "Flight number, seat, duration…" : "Notes…"}
                         rows={2}
@@ -397,11 +403,12 @@ export default function ConfirmationPreviewSheet({
           {/* Shared confirmation number */}
           <div className="px-5 pb-4 border-t border-gray-100 pt-4 space-y-4">
             <div>
-              <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+              <label htmlFor="conf-number" className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
                 Confirmation #
               </label>
               <input
                 type="text"
+                id="conf-number"
                 value={confNo}
                 onChange={(e) => setConfNo(e.target.value)}
                 placeholder="e.g. B24EDV"

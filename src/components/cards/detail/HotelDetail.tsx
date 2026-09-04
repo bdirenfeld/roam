@@ -61,7 +61,7 @@ export default function HotelDetail({ card, onSaveDetails, showEmpty = false }: 
       {(showEmpty || d.notes) && (
         <div>
           <SectionLabel>Notes</SectionLabel>
-          <FieldRow value={d.notes} placeholder="Add notes…"
+          <FieldRow value={d.notes} placeholder="Add a note…"
             onSave={save("notes")} multiline hideWhenEmpty={hide} />
         </div>
       )}
