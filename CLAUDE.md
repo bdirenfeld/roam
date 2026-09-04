@@ -203,3 +203,12 @@ TikTok (`/embed/v2/<id>`), YouTube (`/embed/<id>`, Shorts portrait) and Instagra
 best effort — private posts stay blank). The row loads it only when opened. The row shows a 200px poster with a play button first (TikTok oEmbed / YouTube hqdefault; Instagram has none, so a plain tile); the tap that swaps in the player also asks for autoplay. Never auto-play in a list. There is no CSP in
 next.config, so frames need no allow-list; if one is ever added, allow those three hosts in
 `frame-src`.
+
+## Estimate looks prices up for the blanks (api/estimate/find-prices)
+"Estimate from this journey" also POSTs the journey to `/api/estimate/find-prices`: every
+scheduled activity with no typed cost, no budget and no readable ticket goes to Claude Sonnet
+with server-side web search (`web_search_20250305`), four at a time, and comes back per person
+in the journey currency. The route writes `cost_per_person`, `budget` and
+`cost_source{kind: found|guess, url, note}` to the card so nothing is looked up twice. Table tag
+order: booked › ticket › found (links to the page) › guess › est. There is no separate button
+— Brennan: "why can't this be part of the Estimate button itself?" — and it never runs unasked.

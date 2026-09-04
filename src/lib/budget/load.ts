@@ -25,6 +25,16 @@ export interface ExcursionItem {
   confirmed: boolean;
   /** The cost was read from an attachment on the card (a ticket or receipt), not typed. */
   fromTicket: boolean;
+  /** The cost was looked up by the app: "found" online (with the page) or a "guess". */
+  found: { kind: "found" | "guess"; url: string | null; note: string | null } | null;
+}
+
+/** The app's own lookup, if one wrote this card's cost. */
+function foundSource(details: Record<string, unknown>): ExcursionItem["found"] {
+  const src = details.cost_source as { kind?: string; url?: string | null; note?: string | null } | undefined;
+  if (!src || (src.kind !== "found" && src.kind !== "guess")) return null;
+  if (typeof details.cost_per_person !== "number") return null;
+  return { kind: src.kind, url: src.url ?? null, note: src.note ?? null };
 }
 
 /**
@@ -34,7 +44,7 @@ export interface ExcursionItem {
  * (Brennan, Sep 2026: "it should be smart enough to look at the attachment
  * in the day to see if the cost is available.")
  */
-function ticketCost(
+export function ticketCost(
   attachments: { parsed_data: unknown; parse_status: string | null }[] | null | undefined,
 ): { amount: number; per: "person" | "party" } | null {
   const num = (v: unknown): number | null => {
@@ -274,6 +284,7 @@ export async function loadEstimate(
         details: x.details,
         confirmed: x.confirmed,
         fromTicket: x.fromTicket,
+        found: x.fromTicket ? null : foundSource(x.details),
       }))
       // Priced largest first, then the free ones, then the blanks.
       .sort((a, b) => {

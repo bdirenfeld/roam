@@ -397,8 +397,54 @@ export default function EstimateClient({
   }, []);
 
   const emptyKeys = FILLS.filter(([k]) => a[k] === 0);
+  const blankRows = items.filter((x) => x.amount == null).length;
+  const [finding, setFinding] = useState(false);
+
+  // The blanks in the excursions table get looked up as part of the same
+  // tap — the venue's own price where it can be found, a guess where not.
+  // Answers are written to the cards by the route; here the rows follow.
+  const findPrices = async () => {
+    if (blankRows === 0 || finding) return;
+    setFinding(true);
+    try {
+      const res = await fetch("/api/estimate/find-prices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tripId }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      const { items: found } = (await res.json()) as { items: { cardId: string; amount: number | null; kind: "found" | "guess"; url: string | null; note: string | null }[] };
+      const byId = new Map(found.filter((f) => f.amount != null).map((f) => [f.cardId, f]));
+      if (byId.size === 0) { toast({ message: "Couldn't find a price for those." }); return; }
+      let next: ExcursionItem[] = [];
+      setItems((prev) => {
+        next = prev.map((i) => {
+          const f = byId.get(i.cardId);
+          if (!f) return i;
+          const details = { ...i.details, cost_per_person: f.amount, cost_source: { kind: f.kind, url: f.url, note: f.note } };
+          return { ...i, amount: f.amount, per: "person" as const, details, found: { kind: f.kind, url: f.url, note: f.note } };
+        });
+        return next;
+      });
+      // The line follows the rows unless a figure was typed on it.
+      if (!excursionsTyped) {
+        const rows = items.map((i) => { const f = byId.get(i.cardId); return f ? { ...i, amount: f.amount, per: "person" as const } : i; });
+        setA((prev) => ({ ...prev, excursionsTotal: Math.round(rows.reduce((sum, i) => sum + rowTotal(i, fx), 0)) }));
+      }
+      const foundN = found.filter((f) => f.amount != null && f.kind === "found").length;
+      const guessN = byId.size - foundN;
+      toast({ message: `${byId.size} ${byId.size === 1 ? "price" : "prices"} added${foundN ? `, ${foundN} found online` : ""}${guessN ? `, ${guessN} ${guessN === 1 ? "guess" : "guesses"}` : ""}.` });
+      setWhy(true);
+      setSaved(false);
+    } catch {
+      toast({ message: "Couldn't look prices up just now. Try again." });
+    } finally {
+      setFinding(false);
+    }
+  };
 
   const runSuggest = () => {
+    void findPrices();
     const s = suggest(a, { distanceKm, peak });
     const next = { ...a };
     const added: Record<string, string> = {};
@@ -697,9 +743,11 @@ export default function EstimateClient({
                                   <span
                                     className="ml-1.5 align-middle text-[9px] uppercase"
                                     style={{ letterSpacing: "0.08em", color: x.confirmed ? "#3E7C5B" : SOFT }}
-                                    title={x.confirmed ? "Marked Confirmed on the card" : x.fromTicket ? "Read from the ticket or receipt attached to the card" : "An estimate until the card is marked Confirmed"}
+                                    title={x.confirmed ? "Marked Confirmed on the card" : x.fromTicket ? "Read from the ticket or receipt attached to the card" : x.found ? (x.found.note ?? (x.found.kind === "found" ? "Found online" : "Estimated by the app")) : "An estimate until the card is marked Confirmed"}
                                   >
-                                    {x.confirmed ? "booked" : x.fromTicket ? "ticket" : "est."}
+                                    {x.confirmed ? "booked" : x.fromTicket ? "ticket" : x.found?.kind === "found" && x.found.url ? (
+                                      <a href={x.found.url} target="_blank" rel="noopener" className="underline underline-offset-2">found</a>
+                                    ) : x.found ? "guess" : "est."}
                                   </span>
                                 )}
                               </td>
@@ -759,7 +807,7 @@ export default function EstimateClient({
                       </table>
                       <p className="mt-1.5 text-[11px]" style={{ color: CAPTION, lineHeight: 1.45 }}>
                         {items.some((x) => x.currency !== "CAD") ? `Converted at ${fx} dollars per ${cardCurrency === "EUR" ? "euro" : cardCurrency}. ` : ""}
-                        Cost and people are per row and save to the card; the line follows unless you typed a figure on it. Blank cost means no cost yet; 0 means free. &ldquo;ticket&rdquo; was read from a document attached to the card; type over it to keep your own. &ldquo;est.&rdquo; clears when you mark the card Confirmed.
+                        Cost and people are per row and save to the card; the line follows unless you typed a figure on it. Blank cost means no cost yet; 0 means free. &ldquo;ticket&rdquo; was read from a document attached to the card, &ldquo;found&rdquo; from the venue&rsquo;s page (tap it), &ldquo;guess&rdquo; is the app&rsquo;s estimate; type over any of them to keep your own. &ldquo;est.&rdquo; clears when you mark the card Confirmed.
                       </p>
                     </div>
                   ) : (
@@ -829,17 +877,18 @@ export default function EstimateClient({
           </div>
         )}
 
-        {emptyKeys.length > 0 && (
+        {(emptyKeys.length > 0 || blankRows > 0) && (
           <button
             onClick={runSuggest}
+            disabled={finding}
             className="w-full rounded-full py-3 text-[13.5px] mt-4"
             style={
               emptyKeys.length === FILLS.length
-                ? { background: INK, color: "#fff" }
-                : { border: `1px solid rgba(26,26,46,0.22)`, color: INK }
+                ? { background: INK, color: "#fff", opacity: finding ? 0.7 : 1 }
+                : { border: `1px solid rgba(26,26,46,0.22)`, color: INK, opacity: finding ? 0.7 : 1 }
             }
           >
-            Estimate from this journey
+            {finding ? `Finding ${blankRows} ${blankRows === 1 ? "price" : "prices"}…` : "Estimate from this journey"}
           </button>
         )}
 
