@@ -182,3 +182,24 @@ place (needs the places upsert), bookings import (parse API), sharing (email), t
 The indicator shows "You're offline…" whenever the browser is, and "N changes will sync" once
 something is queued. Queued inserts are not overlaid on cached reads: after a reload while still
 offline, a card created offline is absent until it syncs. Known and accepted.
+
+## Exchange rate: two live sources, then a dated table — never "a guess" (lib/budget/currency.ts)
+`fetchRateToHome` tries exchangerate-api's open feed, then Frankfurter on `api.frankfurter.dev`
+(the old `api.frankfurter.app` host only redirects now, which is what broke the live rate on
+2026-09-04). If both fail the Estimate uses `REFERENCE_RATES` and says "the <month> rate";
+refresh that table and `REFERENCE_MONTH` now and then (`open.er-api.com/v6/latest/CAD` gives
+every rate at once). The row's caption names its source: typed, today's, reference, or last saved.
+
+## Estimate reads costs off attachments ("ticket" rows)
+A scheduled activity card with no cost but a parsed attachment takes its cost from
+`card_attachments.parsed_data` (`ticketCost` in lib/budget/load.ts): `cost_per_person` first, then
+anything shaped like a whole bill (`cost_total`, `total_cost`, `amount_paid`…), then a per-adult
+price. The parser names fields loosely, so match on shape, never a fixed key list. The row is
+tagged "ticket"; typing over it writes the card and wins. Nothing is written to the card by the read.
+
+## Ideas: links play in place (api/embed, trip/IdeaEmbed.tsx)
+`/api/embed?url=` resolves short links (vt./vm.tiktok.com, youtu.be) and returns a player URL for
+TikTok (`/embed/v2/<id>`), YouTube (`/embed/<id>`, Shorts portrait) and Instagram (`/<kind>/<code>/embed/`,
+best effort — private posts stay blank). The row loads it only when opened. There is no CSP in
+next.config, so frames need no allow-list; if one is ever added, allow those three hosts in
+`frame-src`.

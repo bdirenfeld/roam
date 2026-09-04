@@ -45,13 +45,31 @@ function ticketCost(
     }
     return null;
   };
+  // The parser names its fields loosely — cost_total, total_charged,
+  // amount_paid, ticket_adult_price — so match on shape. Explicit per-person
+  // first; then anything that reads as the whole bill (the museum ticket had
+  // adult 43 + child 26 = cost_total 69, and the total is the honest figure);
+  // then a per-adult price as a last resort.
+  const firstNum = (d: Record<string, unknown>, re: RegExp): number | null => {
+    for (const [k, v] of Object.entries(d)) {
+      if (!re.test(k)) continue;
+      const n = num(v);
+      if (n != null) return n;
+    }
+    return null;
+  };
   for (const a of attachments ?? []) {
     if (a.parse_status !== "parsed" || !a.parsed_data || typeof a.parsed_data !== "object") continue;
     const d = a.parsed_data as Record<string, unknown>;
-    const perPerson = num(d.cost_per_person) ?? num(d.price_per_person) ?? num(d.cost_per_adult) ?? num(d.price_per_adult);
+    const perPerson = num(d.cost_per_person) ?? firstNum(d, /per_person|per_guest|per_traveller|per_traveler/i);
     if (perPerson != null) return { amount: perPerson, per: "person" };
-    const total = num(d.total) ?? num(d.total_cost) ?? num(d.total_price) ?? num(d.total_paid) ?? num(d.cost) ?? num(d.price) ?? num(d.amount);
+    const total =
+      firstNum(d, /^(total|grand_total|total_cost|cost_total|total_price|price_total|total_paid|amount_paid|total_charged|total_amount|amount_total|order_total)$/i) ??
+      firstNum(d, /^(cost|price|amount|paid)$/i) ??
+      firstNum(d, /(^|_)total($|_)|_paid$|_charged$/i);
     if (total != null) return { amount: total, per: "party" };
+    const perAdult = firstNum(d, /per_adult|adult_price|adult_ticket|ticket_adult/i);
+    if (perAdult != null) return { amount: perAdult, per: "person" };
   }
   return null;
 }
