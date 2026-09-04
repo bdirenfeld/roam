@@ -5,6 +5,7 @@ import type { Card, CardType, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
 import { scheduleCardOnDay } from "@/lib/scheduleCard";
+import { useSheetDrag } from "@/hooks/useSheetDrag";
 import type { PlaceResult } from "@/components/map/AddToTripSheet";
 
 const SUB_TYPES: Record<CardType, { value: string; label: string }[]> = {
@@ -104,10 +105,11 @@ export default function CreateCardSheet({
 }: Props) {
   const { toast } = useToast();
   const supabase  = createClient();
-  const sheetRef  = useRef<HTMLDivElement>(null);
+  // Whole-sheet swipe to dismiss, but never while the list underneath is
+  // mid-scroll: the hook finds the nearest scroller and only drags the sheet
+  // when that scroller is at the top (hooks/useSheetDrag.ts).
+  const drag      = useSheetDrag(onClose);
   const inputRef  = useRef<HTMLInputElement>(null);
-  const dragY     = useRef(0);
-  const dragging  = useRef(false);
 
   const [title,       setTitle]       = useState("");
   const [type,        setType]        = useState<CardType | null>(null);
@@ -296,31 +298,6 @@ export default function CreateCardSheet({
     setTimeout(() => inputRef.current?.focus(), 50);
   }, []);
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    dragY.current = e.touches[0].clientY; dragging.current = true;
-  }, []);
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!dragging.current || !sheetRef.current) return;
-    const dy = Math.max(0, e.touches[0].clientY - dragY.current);
-    sheetRef.current.style.transform  = `translateY(${dy}px)`;
-    sheetRef.current.style.transition = "none";
-  }, []);
-
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (!dragging.current || !sheetRef.current) return;
-    dragging.current = false;
-    const dy = e.changedTouches[0].clientY - dragY.current;
-    if (dy > 120) {
-      sheetRef.current.style.transition = "transform 250ms cubic-bezier(0.32,0.72,0,1)";
-      sheetRef.current.style.transform  = "translateY(100%)";
-      setTimeout(onClose, 240);
-    } else {
-      sheetRef.current.style.transition = "transform 300ms cubic-bezier(0.34,1.56,0.64,1)";
-      sheetRef.current.style.transform  = "translateY(0)";
-    }
-  }, [onClose]);
-
   const handleCreate = useCallback(async () => {
     if (!title.trim() || saving) return;
     setSaving(true);
@@ -462,10 +439,11 @@ export default function CreateCardSheet({
       <div className="absolute inset-0 bg-black/30 animate-in fade-in duration-200" />
 
       <div
-        ref={sheetRef}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
+        ref={drag.sheetRef}
+        onTouchStart={drag.onTouchStart}
+        onTouchMove={drag.onTouchMove}
+        onTouchEnd={drag.onTouchEnd}
+        onTouchCancel={drag.onTouchCancel}
         className="relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet max-h-[80dvh] flex flex-col animate-in slide-in-from-bottom duration-300"
         style={{ willChange: "transform" }}
       >
