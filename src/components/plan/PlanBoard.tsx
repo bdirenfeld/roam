@@ -1523,7 +1523,6 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   }, [days, trip.id, supabase]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
-  const firstDay    = initialDays[0];
   const activeCard  = activeId ? findCard(activeId) : null;
   const allEmpty    = days.every((d) => d.cards.length === 0);
 
@@ -1692,18 +1691,9 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
               <polyline points="15 18 9 12 15 6" />
             </svg>
           </Link>
-          {firstDay && (
-            <Link
-              href={`/trips/${trip.id}/days/${firstDay.id}`}
-              className={`flex items-center gap-1 text-xs font-semibold transition-colors ${isPhotoBg ? "text-white/70" : "text-[#1A1A2E]"} md:text-[#1A1A2E]`}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-              Agenda
-            </Link>
-          )}
+          {/* No "‹ Agenda" link here: the bottom bar is the door to the
+              Agenda, and a second one in the header was clutter (Brennan,
+              from his phone, Sep 2026). */}
         </div>
 
         {/* Center: trip title */}
