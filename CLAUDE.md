@@ -117,3 +117,7 @@ The benchmark: someone opens Roam in a Centurion Lounge and the person next to t
 ## Unscheduling (lib/scheduleCard.ts → unscheduleCard)
 - Scheduling COPIES, so "take off this day" = delete the scheduled row, after making sure an `interested` copy of the place exists on the journey (one is written if not). Callers then fire `onCardDelete(card.id)` so the host's existing 6-second undo applies. The map popup also fires `onCardCreated` for the copy it may have written, so the hollow pin appears without a reload.
 - The shared `AppMenu` now carries Ideas (a plain link) and, on the phone only, Profile. Desktop keeps Profile/Sign out in the masthead avatar dropdown.
+
+## Bottom sheets: the whole sheet swipes (hooks/useSheetDrag.ts)
+- Bind `useSheetDrag` handlers on the sheet ROOT, never only the handle — Brennan has asked for this twice. Pass `{ mobileOnly: true }` for sheets that become centred modals at md+. The hook finds the nearest scrollable ancestor of the touch target, so a list inside the sheet still scrolls and a swipe only dismisses when that list is at the top; wire `onTouchCancel` too.
+- Do not write another local `useSheetDrag`; GlobalSearch, JourneyNotes and YearView now delegate to the shared one. Seven older sheets (AddToTripSheet, BoardBgPicker, ConfirmationPreviewSheet, CreateCardSheet, DocumentsSheet, LinkPlaceSheet, NoteCardSheet) bind on their root with hand-rolled handlers and no scroll guard — migrate them when touched.
