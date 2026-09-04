@@ -105,6 +105,8 @@ export function defaultAssumptions(
   nights: number,
   /** The journey is at home (within ~80 km): no car hire, no boarding for the dog. */
   home = false,
+  /** A city with a metro: car hire starts off (Tokyo carried $1,430 of it before). */
+  metro = false,
 ): Assumptions {
   return {
     // Counts are true — they come from the journey. Prices are left unset:
@@ -118,13 +120,14 @@ export function defaultAssumptions(
     nightlyRate: 0,
     groceriesPerDay: 0,
     perMealOut: 0,
-    mealsOut: Math.max(2, Math.round(nights / 3)),
+    // Every other night out; a third was low for how this family travels.
+    mealsOut: Math.max(2, Math.round(nights / 2)),
     excursionsTotal: 0,
 
     // Smart rather than arbitrary: a multi-night journey almost always needs a
     // car and leaves the dog behind; tourist tax is destination-specific, so it
     // stays off until the traveller says otherwise.
-    carEnabled: !home && nights >= 2,
+    carEnabled: !home && !metro && nights >= 2,
     carDayRate: 0,
     dogEnabled: !home && nights >= 1,
     dogNightlyRate: 0,

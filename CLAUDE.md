@@ -219,3 +219,7 @@ and dog boarding off (`defaultAssumptions(..., home)` and `suggest`). Countries 
 is priced in US dollars (Costa Rica, Panama, Ecuador, Belize, Cambodia…) map to USD in
 `currency.ts`, not their local unit. The Excursions hint is "N of M without a cost" and may wrap.
 Counts, rows and the table follow the `items` state, so a lookup updates them without a reload.
+The price lookup writes each card as its answer lands, runs eight at once, starts no new batch
+after 35 s and returns `remaining`; the client toasts "N still to look up — tap Estimate again".
+The prompt carries the journey's other stops in day order so a park or venue fee is paid once.
+Car hire starts off in metro cities (`isMetroCity`); meals out seed at every other night.

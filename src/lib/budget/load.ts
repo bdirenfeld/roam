@@ -6,7 +6,7 @@ import {
   type Assumptions,
   type CardBudget,
 } from "./model";
-import { currencyForDestination, fetchRateToHome, referenceRateToHome, REFERENCE_MONTH, HOME_CURRENCY } from "./currency";
+import { currencyForDestination, fetchRateToHome, referenceRateToHome, REFERENCE_MONTH, HOME_CURRENCY, isMetroCity } from "./currency";
 
 export interface ExcursionItem {
   cardId: string;
@@ -261,7 +261,7 @@ export async function loadEstimate(
   // Within ~80 km of home: no car hire and no boarding for the dog by default.
   const atHome = lat != null && lng != null && greatCircleKm(HOME.lat, HOME.lng, lat, lng) < 80;
   const assumptions: Assumptions = {
-    ...defaultAssumptions(partySize, nights, atHome),
+    ...defaultAssumptions(partySize, nights, atHome, isMetroCity(trip.destination as string | null)),
     excursionsTotal: rolledCad,
     ...savedA,
   };

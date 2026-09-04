@@ -99,3 +99,12 @@ export async function fetchRateToHome(from: string): Promise<number | null> {
   const b = await getJson(`https://api.frankfurter.dev/v1/latest?base=${encodeURIComponent(from)}&symbols=${HOME}`, 4000);
   return clean((b?.rates as Record<string, number> | undefined)?.[HOME]);
 }
+
+/**
+ * Cities where a visitor rides the metro, not a rental car. Car hire starts
+ * off for these; the toggle is one tap. Matched on the destination text.
+ */
+const METRO_CITIES = /\b(tokyo|osaka|london|paris|new york|nyc|manhattan|rome|roma|barcelona|madrid|berlin|amsterdam|hong kong|singapore|seoul|taipei|shanghai|beijing|mexico city|chicago|boston|washington|montr[eé]al|vienna|prague|lisbon|milan|munich|copenhagen|stockholm|oslo|budapest|istanbul|athens|buenos aires|s[aã]o paulo|kuala lumpur|bangkok|delhi|mumbai)\b/i;
+export function isMetroCity(destination: string | null | undefined): boolean {
+  return !!destination && METRO_CITIES.test(destination);
+}

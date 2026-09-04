@@ -415,7 +415,7 @@ export default function EstimateClient({
         body: JSON.stringify({ tripId }),
       });
       if (!res.ok) throw new Error(String(res.status));
-      const { items: found } = (await res.json()) as { items: { cardId: string; amount: number | null; kind: "found" | "guess"; url: string | null; note: string | null }[] };
+      const { items: found, remaining = 0 } = (await res.json()) as { items: { cardId: string; amount: number | null; kind: "found" | "guess"; url: string | null; note: string | null }[]; remaining?: number };
       const byId = new Map(found.filter((f) => f.amount != null).map((f) => [f.cardId, f]));
       if (byId.size === 0) { toast({ message: "Couldn't find a price for those." }); return; }
       let next: ExcursionItem[] = [];
@@ -436,7 +436,7 @@ export default function EstimateClient({
       setBasis((prev) => (prev.excursions ? prev : { ...prev, excursions: "Looked up by the app; each row says where its figure came from." }));
       const foundN = found.filter((f) => f.amount != null && f.kind === "found").length;
       const guessN = byId.size - foundN;
-      toast({ message: `${byId.size} ${byId.size === 1 ? "price" : "prices"} added${foundN ? `, ${foundN} found online` : ""}${guessN ? `, ${guessN} ${guessN === 1 ? "guess" : "guesses"}` : ""}.` });
+      toast({ message: `${byId.size} ${byId.size === 1 ? "price" : "prices"} added${foundN ? `, ${foundN} found online` : ""}${guessN ? `, ${guessN} ${guessN === 1 ? "guess" : "guesses"}` : ""}.${remaining > 0 ? ` ${remaining} still to look up — tap Estimate again.` : ""}` });
       setWhy(true);
       setSaved(false);
     } catch {
