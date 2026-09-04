@@ -255,6 +255,8 @@ interface Props {
   initialBasis: Record<string, string>;
   uncostedExcursions: number;
   rolledExcursionCount: number;
+  /** The rate card costs convert at; editable under "How this was worked out". */
+  fxToCad: number;
   dateRange: string;
   distanceKm: number;
   peak: boolean;
@@ -271,6 +273,7 @@ export default function EstimateClient({
   initialBasis,
   uncostedExcursions,
   rolledExcursionCount,
+  fxToCad,
   dateRange,
   distanceKm,
   peak,
@@ -289,6 +292,12 @@ export default function EstimateClient({
   const [open, setOpen] = useState({ standard: true, additional: true });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  // The exchange rate, and whether the Excursions figure was typed by hand.
+  // Saved untouched, the line is saved as 0 — which the loader reads as
+  // "nothing typed", so the cards' sum keeps flowing through on every open
+  // (and follows a new rate). Typed, the figure is kept and wins.
+  const [fx, setFx] = useState<number>(fxToCad);
+  const [excursionsTyped, setExcursionsTyped] = useState(false);
 
   const est = useMemo(
     () => compute(a, { uncostedExcursions, rolledExcursionCount }),
@@ -298,6 +307,7 @@ export default function EstimateClient({
   const setNum = useCallback((key: keyof Assumptions, raw: string) => {
     const v = raw === "" ? 0 : Number(raw);
     if (Number.isNaN(v)) return;
+    if (key === "excursionsTotal") setExcursionsTyped(true);
     setA((p) => ({ ...p, [key]: v }));
     setPrev(null); // editing by hand ends the undo window
     setSaved(false);
@@ -363,7 +373,8 @@ export default function EstimateClient({
         {
           trip_id: tripId,
           user_id: user.id,
-          assumptions: a as unknown as Record<string, unknown>,
+          assumptions: { ...a, excursionsTotal: excursionsTyped ? a.excursionsTotal : 0 } as unknown as Record<string, unknown>,
+          fx_to_cad: fx,
           // Kept so the working survives the session — the question comes in
           // March, not thirty seconds after the button.
           basis,
@@ -601,6 +612,31 @@ export default function EstimateClient({
                       </span>
                     </div>
                   ))}
+                <div
+                  className="flex items-center gap-2 py-2"
+                  style={{ borderTop: `1px solid rgba(26,26,46,0.06)` }}
+                >
+                  <span className="w-[76px] shrink-0 text-[11.5px]" style={{ color: INK }}>
+                    Exchange rate
+                  </span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="0"
+                    value={fx}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      if (!Number.isNaN(v)) { setFx(v); setSaved(false); }
+                    }}
+                    aria-label="Exchange rate to the dollar"
+                    className="w-[64px] rounded-md px-1.5 py-1 text-[12.5px] text-right"
+                    style={box(INK)}
+                  />
+                  <span className="flex-1 text-[11px]" style={{ color: CAPTION, lineHeight: 1.45 }}>
+                    dollars per unit of the currency your cards are priced in. Save to apply it.
+                  </span>
+                </div>
               </div>
             )}
           </div>

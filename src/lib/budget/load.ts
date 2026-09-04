@@ -13,6 +13,8 @@ export interface EstimateData {
   basis: Record<string, string>;
   uncostedExcursions: number;
   rolledExcursionCount: number;
+  /** trip_budgets.fx_to_cad — one rate for every non-CAD card cost. */
+  fxToCad: number;
   dateRange: string;
   distanceKm: number;
   peak: boolean;
@@ -145,6 +147,7 @@ export async function loadEstimate(
 
   return {
     tripTitle: trip.title ?? "Journey",
+    fxToCad,
     assumptions,
     // The Excursions sentence writes itself from the cards; a sentence you
     // typed for that line still wins.

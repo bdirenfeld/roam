@@ -32,6 +32,7 @@ export default async function EstimatePage({ params }: Props) {
       initialBasis={data.basis}
       uncostedExcursions={data.uncostedExcursions}
       rolledExcursionCount={data.rolledExcursionCount}
+      fxToCad={data.fxToCad}
       dateRange={data.dateRange}
       distanceKm={data.distanceKm}
       peak={data.peak}
