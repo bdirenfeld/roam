@@ -6,7 +6,7 @@ import {
   type Assumptions,
   type CardBudget,
 } from "./model";
-import { currencyForDestination, fetchRateToHome, HOME_CURRENCY } from "./currency";
+import { currencyForDestination, fetchRateToHome, referenceRateToHome, REFERENCE_MONTH, HOME_CURRENCY } from "./currency";
 
 export interface ExcursionItem {
   cardId: string;
@@ -23,6 +23,37 @@ export interface ExcursionItem {
   details: Record<string, unknown>;
   /** The card is marked Confirmed (booked); until then a cost is an estimate. */
   confirmed: boolean;
+  /** The cost was read from an attachment on the card (a ticket or receipt), not typed. */
+  fromTicket: boolean;
+}
+
+/**
+ * A cost read off a card's attachments. The upload route asks the model for
+ * `cost_per_person` and `currency`; other documents come back with a total
+ * under a handful of names. Per-person wins; a bare total is for the party.
+ * (Brennan, Sep 2026: "it should be smart enough to look at the attachment
+ * in the day to see if the cost is available.")
+ */
+function ticketCost(
+  attachments: { parsed_data: unknown; parse_status: string | null }[] | null | undefined,
+): { amount: number; per: "person" | "party" } | null {
+  const num = (v: unknown): number | null => {
+    if (typeof v === "number" && Number.isFinite(v) && v >= 0) return v;
+    if (typeof v === "string") {
+      const m = v.replace(/,/g, "").match(/\d+(?:\.\d+)?/);
+      if (m) return Number(m[0]);
+    }
+    return null;
+  };
+  for (const a of attachments ?? []) {
+    if (a.parse_status !== "parsed" || !a.parsed_data || typeof a.parsed_data !== "object") continue;
+    const d = a.parsed_data as Record<string, unknown>;
+    const perPerson = num(d.cost_per_person) ?? num(d.price_per_person) ?? num(d.cost_per_adult) ?? num(d.price_per_adult);
+    if (perPerson != null) return { amount: perPerson, per: "person" };
+    const total = num(d.total) ?? num(d.total_cost) ?? num(d.total_price) ?? num(d.total_paid) ?? num(d.cost) ?? num(d.price) ?? num(d.amount);
+    if (total != null) return { amount: total, per: "party" };
+  }
+  return null;
 }
 
 export interface EstimateData {
@@ -33,7 +64,9 @@ export interface EstimateData {
   rolledExcursionCount: number;
   /** The rate card costs convert at: typed and saved, else today's market rate, else 1.47. */
   fxToCad: number;
-  fxSource: "typed" | "live" | "fallback";
+  fxSource: "typed" | "live" | "reference" | "fallback";
+  /** Which month the reference table was taken from (shown when it is in use). */
+  fxReferenceMonth: string;
   /** What the cards are priced in, from the destination ("Tuscany, Italy" → EUR). */
   cardCurrency: string;
   homeCurrency: string;
@@ -100,7 +133,7 @@ export async function loadEstimate(
       supabase.from("days").select("id").eq("trip_id", tripId),
       supabase
         .from("cards")
-        .select("id, details, status, confirmed, places(type, title)")
+        .select("id, details, status, confirmed, places(type, title), card_attachments(parsed_data, parse_status)")
         .eq("trip_id", tripId)
         .eq("status", "in_itinerary"),
       supabase.from("trip_budgets").select("*").eq("trip_id", tripId).maybeSingle(),
@@ -116,9 +149,13 @@ export async function loadEstimate(
   // The column is NOT NULL, so "typed" is a flag in the saved assumptions.
   const savedFx = saved?.fx_to_cad != null ? Number(saved.fx_to_cad) : null;
   const fxTyped = Boolean((saved?.assumptions as { fxTyped?: boolean } | null)?.fxTyped) && savedFx != null;
+  // Typed wins. Otherwise today's rate; failing that the dated reference
+  // table; failing even that, whatever the row last held.
   const liveFx = fxTyped ? null : await fetchRateToHome(cardCurrency);
-  const fxToCad = fxTyped ? (savedFx as number) : (liveFx ?? savedFx ?? 1.47);
-  const fxSource: "typed" | "live" | "fallback" = fxTyped ? "typed" : liveFx != null ? "live" : "fallback";
+  const refFx = liveFx == null ? referenceRateToHome(cardCurrency) : null;
+  const fxToCad = fxTyped ? (savedFx as number) : (liveFx ?? refFx ?? savedFx ?? 1.47);
+  const fxSource: "typed" | "live" | "reference" | "fallback" =
+    fxTyped ? "typed" : liveFx != null ? "live" : refFx != null ? "reference" : "fallback";
 
   // An excursion is any scheduled activity card. Those carrying details.budget
   // seed the Excursions line; the rest are counted so the screen can say how
@@ -126,7 +163,7 @@ export async function loadEstimate(
   const cardBudgets: CardBudget[] = [];
   // Every activity on a day, for the breakdown table: priced, free (0), or
   // blank (no cost yet). `priced` and `freeCount` feed the footnote.
-  type Activity = { cardId: string; title: string; amount: number | null; currency: string; per: "person" | "party"; people: number; details: Record<string, unknown>; confirmed: boolean };
+  type Activity = { cardId: string; title: string; amount: number | null; currency: string; per: "person" | "party"; people: number; details: Record<string, unknown>; confirmed: boolean; fromTicket: boolean };
   const activities: Activity[] = [];
   const priced: { title: string; amount: number; currency: string; per: string }[] = [];
   let freeCount = 0;
@@ -145,7 +182,7 @@ export async function loadEstimate(
     if (det?.budget && typeof det.budget.amount === "number") {
       cardBudgets.push(asParty(det.budget));
       const per = det.budget.per === "person" ? "person" : "party";
-      activities.push({ cardId: c.id as string, title, amount: det.budget.amount, currency: det.budget.currency ?? "", per, people, details, confirmed: Boolean((c as { confirmed?: boolean }).confirmed) });
+      activities.push({ cardId: c.id as string, title, amount: det.budget.amount, currency: det.budget.currency ?? "", per, people, details, confirmed: Boolean((c as { confirmed?: boolean }).confirmed), fromTicket: false });
       if (det.budget.amount > 0) priced.push({ title, amount: det.budget.amount, currency: det.budget.currency ?? "", per });
       else freeCount += 1;
     }
@@ -154,13 +191,23 @@ export async function loadEstimate(
     // CAD.
     else if (typeof det?.cost_per_person === "number") {
       cardBudgets.push(asParty({ amount: det.cost_per_person, currency: "local", per: "person", confidence: "estimated" }));
-      activities.push({ cardId: c.id as string, title, amount: det.cost_per_person, currency: "", per: "person", people, details, confirmed: Boolean((c as { confirmed?: boolean }).confirmed) });
+      activities.push({ cardId: c.id as string, title, amount: det.cost_per_person, currency: "", per: "person", people, details, confirmed: Boolean((c as { confirmed?: boolean }).confirmed), fromTicket: false });
       if (det.cost_per_person > 0) priced.push({ title, amount: det.cost_per_person, currency: "", per: "person" });
       else freeCount += 1;
     }
     else {
-      activities.push({ cardId: c.id as string, title, amount: null, currency: "", per: "person", people, details, confirmed: Boolean((c as { confirmed?: boolean }).confirmed) });
-      uncostedExcursions += 1;
+      const ticket = ticketCost((c as { card_attachments?: { parsed_data: unknown; parse_status: string | null }[] | null }).card_attachments);
+      if (ticket) {
+        // Read off the ticket or receipt on the card. Counted like a typed
+        // cost; typing over it in the table saves to the card and wins.
+        cardBudgets.push(asParty({ amount: ticket.amount, currency: "local", per: ticket.per, confidence: "estimated" }));
+        activities.push({ cardId: c.id as string, title, amount: ticket.amount, currency: "", per: ticket.per, people, details, confirmed: Boolean((c as { confirmed?: boolean }).confirmed), fromTicket: true });
+        if (ticket.amount > 0) priced.push({ title, amount: ticket.amount, currency: "", per: ticket.per });
+        else freeCount += 1;
+      } else {
+        activities.push({ cardId: c.id as string, title, amount: null, currency: "", per: "person", people, details, confirmed: Boolean((c as { confirmed?: boolean }).confirmed), fromTicket: false });
+        uncostedExcursions += 1;
+      }
     }
   }
 
@@ -192,6 +239,7 @@ export async function loadEstimate(
     tripTitle: trip.title ?? "Journey",
     fxToCad,
     fxSource,
+    fxReferenceMonth: REFERENCE_MONTH,
     cardCurrency,
     homeCurrency: HOME_CURRENCY,
     // Unrounded per row, so the table sums to the same figure as the line
@@ -207,6 +255,7 @@ export async function loadEstimate(
         totalCad: x.amount == null ? 0 : cardBudgetToCad({ amount: x.amount, currency: x.currency || "local", per: x.per }, x.per === "person" ? x.people : 1, fxToCad),
         details: x.details,
         confirmed: x.confirmed,
+        fromTicket: x.fromTicket,
       }))
       // Priced largest first, then the free ones, then the blanks.
       .sort((a, b) => {

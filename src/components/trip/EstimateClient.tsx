@@ -260,7 +260,8 @@ interface Props {
   rolledExcursionCount: number;
   /** The rate card costs convert at; editable under "How this was worked out". */
   fxToCad: number;
-  fxSource: "typed" | "live" | "fallback";
+  fxSource: "typed" | "live" | "reference" | "fallback";
+  fxReferenceMonth?: string;
   cardCurrency: string;
   /** The priced activity cards, for the Excursions breakdown table. */
   excursionItems: ExcursionItem[];
@@ -283,6 +284,7 @@ export default function EstimateClient({
   rolledExcursionCount,
   fxToCad,
   fxSource,
+  fxReferenceMonth,
   cardCurrency,
   excursionItems,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -695,9 +697,9 @@ export default function EstimateClient({
                                   <span
                                     className="ml-1.5 align-middle text-[9px] uppercase"
                                     style={{ letterSpacing: "0.08em", color: x.confirmed ? "#3E7C5B" : SOFT }}
-                                    title={x.confirmed ? "Marked Confirmed on the card" : "An estimate until the card is marked Confirmed"}
+                                    title={x.confirmed ? "Marked Confirmed on the card" : x.fromTicket ? "Read from the ticket or receipt attached to the card" : "An estimate until the card is marked Confirmed"}
                                   >
-                                    {x.confirmed ? "booked" : "est."}
+                                    {x.confirmed ? "booked" : x.fromTicket ? "ticket" : "est."}
                                   </span>
                                 )}
                               </td>
@@ -757,7 +759,7 @@ export default function EstimateClient({
                       </table>
                       <p className="mt-1.5 text-[11px]" style={{ color: CAPTION, lineHeight: 1.45 }}>
                         {items.some((x) => x.currency !== "CAD") ? `Converted at ${fx} dollars per ${cardCurrency === "EUR" ? "euro" : cardCurrency}. ` : ""}
-                        Cost and people are per row and save to the card; the line follows unless you typed a figure on it. Blank cost means no cost yet; 0 means free. &ldquo;est.&rdquo; clears when you mark the card Confirmed.
+                        Cost and people are per row and save to the card; the line follows unless you typed a figure on it. Blank cost means no cost yet; 0 means free. &ldquo;ticket&rdquo; was read from a document attached to the card; type over it to keep your own. &ldquo;est.&rdquo; clears when you mark the card Confirmed.
                       </p>
                     </div>
                   ) : (
@@ -812,7 +814,9 @@ export default function EstimateClient({
                       ? `dollars per ${cardCurrency === "EUR" ? "euro" : cardCurrency}. Yours; `
                       : fxSource === "live"
                         ? `dollars per ${cardCurrency === "EUR" ? "euro" : cardCurrency}, today's rate. `
-                        : `dollars per ${cardCurrency === "EUR" ? "euro" : cardCurrency}, a standing guess. `}
+                        : fxSource === "reference"
+                          ? `dollars per ${cardCurrency === "EUR" ? "euro" : cardCurrency}, the ${fxReferenceMonth ?? "reference"} rate (today's couldn't be fetched). `
+                          : `dollars per ${cardCurrency === "EUR" ? "euro" : cardCurrency}, the last rate saved here. `}
                     {fxTyped ? (
                       <button type="button" className="underline underline-offset-2" onClick={() => { setFxTyped(false); setFx(fxToCad); setSaved(false); }}>
                         use today&rsquo;s rate

@@ -233,6 +233,7 @@ function EstimateOverlayBody({
       rolledExcursionCount={data.rolledExcursionCount}
       fxToCad={data.fxToCad}
       fxSource={data.fxSource}
+      fxReferenceMonth={data.fxReferenceMonth}
       cardCurrency={data.cardCurrency}
       excursionItems={data.excursionItems}
       excursionFree={data.excursionFree}

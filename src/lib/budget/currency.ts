@@ -43,26 +43,53 @@ export const SYMBOL: Record<string, string> = {
 };
 
 /**
- * Today's rate: how many home dollars one unit of `from` buys. Frankfurter is
- * the ECB's reference rates, free and keyless. Null when it cannot be had —
- * the caller falls back to the last rate it knew. Cached for a day on the
- * server; in the browser a request a day is nothing.
+ * Reference rates to the dollar, refreshed by hand now and then — the floor
+ * under the live fetch, so a network miss never shows a made-up number. The
+ * month is shown to the traveller so they know what they are looking at.
  */
-export async function fetchRateToHome(from: string): Promise<number | null> {
+export const REFERENCE_MONTH = "September 2026";
+const REFERENCE_RATES: Record<string, number> = {
+  USD: 1.379, EUR: 1.603, GBP: 1.865, JPY: 0.009, MXN: 0.081, AUD: 0.993, NZD: 0.811, CHF: 1.707,
+  THB: 0.042, INR: 0.015, AED: 0.376, CRC: 0.003, DOP: 0.024, JMD: 0.009, BRL: 0.271, CLP: 0.001,
+  PEN: 0.411, ZAR: 0.086, MAD: 0.148, EGP: 0.027, TRY: 0.028, ISK: 0.011, NOK: 0.148, SEK: 0.144,
+  DKK: 0.214, CZK: 0.066, HUF: 0.004, PLN: 0.371, KRW: 0.001, SGD: 1.088, HKD: 0.176, TWD: 0.044,
+  PHP: 0.022, MYR: 0.341, CNY: 0.205, ILS: 0.41, VND: 0.00005, IDR: 0.00008, COP: 0.00033, ARS: 0.001,
+};
+
+export function referenceRateToHome(from: string): number | null {
   if (!from || from === HOME) return 1;
+  return REFERENCE_RATES[from] ?? null;
+}
+
+async function getJson(url: string, ms: number): Promise<Record<string, unknown> | null> {
   try {
     const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
-    const t = ctrl ? setTimeout(() => ctrl.abort(), 4000) : null;
-    const res = await fetch(`https://api.frankfurter.app/latest?from=${encodeURIComponent(from)}&to=${HOME}`, {
-      signal: ctrl?.signal,
-      next: { revalidate: 86400 },
-    } as RequestInit);
+    const t = ctrl ? setTimeout(() => ctrl.abort(), ms) : null;
+    const res = await fetch(url, { signal: ctrl?.signal, next: { revalidate: 3600 } } as RequestInit);
     if (t) clearTimeout(t);
     if (!res.ok) return null;
-    const json = (await res.json()) as { rates?: Record<string, number> };
-    const rate = json.rates?.[HOME];
-    return typeof rate === "number" && rate > 0 ? Math.round(rate * 1000) / 1000 : null;
+    return (await res.json()) as Record<string, unknown>;
   } catch {
     return null;
   }
+}
+
+/**
+ * Today's rate: how many home dollars one unit of `from` buys. Two free,
+ * keyless sources, tried in turn — exchangerate-api's open feed (daily, most
+ * currencies) then Frankfurter (the ECB's reference rates, on its current
+ * host; the old api.frankfurter.app now only redirects). Null when neither
+ * answers; the caller then uses the reference table, and says so.
+ * Cached an hour on the server.
+ */
+export async function fetchRateToHome(from: string): Promise<number | null> {
+  if (!from || from === HOME) return 1;
+  const clean = (r: unknown) => (typeof r === "number" && r > 0 ? Math.round(r * 1000) / 1000 : null);
+
+  const a = await getJson(`https://open.er-api.com/v6/latest/${encodeURIComponent(from)}`, 4000);
+  const ra = clean((a?.rates as Record<string, number> | undefined)?.[HOME]);
+  if (ra != null) return ra;
+
+  const b = await getJson(`https://api.frankfurter.dev/v1/latest?base=${encodeURIComponent(from)}&symbols=${HOME}`, 4000);
+  return clean((b?.rates as Record<string, number> | undefined)?.[HOME]);
 }
