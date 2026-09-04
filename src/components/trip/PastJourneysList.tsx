@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowCounterClockwise, Trash } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
+import { deleteJourney } from "@/lib/deleteJourney";
+import { useToast } from "@/components/ui/Toast";
 import { setTripArchived } from "@/lib/tripArchive";
 import { isPastJourney } from "@/lib/tripRecency";
 import type { Trip } from "@/types/database";
@@ -91,15 +93,14 @@ export default function PastJourneysList({ trips, openDayByTrip }: Props) {
     router.refresh();
   };
 
+  const { toast } = useToast();
   const handleDelete = async () => {
     if (!deleteTarget || deleting) return;
     setDeleting(true);
-    const supabase = createClient();
-    await supabase.from("cards").delete().eq("trip_id", deleteTarget.id);
-    await supabase.from("days").delete().eq("trip_id", deleteTarget.id);
-    await supabase.from("trips").delete().eq("id", deleteTarget.id);
+    const failure = await deleteJourney(createClient(), deleteTarget.id);
     setDeleteTarget(null);
     setDeleting(false);
+    if (failure) { toast({ message: failure }); return; }
     router.refresh();
   };
 

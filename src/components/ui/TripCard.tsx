@@ -7,6 +7,8 @@ import { DotsThree, PencilSimpleLine, Archive, Trash } from "@phosphor-icons/rea
 import TripCover from "./TripCover";
 import TripCoverEditModal from "./TripCoverEditModal";
 import { createClient } from "@/lib/supabase/client";
+import { deleteJourney } from "@/lib/deleteJourney";
+import { useToast } from "@/components/ui/Toast";
 import { setTripArchived } from "@/lib/tripArchive";
 import type { Trip } from "@/types/database";
 
@@ -53,15 +55,14 @@ export default function TripCard({ trip, openDayId }: Props) {
     router.refresh();
   };
 
+  const { toast } = useToast();
   const handleDelete = async () => {
     if (deleting) return;
     setDeleting(true);
-    const supabase = createClient();
-    await supabase.from("cards").delete().eq("trip_id", trip.id);
-    await supabase.from("days").delete().eq("trip_id", trip.id);
-    await supabase.from("trips").delete().eq("id", trip.id);
+    const failure = await deleteJourney(createClient(), trip.id);
     setDeleting(false);
     setConfirmDelete(false);
+    if (failure) { toast({ message: failure }); return; }
     router.refresh();
   };
 

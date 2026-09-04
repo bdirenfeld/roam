@@ -10,6 +10,7 @@ import DayMap from "@/components/day/DayMap";
 import CardTimeline from "@/components/day/CardTimeline";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import AppMenu from "@/components/ui/AppMenu";
+import { useToast } from "@/components/ui/Toast";
 import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/plan/ConfirmationPreviewSheet";
 import DocumentsSheet from "@/components/plan/DocumentsSheet";
 import { UploadSimple, Files } from "@phosphor-icons/react";
@@ -257,7 +258,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
     applyOverlayAll("cards", [...dayWithCards.cards]).sort(agendaOrder)
   );
   // Undo window after a delete — holds the removed row for re-insert
-  const [undoCard, setUndoCard] = useState<Card | null>(null);
+  const { toast } = useToast();
 
   // ── Import a booking / Documents — the same flow the Plan board has, here
   // because the Agenda is the tab you're on when a confirmation arrives
@@ -288,7 +289,6 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
     { key: "import", title: "Import a booking", sub: "Flight or hotel confirmation → cards", icon: <UploadSimple size={15} weight="light" />, onClick: () => importInputRef.current?.click() },
     { key: "docs", title: "Documents", sub: "Uploaded confirmations", icon: <Files size={15} weight="light" />, onClick: () => setShowDocs(true) },
   ];
-  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleCardUpdate = useCallback(
     (updated: Card) => {
@@ -312,19 +312,35 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
     [dayWithCards.id]
   );
 
+  // Delete is instant (the sheet asks nothing); the six-second Undo in the
+  // app toast is the safety net. Re-insert keeps the original id so
+  // attachments and links keep working.
   const handleCardDelete = useCallback((cardId: string) => {
     setLocalCards((prev) => {
       const gone = prev.find((c) => c.id === cardId) ?? null;
       if (gone) {
-        if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-        setUndoCard(gone);
-        undoTimerRef.current = setTimeout(() => setUndoCard(null), 6000);
+        toast({
+          message: "Card deleted",
+          undo: async () => {
+            const { error } = await supabase.from("cards").insert({
+              id: gone.id, day_id: gone.day_id, trip_id: gone.trip_id,
+              start_time: gone.start_time, end_time: gone.end_time,
+              position: gone.position, status: gone.status, source_url: gone.source_url,
+              details: gone.details, ai_generated: gone.ai_generated,
+              confirmed: gone.confirmed, place_id: gone.place_id,
+            });
+            if (error) { toast({ message: "Couldn't bring it back. Try again." }); return; }
+            setLocalCards((cur) =>
+              cur.some((c) => c.id === gone.id) ? cur : [...cur, gone].sort(agendaOrder)
+            );
+          },
+        });
       }
       return prev.filter((c) => c.id !== cardId);
     });
     setSelectedCard((prev) => (prev?.id === cardId ? null : prev));
     setIsCardOpen(false);
-  }, []);
+  }, [supabase, toast]);
 
   // A copy lands on ANOTHER day by definition, so this day's timeline is
   // unchanged — but if the target happens to be this day (a future
@@ -338,26 +354,6 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
     },
     [dayWithCards.id]
   );
-
-  const handleUndoDelete = useCallback(async () => {
-    const card = undoCard;
-    if (!card) return;
-    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-    setUndoCard(null);
-    // Re-insert with the original id so attachments and links keep working
-    const { error } = await supabase.from("cards").insert({
-      id: card.id, day_id: card.day_id, trip_id: card.trip_id,
-      start_time: card.start_time, end_time: card.end_time,
-      position: card.position, status: card.status, source_url: card.source_url,
-      details: card.details, ai_generated: card.ai_generated,
-      confirmed: card.confirmed, place_id: card.place_id,
-    });
-    if (!error) {
-      setLocalCards((prev) =>
-        prev.some((c) => c.id === card.id) ? prev : [...prev, card].sort(agendaOrder)
-      );
-    }
-  }, [undoCard, supabase]);
 
   const handleToggleConfirmed = useCallback(async (cardId: string) => {
     const card = localCards.find((c) => c.id === cardId);
@@ -960,17 +956,6 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
       {(importingConf || importError) && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[70] px-4 py-2 rounded-full bg-[#1A1A2E] text-white text-[12.5px] shadow-lg">
           {importError ?? "Reading your booking…"}
-        </div>
-      )}
-      {undoCard && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[70] bg-gray-900 text-white text-[13px] font-medium pl-4 pr-1.5 py-1.5 rounded-full shadow-lg flex items-center gap-3 animate-in fade-in">
-          <span>Card deleted</span>
-          <button
-            onClick={handleUndoDelete}
-            className="px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 font-semibold transition-colors"
-          >
-            Undo
-          </button>
         </div>
       )}
 

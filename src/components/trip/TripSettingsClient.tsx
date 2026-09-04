@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Camera } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
+import { deleteJourney } from "@/lib/deleteJourney";
+import { useToast } from "@/components/ui/Toast";
 import { setTripArchived } from "@/lib/tripArchive";
 import TravellersSection, { type Person } from "@/components/trip/TravellersSection";
 import ShareJourneySheet, { type ShareGuest } from "@/components/trip/ShareJourneySheet";
@@ -308,13 +310,16 @@ export default function TripSettingsClient({
     leave();
   };
 
+  const { toast } = useToast();
   const handleDelete = async () => {
     if (deleting) return;
     setDeleting(true);
-    const supabase = createClient();
-    await supabase.from("cards").delete().eq("trip_id", trip.id);
-    await supabase.from("days").delete().eq("trip_id", trip.id);
-    await supabase.from("trips").delete().eq("id", trip.id);
+    const failure = await deleteJourney(createClient(), trip.id);
+    if (failure) {
+      setDeleting(false);
+      toast({ message: failure });
+      return;
+    }
     leave();
   };
 

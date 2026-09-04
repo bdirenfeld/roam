@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CaretLeft, CaretDown, Check, X } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/Toast";
 import {
   compute,
   suggest,
@@ -269,6 +270,7 @@ export default function EstimateClient({
   onDismiss,
 }: Props) {
   const router = useRouter();
+  const { toast } = useToast();
   const [a, setA] = useState<Assumptions>(initialAssumptions);
   const [basis, setBasis] = useState<Record<string, string>>(initialBasis);
   const [prev, setPrev] = useState<{
@@ -349,7 +351,7 @@ export default function EstimateClient({
       data: { user },
     } = await supabase.auth.getUser();
     if (user) {
-      await supabase.from("trip_budgets").upsert(
+      const { error } = await supabase.from("trip_budgets").upsert(
         {
           trip_id: tripId,
           user_id: user.id,
@@ -361,8 +363,14 @@ export default function EstimateClient({
         },
         { onConflict: "trip_id" },
       );
-      setSaved(true);
-      router.refresh();
+      // "Saved" used to light before the server answered (UX audit, Sep
+      // 2026, finding 1). It lights on success only; a refusal says so.
+      if (error) {
+        toast({ message: "Couldn't save the estimate. Try again." });
+      } else {
+        setSaved(true);
+        router.refresh();
+      }
     }
     setSaving(false);
   };

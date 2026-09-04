@@ -12,6 +12,8 @@ import type { Trip, Day, Card, CardType } from "@/types/database";
 import { makeMaterialPinElement } from "@/lib/mapPins";
 import { Funnel, Heart } from "@phosphor-icons/react";
 import AppMenu from "@/components/ui/AppMenu";
+import { useToast } from "@/components/ui/Toast";
+import { createClient } from "@/lib/supabase/client";
 
 // Purple circular pin for search result previews
 const TEMP_PIN_SVG =
@@ -91,6 +93,10 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
   const [anchorPos, setAnchorPos] = useState<{ x: number; y: number } | null>(null);
 
   const [localCards, setLocalCards]     = useState<Card[]>(cards);
+  const { toast } = useToast();
+  // registerNewCard is declared below as a plain function; the delete
+  // handler is memoised, so it reaches the current one through a ref.
+  const registerNewCardRef = useRef<(card: Card) => void>(() => {});
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [showHint, setShowHint]         = useState(false);
   const [activeSubTypes, setActiveSubTypesState] = useState<Set<string>>(makeInitialSubTypes);
@@ -398,14 +404,39 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
     setPendingPlace(null);
     registerNewCard(card);
   }
+  registerNewCardRef.current = registerNewCard;
 
   // ── Handle card delete from sidebar or sheet ─────────────────
+  // The popup and the sidebar delete the row themselves and then call this.
+  // The Map used to be the one host with no way back (UX audit, Sep 2026,
+  // finding 2): the pin vanished and that was that. Same six seconds as the
+  // Plan and the Agenda now — Undo re-inserts under the original id and puts
+  // the pin back.
   const handleCardDelete = useCallback((cardId: string) => {
     const entry = MARKERS.get(cardId);
     if (entry) { entry.marker.remove(); MARKERS.delete(cardId); }
-    setLocalCards((prev) => prev.filter((c) => c.id !== cardId));
+    setLocalCards((prev) => {
+      const gone = prev.find((c) => c.id === cardId) ?? null;
+      if (gone) {
+        toast({
+          message: "Removed from the map",
+          undo: async () => {
+            const { error } = await createClient().from("cards").insert({
+              id: gone.id, day_id: gone.day_id, trip_id: gone.trip_id,
+              start_time: gone.start_time, end_time: gone.end_time,
+              position: gone.position, status: gone.status, source_url: gone.source_url,
+              details: gone.details, ai_generated: gone.ai_generated,
+              confirmed: gone.confirmed, place_id: gone.place_id,
+            });
+            if (error) { toast({ message: "Couldn't bring it back. Try again." }); return; }
+            registerNewCardRef.current(gone);
+          },
+        });
+      }
+      return prev.filter((c) => c.id !== cardId);
+    });
     setSelectedCard((prev) => (prev?.id === cardId ? null : prev));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [toast]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Handle card type/sub-type update from popup editor ───────
   const handleCardUpdate = useCallback((updatedCard: Card) => {

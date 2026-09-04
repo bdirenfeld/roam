@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CaretLeft } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/Toast";
 import { useSheetDrag } from "@/hooks/useSheetDrag";
 import PromoteToWishlistSheet from "./PromoteToWishlistSheet";
 import SetLocationSheet from "./SetLocationSheet";
@@ -324,6 +325,7 @@ export default function IdeasClient({
   backTo?: { href: string; title: string } | null;
 }) {
   const router = useRouter();
+  const { toast } = useToast();
   const [ideas, setIdeas] = useState(initial);
   const [filter, setFilter] = useState<IdeaFilter>({ kind: "all" });
   const [filterOpen, setFilterOpen] = useState(false);
@@ -339,17 +341,47 @@ export default function IdeasClient({
   // idea in memory and in the table — and the tag counts kept counting things
   // Brennan had deleted. A hidden state nothing can reach is not a feature, it
   // is a place for bugs to live.
+  // Remove used to mutate the list first and ask the database second, with
+  // no confirm, no undo and no error check — a refused delete came back on
+  // reload (UX audit, Sep 2026, findings 1 and 2). Now: optimistic, checked,
+  // and six seconds of Undo that re-inserts the row under its original id.
   const remove = async (id: string) => {
+    const gone = ideas.find((i) => i.id === id);
     setIdeas((p) => p.filter((i) => i.id !== id));
     if (openId === id) setOpenId(null);
     const supabase = createClient();
-    await supabase.from("ideas").delete().eq("id", id);
+    const { error } = await supabase.from("ideas").delete().eq("id", id);
+    if (error) {
+      if (gone) setIdeas((p) => (p.some((i) => i.id === id) ? p : [gone, ...p]));
+      toast({ message: "Couldn't remove that idea. Try again." });
+      return;
+    }
+    if (!gone) return;
+    toast({
+      message: "Idea removed",
+      undo: async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        const { error: insErr } = await supabase.from("ideas").insert({
+          id: gone.id, user_id: user?.id, url: gone.url, title: gone.title, note: gone.note,
+          source: gone.source, status: gone.status, tags: gone.tags, created_at: gone.created_at,
+          wishlist_destination_id: gone.wishlist_destination_id, pins_added: gone.pins_added,
+          pinned_trip_id: gone.pinned_trip_id, place: gone.place,
+        });
+        if (insErr) { toast({ message: "Couldn't bring it back. Try again." }); return; }
+        setIdeas((p) => (p.some((i) => i.id === gone.id) ? p : [gone, ...p]));
+      },
+    });
   };
 
   const save = async (id: string, patch: Partial<Idea>) => {
-    setIdeas((p) => p.map((i) => (i.id === id ? { ...i, ...patch } : i)));
+    let before: Idea | undefined;
+    setIdeas((p) => p.map((i) => { if (i.id === id) before = i; return i.id === id ? { ...i, ...patch } : i; }));
     const supabase = createClient();
-    await supabase.from("ideas").update(patch).eq("id", id);
+    const { error } = await supabase.from("ideas").update(patch).eq("id", id);
+    if (error) {
+      if (before) { const b = before; setIdeas((p) => p.map((i) => (i.id === id ? b : i))); }
+      toast({ message: "Couldn't save that. Try again." });
+    }
   };
 
   // One list, filtered by tag. There used to be an Inbox and a Kept section on

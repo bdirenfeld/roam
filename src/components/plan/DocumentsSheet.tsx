@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { Document } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/Toast";
 
 interface Props {
   tripId:  string;
@@ -63,6 +64,7 @@ function fmtDate(dateStr: string): string {
 
 export default function DocumentsSheet({ tripId, onClose }: Props) {
   const supabase = createClient();
+  const { toast } = useToast();
   const sheetRef = useRef<HTMLDivElement>(null);
   const dragY    = useRef(0);
   const dragging = useRef(false);
@@ -123,12 +125,30 @@ export default function DocumentsSheet({ tripId, onClose }: Props) {
     }
   }, [onClose]);
 
+  // Checked, and undoable for six seconds — the row comes back under its
+  // original id (the file itself was never touched).
   const handleDelete = useCallback(async (docId: string) => {
     setDeleting(docId);
-    await supabase.from("documents").delete().eq("id", docId);
-    setDocs((prev) => prev.filter((d) => d.id !== docId));
+    const { error } = await supabase.from("documents").delete().eq("id", docId);
     setDeleting(null);
-  }, [supabase]);
+    if (error) { toast({ message: "Couldn't delete that document. Try again." }); return; }
+    let gone: Document | undefined;
+    setDocs((prev) => { gone = prev.find((d) => d.id === docId); return prev.filter((d) => d.id !== docId); });
+    toast({
+      message: "Document deleted",
+      undo: async () => {
+        if (!gone) return;
+        const g = gone;
+        const { error: insErr } = await supabase.from("documents").insert({
+          id: g.id, trip_id: g.trip_id, file_name: g.file_name, file_type: g.file_type,
+          document_type: g.document_type, parsed_data: g.parsed_data, card_ids: g.card_ids,
+          created_at: g.created_at,
+        });
+        if (insErr) { toast({ message: "Couldn't bring it back. Try again." }); return; }
+        setDocs((prev) => (prev.some((d) => d.id === g.id) ? prev : [g, ...prev]));
+      },
+    });
+  }, [supabase, toast]);
 
   return (
     <div

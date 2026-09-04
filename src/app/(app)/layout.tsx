@@ -6,6 +6,7 @@ import BottomNav from "@/components/ui/BottomNav";
 import DesktopMasthead from "@/components/ui/DesktopMasthead";
 import { GlobalSearchProvider } from "@/components/search/GlobalSearch";
 import { AppOverlaysProvider } from "@/components/overlays/AppOverlays";
+import { ToastProvider } from "@/components/ui/Toast";
 import OfflineQueueIndicator from "@/components/offline/OfflineQueueIndicator";
 
 export default function AppLayout({
@@ -26,6 +27,9 @@ export default function AppLayout({
           so every trigger in the app opens the screen in place instead of
           navigating away. The routes still exist for links and bookmarks. */}
       <AppOverlaysProvider>
+       {/* One toast for the whole app — every host's "deleted · Undo" and
+           "Couldn't save" goes through it (see ui/Toast.tsx). */}
+       <ToastProvider>
         <DesktopMasthead />
         <div className="mobile-container flex flex-col bg-white md:bg-transparent md:!min-h-[calc(100dvh-64px)]">
           <main className={isDayView ? "flex-1" : "flex-1 pb-20 md:pb-0"}>{children}</main>
@@ -36,6 +40,7 @@ export default function AppLayout({
         {/* Mounted once, here: the queue is global, so the "will sync" pill is
             too. It also owns the replay wiring (online / focus). */}
         <OfflineQueueIndicator />
+       </ToastProvider>
       </AppOverlaysProvider>
     </GlobalSearchProvider>
   );
