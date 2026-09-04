@@ -26,6 +26,32 @@ const fmt = (iso: string | null) =>
       })
     : "";
 
+/** One sentence that says what the Excursions figure is made of. */
+function excursionsBasis(
+  cards: number,
+  priced: { title: string; amount: number; currency: string; per: string }[],
+  freeCount: number,
+  uncosted: number,
+  partySize: number,
+  fx: number,
+): string {
+  const parts: string[] = [];
+  const pricedCount = priced.length;
+  parts.push(
+    `Adds up the cost on the ${cards} ${cards === 1 ? "activity" : "activities"} on your days: ${pricedCount} priced${freeCount ? `, ${freeCount} free` : ""}${uncosted ? `, ${uncosted} with no cost yet` : ""}.`,
+  );
+  const perPerson = priced.some((x) => x.per === "person");
+  if (perPerson) parts.push(`Per-person costs are × ${partySize} travellers.`);
+  if (priced.some((x) => x.currency !== "CAD")) parts.push(`Converted at ${fx} to the dollar.`);
+  const top = [...priced].sort((a, b) => (b.per === "person" ? b.amount * partySize : b.amount) - (a.per === "person" ? a.amount * partySize : a.amount)).slice(0, 3);
+  if (top.length) {
+    const sym = (c: string) => (c === "CAD" ? "$" : c === "EUR" ? "€" : c === "USD" ? "US$" : c === "GBP" ? "£" : "");
+    parts.push(`Biggest: ${top.map((x) => `${x.title} ${sym(x.currency)}${Math.round(x.amount)}${x.per === "person" ? " each" : ""}`).join(", ")}.`);
+  }
+  parts.push("Change a card's cost and this follows; type a figure on the line and it wins.");
+  return parts.join(" ");
+}
+
 /**
  * Everything the Estimate screen needs, derived once.
  *
@@ -52,7 +78,7 @@ export async function loadEstimate(
       supabase.from("days").select("id").eq("trip_id", tripId),
       supabase
         .from("cards")
-        .select("id, details, status, places(type)")
+        .select("id, details, status, places(type, title)")
         .eq("trip_id", tripId)
         .eq("status", "in_itinerary"),
       supabase.from("trip_budgets").select("*").eq("trip_id", tripId).maybeSingle(),
@@ -68,18 +94,28 @@ export async function loadEstimate(
   // seed the Excursions line; the rest are counted so the screen can say how
   // much of the itinerary is still uncosted.
   const cardBudgets: CardBudget[] = [];
+  // For the "how this was worked out" sentence: what was priced, what was free.
+  const priced: { title: string; amount: number; currency: string; per: string }[] = [];
+  let freeCount = 0;
   let uncostedExcursions = 0;
   for (const c of cards ?? []) {
-    const place = c.places as { type?: string } | null;
+    const place = c.places as { type?: string; title?: string } | null;
     if (place?.type !== "activity") continue;
     const det = c.details as { budget?: CardBudget; cost_per_person?: number } | null;
-    if (det?.budget && typeof det.budget.amount === "number") cardBudgets.push(det.budget);
+    if (det?.budget && typeof det.budget.amount === "number") {
+      cardBudgets.push(det.budget);
+      if (det.budget.amount > 0) priced.push({ title: place.title ?? "a card", amount: det.budget.amount, currency: det.budget.currency ?? "", per: det.budget.per ?? "party" });
+      else freeCount += 1;
+    }
     // The card sheet's own "Cost per person" field — typed in the currency
     // you were quoted in, so it converts like a budget in any currency
     // but CAD. Two fields for one idea used to be two fields; this is the
     // bridge until the planning skill writes cost_per_person too.
-    else if (typeof det?.cost_per_person === "number")
+    else if (typeof det?.cost_per_person === "number") {
       cardBudgets.push({ amount: det.cost_per_person, currency: "local", per: "person", confidence: "estimated" });
+      if (det.cost_per_person > 0) priced.push({ title: place.title ?? "a card", amount: det.cost_per_person, currency: "", per: "person" });
+      else freeCount += 1;
+    }
     else uncostedExcursions += 1;
   }
 
@@ -110,7 +146,14 @@ export async function loadEstimate(
   return {
     tripTitle: trip.title ?? "Journey",
     assumptions,
-    basis: (saved?.basis ?? {}) as Record<string, string>,
+    // The Excursions sentence writes itself from the cards; a sentence you
+    // typed for that line still wins.
+    basis: {
+      ...(cardBudgets.length
+        ? { excursions: excursionsBasis(cardBudgets.length, priced, freeCount, uncostedExcursions, partySize, fxToCad) }
+        : {}),
+      ...((saved?.basis ?? {}) as Record<string, string>),
+    },
     uncostedExcursions,
     rolledExcursionCount: cardBudgets.length,
     dateRange:
