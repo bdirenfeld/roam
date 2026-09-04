@@ -158,14 +158,18 @@ export async function loadEstimate(
   return {
     tripTitle: trip.title ?? "Journey",
     fxToCad,
-    excursionItems: priced.map((x) => ({
-      title: x.title,
-      amount: x.amount,
-      currency: x.currency,
-      per: x.per === "person" ? "person" : "party",
-      people: x.per === "person" ? partySize : 1,
-      totalCad: Math.round(cardBudgetToCad({ amount: x.amount, currency: x.currency || "local", per: x.per === "person" ? "person" : "party" }, partySize, fxToCad)),
-    })),
+    // Unrounded per row, so the table sums to the same figure as the line
+    // (rows rounded first added to one dollar more). Largest first.
+    excursionItems: priced
+      .map((x) => ({
+        title: x.title,
+        amount: x.amount,
+        currency: x.currency,
+        per: (x.per === "person" ? "person" : "party") as "person" | "party",
+        people: x.per === "person" ? partySize : 1,
+        totalCad: cardBudgetToCad({ amount: x.amount, currency: x.currency || "local", per: x.per === "person" ? "person" : "party" }, partySize, fxToCad),
+      }))
+      .sort((a, b) => b.totalCad - a.totalCad),
     excursionFree: freeCount,
     assumptions,
     // The Excursions sentence writes itself from the cards; a sentence you
