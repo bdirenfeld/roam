@@ -10,7 +10,9 @@ import AddToTripSheet from "./AddToTripSheet";
 import type { PlaceResult } from "./AddToTripSheet";
 import type { Trip, Day, Card, CardType } from "@/types/database";
 import { makeMaterialPinElement } from "@/lib/mapPins";
-import { Funnel, Heart } from "@phosphor-icons/react";
+import { Funnel, Heart, Files } from "@phosphor-icons/react";
+import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/plan/ConfirmationPreviewSheet";
+import DocumentsSheet from "@/components/plan/DocumentsSheet";
 import AppMenu from "@/components/ui/AppMenu";
 import { useToast } from "@/components/ui/Toast";
 import { createClient } from "@/lib/supabase/client";
@@ -94,6 +96,34 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
 
   const [localCards, setLocalCards]     = useState<Card[]>(cards);
   const { toast } = useToast();
+
+  // ── Bookings — the same row and flow the Agenda and the Plan have, so the
+  // three menus match (Brennan, Sep 2026). Parse → preview → cards; a card
+  // that lands with a real place becomes a pin here at once.
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const [pendingConf, setPendingConf] = useState<{ items: ParsedConfirmation[]; fileName: string; fileType: string } | null>(null);
+  const [importingConf, setImportingConf] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [showDocs, setShowDocs] = useState(false);
+  const handleImportFile = useCallback(async (file: File) => {
+    setImportingConf(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/confirmations/parse", { method: "POST", body: fd });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Couldn't read that file.");
+      setPendingConf({ items: json.parsed, fileName: file.name, fileType: file.type });
+    } catch (e) {
+      setImportError(e instanceof Error ? e.message : "Couldn't read that file.");
+      setTimeout(() => setImportError(null), 4000);
+    } finally {
+      setImportingConf(false);
+    }
+  }, []);
+  const mapMenuExtra = readOnly ? undefined : [
+    { key: "bookings", title: "Bookings", sub: "", icon: <Files size={15} weight="light" />, onClick: () => setShowDocs(true) },
+  ];
   // registerNewCard is declared below as a plain function; the delete
   // handler is memoised, so it reaches the current one through a ref.
   const registerNewCardRef = useRef<(card: Card) => void>(() => {});
@@ -670,6 +700,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
           trip={trip}
           days={days}
           guest={readOnly}
+          extra={mapMenuExtra}
           wrapperClassName="md:hidden absolute top-4 right-14 z-10"
           triggerClassName="w-8 h-8 rounded-full bg-white/80 backdrop-blur-md flex items-center justify-center text-[#374151]"
         />
@@ -868,6 +899,43 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
             onClose={handleAddToTripClose}
             onCardCreated={handlePlaceCardCreated}
           />
+        )}
+
+        {/* Bookings — hidden file input, parse preview, the documents sheet. */}
+        {!readOnly && (
+          <input
+            ref={importInputRef}
+            type="file"
+            accept="application/pdf,image/*,.eml,.txt"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void handleImportFile(f);
+              e.currentTarget.value = "";
+            }}
+          />
+        )}
+        {pendingConf && (
+          <ConfirmationPreviewSheet
+            items={pendingConf.items}
+            fileName={pendingConf.fileName}
+            fileType={pendingConf.fileType}
+            days={days.map((d) => ({ ...d, cards: [] }))}
+            tripId={trip.id}
+            onClose={() => setPendingConf(null)}
+            onCardsCreated={(created) => {
+              for (const c of created) registerNewCard(c);
+              setPendingConf(null);
+            }}
+          />
+        )}
+        {showDocs && (
+          <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} onImport={() => { setShowDocs(false); importInputRef.current?.click(); }} />
+        )}
+        {(importingConf || importError) && (
+          <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[70] px-4 py-2 rounded-full bg-[#1A1A2E] text-white text-[12.5px] shadow-lg">
+            {importError ?? "Reading your booking…"}
+          </div>
         )}
 
       </div>

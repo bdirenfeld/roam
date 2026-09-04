@@ -176,20 +176,34 @@ export default function AppMenu({
                 <Label title="Journey notes" />
               </button>
 
-              {owner && (
+              {/* One order on every tab, most-used first: notes and bookings
+                  daily, Ideas where new things arrive, Estimate and Share
+                  now and then, Settings last. No dividers — six plain rows
+                  (Brennan, from his phone, Sep 2026). */}
+              {extra?.map((item) => (
                 <button
+                  key={item.key}
                   role="menuitem"
-                  onClick={() => { setOpen(false); setShowShare(true); }}
+                  onClick={() => { setOpen(false); item.onClick(); }}
                   style={itemStyle}
                 >
-                  <span style={glyphStyle}>
-                    <ShareNetwork size={15} weight="light" />
-                  </span>
-                  <Label title="Share journey" />
+                  <span style={glyphStyle}>{item.icon}</span>
+                  <Label title={item.title} />
                 </button>
-              )}
+              ))}
 
-              {/* The estimate is the owner's own figure — never a guest's. */}
+              <Link
+                href={`/ideas?from=${tripId}`}
+                role="menuitem"
+                onClick={() => setOpen(false)}
+                style={itemStyle}
+              >
+                <span style={glyphStyle}>
+                  <Lightbulb size={15} weight="light" />
+                </span>
+                <Label title="Ideas" />
+              </Link>
+
               {owner && (
                 <EstimateLink
                   tripId={tripId}
@@ -203,6 +217,19 @@ export default function AppMenu({
                   </span>
                   <Label title="Estimate" />
                 </EstimateLink>
+              )}
+
+              {owner && (
+                <button
+                  role="menuitem"
+                  onClick={() => { setOpen(false); setShowShare(true); }}
+                  style={itemStyle}
+                >
+                  <span style={glyphStyle}>
+                    <ShareNetwork size={15} weight="light" />
+                  </span>
+                  <Label title="Share journey" />
+                </button>
               )}
 
               {/* Settings used to sit in the profile dropdown on desktop and in
@@ -227,53 +254,22 @@ export default function AppMenu({
             </>
           )}
 
-          {extra && extra.length > 0 && (
-            <>
-              <div
-                style={{
-                  height: 1,
-                  background: "rgba(26,26,46,0.08)",
-                  margin: mobile ? "4px 0" : "5px 11px",
-                }}
-              />
-              {extra.map((item) => (
-                <button
-                  key={item.key}
-                  role="menuitem"
-                  onClick={() => { setOpen(false); item.onClick(); }}
-                  style={itemStyle}
-                >
-                  <span style={glyphStyle}>{item.icon}</span>
-                  <Label title={item.title} sub={item.sub} />
-                </button>
-              ))}
-            </>
+          {/* Off a journey (the Journeys index at desktop width) the menu is
+              just Ideas; the masthead carries Search, Plan a journey and the
+              avatar. */}
+          {!tripId && (
+            <Link
+              href="/ideas"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              style={itemStyle}
+            >
+              <span style={glyphStyle}>
+                <Lightbulb size={15} weight="light" />
+              </span>
+              <Label title="Ideas" />
+            </Link>
           )}
-
-          {/* Ideas, last. It is its own page; `from` gives it a way back to
-              the journey you left. Search, Plan a journey and Profile used to
-              sit here too — they belong to the app, not this journey, and
-              live in the phone header and on the Journeys page. */}
-          {tripId && (
-            <div
-              style={{
-                height: 1,
-                background: "rgba(26,26,46,0.08)",
-                margin: mobile ? "4px 0" : "5px 11px",
-              }}
-            />
-          )}
-          <Link
-            href={tripId ? `/ideas?from=${tripId}` : "/ideas"}
-            role="menuitem"
-            onClick={() => setOpen(false)}
-            style={itemStyle}
-          >
-            <span style={glyphStyle}>
-              <Lightbulb size={15} weight="light" />
-            </span>
-            <Label title="Ideas" />
-          </Link>
         </div>
       )}
 
