@@ -10,6 +10,9 @@ import DayMap from "@/components/day/DayMap";
 import CardTimeline from "@/components/day/CardTimeline";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import AppMenu from "@/components/ui/AppMenu";
+import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/plan/ConfirmationPreviewSheet";
+import DocumentsSheet from "@/components/plan/DocumentsSheet";
+import { UploadSimple, Files } from "@phosphor-icons/react";
 import CreateCardSheet from "@/components/plan/CreateCardSheet";
 import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
 import Companion from "@/components/companion/Companion";
@@ -255,6 +258,36 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   );
   // Undo window after a delete — holds the removed row for re-insert
   const [undoCard, setUndoCard] = useState<Card | null>(null);
+
+  // ── Import a booking / Documents — the same flow the Plan board has, here
+  // because the Agenda is the tab you're on when a confirmation arrives
+  // (Brennan, Sep 2026). Parse → preview sheet → cards land on their days;
+  // only the ones for THIS day are spliced into the timeline.
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const [pendingConf, setPendingConf] = useState<{ items: ParsedConfirmation[]; fileName: string; fileType: string } | null>(null);
+  const [importingConf, setImportingConf] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [showDocs, setShowDocs] = useState(false);
+  const handleImportFile = useCallback(async (file: File) => {
+    setImportingConf(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/confirmations/parse", { method: "POST", body: fd });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Couldn't read that file.");
+      setPendingConf({ items: json.parsed, fileName: file.name, fileType: file.type });
+    } catch (e) {
+      setImportError(e instanceof Error ? e.message : "Couldn't read that file.");
+      setTimeout(() => setImportError(null), 4000);
+    } finally {
+      setImportingConf(false);
+    }
+  }, []);
+  const agendaMenuExtra = readOnly ? undefined : [
+    { key: "import", title: "Import a booking", sub: "Flight or hotel confirmation → cards", icon: <UploadSimple size={15} weight="light" />, onClick: () => importInputRef.current?.click() },
+    { key: "docs", title: "Documents", sub: "Uploaded confirmations", icon: <Files size={15} weight="light" />, onClick: () => setShowDocs(true) },
+  ];
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleCardUpdate = useCallback(
@@ -627,6 +660,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           days={days}
           guest={readOnly}
           showSearch
+          extra={agendaMenuExtra}
           triggerClassName="flex items-center justify-center w-11 h-11 text-gray-500 hover:text-gray-800 transition-colors"
         />
       </div>
@@ -736,6 +770,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           days={days}
           guest={readOnly}
           showSearch
+          extra={agendaMenuExtra}
           triggerClassName="flex items-center justify-center w-8 h-8 rounded-full text-[rgba(26,26,46,0.55)] hover:text-activity hover:bg-[rgba(26,26,46,0.05)] transition-colors"
         />
       </div>
@@ -876,6 +911,45 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
       )}
 
       {/* Undo toast after a delete — matches the Plan board's */}
+      {/* Import a booking / Documents — hidden file input, parse preview and
+          the documents sheet, mirroring the Plan board. */}
+      {!readOnly && (
+        <input
+          ref={importInputRef}
+          type="file"
+          accept="application/pdf,image/*,.eml,.txt"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void handleImportFile(f);
+            e.currentTarget.value = "";
+          }}
+        />
+      )}
+      {pendingConf && (
+        <ConfirmationPreviewSheet
+          items={pendingConf.items}
+          fileName={pendingConf.fileName}
+          fileType={pendingConf.fileType}
+          days={days.map((d) => (d.id === dayWithCards.id ? { ...d, cards: localCards } : { ...d, cards: [] }))}
+          tripId={trip.id}
+          onClose={() => setPendingConf(null)}
+          onCardsCreated={(cards, deletedIds) => {
+            setLocalCards((prev) => {
+              const kept = deletedIds.length ? prev.filter((c) => !deletedIds.includes(c.id)) : prev;
+              const mine = cards.filter((c) => c.day_id === dayWithCards.id);
+              return [...kept, ...mine].sort(agendaOrder);
+            });
+            setPendingConf(null);
+          }}
+        />
+      )}
+      {showDocs && <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} />}
+      {(importingConf || importError) && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[70] px-4 py-2 rounded-full bg-[#1A1A2E] text-white text-[12.5px] shadow-lg">
+          {importError ?? "Reading your booking…"}
+        </div>
+      )}
       {undoCard && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[70] bg-gray-900 text-white text-[13px] font-medium pl-4 pr-1.5 py-1.5 rounded-full shadow-lg flex items-center gap-3 animate-in fade-in">
           <span>Card deleted</span>

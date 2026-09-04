@@ -212,7 +212,7 @@ function CreateRow({
           {scheduled && (
             <span className="inline-flex items-center gap-1 flex-shrink-0">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={CAP} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-              <span style={{ ...SMALL_CAPS, fontSize: "9px", fontWeight: 500, color: CAP }}>Scheduled</span>
+              <span style={{ ...SMALL_CAPS, fontSize: "9px", fontWeight: 500, color: CAP }}>On a day</span>
             </span>
           )}
         </div>

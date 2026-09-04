@@ -6,7 +6,8 @@ import { Camera } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import { setTripArchived } from "@/lib/tripArchive";
 import TravellersSection, { type Person } from "@/components/trip/TravellersSection";
-import ShareJourneySection, { type ShareGuest } from "@/components/trip/ShareJourneySection";
+import { type ShareGuest } from "@/components/trip/ShareJourneySection";
+import ShareJourneySheet from "@/components/trip/ShareJourneySheet";
 import { NESTED_SHEET_ATTR } from "@/components/ui/Overlay";
 import { TRAVELLERS_ENABLED } from "@/lib/featureFlags";
 import type { Trip, Day } from "@/types/database";
@@ -114,6 +115,7 @@ export default function TripSettingsClient({
 
   // Form state
   const [title, setTitle] = useState(trip.title);
+  const [showShare, setShowShare] = useState(false);
   const [destination, setDestination] = useState(trip.destination);
   const [startDate, setStartDate] = useState(trip.start_date);
   const [endDate, setEndDate] = useState(trip.end_date);
@@ -565,14 +567,33 @@ export default function TripSettingsClient({
 
         {/* ── Share this journey — guest sharing ── */}
         {/* id anchors the Plan menu's "Share itinerary" deep link (#share) */}
+        {/* One sharing flow: this row opens the same sheet as the menu and the
+            faces. The full section it replaced was the third copy of the
+            invite, with its own words (simplification audit). */}
         {shareAvailable && (
           <div id="share" style={{ scrollMarginTop: 24 }}>
-            <ShareJourneySection
-              tripId={trip.id}
-              initialShareToken={initialShareToken}
-              initialGuests={initialGuests}
-            />
+            <button
+              type="button"
+              onClick={() => setShowShare(true)}
+              className="w-full flex items-center justify-between rounded-2xl bg-white px-4 py-3.5 text-left"
+              style={{ boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.12)" }}
+            >
+              <span>
+                <span className="block font-display italic text-[17px] text-[#1A1A2E]">Share this journey</span>
+                <span className="block text-[12px] mt-0.5" style={{ color: "rgba(26,26,46,0.55)" }}>
+                  {initialGuests.length > 0
+                    ? `${initialGuests.length} ${initialGuests.length === 1 ? "person can" : "people can"} see it`
+                    : initialShareToken
+                      ? "A link exists. Nobody has joined yet."
+                      : "Email someone, or send a link"}
+                </span>
+              </span>
+              <span style={{ color: "rgba(26,26,46,0.45)", fontSize: 18 }}>›</span>
+            </button>
           </div>
+        )}
+        {showShare && (
+          <ShareJourneySheet tripId={trip.id} tripTitle={trip.title ?? "this journey"} onClose={() => setShowShare(false)} />
         )}
 
         {/* ── Manage journey — quiet text links. An archived journey offers

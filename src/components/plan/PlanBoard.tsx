@@ -1988,6 +1988,26 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
                       {allCollapsed ? "Expand all" : "Collapse all"}
                     </button>
                   )}
+                  {/* Import a booking and Documents out where they can be found
+                      (simplification audit). The phone keeps them in its menu;
+                      this row is desktop-only. */}
+                  <span className="flex-1" />
+                  <button
+                    type="button"
+                    onClick={() => importInputRef.current?.click()}
+                    className={CTRL_CHIP}
+                    style={{ letterSpacing: "-0.005em" }}
+                  >
+                    Import a booking
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowDocs(true)}
+                    className={CTRL_CHIP}
+                    style={{ letterSpacing: "-0.005em" }}
+                  >
+                    Documents
+                  </button>
                 </div>
               )}
 

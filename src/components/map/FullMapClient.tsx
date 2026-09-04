@@ -701,8 +701,8 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
               <div className="flex items-center gap-2">
                 {(
                   [
-                    { status: "interested",   label: "Interested"   },
-                    { status: "in_itinerary", label: "In Itinerary" },
+                    { status: "interested",   label: "Saved"    },
+                    { status: "in_itinerary", label: "On a day" },
                   ] as { status: string; label: string }[]
                 ).map(({ status, label }) => {
                   const active = activeStatuses.has(status);
