@@ -160,11 +160,20 @@ export default function CreateCardSheet({
   const savedMatches = useMemo(() => {
     if (!dayId || selected) return [] as Card[];
     const q = title.trim().toLowerCase();
-    const pool = q
+    return q
       ? saved.filter((c) => (c.place!.title ?? "").toLowerCase().includes(q) || (c.place!.address ?? "").toLowerCase().includes(q))
       : saved;
-    return pool.slice(0, q ? 6 : 8);
   }, [saved, title, selected, dayId]);
+  const savedGroups = useMemo(() => {
+    const order: { type: CardType; label: string }[] = [
+      { type: "food", label: "Food" },
+      { type: "activity", label: "Activity" },
+      { type: "logistics", label: "Logistics" },
+    ];
+    return order
+      .map((g) => ({ ...g, cards: savedMatches.filter((c) => c.place!.type === g.type) }))
+      .filter((g) => g.cards.length > 0);
+  }, [savedMatches]);
 
   const handleQuickAdd = useCallback(async (card: Card) => {
     if (!dayId || !card.place_id || saving) return;
@@ -513,19 +522,19 @@ export default function CreateCardSheet({
               </div>
 
               {/* Saved first — one tap puts the place on the day and closes. */}
-              {savedMatches.length > 0 && (
-                <div className="mb-3">
+              {savedGroups.map((g) => (
+                <div className="mb-3" key={g.type}>
                   <p className="mb-1.5 px-1 text-[9.5px] font-semibold uppercase" style={{ letterSpacing: "0.18em", color: "rgba(26,26,46,0.55)" }}>
-                    Saved on your map
+                    {g.label} · saved on your map
                   </p>
                   <div className="rounded-xl bg-[#FCFBF8] overflow-hidden" style={{ boxShadow: "0 0 0 1px rgba(26,26,46,0.10)" }}>
-                    {savedMatches.map((c, i) => (
+                    {g.cards.map((c, i) => (
                       <button
                         key={c.id}
                         onClick={() => handleQuickAdd(c)}
                         disabled={saving}
                         className="w-full flex items-center gap-3 px-3.5 py-3 text-left active:opacity-70 transition-opacity disabled:opacity-50"
-                        style={{ borderBottom: i < savedMatches.length - 1 ? "1px solid rgba(26,26,46,0.08)" : "none" }}
+                        style={{ borderBottom: i < g.cards.length - 1 ? "1px solid rgba(26,26,46,0.08)" : "none" }}
                       >
                         <span className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#F7F3EA", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)" }}>
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -545,7 +554,7 @@ export default function CreateCardSheet({
                     ))}
                   </div>
                 </div>
-              )}
+              ))}
 
               {/* Predictions — the world beyond the pile. */}
               {predictions.length > 0 && savedMatches.length > 0 && (

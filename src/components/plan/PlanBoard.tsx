@@ -2439,14 +2439,15 @@ function DayColumn({ day, cards, dayIndex, fullWidth, onCardTap, onDelete, onOpe
             )}
           </div>
 
-          {/* Add a card — flush below last card, inside column surface.
-              Both doors now lead somewhere real: saved places, or a Google
-              search (the same sheet the Agenda uses). */}
+          {/* Add a place — flush below the last card. On the phone this is the
+              one door: the sheet it opens lists saved places first, then a
+              Google search. The batch "Add from saved" picker stays on the
+              desktop, where ticking six places for one day is the point of
+              the board (Brennan, from his phone, Sep 2026). */}
           <div className="flex flex-col gap-2 shrink-0">
-            {/* Door 1 — "Add from saved" reads first (quiet filled chip). */}
             <button
               onClick={onAddFromSaved}
-              className="w-full flex items-center justify-center gap-2 rounded-xl px-4 py-3 active:opacity-70 transition-opacity"
+              className="hidden md:flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 active:opacity-70 transition-opacity"
               style={{
                 background: "#F2EDE3",
                 boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)",
@@ -2470,7 +2471,7 @@ function DayColumn({ day, cards, dayIndex, fullWidth, onCardTap, onDelete, onOpe
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(26,26,46,0.40)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
               </svg>
-              Add a card
+              Add a place
             </button>
           </div>
         </div>

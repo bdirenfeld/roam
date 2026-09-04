@@ -117,6 +117,11 @@ export default function TripSettingsClient({
   // Form state
   const [title, setTitle] = useState(trip.title);
   const [showShare, setShowShare] = useState(false);
+  // Share by typing an email, right here. The row used to open a sheet with
+  // the same field one tap further away (Brennan, from his phone, Sep 2026).
+  const [shareEmail, setShareEmail] = useState("");
+  const [shareSending, setShareSending] = useState(false);
+  const [shareSentTo, setShareSentTo] = useState<string | null>(null);
   const [destination, setDestination] = useState(trip.destination);
   const [startDate, setStartDate] = useState(trip.start_date);
   const [endDate, setEndDate] = useState(trip.end_date);
@@ -311,6 +316,42 @@ export default function TripSettingsClient({
   };
 
   const { toast } = useToast();
+
+  const sendShare = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const to = shareEmail.trim();
+    if (!to || shareSending) return;
+    setShareSending(true);
+    try {
+      const res = await fetch("/api/share/send-invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trip_id: trip.id, email: to }),
+      });
+      const data = (await res.json()) as { sent?: boolean; reason?: string; url?: string; detail?: string; error?: string };
+      if (data.sent) {
+        setShareSentTo(to);
+        setShareEmail("");
+        toast({ message: `Sent to ${to}` });
+        return;
+      }
+      if (data.error) { toast({ message: data.error }); return; }
+      if (data.reason === "provider-error") { toast({ message: data.detail ?? "The mail provider refused it." }); return; }
+      const link = data.url ?? (initialShareToken ? `${window.location.origin}/journey/${initialShareToken}` : null);
+      if (link) {
+        const subject = encodeURIComponent(`Join me on ${trip.title ?? "this journey"}`);
+        const body = encodeURIComponent(`Here's the plan — open this to see it:\n\n${link}\n`);
+        window.location.href = `mailto:${encodeURIComponent(to)}?subject=${subject}&body=${body}`;
+      } else {
+        toast({ message: "Couldn't send that. Try the link instead." });
+      }
+    } catch {
+      toast({ message: "Couldn't send that. Your connection may be down." });
+    } finally {
+      setShareSending(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (deleting) return;
     setDeleting(true);
@@ -575,24 +616,46 @@ export default function TripSettingsClient({
             faces. The full section it replaced was the third copy of the
             invite, with its own words (simplification audit). */}
         {shareAvailable && (
-          <div id="share" style={{ scrollMarginTop: 24 }}>
+          <div
+            id="share"
+            className="rounded-2xl bg-white px-4 py-3.5"
+            style={{ scrollMarginTop: 24, boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.12)" }}
+          >
+            <span className="block font-display italic text-[17px] text-[#1A1A2E]">Share this journey</span>
+            <form onSubmit={sendShare} className="flex gap-2 mt-2.5">
+              <input
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                value={shareEmail}
+                onChange={(e) => setShareEmail(e.target.value)}
+                placeholder="Their email address"
+                aria-label="Their email address"
+                className="flex-1 min-w-0 h-11 px-3 rounded-xl bg-gray-50 border border-gray-200 text-[14px] text-[#1A1A2E] outline-none focus:border-gray-300 focus:bg-white transition-colors"
+              />
+              <button
+                type="submit"
+                disabled={shareSending || !shareEmail.trim()}
+                className="h-11 px-4 rounded-xl text-[13px] font-semibold flex-shrink-0 disabled:opacity-40 transition-opacity"
+                style={{ background: "#1A1A2E", color: "#FAF7F2" }}
+              >
+                {shareSending ? "Sending…" : "Send"}
+              </button>
+            </form>
+            <p className="text-[12px] mt-2" style={{ color: "rgba(26,26,46,0.55)" }}>
+              {shareSentTo
+                ? `Sent to ${shareSentTo}. They can read the journey, not change it.`
+                : initialGuests.length > 0
+                  ? `${initialGuests.length} ${initialGuests.length === 1 ? "person can" : "people can"} see it. They can read it, not change it.`
+                  : "They get a link by email. They can read the journey, not change it."}
+            </p>
             <button
               type="button"
               onClick={() => setShowShare(true)}
-              className="w-full flex items-center justify-between rounded-2xl bg-white px-4 py-3.5 text-left"
-              style={{ boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.12)" }}
+              className="text-[12px] mt-1.5 underline underline-offset-2"
+              style={{ color: "rgba(26,26,46,0.55)" }}
             >
-              <span>
-                <span className="block font-display italic text-[17px] text-[#1A1A2E]">Share this journey</span>
-                <span className="block text-[12px] mt-0.5" style={{ color: "rgba(26,26,46,0.55)" }}>
-                  {initialGuests.length > 0
-                    ? `${initialGuests.length} ${initialGuests.length === 1 ? "person can" : "people can"} see it`
-                    : initialShareToken
-                      ? "A link exists. Nobody has joined yet."
-                      : "Email someone, or send a link"}
-                </span>
-              </span>
-              <span style={{ color: "rgba(26,26,46,0.45)", fontSize: 18 }}>›</span>
+              {initialShareToken ? "Copy the link, or see who has it" : "Send a link instead"}
             </button>
           </div>
         )}
