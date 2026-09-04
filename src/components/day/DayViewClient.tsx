@@ -15,7 +15,6 @@ import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/
 import DocumentsSheet from "@/components/plan/DocumentsSheet";
 import { UploadSimple, Files } from "@phosphor-icons/react";
 import CreateCardSheet from "@/components/plan/CreateCardSheet";
-import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
 import Companion from "@/components/companion/Companion";
 import { JourneyNotesSheet } from "@/components/trip/JourneyNotes";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
@@ -399,7 +398,6 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   const [isCardOpen, setIsCardOpen] = useState(false);
   const [swipeDir, setSwipeDir] = useState<"left" | "right" | null>(null);
   const [gapTimes, setGapTimes] = useState<{ start: string; end: string } | null>(null);
-  const [showAddFromSaved, setShowAddFromSaved] = useState(false);
 
   // Journey notes — the sheet unmounts on close, so the latest text is held
   // here; re-opening it shows what was just written, not the page payload.
@@ -567,12 +565,6 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
 
   // Cards placed via the "Add from saved" picker — splice this day's in,
   // sorted like handleCardCreated. The interested card stays untouched.
-  const handleSavedAdded = useCallback((added: Card[]) => {
-    const mine = added.filter((c) => c.day_id === dayWithCards.id);
-    if (!mine.length) return;
-    setLocalCards((prev) => [...prev, ...mine].sort(agendaOrder));
-  }, [dayWithCards.id]);
-
   const handleCardCreated = useCallback((card: Card) => {
     setLocalCards((prev) => [...prev, card].sort(agendaOrder));
     setGapTimes(null);
@@ -919,7 +911,6 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
               onCardTap={handleCardTap}
               highlightedCardId={highlightedCardId}
               onGapTap={readOnly ? undefined : handleGapTap}
-              onAddFromSaved={readOnly ? undefined : () => setShowAddFromSaved(true)}
               onToggleConfirmed={readOnly ? undefined : handleToggleConfirmed}
               cardNumberById={cardNumberById}
               readOnly={readOnly}
@@ -965,21 +956,6 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           endPosition={localCards.reduce((m, c) => Math.max(m, c.position), 0) + 1}
           initialStartTime={gapTimes.start}
           initialEndTime={gapTimes.end}
-          destination={trip.destination}
-          destinationLat={trip.destination_lat}
-          destinationLng={trip.destination_lng}
-          onClose={() => setGapTimes(null)}
-          onCardCreated={handleCardCreated}
-        />
-      )}
-
-      {/* "Add from saved" — same picker the Plan board uses; scheduled ids
-          come from this day only (the trip-wide set isn't loaded here). */}
-      {showAddFromSaved && (
-        <LinkPlaceSheet
-          mode="create"
-          tripId={trip.id}
-          day={localDayWithCards}
           scheduledPlaceIds={
             new Set(
               localCards
@@ -987,8 +963,11 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
                 .map((c) => c.place_id as string),
             )
           }
-          onAdded={handleSavedAdded}
-          onClose={() => setShowAddFromSaved(false)}
+          destination={trip.destination}
+          destinationLat={trip.destination_lat}
+          destinationLng={trip.destination_lng}
+          onClose={() => setGapTimes(null)}
+          onCardCreated={handleCardCreated}
         />
       )}
 

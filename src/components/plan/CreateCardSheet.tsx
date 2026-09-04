@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import type { Card, CardType, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
+import { scheduleCardOnDay } from "@/lib/scheduleCard";
 import type { PlaceResult } from "@/components/map/AddToTripSheet";
 
 const SUB_TYPES: Record<CardType, { value: string; label: string }[]> = {
@@ -88,6 +89,8 @@ interface Props {
   extraDetails?: Record<string, unknown>;
   initialStartTime?: string;
   initialEndTime?: string;
+  /** Places already on this day — left out of the saved list. */
+  scheduledPlaceIds?: Set<string>;
   /** Bias the Google search toward the journey's destination */
   destination?: string | null;
   destinationLat?: number | null;
@@ -97,7 +100,7 @@ interface Props {
 export default function CreateCardSheet({
   dayId, listId = null, tripId, endPosition, onClose, onCardCreated,
   initialStatus, extraDetails, initialStartTime, initialEndTime,
-  destination, destinationLat, destinationLng,
+  scheduledPlaceIds, destination, destinationLat, destinationLng,
 }: Props) {
   const { toast } = useToast();
   const supabase  = createClient();
@@ -109,8 +112,8 @@ export default function CreateCardSheet({
   const [title,       setTitle]       = useState("");
   const [type,        setType]        = useState<CardType | null>(null);
   const [subType,     setSubType]     = useState<string | null>(null);
-  const [startTime,   setStartTime]   = useState(initialStartTime ?? "");
-  const [endTime,     setEndTime]     = useState(initialEndTime ?? "");
+  const [startTime]   = useState(initialStartTime ?? "");
+  const [endTime]     = useState(initialEndTime ?? "");
   const [saving,      setSaving]      = useState(false);
 
   // ── Google search state — the title input doubles as the search box ──
@@ -120,6 +123,66 @@ export default function CreateCardSheet({
   const [selected,     setSelected]     = useState<PlaceResult | null>(null);
   const debounceRef  = useRef<ReturnType<typeof setTimeout>>();
   const sessionToken = useRef(crypto.randomUUID());
+
+  // ── Saved places — the traveller's own pile, offered before Google ──
+  const [saved, setSaved] = useState<Card[]>([]);
+  useEffect(() => {
+    if (!dayId) return;
+    let cancelled = false;
+    supabase
+      .from("cards")
+      .select(`
+        *,
+        place:places (
+          id, title, type, sub_type, lat, lng, address, google_place_id, cover_image_url, rating, price_level, website, phone, hours, loved, loved_at
+        )
+      `)
+      .eq("trip_id", tripId)
+      .eq("status", "interested")
+      .not("place_id", "is", null)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const seen = new Map<string, Card>();
+        for (const c of (data ?? []) as Card[]) {
+          if (!c.place || !c.place_id) continue;
+          if (scheduledPlaceIds?.has(c.place_id)) continue;
+          const prev = seen.get(c.place_id);
+          if (!prev || (!prev.place?.cover_image_url && c.place.cover_image_url)) seen.set(c.place_id, c);
+        }
+        setSaved(Array.from(seen.values()).sort((a, b) => (a.place!.title ?? "").localeCompare(b.place!.title ?? "")));
+      });
+    return () => { cancelled = true; };
+    // scheduledPlaceIds is a fresh Set each render; the list is small and the
+    // sheet is short-lived, so fetch once per open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dayId, tripId, supabase]);
+
+  const savedMatches = useMemo(() => {
+    if (!dayId || selected) return [] as Card[];
+    const q = title.trim().toLowerCase();
+    const pool = q
+      ? saved.filter((c) => (c.place!.title ?? "").toLowerCase().includes(q) || (c.place!.address ?? "").toLowerCase().includes(q))
+      : saved;
+    return pool.slice(0, q ? 6 : 8);
+  }, [saved, title, selected, dayId]);
+
+  const handleQuickAdd = useCallback(async (card: Card) => {
+    if (!dayId || !card.place_id || saving) return;
+    setSaving(true);
+    const newCard = await scheduleCardOnDay(supabase, {
+      tripId,
+      dayId,
+      placeId: card.place_id,
+      place: card.place,
+      details: (card.details ?? {}) as Card["details"],
+      startTime: startTime ? `${startTime.slice(0, 5)}:00` : null,
+      endTime: endTime ? `${endTime.slice(0, 5)}:00` : null,
+      sourceUrl: card.source_url,
+    });
+    setSaving(false);
+    if (!newCard) { toast({ message: "Couldn't add that. Try again." }); return; }
+    onCardCreated(newCard);
+  }, [dayId, tripId, supabase, startTime, endTime, saving, onCardCreated, toast]);
 
   useEffect(() => {
     const t = setTimeout(() => inputRef.current?.focus(), 80);
@@ -382,9 +445,6 @@ export default function CreateCardSheet({
     ? { background: "#1A1A2E", color: "white", border: "1px solid #1A1A2E" }
     : { background: "transparent", color: "#6B7280", border: "1px solid #E5E7EB" };
 
-  const INPUT_CLS =
-    "w-full text-[15px] text-gray-900 bg-gray-50 rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-gray-300 focus:bg-white transition-colors";
-
   return (
     <div
       className="fixed inset-0 z-60 flex items-end"
@@ -397,22 +457,25 @@ export default function CreateCardSheet({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        className="relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet max-h-[80dvh] flex flex-col animate-in slide-in-from-bottom duration-300"
+        className="relative w-full max-w-mobile mx-auto bg-[#FAF7F2] rounded-t-2xl shadow-sheet max-h-[80dvh] flex flex-col animate-in slide-in-from-bottom duration-300"
         style={{ willChange: "transform" }}
       >
         {/* Drag handle */}
         <div className="flex justify-center pt-2.5 flex-shrink-0 cursor-grab">
-          <div className="w-9 h-[3px] rounded-full bg-gray-200" />
+          <div className="w-9 h-[3px] rounded-full" style={{ background: "rgba(26,26,46,0.20)" }} />
         </div>
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-3 pb-3 flex-shrink-0">
-          <h2 className="text-[17px] font-bold text-gray-900">
+          <h2
+            className="font-display italic"
+            style={{ fontSize: "23px", fontWeight: 500, color: "#1A1A2E", letterSpacing: "-0.01em" }}
+          >
             {dayId ? "Add to this day" : "Add to this list"}
           </h2>
           <button
             onClick={onClose}
-            className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+            className="w-9 h-9 rounded-full flex items-center justify-center transition-colors hover:bg-[rgba(26,26,46,0.06)]"
             aria-label="Close"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
@@ -428,8 +491,8 @@ export default function CreateCardSheet({
           {/* Search / title input — one box does both */}
           {!selected && (
             <>
-              <div className="flex items-center gap-2 mb-1">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+              <div className="flex items-center gap-2.5 mb-3 px-3.5 py-2.5 rounded-full" style={{ background: "#F2EDE3" }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(26,26,46,0.45)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
                   <circle cx="11" cy="11" r="8" />
                   <line x1="21" y1="21" x2="16.65" y2="16.65" />
                 </svg>
@@ -438,8 +501,8 @@ export default function CreateCardSheet({
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && canCreate && predictions.length === 0) handleCreate(); }}
-                  placeholder={destination ? `Search ${destination}, or type a note…` : "Search a place, or type a note…"}
-                  className="flex-1 text-[17px] font-bold text-gray-900 placeholder-gray-300 bg-transparent outline-none py-1"
+                  placeholder={saved.length > 0 ? "Search saved places, or anywhere" : (destination ? `Search ${destination}, or type a note…` : "Search a place, or type a note…")}
+                  className="flex-1 text-[15px] text-[#1A1A2E] placeholder:text-[rgba(26,26,46,0.40)] bg-transparent outline-none py-0.5"
                 />
                 {(searching || loadingPlace) && (
                   <svg className="w-4 h-4 text-gray-400 animate-spin flex-shrink-0" viewBox="0 0 24 24" fill="none">
@@ -449,9 +512,49 @@ export default function CreateCardSheet({
                 )}
               </div>
 
-              {/* Predictions */}
+              {/* Saved first — one tap puts the place on the day and closes. */}
+              {savedMatches.length > 0 && (
+                <div className="mb-3">
+                  <p className="mb-1.5 px-1 text-[9.5px] font-semibold uppercase" style={{ letterSpacing: "0.18em", color: "rgba(26,26,46,0.55)" }}>
+                    Saved
+                  </p>
+                  <div className="rounded-xl bg-white overflow-hidden" style={{ boxShadow: "0 0 0 1px rgba(26,26,46,0.10)" }}>
+                    {savedMatches.map((c, i) => (
+                      <button
+                        key={c.id}
+                        onClick={() => handleQuickAdd(c)}
+                        disabled={saving}
+                        className="w-full flex items-center gap-3 px-3.5 py-3 text-left active:opacity-70 transition-opacity disabled:opacity-50"
+                        style={{ borderBottom: i < savedMatches.length - 1 ? "1px solid rgba(26,26,46,0.08)" : "none" }}
+                      >
+                        <span className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#F7F3EA", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)" }}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                          </svg>
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-[14px] font-medium text-[#1A1A2E] truncate" style={{ letterSpacing: "-0.005em" }}>{c.place!.title}</span>
+                          {c.place!.address && (
+                            <span className="block text-[11.5px] truncate mt-0.5" style={{ color: "rgba(26,26,46,0.55)" }}>{c.place!.address}</span>
+                          )}
+                        </span>
+                        <span className="flex-shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium" style={{ color: "#1A1A2E", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.12)" }}>
+                          Add
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Predictions — the world beyond the pile. */}
+              {predictions.length > 0 && savedMatches.length > 0 && (
+                <p className="mb-1.5 px-1 text-[9.5px] font-semibold uppercase" style={{ letterSpacing: "0.18em", color: "rgba(26,26,46,0.55)" }}>
+                  Everywhere else
+                </p>
+              )}
               {predictions.length > 0 && (
-                <div className="rounded-xl border border-gray-100 overflow-hidden mb-3" style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.06)" }}>
+                <div className="rounded-xl bg-white overflow-hidden mb-3" style={{ boxShadow: "0 0 0 1px rgba(26,26,46,0.10)" }}>
                   {predictions.map((p, i) => (
                     <button
                       key={p.place_id}
@@ -480,9 +583,6 @@ export default function CreateCardSheet({
                   ))}
                 </div>
               )}
-              <p className="text-[11px] text-gray-300 mb-4">
-                Pick a match to get the pin, photo and hours — or just press Add for a plain note.
-              </p>
             </>
           )}
 
@@ -545,31 +645,9 @@ export default function CreateCardSheet({
             </div>
           )}
 
-          {/* Time */}
-          <div className="flex gap-3 mb-4">
-            <div className="flex-1">
-              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Start time</p>
-              <input
-                aria-label="Start time"
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className={INPUT_CLS}
-              />
-            </div>
-            <div className="flex-1">
-              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">End time</p>
-              <input
-                aria-label="End time"
-                type="time"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className={INPUT_CLS}
-              />
-            </div>
-          </div>
-
-          {/* Add button */}
+          {/* Add — only once there is something to add: a picked place, or
+              typed text that becomes a plain note. No grey button waiting. */}
+          {(selected || title.trim().length > 0) && (
           <div className="pb-8 pt-1">
             <button
               onClick={handleCreate}
@@ -579,9 +657,11 @@ export default function CreateCardSheet({
                 ? { background: "#1A1A2E", color: "white" }
                 : { background: "#F3F4F6", color: "#D1D5DB", cursor: "not-allowed" }}
             >
-              {saving ? "Adding…" : selected ? `Add ${selected.name}` : "Add"}
+              {saving ? "Adding…" : selected ? `Add ${selected.name}` : "Add as a note"}
             </button>
           </div>
+          )}
+          {!selected && title.trim().length === 0 && <div className="pb-6" />}
         </div>
       </div>
     </div>

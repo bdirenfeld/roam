@@ -184,10 +184,10 @@ export default function CardTimeline({
             Add a place
           </button>
         )}
-        {onGapTap && onAddFromSaved && (
-          <span style={{ color: "rgba(26,26,46,0.2)" }}>·</span>
-        )}
-        {onAddFromSaved && (
+        {/* "Add from saved" is inside "Add a place" now — the one sheet lists
+            saved places first. The second link only survives for a host
+            that offers no search. */}
+        {!onGapTap && onAddFromSaved && (
           <button
             onClick={onAddFromSaved}
             className="text-[14px]"
