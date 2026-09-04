@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useSheetDrag } from "@/hooks/useSheetDrag";
 import PromoteToWishlistSheet from "./PromoteToWishlistSheet";
 import SetLocationSheet from "./SetLocationSheet";
+import IdeaEmbed from "./IdeaEmbed";
 import type { JourneySummary, PromoteOutcome, ResolvedIdeaPlace } from "./PromoteToWishlistSheet";
 
 const INK = "#1A1A2E";
@@ -205,6 +206,10 @@ function IdeaRow({
 
       {open && (
         <div className="px-4 pb-3" style={{ background: "#FCFBF8" }}>
+          {/* The video, in place, for TikTok / YouTube / Instagram links —
+              you don't have to leave the app to remember why you saved it.
+              Loads only when the row opens. */}
+          {idea.url && <div className="pt-2.5"><IdeaEmbed url={idea.url} /></div>}
           {idea.note && idea.note.trim() !== ideaHeadline(idea) && (
             <p className="text-[13px] leading-snug whitespace-pre-wrap mb-2.5 pt-1" style={{ color: "rgba(26,26,46,0.75)" }}>
               {idea.note}
@@ -218,7 +223,7 @@ function IdeaRow({
               className="block text-[11.5px] truncate mb-2.5 underline underline-offset-2"
               style={{ color: SOFT }}
             >
-              {idea.url}
+              Open the original ↗
             </a>
           )}
           {mapUrl && idea.place && (
