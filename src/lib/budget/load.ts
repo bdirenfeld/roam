@@ -6,6 +6,7 @@ import {
   type Assumptions,
   type CardBudget,
 } from "./model";
+import { currencyForDestination, fetchRateToHome, HOME_CURRENCY } from "./currency";
 
 export interface ExcursionItem {
   cardId: string;
@@ -28,8 +29,12 @@ export interface EstimateData {
   basis: Record<string, string>;
   uncostedExcursions: number;
   rolledExcursionCount: number;
-  /** trip_budgets.fx_to_cad — one rate for every non-CAD card cost. */
+  /** The rate card costs convert at: typed and saved, else today's market rate, else 1.47. */
   fxToCad: number;
+  fxSource: "typed" | "live" | "fallback";
+  /** What the cards are priced in, from the destination ("Tuscany, Italy" → EUR). */
+  cardCurrency: string;
+  homeCurrency: string;
   /** One row per priced activity card, in home currency, for the breakdown table. */
   excursionItems: ExcursionItem[];
   /** Activity cards on days with a cost of zero. */
@@ -86,7 +91,7 @@ export async function loadEstimate(
       supabase
         .from("trips")
         .select(
-          "id, title, start_date, end_date, party_size, destination_lat, destination_lng",
+          "id, title, destination, start_date, end_date, party_size, destination_lat, destination_lng",
         )
         .eq("id", tripId)
         .single(),
@@ -103,7 +108,13 @@ export async function loadEstimate(
 
   const partySize = trip.party_size ?? 1;
   const nights = Math.max((days ?? []).length - 1, 1);
-  const fxToCad = Number(saved?.fx_to_cad ?? 1.47);
+  // The cards' currency, from the destination; the rate from the market today,
+  // unless a rate was typed and saved. 1.47 is the last resort.
+  const cardCurrency = currencyForDestination(trip.destination as string | null) ?? "EUR";
+  const typedFx = saved?.fx_to_cad != null ? Number(saved.fx_to_cad) : null;
+  const liveFx = typedFx == null ? await fetchRateToHome(cardCurrency) : null;
+  const fxToCad = typedFx ?? liveFx ?? 1.47;
+  const fxSource: "typed" | "live" | "fallback" = typedFx != null ? "typed" : liveFx != null ? "live" : "fallback";
 
   // An excursion is any scheduled activity card. Those carrying details.budget
   // seed the Excursions line; the rest are counted so the screen can say how
@@ -176,6 +187,9 @@ export async function loadEstimate(
   return {
     tripTitle: trip.title ?? "Journey",
     fxToCad,
+    fxSource,
+    cardCurrency,
+    homeCurrency: HOME_CURRENCY,
     // Unrounded per row, so the table sums to the same figure as the line
     // (rows rounded first added to one dollar more). Largest first.
     excursionItems: activities

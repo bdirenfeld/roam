@@ -6,6 +6,7 @@ import { CaretLeft, CaretDown, Check, X } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import type { ExcursionItem } from "@/lib/budget/load";
 import { queuedUpdate } from "@/lib/offline/queuedWrite";
+import { SYMBOL } from "@/lib/budget/currency";
 import { useToast } from "@/components/ui/Toast";
 import {
   compute,
@@ -259,6 +260,8 @@ interface Props {
   rolledExcursionCount: number;
   /** The rate card costs convert at; editable under "How this was worked out". */
   fxToCad: number;
+  fxSource: "typed" | "live" | "fallback";
+  cardCurrency: string;
   /** The priced activity cards, for the Excursions breakdown table. */
   excursionItems: ExcursionItem[];
   excursionFree: number;
@@ -279,6 +282,8 @@ export default function EstimateClient({
   uncostedExcursions,
   rolledExcursionCount,
   fxToCad,
+  fxSource,
+  cardCurrency,
   excursionItems,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   excursionFree: _excursionFree,
@@ -305,6 +310,10 @@ export default function EstimateClient({
   // "nothing typed", so the cards' sum keeps flowing through on every open
   // (and follows a new rate). Typed, the figure is kept and wins.
   const [fx, setFx] = useState<number>(fxToCad);
+  // A rate is saved only if you typed it; otherwise the market rate of the
+  // day applies on every open.
+  const [fxTyped, setFxTyped] = useState(fxSource === "typed");
+  const sym = (c: string) => SYMBOL[c || cardCurrency] ?? "";
   // The breakdown rows, editable: a cost typed here writes to the card and
   // the line follows (unless you typed the line yourself).
   const [items, setItems] = useState<ExcursionItem[]>(excursionItems);
@@ -446,7 +455,7 @@ export default function EstimateClient({
           trip_id: tripId,
           user_id: user.id,
           assumptions: { ...a, excursionsTotal: excursionsTyped ? a.excursionsTotal : 0 } as unknown as Record<string, unknown>,
-          fx_to_cad: fx,
+          fx_to_cad: fxTyped ? fx : null,
           // Kept so the working survives the session — the question comes in
           // March, not thirty seconds after the button.
           basis,
@@ -681,7 +690,7 @@ export default function EstimateClient({
                               <td className="py-[3px] pr-2" style={{ color: INK }}>{x.title}</td>
                               <td className="py-[3px] pl-2 text-right whitespace-nowrap tabular-nums">
                                 <span className="inline-flex items-center gap-0.5 justify-end">
-                                  <span>{x.currency === "CAD" ? "$" : x.currency === "EUR" ? "€" : x.currency === "USD" ? "US$" : x.currency === "GBP" ? "£" : ""}</span>
+                                  <span>{sym(x.currency)}</span>
                                   <input
                                     type="number"
                                     inputMode="decimal"
@@ -734,7 +743,7 @@ export default function EstimateClient({
                         </tbody>
                       </table>
                       <p className="mt-1.5 text-[11px]" style={{ color: CAPTION, lineHeight: 1.45 }}>
-                        {items.some((x) => x.currency !== "CAD") ? `Converted at ${fx} to the dollar. ` : ""}
+                        {items.some((x) => x.currency !== "CAD") ? `Converted at ${fx} dollars per ${cardCurrency === "EUR" ? "euro" : cardCurrency}. ` : ""}
                         Cost and people are per row and save to the card; the line follows unless you typed a figure on it. Blank cost means no cost yet; 0 means free.
                       </p>
                     </div>
@@ -779,14 +788,23 @@ export default function EstimateClient({
                     value={fx}
                     onChange={(e) => {
                       const v = Number(e.target.value);
-                      if (!Number.isNaN(v)) { setFx(v); setSaved(false); }
+                      if (!Number.isNaN(v)) { setFx(v); setFxTyped(true); setSaved(false); }
                     }}
                     aria-label="Exchange rate to the dollar"
                     className="w-[64px] rounded-md px-1.5 py-1 text-[12.5px] text-right"
                     style={box(INK)}
                   />
                   <span className="flex-1 text-[11px]" style={{ color: CAPTION, lineHeight: 1.45 }}>
-                    dollars per unit of the currency your cards are priced in. Save to apply it.
+                    {fxTyped
+                      ? `dollars per ${cardCurrency === "EUR" ? "euro" : cardCurrency}. Yours; `
+                      : fxSource === "live"
+                        ? `dollars per ${cardCurrency === "EUR" ? "euro" : cardCurrency}, today's rate. `
+                        : `dollars per ${cardCurrency === "EUR" ? "euro" : cardCurrency}, a standing guess. `}
+                    {fxTyped ? (
+                      <button type="button" className="underline underline-offset-2" onClick={() => { setFxTyped(false); setFx(fxToCad); setSaved(false); }}>
+                        use today&rsquo;s rate
+                      </button>
+                    ) : "Type one to lock it."}
                   </span>
                 </div>
               </div>
