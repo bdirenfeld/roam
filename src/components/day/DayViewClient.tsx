@@ -760,21 +760,31 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           )}
         </div>
 
-        {/* ··· — same menu as the mobile header, so notes are one tap away
-            from the day on desktop too. The desktop variant: this header is
-            md:+ only, and the mobile variant carried a Profile row the
-            masthead's avatar already provides. */}
-        <AppMenu
-          variant="desktop"
-          tripId={trip.id}
-          tripTitle={trip.title}
-          trip={trip}
-          days={days}
-          guest={readOnly}
-          showSearch
-          extra={agendaMenuExtra}
-          triggerClassName="flex items-center justify-center w-8 h-8 rounded-full text-[rgba(26,26,46,0.55)] hover:text-activity hover:bg-[rgba(26,26,46,0.05)] transition-colors"
-        />
+        {/* Import a booking / Documents as chips, the same pair the Plan's
+            desktop toolbar carries. This slot used to hold a second ⋯ menu,
+            identical to the masthead's one line above it — two doors to one
+            menu on one screen (Brennan, Sep 2026). The phone keeps its menu
+            because the masthead doesn't render there. */}
+        {!readOnly && (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => importInputRef.current?.click()}
+              className="rounded-full border border-[rgba(26,26,46,0.12)] bg-[rgba(26,26,46,0.025)] px-3 py-1.5 text-[12px] font-medium text-activity hover:bg-[rgba(26,26,46,0.05)] transition-colors"
+              style={{ letterSpacing: "-0.005em" }}
+            >
+              Import a booking
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowDocs(true)}
+              className="rounded-full border border-[rgba(26,26,46,0.12)] bg-[rgba(26,26,46,0.025)] px-3 py-1.5 text-[12px] font-medium text-activity hover:bg-[rgba(26,26,46,0.05)] transition-colors"
+              style={{ letterSpacing: "-0.005em" }}
+            >
+              Documents
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Two-pane body — mobile: flex column (Companion → Map → Timeline).

@@ -2827,7 +2827,9 @@ function ListHeaderCell({
             title={collapsed ? "Expand" : "Collapse"}
             className="group"
           >
-            <span aria-hidden className={SIGN}>{collapsed ? "+" : "−"}</span>
+            {/* A chevron, not a "+": folded next to the "+ Add a list" rail, a
+                plus read as a second add control (Brennan, Sep 2026). */}
+            <span aria-hidden className={SIGN}>{collapsed ? "›" : "−"}</span>
           </button>
         </span>
       </div>

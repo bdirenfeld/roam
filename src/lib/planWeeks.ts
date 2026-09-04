@@ -119,7 +119,10 @@ export function shouldShowWeeks(days: Day[]): boolean {
   // Week bars and folding are chrome for LONG journeys. A twelve-day trip
   // scrolls fine and was paying two extra rows for it (simplification audit,
   // Sep 2026). Fifteen days or more earns the structure.
-  if (dated.length < 15) return false;
+  // Ten days or more: Brennan wants the fold available on anything longer
+  // than nine days (Sep 2026). Group one had pushed this to 15, which hid it
+  // on his 12-day Tuscany board.
+  if (dated.length < 10) return false;
   return groupDaysIntoWeeks(dated).length > 1;
 }
 
