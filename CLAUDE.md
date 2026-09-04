@@ -200,6 +200,6 @@ tagged "ticket"; typing over it writes the card and wins. Nothing is written to 
 ## Ideas: links play in place (api/embed, trip/IdeaEmbed.tsx)
 `/api/embed?url=` resolves short links (vt./vm.tiktok.com, youtu.be) and returns a player URL for
 TikTok (`/embed/v2/<id>`), YouTube (`/embed/<id>`, Shorts portrait) and Instagram (`/<kind>/<code>/embed/`,
-best effort — private posts stay blank). The row loads it only when opened. There is no CSP in
+best effort — private posts stay blank). The row loads it only when opened. The row shows a 200px poster with a play button first (TikTok oEmbed / YouTube hqdefault; Instagram has none, so a plain tile); the tap that swaps in the player also asks for autoplay. Never auto-play in a list. There is no CSP in
 next.config, so frames need no allow-list; if one is ever added, allow those three hosts in
 `frame-src`.
