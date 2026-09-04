@@ -22,8 +22,6 @@ import { NavigationSheet } from "@/components/ui/NavigationSheet";
 
 // ── Type-specific detail components ───────────────────────────
 import FlightArrivalDetail from "./detail/FlightArrivalDetail";
-import CoffeeDetail from "./detail/CoffeeDetail";
-import CocktailBarDetail from "./detail/CocktailBarDetail";
 import RestaurantDetail from "./detail/RestaurantDetail";
 import SelfDirectedDetail from "./detail/SelfDirectedDetail";
 import GuidedDetail from "./detail/GuidedDetail";
@@ -513,7 +511,6 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const [copyNotice,        setCopyNotice]        = useState<{ text: string; ok: boolean } | null>(null);
   const [showLinkSheet,     setShowLinkSheet]     = useState(false);
   const [showAttachments,   setShowAttachments]   = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showEmptyFields,   setShowEmptyFields]   = useState(false);
   const [isDeleting,        setIsDeleting]        = useState(false);
   const [deleteError,       setDeleteError]       = useState<string | null>(null);
@@ -928,12 +925,14 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         return <FlightArrivalDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
       case "food/coffee":
       case "food/coffee_dessert":
-        return <CoffeeDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
+        // Coffee, bar and restaurant shared one byte-identical component under
+        // three names (simplification audit, Sep 2026); one file now.
+        return <RestaurantDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
       case "food/bar":
       case "food/cocktail_bar":
-        return <CocktailBarDetail card={dCard} onSaveDetails={onSave} hideAddress showEmpty={empty} />;
+        return <RestaurantDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
       case "food/drinks":
-        return <CocktailBarDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
+        return <RestaurantDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
       case "food/restaurant":
         return <RestaurantDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
       case "activity/self_directed":
@@ -1577,12 +1576,12 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         {/* Bottom action area. Rendered only when it has something to say —
             an empty one still drew its top border and reserved padding, which
             is the shelf we just removed reappearing as a stripe. */}
-        {(showDeleteConfirm
-          || !!copyNotice
+        {(!!copyNotice
+          || !!deleteError
           || (!readOnly && localCard.status === "interested" && !!days && days.length > 0)) && (
         <div className="flex-shrink-0 border-t border-gray-100 bg-white">
           {/* Assign to Day — only for unplaced cards */}
-          {!readOnly && localCard.status === "interested" && days && days.length > 0 && !showDeleteConfirm && (
+          {!readOnly && localCard.status === "interested" && days && days.length > 0 && (
             <div className="px-5 pt-4 pb-2">
               <button
                 onClick={() => setShowDayPicker(true)}
@@ -1596,7 +1595,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           {/* Move / Copy now live behind the ⋯ in the header. What they left
               behind is the confirmation, which becomes a toast: it has
               something to say for three seconds, not a permanent shelf. */}
-          {copyNotice && !showDeleteConfirm && (
+          {copyNotice && (
             <div className="px-5 pt-3 pb-3">
               <p className={`text-[12px] text-center font-medium ${copyNotice.ok ? "text-activity" : "text-red-500"}`}>
                 {copyNotice.text}
@@ -1604,32 +1603,11 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             </div>
           )}
 
-          {/* Delete confirmation */}
-          {showDeleteConfirm && (
-            <div className="px-5 pt-3 pb-5">
-              <p className="text-[13px] font-medium text-gray-700 text-center mb-3">
-                Delete this card? This can&apos;t be undone.
-              </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowDeleteConfirm(false)}
-                  disabled={isDeleting}
-                  className="flex-1 py-2.5 rounded-xl bg-white border border-gray-200 text-[13px] font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDelete}
-                  disabled={isDeleting}
-                  className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-[13px] font-semibold hover:bg-red-600 transition-colors"
-                >
-                  {isDeleting ? "Deleting…" : "Delete"}
-                </button>
-              </div>
-              {deleteError && (
-                <p className="text-[11px] text-red-500 text-center mt-2">{deleteError}</p>
-              )}
-            </div>
+          {/* The delete-confirm panel that used to live here is gone: delete is
+              instant with the host's undo (one model everywhere, simplification
+              audit). Only the error line survives, for a failed delete. */}
+          {deleteError && (
+            <p className="text-[11px] text-red-500 text-center px-5 py-3">{deleteError}</p>
           )}
         </div>
         )}

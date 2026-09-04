@@ -116,7 +116,10 @@ export function groupDaysIntoWeeks<D extends Day>(days: D[]): PlanWeek<D>[] {
  */
 export function shouldShowWeeks(days: Day[]): boolean {
   const dated = days.filter((d) => d.date);
-  if (dated.length < 8) return false;
+  // Week bars and folding are chrome for LONG journeys. A twelve-day trip
+  // scrolls fine and was paying two extra rows for it (simplification audit,
+  // Sep 2026). Fifteen days or more earns the structure.
+  if (dated.length < 15) return false;
   return groupDaysIntoWeeks(dated).length > 1;
 }
 

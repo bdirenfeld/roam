@@ -443,7 +443,13 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   // same reason foldedDays is: the server has no localStorage, and seeding from
   // it in a useState initializer would render a 280px column on the server and
   // a 140px rail on the client.
-  const [collapsedLists, setCollapsedLists] = useState<Set<string>>(() => new Set());
+  // An empty list starts folded to its 140px rail. A blank column with
+  // "Nothing here yet" is the first thing the eye hit on a new board, and it
+  // read as broken; the rail keeps the name and the door (tap to expand)
+  // without the dead space. Once it holds a card it opens like any other.
+  const [collapsedLists, setCollapsedLists] = useState<Set<string>>(
+    () => new Set(initialLists.filter((l) => l.cards.length === 0).map((l) => l.id)),
+  );
   useEffect(() => {
     setCollapsedLists(readCollapsedLists(trip.id));
   }, [trip.id]);
@@ -2523,18 +2529,43 @@ function DayHeaderCell({ day, weather, onRename }: { day: DayWithCards; weather?
         color: "rgba(26, 26, 46, 0.55)",
         marginBottom: "4px",
       }}>Day {day.day_number}{shortDateTitle ? ` · ${shortDateTitle}` : ""}</p>
-      {/* Tier 2 — Day of week (italic Playfair, uppercased) */}
+      {/* Tier 2 — Day of week (italic Playfair). On an untitled day the
+          weekday is also the door to naming it: tap it and the title editor
+          opens below. That replaces the dotted prompt every column carried. */}
       {dayOfWeek && (
-        <p style={{
-          fontFamily: "'Playfair Display', Georgia, serif",
-          fontSize: "22px",
-          fontWeight: 500,
-          fontStyle: "italic",
-          color: "rgb(26, 26, 46)",
-          letterSpacing: "-0.01em",
-          lineHeight: 1.1,
-          marginBottom: "6px",
-        }}>{dayOfWeek}</p>
+        onRename && !day.theme && !titleEditing ? (
+          <button
+            type="button"
+            onClick={startTitleEdit}
+            title="Name this day"
+            aria-label={`${dayOfWeek} — tap to name this day`}
+            className="block text-left hover:opacity-70 transition-opacity"
+            style={{
+              fontFamily: "'Playfair Display', Georgia, serif",
+              fontSize: "22px",
+              fontWeight: 500,
+              fontStyle: "italic",
+              color: "rgb(26, 26, 46)",
+              letterSpacing: "-0.01em",
+              lineHeight: 1.1,
+              marginBottom: "6px",
+              background: "none",
+              border: 0,
+              padding: 0,
+            }}
+          >{dayOfWeek}</button>
+        ) : (
+          <p style={{
+            fontFamily: "'Playfair Display', Georgia, serif",
+            fontSize: "22px",
+            fontWeight: 500,
+            fontStyle: "italic",
+            color: "rgb(26, 26, 46)",
+            letterSpacing: "-0.01em",
+            lineHeight: 1.1,
+            marginBottom: "6px",
+          }}>{dayOfWeek}</p>
+        )
       )}
       {/* Tier 2½ — the day's title, typed by the traveller. Reads as a caption
           under the weekday; tap to edit. When empty and editable, a faint
@@ -2571,16 +2602,10 @@ function DayHeaderCell({ day, weather, onRename }: { day: DayWithCards; weather?
             {day.theme}
           </p>
         )
-      ) : onRename ? (
-        <button
-          type="button"
-          onClick={startTitleEdit}
-          className="block text-left underline decoration-dotted underline-offset-2 hover:text-[#C4622D] transition-colors"
-          style={{ fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: "11.5px", color: "rgba(26, 26, 46, 0.35)", marginBottom: "6px", padding: "1px 0" }}
-        >
-          Name this day
-        </button>
       ) : null}
+      {/* No dotted "Name this day" prompt: twelve of them on a twelve-day board
+          were noise (simplification audit, Sep 2026). An untitled day is
+          named by tapping its weekday above, which carries the hint. */}
 
       {/* Tier 3 — Forecast (only inside the ~2-week window Open-Meteo covers;
           far-out days simply have a two-line header). Clicking opens the
