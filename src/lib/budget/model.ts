@@ -63,6 +63,8 @@ export interface Assumptions {
   contingencyPct: number;
   /** Dollars covered by card points, deducted from the total. */
   pointsCredit: number;
+  /** The exchange rate was typed by hand (kept), not taken from the market (refreshed daily). */
+  fxTyped?: boolean;
 }
 
 export interface EstimateLine {

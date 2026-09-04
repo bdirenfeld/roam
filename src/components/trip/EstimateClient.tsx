@@ -454,8 +454,10 @@ export default function EstimateClient({
         {
           trip_id: tripId,
           user_id: user.id,
-          assumptions: { ...a, excursionsTotal: excursionsTyped ? a.excursionsTotal : 0 } as unknown as Record<string, unknown>,
-          fx_to_cad: fxTyped ? fx : null,
+          assumptions: { ...a, excursionsTotal: excursionsTyped ? a.excursionsTotal : 0, fxTyped } as unknown as Record<string, unknown>,
+          // NOT NULL: always the number in use; fxTyped above says whether it
+          // is yours or the day's market rate.
+          fx_to_cad: fx,
           // Kept so the working survives the session — the question comes in
           // March, not thirty seconds after the button.
           basis,

@@ -113,10 +113,12 @@ export async function loadEstimate(
   // The cards' currency, from the destination; the rate from the market today,
   // unless a rate was typed and saved. 1.47 is the last resort.
   const cardCurrency = currencyForDestination(trip.destination as string | null) ?? "EUR";
-  const typedFx = saved?.fx_to_cad != null ? Number(saved.fx_to_cad) : null;
-  const liveFx = typedFx == null ? await fetchRateToHome(cardCurrency) : null;
-  const fxToCad = typedFx ?? liveFx ?? 1.47;
-  const fxSource: "typed" | "live" | "fallback" = typedFx != null ? "typed" : liveFx != null ? "live" : "fallback";
+  // The column is NOT NULL, so "typed" is a flag in the saved assumptions.
+  const savedFx = saved?.fx_to_cad != null ? Number(saved.fx_to_cad) : null;
+  const fxTyped = Boolean((saved?.assumptions as { fxTyped?: boolean } | null)?.fxTyped) && savedFx != null;
+  const liveFx = fxTyped ? null : await fetchRateToHome(cardCurrency);
+  const fxToCad = fxTyped ? (savedFx as number) : (liveFx ?? savedFx ?? 1.47);
+  const fxSource: "typed" | "live" | "fallback" = fxTyped ? "typed" : liveFx != null ? "live" : "fallback";
 
   // An excursion is any scheduled activity card. Those carrying details.budget
   // seed the Excursions line; the rest are counted so the screen can say how
