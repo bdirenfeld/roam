@@ -520,7 +520,7 @@ export default function IdeasClient({
 
   return (
     <div
-      className="min-h-screen bg-parchment pb-24 px-3"
+      className="min-h-screen bg-white md:bg-parchment pb-24 px-3"
       style={{ paddingTop: "max(1.25rem, env(safe-area-inset-top))" }}
     >
       <div className="mx-auto w-full max-w-[560px]">
@@ -602,7 +602,7 @@ export default function IdeasClient({
             onTouchCancel={filterDrag.onTouchCancel}
             className="relative w-full max-w-[560px] rounded-t-2xl px-4 pt-3 pb-6 overflow-y-auto"
             style={{
-              background: "#FAF7F2",
+              background: "#FFFFFF",
               borderTop: `1px solid ${RULE}`,
               maxHeight: "82dvh",
               overscrollBehavior: "contain",

@@ -92,7 +92,7 @@ export default function DayPicker({ days, onSelect, mode, activeDayId, align = "
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div
             role="menu"
-            className={`absolute top-[calc(100%+10px)] z-50 rounded-xl border border-[rgba(26,26,46,0.12)] bg-[#FAF7F2] p-3 ${
+            className={`absolute top-[calc(100%+10px)] z-50 rounded-xl border border-[rgba(26,26,46,0.12)] bg-white p-3 ${
               align === "center" ? "left-1/2 -translate-x-1/2" : "left-0"
             }`}
             style={{

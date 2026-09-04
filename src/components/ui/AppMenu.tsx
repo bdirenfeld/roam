@@ -156,7 +156,7 @@ export default function AppMenu({
               : {
                   top: "calc(100% + 8px)",
                   width: 288,
-                  background: "#FAF7F2",
+                  background: "#FFFFFF",
                   border: `1px solid ${RULE}`,
                   boxShadow: "0 16px 34px rgba(26,26,46,0.17)",
                   padding: 7,

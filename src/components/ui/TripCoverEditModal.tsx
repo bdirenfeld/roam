@@ -109,7 +109,7 @@ export default function TripCoverEditModal({ trip, onClose, onSuccess }: Props) 
     >
       <div
         className="relative w-[340px] max-w-[calc(100vw-32px)]"
-        style={{ background: "#FAF7F2", borderRadius: 14 }}
+        style={{ background: "#FFFFFF", borderRadius: 14 }}
       >
         {/* Header */}
         <div className="px-5 pt-5 pb-4 border-b border-gray-100">

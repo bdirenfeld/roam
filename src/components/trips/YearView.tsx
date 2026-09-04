@@ -1722,7 +1722,7 @@ export default function YearView({ trips }: Props) {
                     style={{
                       fontSize: 14,
                       border: "1px solid rgba(26,26,46,0.12)",
-                      background: "#FAF7F2",
+                      background: "#FFFFFF",
                       outline: "none",
                     }}
                   />
@@ -1828,7 +1828,7 @@ export default function YearView({ trips }: Props) {
                       style={{
                         fontSize: 12.5,
                         border: "1px solid rgba(26,26,46,0.12)",
-                        background: "#FAF7F2",
+                        background: "#FFFFFF",
                         outline: "none",
                       }}
                     />

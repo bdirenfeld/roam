@@ -176,7 +176,7 @@ export default function ShareCatchClient({
 
   return (
     <div
-      className="min-h-screen bg-parchment px-4"
+      className="min-h-screen bg-white md:bg-parchment px-4"
       style={{ paddingTop: "max(1.5rem, env(safe-area-inset-top))" }}
     >
       <div className="mx-auto w-full max-w-[520px]">

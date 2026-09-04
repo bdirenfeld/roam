@@ -56,8 +56,8 @@ import {
 } from "./journeyNotesModel";
 
 const INK = "#1A1A2E";
-const PARCHMENT = "#FAF7F2";
-const PARCHMENT_CLEAR = "rgba(250,247,242,0)";
+const PARCHMENT = "#FFFFFF"; // sheets are white; parchment is only the desktop ground
+const PARCHMENT_CLEAR = "rgba(255,255,255,0)";
 const HAIRLINE = "1px solid rgba(26,26,46,0.09)";
 const DONE_INK = "rgba(26,26,46,0.35)";
 

@@ -144,3 +144,10 @@ Profile is the avatar. Brennan's phone verdict, Sep 2026: "way too much in a men
 row, ask whether it is about *this journey*; if not, it belongs on the Journeys page or the header.
 Same rule for sheets: two sheets doing one job in two styles get merged (the Add-to-this-day sheet
 lists saved places first, Google after, in the house parchment).
+
+## Colour ground: white is what you touch, parchment is only the desktop table
+Every sheet, overlay, popover, menu and phone page is white (`#FFFFFF`). Parchment (`#FAF7F2`)
+is the ground BEHIND cards on desktop pages (Journeys grid, Plan board, Map sidebar) and nothing
+else. Phone pages that share a component with desktop use `bg-white md:bg-parchment`. Brennan,
+from his phone, Sep 2026: "a mix of parchment and white… should we just go to white?" Don't
+reintroduce a cream sheet to "match" another; match white.

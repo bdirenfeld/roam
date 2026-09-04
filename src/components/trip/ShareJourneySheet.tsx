@@ -17,7 +17,7 @@ const CAPTION = "rgba(26,26,46,0.55)";
 const SOFT = "rgba(26,26,46,0.42)";
 const RULE = "rgba(26,26,46,0.12)";
 const SIENNA = "#C4622D";
-const PARCHMENT = "#FAF7F2";
+const PARCHMENT = "#FFFFFF";
 
 function buildUrl(token: string): string {
   const base =

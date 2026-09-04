@@ -379,7 +379,7 @@ function TimeChip({
       onClick={openPicker}
       className="relative inline-flex items-center gap-1.5 rounded-md px-2 py-1 cursor-pointer transition-colors hover:bg-black/[0.02]"
       style={{
-        background: "#FAF7F2",
+        background: "#F7F7F9",
         boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)",
       }}
     >

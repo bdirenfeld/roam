@@ -36,7 +36,7 @@ const cad = (n: number) =>
   "$" + Math.round(n).toLocaleString("en-CA", { maximumFractionDigits: 0 });
 
 const box = (dim: string) => ({
-  background: "#FAF7F2",
+  background: "#FFFFFF",
   border: `1px solid ${RULE}`,
   color: dim,
 });
@@ -128,7 +128,7 @@ function Row({
             aria-label={`${line.enabled ? "Exclude" : "Include"} ${line.label}`}
             className="w-[15px] h-[15px] rounded flex items-center justify-center"
             style={{
-              background: line.enabled ? INK : "#FAF7F2",
+              background: line.enabled ? INK : "#FFFFFF",
               border: `1px solid ${line.enabled ? INK : "rgba(26,26,46,0.22)"}`,
               color: "#fff",
               fontSize: 9.5,
@@ -392,8 +392,8 @@ export default function EstimateClient({
     <div
       className={
         variant === "overlay"
-          ? "flex-1 min-h-0 flex flex-col bg-parchment"
-          : "min-h-screen bg-parchment pb-24"
+          ? "flex-1 min-h-0 flex flex-col bg-white md:bg-parchment"
+          : "min-h-screen bg-white md:bg-parchment pb-24"
       }
       style={
         variant === "overlay"

@@ -433,7 +433,7 @@ export default function LinkPlaceSheet(props: Props) {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         className="relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet max-h-[75dvh] flex flex-col animate-in slide-in-from-bottom duration-300"
-        style={{ willChange: "transform", ...(isCreate ? { background: "#FAF7F2" } : null) }}
+        style={{ willChange: "transform", ...(isCreate ? { background: "#FFFFFF" } : null) }}
       >
         {/* Drag handle */}
         <div className="flex justify-center pt-2.5 flex-shrink-0">
