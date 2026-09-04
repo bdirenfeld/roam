@@ -687,7 +687,18 @@ export default function EstimateClient({
                         <tbody>
                           {items.map((x) => (
                             <tr key={x.cardId}>
-                              <td className="py-[3px] pr-2" style={{ color: INK }}>{x.title}</td>
+                              <td className="py-[3px] pr-2" style={{ color: INK }}>
+                                {x.title}
+                                {x.amount != null && (
+                                  <span
+                                    className="ml-1.5 align-middle text-[9px] uppercase"
+                                    style={{ letterSpacing: "0.08em", color: x.confirmed ? "#3E7C5B" : SOFT }}
+                                    title={x.confirmed ? "Marked Confirmed on the card" : "An estimate until the card is marked Confirmed"}
+                                  >
+                                    {x.confirmed ? "booked" : "est."}
+                                  </span>
+                                )}
+                              </td>
                               <td className="py-[3px] pl-2 text-right whitespace-nowrap tabular-nums">
                                 <span className="inline-flex items-center gap-0.5 justify-end">
                                   <span>{sym(x.currency)}</span>
@@ -744,7 +755,7 @@ export default function EstimateClient({
                       </table>
                       <p className="mt-1.5 text-[11px]" style={{ color: CAPTION, lineHeight: 1.45 }}>
                         {items.some((x) => x.currency !== "CAD") ? `Converted at ${fx} dollars per ${cardCurrency === "EUR" ? "euro" : cardCurrency}. ` : ""}
-                        Cost and people are per row and save to the card; the line follows unless you typed a figure on it. Blank cost means no cost yet; 0 means free.
+                        Cost and people are per row and save to the card; the line follows unless you typed a figure on it. Blank cost means no cost yet; 0 means free. &ldquo;est.&rdquo; clears when you mark the card Confirmed.
                       </p>
                     </div>
                   ) : (

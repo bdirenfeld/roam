@@ -21,6 +21,8 @@ export interface ExcursionItem {
   totalCad: number;
   /** The card's details as loaded, so an edit in the table can be merged in. */
   details: Record<string, unknown>;
+  /** The card is marked Confirmed (booked); until then a cost is an estimate. */
+  confirmed: boolean;
 }
 
 export interface EstimateData {
@@ -98,7 +100,7 @@ export async function loadEstimate(
       supabase.from("days").select("id").eq("trip_id", tripId),
       supabase
         .from("cards")
-        .select("id, details, status, places(type, title)")
+        .select("id, details, status, confirmed, places(type, title)")
         .eq("trip_id", tripId)
         .eq("status", "in_itinerary"),
       supabase.from("trip_budgets").select("*").eq("trip_id", tripId).maybeSingle(),
@@ -122,7 +124,7 @@ export async function loadEstimate(
   const cardBudgets: CardBudget[] = [];
   // Every activity on a day, for the breakdown table: priced, free (0), or
   // blank (no cost yet). `priced` and `freeCount` feed the footnote.
-  type Activity = { cardId: string; title: string; amount: number | null; currency: string; per: "person" | "party"; people: number; details: Record<string, unknown> };
+  type Activity = { cardId: string; title: string; amount: number | null; currency: string; per: "person" | "party"; people: number; details: Record<string, unknown>; confirmed: boolean };
   const activities: Activity[] = [];
   const priced: { title: string; amount: number; currency: string; per: string }[] = [];
   let freeCount = 0;
@@ -141,7 +143,7 @@ export async function loadEstimate(
     if (det?.budget && typeof det.budget.amount === "number") {
       cardBudgets.push(asParty(det.budget));
       const per = det.budget.per === "person" ? "person" : "party";
-      activities.push({ cardId: c.id as string, title, amount: det.budget.amount, currency: det.budget.currency ?? "", per, people, details });
+      activities.push({ cardId: c.id as string, title, amount: det.budget.amount, currency: det.budget.currency ?? "", per, people, details, confirmed: Boolean((c as { confirmed?: boolean }).confirmed) });
       if (det.budget.amount > 0) priced.push({ title, amount: det.budget.amount, currency: det.budget.currency ?? "", per });
       else freeCount += 1;
     }
@@ -150,12 +152,12 @@ export async function loadEstimate(
     // CAD.
     else if (typeof det?.cost_per_person === "number") {
       cardBudgets.push(asParty({ amount: det.cost_per_person, currency: "local", per: "person", confidence: "estimated" }));
-      activities.push({ cardId: c.id as string, title, amount: det.cost_per_person, currency: "", per: "person", people, details });
+      activities.push({ cardId: c.id as string, title, amount: det.cost_per_person, currency: "", per: "person", people, details, confirmed: Boolean((c as { confirmed?: boolean }).confirmed) });
       if (det.cost_per_person > 0) priced.push({ title, amount: det.cost_per_person, currency: "", per: "person" });
       else freeCount += 1;
     }
     else {
-      activities.push({ cardId: c.id as string, title, amount: null, currency: "", per: "person", people, details });
+      activities.push({ cardId: c.id as string, title, amount: null, currency: "", per: "person", people, details, confirmed: Boolean((c as { confirmed?: boolean }).confirmed) });
       uncostedExcursions += 1;
     }
   }
@@ -202,6 +204,7 @@ export async function loadEstimate(
         people: x.per === "person" ? x.people : 1,
         totalCad: x.amount == null ? 0 : cardBudgetToCad({ amount: x.amount, currency: x.currency || "local", per: x.per }, x.per === "person" ? x.people : 1, fxToCad),
         details: x.details,
+        confirmed: x.confirmed,
       }))
       // Priced largest first, then the free ones, then the blanks.
       .sort((a, b) => {
