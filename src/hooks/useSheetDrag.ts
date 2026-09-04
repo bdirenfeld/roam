@@ -8,12 +8,20 @@ import { useCallback, useRef } from "react";
  * Every sheet in Roam has a grab handle, and the handle turned out to be
  * decoration: the sheets built after CardBottomSheet drew one and bound no
  * gesture to it, so the only way out was a button. On a phone, pulling a sheet
- * down is how you close it — a handle you can't pull is a lie.
+ * down is how you close it — a handle you can't pull is a lie. Brennan asked
+ * for this twice (Aug and Sep 2026): every sheet, the whole sheet.
  *
  * The numbers match CardBottomSheet exactly, so every sheet feels the same:
- * claim the gesture only when the content is already scrolled to the top
- * (otherwise a downward swipe means "scroll up"), lock the axis after a little
- * travel so a horizontal drag is left alone, and dismiss past 120px.
+ * claim the gesture only when the content under the finger is already
+ * scrolled to the top (otherwise a downward swipe means "scroll up"), lock the
+ * axis after a little travel so a horizontal drag is left alone, and dismiss
+ * past 120px.
+ *
+ * Which scroller? When the caller names one (`scrollRef`) that wins. Otherwise
+ * the nearest scrollable ancestor of the touched element, inside the sheet, is
+ * asked — so the handlers can sit on the sheet root even when the sheet holds
+ * a header and a scrolling list, or hosts a screen that brings its own
+ * scroller (Overlay). Falling back to the sheet's own scrollTop last.
  *
  * touchcancel matters. Android fires it readily — the scroller claims the
  * gesture, a second finger lands, the system interrupts — and without handling
@@ -24,12 +32,33 @@ import { useCallback, useRef } from "react";
 const DISMISS_PX = 120;
 const AXIS_LOCK_PX = 8;
 
+/** The nearest element between `from` and `stopAt` that actually scrolls vertically. */
+function nearestScroller(from: Element | null, stopAt: HTMLElement | null): Element | null {
+  let el: Element | null = from;
+  while (el && el !== stopAt) {
+    if (el.scrollHeight > el.clientHeight + 1) {
+      const oy = getComputedStyle(el).overflowY;
+      if (oy === "auto" || oy === "scroll") return el;
+    }
+    el = el.parentElement;
+  }
+  return null;
+}
+
 export function useSheetDrag(
   onClose: () => void,
   /** The element that scrolls, when it isn't the sheet itself. CardBottomSheet
    *  scrolls an inner body under a pinned hero, so asking the sheet for its own
    *  scrollTop there would always read 0 and claim every downward swipe. */
-  scrollRef?: React.RefObject<HTMLElement | null>
+  scrollRef?: React.RefObject<HTMLElement | null>,
+  opts?: {
+    /**
+     * Ignore touches at md and up. For sheets that render as a centred modal on
+     * desktop: an inline translate from a stray touch on a touch laptop would
+     * clobber the md: centering transforms.
+     */
+    mobileOnly?: boolean;
+  },
 ) {
   const sheetRef = useRef<HTMLDivElement>(null);
   const startY = useRef(0);
@@ -37,16 +66,24 @@ export function useSheetDrag(
   const axis = useRef<"pending" | "vertical" | "horizontal">("pending");
   const dragging = useRef(false);
   const startedAtTop = useRef(true);
+  const mobileOnly = opts?.mobileOnly === true;
 
   const onTouchStart = useCallback((e: React.TouchEvent) => {
+    if (mobileOnly && typeof window !== "undefined" && window.innerWidth >= 768) {
+      startedAtTop.current = false;
+      return;
+    }
     startX.current = e.touches[0].clientX;
     startY.current = e.touches[0].clientY;
     axis.current = "pending";
     dragging.current = false;
     // Mid-scroll, a downward swipe means "scroll up", not "close".
-    const scroller = scrollRef?.current ?? sheetRef.current;
+    const scroller =
+      scrollRef?.current
+      ?? nearestScroller(e.target as Element | null, sheetRef.current)
+      ?? sheetRef.current;
     startedAtTop.current = (scroller?.scrollTop ?? 0) <= 0;
-  }, [scrollRef]);
+  }, [scrollRef, mobileOnly]);
 
   const onTouchMove = useCallback((e: React.TouchEvent) => {
     if (!sheetRef.current || !startedAtTop.current) return;

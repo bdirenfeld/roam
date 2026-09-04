@@ -56,6 +56,7 @@
 
 import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
+import { useSheetDrag } from "@/hooks/useSheetDrag";
 
 /** Everything that can hold focus inside the overlay, for the Tab cycle. */
 const FOCUSABLE = [
@@ -79,10 +80,6 @@ function nestedSheetOpen(): boolean {
   return !!document.querySelector('[data-overlay-nested="true"]');
 }
 
-const prefersReducedMotion = () =>
-  typeof window !== "undefined" &&
-  window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-
 interface Props {
   /** Dismiss — backdrop click, Escape, and the mobile swipe all call this. */
   onClose: () => void;
@@ -99,9 +96,9 @@ export default function Overlay({
   children,
   widthClassName = "md:w-[620px]",
 }: Props) {
-  const sheetRef = useRef<HTMLDivElement | null>(null);
-  const dragY = useRef(0);
-  const dragging = useRef(false);
+  // The shared sheet gesture owns the sheet ref; bound to the whole card below.
+  const drag = useSheetDrag(onClose, undefined, { mobileOnly: true });
+  const sheetRef = drag.sheetRef;
   const returnFocusTo = useRef<HTMLElement | null>(null);
 
   // The overlay is mounted only while open (the providers render it
@@ -165,39 +162,11 @@ export default function Overlay({
   }, [onClose]);
 
   // ── Drag-to-dismiss (under md only) ─────────────────────────────────────
-  // The width guard keeps a stray touch on a touch laptop from writing an
-  // inline transform onto the desktop card.
-  const onTouchStart = (e: React.TouchEvent) => {
-    if (typeof window !== "undefined" && window.innerWidth >= 768) return;
-    dragY.current = e.touches[0].clientY;
-    dragging.current = true;
-  };
-  const onTouchMove = (e: React.TouchEvent) => {
-    if (!dragging.current || !sheetRef.current) return;
-    const dy = Math.max(0, e.touches[0].clientY - dragY.current);
-    sheetRef.current.style.transform = `translateY(${dy}px)`;
-    sheetRef.current.style.transition = "none";
-  };
-  const onTouchEnd = (e: React.TouchEvent) => {
-    if (!dragging.current || !sheetRef.current) return;
-    dragging.current = false;
-    const dy = e.changedTouches[0].clientY - dragY.current;
-    const reduced = prefersReducedMotion();
-    if (dy > 120) {
-      if (reduced) {
-        onClose();
-        return;
-      }
-      sheetRef.current.style.transition = "transform 250ms cubic-bezier(0.32,0.72,0,1)";
-      sheetRef.current.style.transform = "translateY(100%)";
-      setTimeout(onClose, 240);
-    } else {
-      sheetRef.current.style.transition = reduced
-        ? "none"
-        : "transform 300ms cubic-bezier(0.34,1.56,0.64,1)";
-      sheetRef.current.style.transform = "translateY(0)";
-    }
-  };
+  // `drag` (declared with the refs above) is bound to the WHOLE sheet, not the
+  // handle: the hosted screen's own scroller is found from the touch target,
+  // so the body still scrolls and a swipe only closes from the top. The width
+  // guard inside the hook keeps a stray touch on a touch laptop from writing
+  // an inline transform onto the desktop card.
 
   return (
     <div
@@ -218,6 +187,10 @@ export default function Overlay({
 
       <div
         ref={sheetRef}
+        onTouchStart={drag.onTouchStart}
+        onTouchMove={drag.onTouchMove}
+        onTouchEnd={drag.onTouchEnd}
+        onTouchCancel={drag.onTouchCancel}
         role="dialog"
         aria-modal="true"
         aria-label={label}
@@ -238,14 +211,10 @@ export default function Overlay({
           "motion-safe:slide-in-from-bottom md:motion-safe:slide-in-from-bottom-2",
         ].join(" ")}
       >
-        {/* Handle — carries the swipe. Mobile only; on desktop there is no
-            gesture to hint at and the card has no grab affordance. */}
-        <div
-          className="flex justify-center pt-2.5 pb-1 flex-shrink-0 md:hidden"
-          onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchEnd}
-        >
+        {/* Handle — a hint of the swipe, which the whole sheet now carries
+            (see the root above). Mobile only; on desktop there is no gesture
+            to hint at and the card has no grab affordance. */}
+        <div className="flex justify-center pt-2.5 pb-1 flex-shrink-0 md:hidden">
           <div className="w-9 h-[3px] rounded-full bg-gray-200" />
         </div>
 

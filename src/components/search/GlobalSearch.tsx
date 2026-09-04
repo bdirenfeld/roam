@@ -32,6 +32,7 @@ import {
   useState,
 } from "react";
 import type { ReactNode } from "react";
+import { useSheetDrag as useSharedSheetDrag } from "@/hooks/useSheetDrag";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AirplaneTilt, Star } from "@phosphor-icons/react";
@@ -411,37 +412,11 @@ async function runSearch(rawQuery: string): Promise<Results> {
 // The app's standard sheet gesture (same numbers as plan/DocumentsSheet and
 // trip/JourneyNotes). The width guard keeps a stray touch on a touch laptop
 // from clobbering the md: centering transforms with an inline translate.
+// Now the shared hook: bound to the whole sheet (below), with the scroll-at-top
+// guard so the results list still scrolls, and touchcancel so an interrupted
+// drag springs back instead of freezing the sheet.
 function useSheetDrag(onClose: () => void) {
-  const sheetRef = useRef<HTMLDivElement | null>(null);
-  const dragY = useRef(0);
-  const dragging = useRef(false);
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    if (typeof window !== "undefined" && window.innerWidth >= 768) return;
-    dragY.current = e.touches[0].clientY;
-    dragging.current = true;
-  };
-  const onTouchMove = (e: React.TouchEvent) => {
-    if (!dragging.current || !sheetRef.current) return;
-    const dy = Math.max(0, e.touches[0].clientY - dragY.current);
-    sheetRef.current.style.transform = `translateY(${dy}px)`;
-    sheetRef.current.style.transition = "none";
-  };
-  const onTouchEnd = (e: React.TouchEvent) => {
-    if (!dragging.current || !sheetRef.current) return;
-    dragging.current = false;
-    const dy = e.changedTouches[0].clientY - dragY.current;
-    if (dy > 120) {
-      sheetRef.current.style.transition = "transform 250ms cubic-bezier(0.32,0.72,0,1)";
-      sheetRef.current.style.transform = "translateY(100%)";
-      setTimeout(onClose, 240);
-    } else {
-      sheetRef.current.style.transition = "transform 300ms cubic-bezier(0.34,1.56,0.64,1)";
-      sheetRef.current.style.transform = "translateY(0)";
-    }
-  };
-
-  return { sheetRef, onTouchStart, onTouchMove, onTouchEnd };
+  return useSharedSheetDrag(onClose, undefined, { mobileOnly: true });
 }
 
 // ── Provider ──────────────────────────────────────────────────────────────
@@ -604,6 +579,10 @@ function GlobalSearchOverlay({ onClose }: { onClose: () => void }) {
       <div className="fixed inset-0 bg-black/40 z-[80]" onClick={onClose} />
       <div
         ref={drag.sheetRef}
+        onTouchStart={drag.onTouchStart}
+        onTouchMove={drag.onTouchMove}
+        onTouchEnd={drag.onTouchEnd}
+        onTouchCancel={drag.onTouchCancel}
         role="dialog"
         aria-modal="true"
         aria-label="Search"
@@ -614,14 +593,10 @@ function GlobalSearchOverlay({ onClose }: { onClose: () => void }) {
           willChange: "transform",
         }}
       >
-        {/* Handle + field carry the swipe-down gesture (mobile only — the hook
-            no-ops at md+, where this renders as a command palette) */}
-        <div
-          className="flex-shrink-0 px-4 pb-3 md:px-5 md:pt-5"
-          onTouchStart={drag.onTouchStart}
-          onTouchMove={drag.onTouchMove}
-          onTouchEnd={drag.onTouchEnd}
-        >
+        {/* The whole sheet carries the swipe-down gesture (bound on the root
+            above; mobile only — the hook no-ops at md+, where this renders as
+            a command palette). The handle is a hint, not the only grip. */}
+        <div className="flex-shrink-0 px-4 pb-3 md:px-5 md:pt-5">
           <div className="flex justify-center pt-3 pb-3 md:hidden">
             <div className="w-9 h-1 bg-gray-200 rounded-full" />
           </div>

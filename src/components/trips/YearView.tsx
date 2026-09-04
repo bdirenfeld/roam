@@ -15,6 +15,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
+import { useSheetDrag as useSharedSheetDrag } from "@/hooks/useSheetDrag";
 import Link from "next/link";
 import { NewJourneyLink } from "@/components/overlays/AppOverlays";
 import { createClient } from "@/lib/supabase/client";
@@ -221,37 +222,11 @@ async function resolvePlaceByName(name: string, token: string): Promise<Resolved
 // scrolling the sheet's content can't fight the dismiss. The width guard
 // keeps a stray touch on desktop (touch laptops) from clobbering the md:
 // centering transforms with an inline translate.
+// Now the shared hook: bound to the whole sheet (below), with the scroll-at-top
+// guard so the lists still scroll, and touchcancel so an interrupted drag
+// springs back instead of freezing the sheet.
 function useSheetDrag(onClose: () => void) {
-  const sheetRef = useRef<HTMLDivElement | null>(null);
-  const dragY = useRef(0);
-  const dragging = useRef(false);
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    if (typeof window !== "undefined" && window.innerWidth >= 768) return;
-    dragY.current = e.touches[0].clientY;
-    dragging.current = true;
-  };
-  const onTouchMove = (e: React.TouchEvent) => {
-    if (!dragging.current || !sheetRef.current) return;
-    const dy = Math.max(0, e.touches[0].clientY - dragY.current);
-    sheetRef.current.style.transform = `translateY(${dy}px)`;
-    sheetRef.current.style.transition = "none";
-  };
-  const onTouchEnd = (e: React.TouchEvent) => {
-    if (!dragging.current || !sheetRef.current) return;
-    dragging.current = false;
-    const dy = e.changedTouches[0].clientY - dragY.current;
-    if (dy > 120) {
-      sheetRef.current.style.transition = "transform 250ms cubic-bezier(0.32,0.72,0,1)";
-      sheetRef.current.style.transform = "translateY(100%)";
-      setTimeout(onClose, 240);
-    } else {
-      sheetRef.current.style.transition = "transform 300ms cubic-bezier(0.34,1.56,0.64,1)";
-      sheetRef.current.style.transform = "translateY(0)";
-    }
-  };
-
-  return { sheetRef, onTouchStart, onTouchMove, onTouchEnd };
+  return useSharedSheetDrag(onClose, undefined, { mobileOnly: true });
 }
 
 // ── Shared grid: 90px label column + 12 equal month columns. The strip is
@@ -1678,19 +1653,19 @@ export default function YearView({ trips }: Props) {
             />
             <div
               ref={pickerDrag.sheetRef}
+              onTouchStart={pickerDrag.onTouchStart}
+              onTouchMove={pickerDrag.onTouchMove}
+              onTouchEnd={pickerDrag.onTouchEnd}
+              onTouchCancel={pickerDrag.onTouchCancel}
               role="dialog"
               aria-label="Wishlist"
               className="fixed z-[60] bg-white flex flex-col bottom-0 left-0 right-0 rounded-t-2xl max-w-mobile mx-auto"
               style={{ maxHeight: "80vh", willChange: "transform" }}
             >
-              {/* Handle + title carry the swipe-down gesture; the list below
-                  scrolls in its own container and never fights it */}
-              <div
-                className="flex-shrink-0"
-                onTouchStart={pickerDrag.onTouchStart}
-                onTouchMove={pickerDrag.onTouchMove}
-                onTouchEnd={pickerDrag.onTouchEnd}
-              >
+              {/* The whole sheet carries the swipe-down gesture (bound on the
+                  root above); the list scrolls in its own container and the
+                  hook only claims a swipe when that list is at the top. */}
+              <div className="flex-shrink-0">
                 <div className="flex justify-center pt-3 pb-1">
                   <div className="w-9 h-1 bg-gray-200 rounded-full" />
                 </div>
@@ -1894,19 +1869,19 @@ export default function YearView({ trips }: Props) {
           <div className="fixed inset-0 bg-black/40 z-[60]" onClick={() => setAddOpen(false)} />
           <div
             ref={addDrag.sheetRef}
+            onTouchStart={addDrag.onTouchStart}
+            onTouchMove={addDrag.onTouchMove}
+            onTouchEnd={addDrag.onTouchEnd}
+            onTouchCancel={addDrag.onTouchCancel}
             role="dialog"
             aria-label="Add an ideal window"
             className="fixed z-[60] bg-white flex flex-col bottom-0 left-0 right-0 rounded-t-2xl max-w-mobile mx-auto md:bottom-auto md:top-1/2 md:left-1/2 md:right-auto md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-2xl md:w-[400px] md:max-w-[calc(100vw-48px)] md:mx-0"
             style={{ maxHeight: "88vh", willChange: "transform" }}
           >
-            {/* Handle + title carry the swipe-down gesture (mobile only —
-                the hook no-ops at md+, where this renders as a modal) */}
-            <div
-              className="flex-shrink-0"
-              onTouchStart={addDrag.onTouchStart}
-              onTouchMove={addDrag.onTouchMove}
-              onTouchEnd={addDrag.onTouchEnd}
-            >
+            {/* The whole sheet carries the swipe-down gesture (bound on the
+                root above; mobile only — the hook no-ops at md+, where this
+                renders as a modal). */}
+            <div className="flex-shrink-0">
               <div className="flex justify-center pt-3 pb-1 md:hidden">
                 <div className="w-9 h-1 bg-gray-200 rounded-full" />
               </div>
