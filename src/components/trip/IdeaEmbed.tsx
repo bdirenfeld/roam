@@ -84,7 +84,9 @@ export default function IdeaEmbed({ url }: { url: string }) {
             <img
               src={poster}
               alt=""
-              loading="lazy"
+              // Not lazy: the poster only exists for an open row, and a lazy
+              // image in a window the browser treats as hidden never starts.
+              referrerPolicy="no-referrer"
               onError={() => setPosterFailed(true)}
               className="absolute inset-0 h-full w-full object-cover"
               style={{ opacity: 0.85 }}
