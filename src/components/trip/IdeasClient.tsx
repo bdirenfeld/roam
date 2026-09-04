@@ -326,6 +326,17 @@ export default function IdeasClient({
 }) {
   const router = useRouter();
   const { toast } = useToast();
+  // Paste-a-link. Ideas arrived only through Android's share target, so on
+  // a desktop or an iPhone the inbox could never fill and the empty state
+  // didn't say why (UX audit, Sep 2026, finding 3). The pasted link goes
+  // through the same /share capture as a shared one.
+  const [pasteUrl, setPasteUrl] = useState("");
+  const submitPaste = (e: React.FormEvent) => {
+    e.preventDefault();
+    const v = pasteUrl.trim();
+    if (!/^https?:\/\//i.test(v)) { toast({ message: "Paste a full link, starting with https://" }); return; }
+    router.push(`/share?url=${encodeURIComponent(v)}`);
+  };
   const [ideas, setIdeas] = useState(initial);
   const [filter, setFilter] = useState<IdeaFilter>({ kind: "all" });
   const [filterOpen, setFilterOpen] = useState(false);
@@ -516,9 +527,28 @@ export default function IdeasClient({
 
         {live.length === 0 && (
           <p className="text-[13px] px-1" style={{ color: SOFT }}>
-            Nothing saved yet.
+            Nothing saved yet. Paste a link below, or share one here from TikTok or Maps on your phone.
           </p>
         )}
+
+        <form onSubmit={submitPaste} className="flex gap-2 mb-4 px-1">
+          <input
+            value={pasteUrl}
+            onChange={(e) => setPasteUrl(e.target.value)}
+            inputMode="url"
+            placeholder="Paste a link from TikTok, Maps or anywhere"
+            aria-label="Paste a link"
+            className="flex-1 min-w-0 h-10 px-3 rounded-xl bg-white text-[13.5px] outline-none"
+            style={{ boxShadow: `0 0 0 1px ${RULE}` }}
+          />
+          <button
+            type="submit"
+            className="h-10 px-4 rounded-xl text-[13px] font-semibold flex-shrink-0"
+            style={{ background: "#1A1A2E", color: "#FAF7F2" }}
+          >
+            Save
+          </button>
+        </form>
 
         {visible.length > 0 && (
           <div

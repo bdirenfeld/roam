@@ -260,6 +260,31 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   // Undo window after a delete — holds the removed row for re-insert
   const { toast } = useToast();
 
+  // The day's title — "Arrival", "Lucca morning". The Plan showed it and the
+  // Agenda, the screen you read on the day, did not (UX audit, Sep 2026,
+  // finding 4). Edited inline in the desktop header; the phone shows it and
+  // names days from the Plan's day header, as before.
+  const [dayTitle, setDayTitle] = useState<string>(dayWithCards.theme ?? "");
+  const [editingTitle, setEditingTitle] = useState(false);
+  useEffect(() => {
+    setDayTitle(dayWithCards.theme ?? "");
+    setEditingTitle(false);
+  }, [dayWithCards.id, dayWithCards.theme]);
+  const commitDayTitle = useCallback(async (raw: string) => {
+    const theme = raw.trim() || null;
+    const previous = dayTitle;
+    setEditingTitle(false);
+    if ((theme ?? "") === previous) return;
+    setDayTitle(theme ?? "");
+    const { error } = await supabase.from("days").update({ theme }).eq("id", dayWithCards.id);
+    if (error) {
+      setDayTitle(previous);
+      toast({ message: "Couldn't save the day's title. Try again." });
+      return;
+    }
+    router.refresh();
+  }, [dayTitle, supabase, dayWithCards.id, toast, router]);
+
   // ── Import a booking / Documents — the same flow the Plan board has, here
   // because the Agenda is the tab you're on when a confirmation arrives
   // (Brennan, Sep 2026). Parse → preview sheet → cards land on their days;
@@ -637,6 +662,11 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           >
             {formatDayTitle(dayWithCards.date)}
           </span>
+          {dayTitle && (
+            <span className="font-display italic text-[11.5px] leading-none" style={{ color: "rgba(26,26,46,0.55)" }}>
+              {dayTitle}
+            </span>
+          )}
           {weatherReachable && (
             <WeatherSubtitle
               weather={dayWeather}
@@ -693,12 +723,56 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           <CaretLeft size={16} weight="light" />
         </button>
 
-        <span
-          className="font-display italic font-medium text-[26px] text-activity"
-          style={{ letterSpacing: "-0.01em" }}
-        >
-          {formatDayTitle(dayWithCards.date)}
-        </span>
+        {!readOnly && !dayTitle && !editingTitle ? (
+          <button
+            type="button"
+            onClick={() => setEditingTitle(true)}
+            title="Name this day"
+            aria-label={`${formatDayTitle(dayWithCards.date)} — tap to name this day`}
+            className="font-display italic font-medium text-[26px] text-activity hover:opacity-70 transition-opacity"
+            style={{ letterSpacing: "-0.01em" }}
+          >
+            {formatDayTitle(dayWithCards.date)}
+          </button>
+        ) : (
+          <span
+            className="font-display italic font-medium text-[26px] text-activity"
+            style={{ letterSpacing: "-0.01em" }}
+          >
+            {formatDayTitle(dayWithCards.date)}
+          </span>
+        )}
+        {editingTitle ? (
+          <input
+            autoFocus
+            defaultValue={dayTitle}
+            placeholder="Lucca day, Rest, Cinque Terre…"
+            aria-label="Day title"
+            onBlur={(e) => commitDayTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+              if (e.key === "Escape") setEditingTitle(false);
+            }}
+            className="ml-3 h-8 px-2 rounded-md font-display italic text-[15px] bg-white outline-none"
+            style={{ boxShadow: "0 0 0 1px rgba(26,26,46,0.18)", width: 220 }}
+          />
+        ) : dayTitle ? (
+          readOnly ? (
+            <span className="ml-3 font-display italic text-[16px]" style={{ color: "rgba(26,26,46,0.62)" }}>
+              {dayTitle}
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setEditingTitle(true)}
+              title="Edit the day's title"
+              className="ml-3 font-display italic text-[16px] hover:opacity-70 transition-opacity"
+              style={{ color: "rgba(26,26,46,0.62)" }}
+            >
+              {dayTitle}
+            </button>
+          )
+        ) : null}
 
         <button
           onClick={goToNextDay}

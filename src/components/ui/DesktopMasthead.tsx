@@ -3,11 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { UserCircle, Calendar, Columns, MapPin } from "@phosphor-icons/react";
+import { UserCircle, Calendar, Columns, MapPin, Plus, Question } from "@phosphor-icons/react";
 import { SearchButton } from "@/components/search/GlobalSearch";
 import SharedWithFaces from "@/components/trip/SharedWithFaces";
 import AppMenu from "@/components/ui/AppMenu";
 import {
+  NewJourneyLink,
   ProfileLink,
 } from "@/components/overlays/AppOverlays";
 import { createClient } from "@/lib/supabase/client";
@@ -322,6 +323,27 @@ export default function DesktopMasthead() {
         </div>
       )}
 
+      {/* Plan a journey — the app's first action, as a button on the pages
+          where it belongs (Journeys, Ideas). On a desktop it lived only in the
+          ⋯ menu while the phone header carried a "+" and the guide said "tap
+          the +" (UX audit, Sep 2026, finding 3). Inside a journey the menu
+          row is enough. */}
+      {!showTripStrip && (
+        <NewJourneyLink
+          title="Plan a journey"
+          ariaLabel="Plan a journey"
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 7, height: 33,
+            padding: "0 13px 0 11px", marginRight: 8, borderRadius: 8,
+            background: INK, color: "#FAF7F2", fontSize: 13, fontWeight: 500,
+            letterSpacing: "-0.005em", border: "none", cursor: "pointer",
+          }}
+        >
+          <Plus size={13} weight="bold" />
+          Plan a journey
+        </NewJourneyLink>
+      )}
+
       {/* Search — the one way to find a place when you can't remember which
           journey it's on. Also on "/" and ⌘/Ctrl-K from anywhere. */}
       <SearchButton
@@ -330,6 +352,20 @@ export default function DesktopMasthead() {
         strokeWidth={1.6}
         label="Search"
       />
+
+      {/* How Roam works — the quick-start guide. Its only other door was a
+          Profile row hidden at this width, so a signed-in desktop user had
+          no way to it (UX audit, Sep 2026, finding 3). */}
+      <a
+        href="/guide.html"
+        target="_blank"
+        rel="noopener"
+        aria-label="How Roam works"
+        title="How Roam works"
+        className="inline-flex items-center justify-center w-[33px] h-[33px] mr-1 rounded-lg text-[rgba(26,26,46,0.55)] hover:bg-[rgba(26,26,46,0.06)] transition-colors"
+      >
+        <Question size={17} weight="light" />
+      </a>
 
       {/* Everything reached occasionally, named, in one menu — including Plan
           a journey, which is why this renders off a journey as well as on one.

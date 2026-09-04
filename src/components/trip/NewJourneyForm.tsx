@@ -122,8 +122,9 @@ interface Props {
   variant?: "page" | "overlay";
   /** Back / close. Defaults to router.back(). */
   onDismiss?: () => void;
-  /** Called with the new journey's id. Defaults to opening its map. */
-  onCreated?: (tripId: string) => void;
+  /** Called with the new journey's id and where to land (Day 1 of its
+   *  Agenda). Defaults to navigating there. */
+  onCreated?: (tripId: string, landing: string) => void;
 }
 
 export default function NewJourneyForm({
@@ -561,8 +562,12 @@ export default function NewJourneyForm({
 
     // The journey exists — open it. The overlay host closes itself first, so
     // the traveller lands on the new map, not on the map behind a sheet.
-    if (onCreated) onCreated(tripId);
-    else router.push(`/trips/${tripId}/map`);
+    // A new journey lands on Day 1 of the Agenda, where "Add a place" writes
+    // straight onto the day; the Map, with its intro card and its dropdown,
+    // was 13 taps to the same result (UX audit, Sep 2026, finding 11).
+    const landing = days[0] ? `/trips/${tripId}/days/${days[0].id}` : `/trips/${tripId}`;
+    if (onCreated) onCreated(tripId, landing);
+    else router.push(landing);
   }, [isValid, saving, destination, tripName, startDate, endDate, partySize, coverUrl, router, onCreated, toast]);
 
   return (

@@ -476,6 +476,9 @@ function GlobalSearchOverlay({ onClose }: { onClose: () => void }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Results>([]);
   const [loading, setLoading] = useState(false);
+  // A refused or offline query is not an empty result (UX audit, Sep 2026,
+  // finding 10): it used to render "Nothing matches" for a place that exists.
+  const [failed, setFailed] = useState(false);
   const [cursor, setCursor] = useState(0);
   const requestId = useRef(0);
 
@@ -514,11 +517,13 @@ function GlobalSearchOverlay({ onClose }: { onClose: () => void }) {
       return;
     }
     setLoading(true);
+    setFailed(false);
     const id = ++requestId.current;
     const timer = setTimeout(() => {
       runSearch(q)
         .catch((err) => {
           console.error("[Roam] Search failed:", err);
+          if (id === requestId.current) setFailed(true);
           return [] as Results;
         })
         .then((next) => {
@@ -572,7 +577,7 @@ function GlobalSearchOverlay({ onClose }: { onClose: () => void }) {
   };
 
   const showHint = trimmed.length < MIN_CHARS;
-  const showEmpty = !showHint && !loading && flat.length === 0;
+  const showEmpty = !showHint && !loading && !failed && flat.length === 0;
 
   return (
     <>
@@ -652,6 +657,12 @@ function GlobalSearchOverlay({ onClose }: { onClose: () => void }) {
           {showEmpty && (
             <p className="px-4 md:px-5 pt-1 pb-4 text-[12.5px]" style={{ color: CAPTION }}>
               Nothing matches &ldquo;{trimmed}&rdquo;
+            </p>
+          )}
+
+          {!showHint && !loading && failed && (
+            <p className="px-4 md:px-5 pt-1 pb-4 text-[12.5px]" style={{ color: CAPTION }}>
+              Couldn&rsquo;t search right now. Check your connection and try again.
             </p>
           )}
 

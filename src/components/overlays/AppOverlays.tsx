@@ -151,10 +151,11 @@ function NewJourneyProvider({ children }: { children: ReactNode }) {
             variant="overlay"
             onDismiss={close}
             // Creating a journey still opens it — close first so the traveller
-            // lands on the new map rather than on the map behind a sheet.
-            onCreated={(tripId) => {
+            // lands on the new day rather than on a screen behind a sheet.
+            // The form decides where (Day 1 of the Agenda; see NewJourneyForm).
+            onCreated={(_tripId, landing) => {
               close();
-              router.push(`/trips/${tripId}/map`);
+              router.push(landing);
             }}
           />
         </Overlay>
