@@ -152,8 +152,11 @@ export function compute(
   a: Assumptions,
   opts: { uncostedExcursions: number; rolledExcursionCount: number },
 ): Estimate {
-  const people = Math.max(a.people, 1);
-  const days = Math.max(a.days, 1);
+  // Counts multiply as typed — 0 travellers means $0 of flights (Brennan,
+  // Sep 2026: "when you put flights to zero it still drives a cost"). The
+  // clamp to 1 lives only under the per-person and per-day divisions.
+  const people = Math.max(a.people, 0);
+  const days = Math.max(a.days, 0);
 
   const lines: EstimateLine[] = [
     {
@@ -291,8 +294,8 @@ export function compute(
     contingency,
     pointsCredit,
     total,
-    perPerson: money(total / people),
-    perDay: money(total / days),
+    perPerson: money(total / Math.max(people, 1)),
+    perDay: money(total / Math.max(days, 1)),
     uncostedExcursions: opts.uncostedExcursions,
     rolledExcursionCount: opts.rolledExcursionCount,
   };

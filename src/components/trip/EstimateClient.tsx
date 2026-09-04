@@ -548,7 +548,7 @@ export default function EstimateClient({
               {cad(est.total)}
             </div>
             <div className="text-[12.5px]" style={{ color: CAPTION }}>
-              {cad(est.perPerson)} per person &nbsp;·&nbsp; {cad(est.perDay)} per day
+              {a.people > 0 && <>{cad(est.perPerson)} per person &nbsp;·&nbsp; </>}{cad(est.perDay)} per day
             </div>
           </div>
 
