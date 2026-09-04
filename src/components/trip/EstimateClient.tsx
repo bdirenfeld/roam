@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { CaretLeft, CaretDown, Check, X } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import type { ExcursionItem } from "@/lib/budget/load";
+import { queuedUpdate } from "@/lib/offline/queuedWrite";
 import { useToast } from "@/components/ui/Toast";
 import {
   compute,
@@ -279,7 +280,8 @@ export default function EstimateClient({
   rolledExcursionCount,
   fxToCad,
   excursionItems,
-  excursionFree,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  excursionFree: _excursionFree,
   dateRange,
   distanceKm,
   peak,
@@ -303,6 +305,42 @@ export default function EstimateClient({
   // "nothing typed", so the cards' sum keeps flowing through on every open
   // (and follows a new rate). Typed, the figure is kept and wins.
   const [fx, setFx] = useState<number>(fxToCad);
+  // The breakdown rows, editable: a cost typed here writes to the card and
+  // the line follows (unless you typed the line yourself).
+  const [items, setItems] = useState<ExcursionItem[]>(excursionItems);
+  const rowTotal = useCallback((x: ExcursionItem, rate: number) => {
+    if (x.amount == null) return 0;
+    const base = x.per === "person" ? x.amount * x.people : x.amount;
+    return x.currency === "CAD" ? base : base * rate;
+  }, []);
+  const itemsTotal = items.reduce((sum, x) => sum + rowTotal(x, fx), 0);
+  const setItemAmount = (cardId: string, raw: string) => {
+    const amount = raw.trim() === "" ? null : Number(raw);
+    if (amount !== null && Number.isNaN(amount)) return;
+    setItems((prev) => prev.map((x) => (x.cardId === cardId ? { ...x, amount } : x)));
+    setSaved(false);
+  };
+  const saveItemAmount = async (cardId: string) => {
+    const x = items.find((i) => i.cardId === cardId);
+    if (!x) return;
+    const details: Record<string, unknown> = { ...x.details };
+    const budget = (details.budget ?? null) as Record<string, unknown> | null;
+    if (x.amount == null) {
+      delete details.cost_per_person;
+      delete details.budget;
+    } else {
+      details.cost_per_person = x.amount;
+      if (budget) details.budget = { ...budget, amount: x.amount };
+    }
+    const { error } = await queuedUpdate("cards", { id: cardId }, { details });
+    if (error) { toast({ message: "Couldn't save that cost. Try again." }); return; }
+    setItems((prev) => prev.map((i) => (i.cardId === cardId ? { ...i, details } : i)));
+    // The line follows the cards unless a figure was typed on it.
+    if (!excursionsTyped) {
+      const next = Math.round(items.reduce((sum, i) => sum + rowTotal(i.cardId === cardId ? x : i, fx), 0));
+      setA((prev) => ({ ...prev, excursionsTotal: next }));
+    }
+  };
   const [excursionsTyped, setExcursionsTyped] = useState(false);
 
   const est = useMemo(
@@ -592,7 +630,7 @@ export default function EstimateClient({
               <div style={{ padding: `0 ${PAD}px 12px` }}>
                 {est.lines
                   .filter((l) => basis[l.key])
-                  .map((l) => l.key === "excursions" && excursionItems.length > 0 ? (
+                  .map((l) => l.key === "excursions" && items.length > 0 ? (
                     // Excursions: a table, not a paragraph (Brennan, Sep 2026).
                     // Name · cost each · people · total, adding up to the line.
                     <div key={l.key} className="py-2" style={{ borderTop: `1px solid rgba(26,26,46,0.06)` }}>
@@ -610,29 +648,48 @@ export default function EstimateClient({
                           </tr>
                         </thead>
                         <tbody>
-                          {excursionItems.map((x, i) => (
-                            <tr key={i}>
+                          {items.map((x) => (
+                            <tr key={x.cardId}>
                               <td className="py-[3px] pr-2" style={{ color: INK }}>{x.title}</td>
                               <td className="py-[3px] pl-2 text-right whitespace-nowrap tabular-nums">
-                                {x.currency === "CAD" ? "$" : x.currency === "EUR" ? "€" : x.currency === "USD" ? "US$" : x.currency === "GBP" ? "£" : ""}{Math.round(x.amount)}
+                                <span className="inline-flex items-center gap-0.5 justify-end">
+                                  <span>{x.currency === "CAD" ? "$" : x.currency === "EUR" ? "€" : x.currency === "USD" ? "US$" : x.currency === "GBP" ? "£" : ""}</span>
+                                  <input
+                                    type="number"
+                                    inputMode="decimal"
+                                    min="0"
+                                    value={x.amount == null ? "" : String(x.amount)}
+                                    placeholder="—"
+                                    onChange={(e) => setItemAmount(x.cardId, e.target.value)}
+                                    onBlur={() => void saveItemAmount(x.cardId)}
+                                    onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                                    aria-label={`${x.title} cost each`}
+                                    className="w-[48px] rounded-md px-1 py-0.5 text-[11px] text-right"
+                                    style={box(x.amount == null ? SOFT : INK)}
+                                  />
+                                </span>
                               </td>
                               <td className="py-[3px] pl-2 text-right tabular-nums">{x.people}</td>
-                              <td className="py-[3px] pl-2 text-right tabular-nums" style={{ color: INK }}>{cad(x.totalCad)}</td>
+                              <td className="py-[3px] pl-2 text-right tabular-nums" style={{ color: x.amount == null ? SOFT : INK }}>
+                                {x.amount == null ? "—" : cad(rowTotal(x, fx))}
+                              </td>
                             </tr>
                           ))}
                           <tr style={{ borderTop: `1px solid rgba(26,26,46,0.10)` }}>
                             <td className="pt-1.5" colSpan={3} style={{ color: INK }}>
-                              Total{excursionFree ? ` · ${excursionFree} free` : ""}{uncostedExcursions ? ` · ${uncostedExcursions} with no cost yet` : ""}
+                              Total
+                              {items.filter((x) => x.amount === 0).length ? ` · ${items.filter((x) => x.amount === 0).length} free` : ""}
+                              {items.filter((x) => x.amount == null).length ? ` · ${items.filter((x) => x.amount == null).length} with no cost yet` : ""}
                             </td>
                             <td className="pt-1.5 pl-2 text-right tabular-nums" style={{ color: INK }}>
-                              {cad(excursionItems.reduce((s, x) => s + x.totalCad, 0))}
+                              {cad(itemsTotal)}
                             </td>
                           </tr>
                         </tbody>
                       </table>
                       <p className="mt-1.5 text-[11px]" style={{ color: CAPTION, lineHeight: 1.45 }}>
-                        {excursionItems.some((x) => x.currency !== "CAD") ? `Converted at ${fx} to the dollar. ` : ""}
-                        Change a card&rsquo;s cost and this follows; type a figure on the line and it wins.
+                        {items.some((x) => x.currency !== "CAD") ? `Converted at ${fx} to the dollar. ` : ""}
+                        Type a cost here and the card and the line follow; a figure typed on the line itself wins. Blank means no cost yet; 0 means free.
                       </p>
                     </div>
                   ) : (
