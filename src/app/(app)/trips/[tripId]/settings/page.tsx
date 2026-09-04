@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import TripSettingsClient from "@/components/trip/TripSettingsClient";
 import { getTripAccess } from "@/lib/trip-access";
 import type { Person } from "@/components/trip/TravellersSection";
-import type { ShareGuest } from "@/components/trip/ShareJourneySection";
+import type { ShareGuest } from "@/components/trip/ShareJourneySheet";
 import type { Trip, Day } from "@/types/database";
 
 interface Props {
@@ -66,7 +66,7 @@ export default async function TripSettingsPage({ params }: Props) {
       email: u.email,
     }));
   }
-  const shareToken = (trip as { share_token: string | null }).share_token ?? null;
+  const shareToken = (trip as { share_token: string | null }).share_token ?? null;
   return (
     <TripSettingsClient
       trip={trip as Trip}

@@ -5,6 +5,13 @@ import { createShareLink, revokeShareLink, loadShareState } from "@/lib/share-ac
 import type { ShareState } from "@/lib/share-actions";
 import { useSheetDrag } from "@/hooks/useSheetDrag";
 
+/** A guest on a shared journey, as the Settings page loads it server-side. */
+export interface ShareGuest {
+  userId: string;
+  name: string | null;
+  email: string | null;
+}
+
 const INK = "#1A1A2E";
 const CAPTION = "rgba(26,26,46,0.55)";
 const SOFT = "rgba(26,26,46,0.42)";

@@ -323,7 +323,12 @@ export default function YearView({ trips }: Props) {
     } catch {}
     if (stored === "1") setOpenState(true);
     else if (stored === "0") setOpenState(false);
-    else setOpenState(window.innerWidth >= 768); // default: open on desktop
+    // Closed by default everywhere (simplification audit, group three). It
+    // used to open itself on desktop, which put two thousand lines of planning
+    // apparatus — birthdays, the school calendar, wishlist lanes — on the
+    // second screen a new user sees. One click opens it, and the choice is
+    // remembered, so anyone who wants it open sees it open from then on.
+    else setOpenState(false);
   }, []);
 
   const setOpen = (v: boolean) => {

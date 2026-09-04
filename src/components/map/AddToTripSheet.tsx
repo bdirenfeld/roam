@@ -139,7 +139,6 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
       : inferred.sub_type;
   const [type,           setType]           = useState<CardType | null>(inferred.type);
   const [subType,        setSubType]        = useState<string | null>(initialSubType);
-  const [recommendedBy,  setRecommendedBy]  = useState("");
   const [saving,         setSaving]         = useState(false);
   const [showDupConfirm, setShowDupConfirm] = useState(false);
   // null = map only, which is the default: saving a place has never implied
@@ -207,7 +206,6 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
     if (place.website)        details.website        = place.website;
     if (place.phone)          details.phone          = place.phone;
     if (place.rating)         details.rating         = place.rating;
-    if (recommendedBy.trim()) details.recommended_by = recommendedBy.trim();
 
     // ── Store place_id for all card types (needed for photo carousel) ─
     details.place_id = place.placeId;
@@ -333,7 +331,7 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
 
     setSaving(false);
     if (!error) onCardCreated(newCard);
-  }, [type, subType, recommendedBy, place, targetDayId, tripId, supabase, onCardCreated]);
+  }, [type, subType, place, targetDayId, tripId, supabase, onCardCreated]);
 
   const handleSave = useCallback(async () => {
     if (!type || saving) return;
@@ -568,18 +566,11 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
             </div>
           )}
 
-          {/* Recommended by */}
-          <div className="mb-4">
-            <input
-              type="text"
-              value={recommendedBy}
-              onChange={(e) => setRecommendedBy(e.target.value)}
-              placeholder="e.g. Marco, Sarah..."
-              className="w-full px-3 py-2 text-[13px] text-gray-700 bg-gray-50 border border-gray-200 rounded-lg placeholder-gray-400 focus:outline-none focus:border-gray-300 focus:bg-white transition-colors"
-            />
-            <p className="text-[11px] text-gray-400 mt-1 ml-0.5">Recommended by (optional)</p>
-          </div>
-
+          {/* No "Recommended by" here. Saving already asks two things — type
+              and day — and a third question about who suggested the place is
+              one too many on a first save. The pin popup edits it inline
+              afterwards, which is where Brennan wants it (simplification
+              audit, group three). */}
           {/* Save button */}
           <button
             onClick={handleSave}

@@ -761,9 +761,11 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
         </div>
 
         {/* ··· — same menu as the mobile header, so notes are one tap away
-            from the day on desktop too */}
+            from the day on desktop too. The desktop variant: this header is
+            md:+ only, and the mobile variant carried a Profile row the
+            masthead's avatar already provides. */}
         <AppMenu
-          variant="mobile"
+          variant="desktop"
           tripId={trip.id}
           tripTitle={trip.title}
           trip={trip}
