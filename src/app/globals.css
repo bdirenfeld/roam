@@ -30,7 +30,10 @@ body {
   margin: 0 auto;
   min-height: 100dvh;
   position: relative;
-  overflow-x: hidden;
+  /* clip, not hidden: hidden makes this a scroll container and kills every
+     position: sticky inside it (the Ideas filter row, Sep 2026). clip trims
+     the same overflow without doing that. */
+  overflow-x: clip;
 }
 
 /* Desktop unfolds the mobile column at the md: breakpoint (768px).

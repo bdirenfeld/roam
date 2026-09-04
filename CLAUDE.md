@@ -151,3 +151,15 @@ is the ground BEHIND cards on desktop pages (Journeys grid, Plan board, Map side
 else. Phone pages that share a component with desktop use `bg-white md:bg-parchment`. Brennan,
 from his phone, Sep 2026: "a mix of parchment and white… should we just go to white?" Don't
 reintroduce a cream sheet to "match" another; match white.
+
+## `.mobile-container` uses `overflow-x: clip`, never `hidden`
+`hidden` turns the phone column into a scroll container and silently kills every `position: sticky`
+inside it (the Ideas filter row sat still for a day). `clip` trims the same overflow. If a sticky
+element stops sticking on the phone, look for a new `overflow: hidden` ancestor before anything else.
+
+## Excursions in the Estimate
+Every activity card panel has a "Cost per person" row writing `details.cost_per_person` (a number,
+in the currency you were quoted in). `lib/budget/load.ts` reads `details.budget` first, else
+`cost_per_person` (converted like any non-CAD budget), else counts the card as uncosted; the
+Excursions line's hint reads "from N cards · M uncosted". The planning skill writes `budget`;
+the card sheet writes `cost_per_person`; both feed the same line.
