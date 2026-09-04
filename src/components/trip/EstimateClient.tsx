@@ -320,9 +320,14 @@ export default function EstimateClient({
     setItems((prev) => prev.map((x) => (x.cardId === cardId ? { ...x, amount } : x)));
     setSaved(false);
   };
-  const saveItemAmount = async (cardId: string) => {
-    const x = items.find((i) => i.cardId === cardId);
-    if (!x) return;
+  // Takes the value from the field itself, not from state: a blur that lands
+  // in the same tick as the last keystroke would otherwise read the old row.
+  const saveItemAmount = async (cardId: string, raw: string) => {
+    const typed = raw.trim() === "" ? null : Number(raw);
+    if (typed !== null && Number.isNaN(typed)) return;
+    const found = items.find((i) => i.cardId === cardId);
+    if (!found) return;
+    const x: ExcursionItem = { ...found, amount: typed };
     const details: Record<string, unknown> = { ...x.details };
     const budget = (details.budget ?? null) as Record<string, unknown> | null;
     if (x.amount == null) {
@@ -661,7 +666,7 @@ export default function EstimateClient({
                                     value={x.amount == null ? "" : String(x.amount)}
                                     placeholder="—"
                                     onChange={(e) => setItemAmount(x.cardId, e.target.value)}
-                                    onBlur={() => void saveItemAmount(x.cardId)}
+                                    onBlur={(e) => void saveItemAmount(x.cardId, e.target.value)}
                                     onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
                                     aria-label={`${x.title} cost each`}
                                     className="w-[48px] rounded-md px-1 py-0.5 text-[11px] text-right"
