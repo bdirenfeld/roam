@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CaretLeft, CaretDown, Check, X } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
+import type { ExcursionItem } from "@/lib/budget/load";
 import { useToast } from "@/components/ui/Toast";
 import {
   compute,
@@ -257,6 +258,9 @@ interface Props {
   rolledExcursionCount: number;
   /** The rate card costs convert at; editable under "How this was worked out". */
   fxToCad: number;
+  /** The priced activity cards, for the Excursions breakdown table. */
+  excursionItems: ExcursionItem[];
+  excursionFree: number;
   dateRange: string;
   distanceKm: number;
   peak: boolean;
@@ -274,6 +278,8 @@ export default function EstimateClient({
   uncostedExcursions,
   rolledExcursionCount,
   fxToCad,
+  excursionItems,
+  excursionFree,
   dateRange,
   distanceKm,
   peak,
@@ -586,7 +592,50 @@ export default function EstimateClient({
               <div style={{ padding: `0 ${PAD}px 12px` }}>
                 {est.lines
                   .filter((l) => basis[l.key])
-                  .map((l) => (
+                  .map((l) => l.key === "excursions" && excursionItems.length > 0 ? (
+                    // Excursions: a table, not a paragraph (Brennan, Sep 2026).
+                    // Name · cost each · people · total, adding up to the line.
+                    <div key={l.key} className="py-2" style={{ borderTop: `1px solid rgba(26,26,46,0.06)` }}>
+                      <div className="flex items-baseline justify-between mb-1.5">
+                        <span className="text-[11.5px]" style={{ color: INK }}>{l.label}</span>
+                        <span className="text-[11.5px]" style={{ color: INK }}>{cad(l.unit)}</span>
+                      </div>
+                      <table className="w-full text-[11px]" style={{ borderCollapse: "collapse", color: CAPTION }}>
+                        <thead>
+                          <tr style={{ color: SOFT }}>
+                            <th className="text-left font-medium pb-1" style={{ fontWeight: 500 }}>Excursion</th>
+                            <th className="text-right font-medium pb-1 pl-2 whitespace-nowrap" style={{ fontWeight: 500 }}>Each</th>
+                            <th className="text-right font-medium pb-1 pl-2" style={{ fontWeight: 500 }}>People</th>
+                            <th className="text-right font-medium pb-1 pl-2" style={{ fontWeight: 500 }}>Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {excursionItems.map((x, i) => (
+                            <tr key={i}>
+                              <td className="py-[3px] pr-2" style={{ color: INK }}>{x.title}</td>
+                              <td className="py-[3px] pl-2 text-right whitespace-nowrap tabular-nums">
+                                {x.currency === "CAD" ? "$" : x.currency === "EUR" ? "€" : x.currency === "USD" ? "US$" : x.currency === "GBP" ? "£" : ""}{Math.round(x.amount)}
+                              </td>
+                              <td className="py-[3px] pl-2 text-right tabular-nums">{x.people}</td>
+                              <td className="py-[3px] pl-2 text-right tabular-nums" style={{ color: INK }}>{cad(x.totalCad)}</td>
+                            </tr>
+                          ))}
+                          <tr style={{ borderTop: `1px solid rgba(26,26,46,0.10)` }}>
+                            <td className="pt-1.5" colSpan={3} style={{ color: INK }}>
+                              Total{excursionFree ? ` · ${excursionFree} free` : ""}{uncostedExcursions ? ` · ${uncostedExcursions} with no cost yet` : ""}
+                            </td>
+                            <td className="pt-1.5 pl-2 text-right tabular-nums" style={{ color: INK }}>
+                              {cad(excursionItems.reduce((s, x) => s + x.totalCad, 0))}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                      <p className="mt-1.5 text-[11px]" style={{ color: CAPTION, lineHeight: 1.45 }}>
+                        {excursionItems.some((x) => x.currency !== "CAD") ? `Converted at ${fx} to the dollar. ` : ""}
+                        Change a card&rsquo;s cost and this follows; type a figure on the line and it wins.
+                      </p>
+                    </div>
+                  ) : (
                     <div
                       key={l.key}
                       className="flex gap-2 py-2"

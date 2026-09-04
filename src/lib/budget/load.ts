@@ -7,6 +7,18 @@ import {
   type CardBudget,
 } from "./model";
 
+export interface ExcursionItem {
+  title: string;
+  /** As typed on the card, in its own currency. */
+  amount: number;
+  currency: string;
+  per: "party" | "person";
+  /** How many the amount is multiplied by (party size, or 1 for a party price). */
+  people: number;
+  /** In home currency, after the rate. */
+  totalCad: number;
+}
+
 export interface EstimateData {
   tripTitle: string;
   assumptions: Assumptions;
@@ -15,6 +27,10 @@ export interface EstimateData {
   rolledExcursionCount: number;
   /** trip_budgets.fx_to_cad — one rate for every non-CAD card cost. */
   fxToCad: number;
+  /** One row per priced activity card, in home currency, for the breakdown table. */
+  excursionItems: ExcursionItem[];
+  /** Activity cards on days with a cost of zero. */
+  excursionFree: number;
   dateRange: string;
   distanceKm: number;
   peak: boolean;
@@ -40,16 +56,10 @@ function excursionsBasis(
   const parts: string[] = [];
   const pricedCount = priced.length;
   parts.push(
-    `Adds up the cost on the ${cards} ${cards === 1 ? "activity" : "activities"} on your days: ${pricedCount} priced${freeCount ? `, ${freeCount} free` : ""}${uncosted ? `, ${uncosted} with no cost yet` : ""}.`,
+    `${cards} ${cards === 1 ? "activity" : "activities"} on your days: ${pricedCount} priced${freeCount ? `, ${freeCount} free` : ""}${uncosted ? `, ${uncosted} with no cost yet` : ""}.`,
   );
-  const perPerson = priced.some((x) => x.per === "person");
-  if (perPerson) parts.push(`Per-person costs are × ${partySize} travellers.`);
   if (priced.some((x) => x.currency !== "CAD")) parts.push(`Converted at ${fx} to the dollar.`);
-  const top = [...priced].sort((a, b) => (b.per === "person" ? b.amount * partySize : b.amount) - (a.per === "person" ? a.amount * partySize : a.amount)).slice(0, 3);
-  if (top.length) {
-    const sym = (c: string) => (c === "CAD" ? "$" : c === "EUR" ? "€" : c === "USD" ? "US$" : c === "GBP" ? "£" : "");
-    parts.push(`Biggest: ${top.map((x) => `${x.title} ${sym(x.currency)}${Math.round(x.amount)}${x.per === "person" ? " each" : ""}`).join(", ")}.`);
-  }
+  void partySize;
   parts.push("Change a card's cost and this follows; type a figure on the line and it wins.");
   return parts.join(" ");
 }
@@ -148,6 +158,15 @@ export async function loadEstimate(
   return {
     tripTitle: trip.title ?? "Journey",
     fxToCad,
+    excursionItems: priced.map((x) => ({
+      title: x.title,
+      amount: x.amount,
+      currency: x.currency,
+      per: x.per === "person" ? "person" : "party",
+      people: x.per === "person" ? partySize : 1,
+      totalCad: Math.round(cardBudgetToCad({ amount: x.amount, currency: x.currency || "local", per: x.per === "person" ? "person" : "party" }, partySize, fxToCad)),
+    })),
+    excursionFree: freeCount,
     assumptions,
     // The Excursions sentence writes itself from the cards; a sentence you
     // typed for that line still wins.

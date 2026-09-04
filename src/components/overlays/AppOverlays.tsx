@@ -232,6 +232,8 @@ function EstimateOverlayBody({
       uncostedExcursions={data.uncostedExcursions}
       rolledExcursionCount={data.rolledExcursionCount}
       fxToCad={data.fxToCad}
+      excursionItems={data.excursionItems}
+      excursionFree={data.excursionFree}
       dateRange={data.dateRange}
       distanceKm={data.distanceKm}
       peak={data.peak}
