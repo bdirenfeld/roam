@@ -1699,7 +1699,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
                 stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <polyline points="15 18 9 12 15 6" />
               </svg>
-              Days
+              Agenda
             </Link>
           )}
         </div>
@@ -2257,7 +2257,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
         </div>
       )}
 
-      {/* ── Kanban background URL sheet ── */}
+      {/* ── Board background URL sheet ── */}
       {showBgPicker && (
         <>
           <div
@@ -2273,7 +2273,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
             </div>
             <div className="flex-1 overflow-y-auto px-5 pt-3 pb-2">
               <p className="text-center font-display italic text-base text-gray-900 mb-5">
-                Kanban background
+                Board background
               </p>
               <input
                 type="url"
@@ -3260,7 +3260,7 @@ function AddListColumn({
             disabled={!draft.trim()}
             className="flex-1 py-2 rounded-lg text-[12.5px] font-semibold text-white bg-[#1A1A2E] disabled:opacity-30 transition-opacity"
           >
-            Add list
+            Add a list
           </button>
           <button
             onClick={() => { setDraft(""); onCancel(); }}

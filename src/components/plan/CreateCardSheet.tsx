@@ -550,6 +550,7 @@ export default function CreateCardSheet({
             <div className="flex-1">
               <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Start time</p>
               <input
+                aria-label="Start time"
                 type="time"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
@@ -559,6 +560,7 @@ export default function CreateCardSheet({
             <div className="flex-1">
               <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">End time</p>
               <input
+                aria-label="End time"
                 type="time"
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}

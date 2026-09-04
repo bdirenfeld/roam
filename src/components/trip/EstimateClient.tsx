@@ -608,7 +608,7 @@ export default function EstimateClient({
                 : { border: `1px solid rgba(26,26,46,0.22)`, color: INK }
             }
           >
-            Estimate from this trip
+            Estimate from this journey
           </button>
         )}
 

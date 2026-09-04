@@ -177,3 +177,15 @@ body {
 .roam-caret {
   animation: roam-caret 1s steps(2, start) infinite;
 }
+
+/* Reduced motion — the app carried 37 animate-in and 234 transition classes
+   with no media query (UX audit, Sep 2026, finding 5). Anyone who has asked
+   their OS for less motion gets it, in one rule. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

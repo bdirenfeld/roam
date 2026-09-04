@@ -75,7 +75,7 @@ export default function GuidedDetail({ card, onSaveDetails, showEmpty = false }:
       )}
 
       {/* WHAT'S INCLUDED */}
-      <ArrayField label="What's Included" items={includes} placeholder="Nothing listed yet…"
+      <ArrayField label="What's included" items={includes} placeholder="Nothing listed yet…"
         newItemPlaceholder="Add an inclusion…"
         onSave={onSaveDetails ? (items) => onSaveDetails("includes", items) : undefined}
         bulletClass="bg-activity" hideWhenEmpty={hide} />

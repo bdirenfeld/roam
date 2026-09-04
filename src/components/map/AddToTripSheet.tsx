@@ -588,7 +588,7 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
             {saving
               ? "Checking…"
               : targetDay
-              ? `Add to Day ${targetDay.day_number}`
+              ? `Add to day ${targetDay.day_number}`
               : "Save to the map only"}
           </button>
         </div>

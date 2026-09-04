@@ -40,7 +40,7 @@ export default function EventDetail({ card, onSaveDetails, showEmpty = false }: 
       )}
 
       {/* WHAT TO BRING */}
-      <ArrayField label="What to Bring" items={whatToBring} placeholder="Nothing listed yet…"
+      <ArrayField label="What to bring" items={whatToBring} placeholder="Nothing listed yet…"
         newItemPlaceholder="Add an item…"
         onSave={onSaveDetails ? (items) => onSaveDetails("what_to_bring", items) : undefined}
         bulletClass="bg-activity" hideWhenEmpty={hide} />

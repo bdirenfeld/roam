@@ -57,7 +57,7 @@ interface Props {
    *  sheet is showing is unchanged — the caller splices the new one into the
    *  target day so the board/agenda updates without a refetch. */
   onCardCopied?: (card: Card) => void;
-  /** Days available for assignment (shows "Assign to Day" when card is interested) */
+  /** Days available for assignment (shows "Assign to day" when card is interested) */
   days?: Day[];
   /** Trip destination string (e.g. "Rome, Italy") — used to derive country dial code */
   tripDestination?: string;
@@ -1144,7 +1144,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   <button
                     onClick={() => setShowCardMenu((v) => !v)}
                     aria-expanded={showCardMenu}
-                    aria-label="More actions"
+                    aria-label="More options"
                     className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="#6B7280">
@@ -1164,7 +1164,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                             onClick={() => { setShowCardMenu(false); setShowMovePicker(true); }}
                             className="w-full text-left px-3.5 py-2.5 text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                           >
-                            Move to Day
+                            Move to day
                           </button>
                         )}
                         {days.length > 1 && (
@@ -1599,7 +1599,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 onClick={() => setShowDayPicker(true)}
                 className="w-full py-3 rounded-xl bg-activity text-white text-[14px] font-bold active:scale-[0.98] transition-all"
               >
-                Assign to Day
+                Assign to day
               </button>
             </div>
           )}

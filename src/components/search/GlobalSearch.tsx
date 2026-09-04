@@ -622,7 +622,7 @@ function GlobalSearchOverlay({ onClose }: { onClose: () => void }) {
               autoComplete="off"
               spellCheck={false}
               placeholder="Search journeys, places, wishlist"
-              aria-label="Search journeys, saved places and wishlist"
+              aria-label="Search journeys, places, wishlist"
               className="flex-1 min-w-0 bg-transparent outline-none text-[14px] placeholder:text-[rgba(26,26,46,0.35)] [&::-webkit-search-cancel-button]:hidden"
               style={{ color: INK }}
             />

@@ -157,7 +157,7 @@ export default async function TripsPage() {
                 type="submit"
                 className="text-[12px] text-gray-300 underline underline-offset-2 hover:text-gray-500 transition-colors"
               >
-                Create the sample trip (dev only)
+                Create the sample journey (dev only)
               </button>
             </form>
           )}
@@ -196,7 +196,7 @@ function EmptyState() {
           type="submit"
           className="text-[13px] text-gray-400 underline underline-offset-2 hover:text-gray-600 transition-colors"
         >
-          or try a sample trip first
+          or try a sample journey first
         </button>
       </form>
     </div>
