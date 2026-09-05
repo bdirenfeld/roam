@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import type { Document } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
+import { useSheetDrag } from "@/hooks/useSheetDrag";
 
 interface Props {
   tripId:  string;
@@ -77,9 +78,8 @@ function fmtDate(dateStr: string): string {
 export default function DocumentsSheet({ tripId, onClose, onImport }: Props) {
   const supabase = createClient();
   const { toast } = useToast();
-  const sheetRef = useRef<HTMLDivElement>(null);
-  const dragY    = useRef(0);
-  const dragging = useRef(false);
+  const listRef  = useRef<HTMLDivElement>(null);
+  const drag     = useSheetDrag(onClose, listRef);
 
   const [docs,    setDocs]    = useState<Document[]>([]);
   // Files attached to the journey's cards (the card sheet's paperclip). They
@@ -109,22 +109,36 @@ export default function DocumentsSheet({ tripId, onClose, onImport }: Props) {
       supabase.from("documents").select("*").eq("trip_id", tripId).order("created_at", { ascending: false }),
       supabase
         .from("card_attachments")
-        .select("id, card_id, file_name, file_type, file_url, created_at, parse_status, cards(details, places(title))")
+        .select("id, card_id, file_name, file_type, file_url, file_path, created_at, parse_status, cards(details, places(title))")
         .eq("trip_id", tripId)
         .order("created_at", { ascending: false }),
-    ]).then(([d, a]) => {
+    ]).then(async ([d, a]) => {
       if (cancelled) return;
       setDocs((d.data ?? []) as Document[]);
+      // card-attachments is a private bucket: the stored /object/public/ URL
+      // never resolves ("Bucket not found" on the phone). Sign every path in
+      // one call before the rows render, so each tap is a plain link — no
+      // await in the gesture, which iOS Safari would block.
+      const rowsRaw = (a.data ?? []) as unknown as {
+        id: string; card_id: string; file_name: string; file_type: string | null; file_url: string | null; file_path: string | null; created_at: string; parse_status: string | null;
+        cards: { details: Record<string, unknown> | null; places: { title: string } | null } | null;
+      }[];
+      const pathOf = (r: { file_path: string | null; file_url: string | null }) =>
+        r.file_path ?? (r.file_url ? decodeURIComponent(r.file_url.split("/card-attachments/")[1] ?? "") : "") ?? "";
+      const paths = rowsRaw.map(pathOf).filter(Boolean);
+      const signed = new Map<string, string>();
+      if (paths.length) {
+        const { data: urls } = await supabase.storage.from("card-attachments").createSignedUrls(paths, 3600);
+        for (const u of urls ?? []) if (u.signedUrl && u.path) signed.set(u.path, u.signedUrl);
+      }
+      if (cancelled) return;
       setAtts(
-        ((a.data ?? []) as unknown as {
-          id: string; card_id: string; file_name: string; file_type: string | null; file_url: string | null; created_at: string; parse_status: string | null;
-          cards: { details: Record<string, unknown> | null; places: { title: string } | null } | null;
-        }[]).map((r) => ({
+        rowsRaw.map((r) => ({
           id: r.id,
           cardId: r.card_id,
           fileName: r.file_name,
           fileType: r.file_type,
-          fileUrl: r.file_url,
+          fileUrl: signed.get(pathOf(r)) ?? null,
           createdAt: r.created_at,
           cardTitle: r.cards?.places?.title ?? (typeof r.cards?.details?.title === "string" ? (r.cards.details.title as string) : "a card"),
         })),
@@ -134,31 +148,6 @@ export default function DocumentsSheet({ tripId, onClose, onImport }: Props) {
     return () => { cancelled = true; };
   }, [tripId, supabase]);
 
-  // Drag-to-dismiss
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    dragY.current = e.touches[0].clientY; dragging.current = true;
-  }, []);
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!dragging.current || !sheetRef.current) return;
-    const dy = Math.max(0, e.touches[0].clientY - dragY.current);
-    sheetRef.current.style.transform  = `translateY(${dy}px)`;
-    sheetRef.current.style.transition = "none";
-  }, []);
-
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (!dragging.current || !sheetRef.current) return;
-    dragging.current = false;
-    const dy = e.changedTouches[0].clientY - dragY.current;
-    if (dy > 120) {
-      sheetRef.current.style.transition = "transform 250ms cubic-bezier(0.32,0.72,0,1)";
-      sheetRef.current.style.transform  = "translateY(100%)";
-      setTimeout(onClose, 240);
-    } else {
-      sheetRef.current.style.transition = "transform 300ms cubic-bezier(0.34,1.56,0.64,1)";
-      sheetRef.current.style.transform  = "translateY(0)";
-    }
-  }, [onClose]);
 
   // Checked, and undoable for six seconds — the row comes back under its
   // original id (the file itself was never touched).
@@ -193,10 +182,11 @@ export default function DocumentsSheet({ tripId, onClose, onImport }: Props) {
       <div className="absolute inset-0 bg-black/40 animate-in fade-in duration-200" />
 
       <div
-        ref={sheetRef}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
+        ref={drag.sheetRef}
+        onTouchStart={drag.onTouchStart}
+        onTouchMove={drag.onTouchMove}
+        onTouchEnd={drag.onTouchEnd}
+        onTouchCancel={drag.onTouchCancel}
         className="relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet max-h-[75dvh] flex flex-col animate-in slide-in-from-bottom duration-300"
         style={{ willChange: "transform" }}
       >
@@ -239,7 +229,7 @@ export default function DocumentsSheet({ tripId, onClose, onImport }: Props) {
         )}
 
         {/* List */}
-        <div className="flex-1 overflow-y-auto pb-6">
+        <div ref={listRef} className="flex-1 overflow-y-auto pb-6">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <p className="text-[13px] text-gray-400">Loading…</p>

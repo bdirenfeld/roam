@@ -267,3 +267,6 @@ Menu rows read Notes · Bookings · Ideas · Estimate · Share · Settings — n
 Bookings (plan/DocumentsSheet.tsx) lists two stores: `documents` (uploaded through the sheet) and
 `card_attachments` (added on a card). New York had eight card attachments and an empty sheet before
 this. Card files open in a new tab and delete from their card, not here.
+`card-attachments` is a PRIVATE bucket: `file_url` (a /object/public/ URL) never resolves. Open a
+file through `createSignedUrl(s)` on `file_path`, signed before the tap (iOS blocks a post-await
+window.open). Every bottom sheet uses `useSheetDrag` — hand-rolled touch handlers dismiss on scroll.
