@@ -162,7 +162,7 @@ function Row({
               value={unset ? "" : String(line.unit)}
               onChange={(e) => setNum(line.unitKey, e.target.value)}
               aria-label={`${line.label} unit cost`}
-              className="w-full rounded-md px-1.5 py-1.5 text-[12.5px] text-right"
+              className="w-full rounded-lg px-1.5 py-1.5 text-[12.5px] text-right"
               style={box(dim)}
             />
           </div>
@@ -648,7 +648,7 @@ export default function EstimateClient({
                     value={String(a.contingencyPct)}
                     onChange={(e) => setNum("contingencyPct", e.target.value)}
                     aria-label="Contingency percent"
-                    className="w-full rounded-md px-1.5 py-1.5 text-[12.5px] text-right"
+                    className="w-full rounded-lg px-1.5 py-1.5 text-[12.5px] text-right"
                     style={box(INK)}
                   />
                 </div>
@@ -676,7 +676,7 @@ export default function EstimateClient({
                     value={a.pointsCredit === 0 ? "" : String(a.pointsCredit)}
                     onChange={(e) => setNum("pointsCredit", e.target.value)}
                     aria-label="Amount paid with points"
-                    className="w-full rounded-md px-1.5 py-1.5 text-[12.5px] text-right"
+                    className="w-full rounded-lg px-1.5 py-1.5 text-[12.5px] text-right"
                     style={box(est.pointsCredit > 0 ? SIENNA : INK)}
                   />
                 </div>
@@ -778,7 +778,7 @@ export default function EstimateClient({
                                     onBlur={(e) => void saveItemAmount(x.cardId, e.target.value)}
                                     onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
                                     aria-label={`${x.title} cost each`}
-                                    className="w-[48px] rounded-md px-1 py-0.5 text-[11px] text-right"
+                                    className="w-[48px] rounded-lg px-1 py-0.5 text-[11px] text-right"
                                     style={box(x.amount == null ? SOFT : INK)}
                                   />
                                 </span>
@@ -795,7 +795,7 @@ export default function EstimateClient({
                                     onBlur={(e) => void saveItemPeople(x.cardId, e.target.value)}
                                     onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
                                     aria-label={`${x.title} people`}
-                                    className="w-[34px] rounded-md px-1 py-0.5 text-[11px] text-right"
+                                    className="w-[34px] rounded-lg px-1 py-0.5 text-[11px] text-right"
                                     style={box(INK)}
                                   />
                                 ) : (
@@ -868,7 +868,7 @@ export default function EstimateClient({
                       if (!Number.isNaN(v)) { setFx(v); setFxTyped(true); setSaved(false); }
                     }}
                     aria-label="Exchange rate to the dollar"
-                    className="w-[64px] rounded-md px-1.5 py-1 text-[12.5px] text-right"
+                    className="w-[64px] rounded-lg px-1.5 py-1 text-[12.5px] text-right"
                     style={box(INK)}
                   />
                   <span className="flex-1 text-[11px]" style={{ color: CAPTION, lineHeight: 1.45 }}>

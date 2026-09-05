@@ -474,7 +474,7 @@ export default function JourneyNotes({
             <div ref={edges.contentRef}>
               {isEmpty && !composer && (
                 <p
-                  className="font-display italic text-[15px]"
+                  className="font-display italic text-[17px]"
                   style={{ color: "rgba(26,26,46,0.5)", paddingBottom: readOnly ? 0 : 4 }}
                 >
                   Nothing noted yet.

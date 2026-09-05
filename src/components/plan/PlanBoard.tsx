@@ -60,7 +60,7 @@ import { formatTimeRange } from "@/lib/formatTime";
 import { getOpeningHoursConflict, openingHoursCaption, openingHoursTone } from "@/lib/openingHours";
 
 import CardImage from "@/components/ui/CardImage";
-import { Trash, DotsThree, DotsSixVertical, ArrowLeft, ArrowRight, BookmarkSimple, Files, NotePencil } from "@phosphor-icons/react";
+import { Trash, DotsThree, ArrowLeft, ArrowRight, BookmarkSimple, Files, NotePencil } from "@phosphor-icons/react";
 import { useGlobalSearch } from "@/components/search/GlobalSearch";
 import { useToast } from "@/components/ui/Toast";
 import AppMenu from "@/components/ui/AppMenu";
@@ -487,7 +487,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   // Pixel width of every leading column, in board order, so the week-bar row
   // and the pinned header row can reserve the same slots the columns row takes.
   const listWidths = useMemo(
-    () => lists.map((l) => (collapsedLists.has(l.id) ? FOLDED_W : COL_W)),
+    () => lists.map(() => COL_W),
     [lists, collapsedLists],
   );
   const addListWidth = draftList ? COL_W : ADD_LIST_W;
@@ -1615,16 +1615,11 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   // re-deriving the geometry — that is what stops the rows drifting apart.
   const listHeaderCells = (
     <>
-      {lists.map((list, i) => (
+      {lists.map((list) => (
         <ListHeaderCell
           key={list.id}
           list={list}
-          collapsed={collapsedLists.has(list.id)}
           dragging={list.id === activeListId}
-          canMoveLeft={i > 0}
-          canMoveRight={i < lists.length - 1}
-          onMove={(delta) => handleMoveList(list.id, delta)}
-          onToggle={() => toggleList(list.id)}
           onRename={(title) => handleRenameList(list.id, title)}
           onDelete={() => handleDeleteList(list.id)}
         />
@@ -1642,7 +1637,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
         <ListColumn
           key={list.id}
           list={list}
-          collapsed={collapsedLists.has(list.id)}
+          collapsed={false}
           dragging={list.id === activeListId}
           dropEdge={dropEdgeAt(i)}
           onExpand={() => toggleList(list.id)}
@@ -2638,23 +2633,13 @@ const LIST_TIER2: React.CSSProperties = {
 
 function ListHeaderCell({
   list,
-  collapsed,
   dragging,
-  canMoveLeft,
-  canMoveRight,
-  onMove,
-  onToggle,
   onRename,
   onDelete,
 }: {
   list: ListWithCards;
-  collapsed: boolean;
   /** This column is the one currently being dragged. */
   dragging: boolean;
-  canMoveLeft: boolean;
-  canMoveRight: boolean;
-  onMove: (delta: -1 | 1) => void;
-  onToggle: () => void;
   onRename: (title: string) => void;
   onDelete: () => void;
 }) {
@@ -2662,13 +2647,10 @@ function ListHeaderCell({
   const [draft,   setDraft]       = useState(list.title);
   const inputRef  = useRef<HTMLInputElement>(null);
 
-  // The drag node is the whole header cell (it gives dnd-kit a column-wide rect
-  // to measure); the listeners go on the grip alone. The header itself stays a
-  // plain tap target so a click on the name still opens the inline rename — a
-  // header-as-handle would have had to distinguish the two by distance, and
-  // guessing wrong either eats the rename or starts a drag nobody asked for.
-  // `attributes` is deliberately not taken: it carries role="button",
-  // tabIndex and the keyboard drag activator, and the grip is pointer-only.
+  // The whole header cell is the drag handle. The mouse sensor asks for 8px
+  // of travel before a drag starts, so a tap on the name still renames.
+  // `attributes` is deliberately not taken: it carries role="button" and a
+  // keyboard drag activator this header does not want.
   const { listeners, setNodeRef } = useDraggable({ id: `${LIST_DRAG_PREFIX}${list.id}` });
 
   const count = list.cards.length;
@@ -2690,9 +2672,10 @@ function ListHeaderCell({
   return (
     <div
       ref={setNodeRef}
-      className="hidden md:block md:flex-shrink-0 transition-opacity"
+      {...listeners}
+      className="hidden md:block md:flex-shrink-0 transition-opacity cursor-grab active:cursor-grabbing touch-none"
       style={{
-        width: collapsed ? FOLDED_W : COL_W,
+        width: COL_W,
         padding: "14px 16px 12px",
         opacity: dragging ? 0.35 : 1,
       }}
@@ -2700,57 +2683,23 @@ function ListHeaderCell({
       {/* Tier 1 — where a day header reads "DAY 3 · SEP 6", this reads
           "LIST · 4": same register, and a count where a date would be is the
           quickest way to see it is not a day. */}
-      <div className="group/hdr flex items-center justify-between gap-1" style={{ minHeight: 20 }}>
-        <span className="flex items-center gap-1 min-w-0">
-          {/* The grip. Pointer-only by design: it carries no keyboard activator
-              and no tab stop, because a 25px-per-arrow-key drag across 280px
-              columns is not an accessible path — Move left / Move right in the
-              menu is, and it writes the identical order. Hidden while
-              collapsed, matching the menu: a 140px rail has no room for it. */}
-          {!collapsed && (
-            <span
-              {...listeners}
-              aria-hidden
-              title="Drag to reorder this list"
-              className="grid place-items-center w-4 h-5 -ml-1 flex-shrink-0 cursor-grab active:cursor-grabbing
-                         text-[rgba(26,26,46,0.22)] group-hover/hdr:text-[rgba(26,26,46,0.45)]
-                         hover:!text-[#B0541F] transition-colors touch-none"
-            >
-              <DotsSixVertical size={14} weight="bold" />
-            </span>
-          )}
-          <span style={LIST_TIER1}>List{count > 0 ? ` · ${count}` : ""}</span>
-        </span>
-        <span className="flex items-center gap-0.5">
-          {!collapsed && (
-            <ListMenu
-              list={list}
-              cardCount={count}
-              canMoveLeft={canMoveLeft}
-              canMoveRight={canMoveRight}
-              onMove={onMove}
-              onStartRename={startEditing}
-              onDelete={onDelete}
-              triggerClassName="w-5 h-5 grid place-items-center rounded-full text-[rgba(26,26,46,0.45)] hover:text-[#B0541F] hover:bg-[rgba(196,98,45,0.10)] transition-colors"
-            />
-          )}
-          <button
-            type="button"
-            onClick={onToggle}
-            aria-label={collapsed ? `Expand ${list.title}` : `Collapse ${list.title}`}
-            title={collapsed ? "Expand" : "Collapse"}
-            className="group"
-          >
-            {/* A chevron, not a "+": folded next to the "+ Add a list" rail, a
-                plus read as a second add control (Brennan, Sep 2026). */}
-            <span aria-hidden className={SIGN}>{collapsed ? "›" : "−"}</span>
-          </button>
-        </span>
+      <div className="flex items-center justify-between gap-1" style={{ minHeight: 20 }}>
+        <span style={LIST_TIER1}>List{count > 0 ? ` · ${count}` : ""}</span>
+        {/* Delete is one tap with the same undo window as a card. */}
+        <button
+          type="button"
+          onClick={onDelete}
+          aria-label={`Delete ${list.title}`}
+          title="Delete this list"
+          className="w-5 h-5 grid place-items-center rounded-full text-[15px] leading-none text-[rgba(26,26,46,0.35)] hover:text-[#A8372B] hover:bg-[rgba(168,55,43,0.08)] transition-colors"
+        >
+          ×
+        </button>
       </div>
 
       {/* Tier 2 — the weekday's slot, carrying the name the traveller typed.
-          Tap it to rename. Hidden while collapsed: 140px would wrap it. */}
-      {!collapsed && (
+          Tap it to rename. */}
+      {(
         editing ? (
           <input
             ref={inputRef}

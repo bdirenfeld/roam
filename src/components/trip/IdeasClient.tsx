@@ -560,7 +560,7 @@ export default function IdeasClient({
         {live.length > 0 && (
           <button
             onClick={() => setFilterOpen(true)}
-            className="w-full flex items-center justify-between gap-2 mb-4 px-3 py-2.5 rounded-xl"
+            className="w-full flex items-center justify-between gap-2 mb-4 px-4 py-2.5 rounded-full"
             style={{ background: "#fff", border: `1px solid ${RULE}` }}
           >
             <span className="text-[13.5px] truncate" style={{ color: INK }}>
@@ -585,12 +585,12 @@ export default function IdeasClient({
             inputMode="url"
             placeholder="Paste a link from TikTok, Maps or anywhere"
             aria-label="Paste a link"
-            className="flex-1 min-w-0 h-10 px-3 rounded-xl bg-white text-[13.5px] outline-none"
+            className="flex-1 min-w-0 h-10 px-4 rounded-full bg-white text-[13.5px] outline-none"
             style={{ boxShadow: `0 0 0 1px ${RULE}` }}
           />
           <button
             type="submit"
-            className="h-10 px-4 rounded-xl text-[13px] font-semibold flex-shrink-0"
+            className="h-10 px-4 rounded-full text-[13px] font-semibold flex-shrink-0"
             style={{ background: "#1A1A2E", color: "#FAF7F2" }}
           >
             Save
@@ -728,7 +728,7 @@ export default function IdeasClient({
               <button
                 type="button"
                 onClick={closeFilter}
-                className="w-full mt-3 py-3 rounded-xl text-[14px] font-semibold"
+                className="w-full mt-3 py-3 rounded-full text-[14px] font-semibold"
                 style={{ background: INK, color: "#fff" }}
               >
                 Show {visible.length} {visible.length === 1 ? "idea" : "ideas"}
