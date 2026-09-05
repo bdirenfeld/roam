@@ -19,7 +19,7 @@ const config: Config = {
       },
       colors: {
         // Roam brand palette
-        parchment: "#FAF7F2",   // Background
+        parchment: "#F5F4F1",   // Background — warm near-white (Sep 2026); the name stays, the cream is gone
         logistics: "#111827",   // Near-black
         activity:  "#1A1A2E",   // Deep Ink
         food:      "#7C3AED",   // Purple

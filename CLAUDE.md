@@ -254,3 +254,5 @@ menu only — no separate chip on any width.
 Ground tokens (Sep 5 2026, Brennan chose "warm near-white" over the cream): `--background`
 #F5F4F1; secondary tint #F0EFEB (was #F7F3EA); the "Add from saved" pill #EDECE8 (was #F2EDE3).
 The cream #FAF7F2 is gone everywhere, including as off-white text on ink buttons.
+The body ground is Tailwind's `bg-parchment` token (tailwind.config.ts), not only `--background`;
+both now read #F5F4F1. Change the ground in both places or the body keeps the old colour.
