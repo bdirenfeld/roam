@@ -462,6 +462,8 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   }, [dayWithCards.id]);
 
   const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
+  // The last card added from the sheet: lifted in the day when the sheet closes.
+  const lastAddedRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!swipeDir) return;
@@ -580,7 +582,22 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   // sorted like handleCardCreated. The interested card stays untouched.
   const handleCardCreated = useCallback((card: Card) => {
     setLocalCards((prev) => [...prev, card].sort(agendaOrder));
+    // The sheet stays open — the row says "Added ✓" and you can add more.
+    lastAddedRef.current = card.id;
+  }, []);
+
+  // Closing the sheet: scroll to what was added and lift it for a second,
+  // the way a tap on a map pin does, so the result is on screen.
+  const handleCreateClose = useCallback(() => {
     setGapTimes(null);
+    const id = lastAddedRef.current;
+    lastAddedRef.current = null;
+    if (!id) return;
+    setTimeout(() => {
+      document.querySelector(`[data-card-id="${id}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      setHighlightedCardId(id);
+      setTimeout(() => setHighlightedCardId(null), 1400);
+    }, 250);
   }, []);
 
   // Drag-reorder of the day's untimed cards. Positions are rewritten across
@@ -981,8 +998,9 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           destination={trip.destination}
           destinationLat={trip.destination_lat}
           destinationLng={trip.destination_lng}
-          onClose={() => setGapTimes(null)}
+          onClose={handleCreateClose}
           onCardCreated={handleCardCreated}
+          onPreviewCard={(card) => { setGapTimes(null); setSelectedCard(card); setIsCardOpen(true); }}
         />
       )}
 

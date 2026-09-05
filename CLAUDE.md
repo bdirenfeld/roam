@@ -273,3 +273,6 @@ window.open). Every bottom sheet uses `useSheetDrag` — hand-rolled touch handl
 Never nest interactive elements: CardSurface is a `<button>`, so anything tappable inside it is a
 `<span role="button" tabIndex={0}>` with a keyboard handler. A `<button>` inside it made the HTML
 parser close the card early — the rest of the day spilled out below the nav and hydration bailed.
+Add sheet: the name opens the card (`onPreviewCard`), the pill adds, the row turns "Added ✓" and the
+sheet stays open; the host lifts the last added card on close. Files open in `ui/FileViewer.tsx`
+(× at top, "Open in browser" fallback) — never a bare `target="_blank"` from a sheet on the phone.

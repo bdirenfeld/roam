@@ -86,6 +86,8 @@ interface Props {
   endPosition: number;
   onClose: () => void;
   onCardCreated: (card: Card) => void;
+  /** Tap on a saved row's name: show the card (photos, hours, notes) before adding. */
+  onPreviewCard?: (card: Card) => void;
   initialStatus?: Card["status"];
   /** Merged into the new card's `details`, for callers that seed extra keys. */
   extraDetails?: Record<string, unknown>;
@@ -102,7 +104,7 @@ interface Props {
 export default function CreateCardSheet({
   dayId, listId = null, tripId, endPosition, onClose, onCardCreated,
   initialStatus, extraDetails, initialStartTime, initialEndTime,
-  scheduledPlaceIds, destination, destinationLat, destinationLng,
+  scheduledPlaceIds, destination, destinationLat, destinationLng, onPreviewCard,
 }: Props) {
   const { toast } = useToast();
   const supabase  = createClient();
@@ -149,7 +151,7 @@ export default function CreateCardSheet({
         const seen = new Map<string, Card>();
         for (const c of (data ?? []) as Card[]) {
           if (!c.place || !c.place_id) continue;
-          if (scheduledPlaceIds?.has(c.place_id)) continue;
+          if (scheduledPlaceIds?.has(c.place_id) && !addedIdsRef.current.has(c.id)) continue;
           const prev = seen.get(c.place_id);
           if (!prev || (!prev.place?.cover_image_url && c.place.cover_image_url)) seen.set(c.place_id, c);
         }
@@ -172,6 +174,11 @@ export default function CreateCardSheet({
   // second row: coffee vs dinner is what typing in the box already does
   // (Brennan, Sep 2026: "whether we need subfilters or not").
   const [groupFilter, setGroupFilter] = useState<CardType | null>(null);
+  // Rows added in this sitting: they stay in the list reading "Added ✓" so
+  // you can see what happened and keep going (Brennan, Sep 2026: "as soon
+  // as you press Add the screen disappears and you don't know what to do").
+  const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
+  const addedIdsRef = useRef<Set<string>>(new Set());
   const GROUPS: { type: CardType; label: string }[] = useMemo(() => [
     { type: "food", label: "Food" },
     { type: "activity", label: "Activity" },
@@ -200,6 +207,8 @@ export default function CreateCardSheet({
     });
     setSaving(false);
     if (!newCard) { toast({ message: "Couldn't add that. Try again." }); return; }
+    addedIdsRef.current.add(card.id);
+    setAddedIds((prev) => new Set(prev).add(card.id));
     onCardCreated(newCard);
   }, [dayId, tripId, supabase, startTime, endTime, saving, onCardCreated, toast]);
 
@@ -555,13 +564,18 @@ export default function CreateCardSheet({
                   </p>
                   <div className="rounded-xl bg-[#FCFBF8] overflow-hidden" style={{ boxShadow: "0 0 0 1px rgba(26,26,46,0.10)" }}>
                     {g.cards.map((c, i) => (
-                      <button
+                      <div
                         key={c.id}
-                        onClick={() => handleQuickAdd(c)}
-                        disabled={saving}
-                        className="w-full flex items-center gap-3 px-3.5 py-3 text-left active:opacity-70 transition-opacity disabled:opacity-50"
-                        style={{ borderBottom: i < g.cards.length - 1 ? "1px solid rgba(26,26,46,0.08)" : "none" }}
+                        className="flex items-center gap-3 px-3.5 py-3"
+                        style={{ borderBottom: i < g.cards.length - 1 ? "1px solid rgba(26,26,46,0.08)" : "none", opacity: addedIds.has(c.id) ? 0.6 : 1 }}
                       >
+                        {/* The name: see the card first. Without a host to show it, it adds. */}
+                        <button
+                          type="button"
+                          onClick={() => (onPreviewCard ? onPreviewCard(c) : handleQuickAdd(c))}
+                          disabled={saving}
+                          className="flex items-center gap-3 min-w-0 flex-1 text-left active:opacity-70 transition-opacity disabled:opacity-50"
+                        >
                         <span className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#F0EFEB", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)" }}>
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
@@ -573,10 +587,22 @@ export default function CreateCardSheet({
                             <span className="block text-[11.5px] truncate mt-0.5" style={{ color: "rgba(26,26,46,0.62)" }}>{c.place!.address}</span>
                           )}
                         </span>
-                        <span className="flex-shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium" style={{ color: "#1A1A2E", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.12)" }}>
-                          Add
-                        </span>
-                      </button>
+                        </button>
+                        {addedIds.has(c.id) ? (
+                          <span className="flex-shrink-0 text-[11px] font-medium" style={{ color: "#3E7C5B" }}>Added ✓</span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleQuickAdd(c)}
+                            disabled={saving}
+                            aria-label={`Add ${c.place!.title}`}
+                            className="flex-shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium active:opacity-70 disabled:opacity-50"
+                            style={{ color: "#1A1A2E", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.12)" }}
+                          >
+                            Add
+                          </button>
+                        )}
+                      </div>
                     ))}
                   </div>
                 </div>

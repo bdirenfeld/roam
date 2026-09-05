@@ -5,6 +5,7 @@ import type { Document } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
 import { useSheetDrag } from "@/hooks/useSheetDrag";
+import FileViewer, { type ViewableFile } from "@/components/ui/FileViewer";
 
 interface Props {
   tripId:  string;
@@ -85,6 +86,7 @@ export default function DocumentsSheet({ tripId, onClose, onImport }: Props) {
   // Files attached to the journey's cards (the card sheet's paperclip). They
   // live in card_attachments, not documents, and belong here just the same.
   const [atts,    setAtts]    = useState<CardFile[]>([]);
+  const [viewing, setViewing] = useState<ViewableFile | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
 
@@ -250,12 +252,11 @@ export default function DocumentsSheet({ tripId, onClose, onImport }: Props) {
           ) : (
             <>
             {atts.map((f) => (
-              <a
+              <button
                 key={f.id}
-                href={f.fileUrl ?? undefined}
-                target="_blank"
-                rel="noopener"
-                className="flex items-start gap-3 px-5 py-4 border-b border-gray-50"
+                type="button"
+                onClick={() => f.fileUrl && setViewing({ url: f.fileUrl, name: f.fileName, type: f.fileType })}
+                className="w-full text-left flex items-start gap-3 px-5 py-4 border-b border-gray-50 active:opacity-70"
               >
                 <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0 text-gray-500 mt-0.5">
                   <DocTypeIcon type="document" />
@@ -268,7 +269,7 @@ export default function DocumentsSheet({ tripId, onClose, onImport }: Props) {
                     <span className="text-[11px] text-gray-400">{fmtDate(f.createdAt)}</span>
                   </div>
                 </div>
-              </a>
+              </button>
             ))}
             {docs.map((doc) => (
               <div
@@ -325,6 +326,7 @@ export default function DocumentsSheet({ tripId, onClose, onImport }: Props) {
           )}
         </div>
       </div>
+      {viewing && <FileViewer file={viewing} onClose={() => setViewing(null)} />}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import FileViewer from "@/components/ui/FileViewer";
 import { createClient } from "@/lib/supabase/client";
 import type { Card, CardAttachment } from "@/types/database";
 
@@ -148,6 +149,7 @@ function AttachmentRow({
     attachment.file_path ? "loading" : "unavailable",
   );
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
+  const [viewing, setViewing] = useState(false);
 
   useEffect(() => {
     const path = attachment.file_path;
@@ -185,14 +187,18 @@ function AttachmentRow({
         {/* Name + size */}
         <div className="flex-1 min-w-0">
           {signState === "ready" && signedUrl ? (
-            <a
-              href={signedUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block text-[12px] font-semibold text-gray-800 truncate hover:underline"
+            <>
+            <button
+              type="button"
+              onClick={() => setViewing(true)}
+              className="block w-full text-left text-[12px] font-semibold text-gray-800 truncate hover:underline"
             >
               {attachment.file_name}
-            </a>
+            </button>
+            {viewing && signedUrl && (
+              <FileViewer file={{ url: signedUrl, name: attachment.file_name, type: attachment.file_type }} onClose={() => setViewing(false)} />
+            )}
+            </>
           ) : (
             <p className={`block text-[12px] font-semibold truncate ${isUnavailable ? "text-activity/50" : "text-gray-800"}`}>
               {attachment.file_name}
