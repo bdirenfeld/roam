@@ -76,6 +76,16 @@ function makeInitialSubTypes(): Set<string> {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type MarkerEntry = { marker: any; type: CardType; cardRef: { current: Card } };
 const MARKERS = new Map<string, MarkerEntry>();
+// Rings standing for several saved pins at the current zoom. Rebuilt after
+// every move and every visibility change; nothing here survives a rebuild.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const CLUSTERS: any[] = [];
+// The one ring whose pins are fanned out (its members' ids, joined), or null.
+let fannedKey: string | null = null;
+// A pin as drawn is 32px; rings form when two would touch.
+const CLUSTER_PX = 32 * 0.95;
+// Past this zoom a ring that still overlaps is one building: fan, don't zoom.
+const FAN_ZOOM = 16.5;
 
 // userAvatarUrl stays in Props for the page that passes it; the avatar disc
 // it fed left with the one header (consistency sweep, Sep 2026).
@@ -188,6 +198,8 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
     setAnchorPos(null);
   }
 
+  const reclusterRef = useRef<() => void>(() => {});
+
   // ── Sync all marker visibility against type + sub-type + status toggles ─
   const syncVisibility = useCallback(() => {
     const map = mapInstRef.current;
@@ -204,7 +216,96 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
       const show = activeTypesRef.current.has(type) && subTypeOk && statusOk && lovedOk;
       if (show) marker.addTo(map); else marker.remove();
     });
+    reclusterRef.current();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Rings ─────────────────────────────────────────────────────
+  // Saved pins that would touch at this zoom fold into one ring drawn at
+  // their centre with the count inside. Scheduled pins never fold: they are
+  // the plan, and the plan stays visible at every zoom. Tap a ring and the
+  // map zooms until its pins come apart; at street level, where they can't
+  // (one building), the tap fans them out around the spot instead.
+  // Brennan, Sep 2026: "The map should be pretty simple." This is all of it.
+  const recluster = useCallback(() => {
+    const map = mapInstRef.current;
+    const mb  = mbRef.current;
+    if (!map || !mb) return;
+    CLUSTERS.forEach((c) => c.remove());
+    CLUSTERS.length = 0;
+
+    type Item = { id: string; entry: MarkerEntry; lng: number; lat: number; p: { x: number; y: number } };
+    const items: Item[] = [];
+    MARKERS.forEach((entry, id) => {
+      const el = entry.marker.getElement() as HTMLElement;
+      if (!el.isConnected) return;            // filtered out — not on the map
+      el.style.display = "";
+      entry.marker.setOffset([0, 0]);
+      if (entry.cardRef.current.status !== "interested") return; // the plan never folds
+      const ll = entry.marker.getLngLat();
+      items.push({ id, entry, lng: ll.lng, lat: ll.lat, p: map.project([ll.lng, ll.lat]) });
+    });
+
+    const used = new Set<number>();
+    for (let a = 0; a < items.length; a++) {
+      if (used.has(a)) continue;
+      const g = [a];
+      used.add(a);
+      for (let b = a + 1; b < items.length; b++) {
+        if (used.has(b)) continue;
+        if (Math.hypot(items[a].p.x - items[b].p.x, items[a].p.y - items[b].p.y) < CLUSTER_PX) { g.push(b); used.add(b); }
+      }
+      if (g.length < 2) continue;
+      const members = g.map((k) => items[k]);
+      const key = members.map((m) => m.id).sort().join("|");
+
+      if (fannedKey === key) {
+        // Fanned: every pin on a short spoke around the true spot.
+        const r = 26 + members.length * 3;
+        members.forEach((m, i) => {
+          const ang = -Math.PI / 2 + (i * 2 * Math.PI) / members.length;
+          m.entry.marker.setOffset([Math.cos(ang) * r, Math.sin(ang) * r]);
+        });
+        continue;
+      }
+
+      members.forEach((m) => { (m.entry.marker.getElement() as HTMLElement).style.display = "none"; });
+      if (selectedInnerRef.current && members.some((m) => m.entry.marker.getElement().contains(selectedInnerRef.current))) {
+        deselectPin();
+        setSelectedCard(null);
+      }
+
+      const n = members.length;
+      const size = n < 5 ? 38 : n < 15 ? 46 : 56;
+      const el = document.createElement("div");
+      el.style.cssText =
+        `width:${size}px;height:${size}px;border-radius:50%;background:#fff;` +
+        "border:2.5px solid #1A1A2E;color:#1A1A2E;font-family:'DM Sans',Inter,system-ui,sans-serif;" +
+        `font-weight:700;font-size:${n < 15 ? 15 : 17}px;display:flex;align-items:center;justify-content:center;` +
+        "box-shadow:0 2px 8px rgba(0,0,0,0.22);cursor:pointer;user-select:none;";
+      el.textContent = String(n);
+      el.setAttribute("role", "button");
+      el.setAttribute("aria-label", `${n} saved places here — tap to zoom in`);
+      const cLng = members.reduce((t, m) => t + m.lng, 0) / n;
+      const cLat = members.reduce((t, m) => t + m.lat, 0) / n;
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        clickedPinRef.current = true;
+        if (map.getZoom() >= FAN_ZOOM) {
+          fannedKey = key;
+          reclusterRef.current();
+          return;
+        }
+        const bounds = members.reduce(
+          (acc, m) => acc.extend([m.lng, m.lat]),
+          new mb.LngLatBounds([members[0].lng, members[0].lat], [members[0].lng, members[0].lat]),
+        );
+        map.fitBounds(bounds, { padding: 80, maxZoom: 17, duration: 500 });
+      });
+      const marker = new mb.Marker({ element: el, anchor: "center" }).setLngLat([cLng, cLat]).addTo(map);
+      CLUSTERS.push(marker);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  reclusterRef.current = recluster;
 
   function handleSubTypesChange(next: Set<string>) {
     activeSubTypesRef.current = next;
@@ -276,6 +377,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
     });
 
     MARKERS.set(card.id, { marker: mbMarker, type: place.type, cardRef });
+    reclusterRef.current();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   /**
@@ -457,7 +559,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
   // the pin back.
   const handleCardDelete = useCallback((cardId: string) => {
     const entry = MARKERS.get(cardId);
-    if (entry) { entry.marker.remove(); MARKERS.delete(cardId); }
+    if (entry) { entry.marker.remove(); MARKERS.delete(cardId); reclusterRef.current(); }
     setLocalCards((prev) => {
       const gone = prev.find((c) => c.id === cardId) ?? null;
       if (gone) {
@@ -616,6 +718,11 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
           MARKERS.set(card.id, { marker: mbMarker, type: place.type, cardRef });
         });
 
+        reclusterRef.current();
+        map.on("moveend", () => reclusterRef.current());
+        // A pan or zoom folds a fanned ring back up.
+        map.on("movestart", () => { fannedKey = null; });
+
         // Fit to all pins
         if (mappable.length > 1) {
           const coords = mappable.map(({ lng, lat }) => [lng, lat] as [number, number]);
@@ -637,6 +744,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
 
       map.on("click", () => {
         if (clickedPinRef.current) { clickedPinRef.current = false; return; }
+        if (fannedKey) { fannedKey = null; reclusterRef.current(); }
         deselectPin();
         setSelectedCard(null);
       });
@@ -646,6 +754,9 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
       cancelled = true;
       MARKERS.forEach(({ marker }) => marker.remove());
       MARKERS.clear();
+      CLUSTERS.forEach((c) => c.remove());
+      CLUSTERS.length = 0;
+      fannedKey = null;
       if (tempPinRef.current) { tempPinRef.current.remove(); tempPinRef.current = null; }
       mbRef.current = null;
       if (mapInstRef.current) {
