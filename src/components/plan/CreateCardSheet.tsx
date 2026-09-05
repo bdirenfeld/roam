@@ -168,16 +168,22 @@ export default function CreateCardSheet({
       ? saved.filter((c) => (c.place!.title ?? "").toLowerCase().includes(q) || (c.place!.address ?? "").toLowerCase().includes(q))
       : saved;
   }, [saved, title, selected, dayId]);
+  // One chip narrows the saved list to a group; tap it again for all. No
+  // second row: coffee vs dinner is what typing in the box already does
+  // (Brennan, Sep 2026: "whether we need subfilters or not").
+  const [groupFilter, setGroupFilter] = useState<CardType | null>(null);
+  const GROUPS: { type: CardType; label: string }[] = useMemo(() => [
+    { type: "food", label: "Food" },
+    { type: "activity", label: "Activity" },
+    { type: "logistics", label: "Logistics" },
+  ], []);
   const savedGroups = useMemo(() => {
-    const order: { type: CardType; label: string }[] = [
-      { type: "food", label: "Food" },
-      { type: "activity", label: "Activity" },
-      { type: "logistics", label: "Logistics" },
-    ];
-    return order
+    return GROUPS
       .map((g) => ({ ...g, cards: savedMatches.filter((c) => c.place!.type === g.type) }))
-      .filter((g) => g.cards.length > 0);
-  }, [savedMatches]);
+      .filter((g) => g.cards.length > 0 && (!groupFilter || g.type === groupFilter));
+  }, [savedMatches, groupFilter, GROUPS]);
+  // Which groups have anything saved at all — a chip for an empty group is a dead tap.
+  const availableGroups = useMemo(() => new Set(saved.map((c) => c.place!.type)), [saved]);
 
   const handleQuickAdd = useCallback(async (card: Card) => {
     if (!dayId || !card.place_id || saving) return;
@@ -511,6 +517,29 @@ export default function CreateCardSheet({
                   </svg>
                 )}
               </div>
+
+              {/* The group chips — only when there is a saved list to narrow. */}
+              {saved.length > 0 && !selected && availableGroups.size > 1 && (
+                <div className="flex items-center gap-2 mb-3 px-0.5">
+                  {GROUPS.filter((g) => availableGroups.has(g.type)).map((g) => {
+                    const on = groupFilter === g.type;
+                    return (
+                      <button
+                        key={g.type}
+                        type="button"
+                        onClick={() => setGroupFilter(on ? null : g.type)}
+                        aria-pressed={on}
+                        className="rounded-full px-3 py-1.5 text-[12.5px] transition-colors"
+                        style={on
+                          ? { background: "#1A1A2E", color: "#fff" }
+                          : { color: "#1A1A2E", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.14)" }}
+                      >
+                        {g.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* Saved first — one tap puts the place on the day and closes. */}
               {savedGroups.map((g) => (
