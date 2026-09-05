@@ -203,10 +203,8 @@ export default function CreateCardSheet({
     onCardCreated(newCard);
   }, [dayId, tripId, supabase, startTime, endTime, saving, onCardCreated, toast]);
 
-  useEffect(() => {
-    const t = setTimeout(() => inputRef.current?.focus(), 80);
-    return () => clearTimeout(t);
-  }, []);
+  // No focus on open: the saved list is what a phone wants first, and a
+  // raised keyboard covered it (Brennan, Sep 2026). The box is one tap away.
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -493,10 +491,16 @@ export default function CreateCardSheet({
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-5 pb-safe">
+        <div
+          className="flex-1 overflow-y-auto px-5 pb-safe"
+          // Scrolling the list puts the keyboard away so the list gets the screen back.
+          onTouchMove={() => { if (document.activeElement === inputRef.current) inputRef.current?.blur(); }}
+        >
           {/* Search / title input — one box does both */}
           {!selected && (
             <>
+              {/* Search and chips stay visible while the list scrolls under them. */}
+              <div className="sticky top-0 z-10 bg-white -mx-5 px-5 pt-0.5">
               <div className="flex items-center gap-2.5 mb-3 px-3.5 py-2.5 rounded-full" style={{ background: "#F3F4F6" }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(26,26,46,0.45)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
                   <circle cx="11" cy="11" r="8" />
@@ -540,6 +544,8 @@ export default function CreateCardSheet({
                   })}
                 </div>
               )}
+
+              </div>
 
               {/* Saved first — one tap puts the place on the day and closes. */}
               {savedGroups.map((g) => (
