@@ -2952,15 +2952,18 @@ function ListColumn({
           fullWidth ? "backdrop-blur-md flex-1 min-h-0 overflow-y-auto" : "md:flex-1 md:min-h-0"
         }`}
       >
-        <div className={`p-3 flex flex-col scrollbar-none [touch-action:pan-y] ${
-          fullWidth ? "" : "max-h-[calc(100dvh-11rem)] overflow-y-auto md:max-h-none md:flex-1 md:min-h-0 md:overflow-y-auto"
-        }`}>
-          <div
-            ref={setNodeRef}
-            className={`min-h-[72px] shrink-0 rounded-lg transition-colors ${
-              isOver && cards.length === 0 ? "bg-black/5" : ""
-            } ${fullWidth ? "overflow-y-auto pb-4" : ""}`}
-          >
+        <div
+          ref={setNodeRef}
+          className={`p-3 flex flex-col scrollbar-none [touch-action:pan-y] rounded-xl transition-colors ${
+            isOver && cards.length === 0 ? "bg-[rgba(196,98,45,0.08)]" : ""
+          } ${
+            fullWidth ? "" : "max-h-[calc(100dvh-11rem)] overflow-y-auto md:max-h-none md:flex-1 md:min-h-0 md:overflow-y-auto"
+          }`}
+        >
+          {/* The column itself is the drop target (the ref above), so an
+              empty list reserves no height: its Add a place row sits right
+              under the name instead of a hand-width down (Brennan, Sep 2026). */}
+          <div className={`shrink-0 rounded-lg ${cards.length ? "min-h-[72px]" : ""} ${fullWidth ? "overflow-y-auto pb-4" : ""}`}>
             <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
               {cards.map((card) => (
                 // dayDate null: a card on a list has no date, so the
@@ -2974,15 +2977,9 @@ function ListColumn({
                 />
               ))}
             </SortableContext>
-
-            {cards.length === 0 && (
-              // No words: the Add a place row below is the invitation. This is
-              // only the drop target for a card dragged into an empty list.
-              <div className={`h-10 rounded-lg transition-colors ${isOver ? "bg-[rgba(196,98,45,0.10)]" : ""}`} />
-            )}
           </div>
 
-          <div className="flex flex-col gap-2 shrink-0 pt-2">
+          <div className={`flex flex-col gap-2 shrink-0 ${cards.length ? "pt-2" : ""}`}>
             <AddPlaceRow onClick={onAddCard} />
           </div>
         </div>
@@ -3034,20 +3031,22 @@ function AddListColumn({
   if (!drafting) {
     return (
       <div className={shellCls} style={fullWidth ? undefined : { width: ADD_LIST_W }}>
+        {/* The same row as "Add a place" — one ringed plus for every add on
+            the board. The dashed box it replaces was the last one of its kind
+            (Brennan, Sep 2026). */}
         <button
           type="button"
           onClick={onStart}
-          className="w-full flex items-center justify-center gap-1.5 rounded-[9px] px-3 py-2 active:opacity-70 hover:bg-black/[0.03] transition-all"
-          style={{
-            border: "1px dashed rgba(26,26,46,0.20)",
-            fontFamily: "'Playfair Display', Georgia, serif", fontStyle: "italic",
-            fontSize: "13.5px", lineHeight: 1.2,
-            color: "rgba(26,26,46,0.40)", letterSpacing: "-0.005em",
-          }}
+          className="w-full flex items-center gap-2.5 px-3 py-[13px] text-[14px] text-[#1A1A2E] whitespace-nowrap active:opacity-70 transition-opacity"
+          aria-label="Add a list"
         >
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(26,26,46,0.40)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
+          <span
+            aria-hidden="true"
+            className="inline-flex items-center justify-center w-[22px] h-[22px] rounded-full text-[14px] leading-none flex-shrink-0"
+            style={{ border: "1.5px solid rgba(26,26,46,0.35)", color: "rgba(26,26,46,0.5)" }}
+          >
+            +
+          </span>
           Add a list
         </button>
       </div>

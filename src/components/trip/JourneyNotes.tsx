@@ -473,12 +473,23 @@ export default function JourneyNotes({
           >
             <div ref={edges.contentRef}>
               {isEmpty && !composer && (
-                <p
-                  className="font-display italic text-[17px]"
-                  style={{ color: "rgba(26,26,46,0.5)", paddingBottom: readOnly ? 0 : 4 }}
-                >
-                  Nothing noted yet.
-                </p>
+                readOnly ? (
+                  <p className="font-display italic text-[17px]" style={{ color: "rgba(26,26,46,0.5)" }}>
+                    Nothing noted yet.
+                  </p>
+                ) : (
+                  // The empty line is the door: tap the words and you are
+                  // typing the first note, no need to find the plus below
+                  // (Brennan, Sep 2026).
+                  <button
+                    type="button"
+                    onClick={() => handleAdd("task")}
+                    className="block w-full text-left font-display italic text-[17px] pb-1 active:opacity-70"
+                    style={{ color: "rgba(26,26,46,0.5)" }}
+                  >
+                    Nothing noted yet. Tap to start.
+                  </button>
+                )
               )}
 
               {/* Every row goes through the same context, guests included:

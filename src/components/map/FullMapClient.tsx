@@ -775,7 +775,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
                 {(
                   [
                     { status: "interested",   label: "Saved"    },
-                    { status: "in_itinerary", label: "On a day" },
+                    { status: "in_itinerary", label: "Scheduled" },
                   ] as { status: string; label: string }[]
                 ).map(({ status, label }) => {
                   const active = activeStatuses.has(status);

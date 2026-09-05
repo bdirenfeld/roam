@@ -199,11 +199,11 @@ export default function MapSidebar({
         <div className="flex flex-wrap items-center gap-2 mb-1">
           {(
             [
-              // One vocabulary everywhere: a place is Saved, or it is On a day.
+              // One vocabulary everywhere: a place is Saved, or it is Scheduled.
               // This row said "Scheduled", the phone said "In Itinerary" and the
               // save sheet said "map only" for the same two states.
               { status: "interested",   label: "Saved",    hollow: true  },
-              { status: "in_itinerary", label: "On a day", hollow: false },
+              { status: "in_itinerary", label: "Scheduled", hollow: false },
             ] as Array<{ status: string; label: string; hollow: boolean }>
           ).map(({ status, label, hollow }) => {
             const isActive = activeStatuses.has(status);
