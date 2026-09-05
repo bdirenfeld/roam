@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 
 export async function GET(request: NextRequest) {
+  const gate = await requireUser();
+  if ("response" in gate) return gate.response;
+  if (!(await underQuota(gate.supabase, "placeDetails", QUOTA.placeDetails))) return quotaExceeded("place lookups");
+
   const { searchParams } = request.nextUrl;
   const placeId      = searchParams.get("place_id");
   const sessiontoken = searchParams.get("sessiontoken");

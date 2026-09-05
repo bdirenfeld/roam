@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import Anthropic from "@anthropic-ai/sdk";
 
 export const maxDuration = 30;
@@ -49,6 +50,10 @@ function extractJson(text: string): unknown {
 }
 
 export async function POST(req: NextRequest) {
+  const gate = await requireUser();
+  if ("response" in gate) return gate.response;
+  if (!(await underQuota(gate.supabase, "parseBooking", QUOTA.parseBooking))) return quotaExceeded("reading bookings");
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: "ANTHROPIC_API_KEY not configured" }, { status: 500 });

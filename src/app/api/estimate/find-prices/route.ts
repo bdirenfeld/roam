@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
 import { currencyForDestination, HOME_CURRENCY } from "@/lib/budget/currency";
@@ -78,6 +79,7 @@ export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+  if (!(await underQuota(supabase, "findPrices", QUOTA.findPrices))) return quotaExceeded("price lookups");
 
   let tripId: string | null = null;
   try { tripId = ((await req.json()) as { tripId?: string }).tripId ?? null; } catch { /* below */ }

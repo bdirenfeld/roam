@@ -6,6 +6,7 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
+import { underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
 import { getTripAccess } from "@/lib/trip-access";
@@ -586,6 +587,7 @@ export async function GET(req: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await underQuota(supabase, "assistant", QUOTA.assistant))) return quotaExceeded("the assistant");
 
   const tripId = req.nextUrl.searchParams.get("tripId");
   if (!tripId) return NextResponse.json({ error: "tripId required" }, { status: 400 });

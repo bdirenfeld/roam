@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
 import type { EntryAdvisory, EntryData, EntryLine } from "@/lib/entry/types";
@@ -36,6 +37,7 @@ export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+  if (!(await underQuota(supabase, "entryCheck", QUOTA.entryCheck))) return quotaExceeded("entry checks");
 
   let body: { tripId?: string; passports?: string[] } = {};
   try { body = (await req.json()) as typeof body; } catch { /* below */ }

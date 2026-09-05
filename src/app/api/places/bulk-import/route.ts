@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import { createClient } from "@/lib/supabase/server";
 import { fetchPlaceDetails } from "@/lib/places/fetchDetails";
 import { inferType } from "@/lib/places/inferType";
@@ -26,6 +27,7 @@ export async function POST(req: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  if (!(await underQuota(supabase, "bulkImport", QUOTA.bulkImport))) return quotaExceeded("imports");
 
   let body: unknown;
   try {

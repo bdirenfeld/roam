@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import Anthropic from "@anthropic-ai/sdk";
-import { createClient } from "@/lib/supabase/server";
 
 export const maxDuration = 30;
 
@@ -17,7 +17,10 @@ function extractJson(text: string): Record<string, unknown> {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient();
+  const gate = await requireUser();
+  if ("response" in gate) return gate.response;
+  if (!(await underQuota(gate.supabase, "uploadAttachment", QUOTA.uploadAttachment))) return quotaExceeded("uploads");
+  const supabase = gate.supabase;
 
   let file: File | null = null;
   let cardId: string | null = null;

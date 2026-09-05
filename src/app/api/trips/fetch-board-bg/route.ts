@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import { createClient } from "@/lib/supabase/server";
 import { fetchDestinationPhoto } from "@/lib/unsplash";
 
@@ -15,6 +16,10 @@ import { fetchDestinationPhoto } from "@/lib/unsplash";
  * card size in a list, the board sits behind twelve columns of white cards.
  */
 export async function POST(request: NextRequest) {
+  const gate = await requireUser();
+  if ("response" in gate) return gate.response;
+  if (!(await underQuota(gate.supabase, "coverPhoto", QUOTA.coverPhoto))) return quotaExceeded("cover photos");
+
   const body = (await request.json()) as { trip_id?: string };
   const tripId = body.trip_id;
   if (!tripId) {

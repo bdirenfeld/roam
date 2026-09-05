@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 
 const COUNTRY_CURRENCY: Record<string, string> = {
   IT: "EUR", FR: "EUR", DE: "EUR", ES: "EUR", PT: "EUR",
@@ -8,6 +9,10 @@ const COUNTRY_CURRENCY: Record<string, string> = {
 };
 
 export async function GET(request: NextRequest) {
+  const gate = await requireUser();
+  if ("response" in gate) return gate.response;
+  if (!(await underQuota(gate.supabase, "foodEnrich", QUOTA.foodEnrich))) return quotaExceeded("place lookups");
+
   const { searchParams } = request.nextUrl;
   const placeId = searchParams.get("place_id");
   const lat     = searchParams.get("lat");

@@ -368,3 +368,12 @@ Count rings on the Map tab shipped as 961000c and Brennan reverted them the
 same evening: "It's terrible. Please revert back. I like the way it was
 before." The Map draws every pin at full size, as it always did. Do not
 bring clustering back to FullMapClient without him asking for it by name.
+
+## Spending routes: sign-in and quotas (scale audit, Sept 2026)
+
+Every API route that calls Claude, Google, Mapbox or Unsplash goes through
+`lib/api/guard.ts`: `requireUser()` (401) then `underQuota(supabase, key,
+QUOTA.key)` (429). Counts live in `public.api_usage` per user/route/UTC day
+behind the SECURITY DEFINER `bump_api_usage` (authenticated only). A new
+spending route MUST use both; a new limit goes in `QUOTA`. The counter fails
+open on a DB error and logs. Five routes had no sign-in check before this.
