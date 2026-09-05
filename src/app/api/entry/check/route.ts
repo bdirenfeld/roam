@@ -95,7 +95,7 @@ Today: ${new Date().toISOString().slice(0, 10)}`;
       max_tokens: 1500,
       system,
       messages: [{ role: "user", content: userMsg }],
-      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
+      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }],
     });
     const text = res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("\n");
     parsed = extractJson(text);

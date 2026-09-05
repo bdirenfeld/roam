@@ -71,7 +71,7 @@ export default function EntrySection({ tripId, destination, startDate, defaultOp
       if (!res.ok || !j.data) throw new Error(j.error || String(res.status));
       setEntry({ trip_id: tripId, passports: j.passports ?? passports ?? ["Canadian"], data: j.data, changed: false, checked_at: j.data.checked_at });
     } catch {
-      toast({ message: "Couldn't check entry requirements just now. Try again." });
+      toast({ message: "The check took too long or failed. Tap it once more — it usually takes under a minute.", duration: 8000 });
     } finally {
       setChecking(false);
     }
