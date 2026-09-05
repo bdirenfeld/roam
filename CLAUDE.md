@@ -262,3 +262,5 @@ The invite page (`journey/[token]`) names the journey, dates, host and cover bef
 token is the invitation, so its holder may see the title. Guests get Bookings read-only (menu row
 on both Agenda and Map; `onImport` undefined hides Upload and the empty state says nothing has been
 added). The entry line is plain text for guests; settings, estimate and the Plan tab stay owner-only.
+Menu rows read Notes · Bookings · Ideas · Estimate · Share · Settings — never "Journey notes" or
+"Journey settings": you are already inside the journey when the menu opens (Brennan, Sep 2026).

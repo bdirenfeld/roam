@@ -170,7 +170,7 @@ export default function AppMenu({
                 <span style={glyphStyle}>
                   <NotePencil size={15} weight="light" />
                 </span>
-                <Label title="Journey notes" />
+                <Label title="Notes" />
               </button>
 
               {/* One order on every tab, most-used first: notes and bookings
@@ -227,14 +227,14 @@ export default function AppMenu({
                   trip={trip}
                   days={days}
                   role="menuitem"
-                  ariaLabel="Share journey"
+                  ariaLabel="Share"
                   onBeforeOpen={() => setOpen(false)}
                   style={itemStyle}
                 >
                   <span style={glyphStyle}>
                     <ShareNetwork size={15} weight="light" />
                   </span>
-                  <Label title="Share journey" />
+                  <Label title="Share" />
                 </TripSettingsLink>
               )}
 
@@ -247,14 +247,14 @@ export default function AppMenu({
                   trip={trip}
                   days={days}
                   role="menuitem"
-                  ariaLabel="Journey settings"
+                  ariaLabel="Settings"
                   onBeforeOpen={() => setOpen(false)}
                   style={itemStyle}
                 >
                   <span style={glyphStyle}>
                     <Gear size={15} weight="light" />
                   </span>
-                  <Label title="Journey settings" />
+                  <Label title="Settings" />
                 </TripSettingsLink>
               )}
             </>
