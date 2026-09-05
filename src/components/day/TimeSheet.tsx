@@ -201,7 +201,7 @@ export default function TimeSheet({
                 style={{ color: INK, boxShadow: `inset 0 0 0 1px ${f.value.trim() && !f.parsed && !f.disabled ? "#B0541F" : "rgba(26,26,46,0.14)"}` }}
               />
               <span className="text-[10.5px] h-[14px] truncate" style={{ color: f.value.trim() && !f.parsed ? "#B0541F" : "rgba(26,26,46,0.45)" }}>
-                {f.label === "Start" && suggested ? "after the card above" : readback(f.value, f.parsed)}
+                {f.label === "Start" && suggested ? "after the card above" : f.disabled ? "" : readback(f.value, f.parsed)}
               </span>
             </label>
           ))}

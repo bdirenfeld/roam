@@ -52,7 +52,7 @@ export default function EntrySection({ tripId, destination, startDate, defaultOp
         if (cancelled) return;
         setEntry((data as TripEntry | null) ?? null);
         // Reading the block is what clears the "changed" flag.
-        if (data?.changed) void supabase.from("trip_entry").update({ changed: false }).eq("trip_id", tripId);
+        if (data?.changed) supabase.from("trip_entry").update({ changed: false }).eq("trip_id", tripId).then(({ error: e }) => { if (e) console.error("[Roam] trip_entry update failed:", e.message); });
       });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps

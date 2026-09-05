@@ -36,7 +36,7 @@ export default function EntryLine({ trip, days, dayDate, readOnly }: { trip: Tri
       try { localStorage.setItem(hiddenKey, text); } catch { /* private mode */ }
       return;
     }
-    void supabase.from("trip_entry").update({ hidden_headline: text }).eq("trip_id", trip.id);
+    supabase.from("trip_entry").update({ hidden_headline: text }).eq("trip_id", trip.id).then(({ error: e }) => { if (e) console.error("[Roam] trip_entry update failed:", e.message); });
   };
 
   useEffect(() => {
@@ -62,7 +62,7 @@ export default function EntryLine({ trip, days, dayDate, readOnly }: { trip: Tri
         // past journey has nothing to act on (a long one wrapped into a ball
         // on the phone; Brennan, Sep 2026).
         if (upcoming) toast({ message: `Entry rules for ${row.data.country} changed — see Settings.`, duration: 7000 });
-        void supabase.from("trip_entry").update({ changed: false }).eq("trip_id", trip.id);
+        supabase.from("trip_entry").update({ changed: false }).eq("trip_id", trip.id).then(({ error: e }) => { if (e) console.error("[Roam] trip_entry update failed:", e.message); });
       }
 
       if (readOnly || !upcoming) return; // past journeys are not checked
@@ -81,7 +81,7 @@ export default function EntryLine({ trip, days, dayDate, readOnly }: { trip: Tri
       setEntry({ trip_id: trip.id, passports: j.passports, data: j.data, changed: false, checked_at: j.data.checked_at });
       if (j.changed && j.data.change_note) {
         toast({ message: `Entry rules for ${j.data.country} changed — see Settings.`, duration: 7000 });
-        void supabase.from("trip_entry").update({ changed: false }).eq("trip_id", trip.id);
+        supabase.from("trip_entry").update({ changed: false }).eq("trip_id", trip.id).then(({ error: e }) => { if (e) console.error("[Roam] trip_entry update failed:", e.message); });
       } else if (firstTime && j.data.lines.some((l) => l.action)) {
         toast({ message: `Something to do before ${j.data.country} — see Entry in Settings.`, duration: 7000 });
       }

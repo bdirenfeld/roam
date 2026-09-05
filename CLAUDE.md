@@ -310,3 +310,10 @@ script — say so and let Brennan's thumb decide.
   change, a tick) bring the line back either way.
 - Phone headers carry no subtitle on Map or Plan ("Map · 90 places", "Plan"
   said nothing); the Agenda keeps its weather line.
+
+## A Supabase query builder does nothing until something awaits it
+
+`void supabase.from("t").update(...).eq(...)` sends NO request — the builder
+is lazy and only runs on `await` / `.then`. Three "changed = false" writes
+and the entry-line × were silently dead this way (found Sep 5 2026). Fire
+and forget must be `.then(({ error }) => …)`, never `void`.
