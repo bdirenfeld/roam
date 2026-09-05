@@ -161,15 +161,19 @@ export default function EntrySection({ tripId, destination, startDate, defaultOp
               <p className="text-[13.5px] leading-snug mb-2.5" style={{ color: CAPTION }}>
                 What {passports.join(" and ")} passports need to enter {destination.split(",").pop()?.trim() || "the country"}: visa, forms, onward ticket, passport validity. Read from the Government of Canada travel advice page, with the link.
               </p>
-              <button
-                type="button"
-                onClick={() => void check()}
-                disabled={checking}
-                className="rounded-full px-4 py-2 text-[13.5px]"
-                style={{ background: INK, color: "#fff", opacity: checking ? 0.7 : 1 }}
-              >
-                {checking ? "Checking…" : "Check entry requirements"}
-              </button>
+              {upcoming ? (
+                <button
+                  type="button"
+                  onClick={() => void check()}
+                  disabled={checking}
+                  className="rounded-full px-4 py-2 text-[13.5px]"
+                  style={{ background: INK, color: "#fff", opacity: checking ? 0.7 : 1 }}
+                >
+                  {checking ? "Checking… about a minute" : "Check entry requirements"}
+                </button>
+              ) : (
+                <p className="text-[13px]" style={{ color: FAINT }}>This journey has passed, so there is nothing to check.</p>
+              )}
             </div>
           ) : status === "clear" && entry.data.lines.every((l) => !l.action) ? (
             // Nothing to do: one quiet sentence, no ticks.
@@ -264,10 +268,12 @@ export default function EntrySection({ tripId, destination, startDate, defaultOp
                   Read the page
                 </a>
               )}
-              {entry.data.source_url ? " · " : ""}
-              <button type="button" onClick={() => void check()} disabled={checking} className="underline underline-offset-2" style={{ color: INK }}>
-                {checking ? "Checking…" : "Check again now"}
-              </button>
+              {upcoming && entry.data.source_url ? " · " : ""}
+              {upcoming && (
+                <button type="button" onClick={() => void check()} disabled={checking} className="underline underline-offset-2" style={{ color: INK }}>
+                  {checking ? "Checking… about a minute" : "Check again now"}
+                </button>
+              )}
             </p>
           )}
         </div>
