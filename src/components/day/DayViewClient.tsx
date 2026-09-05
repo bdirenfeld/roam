@@ -6,12 +6,14 @@ import Link from "next/link";
 import { CaretLeft, CaretRight } from "@phosphor-icons/react";
 import DayStrip from "@/components/day/DayStrip";
 import EntryLine from "./EntryLine";
+import TimeSheet from "./TimeSheet";
 import DayPicker from "@/components/day/DayPicker";
 import DayMap from "@/components/day/DayMap";
 import CardTimeline from "@/components/day/CardTimeline";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import AppMenu from "@/components/ui/AppMenu";
 import { useToast } from "@/components/ui/Toast";
+import { formatTimeRange } from "@/lib/formatTime";
 import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/plan/ConfirmationPreviewSheet";
 import DocumentsSheet from "@/components/plan/DocumentsSheet";
 import { Files, MagnifyingGlass } from "@phosphor-icons/react";
@@ -462,6 +464,36 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   }, [dayWithCards.id]);
 
   const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
+  // The card whose time chip was tapped: the quick time sheet is open for it.
+  const [timeCard, setTimeCard] = useState<Card | null>(null);
+
+  // A new time from the sheet. The day re-sorts at once, the card is lifted
+  // where it landed, and the toast carries an Undo (the old times go back).
+  const handleTimeSave = useCallback(async (card: Card, start: string | null, end: string | null) => {
+    const before = { start_time: card.start_time, end_time: card.end_time };
+    const after = { start_time: start, end_time: end };
+    const title = card.place?.title ?? (card.details as { title?: string } | null)?.title ?? "Card";
+    handleCardUpdate({ ...card, ...after });
+    const { error } = await queuedUpdate("cards", { id: card.id }, after);
+    if (error) {
+      handleCardUpdate({ ...card, ...before });
+      toast({ message: "Couldn't save the time. Try again." });
+      return;
+    }
+    setTimeout(() => {
+      document.querySelector(`[data-card-id="${card.id}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      setHighlightedCardId(card.id);
+      setTimeout(() => setHighlightedCardId(null), 1400);
+    }, 250);
+    toast({
+      message: `${title} now ${start ? formatTimeRange(start, end) : "has no time"}`,
+      undo: async () => {
+        handleCardUpdate({ ...card, ...before });
+        const { error: e2 } = await queuedUpdate("cards", { id: card.id }, before);
+        if (e2) { handleCardUpdate({ ...card, ...after }); toast({ message: "Couldn't put it back. Try again." }); }
+      },
+    });
+  }, [handleCardUpdate, toast]);
   // The last card added from the sheet: lifted in the day when the sheet closes.
   const lastAddedRef = useRef<string | null>(null);
   // The add sheet's gap while a card is being previewed from it, so closing
@@ -941,6 +973,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
               cardNumberById={cardNumberById}
               readOnly={readOnly}
               onReorder={readOnly ? undefined : handleReorderUntimed}
+              onTimeTap={readOnly ? undefined : (card) => setTimeCard(card)}
             />
           </div>
         </div>
@@ -1033,6 +1066,13 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
             });
             setPendingConf(null);
           }}
+        />
+      )}
+      {timeCard && (
+        <TimeSheet
+          card={timeCard}
+          onClose={() => setTimeCard(null)}
+          onSave={(start, end) => handleTimeSave(timeCard, start, end)}
         />
       )}
       {showDocs && <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} onImport={readOnly ? undefined : () => { setShowDocs(false); importInputRef.current?.click(); }} />}

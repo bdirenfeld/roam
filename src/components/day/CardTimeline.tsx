@@ -36,6 +36,8 @@ interface Props {
   /** Persist a new order for the day's UNTIMED cards (ids, top to bottom).
    *  Timed cards are ordered by their times, so only these are draggable. */
   onReorder?: (orderedUntimedIds: string[]) => void;
+  /** Tap on a card's time chip: open the quick time sheet for it. */
+  onTimeTap?: (card: Card) => void;
 }
 
 function minutesBetween(end: string | null, start: string | null): number {
@@ -76,7 +78,7 @@ function GapRow({ minutes, onTap }: { minutes: number; onTap: () => void }) {
       className="w-full flex gap-3 md:gap-5 py-2"
       aria-label={`Add to this gap — ${gapLabel(minutes)}`}
     >
-      <span className="w-[52px] md:w-[74px] shrink-0" />
+      <span className="w-[62px] md:w-[74px] shrink-0" />
       <span
         className="text-[11px] md:text-[11.5px] italic"
         style={{ color: pressed ? "#B0541F" : "rgba(26,26,46,0.28)" }}
@@ -143,6 +145,7 @@ export default function CardTimeline({
   cardNumberById,
   readOnly = false,
   onReorder,
+  onTimeTap,
 }: Props) {
   const { cards } = dayWithCards;
 
@@ -235,6 +238,7 @@ export default function CardTimeline({
                     onToggleConfirmed ? () => onToggleConfirmed(card.id) : undefined
                   }
                   pinIndex={cardNumberById?.get(card.id)}
+                  onTimeTap={onTimeTap ? () => onTimeTap(card) : undefined}
                 />
                 {gap >= 30 && !readOnly && (
                   <GapRow
@@ -256,7 +260,7 @@ export default function CardTimeline({
               className="mb-2 pl-[33px] text-[12.5px]"
               style={{ fontFamily: "'Playfair Display', Georgia, serif", fontStyle: "italic", color: "rgba(26,26,46,0.45)" }}
             >
-              No time yet · hold ≡ to move
+              No time yet · tap the chip to set one, hold ≡ to move
             </p>
           )}
 
@@ -275,6 +279,7 @@ export default function CardTimeline({
                           onToggleConfirmed ? () => onToggleConfirmed(card.id) : undefined
                         }
                         pinIndex={cardNumberById?.get(card.id)}
+                  onTimeTap={onTimeTap ? () => onTimeTap(card) : undefined}
                       />
                     </div>
                   </SortableUntimedRow>
@@ -293,6 +298,7 @@ export default function CardTimeline({
                     onToggleConfirmed ? () => onToggleConfirmed(card.id) : undefined
                   }
                   pinIndex={cardNumberById?.get(card.id)}
+                  onTimeTap={onTimeTap ? () => onTimeTap(card) : undefined}
                 />
               </div>
             ))

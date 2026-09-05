@@ -1694,7 +1694,6 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
       <JourneyHeader
         backHref="/"
         title={trip.title}
-        subtitle="Plan"
         onSearch={() => search.open()}
         menu={
           <AppMenu

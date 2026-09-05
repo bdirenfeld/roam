@@ -20,6 +20,17 @@ export default function EntryLine({ trip, days, dayDate, readOnly }: { trip: Tri
   const supabase = createClient();
   const { toast } = useToast();
   const [entry, setEntry] = useState<TripEntry | null | undefined>(undefined);
+  // The × remembers the exact words it hid, on this device. New words — the
+  // rules changed at a recheck, or something got ticked — bring the line back.
+  const hiddenKey = `roam:entry-line-hidden:${trip.id}`;
+  const [hiddenText, setHiddenText] = useState<string | null>(null);
+  useEffect(() => {
+    try { setHiddenText(localStorage.getItem(hiddenKey)); } catch { /* private mode */ }
+  }, [hiddenKey]);
+  const hide = (text: string) => {
+    try { localStorage.setItem(hiddenKey, text); } catch { /* private mode */ }
+    setHiddenText(text);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -77,14 +88,29 @@ export default function EntryLine({ trip, days, dayDate, readOnly }: { trip: Tri
   // of a journey, and not once you are there.
   const firstDay = days[0]?.date;
   const beforeDeparture = trip.start_date ? new Date(trip.start_date + "T12:00:00").getTime() > Date.now() : false;
-  if (!headline || dayDate !== firstDay || !beforeDeparture) return null;
+  if (!headline || dayDate !== firstDay || !beforeDeparture || hiddenText === headline) return null;
+
+  const closeButton = (
+    <button
+      type="button"
+      onClick={() => hide(headline)}
+      aria-label="Hide this until the rules change"
+      className="w-9 h-9 -mr-1 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-60"
+      style={{ color: SIENNA }}
+    >
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+      </svg>
+    </button>
+  );
 
   // A guest can't open settings, so for them the line is the words alone.
   if (readOnly) {
     return (
       <div className="px-4 pt-2 md:px-0 md:max-w-[720px] md:mx-auto">
-        <div className="rounded-xl px-3.5 py-2.5 text-[13.5px] leading-snug" style={{ background: "rgba(176,84,31,0.09)", color: SIENNA }}>
-          {headline}
+        <div className="flex items-center gap-2 rounded-xl pl-3.5 pr-1.5 py-1 text-[13.5px] leading-snug" style={{ background: "rgba(176,84,31,0.09)", color: SIENNA }}>
+          <span className="flex-1 py-1.5">{headline}</span>
+          {closeButton}
         </div>
       </div>
     );
@@ -92,18 +118,22 @@ export default function EntryLine({ trip, days, dayDate, readOnly }: { trip: Tri
 
   return (
     <div className="px-4 pt-2 md:px-0 md:max-w-[720px] md:mx-auto">
-      <TripSettingsLink
-        tripId={trip.id}
-        section="entry"
-        trip={trip}
-        days={days}
-        className="flex items-center justify-between gap-3 rounded-xl px-3.5 py-2.5 text-[13.5px] leading-snug"
-        style={{ background: "rgba(176,84,31,0.09)", color: SIENNA }}
-        ariaLabel="Entry requirements"
-      >
-        <span>{headline}</span>
-        <span aria-hidden="true" className="text-[16px]">›</span>
-      </TripSettingsLink>
+      {/* The words open Settings; the × beside them is its own button, not
+          nested inside the link. */}
+      <div className="flex items-center gap-1 rounded-xl pl-3.5 pr-1.5 py-1" style={{ background: "rgba(176,84,31,0.09)", color: SIENNA }}>
+        <TripSettingsLink
+          tripId={trip.id}
+          section="entry"
+          trip={trip}
+          days={days}
+          className="flex-1 min-w-0 flex items-center justify-between gap-3 py-1.5 text-[13.5px] leading-snug"
+          ariaLabel="Entry requirements"
+        >
+          <span>{headline}</span>
+          <span aria-hidden="true" className="text-[16px]">›</span>
+        </TripSettingsLink>
+        {closeButton}
+      </div>
     </div>
   );
 }

@@ -15,6 +15,8 @@ interface Props {
   onTap?: () => void;
   isHighlighted?: boolean;
   onToggleConfirmed?: () => void;
+  /** Tap on the time chip (or "No time"): opens the quick time sheet. */
+  onTimeTap?: () => void;
   /** Numbered pin index matching this card's marker on the map. Accepted but
    *  no longer drawn: as a filled disc it shouted over the names it indexed,
    *  and as a bare numeral it read as debris. The category glyph does the
@@ -125,7 +127,7 @@ function noteLead(det: Record<string, unknown> | null): string | null {
  * photograph is used. The app already had those pictures and the agenda was
  * throwing them away for an identical grey placeholder.
  */
-export default function CardSurface({ card, dayDate, onTap, isHighlighted, onToggleConfirmed }: Props) {
+export default function CardSurface({ card, dayDate, onTap, isHighlighted, onToggleConfirmed, onTimeTap }: Props) {
   const place     = card.place;
   const det       = card.details as Record<string, unknown> | null;
   const subLabel  = place?.sub_type ? (SUB_TYPE_SHORT[place.sub_type] ?? null) : null;
@@ -176,7 +178,7 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
           The category glyph sits here, above the time — bare, at the weight
           of a caption, the same shape the map marker carries. 
 */}
-      <div className="w-[52px] md:w-[74px] shrink-0 pt-[3px] flex flex-col items-start gap-[3px]">
+      <div className="w-[62px] md:w-[74px] shrink-0 pt-[3px] flex flex-col items-start gap-[3px]">
         {/* The category glyph, bare — the same fork, bed or flag the map
             marker carries. Matching a shape is quicker than matching a digit,
             and this is what tied rows to pins before the redesign. What was
@@ -188,7 +190,22 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
             dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(place.sub_type ?? null, 15) }}
           />
         )}
-        {rail && (
+        {onTimeTap ? (
+          // The time as a chip: white is what you touch. Tapping it opens the
+          // quick time sheet; the whole card is a button, so this is a span
+          // with a role, not a nested button. An untimed card says so.
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={(e) => { e.stopPropagation(); onTimeTap(); }}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onTimeTap(); } }}
+            aria-label={rail ? `Change the time, now ${rail}` : "Set a time"}
+            className="inline-flex items-center rounded-full bg-white px-1.5 py-[3px] text-[10px] md:text-[10.5px] uppercase whitespace-nowrap cursor-pointer"
+            style={{ letterSpacing: "0.05em", color: rail ? "rgba(26,26,46,0.62)" : "rgba(26,26,46,0.4)", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.14)" }}
+          >
+            {rail ?? "No time"}
+          </span>
+        ) : rail && (
           <span
             className="text-[10px] md:text-[10.5px] uppercase"
             style={{ letterSpacing: "0.1em", color: "rgba(26,26,46,0.35)" }}

@@ -701,7 +701,6 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
           absolute
           backHref={`/trips/${trip.id}`}
           title={trip.title}
-          subtitle={`Map · ${localCards.length} ${localCards.length === 1 ? "place" : "places"}`}
           onSearch={() => search.open()}
           menu={
             <AppMenu
