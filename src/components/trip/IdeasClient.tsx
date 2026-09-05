@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CaretLeft } from "@phosphor-icons/react";
+import { CaretLeft, X } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
 import { useSheetDrag } from "@/hooks/useSheetDrag";
@@ -349,12 +349,18 @@ export default function IdeasClient({
   initial,
   journeys,
   backTo = null,
+  variant = "page",
+  onDismiss,
 }: {
   initial: Idea[];
   journeys: JourneySummary[];
   /** The journey this page was opened from, so the back link returns there
    *  instead of dropping you on the journeys index (Brennan, Sep 2026). */
   backTo?: { href: string; title: string } | null;
+  /** "page" is the standalone route; "overlay" hands the frame to the host
+   *  (Overlay), the same way Estimate and Settings do. */
+  variant?: "page" | "overlay";
+  onDismiss?: () => void;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -537,17 +543,27 @@ export default function IdeasClient({
 
   return (
     <div
-      className="min-h-screen bg-white md:bg-parchment pb-24 px-3"
-      style={{ paddingTop: "max(1.25rem, env(safe-area-inset-top))" }}
+      className={
+        variant === "overlay"
+          ? "flex-1 min-h-0 flex flex-col bg-white md:bg-parchment"
+          : "min-h-screen bg-white md:bg-parchment pb-24 px-3"
+      }
+      style={variant === "overlay" ? undefined : { paddingTop: "max(1.25rem, env(safe-area-inset-top))" }}
     >
-      <div className="mx-auto w-full max-w-[560px]">
+      <div
+        className={
+          variant === "overlay"
+            ? "flex-1 min-h-0 overflow-y-auto mx-auto w-full max-w-[560px] px-3 pt-2 pb-24"
+            : "mx-auto w-full max-w-[560px]"
+        }
+      >
         <button
-          onClick={() => router.push(backTo ? backTo.href : "/trips")}
+          onClick={() => (onDismiss ? onDismiss() : router.push(backTo ? backTo.href : "/trips"))}
           className="flex items-center gap-1 mb-5 px-1"
           style={{ color: CAPTION, fontSize: 13 }}
         >
-          <CaretLeft size={15} weight="light" />
-          {backTo ? backTo.title : "Journeys"}
+          {variant === "overlay" ? <X size={14} weight="light" /> : <CaretLeft size={15} weight="light" />}
+          {backTo ? backTo.title : variant === "overlay" ? "Close" : "Journeys"}
         </button>
 
         <h1 className="font-display italic text-[29px] px-1 mb-4" style={{ color: INK }}>

@@ -9,9 +9,9 @@ import {
   ShareNetwork,
   Lightbulb,
 } from "@phosphor-icons/react";
-import Link from "next/link";
 import {
   EstimateLink,
+  IdeasLink,
   TripSettingsLink,
   useJourneyNotes,
 } from "@/components/overlays/AppOverlays";
@@ -41,6 +41,7 @@ const RULE = "rgba(26,26,46,0.12)";
 export default function AppMenu({
   variant,
   tripId,
+  tripTitle,
   trip,
   days,
   guest = false,
@@ -189,17 +190,17 @@ export default function AppMenu({
                 </button>
               ))}
 
-              <Link
-                href={`/ideas?from=${tripId}`}
+              <IdeasLink
+                from={{ id: tripId, title: tripTitle ?? "Journey" }}
                 role="menuitem"
-                onClick={() => setOpen(false)}
+                onBeforeOpen={() => setOpen(false)}
                 style={itemStyle}
               >
                 <span style={glyphStyle}>
                   <Lightbulb size={15} weight="light" />
                 </span>
                 <Label title="Ideas" />
-              </Link>
+              </IdeasLink>
 
               {owner && (
                 <EstimateLink
@@ -264,17 +265,16 @@ export default function AppMenu({
               just Ideas; the masthead carries Search, Plan a journey and the
               avatar. */}
           {!tripId && (
-            <Link
-              href="/ideas"
+            <IdeasLink
               role="menuitem"
-              onClick={() => setOpen(false)}
+              onBeforeOpen={() => setOpen(false)}
               style={itemStyle}
             >
               <span style={glyphStyle}>
                 <Lightbulb size={15} weight="light" />
               </span>
               <Label title="Ideas" />
-            </Link>
+            </IdeasLink>
           )}
         </div>
       )}

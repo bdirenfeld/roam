@@ -8,6 +8,7 @@ import { GlobalSearchProvider } from "@/components/search/GlobalSearch";
 import { AppOverlaysProvider } from "@/components/overlays/AppOverlays";
 import { ToastProvider } from "@/components/ui/Toast";
 import OfflineQueueIndicator from "@/components/offline/OfflineQueueIndicator";
+import InstallBanner from "@/components/ui/InstallBanner";
 
 export default function AppLayout({
   children,
@@ -40,6 +41,9 @@ export default function AppLayout({
         {/* Mounted once, here: the queue is global, so the "will sync" pill is
             too. It also owns the replay wiring (online / focus). */}
         <OfflineQueueIndicator />
+        {/* "Put Roam on your phone": one tap on Android, the two steps on
+            iPhone. App-wide, so a guest who arrives by link sees it too. */}
+        <InstallBanner />
        </ToastProvider>
       </AppOverlaysProvider>
     </GlobalSearchProvider>

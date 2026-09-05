@@ -42,6 +42,8 @@ import type { EstimateData } from "@/lib/budget/load";
 import { loadShareState } from "@/lib/share-actions";
 import type { ShareState } from "@/lib/share-actions";
 import type { Day, Trip } from "@/types/database";
+import type { Idea } from "@/components/trip/IdeasClient";
+import type { JourneySummary } from "@/components/trip/PromoteToWishlistSheet";
 
 export type { NewJourneySeed };
 
@@ -60,6 +62,9 @@ const TripSettingsClient = dynamic(() => import("@/components/trip/TripSettingsC
   ssr: false,
 });
 const EstimateClient = dynamic(() => import("@/components/trip/EstimateClient"), {
+  ssr: false,
+});
+const IdeasClient = dynamic(() => import("@/components/trip/IdeasClient"), {
   ssr: false,
 });
 
@@ -92,6 +97,18 @@ interface EstimateController {
   open: (tripId: string) => void;
 }
 const EstimateCtx = createContext<EstimateController>({ open: () => {} });
+
+/**
+ * Ideas. A destination you browse, but opened from a journey's menu it is a
+ * window over that journey, not a page you have to find your way back from
+ * (Brennan, Sep 2026). The /ideas route still exists for links and the
+ * masthead's own tab.
+ */
+interface IdeasController {
+  open: (from?: { id: string; title: string } | null) => void;
+}
+const IdeasCtx = createContext<IdeasController>({ open: () => {} });
+export const useIdeas = () => useContext(IdeasCtx);
 export const useEstimate = () => useContext(EstimateCtx);
 
 interface ProfileController {
@@ -118,7 +135,9 @@ export function AppOverlaysProvider({ children }: { children: ReactNode }) {
       <TripSettingsProvider>
         <ProfileProvider>
           <EstimateProvider>
-            <JourneyNotesProvider>{children}</JourneyNotesProvider>
+            <IdeasProvider>
+              <JourneyNotesProvider>{children}</JourneyNotesProvider>
+            </IdeasProvider>
           </EstimateProvider>
         </ProfileProvider>
       </TripSettingsProvider>
@@ -243,6 +262,117 @@ function EstimateOverlayBody({
       variant="overlay"
       onDismiss={onClose}
     />
+  );
+}
+
+// ── Ideas ─────────────────────────────────────────────────────────────────
+
+function IdeasProvider({ children }: { children: ReactNode }) {
+  const [request, setRequest] = useState<{ from: { id: string; title: string } | null; nonce: number } | null>(null);
+  const open = useCallback((from?: { id: string; title: string } | null) => {
+    setRequest((prev) => ({ from: from ?? null, nonce: (prev?.nonce ?? 0) + 1 }));
+  }, []);
+  const close = useCallback(() => setRequest(null), []);
+  const value = useMemo(() => ({ open }), [open]);
+
+  return (
+    <IdeasCtx.Provider value={value}>
+      {children}
+      {request && (
+        <Overlay onClose={close} label="Ideas">
+          <IdeasOverlayBody key={request.nonce} from={request.from} onClose={close} />
+        </Overlay>
+      )}
+    </IdeasCtx.Provider>
+  );
+}
+
+/** The same two reads the /ideas route makes, through the browser client. */
+function IdeasOverlayBody({
+  from,
+  onClose,
+}: {
+  from: { id: string; title: string } | null;
+  onClose: () => void;
+}) {
+  const [data, setData] = useState<{ ideas: Idea[]; journeys: JourneySummary[] } | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setFailed(true); return; }
+      const today = new Date().toISOString().slice(0, 10);
+      const [{ data: ideas, error: e1 }, { data: trips, error: e2 }] = await Promise.all([
+        supabase
+          .from("ideas")
+          .select("id, url, title, note, source, status, tags, created_at, wishlist_destination_id, pins_added, pinned_trip_id, place")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("trips")
+          .select("id, title, destination, destination_lat, destination_lng, end_date, archived")
+          .eq("user_id", user.id)
+          .gte("end_date", today)
+          .order("start_date", { ascending: true }),
+      ]);
+      if (cancelled) return;
+      if (e1 || e2) { setFailed(true); return; }
+      setData({ ideas: (ideas ?? []) as Idea[], journeys: (trips ?? []) as JourneySummary[] });
+    };
+    void run();
+    return () => { cancelled = true; };
+  }, []);
+
+  if (failed) {
+    return <p className="px-5 py-10 text-center text-[13px] text-gray-400">Couldn&rsquo;t load your ideas.</p>;
+  }
+  if (!data) {
+    return <p className="px-5 py-10 text-center text-[13px] text-gray-400">Loading&hellip;</p>;
+  }
+  return (
+    <IdeasClient
+      initial={data.ideas}
+      journeys={data.journeys}
+      backTo={from ? { href: "/trips/" + from.id, title: from.title } : null}
+      variant="overlay"
+      onDismiss={onClose}
+    />
+  );
+}
+
+/** Trigger — a real link to /ideas, the overlay on a plain click. */
+export function IdeasLink({
+  from = null,
+  className,
+  style,
+  title,
+  ariaLabel,
+  role,
+  children,
+  onBeforeOpen,
+}: TriggerProps & { from?: { id: string; title: string } | null }) {
+  const { open } = useIdeas();
+  return (
+    <Link
+      href={from ? "/ideas?from=" + from.id : "/ideas"}
+      prefetch={false}
+      className={className}
+      style={style}
+      title={title}
+      aria-label={ariaLabel}
+      role={role}
+      onClick={(e) => {
+        if (opensElsewhere(e)) return;
+        e.preventDefault();
+        onBeforeOpen?.();
+        open(from);
+      }}
+    >
+      {children}
+    </Link>
   );
 }
 

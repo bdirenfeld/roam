@@ -8,7 +8,6 @@ import { fetchAndStoreCover } from "@/lib/unsplash";
 import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
 import { belongsInPastJourneys, isPastJourney } from "@/lib/tripRecency";
 import { createSampleJourney } from "@/lib/sampleTrip/actions";
-import AddToHomeScreenHint from "@/components/ui/AddToHomeScreenHint";
 import YearView from "@/components/trips/YearView";
 import CollapsibleSection from "@/components/trip/CollapsibleSection";
 
@@ -92,8 +91,6 @@ export default async function TripsPage() {
 
 
         <div className="px-4 pb-6 md:px-0 md:pb-0 md:mt-2">
-          {/* iPhone Safari only — one-time "Add to Home Screen" hint */}
-          <AddToHomeScreenHint />
           {trips && trips.length > 0 ? (
             <>
               {/* Upcoming — stacked on mobile, 2-up grid on desktop */}
