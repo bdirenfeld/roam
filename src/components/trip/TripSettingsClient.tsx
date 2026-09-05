@@ -596,7 +596,7 @@ export default function TripSettingsClient({
 
         {/* ── Entry requirements — what the passports need to get in. First,
             because it is the one thing here that can stop the trip. ── */}
-        <EntrySection tripId={trip.id} destination={trip.destination} />
+        <EntrySection tripId={trip.id} destination={trip.destination} startDate={trip.start_date} />
 
         {/* ── Inline fields ── */}
         <div className="mt-2">

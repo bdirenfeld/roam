@@ -75,7 +75,7 @@ Return exactly one JSON object and nothing after it:
  "source_url": string,
  "source_name": "Government of Canada travel advice"
 }
-Rules: "text" is one or two plain sentences, at most 30 words, about what is required — not advice. "why" is at most 15 words, or null. "action" is true only when the traveller must do something before departure (apply, register, fill a form, buy a return ticket, get a vaccination certificate): a visa that is not required is action false; an online authorization or entry form that is required is action true with the deadline it must be done by, given the travel dates. Omit the "before" line entirely if there is nothing to do before departure. Add at most two more lines with key "other-1"/"other-2" for anything else that can stop entry (a vaccination certificate, a minor travelling with one parent needing a consent letter, a fee paid on arrival). Do not invent requirements; if the page does not say, do not add a line.`;
+Rules: "text" is ONE plain sentence, at most 20 words, stating the requirement — not advice. "why" is at most 12 words, or null. "action" is true only when the traveller is REQUIRED to do something before departure (apply, register, fill a form, buy a return ticket, get a vaccination certificate): a visa that is not required is action false; an online authorization or entry form that is required is action true with the deadline it must be done by, given the travel dates. Anything merely recommended or advised (a consent letter, extra passport validity, travel insurance) is action false and its text starts with "Recommended:". Omit the "before" line entirely if there is nothing to do before departure. Add at most two more lines with key "other-1"/"other-2" for anything else that can stop entry (a vaccination certificate, a minor travelling with one parent needing a consent letter, a fee paid on arrival). Do not invent requirements; if the page does not say, do not add a line.`;
 
   const userMsg = `Destination: ${trip.destination}
 Country: ${country}
@@ -115,7 +115,8 @@ Today: ${new Date().toISOString().slice(0, 10)}`;
         label: s(l.label, 40) ?? "Entry",
         text,
         why: s(l.why, 200),
-        action: Boolean(l.action),
+        // A recommendation is a fact to know, not a box to tick.
+        action: Boolean(l.action) && !(/\b(recommend|advis)/i.test(text) && !/\b(required|must|mandatory)\b/i.test(text)),
         done: prevDone.get(key) ?? false,
         deadline: typeof l.deadline === "string" && /^\d{4}-\d{2}-\d{2}$/.test(l.deadline) ? l.deadline : null,
       };

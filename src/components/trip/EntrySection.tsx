@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
-import { entryStatus, type EntryData, type TripEntry } from "@/lib/entry/types";
+import { entryStatus, firstSentence, type EntryData, type TripEntry } from "@/lib/entry/types";
 
 const INK = "#1A1A2E";
 const CAPTION = "rgba(26,26,46,0.62)";
@@ -27,13 +27,16 @@ function fmtDay(iso: string): string {
   return new Date(iso + "T12:00:00").toLocaleDateString("en-CA", { month: "short", day: "numeric" });
 }
 
-export default function EntrySection({ tripId, destination }: { tripId: string; destination: string }) {
+export default function EntrySection({ tripId, destination, startDate }: { tripId: string; destination: string; startDate: string }) {
   const supabase = createClient();
   const { toast } = useToast();
   const [entry, setEntry] = useState<TripEntry | null | undefined>(undefined);
   const [checking, setChecking] = useState(false);
   const [editingPassports, setEditingPassports] = useState(false);
   const [passportDraft, setPassportDraft] = useState("");
+  // Lines opened to show their full text (the block shows one sentence each).
+  const [openLines, setOpenLines] = useState<Set<string>>(new Set());
+  const upcoming = new Date(startDate + "T12:00:00").getTime() > Date.now();
 
   useEffect(() => {
     let cancelled = false;
@@ -91,7 +94,6 @@ export default function EntrySection({ tripId, destination }: { tripId: string; 
 
   const status = entryStatus(entry?.data);
   const passports = entry?.passports ?? ["Canadian"];
-  const partyLine = `${passports.join(" · ")} ${passports.length === 1 ? "passports" : ""}`.trim();
 
   return (
     <div id="entry" className="mx-5 mt-4">
@@ -122,13 +124,14 @@ export default function EntrySection({ tripId, destination }: { tripId: string; 
             ) : (
               <button
                 type="button"
-                className="text-[14.5px] text-left"
+                className="text-[14.5px] text-left flex items-center gap-1.5"
                 style={{ color: INK }}
                 onClick={() => { setPassportDraft(passports.join(", ")); setEditingPassports(true); }}
                 title="Change which passports the party holds"
               >
-                {partyLine}
-                <span className="ml-1.5 text-[12px]" style={{ color: FAINT }}>edit</span>
+                <span style={{ color: CAPTION }}>Passports</span>
+                <span>{passports.join(" · ")}</span>
+                <span aria-hidden="true" style={{ color: FAINT }}>›</span>
               </button>
             )}
             {status && (
@@ -166,7 +169,7 @@ export default function EntrySection({ tripId, destination }: { tripId: string; 
           ) : status === "clear" && entry.data.lines.every((l) => !l.action) ? (
             // Nothing to do: one quiet sentence, no ticks.
             <p className="text-[13.5px] leading-snug py-1.5" style={{ color: INK }}>
-              {entry.data.lines.map((l) => l.text).join(" ")}
+              {entry.data.lines.map((l) => firstSentence(l.text)).join(" ")}
             </p>
           ) : (
             <div>
@@ -191,9 +194,27 @@ export default function EntrySection({ tripId, destination }: { tripId: string; 
                     <div className="text-[10.5px] uppercase mb-[2px]" style={{ letterSpacing: "0.08em", color: CAPTION }}>
                       {l.label}{l.deadline ? ` · by ${fmtDay(l.deadline)}` : ""}
                     </div>
-                    <div className="text-[13.5px] leading-snug" style={{ color: INK, textDecoration: l.done ? "line-through" : "none", opacity: l.done ? 0.6 : 1 }}>
-                      {l.text}{l.why ? <span style={{ color: CAPTION }}> {l.why}</span> : null}
-                    </div>
+                    {(() => {
+                      const short = firstSentence(l.text);
+                      const more = short.length < l.text.length || Boolean(l.why);
+                      const open = openLines.has(l.key);
+                      return (
+                        <div className="text-[13.5px] leading-snug" style={{ color: INK, textDecoration: l.done ? "line-through" : "none", opacity: l.done ? 0.6 : 1 }}>
+                          {open ? l.text : short}
+                          {open && l.why ? <span style={{ color: CAPTION }}> {l.why}</span> : null}
+                          {more && (
+                            <button
+                              type="button"
+                              className="ml-1.5 text-[12px] underline underline-offset-2"
+                              style={{ color: FAINT }}
+                              onClick={() => setOpenLines((prev) => { const n = new Set(prev); if (n.has(l.key)) n.delete(l.key); else n.add(l.key); return n; })}
+                            >
+                              {open ? "less" : "more"}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               ))}
@@ -204,7 +225,7 @@ export default function EntrySection({ tripId, destination }: { tripId: string; 
           {entry?.data && (
             <p className="text-[11.5px] leading-snug pt-2.5 mt-1" style={{ color: CAPTION, borderTop: `1px solid ${RULE}` }}>
               From the {entry.data.source_name}, checked {fmtDate(entry.data.checked_at)}.
-              {entry.data.next_check ? ` Rechecks ${fmtDay(entry.data.next_check)}, thirty days before you fly.` : ""}{" "}
+              {upcoming && entry.data.next_check ? ` Rechecks ${fmtDay(entry.data.next_check)}, thirty days before you fly.` : ""}{" "}
               {entry.data.source_url && (
                 <a href={entry.data.source_url} target="_blank" rel="noopener" className="underline underline-offset-2" style={{ color: INK }}>
                   Read the page

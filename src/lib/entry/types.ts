@@ -50,12 +50,17 @@ export function entryStatus(data: EntryData | null | undefined): "action" | "cle
   return data.lines.some((l) => l.action && !l.done) ? "action" : "clear";
 }
 
+/** The first sentence of a line — what the screens show; the rest sits behind a tap. */
+export function firstSentence(text: string): string {
+  return text.split(/(?<=[.!?])\s+/)[0];
+}
+
 /** The first undone action, for the Agenda's one line. */
 export function entryHeadline(data: EntryData | null | undefined): string | null {
   const line = data?.lines.find((l) => l.action && !l.done);
   if (!line) return null;
   // First sentence only: the Agenda line is a nudge, the block has the rest.
-  const short = line.text.split(/(?<=[.!?])\s+/)[0].replace(/[.!?]$/, "");
+  const short = firstSentence(line.text).replace(/[.!?]$/, "");
   const by = line.deadline
     ? ` before ${new Date(line.deadline + "T12:00:00").toLocaleDateString("en-CA", { month: "short", day: "numeric" })}`
     : "";

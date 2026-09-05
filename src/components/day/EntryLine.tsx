@@ -16,7 +16,7 @@ import type { Trip, Day } from "@/types/database";
 
 const SIENNA = "#B0541F";
 
-export default function EntryLine({ trip, days, readOnly }: { trip: Trip; days: Day[]; readOnly?: boolean }) {
+export default function EntryLine({ trip, days, dayDate, readOnly }: { trip: Trip; days: Day[]; dayDate: string; readOnly?: boolean }) {
   const supabase = createClient();
   const { toast } = useToast();
   const [entry, setEntry] = useState<TripEntry | null | undefined>(undefined);
@@ -69,7 +69,11 @@ export default function EntryLine({ trip, days, readOnly }: { trip: Trip; days: 
   }, [trip.id]);
 
   const headline = entryHeadline(entry?.data);
-  if (!headline) return null;
+  // On the first day only, and only before departure — not on all eleven days
+  // of a journey, and not once you are there.
+  const firstDay = days[0]?.date;
+  const beforeDeparture = trip.start_date ? new Date(trip.start_date + "T12:00:00").getTime() > Date.now() : false;
+  if (!headline || dayDate !== firstDay || !beforeDeparture) return null;
 
   return (
     <div className="px-4 pt-2 md:px-0 md:max-w-[720px] md:mx-auto">

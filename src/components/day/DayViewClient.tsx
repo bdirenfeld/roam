@@ -695,7 +695,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
       </div>
 
       {/* Entry requirements — one line, only while something is undone. */}
-      <EntryLine trip={trip} days={days} readOnly={readOnly} />
+      <EntryLine trip={trip} days={days} dayDate={dayWithCards.date} readOnly={readOnly} />
 
       {/* Day strip — md:hidden lives inside DayStrip itself */}
       <DayStrip
