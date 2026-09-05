@@ -291,16 +291,22 @@ script — say so and let Brennan's thumb decide.
   a `span role="button"` because the card itself is a `<button>`). Untimed cards
   read "No time". The rail is 62px on phones so "12:30 PM" fits; `GapRow`'s
   spacer must match.
-- `TimeSheet.tsx` is the sheet: start/end are native `<input type="time">`,
-  a ±15-min length stepper, Morning/Lunch/Afternoon/Evening, No time, Done.
-  An end at or before the start is dropped, not saved.
+- `TimeSheet.tsx` is the sheet: Start/End are TYPED text fields read by
+  `parseTypedTime` ("230p", "14:30", "9", "noon"; a bare 1–6 is afternoon,
+  7–11 morning), with the reading shown under the field and a sienna ring
+  when it is not a time. A ±15-min length stepper, Morning/Lunch/Afternoon/
+  Evening, No time, Done. An end at or before the start is dropped, not saved.
+  An untimed card opens with `suggestedStart` = the end of the day's last
+  timed card (DayViewClient), so the common case is chip → Done.
 - `DayViewClient.handleTimeSave` writes `start_time`/`end_time` via
   `queuedUpdate`, re-sorts with `agendaOrder`, lifts the card, and the toast
   carries Undo. Drag-reorder stays for untimed cards only: ordering timed
   cards is done by changing the time, never by dragging (the old time would
   ride along and put the card back).
 - The Agenda entry line's × stores the exact headline in
-  `localStorage["roam:entry-line-hidden:<tripId>"]`; new words (a rules
-  change, a tick) bring it back. Per device by design — no DB column.
+  `trip_entry.hidden_headline` for the owner (RLS: owner updates, members
+  read), so it holds on every device and for guests. A guest's × falls back
+  to `localStorage["roam:entry-line-hidden:<tripId>"]`. New words (a rules
+  change, a tick) bring the line back either way.
 - Phone headers carry no subtitle on Map or Plan ("Map · 90 places", "Plan"
   said nothing); the Agenda keeps its weather line.
