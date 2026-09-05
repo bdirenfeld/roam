@@ -233,3 +233,8 @@ no page or overlay plumbing. EntryLine runs the first check in the background fo
 future journey, rechecks inside 30 days if the answer is more than 7 days old, never checks a
 past journey, and does nothing (spends nothing) when the select errors. `TripSettingsLink
 section="entry"` scrolls to the block. It never applies for anything.
+Settings order: cover → Name/Destination/Dates/Travellers → Travellers list → Entry (one row,
+closed; `defaultOpen` from the Agenda line) → Share as flat rows (no card) → Archive/Delete.
+Every section speaks the row language: `px-5 py-[14px] border-b border-black/5`, a `w-20`
+uppercase label, the value, a quiet action on the right. The consent-letter line is standing on
+any journey with a child (route adds it; the lookup's own wording is filtered out).

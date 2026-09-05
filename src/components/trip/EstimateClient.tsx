@@ -258,7 +258,7 @@ interface Props {
   initialBasis: Record<string, string>;
   uncostedExcursions: number;
   rolledExcursionCount: number;
-  /** The rate card costs convert at; editable under "How this was worked out". */
+  /** The rate card costs convert at; editable under "Budget assumptions". */
   fxToCad: number;
   fxSource: "typed" | "live" | "reference" | "fallback";
   fxReferenceMonth?: string;
@@ -718,7 +718,7 @@ export default function EstimateClient({
                 className="text-[11px] uppercase tracking-wider"
                 style={{ color: SOFT }}
               >
-                How this was worked out
+                Budget assumptions
               </span>
               <CaretDown
                 size={12}

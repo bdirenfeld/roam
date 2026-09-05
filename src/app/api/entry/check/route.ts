@@ -45,9 +45,10 @@ export async function POST(req: NextRequest) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return NextResponse.json({ error: "Entry lookup isn't configured" }, { status: 500 });
 
-  const [{ data: trip }, { data: existing, error: tableError }] = await Promise.all([
-    supabase.from("trips").select("id, user_id, destination, start_date, end_date, party_size").eq("id", tripId).single(),
+  const [{ data: trip }, { data: existing, error: tableError }, { data: people }] = await Promise.all([
+    supabase.from("trips").select("id, user_id, destination, start_date, end_date, party_size, party_ages").eq("id", tripId).single(),
     supabase.from("trip_entry").select("passports, data").eq("trip_id", tripId).maybeSingle(),
+    supabase.from("people").select("birthdate").eq("trip_id", tripId),
   ]);
   if (!trip) return NextResponse.json({ error: "Journey not found" }, { status: 404 });
   // The table is created by migration 009; until it exists, say so before
@@ -121,7 +122,34 @@ Today: ${new Date().toISOString().slice(0, 10)}`;
         deadline: typeof l.deadline === "string" && /^\d{4}-\d{2}-\d{2}$/.test(l.deadline) ? l.deadline : null,
       };
     })
-    .filter((l): l is EntryLine => l !== null);
+    .filter((l): l is EntryLine => l !== null)
+    .filter((l) => !/consent letter/i.test(l.text));
+
+  // The consent letter never depends on the lookup. A child travelling
+  // without both parents needs one; it is easy to do and easy to forget
+  // (Brennan, Sep 2026: "don't want to get screwed on something so easy").
+  // Standing on any journey with a child; only omitted when every age is
+  // known and every traveller is an adult.
+  const startMs = trip.start_date ? new Date(trip.start_date + "T12:00:00").getTime() : Date.now();
+  const ages: number[] = [
+    ...(((trip.party_ages as number[] | null) ?? []).filter((a) => typeof a === "number")),
+    ...((people ?? [])
+      .map((x) => (x.birthdate ? (startMs - new Date(x.birthdate + "T12:00:00").getTime()) / (365.25 * 86400000) : null))
+      .filter((a): a is number => a != null)),
+  ];
+  const hasChild = ages.length === 0 || ages.some((a) => a < 18);
+  if (hasChild && !lines.some((l) => l.key === "consent")) {
+    const weekBefore = new Date(startMs - 7 * 86400000).toISOString().slice(0, 10);
+    lines.push({
+      key: "consent",
+      label: "Consent letter",
+      text: "Needed for any child travelling without both parents; notarized.",
+      why: "Tick when sorted or not needed.",
+      action: true,
+      done: prevDone.get("consent") ?? false,
+      deadline: weekBefore,
+    });
+  }
 
   const sourceUrl = s(parsed.source_url, 500);
   const start = trip.start_date ? new Date(trip.start_date + "T12:00:00") : null;

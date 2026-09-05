@@ -594,10 +594,6 @@ export default function TripSettingsClient({
           </div>
         )}
 
-        {/* ── Entry requirements — what the passports need to get in. First,
-            because it is the one thing here that can stop the trip. ── */}
-        <EntrySection tripId={trip.id} destination={trip.destination} startDate={trip.start_date} />
-
         {/* ── Inline fields ── */}
         <div className="mt-2">
 
@@ -677,6 +673,16 @@ export default function TripSettingsClient({
           <TravellersSection tripId={trip.id} initialPeople={initialPeople} />
         )}
 
+        {/* ── Entry requirements — what the passports need to get in. One row
+            under the people it applies to; opens in place. Arriving from the
+            Agenda line opens it. ── */}
+        <EntrySection
+          tripId={trip.id}
+          destination={trip.destination}
+          startDate={trip.start_date}
+          defaultOpen={scrollTo === "entry"}
+        />
+
         {/* ── Notes — the journey facts that belong to no single day. This is
             the always-available home; the Day and Plan ··· menus open the same
             notes in a sheet. ── */}
@@ -691,13 +697,14 @@ export default function TripSettingsClient({
             faces. The full section it replaced was the third copy of the
             invite, with its own words (simplification audit). */}
         {shareAvailable && (
-          <div
-            id="share"
-            className="rounded-2xl bg-white px-4 py-3.5"
-            style={{ scrollMarginTop: 24, boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.12)" }}
-          >
-            <span className="block font-display italic text-[17px] text-[#1A1A2E]">Share this journey</span>
-            <form onSubmit={sendShare} className="flex gap-2 mt-2.5">
+          <div id="share" style={{ scrollMarginTop: 24 }}>
+            {/* Share: their email, Send. Same row language as Name and Dates —
+                the card, italic heading and grey buttons it replaced were a
+                sheet dropped into a page (Brennan, Sep 2026: "out of place"). */}
+            <form onSubmit={sendShare} className="flex items-center px-5 py-[10px] border-b border-black/5">
+              <span className="text-[10px] uppercase tracking-widest text-gray-400 w-20 flex-shrink-0">
+                Share
+              </span>
               <input
                 type="email"
                 inputMode="email"
@@ -706,109 +713,99 @@ export default function TripSettingsClient({
                 onChange={(e) => setShareEmail(e.target.value)}
                 placeholder="Their email address"
                 aria-label="Their email address"
-                className="flex-1 min-w-0 h-11 px-3 rounded-xl bg-gray-50 border border-gray-200 text-[14px] text-[#1A1A2E] outline-none focus:border-gray-300 focus:bg-white transition-colors"
+                className="flex-1 min-w-0 text-[14px] text-[#1A1A2E] bg-transparent outline-none placeholder:text-gray-300"
               />
               <button
                 type="submit"
                 disabled={shareSending || !shareEmail.trim()}
-                className="h-11 px-4 rounded-xl text-[13px] font-semibold flex-shrink-0 disabled:opacity-40 transition-opacity"
-                style={{ background: "#1A1A2E", color: "#FAF7F2" }}
+                className="text-[13px] flex-shrink-0 ml-3 disabled:opacity-30"
+                style={{ color: "#1A1A2E" }}
               >
                 {shareSending ? "Sending…" : "Send"}
               </button>
             </form>
-            <p className="text-[12px] mt-2" style={{ color: "rgba(26,26,46,0.62)" }}>
+            <p className="px-5 pt-1.5 pb-2.5 text-[11.5px] border-b border-black/5" style={{ color: "rgba(26,26,46,0.62)" }}>
               {shareSentTo
                 ? `Sent to ${shareSentTo}. They can read the journey, not change it.`
                 : "They can read the journey, not change it, and they can't see what it costs."}
             </p>
 
-            {/* The link: copy it, or make one. */}
-            <div className="mt-3 flex items-center gap-2">
+            {/* Link: copy it, or make one. */}
+            <div className="flex items-center px-5 py-[14px] border-b border-black/5">
+              <span className="text-[10px] uppercase tracking-widest text-gray-400 w-20 flex-shrink-0">
+                Link
+              </span>
               {shareUrl ? (
                 <>
-                  <span
-                    className="flex-1 min-w-0 truncate h-10 leading-10 px-3 rounded-xl bg-gray-50 border border-gray-200 text-[12.5px]"
-                    style={{ color: "rgba(26,26,46,0.7)" }}
-                  >
+                  <span className="flex-1 min-w-0 truncate text-[13px]" style={{ color: "rgba(26,26,46,0.7)" }}>
                     {shareUrl.replace(/^https?:\/\//, "")}
                   </span>
-                  <button
-                    type="button"
-                    onClick={copyLink}
-                    className="h-10 px-3.5 rounded-xl text-[13px] font-semibold flex-shrink-0"
-                    style={{ boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.14)", color: "#1A1A2E" }}
-                  >
-                    Copy link
+                  <button type="button" onClick={copyLink} className="text-[13px] flex-shrink-0 ml-3" style={{ color: "#1A1A2E" }}>
+                    Copy
                   </button>
                 </>
               ) : (
-                <button
-                  type="button"
-                  onClick={createLink}
-                  disabled={linkBusy}
-                  className="h-10 px-3.5 rounded-xl text-[13px] font-semibold disabled:opacity-40"
-                  style={{ boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.14)", color: "#1A1A2E" }}
-                >
+                <button type="button" onClick={createLink} disabled={linkBusy} className="flex-1 text-left text-[14px] disabled:opacity-40" style={{ color: "#1A1A2E" }}>
                   {linkBusy ? "Making a link…" : "Make a link to copy"}
                 </button>
               )}
             </div>
 
-            {/* Who has it. */}
-            {guests.length > 0 && (
-              <ul className="mt-3 divide-y divide-gray-100">
-                {guests.map((g) => (
-                  <li key={g.userId} className="flex items-center gap-3 py-2">
-                    <span className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold flex-shrink-0" style={{ background: "#E7E0D5", color: "#1A1A2E" }}>
-                      {(g.name ?? g.email ?? "?").trim().charAt(0).toUpperCase()}
-                    </span>
-                    <span className="flex-1 min-w-0">
-                      <span className="block text-[13.5px] truncate text-[#1A1A2E]">{g.name ?? g.email}</span>
-                      {g.name && g.email && <span className="block text-[11.5px] truncate" style={{ color: "rgba(26,26,46,0.62)" }}>{g.email}</span>}
-                    </span>
-                    {confirmRemove === g.userId ? (
-                      <span className="flex items-center gap-2 text-[12px]">
-                        <button type="button" onClick={() => dropGuest(g.userId)} className="font-semibold" style={{ color: "#A8372B" }}>Remove</button>
-                        <button type="button" onClick={() => setConfirmRemove(null)} style={{ color: "rgba(26,26,46,0.62)" }}>Keep</button>
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setConfirmRemove(g.userId)}
-                        aria-label={`Remove ${g.name ?? g.email ?? "this guest"}`}
-                        className="w-9 h-9 grid place-items-center rounded-full text-[16px]"
-                        style={{ color: "rgba(26,26,46,0.35)" }}
-                      >
-                        ×
-                      </button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-            {shareUrl && guests.length === 0 && (
-              <p className="text-[12px] mt-2.5" style={{ color: "rgba(26,26,46,0.45)" }}>Nobody has opened it yet.</p>
-            )}
-
-            {/* Revoke, quietly, with an inline confirm. */}
+            {/* Guests: who has it, with a quiet two-step remove; revoke under them. */}
             {shareUrl && (
-              confirmRevoke ? (
-                <p className="text-[12px] mt-3 flex items-center gap-3">
-                  <span style={{ color: "rgba(26,26,46,0.7)" }}>Revoke the link? Everyone loses access.</span>
-                  <button type="button" onClick={revokeLink} disabled={linkBusy} className="font-semibold" style={{ color: "#A8372B" }}>Revoke</button>
-                  <button type="button" onClick={() => setConfirmRevoke(false)} style={{ color: "rgba(26,26,46,0.62)" }}>Keep</button>
-                </p>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setConfirmRevoke(true)}
-                  className="text-[12px] mt-3 underline underline-offset-2"
-                  style={{ color: "rgba(26,26,46,0.45)" }}
-                >
-                  Revoke the link
-                </button>
-              )
+              <div className="flex px-5 py-[14px] border-b border-black/5">
+                <span className="text-[10px] uppercase tracking-widest text-gray-400 w-20 flex-shrink-0 pt-[3px]">
+                  Guests
+                </span>
+                <div className="flex-1 min-w-0">
+                  {guests.length === 0 ? (
+                    <span className="block text-[14px]" style={{ color: "rgba(26,26,46,0.45)" }}>Nobody has opened it yet.</span>
+                  ) : (
+                    <ul className="space-y-2">
+                      {guests.map((g) => (
+                        <li key={g.userId} className="flex items-center gap-3">
+                          <span className="flex-1 min-w-0">
+                            <span className="block text-[14px] truncate text-[#1A1A2E]">{g.name ?? g.email}</span>
+                            {g.name && g.email && <span className="block text-[11.5px] truncate" style={{ color: "rgba(26,26,46,0.62)" }}>{g.email}</span>}
+                          </span>
+                          {confirmRemove === g.userId ? (
+                            <span className="flex items-center gap-2 text-[12px]">
+                              <button type="button" onClick={() => dropGuest(g.userId)} style={{ color: "#A8372B" }}>Remove</button>
+                              <button type="button" onClick={() => setConfirmRemove(null)} style={{ color: "rgba(26,26,46,0.62)" }}>Keep</button>
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setConfirmRemove(g.userId)}
+                              aria-label={`Remove ${g.name ?? g.email ?? "this guest"}`}
+                              className="w-8 h-8 grid place-items-center rounded-full text-[16px]"
+                              style={{ color: "rgba(26,26,46,0.35)" }}
+                            >
+                              ×
+                            </button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {confirmRevoke ? (
+                    <p className="text-[12px] mt-2 flex items-center gap-3">
+                      <span style={{ color: "rgba(26,26,46,0.7)" }}>Revoke the link? Everyone loses access.</span>
+                      <button type="button" onClick={revokeLink} disabled={linkBusy} style={{ color: "#A8372B" }}>Revoke</button>
+                      <button type="button" onClick={() => setConfirmRevoke(false)} style={{ color: "rgba(26,26,46,0.62)" }}>Keep</button>
+                    </p>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmRevoke(true)}
+                      className="text-[12px] mt-2 underline underline-offset-2"
+                      style={{ color: "rgba(26,26,46,0.45)" }}
+                    >
+                      Revoke the link
+                    </button>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         )}

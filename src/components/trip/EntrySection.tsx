@@ -27,7 +27,7 @@ function fmtDay(iso: string): string {
   return new Date(iso + "T12:00:00").toLocaleDateString("en-CA", { month: "short", day: "numeric" });
 }
 
-export default function EntrySection({ tripId, destination, startDate }: { tripId: string; destination: string; startDate: string }) {
+export default function EntrySection({ tripId, destination, startDate, defaultOpen = false }: { tripId: string; destination: string; startDate: string; defaultOpen?: boolean }) {
   const supabase = createClient();
   const { toast } = useToast();
   const [entry, setEntry] = useState<TripEntry | null | undefined>(undefined);
@@ -36,6 +36,9 @@ export default function EntrySection({ tripId, destination, startDate }: { tripI
   const [passportDraft, setPassportDraft] = useState("");
   // Lines opened to show their full text (the block shows one sentence each).
   const [openLines, setOpenLines] = useState<Set<string>>(new Set());
+  // One row, closed by default: the Agenda line already carries the urgent
+  // thing on day one, so settings doesn't need to shout too.
+  const [open, setOpen] = useState(defaultOpen);
   const upcoming = new Date(startDate + "T12:00:00").getTime() > Date.now();
 
   useEffect(() => {
@@ -95,13 +98,26 @@ export default function EntrySection({ tripId, destination, startDate }: { tripI
   const status = entryStatus(entry?.data);
   const passports = entry?.passports ?? ["Canadian"];
 
+  const rowValue =
+    entry === undefined ? "" : !entry?.data ? "Not checked yet" : status === "action" ? "Action needed" : "Nothing to do";
+
   return (
-    <div id="entry" className="mx-5 mt-4">
-      <p className="text-[11px] uppercase mb-2" style={{ letterSpacing: "0.1em", color: CAPTION }}>
-        Entry requirements
-      </p>
-      <div className="rounded-2xl" style={{ border: `1px solid ${RULE}`, background: "#fff" }}>
-        <div className="px-4 pt-3.5 pb-3">
+    <div id="entry" style={{ scrollMarginTop: 24 }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="w-full flex items-center px-5 py-[14px] border-b border-black/5 text-left"
+      >
+        <span className="text-[10px] uppercase tracking-widest text-gray-400 w-20 flex-shrink-0">
+          Entry
+        </span>
+        <span className="flex-1 text-[14px]" style={{ color: status === "action" ? SIENNA : INK }}>{rowValue}</span>
+        <span aria-hidden="true" className="text-[14px] flex-shrink-0" style={{ color: FAINT, display: "inline-block", transform: open ? "rotate(90deg)" : "none" }}>›</span>
+      </button>
+      {open && (
+      <div className="border-b border-black/5">
+        <div className="px-5 pt-3 pb-3.5">
           {/* Who, and the state in one word */}
           <div className="flex items-center justify-between gap-3 mb-1">
             {editingPassports ? (
@@ -134,18 +150,7 @@ export default function EntrySection({ tripId, destination, startDate }: { tripI
                 <span aria-hidden="true" style={{ color: FAINT }}>›</span>
               </button>
             )}
-            {status && (
-              <span
-                className="flex-shrink-0 text-[10.5px] uppercase rounded-full px-2 py-[3px] whitespace-nowrap"
-                style={{
-                  letterSpacing: "0.08em",
-                  color: status === "action" ? SIENNA : GREEN,
-                  background: status === "action" ? "rgba(176,84,31,0.09)" : "rgba(62,124,91,0.10)",
-                }}
-              >
-                {status === "action" ? "Action needed" : "Nothing to do"}
-              </span>
-            )}
+
           </div>
 
           {/* The lines */}
@@ -239,6 +244,7 @@ export default function EntrySection({ tripId, destination, startDate }: { tripI
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }
