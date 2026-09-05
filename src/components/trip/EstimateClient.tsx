@@ -38,9 +38,10 @@ const PAD = 14;
 const cad = (n: number) =>
   "$" + Math.round(n).toLocaleString("en-CA", { maximumFractionDigits: 0 });
 
+// The app's one input look: white, a hairline ring, no border box.
 const box = (dim: string) => ({
   background: "#FFFFFF",
-  border: `1px solid ${RULE}`,
+  boxShadow: `inset 0 0 0 1px ${RULE}`,
   color: dim,
 });
 
@@ -140,7 +141,7 @@ function Row({
           <button
             onClick={() => toggle(line.enabledKey as keyof Assumptions)}
             aria-label={`${line.enabled ? "Exclude" : "Include"} ${line.label}`}
-            className="w-[15px] h-[15px] rounded flex items-center justify-center"
+            className="w-[16px] h-[16px] rounded-full flex items-center justify-center"
             style={{
               background: line.enabled ? INK : "#FFFFFF",
               border: `1px solid ${line.enabled ? INK : "rgba(26,26,46,0.22)"}`,
@@ -162,7 +163,7 @@ function Row({
               value={unset ? "" : String(line.unit)}
               onChange={(e) => setNum(line.unitKey, e.target.value)}
               aria-label={`${line.label} unit cost`}
-              className="w-full rounded-lg px-1.5 py-1.5 text-[12.5px] text-right"
+              className="w-full rounded-full px-2 py-1.5 text-[12.5px] text-right"
               style={box(dim)}
             />
           </div>
@@ -185,7 +186,7 @@ function Row({
                   value={String(line.count)}
                   onChange={(e) => setNum(line.countKey, e.target.value)}
                   aria-label={`${line.label} ${line.countLabel}`}
-                  className="w-full rounded px-0.5 py-1 text-[12px] text-center"
+                  className="w-full rounded-full px-0.5 py-1 text-[12px] text-center"
                   style={box(dim)}
                 />
               </div>
@@ -648,7 +649,7 @@ export default function EstimateClient({
                     value={String(a.contingencyPct)}
                     onChange={(e) => setNum("contingencyPct", e.target.value)}
                     aria-label="Contingency percent"
-                    className="w-full rounded-lg px-1.5 py-1.5 text-[12.5px] text-right"
+                    className="w-full rounded-full px-2 py-1.5 text-[12.5px] text-right"
                     style={box(INK)}
                   />
                 </div>
@@ -676,7 +677,7 @@ export default function EstimateClient({
                     value={a.pointsCredit === 0 ? "" : String(a.pointsCredit)}
                     onChange={(e) => setNum("pointsCredit", e.target.value)}
                     aria-label="Amount paid with points"
-                    className="w-full rounded-lg px-1.5 py-1.5 text-[12.5px] text-right"
+                    className="w-full rounded-full px-2 py-1.5 text-[12.5px] text-right"
                     style={box(est.pointsCredit > 0 ? SIENNA : INK)}
                   />
                 </div>
@@ -778,7 +779,7 @@ export default function EstimateClient({
                                     onBlur={(e) => void saveItemAmount(x.cardId, e.target.value)}
                                     onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
                                     aria-label={`${x.title} cost each`}
-                                    className="w-[48px] rounded-lg px-1 py-0.5 text-[11px] text-right"
+                                    className="w-[48px] rounded-full px-1.5 py-0.5 text-[11px] text-right"
                                     style={box(x.amount == null ? SOFT : INK)}
                                   />
                                 </span>
@@ -795,7 +796,7 @@ export default function EstimateClient({
                                     onBlur={(e) => void saveItemPeople(x.cardId, e.target.value)}
                                     onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
                                     aria-label={`${x.title} people`}
-                                    className="w-[34px] rounded-lg px-1 py-0.5 text-[11px] text-right"
+                                    className="w-[34px] rounded-full px-1 py-0.5 text-[11px] text-right"
                                     style={box(INK)}
                                   />
                                 ) : (
@@ -868,7 +869,7 @@ export default function EstimateClient({
                       if (!Number.isNaN(v)) { setFx(v); setFxTyped(true); setSaved(false); }
                     }}
                     aria-label="Exchange rate to the dollar"
-                    className="w-[64px] rounded-lg px-1.5 py-1 text-[12.5px] text-right"
+                    className="w-[64px] rounded-full px-2 py-1 text-[12.5px] text-right"
                     style={box(INK)}
                   />
                   <span className="flex-1 text-[11px]" style={{ color: CAPTION, lineHeight: 1.45 }}>

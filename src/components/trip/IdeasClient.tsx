@@ -334,8 +334,8 @@ function IdeaRow({
                   setTagging(false);
                 }}
                 placeholder="New tag"
-                className="w-full rounded-lg px-3 py-2 text-[12.5px] outline-none"
-                style={{ background: "#fff", border: `1px solid ${RULE}`, color: INK }}
+                className="w-full rounded-full px-3.5 py-2 text-[12.5px] outline-none"
+                style={{ background: "#fff", boxShadow: `0 0 0 1px ${RULE}`, color: INK }}
               />
             </div>
           )}
@@ -659,8 +659,8 @@ export default function IdeasClient({
                 if (hit) toggleFilterTag(hit);
               }}
               placeholder={chosenTags.length ? "Add another tag" : "Search journeys and tags"}
-              className="w-full rounded-lg px-3 py-2.5 text-[14px] outline-none mb-1"
-              style={{ background: "#fff", border: `1px solid ${RULE}`, color: INK }}
+              className="w-full rounded-full px-4 py-2.5 text-[14px] outline-none mb-1"
+              style={{ background: "#fff", boxShadow: `0 0 0 1px ${RULE}`, color: INK }}
             />
             {chosenTags.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mb-2">

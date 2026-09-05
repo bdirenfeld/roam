@@ -108,10 +108,27 @@ body {
   bottom: 0;
 }
 
-.mapboxgl-ctrl-group button {
-  width: 29px !important;
-  height: 29px !important;
+/* Mapbox's zoom and locate buttons wear the app's white disc, the same one
+   the day map's ⤢ and the intro card use — not the grey 29px defaults
+   (consistency sweep, Sep 2026). */
+.mapboxgl-ctrl-group {
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
+.mapboxgl-ctrl-group button {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 9999px !important;
+  background: #fff !important;
+  border: 0 !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2) !important;
+}
+.mapboxgl-ctrl-group button + button { border-top: 0 !important; }
+.mapboxgl-ctrl-group button .mapboxgl-ctrl-icon { opacity: 0.85; }
 
 /* Mapbox marker positioning fix — override inline style Mapbox sets */
 .mapboxgl-marker {

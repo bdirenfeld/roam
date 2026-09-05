@@ -70,7 +70,7 @@ export default function DayPicker({ days, onSelect, mode, activeDayId, align = "
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-haspopup="menu"
-        className="flex items-center gap-2 rounded-full border border-[rgba(26,26,46,0.12)] bg-[rgba(26,26,46,0.025)] px-3 py-1.5 text-[12px] font-medium text-activity hover:bg-[rgba(26,26,46,0.05)] transition-colors"
+        className="flex items-center gap-2 rounded-full border border-[rgba(26,26,46,0.14)] bg-white px-3 py-1.5 text-[12px] font-medium text-activity hover:bg-[rgba(26,26,46,0.03)] transition-colors"
         style={{ letterSpacing: "-0.005em" }}
       >
         <span>{label}</span>

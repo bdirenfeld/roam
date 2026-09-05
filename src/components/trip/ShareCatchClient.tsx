@@ -183,7 +183,7 @@ export default function ShareCatchClient({
         <div className="flex items-center gap-2 mb-4">
           {status === "saved" && <Check size={18} weight="light" color={INK} />}
           <span
-            className="font-display italic text-[24px]"
+            className="font-display italic text-[23px]"
             style={{ color: status === "error" ? SIENNA : INK }}
           >
             {status === "saved" ? "Saved" : status === "saving" ? "Saving…" : "Not saved"}

@@ -868,7 +868,7 @@ export function JourneyNotesSheet({
           <div className="flex justify-center pt-3 pb-1 md:hidden">
             <div className="w-9 h-1 bg-gray-200 rounded-full" />
           </div>
-          <p className="text-center font-display italic text-base text-gray-900 pt-1 pb-3 md:pt-5">
+          <p className="text-center font-display italic text-[23px] text-gray-900 pt-1 pb-3 md:pt-5">
             Journey notes
           </p>
         </div>
