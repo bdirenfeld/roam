@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import Link from "next/link";
 import {
   DndContext,
   DragOverlay,
@@ -61,10 +60,12 @@ import { formatTimeRange } from "@/lib/formatTime";
 import { getOpeningHoursConflict, openingHoursCaption, openingHoursTone } from "@/lib/openingHours";
 
 import CardImage from "@/components/ui/CardImage";
-import { Trash, DotsThree, DotsSixVertical, ArrowLeft, ArrowRight, BookmarkSimple, Files, NotePencil, MagnifyingGlass } from "@phosphor-icons/react";
+import { Trash, DotsThree, DotsSixVertical, ArrowLeft, ArrowRight, BookmarkSimple, Files, NotePencil } from "@phosphor-icons/react";
 import { useGlobalSearch } from "@/components/search/GlobalSearch";
 import { useToast } from "@/components/ui/Toast";
 import AppMenu from "@/components/ui/AppMenu";
+import JourneyHeader from "@/components/ui/JourneyHeader";
+import AddPlaceRow from "@/components/ui/AddPlaceRow";
 import { getMaterialIconHTML } from "@/lib/mapPins";
 import { type DayWeather, fetchTripWeather, dayStopsAnchor, getWeatherCategory, WeatherIcon, HourlyStrip } from "@/lib/weather";
 
@@ -1694,66 +1695,20 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
       {/* z-30: the ⋯ menu drops out of this bar and must paint over the sticky
           day picker below it (z-20). Without it the menu's first rows hid
           behind "Day 1 of 12" (Brennan, from his phone, Sep 2026). */}
-      <div className="md:hidden relative z-30 flex items-center h-11 px-3 flex-shrink-0">
-        {/* Left: back buttons */}
-        <div className="flex items-center gap-1 z-10">
-          <Link
-            href="/"
-            className={`flex items-center justify-center w-9 h-9 rounded-full transition-colors ${isPhotoBg ? "text-white/70" : "text-[#1A1A2E]"} md:text-[#1A1A2E]`}
-            aria-label="Back to home"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-          </Link>
-          {/* No "‹ Agenda" link here: the bottom bar is the door to the
-              Agenda, and a second one in the header was clutter (Brennan,
-              from his phone, Sep 2026). */}
-        </div>
-
-        {/* Center: trip title */}
-        {/* The journey's name — now on the phone too. The board is the screen
-            you swipe days on, and it never said which journey you were in. */}
-        <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <span
-            className={`font-display italic text-[15px] ${isPhotoBg ? "text-white" : "text-[#1A1A2E]"} md:text-[#1A1A2E]`}
-          >
-            {trip.title}
-          </span>
-        </span>
-
-        {/* Right: search and the ··· menu, side by side. */}
-        <div className="ml-auto z-10 flex items-center gap-2">
-          {/* The app's one menu (same as the Agenda and the masthead) plus
-              the three rows only the board has. The bespoke MainMenu this
-              replaces had a different list with no Estimate — click audit. */}
-          <input
-            ref={importInputRef}
-            type="file"
-            accept="application/pdf,image/*,.eml,.txt"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) handleImportFile(f);
-              e.currentTarget.value = "";
-            }}
-          />
-          <button
-            type="button"
-            onClick={() => search.open()}
-            aria-label="Search"
-            className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${isPhotoBg ? "bg-white/20 backdrop-blur-sm border border-white/25 text-white" : "bg-black/[0.06] border border-black/[0.08] text-[#1A1A2E]"}`}
-          >
-            <MagnifyingGlass size={16} weight="light" />
-          </button>
+      <input ref={importInputRef} type="file" accept="application/pdf,image/*,.eml,.txt" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImportFile(f); e.currentTarget.value = ""; }} />
+      <JourneyHeader
+        backHref="/"
+        title={trip.title}
+        subtitle="Plan"
+        onSearch={() => search.open()}
+        menu={
           <AppMenu
             variant="mobile"
             tripId={trip.id}
             tripTitle={trip.title}
             trip={trip}
             days={days}
-            triggerClassName={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${isPhotoBg ? "bg-white/20 backdrop-blur-sm border border-white/25 text-white" : "bg-black/[0.06] border border-black/[0.08] text-[#1A1A2E]"}`}
+            triggerClassName="flex items-center justify-center w-11 h-11 text-gray-500 hover:text-gray-800 transition-colors"
             extra={[
               // The board background stays a feature (its sheet is below), but
               // not a menu row: Brennan parked it, and the menu is for what a
@@ -1765,8 +1720,8 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
               },
             ]}
           />
-        </div>
-      </div>{/* end nav bar */}
+        }
+      />
 
       {/* Board */}
       {(
@@ -1998,18 +1953,6 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
                       {allCollapsed ? "Expand all" : "Collapse all"}
                     </button>
                   )}
-                  {/* Import a booking and Documents out where they can be found
-                      (simplification audit). The phone keeps them in its menu;
-                      this row is desktop-only. */}
-                  <span className="flex-1" />
-                  <button
-                    type="button"
-                    onClick={() => setShowDocs(true)}
-                    className={CTRL_CHIP}
-                    style={{ letterSpacing: "-0.005em" }}
-                  >
-                    Bookings
-                  </button>
                 </div>
               )}
 
@@ -2456,21 +2399,7 @@ function DayColumn({ day, cards, dayIndex, fullWidth, onCardTap, onDelete, onOpe
               <BookmarkSimple size={14} weight="light" color="#1A1A2E" />
               Add from saved
             </button>
-            {/* Door 2 — search-first composer. */}
-            <button
-              onClick={onOpenComposer}
-              className="w-full flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 active:opacity-70 transition-opacity"
-              style={{
-                border: "1px dashed rgba(26,26,46,0.20)",
-                fontFamily: "'Playfair Display', Georgia, serif", fontStyle: "italic",
-                fontSize: "14px", color: "rgba(26,26,46,0.40)", letterSpacing: "-0.005em",
-              }}
-            >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(26,26,46,0.40)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              Add a place
-            </button>
+            <AddPlaceRow onClick={onOpenComposer} />
           </div>
         </div>
       </div>{/* end card column body */}
@@ -3243,7 +3172,7 @@ function AddListColumn({
           <button
             onClick={commit}
             disabled={!draft.trim()}
-            className="flex-1 py-2 rounded-lg text-[12.5px] font-semibold text-white bg-[#1A1A2E] disabled:opacity-30 transition-opacity"
+            className="flex-1 py-2 rounded-full text-[12.5px] font-semibold text-white bg-[#1A1A2E] disabled:opacity-30 transition-opacity"
           >
             Add a list
           </button>

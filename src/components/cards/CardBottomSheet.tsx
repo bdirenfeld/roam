@@ -1450,7 +1450,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               />
               <button
                 onClick={saveMenuUrl}
-                className="px-3 py-1.5 text-[11px] font-semibold rounded-lg bg-[#1A1A2E] text-white hover:opacity-90 transition-opacity"
+                className="px-3 py-1.5 text-[11px] font-semibold rounded-full bg-[#1A1A2E] text-white hover:opacity-90 transition-opacity"
               >
                 Save
               </button>

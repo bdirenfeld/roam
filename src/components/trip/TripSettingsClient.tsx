@@ -901,7 +901,7 @@ export default function TripSettingsClient({
               <button
                 onClick={handleDelete}
                 disabled={deleting}
-                className="w-full py-3.5 rounded-xl bg-[#1A1A2E] text-white text-[15px] font-semibold disabled:opacity-50 active:scale-[0.99] transition-all"
+                className="w-full py-3.5 rounded-full bg-[#1A1A2E] text-white text-[15px] font-semibold disabled:opacity-50 active:scale-[0.99] transition-all"
               >
                 {deleting ? "Deleting…" : "Delete permanently"}
               </button>

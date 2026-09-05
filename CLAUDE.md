@@ -244,3 +244,10 @@ Never the full risk page.
 The desktop masthead's menu lives in the layout, so any host-owned row (Bookings) is a
 `window` event (`roam:open-bookings`) that Day, Plan and Map listen for — the six rows are
 identical on both widths.
+
+## One look (consistency sweep, Sep 2026)
+`ui/JourneyHeader.tsx` is the phone header for Plan and Map (the Agenda keeps its own copy because
+its subtitle is the weather): back, italic title + small line, search, menu, 44px glyphs, white
+bar. `ui/AddPlaceRow.tsx` is the one "Add a place" (ringed plus, quiet row; `centered` for an
+empty state). Primary buttons are `rounded-full` ink pills, one per screen. Bookings lives in the
+menu only — no separate chip on any width.

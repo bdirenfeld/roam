@@ -1,4 +1,5 @@
 import { useState } from "react";
+import AddPlaceRow from "@/components/ui/AddPlaceRow";
 import { DotsSixVertical } from "@phosphor-icons/react";
 import {
   DndContext,
@@ -171,19 +172,8 @@ export default function CardTimeline({
     !readOnly && (onAddFromSaved || onGapTap) ? (
       // A beige filled button and a dashed box were the last two SaaS
       // defaults on this screen. One line, in the page's own voice.
-      <div
-        className={`flex items-center gap-3 pt-4 ${row ? "md:ml-[94px]" : ""}`}
-        style={{ fontFamily: "'Playfair Display', Georgia, serif", fontStyle: "italic" }}
-      >
-        {onGapTap && (
-          <button
-            onClick={() => onGapTap("", "")}
-            className="text-[14px]"
-            style={{ color: "rgba(26,26,46,0.45)" }}
-          >
-            Add a place
-          </button>
-        )}
+      <div className={`w-full pt-2 ${row ? "md:ml-[94px]" : ""}`}>
+        {onGapTap && <AddPlaceRow onClick={() => onGapTap("", "")} centered={!row} />}
         {/* "Add from saved" is inside "Add a place" now — the one sheet lists
             saved places first. The second link only survives for a host
             that offers no search. */}

@@ -2,7 +2,6 @@
 
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useEffect, useRef, useState, useCallback } from "react";
-import Link from "next/link";
 import MapPinPopup from "./MapPinPopup";
 import MapSidebar, { SIDEBAR_SUB_TYPES } from "./MapSidebar";
 import PlaceSearch from "./PlaceSearch";
@@ -14,6 +13,8 @@ import { Funnel, Heart, Files } from "@phosphor-icons/react";
 import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/plan/ConfirmationPreviewSheet";
 import DocumentsSheet from "@/components/plan/DocumentsSheet";
 import AppMenu from "@/components/ui/AppMenu";
+import JourneyHeader, { HEADER_GLYPH } from "@/components/ui/JourneyHeader";
+import { useGlobalSearch } from "@/components/search/GlobalSearch";
 import { useToast } from "@/components/ui/Toast";
 import { queuedInsert } from "@/lib/offline/queuedWrite";
 
@@ -76,7 +77,9 @@ function makeInitialSubTypes(): Set<string> {
 type MarkerEntry = { marker: any; type: CardType; cardRef: { current: Card } };
 const MARKERS = new Map<string, MarkerEntry>();
 
-export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOnly = false }: Props) {
+// userAvatarUrl stays in Props for the page that passes it; the avatar disc
+// it fed left with the one header (consistency sweep, Sep 2026).
+export default function FullMapClient({ trip, days, cards, readOnly = false }: Props) {
   const mapContainerRef  = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapInstRef       = useRef<any>(null);
@@ -96,6 +99,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
 
   const [localCards, setLocalCards]     = useState<Card[]>(cards);
   const { toast } = useToast();
+  const search = useGlobalSearch();
 
   // ── Bookings — the same row and flow the Agenda and the Plan have, so the
   // three menus match (Brennan, Sep 2026). Parse → preview → cards; a card
@@ -686,32 +690,31 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
           </div>
         )}
 
-        {/* Back button — mobile only (desktop nav lives in masthead + sub-bar) */}
-        <Link
-          href={`/trips/${trip.id}`}
-          className="md:hidden absolute top-4 left-4 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center"
-          style={{ backdropFilter: "blur(8px)", zIndex: 10 }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-        </Link>
+
 
         {/* The app's one menu — phone only (desktop has it in the masthead).
             This used to be a bare ⋯ that navigated to the Settings PAGE and
             threw away pan, zoom and filters; it also sat under the search
             pill, so nobody found it. Now it is the same menu as the Agenda,
             beside the avatar, and Settings opens as an overlay over the map. */}
-        <AppMenu
-          variant="mobile"
-          tripId={trip.id}
-          tripTitle={trip.title}
-          trip={trip}
-          days={days}
-          guest={readOnly}
-          extra={mapMenuExtra}
-          wrapperClassName="md:hidden absolute top-4 right-14 z-10"
-          triggerClassName="w-8 h-8 rounded-full bg-white/80 backdrop-blur-md flex items-center justify-center text-[#374151]"
+        <JourneyHeader
+          absolute
+          backHref={`/trips/${trip.id}`}
+          title={trip.title}
+          subtitle={`Map · ${localCards.length} ${localCards.length === 1 ? "place" : "places"}`}
+          onSearch={() => search.open()}
+          menu={
+            <AppMenu
+              variant="mobile"
+              tripId={trip.id}
+              tripTitle={trip.title}
+              trip={trip}
+              days={days}
+              guest={readOnly}
+              extra={mapMenuExtra}
+              triggerClassName={HEADER_GLYPH}
+            />
+          }
         />
 
         {/* Place search — the add-a-place entry; owner only */}
@@ -837,25 +840,7 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
           </button>
         </div>
 
-        {/* Avatar — mobile only (desktop avatar lives in masthead) */}
-        <Link
-          href={`/trips/${trip.id}`}
-          className="md:hidden absolute top-4 right-4 w-8 h-8 rounded-full overflow-hidden bg-white/80"
-          style={{ backdropFilter: "blur(8px)", zIndex: 10 }}
-          title={trip.title}
-        >
-          {userAvatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={userAvatarUrl} alt="" className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2">
-                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
-            </div>
-          )}
-        </Link>
+
 
         {/* First-visit intro — sits under the search bar until dismissed or
             the first real pin lands. Owner-only. */}

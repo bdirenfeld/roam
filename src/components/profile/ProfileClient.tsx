@@ -143,7 +143,7 @@ export default function ProfileClient({
           <button
             onClick={handleSave}
             disabled={saving}
-            className="w-full py-3 rounded-xl bg-[#1A1A2E] text-white text-[14px] font-semibold disabled:opacity-50 hover:opacity-90 transition-opacity active:scale-[0.99]"
+            className="w-full py-3 rounded-full bg-[#1A1A2E] text-white text-[14px] font-semibold disabled:opacity-50 hover:opacity-90 transition-opacity active:scale-[0.99]"
           >
             {saving ? "Saving…" : "Save"}
           </button>
