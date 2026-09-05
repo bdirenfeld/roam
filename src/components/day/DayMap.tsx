@@ -29,6 +29,7 @@ interface Props {
 // One placed pin, with what the stacking pass needs to know about it.
 interface PinItem {
   cardId: string;
+  /** Day number minus one; -1 for the hotel, which has a star, not a number. */
   index: number;
   lng: number;
   lat: number;
@@ -102,10 +103,26 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
   // ── Fly to a card (a tap on its row in the docked list) ────────
   useEffect(() => {
     if (!focus) return;
-    const map = mapInstanceRef.current as { easeTo: (o: unknown) => void; getZoom: () => number } | null;
+    const map = mapInstanceRef.current as {
+      easeTo: (o: unknown) => void;
+      getBounds: () => { contains: (c: [number, number]) => boolean };
+      once: (ev: string, fn: () => void) => void;
+    } | null;
     const pin = pinsRef.current.find((it) => it.cardId === focus.cardId);
     if (!map || !pin) return;
-    map.easeTo({ center: [pin.lng, pin.lat], zoom: Math.max(map.getZoom(), 15), duration: 500 });
+    // A pin you can already see stays put and jumps once — moving the map
+    // would throw away the other pins around it (Brennan, Sep 2026). Only an
+    // off-screen pin brings the map over, at the zoom it is at.
+    const jump = () => {
+      const inner = markerInnerRef.current.get(pin.cardId) ?? (pin.wrapper.firstElementChild as HTMLElement | null);
+      if (!inner) return;
+      inner.style.transition = "transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1)";
+      inner.style.transform = "scale(1.45)";
+      setTimeout(() => { inner.style.transition = "transform 300ms ease"; inner.style.transform = ""; }, 260);
+    };
+    if (map.getBounds().contains([pin.lng, pin.lat])) { jump(); return; }
+    map.once("moveend", jump);
+    map.easeTo({ center: [pin.lng, pin.lat], duration: 500 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focus]);
 
@@ -113,6 +130,18 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
   // or a flick up/down switches.
   const [dockOpen, setDockOpen] = useState(false);
   const dockTouchY = useRef<number | null>(null);
+  const dockListRef = useRef<HTMLDivElement>(null);
+  // A flick anywhere on the dock moves it: up opens, down closes — but a
+  // downward flick while the list is scrolled is a scroll, not a close.
+  const dockTouchStart = (e: React.TouchEvent) => { dockTouchY.current = e.touches[0].clientY; };
+  const dockTouchEnd = (e: React.TouchEvent) => {
+    const y0 = dockTouchY.current; dockTouchY.current = null;
+    if (y0 == null) return;
+    const dy = e.changedTouches[0].clientY - y0;
+    const atTop = (dockListRef.current?.scrollTop ?? 0) <= 0;
+    if (dy < -24) setDockOpen(true);
+    else if (dy > 24 && atTop) setDockOpen(false);
+  };
   useEffect(() => { if (!expanded) setDockOpen(false); }, [expanded]);
 
   // ── Map init ───────────────────────────────────────────────────
@@ -222,8 +251,8 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
         // nudged: a pin is always where its place is.
         const restack = () => {
           const items = pinsRef.current;
-          items.forEach((it) => { it.wrapper.style.display = ""; it.badge.textContent = String(it.index + 1); it.group = null; });
-          const pinPx = items[0]?.wrapper.getBoundingClientRect().width || PIN_FALLBACK_PX;
+          items.forEach((it) => { it.wrapper.style.display = ""; it.badge.textContent = it.index < 0 ? "★" : String(it.index + 1); it.group = null; });
+          const pinPx = (items.find((it) => it.index >= 0) ?? items[0])?.wrapper.getBoundingClientRect().width || PIN_FALLBACK_PX;
           const STACK_PX = pinPx * 0.95;
           const pts = items.map((it) => ({ it, p: map.project([it.lng, it.lat]) as { x: number; y: number } }));
           const used = new Set<number>();
@@ -236,11 +265,14 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
               if (Math.hypot(pts[a].p.x - pts[b].p.x, pts[a].p.y - pts[b].p.y) < STACK_PX) { g.push(b); used.add(b); }
             }
             if (g.length < 2) continue;
-            const members = g.map((k) => pts[k].it).sort((x, y) => x.index - y.index);
-            const nums = members.map((m) => m.index + 1);
+            const members = g.map((k) => pts[k].it).sort((x, y) => (x.index < 0 ? 1e9 : x.index) - (y.index < 0 ? 1e9 : y.index));
+            const nums = members.filter((m) => m.index >= 0).map((m) => m.index + 1);
+            const hasHotel = members.some((m) => m.index < 0);
             const run = nums.every((n, k) => k === 0 || n === nums[k - 1] + 1);
             const head = members[0];
-            head.badge.textContent = nums.length >= 3 && run ? `${nums[0]} – ${nums[nums.length - 1]}` : nums.join(" · ");
+            const numLabel = nums.length >= 3 && run ? `${nums[0]} – ${nums[nums.length - 1]}` : nums.join(" · ");
+            head.badge.textContent = hasHotel ? (numLabel ? `${numLabel} · ★` : "★") : numLabel;
+            head.badge.style.color = "#1A1A2E";
             head.group = members;
             members.slice(1).forEach((m) => { m.wrapper.style.display = "none"; });
           }
@@ -289,7 +321,19 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
 
             // The hotel pin opens its card too — every pin on this map is tappable
             acInner.style.cursor = "pointer";
-            acInner.addEventListener("click", () => onPinTapRef.current?.(ac.id));
+            const hotelItem: PinItem = { cardId: ac.id, index: -1, lng: acLng, lat: acLat, wrapper: acWrapper, badge: null as unknown as HTMLElement, group: null };
+            acInner.addEventListener("click", () => {
+              if (hotelItem.group) {
+                const b = hotelItem.group.reduce(
+                  (acc, g) => acc.extend([g.lng, g.lat]),
+                  new mb.LngLatBounds([hotelItem.lng, hotelItem.lat], [hotelItem.lng, hotelItem.lat]),
+                );
+                if (!expandedRef.current && window.innerWidth < 768) onToggleExpandRef.current?.();
+                setTimeout(() => map.fitBounds(b, { padding: 90, maxZoom: 17, duration: 500 }), 60);
+                return;
+              }
+              onPinTapRef.current?.(ac.id);
+            });
 
             // Gold ★ badge — top-right corner, ~40% of pin size
             const starBadge = document.createElement("div");
@@ -306,12 +350,14 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
             starBadge.textContent = "★";
             acWrapper.appendChild(starBadge);
 
+            hotelItem.badge = starBadge;
+            pinsRef.current.push(hotelItem);
             const accomMarker = new mb.Marker({ element: acWrapper, anchor: "center" })
               .setLngLat(accomCoord)
               .addTo(map);
 
             // Raise z-index so accommodation pin renders above regular card pins
-            accomMarker.getElement().style.zIndex = "5";
+            accomMarker.getElement().style.zIndex = "";
           }
         }
 
@@ -361,7 +407,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
     <div
       className={
         expanded
-          ? "fixed inset-0 z-50 bg-white"
+          ? "fixed inset-0 z-[55] bg-white"
           : "relative h-48 overflow-hidden border-b border-gray-100 md:h-[620px] md:rounded-2xl md:border md:border-[rgba(26,26,46,0.12)]"
       }
     >
@@ -372,24 +418,21 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
         <div
           className="md:hidden absolute left-0 right-0 bottom-0 z-10 bg-white rounded-t-2xl flex flex-col"
           style={{ height: dockOpen ? "72dvh" : 176, boxShadow: "0 -6px 24px rgba(0,0,0,0.12)", transition: "height 260ms cubic-bezier(0.32,0.72,0,1)", paddingBottom: "env(safe-area-inset-bottom)" }}
+          onTouchStart={dockTouchStart}
+          onTouchEnd={dockTouchEnd}
         >
+          {/* A 44px handle you can actually hit; the flick works anywhere on
+              the sheet too (Brennan, Sep 2026: "a challenge to expand and
+              close this"). */}
           <button
             type="button"
             onClick={() => setDockOpen((v) => !v)}
-            onTouchStart={(e) => { dockTouchY.current = e.touches[0].clientY; }}
-            onTouchEnd={(e) => {
-              const y0 = dockTouchY.current; dockTouchY.current = null;
-              if (y0 == null) return;
-              const dy = e.changedTouches[0].clientY - y0;
-              if (dy < -24) setDockOpen(true);
-              else if (dy > 24) setDockOpen(false);
-            }}
             aria-label={dockOpen ? "Show less of the day" : "Show the whole day"}
-            className="flex-shrink-0 w-full flex justify-center pt-2.5 pb-1.5 touch-none"
+            className="flex-shrink-0 w-full h-11 flex items-center justify-center touch-none"
           >
-            <span className="w-9 h-[3px] rounded-full" style={{ background: "rgba(26,26,46,0.20)" }} />
+            <span className="w-10 h-1 rounded-full" style={{ background: "rgba(26,26,46,0.28)" }} />
           </button>
-          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4">{dock}</div>
+          <div ref={dockListRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4">{dock}</div>
         </div>
       )}
       {onToggleExpand && (
