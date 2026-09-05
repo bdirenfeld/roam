@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { UserCircle, Calendar, Columns, MapPin, Plus, Question } from "@phosphor-icons/react";
+import { UserCircle, Calendar, Columns, MapPin, Plus, Question, Files } from "@phosphor-icons/react";
 import { SearchButton } from "@/components/search/GlobalSearch";
 import SharedWithFaces from "@/components/trip/SharedWithFaces";
 import AppMenu from "@/components/ui/AppMenu";
@@ -375,6 +375,11 @@ export default function DesktopMasthead() {
         tripId={currentTripId}
         tripTitle={tripCtx?.title ?? null}
         guest={guest}
+        // Bookings, as on the phone. The sheet belongs to the open screen
+        // (Agenda, Plan, Map); this row only asks for it.
+        extra={showTripStrip && !guest ? [
+          { key: "bookings", title: "Bookings", sub: "", icon: <Files size={15} weight="light" />, onClick: () => window.dispatchEvent(new CustomEvent("roam:open-bookings")) },
+        ] : undefined}
         triggerClassName="inline-flex items-center justify-center w-[33px] h-[33px] rounded-lg text-[rgba(26,26,46,0.62)] hover:bg-[rgba(26,26,46,0.06)] transition-colors"
       />
 

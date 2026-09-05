@@ -105,6 +105,15 @@ export default function FullMapClient({ trip, days, cards, userAvatarUrl, readOn
   const [importingConf, setImportingConf] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [showDocs, setShowDocs] = useState(false);
+
+  // The desktop masthead's menu lives in the layout, so its Bookings row asks
+  // whichever screen is open to show the sheet (Brennan, Sep 2026: "I thought
+  // bookings was supposed to be in the menu like on mobile").
+  useEffect(() => {
+    const onOpen = () => setShowDocs(true);
+    window.addEventListener("roam:open-bookings", onOpen);
+    return () => window.removeEventListener("roam:open-bookings", onOpen);
+  }, []);
   const handleImportFile = useCallback(async (file: File) => {
     setImportingConf(true);
     try {

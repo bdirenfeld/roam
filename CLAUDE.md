@@ -241,3 +241,6 @@ any journey with a child (route adds it; the lookup's own wording is filtered ou
 Advisory level rides the same lookup (`data.advisory` {level 1–4, label, reason}): silent at 1,
 one fact line at 2+, leads the Agenda line at 3–4, a level change toasts like a rule change.
 Never the full risk page.
+The desktop masthead's menu lives in the layout, so any host-owned row (Bookings) is a
+`window` event (`roam:open-bookings`) that Day, Plan and Map listen for — the six rows are
+identical on both widths.

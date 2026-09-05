@@ -310,6 +310,15 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   const [draftList, setDraftList] = useState(false);
   const [pendingConf,  setPendingConf]  = useState<{ items: ParsedConfirmation[]; fileName: string; fileType: string } | null>(null);
   const [showDocs,     setShowDocs]     = useState(false);
+
+  // The desktop masthead's menu lives in the layout, so its Bookings row asks
+  // whichever screen is open to show the sheet (Brennan, Sep 2026: "I thought
+  // bookings was supposed to be in the menu like on mobile").
+  useEffect(() => {
+    const onOpen = () => setShowDocs(true);
+    window.addEventListener("roam:open-bookings", onOpen);
+    return () => window.removeEventListener("roam:open-bookings", onOpen);
+  }, []);
   // Journey notes — the sheet unmounts on close, so the latest text is held
   // here; re-opening it shows what was just written, not the page payload.
   const [showNotes,    setShowNotes]    = useState(false);
