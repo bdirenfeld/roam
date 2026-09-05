@@ -238,3 +238,6 @@ closed; `defaultOpen` from the Agenda line) → Share as flat rows (no card) →
 Every section speaks the row language: `px-5 py-[14px] border-b border-black/5`, a `w-20`
 uppercase label, the value, a quiet action on the right. The consent-letter line is standing on
 any journey with a child (route adds it; the lookup's own wording is filtered out).
+Advisory level rides the same lookup (`data.advisory` {level 1–4, label, reason}): silent at 1,
+one fact line at 2+, leads the Agenda line at 3–4, a level change toasts like a rule change.
+Never the full risk page.

@@ -174,10 +174,25 @@ export default function EntrySection({ tripId, destination, startDate, defaultOp
           ) : status === "clear" && entry.data.lines.every((l) => !l.action) ? (
             // Nothing to do: one quiet sentence, no ticks.
             <p className="text-[13.5px] leading-snug py-1.5" style={{ color: INK }}>
+              {entry.data.advisory && entry.data.advisory.level >= 2 && (
+                <span style={{ color: SIENNA }}>{entry.data.advisory.label}{entry.data.advisory.reason ? `: ${firstSentence(entry.data.advisory.reason)}` : "."} </span>
+              )}
               {entry.data.lines.map((l) => firstSentence(l.text)).join(" ")}
             </p>
           ) : (
             <div>
+              {entry.data.advisory && entry.data.advisory.level >= 2 && (
+                <div className="grid gap-2.5 py-2" style={{ gridTemplateColumns: "22px 1fr", borderTop: `1px solid ${RULE}` }}>
+                  <span className="flex justify-center mt-[9px]"><span className="w-1.5 h-1.5 rounded-full" style={{ background: SIENNA }} /></span>
+                  <div>
+                    <div className="text-[10.5px] uppercase mb-[2px]" style={{ letterSpacing: "0.08em", color: CAPTION }}>Advisory</div>
+                    <div className="text-[13.5px] leading-snug" style={{ color: INK }}>
+                      <span style={{ color: SIENNA }}>{entry.data.advisory.label}</span>
+                      {entry.data.advisory.reason ? `: ${firstSentence(entry.data.advisory.reason)}` : ""}
+                    </div>
+                  </div>
+                </div>
+              )}
               {entry.data.lines.map((l) => (
                 <div key={l.key} className="grid gap-2.5 py-2" style={{ gridTemplateColumns: "22px 1fr", borderTop: `1px solid ${RULE}` }}>
                   {l.action ? (

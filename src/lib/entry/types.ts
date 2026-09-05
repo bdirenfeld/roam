@@ -22,8 +22,19 @@ export interface EntryLine {
   deadline?: string | null;
 }
 
+/** The Government of Canada advisory level for the country: 1 normal precautions … 4 avoid all travel. */
+export interface EntryAdvisory {
+  level: 1 | 2 | 3 | 4;
+  /** The government's own words: "Exercise a high degree of caution". */
+  label: string;
+  /** One sentence on why, or null. */
+  reason: string | null;
+}
+
 export interface EntryData {
   country: string;
+  /** Present from the first lookup that read it; null when the page gave none. */
+  advisory?: EntryAdvisory | null;
   /** "action" while any action line is not done; "clear" otherwise. Derived on read. */
   status: "action" | "clear";
   lines: EntryLine[];
@@ -57,6 +68,8 @@ export function firstSentence(text: string): string {
 
 /** The first undone action, for the Agenda's one line. */
 export function entryHeadline(data: EntryData | null | undefined): string | null {
+  // An advisory at "avoid" level is a decision, not a caution: it leads.
+  if (data?.advisory && data.advisory.level >= 3) return `Advisory · ${data.advisory.label}`;
   const line = data?.lines.find((l) => l.action && !l.done);
   if (!line) return null;
   // First sentence only: the Agenda line is a nudge, the block has the rest.

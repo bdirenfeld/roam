@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
-import type { EntryData, EntryLine } from "@/lib/entry/types";
+import type { EntryAdvisory, EntryData, EntryLine } from "@/lib/entry/types";
 
 // ── What do these passports need to enter this country? ───────────────────
 //
@@ -64,9 +64,11 @@ export async function POST(req: NextRequest) {
     : null;
 
   const system = `You check what a family needs to enter a country, so a trip is not stopped at the airport. Use web search and read the Government of Canada travel advice page for the destination (travel.gc.ca/destinations/...), the "Entry and exit requirements" section, plus the destination's own official entry page if one is named there. Answer for the passports listed. If two passports are listed, give the stricter rule and say which passport it applies to.
+Also read the page's risk level at the top ("Take normal security precautions" = 1, "Exercise a high degree of caution" = 2, "Avoid non-essential travel" = 3, "Avoid all travel" = 4) and give it as "advisory" with the page's own label and its one-sentence reason (null at level 1).
 Return exactly one JSON object and nothing after it:
 {
  "country": string,
+ "advisory": {"level": 1|2|3|4, "label": string, "reason": string|null},
  "lines": [
    {"key": "visa", "label": "Visa", "text": string, "why": string|null, "action": boolean, "deadline": "YYYY-MM-DD"|null},
    {"key": "before", "label": "Before you go", "text": string, "why": string|null, "action": true, "deadline": "YYYY-MM-DD"|null},
@@ -151,6 +153,13 @@ Today: ${new Date().toISOString().slice(0, 10)}`;
     });
   }
 
+  // The advisory: only a level the page states; the reason as one sentence.
+  const adv = parsed.advisory as { level?: unknown; label?: unknown; reason?: unknown } | null | undefined;
+  const advLevel = typeof adv?.level === "number" && adv.level >= 1 && adv.level <= 4 ? (Math.round(adv.level) as 1 | 2 | 3 | 4) : null;
+  const advisory: EntryAdvisory | null = advLevel
+    ? { level: advLevel, label: s(adv?.label, 80) ?? ["", "Take normal security precautions", "Exercise a high degree of caution", "Avoid non-essential travel", "Avoid all travel"][advLevel], reason: advLevel === 1 ? null : (s(adv?.reason, 200) ?? null) }
+    : null;
+
   const sourceUrl = s(parsed.source_url, 500);
   const start = trip.start_date ? new Date(trip.start_date + "T12:00:00") : null;
   const nextCheck = start ? new Date(start.getTime() - 30 * 86400000).toISOString().slice(0, 10) : null;
@@ -165,10 +174,14 @@ Today: ${new Date().toISOString().slice(0, 10)}`;
       const first = diff[0] ?? gone[0];
       changeNote = `${first.label}: ${diff[0] ? diff[0].text : "no longer listed"}`;
     }
+    // A moved advisory level counts as a change, and leads.
+    const prevLevel = previous.advisory?.level ?? null;
+    if (advisory && prevLevel != null && advisory.level !== prevLevel) changeNote = `Advisory: ${advisory.label}`;
   }
 
   const data: EntryData = {
     country: s(parsed.country, 80) ?? country,
+    advisory,
     status: lines.some((l) => l.action && !l.done) ? "action" : "clear",
     lines,
     source_url: sourceUrl && /^https?:\/\//.test(sourceUrl) ? sourceUrl : null,
