@@ -361,15 +361,3 @@ and forget must be `.then(({ error }) => …)`, never `void`.
   like any pin ("2 – 4 · ★"). The full-screen map is `z-[55]` (above the
   BottomNav's z-50, below the z-60 sheets). A card tap in the dock never
   changes zoom: on-screen pin jumps, off-screen pin slides in at current zoom.
-
-## The big Map's rings (Sept 5 2026)
-
-- `FullMapClient.recluster()` folds SAVED pins that would touch (`CLUSTER_PX`)
-  into one ring with a count; scheduled pins never fold. Runs on `moveend`,
-  after `syncVisibility`, and after add/delete via `reclusterRef`.
-- Tap a ring: `fitBounds` to its members (maxZoom 17). At or past `FAN_ZOOM`
-  (16.5) the tap fans the members out via `marker.setOffset` instead
-  (`fannedKey`); any pan or a map click folds them back.
-- Brennan's rule for this screen: "The map should be pretty simple." No
-  sheet, no names on rings, no list that follows the map — all were mocked
-  and rejected.
