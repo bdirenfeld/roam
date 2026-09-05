@@ -60,7 +60,7 @@ import { formatTimeRange } from "@/lib/formatTime";
 import { getOpeningHoursConflict, openingHoursCaption, openingHoursTone } from "@/lib/openingHours";
 
 import CardImage from "@/components/ui/CardImage";
-import { Trash, DotsThree, ArrowLeft, ArrowRight, BookmarkSimple, Files, NotePencil } from "@phosphor-icons/react";
+import { Trash, DotsThree, ArrowLeft, ArrowRight, Files, NotePencil } from "@phosphor-icons/react";
 import { useGlobalSearch } from "@/components/search/GlobalSearch";
 import { useToast } from "@/components/ui/Toast";
 import AppMenu from "@/components/ui/AppMenu";
@@ -2328,7 +2328,7 @@ interface DayColumnProps {
   onAddFromSaved: () => void;
 }
 
-function DayColumn({ day, cards, dayIndex, fullWidth, onCardTap, onDelete, onOpenComposer, onAddFromSaved }: DayColumnProps) {
+function DayColumn({ day, cards, dayIndex, fullWidth, onCardTap, onDelete, onOpenComposer }: DayColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `${COL_PREFIX}${day.id}` });
 
   return (
@@ -2375,25 +2375,11 @@ function DayColumn({ day, cards, dayIndex, fullWidth, onCardTap, onDelete, onOpe
             )}
           </div>
 
-          {/* Add a place — flush below the last card. On the phone this is the
-              one door: the sheet it opens lists saved places first, then a
-              Google search. The batch "Add from saved" picker stays on the
-              desktop, where ticking six places for one day is the point of
-              the board (Brennan, from his phone, Sep 2026). */}
+          {/* Add a place — flush below the last card, the one door on both
+              widths: the sheet lists saved places first, then a Google search.
+              The desktop's batch "Add from saved" button went the same way
+              (Brennan, Sep 2026: "not needed anymore"). */}
           <div className="flex flex-col gap-2 shrink-0">
-            <button
-              onClick={onAddFromSaved}
-              className="hidden md:flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 active:opacity-70 transition-opacity"
-              style={{
-                background: "#EDECE8",
-                boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)",
-                fontFamily: "'DM Sans', system-ui, sans-serif",
-                fontWeight: 600, fontSize: "13.5px", color: "#1A1A2E", letterSpacing: "-0.005em",
-              }}
-            >
-              <BookmarkSimple size={14} weight="light" color="#1A1A2E" />
-              Add from saved
-            </button>
             <AddPlaceRow onClick={onOpenComposer} />
           </div>
         </div>
