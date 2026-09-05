@@ -61,8 +61,9 @@ export function entryHeadline(data: EntryData | null | undefined): string | null
   if (!line) return null;
   // First sentence only: the Agenda line is a nudge, the block has the rest.
   const short = firstSentence(line.text).replace(/[.!?]$/, "");
+  // A separator, not a preposition: the sentence often ends "before departure" already.
   const by = line.deadline
-    ? ` before ${new Date(line.deadline + "T12:00:00").toLocaleDateString("en-CA", { month: "short", day: "numeric" })}`
+    ? ` · by ${new Date(line.deadline + "T12:00:00").toLocaleDateString("en-CA", { month: "short", day: "numeric" })}`
     : "";
   return `Entry · ${short.charAt(0).toLowerCase()}${short.slice(1)}${by}`;
 }
