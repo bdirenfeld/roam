@@ -370,6 +370,9 @@ export default function DesktopMasthead() {
       {/* Everything reached occasionally, named, in one menu — including Plan
           a journey, which is why this renders off a journey as well as on one.
           The phone has shown this list all along; this is it at desktop width. */}
+      {/* Off a journey the menu had one row, Ideas, which is already a tab
+          beside Journeys (Brennan, Sep 2026) — so it renders on a journey only. */}
+      {currentTripId && (
       <AppMenu
         variant="desktop"
         tripId={currentTripId}
@@ -382,6 +385,7 @@ export default function DesktopMasthead() {
         ] : undefined}
         triggerClassName="inline-flex items-center justify-center w-[33px] h-[33px] rounded-lg text-[rgba(26,26,46,0.62)] hover:bg-[rgba(26,26,46,0.06)] transition-colors"
       />
+      )}
 
       {/* Profile dropdown — replaces the previous direct-link avatar. */}
       <div ref={menuRef} style={{ position: "relative" }}>
