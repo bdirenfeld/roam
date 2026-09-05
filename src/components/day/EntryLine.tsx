@@ -35,14 +35,18 @@ export default function EntryLine({ trip, days, dayDate, readOnly }: { trip: Tri
       const row = (data as TripEntry | null) ?? null;
       setEntry(row);
 
+      const daysToGo = trip.start_date ? Math.round((new Date(trip.start_date + "T12:00:00").getTime() - Date.now()) / 86400000) : null;
+      const upcoming = daysToGo != null && daysToGo >= 0;
+
       if (row?.changed && row.data) {
-        toast({ message: `Entry rules for ${row.data.country} changed since your last check.${row.data.change_note ? ` ${row.data.change_note}` : ""}`, duration: 9000 });
+        // Said once, short, and only while the journey is still ahead — a
+        // past journey has nothing to act on (a long one wrapped into a ball
+        // on the phone; Brennan, Sep 2026).
+        if (upcoming) toast({ message: `Entry rules for ${row.data.country} changed — see Settings.`, duration: 7000 });
         void supabase.from("trip_entry").update({ changed: false }).eq("trip_id", trip.id);
       }
 
-      if (readOnly) return;
-      const daysToGo = trip.start_date ? Math.round((new Date(trip.start_date + "T12:00:00").getTime() - Date.now()) / 86400000) : null;
-      if (daysToGo == null || daysToGo < 0) return; // past journeys are not checked
+      if (readOnly || !upcoming) return; // past journeys are not checked
       const ageDays = row?.checked_at ? (Date.now() - new Date(row.checked_at).getTime()) / 86400000 : Infinity;
       const firstTime = !row?.data;
       const dueRecheck = !firstTime && daysToGo <= 30 && ageDays > 7;
@@ -57,10 +61,10 @@ export default function EntryLine({ trip, days, dayDate, readOnly }: { trip: Tri
       const j = (await res.json()) as { passports: string[]; data: EntryData; changed: boolean };
       setEntry({ trip_id: trip.id, passports: j.passports, data: j.data, changed: false, checked_at: j.data.checked_at });
       if (j.changed && j.data.change_note) {
-        toast({ message: `Entry rules for ${j.data.country} changed. ${j.data.change_note}`, duration: 9000 });
+        toast({ message: `Entry rules for ${j.data.country} changed — see Settings.`, duration: 7000 });
         void supabase.from("trip_entry").update({ changed: false }).eq("trip_id", trip.id);
       } else if (firstTime && j.data.lines.some((l) => l.action)) {
-        toast({ message: `Entry requirements for ${j.data.country} are in Journey settings. Something needs doing before you go.`, duration: 7000 });
+        toast({ message: `Something to do before ${j.data.country} — see Entry in Settings.`, duration: 7000 });
       }
     };
     void run();
