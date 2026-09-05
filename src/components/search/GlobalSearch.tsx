@@ -790,19 +790,8 @@ export function SearchButton({
       {label && (
         <>
           <span style={{ fontSize: 12.5, color: "rgba(26,26,46,0.7)" }}>{label}</span>
-          {/* ⌘K is really bound (see the keydown handler above), so the badge
-              is a fact rather than decoration. */}
-          <span
-            style={{
-              fontSize: 10,
-              padding: "1px 5px",
-              borderRadius: 4,
-              color: "rgba(26,26,46,0.35)",
-              border: "1px solid rgba(26,26,46,0.13)",
-            }}
-          >
-            ⌘K
-          </span>
+          {/* No shortcut badge: "⌘K" meant nothing to anyone (Brennan, Sep 2026).
+              The key still works for whoever knows it. */}
         </>
       )}
     </button>

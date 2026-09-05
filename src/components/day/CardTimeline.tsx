@@ -87,10 +87,11 @@ function GapRow({ minutes, onTap }: { minutes: number; onTap: () => void }) {
   );
 }
 
-// A draggable untimed row. Press and hold anywhere on it to move it: the
-// touch sensor waits 220 ms before it counts as a drag, so a tap still opens
-// the card and a swipe still changes the day. The grip it replaces was the
-// only handle, and nobody found it (Brennan, Sep 2026).
+// A draggable untimed row. The drag starts from a visible "≡" handle on the
+// right: a touch there is a drag, never a scroll (touch-none) and never a
+// text selection. Whole-row dragging was tried on 2026-09-05 and lost to the
+// phone — the browser read the hold as "select text". The handle is the size
+// and ink of the card's own glyphs so it can be found.
 function SortableUntimedRow({
   card,
   children,
@@ -107,17 +108,27 @@ function SortableUntimedRow({
   return (
     <div
       ref={setNodeRef}
-      {...listeners}
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.5 : 1,
-        touchAction: "manipulation",
       }}
-      className="cursor-grab active:cursor-grabbing"
-      aria-label={`Press and hold to move ${(card.place?.title ?? (card.details as { title?: string })?.title) ?? "card"}`}
+      className="flex items-center gap-1"
     >
-      {children}
+      <div className="flex-1 min-w-0">{children}</div>
+      <button
+        type="button"
+        {...listeners}
+        aria-label={`Hold to move ${(card.place?.title ?? (card.details as { title?: string })?.title) ?? "card"}`}
+        title="Hold to move"
+        onClick={(e) => e.stopPropagation()}
+        className="flex-shrink-0 self-center mb-5 w-9 h-9 grid place-items-center rounded-full touch-none select-none cursor-grab active:cursor-grabbing"
+        style={{ color: "rgba(26,26,46,0.45)", WebkitTouchCallout: "none" as never }}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+          <line x1="5" y1="8" x2="19" y2="8" /><line x1="5" y1="12" x2="19" y2="12" /><line x1="5" y1="16" x2="19" y2="16" />
+        </svg>
+      </button>
     </div>
   );
 }
@@ -245,7 +256,7 @@ export default function CardTimeline({
               className="mb-2 pl-[33px] text-[12.5px]"
               style={{ fontFamily: "'Playfair Display', Georgia, serif", fontStyle: "italic", color: "rgba(26,26,46,0.45)" }}
             >
-              No time yet · press and hold to reorder
+              No time yet · hold ≡ to move
             </p>
           )}
 
