@@ -357,3 +357,7 @@ and forget must be `.then(({ error }) => …)`, never `void`.
 - `lib/countries.ts` carries aliases (UK, USA, Holland…) and every ISO
   territory; `isKnownPassport` decides the sienna "not on our list" chip.
   Free text IS kept now, but always marked.
+- The hotel is a `PinItem` with `index: -1` and no z-index lift, so it stacks
+  like any pin ("2 – 4 · ★"). The full-screen map is `z-[55]` (above the
+  BottomNav's z-50, below the z-60 sheets). A card tap in the dock never
+  changes zoom: on-screen pin jumps, off-screen pin slides in at current zoom.
