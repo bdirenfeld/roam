@@ -467,6 +467,20 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   // The card whose time chip was tapped: the quick time sheet is open for it.
   const [timeCard, setTimeCard] = useState<Card | null>(null);
 
+  // For a card with no time, the sheet opens at the end of the day's last
+  // timed card (or an hour after its start, or 9 AM on an empty day), so the
+  // common case is: tap the chip, tap Done.
+  const suggestedStart = useMemo(() => {
+    if (!timeCard || timeCard.start_time) return null;
+    const timed = localCards.filter((c) => c.start_time && c.id !== timeCard.id).sort(agendaOrder);
+    const last = timed[timed.length - 1];
+    if (!last) return "09:00";
+    if (last.end_time) return last.end_time.slice(0, 5);
+    const [h, m] = last.start_time!.split(":").map(Number);
+    const n = Math.min(23 * 60 + 45, h * 60 + m + 60);
+    return `${String(Math.floor(n / 60)).padStart(2, "0")}:${String(n % 60).padStart(2, "0")}`;
+  }, [timeCard, localCards]);
+
   // A new time from the sheet. The day re-sorts at once, the card is lifted
   // where it landed, and the toast carries an Undo (the old times go back).
   const handleTimeSave = useCallback(async (card: Card, start: string | null, end: string | null) => {
@@ -1071,6 +1085,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
       {timeCard && (
         <TimeSheet
           card={timeCard}
+          suggestedStart={suggestedStart}
           onClose={() => setTimeCard(null)}
           onSave={(start, end) => handleTimeSave(timeCard, start, end)}
         />

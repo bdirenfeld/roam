@@ -54,6 +54,8 @@ export interface TripEntry {
   data: EntryData | null;
   changed: boolean;
   checked_at: string | null;
+  /** The exact Agenda headline the owner hid with the ×; shows again when it differs. */
+  hidden_headline?: string | null;
 }
 
 export function entryStatus(data: EntryData | null | undefined): "action" | "clear" | null {

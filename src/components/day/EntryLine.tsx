@@ -20,16 +20,23 @@ export default function EntryLine({ trip, days, dayDate, readOnly }: { trip: Tri
   const supabase = createClient();
   const { toast } = useToast();
   const [entry, setEntry] = useState<TripEntry | null | undefined>(undefined);
-  // The × remembers the exact words it hid, on this device. New words — the
-  // rules changed at a recheck, or something got ticked — bring the line back.
+  // The × remembers the exact words it hid. New words — the rules changed at
+  // a recheck, or something got ticked — bring the line back. The owner's ×
+  // is saved on the journey's row, so it holds on every device and for the
+  // guests; a guest can't write that row, so theirs stays on their device.
   const hiddenKey = `roam:entry-line-hidden:${trip.id}`;
   const [hiddenText, setHiddenText] = useState<string | null>(null);
   useEffect(() => {
+    if (!readOnly) return;
     try { setHiddenText(localStorage.getItem(hiddenKey)); } catch { /* private mode */ }
-  }, [hiddenKey]);
+  }, [hiddenKey, readOnly]);
   const hide = (text: string) => {
-    try { localStorage.setItem(hiddenKey, text); } catch { /* private mode */ }
     setHiddenText(text);
+    if (readOnly) {
+      try { localStorage.setItem(hiddenKey, text); } catch { /* private mode */ }
+      return;
+    }
+    void supabase.from("trip_entry").update({ hidden_headline: text }).eq("trip_id", trip.id);
   };
 
   useEffect(() => {
@@ -37,7 +44,7 @@ export default function EntryLine({ trip, days, dayDate, readOnly }: { trip: Tri
     const run = async () => {
       const { data, error } = await supabase
         .from("trip_entry")
-        .select("trip_id, passports, data, changed, checked_at")
+        .select("trip_id, passports, data, changed, checked_at, hidden_headline")
         .eq("trip_id", trip.id)
         .maybeSingle();
       if (cancelled) return;
@@ -45,6 +52,7 @@ export default function EntryLine({ trip, days, dayDate, readOnly }: { trip: Tri
       if (error) return;
       const row = (data as TripEntry | null) ?? null;
       setEntry(row);
+      if (row?.hidden_headline) setHiddenText((prev) => prev ?? row.hidden_headline ?? null);
 
       const daysToGo = trip.start_date ? Math.round((new Date(trip.start_date + "T12:00:00").getTime() - Date.now()) / 86400000) : null;
       const upcoming = daysToGo != null && daysToGo >= 0;
