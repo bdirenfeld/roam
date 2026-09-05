@@ -183,6 +183,26 @@ export default function NewJourneyForm({
   const [startDate,     setStartDate]     = useState(seededDates?.start ?? "");
   const [endDate,       setEndDate]       = useState(seededDates?.end ?? "");
   const [partySize,     setPartySize]     = useState(1);
+  // Travellers starts where the last journey left it. A family app that
+  // opens on "1" every time is a form to correct, not a plan (new-journey
+  // audit, Sep 2026). Only until the traveller touches the control.
+  const partyTouched = useRef(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("trips")
+        .select("party_size")
+        .not("party_size", "is", null)
+        .order("start_date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const n = (data as { party_size?: number | null } | null)?.party_size;
+      if (!cancelled && !partyTouched.current && n && n > 0) setPartySize(n);
+    })();
+    return () => { cancelled = true; };
+  }, []);
   const [saving,        setSaving]        = useState(false);
   const [saveError,     setSaveError]     = useState<string | null>(null);
 
@@ -782,7 +802,7 @@ export default function NewJourneyForm({
             </span>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setPartySize((v) => Math.max(1, v - 1))}
+                onClick={() => { partyTouched.current = true; setPartySize((v) => Math.max(1, v - 1)); }}
                 disabled={partySize <= 1}
                 className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 text-[14px] leading-none disabled:opacity-30 active:scale-90 transition-transform"
                 aria-label="Decrease"
@@ -793,7 +813,7 @@ export default function NewJourneyForm({
                 {partySize}
               </span>
               <button
-                onClick={() => setPartySize((v) => v + 1)}
+                onClick={() => { partyTouched.current = true; setPartySize((v) => v + 1); }}
                 className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 text-[14px] leading-none active:scale-90 transition-transform"
                 aria-label="Increase"
               >
