@@ -217,16 +217,24 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
           </p>
           {isLoved && <LovedHeart size={11} />}
           {confirmed && onToggleConfirmed && (
-            <button
+            // Not a <button>: the card itself is one, and a button inside a
+            // button is invalid HTML. The parser closed the card early, the
+            // rest of the day spilled out below the nav, and hydration gave up
+            // — New York only, because only its cards carried the tick
+            // (Brennan, Sep 2026: "scroll to the bottom and it gets all screwed up").
+            <span
+              role="button"
+              tabIndex={0}
               onClick={(e) => { e.stopPropagation(); onToggleConfirmed(); }}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onToggleConfirmed(); } }}
               aria-label="Confirmed — tap to unconfirm"
-              className="shrink-0 inline-flex items-center justify-center"
+              className="shrink-0 inline-flex items-center justify-center cursor-pointer"
               style={{ width: 13, height: 13, borderRadius: "50%", background: "#1A1A2E" }}
             >
               <svg width="7" height="7" viewBox="0 0 7 7" fill="none">
                 <polyline points="1,3.5 2.8,5.5 6,1.5" stroke="#F5F4F1" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-            </button>
+            </span>
           )}
         </div>
 

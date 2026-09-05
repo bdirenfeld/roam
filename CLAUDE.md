@@ -270,3 +270,6 @@ this. Card files open in a new tab and delete from their card, not here.
 `card-attachments` is a PRIVATE bucket: `file_url` (a /object/public/ URL) never resolves. Open a
 file through `createSignedUrl(s)` on `file_path`, signed before the tap (iOS blocks a post-await
 window.open). Every bottom sheet uses `useSheetDrag` — hand-rolled touch handlers dismiss on scroll.
+Never nest interactive elements: CardSurface is a `<button>`, so anything tappable inside it is a
+`<span role="button" tabIndex={0}>` with a keyboard handler. A `<button>` inside it made the HTML
+parser close the card early — the rest of the day spilled out below the nav and hydration bailed.

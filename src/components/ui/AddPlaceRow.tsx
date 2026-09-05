@@ -2,7 +2,8 @@
 
 // ── The one "Add a place" ─────────────────────────────────────────────────
 // A quiet row: a ringed plus and the words, at the bottom of whatever list
-// it adds to. It replaced three controls doing one job — plain text under
+// it adds to, with no rule of its own — the list above already ends in one.
+// It replaced three controls doing one job — plain text under
 // the Agenda, a dashed box on Plan, a dark pill on a new journey (Brennan,
 // Sep 2026: one look). The dark pill is for a screen's one primary action.
 
@@ -21,7 +22,6 @@ export default function AddPlaceRow({
       type="button"
       onClick={onClick}
       className={`w-full flex items-center gap-2.5 px-5 py-[13px] text-[14px] text-[#1A1A2E] active:opacity-70 transition-opacity ${centered ? "justify-center" : ""} ${className}`}
-      style={centered ? undefined : { borderTop: "1px solid rgba(26,26,46,0.10)" }}
     >
       <span
         aria-hidden="true"
