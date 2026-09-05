@@ -1,7 +1,8 @@
 "use client";
 
 import "mapbox-gl/dist/mapbox-gl.css";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import type { Card } from "@/types/database";
 import { makeMaterialPinElement } from "@/lib/mapPins";
 
@@ -18,6 +19,11 @@ interface Props {
    *  and by tapping a stacked pin. */
   expanded?: boolean;
   onToggleExpand?: () => void;
+  /** The day's list, docked under the map while it fills the screen. */
+  dock?: ReactNode;
+  /** Fly to this card's pin (a tap on its row in the dock). The nonce lets
+   *  the same card be asked for twice. */
+  focus?: { cardId: string; nonce: number } | null;
 }
 
 // One placed pin, with what the stacking pass needs to know about it.
@@ -32,10 +38,13 @@ interface PinItem {
   group: PinItem[] | null;
 }
 
-// Pins closer than this on screen are one pin. A pin is 32px wide.
-const STACK_PX = 30;
+// Pins whose drawn discs would touch are one pin. Measured from the pin the
+// browser actually laid out, so a phone with more pixels per pin does not
+// stack sooner or later than another. 32px is only the fallback before the
+// first layout.
+const PIN_FALLBACK_PX = 32;
 
-export default function DayMap({ cards, accommodationCard, centerLat, centerLng, onPinTap, pulsedCardId, expanded = false, onToggleExpand }: Props) {
+export default function DayMap({ cards, accommodationCard, centerLat, centerLng, onPinTap, pulsedCardId, expanded = false, onToggleExpand, dock, focus }: Props) {
   const mapRef         = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<unknown>(null);
   const pinsRef        = useRef<PinItem[]>([]);
@@ -89,6 +98,22 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [expanded]);
+
+  // ── Fly to a card (a tap on its row in the docked list) ────────
+  useEffect(() => {
+    if (!focus) return;
+    const map = mapInstanceRef.current as { easeTo: (o: unknown) => void; getZoom: () => number } | null;
+    const pin = pinsRef.current.find((it) => it.cardId === focus.cardId);
+    if (!map || !pin) return;
+    map.easeTo({ center: [pin.lng, pin.lat], zoom: Math.max(map.getZoom(), 15), duration: 500 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focus]);
+
+  // The dock: one card's worth, or most of the screen. A tap on the handle
+  // or a flick up/down switches.
+  const [dockOpen, setDockOpen] = useState(false);
+  const dockTouchY = useRef<number | null>(null);
+  useEffect(() => { if (!expanded) setDockOpen(false); }, [expanded]);
 
   // ── Map init ───────────────────────────────────────────────────
   useEffect(() => {
@@ -198,6 +223,8 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
         const restack = () => {
           const items = pinsRef.current;
           items.forEach((it) => { it.wrapper.style.display = ""; it.badge.textContent = String(it.index + 1); it.group = null; });
+          const pinPx = items[0]?.wrapper.getBoundingClientRect().width || PIN_FALLBACK_PX;
+          const STACK_PX = pinPx * 0.95;
           const pts = items.map((it) => ({ it, p: map.project([it.lng, it.lat]) as { x: number; y: number } }));
           const used = new Set<number>();
           for (let a = 0; a < pts.length; a++) {
@@ -339,6 +366,32 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
       }
     >
       <div ref={mapRef} className="absolute inset-0" />
+      {expanded && dock && (
+        // The day, docked. Map and list move each other: a pin tap scrolls
+        // the list to its card, a card tap flies the map to its pin.
+        <div
+          className="md:hidden absolute left-0 right-0 bottom-0 z-10 bg-white rounded-t-2xl flex flex-col"
+          style={{ height: dockOpen ? "72dvh" : 176, boxShadow: "0 -6px 24px rgba(0,0,0,0.12)", transition: "height 260ms cubic-bezier(0.32,0.72,0,1)", paddingBottom: "env(safe-area-inset-bottom)" }}
+        >
+          <button
+            type="button"
+            onClick={() => setDockOpen((v) => !v)}
+            onTouchStart={(e) => { dockTouchY.current = e.touches[0].clientY; }}
+            onTouchEnd={(e) => {
+              const y0 = dockTouchY.current; dockTouchY.current = null;
+              if (y0 == null) return;
+              const dy = e.changedTouches[0].clientY - y0;
+              if (dy < -24) setDockOpen(true);
+              else if (dy > 24) setDockOpen(false);
+            }}
+            aria-label={dockOpen ? "Show less of the day" : "Show the whole day"}
+            className="flex-shrink-0 w-full flex justify-center pt-2.5 pb-1.5 touch-none"
+          >
+            <span className="w-9 h-[3px] rounded-full" style={{ background: "rgba(26,26,46,0.20)" }} />
+          </button>
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4">{dock}</div>
+        </div>
+      )}
       {onToggleExpand && (
         // Phone only: the desktop map is already 620px tall.
         <button

@@ -468,6 +468,23 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   const [timeCard, setTimeCard] = useState<Card | null>(null);
   // Phone: the day map filling the screen (⤢, or a tap on a stacked pin).
   const [mapExpanded, setMapExpanded] = useState(false);
+  // While it fills the screen, a card tap flies the map to its pin and lifts
+  // the row; the same card tapped again opens it. A pin tap scrolls the
+  // docked list to its card instead of opening it.
+  const [mapFocus, setMapFocus] = useState<{ cardId: string; nonce: number } | null>(null);
+  const handleDockCardTap = useCallback((card: Card) => {
+    if (mapFocus?.cardId === card.id) { setSelectedCard(card); setIsCardOpen(true); return; }
+    setMapFocus((f) => ({ cardId: card.id, nonce: (f?.nonce ?? 0) + 1 }));
+    setHighlightedCardId(card.id);
+    setTimeout(() => setHighlightedCardId(null), 1200);
+  }, [mapFocus]);
+  const handleDockPinTap = useCallback((cardId: string) => {
+    const el = document.querySelector(`[data-card-id="${cardId}"]`);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlightedCardId(cardId);
+    setTimeout(() => setHighlightedCardId(null), 1200);
+    setMapFocus((f) => ({ cardId, nonce: (f?.nonce ?? 0) + 1 }));
+  }, []);
 
   // For a card with no time, the sheet opens at the end of the day's last
   // timed card (or an hour after its start, or 9 AM on an empty day), so the
@@ -921,9 +938,21 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
             accommodationCard={accommodationCard ?? undefined}
             centerLat={trip.destination_lat ?? 41.9028}
             centerLng={trip.destination_lng ?? 12.4964}
-            onPinTap={handlePinTap}
+            onPinTap={mapExpanded ? handleDockPinTap : handlePinTap}
             expanded={mapExpanded}
-            onToggleExpand={() => setMapExpanded((v) => !v)}
+            onToggleExpand={() => { setMapExpanded((v) => !v); setMapFocus(null); }}
+            focus={mapFocus}
+            dock={
+              <CardTimeline
+                dayWithCards={localDayWithCards}
+                onCardTap={handleDockCardTap}
+                highlightedCardId={highlightedCardId}
+                onToggleConfirmed={readOnly ? undefined : handleToggleConfirmed}
+                cardNumberById={cardNumberById}
+                readOnly={readOnly}
+                onTimeTap={readOnly ? undefined : (card) => setTimeCard(card)}
+              />
+            }
           />
         </div>
 
