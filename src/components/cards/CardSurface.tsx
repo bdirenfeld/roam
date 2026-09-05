@@ -2,6 +2,7 @@ import type { Card } from "@/types/database";
 import { getMaterialIconHTML } from "@/lib/mapPins";
 import { getPriceRange } from "@/lib/priceRange";
 import { formatTimeRange } from "@/lib/formatTime";
+import { subTypeLabel } from "@/lib/subTypeLabel";
 import { getOpeningHoursConflict, openingHoursCaption, openingHoursTone } from "@/lib/openingHours";
 import { readRecommendedBy, recommendedByLine } from "@/lib/recommendedBy";
 import LovedHeart from "@/components/ui/LovedHeart";
@@ -36,17 +37,6 @@ function isConfirmable(card: Card): boolean {
   );
 }
 
-const SUB_TYPE_SHORT: Record<string, string> = {
-  flight_arrival:   "Arrival",
-  flight_departure: "Departure",
-  self_directed:    "Self-directed",
-  hosted:           "Guided",
-  wellness:         "Wellness",
-  beach:            "Beach",
-  restaurant:       "Restaurant",
-  coffee_dessert:   "Coffee",
-  drinks:           "Drinks",
-};
 
 function flightRoute(det: Record<string, unknown> | null, timeRange: string | null): string | null {
   const origin   = typeof det?.origin_airport  === "string" ? det.origin_airport  : null;
@@ -131,7 +121,7 @@ function noteLead(det: Record<string, unknown> | null): string | null {
 export default function CardSurface({ card, dayDate, onTap, isHighlighted, onToggleConfirmed, onTimeTap, pinIndex }: Props) {
   const place     = card.place;
   const det       = card.details as Record<string, unknown> | null;
-  const subLabel  = place?.sub_type ? (SUB_TYPE_SHORT[place.sub_type] ?? null) : null;
+  const subLabel  = subTypeLabel(place?.sub_type);
   const timeRange = formatTimeRange(card.start_time, card.end_time);
   const hoursSignal = place ? getOpeningHoursConflict(place.hours, dayDate ?? null, card.start_time) : null;
   const noteSnippet = !place ? (det?.notes as string | undefined) : undefined;

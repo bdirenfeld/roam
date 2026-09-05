@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { subTypeLabel } from "@/lib/subTypeLabel";
 import {
   DndContext,
   DragOverlay,
@@ -111,22 +112,6 @@ const TYPE_BORDER: Record<CardType, string> = {
 };
 
 
-const SUB_LABEL: Record<string, string> = {
-  flight_arrival:   "Arrival",
-  flight_departure: "Departure",
-  self_directed:    "Self-directed",
-  guided:           "Guided",
-  hosted:           "Guided",
-  wellness:         "Wellness",
-  beach:            "Beach",
-  challenge:        "Challenge",
-  restaurant:       "Restaurant",
-  coffee:           "Coffee",
-  coffee_dessert:   "Coffee",
-  cocktail_bar:     "Cocktail bar",
-  drinks:           "Drinks",
-  note:             "Note",
-};
 
 // ── Template definitions ───────────────────────────────────────
 interface SkeletonDef {
@@ -3262,7 +3247,7 @@ function CardTile({
   // Unlinked cards default to activity-style border for color consistency
   const placeType   = place?.type ?? "activity";
   const borderClass = isNote ? "border-l-gray-200" : (TYPE_BORDER[placeType] ?? "border-l-gray-300");
-  const subLabel    = place?.sub_type ? (SUB_LABEL[place.sub_type] ?? place.sub_type) : null;
+  const subLabel    = subTypeLabel(place?.sub_type);
   const noteSnippet = isNote ? (det?.notes as string | undefined) : undefined;
   const tileRating  = place?.type === "food" ? place.rating : null;
   const priceRange  = place?.type === "food"

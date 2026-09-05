@@ -653,44 +653,6 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
     }, 250);
   }, []);
 
-  // Drag-reorder of the day's untimed cards. Positions are rewritten across
-  // the WHOLE day (timed first, then the new untimed order) so they stay
-  // 1-based and contiguous, and so agendaOrder's tiebreak reproduces exactly
-  // what was just dropped.
-  const handleReorderUntimed = useCallback(
-    async (orderedUntimedIds: string[]) => {
-      const byId = new Map(localCards.map((c) => [c.id, c]));
-      const timed = localCards.filter((c) => c.start_time).sort(agendaOrder);
-      const untimed = orderedUntimedIds
-        .map((id) => byId.get(id))
-        .filter((c): c is Card => !!c);
-      if (untimed.length !== orderedUntimedIds.length) return;
-
-      const renumbered = [...timed, ...untimed].map((c, i) => ({ ...c, position: i + 1 }));
-      const snapshot = localCards;
-      setLocalCards(renumbered);
-
-      const changed = renumbered.filter((c) => byId.get(c.id)?.position !== c.position);
-      // Sequential, not Promise.all: each row's write has to see the queue
-      // state left by the previous one, otherwise a batch that starts online
-      // and loses signal halfway can send some rows direct while queueing
-      // others — and replaying that queue would rewrite an order the server
-      // already has. One row at a time keeps the whole reorder in one mode.
-      let failure: string | null = null;
-      for (const c of changed) {
-        const { error } = await queuedUpdate("cards", { id: c.id }, { position: c.position });
-        // A refusal on the first row (RLS, a deleted card) will refuse the
-        // rest too — stop, so the rollback below leaves local state and the
-        // server agreeing rather than half-renumbered.
-        if (error) { failure = error.message; break; }
-      }
-      if (failure) {
-        console.error("[Roam] Reorder failed:", failure);
-        setLocalCards(snapshot);
-      }
-    },
-    [localCards]
-  );
 
   const dayWeather = weatherByDate?.[dayWithCards.date] ?? null;
 
@@ -986,7 +948,6 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
               onToggleConfirmed={readOnly ? undefined : handleToggleConfirmed}
               cardNumberById={cardNumberById}
               readOnly={readOnly}
-              onReorder={readOnly ? undefined : handleReorderUntimed}
               onTimeTap={readOnly ? undefined : (card) => setTimeCard(card)}
             />
           </div>
