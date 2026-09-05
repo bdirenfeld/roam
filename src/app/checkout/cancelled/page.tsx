@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 const INK = "#1A1A2E";
-const PARCHMENT = "#FAF7F2";
+const PARCHMENT = "#F5F4F1";
 
 export default function CheckoutCancelledPage() {
   return (

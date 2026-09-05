@@ -662,7 +662,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
       {/* ── Desktop sidebar ── (owner only — it carries per-card delete and the
           enrich utility; a guest gets the bare map) */}
       {!readOnly && (
-        <aside className="hidden md:flex md:w-[232px] flex-shrink-0 border-r overflow-y-auto z-20 flex-col" style={{ borderRightColor: "rgba(26,26,46,0.10)", background: "#FAF7F2" }}>
+        <aside className="hidden md:flex md:w-[232px] flex-shrink-0 border-r overflow-y-auto z-20 flex-col" style={{ borderRightColor: "rgba(26,26,46,0.10)", background: "#F5F4F1" }}>
           <MapSidebar
             cards={localCards}
             activeSubTypes={activeSubTypes}            activeTypes={activeTypes}

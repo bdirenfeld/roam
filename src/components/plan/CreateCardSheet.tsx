@@ -527,7 +527,7 @@ export default function CreateCardSheet({
                         className="w-full flex items-center gap-3 px-3.5 py-3 text-left active:opacity-70 transition-opacity disabled:opacity-50"
                         style={{ borderBottom: i < g.cards.length - 1 ? "1px solid rgba(26,26,46,0.08)" : "none" }}
                       >
-                        <span className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#F7F3EA", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)" }}>
+                        <span className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#F0EFEB", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)" }}>
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
                           </svg>

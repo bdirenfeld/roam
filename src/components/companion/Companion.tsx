@@ -18,7 +18,7 @@ import { COMPANION_ENABLED } from "@/lib/featureFlags";
 
 const SIENNA = "#B0541F";
 const INK = "#1A1A2E";
-const PARCHMENT = "#FAF7F2";
+const PARCHMENT = "#F5F4F1";
 const RULE = "rgba(26,26,46,0.12)";
 
 const cacheKey = (tripId: string) => `roam:companion:v1:${tripId}`;

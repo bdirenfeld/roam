@@ -26,7 +26,7 @@ import type { AddProposal, CutProposal, MoveProposal, ProposalIcon } from "@/lib
 
 const SIENNA = "#B0541F";
 const INK = "#1A1A2E";
-const PARCHMENT = "#FAF7F2";
+const PARCHMENT = "#F5F4F1";
 const RULE = "rgba(26,26,46,0.12)";
 const RULE_STRONG = "rgba(26,26,46,0.20)";
 
@@ -57,7 +57,7 @@ export function ProposalCard({
 
   return (
     <div
-      className="overflow-hidden rounded-[4px] bg-[#FAF7F2]"
+      className="overflow-hidden rounded-[4px] bg-[#F5F4F1]"
       style={{ border: `1px solid ${RULE_STRONG}` }}
     >
       {/* Header */}
@@ -107,7 +107,7 @@ export function ProposalCard({
               }}
             >
               <div
-                className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[#F2EDE3]"
+                className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[#EDECE8]"
                 style={{ border: `1px solid ${RULE_STRONG}`, color: INK }}
               >
                 <Icon size={14} weight="light" />
@@ -144,7 +144,7 @@ export function ProposalCard({
       {/* Footer — reassurance + Approve / Discard */}
       <div
         className="flex items-center justify-between gap-3 px-4 py-3"
-        style={{ borderTop: `1px solid ${RULE}`, background: "#F7F3EA" }}
+        style={{ borderTop: `1px solid ${RULE}`, background: "#F0EFEB" }}
       >
         <span
           className="font-display text-[12.5px] italic"
@@ -183,7 +183,7 @@ export function ApprovedAck({ count }: { count: number }) {
   return (
     <div
       className="rounded-[4px] px-4 py-3.5 animate-in fade-in duration-300"
-      style={{ background: "#F7F3EA", border: `1px solid ${RULE}` }}
+      style={{ background: "#F0EFEB", border: `1px solid ${RULE}` }}
     >
       <div className="flex items-center gap-2.5">
         <Check size={14} weight="light" style={{ color: INK }} />
@@ -227,7 +227,7 @@ export function CutProposalCard({
   const count = proposal.cards.length;
   return (
     <div
-      className="overflow-hidden rounded-[4px] bg-[#FAF7F2]"
+      className="overflow-hidden rounded-[4px] bg-[#F5F4F1]"
       style={{ border: `1px solid ${RULE_STRONG}` }}
     >
       {/* Header */}
@@ -284,7 +284,7 @@ export function CutProposalCard({
             }}
           >
             <div
-              className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[#F2EDE3]"
+              className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[#EDECE8]"
               style={{ border: `1px solid ${RULE_STRONG}`, color: INK }}
             >
               <Scissors size={13} weight="light" />
@@ -307,7 +307,7 @@ export function CutProposalCard({
       {/* Footer — same vocabulary as the add gate */}
       <div
         className="flex items-center justify-between gap-3 px-4 py-3"
-        style={{ borderTop: `1px solid ${RULE}`, background: "#F7F3EA" }}
+        style={{ borderTop: `1px solid ${RULE}`, background: "#F0EFEB" }}
       >
         <span
           className="font-display text-[12.5px] italic"
@@ -356,7 +356,7 @@ export function CutAck({
   return (
     <div
       className="flex items-center justify-between gap-3 rounded-[4px] px-4 py-3.5 animate-in fade-in duration-300"
-      style={{ background: "#F7F3EA", border: `1px solid ${RULE}` }}
+      style={{ background: "#F0EFEB", border: `1px solid ${RULE}` }}
     >
       <div className="flex items-center gap-2.5">
         <Scissors size={13} weight="light" style={{ color: INK }} />
@@ -410,7 +410,7 @@ export function MoveProposalCard({
 }) {
   return (
     <div
-      className="overflow-hidden rounded-[4px] bg-[#FAF7F2]"
+      className="overflow-hidden rounded-[4px] bg-[#F5F4F1]"
       style={{ border: `1px solid ${RULE_STRONG}` }}
     >
       {/* Header */}
@@ -450,7 +450,7 @@ export function MoveProposalCard({
         className="flex items-start gap-3 px-3.5 py-3 animate-in fade-in slide-in-from-bottom-2 duration-300"
       >
         <div
-          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[#F2EDE3]"
+          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[#EDECE8]"
           style={{ border: `1px solid ${RULE_STRONG}`, color: INK }}
         >
           <ArrowsLeftRight size={13} weight="light" />
@@ -478,7 +478,7 @@ export function MoveProposalCard({
       {/* Footer — same vocabulary as the other gates */}
       <div
         className="flex items-center justify-between gap-3 px-4 py-3"
-        style={{ borderTop: `1px solid ${RULE}`, background: "#F7F3EA" }}
+        style={{ borderTop: `1px solid ${RULE}`, background: "#F0EFEB" }}
       >
         <span
           className="font-display text-[12.5px] italic"
@@ -518,7 +518,7 @@ export function MovedAck({ targetDayNumber }: { targetDayNumber: number }) {
   return (
     <div
       className="rounded-[4px] px-4 py-3.5 animate-in fade-in duration-300"
-      style={{ background: "#F7F3EA", border: `1px solid ${RULE}` }}
+      style={{ background: "#F0EFEB", border: `1px solid ${RULE}` }}
     >
       <div className="flex items-center gap-2.5">
         <ArrowsLeftRight size={13} weight="light" style={{ color: INK }} />
@@ -546,7 +546,7 @@ export function NewConversationGate({
 }) {
   return (
     <div
-      className="overflow-hidden rounded-[4px] bg-[#FAF7F2] animate-in fade-in slide-in-from-bottom-2 duration-300"
+      className="overflow-hidden rounded-[4px] bg-[#F5F4F1] animate-in fade-in slide-in-from-bottom-2 duration-300"
       style={{ border: `1px solid ${RULE_STRONG}` }}
     >
       <div className="px-4 pb-3 pt-3.5" style={{ borderBottom: `1px solid ${RULE}` }}>
@@ -570,7 +570,7 @@ export function NewConversationGate({
       </div>
       <div
         className="flex items-center justify-end gap-4 px-4 py-3"
-        style={{ background: "#F7F3EA" }}
+        style={{ background: "#F0EFEB" }}
       >
         <button
           type="button"

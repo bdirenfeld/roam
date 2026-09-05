@@ -911,8 +911,8 @@ export default function NewJourneyForm({
                           title={`${fmtRange(wStart, wEnd)} · ${w.days} days`}
                           className={`flex-shrink-0 text-[11px] font-semibold rounded-full px-2.5 py-1.5 border whitespace-nowrap transition-colors ${
                             active
-                              ? "bg-[#1A1A2E] text-[#FAF7F2] border-[#1A1A2E]"
-                              : "bg-[#F2EDE3] text-[#1A1A2E] border-black/10"
+                              ? "bg-[#1A1A2E] text-[#F5F4F1] border-[#1A1A2E]"
+                              : "bg-[#EDECE8] text-[#1A1A2E] border-black/10"
                           }`}
                         >
                           <span className={active ? "opacity-60" : "opacity-40"}>{mon}</span>
@@ -957,7 +957,7 @@ export default function NewJourneyForm({
                     aria-pressed={y === calYear}
                     className={`text-[10px] font-semibold rounded-md px-2.5 py-1 transition-colors ${
                       y === calYear
-                        ? "bg-[#1A1A2E] text-[#FAF7F2]"
+                        ? "bg-[#1A1A2E] text-[#F5F4F1]"
                         : "bg-[#1A1A2E]/[0.05] text-[rgba(26,26,46,0.5)]"
                     }`}
                   >

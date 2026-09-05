@@ -1683,7 +1683,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
 
   return (
     <div
-      className="relative flex flex-col h-dvh md:h-[calc(100dvh-64px)] overflow-hidden md:!bg-none md:!bg-[#FAF7F2]"
+      className="relative flex flex-col h-dvh md:h-[calc(100dvh-64px)] overflow-hidden md:!bg-none md:!bg-[#F5F4F1]"
       style={boardBgStyle}
     >
       {/* Nav bar — mobile only (md:hidden). Desktop nav lives in Masthead. */}
@@ -2385,7 +2385,7 @@ function DayColumn({ day, cards, dayIndex, fullWidth, onCardTap, onDelete, onOpe
               onClick={onAddFromSaved}
               className="hidden md:flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 active:opacity-70 transition-opacity"
               style={{
-                background: "#F2EDE3",
+                background: "#EDECE8",
                 boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)",
                 fontFamily: "'DM Sans', system-ui, sans-serif",
                 fontWeight: 600, fontSize: "13.5px", color: "#1A1A2E", letterSpacing: "-0.005em",

@@ -181,7 +181,7 @@ export default function DesktopMasthead() {
         paddingRight: 28,
         alignItems: "center",
         borderBottom: `1px solid ${RULE}`,
-        background: "#FAF7F2",
+        background: "#F5F4F1",
         color: INK,
       }}
     >
@@ -335,7 +335,7 @@ export default function DesktopMasthead() {
           style={{
             display: "inline-flex", alignItems: "center", gap: 7, height: 33,
             padding: "0 13px 0 11px", marginRight: 8, borderRadius: 8,
-            background: INK, color: "#FAF7F2", fontSize: 13, fontWeight: 500,
+            background: INK, color: "#F5F4F1", fontSize: 13, fontWeight: 500,
             letterSpacing: "-0.005em", border: "none", cursor: "pointer",
           }}
         >

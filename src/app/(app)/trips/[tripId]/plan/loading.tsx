@@ -4,7 +4,7 @@
 // arrives.
 export default function PlanLoading() {
   return (
-    <div className="flex flex-col h-dvh md:h-[calc(100dvh-64px)] overflow-hidden bg-white md:bg-[#FAF7F2]">
+    <div className="flex flex-col h-dvh md:h-[calc(100dvh-64px)] overflow-hidden bg-white md:bg-[#F5F4F1]">
       <div className="hidden md:flex items-center gap-3 px-7 pt-5 pb-3">
         <div className="h-8 w-28 rounded-full bg-[rgba(26,26,46,0.06)] animate-pulse" />
         <span className="flex-1" />

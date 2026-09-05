@@ -221,7 +221,7 @@ export default function CompanionPanel({
   // for inline-column placement (md:+ only); inline callers include md:border-l-0
   // to drop the slide-over edge in favor of a boxShadow card outline.
   const baseCls =
-    "fixed inset-0 z-[70] flex flex-col bg-[#FAF7F2] animate-in fade-in slide-in-from-right duration-300 border-l border-[rgba(26,26,46,0.20)]";
+    "fixed inset-0 z-[70] flex flex-col bg-[#F5F4F1] animate-in fade-in slide-in-from-right duration-300 border-l border-[rgba(26,26,46,0.20)]";
   const mdCls = outerClassName ?? "md:left-auto md:w-[440px]";
 
   return (

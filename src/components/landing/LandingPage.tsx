@@ -8,7 +8,7 @@ import { signInWithGoogle } from "@/lib/auth-actions";
 // eyebrows. It is never used as an alarm/error color on this surface.
 const INK = "#1A1A2E";
 const SIENNA = "#B0541F";
-const PARCHMENT = "#FAF7F2";
+const PARCHMENT = "#F5F4F1";
 const INK_SOFT = "#3A3A4E";
 const RULE_STRONG = "rgba(26,26,46,0.20)";
 const CAPTION_SOFT = "rgba(26,26,46,0.40)";

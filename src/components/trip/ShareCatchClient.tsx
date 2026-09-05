@@ -351,7 +351,7 @@ export default function ShareCatchClient({
             className="block w-full text-center rounded-xl py-3 text-[14px] mb-2"
             style={{
               background: INK,
-              color: "#FAF7F2",
+              color: "#F5F4F1",
               opacity: status === "saving" ? 0.5 : 1,
             }}
           >

@@ -591,7 +591,7 @@ export default function IdeasClient({
           <button
             type="submit"
             className="h-10 px-4 rounded-full text-[13px] font-semibold flex-shrink-0"
-            style={{ background: "#1A1A2E", color: "#FAF7F2" }}
+            style={{ background: "#1A1A2E", color: "#F5F4F1" }}
           >
             Save
           </button>

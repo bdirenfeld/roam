@@ -145,7 +145,7 @@ row, ask whether it is about *this journey*; if not, it belongs on the Journeys 
 Same rule for sheets: two sheets doing one job in two styles get merged (the Add-to-this-day sheet
 lists saved places first, Google after, in the house parchment).
 
-## Colour ground: white is what you touch, parchment is only the desktop table
+## Colour ground: white is what you touch, warm near-white (#F5F4F1) is only the desktop table
 Every sheet, overlay, popover, menu and phone page is white (`#FFFFFF`). Parchment (`#FAF7F2`)
 is the ground BEHIND cards on desktop pages (Journeys grid, Plan board, Map sidebar) and nothing
 else. Phone pages that share a component with desktop use `bg-white md:bg-parchment`. Brennan,
@@ -251,3 +251,6 @@ its subtitle is the weather): back, italic title + small line, search, menu, 44p
 bar. `ui/AddPlaceRow.tsx` is the one "Add a place" (ringed plus, quiet row; `centered` for an
 empty state). Primary buttons are `rounded-full` ink pills, one per screen. Bookings lives in the
 menu only — no separate chip on any width.
+Ground tokens (Sep 5 2026, Brennan chose "warm near-white" over the cream): `--background`
+#F5F4F1; secondary tint #F0EFEB (was #F7F3EA); the "Add from saved" pill #EDECE8 (was #F2EDE3).
+The cream #FAF7F2 is gone everywhere, including as off-white text on ink buttons.

@@ -224,7 +224,7 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
               style={{ width: 13, height: 13, borderRadius: "50%", background: "#1A1A2E" }}
             >
               <svg width="7" height="7" viewBox="0 0 7 7" fill="none">
-                <polyline points="1,3.5 2.8,5.5 6,1.5" stroke="#FAF7F2" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                <polyline points="1,3.5 2.8,5.5 6,1.5" stroke="#F5F4F1" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
           )}

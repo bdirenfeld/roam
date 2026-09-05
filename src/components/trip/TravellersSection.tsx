@@ -46,7 +46,7 @@ function Monogram({
   }
   return (
     <div
-      className="rounded-full flex items-center justify-center bg-[#1A1A2E] text-[#FAF7F2] flex-shrink-0"
+      className="rounded-full flex items-center justify-center bg-[#1A1A2E] text-[#F5F4F1] flex-shrink-0"
       style={{ width: size, height: size }}
     >
       <span
@@ -112,7 +112,7 @@ export default function TravellersSection({ tripId, initialPeople }: Props) {
             </p>
             <button
               onClick={openAdd}
-              className="mt-1 inline-flex items-center gap-2.5 px-4 py-2.5 rounded bg-[#1A1A2E] text-[#FAF7F2] text-[14px] font-medium active:scale-[0.99] transition-transform"
+              className="mt-1 inline-flex items-center gap-2.5 px-4 py-2.5 rounded bg-[#1A1A2E] text-[#F5F4F1] text-[14px] font-medium active:scale-[0.99] transition-transform"
               style={{ letterSpacing: "-0.005em" }}
             >
               <Plus size={12} weight="light" />
@@ -307,7 +307,7 @@ function TravellerSheet({
         onClick={busy ? undefined : onClose}
       />
       <div
-        className="fixed bottom-0 left-0 right-0 bg-[#FAF7F2] rounded-t-2xl z-[60] max-w-mobile mx-auto flex flex-col"
+        className="fixed bottom-0 left-0 right-0 bg-[#F5F4F1] rounded-t-2xl z-[60] max-w-mobile mx-auto flex flex-col"
         style={{ maxHeight: "85vh" }}
       >
         {/* Drag handle */}

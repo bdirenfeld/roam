@@ -199,7 +199,7 @@ function CreateRow({
       className="w-full flex items-center gap-3 py-3 text-left active:opacity-70 transition-opacity"
       style={{ borderBottom: last ? "none" : `1px solid ${RULE}` }}
     >
-      <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: selected ? "#F2EDE3" : "#F7F3EA", boxShadow: `inset 0 0 0 1px ${RULE}` }}>
+      <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: selected ? "#EDECE8" : "#F0EFEB", boxShadow: `inset 0 0 0 1px ${RULE}` }}>
         <SubTypeIcon subType={place.sub_type ?? ""} color={INK} />
       </div>
       <div className="flex-1 min-w-0">
@@ -236,7 +236,7 @@ function CreateRow({
       {/* Selection ring → ink fill + check */}
       {selected ? (
         <span className="w-[22px] h-[22px] rounded-full flex items-center justify-center flex-shrink-0" style={{ background: INK }}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FAF7F2" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F5F4F1" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
         </span>
       ) : (
         <span className="w-[22px] h-[22px] rounded-full flex-shrink-0" style={{ boxShadow: "inset 0 0 0 1.4px rgba(26,26,46,0.20)" }} />
@@ -455,7 +455,7 @@ export default function LinkPlaceSheet(props: Props) {
               </button>
             </div>
             {/* Search — client-side filter over the loaded list only */}
-            <div className="flex items-center gap-2.5 mt-3.5 px-3.5 py-2.5 rounded-full" style={{ background: "#F2EDE3" }}>
+            <div className="flex items-center gap-2.5 mt-3.5 px-3.5 py-2.5 rounded-full" style={{ background: "#EDECE8" }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={CAP} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="6.5" /><path d="M16 16l4.5 4.5" />
               </svg>
@@ -576,7 +576,7 @@ export default function LinkPlaceSheet(props: Props) {
 
         {/* Commit bar — create mode only */}
         {isCreate && (
-          <div className="flex items-center gap-4 px-5 py-4 flex-shrink-0" style={{ borderTop: `1px solid ${RULE}`, background: "#F7F3EA" }}>
+          <div className="flex items-center gap-4 px-5 py-4 flex-shrink-0" style={{ borderTop: `1px solid ${RULE}`, background: "#F0EFEB" }}>
             <span className="flex-1" style={{ fontFamily: PF, fontStyle: "italic", fontSize: "13.5px", color: CAP }}>
               {selectedIds.size === 0 ? "Select places to place on this day." : "The saved pile keeps its copy."}
             </span>
@@ -585,12 +585,12 @@ export default function LinkPlaceSheet(props: Props) {
               disabled={selectedIds.size === 0}
               className="inline-flex items-center gap-2 rounded-lg px-5 py-2.5"
               style={selectedIds.size === 0
-                ? { background: "#F2EDE3", boxShadow: `inset 0 0 0 1px ${RULE}`, color: CAP_SOFT, fontFamily: DM, fontWeight: 600, fontSize: "14px" }
-                : { background: INK, color: "#FAF7F2", fontFamily: DM, fontWeight: 600, fontSize: "14px" }}
+                ? { background: "#EDECE8", boxShadow: `inset 0 0 0 1px ${RULE}`, color: CAP_SOFT, fontFamily: DM, fontWeight: 600, fontSize: "14px" }
+                : { background: INK, color: "#F5F4F1", fontFamily: DM, fontWeight: 600, fontSize: "14px" }}
             >
               {selectedIds.size === 0 ? "Add" : `Add ${selectedIds.size}`}
               {selectedIds.size > 0 && (
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FAF7F2" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#F5F4F1" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
               )}
             </button>
           </div>

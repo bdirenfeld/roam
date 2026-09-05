@@ -197,7 +197,7 @@ export default function DocumentsSheet({ tripId, onClose, onImport }: Props) {
               type="button"
               onClick={onImport}
               className="w-full py-3 rounded-xl text-[14px] font-semibold"
-              style={{ background: "#1A1A2E", color: "#FAF7F2" }}
+              style={{ background: "#1A1A2E", color: "#F5F4F1" }}
             >
               Upload a booking
             </button>

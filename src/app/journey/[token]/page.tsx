@@ -14,7 +14,7 @@ interface Props {
 function InvitationUnavailable() {
   return (
     <main
-      style={{ minHeight: "100dvh", background: "#FAF7F2" }}
+      style={{ minHeight: "100dvh", background: "#F5F4F1" }}
       className="flex flex-col items-center justify-center px-8 text-center"
     >
       <p

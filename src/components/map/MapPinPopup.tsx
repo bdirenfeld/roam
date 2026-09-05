@@ -708,7 +708,7 @@ function CardBody({
               <button
                 onClick={() => setShowDayList(true)}
                 className="mt-2.5 w-full flex items-center justify-center gap-2 rounded-[10px] px-3.5 py-2.5 active:opacity-70 transition-opacity"
-                style={{ background: "#F2EDE3", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)", fontWeight: 600, fontSize: "13.5px", color: "#1A1A2E", letterSpacing: "-0.005em" }}
+                style={{ background: "#EDECE8", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)", fontWeight: 600, fontSize: "13.5px", color: "#1A1A2E", letterSpacing: "-0.005em" }}
               >
                 <BookmarkSimple size={14} weight="light" color="#1A1A2E" />
                 Add to day

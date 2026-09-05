@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
           `<div style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:#1A1A2E;line-height:1.6">` +
           `<p>${escapeHtml(senderName)} shared a journey with you on Roam.</p>` +
           `<p style="font-size:19px;font-style:italic;margin:18px 0 6px">${escapeHtml(journey)}</p>` +
-          `<p><a href="${url}" style="display:inline-block;background:#1A1A2E;color:#FAF7F2;` +
+          `<p><a href="${url}" style="display:inline-block;background:#1A1A2E;color:#F5F4F1;` +
           `padding:10px 18px;border-radius:999px;text-decoration:none;font-weight:600">See the plan</a></p>` +
           `<p style="color:rgba(26,26,46,.55);font-size:13px">Or open: ${url}</p>` +
           `</div>`,

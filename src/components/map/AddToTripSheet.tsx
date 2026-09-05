@@ -551,7 +551,7 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
                 value={targetDayId ?? ""}
                 onChange={(e) => setTargetDayId(e.target.value || null)}
                 aria-label="Put it on a day"
-                className="w-full text-[13px] text-[#1A1A2E] bg-[#F2EDE3] border border-black/10 rounded-xl px-3 py-2.5 outline-none appearance-none"
+                className="w-full text-[13px] text-[#1A1A2E] bg-[#EDECE8] border border-black/10 rounded-xl px-3 py-2.5 outline-none appearance-none"
                 style={{
                   backgroundImage:
                     "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%231A1A2E' stroke-width='2.5' stroke-linecap='round'><polyline points='6 9 12 15 18 9'/></svg>\")",
