@@ -336,3 +336,16 @@ and forget must be `.then(({ error }) => …)`, never `void`.
 - **Plan a journey** takes invite emails and posts each to
   `/api/share/send-invite` right after the trip and days are inserted.
 - Map filters read **Saved · Scheduled**.
+
+## Day map stacking and the passport picker (Sept 5 2026, evening)
+
+- `DayMap` never nudges a pin. Pins within `STACK_PX` (30) on screen collapse
+  into the lowest-numbered one, whose badge lists every number ("2 · 3",
+  "2 – 4"); `restack()` runs on `moveend`. Tapping a stacked pin fills the
+  screen on a phone (`expanded` / `onToggleExpand` from DayViewClient) and
+  fits the group at maxZoom 17. The badge is 18px / 11px bold ink.
+- Held: edge chips (open on where the day mostly happens) and count clusters
+  on the big map — both mocked up, his call after real use.
+- Passports in Entry are chosen from `lib/countries.ts` (name + demonym);
+  the demonym is what is stored and what the check reads. Free text is never
+  saved.

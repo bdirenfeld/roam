@@ -9,6 +9,7 @@
 // overlay need no new plumbing.
 
 import { useCallback, useEffect, useState } from "react";
+import { suggestCountries } from "@/lib/countries";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
 import { entryStatus, firstSentence, type EntryData, type TripEntry } from "@/lib/entry/types";
@@ -33,7 +34,15 @@ export default function EntrySection({ tripId, destination, startDate, defaultOp
   const [entry, setEntry] = useState<TripEntry | null | undefined>(undefined);
   const [checking, setChecking] = useState(false);
   const [editingPassports, setEditingPassports] = useState(false);
-  const [passportDraft, setPassportDraft] = useState("");
+  // The picker: chips already chosen, and what is being typed for the next.
+  // Typing suggests from the country list; Enter or a tap takes the top one.
+  // Nothing free-typed is ever saved, so a spelling can't be wrong
+  // (Brennan, Sep 2026: "you press Enter and you don't know if it's going to
+  // do anything").
+  const [draftList, setDraftList] = useState<string[]>([]);
+  const [query, setQuery] = useState("");
+  const suggestions = suggestCountries(query).filter((c) => !draftList.includes(c.demonym));
+  const pick = (demonym: string) => { setDraftList((l) => (l.includes(demonym) ? l : [...l, demonym])); setQuery(""); };
   // Lines opened to show their full text (the block shows one sentence each).
   const [openLines, setOpenLines] = useState<Set<string>>(new Set());
   // One row, closed by default: the Agenda line already carries the urgent
@@ -87,7 +96,10 @@ export default function EntrySection({ tripId, destination, startDate, defaultOp
   };
 
   const savePassports = async () => {
-    const list = passportDraft.split(/[,;]+/).map((s) => s.trim()).filter(Boolean);
+    // Whatever is half-typed counts if it matches something; otherwise it
+    // is dropped, never saved as a guess.
+    const pending = suggestions[0]?.demonym;
+    const list = pending && query.trim() ? [...draftList, pending] : draftList;
     if (list.length === 0) return;
     setEditingPassports(false);
     if (entry) setEntry({ ...entry, passports: list });
@@ -122,27 +134,75 @@ export default function EntrySection({ tripId, destination, startDate, defaultOp
           <div className="flex items-center justify-between gap-3 mb-1">
             {editingPassports ? (
               <form
-                className="flex-1 flex items-center gap-2"
+                className="flex-1 flex flex-col gap-2"
                 onSubmit={(e) => { e.preventDefault(); void savePassports(); }}
               >
-                <input
-                  autoFocus
-                  value={passportDraft}
-                  onChange={(e) => setPassportDraft(e.target.value)}
-                  placeholder="Canadian, Indian"
-                  aria-label="Passports held by the party"
-                  className="flex-1 rounded-md px-2 py-1 text-[13.5px] outline-none"
-                  style={{ border: `1px solid rgba(26,26,46,0.22)`, color: INK }}
-                />
-                <button type="submit" className="text-[13px] underline underline-offset-2" style={{ color: INK }}>Check</button>
-                <button type="button" className="text-[13px]" style={{ color: FAINT }} onClick={() => setEditingPassports(false)}>Cancel</button>
+                <div
+                  className="relative flex flex-wrap items-center gap-1.5 rounded-md px-2 py-1.5"
+                  style={{ border: "1px solid rgba(26,26,46,0.22)" }}
+                >
+                  {draftList.map((d) => (
+                    <span key={d} className="inline-flex items-center gap-1 rounded-full pl-2.5 pr-1 py-0.5 text-[12.5px]" style={{ background: "#1A1A2E", color: "#F5F4F1" }}>
+                      {d}
+                      <button
+                        type="button"
+                        onClick={() => setDraftList((l) => l.filter((x) => x !== d))}
+                        aria-label={`Remove ${d}`}
+                        className="w-5 h-5 rounded-full flex items-center justify-center text-[13px] leading-none hover:bg-white/15"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                  <input
+                    autoFocus
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && suggestions[0]) { e.preventDefault(); pick(suggestions[0].demonym); }
+                      if (e.key === "Backspace" && !query && draftList.length) setDraftList((l) => l.slice(0, -1));
+                    }}
+                    placeholder={draftList.length ? "Add another" : "Type a country"}
+                    aria-label="Type a country to add its passport"
+                    autoComplete="off"
+                    className="flex-1 min-w-[120px] bg-transparent text-[13.5px] outline-none"
+                    style={{ color: INK }}
+                  />
+                  {suggestions.length > 0 && (
+                    <ul
+                      role="listbox"
+                      className="absolute left-0 right-0 top-full mt-1 z-20 bg-white rounded-xl overflow-hidden"
+                      style={{ boxShadow: "0 0 0 1px rgba(26,26,46,0.12), 0 8px 24px rgba(0,0,0,0.10)" }}
+                    >
+                      {suggestions.map((c, i) => (
+                        <li key={c.name}>
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected={i === 0}
+                            onClick={() => pick(c.demonym)}
+                            className="w-full text-left px-3 py-2 text-[13.5px] flex items-center justify-between gap-3 hover:bg-[rgba(26,26,46,0.04)]"
+                            style={{ color: INK, background: i === 0 ? "rgba(26,26,46,0.04)" : undefined }}
+                          >
+                            <span>{c.name}</span>
+                            <span className="text-[12px]" style={{ color: FAINT }}>{c.demonym}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  <button type="submit" disabled={draftList.length === 0 && !suggestions[0]} className="text-[13px] underline underline-offset-2 disabled:opacity-40" style={{ color: INK }}>Check</button>
+                  <button type="button" className="text-[13px]" style={{ color: FAINT }} onClick={() => setEditingPassports(false)}>Cancel</button>
+                </div>
               </form>
             ) : (
               <button
                 type="button"
                 className="text-[14.5px] text-left flex items-center gap-1.5"
                 style={{ color: INK }}
-                onClick={() => { setPassportDraft(passports.join(", ")); setEditingPassports(true); }}
+                onClick={() => { setDraftList(passports); setQuery(""); setEditingPassports(true); }}
                 title="Change which passports the party holds"
               >
                 <span style={{ color: CAPTION }}>Passports</span>
