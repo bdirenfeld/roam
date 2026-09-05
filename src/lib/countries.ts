@@ -103,9 +103,12 @@ export function suggestCountries(query: string, limit = 6): Country[] {
   if (!q) return [];
   const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   const names = (c: Country) => [c.name, c.demonym, ...(c.aliases ?? [])].map(norm);
-  const starts = COUNTRIES.filter((c) => names(c).some((n) => n.startsWith(q)));
+  // An exact hit on a name or alias ("uk", "usa") beats a mere prefix
+  // ("Ukraine"), whatever the alphabet says.
+  const exact = COUNTRIES.filter((c) => names(c).some((n) => n === q));
+  const starts = COUNTRIES.filter((c) => !exact.includes(c) && names(c).some((n) => n.startsWith(q)));
   const contains = COUNTRIES.filter((c) => !starts.includes(c) && names(c).some((n) => n.includes(q)));
-  return [...starts, ...contains].slice(0, limit);
+  return [...exact, ...starts, ...contains].slice(0, limit);
 }
 
 /** True when a stored passport word is one the list knows. */
