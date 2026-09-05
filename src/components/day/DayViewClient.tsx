@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CaretLeft, CaretRight } from "@phosphor-icons/react";
 import DayStrip from "@/components/day/DayStrip";
+import EntryLine from "./EntryLine";
 import DayPicker from "@/components/day/DayPicker";
 import DayMap from "@/components/day/DayMap";
 import CardTimeline from "@/components/day/CardTimeline";
@@ -692,6 +693,9 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           triggerClassName="flex items-center justify-center w-11 h-11 text-gray-500 hover:text-gray-800 transition-colors"
         />
       </div>
+
+      {/* Entry requirements — one line, only while something is undone. */}
+      <EntryLine trip={trip} days={days} readOnly={readOnly} />
 
       {/* Day strip — md:hidden lives inside DayStrip itself */}
       <DayStrip

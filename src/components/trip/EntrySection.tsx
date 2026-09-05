@@ -1,0 +1,223 @@
+"use client";
+
+// ── Entry requirements, in Journey settings ───────────────────────────────
+// What the party's passports need to enter the country: one line per
+// requirement, a tick box where there is something to do, a dot where there
+// isn't, and the source and date underneath. The words come from the lookup
+// (api/entry/check), never from the traveller; the traveller owns the
+// passports list and the ticks. Reads its own row, so the settings page and
+// overlay need no new plumbing.
+
+import { useCallback, useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/Toast";
+import { entryStatus, type EntryData, type TripEntry } from "@/lib/entry/types";
+
+const INK = "#1A1A2E";
+const CAPTION = "rgba(26,26,46,0.62)";
+const FAINT = "rgba(26,26,46,0.5)";
+const RULE = "rgba(26,26,46,0.10)";
+const SIENNA = "#B0541F";
+const GREEN = "#3E7C5B";
+
+function fmtDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" });
+}
+function fmtDay(iso: string): string {
+  return new Date(iso + "T12:00:00").toLocaleDateString("en-CA", { month: "short", day: "numeric" });
+}
+
+export default function EntrySection({ tripId, destination }: { tripId: string; destination: string }) {
+  const supabase = createClient();
+  const { toast } = useToast();
+  const [entry, setEntry] = useState<TripEntry | null | undefined>(undefined);
+  const [checking, setChecking] = useState(false);
+  const [editingPassports, setEditingPassports] = useState(false);
+  const [passportDraft, setPassportDraft] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    supabase
+      .from("trip_entry")
+      .select("trip_id, passports, data, changed, checked_at")
+      .eq("trip_id", tripId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        setEntry((data as TripEntry | null) ?? null);
+        // Reading the block is what clears the "changed" flag.
+        if (data?.changed) void supabase.from("trip_entry").update({ changed: false }).eq("trip_id", tripId);
+      });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tripId]);
+
+  const check = useCallback(async (passports?: string[]) => {
+    if (checking) return;
+    setChecking(true);
+    try {
+      const res = await fetch("/api/entry/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tripId, passports }),
+      });
+      const j = (await res.json()) as { passports?: string[]; data?: EntryData; error?: string };
+      if (!res.ok || !j.data) throw new Error(j.error || String(res.status));
+      setEntry({ trip_id: tripId, passports: j.passports ?? passports ?? ["Canadian"], data: j.data, changed: false, checked_at: j.data.checked_at });
+    } catch {
+      toast({ message: "Couldn't check entry requirements just now. Try again." });
+    } finally {
+      setChecking(false);
+    }
+  }, [checking, tripId, toast]);
+
+  const toggleDone = async (key: string) => {
+    if (!entry?.data) return;
+    const lines = entry.data.lines.map((l) => (l.key === key ? { ...l, done: !l.done } : l));
+    const data: EntryData = { ...entry.data, lines, status: lines.some((l) => l.action && !l.done) ? "action" : "clear" };
+    setEntry({ ...entry, data });
+    const { error } = await supabase.from("trip_entry").update({ data }).eq("trip_id", tripId);
+    if (error) toast({ message: "Couldn't save that tick. Try again." });
+  };
+
+  const savePassports = async () => {
+    const list = passportDraft.split(/[,;]+/).map((s) => s.trim()).filter(Boolean);
+    if (list.length === 0) return;
+    setEditingPassports(false);
+    if (entry) setEntry({ ...entry, passports: list });
+    // A different set of passports is a different answer: check again.
+    await check(list);
+  };
+
+  const status = entryStatus(entry?.data);
+  const passports = entry?.passports ?? ["Canadian"];
+  const partyLine = `${passports.join(" · ")} ${passports.length === 1 ? "passports" : ""}`.trim();
+
+  return (
+    <div id="entry" className="mx-5 mt-4">
+      <p className="text-[11px] uppercase mb-2" style={{ letterSpacing: "0.1em", color: CAPTION }}>
+        Entry requirements
+      </p>
+      <div className="rounded-2xl" style={{ border: `1px solid ${RULE}`, background: "#fff" }}>
+        <div className="px-4 pt-3.5 pb-3">
+          {/* Who, and the state in one word */}
+          <div className="flex items-center justify-between gap-3 mb-1">
+            {editingPassports ? (
+              <form
+                className="flex-1 flex items-center gap-2"
+                onSubmit={(e) => { e.preventDefault(); void savePassports(); }}
+              >
+                <input
+                  autoFocus
+                  value={passportDraft}
+                  onChange={(e) => setPassportDraft(e.target.value)}
+                  placeholder="Canadian, Indian"
+                  aria-label="Passports held by the party"
+                  className="flex-1 rounded-md px-2 py-1 text-[13.5px] outline-none"
+                  style={{ border: `1px solid rgba(26,26,46,0.22)`, color: INK }}
+                />
+                <button type="submit" className="text-[13px] underline underline-offset-2" style={{ color: INK }}>Check</button>
+                <button type="button" className="text-[13px]" style={{ color: FAINT }} onClick={() => setEditingPassports(false)}>Cancel</button>
+              </form>
+            ) : (
+              <button
+                type="button"
+                className="text-[14.5px] text-left"
+                style={{ color: INK }}
+                onClick={() => { setPassportDraft(passports.join(", ")); setEditingPassports(true); }}
+                title="Change which passports the party holds"
+              >
+                {partyLine}
+                <span className="ml-1.5 text-[12px]" style={{ color: FAINT }}>edit</span>
+              </button>
+            )}
+            {status && (
+              <span
+                className="flex-shrink-0 text-[10.5px] uppercase rounded-full px-2 py-[3px] whitespace-nowrap"
+                style={{
+                  letterSpacing: "0.08em",
+                  color: status === "action" ? SIENNA : GREEN,
+                  background: status === "action" ? "rgba(176,84,31,0.09)" : "rgba(62,124,91,0.10)",
+                }}
+              >
+                {status === "action" ? "Action needed" : "Nothing to do"}
+              </span>
+            )}
+          </div>
+
+          {/* The lines */}
+          {entry === undefined ? (
+            <p className="text-[13px] py-2" style={{ color: FAINT }}>Loading…</p>
+          ) : !entry?.data ? (
+            <div className="py-2">
+              <p className="text-[13.5px] leading-snug mb-2.5" style={{ color: CAPTION }}>
+                What {passports.join(" and ")} passports need to enter {destination.split(",").pop()?.trim() || "the country"}: visa, forms, onward ticket, passport validity. Read from the Government of Canada travel advice page, with the link.
+              </p>
+              <button
+                type="button"
+                onClick={() => void check()}
+                disabled={checking}
+                className="rounded-full px-4 py-2 text-[13.5px]"
+                style={{ background: INK, color: "#fff", opacity: checking ? 0.7 : 1 }}
+              >
+                {checking ? "Checking…" : "Check entry requirements"}
+              </button>
+            </div>
+          ) : status === "clear" && entry.data.lines.every((l) => !l.action) ? (
+            // Nothing to do: one quiet sentence, no ticks.
+            <p className="text-[13.5px] leading-snug py-1.5" style={{ color: INK }}>
+              {entry.data.lines.map((l) => l.text).join(" ")}
+            </p>
+          ) : (
+            <div>
+              {entry.data.lines.map((l) => (
+                <div key={l.key} className="grid gap-2.5 py-2" style={{ gridTemplateColumns: "22px 1fr", borderTop: `1px solid ${RULE}` }}>
+                  {l.action ? (
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={l.done}
+                      aria-label={`${l.done ? "Undo" : "Done"}: ${l.text}`}
+                      onClick={() => void toggleDone(l.key)}
+                      className="w-5 h-5 rounded-md flex items-center justify-center text-[12px] mt-[3px]"
+                      style={l.done ? { background: INK, color: "#fff" } : { border: "1.5px solid rgba(26,26,46,0.35)" }}
+                    >
+                      {l.done ? "✓" : ""}
+                    </button>
+                  ) : (
+                    <span className="flex justify-center mt-[9px]"><span className="w-1.5 h-1.5 rounded-full" style={{ background: GREEN }} /></span>
+                  )}
+                  <div>
+                    <div className="text-[10.5px] uppercase mb-[2px]" style={{ letterSpacing: "0.08em", color: CAPTION }}>
+                      {l.label}{l.deadline ? ` · by ${fmtDay(l.deadline)}` : ""}
+                    </div>
+                    <div className="text-[13.5px] leading-snug" style={{ color: INK, textDecoration: l.done ? "line-through" : "none", opacity: l.done ? 0.6 : 1 }}>
+                      {l.text}{l.why ? <span style={{ color: CAPTION }}> {l.why}</span> : null}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Source and date */}
+          {entry?.data && (
+            <p className="text-[11.5px] leading-snug pt-2.5 mt-1" style={{ color: CAPTION, borderTop: `1px solid ${RULE}` }}>
+              From the {entry.data.source_name}, checked {fmtDate(entry.data.checked_at)}.
+              {entry.data.next_check ? ` Rechecks ${fmtDay(entry.data.next_check)}, thirty days before you fly.` : ""}{" "}
+              {entry.data.source_url && (
+                <a href={entry.data.source_url} target="_blank" rel="noopener" className="underline underline-offset-2" style={{ color: INK }}>
+                  Read the page
+                </a>
+              )}
+              {entry.data.source_url ? " · " : ""}
+              <button type="button" onClick={() => void check()} disabled={checking} className="underline underline-offset-2" style={{ color: INK }}>
+                {checking ? "Checking…" : "Check again now"}
+              </button>
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

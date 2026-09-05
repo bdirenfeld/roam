@@ -223,3 +223,13 @@ The price lookup writes each card as its answer lands, runs eight at once, start
 after 35 s and returns `remaining`; the client toasts "N still to look up — tap Estimate again".
 The prompt carries the journey's other stops in day order so a park or venue fee is paid once.
 Car hire starts off in metro cities (`isMetroCity`); meals out seed at every other night.
+
+## Entry requirements (lib/entry, api/entry/check, trip/EntrySection.tsx, day/EntryLine.tsx)
+One `trip_entry` row per journey (migration 009): `passports text[]` at journey level, `data` jsonb
+(shape in lib/entry/types.ts), `changed`, `checked_at`. The lookup reads the Government of Canada
+travel advice page with Claude + web search and returns lines (visa / before / onward / passport /
+other-N); a "done" tick survives a recheck by key. EntrySection and EntryLine read their own row —
+no page or overlay plumbing. EntryLine runs the first check in the background for the owner of a
+future journey, rechecks inside 30 days if the answer is more than 7 days old, never checks a
+past journey, and does nothing (spends nothing) when the select errors. `TripSettingsLink
+section="entry"` scrolls to the block. It never applies for anything.

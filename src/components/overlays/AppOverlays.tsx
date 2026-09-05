@@ -78,7 +78,7 @@ export const useNewJourney = () => useContext(NewJourneyCtx);
 /** What the opener already has in hand, so the overlay doesn't re-fetch it. */
 export interface TripSettingsOpenOptions {
   /** Section to scroll to — the Plan menu's "Share itinerary" passes "share". */
-  section?: "share" | "notes";
+  section?: "share" | "notes" | "entry";
   trip?: Trip;
   days?: Day[];
 }
@@ -357,7 +357,7 @@ function JourneyNotesProvider({ children }: { children: ReactNode }) {
 
 interface TripSettingsRequest {
   tripId: string;
-  section: "share" | "notes" | null;
+  section: "share" | "notes" | "entry" | null;
   seed: { trip?: Trip; days?: Day[] };
   nonce: number;
 }
@@ -409,7 +409,7 @@ function TripSettingsBody({
   onClose,
 }: {
   tripId: string;
-  section: "share" | "notes" | null;
+  section: "share" | "notes" | "entry" | null;
   seed: { trip?: Trip; days?: Day[] };
   onClose: () => void;
 }) {
@@ -649,7 +649,7 @@ export function TripSettingsLink({
   onBeforeOpen,
 }: TriggerProps & {
   tripId: string;
-  section?: "share" | "notes";
+  section?: "share" | "notes" | "entry";
   /** Optional seed — pass whatever the opening screen already holds. */
   trip?: Trip;
   days?: Day[];

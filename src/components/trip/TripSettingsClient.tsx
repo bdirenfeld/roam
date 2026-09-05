@@ -8,6 +8,7 @@ import { deleteJourney } from "@/lib/deleteJourney";
 import { useToast } from "@/components/ui/Toast";
 import { setTripArchived } from "@/lib/tripArchive";
 import TravellersSection, { type Person } from "@/components/trip/TravellersSection";
+import EntrySection from "./EntrySection";
 import { createShareLink, revokeShareLink, removeGuest, loadShareState } from "@/lib/share-actions";
 
 /** A guest on a shared journey, as the Settings page loads it server-side. */
@@ -44,7 +45,7 @@ interface Props {
   /** The journey is gone (archived, restored or deleted) — nothing to return to. */
   onLeft?: () => void;
   /** Section to bring into view on open — the Plan menu's #share deep link. */
-  scrollTo?: "share" | "notes" | null;
+  scrollTo?: "share" | "notes" | "entry" | null;
 }
 
 function fmtDate(dateStr: string): string {
@@ -592,6 +593,10 @@ export default function TripSettingsClient({
             <p className="text-[13px] text-red-600 font-medium">{error}</p>
           </div>
         )}
+
+        {/* ── Entry requirements — what the passports need to get in. First,
+            because it is the one thing here that can stop the trip. ── */}
+        <EntrySection tripId={trip.id} destination={trip.destination} />
 
         {/* ── Inline fields ── */}
         <div className="mt-2">
