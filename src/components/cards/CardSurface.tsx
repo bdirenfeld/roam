@@ -17,10 +17,11 @@ interface Props {
   onToggleConfirmed?: () => void;
   /** Tap on the time chip (or "No time"): opens the quick time sheet. */
   onTimeTap?: () => void;
-  /** Numbered pin index matching this card's marker on the map. Accepted but
-   *  no longer drawn: as a filled disc it shouted over the names it indexed,
-   *  and as a bare numeral it read as debris. The category glyph does the
-   *  tying instead — matching a fork to a fork beats matching 3 to 3. */
+  /** The number on this card's pin in the day map. Drawn as a small ring
+   *  numeral in the rail, first, with the glyph after it: the number is what
+   *  you scan for, and numbers first make a straight column down the day.
+   *  (It was dropped once as debris; a day with three forks on the map
+   *  proved the glyph alone could not tie a row to a pin — Brennan, Sep 2026.) */
   pinIndex?: number;
 }
 
@@ -127,7 +128,7 @@ function noteLead(det: Record<string, unknown> | null): string | null {
  * photograph is used. The app already had those pictures and the agenda was
  * throwing them away for an identical grey placeholder.
  */
-export default function CardSurface({ card, dayDate, onTap, isHighlighted, onToggleConfirmed, onTimeTap }: Props) {
+export default function CardSurface({ card, dayDate, onTap, isHighlighted, onToggleConfirmed, onTimeTap, pinIndex }: Props) {
   const place     = card.place;
   const det       = card.details as Record<string, unknown> | null;
   const subLabel  = place?.sub_type ? (SUB_TYPE_SHORT[place.sub_type] ?? null) : null;
@@ -184,11 +185,22 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
             and this is what tied rows to pins before the redesign. What was
             wrong then was the grey rounded box around it, not the glyph. */}
         {place && (
-          <span
-            className="block opacity-40"
-            // eslint-disable-next-line react/no-danger
-            dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(place.sub_type ?? null, 15) }}
-          />
+          <span className="flex items-center gap-[5px]">
+            {pinIndex != null && (
+              <span
+                aria-label={`Pin ${pinIndex}`}
+                className="inline-flex items-center justify-center rounded-full tabular-nums"
+                style={{ width: 16, height: 16, fontSize: 9.5, fontWeight: 700, lineHeight: 1, color: "#1A1A2E", boxShadow: "inset 0 0 0 1.2px rgba(26,26,46,0.45)" }}
+              >
+                {pinIndex}
+              </span>
+            )}
+            <span
+              className="block opacity-40"
+              // eslint-disable-next-line react/no-danger
+              dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(place.sub_type ?? null, 15) }}
+            />
+          </span>
         )}
         {onTimeTap ? (
           // The time as a chip: white is what you touch. Tapping it opens the
