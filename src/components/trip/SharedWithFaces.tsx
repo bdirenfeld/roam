@@ -10,13 +10,10 @@
 // ownership, so a guest viewing a shared journey simply renders nothing.
 
 import { useEffect, useState } from "react";
-import { Plus } from "@phosphor-icons/react";
 import { loadShareState } from "@/lib/share-actions";
-import { TripSettingsLink } from "@/components/overlays/AppOverlays";
 import type { ShareState } from "@/lib/share-actions";
 
 const INK = "#1A1A2E";
-const RULE = "rgba(26,26,46,0.10)";
 const CAPTION = "rgba(26,26,46,0.62)";
 
 /** First initial of a name, else of an email, else a dot. */
@@ -92,25 +89,7 @@ export default function SharedWithFaces({
         </div>
       )}
 
-      <TripSettingsLink
-        tripId={tripId}
-        section="share"
-        title={guests.length > 0 ? "Share with someone else" : "Share this journey"}
-        ariaLabel={guests.length > 0 ? "Share with someone else" : "Share this journey"}
-        style={{
-          width: 24,
-          height: 24,
-          borderRadius: "50%",
-          border: `1px dashed ${RULE}`,
-          color: CAPTION,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "transparent",
-        }}
-      >
-        <Plus size={11} weight="bold" />
-      </TripSettingsLink>
+      {/* No "+" here: Share lives in the menu and in Settings (Brennan, Sep 2026). */}
     </div>
   );
 }

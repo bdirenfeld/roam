@@ -468,6 +468,9 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   // the card brings the sheet back (Brennan, Sep 2026: "when you close this
   // you're out of the add menu entirely").
   const returnToAddRef = useRef<{ start: string; end: string } | null>(null);
+  // While a card is previewed from the sheet, the sheet stays mounted but
+  // hidden — unmounting it made it slide in again on return ("bounces up").
+  const [addHidden, setAddHidden] = useState(false);
 
   useEffect(() => {
     if (!swipeDir) return;
@@ -868,21 +871,8 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           )}
         </div>
 
-        {/* Import a booking / Documents as chips, the same pair the Plan's
-            desktop toolbar carries. This slot used to hold a second ⋯ menu,
-            identical to the masthead's one line above it — two doors to one
-            menu on one screen (Brennan, Sep 2026). The phone keeps its menu
-            because the masthead doesn't render there. */}
-        {!readOnly && (
-          <button
-            type="button"
-            onClick={() => setShowDocs(true)}
-            className="rounded-full border border-[rgba(26,26,46,0.12)] bg-[rgba(26,26,46,0.025)] px-3 py-1.5 text-[12px] font-medium text-activity hover:bg-[rgba(26,26,46,0.05)] transition-colors"
-            style={{ letterSpacing: "-0.005em" }}
-          >
-            Bookings
-          </button>
-        )}
+        {/* Bookings is in the menu on both widths — no chip here either
+            (the Plan's went the same way; Brennan, Sep 2026). */}
       </div>
 
       {/* Two-pane body — mobile: flex column (Companion → Map → Timeline).
@@ -974,7 +964,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           onClose={() => {
             setSelectedCard(null);
             setIsCardOpen(false);
-            if (returnToAddRef.current) { setGapTimes(returnToAddRef.current); returnToAddRef.current = null; }
+            if (returnToAddRef.current) { setAddHidden(false); returnToAddRef.current = null; }
           }}
           onCardUpdate={handleCardUpdate}
           onCardDelete={handleCardDelete}
@@ -1005,7 +995,8 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           destinationLng={trip.destination_lng}
           onClose={handleCreateClose}
           onCardCreated={handleCardCreated}
-          onPreviewCard={(card) => { returnToAddRef.current = gapTimes; setGapTimes(null); setSelectedCard(card); setIsCardOpen(true); }}
+          hidden={addHidden}
+          onPreviewCard={(card) => { returnToAddRef.current = gapTimes; setAddHidden(true); setSelectedCard(card); setIsCardOpen(true); }}
           onCardRemoved={(id) => { setLocalCards((prev) => prev.filter((c) => c.id !== id)); if (lastAddedRef.current === id) lastAddedRef.current = null; }}
         />
       )}

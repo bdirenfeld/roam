@@ -90,6 +90,8 @@ interface Props {
   onPreviewCard?: (card: Card) => void;
   /** "Added ✓" tapped again: the card came back off the day. */
   onCardRemoved?: (cardId: string) => void;
+  /** Kept mounted but out of sight while the host shows a previewed card. */
+  hidden?: boolean;
   initialStatus?: Card["status"];
   /** Merged into the new card's `details`, for callers that seed extra keys. */
   extraDetails?: Record<string, unknown>;
@@ -106,7 +108,7 @@ interface Props {
 export default function CreateCardSheet({
   dayId, listId = null, tripId, endPosition, onClose, onCardCreated,
   initialStatus, extraDetails, initialStartTime, initialEndTime,
-  scheduledPlaceIds, destination, destinationLat, destinationLng, onPreviewCard, onCardRemoved,
+  scheduledPlaceIds, destination, destinationLat, destinationLng, onPreviewCard, onCardRemoved, hidden = false,
 }: Props) {
   const { toast } = useToast();
   const supabase  = createClient();
@@ -477,6 +479,7 @@ export default function CreateCardSheet({
   return (
     <div
       className="fixed inset-0 z-60 flex items-end"
+      style={hidden ? { visibility: "hidden" } : undefined}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="absolute inset-0 bg-black/30 animate-in fade-in duration-200" />

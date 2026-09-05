@@ -2992,31 +2992,14 @@ function ListColumn({
             </SortableContext>
 
             {cards.length === 0 && (
-              // A list starts empty by definition, so the empty state has to
-              // read as an invitation, not as a gap.
-              <div className={`h-16 rounded-lg border-2 border-dashed flex items-center justify-center transition-colors ${
-                isOver ? "border-[rgba(196,98,45,0.45)]" : "border-black/10"
-              }`}>
-                <p className="text-xs text-black/25">Nothing here yet</p>
-              </div>
+              // No words: the Add a place row below is the invitation. This is
+              // only the drop target for a card dragged into an empty list.
+              <div className={`h-10 rounded-lg transition-colors ${isOver ? "bg-[rgba(196,98,45,0.10)]" : ""}`} />
             )}
           </div>
 
           <div className="flex flex-col gap-2 shrink-0 pt-2">
-            <button
-              onClick={onAddCard}
-              className="w-full flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 active:opacity-70 transition-opacity"
-              style={{
-                border: "1px dashed rgba(26,26,46,0.20)",
-                fontFamily: "'Playfair Display', Georgia, serif", fontStyle: "italic",
-                fontSize: "14px", color: "rgba(26,26,46,0.40)", letterSpacing: "-0.005em",
-              }}
-            >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(26,26,46,0.40)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              Add a card
-            </button>
+            <AddPlaceRow onClick={onAddCard} />
           </div>
         </div>
       </div>
