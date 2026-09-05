@@ -725,79 +725,64 @@ export default function TripSettingsClient({
                   {shareSending ? "Sending…" : "Send"}
                 </button>
               </form>
-              <p className="text-[11.5px] mt-1" style={{ color: "rgba(26,26,46,0.62)" }}>
-                {shareSentTo
-                  ? `Sent to ${shareSentTo}. They can read the journey, not change it.`
-                  : "They can read the journey, not change it, and they can't see what it costs."}
-              </p>
+              {shareSentTo && (
+                <p className="text-[11.5px] mt-1" style={{ color: "rgba(26,26,46,0.62)" }}>
+                  Sent to {shareSentTo} · read-only
+                </p>
+              )}
 
-              <div className="flex items-center mt-3">
+              {/* The link line: the action, who has it, the way out. One line;
+                  the address itself said nothing once truncated. */}
+              <div className="mt-2.5 text-[13px] flex flex-wrap items-center gap-x-1.5 gap-y-1" style={{ color: "rgba(26,26,46,0.62)" }}>
                 {shareUrl ? (
-                  <>
-                    <span className="flex-1 min-w-0 truncate text-[13px]" style={{ color: "rgba(26,26,46,0.7)" }}>
-                      {shareUrl.replace(/^https?:\/\//, "")}
-                    </span>
-                    <button type="button" onClick={copyLink} className="text-[13px] flex-shrink-0 ml-3" style={{ color: "#1A1A2E" }}>
-                      Copy
-                    </button>
-                  </>
+                  <button type="button" onClick={copyLink} className="text-[#1A1A2E]">Copy link</button>
                 ) : (
-                  <button type="button" onClick={createLink} disabled={linkBusy} className="flex-1 text-left text-[14px] disabled:opacity-40" style={{ color: "#1A1A2E" }}>
-                    {linkBusy ? "Making a link…" : "Make a link to copy"}
+                  <button type="button" onClick={createLink} disabled={linkBusy} className="text-[#1A1A2E] disabled:opacity-40">
+                    {linkBusy ? "Making a link…" : "Make a link"}
                   </button>
                 )}
-              </div>
-
-              {shareUrl && (
-                <div className="mt-2">
-                  {guests.length === 0 ? (
-                    <span className="block text-[13px]" style={{ color: "rgba(26,26,46,0.45)" }}>Nobody has opened it yet.</span>
-                  ) : (
-                    <ul className="space-y-1.5">
-                      {guests.map((g) => (
-                        <li key={g.userId} className="flex items-center gap-3">
-                          <span className="flex-1 min-w-0">
-                            <span className="block text-[13.5px] truncate text-[#1A1A2E]">{g.name ?? g.email}</span>
-                            {g.name && g.email && <span className="block text-[11.5px] truncate" style={{ color: "rgba(26,26,46,0.62)" }}>{g.email}</span>}
-                          </span>
+                {shareUrl && (
+                  <>
+                    <span aria-hidden="true">·</span>
+                    {guests.length === 0 ? (
+                      <span>Nobody has opened it yet</span>
+                    ) : (
+                      guests.map((g, i) => (
+                        <span key={g.userId} className="inline-flex items-center gap-1">
                           {confirmRemove === g.userId ? (
-                            <span className="flex items-center gap-2 text-[12px]">
-                              <button type="button" onClick={() => dropGuest(g.userId)} style={{ color: "#A8372B" }}>Remove</button>
-                              <button type="button" onClick={() => setConfirmRemove(null)} style={{ color: "rgba(26,26,46,0.62)" }}>Keep</button>
-                            </span>
+                            <>
+                              <span className="text-[#1A1A2E]">{g.name ?? g.email}</span>
+                              <button type="button" onClick={() => dropGuest(g.userId)} style={{ color: "#A8372B" }}>remove</button>
+                              <button type="button" onClick={() => setConfirmRemove(null)}>keep</button>
+                            </>
                           ) : (
                             <button
                               type="button"
                               onClick={() => setConfirmRemove(g.userId)}
+                              title={g.email ?? undefined}
                               aria-label={`Remove ${g.name ?? g.email ?? "this guest"}`}
-                              className="w-8 h-8 grid place-items-center rounded-full text-[16px]"
-                              style={{ color: "rgba(26,26,46,0.35)" }}
+                              className="text-[#1A1A2E]"
                             >
-                              ×
+                              {g.name ?? g.email}
                             </button>
                           )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  {confirmRevoke ? (
-                    <p className="text-[12px] mt-1.5 flex items-center gap-3">
-                      <span style={{ color: "rgba(26,26,46,0.7)" }}>Revoke the link? Everyone loses access.</span>
-                      <button type="button" onClick={revokeLink} disabled={linkBusy} style={{ color: "#A8372B" }}>Revoke</button>
-                      <button type="button" onClick={() => setConfirmRevoke(false)} style={{ color: "rgba(26,26,46,0.62)" }}>Keep</button>
-                    </p>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setConfirmRevoke(true)}
-                      className="text-[12px] mt-1.5 underline underline-offset-2"
-                      style={{ color: "rgba(26,26,46,0.45)" }}
-                    >
-                      Revoke the link
-                    </button>
-                  )}
-                </div>
-              )}
+                          {i < guests.length - 1 && <span aria-hidden="true">,</span>}
+                        </span>
+                      ))
+                    )}
+                    <span aria-hidden="true">·</span>
+                    {confirmRevoke ? (
+                      <>
+                        <span>Everyone loses access.</span>
+                        <button type="button" onClick={revokeLink} disabled={linkBusy} style={{ color: "#A8372B" }}>Revoke</button>
+                        <button type="button" onClick={() => setConfirmRevoke(false)}>Keep</button>
+                      </>
+                    ) : (
+                      <button type="button" onClick={() => setConfirmRevoke(true)} className="underline underline-offset-2">Revoke</button>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           </div>
         )}
