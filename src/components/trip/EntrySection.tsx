@@ -9,7 +9,7 @@
 // overlay need no new plumbing.
 
 import { useCallback, useEffect, useState } from "react";
-import { suggestCountries } from "@/lib/countries";
+import { suggestCountries, isKnownPassport } from "@/lib/countries";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
 import { entryStatus, firstSentence, type EntryData, type TripEntry } from "@/lib/entry/types";
@@ -98,8 +98,8 @@ export default function EntrySection({ tripId, destination, startDate, defaultOp
   const savePassports = async () => {
     // Whatever is half-typed counts if it matches something; otherwise it
     // is dropped, never saved as a guess.
-    const pending = suggestions[0]?.demonym;
-    const list = pending && query.trim() ? [...draftList, pending] : draftList;
+    const pending = query.trim() ? (suggestions[0]?.demonym ?? query.trim()) : null;
+    const list = pending ? [...draftList, pending] : draftList;
     if (list.length === 0) return;
     setEditingPassports(false);
     if (entry) setEntry({ ...entry, passports: list });
@@ -142,8 +142,13 @@ export default function EntrySection({ tripId, destination, startDate, defaultOp
                   style={{ border: "1px solid rgba(26,26,46,0.22)" }}
                 >
                   {draftList.map((d) => (
-                    <span key={d} className="inline-flex items-center gap-1 rounded-full pl-2.5 pr-1 py-0.5 text-[12.5px]" style={{ background: "#1A1A2E", color: "#F5F4F1" }}>
-                      {d}
+                    <span
+                      key={d}
+                      className="inline-flex items-center gap-1 rounded-full pl-2.5 pr-1 py-0.5 text-[12.5px]"
+                      style={{ background: isKnownPassport(d) ? "#1A1A2E" : SIENNA, color: "#F5F4F1" }}
+                      title={isKnownPassport(d) ? undefined : "Not on our list — check the spelling"}
+                    >
+                      {d}{isKnownPassport(d) ? "" : " · not on our list"}
                       <button
                         type="button"
                         onClick={() => setDraftList((l) => l.filter((x) => x !== d))}
@@ -159,7 +164,14 @@ export default function EntrySection({ tripId, destination, startDate, defaultOp
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" && suggestions[0]) { e.preventDefault(); pick(suggestions[0].demonym); }
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        // A match is taken; a word nothing matched is kept as
+                        // typed and shown in sienna, so the field never
+                        // dead-ends and a guess is never mistaken for a fact.
+                        if (suggestions[0]) pick(suggestions[0].demonym);
+                        else if (query.trim()) pick(query.trim());
+                      }
                       if (e.key === "Backspace" && !query && draftList.length) setDraftList((l) => l.slice(0, -1));
                     }}
                     placeholder={draftList.length ? "Add another" : "Type a country"}
@@ -193,7 +205,7 @@ export default function EntrySection({ tripId, destination, startDate, defaultOp
                   )}
                 </div>
                 <div className="flex items-center gap-3">
-                  <button type="submit" disabled={draftList.length === 0 && !suggestions[0]} className="text-[13px] underline underline-offset-2 disabled:opacity-40" style={{ color: INK }}>Check</button>
+                  <button type="submit" disabled={draftList.length === 0 && !query.trim()} className="text-[13px] underline underline-offset-2 disabled:opacity-40" style={{ color: INK }}>Check</button>
                   <button type="button" className="text-[13px]" style={{ color: FAINT }} onClick={() => setEditingPassports(false)}>Cancel</button>
                 </div>
               </form>
@@ -206,7 +218,13 @@ export default function EntrySection({ tripId, destination, startDate, defaultOp
                 title="Change which passports the party holds"
               >
                 <span style={{ color: CAPTION }}>Passports</span>
-                <span>{passports.join(" · ")}</span>
+                <span>
+                  {passports.map((d, i) => (
+                    <span key={d} style={{ color: isKnownPassport(d) ? undefined : SIENNA }}>
+                      {i > 0 ? " · " : ""}{d}
+                    </span>
+                  ))}
+                </span>
                 <span aria-hidden="true" style={{ color: FAINT }}>›</span>
               </button>
             )}

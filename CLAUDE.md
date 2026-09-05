@@ -349,3 +349,11 @@ and forget must be `.then(({ error }) => …)`, never `void`.
 - Passports in Entry are chosen from `lib/countries.ts` (name + demonym);
   the demonym is what is stored and what the check reads. Free text is never
   saved.
+- Full-screen day map: `DayMap` takes `dock` (the day's `CardTimeline`) and
+  `focus` ({cardId, nonce}); DayViewClient swaps `onPinTap` for a scroll-and-
+  lift handler while expanded, and a card tap flies the map (same card twice
+  opens it). Stacking measures the drawn pin (`PIN_FALLBACK_PX` only before
+  first layout).
+- `lib/countries.ts` carries aliases (UK, USA, Holland…) and every ISO
+  territory; `isKnownPassport` decides the sienna "not on our list" chip.
+  Free text IS kept now, but always marked.
