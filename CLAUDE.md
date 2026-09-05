@@ -280,3 +280,7 @@ Add flow: "Added ✓" is the undo (queuedDelete + `onCardRemoved`); a previewed 
 add sheet on close (`returnToAddRef`); untimed cards reorder by press-and-hold anywhere on the row
 (listeners on the row, `touch-action: manipulation`, no grip); the untimed group is introduced by one
 italic line, not a small-caps rule.
+Agenda cards are `select-none` (a long press on a phone otherwise means "select text"), and an
+untimed card drags only from its visible ≡ handle (`touch-none`); a whole-row drag cannot claim
+the touch without killing scroll. Timed cards never drag. Press-and-hold cannot be tested by
+script — say so and let Brennan's thumb decide.

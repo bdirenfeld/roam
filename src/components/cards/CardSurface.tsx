@@ -166,7 +166,7 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
   return (
     <Wrapper
       onClick={onTap}
-      className={`w-full text-left flex gap-3 md:gap-5 py-3.5 md:py-[18px] transition-colors ${
+      className={`w-full text-left flex gap-3 md:gap-5 py-3.5 md:py-[18px] transition-colors select-none ${
         isHighlighted ? "card-highlight" : ""
       }`}
       style={{ borderBottom: "1px solid rgba(26,26,46,0.10)" }}
