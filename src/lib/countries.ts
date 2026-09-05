@@ -107,7 +107,7 @@ export function suggestCountries(query: string, limit = 6): Country[] {
   // ("Ukraine"), whatever the alphabet says.
   const exact = COUNTRIES.filter((c) => names(c).some((n) => n === q));
   const starts = COUNTRIES.filter((c) => !exact.includes(c) && names(c).some((n) => n.startsWith(q)));
-  const contains = COUNTRIES.filter((c) => !starts.includes(c) && names(c).some((n) => n.includes(q)));
+  const contains = COUNTRIES.filter((c) => !exact.includes(c) && !starts.includes(c) && names(c).some((n) => n.includes(q)));
   return [...exact, ...starts, ...contains].slice(0, limit);
 }
 
