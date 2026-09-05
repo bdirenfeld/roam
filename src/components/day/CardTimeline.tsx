@@ -260,7 +260,7 @@ export default function CardTimeline({
               className="mb-2 pl-[33px] text-[12.5px]"
               style={{ fontFamily: "'Playfair Display', Georgia, serif", fontStyle: "italic", color: "rgba(26,26,46,0.45)" }}
             >
-              No time yet · tap the chip to set one, hold ≡ to move
+              {canReorder ? "No time yet · tap the chip to set one, hold ≡ to move" : "No time yet · tap the chip to set one"}
             </p>
           )}
 
