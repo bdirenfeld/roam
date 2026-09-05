@@ -466,6 +466,8 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
   // The card whose time chip was tapped: the quick time sheet is open for it.
   const [timeCard, setTimeCard] = useState<Card | null>(null);
+  // Phone: the day map filling the screen (⤢, or a tap on a stacked pin).
+  const [mapExpanded, setMapExpanded] = useState(false);
 
   // For a card with no time, the sheet opens at the end of the day's last
   // timed card (or an hour after its start, or 9 AM on an empty day), so the
@@ -920,6 +922,8 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
             centerLat={trip.destination_lat ?? 41.9028}
             centerLng={trip.destination_lng ?? 12.4964}
             onPinTap={handlePinTap}
+            expanded={mapExpanded}
+            onToggleExpand={() => setMapExpanded((v) => !v)}
           />
         </div>
 

@@ -14,11 +14,36 @@ interface Props {
   onPinTap?: (cardId: string) => void;
   /** When set, briefly pulses the pin for that card ID. */
   pulsedCardId?: string | null;
+  /** Phone only: the map fills the screen. Toggled by the ⤢ in its corner
+   *  and by tapping a stacked pin. */
+  expanded?: boolean;
+  onToggleExpand?: () => void;
 }
 
-export default function DayMap({ cards, accommodationCard, centerLat, centerLng, onPinTap, pulsedCardId }: Props) {
+// One placed pin, with what the stacking pass needs to know about it.
+interface PinItem {
+  cardId: string;
+  index: number;
+  lng: number;
+  lat: number;
+  wrapper: HTMLElement;
+  badge: HTMLElement;
+  /** Set while this pin stands for others too (they are hidden under it). */
+  group: PinItem[] | null;
+}
+
+// Pins closer than this on screen are one pin. A pin is 32px wide.
+const STACK_PX = 30;
+
+export default function DayMap({ cards, accommodationCard, centerLat, centerLng, onPinTap, pulsedCardId, expanded = false, onToggleExpand }: Props) {
   const mapRef         = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<unknown>(null);
+  const pinsRef        = useRef<PinItem[]>([]);
+  const restackRef     = useRef<() => void>(() => {});
+  const expandedRef    = useRef(expanded);
+  expandedRef.current = expanded;
+  const onToggleExpandRef = useRef(onToggleExpand);
+  onToggleExpandRef.current = onToggleExpand;
 
   // Stores the inner (animated) element of each regular-card marker, keyed by card.id.
   // Mapbox owns translate() on the wrapper; we animate scale on inner only.
@@ -50,6 +75,21 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
     };
   }, [pulsedCardId]);
 
+  // ── Full screen ────────────────────────────────────────────────
+  useEffect(() => {
+    const map = mapInstanceRef.current as { resize: () => void } | null;
+    if (!map) return;
+    const t = setTimeout(() => { map.resize(); restackRef.current(); }, 30);
+    return () => clearTimeout(t);
+  }, [expanded]);
+
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onToggleExpandRef.current?.(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [expanded]);
+
   // ── Map init ───────────────────────────────────────────────────
   useEffect(() => {
     if (!hasToken || !mapRef.current || mapInstanceRef.current) return;
@@ -71,6 +111,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
     // second map on the same container — same pattern as FullMapClient.
     let cancelled = false;
     markerInnerRef.current.clear();
+    pinsRef.current = [];
 
     import("mapbox-gl").then((mapboxgl) => {
       if (cancelled || !mapRef.current || mapInstanceRef.current) return;
@@ -109,27 +150,76 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
           // Store inner element so the pulse effect can animate it
           markerInnerRef.current.set(card.id, inner);
 
-          // Tap handler — fires onPinTap via stable ref
-          inner.style.cursor = "pointer";
-          inner.addEventListener("click", () => onPinTapRef.current?.(card.id));
-
-          // Sequence number badge — absolute overlay on the pin
+          // The day number — an 18px disc with an 11px numeral in the app's
+          // ink, ringed like the numeral in the card's rail. (It was 14px with
+          // an 8px numeral: "the size of a full stop" — Brennan, Sep 2026.)
           wrapper.style.overflow = "visible";
           const badge = document.createElement("span");
           badge.style.cssText =
-            "position:absolute;top:-4px;right:-5px;" +
-            "min-width:14px;height:14px;border-radius:7px;" +
-            "background:white;border:1.5px solid rgba(0,0,0,0.12);" +
-            "font-family:Inter,system-ui,sans-serif;font-size:8px;font-weight:800;" +
-            "color:#374151;display:flex;align-items:center;justify-content:center;" +
-            "padding:0 2.5px;line-height:1;pointer-events:none;z-index:1;";
+            "position:absolute;top:-7px;right:-8px;" +
+            "min-width:18px;height:18px;border-radius:9px;" +
+            "background:white;border:1.5px solid rgba(26,26,46,0.35);" +
+            "font-family:'DM Sans',Inter,system-ui,sans-serif;font-size:11px;font-weight:700;" +
+            "color:#1A1A2E;display:flex;align-items:center;justify-content:center;" +
+            "padding:0 4px;line-height:1;pointer-events:none;z-index:1;white-space:nowrap;";
           badge.textContent = String(i + 1);
           wrapper.appendChild(badge);
+
+          const item: PinItem = { cardId: card.id, index: i, lng, lat, wrapper, badge, group: null };
+          pinsRef.current.push(item);
+
+          // Tap: a plain pin opens its card. A pin standing for several zooms
+          // in until they come apart, filling the screen first on a phone.
+          inner.style.cursor = "pointer";
+          inner.addEventListener("click", () => {
+            if (item.group) {
+              const b = item.group.reduce(
+                (acc, g) => acc.extend([g.lng, g.lat]),
+                new mb.LngLatBounds([item.lng, item.lat], [item.lng, item.lat]),
+              );
+              if (!expandedRef.current && window.innerWidth < 768) onToggleExpandRef.current?.();
+              setTimeout(() => map.fitBounds(b, { padding: 90, maxZoom: 17, duration: 500 }), 60);
+              return;
+            }
+            onPinTapRef.current?.(card.id);
+          });
 
           new mb.Marker({ element: wrapper, anchor: "center" })
             .setLngLat([lng, lat])
             .addTo(map);
         });
+
+        // ── Stacking ─────────────────────────────────────────────────
+        // Pins that would sit on each other at this zoom become one pin
+        // drawn exactly where they are, its badge listing every number it
+        // stands for ("2 · 3", or "2 – 4" for a run). Recomputed after every
+        // move, so a zoom in pulls them apart again. Positions are never
+        // nudged: a pin is always where its place is.
+        const restack = () => {
+          const items = pinsRef.current;
+          items.forEach((it) => { it.wrapper.style.display = ""; it.badge.textContent = String(it.index + 1); it.group = null; });
+          const pts = items.map((it) => ({ it, p: map.project([it.lng, it.lat]) as { x: number; y: number } }));
+          const used = new Set<number>();
+          for (let a = 0; a < pts.length; a++) {
+            if (used.has(a)) continue;
+            const g = [a];
+            used.add(a);
+            for (let b = a + 1; b < pts.length; b++) {
+              if (used.has(b)) continue;
+              if (Math.hypot(pts[a].p.x - pts[b].p.x, pts[a].p.y - pts[b].p.y) < STACK_PX) { g.push(b); used.add(b); }
+            }
+            if (g.length < 2) continue;
+            const members = g.map((k) => pts[k].it).sort((x, y) => x.index - y.index);
+            const nums = members.map((m) => m.index + 1);
+            const run = nums.every((n, k) => k === 0 || n === nums[k - 1] + 1);
+            const head = members[0];
+            head.badge.textContent = nums.length >= 3 && run ? `${nums[0]} – ${nums[nums.length - 1]}` : nums.join(" · ");
+            head.group = members;
+            members.slice(1).forEach((m) => { m.wrapper.style.display = "none"; });
+          }
+        };
+        restackRef.current = restack;
+        map.on("moveend", restack);
 
         // Accommodation hotel pin — matches main map hotel style, same size as regular pins, gold ★ badge
         let accomCoord: [number, number] | null = null;
@@ -216,7 +306,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
           map.jumpTo({ center: allCoords[0], zoom: 14 });
         }
 
-        requestAnimationFrame(() => { map.resize(); });
+        requestAnimationFrame(() => { map.resize(); restack(); });
       });
     });
 
@@ -241,8 +331,30 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
   }
 
   return (
-    <div className="relative h-48 overflow-hidden border-b border-gray-100 md:h-[620px] md:rounded-2xl md:border md:border-[rgba(26,26,46,0.12)]">
+    <div
+      className={
+        expanded
+          ? "fixed inset-0 z-50 bg-white"
+          : "relative h-48 overflow-hidden border-b border-gray-100 md:h-[620px] md:rounded-2xl md:border md:border-[rgba(26,26,46,0.12)]"
+      }
+    >
       <div ref={mapRef} className="absolute inset-0" />
+      {onToggleExpand && (
+        // Phone only: the desktop map is already 620px tall.
+        <button
+          type="button"
+          onClick={onToggleExpand}
+          aria-label={expanded ? "Back to the day" : "Fill the screen with the map"}
+          className="md:hidden absolute right-3 z-10 w-9 h-9 rounded-full bg-white flex items-center justify-center active:opacity-70"
+          style={{ top: expanded ? "max(12px, env(safe-area-inset-top))" : 12, boxShadow: "0 1px 4px rgba(0,0,0,0.2)", color: "#1A1A2E" }}
+        >
+          {expanded ? (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" /><line x1="14" y1="10" x2="21" y2="3" /><line x1="3" y1="21" x2="10" y2="14" /></svg>
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" /></svg>
+          )}
+        </button>
+      )}
     </div>
   );
 }
