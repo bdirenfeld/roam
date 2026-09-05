@@ -54,7 +54,8 @@ export function entryStatus(data: EntryData | null | undefined): "action" | "cle
 export function entryHeadline(data: EntryData | null | undefined): string | null {
   const line = data?.lines.find((l) => l.action && !l.done);
   if (!line) return null;
-  const short = line.text.replace(/\.$/, "");
+  // First sentence only: the Agenda line is a nudge, the block has the rest.
+  const short = line.text.split(/(?<=[.!?])\s+/)[0].replace(/[.!?]$/, "");
   const by = line.deadline
     ? ` before ${new Date(line.deadline + "T12:00:00").toLocaleDateString("en-CA", { month: "short", day: "numeric" })}`
     : "";
