@@ -361,3 +361,10 @@ and forget must be `.then(({ error }) => …)`, never `void`.
   like any pin ("2 – 4 · ★"). The full-screen map is `z-[55]` (above the
   BottomNav's z-50, below the z-60 sheets). A card tap in the dock never
   changes zoom: on-screen pin jumps, off-screen pin slides in at current zoom.
+
+## The big Map has NO rings (Sept 5 2026, reverted)
+
+Count rings on the Map tab shipped as 961000c and Brennan reverted them the
+same evening: "It's terrible. Please revert back. I like the way it was
+before." The Map draws every pin at full size, as it always did. Do not
+bring clustering back to FullMapClient without him asking for it by name.
