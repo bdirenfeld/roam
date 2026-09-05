@@ -226,16 +226,16 @@ export default function EntrySection({ tripId, destination, startDate, defaultOp
                         <div className="text-[13.5px] leading-snug" style={{ color: INK, textDecoration: l.done ? "line-through" : "none", opacity: l.done ? 0.6 : 1 }}>
                           {open ? l.text : short}
                           {l.key === "consent" && (
-                            // The Government of Canada's own fill-in letter — the wording
-                            // border agents know; never a home-made PDF.
+                            // The Government of Canada's fill-in PDF itself — not the page about it,
+                            // which hides the form (Brennan, Sep 2026). Never a home-made letter.
                             <a
-                              href="https://travel.gc.ca/travelling/children/consent-letter"
+                              href="https://travel.gc.ca/docs/child/consent-letter-2123.pdf"
                               target="_blank"
                               rel="noopener"
                               className="ml-1.5 underline underline-offset-2 whitespace-nowrap"
                               style={{ color: INK }}
                             >
-                              Get the form
+                              Get the form (PDF)
                             </a>
                           )}
                           {open && l.why ? <span style={{ color: CAPTION }}> {l.why}</span> : null}
