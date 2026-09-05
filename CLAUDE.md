@@ -256,3 +256,9 @@ Ground tokens (Sep 5 2026, Brennan chose "warm near-white" over the cream): `--b
 The cream #FAF7F2 is gone everywhere, including as off-white text on ink buttons.
 The body ground is Tailwind's `bg-parchment` token (tailwind.config.ts), not only `--background`;
 both now read #F5F4F1. Change the ground in both places or the body keeps the old colour.
+
+## Guests (Sep 2026 walk-through)
+The invite page (`journey/[token]`) names the journey, dates, host and cover before sign-in — the
+token is the invitation, so its holder may see the title. Guests get Bookings read-only (menu row
+on both Agenda and Map; `onImport` undefined hides Upload and the empty state says nothing has been
+added). The entry line is plain text for guests; settings, estimate and the Plan tab stay owner-only.

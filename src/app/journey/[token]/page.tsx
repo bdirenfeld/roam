@@ -55,7 +55,36 @@ export default async function ClaimPage({ params }: Props) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return <ClaimSignIn token={shareToken} />;
+  if (!user) {
+    // Before sign-in the page names what it is inviting you to: the journey,
+    // its dates, who sent it, its cover. The token is the invitation, so
+    // showing its title to the holder gives nothing away that the link
+    // itself did not (Brennan, Sep 2026: the page was anonymous).
+    const admin = createAdminClient();
+    const { data: t } = await admin
+      .from("trips")
+      .select("title, destination, start_date, end_date, cover_image_url, user_id")
+      .eq("share_token", shareToken)
+      .maybeSingle();
+    let host: string | null = null;
+    if (t?.user_id) {
+      const { data: u } = await admin.from("users").select("name").eq("id", t.user_id).maybeSingle();
+      host = (u?.name as string | null) ?? null;
+    }
+    return (
+      <ClaimSignIn
+        token={shareToken}
+        invite={t ? {
+          title: t.title as string,
+          destination: (t.destination as string | null) ?? null,
+          startDate: (t.start_date as string | null) ?? null,
+          endDate: (t.end_date as string | null) ?? null,
+          cover: (t.cover_image_url as string | null) ?? null,
+          host,
+        } : null}
+      />
+    );
+  }
 
   // Token lookup runs through service-role — a not-yet-member guest cannot
   // read the trip under RLS, so RLS can't resolve the invite. This is a

@@ -320,7 +320,9 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
       setImportingConf(false);
     }
   }, []);
-  const agendaMenuExtra = readOnly ? undefined : [
+  // Guests get Bookings too — the villa confirmation and the flight are
+  // theirs to read; only the upload is the owner's.
+  const agendaMenuExtra = [
     { key: "bookings", title: "Bookings", sub: "", icon: <Files size={15} weight="light" />, onClick: () => setShowDocs(true) },
   ];
   const search = useGlobalSearch();
@@ -1018,7 +1020,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           }}
         />
       )}
-      {showDocs && <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} onImport={() => { setShowDocs(false); importInputRef.current?.click(); }} />}
+      {showDocs && <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} onImport={readOnly ? undefined : () => { setShowDocs(false); importInputRef.current?.click(); }} />}
       {(importingConf || importError) && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[70] px-4 py-2 rounded-full bg-[#1A1A2E] text-white text-[12.5px] shadow-lg">
           {importError ?? "Reading your booking…"}

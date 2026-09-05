@@ -75,6 +75,17 @@ export default function EntryLine({ trip, days, dayDate, readOnly }: { trip: Tri
   const beforeDeparture = trip.start_date ? new Date(trip.start_date + "T12:00:00").getTime() > Date.now() : false;
   if (!headline || dayDate !== firstDay || !beforeDeparture) return null;
 
+  // A guest can't open settings, so for them the line is the words alone.
+  if (readOnly) {
+    return (
+      <div className="px-4 pt-2 md:px-0 md:max-w-[720px] md:mx-auto">
+        <div className="rounded-xl px-3.5 py-2.5 text-[13.5px] leading-snug" style={{ background: "rgba(176,84,31,0.09)", color: SIENNA }}>
+          {headline}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="px-4 pt-2 md:px-0 md:max-w-[720px] md:mx-auto">
       <TripSettingsLink

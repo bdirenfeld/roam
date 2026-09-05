@@ -134,7 +134,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
       setImportingConf(false);
     }
   }, []);
-  const mapMenuExtra = readOnly ? undefined : [
+  const mapMenuExtra = [
     { key: "bookings", title: "Bookings", sub: "", icon: <Files size={15} weight="light" />, onClick: () => setShowDocs(true) },
   ];
   // registerNewCard is declared below as a plain function; the delete
@@ -924,7 +924,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
           />
         )}
         {showDocs && (
-          <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} onImport={() => { setShowDocs(false); importInputRef.current?.click(); }} />
+          <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} onImport={readOnly ? undefined : () => { setShowDocs(false); importInputRef.current?.click(); }} />
         )}
         {(importingConf || importError) && (
           <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[70] px-4 py-2 rounded-full bg-[#1A1A2E] text-white text-[12.5px] shadow-lg">

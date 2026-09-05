@@ -221,7 +221,7 @@ export default function DocumentsSheet({ tripId, onClose, onImport }: Props) {
               </div>
               <p className="text-[13px] font-medium text-gray-500">No documents yet</p>
               <p className="text-[12px] text-gray-400 mt-1">
-                Upload a flight or hotel confirmation to get started.
+                {onImport ? "Upload a flight or hotel confirmation to get started." : "Nothing has been added to this journey yet."}
               </p>
             </div>
           ) : (
