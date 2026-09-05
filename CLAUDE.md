@@ -317,3 +317,22 @@ script — say so and let Brennan's thumb decide.
 is lazy and only runs on `await` / `.then`. Three "changed = false" writes
 and the entry-line × were silently dead this way (found Sep 5 2026). Fire
 and forget must be `.then(({ error }) => …)`, never `void`.
+
+## Sept 5 2026 afternoon: the rules these changes set
+
+- **No drag on the Agenda.** Order is the clock; an untimed card gets its place
+  by being given a time (the chip). Do not bring dnd-kit back to CardTimeline.
+- **One time control.** The agenda chip and the card sheet both open
+  `day/TimeSheet.tsx`. Never add a second time editor.
+- **One label table.** `lib/subTypeLabel.ts` names every place kind; a new
+  `sub_type` goes there or it renders humanised from the key.
+- **Ideas is an overlay** from every ··· menu (`IdeasLink` / `useIdeas` in
+  AppOverlays), like Estimate and Settings; `/ideas` stays for the masthead
+  tab and links. Screens hosted in `Overlay` take `variant="overlay"` +
+  `onDismiss` and render × instead of ‹.
+- **Install banner** is `ui/InstallBanner.tsx`, mounted once in (app)/layout.
+  Android gets the browser's own prompt behind a button; iPhone gets the
+  two-step text; a website cannot install itself, so do not promise that.
+- **Plan a journey** takes invite emails and posts each to
+  `/api/share/send-invite` right after the trip and days are inserted.
+- Map filters read **Saved · Scheduled**.

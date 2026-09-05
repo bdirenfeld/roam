@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback, useState } from "react";
+import TimeSheet from "@/components/day/TimeSheet";
 import { Clock, Heart } from "@phosphor-icons/react";
 import type { Card, ChecklistItem, Day, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
@@ -345,77 +346,6 @@ function toDbTime(v: string): string {
  * as the click target, so clicking the chip reliably opens the native picker.
  */
 /** "09:30" + 90 → "11:00". Wraps past midnight; returns null on bad input. */
-function addMinutesToTime(hhmm: string, minutes: number): string | null {
-  const m = /^(\d{1,2}):(\d{2})/.exec(hhmm);
-  if (!m) return null;
-  const total = ((Number(m[1]) * 60 + Number(m[2]) + minutes) % 1440 + 1440) % 1440;
-  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
-}
-
-function TimeChip({
-  value,
-  placeholder,
-  onSave,
-}: {
-  value: string | null;
-  placeholder: string;
-  onSave: (hhmm: string) => void;
-}) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const inputVal = toInputTime(value);
-  const display  = value ? formatTimeValue(value) : null;
-
-  // Clicking anywhere on the chip opens the native picker. showPicker() isn't
-  // available everywhere — focus first so a bare focus still surfaces it on mobile.
-  const openPicker = () => {
-    const el = inputRef.current;
-    if (!el) return;
-    el.focus();
-    try { el.showPicker?.(); } catch { /* ignore */ }
-  };
-
-  return (
-    <span
-      onClick={openPicker}
-      className="relative inline-flex items-center gap-1.5 rounded-md px-2 py-1 cursor-pointer transition-colors hover:bg-black/[0.02]"
-      style={{
-        background: "#F7F7F9",
-        boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)",
-      }}
-    >
-      <Clock size={13} weight="light" color="#1A1A2E" />
-      {/* Visible face — formatted time, or the editorial prompt when unset.
-          The native "--:-- --" never shows; the input below is collapsed. */}
-      {display ? (
-        <span
-          className="text-[13px] font-medium text-[#1A1A2E]"
-          style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}
-        >
-          {display}
-        </span>
-      ) : (
-        <span
-          className="text-[13px] italic"
-          style={{ fontFamily: "'DM Sans', system-ui, sans-serif", color: "rgba(26,26,46,0.45)" }}
-        >
-          {placeholder}
-        </span>
-      )}
-      {/* Real picker target — focusable but visually collapsed (w-px, opacity-0,
-          not display:none so showPicker() still works). */}
-      <input
-        ref={inputRef}
-        type="time"
-        value={inputVal}
-        aria-label={placeholder}
-        tabIndex={-1}
-        onChange={(e) => { if (e.target.value) onSave(e.target.value); }}
-        className="absolute right-0 bottom-0 w-px h-px opacity-0 p-0 border-0 pointer-events-none"
-        style={{ colorScheme: "light" }}
-      />
-    </span>
-  );
-}
 
 // ── Note detail (free-form textarea) ─────────────────────────
 function NoteDetail({ notes, onSave }: { notes: string; onSave: (v: string) => void }) {
@@ -543,6 +473,23 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   // pinned hero — asking the sheet for its own scrollTop would read 0 forever
   // and claim every downward swipe as a dismissal.
   const drag = useSheetDrag(onClose, scrollRef);
+  // The time is set in the same quick sheet the agenda's chip opens — one
+  // time control everywhere (Brennan, Sep 2026). Start and end are written
+  // together so a half-saved pair can never show.
+  const [timeOpen, setTimeOpen] = useState(false);
+  const saveTimes = useCallback(async (start: string | null, end: string | null) => {
+    const prev = localCard;
+    const next = { start_time: start ? toDbTime(start) : null, end_time: end ? toDbTime(end) : null };
+    const updated = { ...localCard, ...next };
+    setLocalCard(updated);
+    onCardUpdate?.(updated);
+    const { error } = await queuedUpdate("cards", { id: localCard.id }, next);
+    if (error) {
+      toast({ message: "Couldn't save the time. Try again." });
+      setLocalCard(prev);
+      onCardUpdate?.(prev);
+    }
+  }, [localCard, onCardUpdate, toast]);
 
   // ── Persistence helpers ───────────────────────────────────
   // OFFLINE — time edits and every other single-column save go through the
@@ -1237,47 +1184,25 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 </span>
               )
             ) : (
-              <>
-                {/* Start time — always shown */}
-                <TimeChip
-                  value={localCard.start_time}
-                  placeholder="Add start time"
-                  onSave={(hhmm) => saveTopLevel("start_time", toDbTime(hhmm))}
-                />
-
-                {/* End time — always shown. It used to appear only once a start
-                    time was saved, which forced the order and cost a second
-                    trip into the sheet (click audit, Sep 2026). */}
-                <span className="text-gray-300 text-sm select-none">–</span>
-                <TimeChip
-                  value={localCard.end_time}
-                  placeholder={localCard.start_time ? "+ end time" : "End time"}
-                  onSave={(hhmm) => saveTopLevel("end_time", toDbTime(hhmm))}
-                />
-
-                {/* Duration presets — one tap writes the end time from the
-                    start. Shown only while there is a start and no end, so a
-                    card with both stays as tidy as it was. */}
-                {localCard.start_time && !localCard.end_time && (
-                  <span className="inline-flex items-center gap-1 ml-1">
-                    {([["30m", 30], ["1h", 60], ["2h", 120]] as const).map(([label, mins]) => (
-                      <button
-                        key={label}
-                        type="button"
-                        onClick={() => {
-                          const end = addMinutesToTime(toInputTime(localCard.start_time), mins);
-                          if (end) saveTopLevel("end_time", toDbTime(end));
-                        }}
-                        className="rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors hover:bg-black/[0.04]"
-                        style={{ color: "rgba(26,26,46,0.62)", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)" }}
-                        aria-label={`End ${label} after the start`}
-                      >
-                        +{label}
-                      </button>
-                    ))}
+              <button
+                type="button"
+                onClick={() => setTimeOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 cursor-pointer transition-colors hover:bg-black/[0.02]"
+                style={{ background: "#F7F7F9", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)" }}
+                aria-label={localCard.start_time ? "Change the time" : "Set a time"}
+              >
+                <Clock size={13} weight="light" color="#1A1A2E" />
+                {localCard.start_time ? (
+                  <span className="text-[13px] font-medium text-[#1A1A2E]" style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                    {formatTimeValue(localCard.start_time)}
+                    {localCard.end_time ? ` – ${formatTimeValue(localCard.end_time)}` : ""}
+                  </span>
+                ) : (
+                  <span className="text-[13px] italic" style={{ fontFamily: "'DM Sans', system-ui, sans-serif", color: "rgba(26,26,46,0.45)" }}>
+                    Set a time
                   </span>
                 )}
-              </>
+              </button>
             )}
 
             {/* Duration */}
@@ -1689,6 +1614,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       lat={place?.lat ?? null}
       lng={place?.lng ?? null}
     />
+      {timeOpen && (
+        <TimeSheet card={localCard} onClose={() => setTimeOpen(false)} onSave={saveTimes} />
+      )}
     </>
   );
 }

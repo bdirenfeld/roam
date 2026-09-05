@@ -154,6 +154,9 @@ export default function NewJourneyForm({
   const [destInput,       setDestInput]       = useState(seededDest?.display ?? "");
   const [suggestions,     setSuggestions]     = useState<DestinationPrediction[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  // Who to invite, typed while planning; the invites go out the moment the
+  // journey exists (Brennan, Sep 2026: share right off the bat).
+  const [inviteEmails, setInviteEmails] = useState("");
   // The description just picked: the fetch below must not re-open the list
   // for it while the details call is still in flight.
   const lastPicked = useRef<string | null>(null);
@@ -573,10 +576,30 @@ export default function NewJourneyForm({
     // A new journey lands on Day 1 of the Agenda, where "Add a place" writes
     // straight onto the day; the Map, with its intro card and its dropdown,
     // was 13 taps to the same result (UX audit, Sep 2026, finding 11).
+    // Invites, if any were typed. Each one makes (or reuses) the journey's
+    // share link server-side; a failure says so and points at Settings.
+    const invitees = inviteEmails.split(/[,\s;]+/).map((x) => x.trim()).filter((x) => /^\S+@\S+\.\S+$/.test(x));
+    if (invitees.length > 0) {
+      const results = await Promise.all(invitees.map((email) =>
+        fetch("/api/share/send-invite", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ trip_id: tripId, email }),
+        }).then((r) => r.json() as Promise<{ sent?: boolean }>).catch(() => ({ sent: false }))
+      ));
+      const sent = results.filter((r) => r.sent).length;
+      toast({
+        message: sent === invitees.length
+          ? (sent === 1 ? `Invited ${invitees[0]}` : `Invited ${sent} people`)
+          : `Invited ${sent} of ${invitees.length}. The rest can be sent from Share in Settings.`,
+        duration: 6000,
+      });
+    }
+
     const landing = days[0] ? `/trips/${tripId}/days/${days[0].id}` : `/trips/${tripId}`;
     if (onCreated) onCreated(tripId, landing);
     else router.push(landing);
-  }, [isValid, saving, destination, tripName, startDate, endDate, partySize, coverUrl, router, onCreated, toast]);
+  }, [isValid, saving, destination, tripName, startDate, endDate, partySize, coverUrl, inviteEmails, router, onCreated, toast]);
 
   return (
     <div className={overlay ? "flex flex-col h-full min-h-0 bg-white" : "flex flex-col min-h-dvh bg-white"}>
@@ -777,6 +800,23 @@ export default function NewJourneyForm({
                 +
               </button>
             </div>
+          </div>
+
+          {/* Invite — the share link only exists once the journey does, so
+              the emails are taken here and sent right after Create. */}
+          <div className="flex items-center px-5 py-[14px] border-b border-black/5">
+            <span className="text-[10px] uppercase tracking-widest text-[#1A1A2E] w-20 flex-shrink-0">
+              Invite
+            </span>
+            <input
+              value={inviteEmails}
+              onChange={(e) => setInviteEmails(e.target.value)}
+              inputMode="email"
+              autoComplete="off"
+              placeholder="Emails, separated by commas"
+              aria-label="Invite people by email"
+              className="flex-1 min-w-0 bg-transparent outline-none text-[14px] text-[#1A1A2E] placeholder:text-[rgba(26,26,46,0.35)]"
+            />
           </div>
 
         </div>
