@@ -284,3 +284,23 @@ Agenda cards are `select-none` (a long press on a phone otherwise means "select 
 untimed card drags only from its visible ≡ handle (`touch-none`); a whole-row drag cannot claim
 the touch without killing scroll. Timed cards never drag. Press-and-hold cannot be tested by
 script — say so and let Brennan's thumb decide.
+
+## The time chip and the quick time sheet (Sep 2026)
+
+- Every agenda card's time is a tappable chip in the rail (`CardSurface` `onTimeTap`,
+  a `span role="button"` because the card itself is a `<button>`). Untimed cards
+  read "No time". The rail is 62px on phones so "12:30 PM" fits; `GapRow`'s
+  spacer must match.
+- `TimeSheet.tsx` is the sheet: start/end are native `<input type="time">`,
+  a ±15-min length stepper, Morning/Lunch/Afternoon/Evening, No time, Done.
+  An end at or before the start is dropped, not saved.
+- `DayViewClient.handleTimeSave` writes `start_time`/`end_time` via
+  `queuedUpdate`, re-sorts with `agendaOrder`, lifts the card, and the toast
+  carries Undo. Drag-reorder stays for untimed cards only: ordering timed
+  cards is done by changing the time, never by dragging (the old time would
+  ride along and put the card back).
+- The Agenda entry line's × stores the exact headline in
+  `localStorage["roam:entry-line-hidden:<tripId>"]`; new words (a rules
+  change, a tick) bring it back. Per device by design — no DB column.
+- Phone headers carry no subtitle on Map or Plan ("Map · 90 places", "Plan"
+  said nothing); the Agenda keeps its weather line.
