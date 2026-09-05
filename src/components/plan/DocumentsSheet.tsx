@@ -12,6 +12,16 @@ interface Props {
   onImport?: () => void;
 }
 
+interface CardFile {
+  id: string;
+  cardId: string;
+  fileName: string;
+  fileType: string | null;
+  fileUrl: string | null;
+  createdAt: string;
+  cardTitle: string;
+}
+
 const DOC_LABEL: Record<string, string> = {
   flight:     "Flight",
   hotel:      "Hotel",
@@ -72,6 +82,9 @@ export default function DocumentsSheet({ tripId, onClose, onImport }: Props) {
   const dragging = useRef(false);
 
   const [docs,    setDocs]    = useState<Document[]>([]);
+  // Files attached to the journey's cards (the card sheet's paperclip). They
+  // live in card_attachments, not documents, and belong here just the same.
+  const [atts,    setAtts]    = useState<CardFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
 
@@ -88,17 +101,37 @@ export default function DocumentsSheet({ tripId, onClose, onImport }: Props) {
     return () => document.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  // Fetch documents
+  // Fetch both stores. Uploads through this sheet are documents; anything
+  // added on a card is a card attachment. One list, newest first.
   useEffect(() => {
-    supabase
-      .from("documents")
-      .select("*")
-      .eq("trip_id", tripId)
-      .order("created_at", { ascending: false })
-      .then(({ data }) => {
-        setDocs((data ?? []) as Document[]);
-        setLoading(false);
-      });
+    let cancelled = false;
+    Promise.all([
+      supabase.from("documents").select("*").eq("trip_id", tripId).order("created_at", { ascending: false }),
+      supabase
+        .from("card_attachments")
+        .select("id, card_id, file_name, file_type, file_url, created_at, parse_status, cards(details, places(title))")
+        .eq("trip_id", tripId)
+        .order("created_at", { ascending: false }),
+    ]).then(([d, a]) => {
+      if (cancelled) return;
+      setDocs((d.data ?? []) as Document[]);
+      setAtts(
+        ((a.data ?? []) as unknown as {
+          id: string; card_id: string; file_name: string; file_type: string | null; file_url: string | null; created_at: string; parse_status: string | null;
+          cards: { details: Record<string, unknown> | null; places: { title: string } | null } | null;
+        }[]).map((r) => ({
+          id: r.id,
+          cardId: r.card_id,
+          fileName: r.file_name,
+          fileType: r.file_type,
+          fileUrl: r.file_url,
+          createdAt: r.created_at,
+          cardTitle: r.cards?.places?.title ?? (typeof r.cards?.details?.title === "string" ? (r.cards.details.title as string) : "a card"),
+        })),
+      );
+      setLoading(false);
+    });
+    return () => { cancelled = true; };
   }, [tripId, supabase]);
 
   // Drag-to-dismiss
@@ -211,7 +244,7 @@ export default function DocumentsSheet({ tripId, onClose, onImport }: Props) {
             <div className="flex items-center justify-center py-12">
               <p className="text-[13px] text-gray-400">Loading…</p>
             </div>
-          ) : docs.length === 0 ? (
+          ) : docs.length === 0 && atts.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
               <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mb-3">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -225,7 +258,29 @@ export default function DocumentsSheet({ tripId, onClose, onImport }: Props) {
               </p>
             </div>
           ) : (
-            docs.map((doc) => (
+            <>
+            {atts.map((f) => (
+              <a
+                key={f.id}
+                href={f.fileUrl ?? undefined}
+                target="_blank"
+                rel="noopener"
+                className="flex items-start gap-3 px-5 py-4 border-b border-gray-50"
+              >
+                <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0 text-gray-500 mt-0.5">
+                  <DocTypeIcon type="document" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-semibold text-gray-900 truncate">{f.fileName}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                    <span className="text-[11px] font-medium text-gray-500 truncate">on {f.cardTitle}</span>
+                    <span className="text-gray-200 text-[11px]">·</span>
+                    <span className="text-[11px] text-gray-400">{fmtDate(f.createdAt)}</span>
+                  </div>
+                </div>
+              </a>
+            ))}
+            {docs.map((doc) => (
               <div
                 key={doc.id}
                 className="flex items-start gap-3 px-5 py-4 border-b border-gray-50"
@@ -275,7 +330,8 @@ export default function DocumentsSheet({ tripId, onClose, onImport }: Props) {
                   )}
                 </button>
               </div>
-            ))
+            ))}
+            </>
           )}
         </div>
       </div>

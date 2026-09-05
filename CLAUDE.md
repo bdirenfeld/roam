@@ -264,3 +264,6 @@ on both Agenda and Map; `onImport` undefined hides Upload and the empty state sa
 added). The entry line is plain text for guests; settings, estimate and the Plan tab stay owner-only.
 Menu rows read Notes · Bookings · Ideas · Estimate · Share · Settings — never "Journey notes" or
 "Journey settings": you are already inside the journey when the menu opens (Brennan, Sep 2026).
+Bookings (plan/DocumentsSheet.tsx) lists two stores: `documents` (uploaded through the sheet) and
+`card_attachments` (added on a card). New York had eight card attachments and an empty sheet before
+this. Card files open in a new tab and delete from their card, not here.
