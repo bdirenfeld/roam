@@ -464,6 +464,10 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
   // The last card added from the sheet: lifted in the day when the sheet closes.
   const lastAddedRef = useRef<string | null>(null);
+  // The add sheet's gap while a card is being previewed from it, so closing
+  // the card brings the sheet back (Brennan, Sep 2026: "when you close this
+  // you're out of the add menu entirely").
+  const returnToAddRef = useRef<{ start: string; end: string } | null>(null);
 
   useEffect(() => {
     if (!swipeDir) return;
@@ -970,6 +974,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           onClose={() => {
             setSelectedCard(null);
             setIsCardOpen(false);
+            if (returnToAddRef.current) { setGapTimes(returnToAddRef.current); returnToAddRef.current = null; }
           }}
           onCardUpdate={handleCardUpdate}
           onCardDelete={handleCardDelete}
@@ -1000,7 +1005,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           destinationLng={trip.destination_lng}
           onClose={handleCreateClose}
           onCardCreated={handleCardCreated}
-          onPreviewCard={(card) => { setGapTimes(null); setSelectedCard(card); setIsCardOpen(true); }}
+          onPreviewCard={(card) => { returnToAddRef.current = gapTimes; setGapTimes(null); setSelectedCard(card); setIsCardOpen(true); }}
         />
       )}
 
