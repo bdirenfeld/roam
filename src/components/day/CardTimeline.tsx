@@ -1,6 +1,5 @@
 import { useState } from "react";
 import AddPlaceRow from "@/components/ui/AddPlaceRow";
-import { DotsSixVertical } from "@phosphor-icons/react";
 import {
   DndContext,
   closestCenter,
@@ -88,9 +87,10 @@ function GapRow({ minutes, onTap }: { minutes: number; onTap: () => void }) {
   );
 }
 
-// A draggable untimed row. The drag listeners live on the grip alone so the
-// card itself stays tappable — a long-press-anywhere drag would fight both
-// the card tap and the day view's horizontal swipe navigation.
+// A draggable untimed row. Press and hold anywhere on it to move it: the
+// touch sensor waits 220 ms before it counts as a drag, so a tap still opens
+// the card and a swipe still changes the day. The grip it replaces was the
+// only handle, and nobody found it (Brennan, Sep 2026).
 function SortableUntimedRow({
   card,
   children,
@@ -98,31 +98,26 @@ function SortableUntimedRow({
   card: Card;
   children: React.ReactNode;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+  const { listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: card.id });
 
-  // Grip sits BESIDE the card, not over it — the card's own chevron already
-  // occupies its right edge.
+  // `attributes` is deliberately not spread: it would put role="button" on a
+  // row that already contains the card's button. touch-manipulation, not
+  // touch-none: a vertical scroll must still be a scroll.
   return (
     <div
       ref={setNodeRef}
+      {...listeners}
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.5 : 1,
+        touchAction: "manipulation",
       }}
-      className="flex items-center gap-0.5"
+      className="cursor-grab active:cursor-grabbing"
+      aria-label={`Press and hold to move ${(card.place?.title ?? (card.details as { title?: string })?.title) ?? "card"}`}
     >
-      <div className="flex-1 min-w-0">{children}</div>
-      <button
-        {...attributes}
-        {...listeners}
-        className="flex-shrink-0 self-center mb-5 p-1.5 text-activity/20 hover:text-activity/45 touch-none cursor-grab active:cursor-grabbing"
-        aria-label={`Reorder ${(card.place?.title ?? (card.details as { title?: string })?.title) ?? "card"}`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <DotsSixVertical size={15} weight="bold" />
-      </button>
+      {children}
     </div>
   );
 }
@@ -242,15 +237,16 @@ export default function CardTimeline({
             );
           })}
 
-          {/* Untimed cards — draggable among themselves. The quiet divider
-              explains why they sit last and why only these have a grip. */}
+          {/* Untimed cards — draggable among themselves. One quiet line in the
+              same voice as "1h free · add" says why they sit last; the small-caps
+              ANYTIME rule read as a section nobody asked for (Brennan, Sep 2026). */}
           {untimedCards.length > 0 && timedCards.length > 0 && (
-            <div className="flex items-center gap-2 mb-3 pl-[33px]">
-              <span className="text-[10px] uppercase tracking-[0.1em] text-activity/35">
-                Anytime
-              </span>
-              <span className="flex-1 h-px bg-[rgba(26,26,46,0.07)]" />
-            </div>
+            <p
+              className="mb-2 pl-[33px] text-[12.5px]"
+              style={{ fontFamily: "'Playfair Display', Georgia, serif", fontStyle: "italic", color: "rgba(26,26,46,0.45)" }}
+            >
+              No time yet · press and hold to reorder
+            </p>
           )}
 
           {canReorder ? (

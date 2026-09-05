@@ -276,3 +276,7 @@ parser close the card early — the rest of the day spilled out below the nav an
 Add sheet: the name opens the card (`onPreviewCard`), the pill adds, the row turns "Added ✓" and the
 sheet stays open; the host lifts the last added card on close. Files open in `ui/FileViewer.tsx`
 (× at top, "Open in browser" fallback) — never a bare `target="_blank"` from a sheet on the phone.
+Add flow: "Added ✓" is the undo (queuedDelete + `onCardRemoved`); a previewed card returns to the
+add sheet on close (`returnToAddRef`); untimed cards reorder by press-and-hold anywhere on the row
+(listeners on the row, `touch-action: manipulation`, no grip); the untimed group is introduced by one
+italic line, not a small-caps rule.

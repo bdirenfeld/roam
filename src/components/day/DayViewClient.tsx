@@ -1006,6 +1006,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           onClose={handleCreateClose}
           onCardCreated={handleCardCreated}
           onPreviewCard={(card) => { returnToAddRef.current = gapTimes; setGapTimes(null); setSelectedCard(card); setIsCardOpen(true); }}
+          onCardRemoved={(id) => { setLocalCards((prev) => prev.filter((c) => c.id !== id)); if (lastAddedRef.current === id) lastAddedRef.current = null; }}
         />
       )}
 

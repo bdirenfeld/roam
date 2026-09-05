@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import type { Card, CardType, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
-import { queuedInsert } from "@/lib/offline/queuedWrite";
+import { queuedInsert, queuedDelete } from "@/lib/offline/queuedWrite";
 import { useToast } from "@/components/ui/Toast";
 import { scheduleCardOnDay } from "@/lib/scheduleCard";
 import { useSheetDrag } from "@/hooks/useSheetDrag";
@@ -88,6 +88,8 @@ interface Props {
   onCardCreated: (card: Card) => void;
   /** Tap on a saved row's name: show the card (photos, hours, notes) before adding. */
   onPreviewCard?: (card: Card) => void;
+  /** "Added ✓" tapped again: the card came back off the day. */
+  onCardRemoved?: (cardId: string) => void;
   initialStatus?: Card["status"];
   /** Merged into the new card's `details`, for callers that seed extra keys. */
   extraDetails?: Record<string, unknown>;
@@ -104,7 +106,7 @@ interface Props {
 export default function CreateCardSheet({
   dayId, listId = null, tripId, endPosition, onClose, onCardCreated,
   initialStatus, extraDetails, initialStartTime, initialEndTime,
-  scheduledPlaceIds, destination, destinationLat, destinationLng, onPreviewCard,
+  scheduledPlaceIds, destination, destinationLat, destinationLng, onPreviewCard, onCardRemoved,
 }: Props) {
   const { toast } = useToast();
   const supabase  = createClient();
@@ -179,6 +181,8 @@ export default function CreateCardSheet({
   // as you press Add the screen disappears and you don't know what to do").
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
   const addedIdsRef = useRef<Set<string>>(new Set());
+  // Saved card id → the card it made on the day, so "Added ✓" can undo it.
+  const addedMap = useRef<Map<string, string>>(new Map());
   const GROUPS: { type: CardType; label: string }[] = useMemo(() => [
     { type: "food", label: "Food" },
     { type: "activity", label: "Activity" },
@@ -208,6 +212,7 @@ export default function CreateCardSheet({
     setSaving(false);
     if (!newCard) { toast({ message: "Couldn't add that. Try again." }); return; }
     addedIdsRef.current.add(card.id);
+    addedMap.current.set(card.id, newCard.id);
     setAddedIds((prev) => new Set(prev).add(card.id));
     onCardCreated(newCard);
   }, [dayId, tripId, supabase, startTime, endTime, saving, onCardCreated, toast]);
@@ -447,6 +452,18 @@ export default function CreateCardSheet({
 
   const canCreate = title.trim().length > 0 && !loadingPlace;
 
+  // "Added ✓" is the undo: the day card goes, the row reads "Add" again.
+  const handleUndoAdd = useCallback(async (savedCardId: string) => {
+    const newId = addedMap.current.get(savedCardId);
+    if (!newId) return;
+    const { error } = await queuedDelete("cards", { id: newId });
+    if (error) { toast({ message: "Couldn't take that off. Try again." }); return; }
+    addedMap.current.delete(savedCardId);
+    addedIdsRef.current.delete(savedCardId);
+    setAddedIds((prev) => { const n = new Set(prev); n.delete(savedCardId); return n; });
+    onCardRemoved?.(newId);
+  }, [onCardRemoved, toast]);
+
   useEffect(() => {
     if (!autoAdd || !selected || !type || saving) return;
     setAutoAdd(false);
@@ -589,7 +606,16 @@ export default function CreateCardSheet({
                         </span>
                         </button>
                         {addedIds.has(c.id) ? (
-                          <span className="flex-shrink-0 text-[11px] font-medium" style={{ color: "#3E7C5B" }}>Added ✓</span>
+                          <button
+                            type="button"
+                            onClick={() => void handleUndoAdd(c.id)}
+                            aria-label={`Take ${c.place!.title} back off the day`}
+                            title="Tap to take it back off"
+                            className="flex-shrink-0 text-[11px] font-medium active:opacity-70"
+                            style={{ color: "#3E7C5B" }}
+                          >
+                            Added ✓
+                          </button>
                         ) : (
                           <button
                             type="button"
