@@ -212,7 +212,7 @@ export default function EntrySection({ tripId, destination, startDate, defaultOp
                   )}
                   <div>
                     <div className="text-[10.5px] uppercase mb-[2px]" style={{ letterSpacing: "0.08em", color: CAPTION }}>
-                      {l.label}{l.deadline ? ` · by ${fmtDay(l.deadline)}` : ""}
+                      {l.label}{l.deadline ? (l.deadline === startDate ? ` · before you fly, ${fmtDay(l.deadline)}` : ` · by ${fmtDay(l.deadline)}`) : ""}
                     </div>
                     {(() => {
                       const short = firstSentence(l.text);

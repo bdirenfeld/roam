@@ -154,6 +154,9 @@ export default function NewJourneyForm({
   const [destInput,       setDestInput]       = useState(seededDest?.display ?? "");
   const [suggestions,     setSuggestions]     = useState<DestinationPrediction[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  // The description just picked: the fetch below must not re-open the list
+  // for it while the details call is still in flight.
+  const lastPicked = useRef<string | null>(null);
   const [destination,     setDestination]     = useState<SelectedDestination | null>(
     seededDest
       ? { name: seededDest.display, placeId: "", lat: seededDest.lat, lng: seededDest.lng }
@@ -233,6 +236,10 @@ export default function NewJourneyForm({
   }, [showDatePicker]);
 
   // Same rolling 12-month horizon the "Your year" strip plans against
+  const todayStr = useMemo(() => {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+  }, []);
   const { todayD, winEnd } = useMemo(() => {
     const now = new Date();
     return {
@@ -330,7 +337,7 @@ export default function NewJourneyForm({
   // popping open when the input merely reflects an already-confirmed
   // destination (e.g. seeded from a wishlist link on mount).
   useEffect(() => {
-    if (destInput.length < 2 || (destination && destInput === destination.name)) {
+    if (destInput.length < 2 || destInput === lastPicked.current || (destination && destInput === destination.name)) {
       setSuggestions([]);
       setShowSuggestions(false);
       return;
@@ -349,6 +356,7 @@ export default function NewJourneyForm({
   }, [destInput, destination]);
 
   const handleSelectSuggestion = useCallback(async (p: DestinationPrediction) => {
+    lastPicked.current = p.description;
     setDestInput(p.description);
     setSuggestions([]);
     setShowSuggestions(false);
@@ -1000,6 +1008,10 @@ export default function NewJourneyForm({
                   const isEndSel   = dateStr === pickEnd;
                   const isSelected = isStartSel || isEndSel;
                   const inRange    = !!(pickStart && pickEnd && dateStr > pickStart && dateStr < pickEnd);
+                  // A new journey can't start on a day already gone: those
+                  // days show but don't take a tap, and today wears a ring.
+                  const isPast  = dateStr < todayStr;
+                  const isToday = dateStr === todayStr;
                   return (
                     <div
                       key={dateStr}
@@ -1007,11 +1019,16 @@ export default function NewJourneyForm({
                     >
                       <button
                         onClick={() => handleDayClick(dateStr)}
-                        className={`w-8 h-8 flex items-center justify-center text-[13px] transition-colors ${
+                        disabled={isPast}
+                        aria-disabled={isPast}
+                        className={`w-8 h-8 flex items-center justify-center text-[13px] transition-colors rounded-md ${
                           isSelected
-                            ? "bg-[#1A1A2E] text-white rounded-md"
-                            : "text-gray-800 hover:bg-gray-100 rounded-md"
+                            ? "bg-[#1A1A2E] text-white"
+                            : isPast
+                              ? "text-gray-300 cursor-default"
+                              : "text-gray-800 hover:bg-gray-100"
                         }`}
+                        style={isToday && !isSelected ? { boxShadow: "inset 0 0 0 1.5px #B0541F", color: "#B0541F" } : undefined}
                       >
                         {dayNum}
                       </button>

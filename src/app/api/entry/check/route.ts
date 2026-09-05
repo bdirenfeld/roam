@@ -141,7 +141,11 @@ Today: ${new Date().toISOString().slice(0, 10)}`;
   ];
   const hasChild = ages.length === 0 || ages.some((a) => a < 18);
   if (hasChild && !lines.some((l) => l.key === "consent")) {
-    const weekBefore = new Date(startMs - 7 * 86400000).toISOString().slice(0, 10);
+    // A week before departure, unless that day has already gone — then the
+    // departure date itself (the block reads it as "before you fly").
+    const today = new Date().toISOString().slice(0, 10);
+    const week = new Date(startMs - 7 * 86400000).toISOString().slice(0, 10);
+    const weekBefore = week < today ? new Date(startMs).toISOString().slice(0, 10) : week;
     lines.push({
       key: "consent",
       label: "Consent letter",
