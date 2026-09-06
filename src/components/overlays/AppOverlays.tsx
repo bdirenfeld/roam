@@ -472,8 +472,15 @@ function JourneyNotesProvider({ children }: { children: ReactNode }) {
     <JourneyNotesCtx.Provider value={value}>
       {children}
       {request && (
+        /* The key carries whether the notes are known yet, not just which open
+           this is. JourneyNotes reads initialNotes in a useState initialiser,
+           which runs once — so a sheet mounted while the fetch above was still
+           in flight kept the null it started with and said "Nothing noted yet"
+           however much was stored. Flipping pending→ready remounts it on the
+           real value. Opened from a surface that already holds the notes,
+           `loaded` is set synchronously and this never flips. */
         <JourneyNotesSheet
-          key={request.nonce}
+          key={`${request.nonce}:${loaded === null ? "pending" : "ready"}`}
           tripId={request.tripId}
           initialNotes={loaded}
           onClose={close}
