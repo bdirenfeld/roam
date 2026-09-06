@@ -94,14 +94,6 @@ const LIST_PREFIX = "list-";
 const LIST_DRAG_PREFIX = "listdrag-";
 const LIST_SLOT_PREFIX = "listslot-";
 
-// The idle "+ Add a list" rail. Narrower than a column on purpose — it is an
-// affordance, not a place cards live — and it widens to a full column while a
-// name is being typed, because an input at 140px is a slot, not a field.
-// Trello's idle "Add another list" is exactly a list wide, which is why it
-// reads as the next column instead of a button (measured off Brennan's board,
-// Sept 2026). Roam's was half that and read as a control.
-const ADD_LIST_W = COL_W;
-
 // The Direction A control-row chip — lifted verbatim from DayPicker's trigger
 // so "Fold all weeks" / "Unfold all" sit beside "Jump to day" as one family.
 const CTRL_CHIP =
@@ -478,7 +470,10 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
     () => lists.map(() => COL_W),
     [lists, collapsedLists],
   );
-  const addListWidth = draftList ? COL_W : ADD_LIST_W;
+  // Only a composer occupies a slot now; idle, there is nothing on the board to
+  // leave room for. The week bars position by summing slot widths from the left
+  // edge, so this has to be 0 and not a hidden 280.
+  const addListWidth = draftList ? COL_W : 0;
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -1613,20 +1608,21 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
           onDelete={() => handleDeleteList(list.id)}
         />
       ))}
-      {/* The pane lives in the HEADER row, not the columns row, so its top edge
-          lines up with "Day 1" rather than with the first card a hundred pixels
-          lower — and it stops jumping up the board every time a week folds
-          (Brennan, Sep 2026). Positioned out of flow inside its slot: in flow,
-          an open composer would make this row 110px taller and push every
-          column down the moment you tapped it. */}
-      <div className="hidden md:block md:flex-shrink-0 md:relative" style={{ width: addListWidth }}>
-        <AddListColumn
-          drafting={draftList}
-          onStart={() => setDraftList(true)}
-          onCommit={handleCreateList}
-          onCancel={() => setDraftList(false)}
-        />
-      </div>
+      {/* The composer lives in the HEADER row, so its top edge lines up with
+          "Day 1" rather than with the first card a hundred pixels lower. Out of
+          flow inside its slot: in flow it would make this row 110px taller and
+          push every column down the moment it opened. Nothing renders here
+          until "+ List" is tapped. */}
+      {draftList && (
+        <div className="hidden md:block md:flex-shrink-0 md:relative" style={{ width: addListWidth }}>
+          <AddListColumn
+            drafting
+            onStart={() => setDraftList(true)}
+            onCommit={handleCreateList}
+            onCancel={() => setDraftList(false)}
+          />
+        </div>
+      )}
     </>
   );
 
@@ -1644,7 +1640,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
           onAddCard={() => setComposerList(list)}
         />
       ))}
-      <div aria-hidden className="hidden md:block md:flex-shrink-0" style={{ width: addListWidth }} />
+      {draftList && <div aria-hidden className="hidden md:block md:flex-shrink-0" style={{ width: addListWidth }} />}
     </>
   );
 
@@ -1655,7 +1651,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
       {lists.map((list, i) => (
         <div key={list.id} aria-hidden className="flex-shrink-0" style={{ width: listWidths[i] }} />
       ))}
-      <div aria-hidden className="flex-shrink-0" style={{ width: addListWidth }} />
+      {draftList && <div aria-hidden className="flex-shrink-0" style={{ width: addListWidth }} />}
     </>
   );
 
@@ -1923,26 +1919,39 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
               {/* Jump-to-day control row — shrink-0 direct flex child of the board
                   column. DndContext renders no DOM wrapper, so this sits above the
                   scroller and the scroller's flex-1 absorbs the rest with no calc. */}
-              {days.length > 1 && (
-                <div className="hidden md:flex md:items-center md:gap-2.5 md:px-7 md:pt-3 md:pb-2 shrink-0">
+              <div className="hidden md:flex md:items-center md:gap-2.5 md:px-7 md:pt-3 md:pb-2 shrink-0">
+                {days.length > 1 && (
                   <DayPicker
                     days={days}
                     onSelect={handlePickDay}
                     mode="jump"
                     foldedDayIds={foldedDays}
                   />
-                  {showWeeks && (
-                    <button
-                      type="button"
-                      onClick={handleToggleAll}
-                      className={CTRL_CHIP}
-                      style={{ letterSpacing: "-0.005em" }}
-                    >
-                      {allCollapsed ? "Expand all" : "Collapse all"}
-                    </button>
-                  )}
-                </div>
-              )}
+                )}
+                {days.length > 1 && showWeeks && (
+                  <button
+                    type="button"
+                    onClick={handleToggleAll}
+                    className={CTRL_CHIP}
+                    style={{ letterSpacing: "-0.005em" }}
+                  >
+                    {allCollapsed ? "Expand all" : "Collapse all"}
+                  </button>
+                )}
+                {/* Adding a list is a board control, not a column, so it sits
+                    with the other board controls. Tapping it opens the composer
+                    as the first leading column and scrolls there — otherwise a
+                    board scrolled to Day 9 would appear to do nothing. */}
+                <button
+                  type="button"
+                  onClick={() => { setDraftList(true); scrollBoardToStart(); }}
+                  aria-label="Add a list"
+                  className={CTRL_CHIP}
+                  style={{ letterSpacing: "-0.005em", opacity: draftList ? 0.45 : 1 }}
+                >
+                  + List
+                </button>
+              </div>
 
               {/* Board frame — relative so the edge fades can overlay the scroller. */}
               <div className="relative flex-1 min-h-0 flex flex-col overflow-hidden">
@@ -3040,9 +3049,11 @@ function AddListColumn({
 
   if (!drafting) {
     return (
-      <div className={shellCls} style={fullWidth ? undefined : { width: ADD_LIST_W }}>
-        {/* A panel the width of a list, sitting ON the board — Trello's shape,
-            Roam's colours. "Another" because the composer stays open and you
+      <div className={shellCls} style={fullWidth ? undefined : { width: COL_W }}>
+        {/* Reached only on a phone, where this is a swipe pane of its own. On
+            desktop the idle affordance is the "+ List" chip in the control row,
+            so this branch never renders there.
+            "Another" because the composer stays open and you
             are expected to keep going. */}
         <button
           type="button"
