@@ -470,11 +470,6 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
     () => lists.map(() => COL_W),
     [lists, collapsedLists],
   );
-  // Only a composer occupies a slot now; idle, there is nothing on the board to
-  // leave room for. The week bars position by summing slot widths from the left
-  // edge, so this has to be 0 and not a hidden 280.
-  const addListWidth = draftList ? COL_W : 0;
-
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
     check();
@@ -502,7 +497,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
     // changing days.length, so without it the fades would desync after a fold.
     // A list collapsing, appearing or being named moves the board for the same
     // reason, which is what the two width arrays below cover.
-  }, [isMobile, days.length, foldedDays, listWidths, addListWidth]);
+  }, [isMobile, days.length, foldedDays, listWidths]);
 
   // Jump the board horizontally to a day's column. Measures the column's real
   // position via rect deltas (independent of any positioned ancestor) rather
@@ -975,9 +970,12 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   // leaves no row, so the board never grows an untitled column.
   const handleCreateList = useCallback(async (rawTitle: string) => {
     const title = rawTitle.trim();
-    // Empty name = they are done. A real name adds it and the composer stays
-    // open, focused, for the next one — a board is usually built in a burst.
     if (!title) { setDraftList(false); return; }
+    // A trip gets ONE list. Every list ever made was a bucket of trip notes and
+    // both real ones were called "Logistics", so a second column was machinery
+    // nobody used — and the leading columns were the only part of the board
+    // whose geometry varied. Asking again is a no-op, not a second column.
+    if (listsRef.current.length > 0) { setDraftList(false); return; }
 
     const id = crypto.randomUUID();
     const position = listsRef.current.reduce((m, l) => Math.max(m, l.position), 0) + 1;
@@ -1608,21 +1606,6 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
           onDelete={() => handleDeleteList(list.id)}
         />
       ))}
-      {/* The composer lives in the HEADER row, so its top edge lines up with
-          "Day 1" rather than with the first card a hundred pixels lower. Out of
-          flow inside its slot: in flow it would make this row 110px taller and
-          push every column down the moment it opened. Nothing renders here
-          until "+ List" is tapped. */}
-      {draftList && (
-        <div className="hidden md:block md:flex-shrink-0 md:relative" style={{ width: addListWidth }}>
-          <AddListColumn
-            drafting
-            onStart={() => setDraftList(true)}
-            onCommit={handleCreateList}
-            onCancel={() => setDraftList(false)}
-          />
-        </div>
-      )}
     </>
   );
 
@@ -1640,7 +1623,6 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
           onAddCard={() => setComposerList(list)}
         />
       ))}
-      {draftList && <div aria-hidden className="hidden md:block md:flex-shrink-0" style={{ width: addListWidth }} />}
     </>
   );
 
@@ -1651,7 +1633,6 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
       {lists.map((list, i) => (
         <div key={list.id} aria-hidden className="flex-shrink-0" style={{ width: listWidths[i] }} />
       ))}
-      {draftList && <div aria-hidden className="flex-shrink-0" style={{ width: addListWidth }} />}
     </>
   );
 
@@ -1938,19 +1919,22 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
                     {allCollapsed ? "Expand all" : "Collapse all"}
                   </button>
                 )}
-                {/* Adding a list is a board control, not a column, so it sits
-                    with the other board controls. Tapping it opens the composer
-                    as the first leading column and scrolls there — otherwise a
-                    board scrolled to Day 9 would appear to do nothing. */}
-                <button
-                  type="button"
-                  onClick={() => { setDraftList(true); scrollBoardToStart(); }}
-                  aria-label="Add a list"
-                  className={CTRL_CHIP}
-                  style={{ letterSpacing: "-0.005em", opacity: draftList ? 0.45 : 1 }}
-                >
-                  + List
-                </button>
+                {/* Makes the trip's one Logistics column, so it disappears once
+                    that column exists. Scrolls to the left edge on the way in,
+                    or a board sitting on Day 9 would look like it ignored the
+                    tap. */}
+                {lists.length === 0 && (
+                  <button
+                    type="button"
+                    onClick={() => { void handleCreateList("Logistics"); scrollBoardToStart(); }}
+                    aria-label="Add a Logistics column"
+                    title="One column for packing, confirmations and anything with no date"
+                    className={CTRL_CHIP}
+                    style={{ letterSpacing: "-0.005em" }}
+                  >
+                    + Logistics
+                  </button>
+                )}
               </div>
 
               {/* Board frame — relative so the edge fades can overlay the scroller. */}
