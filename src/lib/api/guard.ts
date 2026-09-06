@@ -54,6 +54,7 @@ export const QUOTA = {
   uploadAttachment: 120,
   placeSearch:   600,  // Google autocomplete keystroke sessions
   placeDetails:  300,
+  placePhoto:   1500,  // only photos NOT already cached in our bucket
   foodEnrich:    300,
   bulkImport:     20,
   coverPhoto:     40,  // Unsplash

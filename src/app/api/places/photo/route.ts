@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { fetchPlaceDetails } from "@/lib/places/fetchDetails";
+import { cachedPhotoUrl, storePhoto } from "@/lib/places/photoCache";
+import { underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CACHE_HEADER = "public, max-age=86400, s-maxage=86400";
+// A copy in our own bucket is stable for its whole life, so the browser may
+// keep it far longer than a Google CDN link.
+const CACHED_HEADER = "public, max-age=2592000, s-maxage=2592000, immutable";
 
 interface StoredPhoto {
   photo_reference?: string;
@@ -13,10 +18,10 @@ function notFound() {
   return new NextResponse(null, { status: 404 });
 }
 
-function redirectTo(location: string) {
+function redirectTo(location: string, header = CACHE_HEADER) {
   return new NextResponse(null, {
     status: 302,
-    headers: { Location: location, "Cache-Control": CACHE_HEADER },
+    headers: { Location: location, "Cache-Control": header },
   });
 }
 
@@ -93,15 +98,23 @@ export async function GET(req: NextRequest) {
 
   const { data: place } = await supabase
     .from("places")
-    .select("id, google_place_id, cover_image_url, details")
+    .select("id, google_place_id, cover_image_url, details, photo_cache")
     .eq("id", placeId)
     .maybeSingle();
 
   if (!place) return notFound();
 
+  // The cached copy: no Google call, nothing counted against the day's
+  // allowance, and the browser may hold it for a month.
+  const cached = cachedPhotoUrl(place.photo_cache, index);
+  if (cached) return redirectTo(cached, CACHED_HEADER);
+
   if (place.google_place_id) {
     const apiKey = process.env.GOOGLE_PLACES_API_KEY;
     if (!apiKey) return notFound();
+    // Counted here, past the cache: a viewer scrolling a cached journey
+    // spends nothing.
+    if (!(await underQuota(supabase, "placePhoto", QUOTA.placePhoto))) return quotaExceeded("photos");
 
     // The enriched place_details response is persisted on places.details —
     // read the photo reference from there so a gallery of N photos doesn't
@@ -143,6 +156,11 @@ export async function GET(req: NextRequest) {
     }
 
     if (!resolved.location) return notFound();
+
+    // Copy it into the bucket for the next viewer. A failure here just means
+    // the browser goes to Google this time, as it always did.
+    const copied = await storePhoto(place.id, index, resolved.location);
+    if (copied) return redirectTo(copied, CACHED_HEADER);
     return redirectTo(resolved.location);
   }
 

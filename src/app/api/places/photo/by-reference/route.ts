@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 
 export async function GET(request: NextRequest) {
   // Same auth gate as /api/places/photo — middleware already bounces
@@ -7,6 +8,7 @@ export async function GET(request: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return new NextResponse(null, { status: 401 });
+  if (!(await underQuota(supabase, "placePhoto", QUOTA.placePhoto))) return quotaExceeded("photos");
 
   const { searchParams } = request.nextUrl;
   const photoRef = searchParams.get("photo_reference");

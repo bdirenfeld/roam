@@ -383,3 +383,8 @@ open on a DB error and logs. Five routes had no sign-in check before this.
   cards/days explicitly since they don't cascade), storage cleanup, admin
   deleteUser. Sign-in by email = `signInWithEmail` (signInWithOtp) landing on
   the same `/auth/callback` as Google.
+- Place photos are cached: `/api/places/photo` serves `places.photo_cache`
+  (public `place-photos` bucket) and only calls Google when the entry is
+  missing or past its 30 days. THIRTY DAYS IS DELIBERATE — the Google Maps
+  terms allow temporary caching, not permanent copies. Never remove the
+  expiry. The quota is counted only on a real Google fetch.
