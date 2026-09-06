@@ -977,8 +977,9 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   // leaves no row, so the board never grows an untitled column.
   const handleCreateList = useCallback(async (rawTitle: string) => {
     const title = rawTitle.trim();
-    setDraftList(false);
-    if (!title) return;
+    // Empty name = they are done. A real name adds it and the composer stays
+    // open, focused, for the next one — a board is usually built in a burst.
+    if (!title) { setDraftList(false); return; }
 
     const id = crypto.randomUUID();
     const position = listsRef.current.reduce((m, l) => Math.max(m, l.position), 0) + 1;
@@ -3017,9 +3018,12 @@ function AddListColumn({
   }, [drafting]);
 
   const commit = useCallback(() => {
+    if (!draft.trim()) { onCancel(); return; }
     onCommit(draft);
     setDraft("");
-  }, [draft, onCommit]);
+    // Straight into the next name, no second tap on "Add a list".
+    inputRef.current?.focus();
+  }, [draft, onCommit, onCancel]);
 
   // pt-3 matches the p-3 every column wraps its cards in. Without it the rail
   // starts 12px above the first card of every neighbour — the whole reason it
@@ -3075,13 +3079,13 @@ function AddListColumn({
             disabled={!draft.trim()}
             className="flex-1 py-2 rounded-full text-[12.5px] font-semibold text-white bg-[#1A1A2E] disabled:opacity-30 transition-opacity"
           >
-            Add a list
+            Add
           </button>
           <button
             onClick={() => { setDraft(""); onCancel(); }}
             className="px-3 py-2 rounded-lg text-[12.5px] font-semibold text-gray-500 hover:bg-gray-100 transition-colors"
           >
-            Cancel
+            Done
           </button>
         </div>
       </div>
