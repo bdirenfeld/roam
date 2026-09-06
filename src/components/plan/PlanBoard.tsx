@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo, createContext, useContext } from "react";
 import { subTypeLabel } from "@/lib/subTypeLabel";
 import {
   DndContext,
@@ -55,7 +55,6 @@ import {
   type PlanWeek,
 } from "@/lib/planWeeks";
 import { nextPositionForDay, nextPositionForList } from "@/lib/scheduleCard";
-import { getPriceRange } from "@/lib/priceRange";
 import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
 import { formatTimeRange } from "@/lib/formatTime";
 import { getOpeningHoursConflict, openingHoursCaption, openingHoursTone } from "@/lib/openingHours";
@@ -1522,6 +1521,18 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   const activeCard  = activeId ? findCard(activeId) : null;
   const allEmpty    = days.every((d) => d.cards.length === 0);
 
+  // Two distinct towns is enough to make the town worth printing.
+  const manyTowns = useMemo(() => {
+    const towns = new Set<string>();
+    for (const d of days) {
+      for (const c of d.cards) {
+        const t = placeTown(c.place?.address);
+        if (t) { towns.add(t); if (towns.size > 1) return true; }
+      }
+    }
+    return false;
+  }, [days]);
+
   // ── Mobile: the lists are the slots before Day 1 ─────────────
   // The phone shows one column at a time, so the lists join the same swipe
   // sequence rather than getting a second navigation idiom — and they sit
@@ -1658,6 +1669,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   };
 
   return (
+    <ManyTownsCtx.Provider value={manyTowns}>
     <div
       className="relative flex flex-col h-dvh md:h-[calc(100dvh-64px)] overflow-hidden md:!bg-none md:!bg-[#F5F4F1]"
       style={boardBgStyle}
@@ -2250,6 +2262,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
         />
       )}
     </div>
+    </ManyTownsCtx.Provider>
   );
 }
 
@@ -2362,16 +2375,76 @@ function DayColumn({ day, cards, dayIndex, fullWidth, onCardTap, onDelete, onOpe
 // as "<postcode> <town> <province code>" in Italy and "<town>, <state> <zip>"
 // elsewhere. Strip a leading postcode and a trailing 2-letter province, and
 // give up (null) rather than guess when the address has fewer than three parts.
+/**
+ * The town, from a Google formatted_address.
+ *
+ * The old rule was "second-to-last comma segment". That is the town in Italy
+ * and almost nowhere else, which is how 54 New York cards came to read "NY",
+ * 25 California ones "CA", and Costa Rica ones a bare "50101":
+ *
+ *   235 Mulberry St, New York, NY 10012, USA          → NY        ✗
+ *   ...Blvd. Aeropuerto, Liberia, 50101, Costa Rica   → 50101     ✗
+ *   ...Sydney NSW 2000, Australia                     → Sydney NSW ✗
+ *   Via delle Conce, 45, 55100 Lucca LU, Italy        → Lucca     ✓
+ *
+ * So: drop the country, then walk BACKWARDS to the first segment that still
+ * holds a real word once postcodes and state codes are stripped off it. Italy
+ * packs the town into the postal segment ("55100 Lucca LU"), the US puts it in
+ * its own one before it ("New York", then "NY 10012") — walking back handles
+ * both without knowing which country it is looking at.
+ *
+ * The exception is an address with no digits anywhere ("Tamarindo, Guanacaste,
+ * Costa Rica"). There the last segments are progressively BIGGER regions, so
+ * walking back lands on the province; the town is the first segment.
+ */
 function placeTown(address?: string | null): string | null {
   if (!address) return null;
   const parts = address.split(",").map((s) => s.trim()).filter(Boolean);
-  if (parts.length < 3) return null;
-  let seg = parts[parts.length - 2];
-  seg = seg.replace(/^\d{4,6}\s+/, "");          // Italian / EU postcode first
-  seg = seg.replace(/\s+[A-Z]{2}$/, "");          // Italian province code last
-  seg = seg.replace(/\s+\d{4,6}(-\d{4})?$/, "");  // US-style zip last
-  return seg.length > 0 && seg.length <= 40 ? seg : null;
+  if (parts.length < 2) return null;
+  const segs = parts.slice(0, -1); // the last one is the country
+  if (!segs.length) return null;
+
+  const clean = (raw: string) =>
+    raw
+      .replace(/^\d{3,6}\s+/, "")            // "00186 Roma RM"
+      .replace(/\s+\d{3,6}(-\d{4})?$/, "")   // "NY 10012", "Sydney NSW 2000"
+      .replace(/\s+[A-Z]{2,3}$/, "")         // "Roma RM", "Sydney NSW"
+      .trim();
+
+  const usable = (seg: string) =>
+    seg.length > 0 &&
+    seg.length <= 40 &&
+    !/^\d+$/.test(seg) &&                    // a bare postcode
+    !(seg.length <= 3 && seg === seg.toUpperCase()); // a bare "NY" / "CA"
+
+  // No digits at all means no street and no postcode: the first segment is the
+  // most specific thing in the address.
+  if (!/\d/.test(address)) {
+    const first = clean(segs[0]);
+    return usable(first) ? first : null;
+  }
+
+  for (let i = segs.length - 1; i >= 0; i--) {
+    const seg = clean(segs[i]);
+    if (usable(seg)) return seg;
+  }
+  return null;
 }
+
+/**
+ * Does this journey cross more than one town?
+ *
+ * On a New York board the word "New York" under nineteen cards looks like
+ * information and is noise — the journey title already said it. On a Tuscany
+ * board it is the whole question. So the town is shown when it distinguishes
+ * and dropped when it does not, and either way every card on a given board has
+ * the same shape (Brennan, Sep 2026).
+ *
+ * Context rather than a prop: CardTile is reached through DayColumn,
+ * ListColumn, SortableCardTile and two DragOverlays, and threading a boolean
+ * through all five to say one thing about the trip is not worth the noise.
+ */
+const ManyTownsCtx = createContext(false);
 
 // ── DayHeaderCell ──────────────────────────────────────────────
 // Lifted out of DayColumn into the pinned header row. Reads the day's
@@ -3225,6 +3298,7 @@ function CardTile({
   onDelete?: () => void;
   isOverlay?: boolean;
 }) {
+  const manyTowns   = useContext(ManyTownsCtx);
   const place       = card.place;
   const det         = card.details as Record<string, unknown>;
   const isNote      = place == null;
@@ -3233,10 +3307,6 @@ function CardTile({
   const borderClass = isNote ? "border-l-gray-200" : (TYPE_BORDER[placeType] ?? "border-l-gray-300");
   const subLabel    = subTypeLabel(place?.sub_type);
   const noteSnippet = isNote ? (det?.notes as string | undefined) : undefined;
-  const tileRating  = place?.type === "food" ? place.rating : null;
-  const priceRange  = place?.type === "food"
-    ? getPriceRange(place.price_level ?? undefined, det?.currency_code as string | undefined)
-    : null;
   const title       = place?.title ?? (det?.title as string | undefined) ?? noteSnippet?.slice(0, 60) ?? "(untitled note)";
 
   const timeRange = formatTimeRange(card.start_time, card.end_time);
@@ -3297,29 +3367,35 @@ function CardTile({
                 {openingHoursCaption(hoursSignal)}
               </p>
             )}
-            {isNote && noteSnippet ? (
-              <p className="text-[11px] text-gray-400 mt-0.5 leading-snug line-clamp-2">{noteSnippet}</p>
-            ) : (
-              (() => {
-                const parts: React.ReactNode[] = [];
-                if (timeRange) parts.push(timeRange);
-                if (subLabel && !isNote) parts.push(subLabel);
-                // The town, not the street. On a board of Vernazza, Monterosso,
-                // Lucca and Florence cards the question is which town a stop is
-                // in, never which street (Brennan, Sep 2026); the full address
-                // is on the Agenda row and in the card.
+            {(() => {
+              // ONE grammar, every card: time · kind · town.
+              //
+              // It used to be time · kind · town · ★rating · price, with three
+              // of the five appearing only on some cards — a restaurant showed
+              // five things, a transit stop three, a note a paragraph of prose.
+              // No two cards were the same shape, so there was nothing to read
+              // down. Rating and price now live in the card and on the map,
+              // where you are choosing; the board is where you are checking.
+              const parts: React.ReactNode[] = [];
+              // Time first and in ink: it is what the eye is looking for, and
+              // weight says so without spending the accent, which is reserved
+              // for the opening-hours warning on this very line.
+              if (timeRange) parts.push(
+                <span key="t" className="text-[#1A1A2E] font-semibold">{timeRange}</span>,
+              );
+              const kind = isNote ? "Note" : subLabel;
+              if (kind) parts.push(kind);
+              if (manyTowns) {
                 const town = placeTown(place?.address);
                 if (town) parts.push(town);
-                if (tileRating !== null) parts.push(<span key="r" className="text-amber-500">★ {tileRating.toFixed(1)}</span>);
-                if (priceRange) parts.push(priceRange);
-                if (parts.length === 0) return null;
-                return (
-                  <p className="text-[11px] text-gray-400 mt-0.5 leading-snug truncate">
-                    {parts.map((p, i) => <span key={i}>{i > 0 && " · "}{p}</span>)}
-                  </p>
-                );
-              })()
-            )}
+              }
+              if (parts.length === 0) return null;
+              return (
+                <p className="text-[11px] text-gray-400 mt-0.5 leading-snug truncate">
+                  {parts.map((pt, i) => <span key={i}>{i > 0 && " · "}{pt}</span>)}
+                </p>
+              );
+            })()}
             {/* Checklist progress and attachment count — Trello's card-face
                 indicators, and this board is the Trello-equivalent surface.
                 Renders nothing when the card has neither, so a card that has
