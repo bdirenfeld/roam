@@ -1537,7 +1537,12 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   // would make lists unreachable exactly when you want to start using them. The
   // board still OPENS on today's column, so all of this costs nothing until you
   // swipe right past Day 1 or tap one of the leading dots.
-  const mobileMinIdx = -(lists.length + 1);
+  // Day 1 is the left end of the phone's swipe. This used to be −(n+1) so the
+  // lists and their composer could sit before Day 1; with lists gone from the
+  // board, −1 was still reachable and still offered to make one (Brennan caught
+  // this, 2026-09-06). Everything below that reads a negative index now
+  // resolves to nothing rather than needing to be cut out.
+  const mobileMinIdx = 0;
   const safeMobileIdx = Math.max(
     mobileMinIdx,
     Math.min(mobileDayIdx, Math.max(0, days.length - 1)),
@@ -1784,8 +1789,8 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
                 )}
                 {days.length > 1 && (
                   <div className="flex items-center justify-center gap-1.5 py-1 bg-white">
-                    {/* The lists take the leading dots, then the add-a-list
-                        pane — mirroring their leading columns on desktop. */}
+                    {/* One dot per day. The leading dots for lists and their
+                        composer went with lists themselves. */}
                     {lists.map((list, i) => (
                       <button
                         key={list.id}
@@ -1796,11 +1801,6 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
                         }`}
                       />
                     ))}
-                    <button
-                      onClick={() => setMobileDayIdx(-1)}
-                      aria-label="Add a list"
-                      className={`rounded-full transition-all duration-200 ${showAddListMobile ? "w-4 h-1.5 bg-gray-600" : "w-1.5 h-1.5 bg-gray-300"}`}
-                    />
                     {days.map((_, i) => (
                       <button
                         key={i}
