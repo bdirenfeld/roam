@@ -135,7 +135,14 @@ export default function TripSettingsClient({
   const [linkBusy, setLinkBusy] = useState(false);
   const [confirmRevoke, setConfirmRevoke] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
-  const shareUrl = shareToken && typeof window !== "undefined" ? `${window.location.origin}/journey/${shareToken}` : null;
+  // What renders must not depend on `window`: the server has none, so a
+  // window-gated value makes the server's HTML and the browser's first render
+  // disagree and hydration fails (React #425/#422 on every load of this page
+  // until Sept 2026). The PATH is the same in both places and decides what is
+  // drawn; the absolute form is only ever needed inside a click handler, where
+  // `window` certainly exists.
+  const sharePath = shareToken ? `/journey/${shareToken}` : null;
+  const absoluteShareUrl = () => (sharePath ? `${window.location.origin}${sharePath}` : null);
   const refreshShare = useCallback(() => {
     if (!shareAvailable) return;
     loadShareState(trip.id)
@@ -359,7 +366,7 @@ export default function TripSettingsClient({
       }
       if (data.error) { toast({ message: data.error }); return; }
       if (data.reason === "provider-error") { toast({ message: data.detail ?? "The mail provider refused it." }); return; }
-      const link = data.url ?? shareUrl;
+      const link = data.url ?? absoluteShareUrl();
       if (link) {
         const subject = encodeURIComponent(`Join me on ${trip.title ?? "this journey"}`);
         const body = encodeURIComponent(`Here's the plan — open this to see it:\n\n${link}\n`);
@@ -387,9 +394,10 @@ export default function TripSettingsClient({
     }
   };
   const copyLink = async () => {
-    if (!shareUrl) return;
+    const url = absoluteShareUrl();
+    if (!url) return;
     try {
-      await navigator.clipboard.writeText(shareUrl);
+      await navigator.clipboard.writeText(url);
       toast({ message: "Link copied" });
     } catch {
       toast({ message: "Couldn't copy. Long-press the link to copy it." });
@@ -734,14 +742,14 @@ export default function TripSettingsClient({
               {/* The link line: the action, who has it, the way out. One line;
                   the address itself said nothing once truncated. */}
               <div className="mt-2.5 text-[13px] flex flex-wrap items-center gap-x-1.5 gap-y-1" style={{ color: "rgba(26,26,46,0.62)" }}>
-                {shareUrl ? (
+                {sharePath ? (
                   <button type="button" onClick={copyLink} className="text-[#1A1A2E]">Copy link</button>
                 ) : (
                   <button type="button" onClick={createLink} disabled={linkBusy} className="text-[#1A1A2E] disabled:opacity-40">
                     {linkBusy ? "Making a link…" : "Make a link"}
                   </button>
                 )}
-                {shareUrl && (
+                {sharePath && (
                   <>
                     <span aria-hidden="true">·</span>
                     {guests.length === 0 ? (

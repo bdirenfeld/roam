@@ -399,3 +399,21 @@ open on a DB error and logs. Five routes had no sign-in check before this.
 - THERE IS NO PAYWALL. `has_paid` is written by the Stripe webhook and read only
   by `/checkout`; the middleware gates on sign-in alone. Older comments claimed
   a gate that never existed. Do not add one without Brennan asking.
+
+## What renders must never depend on `window`
+
+Journey settings failed hydration on EVERY load (React #425 then #422) because
+the share URL was built as `typeof window !== "undefined" ? origin/... : null`.
+The server rendered "Make a link", the browser's first render said "Copy link",
+React threw the server HTML away and re-rendered the subtree. Caught by the
+error log on its first night (Sept 2026).
+
+The rule: a value that decides what is DRAWN must be identical on the server and
+in the browser's first render. Anything needing `window`, `localStorage`,
+`Date.now()` or a random value belongs in an event handler or a `useEffect`,
+never in the render path or a `useState` initialiser.
+
+Still carrying the pattern, latent (only bites once a board background is
+saved): `PlanBoard`'s `boardBg` useState initialiser reads localStorage.
+`MapPinPopup` reads `window.innerWidth` during render but only ever renders
+after a tap, so it is never in server HTML.
