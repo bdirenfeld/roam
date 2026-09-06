@@ -1820,7 +1820,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
                             {!folded && (
                               <div className="flex flex-row flex-nowrap gap-5">
                                 {week.days.map((day) => (
-                                  <DayHeaderCell key={day.id} day={day} weather={weatherByDate?.[day.date] ?? null} onRename={handleRenameDay} />
+                                  <DayHeaderCell key={day.id} day={day} weather={weatherByDate?.[day.date] ?? null} onRename={handleRenameDay} autoTitle={autoDayTitle(day, day.id === days[0]?.id, day.id === days[days.length - 1]?.id)} />
                                 ))}
                               </div>
                             )}
@@ -1852,7 +1852,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
                       <div className="hidden md:flex md:flex-row md:flex-nowrap md:gap-5 md:min-w-max md:flex-shrink-0">
 
                         {days.map((day) => (
-                          <DayHeaderCell key={day.id} day={day} weather={weatherByDate?.[day.date] ?? null} onRename={handleRenameDay} />
+                          <DayHeaderCell key={day.id} day={day} weather={weatherByDate?.[day.date] ?? null} onRename={handleRenameDay} autoTitle={autoDayTitle(day, day.id === days[0]?.id, day.id === days[days.length - 1]?.id)} />
                         ))}
                       </div>
 
@@ -2210,6 +2210,48 @@ function compactRange(range: string | null): string | null {
   return range.replace(/^(\d{1,2}:\d{2}) (AM|PM) – (\d{1,2}:\d{2}) \2$/, "$1 – $3 $2");
 }
 
+/**
+ * What a day would call itself.
+ *
+ * Deliberately dumb, because it has to be predictable and it has to re-derive
+ * itself instantly when a card moves — no model call, no stored answer.
+ *
+ *   • a flight on the FIRST day is an arrival, on the LAST day a departure.
+ *     Direction cannot come from sub_type: both ends of a trip are stored as
+ *     "flight_arrival" (see the trip-import notes), so the day's position in
+ *     the journey is the only honest signal;
+ *   • otherwise the day's longest ACTIVITY — not its longest meal, and not its
+ *     transit. What you did is what the day was;
+ *   • otherwise the first real place on it;
+ *   • a day of nothing but notes gets no name, because it has nothing to say.
+ */
+function autoDayTitle(day: DayWithCards, isFirst: boolean, isLast: boolean): string | null {
+  const cards = day.cards.filter((c) => c.status !== "cut");
+  if (!cards.length) return null;
+
+  const isFlight = (c: Card) =>
+    c.place?.sub_type === "flight_arrival" || c.place?.sub_type === "flight_departure";
+  if (isFirst && cards.some(isFlight)) return "Arrival";
+  if (isLast && cards.some(isFlight)) return "Departure";
+
+  const minutes = (c: Card) => {
+    if (!c.start_time || !c.end_time) return 0;
+    const [h1, m1] = c.start_time.split(":").map(Number);
+    const [h2, m2] = c.end_time.split(":").map(Number);
+    return (h2 * 60 + m2) - (h1 * 60 + m1);
+  };
+
+  const ACTIVITY = new Set(["guided", "self_directed", "event", "challenge", "wellness"]);
+  const activities = cards.filter((c) => c.place && ACTIVITY.has(c.place.sub_type ?? ""));
+  if (activities.length) {
+    const best = activities.reduce((a, b) => (minutes(b) > minutes(a) ? b : a));
+    if (best.place?.title) return best.place.title;
+  }
+
+  const firstPlace = cards.find((c) => c.place?.title);
+  return firstPlace?.place?.title ?? null;
+}
+
 function placeTown(address?: string | null): string | null {
   if (!address) return null;
   const parts = address.split(",").map((s) => s.trim()).filter(Boolean);
@@ -2312,7 +2354,7 @@ const HomeTownCtx = createContext<string | null>(null);
 // Lifted out of DayColumn into the pinned header row. Reads the day's
 // cards (live) so the STOP/H caption updates as cards move. Mirrors the
 // column width (md:w-[280px]) so each header sits exactly above its column.
-function DayHeaderCell({ day, weather, onRename }: { day: DayWithCards; weather?: DayWeather | null; onRename?: (dayId: string, theme: string) => void }) {
+function DayHeaderCell({ day, weather, onRename, autoTitle }: { day: DayWithCards; weather?: DayWeather | null; onRename?: (dayId: string, theme: string) => void; autoTitle?: string | null }) {
   const wxBtnRef = useRef<HTMLButtonElement>(null);
   // Day title — the optional line under the weekday. Same commit rules as a
   // list rename: Enter and blur commit, Escape reverts.
@@ -2356,7 +2398,7 @@ function DayHeaderCell({ day, weather, onRename }: { day: DayWithCards; weather?
           weekday is also the door to naming it: tap it and the title editor
           opens below. That replaces the dotted prompt every column carried. */}
       {dayOfWeek && (
-        onRename && !day.theme && !titleEditing ? (
+        onRename && !day.theme && !autoTitle && !titleEditing ? (
           <button
             type="button"
             onClick={startTitleEdit}
@@ -2404,25 +2446,25 @@ function DayHeaderCell({ day, weather, onRename }: { day: DayWithCards; weather?
             if (e.key === "Enter") commitTitle();
             if (e.key === "Escape") { setTitleDraft(day.theme ?? ""); setTitleEditing(false); }
           }}
-          placeholder="Lucca day, Rest, Cinque Terre…"
+          placeholder={autoTitle ? `${autoTitle} — clear to keep this automatic` : "Lucca day, Rest, Cinque Terre…"}
           aria-label={`Title for day ${day.day_number}`}
           className="w-full bg-transparent outline-none border-b border-[rgba(26,26,46,0.25)] focus:border-[#B0541F] placeholder:text-[rgba(26,26,46,0.28)]"
           style={{ fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: "12.5px", color: "rgb(26, 26, 46)", marginBottom: "6px", padding: "1px 0" }}
         />
-      ) : day.theme ? (
+      ) : (day.theme ?? autoTitle) ? (
         onRename ? (
           <button
             type="button"
             onClick={startTitleEdit}
-            title="Rename this day"
+            title={day.theme ? "Rename this day" : "This name comes from the day's plan — tap to write your own"}
             className="block w-full text-left truncate hover:opacity-70 transition-opacity"
             style={{ fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: "12.5px", color: "rgba(26, 26, 46, 0.72)", marginBottom: "6px", padding: "1px 0" }}
           >
-            {day.theme}
+            {day.theme ?? autoTitle}
           </button>
         ) : (
           <p className="truncate" style={{ fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: "12.5px", color: "rgba(26, 26, 46, 0.72)", marginBottom: "6px", padding: "1px 0" }}>
-            {day.theme}
+            {day.theme ?? autoTitle}
           </p>
         )
       ) : null}
