@@ -80,8 +80,11 @@ export default async function ClaimPage({ params }: Props) {
       host = (u?.name as string | null) ?? null;
     }
 
-    const [{ data: dayRows }, { data: cardRows }] = await Promise.all([
-      admin.from("days").select("id, date, day_number, title").eq("trip_id", t.id).order("day_number"),
+    // `day_name`, not `title` — the live schema is the source of truth and a
+    // wrong column makes PostgREST return an error with null data, which
+    // renders as a journey with no days at all (caught in review, Sept 2026).
+    const [{ data: dayRows, error: dayErr }, { data: cardRows, error: cardErr }] = await Promise.all([
+      admin.from("days").select("id, date, day_number, day_name").eq("trip_id", t.id).order("day_number"),
       admin
         .from("cards")
         .select("id, day_id, start_time, end_time, position, details, place:places ( title, sub_type, address, photo_cache )")
@@ -89,11 +92,16 @@ export default async function ClaimPage({ params }: Props) {
         .eq("status", "in_itinerary"),
     ]);
 
+    if (dayErr || cardErr) {
+      // Never show an empty-looking journey because a query failed.
+      console.error("[Roam] shared itinerary read failed:", dayErr?.message ?? cardErr?.message);
+    }
+
     const days: SharedDay[] = (dayRows ?? []).map((d) => ({
       id: d.id as string,
       date: d.date as string,
       dayNumber: d.day_number as number,
-      title: (d.title as string | null) ?? null,
+      title: (d.day_name as string | null) ?? null,
     }));
 
     type Row = {
