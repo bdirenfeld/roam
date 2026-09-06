@@ -1439,21 +1439,32 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   const activeCard  = activeId ? findCard(activeId) : null;
   const allEmpty    = days.every((d) => d.cards.length === 0);
 
-  // The town most of this journey's cards are in. Ties go to whichever was
-  // counted first, which is fine: with no majority there is no home to speak
-  // of and nearly everything prints its town anyway.
+  // Home is where you sleep, not where you spend the most cards.
+  //
+  // Counting cards made Tuscany's home FLORENCE — ten cards there against nine
+  // in Lucca — so Lucca printed its name and Florence, a day trip, said
+  // nothing. Backwards: the villa is outside Lucca. The hotel knows the answer
+  // and no tally does, so ask it first; only when a journey has no hotel card
+  // does the count stand in, and then by DAYS rather than cards, because a
+  // single packed day out should not outvote a week of coming back to the same
+  // place.
   const homeTown = useMemo(() => {
-    const counts = new Map<string, number>();
+    const dayCounts = new Map<string, Set<string>>();
+    let hotel: string | null = null;
     for (const d of days) {
       for (const c of d.cards) {
         const t = placeTown(c.place?.address);
-        if (t) counts.set(t, (counts.get(t) ?? 0) + 1);
+        if (!t) continue;
+        if (!hotel && c.place?.sub_type === hotel) hotel = t;
+        if (!dayCounts.has(t)) dayCounts.set(t, new Set());
+        dayCounts.get(t)!.add(d.id);
       }
     }
+    if (hotel) return hotel;
     let home: string | null = null;
     let best = 0;
-    counts.forEach((n, town) => { if (n > best) { best = n; home = town; } });
-    // One card in a town does not make it home; it makes it the only card.
+    dayCounts.forEach((dayIds, town) => { if (dayIds.size > best) { best = dayIds.size; home = town; } });
+    // One day in a town does not make it home; it makes it a day out.
     return best >= 2 ? home : null;
   }, [days]);
 
