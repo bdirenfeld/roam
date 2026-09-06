@@ -417,3 +417,19 @@ Still carrying the pattern, latent (only bites once a board background is
 saved): `PlanBoard`'s `boardBg` useState initialiser reads localStorage.
 `MapPinPopup` reads `window.innerWidth` during render but only ever renders
 after a tap, so it is never in server HTML.
+
+## A share link opens the itinerary, not a sign-in wall (Sept 2026)
+
+`/journey/[token]` for a signed-OUT visitor renders `SharedItinerary`: the
+days, the times, the places, and nothing else. The link is the secret and
+holding it is the permission. Signed-in visitors still claim membership and
+redirect into the app exactly as before.
+
+NEVER add to that page: attachments (passport and payment details live in
+flight confirmations), entry requirements, the budget, journey notes,
+travellers' names or ages. The link is forwardable.
+
+`force-dynamic`, so every open shows the current plan; `RefreshOnFocus`
+re-fetches when the tab comes back, at most once a minute. Photos come from
+`places.photo_cache` only — `/api/places/photo` needs a session and this page
+has none. New tokens are 24 characters; the old 12-character ones still work.

@@ -3,6 +3,12 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
 import ClaimSignIn from "./ClaimSignIn";
+import SharedItinerary, { type SharedCard, type SharedDay } from "./SharedItinerary";
+import { cachedPhotoUrl } from "@/lib/places/photoCache";
+
+// Rendered per request, never cached: opening the link always shows the plan
+// as it stands right now.
+export const dynamic = "force-dynamic";
 
 interface Props {
   params: Promise<{ token: string }>;
@@ -56,32 +62,85 @@ export default async function ClaimPage({ params }: Props) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    // Before sign-in the page names what it is inviting you to: the journey,
-    // its dates, who sent it, its cover. The token is the invitation, so
-    // showing its title to the holder gives nothing away that the link
-    // itself did not (Brennan, Sep 2026: the page was anonymous).
+    // No account needed to READ. The link is the secret and holding it is the
+    // permission; the people a journey was planned for should not have to
+    // make a Google account to look at it (Brennan, Sept 2026). Signing in is
+    // still offered, for anyone who wants to be a name on it and add to it.
     const admin = createAdminClient();
     const { data: t } = await admin
       .from("trips")
-      .select("title, destination, start_date, end_date, cover_image_url, user_id")
+      .select("id, title, destination, start_date, end_date, cover_image_url, user_id")
       .eq("share_token", shareToken)
       .maybeSingle();
+    if (!t) return <ClaimSignIn token={shareToken} invite={null} />;
+
     let host: string | null = null;
-    if (t?.user_id) {
+    if (t.user_id) {
       const { data: u } = await admin.from("users").select("name").eq("id", t.user_id).maybeSingle();
       host = (u?.name as string | null) ?? null;
     }
+
+    const [{ data: dayRows }, { data: cardRows }] = await Promise.all([
+      admin.from("days").select("id, date, day_number, title").eq("trip_id", t.id).order("day_number"),
+      admin
+        .from("cards")
+        .select("id, day_id, start_time, end_time, position, details, place:places ( title, sub_type, address, photo_cache )")
+        .eq("trip_id", t.id)
+        .eq("status", "in_itinerary"),
+    ]);
+
+    const days: SharedDay[] = (dayRows ?? []).map((d) => ({
+      id: d.id as string,
+      date: d.date as string,
+      dayNumber: d.day_number as number,
+      title: (d.title as string | null) ?? null,
+    }));
+
+    type Row = {
+      id: string; day_id: string | null; start_time: string | null; end_time: string | null;
+      position: number | null; details: Record<string, unknown> | null;
+      place: { title: string | null; sub_type: string | null; address: string | null; photo_cache: unknown } | null;
+    };
+    const cards: SharedCard[] = ((cardRows ?? []) as unknown as Row[])
+      // Same order the host sees: by the clock, untimed last, position as the tiebreak.
+      .sort((a, b) => {
+        if (a.start_time && b.start_time) {
+          const t2 = a.start_time.localeCompare(b.start_time);
+          if (t2 !== 0) return t2;
+        } else if (a.start_time) return -1;
+        else if (b.start_time) return 1;
+        return (a.position ?? 0) - (b.position ?? 0);
+      })
+      .map((c) => ({
+        id: c.id,
+        dayId: c.day_id,
+        start: c.start_time,
+        end: c.end_time,
+        noteTitle: typeof c.details?.title === "string" ? (c.details.title as string) : null,
+        place: c.place
+          ? {
+              title: c.place.title,
+              sub_type: c.place.sub_type,
+              address: c.place.address,
+              // Only an already-cached copy: /api/places/photo needs a session.
+              photo: cachedPhotoUrl(c.place.photo_cache, 0, "thumb"),
+            }
+          : null,
+      }));
+
     return (
-      <ClaimSignIn
+      <SharedItinerary
         token={shareToken}
-        invite={t ? {
+        journey={{
           title: t.title as string,
           destination: (t.destination as string | null) ?? null,
           startDate: (t.start_date as string | null) ?? null,
           endDate: (t.end_date as string | null) ?? null,
           cover: (t.cover_image_url as string | null) ?? null,
           host,
-        } : null}
+          days,
+          cards,
+        }}
       />
     );
   }

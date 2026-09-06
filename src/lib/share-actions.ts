@@ -27,7 +27,10 @@ async function assertOwner(tripId: string): Promise<void> {
 // URL-safe, collision-resistant enough for a UNIQUE column; short enough to
 // share. Hex from a v4 uuid keeps it dependency-free.
 function generateToken(): string {
-  return crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+  // The link is now the whole permission — holding it shows the itinerary —
+  // so a token is two UUIDs' worth of randomness, not 12 characters (Sept
+  // 2026). Existing 12-character tokens keep working; only new ones are longer.
+  return (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, "").slice(0, 24);
 }
 
 /** Turn sharing on. Idempotent: returns the existing token if one is set. */
