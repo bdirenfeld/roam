@@ -90,7 +90,10 @@ export default async function TripsPage() {
             above this, and repeating it cost a line for nothing. */}
 
 
-        <div className="px-4 pb-6 md:px-0 md:pb-0 md:mt-2">
+        {/* pt-3 on a phone: the header's rule sat directly on the first
+            journey's cover with nothing between them. Desktop already had its
+            own air from md:pt-10 above. */}
+        <div className="px-4 pt-3 pb-6 md:px-0 md:pt-0 md:pb-0 md:mt-2">
           {trips && trips.length > 0 ? (
             <>
               {/* Upcoming — stacked on mobile, 2-up grid on desktop */}

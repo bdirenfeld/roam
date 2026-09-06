@@ -1455,7 +1455,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
       for (const c of d.cards) {
         const t = placeTown(c.place?.address);
         if (!t) continue;
-        if (!hotel && c.place?.sub_type === hotel) hotel = t;
+        if (!hotel && c.place?.sub_type === "hotel") hotel = t;
         if (!dayCounts.has(t)) dayCounts.set(t, new Set());
         dayCounts.get(t)!.add(d.id);
       }
