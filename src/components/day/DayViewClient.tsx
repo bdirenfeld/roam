@@ -227,6 +227,8 @@ interface Props {
   /** trips.notes — arrives with the page payload so notes work offline. */
   initialNotes: string | null;
   /** Guest view — every plan-edit affordance is suppressed; the companion stays. */
+  /** Places saved for this journey and not yet on any day. */
+  savedCount?: number;
   readOnly?: boolean;
 }
 
@@ -242,7 +244,7 @@ function formatDayTitle(dateStr: string): string {
   return `${dayName}, ${dayNum} ${monthName}`;
 }
 
-export default function DayViewClient({ trip, days, dayWithCards, hotelCards, initialNotes, readOnly = false }: Props) {
+export default function DayViewClient({ trip, days, dayWithCards, hotelCards, initialNotes, savedCount = 0, readOnly = false }: Props) {
   const router = useRouter();
   const supabase = createClient();
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
@@ -945,6 +947,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
             dock={
               <CardTimeline
                 dayWithCards={localDayWithCards}
+                savedCount={savedCount}
                 onCardTap={handleDockCardTap}
                 highlightedCardId={highlightedCardId}
                 onToggleConfirmed={readOnly ? undefined : handleToggleConfirmed}
@@ -975,6 +978,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           >
             <CardTimeline
               dayWithCards={localDayWithCards}
+              savedCount={savedCount}
               onCardTap={handleCardTap}
               highlightedCardId={highlightedCardId}
               onGapTap={readOnly ? undefined : handleGapTap}

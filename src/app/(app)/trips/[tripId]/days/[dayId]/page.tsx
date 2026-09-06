@@ -56,6 +56,14 @@ export default async function DayPage({ params }: Props) {
       .eq("place.sub_type", "hotel"),
   ]);
 
+  // How many places are saved for this journey and not yet on a day. A count
+  // only — no rows — so it costs nothing on a day that does not need it.
+  const { count: savedCount } = await supabase
+    .from("cards")
+    .select("id", { count: "exact", head: true })
+    .eq("trip_id", tripId)
+    .eq("status", "interested");
+
   if (!trip) redirect("/trips");
 
   const currentDay = (days ?? []).find((d: Day) => d.id === dayId);
@@ -77,6 +85,7 @@ export default async function DayPage({ params }: Props) {
       // Notes ride the `*` select, so they arrive with the page payload and
       // work offline.
       initialNotes={(trip as Trip).notes ?? null}
+      savedCount={savedCount ?? 0}
       readOnly={readOnly}
     />
   );

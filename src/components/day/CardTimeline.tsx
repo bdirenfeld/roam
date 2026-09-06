@@ -25,6 +25,8 @@ interface Props {
   readOnly?: boolean;
   /** Tap on a card's time chip: open the quick time sheet for it. */
   onTimeTap?: (card: Card) => void;
+  /** Places saved for this journey and not yet on any day. */
+  savedCount?: number;
 }
 
 function minutesBetween(end: string | null, start: string | null): number {
@@ -79,6 +81,7 @@ export default function CardTimeline({
   cardNumberById,
   readOnly = false,
   onTimeTap,
+  savedCount = 0,
 }: Props) {
   const { cards } = dayWithCards;
 
@@ -138,6 +141,15 @@ export default function CardTimeline({
             </svg>
           </div>
           <p className="text-sm font-semibold text-gray-500">Nothing planned yet</p>
+          {/* The saved pile is invisible from here otherwise, and a day that
+              only says "nothing" reads as a dead end when the places are
+              already one tap below (Sept 2026: a tester saved 24 places for
+              Puglia and scheduled none of them onto 16 days). */}
+          {!readOnly && savedCount > 0 && (
+            <p className="mt-1.5 text-[13px] max-w-[260px]" style={{ color: "rgba(26,26,46,0.62)" }}>
+              {savedCount} {savedCount === 1 ? "place is" : "places are"} saved for this journey. Add one below.
+            </p>
+          )}
           <div className="mt-6 w-full max-w-[320px]">{renderAddControls(false)}</div>
         </div>
       ) : (
