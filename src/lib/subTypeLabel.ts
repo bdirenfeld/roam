@@ -22,7 +22,9 @@ export const SUB_TYPE_LABEL: Record<string, string> = {
   guided:           "Tour",
   self_directed:    "Explore",
   wellness:         "Wellness",
-  challenge:        "Challenge",
+  // A destination race — Brennan's reason for keeping this one. "Race" rather
+  // than "Challenge", which also reads as a hard hike or a climb.
+  challenge:        "Race",
   event:            "Event",
   shopping:         "Shopping",
   beach:            "Beach",

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useCallback, useState } from "react";
 import TimeSheet from "@/components/day/TimeSheet";
-import { Clock, Heart } from "@phosphor-icons/react";
+import { CaretDown, Clock, Heart } from "@phosphor-icons/react";
 import type { Card, ChecklistItem, Day, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
@@ -84,7 +84,7 @@ const SUB_TYPE_LABEL: Record<string, string> = {
   hosted:           "Guided",
   wellness:         "Wellness",
   event:            "Event",
-  challenge:        "Challenge",
+  challenge:        "Race",
   beach:            "Beach",
   restaurant:       "Restaurant",
   coffee:           "Coffee",
@@ -111,8 +111,9 @@ const CATEGORY_OPTIONS = [
 // ── Sub-type options per parent type ──────────────────────────
 const SUB_TYPE_OPTIONS: Record<string, { value: string; label: string }[]> = {
   activity: [
-    { value: "guided",        label: "Guided"        },
-    { value: "self_directed", label: "Self-Directed"  },
+    { value: "guided",        label: "Tour"          },
+    { value: "challenge",     label: "Race"          },
+    { value: "self_directed", label: "Explore"        },
     { value: "wellness",      label: "Wellness"       },
     { value: "event",         label: "Event"          },
     { value: "beach",         label: "Beach"          },
@@ -847,6 +848,28 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     : null;
   const website = place?.website ?? (typeof det?.website === "string" ? (det.website as string) : null);
   const weekdayText = readWeekdayText(place?.hours);
+
+  // Shut by default; opening it is a deliberate lookup.
+  const [hoursOpen, setHoursOpen] = useState(false);
+
+  // The line for the day this card sits on — "Tuesday: 9:00 AM – 6:00 PM" —
+  // which is the one line worth showing while the rest stay folded. Google
+  // names the days in English and readWeekdayText keeps that naming, so the
+  // match is on the same vocabulary. A dateless card (a saved place, not yet on
+  // a day) simply has no line to show.
+  const cardDayLine = (() => {
+    if (!weekdayText) return null;
+    const date = days?.find((d) => d.id === localCard.day_id)?.date;
+    if (!date) return null;
+    const [y, m, d] = date.split("-").map(Number);
+    if (!y || !m || !d) return null;
+    // Built from parts, not Date.parse: "2026-03-15" parses as UTC and can land
+    // on the previous weekday west of Greenwich.
+    const weekday = new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "long" });
+    const line = weekdayText.find((l) => l.startsWith(weekday + ":"));
+    if (!line) return null;
+    return { weekday, value: line.slice(weekday.length + 2).trim() };
+  })();
   const menuUrl = typeof det?.menu_url === "string"
                     ? ((det.menu_url as string) || null)
                     : null;
@@ -1442,15 +1465,32 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               </div>
             )}
 
-            {/* Full weekly hours — the deliberate lookup surface. Always shown
-                when the place carries hours; absent for notes and hours-less places. */}
+            {/* Weekly hours, folded. Six of the seven lines are about days you
+                are not there, so the row opens showing only the day this card
+                sits on and expands to the week on a tap. */}
             {weekdayText && (
               <div className="mt-5 pt-4 border-t border-gray-100">
-                <div className="flex items-center gap-1.5 mb-2">
+                <button
+                  type="button"
+                  onClick={() => setHoursOpen((v) => !v)}
+                  aria-expanded={hoursOpen}
+                  className="w-full flex items-center gap-1.5 mb-2 text-left"
+                >
                   <Clock size={14} weight="light" className="text-activity/50" />
                   <span className="text-[12px] font-medium text-activity">Hours</span>
-                </div>
-                <ul className="space-y-1">
+                  {!hoursOpen && cardDayLine && (
+                    <span className="text-[12.5px] text-activity/60 truncate ml-1">
+                      {cardDayLine.value}
+                    </span>
+                  )}
+                  <CaretDown
+                    size={12}
+                    weight="bold"
+                    className="ml-auto text-activity/40 flex-shrink-0"
+                    style={{ transform: hoursOpen ? "rotate(180deg)" : "none", transition: "transform 150ms" }}
+                  />
+                </button>
+                <ul className="space-y-1" hidden={!hoursOpen}>
                   {weekdayText.map((line, i) => {
                     const idx = line.indexOf(": ");
                     const day = idx >= 0 ? line.slice(0, idx) : line;

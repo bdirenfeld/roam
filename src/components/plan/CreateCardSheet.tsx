@@ -11,8 +11,9 @@ import type { PlaceResult } from "@/components/map/AddToTripSheet";
 
 const SUB_TYPES: Record<CardType, { value: string; label: string }[]> = {
   activity: [
-    { value: "guided",        label: "Guided"        },
-    { value: "self_directed", label: "Self-Directed" },
+    { value: "guided",        label: "Tour"          },
+    { value: "challenge",     label: "Race"          },
+    { value: "self_directed", label: "Explore"       },
     { value: "wellness",      label: "Wellness"      },
     { value: "event",         label: "Event"         },
     { value: "beach",         label: "Beach"         },

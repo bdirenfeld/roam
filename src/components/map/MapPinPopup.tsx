@@ -56,7 +56,7 @@ const SUB_TYPE_LABEL: Record<string, string> = {
   hosted:           "Guided",
   self_directed:    "Self-Directed",
   wellness:         "Wellness",
-  challenge:        "Challenge",
+  challenge:        "Race",
   beach:            "Beach",
   event:            "Event",
   hotel:            "Hotel",
@@ -75,8 +75,9 @@ const TYPE_OPTIONS: { type: CardType; label: string }[] = [
 
 const SUB_TYPE_OPTIONS: Record<CardType, { label: string; value: string }[]> = {
   activity:  [
-    { label: "Guided",        value: "guided"        },
-    { label: "Self-directed", value: "self_directed"  },
+    { label: "Tour",          value: "guided"        },
+    { label: "Race",          value: "challenge"     },
+    { label: "Explore",       value: "self_directed"  },
     { label: "Wellness",      value: "wellness"       },
     { label: "Event",         value: "event"          },
     { label: "Beach",         value: "beach"          },

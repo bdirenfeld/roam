@@ -37,8 +37,8 @@ interface Props {
 // Sub-types whose visibility is controlled by the sidebar toggles. Derived
 // from the sidebar's own rows so the two lists can never disagree — a sub-type
 // that sits under a row but not in here silently ignores that row's toggle.
-// (Retired `challenge` is deliberately absent: no row offers it, so leaving it
-// uncontrolled keeps legacy pins visible under the Activity type toggle.)
+// `challenge` is back and labelled Race — it has a sidebar row again, so it
+// arrives here on its own through SIDEBAR_SUB_TYPES.
 const CONTROLLED_SUB_TYPES = new Set<string>(SIDEBAR_SUB_TYPES);
 
 // Skeleton card titles (Day DNA templates) — these never have real locations
