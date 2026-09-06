@@ -1613,10 +1613,20 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
           onDelete={() => handleDeleteList(list.id)}
         />
       ))}
-      {/* "+ Add a list" carries its own label, so its header slot is empty —
-          but the slot still has to exist or every day header would sit one
-          column left of its column. */}
-      <div aria-hidden className="hidden md:block md:flex-shrink-0" style={{ width: addListWidth }} />
+      {/* The pane lives in the HEADER row, not the columns row, so its top edge
+          lines up with "Day 1" rather than with the first card a hundred pixels
+          lower — and it stops jumping up the board every time a week folds
+          (Brennan, Sep 2026). Positioned out of flow inside its slot: in flow,
+          an open composer would make this row 110px taller and push every
+          column down the moment you tapped it. */}
+      <div className="hidden md:block md:flex-shrink-0 md:relative" style={{ width: addListWidth }}>
+        <AddListColumn
+          drafting={draftList}
+          onStart={() => setDraftList(true)}
+          onCommit={handleCreateList}
+          onCancel={() => setDraftList(false)}
+        />
+      </div>
     </>
   );
 
@@ -1634,12 +1644,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
           onAddCard={() => setComposerList(list)}
         />
       ))}
-      <AddListColumn
-        drafting={draftList}
-        onStart={() => setDraftList(true)}
-        onCommit={handleCreateList}
-        onCancel={() => setDraftList(false)}
-      />
+      <div aria-hidden className="hidden md:block md:flex-shrink-0" style={{ width: addListWidth }} />
     </>
   );
 
@@ -3028,12 +3033,12 @@ function AddListColumn({
     inputRef.current?.focus();
   }, [draft, onCommit, onCancel]);
 
-  // pt-3 matches the p-3 every column wraps its cards in. Without it the rail
-  // starts 12px above the first card of every neighbour — the whole reason it
-  // read as unaligned. Being a column means obeying the column's own padding.
+  // On desktop the pane is absolutely placed at the top of its header-row slot,
+  // so it aligns with the day headers and never moves when a week folds. The
+  // phone keeps the plain in-flow column: there it is a swipe pane of its own.
   const shellCls = fullWidth
     ? "w-full flex flex-col"
-    : "hidden md:flex md:flex-shrink-0 md:h-full md:min-h-0 md:flex-col md:pt-3";
+    : "hidden md:flex md:flex-col md:absolute md:top-0 md:left-0 md:z-10";
 
   if (!drafting) {
     return (
@@ -3070,7 +3075,7 @@ function AddListColumn({
             // Grow to the text, up to about three lines.
             const el = e.currentTarget;
             el.style.height = "auto";
-            el.style.height = Math.min(el.scrollHeight, 76) + "px";
+            el.style.height = Math.min(el.scrollHeight, 63) + "px";
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commit(); }
@@ -3079,7 +3084,7 @@ function AddListColumn({
           placeholder="Enter list name…"
           aria-label="New list name"
           className="w-full bg-transparent outline-none resize-none border-b border-[rgba(26,26,46,0.15)] focus:border-[#B0541F] pb-1 placeholder:text-[rgba(26,26,46,0.28)]"
-          style={LIST_TIER2}
+          style={{ fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: "15px", fontWeight: 600, color: "rgb(26, 26, 46)", lineHeight: 1.4 }}
         />
         <div className="flex items-center gap-2 mt-3">
           <button
