@@ -1,7 +1,7 @@
 "use client";
 
 import "mapbox-gl/dist/mapbox-gl.css";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { Card } from "@/types/database";
 import { makeMaterialPinElement } from "@/lib/mapPins";
@@ -130,6 +130,25 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
   // or a flick up/down switches.
   const [dockOpen, setDockOpen] = useState(false);
   const dockTouchY = useRef<number | null>(null);
+
+  // What the map can actually SHOW, as fitBounds padding.
+  //
+  // On a phone the dock is not beside the map, it is on top of it: 176px of
+  // the day's list closed, 72dvh open, covering the bottom of the canvas. Even
+  // padding therefore fits pins into a band that is partly hidden, which is
+  // how tapping a two-pin stack could leave one of the two off screen.
+  //
+  // Desktop has no dock and keeps the even 90.
+  const dockPresentRef = useRef(!!dock);
+  dockPresentRef.current = !!dock;
+  const dockOpenRef = useRef(dockOpen);
+  dockOpenRef.current = dockOpen;
+  const fitPadding = useCallback((): number | { top: number; right: number; bottom: number; left: number } => {
+    if (typeof window === "undefined" || window.innerWidth >= 768 || !dockPresentRef.current) return 90;
+    const dockHeight = dockOpenRef.current ? Math.round(window.innerHeight * 0.72) : 176;
+    // 24px so the lowest pin clears the dock's edge rather than kissing it.
+    return { top: 72, right: 44, bottom: dockHeight + 24, left: 44 };
+  }, []);
   const dockListRef = useRef<HTMLDivElement>(null);
   // A flick anywhere on the dock moves it: up opens, down closes — but a
   // downward flick while the list is scrolled is a scroll, not a close.
@@ -232,7 +251,9 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
                 new mb.LngLatBounds([item.lng, item.lat], [item.lng, item.lat]),
               );
               if (!expandedRef.current && window.innerWidth < 768) onToggleExpandRef.current?.();
-              setTimeout(() => map.fitBounds(b, { padding: 90, maxZoom: 17, duration: 500 }), 60);
+              // 60ms lets the expand commit first, so the dock is the height
+              // fitPadding is about to assume.
+              setTimeout(() => map.fitBounds(b, { padding: fitPadding(), maxZoom: 17, duration: 500 }), 60);
               return;
             }
             onPinTapRef.current?.(card.id);
@@ -329,7 +350,9 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
                   new mb.LngLatBounds([hotelItem.lng, hotelItem.lat], [hotelItem.lng, hotelItem.lat]),
                 );
                 if (!expandedRef.current && window.innerWidth < 768) onToggleExpandRef.current?.();
-                setTimeout(() => map.fitBounds(b, { padding: 90, maxZoom: 17, duration: 500 }), 60);
+                // 60ms lets the expand commit first, so the dock is the height
+              // fitPadding is about to assume.
+              setTimeout(() => map.fitBounds(b, { padding: fitPadding(), maxZoom: 17, duration: 500 }), 60);
                 return;
               }
               onPinTapRef.current?.(ac.id);
