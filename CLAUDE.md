@@ -433,3 +433,32 @@ travellers' names or ages. The link is forwardable.
 re-fetches when the tab comes back, at most once a minute. Photos come from
 `places.photo_cache` only — `/api/places/photo` needs a session and this page
 has none. New tokens are 24 characters; the old 12-character ones still work.
+
+## The Plan board's "Add another list" pane lives in the HEADER row
+
+The desktop board is three sibling rows in one X-scroller — week bars, day
+headers, columns — and every row carries the same leading slots at the same
+widths so they cannot drift apart.
+
+`AddListColumn` sits in the **day-header row** (`listHeaderCells`), positioned
+`absolute top-0` inside a `relative` slot, with a plain spacer holding its place
+in the columns row. Two reasons, both learned the hard way on 2026-09-06:
+
+- **In the columns row it aligned with the first card, not with Day 1** — about
+  100px too low — and it jumped 154px up the board every time a week folded,
+  because the header row's height vanished with it.
+- **It has to be out of flow.** In flow, opening the composer makes the pane
+  110px tall, which stretches the header row and shoves every single column down
+  the moment you tap it. `WeekFoldedCard` is out of flow in the week-bar row for
+  exactly the same reason.
+
+The pane's top now equals the day-header cell top (both 185px on a 12-day trip),
+and when every week is folded it shares a top edge with the folded week cards.
+
+The composer field is **15px DM Sans**, not `LIST_TIER2`. `LIST_TIER2` is 22px
+Playfair italic — the style list *titles* render in — and setting an empty input
+in it produced a huge box with a giant placeholder. The auto-grow cap is 63px,
+which is three lines at 15px; it was 76px when the field was 22px.
+
+The phone is untouched by all of this: there the pane is `fullWidth` and is a
+swipe pane of its own, rendered from a separate `<AddListColumn fullWidth />`.
