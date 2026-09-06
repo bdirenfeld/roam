@@ -13,7 +13,6 @@ import {
   useSensor,
   useSensors,
   useDroppable,
-  useDraggable,
   type CollisionDetection,
   type DragStartEvent,
   type DragOverEvent,
@@ -28,7 +27,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { createClient } from "@/lib/supabase/client";
-import { queuedUpdate, queuedInsert, queuedDelete } from "@/lib/offline/queuedWrite";
+import { queuedInsert, queuedDelete } from "@/lib/offline/queuedWrite";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import CardBadges from "@/components/cards/CardBadges";
 import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
@@ -51,7 +50,6 @@ import {
   readCollapsedLists,
   writeCollapsedLists,
   COL_W,
-  FOLDED_W,
   type PlanWeek,
 } from "@/lib/planWeeks";
 import { nextPositionForDay, nextPositionForList } from "@/lib/scheduleCard";
@@ -60,7 +58,7 @@ import { formatTimeRange } from "@/lib/formatTime";
 import { getOpeningHoursConflict, openingHoursCaption, openingHoursTone } from "@/lib/openingHours";
 
 import CardImage from "@/components/ui/CardImage";
-import { Trash, DotsThree, ArrowLeft, ArrowRight, Files, NotePencil } from "@phosphor-icons/react";
+import { Trash, Files } from "@phosphor-icons/react";
 import { useGlobalSearch } from "@/components/search/GlobalSearch";
 import { useToast } from "@/components/ui/Toast";
 import AppMenu from "@/components/ui/AppMenu";
@@ -285,9 +283,6 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   const [composerDay, setComposerDay] = useState<DayWithCards | null>(null);
   // Same composer, aimed at one of the lists instead of a day.
   const [composerList, setComposerList] = useState<ListWithCards | null>(null);
-  // A list being named for the first time. It is NOT a row yet: an abandoned
-  // name should leave nothing behind, so the insert waits for the commit.
-  const [draftList, setDraftList] = useState(false);
   const [pendingConf,  setPendingConf]  = useState<{ items: ParsedConfirmation[]; fileName: string; fileType: string } | null>(null);
   const [showDocs,     setShowDocs]     = useState(false);
 
@@ -454,15 +449,6 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
     for (const l of initialLists) if (l.cards.length === 0) stored.add(l.id);
     setCollapsedLists(stored);
   }, [trip.id, initialLists]);
-  const toggleList = useCallback((listId: string) => {
-    setCollapsedLists((prev) => {
-      const next = new Set(prev);
-      if (next.has(listId)) next.delete(listId);
-      else next.add(listId);
-      writeCollapsedLists(trip.id, next);
-      return next;
-    });
-  }, [trip.id]);
   // Pixel width of every leading column, in board order, so the week-bar row
   // and the pinned header row can reserve the same slots the columns row takes.
   const listWidths = useMemo(
@@ -676,8 +662,11 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   // currently over. Separate from `activeId` (a card) on purpose: the two never
   // coexist, and keeping them apart means no handler has to ask "which kind is
   // this?" of a single variable.
-  const [activeListId, setActiveListId] = useState<string | null>(null);
-  const [listOverId, setListOverId] = useState<string | null>(null);
+  // Write-only. The drag handlers below are shared with card dragging and
+  // still clear these on every start/end; nothing reads them now that lists are
+  // off the board, and a stale reader is worse than an unread write.
+  const [, setActiveListId] = useState<string | null>(null);
+  const [, setListOverId] = useState<string | null>(null);
 
   const sensors = useSensors(
     // Mouse: immediate drag after 8px movement — no delay on desktop
@@ -967,46 +956,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   // ── List CRUD ────────────────────────────────────────────────
   // A list is created only when it has a name: an abandoned "+ Add a list"
   // leaves no row, so the board never grows an untitled column.
-  const handleCreateList = useCallback(async (rawTitle: string) => {
-    const title = rawTitle.trim();
-    if (!title) { setDraftList(false); return; }
-    // A trip gets ONE list. Every list ever made was a bucket of trip notes and
-    // both real ones were called "Logistics", so a second column was machinery
-    // nobody used — and the leading columns were the only part of the board
-    // whose geometry varied. Asking again is a no-op, not a second column.
-    if (listsRef.current.length > 0) { setDraftList(false); return; }
 
-    const id = crypto.randomUUID();
-    const position = listsRef.current.reduce((m, l) => Math.max(m, l.position), 0) + 1;
-    const optimistic: ListWithCards = {
-      id, trip_id: trip.id, title, position,
-      created_at: new Date().toISOString(), cards: [],
-    };
-    setLists((prev) => [...prev, optimistic]);
-
-    const { error } = await supabase
-      .from("trip_lists")
-      .insert({ id, trip_id: trip.id, title, position });
-    if (error) {
-      setLists((prev) => prev.filter((l) => l.id !== id));
-      showToast("Couldn't add that list.");
-    }
-  }, [supabase, trip.id, showToast]);
-
-  const handleRenameList = useCallback(async (listId: string, rawTitle: string) => {
-    const title = rawTitle.trim();
-    const before = listsRef.current.find((l) => l.id === listId);
-    // An empty name is a cancel, not a rename: a column with no name is
-    // unreachable in every menu that lists them.
-    if (!before || !title || title === before.title) return;
-
-    setLists((prev) => prev.map((l) => (l.id === listId ? { ...l, title } : l)));
-    const { error } = await queuedUpdate("trip_lists", { id: listId }, { title });
-    if (error) {
-      setLists((prev) => prev.map((l) => (l.id === listId ? { ...l, title: before.title } : l)));
-      showToast("Couldn't rename that list.");
-    }
-  }, [supabase, showToast]);
 
   // ── List order ───────────────────────────────────────────────
   // A list's position used to be set once, at creation, and never again, so
@@ -1054,44 +1004,12 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   // The menu's Move left / Move right. Present on desktop for keyboard and
   // screen-reader reach, and the ONLY way to reorder on a phone, where the
   // board shows one column at a time and there is nothing to drag across to.
-  const handleMoveList = useCallback(
-    async (listId: string, delta: -1 | 1) => {
-      const from = listsRef.current.findIndex((l) => l.id === listId);
-      if (from < 0) return;
-      await moveListToIndex(listId, from + delta);
-    },
-    [moveListToIndex],
-  );
 
   // Deleting a list deletes the LIST. `cards.list_id` is ON DELETE SET NULL, so
   // its cards stay in the journey as saved places — the confirm copy says so,
   // because a column named "Research" holding a week of work must not read as a
   // one-click way to lose it. The name, the grouping and the order are the parts
   // that genuinely go, which is what the undo window buys back.
-  const handleDeleteList = useCallback(async (listId: string) => {
-    const snapshot = listsRef.current;
-    const removed = snapshot.find((l) => l.id === listId);
-    if (!removed) return;
-    const wasCollapsed = collapsedLists.has(listId);
-
-    setLists((prev) => prev.filter((l) => l.id !== listId));
-    setComposerList((prev) => (prev?.id === listId ? null : prev));
-    setCollapsedLists((prev) => {
-      if (!prev.has(listId)) return prev;
-      const next = new Set(prev);
-      next.delete(listId);
-      writeCollapsedLists(trip.id, next);
-      return next;
-    });
-
-    const { error } = await queuedDelete("trip_lists", { id: listId });
-    if (error) {
-      setLists(snapshot);
-      showToast("Couldn't delete that list.");
-      return;
-    }
-    startUndoWindow({ kind: "list", list: removed, collapsed: wasCollapsed });
-  }, [supabase, trip.id, showToast, collapsedLists, startUndoWindow]);
 
   // ── Drop-target resolution ───────────────────────────────────
   // Every drop asks the same question — day, list, or nothing — and asks it
@@ -1521,16 +1439,30 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   const activeCard  = activeId ? findCard(activeId) : null;
   const allEmpty    = days.every((d) => d.cards.length === 0);
 
-  // Two distinct towns is enough to make the town worth printing.
+  // "More than one town" was too weak a test. A New York trip has nineteen
+  // cards in New York and one airport in East Elmhurst, which is two towns —
+  // so every card printed "New York" under a journey already called New York,
+  // the exact repetition the rule was written to stop.
+  //
+  // The question is not whether a second town exists but whether the journey
+  // has a HOME. If one town holds most of the cards, that town is the trip and
+  // naming it on every card says nothing; Tuscany, spread across Lucca,
+  // Firenze, Vernazza, Pisa and Montefoscoli, has no such centre and the town
+  // is the whole question.
   const manyTowns = useMemo(() => {
-    const towns = new Set<string>();
+    const counts = new Map<string, number>();
+    let total = 0;
     for (const d of days) {
       for (const c of d.cards) {
         const t = placeTown(c.place?.address);
-        if (t) { towns.add(t); if (towns.size > 1) return true; }
+        if (!t) continue;
+        counts.set(t, (counts.get(t) ?? 0) + 1);
+        total += 1;
       }
     }
-    return false;
+    if (total < 2 || counts.size < 2) return false;
+    const biggest = Math.max(...Array.from(counts.values()));
+    return biggest / total < 0.6;
   }, [days]);
 
   // ── Mobile: the lists are the slots before Day 1 ─────────────
@@ -1561,7 +1493,6 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   // 0…n−1 is a list; n is the add-a-list pane; below zero is a day.
   const mobileSlot = safeMobileIdx + lists.length + 1;
   const currentMobileList = safeMobileIdx < 0 ? lists[mobileSlot] : undefined;
-  const showAddListMobile = safeMobileIdx < 0 && mobileSlot === lists.length;
   const currentMobileDay = safeMobileIdx < 0 ? undefined : days[safeMobileIdx];
 
   const boardBgStyle: React.CSSProperties =
@@ -1592,65 +1523,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
     />
   );
 
-  // Where a dragged list would land. Resolved once, here, for the same reason
-  // the week slots are: a list is rendered across TWO rows (header cell,
-  // column), and both have to agree about which column is lifted and which
-  // gutter the insertion bar belongs in.
-  const listDragIdx = activeListId ? lists.findIndex((l) => l.id === activeListId) : -1;
-  const listOverIdx = listOverId ? lists.findIndex((l) => l.id === listOverId) : -1;
-  const dropEdgeAt = (i: number): "left" | "right" | null => {
-    if (listDragIdx < 0 || listOverIdx < 0 || i !== listOverIdx || listOverIdx === listDragIdx) return null;
-    // Dropping on a slot takes its index, so the dragged column arrives on the
-    // far side of the slot from where it started.
-    return listOverIdx > listDragIdx ? "right" : "left";
-  };
-  const activeList = activeListId ? lists.find((l) => l.id === activeListId) ?? null : null;
 
-  // ── The leading columns ──────────────────────────────────────
-  // Lists, then "+ Add a list", then Day 1. All three board rows (week bars,
-  // pinned headers, columns) need the same slots in the same order at the same
-  // widths, so each row reads one of these three fragments rather than
-  // re-deriving the geometry — that is what stops the rows drifting apart.
-  const listHeaderCells = (
-    <>
-      {lists.map((list) => (
-        <ListHeaderCell
-          key={list.id}
-          list={list}
-          dragging={list.id === activeListId}
-          onRename={(title) => handleRenameList(list.id, title)}
-          onDelete={() => handleDeleteList(list.id)}
-        />
-      ))}
-    </>
-  );
-
-  const listColumns = (
-    <>
-      {lists.map((list, i) => (
-        <ListColumn
-          key={list.id}
-          list={list}
-          collapsed={false}
-          dragging={list.id === activeListId}
-          dropEdge={dropEdgeAt(i)}
-          onExpand={() => toggleList(list.id)}
-          onCardTap={(card) => setSelectedCard(card)}
-          onAddCard={() => setComposerList(list)}
-        />
-      ))}
-    </>
-  );
-
-  // Week bars align by summing slot widths from the left edge, so the columns
-  // that now sit before Week 1 have to occupy slots in that row too.
-  const listSpacers = (
-    <>
-      {lists.map((list, i) => (
-        <div key={list.id} aria-hidden className="flex-shrink-0" style={{ width: listWidths[i] }} />
-      ))}
-    </>
-  );
 
   const handleBgSave = async (url: string) => {
     const newBg: BoardBg = url
@@ -1728,44 +1601,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
                   </button>
-                  {currentMobileList ? (
-                    /* The day picker lists days; a list is not one, so the
-                       centre slot carries the list's own name and the
-                       arrows/dots/swipe carry you back into the day sequence. */
-                    <div className="flex items-center gap-1 min-w-0 px-2">
-                      <div className="text-center min-w-0">
-                        <p className="text-sm font-bold text-gray-900 truncate">{currentMobileList.title}</p>
-                        <p className="text-xs text-gray-400">
-                          {currentMobileList.cards.length}{" "}
-                          {currentMobileList.cards.length === 1 ? "card" : "cards"} · not on a day
-                        </p>
-                      </div>
-                      {/* The phone shows one column at a time, so there is
-                          nothing to drag a column across to — Move left/right
-                          in this menu IS the reorder here. Renaming stays
-                          desktop-only: it is an inline edit of the header cell,
-                          which this pane does not render. */}
-                      <ListMenu
-                        list={currentMobileList}
-                        cardCount={currentMobileList.cards.length}
-                        canMoveLeft={mobileSlot > 0}
-                        canMoveRight={mobileSlot < lists.length - 1}
-                        onMove={(delta) => {
-                          handleMoveList(currentMobileList.id, delta);
-                          // Follow the list to its new slot rather than
-                          // leaving the traveller staring at its neighbour.
-                          setMobileDayIdx((prev) => prev + delta);
-                        }}
-                        onDelete={() => handleDeleteList(currentMobileList.id)}
-                        triggerClassName="w-7 h-7 grid place-items-center rounded-full text-gray-400 hover:bg-gray-100 transition-colors flex-shrink-0"
-                      />
-                    </div>
-                  ) : showAddListMobile ? (
-                    <div className="text-center">
-                      <p className="text-sm font-bold text-gray-900">New list</p>
-                      <p className="text-xs text-gray-400">Name it whatever you like</p>
-                    </div>
-                  ) : days.length > 1 ? (
+                  {days.length > 1 ? (
                     <DayPicker
                       days={days}
                       onSelect={(day) => setMobileDayIdx(days.findIndex((d) => d.id === day.id))}
@@ -1824,45 +1660,6 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
                 )}
               </div>
 
-              {/* Swipeable list content — same slot, same swipe handlers */}
-              {currentMobileList && (
-                <div
-                  className="flex-1 min-h-0 overflow-hidden px-3 pt-2"
-                  onTouchStart={handleSwipeTouchStart}
-                  onTouchEnd={handleSwipeTouchEnd}
-                >
-                  <ListColumn
-                    list={currentMobileList}
-                    fullWidth
-                    onCardTap={(card) => setSelectedCard(card)}
-                    onAddCard={() => setComposerList(currentMobileList)}
-                  />
-                </div>
-              )}
-
-              {/* The add-a-list pane — the only way to make the first list on a
-                  phone, so it is always in the sequence. */}
-              {showAddListMobile && (
-                <div
-                  className="flex-1 min-h-0 overflow-hidden px-3 pt-2"
-                  onTouchStart={handleSwipeTouchStart}
-                  onTouchEnd={handleSwipeTouchEnd}
-                >
-                  <AddListColumn
-                    fullWidth
-                    drafting={draftList}
-                    onStart={() => setDraftList(true)}
-                    onCommit={async (title) => {
-                      const named = title.trim().length > 0;
-                      await handleCreateList(title);
-                      // The new list takes the slot this pane was in, pushing
-                      // the pane one right; stay on the list just made.
-                      if (named) setMobileDayIdx((prev) => prev - 1);
-                    }}
-                    onCancel={() => setDraftList(false)}
-                  />
-                </div>
-              )}
 
               {/* Swipeable day content */}
               {currentMobileDay && (
@@ -1982,7 +1779,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
                           row is 0px and that gap would just push "Add a list"
                           off the top edge of the cards it sits beside. */}
                       <div className={`hidden md:flex md:flex-row md:flex-nowrap md:gap-5 md:min-w-max md:flex-shrink-0 ${allCollapsed ? "" : "md:mb-3"}`}>
-                        {listSpacers}
+
                         {weekSlots.map(({ week, folded, width }) => (
                           <div
                             key={week.key}
@@ -2014,7 +1811,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
                           folded this row collapses to nothing by itself: no
                           guard, no reserved band. */}
                       <div className="hidden md:flex md:flex-row md:flex-nowrap md:gap-5 md:min-w-max md:flex-shrink-0">
-                        {listHeaderCells}
+
                         {weekSlots.map(({ week, folded, width }) => (
                           <div key={week.key} className="flex-shrink-0" style={{ width }}>
                             {!folded && (
@@ -2029,7 +1826,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
                       </div>
 
                       <div className="flex flex-row flex-nowrap gap-5 md:min-w-max md:flex-1 md:min-h-0">
-                        {listColumns}
+
                         {weekSlots.map(({ week, folded, width }) => (
                           <div key={week.key} className="flex-shrink-0 md:h-full md:min-h-0" style={{ width }}>
                             {!folded && (
@@ -2050,14 +1847,14 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
                           structurally — no position:sticky needed. Cells mirror the
                           column width (md:w-[280px]) and gap (md:gap-5) exactly. */}
                       <div className="hidden md:flex md:flex-row md:flex-nowrap md:gap-5 md:min-w-max md:flex-shrink-0">
-                        {listHeaderCells}
+
                         {days.map((day) => (
                           <DayHeaderCell key={day.id} day={day} weather={weatherByDate?.[day.date] ?? null} onRename={handleRenameDay} />
                         ))}
                       </div>
 
                       <div className="flex flex-row flex-nowrap gap-[10px] md:gap-5 md:min-w-max md:flex-1 md:min-h-0">
-                        {listColumns}
+
                         {days.map((day) => renderColumn(day))}
                       </div>
                     </>
@@ -2067,9 +1864,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
               </div>
 
               <DragOverlay>
-                {activeList
-                  ? <ListDragChip list={activeList} />
-                  : activeCard && <CardTile card={activeCard} isOverlay />}
+                {activeCard && <CardTile card={activeCard} isOverlay />}
               </DragOverlay>
             </DndContext>
           )}
@@ -2397,6 +2192,17 @@ function DayColumn({ day, cards, dayIndex, fullWidth, onCardTap, onDelete, onOpe
  * Costa Rica"). There the last segments are progressively BIGGER regions, so
  * walking back lands on the province; the town is the first segment.
  */
+/**
+ * "9:20 AM – 10:55 AM" becomes "9:20 – 10:55 AM". Both halves of a range are
+ * nearly always the same half of the day, and saying so twice is what pushed
+ * the line past the column and truncated the town mid-word. A range that does
+ * cross noon keeps both, because there the second one is load-bearing.
+ */
+function compactRange(range: string | null): string | null {
+  if (!range) return null;
+  return range.replace(/^(\d{1,2}:\d{2}) (AM|PM) – (\d{1,2}:\d{2}) \2$/, "$1 – $3 $2");
+}
+
 function placeTown(address?: string | null): string | null {
   if (!address) return null;
   const parts = address.split(",").map((s) => s.trim()).filter(Boolean);
@@ -2638,528 +2444,6 @@ function DayHeaderCell({ day, weather, onRename }: { day: DayWithCards; weather?
 // date line and the forecast. The name occupies the weekday's slot, because the
 // name is what a list has instead of a date.
 
-const LIST_TIER1: React.CSSProperties = {
-  fontFamily: "'DM Sans', system-ui, sans-serif",
-  fontSize: "9.5px",
-  fontWeight: 600,
-  letterSpacing: "0.18em",
-  textTransform: "uppercase",
-  color: "rgba(26, 26, 46, 0.62)",
-  whiteSpace: "nowrap",
-};
-
-const LIST_TIER2: React.CSSProperties = {
-  fontFamily: "'Playfair Display', Georgia, serif",
-  fontSize: "22px",
-  fontWeight: 500,
-  fontStyle: "italic",
-  color: "rgb(26, 26, 46)",
-  letterSpacing: "-0.01em",
-  lineHeight: 1.1,
-};
-
-function ListHeaderCell({
-  list,
-  dragging,
-  onRename,
-  onDelete,
-}: {
-  list: ListWithCards;
-  /** This column is the one currently being dragged. */
-  dragging: boolean;
-  onRename: (title: string) => void;
-  onDelete: () => void;
-}) {
-  const [editing, setEditing]     = useState(false);
-  const [draft,   setDraft]       = useState(list.title);
-  const inputRef  = useRef<HTMLInputElement>(null);
-
-  // The whole header cell is the drag handle. The mouse sensor asks for 8px
-  // of travel before a drag starts, so a tap on the name still renames.
-  // `attributes` is deliberately not taken: it carries role="button" and a
-  // keyboard drag activator this header does not want.
-  const { listeners, setNodeRef } = useDraggable({ id: `${LIST_DRAG_PREFIX}${list.id}` });
-
-  const count = list.cards.length;
-
-  const startEditing = useCallback(() => {
-    setDraft(list.title);
-    setEditing(true);
-    setTimeout(() => inputRef.current?.select(), 0);
-  }, [list.title]);
-
-  // Enter and blur both commit; Escape reverts. A rename is one word typed in
-  // passing, so committing on blur is what you'd expect — and an empty commit
-  // is treated as a cancel by handleRenameList, never as an unnamed column.
-  const commit = useCallback(() => {
-    setEditing(false);
-    onRename(draft);
-  }, [draft, onRename]);
-
-  return (
-    <div
-      ref={setNodeRef}
-      {...listeners}
-      className="hidden md:block md:flex-shrink-0 transition-opacity cursor-grab active:cursor-grabbing touch-none"
-      style={{
-        width: COL_W,
-        padding: "14px 16px 12px",
-        opacity: dragging ? 0.35 : 1,
-      }}
-    >
-      {/* Tier 1 — where a day header reads "DAY 3 · SEP 6", this reads
-          "LIST · 4": same register, and a count where a date would be is the
-          quickest way to see it is not a day. */}
-      <div className="flex items-center justify-between gap-1" style={{ minHeight: 20 }}>
-        <span style={LIST_TIER1}>List{count > 0 ? ` · ${count}` : ""}</span>
-        {/* Delete is one tap with the same undo window as a card. */}
-        <button
-          type="button"
-          onClick={onDelete}
-          aria-label={`Delete ${list.title}`}
-          title="Delete this list"
-          className="w-5 h-5 grid place-items-center rounded-full text-[15px] leading-none text-[rgba(26,26,46,0.35)] hover:text-[#A8372B] hover:bg-[rgba(168,55,43,0.08)] transition-colors"
-        >
-          ×
-        </button>
-      </div>
-
-      {/* Tier 2 — the weekday's slot, carrying the name the traveller typed.
-          Tap it to rename. */}
-      {(
-        editing ? (
-          <input
-            ref={inputRef}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commit}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") commit();
-              if (e.key === "Escape") { setDraft(list.title); setEditing(false); }
-            }}
-            placeholder="Research, Prep, Ideas…"
-            aria-label="List name"
-            className="w-full bg-transparent outline-none border-b border-[rgba(26,26,46,0.25)] focus:border-[#B0541F] placeholder:text-[rgba(26,26,46,0.28)]"
-            style={{ ...LIST_TIER2, marginTop: "4px" }}
-          />
-        ) : (
-          <button
-            type="button"
-            onClick={startEditing}
-            title="Rename this list"
-            className="block w-full text-left truncate hover:opacity-70 transition-opacity"
-            style={{ ...LIST_TIER2, marginTop: "4px" }}
-          >
-            {list.title}
-          </button>
-        )
-      )}
-      {/* Tier 3 (forecast) is deliberately absent — a list has no date to have
-          weather on. */}
-    </div>
-  );
-}
-
-// ── ListMenu ───────────────────────────────────────────────────
-// One menu, both surfaces. The desktop header cell and the phone's list pane
-// need the same verbs against the same list, and the delete confirm in
-// particular has to say the same true thing in both places — so it is written
-// once. Rename is desktop-only (it is an inline edit of the header cell, which
-// the phone pane does not render), so it appears only when a handler is given.
-function ListMenu({
-  list,
-  cardCount,
-  canMoveLeft,
-  canMoveRight,
-  onMove,
-  onStartRename,
-  onDelete,
-  triggerClassName,
-}: {
-  list: ListWithCards;
-  cardCount: number;
-  canMoveLeft: boolean;
-  canMoveRight: boolean;
-  onMove: (delta: -1 | 1) => void;
-  onStartRename?: () => void;
-  onDelete: () => void;
-  triggerClassName: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const [confirming, setConfirming] = useState(false);
-  const btnRef = useRef<HTMLButtonElement>(null);
-  // Both call sites live inside an overflow-clipped scroller, so the popover is
-  // position:fixed and measured off the button — the same trick DayHeaderCell
-  // uses for the hourly forecast.
-  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
-
-  const openMenu = useCallback(() => {
-    const rect = btnRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    setPos({ left: Math.max(8, Math.min(rect.left - 150, window.innerWidth - 240)), top: rect.bottom + 6 });
-    setConfirming(false);
-    setOpen(true);
-  }, []);
-
-  const ITEM =
-    "w-full flex items-center gap-2.5 px-3 py-2 transition-colors text-left " +
-    "enabled:hover:bg-gray-50 disabled:opacity-35 disabled:cursor-default";
-
-  return (
-    <>
-      <button
-        ref={btnRef}
-        type="button"
-        onClick={openMenu}
-        aria-label={`Options for ${list.title}`}
-        className={triggerClassName}
-      >
-        <DotsThree size={15} weight="bold" />
-      </button>
-
-      {open && pos && (
-        <>
-          <div className="fixed inset-0 z-40" onPointerDown={() => setOpen(false)} />
-          <div
-            className="fixed z-50 w-[230px] bg-white rounded-xl py-1 overflow-hidden"
-            style={{
-              left: pos.left, top: pos.top,
-              border: "1px solid rgba(26,26,46,0.12)",
-              boxShadow: "0 8px 30px rgba(26,26,46,0.14)",
-            }}
-          >
-            {confirming ? (
-              <div className="px-3 py-2.5">
-                <p className="text-[12.5px] font-semibold text-gray-900 leading-snug">
-                  Delete &ldquo;{list.title}&rdquo;?
-                </p>
-                {/* Says what actually happens: the column and its name go, the
-                    cards do not. */}
-                <p className="text-[11.5px] text-gray-500 leading-snug mt-1">
-                  {cardCount === 0
-                    ? "Nothing else changes."
-                    : `The ${cardCount} ${cardCount === 1 ? "card stays" : "cards stay"} in your journey, under “Add from saved”.`}
-                </p>
-                <div className="flex gap-2 mt-2.5">
-                  <button
-                    onClick={() => setOpen(false)}
-                    className="flex-1 py-1.5 rounded-lg text-[12px] font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => { setOpen(false); onDelete(); }}
-                    className="flex-1 py-1.5 rounded-lg text-[12px] font-semibold text-white bg-[#B0541F] hover:opacity-90 transition-opacity"
-                  >
-                    Delete list
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                {onStartRename && (
-                  <button onClick={() => { setOpen(false); onStartRename(); }} className={ITEM}>
-                    <NotePencil size={14} weight="light" className="text-gray-500 flex-shrink-0" />
-                    <span className="text-[12.5px] font-medium text-gray-900">Rename</span>
-                  </button>
-                )}
-                {/* The keyboard- and phone-reachable half of reordering. Same
-                    write as the drag: renumber 1..n, save what changed. */}
-                <button
-                  onClick={() => { setOpen(false); onMove(-1); }}
-                  disabled={!canMoveLeft}
-                  className={ITEM}
-                >
-                  <ArrowLeft size={14} weight="light" className="text-gray-500 flex-shrink-0" />
-                  <span className="text-[12.5px] font-medium text-gray-900">Move left</span>
-                </button>
-                <button
-                  onClick={() => { setOpen(false); onMove(1); }}
-                  disabled={!canMoveRight}
-                  className={ITEM}
-                >
-                  <ArrowRight size={14} weight="light" className="text-gray-500 flex-shrink-0" />
-                  <span className="text-[12.5px] font-medium text-gray-900">Move right</span>
-                </button>
-                <div className="mx-3 my-0.5 border-t border-gray-100" />
-                <button onClick={() => setConfirming(true)} className={ITEM}>
-                  <Trash size={14} weight="light" className="text-gray-500 flex-shrink-0" />
-                  <span className="text-[12.5px] font-medium text-gray-900">Delete list</span>
-                </button>
-              </>
-            )}
-          </div>
-        </>
-      )}
-    </>
-  );
-}
-
-// ── ListDragChip ───────────────────────────────────────────────
-// What follows the cursor while a column is being dragged. A list is rendered
-// across two rows (header cell, column) so there is no single node to lift —
-// this is a purpose-made stand-in, borrowing the collapsed rail's face so what
-// you are carrying still reads as that column.
-function ListDragChip({ list }: { list: ListWithCards }) {
-  const n = list.cards.length;
-  return (
-    <div
-      className="rounded-[9px] bg-white border border-[rgba(196,98,45,0.55)] shadow-[0_8px_24px_0_rgba(0,0,0,0.16)] cursor-grabbing"
-      style={{ width: FOLDED_W, padding: "12px 13px 14px", transform: "rotate(-2deg)" }}
-    >
-      <span className="block truncate" style={WEEK_LABEL}>{list.title}</span>
-      <span className="block" style={{
-        fontFamily: "'DM Sans', system-ui, sans-serif",
-        fontSize: "10px", fontWeight: 500,
-        color: "rgba(26,26,46,0.45)", marginTop: "6px",
-      }}>
-        {n} {n === 1 ? "card" : "cards"}
-      </span>
-    </div>
-  );
-}
-
-function ListColumn({
-  list,
-  collapsed = false,
-  fullWidth,
-  dragging = false,
-  dropEdge = null,
-  onExpand,
-  onCardTap,
-  onAddCard,
-}: {
-  list: ListWithCards;
-  collapsed?: boolean;
-  /** Mobile: the column fills the swipe pane, and never collapses. */
-  fullWidth?: boolean;
-  /** This column is the one being dragged — lift it out of the board's plane. */
-  dragging?: boolean;
-  /** Which gutter the dragged column would land in, if this is the target. */
-  dropEdge?: "left" | "right" | null;
-  onExpand?: () => void;
-  onCardTap: (card: Card) => void;
-  onAddCard: () => void;
-}) {
-  const cards = list.cards;
-  // The droppable is the whole column, collapsed included — a 140px rail is a
-  // perfectly good target for "get this off the calendar".
-  const { setNodeRef, isOver } = useDroppable({ id: `${LIST_PREFIX}${list.id}` });
-  // A SECOND droppable on the same column, for a different kind of drag: this
-  // one accepts a list, the one above accepts a card. They never compete
-  // because listCollision only ever offers one of them per drag. Disabled on
-  // the phone, where a column IS the whole pane and there is nothing to
-  // reorder against.
-  const { setNodeRef: setSlotRef } = useDroppable({
-    id: `${LIST_SLOT_PREFIX}${list.id}`,
-    disabled: fullWidth,
-  });
-
-  // The 3px bar in the 20px gutter: where the dragged column will land.
-  const edge = dropEdge && (
-    <span
-      aria-hidden
-      className={`absolute top-0 bottom-0 w-[3px] rounded-full bg-[#B0541F] ${
-        dropEdge === "left" ? "-left-[11px]" : "-right-[11px]"
-      }`}
-    />
-  );
-
-  if (collapsed && !fullWidth) {
-    return (
-      <div
-        ref={setSlotRef}
-        className="relative hidden md:block md:flex-shrink-0 md:h-full md:min-h-0 transition-opacity"
-        style={{ width: FOLDED_W, opacity: dragging ? 0.35 : 1 }}
-      >
-        {edge}
-        <button
-          ref={setNodeRef}
-          type="button"
-          onClick={onExpand}
-          aria-label={`Expand ${list.title}`}
-          className={`group w-full text-left rounded-[9px] bg-white border transition-all shadow-card hover:shadow-card-hover ${
-            isOver ? "border-[rgba(196,98,45,0.55)]" : "border-[rgba(26,26,46,0.12)] hover:border-[rgba(26,26,46,0.24)]"
-          }`}
-          style={{ padding: "12px 13px 14px" }}
-        >
-          <span className="block truncate" style={WEEK_LABEL}>{list.title}</span>
-          <span className="block" style={{
-            fontFamily: "'DM Sans', system-ui, sans-serif",
-            fontSize: "10px", fontWeight: 500,
-            color: "rgba(26,26,46,0.45)", marginTop: "6px",
-          }}>
-            {cards.length} {cards.length === 1 ? "card" : "cards"}
-          </span>
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      ref={setSlotRef}
-      className={`relative transition-opacity ${fullWidth ? "w-full h-full flex flex-col" : "w-[148px] min-w-[148px] flex-shrink-0 md:w-[280px] md:h-full md:min-h-0 flex flex-col"}`}
-      style={{ opacity: dragging ? 0.35 : 1 }}
-    >
-      {edge}
-      <div
-        style={fullWidth ? { backgroundColor: "rgba(255,255,255,0.88)" } : undefined}
-        className={`rounded-xl overflow-hidden flex flex-col scrollbar-none [touch-action:pan-y] ${
-          fullWidth ? "backdrop-blur-md flex-1 min-h-0 overflow-y-auto" : "md:flex-1 md:min-h-0"
-        }`}
-      >
-        <div
-          ref={setNodeRef}
-          className={`p-3 flex flex-col scrollbar-none [touch-action:pan-y] rounded-xl transition-colors ${
-            isOver && cards.length === 0 ? "bg-[rgba(196,98,45,0.08)]" : ""
-          } ${
-            fullWidth ? "" : "max-h-[calc(100dvh-11rem)] overflow-y-auto md:max-h-none md:flex-1 md:min-h-0 md:overflow-y-auto"
-          }`}
-        >
-          {/* The column itself is the drop target (the ref above), so an
-              empty list reserves no height: its Add a place row sits right
-              under the name instead of a hand-width down (Brennan, Sep 2026). */}
-          <div className={`shrink-0 rounded-lg ${cards.length ? "min-h-[72px]" : ""} ${fullWidth ? "overflow-y-auto pb-4" : ""}`}>
-            <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-              {cards.map((card) => (
-                // dayDate null: a card on a list has no date, so the
-                // opening-hours conflict signal stays silent rather than
-                // guessing one.
-                <SortableCardTile
-                  key={card.id}
-                  card={card}
-                  dayDate={null}
-                  onTap={() => onCardTap(card)}
-                />
-              ))}
-            </SortableContext>
-          </div>
-
-          <div className={`flex flex-col gap-2 shrink-0 ${cards.length ? "pt-2" : ""}`}>
-            <AddPlaceRow onClick={onAddCard} />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── "+ Add a list" ─────────────────────────────────────────────
-// A quiet rail at the end of the lists, widening into a real field the moment
-// you tap it. Nothing is written until a name is committed, so an abandoned
-// attempt leaves no untitled column behind. The placeholder suggests a shape
-// without dictating one — these are the traveller's categories, not the app's.
-function AddListColumn({
-  drafting,
-  fullWidth,
-  onStart,
-  onCommit,
-  onCancel,
-}: {
-  drafting: boolean;
-  fullWidth?: boolean;
-  onStart: () => void;
-  onCommit: (title: string) => void;
-  onCancel: () => void;
-}) {
-  const [draft, setDraft] = useState("");
-  const inputRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    if (drafting) {
-      setDraft("");
-      setTimeout(() => inputRef.current?.focus(), 0);
-    }
-  }, [drafting]);
-
-  const commit = useCallback(() => {
-    if (!draft.trim()) { onCancel(); return; }
-    onCommit(draft);
-    setDraft("");
-    // Straight into the next name, no second tap on "Add a list".
-    inputRef.current?.focus();
-  }, [draft, onCommit, onCancel]);
-
-  // On desktop the pane is absolutely placed at the top of its header-row slot,
-  // so it aligns with the day headers and never moves when a week folds. The
-  // phone keeps the plain in-flow column: there it is a swipe pane of its own.
-  const shellCls = fullWidth
-    ? "w-full flex flex-col"
-    : "hidden md:flex md:flex-col md:absolute md:top-0 md:left-0 md:z-10";
-
-  if (!drafting) {
-    return (
-      <div className={shellCls} style={fullWidth ? undefined : { width: COL_W }}>
-        {/* Reached only on a phone, where this is a swipe pane of its own. On
-            desktop the idle affordance is the "+ List" chip in the control row,
-            so this branch never renders there.
-            "Another" because the composer stays open and you
-            are expected to keep going. */}
-        <button
-          type="button"
-          onClick={onStart}
-          className="w-full flex items-center gap-2.5 rounded-xl px-3.5 py-3 text-[14px] text-[#1A1A2E] whitespace-nowrap hover:bg-white/70 active:opacity-70 transition-colors"
-          style={{ background: "rgba(255,255,255,0.55)", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)" }}
-          aria-label="Add another list"
-        >
-          <span aria-hidden="true" className="text-[16px] leading-none" style={{ color: "rgba(26,26,46,0.5)" }}>+</span>
-          Add another list
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className={shellCls} style={fullWidth ? undefined : { width: COL_W }}>
-      <div className="rounded-xl bg-white shadow-card p-3" style={{ border: "1px solid rgba(26,26,46,0.12)" }}>
-        {/* A textarea, not an input: a long list name wraps onto a second line
-            instead of scrolling out of sight. Enter still commits — the newline
-            is suppressed. */}
-        <textarea
-          ref={inputRef}
-          rows={1}
-          value={draft}
-          onChange={(e) => {
-            setDraft(e.target.value);
-            // Grow to the text, up to about three lines.
-            const el = e.currentTarget;
-            el.style.height = "auto";
-            el.style.height = Math.min(el.scrollHeight, 63) + "px";
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commit(); }
-            if (e.key === "Escape") { setDraft(""); onCancel(); }
-          }}
-          placeholder="Enter list name…"
-          aria-label="New list name"
-          className="w-full bg-transparent outline-none resize-none border-b border-[rgba(26,26,46,0.15)] focus:border-[#B0541F] pb-1 placeholder:text-[rgba(26,26,46,0.28)]"
-          style={{ fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: "15px", fontWeight: 600, color: "rgb(26, 26, 46)", lineHeight: 1.4 }}
-        />
-        <div className="flex items-center gap-2 mt-3">
-          <button
-            onClick={commit}
-            disabled={!draft.trim()}
-            className="flex-1 py-2 rounded-full text-[12.5px] font-semibold text-white bg-[#1A1A2E] disabled:opacity-30 transition-opacity"
-          >
-            Add list
-          </button>
-          {/* ✕, not the word "Done" — Trello's, and it stops the row reading as
-              two competing verbs. */}
-          <button
-            onClick={() => { setDraft(""); onCancel(); }}
-            aria-label="Stop adding lists"
-            className="w-9 h-9 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 transition-colors"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ── Week bar / folded week card ────────────────────────────────
 // Geometry and typography follow design-reference/long-trip/week-folding.html.
@@ -3380,8 +2664,9 @@ function CardTile({
               // Time first and in ink: it is what the eye is looking for, and
               // weight says so without spending the accent, which is reserved
               // for the opening-hours warning on this very line.
-              if (timeRange) parts.push(
-                <span key="t" className="text-[#1A1A2E] font-semibold">{timeRange}</span>,
+              const shownTime = compactRange(timeRange);
+              if (shownTime) parts.push(
+                <span key="t" className="text-[#1A1A2E] font-semibold">{shownTime}</span>,
               );
               const kind = isNote ? "Note" : subLabel;
               if (kind) parts.push(kind);
