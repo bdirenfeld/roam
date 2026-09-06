@@ -9,9 +9,9 @@ The aesthetic reference is **Monocle magazine meets Condé Nast Traveller**. Eve
 The benchmark: someone opens Roam in a Centurion Lounge and the person next to them asks "what app is that?"
 
 ## Visual system
-- Background: `#FAF7F2` (warm parchment)
+- Background: `#F5F4F1` (warm near-white). Secondary surface `#F0EFEB`, saved pill `#EDECE8`. It was `#FAF7F2` cream until Sept 2026 — Brennan called the cream + italic serif + terracotta trio "the default AI look" and picked this instead.
 - Primary / buttons / active states: `#1A1A2E` (deep ink)
-- Single accent, used sparingly: `#C4622D` (burnt sienna)
+- Single accent, used sparingly: `#B0541F` (burnt sienna)
 - Card surfaces: `#FFFFFF` white
 - Secondary text / icons: `#6B7280` warm slate
 - Display font: Playfair Display italic (headings, trip names, screen titles)

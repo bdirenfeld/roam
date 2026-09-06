@@ -10,6 +10,7 @@
 // obvious how to download it onto your phone as an app").
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 const DISMISS_KEY = "roam_install_banner_v2";
 
@@ -31,6 +32,10 @@ function isIosSafari(): boolean {
 }
 
 export default function InstallBanner() {
+  // Not on the map: the banner is full width along the bottom and the map
+  // keeps its Filter pill down there, so the two collided (regression sweep,
+  // Sept 2026). Every other screen still offers it.
+  const pathname = usePathname();
   const [mode, setMode] = useState<"android" | "ios" | null>(null);
   const [promptEvent, setPromptEvent] = useState<InstallPromptEvent | null>(null);
 
@@ -60,7 +65,7 @@ export default function InstallBanner() {
     else setPromptEvent(null);
   };
 
-  if (!mode) return null;
+  if (!mode || pathname?.endsWith("/map")) return null;
 
   return (
     <div
