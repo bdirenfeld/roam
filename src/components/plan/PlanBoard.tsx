@@ -57,7 +57,6 @@ import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
 import { formatTimeRange } from "@/lib/formatTime";
 import { getOpeningHoursConflict, openingHoursCaption, openingHoursTone } from "@/lib/openingHours";
 
-import CardImage from "@/components/ui/CardImage";
 import { Trash, Files } from "@phosphor-icons/react";
 import { useGlobalSearch } from "@/components/search/GlobalSearch";
 import { useToast } from "@/components/ui/Toast";
@@ -2700,46 +2699,39 @@ function CardTile({
     <div
       className={`group relative bg-white rounded-xl border border-gray-100 shadow-card mb-2 select-none overflow-hidden border-l-[3px] ${borderClass} ${isOverlay ? "shadow-[0_8px_24px_0_rgba(0,0,0,0.14)] scale-[1.02]" : ""}`}
     >
+      {/* The cover. A place's photo across the top of the card, the way
+          Brennan's own Trello trip boards do it, instead of a 40px chip beside
+          the words. Only a card with a place gets one: a note ("Pool. On
+          purpose.") stays flat text, exactly as the text-only cards do on his
+          board, so the covers still mean something.
+
+          The category icon sits under the photo and IS the fallback — a place
+          whose photo fails to load shows its icon on the parchment tile rather
+          than a hole. */}
+      {place && (
+        <div
+          className="relative w-full overflow-hidden flex items-center justify-center text-[#1A1A2E]"
+          style={{ height: 96, background: "#E8E3DA" }}
+        >
+          <span
+            // eslint-disable-next-line react/no-danger
+            dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(place.sub_type, 22) }}
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`/api/places/photo?place_id=${place.id}&size=full`}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
+            onError={(e) => { e.currentTarget.style.display = "none"; }}
+          />
+        </div>
+      )}
       <button onClick={onTap} className="w-full text-left p-3 md:px-3 md:py-2.5">
         <div className="flex items-start gap-2.5 md:items-center md:gap-3">
 
-          {/* Mobile thumbnail — 60×60 (only when card is linked to a place) */}
-          {place && (
-            <CardImage
-              src={`/api/places/photo?place_id=${place.id}&size=thumb`}
-              alt=""
-              className="md:hidden w-[60px] h-[60px] rounded-lg object-cover flex-shrink-0"
-              lat={place.lat}
-              lng={place.lng}
-              subType={place.sub_type}
-              title={place.title}
-            />
-          )}
-
-          {/* Desktop photo chip — 40×40, place photo over the category icon.
-              Mirrors the mobile proxy thumbnail (same /api/places/photo call);
-              on load failure the photo hides and the category icon shows through
-              — the icon chip IS the fallback (per the Plan pinned-header mockup). */}
-          <div
-            className="hidden md:flex relative flex-shrink-0 items-center justify-center overflow-hidden text-[#1A1A2E]"
-            style={{ width: 40, height: 40, borderRadius: 9, background: "#E8E3DA", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.08)" }}
-          >
-            <span
-              // eslint-disable-next-line react/no-danger
-              dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(place?.sub_type, 16) }}
-            />
-            {place && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={`/api/places/photo?place_id=${place.id}&size=thumb`}
-                alt=""
-                className="absolute inset-0 w-full h-full object-cover"
-                onError={(e) => { e.currentTarget.style.display = "none"; }}
-              />
-            )}
-          </div>
-
-          {/* Text content */}
+          {/* Text content — now the whole width. Dropping the 40px chip and its
+              12px gap gave this line 52px back, which is what had been cutting
+              "San Martino in Freddana" short. */}
           <div className="flex-1 min-w-0">
             <p className="text-[14px] font-semibold text-gray-900 leading-snug line-clamp-2 md:text-[13.5px] md:font-medium md:line-clamp-2 md:tracking-[-0.005em]">
               {title}
