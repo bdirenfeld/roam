@@ -1,5 +1,5 @@
 // ── The one name for a place's kind ───────────────────────────────────────
-// "Restaurant", "Dessert", "Self-directed" — the small word above a title on
+// "Restaurant", "Dessert", "Explore" — the small word above a title on
 // the desktop Agenda and inside the caption line everywhere else. There were
 // two tables (CardSurface and PlanBoard), each missing half the taxonomy, so
 // Gelateria Veneta got nothing where Trattoria da Giulio got "Restaurant"
@@ -13,8 +13,14 @@ export const SUB_TYPE_LABEL: Record<string, string> = {
   dessert:          "Dessert",
   bar:              "Bar",
   // activity
-  guided:           "Guided",
-  self_directed:    "Self-directed",
+  // "Guided" and "Self-directed" were the database talking. A tour is a tour
+  // (Colosseum, the Vatican, the truffle hunt, the cooking classes), and the
+  // 41 cards on the other side are beaches, gardens, piazzas, trailheads and
+  // bookshops — things you go and look at with nobody leading you. "Explore"
+  // carries all of those; "Visit" breaks on the walks and "Solo" is plain
+  // wrong when you are there with four other people (Brennan, Sep 2026).
+  guided:           "Tour",
+  self_directed:    "Explore",
   wellness:         "Wellness",
   challenge:        "Challenge",
   event:            "Event",
@@ -29,7 +35,7 @@ export const SUB_TYPE_LABEL: Record<string, string> = {
   grocery:          "Grocery",
   medical:          "Medical",
   // older spellings still in a few rows
-  hosted:           "Guided",
+  hosted:           "Tour",
   coffee_dessert:   "Coffee",
   cocktail_bar:     "Bar",
   drinks:           "Bar",
