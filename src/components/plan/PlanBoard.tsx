@@ -1919,22 +1919,6 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
                     {allCollapsed ? "Expand all" : "Collapse all"}
                   </button>
                 )}
-                {/* Makes the trip's one Logistics column, so it disappears once
-                    that column exists. Scrolls to the left edge on the way in,
-                    or a board sitting on Day 9 would look like it ignored the
-                    tap. */}
-                {lists.length === 0 && (
-                  <button
-                    type="button"
-                    onClick={() => { void handleCreateList("Logistics"); scrollBoardToStart(); }}
-                    aria-label="Add a Logistics column"
-                    title="One column for packing, confirmations and anything with no date"
-                    className={CTRL_CHIP}
-                    style={{ letterSpacing: "-0.005em" }}
-                  >
-                    + Logistics
-                  </button>
-                )}
               </div>
 
               {/* Board frame — relative so the edge fades can overlay the scroller. */}

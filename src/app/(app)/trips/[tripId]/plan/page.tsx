@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import PlanBoard from "@/components/plan/PlanBoard";
 import { getTripAccess } from "@/lib/trip-access";
 import { withAttachmentCount } from "@/lib/attachmentCount";
-import type { Trip, Day, DayWithCards, Card, TripList, ListWithCards } from "@/types/database";
+import type { Trip, Day, DayWithCards, Card, ListWithCards } from "@/types/database";
 
 interface Props {
   params: Promise<{ tripId: string }>;
@@ -85,10 +85,20 @@ export default async function PlanPage({ params }: Props) {
   // No dedupe: these are cards the traveller put here one at a time, not a
   // mirror of anything, so two of the same place would be two deliberate cards.
   const listCardList = (listCards ?? []).map(withAttachmentCount) as Card[];
-  const listsWithCards: ListWithCards[] = ((lists ?? []) as TripList[]).map((list) => ({
-    ...list,
-    cards: listCardList.filter((c) => c.list_id === list.id),
-  }));
+  // The Plan board is days and weeks. Lists were a second structure standing
+  // beside the days with no dates, no map pins, no agenda and no place in the
+  // shared itinerary, so the app had two answers to "where does this go?".
+  // Across thirteen trips three were ever made, all Brennan's, all holding note
+  // cards — packing, a grocery list, confirmations, a house guide — which is
+  // exactly what journey notes already are. Those seven cards were copied into
+  // their trips' notes on 2026-09-06; nothing was deleted.
+  //
+  // The rows are still SELECTed and the columns still exist, so this is one
+  // line to undo. Handing the board an empty array puts every trip in the
+  // no-lists state that ten of the thirteen were already in — which is why this
+  // is safe on the phone panes too.
+  void [lists, listCardList];
+  const listsWithCards: ListWithCards[] = [];
 
   return (
     <PlanBoard
