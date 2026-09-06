@@ -2660,24 +2660,33 @@ function CardTile({
               // No two cards were the same shape, so there was nothing to read
               // down. Rating and price now live in the card and on the map,
               // where you are choosing; the board is where you are checking.
-              const parts: React.ReactNode[] = [];
               // Time first and in ink: it is what the eye is looking for, and
               // weight says so without spending the accent, which is reserved
               // for the opening-hours warning on this very line.
               const shownTime = compactRange(timeRange);
-              if (shownTime) parts.push(
-                <span key="t" className="text-[#1A1A2E] font-semibold">{shownTime}</span>,
-              );
               const kind = isNote ? "Note" : subLabel;
-              if (kind) parts.push(kind);
-              if (manyTowns) {
-                const town = placeTown(place?.address);
-                if (town) parts.push(town);
-              }
-              if (parts.length === 0) return null;
+              const town = manyTowns ? placeTown(place?.address) : null;
+              if (!shownTime && !kind && !town) return null;
+
+              // A flex row, not a truncated paragraph. There are 176px here and
+              // "2:00 PM · Hotel · San Martino in Freddana - Monsagrati" wants
+              // 278; clipping the whole line took the town's name off in the
+              // middle of a word and, on tighter lines, ate five pixels of
+              // "Lucca". Time and kind are flex-shrink-0 so they are never the
+              // thing that goes; the town is the only part that gives ground,
+              // and it ellipsises on its own.
+              const sep = <span className="mx-[3px]">·</span>;
               return (
-                <p className="text-[11px] text-gray-400 mt-0.5 leading-snug truncate">
-                  {parts.map((pt, i) => <span key={i}>{i > 0 && " · "}{pt}</span>)}
+                <p className="flex items-baseline text-[11px] text-gray-400 mt-0.5 leading-snug min-w-0">
+                  {shownTime && (
+                    <span className="flex-shrink-0 text-[#1A1A2E] font-semibold">{shownTime}</span>
+                  )}
+                  {kind && (
+                    <span className="flex-shrink-0">{shownTime && sep}{kind}</span>
+                  )}
+                  {town && (
+                    <span className="min-w-0 truncate">{(shownTime || kind) && sep}{town}</span>
+                  )}
                 </p>
               );
             })()}
