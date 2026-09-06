@@ -392,3 +392,10 @@ open on a DB error and logs. Five routes had no sign-in check before this.
   `public.client_errors` via `/api/errors`, posted by `ui/ErrorReporter.tsx`
   in (app)/layout. RLS is on with no policies: only the service role writes,
   and only SQL reads. Deduped per session, 5 per page load, 60 per user/day.
+- Photos come in two sizes: `&size=thumb` (320px, cache key `t{index}`) for card
+  rows and plan tiles, full 800px for the gallery and card sheet. A row drawing
+  52px used to pull the 800px original.
+- `/api/embed` follows short links outbound, so it is signed-in + quota'd.
+- THERE IS NO PAYWALL. `has_paid` is written by the Stripe webhook and read only
+  by `/checkout`; the middleware gates on sign-in alone. Older comments claimed
+  a gate that never existed. Do not add one without Brennan asking.

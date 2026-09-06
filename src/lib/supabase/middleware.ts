@@ -50,10 +50,15 @@ export async function updateSession(request: NextRequest) {
   // with no user session and must pass through to its signature-verified
   // handler; bouncing it to /login would silently break all payment events.
   // `/journey/` is the guest claim link: it must be reachable logged-out (it
-  // initiates OAuth itself, carrying the claim path as `next`) and pre-payment
-  // (a guest is unpaid), so a real '/journey/' prefix match — NOT a bare
-  // '/journey' that could catch a future '/journeys' — exempts it from BOTH the
-  // auth bounce and the payment gate below.
+  // initiates OAuth itself, carrying the claim path as `next`), so a real
+  // '/journey/' prefix match — NOT a bare '/journey' that could catch a future
+  // '/journeys' — exempts it from the auth bounce.
+  //
+  // NOTE (Sept 2026): earlier comments here described a has_paid gate "below".
+  // There is none. `has_paid` is written by the Stripe webhook and read only
+  // by /checkout; nothing requires payment to use the app. Signing in is the
+  // only gate. Left as-is deliberately — whether Roam is free is Brennan's
+  // call, not a bug to fix in passing.
   // `/guide.html` is the static quick-start guide in /public — linked from the
   // landing page and sent to people who can't log in yet, so it must be public.
   // `/sw.js` + `/offline.html` power offline mode and must load without auth,

@@ -51,8 +51,9 @@ const PHASES = [
 export default function LandingPage() {
   const [isPending, startTransition] = useTransition();
 
-  // Front-door sign-in — no `next`; the callback defaults to /trips, and the
-  // existing has_paid gate routes unpaid users to /checkout. Flow unchanged.
+  // Front-door sign-in — no `next`; the callback defaults to /trips. There is
+  // no has_paid gate in the middleware despite older comments saying so
+  // (checked Sept 2026): signing in is the only thing required.
   function handleSignIn() {
     startTransition(() => signInWithGoogle());
   }

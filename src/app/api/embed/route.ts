@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 
 // ── Turn a saved link into something that can play inside Roam ────────────
 //
@@ -80,6 +81,12 @@ async function tiktokMeta(url: string): Promise<{ title: string | null; thumbnai
 }
 
 export async function GET(request: NextRequest) {
+  // It follows short links, so it makes outbound requests on behalf of
+  // whoever calls it. Signed in only, and counted (scale audit, Sept 2026).
+  const gate = await requireUser();
+  if ("response" in gate) return gate.response;
+  if (!(await underQuota(gate.supabase, "embed", QUOTA.embed))) return quotaExceeded("link previews");
+
   const raw = request.nextUrl.searchParams.get("url")?.trim();
   if (!raw || !/^https?:\/\//i.test(raw)) {
     return NextResponse.json({ error: "url is required" }, { status: 400 });

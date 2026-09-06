@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 //
 // IMPORTANT: /login must stay in the middleware `publicPaths` allowlist. It is
 // gate-exempt so a signed-in-but-unpaid visitor arriving here can bounce to /
-// (and on to /checkout via the page's own logic) without the has_paid gate
+// (and on to /trips) — there is no has_paid gate; see lib/supabase/middleware.ts
 // catching the /login hop into a redirect loop.
 export default function LoginRedirect() {
   redirect("/");

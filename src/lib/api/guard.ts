@@ -58,4 +58,5 @@ export const QUOTA = {
   foodEnrich:    300,
   bulkImport:     20,
   coverPhoto:     40,  // Unsplash
+  embed:         200,  // link previews (follows short links outbound)
 } as const;
