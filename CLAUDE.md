@@ -485,3 +485,32 @@ There is **no `topOffset`**. An earlier version pushed folded cards down 12px wh
 every week was folded, to meet an "Add a list" rail that had 12px of its own top
 padding. Both are gone: at bar height the chip already lands on the right line,
 and with every week folded it shares a top edge with "Add another list".
+
+## A trip gets ONE list, and it is called Logistics
+
+Do not rebuild many-lists. The numbers that killed it (2026-09-06): three lists
+had ever been created across thirteen trips, all Brennan's, no tester ever made
+one, and both real ones were named **Logistics**. All seven cards in them were
+**note cards** — packing, grocery list, travel confirmations, a house guide —
+and two already carried checklists. Meanwhile the saved pile held 268 cards.
+
+A list card and a saved card are the same row in the same table with the same
+`interested` status; the only difference is whether `list_id` is set. **Ideas is
+the unnamed list.** That is why a second named bucket earned nothing.
+
+The cap lives in `handleCreateList`, not in the UI — `if (listsRef.current.length
+> 0) return;` — so it holds on the phone pane too, which cannot be verified from
+here. The desktop has no list composer at all: the `+ Logistics` chip in the
+control row creates the column and then hides itself, since it has nothing left
+to offer.
+
+Rename and delete on the header still work. One column was the decision; a
+frozen name was not.
+
+**Why this mattered beyond tidiness:** the leading columns were the only part of
+the board whose geometry varied, and they carry no week bar and no day header,
+so the add-list pane belonged to no row. Level with Day 1 it looked sunken
+against the weeks; level with the weeks it left a permanent gutter beside Day 1.
+Capping at one column is what makes the board's left edge a fixed, solvable
+shape. If a future change reintroduces variable leading columns, that whole
+argument reopens.
