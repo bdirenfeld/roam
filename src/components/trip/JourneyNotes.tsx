@@ -283,6 +283,18 @@ export default function JourneyNotes({
     applyItems(toggleItem(itemsRef.current, id), "now");
   }, [applyItems]);
 
+  // A plain line becomes a tick-box. Every "text" line in these notes arrived
+  // either from the migration off list cards or from a line the parser did not
+  // recognise, and until now there was no way to make one tickable.
+  const handleMakeTask = useCallback((id: string) => {
+    applyItems(
+      itemsRef.current.map((it) =>
+        it.id === id ? { ...it, kind: "task" as NoteItemKind, done: false } : it,
+      ),
+      "now",
+    );
+  }, [applyItems]);
+
   const handleDelete = useCallback((id: string) => {
     if (editingId === id) setEditingId(null);
     // The composer was hanging off this row; it has nowhere to be now.
@@ -433,7 +445,11 @@ export default function JourneyNotes({
         inputRef={composerInput}
         value={composerDraft}
         section={composer.kind === "section"}
-        placeholder={composer.kind === "section" ? "Section name" : "Add an item"}
+        placeholder={
+          composer.kind === "section" ? "Section name"
+          : composer.kind === "text" ? "Add a note"
+          : "Add an item"
+        }
         onChange={putComposerDraft}
         onEnter={submitComposer}
         onEscape={closeComposer}
@@ -486,6 +502,7 @@ export default function JourneyNotes({
         onDraftChange={setDraft}
         onStartEdit={() => startEdit(item)}
         onToggle={() => handleToggle(item.id)}
+        onMakeTask={() => handleMakeTask(item.id)}
         onDelete={() => handleDelete(item.id)}
         onEnter={() => handleRowEnter(item)}
         onEscape={() => setEditingId(null)}
@@ -615,6 +632,18 @@ export default function JourneyNotes({
               <Plus size={13} weight="bold" />
               Add an item
             </button>
+            {/* A note is a line you read, not one you tick: the house guide,
+                the gate code, the sentence above a list. The panel has always
+                rendered them — they just could not be written. */}
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => handleAdd("text")}
+              className="py-1 text-[12.5px] transition-colors hover:text-[rgba(26,26,46,0.7)]"
+              style={{ color: "rgba(26,26,46,0.38)" }}
+            >
+              Add a note
+            </button>
             <button
               type="button"
               onMouseDown={(e) => e.preventDefault()}
@@ -657,6 +686,7 @@ function NoteRow({
   onDraftChange,
   onStartEdit,
   onToggle,
+  onMakeTask,
   onDelete,
   onEnter,
   onEscape,
@@ -677,6 +707,7 @@ function NoteRow({
   onDraftChange: (value: string) => void;
   onStartEdit: () => void;
   onToggle: () => void;
+  onMakeTask: () => void;
   onDelete: () => void;
   onEnter: () => void;
   onEscape: () => void;
@@ -764,8 +795,23 @@ function NoteRow({
           </span>
         </button>
       ) : item.kind === "text" ? (
-        // Keeps a plain line shoulder to shoulder with the ticked ones
-        <span className="flex-shrink-0 w-5" aria-hidden />
+        readOnly ? (
+          // Keeps a plain line shoulder to shoulder with the ticked ones
+          <span className="flex-shrink-0 w-5" aria-hidden />
+        ) : (
+          <button
+            type="button"
+            onClick={onMakeTask}
+            aria-label={`Make "${item.text || "this line"}" a tick-box`}
+            title="Make this a tick-box"
+            className={`flex-shrink-0 w-6 h-6 -ml-1 flex items-center justify-center rounded-md active:bg-[rgba(26,26,46,0.06)] ${quiet}`}
+          >
+            <span
+              className="w-[15px] h-[15px] rounded-[4px]"
+              style={{ border: "1.4px dashed rgba(26,26,46,0.35)" }}
+            />
+          </button>
+        )
       ) : (
         // A caret, not a tap on the words: tapping a heading's text already
         // renames it, and folding must not take that door away. It sits in the
