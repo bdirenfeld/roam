@@ -50,6 +50,13 @@ export interface SharedJourney {
   cards: SharedCard[];
 }
 
+/** A maps search for the place. Universal link: opens the maps app on a
+ *  phone and Google Maps in a browser, with no key and no API call. */
+function mapsHref(title: string | null, address: string): string {
+  const q = [title, address].filter(Boolean).join(", ");
+  return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(q);
+}
+
 function longDate(iso: string): string {
   // Midday so a date-only value can't slip a day either side of UTC.
   return new Date(iso + "T12:00:00").toLocaleDateString("en-GB", {
@@ -134,7 +141,23 @@ export default function SharedItinerary({ token, journey }: { token: string; jou
                           <div className="flex-1 min-w-0">
                             <p className="font-display text-[17px] leading-[1.25]">{name}</p>
                             {detail && (
-                              <p className="text-[12.5px] mt-[3px] leading-[1.45]" style={{ color: CAPTION }}>{detail}</p>
+                              // The address opens the reader's own maps app — the one
+                              // thing a passenger standing on the street actually needs,
+                              // and the only tap on this page besides signing in
+                              // (Brennan, Sept 2026: "can they click on any of the stuff").
+                              c.place?.address ? (
+                                <a
+                                  href={mapsHref(c.place.title, c.place.address)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block text-[12.5px] mt-[3px] leading-[1.45] underline underline-offset-2"
+                                  style={{ color: CAPTION, textDecorationColor: "rgba(26,26,46,0.25)" }}
+                                >
+                                  {detail}
+                                </a>
+                              ) : (
+                                <p className="text-[12.5px] mt-[3px] leading-[1.45]" style={{ color: CAPTION }}>{detail}</p>
+                              )
                             )}
                           </div>
                           {c.place?.photo && (
