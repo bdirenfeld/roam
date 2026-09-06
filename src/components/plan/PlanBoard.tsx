@@ -2728,7 +2728,14 @@ function CardTile({
               // 10.5px, not 11: the text column is 176px once the 40px thumbnail
               // and its gap are paid for, and half a point buys back the ~8px that
               // was clipping a five-letter town.
+              // The town takes its own line rather than fighting for the first
+              // one. "8:45 – 9:45 AM · Self-directed · Twentynine Palms" wants 64px
+              // more than a card has, and no amount of tightening buys that back —
+              // even deleting the 40px thumbnail leaves two Palm Springs cards
+              // short. A second line shows the whole name, and only away cards
+              // have one, so a day out of town reads as a block of its own.
               return (
+                <>
                 <p className="flex items-baseline text-[10.5px] text-gray-400 mt-0.5 leading-snug min-w-0">
                   {shownTime && (
                     <span className="flex-shrink-0 text-[#1A1A2E] font-semibold">{shownTime}</span>
@@ -2736,10 +2743,11 @@ function CardTile({
                   {kind && (
                     <span className="flex-shrink-0">{shownTime && sep}{kind}</span>
                   )}
-                  {town && (
-                    <span className="min-w-0 truncate">{(shownTime || kind) && sep}{town}</span>
-                  )}
                 </p>
+                {town && (
+                  <p className="text-[10.5px] text-gray-400 leading-snug truncate">{town}</p>
+                )}
+                </>
               );
             })()}
             {/* Checklist progress and attachment count — Trello's card-face
