@@ -1514,7 +1514,11 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 onClick={() => saveTopLevel("confirmed", !localCard.confirmed)}
                 className="w-full flex items-center justify-between mt-5 pt-4 border-t border-gray-100"
               >
-                <span className="text-[13px] font-medium text-gray-700">Confirmed</span>
+                {/* "Booked", not "Confirmed": it names what you did, and what
+                    the board is really tracking is what is still to book.
+                    "Confirmed" also begs the question — by you, or by them?
+                    The column stays `confirmed`; only the word changes. */}
+                <span className="text-[13px] font-medium text-gray-700">Booked</span>
                 <div style={{
                   width: 40, height: 22, borderRadius: 11,
                   backgroundColor: localCard.confirmed ? "#1A1A2E" : "#E5E7EB",

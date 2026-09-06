@@ -246,7 +246,7 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
               tabIndex={0}
               onClick={(e) => { e.stopPropagation(); onToggleConfirmed(); }}
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onToggleConfirmed(); } }}
-              aria-label="Confirmed — tap to unconfirm"
+              aria-label="Booked — tap to undo"
               className="shrink-0 inline-flex items-center justify-center cursor-pointer"
               style={{ width: 13, height: 13, borderRadius: "50%", background: "#1A1A2E" }}
             >
