@@ -190,6 +190,7 @@ export default function ProfileForm({ initial = null, variant = "page", onDismis
                 Sign out
               </button>
             </form>
+            <DeleteAccount />
           </div>
         </>
       )}
@@ -219,6 +220,50 @@ export default function ProfileForm({ initial = null, variant = "page", onDismis
           lets a focused field near the bottom be scrolled clear of a phone
           keyboard rather than pinned behind it. */}
       <div className="flex-1 min-h-0 overflow-y-auto scroll-pb-24">{body}</div>
+    </div>
+  );
+}
+
+
+// ── Delete account ────────────────────────────────────────────────────────
+// Two taps: the first asks, the second does it. Everything goes — journeys,
+// places, notes, files, ideas, the sign-in — and the page lands on the front
+// door. Required by privacy law and by Google's OAuth review.
+function DeleteAccount() {
+  const [asking, setAsking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
+  const run = async () => {
+    if (busy) return;
+    setBusy(true);
+    setFailed(null);
+    const res = await fetch("/api/account/delete", { method: "POST" }).catch(() => null);
+    const j = (await res?.json().catch(() => null)) as { deleted?: boolean; error?: string } | null;
+    if (j?.deleted) { window.location.href = "/"; return; }
+    setBusy(false);
+    setFailed(j?.error ?? "Couldn't delete your account. Try again.");
+  };
+  if (!asking) {
+    return (
+      <button type="button" onClick={() => setAsking(true)} className="text-sm font-semibold text-gray-400 hover:text-[#B0541F] transition-colors">
+        Delete account
+      </button>
+    );
+  }
+  return (
+    <div className="w-full mt-2 rounded-xl px-4 py-3" style={{ background: "rgba(176,84,31,0.08)" }}>
+      <p className="text-[13.5px] leading-snug" style={{ color: "#1A1A2E" }}>
+        This deletes every journey, place, note, file and idea, and your sign-in. It can&rsquo;t be undone.
+      </p>
+      {failed && <p className="text-[12.5px] mt-1" style={{ color: "#B0541F" }}>{failed}</p>}
+      <div className="flex items-center gap-4 mt-2.5">
+        <button type="button" onClick={() => void run()} disabled={busy} className="text-[13px] font-semibold disabled:opacity-50" style={{ color: "#B0541F" }}>
+          {busy ? "Deleting…" : "Yes, delete everything"}
+        </button>
+        <button type="button" onClick={() => setAsking(false)} disabled={busy} className="text-[13px] font-semibold text-gray-400">
+          Keep my account
+        </button>
+      </div>
     </div>
   );
 }

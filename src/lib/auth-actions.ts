@@ -42,6 +42,23 @@ export async function signInWithGoogle(next?: string) {
   }
 }
 
+/**
+ * Sign in by email: Supabase sends a one-tap link that lands on the same
+ * /auth/callback as Google. For anyone without a Google account (scale
+ * audit, Sept 2026). Returns a message for the form, never throws.
+ */
+export async function signInWithEmail(email: string): Promise<{ sent: boolean; message: string }> {
+  const clean = email.trim().toLowerCase();
+  if (!/^\S+@\S+\.\S+$/.test(clean)) return { sent: false, message: "That doesn't look like an email address." };
+  const supabase = await createClient();
+  const { error } = await supabase.auth.signInWithOtp({
+    email: clean,
+    options: { emailRedirectTo: `${SITE_URL}/auth/callback` },
+  });
+  if (error) return { sent: false, message: "Couldn't send the link. Try again in a minute." };
+  return { sent: true, message: `Check ${clean} for your sign-in link.` };
+}
+
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();

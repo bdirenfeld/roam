@@ -377,3 +377,9 @@ QUOTA.key)` (429). Counts live in `public.api_usage` per user/route/UTC day
 behind the SECURITY DEFINER `bump_api_usage` (authenticated only). A new
 spending route MUST use both; a new limit goes in `QUOTA`. The counter fails
 open on a DB error and logs. Five routes had no sign-in check before this.
+- `/privacy` and `/terms` are public (middleware publicPaths) and must stay
+  so: Google's OAuth review links to them. Delete account = Profile → two
+  taps → `POST /api/account/delete` → `delete_my_account()` (definer, deletes
+  cards/days explicitly since they don't cascade), storage cleanup, admin
+  deleteUser. Sign-in by email = `signInWithEmail` (signInWithOtp) landing on
+  the same `/auth/callback` as Google.

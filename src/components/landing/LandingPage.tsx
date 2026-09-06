@@ -1,7 +1,7 @@
 "use client";
 
-import { useTransition } from "react";
-import { signInWithGoogle } from "@/lib/auth-actions";
+import { useState, useTransition } from "react";
+import { signInWithGoogle, signInWithEmail } from "@/lib/auth-actions";
 
 // ── Editorial palette (inline-hex convention, matching LoginScreen.tsx) ──
 // Sienna is a decorative accent here only — the small hero rule and the section
@@ -57,6 +57,41 @@ export default function LandingPage() {
     startTransition(() => signInWithGoogle());
   }
 
+  // The other door: a sign-in link by email.
+  const [email, setEmail] = useState("");
+  const [emailNote, setEmailNote] = useState<string | null>(null);
+  const [emailPending, setEmailPending] = useState(false);
+  async function handleEmail(e: React.FormEvent) {
+    e.preventDefault();
+    if (emailPending) return;
+    setEmailPending(true);
+    const r = await signInWithEmail(email);
+    setEmailPending(false);
+    setEmailNote(r.message);
+    if (r.sent) setEmail("");
+  }
+  const emailForm = (
+    <form onSubmit={handleEmail} style={{ marginTop: 10, display: "flex", gap: 8 }}>
+      <input
+        type="email"
+        value={email}
+        onChange={(ev) => setEmail(ev.target.value)}
+        placeholder="or your email"
+        aria-label="Email address for a sign-in link"
+        autoComplete="email"
+        style={{ flex: 1, minWidth: 0, height: 44, borderRadius: 12, padding: "0 14px", fontSize: 14.5, background: "#fff", color: INK, border: `1px solid ${RULE_STRONG}`, outline: "none" }}
+      />
+      <button
+        type="submit"
+        disabled={emailPending || !email.trim()}
+        style={{ height: 44, padding: "0 16px", borderRadius: 12, background: INK, color: PARCHMENT, fontSize: 14, fontWeight: 500, border: "none", opacity: emailPending || !email.trim() ? 0.5 : 1 }}
+      >
+        {emailPending ? "Sending…" : "Send link"}
+      </button>
+    </form>
+  );
+  const emailNoteEl = emailNote ? <p style={{ marginTop: 8, fontSize: 13, color: ON_DARK_TERMS }}>{emailNote}</p> : null;
+
   return (
     <main>
       {/* ════════════════════════════════════════════════════════════════
@@ -95,6 +130,8 @@ export default function LandingPage() {
             </p>
             <div style={{ marginTop: 24 }}>
               <GoogleButton skin="light" full onClick={handleSignIn} pending={isPending} />
+              {emailForm}
+              {emailNoteEl}
             </div>
             <div style={{ marginTop: 14 }}>
               <GuideLink color={ON_DARK_TERMS} />
@@ -158,7 +195,7 @@ export default function LandingPage() {
         <div style={{ padding: "24px 22px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <Wordmark size={18} />
           <SmallCaps color={CAPTION_SOFT} size={9}>
-            © Roam 2026
+            © Roam 2026 · <a href="/privacy" style={{ color: "inherit", textDecoration: "underline", textUnderlineOffset: 2 }}>Privacy</a> · <a href="/terms" style={{ color: "inherit", textDecoration: "underline", textUnderlineOffset: 2 }}>Terms</a>
           </SmallCaps>
         </div>
       </div>
@@ -264,7 +301,7 @@ export default function LandingPage() {
         <div style={{ padding: "34px 56px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <Wordmark size={20} />
           <SmallCaps color={CAPTION_SOFT} size={10}>
-            © Roam 2026
+            © Roam 2026 · <a href="/privacy" style={{ color: "inherit", textDecoration: "underline", textUnderlineOffset: 2 }}>Privacy</a> · <a href="/terms" style={{ color: "inherit", textDecoration: "underline", textUnderlineOffset: 2 }}>Terms</a>
           </SmallCaps>
         </div>
       </div>

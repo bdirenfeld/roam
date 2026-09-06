@@ -58,7 +58,8 @@ export async function updateSession(request: NextRequest) {
   // landing page and sent to people who can't log in yet, so it must be public.
   // `/sw.js` + `/offline.html` power offline mode and must load without auth,
   // or the service worker can never register from the logged-out landing page.
-  const publicPaths = ['/login', '/auth', '/api/stripe/webhook', '/journey/', '/guide.html', '/sw.js', '/offline.html']
+  // '/privacy' and '/terms' are public by law and for Google's OAuth review.
+  const publicPaths = ['/login', '/auth', '/api/stripe/webhook', '/journey/', '/guide.html', '/sw.js', '/offline.html', '/privacy', '/terms']
   // `/` is the logged-out marketing front door — exempt by EXACT match only.
   // (Adding '/' to publicPaths would make every path startsWith('/') public.)
   // The page itself redirects authenticated visitors on to /trips.
