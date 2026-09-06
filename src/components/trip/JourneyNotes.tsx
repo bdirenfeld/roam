@@ -465,10 +465,18 @@ export default function JourneyNotes({
         className={`rounded-xl overflow-hidden flex flex-col min-h-0 ${inline ? "" : "flex-1"}`}
         style={{ background: PARCHMENT, border: HAIRLINE }}
       >
-        <div className={`relative min-h-0 ${inline ? "" : "flex-1"}`}>
+        {/* In the sheet this wrapper has to be a flex COLUMN, not a block. It
+            is a flex item with no height of its own, so the scroller's old
+            `h-full` had no definite height to resolve 100% against and fell
+            back to auto: with 39 grocery items the list grew to 1948px inside
+            a 561px box, never scrolled, and the add row below it painted over
+            the last rows. `flex-1 min-h-0` gives the scroller the box instead.
+            Inline is unchanged — there the list is capped by INLINE_LIST_MAX
+            and sizes to its content. */}
+        <div className={`relative min-h-0 ${inline ? "" : "flex-1 flex flex-col"}`}>
           <div
             ref={edges.scrollRef}
-            className={`h-full overflow-y-auto overscroll-contain px-3.5 pt-3 ${readOnly ? "pb-3" : "pb-1"}`}
+            className={`${inline ? "" : "flex-1 min-h-0"} overflow-y-auto overscroll-contain px-3.5 pt-3 ${readOnly ? "pb-3" : "pb-1"}`}
             style={inline ? { maxHeight: INLINE_LIST_MAX } : undefined}
           >
             <div ref={edges.contentRef}>
