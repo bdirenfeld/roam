@@ -25,7 +25,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSheetDrag as useSharedSheetDrag } from "@/hooks/useSheetDrag";
-import { Check, DotsSixVertical, Plus, X } from "@phosphor-icons/react";
+import { CaretRight, Check, DotsSixVertical, Plus, X } from "@phosphor-icons/react";
 import {
   DndContext,
   closestCenter,
@@ -157,6 +157,32 @@ export default function JourneyNotes({
   const edges = useListEdges();
 
   const [items, setItems] = useState<NoteItem[]>(() => parseNotes(initialNotes ?? ""));
+
+  // Which sections are folded shut. Per viewer, never in the notes text: this
+  // is how one person is reading, not what the journey says, and writing it
+  // into `trips.notes` would push a change to every guest each time someone
+  // collapsed something.
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+  // Read AFTER mount, never during render: what renders may not depend on
+  // localStorage or the server's HTML and the client's first paint disagree.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(`roam_notes_collapsed_${tripId}`);
+      if (raw) setCollapsed(new Set(JSON.parse(raw) as string[]));
+    } catch { /* private window, cleared storage: everything opens, which is fine */ }
+  }, [tripId]);
+
+  const toggleCollapse = useCallback((text: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(text)) next.delete(text); else next.add(text);
+      try {
+        // Array.from, not a spread: the build target does not iterate a Set.
+        localStorage.setItem(`roam_notes_collapsed_${tripId}`, JSON.stringify(Array.from(next)));
+      } catch { /* the fold just does not survive the reload */ }
+      return next;
+    });
+  }, [tripId]);
   const [saveState, setSaveState] = useState<SaveState>("idle");
 
   // Which row is open for editing, and the text being typed into it.
@@ -416,13 +442,43 @@ export default function JourneyNotes({
     </div>
   ) : null;
 
+  // How many lines each section holds, so a folded one can still say what is
+  // inside it.
+  const sectionCounts = new Map<string, number>();
+  {
+    let open: string | null = null;
+    for (const item of items) {
+      if (item.kind === "section") { open = item.text; if (!sectionCounts.has(open)) sectionCounts.set(open, 0); }
+      else if (open !== null) sectionCounts.set(open, (sectionCounts.get(open) ?? 0) + 1);
+    }
+  }
+
   const rows: React.ReactNode[] = [];
-  items.forEach((item, i) => {
+  let openSection: string | null = null;
+  let visibleIdx = 0;
+  const visibleIds: string[] = [];
+  items.forEach((item) => {
+    if (item.kind === "section") openSection = item.text;
+    // A line under a folded heading is not rendered — and so is not draggable
+    // either, which is why SortableContext is fed the visible ids below rather
+    // than every id.
+    const hidden = item.kind !== "section" && openSection !== null && collapsed.has(openSection);
+    if (hidden) {
+      // The composer still shows: adding into a folded section must not open
+      // a field nobody can see.
+      if (composer?.anchorId === item.id && composerNode) rows.push(composerNode);
+      return;
+    }
+    const i = visibleIdx++;
+    visibleIds.push(item.id);
     rows.push(
       <NoteRow
         key={item.id}
         item={item}
         first={i === 0}
+        collapsed={item.kind === "section" && collapsed.has(item.text)}
+        count={item.kind === "section" ? (sectionCounts.get(item.text) ?? 0) : 0}
+        onToggleCollapse={() => toggleCollapse(item.text)}
         readOnly={readOnly}
         canReorder={canReorder}
         editing={editingId === item.id}
@@ -509,7 +565,7 @@ export default function JourneyNotes({
                 onDragEnd={handleDragEnd}
               >
                 <SortableContext
-                  items={items.map((i) => i.id)}
+                  items={visibleIds}
                   strategy={verticalListSortingStrategy}
                 >
                   {rows}
@@ -591,6 +647,9 @@ export default function JourneyNotes({
 function NoteRow({
   item,
   first,
+  collapsed,
+  count,
+  onToggleCollapse,
   readOnly,
   canReorder,
   editing,
@@ -606,6 +665,11 @@ function NoteRow({
   item: NoteItem;
   /** A heading gets air above it — but not against the top of the panel. */
   first: boolean;
+  /** Sections only: this heading is folded shut. */
+  collapsed: boolean;
+  /** Sections only: how many lines are under it. */
+  count: number;
+  onToggleCollapse: () => void;
   readOnly: boolean;
   canReorder: boolean;
   editing: boolean;
@@ -702,7 +766,26 @@ function NoteRow({
       ) : item.kind === "text" ? (
         // Keeps a plain line shoulder to shoulder with the ticked ones
         <span className="flex-shrink-0 w-5" aria-hidden />
-      ) : null}
+      ) : (
+        // A caret, not a tap on the words: tapping a heading's text already
+        // renames it, and folding must not take that door away. It sits in the
+        // checkbox's slot so every row starts on the same left edge — and
+        // guests get it too, because how you read is your own business.
+        <button
+          type="button"
+          onClick={onToggleCollapse}
+          aria-expanded={!collapsed}
+          aria-label={`${collapsed ? "Expand" : "Collapse"} ${item.text || "section"}`}
+          className="flex-shrink-0 w-5 h-6 -ml-1 flex items-center justify-center rounded-md active:bg-[rgba(26,26,46,0.06)] transition-colors"
+          style={{ color: "rgba(26,26,46,0.4)" }}
+        >
+          <CaretRight
+            size={11}
+            weight="bold"
+            style={{ transform: collapsed ? "none" : "rotate(90deg)", transition: "transform 150ms" }}
+          />
+        </button>
+      )}
 
       {editing ? (
         <RowInput
@@ -726,6 +809,12 @@ function NoteRow({
           >
             {item.text}
           </button>
+          {/* Closed, the heading has to carry what it is hiding. */}
+          {isSection && collapsed && count > 0 && (
+            <span className="pt-[1px] flex-shrink-0" style={{ ...textStyle, opacity: 0.75 }}>
+              {"\u00B7"} {count}
+            </span>
+          )}
           {/* The rest of the row belongs to the checkbox. Keyboard users have
               the real one two elements to the left, so this stays out of the
               tab order rather than duplicating it. */}
@@ -735,6 +824,14 @@ function NoteRow({
               tabIndex={-1}
               aria-hidden
               onClick={onToggle}
+              className="flex-1 self-stretch min-w-[8px] cursor-default"
+            />
+          ) : isSection ? (
+            <button
+              type="button"
+              tabIndex={-1}
+              aria-hidden
+              onClick={onToggleCollapse}
               className="flex-1 self-stretch min-w-[8px] cursor-default"
             />
           ) : (
