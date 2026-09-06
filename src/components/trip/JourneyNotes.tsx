@@ -465,7 +465,11 @@ export default function JourneyNotes({
     let open: string | null = null;
     for (const item of items) {
       if (item.kind === "section") { open = item.text; if (!sectionCounts.has(open)) sectionCounts.set(open, 0); }
-      else if (open !== null) sectionCounts.set(open, (sectionCounts.get(open) ?? 0) + 1);
+      // Tick-boxes only. Counting every line made "GROCERY LIST · 40" out of 39
+      // items plus the sentence above them, and a section of pure prose — the
+      // house guide — claimed a count that meant nothing. The number answers
+      // "how many things to tick", so a section with none shows none.
+      else if (open !== null && item.kind === "task") sectionCounts.set(open, (sectionCounts.get(open) ?? 0) + 1);
     }
   }
 
