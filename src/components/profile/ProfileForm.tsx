@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import ProfileClient from "@/components/profile/ProfileClient";
+import { GuideLink } from "@/components/overlays/AppOverlays";
 import { signOut } from "@/lib/auth-actions";
 
 export interface ProfileData {
@@ -174,14 +175,9 @@ export default function ProfileForm({ initial = null, variant = "page", onDismis
                 : "mt-10 pt-4 border-t border-gray-100 md:hidden"
             }`}
           >
-            <a
-              href="/guide.html"
-              target="_blank"
-              rel="noopener"
-              className="text-sm font-semibold text-gray-400 hover:text-gray-500 transition-colors"
-            >
+            <GuideLink className="text-sm font-semibold text-gray-400 hover:text-gray-500 transition-colors">
               How Roam works
-            </a>
+            </GuideLink>
             <form action={signOut}>
               <button
                 type="submit"

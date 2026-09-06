@@ -128,6 +128,16 @@ interface JourneyNotesController {
 const JourneyNotesCtx = createContext<JourneyNotesController>({ open: () => {} });
 export const useJourneyNotes = () => useContext(JourneyNotesCtx);
 
+/**
+ * The quick-start guide. It lived at /guide.html behind target="_blank", so
+ * asking how something works took you out of the app you were asking about.
+ */
+interface GuideController {
+  open: () => void;
+}
+const GuideCtx = createContext<GuideController>({ open: () => {} });
+export const useGuide = () => useContext(GuideCtx);
+
 /** Mounted once, in (app)/layout, inside GlobalSearchProvider. */
 export function AppOverlaysProvider({ children }: { children: ReactNode }) {
   return (
@@ -136,7 +146,9 @@ export function AppOverlaysProvider({ children }: { children: ReactNode }) {
         <ProfileProvider>
           <EstimateProvider>
             <IdeasProvider>
-              <JourneyNotesProvider>{children}</JourneyNotesProvider>
+              <JourneyNotesProvider>
+                <GuideProvider>{children}</GuideProvider>
+              </JourneyNotesProvider>
             </IdeasProvider>
           </EstimateProvider>
         </ProfileProvider>
@@ -696,6 +708,37 @@ function opensElsewhere(e: MouseEvent<HTMLAnchorElement>): boolean {
   return e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0;
 }
 
+function GuideProvider({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const value = useMemo(() => ({ open: () => setOpen(true) }), []);
+  return (
+    <GuideCtx.Provider value={value}>
+      {children}
+      {open && (
+        <Overlay onClose={() => setOpen(false)} label="How Roam works">
+          {/* The shell's contract: a flex-shrink-0 header and a flex-1 min-h-0
+              body. The iframe is its own scroller, so the body does not add a
+              second one. */}
+          <div className="flex flex-col h-full min-h-0">
+            <div className="flex-shrink-0 px-5 pt-5 pb-3 md:pt-6">
+              <p className="text-center font-display italic text-[23px] text-gray-900">
+                How Roam works
+              </p>
+            </div>
+            <div className="flex-1 min-h-0 px-2 pb-2 md:px-4 md:pb-4">
+              <iframe
+                src="/guide.html"
+                title="How Roam works"
+                className="w-full h-full rounded-xl border border-[rgba(26,26,46,0.10)] bg-white"
+              />
+            </div>
+          </div>
+        </Overlay>
+      )}
+    </GuideCtx.Provider>
+  );
+}
+
 interface TriggerProps {
   className?: string;
   style?: CSSProperties;
@@ -705,6 +748,28 @@ interface TriggerProps {
   children: ReactNode;
   /** Runs before the overlay opens — closes the menu the trigger sits in. */
   onBeforeOpen?: () => void;
+}
+
+/** Trigger — a real link to the file, overlay on a plain click. */
+export function GuideLink({ className, style, title, ariaLabel, children, onBeforeOpen }: TriggerProps) {
+  const { open } = useGuide();
+  return (
+    <a
+      href="/guide.html"
+      className={className}
+      style={style}
+      title={title}
+      aria-label={ariaLabel}
+      onClick={(e) => {
+        if (opensElsewhere(e)) return;
+        e.preventDefault();
+        onBeforeOpen?.();
+        open();
+      }}
+    >
+      {children}
+    </a>
+  );
 }
 
 export function NewJourneyLink({

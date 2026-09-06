@@ -8,6 +8,7 @@ import { SearchButton } from "@/components/search/GlobalSearch";
 import SharedWithFaces from "@/components/trip/SharedWithFaces";
 import AppMenu from "@/components/ui/AppMenu";
 import {
+  GuideLink,
   NewJourneyLink,
   ProfileLink,
 } from "@/components/overlays/AppOverlays";
@@ -389,16 +390,13 @@ export default function DesktopMasthead() {
       {/* How Roam works — the quick-start guide. Its only other door was a
           Profile row hidden at this width, so a signed-in desktop user had
           no way to it (UX audit, Sep 2026, finding 3). */}
-      <a
-        href="/guide.html"
-        target="_blank"
-        rel="noopener"
-        aria-label="How Roam works"
+      <GuideLink
+        ariaLabel="How Roam works"
         title="How Roam works"
         className="inline-flex items-center justify-center w-[33px] h-[33px] mr-1 rounded-lg text-[rgba(26,26,46,0.62)] hover:bg-[rgba(26,26,46,0.06)] transition-colors"
       >
         <Question size={17} weight="light" />
-      </a>
+      </GuideLink>
 
       {/* Everything reached occasionally, named, in one menu — including Plan
           a journey, which is why this renders off a journey as well as on one.
