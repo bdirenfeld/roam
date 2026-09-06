@@ -462,3 +462,26 @@ which is three lines at 15px; it was 76px when the field was 22px.
 
 The phone is untouched by all of this: there the pane is `fullWidth` and is a
 swipe pane of its own, rendered from a separate `<AddListColumn fullWidth />`.
+
+## A folded week is the same height as an open one
+
+`WeekFoldedCard` and `WeekBar` must render at the same height. They share the
+box exactly — `rounded-[9px]`, `px-[13px] py-2`, the same border, and the range
+in 15px `font-display italic` — and differ only in width (`FOLDED_W` 140px vs the
+full week span), background (white + `shadow-card`, so folded still reads as
+closed), and the sign (`+` vs `−`). Measured live: both 41px tall, both at the
+same top.
+
+**Why it matters:** folded cards are `absolute` inside their slot, so they add no
+height to the week-bar row. A folded card taller than a bar therefore does not
+push anything down — it *hangs over* the day-header band below, and every top
+edge on the board stops lining up. That is what a three-line folded card (~76px
+against a 41px bar) did until 2026-09-06.
+
+The face carries only the range and the `+`; 140px has no room for "Week N" or
+the day count, and both live in the `title` and the `aria-label` instead.
+
+There is **no `topOffset`**. An earlier version pushed folded cards down 12px when
+every week was folded, to meet an "Add a list" rail that had 12px of its own top
+padding. Both are gone: at bar height the chip already lands on the right line,
+and with every week folded it shares a top edge with "Add another list".
