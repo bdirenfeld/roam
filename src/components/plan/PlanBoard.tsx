@@ -2675,9 +2675,14 @@ function CardTile({
               // "Lucca". Time and kind are flex-shrink-0 so they are never the
               // thing that goes; the town is the only part that gives ground,
               // and it ellipsises on its own.
-              const sep = <span className="mx-[3px]">·</span>;
+              // 2px, not 3: the two separators on a full line are 4px, and 4px
+              // was the whole difference between "Lucca" and "Lucc…".
+              const sep = <span className="mx-[2px]">·</span>;
+              // 10.5px, not 11: the text column is 176px once the 40px thumbnail
+              // and its gap are paid for, and half a point buys back the ~8px that
+              // was clipping a five-letter town.
               return (
-                <p className="flex items-baseline text-[11px] text-gray-400 mt-0.5 leading-snug min-w-0">
+                <p className="flex items-baseline text-[10.5px] text-gray-400 mt-0.5 leading-snug min-w-0">
                   {shownTime && (
                     <span className="flex-shrink-0 text-[#1A1A2E] font-semibold">{shownTime}</span>
                   )}
