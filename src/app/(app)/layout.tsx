@@ -9,6 +9,7 @@ import { AppOverlaysProvider } from "@/components/overlays/AppOverlays";
 import { ToastProvider } from "@/components/ui/Toast";
 import OfflineQueueIndicator from "@/components/offline/OfflineQueueIndicator";
 import InstallBanner from "@/components/ui/InstallBanner";
+import ErrorReporter from "@/components/ui/ErrorReporter";
 
 export default function AppLayout({
   children,
@@ -44,6 +45,9 @@ export default function AppLayout({
         {/* "Put Roam on your phone": one tap on Android, the two steps on
             iPhone. App-wide, so a guest who arrives by link sees it too. */}
         <InstallBanner />
+        {/* Records what the app could not handle, so a failure on someone
+            else's phone is not silent (scale audit, Sept 2026). */}
+        <ErrorReporter />
        </ToastProvider>
       </AppOverlaysProvider>
     </GlobalSearchProvider>

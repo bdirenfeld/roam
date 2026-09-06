@@ -388,3 +388,7 @@ open on a DB error and logs. Five routes had no sign-in check before this.
   missing or past its 30 days. THIRTY DAYS IS DELIBERATE — the Google Maps
   terms allow temporary caching, not permanent copies. Never remove the
   expiry. The quota is counted only on a real Google fetch.
+- No Sentry (it needs an account). Failures the app can't handle go to
+  `public.client_errors` via `/api/errors`, posted by `ui/ErrorReporter.tsx`
+  in (app)/layout. RLS is on with no policies: only the service role writes,
+  and only SQL reads. Deduped per session, 5 per page load, 60 per user/day.
