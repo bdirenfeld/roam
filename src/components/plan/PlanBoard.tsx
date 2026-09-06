@@ -2002,15 +2002,13 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
                             style={{ width }}
                           >
                             {folded ? (
-                              /* With every week folded the columns below hold
-                                 nothing but the lists, so the folded cards are
-                                 the board — drop them onto the same card line
-                                 the lists and "Add a list" sit on. Mixed with
-                                 unfolded weeks they stay at 0, level with the
-                                 week bars they share the row with. */
+                              /* Always at the row's top, level with the bars it
+                                 shares the row with — and, when every week is
+                                 folded and this row has no height of its own,
+                                 level with "Add another list" in the header
+                                 row directly beneath. */
                               <WeekFoldedCard
                                 week={week}
-                                topOffset={allCollapsed ? 12 : 0}
                                 onUnfold={() => handleUnfoldWeek(week)}
                               />
                             ) : (
@@ -3164,22 +3162,18 @@ function WeekBar({
   );
 }
 
-// Positioned out of flow inside its slot so folding never changes the height of
-// the week-bar row. Top-aligned with the bars and sharing their 8px top padding,
-// it occupies the vertical band the bar vacated — the "top" row's 20px min-height
-// is the sign circle's diameter, which puts the + in the band the − just left.
-// Horizontal parity is not achievable: the − sits at the right edge of a bar up
-// to ~2,080px wide, the + at the right edge of a 140px card.
+// Out of flow inside its slot so folding never changes the week-bar row's
+// height — and now the SAME HEIGHT as a bar, so it cannot hang down into the
+// day-header band either. A folded week is the same object as an open one, one
+// row of the same padding and the same 15px range, only 140px wide instead of
+// the full span; white and shadowed so it still reads as closed. It lost the
+// "Week N" label and the day count: at 140px there is room for the range and
+// the +, and both survive in the title and aria-label.
 function WeekFoldedCard({
   week,
-  topOffset = 0,
   onUnfold,
 }: {
   week: PlanWeek<DayWithCards>;
-  /** Drop onto the card line when the whole board is folded — see the call
-   *  site. The card is out of flow, so this shifts it without giving the
-   *  week-bar row height and pushing every column below it down. */
-  topOffset?: number;
   onUnfold: () => void;
 }) {
   const count = week.days.length;
@@ -3187,29 +3181,19 @@ function WeekFoldedCard({
     <button
       type="button"
       onClick={onUnfold}
-      aria-label={`Expand week ${week.weekNumber}, ${week.range}`}
+      aria-label={`Expand week ${week.weekNumber}, ${week.range}, ${count} ${count === 1 ? "day" : "days"}`}
       title={`Expand ${week.range}`}
-      className="group absolute left-0 w-full text-left rounded-[9px] bg-white
-                 border border-[rgba(26,26,46,0.12)] hover:border-[rgba(26,26,46,0.24)]
+      className="group absolute top-0 left-0 w-full flex items-center gap-[11px] text-left rounded-[9px] px-[13px] py-2
+                 bg-white border border-[rgba(26,26,46,0.12)] hover:border-[rgba(26,26,46,0.24)]
                  shadow-card hover:shadow-card-hover transition-all"
-      style={{ top: topOffset, padding: "7px 12px 11px" }}
     >
-      <span className="flex items-center justify-between gap-2" style={{ minHeight: 18 }}>
-        <span style={WEEK_LABEL}>Week {week.weekNumber}</span>
-        <span aria-hidden className={SIGN}>+</span>
-      </span>
       <span
-        className="block font-display italic"
-        style={{ fontSize: "17px", lineHeight: 1.1, marginTop: "6px", color: "#1A1A2E", letterSpacing: "-0.01em" }}
+        className="font-display italic truncate"
+        style={{ fontSize: "15px", fontWeight: 500, color: "#1A1A2E", letterSpacing: "-0.01em" }}
       >
         {week.range}
       </span>
-      <span
-        className="block"
-        style={{ fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: "9.5px", fontWeight: 500, color: "rgba(26,26,46,0.45)", marginTop: "3px" }}
-      >
-        {count} {count === 1 ? "day" : "days"}
-      </span>
+      <span aria-hidden className={`ml-auto ${SIGN}`}>+</span>
     </button>
   );
 }
