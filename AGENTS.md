@@ -1,7 +1,11 @@
 # Roam — Project Brief for Codex
 
 ## What this app is
-Roam is a luxury travel planning app for high-net-worth individuals — investment bankers, executives, and cultural tastemakers. It is the tool a boutique travel concierge firm would use to plan bespoke trips for their clients.
+Roam is for one person: the friend who plans the trip. They organise journeys for the people around them — the villa, the days, telling everyone where to be — and they enjoy doing it. Everyone else on the journey is a passenger who wants to look, not plan.
+
+Brennan settled this in Sept 2026, choosing it over the two alternatives on the table: a mass-market planner competing with Wanderlog, and a tool sold to travel advisors. Both are out. Features that only serve an agency — client lists, white-labelling, quotes with a markup — are out with them.
+
+The aesthetic bar below still holds: this person has taste and is planning something expensive.
 
 ## Design philosophy
 The aesthetic reference is **Monocle magazine meets Condé Nast Traveller**. Every design decision must feel editorial, restrained, and premium. Never SaaS, never consumer-grade.
