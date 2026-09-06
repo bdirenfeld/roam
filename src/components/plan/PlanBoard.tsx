@@ -1439,30 +1439,22 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   const activeCard  = activeId ? findCard(activeId) : null;
   const allEmpty    = days.every((d) => d.cards.length === 0);
 
-  // "More than one town" was too weak a test. A New York trip has nineteen
-  // cards in New York and one airport in East Elmhurst, which is two towns —
-  // so every card printed "New York" under a journey already called New York,
-  // the exact repetition the rule was written to stop.
-  //
-  // The question is not whether a second town exists but whether the journey
-  // has a HOME. If one town holds most of the cards, that town is the trip and
-  // naming it on every card says nothing; Tuscany, spread across Lucca,
-  // Firenze, Vernazza, Pisa and Montefoscoli, has no such centre and the town
-  // is the whole question.
-  const manyTowns = useMemo(() => {
+  // The town most of this journey's cards are in. Ties go to whichever was
+  // counted first, which is fine: with no majority there is no home to speak
+  // of and nearly everything prints its town anyway.
+  const homeTown = useMemo(() => {
     const counts = new Map<string, number>();
-    let total = 0;
     for (const d of days) {
       for (const c of d.cards) {
         const t = placeTown(c.place?.address);
-        if (!t) continue;
-        counts.set(t, (counts.get(t) ?? 0) + 1);
-        total += 1;
+        if (t) counts.set(t, (counts.get(t) ?? 0) + 1);
       }
     }
-    if (total < 2 || counts.size < 2) return false;
-    const biggest = Math.max(...Array.from(counts.values()));
-    return biggest / total < 0.6;
+    let home: string | null = null;
+    let best = 0;
+    counts.forEach((n, town) => { if (n > best) { best = n; home = town; } });
+    // One card in a town does not make it home; it makes it the only card.
+    return best >= 2 ? home : null;
   }, [days]);
 
   // ── Mobile: the lists are the slots before Day 1 ─────────────
@@ -1542,7 +1534,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   };
 
   return (
-    <ManyTownsCtx.Provider value={manyTowns}>
+    <HomeTownCtx.Provider value={homeTown}>
     <div
       className="relative flex flex-col h-dvh md:h-[calc(100dvh-64px)] overflow-hidden md:!bg-none md:!bg-[#F5F4F1]"
       style={boardBgStyle}
@@ -2057,7 +2049,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
         />
       )}
     </div>
-    </ManyTownsCtx.Provider>
+    </HomeTownCtx.Provider>
   );
 }
 
@@ -2188,9 +2180,13 @@ function DayColumn({ day, cards, dayIndex, fullWidth, onCardTap, onDelete, onOpe
  * its own one before it ("New York", then "NY 10012") — walking back handles
  * both without knowing which country it is looking at.
  *
- * The exception is an address with no digits anywhere ("Tamarindo, Guanacaste,
- * Costa Rica"). There the last segments are progressively BIGGER regions, so
- * walking back lands on the province; the town is the first segment.
+ * An address with no digits anywhere has no postcode and no street number to
+ * anchor on, and its segments can be anything: "Tamarindo, Guanacaste, Costa
+ * Rica" opens with a town, "Skull Rock, California, USA" opens with a rock,
+ * and "California, USA" is a state on its own. Guessing at the first segment
+ * printed "Skull Rock" and "California" as towns on the Palm Springs board.
+ * There is no rule that tells those apart, so this returns nothing rather than
+ * something wrong — a blank says "no town", a wrong town says something false.
  */
 /**
  * "9:20 AM – 10:55 AM" becomes "9:20 – 10:55 AM". Both halves of a range are
@@ -2223,12 +2219,7 @@ function placeTown(address?: string | null): string | null {
     !/^\d+$/.test(seg) &&                    // a bare postcode
     !(seg.length <= 3 && seg === seg.toUpperCase()); // a bare "NY" / "CA"
 
-  // No digits at all means no street and no postcode: the first segment is the
-  // most specific thing in the address.
-  if (!/\d/.test(address)) {
-    const first = clean(segs[0]);
-    return usable(first) ? first : null;
-  }
+  if (!/\d/.test(address)) return null;
 
   for (let i = segs.length - 1; i >= 0; i--) {
     const seg = clean(segs[i]);
@@ -2238,19 +2229,73 @@ function placeTown(address?: string | null): string | null {
 }
 
 /**
- * Does this journey cross more than one town?
+ * The name of a town as someone would say it.
  *
- * On a New York board the word "New York" under nineteen cards looks like
- * information and is noise — the journey title already said it. On a Tuscany
- * board it is the whole question. So the town is shown when it distinguishes
- * and dropped when it does not, and either way every card on a given board has
- * the same shape (Brennan, Sep 2026).
+ * Google returns administrative names in full: "San Martino in Freddana -
+ * Monsagrati". At 10.5px in 176px that clipped to "San Martino in Fre…", which
+ * is not a place — it is where the pixels ran out.
+ *
+ * Two cuts, in order, and BOTH only on a name too long to fit:
+ *   • a compound of two settlements keeps the first ("X - Y" → "X");
+ *   • a trailing "in/al/sul/di/de/…" phrase comes off, which is exactly how
+ *     these names shorten in speech (San Martino in Freddana → San Martino,
+ *     Monterosso al Mare → Monterosso).
+ *
+ * The 18-character floor is what stops it mangling short names that happen to
+ * contain the same words — "Rio de Janeiro" is 14 and survives whole. And what
+ * is left has to be a real fragment: at least 8 characters, or the cut is not
+ * worth making and the name keeps its ellipsis instead.
+ */
+const TOWN_FITS = 18;
+
+// Words that are a category, not a name. "Provincia de Guanacaste" shortens to
+// "Provincia", which is worse than the full string and worse than nothing — the
+// name is on the far side of the connector, not the near one.
+const NOT_A_NAME = /^(provincia|province|region|regione|comune|municipality|municipio|county|district|city|ciudad|departamento|prefecture)$/i;
+
+function shortTown(town: string | null): string | null {
+  if (!town || town.length <= TOWN_FITS) return town;
+
+  const firstOfCompound = town.split(/\s+[-–—]\s+/)[0].trim();
+  if (firstOfCompound.length >= 8 && firstOfCompound.length < town.length) {
+    town = firstOfCompound;
+    if (town.length <= TOWN_FITS) return town;
+  }
+
+  const trimmed = town.replace(
+    /\s+(in|al|all'|alla|sul|sulla|di|del|della|dei|de|d'|am|an der|sur|sous|upon|on)\s+.+$/i,
+    "",
+  ).trim();
+  if (trimmed.length >= 8 && trimmed.length < town.length && !NOT_A_NAME.test(trimmed)) return trimmed;
+
+  return town;
+}
+
+/**
+ * The journey's home town — the one most of its cards are in, or null when no
+ * town repeats.
+ *
+ * A card prints its town only when it is somewhere ELSE. That is the whole
+ * rule, and it survives every shape of trip:
+ *
+ *   New York     home New York   → nothing, except the airport in East Elmhurst
+ *   Palm Springs home Palm Springs → nothing, until the Joshua Tree day, where
+ *                                  Joshua Tree, Pioneertown, Palm Desert, Indio
+ *                                  and Whitewater each say so
+ *   Tuscany      home Lucca      → Pisa, Firenze, Montefoscoli, San Martino
+ *
+ * A first attempt asked "does the trip cross more than one town" and printed
+ * the town on every card when it did. Palm Springs is what killed it: 12 of its
+ * 18 towns are Palm Springs, so the test said "one town, print nothing" and the
+ * day trips — the only cards where the town matters — lost theirs.
+ *
+ * Blank means home. That is not a shape a card is missing; it is the answer.
  *
  * Context rather than a prop: CardTile is reached through DayColumn,
- * ListColumn, SortableCardTile and two DragOverlays, and threading a boolean
- * through all five to say one thing about the trip is not worth the noise.
+ * SortableCardTile and a DragOverlay, and threading one fact about the trip
+ * through all of them is not worth the noise.
  */
-const ManyTownsCtx = createContext(false);
+const HomeTownCtx = createContext<string | null>(null);
 
 // ── DayHeaderCell ──────────────────────────────────────────────
 // Lifted out of DayColumn into the pinned header row. Reads the day's
@@ -2582,7 +2627,7 @@ function CardTile({
   onDelete?: () => void;
   isOverlay?: boolean;
 }) {
-  const manyTowns   = useContext(ManyTownsCtx);
+  const homeTown    = useContext(HomeTownCtx);
   const place       = card.place;
   const det         = card.details as Record<string, unknown>;
   const isNote      = place == null;
@@ -2665,7 +2710,9 @@ function CardTile({
               // for the opening-hours warning on this very line.
               const shownTime = compactRange(timeRange);
               const kind = isNote ? "Note" : subLabel;
-              const town = manyTowns ? placeTown(place?.address) : null;
+              // Blank means home. Only somewhere else earns the words.
+              const rawTown = placeTown(place?.address);
+              const town = rawTown && rawTown !== homeTown ? shortTown(rawTown) : null;
               if (!shownTime && !kind && !town) return null;
 
               // A flex row, not a truncated paragraph. There are 176px here and
