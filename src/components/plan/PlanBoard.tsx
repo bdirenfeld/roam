@@ -97,7 +97,10 @@ const LIST_SLOT_PREFIX = "listslot-";
 // The idle "+ Add a list" rail. Narrower than a column on purpose — it is an
 // affordance, not a place cards live — and it widens to a full column while a
 // name is being typed, because an input at 140px is a slot, not a field.
-const ADD_LIST_W = FOLDED_W;
+// Trello's idle "Add another list" is exactly a list wide, which is why it
+// reads as the next column instead of a button (measured off Brennan's board,
+// Sept 2026). Roam's was half that and read as a control.
+const ADD_LIST_W = COL_W;
 
 // The Direction A control-row chip — lifted verbatim from DayPicker's trigger
 // so "Fold all weeks" / "Unfold all" sit beside "Jump to day" as one family.
@@ -3008,7 +3011,7 @@ function AddListColumn({
   onCancel: () => void;
 }) {
   const [draft, setDraft] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (drafting) {
@@ -3035,23 +3038,18 @@ function AddListColumn({
   if (!drafting) {
     return (
       <div className={shellCls} style={fullWidth ? undefined : { width: ADD_LIST_W }}>
-        {/* The same row as "Add a place" — one ringed plus for every add on
-            the board. The dashed box it replaces was the last one of its kind
-            (Brennan, Sep 2026). */}
+        {/* A panel the width of a list, sitting ON the board — Trello's shape,
+            Roam's colours. "Another" because the composer stays open and you
+            are expected to keep going. */}
         <button
           type="button"
           onClick={onStart}
-          className="w-full flex items-center gap-2.5 px-3 py-[13px] text-[14px] text-[#1A1A2E] whitespace-nowrap active:opacity-70 transition-opacity"
-          aria-label="Add a list"
+          className="w-full flex items-center gap-2.5 rounded-xl px-3.5 py-3 text-[14px] text-[#1A1A2E] whitespace-nowrap hover:bg-white/70 active:opacity-70 transition-colors"
+          style={{ background: "rgba(255,255,255,0.55)", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)" }}
+          aria-label="Add another list"
         >
-          <span
-            aria-hidden="true"
-            className="inline-flex items-center justify-center w-[22px] h-[22px] rounded-full text-[14px] leading-none flex-shrink-0"
-            style={{ border: "1.5px solid rgba(26,26,46,0.35)", color: "rgba(26,26,46,0.5)" }}
-          >
-            +
-          </span>
-          Add a list
+          <span aria-hidden="true" className="text-[16px] leading-none" style={{ color: "rgba(26,26,46,0.5)" }}>+</span>
+          Add another list
         </button>
       </div>
     );
@@ -3060,32 +3058,47 @@ function AddListColumn({
   return (
     <div className={shellCls} style={fullWidth ? undefined : { width: COL_W }}>
       <div className="rounded-xl bg-white shadow-card p-3" style={{ border: "1px solid rgba(26,26,46,0.12)" }}>
-        <input
+        {/* A textarea, not an input: a long list name wraps onto a second line
+            instead of scrolling out of sight. Enter still commits — the newline
+            is suppressed. */}
+        <textarea
           ref={inputRef}
+          rows={1}
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            // Grow to the text, up to about three lines.
+            const el = e.currentTarget;
+            el.style.height = "auto";
+            el.style.height = Math.min(el.scrollHeight, 76) + "px";
+          }}
           onKeyDown={(e) => {
-            if (e.key === "Enter") commit();
+            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commit(); }
             if (e.key === "Escape") { setDraft(""); onCancel(); }
           }}
-          placeholder="Research, Prep, Ideas…"
+          placeholder="Enter list name…"
           aria-label="New list name"
-          className="w-full bg-transparent outline-none border-b border-[rgba(26,26,46,0.15)] focus:border-[#B0541F] pb-1 placeholder:text-[rgba(26,26,46,0.28)]"
+          className="w-full bg-transparent outline-none resize-none border-b border-[rgba(26,26,46,0.15)] focus:border-[#B0541F] pb-1 placeholder:text-[rgba(26,26,46,0.28)]"
           style={LIST_TIER2}
         />
-        <div className="flex gap-2 mt-3">
+        <div className="flex items-center gap-2 mt-3">
           <button
             onClick={commit}
             disabled={!draft.trim()}
             className="flex-1 py-2 rounded-full text-[12.5px] font-semibold text-white bg-[#1A1A2E] disabled:opacity-30 transition-opacity"
           >
-            Add
+            Add list
           </button>
+          {/* ✕, not the word "Done" — Trello's, and it stops the row reading as
+              two competing verbs. */}
           <button
             onClick={() => { setDraft(""); onCancel(); }}
-            className="px-3 py-2 rounded-lg text-[12.5px] font-semibold text-gray-500 hover:bg-gray-100 transition-colors"
+            aria-label="Stop adding lists"
+            className="w-9 h-9 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 transition-colors"
           >
-            Done
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
           </button>
         </div>
       </div>
