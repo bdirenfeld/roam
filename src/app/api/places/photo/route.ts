@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { fetchPlaceDetails } from "@/lib/places/fetchDetails";
-import { cachedPhotoUrl, storePhoto } from "@/lib/places/photoCache";
+import { cachedPhotoUrl, storePhoto, PHOTO_WIDTH, type PhotoSize } from "@/lib/places/photoCache";
 import { underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -28,10 +28,10 @@ function redirectTo(location: string, header = CACHE_HEADER) {
 // Google answers a valid photo_reference with a 302 to its image CDN; an
 // expired or invalid ref gets a 400/403 with no Location. The status lets the
 // caller tell "ref went stale" apart from network failure.
-async function resolvePhotoLocation(photoRef: string, apiKey: string) {
+async function resolvePhotoLocation(photoRef: string, apiKey: string, size: PhotoSize = "full") {
   const photoUrl = new URL("https://maps.googleapis.com/maps/api/place/photo");
   photoUrl.searchParams.set("photoreference", photoRef);
-  photoUrl.searchParams.set("maxwidth", "800");
+  photoUrl.searchParams.set("maxwidth", PHOTO_WIDTH[size]);
   photoUrl.searchParams.set("key", apiKey);
   try {
     const res = await fetch(photoUrl.toString(), { redirect: "manual" });
@@ -92,6 +92,10 @@ export async function GET(req: NextRequest) {
 
   // Optional gallery index into details.photos. Default 0 = the cover,
   // identical to the historical single-photo behavior.
+  // A card row asks for "thumb"; the gallery and the card sheet take the full
+  // image. Anything else is treated as full.
+  const size: PhotoSize = req.nextUrl.searchParams.get("size") === "thumb" ? "thumb" : "full";
+
   const indexParam = req.nextUrl.searchParams.get("index");
   const index = indexParam === null ? 0 : Number.parseInt(indexParam, 10);
   if (!Number.isInteger(index) || index < 0) return notFound();
@@ -106,7 +110,7 @@ export async function GET(req: NextRequest) {
 
   // The cached copy: no Google call, nothing counted against the day's
   // allowance, and the browser may hold it for a month.
-  const cached = cachedPhotoUrl(place.photo_cache, index);
+  const cached = cachedPhotoUrl(place.photo_cache, index, size);
   if (cached) return redirectTo(cached, CACHED_HEADER);
 
   if (place.google_place_id) {
@@ -138,7 +142,7 @@ export async function GET(req: NextRequest) {
     }
     if (!photoRef) return notFound();
 
-    let resolved = await resolvePhotoLocation(photoRef, apiKey);
+    let resolved = await resolvePhotoLocation(photoRef, apiKey, size);
 
     // Stored photo references expire some months after the Place Details call
     // that minted them. Refresh the details once, persist the new photos
@@ -152,14 +156,14 @@ export async function GET(req: NextRequest) {
       const fresh = await refreshStoredPhotos(supabase, place, apiKey);
       const freshRef = fresh?.[index]?.photo_reference;
       if (!freshRef) return notFound();
-      resolved = await resolvePhotoLocation(freshRef, apiKey);
+      resolved = await resolvePhotoLocation(freshRef, apiKey, size);
     }
 
     if (!resolved.location) return notFound();
 
     // Copy it into the bucket for the next viewer. A failure here just means
     // the browser goes to Google this time, as it always did.
-    const copied = await storePhoto(place.id, index, resolved.location);
+    const copied = await storePhoto(place.id, index, resolved.location, size);
     if (copied) return redirectTo(copied, CACHED_HEADER);
     return redirectTo(resolved.location);
   }

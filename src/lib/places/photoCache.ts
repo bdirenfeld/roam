@@ -22,10 +22,21 @@ export interface CachedPhoto {
 
 export type PhotoCache = Record<string, CachedPhoto | undefined>;
 
-/** The cached URL for this index, if one is stored and still inside its 30 days. */
-export function cachedPhotoUrl(cache: unknown, index: number): string | null {
+/** "thumb" is what a card row draws (52–76 px); "full" is the gallery. */
+export type PhotoSize = "full" | "thumb";
+
+/** Google's maxwidth for each size. A thumb is ~8 KB against ~190 KB. */
+export const PHOTO_WIDTH: Record<PhotoSize, string> = { full: "800", thumb: "320" };
+
+/** Cache key: the bare index for the full image, "t0" for its thumbnail. */
+function cacheKey(index: number, size: PhotoSize): string {
+  return size === "thumb" ? `t${index}` : String(index);
+}
+
+/** The cached URL for this index and size, if stored and inside its 30 days. */
+export function cachedPhotoUrl(cache: unknown, index: number, size: PhotoSize = "full"): string | null {
   if (!cache || typeof cache !== "object") return null;
-  const entry = (cache as PhotoCache)[String(index)];
+  const entry = (cache as PhotoCache)[cacheKey(index, size)];
   if (!entry?.url || !entry.until) return null;
   return Date.parse(entry.until) > Date.now() ? entry.url : null;
 }
@@ -39,6 +50,7 @@ export async function storePhoto(
   placeId: string,
   index: number,
   sourceUrl: string,
+  size: PhotoSize = "full",
 ): Promise<string | null> {
   try {
     const res = await fetch(sourceUrl);
@@ -49,7 +61,7 @@ export async function storePhoto(
     if (bytes.byteLength === 0 || bytes.byteLength > MAX_BYTES) return null;
 
     const ext = type.includes("png") ? "png" : type.includes("webp") ? "webp" : "jpg";
-    const path = `${placeId}/${index}.${ext}`;
+    const path = `${placeId}/${index}${size === "thumb" ? "-thumb" : ""}.${ext}`;
     const admin = createAdminClient();
 
     const { error: upErr } = await admin.storage.from(BUCKET).upload(path, bytes, {
@@ -73,7 +85,7 @@ export async function storePhoto(
     const existing = (row?.photo_cache ?? {}) as PhotoCache;
     const { error: setErr } = await admin
       .from("places")
-      .update({ photo_cache: { ...existing, [String(index)]: { url, until } } })
+      .update({ photo_cache: { ...existing, [cacheKey(index, size)]: { url, until } } })
       .eq("id", placeId);
     if (setErr) console.error("[Roam] photo cache write failed:", setErr.message);
 

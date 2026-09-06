@@ -3269,7 +3269,7 @@ function CardTile({
           {/* Mobile thumbnail — 60×60 (only when card is linked to a place) */}
           {place && (
             <CardImage
-              src={`/api/places/photo?place_id=${place.id}`}
+              src={`/api/places/photo?place_id=${place.id}&size=thumb`}
               alt=""
               className="md:hidden w-[60px] h-[60px] rounded-lg object-cover flex-shrink-0"
               lat={place.lat}
@@ -3294,7 +3294,7 @@ function CardTile({
             {place && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={`/api/places/photo?place_id=${place.id}`}
+                src={`/api/places/photo?place_id=${place.id}&size=thumb`}
                 alt=""
                 className="absolute inset-0 w-full h-full object-cover"
                 onError={(e) => { e.currentTarget.style.display = "none"; }}

@@ -292,7 +292,7 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
       {place?.id && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={`/api/places/photo?place_id=${place.id}&index=0`}
+          src={`/api/places/photo?place_id=${place.id}&index=0&size=thumb`}
           alt=""
           loading="lazy"
           className="w-[52px] h-[52px] md:w-[76px] md:h-[76px] rounded-lg object-cover shrink-0 bg-[rgba(26,26,46,0.04)]"
