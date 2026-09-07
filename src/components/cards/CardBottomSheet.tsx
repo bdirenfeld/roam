@@ -454,8 +454,6 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const [showSubTypePicker, setShowSubTypePicker] = useState(false);
   const [linkMergeMessage,  setLinkMergeMessage]  = useState<string | null>(null);
   const [navSheetOpen,      setNavSheetOpen]      = useState(false);
-  const [showMenuInput,     setShowMenuInput]     = useState(false);
-  const [menuInputValue,    setMenuInputValue]    = useState("");
 
   // ── Keyboard escape ────────────────────────────────────────
   useEffect(() => {
@@ -546,13 +544,6 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     [localCard, onCardUpdate, saveTopLevel, toast]
   );
 
-  const saveMenuUrl = useCallback(async () => {
-    const url = menuInputValue.trim();
-    if (!url) return;
-    await saveDetails("menu_url", url);
-    setShowMenuInput(false);
-    setMenuInputValue("");
-  }, [menuInputValue, saveDetails]);
 
   // ── "We loved this" ──────────────────────────────────────────
   // Lives on the PLACE, not the card: you loved the restaurant, not the
@@ -872,9 +863,6 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     if (!line) return null;
     return { weekday, value: line.slice(weekday.length + 2).trim() };
   })();
-  const menuUrl = typeof det?.menu_url === "string"
-                    ? ((det.menu_url as string) || null)
-                    : null;
 
   const priceLevel = place?.price_level ?? null;
 
@@ -1121,17 +1109,6 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   </svg>
                 </a>
               )}
-              {/* Only when there IS a menu. The "add a link" state was a grey
-                  dot on every restaurant advertising a field nothing fills —
-                  zero of fifteen Tuscany food places have one. Adding a link is
-                  still possible from the details below. */}
-              {place?.type === "food" && menuUrl && (
-                <a href={menuUrl} target="_blank" rel="noopener noreferrer" aria-label="Menu" title="Menu" className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round">
-                    <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="15" y2="18" />
-                  </svg>
-                </a>
-              )}
               {/* Paperclip — attachments (logistics and activity cards only) */}
               {!readOnly && (place?.type === "logistics" || place?.type === "activity") && (
                 <button
@@ -1326,34 +1303,6 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               cost a line of a phone screen to half-say what Maps says properly
               one tap away. */}
 
-          {place?.type === "food" && !readOnly && showMenuInput && (
-            <div className="mt-2 flex items-center gap-2">
-              <input
-                type="url"
-                value={menuInputValue}
-                onChange={(e) => setMenuInputValue(e.target.value)}
-                placeholder="Paste menu URL…"
-                autoFocus
-                className="flex-1 px-3 py-1.5 text-[12px] border border-gray-200 rounded-lg outline-none focus:border-gray-400"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") saveMenuUrl();
-                  if (e.key === "Escape") { setShowMenuInput(false); setMenuInputValue(""); }
-                }}
-              />
-              <button
-                onClick={saveMenuUrl}
-                className="px-3 py-1.5 text-[11px] font-semibold rounded-full bg-[#1A1A2E] text-white hover:opacity-90 transition-opacity"
-              >
-                Save
-              </button>
-              <button
-                onClick={() => { setShowMenuInput(false); setMenuInputValue(""); }}
-                className="px-3 py-1.5 text-[11px] font-semibold rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          )}
         </div>
         </div>{/* end drag/header touch zone */}
 
