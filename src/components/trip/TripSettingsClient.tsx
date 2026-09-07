@@ -743,7 +743,20 @@ export default function TripSettingsClient({
                   the address itself said nothing once truncated. */}
               <div className="mt-2.5 text-[13px] flex flex-wrap items-center gap-x-1.5 gap-y-1" style={{ color: "rgba(26,26,46,0.62)" }}>
                 {sharePath ? (
-                  <button type="button" onClick={copyLink} className="text-[#1A1A2E]">Copy link</button>
+                  <>
+                    <button type="button" onClick={copyLink} className="text-[#1A1A2E]">Copy link</button>
+                    <span aria-hidden="true">·</span>
+                    {/* Without this the only way to see the guest page is an
+                        incognito window, which in practice means never. */}
+                    <a
+                      href={`${sharePath}?preview=1`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#1A1A2E]"
+                    >
+                      Preview
+                    </a>
+                  </>
                 ) : (
                   <button type="button" onClick={createLink} disabled={linkBusy} className="text-[#1A1A2E] disabled:opacity-40">
                     {linkBusy ? "Making a link…" : "Make a link"}

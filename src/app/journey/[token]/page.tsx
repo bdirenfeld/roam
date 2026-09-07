@@ -14,6 +14,7 @@ export const dynamic = "force-dynamic";
 
 interface Props {
   params: Promise<{ token: string }>;
+  searchParams: Promise<{ preview?: string }>;
 }
 
 // Editorial dead-end for a token that resolves to nothing. Deliberately
@@ -52,10 +53,18 @@ function InvitationUnavailable() {
 // trip_members row keyed to their account, then drops them into the Day view.
 // Access from then on is governed by RLS — the link is a one-time claim, not
 // the access mechanism.
-export default async function ClaimPage({ params }: Props) {
+export default async function ClaimPage({ params, searchParams }: Props) {
   const { token } = await params;
   const shareToken = token?.trim();
   if (!shareToken) return <InvitationUnavailable />;
+
+  // The owner is always signed in, so tapping their own link lands them in the
+  // app and they never see what they sent. Roam ran for months that way — the
+  // shared page drifted because nobody who could fix it ever looked at it.
+  // ?preview=1 renders the guest page for a signed-in caller and, crucially,
+  // skips the claim below: previewing your own journey must not write a
+  // membership row.
+  const preview = (await searchParams)?.preview === "1";
 
   // Auth via the user's RLS client. Unauthenticated → hand off to the client
   // sign-in arm, which kicks off Google OAuth carrying this path as `next`.
@@ -63,7 +72,7 @@ export default async function ClaimPage({ params }: Props) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) {
+  if (!user || preview) {
     // No account needed to READ. The link is the secret and holding it is the
     // permission; the people a journey was planned for should not have to
     // make a Google account to look at it (Brennan, Sept 2026). Signing in is
@@ -171,6 +180,7 @@ export default async function ClaimPage({ params }: Props) {
 
     return (
       <SharedItinerary
+        preview={preview}
         token={shareToken}
         journey={{
           title: t.title as string,

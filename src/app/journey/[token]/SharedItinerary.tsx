@@ -102,7 +102,15 @@ function range(start: string | null, end: string | null): string | null {
     : `${m(s)} ${s.getDate()} – ${m(e)} ${e.getDate()}, ${e.getFullYear()}`;
 }
 
-export default function SharedItinerary({ token, journey }: { token: string; journey: SharedJourney }) {
+export default function SharedItinerary({
+  token,
+  journey,
+  preview = false,
+}: {
+  token: string;
+  journey: SharedJourney;
+  preview?: boolean;
+}) {
   const byDay = new Map<string, SharedCard[]>();
   for (const c of journey.cards) {
     if (!c.dayId) continue;
@@ -118,6 +126,21 @@ export default function SharedItinerary({ token, journey }: { token: string; jou
   return (
     <main style={{ background: "#F5F4F1", color: INK, minHeight: "100dvh" }}>
       <RefreshOnFocus />
+
+      {preview && (
+        // Only ever rendered for a signed-in owner who asked for it. Says which
+        // view this is, because the guest page and the app look enough alike
+        // at a glance to be confusing, and gives a way back.
+        <div
+          className="px-5 py-2.5 flex items-center justify-between gap-3 text-[12.5px]"
+          style={{ background: INK, color: "rgba(255,255,255,0.92)" }}
+        >
+          <span>Preview · what someone with the link sees</span>
+          <a href="/trips" className="underline underline-offset-2 shrink-0" style={{ color: "#FFFFFF" }}>
+            Back to Roam
+          </a>
+        </div>
+      )}
 
       {journey.cover && (
         // eslint-disable-next-line @next/next/no-img-element
@@ -287,10 +310,11 @@ export default function SharedItinerary({ token, journey }: { token: string; jou
               need the link all the time or can they get to it through the
               app?"). */}
           <p className="text-[13px] leading-[1.55]" style={{ color: CAPTION }}>
-            This page always shows the latest plan{firstName ? ` as ${firstName} changes it` : ""}. Keep the link, or
-            sign in and the journey lives in your app — no link needed.
+            {preview
+              ? "This is the whole of it. A guest sees the plan, your notes and what they need to get in — not the map, Bookings, Ideas, or anything they could change."
+              : `This page always shows the latest plan${firstName ? ` as ${firstName} changes it` : ""}. Keep the link, or sign in and the journey lives in your app — no link needed.`}
           </p>
-          <JoinButton token={token} label="Sign in to keep this journey" />
+          {!preview && <JoinButton token={token} label="Sign in to keep this journey" />}
         </div>
       </div>
     </main>
