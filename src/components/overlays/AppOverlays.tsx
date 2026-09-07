@@ -141,19 +141,26 @@ export const useGuide = () => useContext(GuideCtx);
 /** Mounted once, in (app)/layout, inside GlobalSearchProvider. */
 export function AppOverlaysProvider({ children }: { children: ReactNode }) {
   return (
-    <NewJourneyProvider>
-      <TripSettingsProvider>
-        <ProfileProvider>
-          <EstimateProvider>
-            <IdeasProvider>
-              <JourneyNotesProvider>
-                <GuideProvider>{children}</GuideProvider>
-              </JourneyNotesProvider>
-            </IdeasProvider>
-          </EstimateProvider>
-        </ProfileProvider>
-      </TripSettingsProvider>
-    </NewJourneyProvider>
+    /* GuideProvider is OUTERMOST, and has to be. Every provider here renders
+       its own overlay as a sibling of {children}, so a provider nested INSIDE
+       GuideProvider can reach it but the overlays of providers OUTSIDE it
+       cannot. With Guide innermost, ProfileForm — rendered by ProfileProvider —
+       got the no-op default context and "How Roam works" did nothing at all
+       (Brennan, Sep 2026). Anything a second overlay needs to open belongs at
+       the top of this stack. */
+    <GuideProvider>
+      <NewJourneyProvider>
+        <TripSettingsProvider>
+          <ProfileProvider>
+            <EstimateProvider>
+              <IdeasProvider>
+                <JourneyNotesProvider>{children}</JourneyNotesProvider>
+              </IdeasProvider>
+            </EstimateProvider>
+          </ProfileProvider>
+        </TripSettingsProvider>
+      </NewJourneyProvider>
+    </GuideProvider>
   );
 }
 
