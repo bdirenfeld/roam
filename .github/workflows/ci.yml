@@ -66,5 +66,10 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # Pure-function tests over fixtures copied from the live database. They
+      # need no secrets and no network, and they run in about two seconds.
+      - name: Test
+        run: npm test
+
       - name: Build
         run: npm run build
