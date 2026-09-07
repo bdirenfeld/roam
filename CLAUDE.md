@@ -514,3 +514,27 @@ against the weeks; level with the weeks it left a permanent gutter beside Day 1.
 Capping at one column is what makes the board's left edge a fixed, solvable
 shape. If a future change reintroduces variable leading columns, that whole
 argument reopens.
+
+## A height class is a promise the parent has to keep
+
+Three separate bugs in one evening (2026-09-06), all the same mistake:
+
+- **The day map** was `h-48` with the default `flex-shrink: 1`. 192px was a
+  BASIS, not a floor, so as the list beside it grew the map was the thing that
+  gave — scrolling to the bottom of a day squeezed it. Fixed with `flex-shrink-0`.
+- **The journey-notes scroller** was `h-full` inside a flex item with no resolved
+  height, so `height: 100%` had nothing to resolve against and fell back to auto:
+  39 grocery items grew the list to 1948px inside a 561px box, which never
+  scrolled and painted the add row over its own last lines. Fixed with
+  `flex-1 min-h-0` in a real flex column.
+- **The guide overlay's iframe** was `h-full` inside `Overlay`, which is
+  `h-[92dvh]` on a phone but **`md:h-auto`** on a computer. A child asking for
+  100% of an auto-height parent got nothing, and the sheet rendered as a stub
+  with a squashed iframe. Fixed with an explicit `h-[72dvh] max-h-full`.
+
+Before writing `h-full`, `h-[N]` or `flex-1`, check what the PARENT actually
+guarantees. `h-full` needs an ancestor with a resolved height; `h-[N]` on a flex
+item is only a starting size unless `flex-shrink-0` says otherwise; `flex-1`
+inside an `h-auto` box collapses. Every one of these renders fine at the size
+the developer happened to test and wrong at another — all three were found by
+Brennan on his phone, not by me at desktop width.

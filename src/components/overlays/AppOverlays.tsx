@@ -719,7 +719,13 @@ function GuideProvider({ children }: { children: ReactNode }) {
           {/* The shell's contract: a flex-shrink-0 header and a flex-1 min-h-0
               body. The iframe is its own scroller, so the body does not add a
               second one. */}
-          <div className="flex flex-col h-full min-h-0">
+          {/* An explicit height, not h-full. The Overlay is h-[92dvh] on a
+              phone but md:h-AUTO on a computer, so a child asking for 100% of
+              an auto-height parent got nothing and the iframe collapsed to a
+              stub — which is exactly what "h-48 is a basis, not a floor" did to
+              the day map. 72dvh fills the sheet on a phone and sits inside the
+              86vh cap on a desktop. */}
+          <div className="flex flex-col h-[72dvh] max-h-full min-h-0">
             <div className="flex-shrink-0 px-5 pt-5 pb-3 md:pt-6">
               <p className="text-center font-display italic text-[23px] text-gray-900">
                 How Roam works
