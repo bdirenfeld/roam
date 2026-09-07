@@ -777,6 +777,11 @@ not have been — checked first: all 262 notes carry no secrets (the habit is
 already "code stored separately"), and `trip_entry` holds public government
 rules whose only personal column is nationality.
 
+**To see it: Settings → "Copy link · Preview".** Preview opens `?preview=1`,
+which renders the guest page for a signed-in caller and deliberately does not
+claim — no `trip_members` row is written. Before this existed the only way was
+an incognito window, which is why the page went unlooked-at for months.
+
 **Measure this page before and after any change to it.** It has no session, so
 the phone-popup trick does not apply — use the Claude Browser pane, which is
 session-less, with `resize_window` to mobile.
