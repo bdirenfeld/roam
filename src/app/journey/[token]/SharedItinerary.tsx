@@ -170,6 +170,26 @@ export default function SharedItinerary({ token, journey }: { token: string; jou
                   </dd>
                 </div>
               )}
+            </dl>
+
+            {journey.entry.length > 0 && (
+              // Folded, because entry rules get read once before the trip and
+              // never again, while the plan is read every day. Open, Tuscany's
+              // seven lines ran 416px and pushed the first card of the first day
+              // to 902px — past the fold on a phone, which only swaps one
+              // missing answer for another (measured on the live page).
+              // <details> so it needs no JavaScript and no session.
+              <details className="mt-3">
+                <summary
+                  className="text-[13px] cursor-pointer list-none marker:content-none"
+                  style={{ color: "rgba(26,26,46,0.62)" }}
+                >
+                  What you need to get in
+                  <span className="ml-1.5" style={{ color: "rgba(26,26,46,0.4)" }}>
+                    ({journey.entry.length})
+                  </span>
+                </summary>
+                <dl className="mt-3 flex flex-col gap-3">
               {journey.entry.map((line) => (
                 <div key={line.label}>
                   <dt className="text-[10px] uppercase" style={{ letterSpacing: "0.07em", color: "rgba(26,26,46,0.5)" }}>
@@ -178,7 +198,9 @@ export default function SharedItinerary({ token, journey }: { token: string; jou
                   <dd className="text-[13.5px] mt-[3px] leading-[1.45] m-0">{line.text}</dd>
                 </div>
               ))}
-            </dl>
+                </dl>
+              </details>
+            )}
           </section>
         )}
 
