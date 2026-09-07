@@ -596,7 +596,6 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   // One control, labelled for what it will do next. Collapsing and expanding
   // both change the board's width wholesale, leaving no meaningful anchor, so
   // both land at the start.
-  const allCollapsed = weekSlots.length > 0 && weekSlots.every((s) => s.folded);
 
   const preDragSnapshot = useRef<DayWithCards[] | null>(null);
   const crossColumnMoved = useRef(false);
@@ -1704,36 +1703,6 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
                           is positioned out of flow inside its slot: in flow it
                           would make this row as tall as a card and shove the
                           whole board down the moment one week folded. */}
-                      {/* The gap below this row is for the week BARS. Folded
-                          cards are out of flow, so with every week folded the
-                          row is 0px and that gap would just push "Add a list"
-                          off the top edge of the cards it sits beside. */}
-                      <div className={`hidden md:flex md:flex-row md:flex-nowrap md:gap-5 md:min-w-max md:flex-shrink-0 ${allCollapsed ? "" : "md:mb-3"}`}>
-
-                        {weekSlots.map(({ week, folded, width }) => (
-                          <div
-                            key={week.key}
-                            data-week-key={week.key}
-                            className="relative flex-shrink-0"
-                            style={{ width }}
-                          >
-                            {folded ? (
-                              /* Always at the row's top, level with the bars it
-                                 shares the row with — and, when every week is
-                                 folded and this row has no height of its own,
-                                 level with "Add another list" in the header
-                                 row directly beneath. */
-                              <WeekFoldedCard
-                                week={week}
-                                onUnfold={() => handleUnfoldWeek(week)}
-                              />
-                            ) : (
-                              <WeekBar week={week} onFold={(e) => handleFoldWeek(e, week)} />
-                            )}
-                          </div>
-                        ))}
-                      </div>
-
                       {/* Pinned day-header row, grouped by week. A folded week
                           leaves an empty slot of the folded card's width — that
                           is what keeps every later week's bar over its own
@@ -1743,11 +1712,24 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
                       <div className="hidden md:flex md:flex-row md:flex-nowrap md:gap-5 md:min-w-max md:flex-shrink-0">
 
                         {weekSlots.map(({ week, folded, width }) => (
-                          <div key={week.key} className="flex-shrink-0" style={{ width }}>
-                            {!folded && (
+                          <div key={week.key} data-week-key={week.key} className="flex-shrink-0" style={{ width }}>
+                            {folded ? (
+                              <WeekFoldedCard week={week} onUnfold={() => handleUnfoldWeek(week)} />
+                            ) : (
                               <div className="flex flex-row flex-nowrap gap-5">
-                                {week.days.map((day) => (
-                                  <DayHeaderCell key={day.id} day={day} weather={weatherByDate?.[day.date] ?? null} onRename={handleRenameDay} autoTitle={autoDayTitle(day, day.id === days[0]?.id, day.id === days[days.length - 1]?.id)} />
+                                {week.days.map((day, i) => (
+                                  <DayHeaderCell
+                                    key={day.id}
+                                    day={day}
+                                    weather={weatherByDate?.[day.date] ?? null}
+                                    onRename={handleRenameDay}
+                                    autoTitle={autoDayTitle(day, day.id === days[0]?.id, day.id === days[days.length - 1]?.id)}
+                                    /* Folding is a property of the week, so it
+                                       rides the week's first column. Anywhere
+                                       else and there is no telling which week
+                                       the − belongs to. */
+                                    onFoldWeek={i === 0 ? (e) => handleFoldWeek(e, week) : undefined}
+                                  />
                                 ))}
                               </div>
                             )}
@@ -2240,7 +2222,7 @@ const HomeTownCtx = createContext<string | null>(null);
 // Lifted out of DayColumn into the pinned header row. Reads the day's
 // cards (live) so the STOP/H caption updates as cards move. Mirrors the
 // column width (md:w-[280px]) so each header sits exactly above its column.
-function DayHeaderCell({ day, weather, onRename, autoTitle }: { day: DayWithCards; weather?: DayWeather | null; onRename?: (dayId: string, theme: string) => void; autoTitle?: string | null }) {
+function DayHeaderCell({ day, weather, onRename, autoTitle, onFoldWeek }: { day: DayWithCards; weather?: DayWeather | null; onRename?: (dayId: string, theme: string) => void; autoTitle?: string | null; onFoldWeek?: (e: React.MouseEvent) => void }) {
   const wxBtnRef = useRef<HTMLButtonElement>(null);
   // Day title — the optional line under the weekday. Same commit rules as a
   // list rename: Enter and blur commit, Escape reverts.
@@ -2324,6 +2306,22 @@ function DayHeaderCell({ day, weather, onRename, autoTitle }: { day: DayWithCard
         color: "rgba(26, 26, 46, 0.62)",
         whiteSpace: "nowrap",
       }}>Day {day.day_number}{shortDateTitle ? ` · ${shortDateTitle}` : ""}</span>
+      {/* Fold this week away. Sits at the far right of the week's first day, in
+          the row that was already here — which is the whole point: the bar this
+          replaces cost 53px on every board, including the four-day trips where
+          "Week 1" said nothing at all. */}
+      {onFoldWeek && (
+        <button
+          type="button"
+          onClick={onFoldWeek}
+          aria-label={`Collapse this week`}
+          title="Collapse this week"
+          className="ml-auto flex-shrink-0 -mr-1 w-6 h-6 flex items-center justify-center rounded-md
+                     text-[rgba(26,26,46,0.40)] hover:text-[#1A1A2E] hover:bg-[rgba(26,26,46,0.06)] transition-colors"
+        >
+          <span aria-hidden style={{ fontSize: 15, lineHeight: 1 }}>−</span>
+        </button>
+      )}
       </div>
       {/* Tier 2½ — the day's title, typed by the traveller. Reads as a caption
           under the weekday; tap to edit. When empty and editable, a faint
@@ -2436,20 +2434,15 @@ function DayHeaderCell({ day, weather, onRename, autoTitle }: { day: DayWithCard
 // name is what a list has instead of a date.
 
 
-// ── Week bar / folded week card ────────────────────────────────
+// ── Folded week card ───────────────────────────────────────────
 // Geometry and typography follow design-reference/long-trip/week-folding.html.
 // The mockup draws day headers inside each column; this board does not — only
-// the look of these two elements is taken from it, never its structure.
-
-const WEEK_LABEL: React.CSSProperties = {
-  fontFamily: "'DM Sans', system-ui, sans-serif",
-  fontSize: "9px",
-  fontWeight: 600,
-  letterSpacing: "0.14em",
-  textTransform: "uppercase",
-  color: "rgba(26,26,46,0.45)",
-  whiteSpace: "nowrap",
-};
+// the look of this element is taken from it, never its structure.
+//
+// The open-week bar that used to live beside it is gone (Sep 2026): it cost
+// 53px of the 217px above the first card, and said "Week 1 · part week" over a
+// date range the day headers already carry. Folding moved to the − on the
+// week's first day header, in a row that was there anyway.
 
 // The 20px sign circle. An affordance only — the whole bar and the whole card
 // are the control, so the glyph is aria-hidden and the button carries the label.
@@ -2458,44 +2451,12 @@ const SIGN =
   "text-[rgba(26,26,46,0.45)] transition-colors " +
   "group-hover:text-[#B0541F] group-hover:bg-[rgba(196,98,45,0.10)]";
 
-function WeekBar({
-  week,
-  onFold,
-}: {
-  week: PlanWeek<DayWithCards>;
-  onFold: (e: React.MouseEvent) => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onFold}
-      aria-label={`Collapse week ${week.weekNumber}, ${week.range}`}
-      title={`Collapse ${week.range}`}
-      className="group w-full flex items-center gap-[11px] text-left rounded-[9px] px-[13px] py-2
-                 border border-[rgba(26,26,46,0.12)] bg-[rgba(26,26,46,0.025)]
-                 hover:border-[rgba(26,26,46,0.22)] hover:bg-[rgba(26,26,46,0.055)] transition-colors"
-    >
-      <span
-        className="font-display italic"
-        style={{ fontSize: "15px", fontWeight: 500, color: "#1A1A2E", letterSpacing: "-0.01em", whiteSpace: "nowrap" }}
-      >
-        {week.range}
-      </span>
-      <span style={WEEK_LABEL}>
-        Week {week.weekNumber}{week.isPartial ? " · part week" : ""}
-      </span>
-      <span aria-hidden className={`ml-auto ${SIGN}`}>−</span>
-    </button>
-  );
-}
-
-// Out of flow inside its slot so folding never changes the week-bar row's
-// height — and now the SAME HEIGHT as a bar, so it cannot hang down into the
-// day-header band either. A folded week is the same object as an open one, one
-// row of the same padding and the same 15px range, only 140px wide instead of
-// the full span; white and shadowed so it still reads as closed. It lost the
-// "Week N" label and the day count: at 140px there is room for the range and
-// the +, and both survive in the title and aria-label.
+// A folded week, standing in its slot in the day-header row. In flow: it is
+// the only thing in that slot now, so it sets the slot's height rather than
+// hanging off a bar row that no longer exists. Shorter than an open day header,
+// which is the point — a board of folded weeks has almost no chrome left.
+// It carries the range and the +; the "Week N" label and the day count live in
+// the title and aria-label, as they did when the bar was there.
 function WeekFoldedCard({
   week,
   onUnfold,
@@ -2510,7 +2471,7 @@ function WeekFoldedCard({
       onClick={onUnfold}
       aria-label={`Expand week ${week.weekNumber}, ${week.range}, ${count} ${count === 1 ? "day" : "days"}`}
       title={`Expand ${week.range}`}
-      className="group absolute top-0 left-0 w-full flex items-center gap-[11px] text-left rounded-[9px] px-[13px] py-2
+      className="group w-full flex items-center gap-[11px] text-left rounded-[9px] px-[13px] py-2
                  bg-white border border-[rgba(26,26,46,0.12)] hover:border-[rgba(26,26,46,0.24)]
                  shadow-card hover:shadow-card-hover transition-all"
     >
