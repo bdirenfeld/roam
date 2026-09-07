@@ -19,6 +19,7 @@
 
 import { subTypeLabel } from "@/lib/subTypeLabel";
 import { formatTimeRange } from "@/lib/formatTime";
+import { plainNote } from "@/lib/plainNote";
 import DayHeading from "./DayHeading";
 import RefreshOnFocus from "./RefreshOnFocus";
 import JoinButton from "./JoinButton";
@@ -77,19 +78,6 @@ function longDate(iso: string): string {
   return new Date(iso + "T12:00:00").toLocaleDateString("en-GB", {
     weekday: "long", day: "numeric", month: "long",
   });
-}
-
-/** The four things Brennan actually types: **bold**, ## headings, "- " bullets
- *  and "- [ ]" checkboxes. Everything else is left alone, deliberately — this
- *  strips syntax, it does not render markdown. */
-function plainNote(s: string): string {
-  return s
-    .replace(/\*\*(.+?)\*\*/g, "$1")
-    .replace(/^#{1,6}\s+/gm, "")
-    .replace(/^\s*[-*]\s+\[[ xX]\]\s*/gm, "• ")
-    .replace(/^\s*[-*]\s+/gm, "• ")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
 }
 
 function range(start: string | null, end: string | null): string | null {

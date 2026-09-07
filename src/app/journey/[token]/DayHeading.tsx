@@ -14,6 +14,7 @@
 // badge), so this cannot repeat the hydration failure the settings page had.
 
 import { useEffect, useRef, useState } from "react";
+import { isSameLocalDay } from "@/lib/isSameLocalDay";
 
 export default function DayHeading({
   date,
@@ -28,12 +29,7 @@ export default function DayHeading({
   const ref = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    const now = new Date();
-    const local =
-      `${now.getFullYear()}-` +
-      `${String(now.getMonth() + 1).padStart(2, "0")}-` +
-      `${String(now.getDate()).padStart(2, "0")}`;
-    if (local !== date) return;
+    if (!isSameLocalDay(date)) return;
 
     setIsToday(true);
     // Jump, never glide: a smooth scroll through eleven days of itinerary is a
