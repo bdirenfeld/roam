@@ -2629,41 +2629,32 @@ function CardTile({
             onError={(e) => { e.currentTarget.style.display = "none"; }}
           />
 
-          {/* Page through them here rather than opening the card. White glyph
-              on a drop-shadow, no disc — the same restraint the journey card's
-              ⋯ got, because these sit on every place card on the board and a
-              disc apiece would read as a control panel. */}
+          {/* Page through them here rather than opening the card. They stay out
+              of the way until the pointer is on the card — sixty-six carets
+              across a board is a control panel, not a set of photographs. On
+              touch, where there is no hover, they are simply present. */}
           {photoCount > 1 && (
             <>
               <button
                 type="button"
                 aria-label="Previous photo"
                 onClick={(e) => { e.stopPropagation(); stepPhoto(-1); }}
-                className="absolute left-0 top-0 h-full w-9 flex items-center justify-start pl-1 text-white cursor-pointer"
-                style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.55))" }}
+                className="absolute top-0 h-full w-9 flex items-center text-[#1A1A2E] cursor-pointer opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 left-0 justify-start pl-1"
               >
-                <CaretLeft size={18} weight="bold" />
+                <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 24, height: 24, borderRadius: 999, background: "rgba(255,255,255,0.90)", boxShadow: "0 1px 3px rgba(26,26,46,0.22)" }}>
+                  <CaretLeft size={14} weight="bold" />
+                </span>
               </button>
               <button
                 type="button"
                 aria-label="Next photo"
                 onClick={(e) => { e.stopPropagation(); stepPhoto(1); }}
-                className="absolute right-0 top-0 h-full w-9 flex items-center justify-end pr-1 text-white cursor-pointer"
-                style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.55))" }}
+                className="absolute top-0 h-full w-9 flex items-center text-[#1A1A2E] cursor-pointer opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 right-0 justify-end pr-1"
               >
-                <CaretRight size={18} weight="bold" />
-              </button>
-              {/* Only once you have moved. A card at rest stays a photograph;
-                  ten dots on fifty cards would be the noise the board was just
-                  cleared of. */}
-              {photoIdx > 0 && (
-                <span
-                  className="absolute bottom-1 right-1.5 text-white text-[9.5px] font-semibold tabular-nums"
-                  style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.6))" }}
-                >
-                  {photoIdx + 1}/{photoCount}
+                <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 24, height: 24, borderRadius: 999, background: "rgba(255,255,255,0.90)", boxShadow: "0 1px 3px rgba(26,26,46,0.22)" }}>
+                  <CaretRight size={14} weight="bold" />
                 </span>
-              )}
+              </button>
             </>
           )}
         </div>
