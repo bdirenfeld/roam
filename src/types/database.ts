@@ -37,7 +37,6 @@ export interface Trip {
   archived: boolean
   archived_at: string | null
   cover_image_url: string | null
-  kanban_background_url: string | null
   // Journey notes — one markdown-ish string ('## ' section, '- [ ] ' task,
   // anything else a plain line). Rendered by components/trip/JourneyNotes.
   notes: string | null

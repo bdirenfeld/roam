@@ -277,10 +277,6 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   const [bgPreviewError, setBgPreviewError] = useState(false);
   const [savingBg, setSavingBg] = useState(false);
   const [boardBg, setBoardBg] = useState<BoardBg>(() => {
-    // Prefer DB-persisted URL over localStorage
-    if (trip.kanban_background_url) {
-      return { type: "photo", url: trip.kanban_background_url, thumb: trip.kanban_background_url };
-    }
     if (typeof window === "undefined") return { type: "color", value: "#ffffff" };
     try {
       const stored = localStorage.getItem(`roam_board_bg_${trip.id}`);
@@ -288,27 +284,6 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
     } catch { /* ignore */ }
     return { type: "color", value: "#ffffff" };
   });
-
-  // A board that looks like where you're going. Runs once per journey: the
-  // route fills kanban_background_url only when it's empty, so a background
-  // picked by hand is never overwritten — and a journey that already has one
-  // costs a single cheap read.
-  useEffect(() => {
-    if (trip.kanban_background_url) return;
-    let cancelled = false;
-    fetch("/api/trips/fetch-board-bg", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ trip_id: trip.id }),
-    })
-      .then((r) => r.json())
-      .then((d: { url?: string | null }) => {
-        if (cancelled || !d.url) return;
-        setBoardBg({ type: "photo", url: d.url, thumb: d.url });
-      })
-      .catch(() => { /* a plain white board is a fine fallback */ });
-    return () => { cancelled = true; };
-  }, [trip.id, trip.kanban_background_url]);
 
   const [isMobile, setIsMobile] = useState(false);
   // Mid-trip, the mobile board opens on today's column, not Day 1.
@@ -1338,7 +1313,6 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
         localStorage.removeItem(`roam_board_bg_${trip.id}`);
       }
     } catch { /* ignore */ }
-    await supabase.from("trips").update({ kanban_background_url: url || null }).eq("id", trip.id);
     setShowBgPicker(false);
   };
 
