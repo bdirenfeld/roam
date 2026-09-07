@@ -2588,8 +2588,30 @@ function CardTile({
    // deliberately not persisted: it is a look, not a preference.
   const photoCount = place?.photo_count ?? 0;
   const [photoIdx, setPhotoIdx] = useState(0);
+
+  // Fetch the next photo before it is asked for.
+  //
+  // Measured Sep 7 2026: the cover comes back in 10ms because it is already in
+  // our own bucket; photo seven took 3,678ms, because no one had ever asked for
+  // it and the request had to go out to Google and back. Once fetched it is
+  // stored for good, so the cost is paid once per photo per place, ever.
+  //
+  // Warmed on hover and on every step rather than up front: thirty-three cards
+  // pulling ten photos each on board load is hundreds of Google calls for
+  // photos nobody looks at. This way the only ones fetched are on cards he has
+  // actually reached for.
+  const warmPhoto = (i: number) => {
+    if (!place || photoCount <= 1) return;
+    const n = ((i % photoCount) + photoCount) % photoCount;
+    const img = new window.Image();
+    img.src = `/api/places/photo?place_id=${place.id}&size=full&index=${n}`;
+  };
   const stepPhoto = (delta: number) => {
-    setPhotoIdx((i) => (i + delta + photoCount) % photoCount);
+    setPhotoIdx((i) => {
+      const next = (i + delta + photoCount) % photoCount;
+      warmPhoto(next + 1);
+      return next;
+    });
   };
 
   const shownTimes = cardTimes(card);
@@ -2615,6 +2637,7 @@ function CardTile({
         <div
           className="relative w-full overflow-hidden flex items-center justify-center text-[#1A1A2E]"
           style={{ height: 96, background: "#E8E3DA" }}
+          onPointerEnter={() => warmPhoto(photoIdx + 1)}
         >
           <span
             // eslint-disable-next-line react/no-danger

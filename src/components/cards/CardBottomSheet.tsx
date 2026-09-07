@@ -975,6 +975,21 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         className="relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet h-[95dvh] max-h-[95dvh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300 ease-spring"
         style={{ willChange: "transform" }}
       >
+        {/* Close. On the sheet rather than in the header row, so it sits over
+            the photograph and costs no line — white on the cover's gradient,
+            ink on a note card, which has no photo to sit on. */}
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          className="absolute top-2 right-2 w-9 h-9 flex items-center justify-center rounded-full transition-colors"
+          style={place
+            ? { zIndex: 30, color: "#fff", filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.55))" }
+            : { zIndex: 30, color: "rgba(26,26,46,0.45)" }}
+        >
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
         <div className="flex-shrink-0">
         {/* Cover photo hero — swipeable gallery (only when card is linked to a
             place). It stays pinned at the top: it is how you recognise the card
@@ -1107,6 +1122,68 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   </svg>
                 </button>
               )}
+              {/* Loved, website, call, menu — the pill row's worth, as glyphs.
+                  Worded pills spent a whole row saying what these shapes say,
+                  and sat beside each other as though a heart and a phone number
+                  were the same kind of thing. */}
+              {showLoved && (
+                readOnly ? (
+                  <span className="w-7 h-7 flex items-center justify-center"><LovedHeart size={15} /></span>
+                ) : (
+                  <button
+                    onClick={toggleLoved}
+                    aria-pressed={isLoved}
+                    aria-label={isLoved ? "We loved this — tap to unset" : "We loved this"}
+                    title="We loved this"
+                    className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                  >
+                    {isLoved ? <LovedHeart size={15} /> : <Heart size={14} weight="light" color="#6B7280" />}
+                  </button>
+                )
+              )}
+              {website && (
+                <a
+                  href={website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Website"
+                  title="Website"
+                  className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="2" y1="12" x2="22" y2="12" />
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                  </svg>
+                </a>
+              )}
+              {phone && (
+                <a href={phone.href} aria-label="Call" title={phone.display} className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.77a16 16 0 0 0 6.29 6.29l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+                  </svg>
+                </a>
+              )}
+              {place?.type === "food" && (
+                menuUrl ? (
+                  <a href={menuUrl} target="_blank" rel="noopener noreferrer" aria-label="Menu" title="Menu" className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round">
+                      <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="15" y2="18" />
+                    </svg>
+                  </a>
+                ) : readOnly ? null : (
+                  <button
+                    onClick={() => { setShowMenuInput((v) => !v); setMenuInputValue(""); }}
+                    aria-label="Add a menu link"
+                    title="Add a menu link"
+                    className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors opacity-40"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round">
+                      <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="15" y2="18" />
+                    </svg>
+                  </button>
+                )
+              )}
               {/* Move / Copy / Take off this day — behind the ⋯. Brennan tried
                   Move and Take-off as header buttons (Sep 2026) and found the
                   row cluttered, so the header keeps its glyphs and the verbs
@@ -1164,16 +1241,6 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   )}
                 </div>
               )}
-              <button
-                onClick={onClose}
-                className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
-                aria-label="Close"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
             </div>
           </div>
 
@@ -1192,9 +1259,26 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 spanning eight towns that is the first thing you want. The
                 country is dropped; the town is the point. */}
             {place?.address && (
-              <p className="text-[12.5px] leading-snug mt-1" style={{ color: "rgba(26,26,46,0.62)" }}>
-                {place.address.replace(/,\s*[^,]+$/, "")}
-              </p>
+              (place.lat != null && place.lng != null) || (localCard.details as Record<string, unknown>)?.place_id != null ? (
+                /* The address IS the Maps button now. It was already printed
+                   here doing nothing, and the pill it replaces opened this same
+                   chooser. Underlined on hover only: it should read as the
+                   address first and a control second. */
+                <button
+                  type="button"
+                  onClick={() => setNavSheetOpen(true)}
+                  aria-label={`Directions to ${place.address}`}
+                  title="Directions"
+                  className="text-left text-[12.5px] leading-snug mt-1 hover:underline"
+                  style={{ color: "rgba(26,26,46,0.62)" }}
+                >
+                  {place.address.replace(/,\s*[^,]+$/, "")}
+                </button>
+              ) : (
+                <p className="text-[12.5px] leading-snug mt-1" style={{ color: "rgba(26,26,46,0.62)" }}>
+                  {place.address.replace(/,\s*[^,]+$/, "")}
+                </p>
+              )
             )}
           </div>
 
@@ -1270,120 +1354,6 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               cost a line of a phone screen to half-say what Maps says properly
               one tap away. */}
 
-          {/* Action pills: We loved this · Maps · Website · Call · Menu */}
-          {/* One row, scrolled — not wrapped. Five pills don't fit a phone, and
-              wrapping dropped Menu onto a line of its own, where it read as a
-              different kind of thing. */}
-          {(showLoved || place?.lat != null && place.lng != null || (localCard.details as Record<string, unknown>)?.place_id != null || website || phone || place?.type === "food") && (
-            <div
-              className="flex items-center mt-3 overflow-x-auto scrollbar-none"
-              style={{ gap: 6, flexWrap: "nowrap" }}
-            >
-              {/* "We loved this" — the only review that counts here. Unset it
-                  is an ordinary pill; set, it collapses to the filled heart,
-                  because a place you loved should not still be asking. */}
-              {showLoved && (
-                readOnly ? (
-                  <span className="flex items-center" style={{ padding: "7px 2px" }}>
-                    <LovedHeart size={15} />
-                  </span>
-                ) : (
-                  // Just a heart. The worded pill spent a whole row saying what
-                  // a heart already says, and it sat beside Maps/Website/Call
-                  // as though it were another destination rather than a mark.
-                  <button
-                    onClick={toggleLoved}
-                    aria-pressed={isLoved}
-                    aria-label={isLoved ? "We loved this — tap to unset" : "We loved this"}
-                    title={isLoved ? "We loved this" : "We loved this"}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      width: 30,
-                      height: 30,
-                      borderRadius: 20,
-                      border: isLoved ? "none" : "0.5px solid #E5E0D8",
-                      background: isLoved ? "transparent" : "#fff",
-                    }}
-                  >
-                    {isLoved ? (
-                      <LovedHeart size={16} />
-                    ) : (
-                      <Heart size={14} weight="light" color="#4B5563" />
-                    )}
-                  </button>
-                )
-              )}
-              {(place?.lat != null && place.lng != null || (localCard.details as Record<string, unknown>)?.place_id != null) && (
-                <button
-                  onClick={() => setNavSheetOpen(true)}
-                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 20, border: "0.5px solid #E5E0D8", background: "#fff", fontSize: 11, color: "#4B5563" }}
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4B5563" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-                    <circle cx="12" cy="9" r="2.5" />
-                  </svg>
-                  Maps
-                </button>
-              )}
-              {website && (
-                <a
-                  href={website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 20, border: "0.5px solid #E5E0D8", background: "#fff", fontSize: 11, color: "#4B5563" }}
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4B5563" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="2" y1="12" x2="22" y2="12" />
-                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                  </svg>
-                  Website
-                </a>
-              )}
-              {phone && (
-                <a
-                  href={phone.href}
-                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 20, border: "0.5px solid #E5E0D8", background: "#fff", fontSize: 11, color: "#4B5563" }}
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4B5563" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.77a16 16 0 0 0 6.29 6.29l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
-                  </svg>
-                  Call
-                </a>
-              )}
-              {place?.type === "food" && (
-                menuUrl ? (
-                  <a
-                    href={menuUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 20, border: "0.5px solid #E5E0D8", background: "#fff", fontSize: 11, color: "#4B5563" }}
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4B5563" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="3" y1="6" x2="21" y2="6" />
-                      <line x1="3" y1="12" x2="21" y2="12" />
-                      <line x1="3" y1="18" x2="15" y2="18" />
-                    </svg>
-                    Menu
-                  </a>
-                ) : readOnly ? null : (
-                  <button
-                    onClick={() => { setShowMenuInput((v) => !v); setMenuInputValue(""); }}
-                    style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 20, border: "0.5px solid #E5E0D8", background: "#fff", fontSize: 11, color: "#4B5563", opacity: 0.38 }}
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4B5563" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="3" y1="6" x2="21" y2="6" />
-                      <line x1="3" y1="12" x2="21" y2="12" />
-                      <line x1="3" y1="18" x2="15" y2="18" />
-                    </svg>
-                    Menu
-                  </button>
-                )
-              )}
-            </div>
-          )}
           {place?.type === "food" && !readOnly && showMenuInput && (
             <div className="mt-2 flex items-center gap-2">
               <input
