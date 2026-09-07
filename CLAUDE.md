@@ -738,3 +738,45 @@ fail for a cohost — the same class of bug the missing bucket caused.
 CASCADE, but the objects stay in the bucket, and the same now applies to a
 cover. 2 orphaned files, 114 bytes, as of 2026-09-07 — real but not yet worth
 code. Worth revisiting if attachments get used in earnest.
+
+## The shared page is the product, not a fallback
+
+`/journey/[token]` renders for a visitor with no account. Brennan has almost
+never seen it, because he is always signed in — and it is the page that gets
+forwarded into a family group chat, so it is the one that has to work.
+
+**Why Roam exists** (his words, Sept 2026): Costa Rica in March, everyone asking
+the same questions every day, nobody with a central place to get answers. The
+audience is the passenger who wants to show up and be told where to be — not a
+collaborator. Do not build reciprocity into this page. It is deliberately
+one-way. Guests read; they do not react, reply or edit.
+
+He does want people to sign in eventually, so the free page answers **today's**
+questions and no more: the plan, the notes, where you're staying, what you need
+to enter the country. The map, Bookings, Ideas, editing and having the journey
+without the link all stay behind signing in.
+
+What it shows and why:
+- **Card notes** — `details.notes`, 262 cards, ~85k characters. The answer to
+  "what is this and why are we going". Markdown syntax is stripped, not
+  rendered (`plainNote`): bold, headings, bullets, checkboxes are the four
+  things actually typed.
+- **Opens on today** via `DayHeading`, a client component. Today is decided in
+  the BROWSER — a Vercel server is UTC and calls it tomorrow from 8pm Eastern —
+  and the badge renders only after mount so the server and first client render
+  agree. Do not move this to the server.
+- **"Good to know"** — accommodation, then entry rules folded behind a
+  `<details>`. Folded because measurement: open, Tuscany's seven lines ran 416px
+  and pushed the first card to 902px, past the fold on a phone. Entry rules are
+  read once; the plan is read daily.
+
+**Still withheld, deliberately:** attachments (flight confirmations carry
+passport and payment details), the budget, travellers' names and ages. Notes and
+entry rules were withheld under the same blanket rule until Sept 2026 and should
+not have been — checked first: all 262 notes carry no secrets (the habit is
+already "code stored separately"), and `trip_entry` holds public government
+rules whose only personal column is nationality.
+
+**Measure this page before and after any change to it.** It has no session, so
+the phone-popup trick does not apply — use the Claude Browser pane, which is
+session-less, with `resize_window` to mobile.
