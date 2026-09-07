@@ -60,6 +60,10 @@ const PARCHMENT = "#FFFFFF"; // sheets are white; parchment is only the desktop 
 const PARCHMENT_CLEAR = "rgba(255,255,255,0)";
 const HAIRLINE = "1px solid rgba(26,26,46,0.09)";
 const DONE_INK = "rgba(26,26,46,0.35)";
+// The year view's "great" pair, the same one the card checklist badge uses for
+// a finished list. Borrowed rather than re-invented.
+const DONE_FG = "#3F5D33";
+const DONE_BG = "#DCE8D4";
 
 /** Text edits settle; everything else saves on the spot. */
 const SAVE_DEBOUNCE_MS = 600;
@@ -460,16 +464,22 @@ export default function JourneyNotes({
 
   // How many lines each section holds, so a folded one can still say what is
   // inside it.
-  const sectionCounts = new Map<string, number>();
+  // Tick-boxes only, done and total. Counting every line made "GROCERY LIST ·
+  // 40" out of 39 items plus the sentence above them, and a section of pure
+  // prose claimed a count that meant nothing. The number answers "how many
+  // things to tick, and how many are done".
+  const sectionCounts = new Map<string, { done: number; total: number }>();
   {
     let open: string | null = null;
     for (const item of items) {
-      if (item.kind === "section") { open = item.text; if (!sectionCounts.has(open)) sectionCounts.set(open, 0); }
-      // Tick-boxes only. Counting every line made "GROCERY LIST · 40" out of 39
-      // items plus the sentence above them, and a section of pure prose — the
-      // house guide — claimed a count that meant nothing. The number answers
-      // "how many things to tick", so a section with none shows none.
-      else if (open !== null && item.kind === "task") sectionCounts.set(open, (sectionCounts.get(open) ?? 0) + 1);
+      if (item.kind === "section") {
+        open = item.text;
+        if (!sectionCounts.has(open)) sectionCounts.set(open, { done: 0, total: 0 });
+      } else if (open !== null && item.kind === "task") {
+        const c = sectionCounts.get(open)!;
+        c.total += 1;
+        if (item.done) c.done += 1;
+      }
     }
   }
 
@@ -497,7 +507,7 @@ export default function JourneyNotes({
         item={item}
         first={i === 0}
         collapsed={item.kind === "section" && collapsed.has(item.text)}
-        count={item.kind === "section" ? (sectionCounts.get(item.text) ?? 0) : 0}
+        count={item.kind === "section" ? (sectionCounts.get(item.text) ?? null) : null}
         onToggleCollapse={() => toggleCollapse(item.text)}
         readOnly={readOnly}
         canReorder={canReorder}
@@ -701,8 +711,8 @@ function NoteRow({
   first: boolean;
   /** Sections only: this heading is folded shut. */
   collapsed: boolean;
-  /** Sections only: how many lines are under it. */
-  count: number;
+  /** Sections only: how many tick-boxes are under it, and how many are done. */
+  count: { done: number; total: number } | null;
   onToggleCollapse: () => void;
   readOnly: boolean;
   canReorder: boolean;
@@ -859,10 +869,17 @@ function NoteRow({
           >
             {item.text}
           </button>
-          {/* Closed, the heading has to carry what it is hiding. */}
-          {isSection && collapsed && count > 0 && (
-            <span className="pt-[1px] flex-shrink-0" style={{ ...textStyle, opacity: 0.75 }}>
-              {"\u00B7"} {count}
+          {/* Closed, the heading carries how far through it you are. Green when
+              every box is ticked — the one moment the number is worth a glance,
+              and the same treatment a finished card checklist gets. */}
+          {isSection && collapsed && count && count.total > 0 && (
+            <span
+              className="pt-[1px] flex-shrink-0 rounded-[4px]"
+              style={count.done === count.total
+                ? { ...textStyle, color: DONE_FG, background: DONE_BG, padding: "1px 5px" }
+                : { ...textStyle, opacity: 0.75 }}
+            >
+              {count.done}/{count.total}
             </span>
           )}
           {/* The rest of the row belongs to the checkbox. Keyboard users have
