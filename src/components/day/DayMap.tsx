@@ -211,35 +211,19 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
       // Start where the day is. A map that opens at the trip's destination and
       // then flies has to travel the same distance on every day switch, and
       // the distance is the whole trip.
-      //
-      // A centre and a zoom, never `bounds`: fitting at construction throws
-      // when the container has not been laid out yet, and takes the whole map
-      // down with it. The precise fit happens on load, with duration 0.
-      const opening = (() => {
-        if (!openingCoords.length) {
-          return { center: [centerLng, centerLat] as [number, number], zoom: 13 };
-        }
-        const lngs = openingCoords.map(([lng]) => lng);
-        const lats = openingCoords.map(([, lat]) => lat);
-        const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
-        const minLat = Math.min(...lats), maxLat = Math.max(...lats);
-        const center: [number, number] = [(minLng + maxLng) / 2, (minLat + maxLat) / 2];
-        if (openingCoords.length === 1) return { center, zoom: 14 };
-
-        // Rough zoom from how far apart the day's stops are, so the opening
-        // frame is close to the fit that lands a moment later and there is no
-        // visible jump. Degrees, not metres: precision here buys nothing.
-        const span = Math.max(maxLng - minLng, (maxLat - minLat) * 1.6);
-        const zoom =
-          span > 2      ? 7  :
-          span > 1      ? 8  :
-          span > 0.5    ? 9  :
-          span > 0.25   ? 10 :
-          span > 0.12   ? 11 :
-          span > 0.06   ? 12 :
-          span > 0.03   ? 13 : 14;
-        return { center, zoom };
-      })();
+      const opening =
+        openingCoords.length > 1
+          ? {
+              bounds: openingCoords.reduce(
+                (b, coord) => b.extend(coord),
+                new mb.LngLatBounds(openingCoords[0], openingCoords[0]),
+              ),
+              fitBoundsOptions: { padding: fitPadding(), maxZoom: 15 },
+            }
+          : openingCoords.length === 1
+            ? { center: openingCoords[0], zoom: 14 }
+            // A day with nothing mappable on it still has to show somewhere.
+            : { center: [centerLng, centerLat] as [number, number], zoom: 13 };
 
       const map = new mb.Map({
         container: mapRef.current!,
