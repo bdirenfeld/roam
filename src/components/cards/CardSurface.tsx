@@ -207,15 +207,16 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
       </div>
 
       <div className="flex-1 min-w-0">
-        {subLabel && (
-          <p
-            className="hidden md:block text-[9.5px] font-medium uppercase leading-none mb-[5px]"
-            style={{ letterSpacing: "0.18em", color: "rgba(26,26,46,0.4)" }}
-          >
-            {subLabel}
-          </p>
-        )}
+        {/* No RESTAURANT eyebrow. It was desktop-only and said the same word
+            the line below already says — "Restaurant" above the title and
+            "Restaurant · 235 Mulberry St" under it, twenty pixels apart. The
+            phone never had it, so dropping it also makes both screens name a
+            place kind in the same place (Brennan, Sep 2026).
 
+            A flight is the one card that loses something: its meta line is the
+            route, "YYZ → LGA", so ARRIVAL was not a duplicate there. The plane
+            in the rail carries it now, and the route says more than the label
+            did. */}
         <div className="flex items-center gap-1.5 min-w-0">
           <p
             className="min-w-0 font-display text-[17px] md:text-[20px] leading-[1.24] truncate"
