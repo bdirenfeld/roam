@@ -813,12 +813,12 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           <CaretLeft size={16} weight="light" />
         </button>
 
-        {!readOnly && !dayTitle && !autoTitle && !editingTitle ? (
+        {!readOnly && !editingTitle ? (
           <button
             type="button"
             onClick={() => setEditingTitle(true)}
-            title="Name this day"
-            aria-label={`${formatDayTitle(dayWithCards.date)} — tap to name this day`}
+            title={dayTitle ? "Rename this day" : "Name this day"}
+            aria-label={`${formatDayTitle(dayWithCards.date)} — tap to ${dayTitle ? "rename" : "name"} this day`}
             className="font-display italic font-medium text-[26px] text-activity hover:opacity-70 transition-opacity"
             style={{ letterSpacing: "-0.01em" }}
           >

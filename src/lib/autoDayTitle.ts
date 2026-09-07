@@ -10,6 +10,10 @@ import type { Card, DayWithCards } from "@/types/database";
  *     Direction cannot come from sub_type: both ends of a trip are stored as
  *     "flight_arrival" (see the trip-import notes), so the day's position in
  *     the journey is the only honest signal;
+ *   • otherwise a booked TOUR, if one ran for a real length of time — a guided
+ *     thing is what a day gets remembered as. Rome day 2 is the Vatican, even
+ *     though the afternoon wander was booked for half an hour longer. A wander
+ *     has to run more than twice as long to take the day's name off a tour;
  *   • otherwise the day's longest ACTIVITY — not its longest meal, and not its
  *     transit. What you did is what the day was;
  *   • otherwise the first real place on it;
@@ -39,7 +43,23 @@ export function autoDayTitle(day: DayWithCards, isFirst: boolean, isLast: boolea
   const ACTIVITY = new Set(["guided", "self_directed", "event", "challenge", "wellness"]);
   const activities = cards.filter((c) => c.place && ACTIVITY.has(c.place.sub_type ?? ""));
   if (activities.length) {
-    const best = activities.reduce((a, b) => (minutes(b) > minutes(a) ? b : a));
+    const longest = (list: Card[]) => list.reduce((a, b) => (minutes(b) > minutes(a) ? b : a));
+
+    // A tour with a real duration on it. The duration guard matters: a guided
+    // card with no end time (Costa Rica's Skyline Guanacaste, Sydney's Opera
+    // House evening) measures zero and would otherwise beat a real morning.
+    const tours = activities.filter((c) => c.place?.sub_type === "guided" && minutes(c) > 0);
+    if (tours.length) {
+      const bestTour = longest(tours);
+      const bestAny = longest(activities);
+      // Twice as long, not merely longer — a four-hour wander does own its day,
+      // but half an hour more than the Vatican does not.
+      if (minutes(bestAny) <= minutes(bestTour) * 2 && bestTour.place?.title) {
+        return bestTour.place.title;
+      }
+    }
+
+    const best = longest(activities);
     if (best.place?.title) return best.place.title;
   }
 
