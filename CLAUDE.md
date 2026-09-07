@@ -589,3 +589,52 @@ So: before concluding a map is broken, read `document.visibilityState`. If it is
 `"hidden"`, the observation is worth nothing. Note that page SCREENSHOTS are
 still valid for ordinary DOM and CSS — only WebGL needs the tab visible, so the
 Plan board can be checked this way and the map cannot.
+
+## Every push is checked by GitHub Actions
+
+`.github/workflows/ci.yml` runs `tsc --noEmit`, `npm run lint` and `npm run
+build` on every push to main. It takes under two minutes — quicker than the
+local build, because the runner caches npm.
+
+**It deliberately has no secrets.** The twelve environment variables are
+placeholders (`https://placeholder.supabase.co` and friends). The build needs
+them to exist, not to be real: every route touching Supabase, Google or Stripe
+is server-rendered on demand, so none is called at build time. Verified by
+building locally with placeholders — 36/36 pages, exit 0. Keep it that way. A
+rotated key can then never turn the checks red, and anything genuinely needing
+a live key is caught by Vercel's own build immediately after.
+
+Do not treat this as a substitute for the local build gate before pushing —
+it runs after the push, so a red run means bad code is already on main.
+
+What it catches: unused imports, type errors, lint errors. What it does NOT
+catch: layout and behaviour regressions, which build perfectly cleanly. The
+three reverts of 2026-09-07 were all that second kind.
+
+## The day template is gone — do not bring it back
+
+Removed 2026-09-07 (058879f). It never scaffolded *a* day; it bulk-inserted
+"Arrival / Check-in / Morning Coffee / Lunch / Aperitivo / Dinner" onto every
+day of the journey at once. One person outside the family ever used it: a
+five-day London trip, 23 blank timed rows in a single second, none filled in,
+never returned.
+
+An empty day now falls through to the dashed drop target and the `AddPlaceRow`
+that were always underneath it.
+
+**Place-less timed cards are NOT template leftovers** and must keep working —
+33 of them across five journeys carry plans with no address ("Pool, pack, early
+bath", "Finn: drop-off before the airport"). `FullMapClient`'s `isSkeletonCard`
+title filter also stays: London's 23 rows are still in the database and are
+someone else's data.
+
+## ErrorReporter's IGNORED list
+
+`ui/ErrorReporter.tsx` drops matching messages in the browser so they never
+reach `/api/errors`. It holds one pattern: supabase-js's "Lock broken by
+another request with the 'steal' option", which was four of the twelve rows in
+`client_errors` and has never corresponded to a real fault.
+
+Add to it only after seeing a pattern in the table AND establishing it is
+benign. A real fault silenced there is invisible, and this log has already paid
+for itself once — it is what found the settings hydration failure.
