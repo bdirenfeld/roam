@@ -6,6 +6,7 @@ import ClaimSignIn from "./ClaimSignIn";
 import SharedItinerary, { type SharedCard, type SharedDay } from "./SharedItinerary";
 import { cachedPhotoUrl } from "@/lib/places/photoCache";
 import { agendaOrder } from "@/lib/agendaOrder";
+import { cardTimes } from "@/lib/cardTime";
 
 // Rendered per request, never cached: opening the link always shows the plan
 // as it stands right now.
@@ -118,8 +119,11 @@ export default async function ClaimPage({ params }: Props) {
       .map((c) => ({
         id: c.id,
         dayId: c.day_id,
-        start: c.start_time,
-        end: c.end_time,
+        // Shown at the time it happens, for the same reason it is SORTED at
+        // the time it happens. Reading start_time here while ordering by
+        // cardTimes would put Rome's flight first and then label it 7:45 PM —
+        // the takeoff — which reads worse than the bug it replaced.
+        ...cardTimes(c),
         noteTitle: typeof c.details?.title === "string" ? (c.details.title as string) : null,
         place: c.place
           ? {
