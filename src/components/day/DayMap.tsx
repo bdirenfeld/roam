@@ -179,18 +179,6 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
         return [];
       });
 
-    const homeCoord: [number, number] | null =
-      accommodationCard?.place?.lat != null && accommodationCard?.place?.lng != null
-        ? [accommodationCard.place.lng, accommodationCard.place.lat]
-        : null;
-
-    // Everything the opening view has to hold. The hotel is in here, which is
-    // why some days open wider than the day's own stops would suggest.
-    const openingCoords: [number, number][] = [
-      ...mappable.map(({ lng, lat }) => [lng, lat] as [number, number]),
-      ...(homeCoord ? [homeCoord] : []),
-    ];
-
     // `cancelled` prevents a stale .then() callback (e.g. from a cleanup that
     // fired while the dynamic import was still in-flight) from creating a
     // second map on the same container — same pattern as FullMapClient.
@@ -208,27 +196,11 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
       const mb = mapboxgl.default as any;
       mb.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 
-      // Start where the day is. A map that opens at the trip's destination and
-      // then flies has to travel the same distance on every day switch, and
-      // the distance is the whole trip.
-      const opening =
-        openingCoords.length > 1
-          ? {
-              bounds: openingCoords.reduce(
-                (b, coord) => b.extend(coord),
-                new mb.LngLatBounds(openingCoords[0], openingCoords[0]),
-              ),
-              fitBoundsOptions: { padding: fitPadding(), maxZoom: 15 },
-            }
-          : openingCoords.length === 1
-            ? { center: openingCoords[0], zoom: 14 }
-            // A day with nothing mappable on it still has to show somewhere.
-            : { center: [centerLng, centerLat] as [number, number], zoom: 13 };
-
       const map = new mb.Map({
         container: mapRef.current!,
         style: "mapbox://styles/mapbox/streets-v12",
-        ...opening,
+        center: [centerLng, centerLat],
+        zoom: 13,
         attributionControl: false,
         logoPosition: "bottom-right",
       });
@@ -440,11 +412,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
             (b, coord) => b.extend(coord),
             new mb.LngLatBounds(allCoords[0], allCoords[0]),
           );
-          // duration 0: the constructor already framed this. Re-animating to
-          // the same bounds put the motion back. fitPadding() rather than a
-          // flat 50 — on a phone the dock sits OVER the map, and this fit was
-          // the one place still ignoring it.
-          map.fitBounds(bounds, { padding: fitPadding(), maxZoom: 15, duration: 0 });
+          map.fitBounds(bounds, { padding: 50, maxZoom: 15 });
         } else if (allCoords.length === 1) {
           // A single stop still deserves the zoom — late-trip days often have
           // one pin and no accommodation span, which used to leave the map
