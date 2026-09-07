@@ -2,6 +2,7 @@ import type { Card } from "@/types/database";
 import { getMaterialIconHTML } from "@/lib/mapPins";
 import { getPriceRange } from "@/lib/priceRange";
 import { formatTimeRange } from "@/lib/formatTime";
+import { cardTimes } from "@/lib/cardTime";
 import { subTypeLabel } from "@/lib/subTypeLabel";
 import { getOpeningHoursConflict, openingHoursCaption, openingHoursTone } from "@/lib/openingHours";
 import { readRecommendedBy, recommendedByLine } from "@/lib/recommendedBy";
@@ -112,7 +113,8 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
   const place     = card.place;
   const det       = card.details as Record<string, unknown> | null;
   const subLabel  = subTypeLabel(place?.sub_type);
-  const timeRange = formatTimeRange(card.start_time, card.end_time);
+  const shown    = cardTimes(card);
+  const timeRange = formatTimeRange(shown.start, shown.end);
   const hoursSignal = place ? getOpeningHoursConflict(place.hours, dayDate ?? null, card.start_time) : null;
   const noteSnippet = !place ? (det?.notes as string | undefined) : undefined;
   const title     = place?.title ?? (det?.title as string | undefined) ?? noteSnippet?.slice(0, 60) ?? "(untitled note)";

@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo, createContext, useContext } from "react";
 import { subTypeLabel } from "@/lib/subTypeLabel";
 import { autoDayTitle } from "@/lib/autoDayTitle";
+import { cardTimes } from "@/lib/cardTime";
 import {
   DndContext,
   DragOverlay,
@@ -2314,7 +2315,7 @@ function DayHeaderCell({ day, weather, onRename, autoTitle }: { day: DayWithCard
       {/* Pushed to the right of the weekday and never wrapped: on a narrow
           column the weekday truncates before this does, because "which day of
           the trip" is the harder thing to recover by looking. */}
-      <span className="ml-auto flex-shrink-0" style={{
+      <span className="flex-shrink-0" style={{
         fontFamily: "'DM Sans', system-ui, sans-serif",
         fontSize: "9.5px",
         fontWeight: 600,
@@ -2583,7 +2584,8 @@ function CardTile({
   const noteSnippet = isNote ? (det?.notes as string | undefined) : undefined;
   const title       = place?.title ?? (det?.title as string | undefined) ?? noteSnippet?.slice(0, 60) ?? "(untitled note)";
 
-  const timeRange = formatTimeRange(card.start_time, card.end_time);
+  const shownTimes = cardTimes(card);
+  const timeRange = formatTimeRange(shownTimes.start, shownTimes.end);
 
   // Opening-hours conflict signal — silent unless the scheduled time clashes.
   const hoursSignal = place ? getOpeningHoursConflict(place.hours, dayDate ?? null, card.start_time) : null;
