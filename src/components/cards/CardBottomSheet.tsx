@@ -452,6 +452,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const [isDeleting,        setIsDeleting]        = useState(false);
   const [deleteError,       setDeleteError]       = useState<string | null>(null);
   const [showSubTypePicker, setShowSubTypePicker] = useState(false);
+  // Deleted, but the sheet is still up so the undo is under the same thumb
+  // that pressed delete. See handleDelete.
+  const [justDeleted, setJustDeleted] = useState(false);
   const [linkMergeMessage,  setLinkMergeMessage]  = useState<string | null>(null);
   const [navSheetOpen,      setNavSheetOpen]      = useState(false);
 
@@ -650,9 +653,25 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       setTimeout(() => setDeleteError(null), 3000);
       return;
     }
+    // The host removes the card and raises the undo toast, which is z-[80]
+    // against this sheet's z-60 — it was always drawn ON TOP, and the only
+    // reason it was never usable from here is that the sheet closed itself the
+    // instant delete succeeded, dropping the traveller onto the board with the
+    // undo somewhere behind them (Brennan, Sep 7 2026).
+    //
+    // So: hold the sheet open for the toast's own six seconds. Undo lands
+    // where the finger already is. The sheet closes afterwards either way — if
+    // it was undone, the card is back on the board to be reopened; if it was
+    // not, there is nothing here to show.
     onCardDelete?.(localCard.id);
-    onClose();
-  }, [localCard.id, onCardDelete, onClose, supabase]);
+    setJustDeleted(true);
+  }, [localCard.id, onCardDelete, supabase]);
+
+  useEffect(() => {
+    if (!justDeleted) return;
+    const t = setTimeout(onClose, 6000);
+    return () => clearTimeout(t);
+  }, [justDeleted, onClose]);
 
   // ── Take off this day ────────────────────────────────────────
   // The card leaves the day and the place stays saved (a saved copy is written
@@ -1449,7 +1468,11 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 have to arrive at it. Still instant — every host has a six-second
                 undo, and a confirm dialog would be a second, stricter model for
                 one act. */}
-            {!readOnly && (
+            {!readOnly && justDeleted ? (
+              <p className="mt-7 w-full py-3 text-center text-[13px] font-medium" style={{ color: "rgba(26,26,46,0.45)" }}>
+                Card deleted — undo above
+              </p>
+            ) : !readOnly ? (
               <button
                 onClick={handleDelete}
                 disabled={isDeleting}
@@ -1459,7 +1482,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               >
                 {isDeleting ? "Deleting…" : "Delete card"}
               </button>
-            )}
+            ) : null}
           </div>
           {/* Gradient fade to hint at more content below */}
           <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none" />
