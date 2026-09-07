@@ -785,3 +785,21 @@ an incognito window, which is why the page went unlooked-at for months.
 **Measure this page before and after any change to it.** It has no session, so
 the phone-popup trick does not apply — use the Claude Browser pane, which is
 session-less, with `resize_window` to mobile.
+
+## The test ratchet
+
+`src/lib/libCoverage.test.ts`: every module under `src/lib` that exports a
+function needs a sibling `.test.ts`. The 44 that predate it are listed as
+GRANDFATHERED. A new module cannot join that list by accident — you have to open
+the file and type its name, which makes it a decision rather than an oversight.
+Writing a test for something on the list fails a second check until you delete
+its line, so the list only shrinks.
+
+**Its companion rule: pure logic goes in `src/lib`, not inside a component.**
+`plainNote` was written inside `SharedItinerary.tsx`, where the ratchet could
+never have seen it. Extracting it is what makes the guard reachable.
+
+Why it exists: the suite was written on 2026-09-07 on the rule "write the test
+that would have failed before the fix", and four changes shipped the same
+afternoon with no tests, including two new pure functions. The rule was fine;
+nothing was enforcing it. Also in roam-ship §4b.
