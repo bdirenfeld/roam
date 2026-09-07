@@ -223,19 +223,24 @@ export function makeMaterialPinElement(
   wrapper.appendChild(inner);
 
   if (hasRecommendation) {
-    const star = document.createElement("div");
-    star.style.cssText =
+    const badge = document.createElement("div");
+    badge.style.cssText =
       "position:absolute;top:-3px;right:-3px;" +
       "width:13px;height:13px;" +
       "border-radius:50%;" +
       "background:white;" +
       "display:flex;align-items:center;justify-content:center;" +
       "box-shadow:0 1px 2px rgba(0,0,0,0.25);" +
-      "font-size:8px;line-height:1;" +
-      "color:#F59E0B;" +
+      "line-height:0;" +
+      "color:#1A1A2E;" +
       "pointer-events:none;";
-    star.textContent = "★";
-    wrapper.appendChild(star);
+    // Material's thumb_up, at the size the disc allows. currentColor so the
+    // ink follows the disc's colour rather than being set twice.
+    badge.innerHTML =
+      '<svg viewBox="0 0 24 24" width="8.5" height="8.5" fill="currentColor" aria-hidden="true">' +
+      '<path d="M2 21h3V9H2v12zm19.7-10.4c0-.9-.7-1.6-1.6-1.6h-5.1l.8-3.7v-.3c0-.4-.1-.7-.4-1L14.6 3 8.9 8.8' +
+      'c-.3.3-.5.7-.5 1.2v9c0 .9.7 1.6 1.6 1.6h7.2c.7 0 1.3-.4 1.5-1l2.4-5.7c.1-.2.1-.4.1-.6v-2.7z"/></svg>';
+    wrapper.appendChild(badge);
   }
 
   return { wrapper, inner };

@@ -2590,30 +2590,32 @@ function CardTile({
             onError={(e) => { e.currentTarget.style.display = "none"; }}
           />
 
-          {/* Page through them here rather than opening the card. They stay out
-              of the way until the pointer is on the card — sixty-six carets
-              across a board is a control panel, not a set of photographs. On
-              touch, where there is no hover, they are simply present. */}
+          {/* Page through them here rather than opening the card. Faint until the
+              pointer lands, because sixty-six carets across a board is a
+              control panel rather than a set of photographs — and faint rather
+              than absent, so they can still be found on a phone, where nothing
+              hovers. The disc that replaced them read louder than the bare
+              caret it was meant to quieten. */}
           {photoCount > 1 && (
             <>
               <button
                 type="button"
                 aria-label="Previous photo"
                 onClick={(e) => { e.stopPropagation(); stepPhoto(-1); }}
-                className="absolute top-0 h-full w-9 flex items-center text-[#1A1A2E] cursor-pointer opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 left-0 justify-start pl-1"
+                className="absolute top-0 h-full w-9 flex items-center text-white cursor-pointer opacity-[0.28] transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100 left-0 justify-start pl-1"
               >
-                <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 24, height: 24, borderRadius: 999, background: "rgba(255,255,255,0.90)", boxShadow: "0 1px 3px rgba(26,26,46,0.22)" }}>
-                  <CaretLeft size={14} weight="bold" />
+                <span style={{ display: "flex", filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.5))" }}>
+                  <CaretLeft size={15} weight="bold" />
                 </span>
               </button>
               <button
                 type="button"
                 aria-label="Next photo"
                 onClick={(e) => { e.stopPropagation(); stepPhoto(1); }}
-                className="absolute top-0 h-full w-9 flex items-center text-[#1A1A2E] cursor-pointer opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 right-0 justify-end pr-1"
+                className="absolute top-0 h-full w-9 flex items-center text-white cursor-pointer opacity-[0.28] transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100 right-0 justify-end pr-1"
               >
-                <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 24, height: 24, borderRadius: 999, background: "rgba(255,255,255,0.90)", boxShadow: "0 1px 3px rgba(26,26,46,0.22)" }}>
-                  <CaretRight size={14} weight="bold" />
+                <span style={{ display: "flex", filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.5))" }}>
+                  <CaretRight size={15} weight="bold" />
                 </span>
               </button>
             </>
