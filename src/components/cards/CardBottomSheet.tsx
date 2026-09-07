@@ -981,7 +981,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         <button
           onClick={onClose}
           aria-label="Close"
-          className="absolute top-2 right-2 w-9 h-9 flex items-center justify-center rounded-full transition-colors"
+          className="absolute top-2 right-2 w-9 h-9 flex items-center justify-center rounded-full opacity-60 hover:opacity-100 transition-opacity"
           style={place
             ? { zIndex: 30, color: "#fff", filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.55))" }
             : { zIndex: 30, color: "rgba(26,26,46,0.45)" }}
@@ -1079,49 +1079,6 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   )}
                 </div>
               )}
-              {/* Paperclip — attachments (logistics and activity cards only) */}
-              {!readOnly && (place?.type === "logistics" || place?.type === "activity") && (
-                <button
-                  onClick={() => setShowAttachments(true)}
-                  className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
-                  aria-label="Attachments"
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-                  </svg>
-                </button>
-              )}
-              {!readOnly && localCard.status === "in_itinerary" && (
-                <button
-                  onClick={() => setShowLinkSheet(true)}
-                  className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
-                  aria-label="Link place from map"
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-                    <circle cx="12" cy="9" r="2.5" />
-                  </svg>
-                </button>
-              )}
-              {!readOnly && (
-                <button
-                  // No confirm dialog: the delete is instant and every host
-                  // (board, agenda, map) already offers a six-second undo,
-                  // which is the same model the desktop board's hover trash
-                  // uses. The modal was a second, stricter model for one act.
-                  onClick={handleDelete}
-                  className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
-                  aria-label="Delete card"
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="3 6 5 6 21 6" />
-                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                    <path d="M10 11v6" />
-                    <path d="M14 11v6" />
-                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                  </svg>
-                </button>
-              )}
               {/* Loved, website, call, menu — the pill row's worth, as glyphs.
                   Worded pills spent a whole row saying what these shapes say,
                   and sat beside each other as though a heart and a phone number
@@ -1164,25 +1121,40 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   </svg>
                 </a>
               )}
-              {place?.type === "food" && (
-                menuUrl ? (
-                  <a href={menuUrl} target="_blank" rel="noopener noreferrer" aria-label="Menu" title="Menu" className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round">
-                      <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="15" y2="18" />
-                    </svg>
-                  </a>
-                ) : readOnly ? null : (
-                  <button
-                    onClick={() => { setShowMenuInput((v) => !v); setMenuInputValue(""); }}
-                    aria-label="Add a menu link"
-                    title="Add a menu link"
-                    className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors opacity-40"
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round">
-                      <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="15" y2="18" />
-                    </svg>
-                  </button>
-                )
+              {/* Only when there IS a menu. The "add a link" state was a grey
+                  dot on every restaurant advertising a field nothing fills —
+                  zero of fifteen Tuscany food places have one. Adding a link is
+                  still possible from the details below. */}
+              {place?.type === "food" && menuUrl && (
+                <a href={menuUrl} target="_blank" rel="noopener noreferrer" aria-label="Menu" title="Menu" className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round">
+                    <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="15" y2="18" />
+                  </svg>
+                </a>
+              )}
+              {/* Paperclip — attachments (logistics and activity cards only) */}
+              {!readOnly && (place?.type === "logistics" || place?.type === "activity") && (
+                <button
+                  onClick={() => setShowAttachments(true)}
+                  className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                  aria-label="Attachments"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                  </svg>
+                </button>
+              )}
+              {!readOnly && localCard.status === "in_itinerary" && (
+                <button
+                  onClick={() => setShowLinkSheet(true)}
+                  className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                  aria-label="Link place from map"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+                    <circle cx="12" cy="9" r="2.5" />
+                  </svg>
+                </button>
               )}
               {/* Move / Copy / Take off this day — behind the ⋯. Brennan tried
                   Move and Take-off as header buttons (Sep 2026) and found the
@@ -1519,6 +1491,24 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   {showEmptyFields ? "−" : "+"}
                 </span>
                 {showEmptyFields ? "Hide empty fields" : "Add details"}
+              </button>
+            )}
+
+            {/* Delete, at the end of everything. It used to be a trash glyph in
+                the header between the paperclip and the phone number, which is
+                one slip from losing a card you meant to call. Down here you
+                have to arrive at it. Still instant — every host has a six-second
+                undo, and a confirm dialog would be a second, stricter model for
+                one act. */}
+            {!readOnly && (
+              <button
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="mt-7 w-full py-3 rounded-xl border border-[rgba(26,26,46,0.10)] text-[13px] font-medium
+                           text-[rgba(26,26,46,0.45)] hover:text-red-500 hover:border-red-200 hover:bg-red-50/50
+                           disabled:opacity-40 transition-colors"
+              >
+                {isDeleting ? "Deleting…" : "Delete card"}
               </button>
             )}
           </div>
