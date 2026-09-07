@@ -55,3 +55,33 @@ export const SCHEMA: Record<string, string[]> = {
  * never created gets noticed.
  */
 export const BUCKETS = new Set(["card-attachments", "place-photos", "trip-covers"]);
+
+/**
+ * Everything that points at a `trips` row, and what the database does when
+ * that row is deleted. Captured 2026-09-07 alongside SCHEMA; refresh it the
+ * same way, with:
+ *
+ *   select tc.table_name, kcu.column_name, rc.delete_rule
+ *   from information_schema.table_constraints tc
+ *   join information_schema.key_column_usage kcu using (constraint_name)
+ *   join information_schema.constraint_column_usage ccu using (constraint_name)
+ *   join information_schema.referential_constraints rc using (constraint_name)
+ *   where tc.constraint_type = 'FOREIGN KEY' and ccu.table_name = 'trips';
+ *
+ * A child with NO ACTION is not cleaned up by the database. Someone has to
+ * delete it by hand first, or deleting a journey fails — or worse, half
+ * succeeds. `deleteJourney.test.ts` is what keeps that honest.
+ */
+export const TRIP_CHILDREN: { table: string; column: string; onDelete: string }[] = [
+  { table: "card_attachments", column: "trip_id", onDelete: "CASCADE" },
+  { table: "cards", column: "trip_id", onDelete: "NO ACTION" },
+  { table: "companion_messages", column: "trip_id", onDelete: "CASCADE" },
+  { table: "days", column: "trip_id", onDelete: "NO ACTION" },
+  { table: "documents", column: "trip_id", onDelete: "CASCADE" },
+  { table: "ideas", column: "pinned_trip_id", onDelete: "SET NULL" },
+  { table: "people", column: "trip_id", onDelete: "CASCADE" },
+  { table: "trip_budgets", column: "trip_id", onDelete: "CASCADE" },
+  { table: "trip_entry", column: "trip_id", onDelete: "CASCADE" },
+  { table: "trip_lists", column: "trip_id", onDelete: "CASCADE" },
+  { table: "trip_members", column: "trip_id", onDelete: "CASCADE" },
+];
