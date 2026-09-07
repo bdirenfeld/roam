@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect, useMemo, createContext, useContext } from "react";
 import { subTypeLabel } from "@/lib/subTypeLabel";
+import { autoDayTitle } from "@/lib/autoDayTitle";
 import {
   DndContext,
   DragOverlay,
@@ -2135,47 +2136,6 @@ function compactRange(range: string | null): string | null {
   return range.replace(/^(\d{1,2}:\d{2}) (AM|PM) – (\d{1,2}:\d{2}) \2$/, "$1 – $3 $2");
 }
 
-/**
- * What a day would call itself.
- *
- * Deliberately dumb, because it has to be predictable and it has to re-derive
- * itself instantly when a card moves — no model call, no stored answer.
- *
- *   • a flight on the FIRST day is an arrival, on the LAST day a departure.
- *     Direction cannot come from sub_type: both ends of a trip are stored as
- *     "flight_arrival" (see the trip-import notes), so the day's position in
- *     the journey is the only honest signal;
- *   • otherwise the day's longest ACTIVITY — not its longest meal, and not its
- *     transit. What you did is what the day was;
- *   • otherwise the first real place on it;
- *   • a day of nothing but notes gets no name, because it has nothing to say.
- */
-function autoDayTitle(day: DayWithCards, isFirst: boolean, isLast: boolean): string | null {
-  const cards = day.cards.filter((c) => c.status !== "cut");
-  if (!cards.length) return null;
-
-  const isFlight = (c: Card) =>
-    c.place?.sub_type === "flight_arrival" || c.place?.sub_type === "flight_departure";
-  if (isFirst && cards.some(isFlight)) return "Arrival";
-  if (isLast && cards.some(isFlight)) return "Departure";
-
-  const minutes = (c: Card) => {
-    if (!c.start_time || !c.end_time) return 0;
-    const [h1, m1] = c.start_time.split(":").map(Number);
-    const [h2, m2] = c.end_time.split(":").map(Number);
-    return (h2 * 60 + m2) - (h1 * 60 + m1);
-  };
-
-  const ACTIVITY = new Set(["guided", "self_directed", "event", "challenge", "wellness"]);
-  const activities = cards.filter((c) => c.place && ACTIVITY.has(c.place.sub_type ?? ""));
-  if (activities.length) {
-    const best = activities.reduce((a, b) => (minutes(b) > minutes(a) ? b : a));
-    if (best.place?.title) return best.place.title;
-  }
-
-  const firstPlace = cards.find((c) => c.place?.title);
-  return firstPlace?.place?.title ?? null;
-}
 
 function placeTown(address?: string | null): string | null {
   if (!address) return null;

@@ -8,6 +8,7 @@ import DayStrip from "@/components/day/DayStrip";
 import EntryLine from "./EntryLine";
 import TimeSheet from "./TimeSheet";
 import DayPicker from "@/components/day/DayPicker";
+import { autoDayTitle } from "@/lib/autoDayTitle";
 import DayMap from "@/components/day/DayMap";
 import CardTimeline from "@/components/day/CardTimeline";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
@@ -546,6 +547,15 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   }, [swipeDir]);
 
   const currentIndex = days.findIndex((d) => d.id === dayWithCards.id);
+  // What the day would call itself with nothing typed. Same function the Plan
+  // board uses, so the two screens cannot disagree about one day.
+  const autoTitle = autoDayTitle(
+    dayWithCards,
+    currentIndex === 0,
+    currentIndex === days.length - 1,
+  );
+  // A typed name always wins; the generated one fills the silence.
+  const shownTitle = dayTitle || autoTitle;
   const prevDay = currentIndex > 0 ? days[currentIndex - 1] : null;
   const nextDay = currentIndex < days.length - 1 ? days[currentIndex + 1] : null;
 
@@ -730,9 +740,9 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           >
             {formatDayTitle(dayWithCards.date)}
           </span>
-          {dayTitle && (
+          {shownTitle && (
             <span className="font-display italic text-[11.5px] leading-none" style={{ color: "rgba(26,26,46,0.62)" }}>
-              {dayTitle}
+              {shownTitle}
             </span>
           )}
           {weatherReachable && (
@@ -803,7 +813,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           <CaretLeft size={16} weight="light" />
         </button>
 
-        {!readOnly && !dayTitle && !editingTitle ? (
+        {!readOnly && !dayTitle && !autoTitle && !editingTitle ? (
           <button
             type="button"
             onClick={() => setEditingTitle(true)}
@@ -826,7 +836,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           <input
             autoFocus
             defaultValue={dayTitle}
-            placeholder="Lucca day, Rest, Cinque Terre…"
+            placeholder={autoTitle ? `${autoTitle} — clear to keep this automatic` : "Lucca day, Rest, Cinque Terre…"}
             aria-label="Day title"
             onBlur={(e) => commitDayTitle(e.target.value)}
             onKeyDown={(e) => {
@@ -836,20 +846,20 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
             className="ml-3 h-8 px-2 rounded-md font-display italic text-[15px] bg-white outline-none"
             style={{ boxShadow: "0 0 0 1px rgba(26,26,46,0.18)", width: 220 }}
           />
-        ) : dayTitle ? (
+        ) : shownTitle ? (
           readOnly ? (
             <span className="ml-3 font-display italic text-[16px]" style={{ color: "rgba(26,26,46,0.62)" }}>
-              {dayTitle}
+              {shownTitle}
             </span>
           ) : (
             <button
               type="button"
               onClick={() => setEditingTitle(true)}
-              title="Edit the day's title"
+              title={dayTitle ? "Edit the day's title" : "This name comes from the day's plan — tap to write your own"}
               className="ml-3 font-display italic text-[16px] hover:opacity-70 transition-opacity"
               style={{ color: "rgba(26,26,46,0.62)" }}
             >
-              {dayTitle}
+              {shownTitle}
             </button>
           )
         ) : null}
