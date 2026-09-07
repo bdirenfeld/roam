@@ -40,7 +40,7 @@ import DayPicker from "@/components/day/DayPicker";
 type BoardBg =
   | { type: "color"; value: string }
   | { type: "photo"; url: string; thumb: string };
-import type { Trip, Card, Day, DayWithCards, ListWithCards, CardType, CardStatus } from "@/types/database";
+import type { Trip, Card, DayWithCards, ListWithCards, CardType, CardStatus } from "@/types/database";
 import {
   groupDaysIntoWeeks,
   shouldShowWeeks,
@@ -89,12 +89,6 @@ const LIST_PREFIX = "list-";
 // reorder rail" true by construction rather than by a branch in each handler.
 const LIST_DRAG_PREFIX = "listdrag-";
 const LIST_SLOT_PREFIX = "listslot-";
-
-// The Direction A control-row chip — lifted verbatim from DayPicker's trigger
-// so "Fold all weeks" / "Unfold all" sit beside "Jump to day" as one family.
-const CTRL_CHIP =
-  "rounded-full border border-[rgba(26,26,46,0.12)] bg-[rgba(26,26,46,0.025)] px-3 py-1.5 " +
-  "text-[12px] font-medium text-activity hover:bg-[rgba(26,26,46,0.05)] transition-colors";
 
 const TYPE_BORDER: Record<CardType, string> = {
   logistics: "border-l-gray-400",
@@ -483,24 +477,6 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
     // reason, which is what the two width arrays below cover.
   }, [isMobile, days.length, foldedDays, listWidths]);
 
-  // Jump the board horizontally to a day's column. Measures the column's real
-  // position via rect deltas (independent of any positioned ancestor) rather
-  // than hand-summing column width + gap + padding.
-  const handleJumpToDay = useCallback((day: Day) => {
-    const scroller = scrollerRef.current;
-    if (!scroller) return;
-    const idx = daysRef.current.findIndex((d) => d.id === day.id);
-    const col = scroller.querySelector<HTMLElement>(`[data-col-idx="${idx}"]`);
-    if (!col) return;
-    const colRect = col.getBoundingClientRect();
-    const boxRect = scroller.getBoundingClientRect();
-    const PAD = 28; // md:px-7 — leave the column off the flush-left edge
-    scroller.scrollTo({
-      left: scroller.scrollLeft + (colRect.left - boxRect.left) - PAD,
-      behavior: "smooth",
-    });
-  }, []);
-
   const daysRef = useRef(days);
   daysRef.current = days;
 
@@ -579,14 +555,6 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
     });
   }, [weekContentX]);
 
-  const scrollBoardToStart = useCallback(() => {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (scrollerRef.current) scrollerRef.current.scrollLeft = 0;
-      });
-    });
-  }, []);
-
   // Swallows the SECOND click of a double-click on a week bar — nothing more.
   // The − sits at the bar's right edge, and after the fold that pixel belongs
   // to the NEXT week's bar, so a double-click aimed at one week would fold two.
@@ -626,33 +594,6 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   // both change the board's width wholesale, leaving no meaningful anchor, so
   // both land at the start.
   const allCollapsed = weekSlots.length > 0 && weekSlots.every((s) => s.folded);
-
-  const handleToggleAll = useCallback(() => {
-    if (allCollapsed) {
-      applyFold(new Set());
-    } else {
-      const next = new Set(foldedDays);
-      weeks.forEach((w) => w.days.forEach((d) => next.add(d.id)));
-      applyFold(next);
-    }
-    scrollBoardToStart();
-  }, [allCollapsed, applyFold, foldedDays, weeks, scrollBoardToStart]);
-
-  // Jump to day sees through folds: the picker lists every day, so a pick can
-  // land inside a folded week. Unfold it, let React commit and the browser lay
-  // out, then hand off to the existing rect-delta helper — measuring before
-  // layout is real would scroll to a column that does not exist yet.
-  const handlePickDay = useCallback((day: Day) => {
-    if (!foldedDays.has(day.id)) {
-      handleJumpToDay(day);
-      return;
-    }
-    const week = weeks.find((w) => w.days.some((d) => d.id === day.id));
-    const next = new Set(foldedDays);
-    week?.days.forEach((d) => next.delete(d.id));
-    applyFold(next);
-    requestAnimationFrame(() => requestAnimationFrame(() => handleJumpToDay(day)));
-  }, [foldedDays, weeks, applyFold, handleJumpToDay]);
 
   const preDragSnapshot = useRef<DayWithCards[] | null>(null);
   const crossColumnMoved = useRef(false);
@@ -1708,29 +1649,13 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
               onDragEnd={handleDragEnd}
               onDragCancel={handleDragCancel}
             >
-              {/* Jump-to-day control row — shrink-0 direct flex child of the board
-                  column. DndContext renders no DOM wrapper, so this sits above the
-                  scroller and the scroller's flex-1 absorbs the rest with no calc. */}
-              <div className="hidden md:flex md:items-center md:gap-2.5 md:px-7 md:pt-3 md:pb-2 shrink-0">
-                {days.length > 1 && (
-                  <DayPicker
-                    days={days}
-                    onSelect={handlePickDay}
-                    mode="jump"
-                    foldedDayIds={foldedDays}
-                  />
-                )}
-                {days.length > 1 && showWeeks && (
-                  <button
-                    type="button"
-                    onClick={handleToggleAll}
-                    className={CTRL_CHIP}
-                    style={{ letterSpacing: "-0.005em" }}
-                  >
-                    {allCollapsed ? "Expand all" : "Collapse all"}
-                  </button>
-                )}
-              </div>
+              {/* No control row on desktop. "Collapse all" saved a single tap —
+                  every week bar has its own −, and the longest trip here is two
+                  weeks — and "Jump to day" earned its keep on a twelve-day board
+                  while answering nothing on a four-day one. The board takes the
+                  row's height instead (Brennan, Sep 2026). A folded week still
+                  reopens from the + on its own card, and the phone keeps its day
+                  pager. */}
 
               {/* Board frame — relative so the edge fades can overlay the scroller. */}
               <div className="relative flex-1 min-h-0 flex flex-col overflow-hidden">

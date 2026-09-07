@@ -431,7 +431,11 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
       className={
         expanded
           ? "fixed inset-0 z-[55] bg-white"
-          : "relative h-48 overflow-hidden border-b border-gray-100 md:h-[620px] md:rounded-2xl md:border md:border-[rgba(26,26,46,0.12)]"
+          // flex-shrink-0: the map is a flex item in the day column, and h-48 is
+          // only a BASIS — without this it shrinks as the list below it grows, so
+          // scrolling to the bottom of a day squeezed the map instead of scrolling
+          // the list (Brennan, Sep 2026: "it pushes the map up").
+          : "relative h-48 flex-shrink-0 overflow-hidden border-b border-gray-100 md:h-[620px] md:rounded-2xl md:border md:border-[rgba(26,26,46,0.12)]"
       }
     >
       <div ref={mapRef} className="absolute inset-0" />
