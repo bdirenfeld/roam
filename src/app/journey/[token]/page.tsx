@@ -5,6 +5,7 @@ import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
 import ClaimSignIn from "./ClaimSignIn";
 import SharedItinerary, { type SharedCard, type SharedDay } from "./SharedItinerary";
 import { cachedPhotoUrl } from "@/lib/places/photoCache";
+import { agendaOrder } from "@/lib/agendaOrder";
 
 // Rendered per request, never cached: opening the link always shows the plan
 // as it stands right now.
@@ -110,15 +111,10 @@ export default async function ClaimPage({ params }: Props) {
       place: { title: string | null; sub_type: string | null; address: string | null; photo_cache: unknown } | null;
     };
     const cards: SharedCard[] = ((cardRows ?? []) as unknown as Row[])
-      // Same order the host sees: by the clock, untimed last, position as the tiebreak.
-      .sort((a, b) => {
-        if (a.start_time && b.start_time) {
-          const t2 = a.start_time.localeCompare(b.start_time);
-          if (t2 !== 0) return t2;
-        } else if (a.start_time) return -1;
-        else if (b.start_time) return 1;
-        return (a.position ?? 0) - (b.position ?? 0);
-      })
+      // The same rule the owner's agenda uses, from the same function. Sorting
+      // on raw start_time here put Rome's overnight flight at the bottom of the
+      // day it lands on for every guest, while the owner saw it at the top.
+      .sort(agendaOrder)
       .map((c) => ({
         id: c.id,
         dayId: c.day_id,

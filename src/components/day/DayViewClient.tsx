@@ -15,7 +15,7 @@ import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import AppMenu from "@/components/ui/AppMenu";
 import { useToast } from "@/components/ui/Toast";
 import { formatTimeRange } from "@/lib/formatTime";
-import { cardTimes } from "@/lib/cardTime";
+import { agendaOrder } from "@/lib/agendaOrder";
 import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/plan/ConfirmationPreviewSheet";
 import DocumentsSheet from "@/components/plan/DocumentsSheet";
 import { Files, MagnifyingGlass } from "@phosphor-icons/react";
@@ -40,23 +40,6 @@ import {
   WeatherIcon,
   HourlyStrip,
 } from "@/lib/weather";
-
-// The agenda's single ordering rule: chronological, untimed cards last,
-// position as the tiebreak so untimed cards hold a stable order.
-//
-// Chronological by when the card HAPPENS, not by what is stored: an arriving
-// flight belongs at its landing time, which is why this goes through
-// cardTimes rather than reading start_time directly.
-function agendaOrder(a: Card, b: Card): number {
-  const at = cardTimes(a).start;
-  const bt = cardTimes(b).start;
-  if (at && bt) {
-    const t = at.localeCompare(bt);
-    if (t !== 0) return t;
-  } else if (at) return -1;
-  else if (bt) return 1;
-  return a.position - b.position;
-}
 
 // ── Condition advisory text ────────────────────────────────────────────────
 function getConditionText(w: DayWeather): string | null {

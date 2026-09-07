@@ -1,4 +1,14 @@
-import type { Card } from "@/types/database";
+/**
+ * What cardTimes actually reads. `Card` satisfies it, and so does the
+ * narrower projection the guest itinerary selects — which is the point: the
+ * two readers of a day share this without either pretending to be the other.
+ */
+export type TimedCard = {
+  start_time: string | null;
+  end_time: string | null;
+  details: unknown;
+  place?: { sub_type: string | null } | null;
+};
 
 /**
  * The clock times a card actually happens at.
@@ -17,7 +27,7 @@ import type { Card } from "@/types/database";
  * flight home means 4 PM and matching it loosely would move a departure that
  * is already right.
  */
-export function cardTimes(card: Card): { start: string | null; end: string | null } {
+export function cardTimes(card: TimedCard): { start: string | null; end: string | null } {
   const stored = { start: card.start_time, end: card.end_time };
   if (card.place?.sub_type !== "flight_arrival") return stored;
   if (!card.start_time || !card.end_time) return stored;
