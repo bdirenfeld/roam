@@ -43,7 +43,7 @@ import DayPicker from "@/components/day/DayPicker";
 type BoardBg =
   | { type: "color"; value: string }
   | { type: "photo"; url: string; thumb: string };
-import type { Trip, Card, DayWithCards, ListWithCards, CardType, CardStatus } from "@/types/database";
+import type { Trip, Card, DayWithCards, ListWithCards, CardType } from "@/types/database";
 import {
   groupDaysIntoWeeks,
   shouldShowWeeks,
@@ -100,99 +100,6 @@ const TYPE_BORDER: Record<CardType, string> = {
 };
 
 
-
-// ── Template definitions ───────────────────────────────────────
-interface SkeletonDef {
-  type: CardType;
-  sub_type: string;
-  title: string;
-  start_time: string; // HH:mm
-  end_time: string | null; // HH:mm or null
-}
-
-const TEMPLATES: { key: string; label: string; cards: SkeletonDef[] }[] = [
-  {
-    key: "full",
-    label: "Full day",
-    cards: [
-      { type: "food",      sub_type: "coffee",        title: "Morning Coffee",     start_time: "08:30", end_time: "09:30" },
-      { type: "activity",  sub_type: "self_directed",  title: "Morning Activity",   start_time: "10:00", end_time: "12:00" },
-      { type: "food",      sub_type: "restaurant",     title: "Lunch",              start_time: "13:00", end_time: "14:30" },
-      { type: "activity",  sub_type: "self_directed",  title: "Afternoon Activity", start_time: "15:00", end_time: "17:30" },
-      { type: "food",      sub_type: "cocktail_bar",   title: "Aperitivo",          start_time: "18:30", end_time: "19:30" },
-      { type: "food",      sub_type: "restaurant",     title: "Dinner",             start_time: "20:00", end_time: "22:00" },
-    ],
-  },
-  {
-    key: "relaxed",
-    label: "Relaxed day",
-    cards: [
-      { type: "food",      sub_type: "coffee",        title: "Morning Coffee", start_time: "09:30", end_time: "10:30" },
-      { type: "activity",  sub_type: "self_directed",  title: "Activity",       start_time: "11:00", end_time: "13:00" },
-      { type: "food",      sub_type: "restaurant",     title: "Long Lunch",     start_time: "13:30", end_time: "15:30" },
-      { type: "activity",  sub_type: "self_directed",  title: "Downtime",       start_time: "16:00", end_time: "18:00" },
-      { type: "food",      sub_type: "restaurant",     title: "Dinner",         start_time: "20:00", end_time: "22:00" },
-    ],
-  },
-  {
-    key: "beach",
-    label: "Beach day",
-    cards: [
-      { type: "food",      sub_type: "restaurant",    title: "Breakfast",     start_time: "08:00", end_time: "09:00" },
-      { type: "activity",  sub_type: "self_directed",  title: "Beach",          start_time: "09:30", end_time: "12:30" },
-      { type: "food",      sub_type: "restaurant",    title: "Lunch",          start_time: "13:00", end_time: "14:30" },
-      { type: "activity",  sub_type: "self_directed",  title: "Beach",          start_time: "14:30", end_time: "17:30" },
-      { type: "food",      sub_type: "cocktail_bar",  title: "Sunset Drinks",  start_time: "18:00", end_time: "19:00" },
-      { type: "food",      sub_type: "restaurant",    title: "Dinner",         start_time: "20:00", end_time: "22:00" },
-    ],
-  },
-  {
-    key: "transit",
-    label: "Transit day",
-    cards: [
-      { type: "food",      sub_type: "coffee",        title: "Morning Coffee", start_time: "09:00", end_time: "10:00" },
-      { type: "activity",  sub_type: "self_directed",  title: "Light Activity", start_time: "10:00", end_time: "12:00" },
-      { type: "food",      sub_type: "restaurant",    title: "Lunch",          start_time: "12:30", end_time: "14:00" },
-    ],
-  },
-];
-
-const DAY1_CARDS: SkeletonDef[] = [
-  { type: "logistics", sub_type: "flight_arrival", title: "Arrival",      start_time: "10:00", end_time: null  },
-  { type: "logistics", sub_type: "hotel",          title: "Check-in",     start_time: "15:00", end_time: null  },
-  { type: "food",      sub_type: "restaurant",     title: "Light Dinner", start_time: "20:00", end_time: "21:30" },
-];
-
-const LAST_DAY_CARDS: SkeletonDef[] = [
-  { type: "food",      sub_type: "coffee",           title: "Morning Coffee", start_time: "08:00", end_time: "09:00" },
-  { type: "logistics", sub_type: "flight_departure", title: "Departure",      start_time: "12:00", end_time: null  },
-];
-
-
-function makeCards(
-  dayId: string,
-  tripId: string,
-  skeletons: SkeletonDef[],
-  basePosition = 0,
-): Card[] {
-  return skeletons.map((s, i) => ({
-    id:           crypto.randomUUID(),
-    day_id:       dayId,
-    list_id:      null,
-    trip_id:      tripId,
-    start_time:   s.start_time + ":00",
-    end_time:     s.end_time ? s.end_time + ":00" : null,
-    position:     basePosition + i + 1,
-    status:       "in_itinerary" as CardStatus,
-    source_url:   null,
-    details:      { title: s.title },
-    ai_generated: false,
-    confirmed:    false,
-    created_at:   new Date().toISOString(),
-    place_id:     null,
-    place:        null,
-  }));
-}
 
 // ── Collision detection ────────────────────────────────────────
 // The one place the two kinds of drag are kept apart. Everything downstream —
@@ -334,7 +241,6 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
       setImportingConf(false);
     }
   }, []);
-  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [showBgPicker, setShowBgPicker] = useState(false);
   const [bgUrlInput, setBgUrlInput] = useState("");
 
@@ -1328,59 +1234,8 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
       .map((c) => c.place_id as string),
   );
 
-  // ── Apply day template to all days ───────────────────────────
-  const handleApplyTemplate = useCallback(async (templateKey: string) => {
-    const template = TEMPLATES.find((t) => t.key === templateKey);
-    if (!template || !days.length) return;
-
-    const allNewCards: Card[] = [];
-
-    days.forEach((day, idx) => {
-      const isFirst = idx === 0;
-      const isLast  = idx === days.length - 1 && days.length > 1;
-      let skeletons: SkeletonDef[];
-      if (isFirst) skeletons = DAY1_CARDS;
-      else if (isLast) skeletons = LAST_DAY_CARDS;
-      else skeletons = template.cards;
-      // Continue numbering after the day's existing cards — starting at 1
-      // again collides with what's already there
-      const base = day.cards.reduce((m, c) => Math.max(m, c.position), 0);
-      allNewCards.push(...makeCards(day.id, trip.id, skeletons, base));
-    });
-
-    // Optimistic update — APPEND, matching what the DB write below does.
-    // Replacing here made every existing card vanish from view until refresh.
-    const snapshot = daysRef.current;
-    setDays((prev) =>
-      prev.map((day) => ({
-        ...day,
-        cards: [...day.cards, ...allNewCards.filter((c) => c.day_id === day.id)],
-      }))
-    );
-
-    const rows = allNewCards.map((c) => ({
-      id:           c.id,
-      day_id:       c.day_id,
-      trip_id:      c.trip_id,
-      start_time:   c.start_time,
-      end_time:     c.end_time,
-      position:     c.position,
-      status:       c.status,
-      source_url:   null,
-      details:      c.details,
-      ai_generated: false,
-      place_id:     null,
-    }));
-    const { error } = await queuedInsert("cards", rows as unknown as Record<string, unknown>[]);
-    if (error) {
-      console.error("[PlanBoard.handleApplyTemplate] card insert failed:", error);
-      setDays(snapshot);
-    }
-  }, [days, trip.id, supabase]); // eslint-disable-line react-hooks/exhaustive-deps
-
 
   const activeCard  = activeId ? findCard(activeId) : null;
-  const allEmpty    = days.every((d) => d.cards.length === 0);
 
   // Home is where you sleep, not where you spend the most cards.
   //
@@ -1614,12 +1469,6 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
                   onTouchStart={handleSwipeTouchStart}
                   onTouchEnd={handleSwipeTouchEnd}
                 >
-                  {(allEmpty || showTemplatePicker) && days.length > 0 && (
-                    <TemplateBanner
-                      onSelect={(key) => { handleApplyTemplate(key); setShowTemplatePicker(false); }}
-                      onDismiss={showTemplatePicker && !allEmpty ? () => setShowTemplatePicker(false) : undefined}
-                    />
-                  )}
                   <DayColumn
                     day={currentMobileDay}
                     cards={currentMobileDay.cards}
@@ -1686,12 +1535,6 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
                   style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "thin", scrollbarColor: "rgba(26,26,46,0.28) transparent" } as React.CSSProperties}
                 >
                 <div className="p-4 pb-28 md:px-7 md:pb-6 md:flex md:flex-col md:h-full md:min-h-0">
-                  {(allEmpty || showTemplatePicker) && days.length > 0 && (
-                    <TemplateBanner
-                      onSelect={(key) => { handleApplyTemplate(key); setShowTemplatePicker(false); }}
-                      onDismiss={showTemplatePicker && !allEmpty ? () => setShowTemplatePicker(false) : undefined}
-                    />
-                  )}
 
                   {showWeeks ? (
                     <>
@@ -1990,36 +1833,6 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
     </HomeTownCtx.Provider>
   );
 }
-
-// ── TemplateBanner ─────────────────────────────────────────────
-function TemplateBanner({ onSelect, onDismiss }: { onSelect: (key: string) => void; onDismiss?: () => void }) {
-  return (
-    <div className="bg-white border border-gray-100 rounded-2xl px-4 py-4 mb-4 shadow-card w-full md:max-w-xl">
-      <div className="flex items-center justify-between mb-2.5">
-        <p className="text-[13px] font-bold text-gray-800">Start with a day template?</p>
-        {onDismiss && (
-          <button onClick={onDismiss} className="text-gray-400 hover:text-gray-600 transition-colors">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        )}
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {TEMPLATES.map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => onSelect(key)}
-            className="px-3.5 py-1.5 rounded-full text-[12px] font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 active:scale-95 transition-all"
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 
 // ── DayColumn ──────────────────────────────────────────────────
 interface DayColumnProps {
