@@ -142,7 +142,9 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
     ? getPriceRange(place.price_level ?? undefined, det?.currency_code as string | undefined)
     : null;
 
-  const rail = railTime(card.start_time);
+  // Through cardTimes, like everything else on this card: an arriving flight
+  // is chipped at its landing time, not at when it pushed back in Toronto.
+  const rail = railTime(shown.start);
 
   const interactive = !!onTap;
   const Wrapper = (interactive ? "button" : "div") as "button";
