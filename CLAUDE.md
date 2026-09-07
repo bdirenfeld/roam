@@ -677,3 +677,26 @@ No jsdom, no React testing library, deliberately. Everything covered so far is
 a pure function over a row shape, and the failures worth catching are ordering,
 time and column-name failures, which are cheapest to pin at that layer.
 
+
+## One ordering rule: `lib/agendaOrder.ts`
+
+A day has two readers — the owner's agenda and the read-only itinerary a guest
+opens from a share link — and they must order cards identically. They did not
+until 2026-09-07: the guest page had its own copy that read `start_time`
+directly, so an arriving flight sat at its takeoff time. Rome day 1 showed
+"Flight to Rome" fourth, between the aperitivo and dinner. New York's shared
+link had it wrong too, and that one is genuinely shared.
+
+Both now call the exported `agendaOrder`. **Never write a second copy of this
+rule** — two copies is exactly how they came to disagree.
+
+`cardTimes` takes `TimedCard`, a structural shape, not a full `Card` row: the
+guest page selects a narrower projection, and casting it to `Card` would hide
+precisely the sort of mismatch this is meant to catch.
+
+**Sorting and labelling must come from the same source.** The first fix changed
+only the sort, so the flight jumped correctly to the top of the day and was
+then labelled with its takeoff time — sorted by landing, labelled by
+departure, which reads worse than the bug it replaced. It was caught on the
+live page, not in review. If a time decides an order, it must also be the time
+shown.
