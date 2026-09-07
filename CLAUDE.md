@@ -538,3 +538,34 @@ item is only a starting size unless `flex-shrink-0` says otherwise; `flex-1`
 inside an `h-auto` box collapses. Every one of these renders fine at the size
 the developer happened to test and wrong at another — all three were found by
 Brennan on his phone, not by me at desktop width.
+
+## A card's time has one source: `cardTimes`
+
+`src/lib/cardTime.ts` answers "when does this card actually happen". Everything
+that shows or sorts a card time goes through it — the agenda's `agendaOrder`,
+`CardSurface`'s `rail` chip and `timeRange`, the board's card face.
+
+This exists because a flight that takes you somewhere is stored as when you
+LEFT. Rome day 1 holds 19:45 (leaving Toronto) → 10:20 (landing in Rome) and
+read "7:45 PM" at the bottom of the arrival day.
+
+Two traps, both paid for on 2026-09-07:
+
+- **"For an arriving flight, use end_time" is wrong on this data.** Rome, New
+  York and Palm Springs store departure → arrival, but Australia and Costa Rica
+  store the LANDING → the hotel arrival, and already read correctly. The test is
+  card-local: a `departure_time` detail equal to `start_time` means start_time
+  is a departure. It is deliberately strict about 24-hour format, because "4:00"
+  on the New York flight home means 4 PM.
+- **The chip and the subtitle read from different places.** The first fix routed
+  `timeRange` and the sort through `cardTimes` but left `rail` on
+  `card.start_time`, and shipped a card showing two different times. If you
+  change what time a card reports, grep for every read of `start_time` on that
+  surface before building.
+
+## `places.photo_count` is a generated column
+
+Four bytes saying how many photos `details.photos` holds, so a board can know a
+card has a second photo without shipping the references — they average 6.4 KB
+per place, about 375 KB of unused text on a twelve-day board. Select it
+alongside the other place fields; never select `details` just to count.
