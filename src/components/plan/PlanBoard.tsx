@@ -2307,17 +2307,13 @@ function DayHeaderCell({ day, weather, onRename, autoTitle }: { day: DayWithCard
   // forecast instead, keeping the header to three tiers.
 
   return (
-    <div className="md:w-[280px] md:flex-shrink-0" style={{ padding: "14px 16px 12px" }}>
-      {/* Tier 1 — DAY NUMBER · DATE (same small-caps register, one line) */}
-      <p style={{
-        fontFamily: "'DM Sans', system-ui, sans-serif",
-        fontSize: "9.5px",
-        fontWeight: 600,
-        letterSpacing: "0.18em",
-        textTransform: "uppercase",
-        color: "rgba(26, 26, 46, 0.62)",
-        marginBottom: "4px",
-      }}>Day {day.day_number}{shortDateTitle ? ` · ${shortDateTitle}` : ""}</p>
+    <div className="md:w-[280px] md:flex-shrink-0" style={{ padding: "10px 16px 10px" }}>
+      {/* One line, not two. The weekday and the date are the same kind of fact
+          — when this is — so they share a baseline: the weekday in display
+          italic, DAY 1 · AUG 18 small-caps beside it. Stacked, they cost 101px
+          of header against Trello's ~40, which is most of why its board starts
+          118px higher than this one (measured, Sep 2026). */}
+      <div className="flex items-baseline gap-2 min-w-0">
       {/* Tier 2 — Day of week (italic Playfair). On an untitled day the
           weekday is also the door to naming it: tap it and the title editor
           opens below. That replaces the dotted prompt every column carried. */}
@@ -2337,7 +2333,6 @@ function DayHeaderCell({ day, weather, onRename, autoTitle }: { day: DayWithCard
               color: "rgb(26, 26, 46)",
               letterSpacing: "-0.01em",
               lineHeight: 1.1,
-              marginBottom: "6px",
               background: "none",
               border: 0,
               padding: 0,
@@ -2352,10 +2347,22 @@ function DayHeaderCell({ day, weather, onRename, autoTitle }: { day: DayWithCard
             color: "rgb(26, 26, 46)",
             letterSpacing: "-0.01em",
             lineHeight: 1.1,
-            marginBottom: "6px",
           }}>{dayOfWeek}</p>
         )
       )}
+      {/* Pushed to the right of the weekday and never wrapped: on a narrow
+          column the weekday truncates before this does, because "which day of
+          the trip" is the harder thing to recover by looking. */}
+      <span className="ml-auto flex-shrink-0" style={{
+        fontFamily: "'DM Sans', system-ui, sans-serif",
+        fontSize: "9.5px",
+        fontWeight: 600,
+        letterSpacing: "0.14em",
+        textTransform: "uppercase",
+        color: "rgba(26, 26, 46, 0.62)",
+        whiteSpace: "nowrap",
+      }}>Day {day.day_number}{shortDateTitle ? ` · ${shortDateTitle}` : ""}</span>
+      </div>
       {/* Tier 2½ — the day's title, typed by the traveller. Reads as a caption
           under the weekday; tap to edit. When empty and editable, a faint
           dotted prompt so the affordance exists without shouting. Read-only
