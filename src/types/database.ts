@@ -171,6 +171,9 @@ export interface Place {
   // decorates. Optional for the same reason as the fields above.
   loved?: boolean
   loved_at?: string | null
+  /** Generated column: how many photos details.photos holds. Four bytes, so
+   *  the board can know a card has a second photo without shipping the refs. */
+  photo_count?: number | null
 }
 
 // ── Board lists ─────────────────────────────────────────────

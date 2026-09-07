@@ -60,7 +60,7 @@ import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
 import { formatTimeRange } from "@/lib/formatTime";
 import { getOpeningHoursConflict, openingHoursCaption, openingHoursTone } from "@/lib/openingHours";
 
-import { Trash, Files } from "@phosphor-icons/react";
+import { Trash, Files, CaretLeft, CaretRight } from "@phosphor-icons/react";
 import { useGlobalSearch } from "@/components/search/GlobalSearch";
 import { useToast } from "@/components/ui/Toast";
 import AppMenu from "@/components/ui/AppMenu";
@@ -2584,6 +2584,14 @@ function CardTile({
   const noteSnippet = isNote ? (det?.notes as string | undefined) : undefined;
   const title       = place?.title ?? (det?.title as string | undefined) ?? noteSnippet?.slice(0, 60) ?? "(untitled note)";
 
+  // Which of the place's photos the cover is showing. Board-local and
+   // deliberately not persisted: it is a look, not a preference.
+  const photoCount = place?.photo_count ?? 0;
+  const [photoIdx, setPhotoIdx] = useState(0);
+  const stepPhoto = (delta: number) => {
+    setPhotoIdx((i) => (i + delta + photoCount) % photoCount);
+  };
+
   const shownTimes = cardTimes(card);
   const timeRange = formatTimeRange(shownTimes.start, shownTimes.end);
 
@@ -2614,11 +2622,50 @@ function CardTile({
           />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={`/api/places/photo?place_id=${place.id}&size=full`}
+            key={photoIdx}
+            src={`/api/places/photo?place_id=${place.id}&size=full&index=${photoIdx}`}
             alt=""
             className="absolute inset-0 w-full h-full object-cover"
             onError={(e) => { e.currentTarget.style.display = "none"; }}
           />
+
+          {/* Page through them here rather than opening the card. White glyph
+              on a drop-shadow, no disc — the same restraint the journey card's
+              ⋯ got, because these sit on every place card on the board and a
+              disc apiece would read as a control panel. */}
+          {photoCount > 1 && (
+            <>
+              <button
+                type="button"
+                aria-label="Previous photo"
+                onClick={(e) => { e.stopPropagation(); stepPhoto(-1); }}
+                className="absolute left-0 top-0 h-full w-9 flex items-center justify-start pl-1 text-white cursor-pointer"
+                style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.55))" }}
+              >
+                <CaretLeft size={18} weight="bold" />
+              </button>
+              <button
+                type="button"
+                aria-label="Next photo"
+                onClick={(e) => { e.stopPropagation(); stepPhoto(1); }}
+                className="absolute right-0 top-0 h-full w-9 flex items-center justify-end pr-1 text-white cursor-pointer"
+                style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.55))" }}
+              >
+                <CaretRight size={18} weight="bold" />
+              </button>
+              {/* Only once you have moved. A card at rest stays a photograph;
+                  ten dots on fifty cards would be the noise the board was just
+                  cleared of. */}
+              {photoIdx > 0 && (
+                <span
+                  className="absolute bottom-1 right-1.5 text-white text-[9.5px] font-semibold tabular-nums"
+                  style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.6))" }}
+                >
+                  {photoIdx + 1}/{photoCount}
+                </span>
+              )}
+            </>
+          )}
         </div>
       )}
       <button onClick={onTap} className="w-full text-left p-3 md:px-3 md:py-2.5">
