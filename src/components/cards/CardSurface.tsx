@@ -27,16 +27,6 @@ interface Props {
 }
 
 /** Cards eligible to show a confirmation dot */
-function isConfirmable(card: Card): boolean {
-  const p = card.place;
-  if (!p) return false;
-  return (
-    (p.type === "activity" && p.sub_type === "guided") ||
-    p.type === "logistics" ||
-    (p.type === "food" && p.sub_type === "restaurant")
-  );
-}
-
 
 function flightRoute(det: Record<string, unknown> | null, timeRange: string | null): string | null {
   const origin   = typeof det?.origin_airport  === "string" ? det.origin_airport  : null;
@@ -151,7 +141,6 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
     : null;
 
   const rail = railTime(card.start_time);
-  const confirmed = isConfirmable(card) && card.confirmed;
 
   const interactive = !!onTap;
   const Wrapper = (interactive ? "button" : "div") as "button";
@@ -235,26 +224,9 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
             {title}
           </p>
           {isLoved && <LovedHeart size={11} />}
-          {confirmed && onToggleConfirmed && (
-            // Not a <button>: the card itself is one, and a button inside a
-            // button is invalid HTML. The parser closed the card early, the
-            // rest of the day spilled out below the nav, and hydration gave up
-            // — New York only, because only its cards carried the tick
-            // (Brennan, Sep 2026: "scroll to the bottom and it gets all screwed up").
-            <span
-              role="button"
-              tabIndex={0}
-              onClick={(e) => { e.stopPropagation(); onToggleConfirmed(); }}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onToggleConfirmed(); } }}
-              aria-label="Booked — tap to undo"
-              className="shrink-0 inline-flex items-center justify-center cursor-pointer"
-              style={{ width: 13, height: 13, borderRadius: "50%", background: "#1A1A2E" }}
-            >
-              <svg width="7" height="7" viewBox="0 0 7 7" fill="none">
-                <polyline points="1,3.5 2.8,5.5 6,1.5" stroke="#F5F4F1" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </span>
-          )}
+          {/* The booked tick used to live here, unlabelled, beside the loved
+              heart. It says "Booked" in the badge row below now, where there is
+              room for the word and where the Plan board says it too. */}
         </div>
 
         {hoursSignal && (
@@ -286,7 +258,7 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
 
         {/* No Booked pill here: the tick beside the title above is this card's
             booked control, and it toggles. */}
-        <CardBadges card={card} className="mt-1.5" showBooked={false} />
+        <CardBadges card={card} className="mt-1.5" onToggleBooked={onToggleConfirmed} />
       </div>
 
       {/* The photograph, where there is one. Note cards and unlinked entries

@@ -54,11 +54,11 @@ function ClipGlyph({ color }: { color: string }) {
  * has neither a checklist nor attachments, so no card face pays for it in
  * whitespace.
  */
-export default function CardBadges({ card, className = "", showBooked = true }: { card: Card; className?: string;
-  /** Off where the surface already carries its own booked control — the Agenda
-   *  has a tappable tick beside the title, and drawing the pill as well said
-   *  the same thing twice on one card. */
-  showBooked?: boolean }) {
+export default function CardBadges({ card, className = "", showBooked = true, onToggleBooked }: { card: Card; className?: string;
+  /** Off where a surface deliberately carries no booked state at all. */
+  showBooked?: boolean;
+  /** When given, the Booked pill becomes the control that undoes it. */
+  onToggleBooked?: () => void }) {
   const progress = checklistProgress(card.details);
   const attachments = card.attachment_count ?? 0;
   // `confirmed` is only ever set on a card that can be booked — a flight, a
@@ -91,9 +91,18 @@ export default function CardBadges({ card, className = "", showBooked = true }: 
       )}
       {booked && (
         <span
-          className="inline-flex items-center gap-1 rounded-[5px] px-[5px] py-[1px] text-[10.5px] font-medium leading-none"
+          // Deliberately a span: the Agenda card is a <button>, and nesting one
+          // button in another closed the card early and took hydration down
+          // with it. role="button" carries the semantics without the tag.
+          role={onToggleBooked ? "button" : undefined}
+          tabIndex={onToggleBooked ? 0 : undefined}
+          onClick={onToggleBooked ? (e) => { e.stopPropagation(); onToggleBooked(); } : undefined}
+          onKeyDown={onToggleBooked ? (e) => {
+            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onToggleBooked(); }
+          } : undefined}
+          className={`inline-flex items-center gap-1 rounded-[5px] px-[5px] py-[1px] text-[10.5px] font-medium leading-none${onToggleBooked ? " cursor-pointer" : ""}`}
           style={{ color: DONE_FG, background: DONE_BG }}
-          aria-label="Booked"
+          aria-label={onToggleBooked ? "Booked — tap to undo" : "Booked"}
         >
           <TickGlyph color={DONE_FG} />
           Booked
