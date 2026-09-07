@@ -638,3 +638,42 @@ another request with the 'steal' option", which was four of the twelve rows in
 Add to it only after seeing a pattern in the table AND establishing it is
 benign. A real fault silenced there is invisible, and this log has already paid
 for itself once — it is what found the settings hydration failure.
+
+## Tests: `npm test` (vitest)
+
+`vitest.config.ts`, tests colocated as `src/**/*.test.ts`. `npm test` runs them
+in about two seconds; the checks workflow runs them between lint and build.
+`npm run test:watch` while working.
+
+Four conventions, all of which have a reason:
+
+**Write the test that would have failed before the fix.** Taken from Don's
+quality-gate doc (`Downloads/codex-pre-pr-high-recall-quality-gate-v2.md` §9,
+the same doc roam-ship §8's lenses came from). A test asserting a page loads
+proves nothing here. The first two suites cover the two pieces of logic with
+the worst history: `resolveDefaultDay` and `cardTimes`.
+
+**Prove it fails.** Break the function on purpose, watch the test go red,
+restore, watch it go green. A test that has never failed is a test you have no
+reason to trust. Both suites were confirmed this way.
+
+**Fixtures are copied out of the live database, not imagined.** The flight
+fixtures are real rows. This matters more than it sounds: the flight bug
+existed *because* all flights were assumed to be stored the same way, and they
+are not — Australia and Costa Rica hold the landing in `start_time`, Rome and
+New York hold the departure. Invented fixtures would have agreed with the
+broken code. Query the table, then write the test.
+
+**Awkward rows earn their own test.** New York's flight home stores 16:00 with
+`departure_time: "4:00"`; Palm Springs stores `"TBD, around midday"`. Those are
+where the loose-matching bugs live.
+
+`describe`/`it`/`expect` are imported explicitly rather than enabled as
+globals, so `next lint` needs no extra configuration. Tests run at
+`TZ=America/Toronto`, pinned in the config: GitHub's runners are UTC, where
+local and UTC agree and the late-at-night date case would pass either way.
+
+No jsdom, no React testing library, deliberately. Everything covered so far is
+a pure function over a row shape, and the failures worth catching are ordering,
+time and column-name failures, which are cheapest to pin at that layer.
+
