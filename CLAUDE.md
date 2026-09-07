@@ -569,3 +569,19 @@ Four bytes saying how many photos `details.photos` holds, so a board can know a
 card has a second photo without shipping the references — they average 6.4 KB
 per place, about 375 KB of unused text on a twelve-day board. Select it
 alongside the other place fields; never select `details` just to count.
+
+## Check `document.visibilityState` before believing anything about the map
+
+Mapbox paints nothing and adds no markers in a hidden tab. A Chrome MCP tab is
+hidden whenever its window is behind another app — which is most of the time.
+
+On 2026-09-07 this produced "0 markers" from DOM queries and a blank grey pane
+in a screenshot, and I reported a shipped regression that had blanked the
+desktop day map. There was no regression. The evidence against it was already
+in hand: the same build had produced six markers in a phone popup, so the
+constructor had not thrown.
+
+So: before concluding a map is broken, read `document.visibilityState`. If it is
+`"hidden"`, the observation is worth nothing. Note that page SCREENSHOTS are
+still valid for ordinary DOM and CSS — only WebGL needs the tab visible, so the
+Plan board can be checked this way and the map cannot.
