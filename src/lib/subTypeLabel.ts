@@ -35,6 +35,10 @@ export const SUB_TYPE_LABEL: Record<string, string> = {
   flight_departure: "Departure",
   transit:          "Transit",
   grocery:          "Grocery",
+  // Boarding or daycare for the dog. Its own kind because "hotel" is what the
+  // accommodation logic reads as "where you are staying", and Finn's hotel is
+  // not Brennan's (Sep 2026).
+  pet_care:         "Pet care",
   medical:          "Medical",
   // older spellings still in a few rows
   hosted:           "Tour",

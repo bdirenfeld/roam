@@ -62,6 +62,7 @@ const SUB_TYPE_LABEL: Record<string, string> = {
   hotel:            "Hotel",
   transit:          "Transit",
   grocery:          "Grocery",
+  pet_care:         "Pet care",
   medical:          "Medical",
   flight_arrival:   "Flight Arrival",
   flight_departure: "Flight Departure",
@@ -93,6 +94,7 @@ const SUB_TYPE_OPTIONS: Record<CardType, { label: string; value: string }[]> = {
     { label: "Flight",  value: "flight_arrival" },
     { label: "Transit", value: "transit"        },
     { label: "Grocery", value: "grocery"        },
+    { label: "Pet care", value: "pet_care"      },
     { label: "Medical", value: "medical"        },
   ],
 };

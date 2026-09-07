@@ -166,6 +166,7 @@ const MATERIAL_ICONS: Record<string, string> = {
   flight_departure: "flight_takeoff",
   transit:          "directions_transit",
   grocery:          "local_grocery_store",
+  pet_care:         "pets",
   medical:          "medical_services",
 };
 

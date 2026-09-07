@@ -57,6 +57,7 @@ const GROUPS: Group[] = [
       { label: "Flight Departure", subTypes: ["flight_departure"] },
       { label: "Transit",          subTypes: ["transit"]          },
       { label: "Grocery",          subTypes: ["grocery"]          },
+      { label: "Pet care",         subTypes: ["pet_care"]         },
       { label: "Medical",          subTypes: ["medical"]          },
     ],
   },
