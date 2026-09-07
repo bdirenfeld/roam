@@ -116,13 +116,18 @@ export function groupDaysIntoWeeks<D extends Day>(days: D[]): PlanWeek<D>[] {
  */
 export function shouldShowWeeks(days: Day[]): boolean {
   const dated = days.filter((d) => d.date);
-  // Week bars and folding are chrome for LONG journeys. A twelve-day trip
-  // scrolls fine and was paying two extra rows for it (simplification audit,
-  // Sep 2026). Fifteen days or more earns the structure.
-  // Ten days or more: Brennan wants the fold available on anything longer
-  // than nine days (Sep 2026). Group one had pushed this to 15, which hid it
-  // on his 12-day Tuscany board.
-  if (dated.length < 10) return false;
+  // Week bars and folding are chrome for LONG journeys, and the bar has moved
+  // twice: 15 days (simplification audit) hid it on the 12-day Tuscany board,
+  // then 10. Now anything longer than a week — Brennan, Sep 7 2026, after
+  // trying the board with the bar removed entirely and preferring it in.
+  //
+  // Eight days adds Costa Rica (9 days, splitting 5 + 4) and Palm Springs
+  // (8 days, splitting 2 + 6 — it starts on a Saturday, so "Week 1" is a
+  // weekend). Weeks follow the calendar, not the trip, so short leading and
+  // trailing groups are inherent: Italy 2027 already shows two ONE-day weeks
+  // at this setting. Grouping by trip week instead would give clean sevens
+  // and is the real fix if those orphans start to grate.
+  if (dated.length < 8) return false;
   return groupDaysIntoWeeks(dated).length > 1;
 }
 
