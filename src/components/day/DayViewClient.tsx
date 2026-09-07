@@ -947,10 +947,10 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
         <div className="md:col-start-2 md:row-start-1 md:sticky md:top-6 md:self-start">
           <DayMap
             cards={mappableCards}
-            // The star is for days when the hotel has no row. On check-in and
-            // check-out days it is a numbered stop in `cards` instead, and
-            // passing it here as well would stack two pins on one point.
-            accommodationCard={accommodationIsToday ? undefined : (accommodationCard ?? undefined)}
+            // Passed on every day, numbered or not. DayMap draws a separate
+            // star pin only when this card is NOT among the numbered ones; when
+            // it is, the star goes onto that pin instead of beside it.
+            accommodationCard={accommodationCard ?? undefined}
             centerLat={trip.destination_lat ?? 41.9028}
             centerLng={trip.destination_lng ?? 12.4964}
             onPinTap={mapExpanded ? handleDockPinTap : handlePinTap}

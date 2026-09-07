@@ -238,6 +238,20 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
           badge.textContent = String(i + 1);
           wrapper.appendChild(badge);
 
+          // Home base, and also a stop today: the star joins the number rather
+          // than standing as a second pin on the same coordinates.
+          if (accommodationCard && card.id === accommodationCard.id) {
+            const homeStar = document.createElement("div");
+            homeStar.style.cssText =
+              "position:absolute;bottom:-3px;right:-3px;" +
+              "width:13px;height:13px;border-radius:50%;background:white;" +
+              "display:flex;align-items:center;justify-content:center;" +
+              "box-shadow:0 1px 2px rgba(0,0,0,0.25);" +
+              "font-size:8px;line-height:1;color:#F5A623;pointer-events:none;z-index:2;";
+            homeStar.textContent = "★";
+            wrapper.appendChild(homeStar);
+          }
+
           const item: PinItem = { cardId: card.id, index: i, lng, lat, wrapper, badge, group: null };
           pinsRef.current.push(item);
 
@@ -303,7 +317,11 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
 
         // Accommodation hotel pin — matches main map hotel style, same size as regular pins, gold ★ badge
         let accomCoord: [number, number] | null = null;
-        if (accommodationCard) {
+        // Only when the hotel is NOT one of today's numbered stops. On check-in
+        // and check-out days it is, and the star is already on that pin.
+        const accomIsNumbered = !!accommodationCard
+          && cards.some((c) => c.id === accommodationCard.id);
+        if (accommodationCard && !accomIsNumbered) {
           const ac = accommodationCard;
           const acLat = ac.place?.lat ?? (ac.details as Record<string, unknown>)?.lat as number | undefined;
           const acLng = ac.place?.lng ?? (ac.details as Record<string, unknown>)?.lng as number | undefined;
