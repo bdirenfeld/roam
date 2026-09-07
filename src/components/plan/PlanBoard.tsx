@@ -30,6 +30,7 @@ import { createClient } from "@/lib/supabase/client";
 import { queuedInsert, queuedDelete } from "@/lib/offline/queuedWrite";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import CardBadges from "@/components/cards/CardBadges";
+import LovedHeart from "@/components/ui/LovedHeart";
 import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
 import CreateCardSheet from "@/components/plan/CreateCardSheet";
 import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/plan/ConfirmationPreviewSheet";
@@ -2665,8 +2666,15 @@ function CardTile({
               12px gap gave this line 52px back, which is what had been cutting
               "San Martino in Freddana" short. */}
           <div className="flex-1 min-w-0">
+            {/* The loved heart rides the title, the way it does on the Agenda.
+                It was only ever on that one surface, so a place you had marked
+                looked ordinary on the board (Brennan, Sep 2026). Inline rather
+                than a badge: it belongs to the place, not to the plan. */}
             <p className="text-[14px] font-semibold text-gray-900 leading-snug line-clamp-2 md:text-[13.5px] md:font-medium md:line-clamp-2 md:tracking-[-0.005em]">
               {title}
+              {place?.loved === true && (
+                <span className="inline-flex align-baseline ml-1"><LovedHeart size={10} /></span>
+              )}
             </p>
             {hoursSignal && (
               <p className={`text-[11px] ${openingHoursTone(hoursSignal)} mt-0.5 leading-snug truncate`}>
