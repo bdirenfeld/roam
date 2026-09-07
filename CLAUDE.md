@@ -576,10 +576,14 @@ Mapbox paints nothing and adds no markers in a hidden tab. A Chrome MCP tab is
 hidden whenever its window is behind another app — which is most of the time.
 
 On 2026-09-07 this produced "0 markers" from DOM queries and a blank grey pane
-in a screenshot, and I reported a shipped regression that had blanked the
-desktop day map. There was no regression. The evidence against it was already
-in hand: the same build had produced six markers in a phone popup, so the
-constructor had not thrown.
+in a screenshot. I first reported a shipped regression, then talked myself out
+of it, and BOTH readings were guesses off a hidden tab. The revert settled it:
+Rome day 1 came back, so passing `bounds` + `fitBoundsOptions` into the Map
+constructor really was breaking days whose pins span a long way — Rome day 1
+runs from Fiumicino at 12.25 to the centre at 12.50, and Mapbox throws "cannot
+fit within canvas" when the padding will not fit the container it has at
+construction time. If the day framing is attempted again, set a plain centre
+and zoom and fit AFTER load; never fit in the constructor.
 
 So: before concluding a map is broken, read `document.visibilityState`. If it is
 `"hidden"`, the observation is worth nothing. Note that page SCREENSHOTS are
