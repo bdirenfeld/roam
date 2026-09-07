@@ -611,13 +611,23 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
     return active;
   }, [hotelCards, dayWithCards.day_number, days]);
 
+  // Is the hotel on THIS day's list, or carried forward from an earlier one?
+  // localCards holds only this day, so finding it here means it has a row —
+  // check-in day, or the day you check out.
+  const accommodationIsToday = useMemo(
+    () => !!accommodationCard && localCards.some((c) => c.id === accommodationCard.id),
+    [accommodationCard, localCards],
+  );
+
   const mappableCards = useMemo(
     () =>
       localCards.filter((c) => {
-        if (accommodationCard && c.id === accommodationCard.id) return false;
+        // Excluded only when it is context rather than a stop. On its own day
+        // it numbers like anything else.
+        if (!accommodationIsToday && accommodationCard && c.id === accommodationCard.id) return false;
         return c.place != null && c.place.lat != null && c.place.lng != null;
       }),
-    [localCards, accommodationCard]
+    [localCards, accommodationCard, accommodationIsToday]
   );
 
   // Map each mappable card to its 1-based pin index. Activities without a place
@@ -937,7 +947,10 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
         <div className="md:col-start-2 md:row-start-1 md:sticky md:top-6 md:self-start">
           <DayMap
             cards={mappableCards}
-            accommodationCard={accommodationCard ?? undefined}
+            // The star is for days when the hotel has no row. On check-in and
+            // check-out days it is a numbered stop in `cards` instead, and
+            // passing it here as well would stack two pins on one point.
+            accommodationCard={accommodationIsToday ? undefined : (accommodationCard ?? undefined)}
             centerLat={trip.destination_lat ?? 41.9028}
             centerLng={trip.destination_lng ?? 12.4964}
             onPinTap={mapExpanded ? handleDockPinTap : handlePinTap}
