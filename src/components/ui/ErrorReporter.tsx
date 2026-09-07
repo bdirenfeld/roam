@@ -13,6 +13,21 @@ import { useEffect } from "react";
 
 const MAX_PER_LOAD = 5;
 
+// Noise, not faults. Anything matched here is dropped in the browser and never
+// reaches /api/errors, so the log keeps only things worth reading.
+//
+// "Lock broken by another request with the 'steal' option" is supabase-js's
+// auth lock doing exactly what it is designed to do: a second call for the same
+// session takes the lock and the first is told so. It rejects with nobody
+// listening, which makes it an unhandled rejection and lands it here. It was
+// four of the twelve entries in the log — a third of it — for a condition that
+// has never corresponded to anything going wrong (Sept 2026).
+//
+// Keep this list short and evidence-led: add a pattern only after seeing it in
+// public.client_errors and establishing it is benign. A real fault silenced
+// here is invisible.
+const IGNORED = [/Lock broken by another request/i];
+
 export default function ErrorReporter() {
   useEffect(() => {
     const seen = new Set<string>();
@@ -20,6 +35,7 @@ export default function ErrorReporter() {
 
     const report = (kind: string, message: string, stack?: string) => {
       if (!message || sent >= MAX_PER_LOAD) return;
+      if (IGNORED.some((re) => re.test(message))) return;
       const key = kind + "|" + message.slice(0, 200);
       if (seen.has(key)) return;
       seen.add(key);
