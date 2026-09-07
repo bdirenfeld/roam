@@ -700,3 +700,41 @@ then labelled with its takeoff time — sorted by landing, labelled by
 departure, which reads worse than the bug it replaced. It was caught on the
 live page, not in review. If a time decides an order, it must also be the time
 shown.
+
+## The schema snapshot, and refreshing it
+
+`lib/schemaSnapshot.ts` holds the live public schema, the storage buckets, and
+the foreign keys pointing at `trips`. `schemaContract.test.ts` checks every
+`.select()` and `.from()` in the app against it; `deleteJourney.test.ts` checks
+that nothing is orphaned when a journey goes.
+
+**Refresh the snapshot in the same change as any migration**, not afterwards —
+the SQL to regenerate each block is in the file's comments. A stale snapshot
+makes the tests lie in both directions.
+
+Why it exists: PostgREST does not throw on a wrong column name. It returns
+`{ data: null, error }`, and a caller reading `data` without checking `error`
+renders an empty screen rather than a failure. The guest itinerary once asked
+`days` for `title` and showed a journey with no days at all.
+
+On its first run it found two faults that had been live for weeks —
+`trips.kanban_background_url` (a column that never existed) and the
+`trip-covers` bucket (never created). Both are fixed; the point is that neither
+had ever failed loudly.
+
+## Storage buckets
+
+Three: `card-attachments` (private, 10 MB, PDF + images), `place-photos`
+(public, 5 MB — 30-day cache expiry is a Google terms requirement, never make
+it permanent) and `trip-covers` (public, 10 MB, images incl. HEIC/HEIF because
+iPhones hand those over unconverted).
+
+Write policies on `trip-covers` are **owner or cohost**, matching the two
+`trips` UPDATE policies exactly. The journeys list offers "Change cover" on
+every card without checking who owns it, so an owner-only rule would silently
+fail for a cohost — the same class of bug the missing bucket caused.
+
+**Deleting a journey does not delete its files.** `card_attachments` rows go by
+CASCADE, but the objects stay in the bucket, and the same now applies to a
+cover. 2 orphaned files, 114 bytes, as of 2026-09-07 — real but not yet worth
+code. Worth revisiting if attachments get used in earnest.
