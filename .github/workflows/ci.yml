@@ -1,0 +1,70 @@
+# Checks every push before it reaches the live site.
+#
+# Roam ships straight to main with no feature branches, so this is the only
+# gate between an edit and Vercel. It runs the same three commands the ship
+# checklist asks for by hand — type check, lint, build — and fails loudly if
+# any of them do.
+#
+# No secrets. The build only needs these variables to EXIST, not to be real:
+# every route that talks to Supabase, Google or Stripe is server-rendered on
+# demand, so nothing here calls out to them at build time. Placeholders keep
+# the run hermetic — it passes or fails on the code alone, and a rotated key
+# can never turn the checks red. Anything that genuinely needs a live key is
+# caught on Vercel's own build, which runs straight after.
+
+name: Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A newer push makes an in-flight run irrelevant — stop it and keep the latest.
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key
+      NEXT_PUBLIC_MAPBOX_TOKEN: pk.placeholder
+      NEXT_PUBLIC_SITE_URL: https://example.com
+      GOOGLE_PLACES_API_KEY: placeholder
+      UNSPLASH_ACCESS_KEY: placeholder
+      NEXT_PUBLIC_UNSPLASH_ACCESS_KEY: placeholder
+      STRIPE_SECRET_KEY: sk_test_placeholder
+      STRIPE_WEBHOOK_SECRET: whsec_placeholder
+      ANTHROPIC_API_KEY: placeholder
+      RESEND_API_KEY: placeholder
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # `npm ci` installs exactly what package-lock.json pins and fails if the
+      # lockfile and package.json disagree — which is itself worth catching.
+      - name: Install
+        run: npm ci
+
+      # Type check first: it is the fastest of the three and catches the most.
+      - name: Type check
+        run: npx tsc --noEmit
+
+      # Warnings are allowed through; errors are not. An unused import is an
+      # error to `next build`, so catching it here saves a red deploy.
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
