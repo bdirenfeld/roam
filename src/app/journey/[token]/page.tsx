@@ -125,6 +125,12 @@ export default async function ClaimPage({ params }: Props) {
         // the takeoff — which reads worse than the bug it replaced.
         ...cardTimes(c),
         noteTitle: typeof c.details?.title === "string" ? (c.details.title as string) : null,
+        // The whole reason this page exists. 262 cards carry a note saying what
+        // the place is and why it was chosen; the query never asked for it, so
+        // the people the journey was written for got a bare address where the
+        // owner got the explanation (Brennan, Sept 2026 — the Costa Rica
+        // problem: "everyone was asking me the same questions every day").
+        note: typeof c.details?.notes === "string" ? (c.details.notes as string) : null,
         place: c.place
           ? {
               title: c.place.title,

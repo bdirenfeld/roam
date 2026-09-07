@@ -4,14 +4,22 @@
 // first eleven accounts existed only because somebody had to sign in to look.
 // The link is the secret; holding it is the permission.
 //
-// What it shows is the itinerary and nothing else. Deliberately absent:
-// attachments (flight confirmations carry passport and payment details),
-// entry requirements, the budget, journey notes, travellers' names and ages.
-// Someone forwarding the link to a taxi driver should not be handing over
-// anybody's paperwork.
+// Still deliberately absent: attachments, the budget, travellers' names and
+// ages. Someone forwarding the link to a taxi driver should not be handing
+// over anybody's paperwork — flight confirmations carry passport and payment
+// details, and that has not changed.
+//
+// Card notes DO show, from Sept 2026. They were withheld under the same blanket
+// rule and should not have been: they are the answer to "what is this place and
+// why are we going", written by the host for exactly these readers. Checked
+// before the change — across 262 notes none carried a secret, and the habit is
+// already to keep them out ("Lockbox is outside the main door — code stored
+// separately"). If that ever stops being true the fix is on the writing end,
+// not here.
 
 import { subTypeLabel } from "@/lib/subTypeLabel";
 import { formatTimeRange } from "@/lib/formatTime";
+import DayHeading from "./DayHeading";
 import RefreshOnFocus from "./RefreshOnFocus";
 import JoinButton from "./JoinButton";
 
@@ -32,6 +40,7 @@ export interface SharedCard {
   end: string | null;
   place: SharedPlace | null;
   noteTitle: string | null;
+  note: string | null;
 }
 export interface SharedDay {
   id: string;
@@ -62,6 +71,19 @@ function longDate(iso: string): string {
   return new Date(iso + "T12:00:00").toLocaleDateString("en-GB", {
     weekday: "long", day: "numeric", month: "long",
   });
+}
+
+/** The four things Brennan actually types: **bold**, ## headings, "- " bullets
+ *  and "- [ ]" checkboxes. Everything else is left alone, deliberately — this
+ *  strips syntax, it does not render markdown. */
+function plainNote(s: string): string {
+  return s
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^\s*[-*]\s+\[[ xX]\]\s*/gm, "• ")
+    .replace(/^\s*[-*]\s+/gm, "• ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 function range(start: string | null, end: string | null): string | null {
@@ -120,10 +142,7 @@ export default function SharedItinerary({ token, journey }: { token: string; jou
               if (cards.length === 0) return null;
               return (
                 <section key={day.id} className="mb-9">
-                  <h2 className="font-display italic text-[20px]">{longDate(day.date)}</h2>
-                  {day.title && (
-                    <p className="text-[13px] mt-0.5" style={{ color: CAPTION }}>{day.title}</p>
-                  )}
+                  <DayHeading date={day.date} label={longDate(day.date)} title={day.title} />
                   <div className="mt-3">
                     {cards.map((c) => {
                       const when = formatTimeRange(c.start, c.end);
@@ -158,6 +177,18 @@ export default function SharedItinerary({ token, journey }: { token: string; jou
                               ) : (
                                 <p className="text-[12.5px] mt-[3px] leading-[1.45]" style={{ color: CAPTION }}>{detail}</p>
                               )
+                            )}
+                            {c.note && (
+                              // Subordinate on purpose: the times are what you
+                              // scan, the note is what you read when you want to
+                              // know why. Line breaks are kept because the notes
+                              // are written in short blocks, not prose.
+                              <p
+                                className="text-[12.5px] mt-2 leading-[1.55] pl-2.5"
+                                style={{ color: "rgba(26,26,46,0.72)", borderLeft: `2px solid ${RULE}`, whiteSpace: "pre-line" }}
+                              >
+                                {plainNote(c.note)}
+                              </p>
                             )}
                           </div>
                           {c.place?.photo && (
