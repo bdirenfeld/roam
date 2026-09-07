@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
 import ClaimSignIn from "./ClaimSignIn";
-import SharedItinerary, { type SharedCard, type SharedDay } from "./SharedItinerary";
+import SharedItinerary, { type SharedCard, type SharedDay, type SharedEntryLine } from "./SharedItinerary";
 import { cachedPhotoUrl } from "@/lib/places/photoCache";
 import { agendaOrder } from "@/lib/agendaOrder";
 import { cardTimes } from "@/lib/cardTime";
@@ -71,7 +71,7 @@ export default async function ClaimPage({ params }: Props) {
     const admin = createAdminClient();
     const { data: t } = await admin
       .from("trips")
-      .select("id, title, destination, start_date, end_date, cover_image_url, user_id")
+      .select("id, title, destination, start_date, end_date, cover_image_url, user_id, accommodation_name, accommodation_address")
       .eq("share_token", shareToken)
       .maybeSingle();
     if (!t) return <ClaimSignIn token={shareToken} invite={null} />;
@@ -85,8 +85,9 @@ export default async function ClaimPage({ params }: Props) {
     // `day_name`, not `title` — the live schema is the source of truth and a
     // wrong column makes PostgREST return an error with null data, which
     // renders as a journey with no days at all (caught in review, Sept 2026).
-    const [{ data: dayRows, error: dayErr }, { data: cardRows, error: cardErr }] = await Promise.all([
+    const [{ data: dayRows, error: dayErr }, { data: entryRow }, { data: cardRows, error: cardErr }] = await Promise.all([
       admin.from("days").select("id, date, day_number, day_name").eq("trip_id", t.id).order("day_number"),
+      admin.from("trip_entry").select("data").eq("trip_id", t.id).maybeSingle(),
       admin
         .from("cards")
         .select("id, day_id, start_time, end_time, position, details, place:places ( title, sub_type, address, photo_cache )")
@@ -98,6 +99,32 @@ export default async function ClaimPage({ params }: Props) {
       // Never show an empty-looking journey because a query failed.
       console.error("[Roam] shared itinerary read failed:", dayErr?.message ?? cardErr?.message);
     }
+
+    // The questions that are not about any one card: where the house is, what
+    // you need to get into the country. Both were already stored and neither
+    // had anywhere to appear (Costa Rica, March 2026 — the same questions every
+    // day). Only `label` and `text` cross over: `why` is the reasoning behind
+    // the lookup, and `done`/`deadline` are the host's own task state.
+    //
+    // Nothing here is anybody's paperwork. trip_entry holds public entry rules
+    // — "no visa required for Canadians", "each passport valid 3 months beyond
+    // the return" — and its only personal column is the nationality it looked
+    // them up for. Checked across all six journeys that have it before shipping.
+    type EntryLine = { label?: unknown; text?: unknown };
+    const entryLines = Array.isArray((entryRow?.data as { lines?: unknown } | null)?.lines)
+      ? (((entryRow!.data as { lines: EntryLine[] }).lines) ?? [])
+      : [];
+    const entry: SharedEntryLine[] = entryLines
+      .filter((l) => typeof l?.label === "string" && typeof l?.text === "string" && (l.text as string).trim())
+      .map((l) => ({ label: l.label as string, text: (l.text as string).trim() }));
+
+    const staying =
+      (t.accommodation_name as string | null) || (t.accommodation_address as string | null)
+        ? {
+            name: (t.accommodation_name as string | null) ?? null,
+            address: (t.accommodation_address as string | null) ?? null,
+          }
+        : null;
 
     const days: SharedDay[] = (dayRows ?? []).map((d) => ({
       id: d.id as string,
@@ -152,6 +179,8 @@ export default async function ClaimPage({ params }: Props) {
           endDate: (t.end_date as string | null) ?? null,
           cover: (t.cover_image_url as string | null) ?? null,
           host,
+          staying,
+          entry,
           days,
           cards,
         }}

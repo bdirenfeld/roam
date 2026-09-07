@@ -48,6 +48,10 @@ export interface SharedDay {
   dayNumber: number;
   title: string | null;
 }
+export interface SharedEntryLine {
+  label: string;
+  text: string;
+}
 export interface SharedJourney {
   title: string;
   destination: string | null;
@@ -55,6 +59,8 @@ export interface SharedJourney {
   endDate: string | null;
   cover: string | null;
   host: string | null;
+  staying: { name: string | null; address: string | null } | null;
+  entry: SharedEntryLine[];
   days: SharedDay[];
   cards: SharedCard[];
 }
@@ -129,6 +135,51 @@ export default function SharedItinerary({ token, journey }: { token: string; jou
           <p className="text-[14px] mt-1.5" style={{ color: CAPTION }}>
             {[journey.destination, dates].filter(Boolean).join(" · ")}
           </p>
+        )}
+
+        {(journey.staying || journey.entry.length > 0) && (
+          // Above the plan, not inside it: these are true on every day of the
+          // trip, so burying them on day one would just move the question.
+          <section
+            className="mt-7 rounded-xl px-4 py-4"
+            style={{ background: "#FFFFFF", border: `1px solid ${RULE}` }}
+          >
+            <h2 className="text-[10px] uppercase" style={{ letterSpacing: "0.14em", color: "rgba(26,26,46,0.5)" }}>
+              Good to know
+            </h2>
+            <dl className="mt-3 flex flex-col gap-3">
+              {journey.staying && (
+                <div>
+                  <dt className="text-[10px] uppercase" style={{ letterSpacing: "0.07em", color: "rgba(26,26,46,0.5)" }}>
+                    Where we&rsquo;re staying
+                  </dt>
+                  <dd className="text-[13.5px] mt-[3px] leading-[1.45] m-0">
+                    {journey.staying.address ? (
+                      <a
+                        href={mapsHref(journey.staying.name, journey.staying.address)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline underline-offset-2"
+                        style={{ textDecorationColor: "rgba(26,26,46,0.25)" }}
+                      >
+                        {[journey.staying.name, journey.staying.address].filter(Boolean).join(" — ")}
+                      </a>
+                    ) : (
+                      journey.staying.name
+                    )}
+                  </dd>
+                </div>
+              )}
+              {journey.entry.map((line) => (
+                <div key={line.label}>
+                  <dt className="text-[10px] uppercase" style={{ letterSpacing: "0.07em", color: "rgba(26,26,46,0.5)" }}>
+                    {line.label}
+                  </dt>
+                  <dd className="text-[13.5px] mt-[3px] leading-[1.45] m-0">{line.text}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
         )}
 
         {planned === 0 ? (
