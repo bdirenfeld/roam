@@ -54,12 +54,16 @@ function ClipGlyph({ color }: { color: string }) {
  * has neither a checklist nor attachments, so no card face pays for it in
  * whitespace.
  */
-export default function CardBadges({ card, className = "" }: { card: Card; className?: string }) {
+export default function CardBadges({ card, className = "", showBooked = true }: { card: Card; className?: string;
+  /** Off where the surface already carries its own booked control — the Agenda
+   *  has a tappable tick beside the title, and drawing the pill as well said
+   *  the same thing twice on one card. */
+  showBooked?: boolean }) {
   const progress = checklistProgress(card.details);
   const attachments = card.attachment_count ?? 0;
   // `confirmed` is only ever set on a card that can be booked — a flight, a
   // hotel, a restaurant, a guided thing — so it needs no second test here.
-  const booked = card.confirmed === true;
+  const booked = showBooked && card.confirmed === true;
 
   if (!progress && attachments < 1 && !booked) return null;
 

@@ -284,7 +284,9 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
           </p>
         )}
 
-        <CardBadges card={card} className="mt-1.5" />
+        {/* No Booked pill here: the tick beside the title above is this card's
+            booked control, and it toggles. */}
+        <CardBadges card={card} className="mt-1.5" showBooked={false} />
       </div>
 
       {/* The photograph, where there is one. Note cards and unlinked entries
