@@ -148,6 +148,23 @@ export default function SharedItinerary({
           </p>
         )}
 
+        {/* A credit, not a pitch. Most people reading this are passengers who
+            want to know when the taxi comes; the one in ten who organises trips
+            themselves has just read twelve days where every stop has a reason,
+            and has already had the thought. They need the name, not persuading.
+            Everything longer than this was cut — "plan your own journey" reads
+            the same with "space travel" in it, which is the test it fails. */}
+        <p className="text-[12px] mt-2.5" style={{ color: CAPTION }}>
+          Planned in{" "}
+          <a
+            href="/"
+            className="underline underline-offset-2"
+            style={{ color: INK, textDecorationColor: "rgba(26,26,46,0.3)" }}
+          >
+            Roam
+          </a>
+        </p>
+
         {(journey.staying || journey.entry.length > 0) && (
           // Above the plan, not inside it: these are true on every day of the
           // trip, so burying them on day one would just move the question.
@@ -302,7 +319,7 @@ export default function SharedItinerary({
               ? "This is the whole of it. A guest sees the plan, your notes and what they need to get in — not the map, Bookings, Ideas, or anything they could change."
               : `This page always shows the latest plan${firstName ? ` as ${firstName} changes it` : ""}. Keep the link, or sign in and the journey lives in your app — no link needed.`}
           </p>
-          {!preview && <JoinButton token={token} label="Sign in to keep this journey" />}
+          {!preview && <JoinButton token={token} label="Keep this on your phone" />}
         </div>
       </div>
     </main>
