@@ -162,6 +162,13 @@ export default function WhereToStaySheet({ trip, placesCount, focusedId, onFocus
     }
   }
 
+  async function heart(c: StayCandidate) {
+    const res = await fetch("/api/stays/mark", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ candidateId: c.id, action: "heart" }) });
+    const json = await res.json();
+    if (!res.ok) { toast({ message: "Couldn't do that." }); return; }
+    publish(cands.map((x) => x.id === c.id ? { ...x, feel: json.feel } : x));
+  }
+
   async function reject(c: StayCandidate, reason: StayRejectReason) {
     setAskingId(null);
     setBusyId(c.id);
@@ -298,14 +305,30 @@ export default function WhereToStaySheet({ trip, placesCount, focusedId, onFocus
                                 Save
                               </button>
                             )}
+                            <button
+                              type="button"
+                              aria-label={c.feel === "up" ? "Un-heart" : "Heart"}
+                              aria-pressed={c.feel === "up"}
+                              onClick={() => heart(c)}
+                              className="ml-auto h-[30px] w-[30px] inline-flex items-center justify-center"
+                              style={{ color: c.feel === "up" ? SIENNA : CAPTION }}
+                            >
+                              <svg width="17" height="17" viewBox="0 0 24 24" fill={c.feel === "up" ? SIENNA : "none"} stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.4 4.5 7 4.5c2 0 3.4 1.1 5 3 1.6-1.9 3-3 5-3 3.6 0 5.6 3.5 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2z" /></svg>
+                            </button>
                             {!chosen && (
-                              <button type="button" aria-label="Not for us" onClick={() => setAskingId(c.id)} className="ml-auto h-[30px] px-2 text-[13px]" style={{ color: CAPTION }}>
+                              <button type="button" aria-label="Not for us" onClick={() => setAskingId(c.id)} className="h-[30px] px-2 text-[13px]" style={{ color: CAPTION }}>
                                 ✕
                               </button>
                             )}
                           </div>
                         )}
                       </div>
+                      {c.photos?.[0] ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={c.photos[0]} alt="" loading="lazy" className="w-[52px] h-[52px] rounded-lg object-cover flex-shrink-0" style={{ background: "rgba(26,26,46,0.06)" }} />
+                      ) : (
+                        <div className="w-[52px] h-[52px] rounded-lg flex-shrink-0" style={{ background: "rgba(26,26,46,0.06)" }} />
+                      )}
                     </div>
                   );
                 })}

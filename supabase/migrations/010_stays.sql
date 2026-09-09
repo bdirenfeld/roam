@@ -75,3 +75,10 @@ create policy "Users can manage stay candidates of own trips"
   );
 
 create index if not exists stay_candidates_trip_id_idx on public.stay_candidates(trip_id);
+
+-- 9 Sept 2026, from his phone: photos took too long to appear (a details call
+-- and eight redirects at tap time), so the search resolves the first few photo
+-- URLs when it runs; and a thumbs-up/down the next run learns from.
+alter table public.stay_candidates
+  add column if not exists photos text[] not null default '{}',
+  add column if not exists feel text;                 -- up | down

@@ -116,18 +116,40 @@ export async function lodgingNear(key: string, query: string, lat: number, lng: 
   }
 }
 
-/** The review texts Google holds for a place (five at most), plus the website. */
-export async function placeReviews(key: string, googlePlaceId: string): Promise<{ texts: string[]; website: string | null }> {
+/**
+ * What Google holds for a place that the sheet needs at once: the review
+ * texts (five at most), the website, and the first few photos resolved to
+ * URLs. Resolving here, when the search runs, is what makes the card open
+ * instantly — done at tap time it was a details call plus eight redirects
+ * (Brennan, from his phone, 9 Sept 2026: "takes way too long").
+ */
+export async function placeExtras(key: string, googlePlaceId: string, photoCount = 4): Promise<{ texts: string[]; website: string | null; photos: string[] }> {
   const url = new URL("https://maps.googleapis.com/maps/api/place/details/json");
   url.searchParams.set("place_id", googlePlaceId);
-  url.searchParams.set("fields", "reviews,website");
+  url.searchParams.set("fields", "reviews,website,photos");
   url.searchParams.set("key", key);
   try {
     const res = await fetch(url.toString(), { next: { revalidate: 0 } });
-    const json = await res.json() as { result?: { reviews?: { text?: string }[]; website?: string } };
-    return { texts: (json.result?.reviews ?? []).map((r) => r.text ?? "").filter(Boolean), website: json.result?.website ?? null };
+    const json = await res.json() as { result?: { reviews?: { text?: string }[]; website?: string; photos?: { photo_reference?: string }[] } };
+    const refs = (json.result?.photos ?? []).map((p) => p.photo_reference).filter((r): r is string => !!r).slice(0, photoCount);
+    const photos = (await Promise.all(refs.map((r) => photoUrl(key, r)))).filter((u): u is string => !!u);
+    return { texts: (json.result?.reviews ?? []).map((r) => r.text ?? "").filter(Boolean), website: json.result?.website ?? null, photos };
   } catch {
-    return { texts: [], website: null };
+    return { texts: [], website: null, photos: [] };
+  }
+}
+
+/** The CDN URL behind a Google photo reference (the redirect target), or null. */
+async function photoUrl(key: string, ref: string): Promise<string | null> {
+  const url = new URL("https://maps.googleapis.com/maps/api/place/photo");
+  url.searchParams.set("photoreference", ref);
+  url.searchParams.set("maxwidth", "800");
+  url.searchParams.set("key", key);
+  try {
+    const res = await fetch(url.toString(), { redirect: "manual" });
+    return res.headers.get("location");
+  } catch {
+    return null;
   }
 }
 

@@ -8,7 +8,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
-import { loadTripContext, googleKey, driveMinutes, lodgingNear, placeReviews } from "../_shared";
+import { loadTripContext, googleKey, driveMinutes, lodgingNear, placeExtras } from "../_shared";
 import { driveHours, driveLine, driveDelta, usableAnchorIndexes } from "@/lib/stays/drive";
 import { areaHeadline, areaLine, splitText, reviewNotes } from "@/lib/stays/text";
 
@@ -41,13 +41,15 @@ export async function POST(request: NextRequest) {
   if (!centre) return NextResponse.json({ error: "Add a few places first so Roam knows where the journey goes." }, { status: 422 });
 
   // What an earlier run taught us.
-  const { data: previous } = await supabase.from("stay_candidates").select("id, name, google_place_id, place_id, status, reject_reason").eq("trip_id", trip.id);
+  const { data: previous } = await supabase.from("stay_candidates").select("id, name, google_place_id, place_id, status, reject_reason, feel, photos").eq("trip_id", trip.id);
   const rejected = (previous ?? []).filter((p) => p.status === "rejected");
   const rejectedNames = new Set(rejected.map((p) => p.name.toLowerCase()));
   const rejectedGoogle = new Set(rejected.map((p) => p.google_place_id).filter(Boolean));
   const tooFar = rejected.some((p) => p.reject_reason === "too_far");
   // Saved and chosen rows carry their status forward onto the fresh row for the same place.
-  const kept = (previous ?? []).filter((p) => p.status === "saved" || p.status === "chosen");
+  // A hearted row is kept like a saved one, and says what to look for next.
+  const kept = (previous ?? []).filter((p) => p.status === "saved" || p.status === "chosen" || p.feel === "up");
+  const liked = kept.filter((p) => p.feel === "up");
   const keptFor = (c: { place_id: string | null; google_place_id: string | null; name: string }) =>
     kept.find((k) => (c.place_id && k.place_id === c.place_id) || (c.google_place_id && k.google_place_id === c.google_place_id) || k.name.toLowerCase() === c.name.toLowerCase());
   const radiusM = tooFar ? 9000 : 15000;
@@ -61,7 +63,13 @@ export async function POST(request: NextRequest) {
     name: s.title, address: s.address, lat: s.lat, lng: s.lng, google_place_id: s.google_place_id, place_id: s.place_id,
     site: "google", url: s.website, score: s.rating, score_scale: 5, reviews: null, source: "saved",
   }));
-  const query = brief.kind === "house" ? `villa with pool near ${centre.label}` : `hotel in ${centre.label}`;
+  // What they hearted steers the words: a liked "Villa …" asks for villas even on a
+  // hotel-shaped journey, a liked hotel or resort the other way round.
+  const likedNames = liked.map((p) => p.name.toLowerCase()).join(" ");
+  const wantHouse = /\b(villa|casa|farmhouse|agriturismo|cottage|house)\b/.test(likedNames) ? true
+    : /\b(hotel|resort|inn|ryokan|lodge)\b/.test(likedNames) ? false
+    : brief.kind === "house";
+  const query = wantHouse ? `villa with pool near ${centre.label}` : `hotel in ${centre.label}`;
   const hits = await lodgingNear(key, query, centre.lat, centre.lng, radiusM);
   const seen = new Set(cands.map((c) => c.name.toLowerCase()));
   hits
@@ -113,9 +121,9 @@ export async function POST(request: NextRequest) {
   scored.sort((a, b) => a.hours - b.hours || (b.c.score ?? 0) - (a.c.score ?? 0));
 
   // Reviews for the Google ones (an Atmosphere-tier call each, capped by MAX_GOOGLE).
-  const notes = new Map<string, { texts: string[]; website: string | null }>();
+  const notes = new Map<string, { texts: string[]; website: string | null; photos: string[] }>();
   await Promise.all(scored.filter((s) => s.c.google_place_id).slice(0, 8).map(async (s) => {
-    notes.set(s.c.google_place_id as string, await placeReviews(key, s.c.google_place_id as string));
+    notes.set(s.c.google_place_id as string, await placeExtras(key, s.c.google_place_id as string));
   }));
 
   // Replace the last run's rows. Rejected ones stay, so they are never proposed
@@ -146,6 +154,8 @@ export async function POST(request: NextRequest) {
       drive: { hours: s.hours, line: s.line, minutes: s.minutes },
       status: prior?.status ?? "candidate",
       source: s.c.source,
+      feel: prior?.feel ?? null,
+      photos: rv?.photos?.length ? rv.photos : (prior?.photos ?? []),
     };
   });
   const { data: written, error } = await supabase.from("stay_candidates").insert(rows).select("*");

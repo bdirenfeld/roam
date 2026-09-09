@@ -233,6 +233,10 @@ export interface StayCandidate {
   reject_reason: StayRejectReason | null
   source: 'saved' | 'google' | 'search'
   google_place_id: string | null
+  /** Resolved photo URLs, first few, fetched when the search ran so the card opens at once. */
+  photos: string[]
+  /** A thumbs-up the next run keeps and learns from. */
+  feel: 'up' | null
   created_at: string
 }
 

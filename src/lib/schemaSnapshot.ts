@@ -38,7 +38,7 @@ export const SCHEMA: Record<string, string[]> = {
   people: ["id", "trip_id", "name", "birthdate", "notes", "position", "created_at", "updated_at"],
   places: ["id", "user_id", "google_place_id", "title", "type", "sub_type", "lat", "lng", "address", "cover_image_url", "phone", "website", "hours", "rating", "price_level", "details", "archived", "archived_at", "created_at", "updated_at", "loved", "loved_at", "photo_cache", "photo_count"],
   stay_briefs: ["trip_id", "user_id", "ran_at", "brief", "area_text", "split_text"],
-  stay_candidates: ["id", "trip_id", "user_id", "place_id", "letter", "name", "address", "lat", "lng", "site", "url", "total", "currency", "nightly_cad", "beds", "baths", "sleeps", "pool", "ac", "score", "score_scale", "reviews", "review_notes", "fit_text", "flags", "drive", "status", "reject_reason", "source", "created_at", "google_place_id"],
+  stay_candidates: ["id", "trip_id", "user_id", "place_id", "letter", "name", "address", "lat", "lng", "site", "url", "total", "currency", "nightly_cad", "beds", "baths", "sleeps", "pool", "ac", "score", "score_scale", "reviews", "review_notes", "fit_text", "flags", "drive", "status", "reject_reason", "source", "created_at", "google_place_id", "photos", "feel"],
   travel_windows: ["id", "user_id", "label", "start_date", "end_date", "created_at"],
   trip_budgets: ["trip_id", "user_id", "currency", "fx_to_cad", "assumptions", "created_at", "updated_at", "basis"],
   trip_entry: ["trip_id", "passports", "data", "changed", "checked_at", "updated_at", "hidden_headline"],

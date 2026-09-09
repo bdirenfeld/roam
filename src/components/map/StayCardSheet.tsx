@@ -56,18 +56,20 @@ async function loadPhotos(googlePlaceId: string): Promise<{ photos: string[]; we
 }
 
 export default function StayCardSheet({ candidate: c, brief, startDate, endDate, nights, busy, onChoose, onSave, onClose }: Props) {
-  const [photos, setPhotos] = useState<string[] | null>(null);
+  // The search already resolved the first few photos; only an older row still fetches.
+  const [photos, setPhotos] = useState<string[] | null>(c.photos?.length ? c.photos : null);
   const [website, setWebsite] = useState<string | null>(c.url);
   const [idx, setIdx] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
+    if (c.photos?.length) return;
     if (!c.google_place_id) { setPhotos([]); return; }
     loadPhotos(c.google_place_id)
       .then((r) => { if (!cancelled) { setPhotos(r.photos); if (r.website) setWebsite(r.website); } })
       .catch(() => { if (!cancelled) setPhotos([]); });
     return () => { cancelled = true; };
-  }, [c.google_place_id]);
+  }, [c.google_place_id, c.photos]);
 
   const chosen = c.status === "chosen";
   const scale: 5 | 10 = c.score_scale === 10 ? 10 : 5;
