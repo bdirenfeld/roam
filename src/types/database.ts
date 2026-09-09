@@ -189,6 +189,52 @@ export interface TripList {
   created_at: string
 }
 
+// ── Where to stay ─────────────────────────────────────────────────────────
+export type StayCandidateStatus = 'candidate' | 'saved' | 'chosen' | 'rejected'
+export type StayRejectReason = 'too_far' | 'too_dear' | 'not_our_look' | 'doesnt_fit'
+
+export interface StayBriefRow {
+  trip_id: string
+  user_id: string
+  ran_at: string
+  brief: Record<string, unknown>
+  area_text: string | null
+  split_text: string | null
+}
+
+export interface StayCandidate {
+  id: string
+  trip_id: string
+  user_id: string
+  place_id: string | null
+  letter: string | null
+  name: string
+  address: string | null
+  lat: number | null
+  lng: number | null
+  site: string | null
+  url: string | null
+  total: number | null
+  currency: string | null
+  nightly_cad: number | null
+  beds: number | null
+  baths: number | null
+  sleeps: number | null
+  pool: boolean | null
+  ac: boolean | null
+  score: number | null
+  score_scale: number | null
+  reviews: number | null
+  review_notes: string | null
+  fit_text: string | null
+  flags: string[]
+  drive: { hours?: number; line?: string; minutes?: Record<string, number | null> }
+  status: StayCandidateStatus
+  reject_reason: StayRejectReason | null
+  source: 'saved' | 'google' | 'search'
+  created_at: string
+}
+
 export interface Card {
   id: string
   day_id: string
