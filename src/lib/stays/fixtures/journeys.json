@@ -1,0 +1,2111 @@
+[
+ {
+  "title": "Australia",
+  "startDate": "2026-02-15",
+  "endDate": "2026-02-20",
+  "partyAges": [
+   41,
+   71,
+   8
+  ],
+  "partySize": 3,
+  "archived": false,
+  "pins": [
+   {
+    "title": "Sydney Kingsford Smith Airport",
+    "address": "Mascot NSW 2020, Australia",
+    "lat": -33.950033,
+    "lng": 151.1816955,
+    "subType": "flight_arrival",
+    "dayDate": "2026-02-15",
+    "startTime": "07:00:00"
+   },
+   {
+    "title": "Bondi Beach",
+    "address": "Bondi Beach NSW, Australia",
+    "lat": -33.8908,
+    "lng": 151.2743,
+    "subType": "self_directed",
+    "dayDate": "2026-02-15",
+    "startTime": "09:30:00"
+   },
+   {
+    "title": "Bronte Baths",
+    "address": "Bronte Rd, Bronte NSW 2024, Australia",
+    "lat": -33.9051993,
+    "lng": 151.2692995,
+    "subType": "self_directed",
+    "dayDate": "2026-02-15",
+    "startTime": "10:30:00"
+   },
+   {
+    "title": "Ho Jiak Town Hall",
+    "address": "125 York St, Sydney NSW 2000, Australia",
+    "lat": -33.8717263,
+    "lng": 151.2063255,
+    "subType": "restaurant",
+    "dayDate": "2026-02-15",
+    "startTime": "17:30:00"
+   },
+   {
+    "title": "Barangaroo Reserve",
+    "address": "Hickson Rd, Barangaroo NSW 2000, Australia",
+    "lat": -33.857208,
+    "lng": 151.201206,
+    "subType": "self_directed",
+    "dayDate": "2026-02-16",
+    "startTime": "09:30:00"
+   },
+   {
+    "title": "Bourke Street Bakery Barangaroo",
+    "address": "Unit 4/23 Barangaroo Ave, Barangaroo NSW 2000, Australia",
+    "lat": -33.8645231,
+    "lng": 151.2014267,
+    "subType": "coffee",
+    "dayDate": "2026-02-16",
+    "startTime": "12:30:00"
+   },
+   {
+    "title": "The Rocks",
+    "address": "The Rocks, Sydney NSW, Australia",
+    "lat": -33.8599,
+    "lng": 151.209,
+    "subType": "self_directed",
+    "dayDate": "2026-02-16",
+    "startTime": "13:30:00"
+   },
+   {
+    "title": "Darling Quarter Playground",
+    "address": "1/25 Harbour St, Sydney NSW 2000, Australia",
+    "lat": -33.8744198,
+    "lng": 151.2021812,
+    "subType": "self_directed",
+    "dayDate": "2026-02-16",
+    "startTime": "15:00:00"
+   },
+   {
+    "title": "Lotus Dumpling Bar Circular Quay",
+    "address": "Access on Young St, 50 Bridge St, Sydney NSW 2000, Australia",
+    "lat": -33.8626278,
+    "lng": 151.2112844,
+    "subType": "restaurant",
+    "dayDate": "2026-02-16",
+    "startTime": "17:30:00"
+   },
+   {
+    "title": "Sydney Opera House",
+    "address": "Bennelong Point, Sydney NSW 2000, Australia",
+    "lat": -33.8567844,
+    "lng": 151.2152967,
+    "subType": "guided",
+    "dayDate": "2026-02-16",
+    "startTime": "19:00:00"
+   },
+   {
+    "title": "Luna Park Sydney",
+    "address": "1 Olympic Dr, Milsons Point NSW 2061, Australia",
+    "lat": -33.8476987,
+    "lng": 151.2098382,
+    "subType": "self_directed",
+    "dayDate": "2026-02-17",
+    "startTime": "08:30:00"
+   },
+   {
+    "title": "Mr. Wong",
+    "address": "3 Bridge Ln, Sydney NSW 2000, Australia",
+    "lat": -33.8640567,
+    "lng": 151.2078521,
+    "subType": "restaurant",
+    "dayDate": "2026-02-17",
+    "startTime": "17:30:00"
+   },
+   {
+    "title": "Manly Beach",
+    "address": "Manly Beach, New South Wales, Australia",
+    "lat": -33.7931501,
+    "lng": 151.2876488,
+    "subType": "self_directed",
+    "dayDate": "2026-02-18",
+    "startTime": "09:30:00"
+   },
+   {
+    "title": "Pellegrino 2000",
+    "address": "80 Campbell St, Surry Hills NSW 2010, Australia",
+    "lat": -33.8800003,
+    "lng": 151.2098913,
+    "subType": "restaurant",
+    "dayDate": "2026-02-18",
+    "startTime": "17:30:00"
+   },
+   {
+    "title": "Sydney Opera House",
+    "address": "Bennelong Point, Sydney NSW 2000, Australia",
+    "lat": -33.8567844,
+    "lng": 151.2152967,
+    "subType": "guided",
+    "dayDate": "2026-02-19",
+    "startTime": "09:30:00"
+   },
+   {
+    "title": "Royal Botanic Garden Sydney",
+    "address": "Mrs Macquaries Rd, Sydney NSW 2000, Australia",
+    "lat": -33.8641859,
+    "lng": 151.2165708,
+    "subType": "self_directed",
+    "dayDate": "2026-02-19",
+    "startTime": "11:00:00"
+   },
+   {
+    "title": "Featherdale Sydney Wildlife Park",
+    "address": "217 Kildare Rd, Doonside NSW 2767, Australia",
+    "lat": -33.7658201,
+    "lng": 150.8842415,
+    "subType": "guided",
+    "dayDate": "2026-02-19",
+    "startTime": "13:00:00"
+   },
+   {
+    "title": "Fred's",
+    "address": "380 Oxford St, Paddington NSW 2021, Australia",
+    "lat": -33.8867589,
+    "lng": 151.2300262,
+    "subType": "restaurant",
+    "dayDate": "2026-02-19",
+    "startTime": "19:15:00"
+   },
+   {
+    "title": "Sydney Kingsford Smith Airport",
+    "address": "Mascot NSW 2020, Australia",
+    "lat": -33.950033,
+    "lng": 151.1816955,
+    "subType": "flight_arrival",
+    "dayDate": "2026-02-20",
+    "startTime": "14:00:00"
+   }
+  ]
+ },
+ {
+  "title": "Costa Rica",
+  "startDate": "2026-03-04",
+  "endDate": "2026-03-12",
+  "partyAges": [
+   41,
+   39,
+   8,
+   6,
+   3
+  ],
+  "partySize": 5,
+  "archived": false,
+  "pins": [
+   {
+    "title": "Daniel Oduber International Airport",
+    "address": "S/N, Blvd. Aeropuerto, Provincia de Guanacaste, Liberia, 50101, Costa Rica",
+    "lat": 10.6009852,
+    "lng": -85.5359972,
+    "subType": "flight_arrival",
+    "dayDate": "2026-03-04",
+    "startTime": "14:23:00"
+   },
+   {
+    "title": "Modern Casita",
+    "address": "Playa Langosta, Tamarindo, Guanacaste, Costa Rica",
+    "lat": 10.2836,
+    "lng": -85.8447,
+    "subType": "hotel",
+    "dayDate": "2026-03-04",
+    "startTime": "17:15:00"
+   },
+   {
+    "title": "Pangas Beach Club",
+    "address": "Main road to Tamarindo, 500m SW from Auto Mercado, in front of El Tesoro, Provincia de Guanacaste, Tamarindo, 50309, Costa Rica",
+    "lat": 10.306514,
+    "lng": -85.8365093,
+    "subType": "restaurant",
+    "dayDate": "2026-03-04",
+    "startTime": "18:30:00"
+   },
+   {
+    "title": "Playa Conchal",
+    "address": "Playa Conchal, Guanacaste Province, Costa Rica",
+    "lat": 10.3995996,
+    "lng": -85.8116618,
+    "subType": "self_directed",
+    "dayDate": "2026-03-05",
+    "startTime": "09:00:00"
+   },
+   {
+    "title": "Tamarindo Night Market",
+    "address": "Plaza Palmas, Provincia de Guanacaste, Tamarindo, 50309, Costa Rica",
+    "lat": 10.2960927,
+    "lng": -85.8372108,
+    "subType": "event",
+    "dayDate": "2026-03-05",
+    "startTime": "18:00:00"
+   },
+   {
+    "title": "Skyline Guanacaste",
+    "address": "Carr. Sardinal - Obandito, Provincia de Guanacaste, Sardinal de Carrillo, Costa Rica",
+    "lat": 10.5078963,
+    "lng": -85.6562346,
+    "subType": "guided",
+    "dayDate": "2026-03-06",
+    "startTime": "11:00:00"
+   },
+   {
+    "title": "Green Papaya Taco Bar",
+    "address": "C. Corona 40 50309, Provincia de Guanacaste, Tamarindo, Costa Rica",
+    "lat": 10.2974403,
+    "lng": -85.840332,
+    "subType": "restaurant",
+    "dayDate": "2026-03-06",
+    "startTime": "14:00:00"
+   },
+   {
+    "title": "Ocho Beach Club",
+    "address": "Acceso publico a la playa, Provincia de Guanacaste, Tamarindo, 50309, Costa Rica",
+    "lat": 10.2973034,
+    "lng": -85.8436982,
+    "subType": "restaurant",
+    "dayDate": "2026-03-06",
+    "startTime": "18:00:00"
+   },
+   {
+    "title": "Downtown Tamarindo",
+    "address": "Tamarindo, Guanacaste, Costa Rica",
+    "lat": 10.2993,
+    "lng": -85.8408,
+    "subType": "self_directed",
+    "dayDate": "2026-03-07",
+    "startTime": null
+   },
+   {
+    "title": "Playa Avellanas",
+    "address": "Playa Avellana, Guanacaste Province, Santa Cruz, Costa Rica",
+    "lat": 10.2392766,
+    "lng": -85.8432649,
+    "subType": "self_directed",
+    "dayDate": "2026-03-07",
+    "startTime": "09:00:00"
+   },
+   {
+    "title": "Lola's",
+    "address": "Playa Avellana, Beach front Provincia de Guanacaste Playa Avellana, Guanacaste Province, Santa Cruz, 50303, Costa Rica",
+    "lat": 10.2276811,
+    "lng": -85.8369979,
+    "subType": "restaurant",
+    "dayDate": "2026-03-07",
+    "startTime": "11:15:00"
+   },
+   {
+    "title": "Las Baulas National Marine Park",
+    "address": "500 m SO de la Escuela de Playa Grande 933, Provincia de Guanacaste, Santa Cruz, 50308, Costa Rica",
+    "lat": 10.3278961,
+    "lng": -85.8451661,
+    "subType": "guided",
+    "dayDate": "2026-03-07",
+    "startTime": "20:00:00"
+   },
+   {
+    "title": "Palo Verde National Park",
+    "address": "9MM8+978, Guanacaste Province, Bagaces, Costa Rica",
+    "lat": 10.3834132,
+    "lng": -85.3342973,
+    "subType": "guided",
+    "dayDate": "2026-03-08",
+    "startTime": "08:00:00"
+   },
+   {
+    "title": "Playa Flamingo",
+    "address": "Playa Flamingo, Guanacaste, Costa Rica",
+    "lat": 10.4356,
+    "lng": -85.7947,
+    "subType": "self_directed",
+    "dayDate": "2026-03-10",
+    "startTime": "09:00:00"
+   },
+   {
+    "title": "Coco Loco",
+    "address": "600 metros de Margaritaville resort, Provincia de Guanacaste, Playa Flamingo, 50304, Costa Rica",
+    "lat": 10.432835,
+    "lng": -85.7922209,
+    "subType": "restaurant",
+    "dayDate": "2026-03-10",
+    "startTime": "12:00:00"
+   },
+   {
+    "title": "Downtown Tamarindo",
+    "address": "Tamarindo, Guanacaste, Costa Rica",
+    "lat": 10.2993,
+    "lng": -85.8408,
+    "subType": "self_directed",
+    "dayDate": "2026-03-11",
+    "startTime": "09:30:00"
+   },
+   {
+    "title": "Dragonfly Bar & Grill",
+    "address": "Corona Street 150 meters behind Hotel Pasatiempo Guanacaste Tamarindo, Provincia de Guanacaste, Tamarindo, 50309, Costa Rica",
+    "lat": 10.2975519,
+    "lng": -85.8393661,
+    "subType": "restaurant",
+    "dayDate": "2026-03-11",
+    "startTime": "17:30:00"
+   },
+   {
+    "title": "Modern Casita",
+    "address": "Playa Langosta, Tamarindo, Guanacaste, Costa Rica",
+    "lat": 10.2836,
+    "lng": -85.8447,
+    "subType": "hotel",
+    "dayDate": "2026-03-12",
+    "startTime": "10:30:00"
+   },
+   {
+    "title": "Daniel Oduber International Airport",
+    "address": "S/N, Blvd. Aeropuerto, Provincia de Guanacaste, Liberia, 50101, Costa Rica",
+    "lat": 10.6009852,
+    "lng": -85.5359972,
+    "subType": "flight_arrival",
+    "dayDate": "2026-03-12",
+    "startTime": "14:20:00"
+   }
+  ]
+ },
+ {
+  "title": "Japan",
+  "startDate": "2028-04-02",
+  "endDate": "2028-04-15",
+  "partyAges": null,
+  "partySize": 5,
+  "archived": true,
+  "pins": [
+   {
+    "title": "Tokyo DisneySea",
+    "address": "1-13 Maihama, Urayasu, Chiba 279-8511, Japan",
+    "lat": 35.6267108,
+    "lng": 139.8850779,
+    "subType": "event",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   },
+   {
+    "title": "Wagyu IDATEN",
+    "address": "Japan, 〒542-0076 Osaka, Chuo Ward, Namba, 1-chōme−8−２０ 嘉光ビル 2階",
+    "lat": 34.6677597,
+    "lng": 135.5010546,
+    "subType": "restaurant",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   },
+   {
+    "title": "Osaka Tonkatsu (formerly Chiyomatsu)",
+    "address": "1-chōme-1-10 Sennichimae, Chuo Ward, Osaka, 542-0074, Japan",
+    "lat": 34.6682661,
+    "lng": 135.5052931,
+    "subType": "restaurant",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   },
+   {
+    "title": "Uoi Tengo",
+    "address": "5-chōme-5-5 Tenjinbashi, Kita Ward, Osaka, 530-0041, Japan",
+    "lat": 34.7077505,
+    "lng": 135.5113581,
+    "subType": "restaurant",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   },
+   {
+    "title": "Yakushima Island",
+    "address": "Yakushima Island, Yakushima, Kumage District, Kagoshima, Japan",
+    "lat": 30.3445936,
+    "lng": 130.5127142,
+    "subType": "self_directed",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   },
+   {
+    "title": "Shiratani Unsuikyo Gorge",
+    "address": "Miyanoura, Yakushima, Kumage District, Kagoshima 891-4200, Japan",
+    "lat": 30.3798459,
+    "lng": 130.5742337,
+    "subType": "self_directed",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   },
+   {
+    "title": "Kenroku-en",
+    "address": "1 Kenrokumachi, Kanazawa, Ishikawa 920-0936, Japan",
+    "lat": 36.5621278,
+    "lng": 136.6626515,
+    "subType": "self_directed",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   },
+   {
+    "title": "The Bellwood",
+    "address": "41-31 Udagawachō, Shibuya, Tokyo 150-0042, Japan",
+    "lat": 35.6631041,
+    "lng": 139.6949951,
+    "subType": "bar",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   },
+   {
+    "title": "Asaba Ryokan",
+    "address": "3450-1 Shuzenji, Izu, Shizuoka 410-2416, Japan",
+    "lat": 34.9690579,
+    "lng": 138.9247661,
+    "subType": "hotel",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   },
+   {
+    "title": "Takefue",
+    "address": "5725ｰ1 Manganji, Minamioguni, Aso District, Kumamoto 869-2402, Japan",
+    "lat": 33.0647718,
+    "lng": 131.1510189,
+    "subType": "hotel",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   },
+   {
+    "title": "Kitan Hibiki",
+    "address": "1-chōme-1-7 Namba, Chuo Ward, Osaka, 542-0076, Japan",
+    "lat": 34.6680359,
+    "lng": 135.502638,
+    "subType": "restaurant",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   },
+   {
+    "title": "Capy Neko Cafe Kichijoji",
+    "address": "Japan, 〒180-0003 Tokyo, Musashino, Kichijōji Minamichō, 1-chōme−5−１０ PLATANO 2階",
+    "lat": 35.7025513,
+    "lng": 139.5789374,
+    "subType": "coffee",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   },
+   {
+    "title": "Murou Art Forest",
+    "address": "181 Murou, Uda, Nara 633-0421, Japan",
+    "lat": 34.5370822,
+    "lng": 136.0316225,
+    "subType": "self_directed",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   },
+   {
+    "title": "Bar Benfiddich",
+    "address": "Japan, 〒160-0023 Tokyo, Shinjuku City, Nishishinjuku, 1-chōme−13−７ 9F",
+    "lat": 35.6894823,
+    "lng": 139.6966117,
+    "subType": "bar",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   },
+   {
+    "title": "The Münch",
+    "address": "2-chōme-386 Osakabe, Yao, Osaka 581-0015, Japan",
+    "lat": 34.6149988,
+    "lng": 135.619448,
+    "subType": "coffee",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   },
+   {
+    "title": "Kayaba Coffee",
+    "address": "6-chōme-1-29 Yanaka, Taito City, Tokyo 110-0001, Japan",
+    "lat": 35.721158,
+    "lng": 139.770721,
+    "subType": "coffee",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   },
+   {
+    "title": "Toyo",
+    "address": "3-chōme-2-26 Higashinodamachi, Miyakojima Ward, Osaka, 534-0024, Japan",
+    "lat": 34.697203,
+    "lng": 135.5351173,
+    "subType": "restaurant",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   },
+   {
+    "title": "Takachiho Gorge",
+    "address": "Mukoyama, Takachiho, Nishiusuki District, Miyazaki 882-1103, Japan",
+    "lat": 32.7012777,
+    "lng": 131.3007272,
+    "subType": "self_directed",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   },
+   {
+    "title": "HOSHINOYA Tokyo",
+    "address": "1-chōme-9-1 Ōtemachi, Chiyoda City, Tokyo 100-0004, Japan",
+    "lat": 35.6875834,
+    "lng": 139.7650244,
+    "subType": "hotel",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   },
+   {
+    "title": "Jigokudani Monkey Park",
+    "address": "6845 Hirao, Yamanouchi, Shimotakai District, Nagano 381-0401, Japan",
+    "lat": 36.7326856,
+    "lng": 138.4621364,
+    "subType": "self_directed",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   },
+   {
+    "title": "KUOE KYOTO Omotesando",
+    "address": "4-chōme-3-17 Jingūmae, Shibuya, Tokyo 150-0001, Japan",
+    "lat": 35.6670634,
+    "lng": 139.710296,
+    "subType": "guided",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   },
+   {
+    "title": "Super Nintendo World",
+    "address": "2-chōme-1-33 Sakurajima, Konohana Ward, Osaka, 554-0031, Japan",
+    "lat": 34.6679674,
+    "lng": 135.4303226,
+    "subType": "self_directed",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   },
+   {
+    "title": "Kanazawa",
+    "address": "Kanazawa, Ishikawa, Japan",
+    "lat": 36.5597341,
+    "lng": 136.6520376,
+    "subType": "self_directed",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   },
+   {
+    "title": "Ghibli Museum",
+    "address": "1-chōme-1-83 Shimorenjaku, Mitaka, Tokyo 181-0013, Japan",
+    "lat": 35.696238,
+    "lng": 139.5704317,
+    "subType": "self_directed",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   },
+   {
+    "title": "Shichirigahama",
+    "address": "Shichirigahama, 2 Chome-1 Shichirigahamahigashi, Kamakura, Kanagawa 248-0025, Japan",
+    "lat": 35.3047816,
+    "lng": 139.5107434,
+    "subType": "guided",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   },
+   {
+    "title": "Bar Centifolia",
+    "address": "Japan, 〒106-0045 Tokyo, Minato City, Azabujūban, 1-chōme−6−５ ラミューズ麻布十番ビル 6F",
+    "lat": 35.6563556,
+    "lng": 139.7341917,
+    "subType": "bar",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   },
+   {
+    "title": "A10",
+    "address": "Japan, 〒150-0021 Tokyo, Shibuya, Ebisunishi, 1-chōme−12−１１ Biosビル 地下1階",
+    "lat": 35.6473325,
+    "lng": 139.7073511,
+    "subType": "bar",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   },
+   {
+    "title": "Gion Unagi Kawato",
+    "address": "572-27 Gionmachi Minamigawa, Higashiyama Ward, Kyoto, 605-0074, Japan",
+    "lat": 35.0034777,
+    "lng": 135.774852,
+    "subType": "restaurant",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   },
+   {
+    "title": "”Kyoshu” Traditional Coffee Shop",
+    "address": "107 Ogimachi, Shirakawa, Ono District, Gifu 501-5627, Japan",
+    "lat": 36.2561359,
+    "lng": 136.9059441,
+    "subType": "coffee",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   },
+   {
+    "title": "Kamakura",
+    "address": "Kamakura, Kanagawa, Japan",
+    "lat": 35.3192128,
+    "lng": 139.5466731,
+    "subType": "self_directed",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   },
+   {
+    "title": "Adachi Museum of Art",
+    "address": "320 Furukawachō, Yasugi, Shimane 692-0064, Japan",
+    "lat": 35.3804483,
+    "lng": 133.194708,
+    "subType": "self_directed",
+    "dayDate": "2028-04-02",
+    "startTime": null
+   }
+  ]
+ },
+ {
+  "title": "Last Week of Summer",
+  "startDate": "2026-08-31",
+  "endDate": "2026-09-04",
+  "partyAges": [
+   42,
+   39,
+   9,
+   7,
+   4
+  ],
+  "partySize": 5,
+  "archived": false,
+  "pins": [
+   {
+    "title": "Dog Sense Day Care & Grooming",
+    "address": "535 Wilson Heights Blvd, North York, ON M3H 2V7, Canada",
+    "lat": 43.751147,
+    "lng": -79.4555453,
+    "subType": "pet_care",
+    "dayDate": "2026-08-31",
+    "startTime": "08:30:00"
+   },
+   {
+    "title": "Centreville Amusement Park",
+    "address": "9 Queens Quay W, Toronto, ON M5J 2H3, Canada",
+    "lat": 43.6202922,
+    "lng": -79.3735438,
+    "subType": "self_directed",
+    "dayDate": "2026-08-31",
+    "startTime": "09:15:00"
+   },
+   {
+    "title": "Home — 19 Cedar Springs Grove",
+    "address": "19 Cedar Springs Grove, North York, ON M3H 5L3",
+    "lat": 43.7692014,
+    "lng": -79.4587428,
+    "subType": "restaurant",
+    "dayDate": "2026-08-31",
+    "startTime": "17:30:00"
+   },
+   {
+    "title": "Dog Sense Day Care & Grooming",
+    "address": "535 Wilson Heights Blvd, North York, ON M3H 2V7, Canada",
+    "lat": 43.751147,
+    "lng": -79.4555453,
+    "subType": "pet_care",
+    "dayDate": "2026-09-01",
+    "startTime": "09:30:00"
+   },
+   {
+    "title": "Exhibition Place",
+    "address": "100 Princes' Blvd, Toronto, ON M6K 3C3, Canada",
+    "lat": 43.6350739,
+    "lng": -79.4123625,
+    "subType": "event",
+    "dayDate": "2026-09-01",
+    "startTime": "10:30:00"
+   },
+   {
+    "title": "Dog Sense Day Care & Grooming",
+    "address": "535 Wilson Heights Blvd, North York, ON M3H 2V7, Canada",
+    "lat": 43.751147,
+    "lng": -79.4555453,
+    "subType": "pet_care",
+    "dayDate": "2026-09-02",
+    "startTime": "10:30:00"
+   },
+   {
+    "title": "Splash Works",
+    "address": "1 Canada's Wonderland Drive, Vaughan, ON L4H 2E8, Canada",
+    "lat": 43.8400952,
+    "lng": -79.5436222,
+    "subType": "self_directed",
+    "dayDate": "2026-09-02",
+    "startTime": "11:00:00"
+   },
+   {
+    "title": "Costco Wholesale",
+    "address": "100 Billy Bishop Wy, North York, ON M3K 2C8, Canada",
+    "lat": 43.7309112,
+    "lng": -79.4557266,
+    "subType": "grocery",
+    "dayDate": "2026-09-02",
+    "startTime": "16:00:00"
+   },
+   {
+    "title": "G Ross Lord Park",
+    "address": "4801 Dufferin St, North York, ON M3H 5T3, Canada",
+    "lat": 43.7796307,
+    "lng": -79.461015,
+    "subType": "self_directed",
+    "dayDate": "2026-09-03",
+    "startTime": "09:30:00"
+   },
+   {
+    "title": "Block Party",
+    "address": "7 Bayhampton Ct, North York, ON M3H 5L5, Canada",
+    "lat": 43.7683957,
+    "lng": -79.4574677,
+    "subType": "event",
+    "dayDate": "2026-09-03",
+    "startTime": "12:00:00"
+   },
+   {
+    "title": "Earl Bales Park",
+    "address": "4169 Bathurst St, North York, ON M3H 3P7, Canada",
+    "lat": 43.7534869,
+    "lng": -79.4322811,
+    "subType": "self_directed",
+    "dayDate": "2026-09-04",
+    "startTime": "11:00:00"
+   }
+  ]
+ },
+ {
+  "title": "New York (Mia & Daddy)",
+  "startDate": "2026-07-23",
+  "endDate": "2026-07-26",
+  "partyAges": null,
+  "partySize": 2,
+  "archived": false,
+  "pins": [
+   {
+    "title": "Books of Wonder",
+    "address": "42 W 17th St, New York, NY 10011, USA",
+    "lat": 40.7386956,
+    "lng": -73.9943253,
+    "subType": "guided",
+    "dayDate": "2026-07-23",
+    "startTime": null
+   },
+   {
+    "title": "Mimi's Frozen Yogurt",
+    "address": "231 Lafayette St, New York, NY 10012, USA",
+    "lat": 40.7223813,
+    "lng": -73.9968912,
+    "subType": "dessert",
+    "dayDate": "2026-07-23",
+    "startTime": null
+   },
+   {
+    "title": "Rockefeller Center",
+    "address": "45 Rockefeller Plaza, New York, NY 10111, USA",
+    "lat": 40.7587402,
+    "lng": -73.9786736,
+    "subType": "self_directed",
+    "dayDate": "2026-07-23",
+    "startTime": null
+   },
+   {
+    "title": "Wicked",
+    "address": "222 W 51st St, New York, NY 10019, USA",
+    "lat": 40.762547,
+    "lng": -73.9849697,
+    "subType": "event",
+    "dayDate": "2026-07-23",
+    "startTime": null
+   },
+   {
+    "title": "Leon's Bagels",
+    "address": "169 Thompson St suite b, New York, NY 10012, USA",
+    "lat": 40.7276854,
+    "lng": -74.0004606,
+    "subType": "coffee",
+    "dayDate": "2026-07-23",
+    "startTime": null
+   },
+   {
+    "title": "Black Seed Bagels | Nolita",
+    "address": "170 Elizabeth St, New York, NY 10012, USA",
+    "lat": 40.7209046,
+    "lng": -73.9946778,
+    "subType": "coffee",
+    "dayDate": "2026-07-23",
+    "startTime": null
+   },
+   {
+    "title": "LaGuardia Airport",
+    "address": "East Elmhurst, NY 11371, USA",
+    "lat": 40.7769271,
+    "lng": -73.8739659,
+    "subType": "flight_arrival",
+    "dayDate": "2026-07-23",
+    "startTime": "09:20:00"
+   },
+   {
+    "title": "11 Howard",
+    "address": "11 Howard St, New York, NY 10013, USA",
+    "lat": 40.719181,
+    "lng": -74.000106,
+    "subType": "hotel",
+    "dayDate": "2026-07-23",
+    "startTime": "14:00:00"
+   },
+   {
+    "title": "Sloomoo Institute",
+    "address": "475 Broadway, New York, NY 10013, USA",
+    "lat": 40.7214259,
+    "lng": -74.0004774,
+    "subType": "guided",
+    "dayDate": "2026-07-23",
+    "startTime": "15:30:00"
+   },
+   {
+    "title": "Rubirosa",
+    "address": "235 Mulberry St, New York, NY 10012, USA",
+    "lat": 40.7227383,
+    "lng": -73.9961347,
+    "subType": "restaurant",
+    "dayDate": "2026-07-23",
+    "startTime": "18:00:00"
+   },
+   {
+    "title": "Figo il Gelato Italiano",
+    "address": "178 Mulberry St, New York, NY 10012, USA",
+    "lat": 40.7206817,
+    "lng": -73.9966157,
+    "subType": "dessert",
+    "dayDate": "2026-07-23",
+    "startTime": "19:30:00"
+   },
+   {
+    "title": "Jack's Wife Freda",
+    "address": "226 Lafayette St, New York, NY 10012, USA",
+    "lat": 40.722146,
+    "lng": -73.997562,
+    "subType": "restaurant",
+    "dayDate": "2026-07-24",
+    "startTime": "08:30:00"
+   },
+   {
+    "title": "Museum of Ice Cream",
+    "address": "558 Broadway, New York, NY 10012, USA",
+    "lat": 40.7238545,
+    "lng": -73.9979167,
+    "subType": "guided",
+    "dayDate": "2026-07-24",
+    "startTime": "10:30:00"
+   },
+   {
+    "title": "Pearl & The Beast",
+    "address": "22 Howard St basement, New York, NY 10013, USA",
+    "lat": 40.71959,
+    "lng": -74.0002196,
+    "subType": "guided",
+    "dayDate": "2026-07-24",
+    "startTime": "13:30:00"
+   },
+   {
+    "title": "Parm Mulberry Street",
+    "address": "248 Mulberry St, New York, NY 10012, USA",
+    "lat": 40.7230643,
+    "lng": -73.9957414,
+    "subType": "restaurant",
+    "dayDate": "2026-07-24",
+    "startTime": "18:00:00"
+   },
+   {
+    "title": "McNally Jackson Books SoHo",
+    "address": "134 Prince St, New York, NY 10012, USA",
+    "lat": 40.7254231,
+    "lng": -74.0006905,
+    "subType": "self_directed",
+    "dayDate": "2026-07-24",
+    "startTime": "19:30:00"
+   },
+   {
+    "title": "Leon’s Bagels",
+    "address": "181 Mulberry St, New York, NY 10012, USA",
+    "lat": 40.7208784,
+    "lng": -73.9968333,
+    "subType": "coffee",
+    "dayDate": "2026-07-25",
+    "startTime": "08:00:00"
+   },
+   {
+    "title": "Museum of Natural History",
+    "address": "81st Street between Central Park West and Columbus Avenue, New York, NY",
+    "lat": 40.7813241,
+    "lng": -73.9739882,
+    "subType": "guided",
+    "dayDate": "2026-07-25",
+    "startTime": "09:30:00"
+   },
+   {
+    "title": "Shake Shack Upper West Side",
+    "address": "366 Columbus Ave, New York, NY 10024, USA",
+    "lat": 40.7808671,
+    "lng": -73.9765697,
+    "subType": "restaurant",
+    "dayDate": "2026-07-25",
+    "startTime": "12:00:00"
+   },
+   {
+    "title": "Milk Bar",
+    "address": "1196 Broadway, New York, NY 10001",
+    "lat": 40.7458268,
+    "lng": -73.9884392,
+    "subType": "guided",
+    "dayDate": "2026-07-25",
+    "startTime": "14:00:00"
+   },
+   {
+    "title": "Minetta Tavern",
+    "address": "113 MacDougal St, New York, NY 10012, USA",
+    "lat": 40.7299922,
+    "lng": -74.0006201,
+    "subType": "restaurant",
+    "dayDate": "2026-07-25",
+    "startTime": "17:30:00"
+   },
+   {
+    "title": "Russ & Daughters Cafe",
+    "address": "127 Orchard St, New York, NY 10002, USA",
+    "lat": 40.719664,
+    "lng": -73.98968,
+    "subType": "restaurant",
+    "dayDate": "2026-07-26",
+    "startTime": "08:30:00"
+   },
+   {
+    "title": "Strand Bookstore",
+    "address": "828 Broadway, New York, NY 10003, USA",
+    "lat": 40.733317,
+    "lng": -73.9909639,
+    "subType": "self_directed",
+    "dayDate": "2026-07-26",
+    "startTime": "10:00:00"
+   },
+   {
+    "title": "Washington Square Park",
+    "address": "Washington Square Park, New York, NY 10012, USA",
+    "lat": 40.7308838,
+    "lng": -73.997332,
+    "subType": "self_directed",
+    "dayDate": "2026-07-26",
+    "startTime": "10:50:00"
+   },
+   {
+    "title": "John's of Bleecker Street",
+    "address": "278 Bleecker St, New York, NY 10014, USA",
+    "lat": 40.7316187,
+    "lng": -74.0034468,
+    "subType": "restaurant",
+    "dayDate": "2026-07-26",
+    "startTime": "11:30:00"
+   },
+   {
+    "title": "LaGuardia Airport",
+    "address": "East Elmhurst, NY 11371, USA",
+    "lat": 40.7769271,
+    "lng": -73.8739659,
+    "subType": "flight_arrival",
+    "dayDate": "2026-07-26",
+    "startTime": "16:00:00"
+   }
+  ]
+ },
+ {
+  "title": "Palm Springs",
+  "startDate": "2027-03-13",
+  "endDate": "2027-03-20",
+  "partyAges": [
+   42,
+   40,
+   9,
+   7,
+   4
+  ],
+  "partySize": 5,
+  "archived": true,
+  "pins": [
+   {
+    "title": "Palm Springs International Airport",
+    "address": "3400 E Tahquitz Canyon Way, Palm Springs, CA 92262, USA",
+    "lat": 33.8303194,
+    "lng": -116.5070468,
+    "subType": "flight_arrival",
+    "dayDate": "2027-03-13",
+    "startTime": "09:00:00"
+   },
+   {
+    "title": "Ralphs",
+    "address": "425 S Sunrise Way Ste A, Palm Springs, CA 92262, USA",
+    "lat": 33.8170613,
+    "lng": -116.5299547,
+    "subType": "grocery",
+    "dayDate": "2027-03-13",
+    "startTime": "12:45:00"
+   },
+   {
+    "title": "Las Casuelas Terraza",
+    "address": "222 S Palm Canyon Dr, Palm Springs, CA 92262, USA",
+    "lat": 33.8207999,
+    "lng": -116.5466148,
+    "subType": "restaurant",
+    "dayDate": "2027-03-13",
+    "startTime": "17:30:00"
+   },
+   {
+    "title": "Moorten Botanical Garden",
+    "address": "1701 S Palm Canyon Dr, Palm Springs, CA 92264, USA",
+    "lat": 33.800232,
+    "lng": -116.5461732,
+    "subType": "self_directed",
+    "dayDate": "2027-03-14",
+    "startTime": "09:00:00"
+   },
+   {
+    "title": "Great Shakes",
+    "address": "160 S Palm Canyon Dr A, Palm Springs, CA 92262, USA",
+    "lat": 33.8216229,
+    "lng": -116.5465937,
+    "subType": "dessert",
+    "dayDate": "2027-03-14",
+    "startTime": "10:00:00"
+   },
+   {
+    "title": "Joshua Tree Visitor Center",
+    "address": "6554 Park Blvd, Joshua Tree, CA 92252, USA",
+    "lat": 34.1340144,
+    "lng": -116.3155721,
+    "subType": "self_directed",
+    "dayDate": "2027-03-15",
+    "startTime": "08:15:00"
+   },
+   {
+    "title": "Hidden Valley Nature Trailhead",
+    "address": "74485 National Park Dr, Twentynine Palms, CA 92277, USA",
+    "lat": 34.0124685,
+    "lng": -116.1680568,
+    "subType": "self_directed",
+    "dayDate": "2027-03-15",
+    "startTime": "08:45:00"
+   },
+   {
+    "title": "Keys View",
+    "address": "California, USA",
+    "lat": 33.9265764,
+    "lng": -116.1872155,
+    "subType": "self_directed",
+    "dayDate": "2027-03-15",
+    "startTime": "10:00:00"
+   },
+   {
+    "title": "Skull Rock",
+    "address": "Skull Rock, California, USA",
+    "lat": 33.9977835,
+    "lng": -116.059446,
+    "subType": "self_directed",
+    "dayDate": "2027-03-15",
+    "startTime": "10:45:00"
+   },
+   {
+    "title": "Pappy & Harriet's",
+    "address": "53688 Pioneertown Rd, Pioneertown, CA 92268, USA",
+    "lat": 34.1563658,
+    "lng": -116.4930925,
+    "subType": "restaurant",
+    "dayDate": "2027-03-15",
+    "startTime": "13:00:00"
+   },
+   {
+    "title": "Ice Cream & Shop(pe)",
+    "address": "1551 N Palm Canyon Dr a, Palm Springs, CA 92262, USA",
+    "lat": 33.8443213,
+    "lng": -116.5469525,
+    "subType": "dessert",
+    "dayDate": "2027-03-16",
+    "startTime": "16:30:00"
+   },
+   {
+    "title": "The Living Desert Zoo and Gardens",
+    "address": "47900 Portola Ave, Palm Desert, CA 92260, USA",
+    "lat": 33.6999789,
+    "lng": -116.3744166,
+    "subType": "self_directed",
+    "dayDate": "2027-03-17",
+    "startTime": "08:00:00"
+   },
+   {
+    "title": "Shields Date Garden",
+    "address": "80-225 CA-111, Indio, CA 92201, USA",
+    "lat": 33.7068261,
+    "lng": -116.2667504,
+    "subType": "dessert",
+    "dayDate": "2027-03-17",
+    "startTime": "12:45:00"
+   },
+   {
+    "title": "Sherman's Deli & Bakery",
+    "address": "401 E Tahquitz Canyon Way, Palm Springs, CA 92262, USA",
+    "lat": 33.8228084,
+    "lng": -116.5432257,
+    "subType": "restaurant",
+    "dayDate": "2027-03-17",
+    "startTime": "17:30:00"
+   },
+   {
+    "title": "Whitewater Preserve",
+    "address": "9160 Whitewater Canyon Rd, Whitewater, CA 92282, USA",
+    "lat": 33.9883177,
+    "lng": -116.655754,
+    "subType": "self_directed",
+    "dayDate": "2027-03-18",
+    "startTime": "09:00:00"
+   },
+   {
+    "title": "VillageFest on Palm Canyon Drive",
+    "address": "Palm Canyon Dr between Amado Rd and Baristo Rd, Palm Springs, CA",
+    "lat": 33.8222,
+    "lng": -116.5466,
+    "subType": "event",
+    "dayDate": "2027-03-18",
+    "startTime": "18:00:00"
+   },
+   {
+    "title": "Palm Springs Aerial Tramway",
+    "address": "1 Tramway Rd, Palm Springs, CA 92262, USA",
+    "lat": 33.8370537,
+    "lng": -116.6141062,
+    "subType": "self_directed",
+    "dayDate": "2027-03-19",
+    "startTime": "10:00:00"
+   },
+   {
+    "title": "Spencer's Restaurant",
+    "address": "701 W Baristo Rd, Palm Springs, CA 92262, USA",
+    "lat": 33.8194144,
+    "lng": -116.5538874,
+    "subType": "restaurant",
+    "dayDate": "2027-03-19",
+    "startTime": "17:30:00"
+   },
+   {
+    "title": "Elmer's Restaurant",
+    "address": "1030 E Palm Canyon Dr, Palm Springs, CA 92264, USA",
+    "lat": 33.8017194,
+    "lng": -116.5363389,
+    "subType": "restaurant",
+    "dayDate": "2027-03-20",
+    "startTime": "08:00:00"
+   },
+   {
+    "title": "Palm Springs International Airport",
+    "address": "3400 E Tahquitz Canyon Way, Palm Springs, CA 92262, USA",
+    "lat": 33.8303194,
+    "lng": -116.5070468,
+    "subType": "flight_arrival",
+    "dayDate": "2027-03-20",
+    "startTime": "12:30:00"
+   }
+  ]
+ },
+ {
+  "title": "Rome April 2026",
+  "startDate": "2026-04-22",
+  "endDate": "2026-04-28",
+  "partyAges": null,
+  "partySize": 2,
+  "archived": false,
+  "pins": [
+   {
+    "title": "Trevi Fountain",
+    "address": "Piazza di Trevi, 00187 Roma RM, Italy",
+    "lat": 41.9009325,
+    "lng": 12.483313,
+    "subType": "guided",
+    "dayDate": "2026-04-22",
+    "startTime": null
+   },
+   {
+    "title": "Gelateria del Teatro",
+    "address": "V. dei Coronari, 65/66, 00186 Roma RM, Italy",
+    "lat": 41.9004943,
+    "lng": 12.4694946,
+    "subType": "dessert",
+    "dayDate": "2026-04-22",
+    "startTime": null
+   },
+   {
+    "title": "Supermarket",
+    "address": "P.za S. Vincenzo Pallotti, 207, 00186 Roma RM, Italy",
+    "lat": 41.892966,
+    "lng": 12.4712941,
+    "subType": "grocery",
+    "dayDate": "2026-04-22",
+    "startTime": null
+   },
+   {
+    "title": "Bonci Pizzarium",
+    "address": "Via della Meloria, 43, 00136 Roma RM, Italy",
+    "lat": 41.9066758,
+    "lng": 12.4466709,
+    "subType": "restaurant",
+    "dayDate": "2026-04-22",
+    "startTime": null
+   },
+   {
+    "title": "Hospital San Carlo di Nancy",
+    "address": "Via Aurelia, 275, 00165 Roma RM, Italy",
+    "lat": 41.8976102,
+    "lng": 12.4389822,
+    "subType": "medical",
+    "dayDate": "2026-04-22",
+    "startTime": null
+   },
+   {
+    "title": "Two Sizes → Termini",
+    "address": "V. del Governo Vecchio, 88, 00186 Roma RM, Italy",
+    "lat": 41.8980142,
+    "lng": 12.471566,
+    "subType": "coffee",
+    "dayDate": "2026-04-22",
+    "startTime": null
+   },
+   {
+    "title": "Frigidarium",
+    "address": "V. del Governo Vecchio, 112, 00186 Roma RM, Italy",
+    "lat": 41.8982333,
+    "lng": 12.4704548,
+    "subType": "dessert",
+    "dayDate": "2026-04-22",
+    "startTime": null
+   },
+   {
+    "title": "Gelateria del Teatro",
+    "address": "V. dei Coronari, 65/66, 00186 Roma RM, Italy",
+    "lat": 41.9004943,
+    "lng": 12.4694946,
+    "subType": "dessert",
+    "dayDate": "2026-04-22",
+    "startTime": null
+   },
+   {
+    "title": "Stazione Taxi Chiesa Nuova",
+    "address": "Via della Chiesa Nuova, 00186 Roma RM, Italy",
+    "lat": 41.8977552,
+    "lng": 12.4693749,
+    "subType": "self_directed",
+    "dayDate": "2026-04-22",
+    "startTime": null
+   },
+   {
+    "title": "Via Soriso, 68a",
+    "address": "Via Soriso, 68a, 00166 Roma RM, Italy",
+    "lat": 41.9019538,
+    "lng": 12.4077019,
+    "subType": "coffee",
+    "dayDate": "2026-04-22",
+    "startTime": null
+   },
+   {
+    "title": "Stazione Taxi Navona",
+    "address": "Piazza delle Cinque Lune, 33, 00186 Roma RM, Italy",
+    "lat": 41.9003694,
+    "lng": 12.4733356,
+    "subType": "self_directed",
+    "dayDate": "2026-04-22",
+    "startTime": null
+   },
+   {
+    "title": "Nannarella",
+    "address": "Piazza di S. Calisto, 7/a, 00153 Roma RM, Italy",
+    "lat": 41.8889194,
+    "lng": 12.4707297,
+    "subType": "restaurant",
+    "dayDate": "2026-04-22",
+    "startTime": null
+   },
+   {
+    "title": "ZARA Rome",
+    "address": "Via del Corso, 189, 00186 Roma RM, Italy",
+    "lat": 41.901766,
+    "lng": 12.48049,
+    "subType": "self_directed",
+    "dayDate": "2026-04-22",
+    "startTime": null
+   },
+   {
+    "title": "Carrefour Express Via Vittoria Store",
+    "address": "Via Vittoria, 22 A, 00187 Roma RM, Italy",
+    "lat": 41.9069732,
+    "lng": 12.4795027,
+    "subType": "self_directed",
+    "dayDate": "2026-04-22",
+    "startTime": null
+   },
+   {
+    "title": "Hotel NH Collection Roma Palazzo Cinquecento",
+    "address": "Piazza dei Cinquecento, 90, 00185 Roma RM, Italy",
+    "lat": 41.9025231,
+    "lng": 12.5016612,
+    "subType": "hotel",
+    "dayDate": "2026-04-22",
+    "startTime": null
+   },
+   {
+    "title": "Pizza in Trevi",
+    "address": "Via della Mercede, 32, 00187 Roma RM, Italy",
+    "lat": 41.9034251,
+    "lng": 12.482633,
+    "subType": "restaurant",
+    "dayDate": "2026-04-22",
+    "startTime": null
+   },
+   {
+    "title": "Two Sizes → Termini",
+    "address": "V. del Governo Vecchio, 88, 00186 Roma RM, Italy",
+    "lat": 41.8980142,
+    "lng": 12.471566,
+    "subType": "coffee",
+    "dayDate": "2026-04-22",
+    "startTime": null
+   },
+   {
+    "title": "Pinocchio Toys Rome",
+    "address": "Via del Tritone, 124, 00187 Roma RM, Italy",
+    "lat": 41.9032904,
+    "lng": 12.487657,
+    "subType": "self_directed",
+    "dayDate": "2026-04-22",
+    "startTime": null
+   },
+   {
+    "title": "Antica Farmacia Santa Lucia",
+    "address": "Via Giulia, 129, 00186 Roma RM, Italy",
+    "lat": 41.8975608,
+    "lng": 12.4669458,
+    "subType": "self_directed",
+    "dayDate": "2026-04-22",
+    "startTime": null
+   },
+   {
+    "title": "Colosseum",
+    "address": "P.za del Colosseo, 00184 Roma RM, Italy",
+    "lat": 41.8913382,
+    "lng": 12.4913979,
+    "subType": "guided",
+    "dayDate": "2026-04-22",
+    "startTime": null
+   },
+   {
+    "title": "Hotel NH Collection Roma Palazzo Cinquecento",
+    "address": "Piazza dei Cinquecento, 90, 00185 Roma RM, Italy",
+    "lat": 41.9025231,
+    "lng": 12.5016612,
+    "subType": "hotel",
+    "dayDate": "2026-04-22",
+    "startTime": "12:00:00"
+   },
+   {
+    "title": "Colosseum",
+    "address": "P.za del Colosseo, 00184 Roma RM, Italy",
+    "lat": 41.8913382,
+    "lng": 12.4913979,
+    "subType": "guided",
+    "dayDate": "2026-04-22",
+    "startTime": "15:30:00"
+   },
+   {
+    "title": "Aperitivo — Bar Farnese",
+    "address": "Vicolo del Gallo, 3, 00186 Roma RM, Italy",
+    "lat": 41.8961547,
+    "lng": 12.4724326,
+    "subType": "bar",
+    "dayDate": "2026-04-22",
+    "startTime": "18:30:00"
+   },
+   {
+    "title": "Flight to Rome — Air Canada",
+    "address": "Air Canada",
+    "lat": 41.8034632,
+    "lng": 12.2519211,
+    "subType": "flight_arrival",
+    "dayDate": "2026-04-22",
+    "startTime": "19:45:00"
+   },
+   {
+    "title": "Roscioli Salumeria con Cucina",
+    "address": "Via dei Giubbonari, 21, 00186 Roma RM, Italy",
+    "lat": 41.894256,
+    "lng": 12.4742417,
+    "subType": "restaurant",
+    "dayDate": "2026-04-22",
+    "startTime": "20:00:00"
+   },
+   {
+    "title": "Night Walk — Pantheon, Navona, Trevi",
+    "address": "Piazza Navona, 25, 00186 Roma RM, Italy",
+    "lat": 41.8986108,
+    "lng": 12.4768729,
+    "subType": "self_directed",
+    "dayDate": "2026-04-22",
+    "startTime": "21:30:00"
+   },
+   {
+    "title": "Caffe Vaticano",
+    "address": "Viale Vaticano, 100, 00192 Roma RM, Italy",
+    "lat": 41.9070586,
+    "lng": 12.4533292,
+    "subType": "coffee",
+    "dayDate": "2026-04-23",
+    "startTime": "07:00:00"
+   },
+   {
+    "title": "Vatican + Sistine Chapel + St. Peter's",
+    "address": "00120, Vatican City",
+    "lat": 41.902916,
+    "lng": 12.453389,
+    "subType": "guided",
+    "dayDate": "2026-04-23",
+    "startTime": "08:00:00"
+   },
+   {
+    "title": "Night Walk — Pantheon, Navona, Trevi",
+    "address": "Piazza Navona, 25, 00186 Roma RM, Italy",
+    "lat": 41.8986108,
+    "lng": 12.4768729,
+    "subType": "self_directed",
+    "dayDate": "2026-04-23",
+    "startTime": "13:00:00"
+   },
+   {
+    "title": "Osteria da Fortunata - Cancelleria",
+    "address": null,
+    "lat": 41.8956,
+    "lng": 12.4722,
+    "subType": "restaurant",
+    "dayDate": "2026-04-23",
+    "startTime": "18:45:00"
+   },
+   {
+    "title": "Tazza d'Oro",
+    "address": "Via degli Orfani, 84, 00186 Roma RM, Italy",
+    "lat": 41.8994973,
+    "lng": 12.4773862,
+    "subType": "coffee",
+    "dayDate": "2026-04-24",
+    "startTime": "09:00:00"
+   },
+   {
+    "title": "Historic Center Wandering — Navona → Pantheon → Trevi → Spanish Steps",
+    "address": "Piazza Navona, 00186 Roma RM, Italy",
+    "lat": 41.8991633,
+    "lng": 12.4730742,
+    "subType": "self_directed",
+    "dayDate": "2026-04-24",
+    "startTime": "12:00:00"
+   },
+   {
+    "title": "Banco 19 B&B",
+    "address": "Via dei Banchi Nuovi, 19, 00186 Roma RM, Italy",
+    "lat": 41.8995403,
+    "lng": 12.4676089,
+    "subType": "hotel",
+    "dayDate": "2026-04-24",
+    "startTime": "15:00:00"
+   },
+   {
+    "title": "InRome Cooking Classes",
+    "address": "Corso del Rinascimento, 65, 00186 Roma RM, Italy",
+    "lat": 41.8994967,
+    "lng": 12.4737199,
+    "subType": "guided",
+    "dayDate": "2026-04-24",
+    "startTime": "17:30:00"
+   },
+   {
+    "title": "Two Sizes → Termini",
+    "address": "V. del Governo Vecchio, 88, 00186 Roma RM, Italy",
+    "lat": 41.8980142,
+    "lng": 12.471566,
+    "subType": "coffee",
+    "dayDate": "2026-04-24",
+    "startTime": "20:00:00"
+   },
+   {
+    "title": "Caffè Teichner",
+    "address": "Piazza di S. Lorenzo in Lucina, 15, 00186 Roma RM, Italy",
+    "lat": 41.903428,
+    "lng": 12.4781045,
+    "subType": "coffee",
+    "dayDate": "2026-04-25",
+    "startTime": "07:00:00"
+   },
+   {
+    "title": "Pastry & Tiramisu Class",
+    "address": "Via Soriso 68/A, 00166, Rome",
+    "lat": 41.9019538,
+    "lng": 12.4077019,
+    "subType": "guided",
+    "dayDate": "2026-04-25",
+    "startTime": "15:30:00"
+   },
+   {
+    "title": "Ai Tre Scalini",
+    "address": "Via Panisperna, 251, 00184 Roma RM, Italy",
+    "lat": 41.8962822,
+    "lng": 12.4905105,
+    "subType": "restaurant",
+    "dayDate": "2026-04-25",
+    "startTime": "20:30:00"
+   },
+   {
+    "title": "Two Sizes → Termini",
+    "address": "V. del Governo Vecchio, 88, 00186 Roma RM, Italy",
+    "lat": 41.8980142,
+    "lng": 12.471566,
+    "subType": "coffee",
+    "dayDate": "2026-04-26",
+    "startTime": "07:00:00"
+   },
+   {
+    "title": "Frascati Wine Tour — Farmhouse Lunch",
+    "address": "Via Perazzeta, 30, 00044 Frascati RM, Italy",
+    "lat": 41.8245013,
+    "lng": 12.6737479,
+    "subType": "guided",
+    "dayDate": "2026-04-26",
+    "startTime": "10:30:00"
+   },
+   {
+    "title": "Golden Hour — Aventine → Orange Garden → Keyhole → Trastevere",
+    "address": "Piazza Pietro D'Illiria, 00153 Roma RM, Italy",
+    "lat": 41.8851338,
+    "lng": 12.48039,
+    "subType": "self_directed",
+    "dayDate": "2026-04-26",
+    "startTime": "17:00:00"
+   },
+   {
+    "title": "Da Enzo al 29",
+    "address": "Via dei Vascellari, 29, 00153 Roma RM, Italy",
+    "lat": 41.8880847,
+    "lng": 12.4778554,
+    "subType": "restaurant",
+    "dayDate": "2026-04-26",
+    "startTime": "20:30:00"
+   },
+   {
+    "title": "Barnum Roma",
+    "address": "Via del Pellegrino, 87, 00186 Roma RM, Italy",
+    "lat": 41.8970566,
+    "lng": 12.469997,
+    "subType": "coffee",
+    "dayDate": "2026-04-27",
+    "startTime": "08:00:00"
+   },
+   {
+    "title": "Villa Borghese Morning",
+    "address": "00197 Rome, Metropolitan City of Rome Capital, Italy",
+    "lat": 41.9138782,
+    "lng": 12.4853818,
+    "subType": "self_directed",
+    "dayDate": "2026-04-27",
+    "startTime": "09:00:00"
+   },
+   {
+    "title": "Rung Arun Thai Massage Center",
+    "address": "Vicolo della Cancelleria, 37, 00186 Roma RM, Italy",
+    "lat": 41.8978362,
+    "lng": 12.471386,
+    "subType": "wellness",
+    "dayDate": "2026-04-27",
+    "startTime": "10:30:00"
+   },
+   {
+    "title": "Coronari (Aperitivo)",
+    "address": "V. dei Coronari, 95/96,97, 00186 Roma RM, Italy",
+    "lat": 41.9004921,
+    "lng": 12.4688743,
+    "subType": "bar",
+    "dayDate": "2026-04-27",
+    "startTime": "18:30:00"
+   },
+   {
+    "title": "Pierluigi",
+    "address": "Piazza de' Ricci, 144, 00186 Roma RM, Italy",
+    "lat": 41.8967899,
+    "lng": 12.468655,
+    "subType": "restaurant",
+    "dayDate": "2026-04-27",
+    "startTime": "20:00:00"
+   },
+   {
+    "title": "Morning Coffee — Final Roman Espresso",
+    "address": "Piazza di S. Eustachio, 82, 00186 Roma RM, Italy",
+    "lat": 41.8982749,
+    "lng": 12.4754254,
+    "subType": "coffee",
+    "dayDate": "2026-04-28",
+    "startTime": "07:00:00"
+   },
+   {
+    "title": "Flight to Toronto — Air Canada",
+    "address": "6301 Silver Dart Dr, Mississauga, ON L5P 1B2, Canada",
+    "lat": 43.6798345,
+    "lng": -79.6283834,
+    "subType": "flight_departure",
+    "dayDate": "2026-04-28",
+    "startTime": "12:25:00"
+   }
+  ]
+ },
+ {
+  "title": "Santa Barbara Anniversary 2026",
+  "startDate": "2026-10-09",
+  "endDate": "2026-10-12",
+  "partyAges": null,
+  "partySize": 2,
+  "archived": true,
+  "pins": [
+   {
+    "title": "Flight to Santa Barbara — TBD",
+    "address": "Santa Barbara Airport (SBA), Santa Barbara, CA",
+    "lat": 34.4262,
+    "lng": -119.8404,
+    "subType": "flight_arrival",
+    "dayDate": "2026-10-09",
+    "startTime": null
+   },
+   {
+    "title": "Target",
+    "address": "3891 State St, Santa Barbara, CA 93105, USA",
+    "lat": 34.4401136,
+    "lng": -119.7506709,
+    "subType": "grocery",
+    "dayDate": "2026-10-09",
+    "startTime": "10:00:00"
+   },
+   {
+    "title": "Montecito Inn",
+    "address": "1295 Coast Village Rd, Montecito, CA 93108",
+    "lat": 34.42139,
+    "lng": -119.64,
+    "subType": "hotel",
+    "dayDate": "2026-10-09",
+    "startTime": "22:30:00"
+   },
+   {
+    "title": "Coast Village Road",
+    "address": "Coast Village Rd, Montecito, CA",
+    "lat": 34.4218,
+    "lng": -119.642,
+    "subType": "self_directed",
+    "dayDate": "2026-10-10",
+    "startTime": "08:30:00"
+   },
+   {
+    "title": "Butterfly Beach",
+    "address": "Butterfly Beach, Montecito, CA 93108, USA",
+    "lat": 34.4176221,
+    "lng": -119.6491956,
+    "subType": "self_directed",
+    "dayDate": "2026-10-10",
+    "startTime": "10:15:00"
+   },
+   {
+    "title": "Bettina",
+    "address": "1014 Coast Village Rd, Santa Barbara, CA 93108, USA",
+    "lat": 34.4226472,
+    "lng": -119.6518824,
+    "subType": "restaurant",
+    "dayDate": "2026-10-10",
+    "startTime": "12:30:00"
+   },
+   {
+    "title": "Tre Lune",
+    "address": "1151 Coast Village Rd, Montecito, CA 93108, USA",
+    "lat": 34.420938,
+    "lng": -119.646274,
+    "subType": "restaurant",
+    "dayDate": "2026-10-10",
+    "startTime": "18:00:00"
+   },
+   {
+    "title": "Mission Street Ice Cream & Yogurt - Featuring McConnell's Fine Ice Creams",
+    "address": "201 W Mission St, Santa Barbara, CA 93101, USA",
+    "lat": 34.428328,
+    "lng": -119.716679,
+    "subType": "dessert",
+    "dayDate": "2026-10-10",
+    "startTime": "21:00:00"
+   },
+   {
+    "title": "Caffe Luxxe",
+    "address": "1028 Coast Village Rd Ste. A, Santa Barbara, CA 93108, USA",
+    "lat": 34.4227592,
+    "lng": -119.6514421,
+    "subType": "coffee",
+    "dayDate": "2026-10-11",
+    "startTime": "08:30:00"
+   },
+   {
+    "title": "Little Mountain",
+    "address": "516 San Ysidro Rd Unit A, Montecito, CA 93108, USA",
+    "lat": 34.437381,
+    "lng": -119.6313138,
+    "subType": "restaurant",
+    "dayDate": "2026-10-11",
+    "startTime": "14:30:00"
+   },
+   {
+    "title": "Santa Barbara Polo & Racquet Club",
+    "address": "3375 Foothill Rd, Carpinteria, CA 93013",
+    "lat": 34.4045,
+    "lng": -119.555,
+    "subType": "guided",
+    "dayDate": "2026-10-11",
+    "startTime": "17:00:00"
+   },
+   {
+    "title": "Flight to Toronto — TBD",
+    "address": "Toronto Pearson International Airport (YYZ), Mississauga, ON",
+    "lat": 43.6777,
+    "lng": -79.6248,
+    "subType": "flight_departure",
+    "dayDate": "2026-10-12",
+    "startTime": null
+   },
+   {
+    "title": "Red Kettle Coffee",
+    "address": "Ortega Hill Rd, Summerland, CA 93067, USA",
+    "lat": 34.4215574,
+    "lng": -119.6012058,
+    "subType": "coffee",
+    "dayDate": "2026-10-12",
+    "startTime": "08:30:00"
+   }
+  ]
+ },
+ {
+  "title": "Tuscany",
+  "startDate": "2027-08-18",
+  "endDate": "2027-08-29",
+  "partyAges": [
+   43,
+   41,
+   10,
+   8,
+   5,
+   72,
+   71
+  ],
+  "partySize": 7,
+  "archived": false,
+  "pins": [
+   {
+    "title": "Pisa International Airport",
+    "address": "Piazzale Corradino D'Ascanio, 1, 56121 Pisa PI, Italy",
+    "lat": 43.6869635,
+    "lng": 10.3942843,
+    "subType": "transit",
+    "dayDate": "2027-08-18",
+    "startTime": "11:00:00"
+   },
+   {
+    "title": "Villa Bottino",
+    "address": "Località Scilivano, 7, 55064 San Martino in Freddana - Monsagrati LU, Italy",
+    "lat": 43.9239504,
+    "lng": 10.4276754,
+    "subType": "hotel",
+    "dayDate": "2027-08-18",
+    "startTime": "14:00:00"
+   },
+   {
+    "title": "Forno a Vapore Amedeo Giusti",
+    "address": "Via Santa Lucia, 20, 55100 Lucca LU, Italy",
+    "lat": 43.8435394,
+    "lng": 10.5031778,
+    "subType": "restaurant",
+    "dayDate": "2027-08-19",
+    "startTime": "09:00:00"
+   },
+   {
+    "title": "Piazza San Michele",
+    "address": "P.za San Michele, 55100 Lucca LU, Italy",
+    "lat": 43.8430907,
+    "lng": 10.5031507,
+    "subType": "self_directed",
+    "dayDate": "2027-08-19",
+    "startTime": "09:45:00"
+   },
+   {
+    "title": "Buccellato Taddeucci",
+    "address": "P.za San Michele, 34, 55100 Lucca LU, Italy",
+    "lat": 43.842987,
+    "lng": 10.5031921,
+    "subType": "dessert",
+    "dayDate": "2027-08-19",
+    "startTime": "11:30:00"
+   },
+   {
+    "title": "Ciacco",
+    "address": "P.za Napoleone, 10, 55100 Lucca LU, Italy",
+    "lat": 43.841865,
+    "lng": 10.5026964,
+    "subType": "restaurant",
+    "dayDate": "2027-08-19",
+    "startTime": "12:30:00"
+   },
+   {
+    "title": "My Tuscan Kitchen",
+    "address": "Località Torricchio, N° 75, 56036 Montefoscoli PI, Italy",
+    "lat": 43.5844149,
+    "lng": 10.7564421,
+    "subType": "guided",
+    "dayDate": "2027-08-20",
+    "startTime": "15:30:00"
+   },
+   {
+    "title": "Piazza San Michele",
+    "address": "P.za San Michele, 55100 Lucca LU, Italy",
+    "lat": 43.8430907,
+    "lng": 10.5031507,
+    "subType": "self_directed",
+    "dayDate": "2027-08-21",
+    "startTime": "17:30:00"
+   },
+   {
+    "title": "Trattoria da Giulio",
+    "address": "Via delle Conce, 45, 55100 Lucca LU, Italy",
+    "lat": 43.8454946,
+    "lng": 10.4978507,
+    "subType": "restaurant",
+    "dayDate": "2027-08-21",
+    "startTime": "19:30:00"
+   },
+   {
+    "title": "Gelateria Veneta",
+    "address": "Via V. Veneto, 74, 55100 Lucca LU, Italy",
+    "lat": 43.8396373,
+    "lng": 10.5017177,
+    "subType": "dessert",
+    "dayDate": "2027-08-21",
+    "startTime": "21:00:00"
+   },
+   {
+    "title": "Volterra AD 1398 medieval festival (Piazza dei Priori)",
+    "address": "Piazza dei Priori, 56048 Volterra PI, Italy",
+    "lat": 43.4020964,
+    "lng": 10.8597101,
+    "subType": "event",
+    "dayDate": "2027-08-22",
+    "startTime": "10:00:00"
+   },
+   {
+    "title": "Cave di Marmo Tours",
+    "address": "Strada Comunale per Colonnata, 1, 54033 Colonnata MS, Italy",
+    "lat": 44.0823029,
+    "lng": 10.1465774,
+    "subType": "guided",
+    "dayDate": "2027-08-23",
+    "startTime": "10:00:00"
+   },
+   {
+    "title": "Mafalda Lardo di Colonnata IGP",
+    "address": "Piazza Palestro, 2, 54030 Carrara MS, Italy",
+    "lat": 44.0862238,
+    "lng": 10.1554585,
+    "subType": "restaurant",
+    "dayDate": "2027-08-23",
+    "startTime": "12:30:00"
+   },
+   {
+    "title": "Caffè Gilli",
+    "address": "Via Roma, 1r, 50123 Firenze FI, Italy",
+    "lat": 43.7719748,
+    "lng": 11.2541636,
+    "subType": "coffee",
+    "dayDate": "2027-08-24",
+    "startTime": "10:30:00"
+   },
+   {
+    "title": "Museo Leonardo Da Vinci",
+    "address": "Via del Castellaccio, 1r, 50121 Firenze FI, Italy",
+    "lat": 43.7745539,
+    "lng": 11.2585692,
+    "subType": "guided",
+    "dayDate": "2027-08-24",
+    "startTime": "11:00:00"
+   },
+   {
+    "title": "David",
+    "address": "Via Ricasoli, 58/60, 50129 Firenze FI, Italy",
+    "lat": 43.7767194,
+    "lng": 11.2593217,
+    "subType": "guided",
+    "dayDate": "2027-08-24",
+    "startTime": "12:30:00"
+   },
+   {
+    "title": "Vini e Vecchi Sapori",
+    "address": "Via dei Magazzini, 3/r, 50122 Firenze FI, Italy",
+    "lat": 43.7700901,
+    "lng": 11.2568157,
+    "subType": "restaurant",
+    "dayDate": "2027-08-24",
+    "startTime": "13:30:00"
+   },
+   {
+    "title": "Vivoli",
+    "address": "Via Isola delle Stinche, 7r, 50122 Firenze FI, Italy",
+    "lat": 43.7699351,
+    "lng": 11.2600892,
+    "subType": "dessert",
+    "dayDate": "2027-08-24",
+    "startTime": "15:00:00"
+   },
+   {
+    "title": "Giardino Bardini",
+    "address": "Costa S. Giorgio, 2, 50125 Firenze FI, Italy",
+    "lat": 43.7633184,
+    "lng": 11.2570423,
+    "subType": "self_directed",
+    "dayDate": "2027-08-24",
+    "startTime": "16:00:00"
+   },
+   {
+    "title": "Savini Tartufi truffle hunt",
+    "address": "Piazza Corradino D'ascanio, 56036 Montanelli PI, Italy",
+    "lat": 43.5911559,
+    "lng": 10.7179027,
+    "subType": "guided",
+    "dayDate": "2027-08-25",
+    "startTime": "09:30:00"
+   },
+   {
+    "title": "Antica Locanda di Sesto",
+    "address": "Via Ludovica, 1660, 55100 Lucca LU, Italy",
+    "lat": 43.9241454,
+    "lng": 10.5267771,
+    "subType": "restaurant",
+    "dayDate": "2027-08-25",
+    "startTime": "20:00:00"
+   },
+   {
+    "title": "La Spezia Centrale",
+    "address": "Piazzale Medaglie d'Oro al Valor Militare, 19122 La Spezia SP, Italy",
+    "lat": 44.1113532,
+    "lng": 9.8134318,
+    "subType": "transit",
+    "dayDate": "2027-08-26",
+    "startTime": "08:30:00"
+   },
+   {
+    "title": "Monterosso public beach (Fegina)",
+    "address": "19016 Monterosso al Mare, SP, Italy",
+    "lat": 44.1455723,
+    "lng": 9.6490617,
+    "subType": "self_directed",
+    "dayDate": "2027-08-26",
+    "startTime": "09:30:00"
+   },
+   {
+    "title": "Il Casello",
+    "address": "Lungomare Ferrovia casello, 70, 19016 Monterosso al Mare SP, Italy",
+    "lat": 44.1459507,
+    "lng": 9.6564578,
+    "subType": "restaurant",
+    "dayDate": "2027-08-26",
+    "startTime": "12:30:00"
+   },
+   {
+    "title": "Vernazza",
+    "address": "Vernazza, SP, Italy",
+    "lat": 44.1353502,
+    "lng": 9.6827957,
+    "subType": "self_directed",
+    "dayDate": "2027-08-26",
+    "startTime": "14:00:00"
+   },
+   {
+    "title": "Il Pirata delle 5 Terre",
+    "address": "Via Gavino, 36/38, 19018 Vernazza SP, Italy",
+    "lat": 44.1364807,
+    "lng": 9.685077,
+    "subType": "dessert",
+    "dayDate": "2027-08-26",
+    "startTime": "15:00:00"
+   },
+   {
+    "title": "Cathedral of Santa Maria del Fiore",
+    "address": "Piazza del Duomo, 50122 Firenze FI, Italy",
+    "lat": 43.773145,
+    "lng": 11.2559602,
+    "subType": "guided",
+    "dayDate": "2027-08-28",
+    "startTime": "10:15:00"
+   },
+   {
+    "title": "Mercato Centrale & San Lorenzo market",
+    "address": "Piazza del Mercato Centrale, 50123 Firenze FI, Italy",
+    "lat": 43.7764676,
+    "lng": 11.2528338,
+    "subType": "shopping",
+    "dayDate": "2027-08-28",
+    "startTime": "11:30:00"
+   },
+   {
+    "title": "Trattoria Mario",
+    "address": "Via Rosina, 2r, 50123 Firenze FI, Italy",
+    "lat": 43.7765605,
+    "lng": 11.2545811,
+    "subType": "restaurant",
+    "dayDate": "2027-08-28",
+    "startTime": "12:30:00"
+   },
+   {
+    "title": "Gelateria dei Neri",
+    "address": "Via dei Neri, 9/11R, 50122 Firenze FI, Italy",
+    "lat": 43.7677669,
+    "lng": 11.2590689,
+    "subType": "dessert",
+    "dayDate": "2027-08-28",
+    "startTime": "14:00:00"
+   },
+   {
+    "title": "Buca di Sant'Antonio",
+    "address": "Via della Cervia, 3, 55100 Lucca LU, Italy",
+    "lat": 43.842762,
+    "lng": 10.5016987,
+    "subType": "restaurant",
+    "dayDate": "2027-08-28",
+    "startTime": "19:30:00"
+   },
+   {
+    "title": "Villa Bottino",
+    "address": "Località Scilivano, 7, 55064 San Martino in Freddana - Monsagrati LU, Italy",
+    "lat": 43.9239504,
+    "lng": 10.4276754,
+    "subType": "hotel",
+    "dayDate": "2027-08-29",
+    "startTime": "08:00:00"
+   },
+   {
+    "title": "Pisa International Airport",
+    "address": "Piazzale Corradino D'Ascanio, 1, 56121 Pisa PI, Italy",
+    "lat": 43.6869635,
+    "lng": 10.3942843,
+    "subType": "transit",
+    "dayDate": "2027-08-29",
+    "startTime": "10:00:00"
+   }
+  ]
+ }
+]

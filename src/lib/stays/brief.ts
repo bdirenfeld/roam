@@ -95,31 +95,63 @@ export function greatCircleKm(aLat: number, aLng: number, bLat: number, bLng: nu
  * fallback is the second-to-last comma segment, which is the town more often
  * than not.
  */
+const STREET_WORDS = /\b(Blvd|Dr|Rd|St|Ave|Street|Road|Drive|Avenue|Way|Ln|Lane|Ct|Court|Hwy|Highway|Pl|Plaza|Chome|Quay|Wharf|Pier|Terrace|Cres|Crescent|Grove|Ward)\b|^(Via|Viale|Piazza|Piazzale|P\.za|Vicolo|Corso|Lungomare|Località|Strada|Calle|Carr\.|Acceso|Unit|Suite|Level)\b|\d+\s*(Chome|Banchi|Ban|-\d)/i;
+const REGION_WORDS = /\b(Provincia|Province|Prefecture|Region|County|Metropolitan|State|Territory|Ward)\b|^(New South Wales|Victoria|Queensland|Tasmania|Western Australia|South Australia|California|Nevada|Arizona|Florida|Ontario|Quebec|British Columbia|Alberta|Tuscany|Toscana|Lazio|Guanacaste|Puntarenas|Kanto|Kansai|Kyushu)$/i;
+
+/** The core of one address segment: the town without its codes, or null when it is a street, a code or a number. */
+function segmentCore(seg: string): { core: string; region: boolean } | null {
+  const s = seg.trim();
+  if (!s) return null;
+  if (/^[\d\s\-–/]+[A-Za-z]?$/.test(s)) return null;                          // "20", "1r", "50309", "554-0031"
+  if (/^[A-Z]{2,3}$/.test(s)) return null;                                     // "SP", "NSW"
+  if (/^[A-Z]{2}\s+\d{5}(?:-\d{4})?$/.test(s)) return null;                    // "CA 92262"
+  if (/^[A-Z]{2}\s+[A-Z]\d[A-Z]\s?\d[A-Z]\d$/.test(s)) return null;            // "ON M3H 5L3"
+  let core = s;
+  let m: RegExpExecArray | null;
+  if ((m = /^\d{4,6}\s+(.+?)(?:\s+[A-Z]{2})?$/.exec(s))) core = m[1];          // "55100 Lucca LU"
+  else if ((m = /^(.+?)\s+[A-Z]{2,3}\s+\d{4}$/.exec(s))) core = m[1];          // "Sydney NSW 2000"
+  else if ((m = /^(.+?)\s+\d{3}-\d{4}$/.exec(s))) core = m[1];                 // "Chiba 279-8511"
+  else if ((m = /^(.+?)\s+[A-Z]{2}\s+[A-Z]\d[A-Z]\s?\d[A-Z]\d$/.exec(s))) core = m[1]; // "North York ON M3H 5L3"
+  else if ((m = /^(.+?)\s+[A-Z]{2,3}$/.exec(s))) core = m[1];                  // "Bondi Beach NSW"
+  else if ((m = /^(.+?)\s+\d{5}$/.exec(s))) core = m[1];                       // "Roma 00186"
+  if (STREET_WORDS.test(core)) return null;
+  if (/^\d/.test(core)) return null;
+  return { core, region: REGION_WORDS.test(core) };
+}
+
+/**
+ * The town out of a formatted address, whatever country wrote it. Each
+ * comma segment is reduced to its core (postal and state codes off), streets,
+ * numbers and bare codes are dropped, and the last town-like segment before
+ * the country wins — a region name ("Provincia de Guanacaste", "California")
+ * only when nothing better is there.
+ */
 export function townFromAddress(address: string | null): string | null {
   if (!address) return null;
   const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
-  for (const p of parts) {
-    const m = /^\d{4,6}\s+(.+?)(?:\s+[A-Z]{2})?$/.exec(p);
-    if (m) return m[1];
-  }
-  // "Palm Springs, CA 92262, USA": the town is the segment before the state+zip.
-  for (let i = 1; i < parts.length; i++) {
-    if (/^[A-Z]{2}\s+\d{5}(?:-\d{4})?$/.test(parts[i])) return parts[i - 1];
-  }
-  // Otherwise walk back from the country, skipping bare province codes
-  // ("Vernazza, SP, Italy" → Vernazza).
-  for (let i = parts.length - 2; i >= 0; i--) {
-    const p = parts[i];
-    if (/^[A-Z]{2}$/.test(p)) continue;
-    const m = /^(.+?)\s+[A-Z]{2}$/.exec(p);
-    return m ? m[1] : p;
-  }
-  return parts[0] ?? null;
+  if (parts.length === 0) return null;
+  const body = parts.length > 1 ? parts.slice(0, -1) : parts;               // drop the country
+  const cores = body.map(segmentCore).filter((c): c is { core: string; region: boolean } => !!c);
+  const towns = cores.filter((c) => !c.region);
+  if (towns.length) return towns[towns.length - 1].core;
+  if (cores.length) return cores[cores.length - 1].core;
+  return null;
 }
 
-function isAirport(p: BriefPin): boolean {
-  return p.subType === "transit" && /\b(airport|aeroport|aeropuerto|flughafen)\b/i.test(p.title);
+/**
+ * An airport is a transit pin named as one, or any flight card — Australia
+ * and Costa Rica store their airports as `flight_arrival`, not `transit`.
+ * A flight card can also sit at the HOME airport (Rome's "Flight to Toronto"
+ * is a pin at Pearson), so airports only become anchors within
+ * AIRPORT_MAX_KM of the centre; the rest are dropped entirely.
+ */
+function isFlight(p: BriefPin): boolean {
+  return p.subType === "flight_arrival" || p.subType === "flight_departure";
 }
+function isAirport(p: BriefPin): boolean {
+  return isFlight(p) || (p.subType === "transit" && /\b(airport|aeroport|aeropuerto|flughafen)\b/i.test(p.title));
+}
+const AIRPORT_MAX_KM = 200;
 function isStay(p: BriefPin): boolean {
   return !!p.subType && STAY_SUBTYPES.has(p.subType);
 }
@@ -217,8 +249,14 @@ export function buildStayBrief(input: BriefInput): StayBrief {
 
   const eveningClusters = cluster(evenings, EVENING_CLUSTER_KM)
     .map((c) => ({ c, days: distinctDays(c.pins) }))
-    .sort((a, b) => b.days - a.days);
-  const ev = eveningClusters[0] ?? null;
+    .sort((a, b) => b.days - a.days || b.c.pins.length - a.c.pins.length);
+  // No pin after 17:00 (an imported plan with only daytime slots): the place
+  // visited on the most days stands in as the centre, so the brief still has
+  // a side of town and a radius to speak from.
+  const fallback = cluster(daytime, EVENING_CLUSTER_KM)
+    .map((c) => ({ c, days: distinctDays(c.pins) }))
+    .sort((a, b) => b.days - a.days || b.c.pins.length - a.c.pins.length)[0] ?? null;
+  const ev = eveningClusters[0] ?? fallback;
   const evening = ev
     ? { lat: ev.c.lat, lng: ev.c.lng, label: clusterLabel(ev.c), days: ev.days }
     : null;
@@ -228,7 +266,12 @@ export function buildStayBrief(input: BriefInput): StayBrief {
   const anchors: Anchor[] = [];
   if (evening) anchors.push({ kind: "evening", label: evening.label, lat: evening.lat, lng: evening.lng, days: evening.days, kmFromEvening: 0 });
   for (const c of cluster(airports, DAYTRIP_CLUSTER_KM)) {
-    anchors.push({ kind: "airport", label: clusterLabel(c), lat: c.lat, lng: c.lng, days: distinctDays(c.pins), kmFromEvening: kmFromEv(c.lat, c.lng) });
+    const km = kmFromEv(c.lat, c.lng);
+    if (evening && km > AIRPORT_MAX_KM) continue;
+    // A flight card's address can be the airline ("Air Canada"); only a real
+    // address names the airport's town, otherwise it is just "the airport".
+    const addressed = c.pins.some((p) => (p.address ?? "").includes(","));
+    anchors.push({ kind: "airport", label: addressed ? clusterLabel(c) : "the airport", lat: c.lat, lng: c.lng, days: distinctDays(c.pins), kmFromEvening: km });
   }
   for (const c of cluster(daytime, DAYTRIP_CLUSTER_KM)) {
     // Daytime pins in the evening cluster are the same errand; the evening anchor carries them.

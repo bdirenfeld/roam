@@ -833,6 +833,14 @@ on those days set to `cut`, `trips.accommodation_*`, the Estimate's `nightlyRate
 price exists; `DELETE` with the returned payload undoes all of it, including a place it
 created); `mark` (save → an ordinary interested card; reject → status + reason).
 
+**Every journey, not one.** `lib/stays/journeys.test.ts` runs the brief over
+`lib/stays/fixtures/journeys.json` — every journey's placed pins, archived ones too —
+and asserts what a person would laugh at (an anchor in another country, a street name
+as a town, an airport that is the home airport). The first tap on Japan after a
+Tuscany-only verification read "Kagoshima 21 h 44 · adds 13 hours of driving"; the
+fixture pull also found Australia's and Costa Rica's airports stored as
+`flight_arrival`. Refresh the fixture when journeys change (roam-ship §3 has the pull).
+
 **Limits, by design:** no sign-in to any listing site (Brennan). Google candidates have
 rating, reviews, drives and review tells but no beds/baths/pool/AC/price — the sheet
 shows the party's floor ("Needs 4 bedrooms and 3 baths") instead. A candidate with a
