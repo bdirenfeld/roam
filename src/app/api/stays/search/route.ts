@@ -12,7 +12,9 @@ import { loadTripContext, googleKey, driveMinutes, lodgingNear, placeReviews } f
 import { driveHours, driveLine, driveDelta, usableAnchorIndexes } from "@/lib/stays/drive";
 import { areaHeadline, areaLine, splitText, reviewNotes } from "@/lib/stays/text";
 
-const MAX_GOOGLE = 6;
+// Five rows, not ten: the stays already saved on the journey come first and
+// Google fills what is left ("way too many options" — Brennan, 9 Sept 2026).
+const MAX_TOTAL = 5;
 const LETTERS = "ABCDEFGHIJKL";
 
 export async function POST(request: NextRequest) {
@@ -66,7 +68,7 @@ export async function POST(request: NextRequest) {
     .filter((h) => !seen.has(h.name.toLowerCase()) && !rejectedNames.has(h.name.toLowerCase()) && !rejectedGoogle.has(h.google_place_id))
     .filter((h) => !cands.some((c) => c.google_place_id === h.google_place_id))
     .sort((a, b) => (b.rating ?? 0) * Math.log((b.reviews ?? 1) + 1) - (a.rating ?? 0) * Math.log((a.reviews ?? 1) + 1))
-    .slice(0, MAX_GOOGLE)
+    .slice(0, Math.max(0, MAX_TOTAL - cands.length))
     .forEach((h) => cands.push({
       name: h.name, address: h.address, lat: h.lat, lng: h.lng, google_place_id: h.google_place_id, place_id: null,
       site: "google", url: null, score: h.rating, score_scale: 5, reviews: h.reviews, source: "google",
