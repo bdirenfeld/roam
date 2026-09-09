@@ -47,6 +47,7 @@ describe("driveDelta", () => {
     expect(driveDelta(25.5, 19.6)).toBe("Adds about 6 hours of driving over the trip");
     expect(driveDelta(23.4, 19.6)).toBe("Adds about 4 hours of driving over the trip");
     expect(driveDelta(21.1, 19.6)).toBe("Adds about 1.5 hours of driving over the trip");
+    expect(driveDelta(20.6, 19.6)).toBe("Adds about 1 hour of driving over the trip");
   });
   it("says nothing under an hour", () => {
     expect(driveDelta(20.3, 19.6)).toBeNull();

@@ -39,11 +39,15 @@ export async function POST(request: NextRequest) {
   if (!centre) return NextResponse.json({ error: "Add a few places first so Roam knows where the journey goes." }, { status: 422 });
 
   // What an earlier run taught us.
-  const { data: previous } = await supabase.from("stay_candidates").select("id, name, google_place_id, status, reject_reason").eq("trip_id", trip.id);
+  const { data: previous } = await supabase.from("stay_candidates").select("id, name, google_place_id, place_id, status, reject_reason").eq("trip_id", trip.id);
   const rejected = (previous ?? []).filter((p) => p.status === "rejected");
   const rejectedNames = new Set(rejected.map((p) => p.name.toLowerCase()));
   const rejectedGoogle = new Set(rejected.map((p) => p.google_place_id).filter(Boolean));
   const tooFar = rejected.some((p) => p.reject_reason === "too_far");
+  // Saved and chosen rows carry their status forward onto the fresh row for the same place.
+  const kept = (previous ?? []).filter((p) => p.status === "saved" || p.status === "chosen");
+  const keptFor = (c: { place_id: string | null; google_place_id: string | null; name: string }) =>
+    kept.find((k) => (c.place_id && k.place_id === c.place_id) || (c.google_place_id && k.google_place_id === c.google_place_id) || k.name.toLowerCase() === c.name.toLowerCase());
   const radiusM = tooFar ? 9000 : 15000;
 
   // Candidates: saved stays first, then Google.
@@ -60,6 +64,7 @@ export async function POST(request: NextRequest) {
   const seen = new Set(cands.map((c) => c.name.toLowerCase()));
   hits
     .filter((h) => !seen.has(h.name.toLowerCase()) && !rejectedNames.has(h.name.toLowerCase()) && !rejectedGoogle.has(h.google_place_id))
+    .filter((h) => !cands.some((c) => c.google_place_id === h.google_place_id))
     .sort((a, b) => (b.rating ?? 0) * Math.log((b.reviews ?? 1) + 1) - (a.rating ?? 0) * Math.log((a.reviews ?? 1) + 1))
     .slice(0, MAX_GOOGLE)
     .forEach((h) => cands.push({
@@ -107,16 +112,18 @@ export async function POST(request: NextRequest) {
     notes.set(s.c.google_place_id as string, await placeReviews(key, s.c.google_place_id as string));
   }));
 
-  // Replace the last run's proposals; keep what the person saved, chose or rejected.
-  await supabase.from("stay_candidates").delete().eq("trip_id", trip.id).eq("status", "candidate");
+  // Replace the last run's rows. Rejected ones stay, so they are never proposed
+  // again; saved and chosen come back as fresh rows with their status kept.
+  await supabase.from("stay_candidates").delete().eq("trip_id", trip.id).neq("status", "rejected");
 
   const rows = scored.map((s, i) => {
     const rv = s.c.google_place_id ? notes.get(s.c.google_place_id) : undefined;
     const delta = driveDelta(s.hours, bestHours);
+    const prior = keptFor(s.c);
     return {
       trip_id: trip.id,
       user_id: user.id,
-      place_id: s.c.place_id,
+      place_id: s.c.place_id ?? prior?.place_id ?? null,
       google_place_id: s.c.google_place_id,
       letter: LETTERS[i] ?? null,
       name: s.c.name,
@@ -131,7 +138,7 @@ export async function POST(request: NextRequest) {
       review_notes: rv ? reviewNotes(rv.texts) : null,
       flags: delta ? [...s.flags, delta] : s.flags,
       drive: { hours: s.hours, line: s.line, minutes: s.minutes },
-      status: "candidate",
+      status: prior?.status ?? "candidate",
       source: s.c.source,
     };
   });
@@ -152,6 +159,6 @@ export async function POST(request: NextRequest) {
   const { error: briefErr } = await supabase.from("stay_briefs").upsert(briefRow, { onConflict: "trip_id" });
   if (briefErr) return NextResponse.json({ error: briefErr.message }, { status: 500 });
 
-  const { data: all } = await supabase.from("stay_candidates").select("*").eq("trip_id", trip.id).order("letter");
+  const { data: all } = await supabase.from("stay_candidates").select("*").eq("trip_id", trip.id).neq("status", "rejected").order("letter");
   return NextResponse.json({ brief: briefRow, candidates: all ?? written });
 }

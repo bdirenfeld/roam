@@ -803,3 +803,37 @@ Why it exists: the suite was written on 2026-09-07 on the rule "write the test
 that would have failed before the fix", and four changes shipped the same
 afternoon with no tests, including two new pure functions. The rule was fine;
 nothing was enforcing it. Also in roam-ship §4b.
+
+## Where to stay (Sept 2026)
+
+The menu row (owner only) links to `/trips/[id]/map?stays=1`; `FullMapClient` reads the
+query, opens `WhereToStaySheet` (a half sheet, `z-[60]`, 46dvh / 88dvh on the handle) and
+draws the candidates as lettered pins with `makePinElement(…, { label })` beside the
+journey's own pins. No rings, no shading — the cluster is the recommendation.
+
+**Data:** `stay_briefs` (one per journey, the last run: `brief` jsonb + `area_text` +
+`split_text`) and `stay_candidates` (lettered rows; `status` candidate | saved | chosen |
+rejected; `reject_reason` too_far | too_dear | not_our_look | doesnt_fit; `drive` jsonb
+`{ hours, line, minutes }`). Both CASCADE on trips and are in `schemaSnapshot`.
+
+**Pure logic in `lib/stays`** (all tested against the Tuscany journey's real pins):
+- `brief.ts` — evening pins (≥17:00) set the radius (15 min); day-trip pins set the side;
+  the airport is its own anchor; stay days = days with nothing placed before 16:00; fit is
+  a floor from `party_ages` (bedrooms = ⌈adults/2⌉ + ⌈kids/2⌉, baths = ⌈total/3⌉); a
+  day-trip cluster on 2+ days ≥50 km from the evening centre is a split candidate.
+- `drive.ts` — return hours × days visited; `driveLine`; `driveDelta` (≥1 h only).
+- `price.ts` — nightly from a total; scores carry the site's scale (Vrbo /10, Airbnb /5).
+- `text.ts` — the three sentences and the review tells. No label introduces a line.
+
+**Routes** (`app/api/stays`, all behind `requireUser` + quota): `search` (saved stays +
+Google lodging near the evening centre + Distance Matrix + review tells; re-runs carry
+saved/chosen rows forward and never re-propose a rejected place; `too_far` tightens the
+radius); `choose` (check-in 15:00 on day 1, check-out 10:00 on the last day, other stays
+on those days set to `cut`, `trips.accommodation_*`, the Estimate's `nightlyRate` when a
+price exists; `DELETE` with the returned payload undoes all of it, including a place it
+created); `mark` (save → an ordinary interested card; reject → status + reason).
+
+**Limits, by design:** no sign-in to any listing site (Brennan). Google candidates have
+rating, reviews, drives and review tells but no beds/baths/pool/AC/price — the sheet
+shows the party's floor ("Needs 4 bedrooms and 3 baths") instead. A candidate with a
+`total` (from a listing) is what the price line and the Estimate hook wait for.

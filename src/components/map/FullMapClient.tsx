@@ -2,13 +2,15 @@
 
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import MapPinPopup from "./MapPinPopup";
 import MapSidebar, { SIDEBAR_SUB_TYPES } from "./MapSidebar";
 import PlaceSearch from "./PlaceSearch";
 import AddToTripSheet from "./AddToTripSheet";
+import WhereToStaySheet from "./WhereToStaySheet";
 import type { PlaceResult } from "./AddToTripSheet";
-import type { Trip, Day, Card, CardType } from "@/types/database";
-import { makeMaterialPinElement } from "@/lib/mapPins";
+import type { Trip, Day, Card, CardType, StayCandidate } from "@/types/database";
+import { makeMaterialPinElement, makePinElement } from "@/lib/mapPins";
 import { Funnel, Heart, Files } from "@phosphor-icons/react";
 import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/plan/ConfirmationPreviewSheet";
 import DocumentsSheet from "@/components/plan/DocumentsSheet";
@@ -109,6 +111,58 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
   const [importingConf, setImportingConf] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [showDocs, setShowDocs] = useState(false);
+
+  // ── Where to stay ──────────────────────────────────────────────────
+  // Opens from the menu row (…/map?stays=1). Candidates are lettered pins
+  // drawn beside the journey's own; the sheet below lists them. Tap a pin
+  // and the row scrolls to it; tap a row and the map flies to the pin.
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [showStays, setShowStays] = useState(false);
+  const [stayCands, setStayCands] = useState<StayCandidate[]>([]);
+  const [focusedStay, setFocusedStay] = useState<StayCandidate | null>(null);
+  const [mapReady, setMapReady] = useState(false);
+  const stayMarkersRef = useRef<{ remove: () => void }[]>([]);
+  useEffect(() => {
+    if (searchParams.get("stays") === "1" && !readOnly) setShowStays(true);
+  }, [searchParams, readOnly]);
+  useEffect(() => {
+    const mb = mbRef.current;
+    const map = mapInstRef.current;
+    stayMarkersRef.current.forEach((m) => m.remove());
+    stayMarkersRef.current = [];
+    if (!mb || !map || !mapReady || !showStays) return;
+    const coords: [number, number][] = [];
+    stayCands.forEach((c) => {
+      if (c.lat == null || c.lng == null) return;
+      const { wrapper, inner } = makePinElement(
+        "logistics", "hotel", c.status === "chosen" ? "in_itinerary" : "interested",
+        { label: c.letter ?? "", onClick: () => setFocusedStay(c) },
+      );
+      inner.title = c.name;
+      if (focusedStay?.id === c.id) { inner.dataset.selected = "1"; inner.style.transform = "scale(1.35)"; }
+      const marker = new mb.Marker({ element: wrapper, anchor: "center" }).setLngLat([c.lng, c.lat]).addTo(map);
+      stayMarkersRef.current.push(marker);
+      coords.push([c.lng, c.lat]);
+    });
+    if (coords.length > 1 && !focusedStay) {
+      const bounds = coords.reduce(
+        (b: unknown, coord) => (b as { extend: (c: [number, number]) => unknown }).extend(coord),
+        new mb.LngLatBounds(coords[0], coords[0]),
+      );
+      map.fitBounds(bounds, { padding: { top: 80, bottom: 80, left: 40, right: 40 }, maxZoom: 13 });
+    }
+  }, [showStays, stayCands, focusedStay, mapReady]);
+  useEffect(() => {
+    const map = mapInstRef.current;
+    if (!map || !focusedStay || focusedStay.lat == null || focusedStay.lng == null) return;
+    map.flyTo({ center: [focusedStay.lng, focusedStay.lat], zoom: Math.max(map.getZoom(), 12) });
+  }, [focusedStay]);
+  const closeStays = useCallback(() => {
+    setShowStays(false);
+    setFocusedStay(null);
+    router.replace("/trips/" + trip.id + "/map");
+  }, [router, trip.id]);
 
   // The desktop masthead's menu lives in the layout, so its Bookings row asks
   // whichever screen is open to show the sheet (Brennan, Sep 2026: "I thought
@@ -616,6 +670,8 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
           MARKERS.set(card.id, { marker: mbMarker, type: place.type, cardRef });
         });
 
+        setMapReady(true);
+
         // Fit to all pins
         if (mappable.length > 1) {
           const coords = mappable.map(({ lng, lat }) => [lng, lat] as [number, number]);
@@ -895,6 +951,19 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
         {/* Add to Trip sheet. No longer gated on the journey having days — the
             sheet only needed one before, to fill a dayId it then ignored. A
             dayless journey now still gets map-only saves. */}
+        {/* Where to stay — the half sheet; the pins are drawn above. */}
+        {showStays && !readOnly && (
+          <WhereToStaySheet
+            trip={trip}
+            placesCount={cards.filter((c) => c.place?.lat != null && c.place?.lng != null).length}
+            focusedId={focusedStay?.id ?? null}
+            onFocus={setFocusedStay}
+            onCandidates={setStayCands}
+            onChanged={() => router.refresh()}
+            onClose={closeStays}
+          />
+        )}
+
         {pendingPlace && (
           <AddToTripSheet
             place={pendingPlace}

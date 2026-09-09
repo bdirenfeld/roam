@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
   Coins,
   DotsThree,
@@ -8,6 +9,7 @@ import {
   NotePencil,
   ShareNetwork,
   Lightbulb,
+  Bed,
 } from "@phosphor-icons/react";
 import {
   EstimateLink,
@@ -201,6 +203,24 @@ export default function AppMenu({
                 </span>
                 <Label title="Ideas" />
               </IdeasLink>
+
+              {/* Where to stay lives over the Map: the candidates are pins
+                  against the pins the person chose. The row is a plain link
+                  so it works from every tab and opens the sheet on arrival. */}
+              {owner && (
+                <Link
+                  href={"/trips/" + tripId + "/map?stays=1"}
+                  role="menuitem"
+                  aria-label="Where to stay"
+                  onClick={() => setOpen(false)}
+                  style={itemStyle}
+                >
+                  <span style={glyphStyle}>
+                    <Bed size={15} weight="light" />
+                  </span>
+                  <Label title="Where to stay" />
+                </Link>
+              )}
 
               {owner && (
                 <EstimateLink

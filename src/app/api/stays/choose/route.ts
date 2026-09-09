@@ -20,6 +20,9 @@ interface Undo {
   prevAccommodation: { name: string | null; address: string | null };
   prevNightly: number | null | undefined;
   prevBasis: string | null | undefined;
+  /** The candidate's status before Choose, and whether Choose had to create its place. */
+  prevStatus: string;
+  createdPlace: boolean;
 }
 
 export async function POST(request: NextRequest) {
@@ -42,6 +45,7 @@ export async function POST(request: NextRequest) {
   if (!trip || trip.user_id !== user.id) return NextResponse.json({ error: "Not your journey" }, { status: 403 });
   if (!days || days.length < 2) return NextResponse.json({ error: "The journey needs its days first" }, { status: 422 });
 
+  const hadPlace = !!c.place_id;
   const placeId = await ensurePlace(supabase, user.id, c);
   if (!placeId) return NextResponse.json({ error: "Couldn't save the place" }, { status: 500 });
 
@@ -104,6 +108,8 @@ export async function POST(request: NextRequest) {
     prevChosenId: prevChosen?.id ?? null,
     prevAccommodation: { name: trip.accommodation_name, address: trip.accommodation_address },
     prevNightly, prevBasis,
+    prevStatus: c.status,
+    createdPlace: !hadPlace,
   };
   return NextResponse.json({ ok: true, placeId, cardIds: [inId, outId], undo });
 }
@@ -132,7 +138,20 @@ export async function DELETE(request: NextRequest) {
       await supabase.from("trip_budgets").update({ assumptions: a, basis: b }).eq("trip_id", undo.tripId);
     }
   }
-  await supabase.from("stay_candidates").update({ status: "saved" }).eq("id", undo.candidateId);
+  // Back to what it was; a place created only for this choice goes too, once no card points at it.
+  const { data: cand } = await supabase.from("stay_candidates").select("place_id").eq("id", undo.candidateId).maybeSingle();
+  const prevStatus = undo.prevStatus === "saved" || undo.prevStatus === "candidate" ? undo.prevStatus : "candidate";
+  if (undo.createdPlace && cand?.place_id) {
+    const { count } = await supabase.from("cards").select("id", { count: "exact", head: true }).eq("place_id", cand.place_id);
+    if (!count) {
+      await supabase.from("stay_candidates").update({ status: prevStatus, place_id: null }).eq("id", undo.candidateId);
+      await supabase.from("places").delete().eq("id", cand.place_id);
+    } else {
+      await supabase.from("stay_candidates").update({ status: "saved" }).eq("id", undo.candidateId);
+    }
+  } else {
+    await supabase.from("stay_candidates").update({ status: prevStatus === "candidate" && !cand?.place_id ? "candidate" : "saved" }).eq("id", undo.candidateId);
+  }
   if (undo.prevChosenId) await supabase.from("stay_candidates").update({ status: "chosen" }).eq("id", undo.prevChosenId);
   return NextResponse.json({ ok: true });
 }

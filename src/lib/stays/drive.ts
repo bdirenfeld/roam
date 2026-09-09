@@ -56,5 +56,5 @@ export function driveDelta(hours: number, bestHours: number): string | null {
   const d = Math.round((hours - bestHours) * 2) / 2;
   if (d < 1) return null;
   const n = Number.isInteger(d) ? String(d) : d.toFixed(1);
-  return `Adds about ${n} hours of driving over the trip`;
+  return `Adds about ${n} ${d === 1 ? "hour" : "hours"} of driving over the trip`;
 }
