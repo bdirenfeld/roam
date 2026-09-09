@@ -120,7 +120,10 @@ export default function WhereToStaySheet({ trip, placesCount, focusedId, onFocus
         undo: async () => {
           const r = await fetch("/api/stays/choose", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify(json.undo) });
           if (!r.ok) { toast({ message: "Couldn't undo that." }); return; }
-          publish(cands.map((x) => x.id === c.id ? { ...x, status: "saved" } : x));
+          // The server decides what the row goes back to (candidate, or saved
+          // when a card still points at the place), so read it back.
+          const { data } = await createClient().from("stay_candidates").select("*").eq("trip_id", trip.id).order("letter");
+          publish((data ?? []) as StayCandidate[]);
           onChanged();
         },
       });
