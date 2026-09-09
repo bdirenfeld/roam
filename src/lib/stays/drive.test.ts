@@ -1,5 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { fmtMinutes, driveHours, driveLine, driveDelta } from "./drive";
+import { fmtMinutes, driveHours, driveLine, driveDelta, usableAnchorIndexes } from "./drive";
+
+describe("usableAnchorIndexes", () => {
+  const anchors = [{ kind: "evening" }, { kind: "airport" }, { kind: "daytrip" }, { kind: "daytrip" }];
+  it("drops a day trip that is really a second base: Tokyo to Kagoshima at 21 h", () => {
+    expect(usableAnchorIndexes(anchors, [0, 45, 70, 1304])).toEqual([0, 1, 2]);
+  });
+  it("keeps everything Google could not route, and never drops the evening or the airport", () => {
+    expect(usableAnchorIndexes(anchors, [0, 400, null, 120])).toEqual([0, 1, 2, 3]);
+  });
+});
 
 /**
  * Google drive minutes fetched 2026-09-09 for the Tuscany anchors, in the

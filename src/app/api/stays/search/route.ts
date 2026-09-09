@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import { loadTripContext, googleKey, driveMinutes, lodgingNear, placeReviews } from "../_shared";
-import { driveHours, driveLine, driveDelta } from "@/lib/stays/drive";
+import { driveHours, driveLine, driveDelta, usableAnchorIndexes } from "@/lib/stays/drive";
 import { areaHeadline, areaLine, splitText, reviewNotes } from "@/lib/stays/text";
 
 const MAX_GOOGLE = 6;
@@ -85,15 +85,19 @@ export async function POST(request: NextRequest) {
   const airportIdx = anchors.findIndex((a) => a.kind === "airport");
   const eveningIdx = anchors.findIndex((a) => a.kind === "evening");
 
+  // A cluster hours away from the evening centre (Tokyo → Kagoshima) is a
+  // second base, not a day trip: it stays out of the hours and the line, and
+  // the split sentence below is where it gets named.
+  const usable = usableAnchorIndexes(anchors, fromCentre);
   const weights = anchors.map((a) => a.days);
   const scored = cands.map((c, i) => {
     const mins = matrix[i];
-    const hours = driveHours(mins, weights);
+    const hours = driveHours(usable.map((j) => mins[j]), usable.map((j) => weights[j]));
     const minutes: Record<string, number | null> = {};
     anchors.forEach((a, j) => { minutes[a.label] = mins[j]; });
     const farthest = anchors
-      .map((a, j) => ({ a, m: mins[j] }))
-      .filter((x) => x.a.kind === "daytrip" && x.m != null)
+      .map((a, j) => ({ a, m: mins[j], j }))
+      .filter((x) => x.a.kind === "daytrip" && x.m != null && usable.includes(x.j))
       .sort((x, y) => (y.m as number) - (x.m as number))[0];
     const parts = [];
     if (eveningIdx >= 0) parts.push({ label: anchors[eveningIdx].label, minutes: mins[eveningIdx] });

@@ -58,6 +58,34 @@ export default function WhereToStaySheet({ trip, placesCount, focusedId, onFocus
   const [tall, setTall] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
+  // Tap the name and the row opens: a strip of the place's photos, its
+  // address and its website. Photos come from Google through the app's own
+  // photo route, fetched once per candidate and kept for the session.
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [gallery, setGallery] = useState<Record<string, { photos: string[]; website: string | null } | "loading">>({});
+
+  async function openRow(c: StayCandidate) {
+    if (openId === c.id) { setOpenId(null); return; }
+    setOpenId(c.id);
+    setTall(true);
+    if (gallery[c.id] || !c.google_place_id) return;
+    setGallery((g) => ({ ...g, [c.id]: "loading" }));
+    try {
+      const res = await fetch(`/api/places/details?place_id=${encodeURIComponent(c.google_place_id)}`);
+      const json = await res.json();
+      const refs: string[] = ((json.result?.photos ?? []) as { photo_reference?: string }[])
+        .map((p) => p.photo_reference).filter((r): r is string => !!r).slice(0, 6);
+      const urls = (await Promise.all(refs.map(async (r) => {
+        const pr = await fetch(`/api/places/photo/by-reference?photo_reference=${encodeURIComponent(r)}&maxwidth=640`);
+        const pj = await pr.json();
+        return (pj.url as string | undefined) ?? null;
+      }))).filter((u): u is string => !!u);
+      setGallery((g) => ({ ...g, [c.id]: { photos: urls, website: (json.result?.website as string | undefined) ?? c.url } }));
+    } catch {
+      setGallery((g) => ({ ...g, [c.id]: { photos: [], website: c.url } }));
+    }
+  }
+
   const nights = Math.max(0, Math.round((new Date(trip.end_date + "T00:00:00").getTime() - new Date(trip.start_date + "T00:00:00").getTime()) / 86400000));
   const travellers = trip.party_size ?? trip.party_ages?.length ?? null;
 
@@ -245,9 +273,40 @@ export default function WhereToStaySheet({ trip, placesCount, focusedId, onFocus
                       </span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-display italic truncate" style={{ fontSize: 17, lineHeight: 1.24, color: INK }}>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onFocus(c); openRow(c); }}
+                        className="block w-full text-left font-display italic truncate"
+                        style={{ fontSize: 17, lineHeight: 1.24, color: INK }}
+                        aria-expanded={openId === c.id}
+                      >
                         {c.name}{chosen ? <span className="ml-2 not-italic font-sans text-[10px] uppercase tracking-wide" style={{ color: SIENNA }}>Your stay</span> : null}
-                      </p>
+                      </button>
+                      {openId === c.id && (() => {
+                        const g = gallery[c.id];
+                        return (
+                          <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                            {g === "loading" ? (
+                              <p className="text-[12px]" style={{ color: CAPTION }}>Loading photos…</p>
+                            ) : g && g.photos.length > 0 ? (
+                              <div className="flex gap-2 overflow-x-auto -mx-1 px-1 pb-1" style={{ scrollSnapType: "x mandatory" }}>
+                                {g.photos.map((u, i) => (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img key={i} src={u} alt="" loading="lazy" className="w-[200px] h-[140px] flex-none rounded-lg object-cover" style={{ scrollSnapAlign: "start", background: "rgba(26,26,46,0.06)" }} />
+                                ))}
+                              </div>
+                            ) : c.google_place_id ? null : (
+                              <p className="text-[12px]" style={{ color: CAPTION }}>No photos for this one.</p>
+                            )}
+                            {c.address && <p className="text-[12.5px] mt-2" style={{ color: CAPTION }}>{c.address}</p>}
+                            {(g && g !== "loading" && g.website) || c.url ? (
+                              <a href={(g && g !== "loading" && g.website) || (c.url as string)} target="_blank" rel="noopener noreferrer" className="inline-block text-[12.5px] font-medium mt-1" style={{ color: INK }}>
+                                Website ↗
+                              </a>
+                            ) : null}
+                          </div>
+                        );
+                      })()}
                       {meta && <p className="text-[12.5px] mt-[3px] leading-snug" style={{ color: CAPTION }}>{meta}</p>}
                       {c.review_notes && <p className="text-[12.5px] mt-[3px] leading-snug" style={{ color: CAPTION }}>Reviews: {c.review_notes}</p>}
                       {c.fit_text && <p className="text-[12.5px] mt-[3px]" style={{ color: CAPTION }}>{c.fit_text}</p>}

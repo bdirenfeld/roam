@@ -9,6 +9,30 @@
 
 export interface DrivePart { label: string; minutes: number | null }
 
+/** Past this, a cluster is a second base, not a day trip (Tokyo → Kagoshima is 21 h). */
+export const DAY_TRIP_MAX_MIN = 180;
+
+/**
+ * Which anchors a candidate is scored against. A day-trip cluster more than
+ * DAY_TRIP_MAX_MIN from the evening centre is somewhere you would move to,
+ * not drive to and back, so it drops out of the hours, the line and the
+ * "adds N hours" sentence. The split sentence still names it. Evening and
+ * airport anchors always count.
+ */
+export function usableAnchorIndexes(
+  anchors: { kind: string }[],
+  minutesFromCentre: (number | null)[],
+  maxMin: number = DAY_TRIP_MAX_MIN,
+): number[] {
+  const out: number[] = [];
+  anchors.forEach((a, i) => {
+    const m = minutesFromCentre[i];
+    if (a.kind === "daytrip" && m != null && m > maxMin) return;
+    out.push(i);
+  });
+  return out;
+}
+
 /** "10 min" · "1 h" · "1 h 20". Null when Google had no road. */
 export function fmtMinutes(m: number | null): string {
   if (m == null) return "—";
