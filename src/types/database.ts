@@ -232,6 +232,7 @@ export interface StayCandidate {
   status: StayCandidateStatus
   reject_reason: StayRejectReason | null
   source: 'saved' | 'google' | 'search'
+  google_place_id: string | null
   created_at: string
 }
 
