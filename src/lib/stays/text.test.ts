@@ -22,6 +22,7 @@ const TUSCANY: StayBrief = {
     { kind: "daytrip", label: "Monterosso al Mare", lat: 44.1406, lng: 9.6664, days: 1, kmFromEvening: 74 },
   ],
   splitCandidates: [{ label: "Firenze", days: 2, km: 61 }],
+  bases: [{ label: "Lucca", km: 0, pins: 8, nights: 11 }],
 };
 
 describe("compassWord", () => {

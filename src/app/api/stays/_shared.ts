@@ -50,7 +50,11 @@ export async function loadTripContext(supabase: SupabaseClient, tripId: string, 
   for (const c of rows) {
     const p = c.place;
     if (!p || p.lat == null || p.lng == null) continue;
-    pins.push({ title: p.title, address: p.address, lat: p.lat, lng: p.lng, subType: p.sub_type, dayDate: c.day_id ? dayDate.get(c.day_id) ?? null : null, startTime: c.start_time });
+    // Only a card on the itinerary is on a day. A saved idea keeps a day_id
+    // in the database — Japan's 31 pins all hold day one and its Plan board is
+    // empty — so day_id alone would put Tokyo and Kagoshima on one afternoon.
+    const scheduled = c.status === "in_itinerary";
+    pins.push({ title: p.title, address: p.address, lat: p.lat, lng: p.lng, subType: p.sub_type, dayDate: scheduled && c.day_id ? dayDate.get(c.day_id) ?? null : null, startTime: scheduled ? c.start_time : null, scheduled });
     if ((p.sub_type === "hotel" || p.sub_type === "accommodation") && !seenStay.has(p.id)) {
       seenStay.add(p.id);
       savedStays.push({ place_id: p.id, title: p.title, address: p.address, lat: p.lat, lng: p.lng, google_place_id: p.google_place_id, rating: p.rating, website: p.website });

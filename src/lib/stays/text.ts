@@ -65,6 +65,17 @@ export function areaLine(brief: StayBrief, airportMinFromEvening: number | null)
  * 2 × minutes × (days − 1). Never a decision — it ends "your call".
  */
 export function splitText(brief: StayBrief, minutesFromEvening: Record<string, number | null>): string | null {
+  // More than one region with real weight is not a day-trip question, it is a
+  // different trip. Japan reached Kagoshima and still read "One base is
+  // enough" for thirteen nights (Brennan, 10 Sept 2026). When the journey has
+  // nothing on the itinerary the nights are shared out by where the pins are,
+  // so it is offered as a starting point, not stated as a plan.
+  if (brief.bases.length > 1) {
+    const split = brief.bases
+      .map((b, i) => `${b.label} ${b.nights}${i === 0 ? (b.nights === 1 ? " night" : " nights") : ""}`)
+      .join(", ");
+    return `Too spread out for one base — ${brief.bases.length} places to stay. Roughly ${split}.`;
+  }
   const best = brief.splitCandidates
     .map((s) => ({ ...s, min: minutesFromEvening[s.label] ?? null }))
     .filter((s) => s.min != null && s.min >= 60)

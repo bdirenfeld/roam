@@ -33,6 +33,13 @@ export interface BriefPin {
   dayDate: string | null;
   /** "HH:MM:SS" or "HH:MM"; null for an untimed card. */
   startTime: string | null;
+  /**
+   * True only for a card really on the itinerary. A saved idea still carries a
+   * day_id in the database — all 31 of his Japan pins hold day one and none is
+   * on the Plan board — so day_id alone is not a day (Brennan, 10 Sept 2026).
+   * Optional: an older fixture without it falls back to having a date.
+   */
+  scheduled?: boolean;
 }
 
 export interface BriefInput {
@@ -69,6 +76,17 @@ export interface StayBrief {
   stayDays: number;
   /** Day-trip clusters worth a second base: 2+ days and far from the evening centre. */
   splitCandidates: { label: string; days: number; km: number }[];
+  /**
+   * How many places the journey actually needs to sleep in, from distance
+   * alone. Length 1 when one base does it.
+   *
+   * The old rule wanted a cluster visited on 2+ separate DAYS, which Japan can
+   * never satisfy — nothing there is on the itinerary, so every cluster is one
+   * day and a 13-night trip reaching Kagoshima read "One base is enough"
+   * (Brennan, 10 Sept 2026). Distance settles it instead: nothing 1,000 km
+   * away is a day trip however often you go.
+   */
+  bases: { label: string; km: number; pins: number; nights: number }[];
 }
 
 export const EVENING_RADIUS_MIN = 15;
@@ -82,6 +100,14 @@ const DAY_WEIGHT = 1;
 const PIN_WEIGHT = 0.25;
 const DAYTRIP_CLUSTER_KM = 5;
 const SPLIT_KM = 50;
+// How far apart two places have to be to be different bases rather than one
+// area with a day trip in it. Lucca to Florence is 60 km and IS one base with
+// a day trip; Tokyo to Osaka is 400 km and is not.
+const REGION_KM = 100;
+// A region earns a base with this many pins, or this share of the journey.
+const REGION_MIN_PINS = 2;
+const REGION_MIN_SHARE = 0.1;
+const MIN_NIGHTS_PER_BASE = 2;
 const SPLIT_DAYS = 2;
 
 const STAY_SUBTYPES = new Set(["hotel", "accommodation"]);
@@ -274,7 +300,15 @@ export function buildStayBrief(input: BriefInput): StayBrief {
   const party = partyFromAges(input.partyAges, input.partySize);
   const fit = fitFromParty(party);
 
-  const placed = input.pins.filter((p) => p.dayDate && !isStay(p));
+  // A saved idea says WHERE the journey goes; only a card really on the
+  // itinerary says WHICH DAY. Japan's 31 pins all carry day one's id and none
+  // of them is on the Plan board, so reading day_id as a day put Tokyo, Osaka
+  // and Kagoshima on the same afternoon (Brennan, 10 Sept 2026). Everything
+  // located counts for place; a date counts only when the card is scheduled.
+  const onDay = (p: BriefPin): boolean => !!p.dayDate && (p.scheduled ?? true);
+  const placed = input.pins
+    .filter((p) => !isStay(p) && (p.dayDate || p.lat != null))
+    .map((p) => (onDay(p) ? p : { ...p, dayDate: null, startTime: null }));
   const airports = placed.filter(isAirport);
   const rest = placed.filter((p) => !isAirport(p));
   const daytime = rest.filter((p) => (hhmm(p.startTime) ?? "00:00") < EVENING_FROM);
@@ -340,6 +374,37 @@ export function buildStayBrief(input: BriefInput): StayBrief {
     .filter((a) => a.kind === "daytrip" && a.days >= SPLIT_DAYS && a.kmFromEvening >= SPLIT_KM)
     .map((a) => ({ label: a.label, days: a.days, km: a.kmFromEvening }));
 
+  // How many places to sleep in. Regions are coarse — 100 km, so Lucca keeps
+  // Florence as a day trip while Tokyo does not keep Osaka — and a region has
+  // to carry real weight before it earns a base of its own. With nothing on
+  // the itinerary the nights can only be shared out by where the pins are,
+  // which is a starting point rather than a plan.
+  const regions = cluster(rest, REGION_KM)
+    .map((c) => ({ c, pins: c.pins.length }))
+    .filter((r) => r.pins >= REGION_MIN_PINS && r.pins >= rest.length * REGION_MIN_SHARE)
+    .sort((a, b) => b.pins - a.pins);
+  const room = Math.floor(nights / MIN_NIGHTS_PER_BASE);
+  const keep = regions.slice(0, Math.max(1, Math.min(regions.length, room)));
+  const totalPins = keep.reduce((n, r) => n + r.pins, 0) || 1;
+  let left = nights;
+  const bases = keep.map((r, i) => {
+    const share = i === keep.length - 1
+      ? left
+      : Math.max(MIN_NIGHTS_PER_BASE, Math.round((r.pins / totalPins) * nights));
+    const nightsHere = Math.min(share, left - MIN_NIGHTS_PER_BASE * (keep.length - 1 - i));
+    left -= nightsHere;
+    // A region is 100 km wide, so its centroid can land on the wrong town —
+    // Tuscany's came out "Firenze" when the base is Lucca. The region holding
+    // the centre is named after the centre; the rest keep their own label.
+    const km = evening ? Math.round(greatCircleKm(evening.lat, evening.lng, r.c.lat, r.c.lng)) : 0;
+    return {
+      label: evening && km <= REGION_KM ? evening.label : clusterLabel(r.c),
+      km,
+      pins: r.pins,
+      nights: Math.max(0, nightsHere),
+    };
+  });
+
   return {
     nights,
     days,
@@ -351,5 +416,6 @@ export function buildStayBrief(input: BriefInput): StayBrief {
     radiusMin: EVENING_RADIUS_MIN,
     stayDays,
     splitCandidates,
+    bases,
   };
 }

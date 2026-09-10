@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import journeys from "./fixtures/journeys.json";
 import { buildStayBrief, countryOfPins, type BriefPin, type StayBrief } from "./brief";
-import { areaHeadline, areaLine } from "./text";
+import { areaHeadline, areaLine, splitText } from "./text";
 
 /**
  * Every journey Brennan has, run through the brief and read the way he would.
@@ -134,6 +134,28 @@ it("Santa Barbara: the centre follows the pins, not one polo match at five", () 
   it("Japan: a centre won on pins alone does not claim to have evenings", () => {
     const b = briefs.get("Japan")!;
     if (!b.evening!.evenings) expect(areaLine(b, null)).toMatch(/around/);
+  });
+
+  it("Japan: thirteen nights reaching Kagoshima is not one base", () => {
+    // Nothing on this journey is on the itinerary — all 31 pins carry day
+    // one's id and the Plan board is empty — so the old rule, which wanted a
+    // cluster visited on 2+ separate DAYS, could never fire and a trip
+    // spanning 1,000 km read "One base is enough" (Brennan, 10 Sept 2026).
+    const b = briefs.get("Japan")!;
+    expect(b.bases.length).toBeGreaterThan(1);
+    expect(b.bases[0].label).toBe("Tokyo");
+    expect(b.bases.reduce((n, x) => n + x.nights, 0)).toBe(b.nights);
+    for (const x of b.bases) expect(x.nights).toBeGreaterThanOrEqual(2);
+    expect(splitText(b, {})).toMatch(/Too spread out for one base/);
+  });
+
+  it("every other journey still needs only one base", () => {
+    for (const j of ALL) {
+      if (j.title === "Japan") continue;
+      const b = briefs.get(j.title)!;
+      expect(b.bases.length, `${j.title} wants ${b.bases.length} bases`).toBe(1);
+      expect(b.bases[0].nights).toBe(b.nights);
+    }
   });
 
   it("Last Week of Summer: at home, no airport, and a day out is still a day out", () => {
