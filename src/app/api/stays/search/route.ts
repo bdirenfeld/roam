@@ -133,7 +133,25 @@ export async function POST(request: NextRequest) {
   const inCands = (list: Cand[], name: string, placeId: string | null) =>
     list.some((c) => c.name.toLowerCase() === name.toLowerCase() || (placeId && c.place_id === placeId));
 
+  /**
+   * A saved stay belongs to the base it is nearest, not to every base. Japan's
+   * saved hotels are spread the length of the country, and without this the
+   * Osaka list came back HOSHINOYA Tokyo, Gora Kadan and two Hakone ryokans —
+   * they filled all five slots before a single Osaka offer was needed
+   * (found on the live site, 10 Sept 2026).
+   */
+  const nearestBase = (lat: number, lng: number): number => {
+    if (brief.bases.length < 2) return 0;
+    let best = 0, bestKm = Infinity;
+    brief.bases.forEach((b, i) => {
+      const km = greatCircleKm(b.lat, b.lng, lat, lng);
+      if (km < bestKm) { bestKm = km; best = i; }
+    });
+    return best;
+  };
+
   const cands: Cand[] = ctx.savedStays
+    .filter((s) => nearestBase(s.lat, s.lng) === baseIndex)
     .filter((s) => {
       const prior = kept.find((k) => k.place_id === s.place_id || k.name.toLowerCase() === s.title.toLowerCase());
       if (prior) return true; // saved / chosen / hearted always come back
