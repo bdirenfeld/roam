@@ -33,6 +33,8 @@ const REASONS: { key: StayRejectReason; label: string }[] = [
 ];
 
 interface Props {
+  /** Desktop: a panel on the right of the map instead of a bottom sheet. */
+  panel?: boolean;
   trip: Trip;
   /** Pins on the map with a place — the "From 47 places" line. */
   placesCount: number;
@@ -48,7 +50,7 @@ function cad(n: number): string {
   return "$" + Math.round(n).toLocaleString("en-CA");
 }
 
-export default function WhereToStaySheet({ trip, placesCount, focusedId, onFocus, onCandidates, onChanged, onClose }: Props) {
+export default function WhereToStaySheet({ panel = false, trip, placesCount, focusedId, onFocus, onCandidates, onChanged, onClose }: Props) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [brief, setBrief] = useState<StayBriefRow | null>(null);
@@ -188,13 +190,16 @@ export default function WhereToStaySheet({ trip, placesCount, focusedId, onFocus
   return (
     <>
       <div
-        className="fixed inset-x-0 bottom-0 z-[60] flex items-end pointer-events-none"
+        className={panel ? "absolute inset-y-0 right-0 z-[60] flex" : "fixed inset-x-0 bottom-0 z-[60] flex items-end pointer-events-none"}
+        style={panel ? { width: 400 } : undefined}
         role="dialog"
         aria-label="Where to stay"
       >
         <div
-          className="relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet flex flex-col pointer-events-auto"
-          style={{ height: tall ? "88dvh" : "46dvh", transition: "height 220ms ease" }}
+          className={panel
+            ? "relative w-full h-full bg-white border-l flex flex-col overflow-hidden"
+            : "relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet flex flex-col pointer-events-auto"}
+          style={panel ? { borderColor: "rgba(26,26,46,0.1)" } : { height: tall ? "88dvh" : "46dvh", transition: "height 220ms ease" }}
         >
           <div
             className="flex-shrink-0 cursor-grab select-none"
@@ -204,10 +209,12 @@ export default function WhereToStaySheet({ trip, placesCount, focusedId, onFocus
             role="button"
             aria-label={tall ? "Show more map" : "Show the full list"}
           >
-            <div className="flex justify-center pt-3 pb-2">
-              <span className="w-9 h-[3px] rounded-full bg-gray-300" />
-            </div>
-            <div className="flex items-center justify-between px-5 pb-2.5 border-b border-gray-100">
+            {!panel && (
+              <div className="flex justify-center pt-3 pb-2">
+                <span className="w-9 h-[3px] rounded-full bg-gray-300" />
+              </div>
+            )}
+            <div className={`flex items-center justify-between px-5 pb-2.5 border-b border-gray-100 ${panel ? "pt-4" : ""}`}>
               <h2 className="font-display italic" style={{ fontSize: 23, fontWeight: 500, color: INK, letterSpacing: "-0.01em" }}>Where to stay</h2>
               <button type="button" onClick={(e) => { e.stopPropagation(); onClose(); }} aria-label="Close" className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M2 2l8 8M10 2l-8 8" /></svg>
@@ -347,6 +354,8 @@ export default function WhereToStaySheet({ trip, placesCount, focusedId, onFocus
 
       {open && (
         <StayCardSheet
+          inPanel={panel}
+          backLabel={`All ${cands.length === 5 ? "five" : cands.length}`}
           candidate={open}
           brief={briefObj}
           startDate={trip.start_date}

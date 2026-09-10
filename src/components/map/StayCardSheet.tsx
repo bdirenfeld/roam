@@ -18,6 +18,9 @@ const SIENNA = "#B0541F";
 const CAPTION = "rgba(26,26,46,0.62)";
 
 interface Props {
+  /** Desktop: slide in over the list inside the right-hand panel, with a way back. */
+  inPanel?: boolean;
+  backLabel?: string;
   candidate: StayCandidate;
   brief: StayBrief | null;
   startDate: string;
@@ -55,7 +58,7 @@ async function loadPhotos(googlePlaceId: string): Promise<{ photos: string[]; we
   return { photos: urls, website: (json.result?.website as string | undefined) ?? null };
 }
 
-export default function StayCardSheet({ candidate: c, brief, startDate, endDate, nights, busy, onChoose, onSave, onClose }: Props) {
+export default function StayCardSheet({ inPanel = false, backLabel = "Back", candidate: c, brief, startDate, endDate, nights, busy, onChoose, onSave, onClose }: Props) {
   // The search already resolved the first few photos; only an older row still fetches.
   const [photos, setPhotos] = useState<string[] | null>(c.photos?.length ? c.photos : null);
   const [website, setWebsite] = useState<string | null>(c.url);
@@ -83,11 +86,13 @@ export default function StayCardSheet({ candidate: c, brief, startDate, endDate,
   const partyN = brief?.party.total;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end" role="dialog" aria-label={c.name}>
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet h-[95dvh] flex flex-col overflow-hidden">
+    <div className={inPanel ? "absolute inset-0 z-[70] flex" : "fixed inset-0 z-[70] flex items-end"} role="dialog" aria-label={c.name}>
+      {!inPanel && <div className="absolute inset-0 bg-black/40" onClick={onClose} />}
+      <div className={inPanel
+        ? "relative w-full h-full bg-white flex flex-col overflow-hidden"
+        : "relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet h-[95dvh] flex flex-col overflow-hidden"}>
         {/* Photos */}
-        <div className="relative flex-shrink-0 h-[220px] bg-gray-100">
+        <div className={`relative flex-shrink-0 bg-gray-100 ${inPanel ? "h-[190px]" : "h-[220px]"}`}>
           {photos === null ? (
             <p className="absolute inset-0 flex items-center justify-center text-[13px]" style={{ color: CAPTION }}>Loading photos…</p>
           ) : photos.length === 0 ? (
@@ -109,9 +114,15 @@ export default function StayCardSheet({ candidate: c, brief, startDate, endDate,
               {photos.map((_, i) => <span key={i} className="w-[5px] h-[5px] rounded-full" style={{ background: i === idx ? "#fff" : "rgba(255,255,255,0.55)" }} />)}
             </div>
           )}
-          <button type="button" onClick={onClose} aria-label="Close" className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center text-gray-600 shadow">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M2 2l8 8M10 2l-8 8" /></svg>
-          </button>
+          {inPanel ? (
+            <button type="button" onClick={onClose} aria-label={backLabel} className="absolute top-3 left-3 h-8 px-3 rounded-full bg-white/92 flex items-center gap-1.5 text-[12.5px] font-medium text-gray-800 shadow">
+              <span aria-hidden="true">‹</span>{backLabel}
+            </button>
+          ) : (
+            <button type="button" onClick={onClose} aria-label="Close" className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center text-gray-600 shadow">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M2 2l8 8M10 2l-8 8" /></svg>
+            </button>
+          )}
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto px-5 pt-4 pb-28">

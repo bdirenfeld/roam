@@ -122,6 +122,25 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
   const [stayCands, setStayCands] = useState<StayCandidate[]>([]);
   const [focusedStay, setFocusedStay] = useState<StayCandidate | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  // Desktop: the list is a panel on the right and the map narrows beside it,
+  // so every pin stays on screen (the centred sheet sat on the pins it was
+  // pointing at — Brennan, 9 Sept 2026). Phone: the bottom sheet.
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const apply = () => setIsDesktop(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+  const panelOpen = showStays && !readOnly && isDesktop;
+  useEffect(() => {
+    // The container just changed width; Mapbox has to be told.
+    const map = mapInstRef.current;
+    if (!map) return;
+    const t = setTimeout(() => { try { map.resize(); } catch { /* not loaded yet */ } }, 30);
+    return () => clearTimeout(t);
+  }, [panelOpen]);
   const stayMarkersRef = useRef<{ remove: () => void }[]>([]);
   useEffect(() => {
     if (searchParams.get("stays") === "1" && !readOnly) setShowStays(true);
@@ -738,7 +757,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
 
         {/* Map canvas */}
         {hasToken ? (
-          <div ref={mapContainerRef} style={{ position: "absolute", inset: 0 }} />
+          <div ref={mapContainerRef} style={{ position: "absolute", inset: 0, right: panelOpen ? 400 : 0 }} />
         ) : (
           <div style={{ position: "absolute", inset: 0 }} className="bg-gray-50 flex flex-col items-center justify-center gap-1">
             <p className="text-sm font-medium text-gray-500">Map unavailable</p>
@@ -954,6 +973,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
         {/* Where to stay — the half sheet; the pins are drawn above. */}
         {showStays && !readOnly && (
           <WhereToStaySheet
+            panel={isDesktop}
             trip={trip}
             placesCount={cards.filter((c) => c.place?.lat != null && c.place?.lng != null).length}
             focusedId={focusedStay?.id ?? null}
