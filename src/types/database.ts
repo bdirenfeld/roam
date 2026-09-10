@@ -208,6 +208,8 @@ export interface StayBriefRow {
 }
 
 export interface StayCandidate {
+  /** Which home base these five belong to; 0 on a single-base journey. */
+  base: number
   id: string
   trip_id: string
   user_id: string

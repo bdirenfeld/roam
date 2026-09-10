@@ -87,10 +87,8 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
   const travellers = trip.party_size ?? trip.party_ages?.length ?? null;
 
   const publish = useCallback((rows: StayCandidate[]) => {
-    const live = rows.filter((c) => c.status !== "rejected" && c.status !== "seen");
-    setCands(live);
-    onCandidates(live);
-  }, [onCandidates]);
+    setCands(rows.filter((c) => c.status !== "rejected" && c.status !== "seen"));
+  }, []);
 
   const reload = useCallback(async () => {
     const supabase = createClient();
@@ -140,6 +138,10 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
   }
 
   // What he asked for last time, so Run again never makes him retype it.
+  // Which base the sheet is on. A journey needing two places to sleep gets
+  // five for each, switched at the top, so the map never carries ten pins
+  // spread over 400 km (Brennan, 10 Sept 2026).
+  const [baseIdx, setBaseIdx] = useState(0);
   const [wants, setWants] = useState("");
   // Seeded from the Estimate, and written back to it when it changes.
   const [budget, setBudget] = useState("");
@@ -148,7 +150,29 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
     if (typeof w === "string") setWants(w);
   }, [brief]);
 
-  const briefObjForAsk = (brief?.brief ?? null) as (StayBrief & { wants?: string | null }) | null;
+  const briefObjForAsk = (brief?.brief ?? null) as (StayBrief & { wants?: string | null; areaByBase?: Record<string, string | null> }) | null;
+  const bases = briefObjForAsk?.bases ?? [];
+  const multi = bases.length > 1;
+  // Only this base's five, and only this base's line of copy.
+  const shown = multi ? cands.filter((c) => (c.base ?? 0) === baseIdx) : cands;
+  const areaText = (multi ? briefObjForAsk?.areaByBase?.[String(baseIdx)] : null) ?? brief?.area_text ?? null;
+  // Five pins, never ten: the map shows the base the sheet is on.
+  useEffect(() => { onCandidates(shown); }, [shown, onCandidates]);
+
+  // A base searches the first time you open it, not all of them up front:
+  // half the API calls, and the second base often goes unopened in a sitting.
+  // The ref stops a base with genuinely nothing to find from looping.
+  const tried = useRef<Set<number>>(new Set());
+  useEffect(() => {
+    if (loading || running || !multi) return;
+    if (shown.length || tried.current.has(baseIdx)) return;
+    tried.current.add(baseIdx);
+    void run();
+    // run() is stable enough here: it reads the latest state through closure
+    // on each render, and the guards above stop it firing twice for a base.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baseIdx, loading, running, multi, shown.length]);
+  const settled = (i: number) => cands.some((c) => (c.base ?? 0) === i && c.status === "chosen");
   const said = askSummary(parseAsk(wants));
   const chips = suggestions({
     house: briefObjForAsk?.kind === "house",
@@ -160,7 +184,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
     setRunning(true);
     setError(null);
     try {
-      const res = await fetch("/api/stays/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId: trip.id, wants: wants.trim() || undefined, budget: budget.trim() || undefined }) });
+      const res = await fetch("/api/stays/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId: trip.id, wants: wants.trim() || undefined, budget: budget.trim() || undefined, base: baseIdx }) });
       const json = await res.json();
       if (!res.ok) { setError(json.error ?? "That didn't work."); return; }
       const hadRows = cands.length > 0;
@@ -303,7 +327,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
             <StayCardSheet
               key={open.id}
               inPanel
-              backLabel={`All ${cands.length === 5 ? "five" : cands.length}`}
+              backLabel={`All ${shown.length === 5 ? "five" : shown.length}`}
               candidate={open}
               brief={briefObj}
               startDate={trip.start_date}
@@ -343,14 +367,44 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
               </div>
             ) : (
               <>
-                {(brief?.area_text || brief?.split_text) && (
+                {/* Two places to sleep means two lists of five, switched here
+                    rather than stacked — ten pins across 400 km is not a map,
+                    and A-through-J is the thing he rejected the first time
+                    (Brennan, 10 Sept 2026). A tick marks a base already
+                    settled, so progress needs no extra copy. */}
+                {multi && (
+                  <div className="px-4 pt-3">
+                    <div className="flex gap-1.5 p-[3px] rounded-full" style={{ background: "rgba(26,26,46,0.045)" }} role="tablist" aria-label="Which base">
+                      {bases.map((b, i) => (
+                        <button
+                          key={b.label + i}
+                          type="button"
+                          role="tab"
+                          aria-selected={i === baseIdx}
+                          onClick={() => { setBaseIdx(i); setOpenId(null); onFocus(null); }}
+                          className="flex-1 py-[7px] px-1.5 rounded-full text-center leading-tight"
+                          style={i === baseIdx
+                            ? { background: "#fff", color: INK, boxShadow: "0 1px 3px rgba(26,26,46,0.16)" }
+                            : { color: CAPTION }}
+                        >
+                          <span className="block text-[13px] font-semibold">
+                            {b.label}{settled(i) && <span className="ml-1" style={{ color: SIENNA }}>✓</span>}
+                          </span>
+                          <span className="block text-[10.5px] opacity-80">{b.nights} {b.nights === 1 ? "night" : "nights"}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {(areaText || brief?.split_text) && (
                   <div className="px-4 pt-3 pb-1 text-[12.5px] leading-relaxed" style={{ color: "rgba(26,26,46,0.75)" }}>
-                    {brief?.area_text}{brief?.area_text && brief?.split_text ? " " : ""}
+                    {areaText}{areaText && brief?.split_text ? " " : ""}
                     {brief?.split_text && <span style={{ color: SIENNA }}>{brief.split_text}</span>}
                   </div>
                 )}
 
-                {cands.map((c) => {
+                {shown.map((c) => {
                   const focused = focusedId === c.id;
                   const chosen = c.status === "chosen";
                   const busy = busyId === c.id;

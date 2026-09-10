@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
   const { supabase, user } = gate;
   if (!(await underQuota(supabase, "staySearch", QUOTA.staySearch))) return quotaExceeded("stay searches");
 
-  const body = await request.json().catch(() => ({})) as { tripId?: string; wants?: string; budget?: string; undo?: { tripId: string; seenIds: string[]; newIds: string[] } };
+  const body = await request.json().catch(() => ({})) as { tripId?: string; wants?: string; budget?: string; base?: number; undo?: { tripId: string; seenIds: string[]; newIds: string[] } };
   // Undo of Run again: the five that were shown come back, the new five go.
   if (body.undo?.tripId) {
     const { data: t } = await supabase.from("trips").select("id, user_id").eq("id", body.undo.tripId).maybeSingle();
@@ -68,16 +68,38 @@ export async function POST(request: NextRequest) {
     }, { onConflict: "trip_id" });
   }
 
-  // Where to look: the evening centre, else the journey's destination.
-  const centre = brief.evening
-    ? { lat: brief.evening.lat, lng: brief.evening.lng, label: brief.evening.label }
-    : trip.destination_lat != null && trip.destination_lng != null
-      ? { lat: trip.destination_lat, lng: trip.destination_lng, label: trip.title }
-      : null;
+  // Which base these five are for. A journey that needs two places to sleep
+  // gets five for each, and the sheet switches between them rather than
+  // stacking ten rows on one map (Brennan, 10 Sept 2026). Base 0 is the
+  // evening centre, so a single-base journey is unchanged.
+  const baseIndex = Math.max(0, Math.min(brief.bases.length - 1, Math.trunc(body.base ?? 0)));
+  const forBase = brief.bases[baseIndex] ?? null;
+
+  // Where to look: this base, else the evening centre, else the destination.
+  const centre = forBase && baseIndex > 0
+    ? { lat: forBase.lat, lng: forBase.lng, label: forBase.label }
+    : brief.evening
+      ? { lat: brief.evening.lat, lng: brief.evening.lng, label: brief.evening.label }
+      : trip.destination_lat != null && trip.destination_lng != null
+        ? { lat: trip.destination_lat, lng: trip.destination_lng, label: trip.title }
+        : null;
+  // The nights this base is actually booked for, and the dates they fall on.
+  // Osaka is five nights at the end of the journey, so pricing it over the
+  // whole thirteen would quote a stay nobody is taking. The bases run in
+  // order from the start date.
+  const baseNights = forBase?.nights ?? brief.nights;
+  const addDays = (iso: string, n: number) => {
+    const d = new Date(iso + "T00:00:00Z");
+    d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().slice(0, 10);
+  };
+  const nightsBefore = brief.bases.slice(0, baseIndex).reduce((n, b) => n + b.nights, 0);
+  const baseStart = addDays(trip.start_date, nightsBefore);
+  const baseEnd = addDays(baseStart, baseNights);
   if (!centre) return NextResponse.json({ error: "Add a few places first so Roam knows where the journey goes." }, { status: 422 });
 
   // What an earlier run taught us.
-  const { data: previous } = await supabase.from("stay_candidates").select("id, name, address, lat, lng, google_place_id, place_id, status, reject_reason, feel, photos, site, url, score, score_scale, reviews").eq("trip_id", trip.id);
+  const { data: previous } = await supabase.from("stay_candidates").select("id, name, address, lat, lng, google_place_id, place_id, status, reject_reason, feel, photos, site, url, score, score_scale, reviews").eq("trip_id", trip.id).eq("base", baseIndex);
   const rejected = (previous ?? []).filter((p) => p.status === "rejected");
   // Run again brings five FRESH rows (Brennan, 9 Sept 2026): a row shown once and
   // not hearted is "seen" and is not proposed again, same as a rejected one.
@@ -163,7 +185,7 @@ export async function POST(request: NextRequest) {
   // window rolls forward whole years until it is in the future, which keeps the
   // season honest (New York in July stays New York in July), and the sheet says
   // which dates the prices are for.
-  const priced = priceWindow(trip.start_date, trip.end_date);
+  const priced = priceWindow(baseStart, baseEnd);
   const serp = serpApiKey();
   const ages = (trip.party_ages ?? []).filter((a) => a < 18);
   const adults = Math.max(1, (trip.party_size ?? brief.party.total) - ages.length);
@@ -217,7 +239,7 @@ export async function POST(request: NextRequest) {
       // Twice what the Estimate budgets a night is not a near miss, it is a
       // wasted row (Brennan, 10 Sept 2026). A journey with no Estimate has no
       // ceiling and nothing is dropped.
-      .filter((o) => budgetVerdict(nightlyOf(o.nightly, o.total, brief.nights), ctx.nightlyRate) !== "far")
+      .filter((o) => budgetVerdict(nightlyOf(o.nightly, o.total, baseNights), ctx.nightlyRate) !== "far")
       // A must-have removes a row only when the listing says it is absent.
       // "Not listed" is a third state and keeps its place — treating it as a
       // failure would empty a list like Tuscany's, where no row has amenities.
@@ -277,7 +299,7 @@ export async function POST(request: NextRequest) {
   for (let i = cands.length - 1; i >= 0; i--) {
     const c = cands[i];
     if (keptFor(c)) continue;
-    const nightly = nightlyOf(c.nightly ?? null, c.total ?? null, brief.nights);
+    const nightly = nightlyOf(c.nightly ?? null, c.total ?? null, baseNights);
     if (budgetVerdict(nightly, ctx.nightlyRate) === "far") cands.splice(i, 1);
   }
   if (!cands.length) return NextResponse.json({ error: "Nothing near " + centre.label + " comes in near your Estimate. Raise the nightly rate there and run again." }, { status: 404 });
@@ -313,7 +335,7 @@ export async function POST(request: NextRequest) {
     if (farthest) parts.push({ label: farthest.a.label, minutes: farthest.m });
     const flags: string[] = [];
     if (eveningIdx >= 0 && mins[eveningIdx] != null && (mins[eveningIdx] as number) > brief.radiusMin) flags.push("Outside the area");
-    const over = budgetFlag(nightlyOf(c.nightly ?? null, c.total ?? null, brief.nights), ctx.nightlyRate);
+    const over = budgetFlag(nightlyOf(c.nightly ?? null, c.total ?? null, baseNights), ctx.nightlyRate);
     if (over) flags.push(over);
     // What he asked for: a nice-to-have that turned up is worth saying, and
     // anything we could not verify says so rather than leaving a blank.
@@ -334,8 +356,8 @@ export async function POST(request: NextRequest) {
 
   // Replace the last run's rows. Rejected ones stay, so they are never proposed
   // again; saved and chosen come back as fresh rows with their status kept.
-  const { data: nowSeen } = await supabase.from("stay_candidates").update({ status: "seen" }).eq("trip_id", trip.id).eq("status", "candidate").is("feel", null).select("id");
-  await supabase.from("stay_candidates").delete().eq("trip_id", trip.id).or("status.in.(saved,chosen),feel.eq.up");
+  const { data: nowSeen } = await supabase.from("stay_candidates").update({ status: "seen" }).eq("trip_id", trip.id).eq("base", baseIndex).eq("status", "candidate").is("feel", null).select("id");
+  await supabase.from("stay_candidates").delete().eq("trip_id", trip.id).eq("base", baseIndex).or("status.in.(saved,chosen),feel.eq.up");
 
   const rows = scored.map((s, i) => {
     const rv = s.c.google_place_id ? notes.get(s.c.google_place_id) : undefined;
@@ -344,6 +366,7 @@ export async function POST(request: NextRequest) {
     return {
       trip_id: trip.id,
       user_id: user.id,
+      base: baseIndex,
       place_id: s.c.place_id ?? prior?.place_id ?? null,
       google_place_id: s.c.google_place_id,
       letter: LETTERS[i] ?? null,
@@ -379,12 +402,20 @@ export async function POST(request: NextRequest) {
   const airportMin = airportIdx >= 0 ? fromCentre[airportIdx] : null;
   const headline = areaHeadline(brief);
   const line = areaLine(brief, airportMin);
+  // There is one brief row per journey but a line of copy per base, so the
+  // area sentence is kept inside the brief JSON keyed by base and merged with
+  // what the other base's run already wrote. Switching to Osaka must not blank
+  // Tokyo's line.
+  const thisArea = [headline, line, priceWindowNote(priced, baseStart)].filter(Boolean).join(" ") || null;
+  const { data: prevBrief } = await supabase.from("stay_briefs").select("brief").eq("trip_id", trip.id).maybeSingle();
+  const prevJson = (prevBrief?.brief ?? {}) as { areaByBase?: Record<string, string | null> };
+  const areaByBase = { ...(prevJson.areaByBase ?? {}), [String(baseIndex)]: thisArea };
   const briefRow = {
     trip_id: trip.id,
     user_id: user.id,
     ran_at: new Date().toISOString(),
-    brief: { ...JSON.parse(JSON.stringify(brief)), wants: asked || null },
-    area_text: [headline, line, priceWindowNote(priced, trip.start_date)].filter(Boolean).join(" ") || null,
+    brief: { ...JSON.parse(JSON.stringify(brief)), wants: asked || null, areaByBase, lastBase: baseIndex },
+    area_text: thisArea,
     price_year: priced.shifted ? Number(priced.start.slice(0, 4)) : null,
     split_text: splitText(brief, centreMinutes),
   };

@@ -92,7 +92,7 @@ export interface StayBrief {
    * (Brennan, 10 Sept 2026). Distance settles it instead: nothing 1,000 km
    * away is a day trip however often you go.
    */
-  bases: { label: string; km: number; pins: number; nights: number }[];
+  bases: { label: string; lat: number; lng: number; km: number; pins: number; nights: number }[];
 }
 
 export const EVENING_RADIUS_MIN = 15;
@@ -405,6 +405,8 @@ export function buildStayBrief(input: BriefInput): StayBrief {
     const km = evening ? Math.round(greatCircleKm(evening.lat, evening.lng, r.c.lat, r.c.lng)) : 0;
     return {
       label: evening && km <= REGION_KM ? evening.label : clusterLabel(r.c),
+      lat: r.c.lat,
+      lng: r.c.lng,
       km,
       pins: r.pins,
       nights: Math.max(0, nightsHere),
