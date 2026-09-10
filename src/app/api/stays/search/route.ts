@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
   if (!centre) return NextResponse.json({ error: "Add a few places first so Roam knows where the journey goes." }, { status: 422 });
 
   // What an earlier run taught us.
-  const { data: previous } = await supabase.from("stay_candidates").select("id, name, google_place_id, place_id, status, reject_reason, feel, photos").eq("trip_id", trip.id);
+  const { data: previous } = await supabase.from("stay_candidates").select("id, name, address, lat, lng, google_place_id, place_id, status, reject_reason, feel, photos, site, url, score, score_scale, reviews").eq("trip_id", trip.id);
   const rejected = (previous ?? []).filter((p) => p.status === "rejected");
   // Run again brings five FRESH rows (Brennan, 9 Sept 2026): a row shown once and
   // not hearted is "seen" and is not proposed again, same as a rejected one.
@@ -79,6 +79,9 @@ export async function POST(request: NextRequest) {
     beds?: number | null; baths?: number | null; sleeps?: number | null;
     pool?: boolean | null; ac?: boolean | null; photos?: string[];
   };
+  const inCands = (list: Cand[], name: string, placeId: string | null) =>
+    list.some((c) => c.name.toLowerCase() === name.toLowerCase() || (placeId && c.place_id === placeId));
+
   const cands: Cand[] = ctx.savedStays
     .filter((s) => {
       const prior = kept.find((k) => k.place_id === s.place_id || k.name.toLowerCase() === s.title.toLowerCase());
@@ -101,6 +104,21 @@ export async function POST(request: NextRequest) {
     : HOTEL_WORDS.test(wrongKindNames) ? true
     : brief.kind === "house";
   const query = wantHouse ? `villa with pool near ${centre.label}` : `hotel in ${centre.label}`;
+  // A row kept from the last run comes back even when it is not one of the
+  // journey's saved places — a hearted villa should not vanish because this
+  // run's twenty results happen not to include it.
+  for (const k of kept) {
+    if (k.lat == null || k.lng == null) continue;
+    if (inCands(cands, k.name, k.place_id)) continue;
+    cands.push({
+      name: k.name, address: k.address ?? null, lat: k.lat, lng: k.lng,
+      google_place_id: k.google_place_id, place_id: k.place_id,
+      site: k.site ?? "google", url: k.url ?? null,
+      score: k.score ?? null, score_scale: k.score_scale === 10 ? 10 : 5, reviews: k.reviews ?? null,
+      source: "saved", photos: k.photos ?? [],
+    });
+  }
+
   // Google Hotels first when the key is there: it is the only source that
   // knows the price for these dates and this party, and the bed count.
   const serp = serpApiKey();
@@ -108,6 +126,30 @@ export async function POST(request: NextRequest) {
     const ages = (trip.party_ages ?? []).filter((a) => a < 18);
     const adults = Math.max(1, (trip.party_size ?? brief.party.total) - ages.length);
     const offers = await stayOffers(serp, centre.label, trip.start_date, trip.end_date, adults, ages, wantHouse);
+
+    // Everything already on the list is re-priced from THIS run, so a saved or
+    // hearted row never shows last month's number (Brennan, 10 Sept 2026).
+    // Matched on the name, or on being within about 200 m of it.
+    const norm = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    for (const c of cands) {
+      const hit = offers.find((o) => norm(o.name) === norm(c.name))
+        ?? offers.find((o) => Math.abs(o.lat - c.lat) < 0.002 && Math.abs(o.lng - c.lng) < 0.002);
+      if (!hit) continue;
+      c.total = hit.total;
+      c.nightly = hit.nightly;
+      c.currency = hit.currency;
+      c.beds = hit.beds ?? c.beds;
+      c.baths = hit.baths ?? c.baths;
+      c.sleeps = hit.sleeps ?? c.sleeps;
+      c.pool = hit.pool ?? c.pool;
+      c.ac = hit.ac ?? c.ac;
+      c.score = hit.score ?? c.score;
+      c.reviews = hit.reviews ?? c.reviews;
+      c.url = c.url ?? hit.url;
+      if (hit.site && hit.site !== "google") c.site = hit.site;
+      if (hit.photos.length) c.photos = hit.photos;
+    }
+
     offers
       .filter((o) => (o.score ?? 0) >= 4.3 && (o.reviews ?? 0) >= 20)
       .filter((o) => !skipNames.has(o.name.toLowerCase()))
