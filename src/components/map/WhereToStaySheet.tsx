@@ -19,6 +19,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
 import { scoreLabel } from "@/lib/stays/price";
 import { noPriceReason, shiftToYear, type StayDates } from "@/lib/stays/bookingUrl";
+import { parseAsk, askSummary, suggestions } from "@/lib/stays/wants";
 import type { StayBrief } from "@/lib/stays/brief";
 import type { StayCandidate, StayBriefRow, StayRejectReason, Trip } from "@/types/database";
 import StayCardSheet from "./StayCardSheet";
@@ -137,6 +138,14 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
     const w = (brief?.brief as { wants?: string | null } | undefined)?.wants;
     if (typeof w === "string") setWants(w);
   }, [brief]);
+
+  const briefObjForAsk = (brief?.brief ?? null) as (StayBrief & { wants?: string | null }) | null;
+  const said = askSummary(parseAsk(wants));
+  const chips = suggestions({
+    house: briefObjForAsk?.kind === "house",
+    askGroundFloor: briefObjForAsk?.fit?.askGroundFloor,
+    askCot: briefObjForAsk?.fit?.askCot,
+  }).filter((c) => !new RegExp(c.split(" ")[0], "i").test(wants));
 
   async function run() {
     setRunning(true);
@@ -283,6 +292,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
 
           {panel && open && (
             <StayCardSheet
+              key={open.id}
               inPanel
               backLabel={`All ${cands.length === 5 ? "five" : cands.length}`}
               candidate={open}
@@ -420,19 +430,47 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                 })}
 
                 <div className="px-4 pt-4">
-                  {/* One optional line, never a gate: what it names that a
-                      listing can answer becomes a must-have, and the rest
-                      steers the search (Brennan, 10 Sept 2026). */}
+                  {/* Write it however you'd say it. What a listing can answer
+                      becomes a must-have; "would be nice" downgrades it; the
+                      rest steers the search, and the lines underneath say
+                      which is which, because a box that quietly ignores half
+                      of what you typed is the bad version of this
+                      (Brennan, 10 Sept 2026). */}
+                  <p className="text-[11px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: "rgba(26,26,46,0.45)" }}>
+                    What matters here?
+                  </p>
                   <input
                     type="text"
                     value={wants}
                     onChange={(e) => setWants(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter" && !running) run(); }}
-                    placeholder="Anything it must have? e.g. pool"
-                    aria-label="Anything it must have"
-                    className="w-full h-11 px-3 rounded-lg text-[13.5px] bg-white"
+                    placeholder="We need a pool, shops nearby would be nice"
+                    aria-label="What matters here"
+                    className="w-full h-11 px-3 rounded-lg bg-white text-[13.5px]"
                     style={{ border: "1px solid rgba(26,26,46,0.18)", color: INK }}
                   />
+                  {chips.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {chips.map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setWants((w) => (w.trim() ? `${w.replace(/[,\s]+$/, "")}, ${c.toLowerCase()}` : c.toLowerCase()))}
+                          className="h-8 px-3 rounded-full text-[12.5px]"
+                          style={{ color: INK, border: "1px solid rgba(26,26,46,0.18)" }}
+                        >
+                          + {c}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {(said.must || said.nice || said.loose) && (
+                    <div className="mt-2 space-y-0.5">
+                      {said.must && <p className="text-[12px] font-medium" style={{ color: SIENNA }}>{said.must}</p>}
+                      {said.nice && <p className="text-[12px]" style={{ color: CAPTION }}>{said.nice}</p>}
+                      {said.loose && <p className="text-[12px]" style={{ color: CAPTION }}>{said.loose}</p>}
+                    </div>
+                  )}
                   <button type="button" onClick={run} disabled={running} className="mt-3 text-[12.5px] font-medium" style={{ color: CAPTION }}>
                     {running ? "Looking…" : "Run again"}
                   </button>
@@ -446,6 +484,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
 
       {open && !panel && (
         <StayCardSheet
+          key={open.id}
           candidate={open}
           brief={briefObj}
           startDate={trip.start_date}

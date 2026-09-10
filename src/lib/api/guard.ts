@@ -59,6 +59,7 @@ export const QUOTA = {
   bulkImport:     20,
   coverPhoto:     40,  // Unsplash
   embed:         200,  // link previews (follows short links outbound)
-  staySearch:     30,  // Where to stay: one text search + a distance matrix + a few review lookups
+  staySearch:    500,  // Where to stay. Lifted from 30 on 10 Sept 2026 at his request so testing
+                       // never hits a wall; still a backstop against a runaway loop.
   stayWrite:     100,  // choose / save / not-for-us
 } as const;

@@ -112,6 +112,8 @@ export interface StayOffer {
   score: number | null; reviews: number | null;
   beds: number | null; baths: number | null; sleeps: number | null;
   pool: boolean | null; ac: boolean | null; photos: string[];
+  /** Exactly what Google lists, so a want beyond pool/AC can be checked too. */
+  amenities: string[];
 }
 
 export function serpApiKey(): string | null {
@@ -196,6 +198,7 @@ export async function stayOffers(
           beds: num(p.essential_info, /(\d+)\s*bedroom/i),
           baths: num(p.essential_info, /([\d.]+)\s*bathroom/i),
           sleeps: num(p.essential_info, /sleeps\s*(\d+)/i),
+          amenities: p.amenities ?? [],
           pool: amen ? /pool/.test(amen) : null,
           ac: amen ? /air conditioning/.test(amen) : null,
           photos: (p.images ?? []).map((i) => i.original_image ?? i.thumbnail).filter((u): u is string => !!u).slice(0, 6),

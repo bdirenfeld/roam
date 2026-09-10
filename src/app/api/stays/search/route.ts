@@ -13,7 +13,7 @@ import { driveHours, driveLine, driveDelta, usableAnchorIndexes } from "@/lib/st
 import { areaHeadline, areaLine, splitText, reviewNotes } from "@/lib/stays/text";
 import { priceWindow, priceWindowNote } from "@/lib/stays/priceWindow";
 import { budgetFlag, budgetVerdict, nightlyOf } from "@/lib/stays/budget";
-import { parseWants, failsWants, wantsNote, wantsQuery } from "@/lib/stays/wants";
+import { parseAsk, failsAsk, askNote, askBonus } from "@/lib/stays/wants";
 
 // Five rows, not ten: the stays already saved on the journey come first and
 // Google fills what is left ("way too many options" — Brennan, 9 Sept 2026).
@@ -82,6 +82,8 @@ export async function POST(request: NextRequest) {
     total?: number | null; nightly?: number | null; currency?: string | null;
     beds?: number | null; baths?: number | null; sleeps?: number | null;
     pool?: boolean | null; ac?: boolean | null; photos?: string[];
+    /** Google's own amenity list, in memory only: the wants are checked against it. */
+    amenities?: string[];
   };
   const inCands = (list: Cand[], name: string, placeId: string | null) =>
     list.some((c) => c.name.toLowerCase() === name.toLowerCase() || (placeId && c.place_id === placeId));
@@ -109,8 +111,8 @@ export async function POST(request: NextRequest) {
     : brief.kind === "house";
   // One free-text line, no form: whatever it names that a listing can answer
   // becomes a must-have, and the whole line steers the words (Brennan, 10 Sept).
-  const asked = wantsQuery(body.wants);
-  const wants = parseWants(asked);
+  const ask = parseAsk(body.wants);
+  const asked = ask.query;
   const query = asked
     ? `${wantHouse ? "villa" : "hotel"} near ${centre.label}, ${asked}`
     : wantHouse ? `villa with pool near ${centre.label}` : `hotel in ${centre.label}`;
@@ -178,7 +180,7 @@ export async function POST(request: NextRequest) {
       // A must-have removes a row only when the listing says it is absent.
       // "Not listed" is a third state and keeps its place — treating it as a
       // failure would empty a list like Tuscany's, where no row has amenities.
-      .filter((o) => !failsWants(wants, { pool: o.pool, ac: o.ac }))
+      .filter((o) => !failsAsk(ask, o.amenities))
       .filter((o) => !skipNames.has(o.name.toLowerCase()))
       .filter((o) => !cands.some((c) => c.name.toLowerCase() === o.name.toLowerCase()))
       .filter((o) => !brief.fit.bedrooms || o.beds == null || o.beds >= brief.fit.bedrooms - 1)
@@ -187,7 +189,7 @@ export async function POST(request: NextRequest) {
       .forEach((o) => cands.push({
         name: o.name, address: null, lat: o.lat, lng: o.lng, google_place_id: null, place_id: null,
         site: o.site, url: o.url, score: o.score, score_scale: 5, reviews: o.reviews, source: "google",
-        total: o.total, nightly: o.nightly, currency: o.currency,
+        total: o.total, nightly: o.nightly, currency: o.currency, amenities: o.amenities,
         beds: o.beds, baths: o.baths, sleeps: o.sleeps, pool: o.pool, ac: o.ac, photos: o.photos,
       }));
   }
@@ -247,7 +249,11 @@ export async function POST(request: NextRequest) {
     if (eveningIdx >= 0 && mins[eveningIdx] != null && (mins[eveningIdx] as number) > brief.radiusMin) flags.push("Outside the area");
     const over = budgetFlag(nightlyOf(c.nightly ?? null, c.total ?? null, brief.nights), ctx.nightlyRate);
     if (over) flags.push(over);
-    const unverified = wantsNote(wants, { pool: c.pool ?? null, ac: c.ac ?? null });
+    // What he asked for: a nice-to-have that turned up is worth saying, and
+    // anything we could not verify says so rather than leaving a blank.
+    const bonus = askBonus(ask, c.amenities);
+    if (bonus) flags.push(bonus);
+    const unverified = askNote(ask, c.amenities);
     if (unverified) flags.push(unverified);
     return { c, hours, minutes, line: driveLine(parts), flags };
   });
