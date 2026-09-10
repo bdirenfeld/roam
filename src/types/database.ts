@@ -190,7 +190,8 @@ export interface TripList {
 }
 
 // ── Where to stay ─────────────────────────────────────────────────────────
-export type StayCandidateStatus = 'candidate' | 'saved' | 'chosen' | 'rejected'
+/** 'seen' = shown once and not hearted; a re-run never proposes it again. */
+export type StayCandidateStatus = 'candidate' | 'saved' | 'chosen' | 'rejected' | 'seen'
 /** Each one changes the next search: too_far tightens the radius, wrong_kind flips villa/hotel,
  *  too_dear and doesnt_fit act once a candidate carries a price or a bed count. */
 export type StayRejectReason = 'too_far' | 'wrong_kind' | 'too_dear' | 'doesnt_fit'

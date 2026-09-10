@@ -125,7 +125,7 @@ export default function StayCardSheet({ inPanel = false, backLabel = "Back", can
             </div>
           )}
           {inPanel ? (
-            <button type="button" onClick={onClose} aria-label={backLabel} className="absolute top-3 left-3 h-8 px-3 rounded-full bg-white/92 flex items-center gap-1.5 text-[12.5px] font-medium text-gray-800 shadow">
+            <button type="button" onClick={onClose} aria-label={backLabel} className="absolute top-3 left-3 h-8 px-3 rounded-full bg-white/90 flex items-center gap-1.5 text-[12.5px] font-medium text-gray-800 shadow">
               <span aria-hidden="true">‹</span>{backLabel}
             </button>
           ) : (

@@ -43,8 +43,12 @@ export async function POST(request: NextRequest) {
   // What an earlier run taught us.
   const { data: previous } = await supabase.from("stay_candidates").select("id, name, google_place_id, place_id, status, reject_reason, feel, photos").eq("trip_id", trip.id);
   const rejected = (previous ?? []).filter((p) => p.status === "rejected");
-  const rejectedNames = new Set(rejected.map((p) => p.name.toLowerCase()));
-  const rejectedGoogle = new Set(rejected.map((p) => p.google_place_id).filter(Boolean));
+  // Run again brings five FRESH rows (Brennan, 9 Sept 2026): a row shown once and
+  // not hearted is "seen" and is not proposed again, same as a rejected one.
+  const seenRows = (previous ?? []).filter((p) => p.status === "seen");
+  const skipNames = new Set([...rejected, ...seenRows].map((p) => p.name.toLowerCase()));
+  const skipGoogle = new Set([...rejected, ...seenRows].map((p) => p.google_place_id).filter(Boolean));
+  const skipPlaces = new Set([...rejected, ...seenRows].map((p) => p.place_id).filter(Boolean));
   const tooFar = rejected.some((p) => p.reject_reason === "too_far");
   // "Wrong kind of place" on a villa asks for hotels next time, and the reverse.
   const wrongKind = rejected.filter((p) => p.reject_reason === "wrong_kind");
@@ -61,7 +65,13 @@ export async function POST(request: NextRequest) {
     name: string; address: string | null; lat: number; lng: number; google_place_id: string | null; place_id: string | null;
     site: string; url: string | null; score: number | null; score_scale: 5 | 10; reviews: number | null; source: "saved" | "google";
   };
-  const cands: Cand[] = ctx.savedStays.map((s) => ({
+  const cands: Cand[] = ctx.savedStays
+    .filter((s) => {
+      const prior = kept.find((k) => k.place_id === s.place_id || k.name.toLowerCase() === s.title.toLowerCase());
+      if (prior) return true; // saved / chosen / hearted always come back
+      return !skipPlaces.has(s.place_id) && !skipNames.has(s.title.toLowerCase()) && !(s.google_place_id && skipGoogle.has(s.google_place_id));
+    })
+    .map((s) => ({
     name: s.title, address: s.address, lat: s.lat, lng: s.lng, google_place_id: s.google_place_id, place_id: s.place_id,
     site: "google", url: s.website, score: s.rating, score_scale: 5, reviews: null, source: "saved",
   }));
@@ -77,11 +87,19 @@ export async function POST(request: NextRequest) {
     : HOTEL_WORDS.test(wrongKindNames) ? true
     : brief.kind === "house";
   const query = wantHouse ? `villa with pool near ${centre.label}` : `hotel in ${centre.label}`;
-  const hits = await lodgingNear(key, query, centre.lat, centre.lng, radiusM);
-  const seen = new Set(cands.map((c) => c.name.toLowerCase()));
-  hits
-    .filter((h) => !seen.has(h.name.toLowerCase()) && !rejectedNames.has(h.name.toLowerCase()) && !rejectedGoogle.has(h.google_place_id))
-    .filter((h) => !cands.some((c) => c.google_place_id === h.google_place_id))
+  const already = new Set(cands.map((c) => c.name.toLowerCase()));
+  const fresh = (hs: Awaited<ReturnType<typeof lodgingNear>>) => hs
+    .filter((h) => !already.has(h.name.toLowerCase()) && !skipNames.has(h.name.toLowerCase()) && !skipGoogle.has(h.google_place_id))
+    .filter((h) => !cands.some((c) => c.google_place_id === h.google_place_id));
+  let pool = fresh(await lodgingNear(key, query, centre.lat, centre.lng, radiusM));
+  if (pool.length < MAX_TOTAL - cands.length) {
+    // The first twenty are used up; ask differently and a little wider.
+    const alt = wantHouse ? `agriturismo or farmhouse with pool near ${centre.label}` : `boutique hotel near ${centre.label}`;
+    const more = fresh(await lodgingNear(key, alt, centre.lat, centre.lng, Math.round(radiusM * 1.6)));
+    const ids = new Set(pool.map((h) => h.google_place_id));
+    pool = pool.concat(more.filter((h) => !ids.has(h.google_place_id)));
+  }
+  pool
     .sort((a, b) => (b.rating ?? 0) * Math.log((b.reviews ?? 1) + 1) - (a.rating ?? 0) * Math.log((a.reviews ?? 1) + 1))
     .slice(0, Math.max(0, MAX_TOTAL - cands.length))
     .forEach((h) => cands.push({
@@ -135,7 +153,8 @@ export async function POST(request: NextRequest) {
 
   // Replace the last run's rows. Rejected ones stay, so they are never proposed
   // again; saved and chosen come back as fresh rows with their status kept.
-  await supabase.from("stay_candidates").delete().eq("trip_id", trip.id).neq("status", "rejected");
+  await supabase.from("stay_candidates").update({ status: "seen" }).eq("trip_id", trip.id).eq("status", "candidate").is("feel", null);
+  await supabase.from("stay_candidates").delete().eq("trip_id", trip.id).or("status.in.(saved,chosen),feel.eq.up");
 
   const rows = scored.map((s, i) => {
     const rv = s.c.google_place_id ? notes.get(s.c.google_place_id) : undefined;
@@ -182,6 +201,6 @@ export async function POST(request: NextRequest) {
   const { error: briefErr } = await supabase.from("stay_briefs").upsert(briefRow, { onConflict: "trip_id" });
   if (briefErr) return NextResponse.json({ error: briefErr.message }, { status: 500 });
 
-  const { data: all } = await supabase.from("stay_candidates").select("*").eq("trip_id", trip.id).neq("status", "rejected").order("letter");
+  const { data: all } = await supabase.from("stay_candidates").select("*").eq("trip_id", trip.id).not("status", "in", "(rejected,seen)").order("letter");
   return NextResponse.json({ brief: briefRow, candidates: all ?? written });
 }

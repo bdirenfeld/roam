@@ -68,7 +68,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
   const travellers = trip.party_size ?? trip.party_ages?.length ?? null;
 
   const publish = useCallback((rows: StayCandidate[]) => {
-    const live = rows.filter((c) => c.status !== "rejected");
+    const live = rows.filter((c) => c.status !== "rejected" && c.status !== "seen");
     setCands(live);
     onCandidates(live);
   }, [onCandidates]);
