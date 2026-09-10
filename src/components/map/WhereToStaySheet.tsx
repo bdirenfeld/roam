@@ -14,6 +14,7 @@
 // a tap on the title bar toggles it.
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
 import { scoreLabel } from "@/lib/stays/price";
@@ -63,6 +64,11 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
   const [tall, setTall] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const dragY = useRef<number | null>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  // Escape closes the list (the card takes Escape while it is open); focus
+  // lands in the sheet so keys work without a click.
+  useEscapeKey(onClose, !openId);
+  useEffect(() => { sheetRef.current?.focus(); }, []);
 
   const nights = Math.max(0, Math.round((new Date(trip.end_date + "T00:00:00").getTime() - new Date(trip.start_date + "T00:00:00").getTime()) / 86400000));
   const travellers = trip.party_size ?? trip.party_ages?.length ?? null;
@@ -121,8 +127,20 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
       const res = await fetch("/api/stays/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId: trip.id }) });
       const json = await res.json();
       if (!res.ok) { setError(json.error ?? "That didn't work."); return; }
+      const hadRows = cands.length > 0;
       setBrief(json.brief as StayBriefRow);
       publish(json.candidates as StayCandidate[]);
+      if (hadRows && json.undo) {
+        toast({
+          message: "Five new places",
+          undo: async () => {
+            const r = await fetch("/api/stays/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ undo: json.undo }) });
+            const back = await r.json();
+            if (!r.ok) { toast({ message: "Couldn't undo that." }); return; }
+            publish(back.candidates as StayCandidate[]);
+          },
+        });
+      }
     } catch {
       setError("That didn't work. Try again.");
     } finally {
@@ -217,9 +235,11 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
         aria-label="Where to stay"
       >
         <div
+          ref={sheetRef}
+          tabIndex={-1}
           className={panel
-            ? "relative w-full h-full bg-white border-l flex flex-col overflow-hidden"
-            : "relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet flex flex-col pointer-events-auto"}
+            ? "relative w-full h-full bg-white border-l flex flex-col overflow-hidden outline-none"
+            : "relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet flex flex-col pointer-events-auto outline-none"}
           style={panel ? { borderColor: "rgba(26,26,46,0.1)" } : { height: tall ? "88dvh" : "46dvh", transition: "height 220ms ease" }}
         >
           <div

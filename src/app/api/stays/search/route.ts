@@ -23,7 +23,16 @@ export async function POST(request: NextRequest) {
   const { supabase, user } = gate;
   if (!(await underQuota(supabase, "staySearch", QUOTA.staySearch))) return quotaExceeded("stay searches");
 
-  const body = await request.json().catch(() => ({})) as { tripId?: string };
+  const body = await request.json().catch(() => ({})) as { tripId?: string; undo?: { tripId: string; seenIds: string[]; newIds: string[] } };
+  // Undo of Run again: the five that were shown come back, the new five go.
+  if (body.undo?.tripId) {
+    const { data: t } = await supabase.from("trips").select("id, user_id").eq("id", body.undo.tripId).maybeSingle();
+    if (!t || t.user_id !== user.id) return NextResponse.json({ error: "Not your journey" }, { status: 403 });
+    if (body.undo.newIds?.length) await supabase.from("stay_candidates").delete().in("id", body.undo.newIds).eq("status", "candidate").is("feel", null);
+    if (body.undo.seenIds?.length) await supabase.from("stay_candidates").update({ status: "candidate" }).in("id", body.undo.seenIds).eq("status", "seen");
+    const { data: rows } = await supabase.from("stay_candidates").select("*").eq("trip_id", body.undo.tripId).not("status", "in", "(rejected,seen)").order("letter");
+    return NextResponse.json({ candidates: rows ?? [] });
+  }
   if (!body.tripId) return NextResponse.json({ error: "tripId is required" }, { status: 400 });
   const key = googleKey();
   if (!key) return NextResponse.json({ error: "GOOGLE_PLACES_API_KEY is not configured" }, { status: 500 });
@@ -153,7 +162,7 @@ export async function POST(request: NextRequest) {
 
   // Replace the last run's rows. Rejected ones stay, so they are never proposed
   // again; saved and chosen come back as fresh rows with their status kept.
-  await supabase.from("stay_candidates").update({ status: "seen" }).eq("trip_id", trip.id).eq("status", "candidate").is("feel", null);
+  const { data: nowSeen } = await supabase.from("stay_candidates").update({ status: "seen" }).eq("trip_id", trip.id).eq("status", "candidate").is("feel", null).select("id");
   await supabase.from("stay_candidates").delete().eq("trip_id", trip.id).or("status.in.(saved,chosen),feel.eq.up");
 
   const rows = scored.map((s, i) => {
@@ -202,5 +211,6 @@ export async function POST(request: NextRequest) {
   if (briefErr) return NextResponse.json({ error: briefErr.message }, { status: 500 });
 
   const { data: all } = await supabase.from("stay_candidates").select("*").eq("trip_id", trip.id).not("status", "in", "(rejected,seen)").order("letter");
-  return NextResponse.json({ brief: briefRow, candidates: all ?? written });
+  const newIds = ((written ?? []) as { id: string; status: string; feel: string | null }[]).filter((r) => r.status === "candidate" && !r.feel).map((r) => r.id);
+  return NextResponse.json({ brief: briefRow, candidates: all ?? written, undo: { tripId: trip.id, seenIds: (nowSeen ?? []).map((r) => r.id), newIds } });
 }

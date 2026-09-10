@@ -127,7 +127,9 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
   // pointing at — Brennan, 9 Sept 2026). Phone: the bottom sheet.
   const [isDesktop, setIsDesktop] = useState(false);
   useEffect(() => {
-    const mq = window.matchMedia("(min-width: 768px)");
+    // 1024, not 768: at tablet width the 400px panel beside the 232px sidebar
+    // left a 136px map (audit, 10 Sept 2026).
+    const mq = window.matchMedia("(min-width: 1024px)");
     const apply = () => setIsDesktop(mq.matches);
     apply();
     mq.addEventListener("change", apply);

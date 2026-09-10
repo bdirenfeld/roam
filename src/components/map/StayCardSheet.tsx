@@ -8,6 +8,7 @@
 // the next line (Brennan, Sep 2026).
 
 import { useEffect, useRef, useState } from "react";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { scoreLabel, siteName } from "@/lib/stays/price";
 import type { StayBrief } from "@/lib/stays/brief";
 import type { StayCandidate } from "@/types/database";
@@ -63,6 +64,9 @@ export default function StayCardSheet({ inPanel = false, backLabel = "Back", can
   const [website, setWebsite] = useState<string | null>(c.url);
   const [idx, setIdx] = useState(0);
   const stripRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  useEscapeKey(onClose);
+  useEffect(() => { cardRef.current?.focus(); }, []);
   const step = (dir: 1 | -1) => { const el = stripRef.current; if (el) el.scrollBy({ left: dir * el.clientWidth, behavior: "smooth" }); };
 
   useEffect(() => {
@@ -91,9 +95,9 @@ export default function StayCardSheet({ inPanel = false, backLabel = "Back", can
   return (
     <div className={inPanel ? "absolute inset-0 z-[70] flex" : "fixed inset-0 z-[70] flex items-end"} role="dialog" aria-label={c.name}>
       {!inPanel && <div className="absolute inset-0 bg-black/40" onClick={onClose} />}
-      <div className={inPanel
-        ? "relative w-full h-full bg-white flex flex-col overflow-hidden"
-        : "relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet h-[95dvh] flex flex-col overflow-hidden"}>
+      <div ref={cardRef} tabIndex={-1} className={inPanel
+        ? "relative w-full h-full bg-white flex flex-col overflow-hidden outline-none"
+        : "relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet h-[95dvh] flex flex-col overflow-hidden outline-none"}>
         {/* Photos */}
         <div className={`relative flex-shrink-0 bg-gray-100 ${inPanel ? "h-[190px]" : "h-[220px]"}`}>
           {photos === null ? (

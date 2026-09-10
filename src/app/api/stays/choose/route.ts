@@ -63,20 +63,41 @@ export async function POST(request: NextRequest) {
   const cutCards = ((stayCards ?? []) as { id: string; status: string; place_id: string | null }[])
     .filter((k) => k.place_id !== placeId)
     .map((k) => ({ id: k.id, status: k.status }));
-  if (cutCards.length) {
-    await supabase.from("cards").update({ status: "cut" }).in("id", cutCards.map((k) => k.id));
-  }
-
+  // Every write is checked. If one fails after another has landed, what landed
+  // is put back and the caller hears about it — half a choice behind a toast
+  // that says it worked is the worst outcome (audit, 10 Sept 2026).
   const inId = crypto.randomUUID();
   const outId = crypto.randomUUID();
+  let cardsInserted = false;
+  let cardsCut = false;
+  const rollback = async () => {
+    if (cardsInserted) await supabase.from("cards").delete().in("id", [inId, outId]);
+    if (cardsCut) for (const k of cutCards) await supabase.from("cards").update({ status: k.status }).eq("id", k.id);
+  };
+  const failed = async (what: string, message: string) => {
+    await rollback();
+    console.error("[stays/choose]", what, message);
+    return NextResponse.json({ error: `Couldn't ${what}. Nothing was changed.` }, { status: 500 });
+  };
+
+  if (cutCards.length) {
+    const { error } = await supabase.from("cards").update({ status: "cut" }).in("id", cutCards.map((k) => k.id));
+    if (error) return failed("move the old stay aside", error.message);
+    cardsCut = true;
+  }
+
   const [posIn, posOut] = await Promise.all([nextPosition(supabase, first.id), nextPosition(supabase, last.id)]);
   const { error: cardErr } = await supabase.from("cards").insert([
     { id: inId, trip_id: c.trip_id, day_id: first.id, place_id: placeId, status: "in_itinerary", position: posIn, start_time: "15:00:00", end_time: null, details: { stay: "check_in" }, ai_generated: false, confirmed: false },
     { id: outId, trip_id: c.trip_id, day_id: last.id, place_id: placeId, status: "in_itinerary", position: posOut, start_time: "10:00:00", end_time: null, details: { stay: "check_out" }, ai_generated: false, confirmed: false },
   ]);
-  if (cardErr) return NextResponse.json({ error: cardErr.message }, { status: 500 });
+  if (cardErr) return failed("add the check-in and check-out", cardErr.message);
+  cardsInserted = true;
 
-  await supabase.from("trips").update({ accommodation_name: c.name, accommodation_address: c.address }).eq("id", c.trip_id);
+  {
+    const { error } = await supabase.from("trips").update({ accommodation_name: c.name, accommodation_address: c.address }).eq("id", c.trip_id);
+    if (error) return failed("note where you're staying", error.message);
+  }
 
   // The Estimate line, only when there is a real number to put on it.
   let prevNightly: number | null | undefined;
@@ -91,17 +112,27 @@ export async function POST(request: NextRequest) {
       prevNightly = a.nightlyRate as number | undefined;
       prevBasis = b.accommodation;
       const when = new Date().toLocaleDateString("en-CA", { day: "numeric", month: "short" });
-      await supabase.from("trip_budgets").update({
+      const { error } = await supabase.from("trip_budgets").update({
         assumptions: { ...a, nightlyRate: nightly },
         basis: { ...b, accommodation: `${c.name} · ${c.site ?? "listing"} · ${when}` },
         updated_at: new Date().toISOString(),
       }).eq("trip_id", c.trip_id);
+      if (error) {
+        await supabase.from("trips").update({ accommodation_name: trip.accommodation_name, accommodation_address: trip.accommodation_address }).eq("id", c.trip_id);
+        return failed("update the Estimate", error.message);
+      }
     }
   }
 
   const { data: prevChosen } = await supabase.from("stay_candidates").select("id").eq("trip_id", c.trip_id).eq("status", "chosen").neq("id", c.id).maybeSingle();
-  if (prevChosen) await supabase.from("stay_candidates").update({ status: "saved" }).eq("id", prevChosen.id);
-  await supabase.from("stay_candidates").update({ status: "chosen", place_id: placeId }).eq("id", c.id);
+  if (prevChosen) {
+    const { error } = await supabase.from("stay_candidates").update({ status: "saved" }).eq("id", prevChosen.id);
+    if (error) return failed("mark the stay", error.message);
+  }
+  {
+    const { error } = await supabase.from("stay_candidates").update({ status: "chosen", place_id: placeId }).eq("id", c.id);
+    if (error) return failed("mark the stay", error.message);
+  }
 
   const undo: Undo = {
     tripId: c.trip_id, candidateId: c.id, newCardIds: [inId, outId], cutCards,

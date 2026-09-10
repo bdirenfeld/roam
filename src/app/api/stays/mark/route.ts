@@ -29,19 +29,22 @@ export async function POST(request: NextRequest) {
   // A heart: kept on the next run and steers what it looks for. Tap again to take it back.
   if (body.action === "heart") {
     const feel = c.feel === "up" ? null : "up";
-    await supabase.from("stay_candidates").update({ feel }).eq("id", c.id);
+    const { error } = await supabase.from("stay_candidates").update({ feel }).eq("id", c.id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true, feel });
   }
 
   if (body.action === "unreject") {
-    await supabase.from("stay_candidates").update({ status: c.place_id ? "saved" : "candidate", reject_reason: null }).eq("id", c.id);
+    const { error } = await supabase.from("stay_candidates").update({ status: c.place_id ? "saved" : "candidate", reject_reason: null }).eq("id", c.id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });
   }
 
   if (body.action === "reject") {
     const reason = REASONS.has(body.reason as StayRejectReason) ? (body.reason as StayRejectReason) : null;
     if (c.status === "chosen") return NextResponse.json({ error: "Un-choose it first" }, { status: 409 });
-    await supabase.from("stay_candidates").update({ status: "rejected", reject_reason: reason }).eq("id", c.id);
+    const { error } = await supabase.from("stay_candidates").update({ status: "rejected", reject_reason: reason }).eq("id", c.id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });
   }
 
@@ -50,12 +53,16 @@ export async function POST(request: NextRequest) {
   if (body.action === "unsave") {
     const u = body as { cardId?: string; createdPlace?: boolean };
     if (c.status === "chosen") return NextResponse.json({ error: "It is your stay; undo that first" }, { status: 409 });
-    if (u.cardId) await supabase.from("cards").delete().eq("id", u.cardId).eq("trip_id", c.trip_id);
+    if (u.cardId) {
+      const { error } = await supabase.from("cards").delete().eq("id", u.cardId).eq("trip_id", c.trip_id);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    }
     if (u.createdPlace && c.place_id) {
       const { count } = await supabase.from("cards").select("id", { count: "exact", head: true }).eq("place_id", c.place_id);
       if (!count) await supabase.from("places").delete().eq("id", c.place_id);
     }
-    await supabase.from("stay_candidates").update({ status: "candidate", place_id: u.createdPlace ? null : c.place_id }).eq("id", c.id);
+    const { error: rowErr } = await supabase.from("stay_candidates").update({ status: "candidate", place_id: u.createdPlace ? null : c.place_id }).eq("id", c.id);
+    if (rowErr) return NextResponse.json({ error: rowErr.message }, { status: 500 });
     return NextResponse.json({ ok: true });
   }
 
@@ -74,7 +81,9 @@ export async function POST(request: NextRequest) {
     });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  if (c.status !== "chosen") await supabase.from("stay_candidates").update({ status: "saved", place_id: placeId }).eq("id", c.id);
-  else await supabase.from("stay_candidates").update({ place_id: placeId }).eq("id", c.id);
+  const { error: markErr } = c.status !== "chosen"
+    ? await supabase.from("stay_candidates").update({ status: "saved", place_id: placeId }).eq("id", c.id)
+    : await supabase.from("stay_candidates").update({ place_id: placeId }).eq("id", c.id);
+  if (markErr) return NextResponse.json({ error: markErr.message }, { status: 500 });
   return NextResponse.json({ ok: true, placeId, cardId, createdCard, createdPlace: !hadPlace });
 }
