@@ -136,6 +136,21 @@ it("Santa Barbara: the centre follows the pins, not one polo match at five", () 
     if (!b.evening!.evenings) expect(areaLine(b, null)).toMatch(/around/);
   });
 
+  it("a journey with nothing scheduled still reads as English", () => {
+    // Every anchor's day count is zero when nothing is on the itinerary, and
+    // three separate things used it as a weight: the headline divided by zero
+    // and shipped "undefined of Tokyo", the line said "0 days around Tokyo",
+    // and every drive score collapsed to nil (Brennan, 10 Sept 2026).
+    for (const j of ALL) {
+      const b = briefs.get(j.title)!;
+      const head = areaHeadline(b);
+      const line = areaLine(b, null);
+      expect(head ?? "", j.title).not.toMatch(/undefined|NaN/);
+      expect(line ?? "", j.title).not.toMatch(/undefined|NaN|0 (days|evenings)/);
+      for (const a of b.anchors) expect(a.days, `${j.title}: ${a.label}`).toBeGreaterThanOrEqual(1);
+    }
+  });
+
   it("Japan: thirteen nights reaching Kagoshima is not one base", () => {
     // Nothing on this journey is on the itinerary — all 31 pins carry day
     // one's id and the Plan board is empty — so the old rule, which wanted a

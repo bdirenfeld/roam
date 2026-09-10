@@ -54,7 +54,12 @@ export function areaLine(brief: StayBrief, airportMinFromEvening: number | null)
   // invention, so a centre with no late pins says what it actually is.
   parts.push(ev.evenings
     ? `${ev.days === 1 ? "One evening" : `${ev.days} evenings`} in ${ev.label}; stay within ${brief.radiusMin} minutes of it.`
-    : `${ev.days === 1 ? "A day" : `${ev.days} days`} around ${ev.label}; stay within ${brief.radiusMin} minutes of it.`);
+    // Nothing on the itinerary at all — Japan — so there is no day count to
+    // quote and "0 days around Tokyo" was what shipped. Say what is true: the
+    // pins are the only evidence there is.
+    : ev.days < 1
+      ? `Most of your places are around ${ev.label}; stay within ${brief.radiusMin} minutes of it.`
+      : `${ev.days === 1 ? "A day" : `${ev.days} days`} around ${ev.label}; stay within ${brief.radiusMin} minutes of it.`);
   if (airportMinFromEvening != null) parts.push(`Airport ${fmtMinutes(airportMinFromEvening)}.`);
   return parts.join(" ");
 }

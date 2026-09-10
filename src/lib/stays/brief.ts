@@ -57,7 +57,13 @@ export interface Anchor {
   label: string;
   lat: number;
   lng: number;
-  /** Distinct days the anchor is visited. Doubles as the drive weight. */
+  /**
+   * Distinct days the anchor is visited, floored at 1. Doubles as the drive
+   * weight, and on a journey with nothing scheduled every count is zero — which
+   * divided by zero in the headline ("undefined of Tokyo") and flattened every
+   * drive score to nil. An anchor exists because pins are there; once is the
+   * honest floor (Brennan, 10 Sept 2026).
+   */
   days: number;
   /** Great-circle km from the evening centre; 0 for the evening centre itself. */
   kmFromEvening: number;
@@ -344,19 +350,19 @@ export function buildStayBrief(input: BriefInput): StayBrief {
     evening ? Math.round(greatCircleKm(evening.lat, evening.lng, lat, lng)) : 0;
 
   const anchors: Anchor[] = [];
-  if (evening) anchors.push({ kind: "evening", label: evening.label, lat: evening.lat, lng: evening.lng, days: evening.days, kmFromEvening: 0 });
+  if (evening) anchors.push({ kind: "evening", label: evening.label, lat: evening.lat, lng: evening.lng, days: Math.max(1, evening.days), kmFromEvening: 0 });
   for (const c of cluster(airports, DAYTRIP_CLUSTER_KM)) {
     const km = kmFromEv(c.lat, c.lng);
     if (evening && km > AIRPORT_MAX_KM) continue;
     // A flight card's address can be the airline ("Air Canada"); only a real
     // address names the airport's town, otherwise it is just "the airport".
     const addressed = c.pins.some((p) => (p.address ?? "").includes(","));
-    anchors.push({ kind: "airport", label: addressed ? clusterLabel(c) : "the airport", lat: c.lat, lng: c.lng, days: distinctDays(c.pins), kmFromEvening: km });
+    anchors.push({ kind: "airport", label: addressed ? clusterLabel(c) : "the airport", lat: c.lat, lng: c.lng, days: Math.max(1, distinctDays(c.pins)), kmFromEvening: km });
   }
   for (const c of cluster(daytime, DAYTRIP_CLUSTER_KM)) {
     // Daytime pins in the evening cluster are the same errand; the evening anchor carries them.
     if (evening && greatCircleKm(evening.lat, evening.lng, c.lat, c.lng) <= DAYTRIP_CLUSTER_KM) continue;
-    anchors.push({ kind: "daytrip", label: clusterLabel(c), lat: c.lat, lng: c.lng, days: distinctDays(c.pins), kmFromEvening: kmFromEv(c.lat, c.lng) });
+    anchors.push({ kind: "daytrip", label: clusterLabel(c), lat: c.lat, lng: c.lng, days: Math.max(1, distinctDays(c.pins)), kmFromEvening: kmFromEv(c.lat, c.lng) });
   }
 
   // Stay days. Arrival counts a half when nothing but the airport is on it;
