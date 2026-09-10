@@ -27,7 +27,7 @@ const CAPTION = "rgba(26,26,46,0.62)";
 
 const REASONS: { key: StayRejectReason; label: string }[] = [
   { key: "too_far", label: "Too far" },
-  { key: "too_dear", label: "Too dear" },
+  { key: "too_dear", label: "Too expensive" },
   { key: "wrong_kind", label: "Wrong kind of place" },
   { key: "doesnt_fit", label: "Doesn't fit" },
 ];
