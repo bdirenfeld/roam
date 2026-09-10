@@ -299,6 +299,37 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
     syncVisibility();
   }
 
+  /**
+   * A tap on a filter pill NARROWS to that kind. Brennan, 10 Sept 2026:
+   * "if you press Food it doesn't just show you everything food-related, it
+   * just takes food off the map, which I always thought was weird." So:
+   * everything showing → tap Food → only food; tap Activity as well → both;
+   * tap the last one still selected → back to everything. Removing one of
+   * several still works, it is just no longer what the first tap means.
+   *
+   * The sheet this replaced (a 42dvh panel with sub-types and counts) was
+   * built and reverted the same morning: the pills cost no space and
+   * sub-type filtering is desk work. Do not rebuild it without him asking.
+   */
+  function tapFilter<T>(current: Set<T>, all: T[], key: T): Set<T> {
+    if (current.size >= all.length) return new Set([key]);
+    const next = new Set(current);
+    if (next.has(key)) {
+      if (next.size === 1) return new Set(all);
+      next.delete(key);
+    } else {
+      next.add(key);
+    }
+    return next;
+  }
+
+  const ALL_FILTER_TYPES: CardType[] = ["activity", "food", "logistics"];
+  const ALL_FILTER_STATUSES = ["interested", "in_itinerary"];
+  const filterNarrowed =
+    (activeTypes.size < ALL_FILTER_TYPES.length ? ALL_FILTER_TYPES.length - activeTypes.size : 0) +
+    (activeStatuses.size < ALL_FILTER_STATUSES.length ? ALL_FILTER_STATUSES.length - activeStatuses.size : 0) +
+    (lovedOnly ? 1 : 0);
+
   function handleLovedOnlyChange(next: boolean) {
     lovedOnlyRef.current = next;
     setLovedOnlyState(next);
@@ -819,25 +850,22 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
                   ] as { typeKey: CardType; label: string; color: string }[]
                 ).map(({ typeKey, label, color }) => {
                   const active = activeTypes.has(typeKey);
+                  const chosen = active && activeTypes.size < ALL_FILTER_TYPES.length;
                   return (
                     <button
                       key={typeKey}
-                      onClick={() => {
-                        const next = new Set(activeTypes);
-                        if (next.has(typeKey)) next.delete(typeKey); else next.add(typeKey);
-                        handleActiveTypesChange(next);
-                      }}
+                      onClick={() => handleActiveTypesChange(tapFilter(activeTypes, ALL_FILTER_TYPES, typeKey))}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200"
                       style={{
                         backdropFilter: "blur(8px)",
                         WebkitBackdropFilter: "blur(8px)",
-                        background: active ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.5)",
-                        color: active ? "#374151" : "#9CA3AF",
+                        background: chosen ? "#1A1A2E" : active ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.5)",
+                        color: chosen ? "#FFFFFF" : active ? "#374151" : "#9CA3AF",
                       }}
                     >
                       <span
                         className="w-1.5 h-1.5 rounded-full flex-shrink-0 transition-opacity duration-200"
-                        style={{ background: color, opacity: active ? 1 : 0.3 }}
+                        style={{ background: chosen ? "#FFFFFF" : color, opacity: active ? 1 : 0.3 }}
                       />
                       {label}
                     </button>
@@ -856,20 +884,17 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
                   ] as { status: string; label: string }[]
                 ).map(({ status, label }) => {
                   const active = activeStatuses.has(status);
+                  const chosen = active && activeStatuses.size < ALL_FILTER_STATUSES.length;
                   return (
                     <button
                       key={status}
-                      onClick={() => {
-                        const next = new Set(activeStatuses);
-                        if (next.has(status)) next.delete(status); else next.add(status);
-                        handleActiveStatusesChange(next);
-                      }}
+                      onClick={() => handleActiveStatusesChange(tapFilter(activeStatuses, ALL_FILTER_STATUSES, status))}
                       className="px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200"
                       style={{
                         backdropFilter: "blur(8px)",
                         WebkitBackdropFilter: "blur(8px)",
-                        background: active ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.5)",
-                        color: active ? "#374151" : "#9CA3AF",
+                        background: chosen ? "#1A1A2E" : active ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.5)",
+                        color: chosen ? "#FFFFFF" : active ? "#374151" : "#9CA3AF",
                         textDecoration: active ? "none" : "line-through",
                       }}
                     >
@@ -913,6 +938,14 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
           >
             <Funnel size={13} weight="light" color={filterOpen ? "#FFFFFF" : "#374151"} />
             {filterOpen ? "Done" : "Filter"}
+            {!filterOpen && filterNarrowed > 0 && (
+              <span
+                className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold"
+                style={{ background: "#B0541F", color: "#FFFFFF" }}
+              >
+                {filterNarrowed}
+              </span>
+            )}
           </button>
         </div>
 

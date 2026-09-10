@@ -845,3 +845,14 @@ fixture pull also found Australia's and Costa Rica's airports stored as
 rating, reviews, drives and review tells but no beds/baths/pool/AC/price — the sheet
 shows the party's floor ("Needs 4 bedrooms and 3 baths") instead. A candidate with a
 `total` (from a listing) is what the price line and the Estimate hook wait for.
+
+**The phone map filter stays pills (10 Sept 2026).** A short Filter sheet with
+sub-type rows and counts was built and reverted the same morning (80b90c5 →
+0184ffc). Brennan: "I like the filter the way it is right now, on top of the map
+and not taking up any space… that level of detail is the kind of thing you do on
+your desktop." What was actually wrong was the tap: pressing Food removed the
+food instead of showing it. The pills now NARROW — everything showing → tap Food
+→ only food; tap Activity too → both; tap the last one selected → everything
+back — and the collapsed button carries a sienna count when the map is narrowed.
+Do not rebuild the sheet, or put sub-type filtering on the phone, unless he asks
+for it by name. Sub-types stay on the desktop sidebar.
