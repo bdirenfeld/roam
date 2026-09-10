@@ -20,6 +20,7 @@ import { useToast } from "@/components/ui/Toast";
 import { scoreLabel } from "@/lib/stays/price";
 import { noPriceReason, shiftToYear, type StayDates } from "@/lib/stays/bookingUrl";
 import { parseAsk, askSummary, suggestions } from "@/lib/stays/wants";
+import { parseBudget, budgetHint, budgetFieldValue } from "@/lib/stays/budgetInput";
 import type { StayBrief } from "@/lib/stays/brief";
 import type { StayCandidate, StayBriefRow, StayRejectReason, Trip } from "@/types/database";
 import StayCardSheet from "./StayCardSheet";
@@ -93,12 +94,15 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
 
   const reload = useCallback(async () => {
     const supabase = createClient();
-    const [b, c] = await Promise.all([
+    const [b, c, bud] = await Promise.all([
       supabase.from("stay_briefs").select("*").eq("trip_id", trip.id).maybeSingle(),
       supabase.from("stay_candidates").select("*").eq("trip_id", trip.id).order("letter"),
+      supabase.from("trip_budgets").select("assumptions").eq("trip_id", trip.id).maybeSingle(),
     ]);
     setBrief((b.data as StayBriefRow | null) ?? null);
     publish((c.data ?? []) as StayCandidate[]);
+    const rate = (bud.data?.assumptions as { nightlyRate?: number } | null)?.nightlyRate ?? null;
+    setBudget((cur) => (cur ? cur : budgetFieldValue(rate)));
   }, [trip.id, publish]);
 
   // What the last run left behind.
@@ -137,6 +141,8 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
 
   // What he asked for last time, so Run again never makes him retype it.
   const [wants, setWants] = useState("");
+  // Seeded from the Estimate, and written back to it when it changes.
+  const [budget, setBudget] = useState("");
   useEffect(() => {
     const w = (brief?.brief as { wants?: string | null } | undefined)?.wants;
     if (typeof w === "string") setWants(w);
@@ -154,7 +160,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
     setRunning(true);
     setError(null);
     try {
-      const res = await fetch("/api/stays/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId: trip.id, wants: wants.trim() || undefined }) });
+      const res = await fetch("/api/stays/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId: trip.id, wants: wants.trim() || undefined, budget: budget.trim() || undefined }) });
       const json = await res.json();
       if (!res.ok) { setError(json.error ?? "That didn't work."); return; }
       const hadRows = cands.length > 0;
@@ -474,6 +480,35 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                       {said.loose && <p className="text-[12px]" style={{ color: CAPTION }}>{said.loose}</p>}
                     </div>
                   )}
+                  {/* The ceiling, on the search rather than buried in the
+                      Estimate — and the same number, so editing it here edits
+                      it there. One field: the whole-stay figure is a hint, not
+                      a second box for the two to disagree in. */}
+                  <div className="mt-3 flex items-baseline gap-2">
+                    <label htmlFor="stay-budget" className="text-[12.5px] flex-shrink-0" style={{ color: CAPTION }}>Up to</label>
+                    <input
+                      id="stay-budget"
+                      type="text"
+                      inputMode="decimal"
+                      value={budget}
+                      onChange={(e) => setBudget(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter" && !running) run(); }}
+                      placeholder="480"
+                      className="w-[104px] h-10 px-2.5 rounded-lg bg-white text-[13.5px]"
+                      style={{ border: "1px solid rgba(26,26,46,0.18)", color: INK }}
+                    />
+                    <span className="text-[12.5px]" style={{ color: CAPTION }}>a night</span>
+                  </div>
+                  {(() => {
+                    const b = parseBudget(budget, nights);
+                    const hint = budgetHint(b.nightly, nights);
+                    if (!hint) return null;
+                    return (
+                      <p className="text-[12px] mt-1" style={{ color: CAPTION }}>
+                        {hint}{b.fromTotal ? " · read as a total" : ""} · also on your Estimate
+                      </p>
+                    );
+                  })()}
                   <button type="button" onClick={run} disabled={running} className="mt-3 text-[12.5px] font-medium" style={{ color: CAPTION }}>
                     {running ? "Looking…" : "Run again"}
                   </button>

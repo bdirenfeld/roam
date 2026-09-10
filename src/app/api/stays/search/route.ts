@@ -15,6 +15,7 @@ import { areaHeadline, areaLine, splitText, reviewNotes } from "@/lib/stays/text
 import { priceWindow, priceWindowNote } from "@/lib/stays/priceWindow";
 import { budgetFlag, budgetVerdict, nightlyOf } from "@/lib/stays/budget";
 import { parseAsk, failsAsk, askNote, askBonus } from "@/lib/stays/wants";
+import { parseBudget } from "@/lib/stays/budgetInput";
 
 // Five rows, not ten: the stays already saved on the journey come first and
 // Google fills what is left ("way too many options" — Brennan, 9 Sept 2026).
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
   const { supabase, user } = gate;
   if (!(await underQuota(supabase, "staySearch", QUOTA.staySearch))) return quotaExceeded("stay searches");
 
-  const body = await request.json().catch(() => ({})) as { tripId?: string; wants?: string; undo?: { tripId: string; seenIds: string[]; newIds: string[] } };
+  const body = await request.json().catch(() => ({})) as { tripId?: string; wants?: string; budget?: string; undo?: { tripId: string; seenIds: string[]; newIds: string[] } };
   // Undo of Run again: the five that were shown come back, the new five go.
   if (body.undo?.tripId) {
     const { data: t } = await supabase.from("trips").select("id, user_id").eq("id", body.undo.tripId).maybeSingle();
@@ -47,6 +48,25 @@ export async function POST(request: NextRequest) {
   const ctx = await loadTripContext(supabase, body.tripId, user.id);
   if (!ctx) return NextResponse.json({ error: "Not your journey" }, { status: 403 });
   const { trip, brief } = ctx;
+
+  // The ceiling typed on the search itself wins, and goes back to the Estimate
+  // so the two never drift apart. "I don't think people are going to start
+  // from the budget menu and realize that the search ties to that" (Brennan,
+  // 10 Sept 2026) — so the field shows the Estimate's number and edits it.
+  const typed = parseBudget(body.budget, brief.nights);
+  if (typed.nightly != null && typed.nightly !== ctx.nightlyRate) {
+    ctx.nightlyRate = typed.nightly;
+    const { data: bRow } = await supabase.from("trip_budgets").select("assumptions, basis").eq("trip_id", trip.id).maybeSingle();
+    const a = (bRow?.assumptions ?? {}) as Record<string, unknown>;
+    const b = (bRow?.basis ?? {}) as Record<string, string>;
+    await supabase.from("trip_budgets").upsert({
+      trip_id: trip.id,
+      user_id: user.id,
+      assumptions: { ...a, nightlyRate: typed.nightly },
+      basis: { ...b, accommodation: "set on the stay search" },
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "trip_id" });
+  }
 
   // Where to look: the evening centre, else the journey's destination.
   const centre = brief.evening
