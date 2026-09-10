@@ -46,6 +46,8 @@ export async function POST(request: NextRequest) {
   const rejectedNames = new Set(rejected.map((p) => p.name.toLowerCase()));
   const rejectedGoogle = new Set(rejected.map((p) => p.google_place_id).filter(Boolean));
   const tooFar = rejected.some((p) => p.reject_reason === "too_far");
+  // "Wrong kind of place" on a villa asks for hotels next time, and the reverse.
+  const wrongKind = rejected.filter((p) => p.reject_reason === "wrong_kind");
   // Saved and chosen rows carry their status forward onto the fresh row for the same place.
   // A hearted row is kept like a saved one, and says what to look for next.
   const kept = (previous ?? []).filter((p) => p.status === "saved" || p.status === "chosen" || p.feel === "up");
@@ -66,8 +68,13 @@ export async function POST(request: NextRequest) {
   // What they hearted steers the words: a liked "Villa …" asks for villas even on a
   // hotel-shaped journey, a liked hotel or resort the other way round.
   const likedNames = liked.map((p) => p.name.toLowerCase()).join(" ");
-  const wantHouse = /\b(villa|casa|farmhouse|agriturismo|cottage|house)\b/.test(likedNames) ? true
-    : /\b(hotel|resort|inn|ryokan|lodge)\b/.test(likedNames) ? false
+  const HOUSE_WORDS = /\b(villa|casa|farmhouse|agriturismo|cottage|house)\b/;
+  const HOTEL_WORDS = /\b(hotel|resort|inn|ryokan|lodge)\b/;
+  const wrongKindNames = wrongKind.map((p) => p.name.toLowerCase()).join(" ");
+  const wantHouse = HOUSE_WORDS.test(likedNames) ? true
+    : HOTEL_WORDS.test(likedNames) ? false
+    : HOUSE_WORDS.test(wrongKindNames) ? false
+    : HOTEL_WORDS.test(wrongKindNames) ? true
     : brief.kind === "house";
   const query = wantHouse ? `villa with pool near ${centre.label}` : `hotel in ${centre.label}`;
   const hits = await lodgingNear(key, query, centre.lat, centre.lng, radiusM);

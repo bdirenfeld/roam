@@ -28,7 +28,7 @@ const CAPTION = "rgba(26,26,46,0.62)";
 const REASONS: { key: StayRejectReason; label: string }[] = [
   { key: "too_far", label: "Too far" },
   { key: "too_dear", label: "Too dear" },
-  { key: "not_our_look", label: "Not our look" },
+  { key: "wrong_kind", label: "Wrong kind of place" },
   { key: "doesnt_fit", label: "Doesn't fit" },
 ];
 
@@ -90,11 +90,16 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
     return () => { cancelled = true; };
   }, [reload]);
 
-  // A tapped pin scrolls its row into view.
+  // A tapped pin scrolls its row into view and flashes it for a second, so
+  // the eye can find "E" in the list without reading the letters.
+  const [flashId, setFlashId] = useState<string | null>(null);
   useEffect(() => {
     if (!focusedId || !listRef.current) return;
     const el = listRef.current.querySelector<HTMLElement>(`[data-cand="${focusedId}"]`);
     el?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    setFlashId(focusedId);
+    const t = setTimeout(() => setFlashId(null), 1100);
+    return () => clearTimeout(t);
   }, [focusedId]);
 
   // The handle: drag up for the full list, down to shrink; a tap toggles.
@@ -222,6 +227,22 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
             </div>
           </div>
 
+          {panel && open && (
+            <StayCardSheet
+              inPanel
+              backLabel={`All ${cands.length === 5 ? "five" : cands.length}`}
+              candidate={open}
+              brief={briefObj}
+              startDate={trip.start_date}
+              endDate={trip.end_date}
+              nights={nights}
+              busy={busyId === open.id}
+              onChoose={() => choose(open)}
+              onSave={() => save(open)}
+              onClose={() => setOpenId(null)}
+            />
+          )}
+
           <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto pb-6">
             {loading ? (
               <p className="px-5 py-8 text-center text-[13px]" style={{ color: CAPTION }}>Loading…</p>
@@ -267,7 +288,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                       key={c.id}
                       data-cand={c.id}
                       onClick={() => { onFocus(c); setOpenId(c.id); }}
-                      className="flex gap-2.5 px-4 py-3 border-b cursor-pointer active:bg-gray-50"
+                      className={`flex gap-2.5 px-4 py-3 border-b cursor-pointer active:bg-gray-50 ${flashId === c.id ? "stay-flash" : ""}`}
                       style={{ borderColor: "rgba(26,26,46,0.07)", background: focused ? "rgba(176,84,31,0.06)" : undefined }}
                     >
                       <div className="w-[62px] flex-shrink-0 pt-[3px]">
@@ -330,11 +351,9 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                           </div>
                         )}
                       </div>
-                      {c.photos?.[0] ? (
+                      {c.photos?.[0] && (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={c.photos[0]} alt="" loading="lazy" className="w-[52px] h-[52px] rounded-lg object-cover flex-shrink-0" style={{ background: "rgba(26,26,46,0.06)" }} />
-                      ) : (
-                        <div className="w-[52px] h-[52px] rounded-lg flex-shrink-0" style={{ background: "rgba(26,26,46,0.06)" }} />
                       )}
                     </div>
                   );
@@ -352,10 +371,8 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
         </div>
       </div>
 
-      {open && (
+      {open && !panel && (
         <StayCardSheet
-          inPanel={panel}
-          backLabel={`All ${cands.length === 5 ? "five" : cands.length}`}
           candidate={open}
           brief={briefObj}
           startDate={trip.start_date}

@@ -191,7 +191,9 @@ export interface TripList {
 
 // ── Where to stay ─────────────────────────────────────────────────────────
 export type StayCandidateStatus = 'candidate' | 'saved' | 'chosen' | 'rejected'
-export type StayRejectReason = 'too_far' | 'too_dear' | 'not_our_look' | 'doesnt_fit'
+/** Each one changes the next search: too_far tightens the radius, wrong_kind flips villa/hotel,
+ *  too_dear and doesnt_fit act once a candidate carries a price or a bed count. */
+export type StayRejectReason = 'too_far' | 'wrong_kind' | 'too_dear' | 'doesnt_fit'
 
 export interface StayBriefRow {
   trip_id: string

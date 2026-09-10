@@ -209,3 +209,11 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* A strip that scrolls without showing it (the photos on a stay card). */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* A Where-to-stay row pulses once when its pin is tapped on the map. */
+@keyframes stayFlash { 0% { background: rgba(176,84,31,0.35); } 100% { background: rgba(176,84,31,0.06); } }
+.stay-flash { animation: stayFlash 1.1s ease-out; }

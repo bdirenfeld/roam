@@ -7,9 +7,8 @@
 // the listing at the bottom. Nothing on it is a label that only introduces
 // the next line (Brennan, Sep 2026).
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { scoreLabel, siteName } from "@/lib/stays/price";
-import { fitFloorText, hostQuestions } from "@/lib/stays/text";
 import type { StayBrief } from "@/lib/stays/brief";
 import type { StayCandidate } from "@/types/database";
 
@@ -63,6 +62,8 @@ export default function StayCardSheet({ inPanel = false, backLabel = "Back", can
   const [photos, setPhotos] = useState<string[] | null>(c.photos?.length ? c.photos : null);
   const [website, setWebsite] = useState<string | null>(c.url);
   const [idx, setIdx] = useState(0);
+  const stripRef = useRef<HTMLDivElement>(null);
+  const step = (dir: 1 | -1) => { const el = stripRef.current; if (el) el.scrollBy({ left: dir * el.clientWidth, behavior: "smooth" }); };
 
   useEffect(() => {
     let cancelled = false;
@@ -76,13 +77,15 @@ export default function StayCardSheet({ inPanel = false, backLabel = "Back", can
 
   const chosen = c.status === "chosen";
   const scale: 5 | 10 = c.score_scale === 10 ? 10 : 5;
+  // Only what the listing actually says. "Fits your 7 · needs 4 bedrooms" was
+  // a floor dressed up as a fact (Brennan, 9 Sept 2026); without a bed count
+  // the line is not shown at all.
   const fitLine = c.beds != null || c.baths != null
-    ? [c.beds != null ? `${c.beds} bed` : null, c.baths != null ? `${c.baths} bath` : null, c.sleeps != null ? `sleeps ${c.sleeps}` : null].filter(Boolean).join(" · ")
-    : brief ? fitFloorText(brief) : null;
+    ? [c.beds != null ? `${c.beds} ${c.beds === 1 ? "bedroom" : "bedrooms"}` : null, c.baths != null ? `${c.baths} ${c.baths === 1 ? "bath" : "baths"}` : null, c.sleeps != null ? `sleeps ${c.sleeps}` : null].filter(Boolean).join(" · ")
+    : null;
   const fitShort = brief && c.beds != null && c.beds < brief.fit.bedrooms
     ? `${brief.fit.bedrooms - c.beds} bedroom${brief.fit.bedrooms - c.beds === 1 ? "" : "s"} short for your ${brief.party.total}`
     : null;
-  const questions = brief ? hostQuestions(brief) : [];
   const partyN = brief?.party.total;
 
   return (
@@ -99,7 +102,8 @@ export default function StayCardSheet({ inPanel = false, backLabel = "Back", can
             <p className="absolute inset-0 flex items-center justify-center text-[13px]" style={{ color: CAPTION }}>No photos on Google for this one.</p>
           ) : (
             <div
-              className="absolute inset-0 flex overflow-x-auto"
+              ref={stripRef}
+              className="absolute inset-0 flex overflow-x-auto no-scrollbar"
               style={{ scrollSnapType: "x mandatory" }}
               onScroll={(e) => { const el = e.currentTarget; setIdx(Math.round(el.scrollLeft / Math.max(1, el.clientWidth))); }}
             >
@@ -108,6 +112,12 @@ export default function StayCardSheet({ inPanel = false, backLabel = "Back", can
                 <img key={i} src={u} alt="" className="w-full h-full flex-none object-cover" style={{ scrollSnapAlign: "start" }} loading={i < 2 ? "eager" : "lazy"} />
               ))}
             </div>
+          )}
+          {photos && photos.length > 1 && idx > 0 && (
+            <button type="button" aria-label="Previous photo" onClick={() => step(-1)} className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 shadow flex items-center justify-center text-gray-700">‹</button>
+          )}
+          {photos && photos.length > 1 && idx < photos.length - 1 && (
+            <button type="button" aria-label="Next photo" onClick={() => step(1)} className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 shadow flex items-center justify-center text-gray-700">›</button>
           )}
           {photos && photos.length > 1 && (
             <div className="absolute bottom-2.5 inset-x-0 flex justify-center gap-1.5 pointer-events-none">
@@ -142,17 +152,16 @@ export default function StayCardSheet({ inPanel = false, backLabel = "Back", can
                 )}
               </Row>
             )}
-            <Row icon="💶" k={`${fmtRange(startDate, endDate)} · ${nights} ${nights === 1 ? "night" : "nights"}`}>
-              {c.total != null
-                ? `${cad(Number(c.total))}${c.nightly_cad != null ? ` · ${cad(Number(c.nightly_cad))} a night` : ""}${c.site ? ` · ${siteName(c.site)}` : ""}`
-                : <span className="font-normal" style={{ color: CAPTION }}>Google shows no price. The listing has it.</span>}
-            </Row>
+            {c.total != null && (
+              <Row icon="💶" k={`${fmtRange(startDate, endDate)} · ${nights} ${nights === 1 ? "night" : "nights"}`}>
+                {`${cad(Number(c.total))}${c.nightly_cad != null ? ` · ${cad(Number(c.nightly_cad))} a night` : ""}${c.site ? ` · ${siteName(c.site)}` : ""}`}
+              </Row>
+            )}
             {c.drive?.line && <Row icon="🚗" k="From here">{c.drive.line}</Row>}
-            <Row icon="💬" k={c.score != null ? `${scoreLabel(c.score, scale, c.reviews)}${c.site ? ` on ${siteName(c.site)}` : ""}` : "Reviews"}>
-              {c.review_notes ? <span className="font-normal">{c.review_notes}</span> : <span className="font-normal" style={{ color: CAPTION }}>Nothing pulled from the reviews yet.</span>}
-            </Row>
-            {questions.length > 0 && (
-              <Row icon="👵" k="Ask the host"><span style={{ color: SIENNA }}>{questions.join(" ")}</span></Row>
+            {(c.score != null || c.review_notes) && (
+              <Row icon="💬" k={c.score != null ? `${scoreLabel(c.score, scale, c.reviews)}${c.site ? ` on ${siteName(c.site)}` : ""}` : "Reviews"}>
+                {c.review_notes ? <span className="font-normal">{c.review_notes}</span> : <span className="font-normal" style={{ color: CAPTION }}>{c.reviews ?? 0} reviews on Google</span>}
+              </Row>
             )}
           </div>
         </div>

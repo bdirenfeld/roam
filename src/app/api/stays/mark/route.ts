@@ -8,7 +8,7 @@ import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import { ensurePlace } from "../_shared";
 import type { StayCandidate, StayRejectReason } from "@/types/database";
 
-const REASONS = new Set<StayRejectReason>(["too_far", "too_dear", "not_our_look", "doesnt_fit"]);
+const REASONS = new Set<StayRejectReason>(["too_far", "wrong_kind", "too_dear", "doesnt_fit"]);
 
 export async function POST(request: NextRequest) {
   const gate = await requireUser();
