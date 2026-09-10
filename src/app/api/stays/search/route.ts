@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import { loadTripContext, googleKey, driveMinutes, lodgingNear, placeExtras, serpApiKey, stayOffers } from "../_shared";
 import { driveHours, driveLine, driveDelta, usableAnchorIndexes } from "@/lib/stays/drive";
+import { greatCircleKm } from "@/lib/stays/brief";
 import { areaHeadline, areaLine, splitText, reviewNotes } from "@/lib/stays/text";
 import { priceWindow, priceWindowNote } from "@/lib/stays/priceWindow";
 import { budgetFlag, budgetVerdict, nightlyOf } from "@/lib/stays/budget";
@@ -19,6 +20,8 @@ import { parseAsk, failsAsk, askNote, askBonus } from "@/lib/stays/wants";
 // Google fills what is left ("way too many options" — Brennan, 9 Sept 2026).
 const MAX_TOTAL = 5;
 const LETTERS = "ABCDEFGHIJKL";
+// A home base sits near the evenings. Beyond this it is a different trip.
+const MAX_OFFER_KM = 35;
 
 
 export async function POST(request: NextRequest) {
@@ -147,7 +150,25 @@ export async function POST(request: NextRequest) {
   const norm = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   if (serp) {
     const where = ctx.country ? `${centre.label}, ${ctx.country}` : centre.label;
-    const offers = await stayOffers(serp, asked ? `${where}, ${asked}` : where, priced.start, priced.end, adults, ages, wantHouse);
+    // Hotels and vacation rentals are two separate inventories and a search
+    // only ever sees one of them, so on a house-shaped journey a boutique
+    // hotel could never come back with a price — which is why La Serena
+    // Villas sat on the Palm Springs list saying "no price" (Brennan asked
+    // whether we were looking in the wrong place; we were).
+    //
+    // Probed directly, 10 Sept 2026, Palm Springs for 13–20 Mar 2027:
+    //   rentals → 18 properties, 18 priced
+    //   hotels  → 18 properties,  1 priced
+    //   by name → 0, because `q` is a place, not a property
+    // Neither list contains the other. So ask for both and merge, the wanted
+    // kind first, deduped on the name.
+    const q = asked ? `${where}, ${asked}` : where;
+    const [wanted, other] = await Promise.all([
+      stayOffers(serp, q, priced.start, priced.end, adults, ages, wantHouse),
+      stayOffers(serp, q, priced.start, priced.end, adults, ages, !wantHouse),
+    ]);
+    const seenOffer = new Set(wanted.map((o) => norm(o.name)));
+    const offers = [...wanted, ...other.filter((o) => !seenOffer.has(norm(o.name)))];
 
     // Everything already on the list is re-priced from THIS run, so a saved or
     // hearted row never shows last month's number (Brennan, 10 Sept 2026).
@@ -181,10 +202,20 @@ export async function POST(request: NextRequest) {
       // "Not listed" is a third state and keeps its place — treating it as a
       // failure would empty a list like Tuscany's, where no row has amenities.
       .filter((o) => !failsAsk(ask, o.amenities))
+      // A home base is near the evenings. Google offered Highland Springs
+      // Ranch, an hour and a half out, and it landed on the Palm Springs list
+      // reading "adds about 13 hours of driving" (Brennan, 10 Sept 2026).
+      .filter((o) => greatCircleKm(o.lat, o.lng, centre.lat, centre.lng) <= MAX_OFFER_KM)
       .filter((o) => !skipNames.has(o.name.toLowerCase()))
       .filter((o) => !cands.some((c) => c.name.toLowerCase() === o.name.toLowerCase()))
       .filter((o) => !brief.fit.bedrooms || o.beds == null || o.beds >= brief.fit.bedrooms - 1)
-      .sort((a, b) => (b.score ?? 0) * Math.log((b.reviews ?? 1) + 1) - (a.score ?? 0) * Math.log((a.reviews ?? 1) + 1))
+      // The other inventory is merged in so that anything already on the list
+      // can be priced from it — but it must not take the list over. A hotel
+      // has thousands of reviews where a villa has thirty, so on score alone
+      // hotels would fill a house-shaped journey. The wanted kind ranks first.
+      .sort((a, b) =>
+        (seenOffer.has(norm(b.name)) ? 1 : 0) - (seenOffer.has(norm(a.name)) ? 1 : 0)
+        || (b.score ?? 0) * Math.log((b.reviews ?? 1) + 1) - (a.score ?? 0) * Math.log((a.reviews ?? 1) + 1))
       .slice(0, Math.max(0, MAX_TOTAL - cands.length))
       .forEach((o) => cands.push({
         name: o.name, address: null, lat: o.lat, lng: o.lng, google_place_id: null, place_id: null,
@@ -216,33 +247,20 @@ export async function POST(request: NextRequest) {
 
   if (!cands.length) return NextResponse.json({ error: "Nothing found near " + centre.label }, { status: 404 });
 
-  // A row Google's map turned up carries no price, and the area search only
-  // finds it if it happened to be in the twenty that came back. Saying "no
-  // price on a booking site" about La Serena Villas — which plainly is on
-  // booking sites — is a claim about the property rather than about our
-  // search (Brennan, 10 Sept 2026). So ask for each unpriced one by name
-  // before giving up. Capped at three: each is its own request.
-  if (serp) {
-    const stillBlank = cands.filter((c) => c.total == null).slice(0, 3);
-    await Promise.all(stillBlank.map(async (c) => {
-      const q = [c.name, centre.label, ctx.country].filter(Boolean).join(", ");
-      const found = await stayOffers(serp, q, priced.start, priced.end, adults, ages, wantHouse);
-      // Only a real match: the same name, or the same spot within about 200 m.
-      const hit = found.find((o) => norm(o.name) === norm(c.name))
-        ?? found.find((o) => Math.abs(o.lat - c.lat) < 0.002 && Math.abs(o.lng - c.lng) < 0.002);
-      if (!hit || hit.total == null) return;
-      c.total = hit.total;
-      c.nightly = hit.nightly;
-      c.currency = hit.currency;
-      c.beds = hit.beds ?? c.beds;
-      c.baths = hit.baths ?? c.baths;
-      c.sleeps = hit.sleeps ?? c.sleeps;
-      c.amenities = hit.amenities?.length ? hit.amenities : c.amenities;
-      c.url = c.url ?? hit.url;
-      if (hit.site && hit.site !== "google") c.site = hit.site;
-      if (!c.photos?.length && hit.photos.length) c.photos = hit.photos;
-    }));
+  // One budget rule, applied after every price is known.
+  //
+  // The filter on the offers was not enough: the by-name pass above prices a
+  // row that never went through it, and on 10 Sept that put "Acme House
+  // Company · $51,332 for 7 nights · $7,333 a night" at the top of the Palm
+  // Springs list against a $480 ceiling. Anything he saved, chose or hearted
+  // is never dropped, whatever it costs.
+  for (let i = cands.length - 1; i >= 0; i--) {
+    const c = cands[i];
+    if (keptFor(c)) continue;
+    const nightly = nightlyOf(c.nightly ?? null, c.total ?? null, brief.nights);
+    if (budgetVerdict(nightly, ctx.nightlyRate) === "far") cands.splice(i, 1);
   }
+  if (!cands.length) return NextResponse.json({ error: "Nothing near " + centre.label + " comes in near your Estimate. Raise the nightly rate there and run again." }, { status: 404 });
 
   // Drive minutes: candidates → anchors, plus the evening centre → anchors for the split sentence.
   const anchors = brief.anchors;
