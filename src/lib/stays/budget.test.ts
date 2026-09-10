@@ -44,8 +44,8 @@ describe("budgetVerdict", () => {
 
 describe("budgetFlag", () => {
   it("names his own number rather than saying 'over budget'", () => {
-    expect(budgetFlag(900, 580)).toBe("Over your $580 a night");
-    expect(budgetFlag(1400, 580)).toBe("Over your $580 a night");
+    expect(budgetFlag(900, 580)).toBe("Over your Estimate ($580 a night)");
+    expect(budgetFlag(1400, 580)).toBe("Over your Estimate ($580 a night)");
   });
 
   it("says nothing when the place is within, or when there is no ceiling", () => {

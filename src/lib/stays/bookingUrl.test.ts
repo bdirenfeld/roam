@@ -86,11 +86,23 @@ describe("shiftToYear", () => {
 });
 
 describe("noPriceReason", () => {
-  it("separates a place nobody listed from a listing with no rate", () => {
-    // Villa Guinigi and Villa Bottino on Tuscany: his own saved places, off the map.
-    expect(noPriceReason({ site: "google", url: null, source: "saved" })).toBe("No price on a booking site.");
-    expect(noPriceReason({ site: "google", url: "https://maps.google.com/x", source: "google" })).toBe("No price on a booking site.");
-    // On Vrbo, but not quoting these nights.
-    expect(noPriceReason({ site: "vrbo", url: "https://www.vrbo.com/1", source: "google" })).toBe("No rate for these dates.");
+  // It describes OUR search, never the property: "no price on a booking site"
+  // sat on La Serena Villas, which plainly is on booking sites.
+  it("never claims the property is unlisted", () => {
+    const said = [
+      noPriceReason({ site: "google", url: null, source: "saved" }),
+      noPriceReason({ site: "google", url: "https://maps.google.com/x", source: "google" }),
+      noPriceReason({ site: "vrbo", url: "https://www.vrbo.com/1", source: "google" }),
+    ];
+    for (const s of said) expect(s).not.toMatch(/on a booking site|not listed anywhere/i);
+  });
+
+  it("says where it looked when the row came off a listing", () => {
+    expect(noPriceReason({ site: "vrbo", url: "https://www.vrbo.com/1", source: "google" })).toBe("No rate for these nights on Vrbo.");
+    expect(noPriceReason({ site: "booking", url: "https://www.booking.com/1", source: "google" })).toBe("No rate for these nights on Booking.com.");
+  });
+
+  it("stays general when the row came off the map or his own saves", () => {
+    expect(noPriceReason({ site: "google", url: null, source: "saved" })).toBe("No rate found for these nights.");
   });
 });

@@ -116,6 +116,9 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
     const el = listRef.current.querySelector<HTMLElement>(`[data-cand="${focusedId}"]`);
     el?.scrollIntoView({ block: "nearest", behavior: "smooth" });
     setFlashId(focusedId);
+    // With a card already open, tapping another pin should move the card to it —
+    // flashing a row behind the card is invisible (Brennan, 10 Sept 2026).
+    setOpenId((id) => (id ? focusedId : id));
     const t = setTimeout(() => setFlashId(null), 1100);
     return () => clearTimeout(t);
   }, [focusedId]);

@@ -114,11 +114,20 @@ export function shiftToYear(start: string, end: string, year: number | null): { 
 }
 
 /**
- * Why this row has no price, in his words rather than the API's.
- * "Not on a booking site" is the honest one for a place he saved himself or
- * that came off the map; a listed property with no rate is a different fact.
+ * Why this row has no price.
+ *
+ * It must describe OUR search, never the property. "No price on a booking
+ * site" was on La Serena Villas, which plainly is on booking sites, and read
+ * as a statement about the villa (Brennan, 10 Sept 2026). By the time this
+ * shows, the search has already asked for the place by name and come back
+ * empty, so the true sentence is that no rate was found for these nights.
  */
 export function noPriceReason(opts: { site: string | null; url: string | null; source: string | null }): string {
   const listed = opts.url && opts.site && opts.site !== "google";
-  return listed ? "No rate for these dates." : "No price on a booking site.";
+  return listed ? `No rate for these nights on ${siteLabel(opts.site)}.` : "No rate found for these nights.";
+}
+
+function siteLabel(site: string | null): string {
+  const names: Record<string, string> = { vrbo: "Vrbo", airbnb: "Airbnb", booking: "Booking.com", expedia: "Expedia", direct: "the site" };
+  return names[site ?? ""] ?? "the site";
 }

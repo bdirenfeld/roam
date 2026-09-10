@@ -142,16 +142,16 @@ export async function POST(request: NextRequest) {
   // which dates the prices are for.
   const priced = priceWindow(trip.start_date, trip.end_date);
   const serp = serpApiKey();
+  const ages = (trip.party_ages ?? []).filter((a) => a < 18);
+  const adults = Math.max(1, (trip.party_size ?? brief.party.total) - ages.length);
+  const norm = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   if (serp) {
-    const ages = (trip.party_ages ?? []).filter((a) => a < 18);
-    const adults = Math.max(1, (trip.party_size ?? brief.party.total) - ages.length);
     const where = ctx.country ? `${centre.label}, ${ctx.country}` : centre.label;
     const offers = await stayOffers(serp, asked ? `${where}, ${asked}` : where, priced.start, priced.end, adults, ages, wantHouse);
 
     // Everything already on the list is re-priced from THIS run, so a saved or
     // hearted row never shows last month's number (Brennan, 10 Sept 2026).
     // Matched on the name, or on being within about 200 m of it.
-    const norm = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
     for (const c of cands) {
       const hit = offers.find((o) => norm(o.name) === norm(c.name))
         ?? offers.find((o) => Math.abs(o.lat - c.lat) < 0.002 && Math.abs(o.lng - c.lng) < 0.002);
@@ -215,6 +215,34 @@ export async function POST(request: NextRequest) {
     }));
 
   if (!cands.length) return NextResponse.json({ error: "Nothing found near " + centre.label }, { status: 404 });
+
+  // A row Google's map turned up carries no price, and the area search only
+  // finds it if it happened to be in the twenty that came back. Saying "no
+  // price on a booking site" about La Serena Villas — which plainly is on
+  // booking sites — is a claim about the property rather than about our
+  // search (Brennan, 10 Sept 2026). So ask for each unpriced one by name
+  // before giving up. Capped at three: each is its own request.
+  if (serp) {
+    const stillBlank = cands.filter((c) => c.total == null).slice(0, 3);
+    await Promise.all(stillBlank.map(async (c) => {
+      const q = [c.name, centre.label, ctx.country].filter(Boolean).join(", ");
+      const found = await stayOffers(serp, q, priced.start, priced.end, adults, ages, wantHouse);
+      // Only a real match: the same name, or the same spot within about 200 m.
+      const hit = found.find((o) => norm(o.name) === norm(c.name))
+        ?? found.find((o) => Math.abs(o.lat - c.lat) < 0.002 && Math.abs(o.lng - c.lng) < 0.002);
+      if (!hit || hit.total == null) return;
+      c.total = hit.total;
+      c.nightly = hit.nightly;
+      c.currency = hit.currency;
+      c.beds = hit.beds ?? c.beds;
+      c.baths = hit.baths ?? c.baths;
+      c.sleeps = hit.sleeps ?? c.sleeps;
+      c.amenities = hit.amenities?.length ? hit.amenities : c.amenities;
+      c.url = c.url ?? hit.url;
+      if (hit.site && hit.site !== "google") c.site = hit.site;
+      if (!c.photos?.length && hit.photos.length) c.photos = hit.photos;
+    }));
+  }
 
   // Drive minutes: candidates → anchors, plus the evening centre → anchors for the split sentence.
   const anchors = brief.anchors;

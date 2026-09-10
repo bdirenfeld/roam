@@ -41,5 +41,5 @@ export function budgetVerdict(nightly: number | null, ceiling: number | null): B
 export function budgetFlag(nightly: number | null, ceiling: number | null): string | null {
   const v = budgetVerdict(nightly, ceiling);
   if (v !== "over" && v !== "far") return null;
-  return `Over your $${Math.round(ceiling as number).toLocaleString("en-CA")} a night`;
+  return `Over your Estimate ($${Math.round(ceiling as number).toLocaleString("en-CA")} a night)`;
 }
