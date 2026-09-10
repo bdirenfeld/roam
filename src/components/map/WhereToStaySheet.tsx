@@ -163,7 +163,15 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
       if (!res.ok) { toast({ message: json.error ?? "Couldn't save it." }); return; }
       publish(cands.map((x) => x.id === c.id && x.status !== "chosen" ? { ...x, status: "saved", place_id: json.placeId } : x));
       onChanged();
-      toast({ message: "Saved to your map" });
+      toast({
+        message: `${c.name} is on your map`,
+        undo: async () => {
+          const r = await fetch("/api/stays/mark", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ candidateId: c.id, action: "unsave", cardId: json.createdCard ? json.cardId : null, createdPlace: json.createdPlace }) });
+          if (!r.ok) { toast({ message: "Couldn't undo that." }); return; }
+          await reload();
+          onChanged();
+        },
+      });
     } finally {
       setBusyId(null);
     }
@@ -301,7 +309,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-display italic truncate" style={{ fontSize: 17, lineHeight: 1.24, color: INK }}>
-                          {c.name}{chosen ? <span className="ml-2 not-italic font-sans text-[10px] uppercase tracking-wide" style={{ color: SIENNA }}>Your stay</span> : null}
+                          {c.name}{chosen ? <span className="ml-2 not-italic font-sans text-[10px] uppercase tracking-wide" style={{ color: SIENNA }}>Your stay</span> : c.status === "saved" ? <span className="ml-2 not-italic font-sans text-[10px] uppercase tracking-wide" style={{ color: CAPTION }}>On your map</span> : null}
                         </p>
                         {meta && <p className="text-[12.5px] mt-[3px] leading-snug" style={{ color: CAPTION }}>{meta}</p>}
                         {c.flags?.length > 0 && <p className="text-[11px] font-medium mt-[3px]" style={{ color: SIENNA }}>{c.flags.join(" · ")}</p>}

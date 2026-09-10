@@ -17,8 +17,8 @@ export async function POST(request: NextRequest) {
   if (!(await underQuota(supabase, "stayWrite", QUOTA.stayWrite))) return quotaExceeded("stay changes");
 
   const body = await request.json().catch(() => ({})) as { candidateId?: string; action?: string; reason?: string };
-  if (!body.candidateId || (body.action !== "save" && body.action !== "reject" && body.action !== "heart")) {
-    return NextResponse.json({ error: "candidateId and action (save | reject | heart) are required" }, { status: 400 });
+  if (!body.candidateId || !["save", "unsave", "reject", "heart"].includes(body.action ?? "")) {
+    return NextResponse.json({ error: "candidateId and action (save | unsave | reject | heart) are required" }, { status: 400 });
   }
   const { data: cand } = await supabase.from("stay_candidates").select("*").eq("id", body.candidateId).maybeSingle();
   if (!cand) return NextResponse.json({ error: "No such candidate" }, { status: 404 });
@@ -40,11 +40,27 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
+  // Undo of Save: the card goes, the place goes if Save created it and nothing
+  // else points at it, and the row is a candidate again.
+  if (body.action === "unsave") {
+    const u = body as { cardId?: string; createdPlace?: boolean };
+    if (c.status === "chosen") return NextResponse.json({ error: "It is your stay; undo that first" }, { status: 409 });
+    if (u.cardId) await supabase.from("cards").delete().eq("id", u.cardId).eq("trip_id", c.trip_id);
+    if (u.createdPlace && c.place_id) {
+      const { count } = await supabase.from("cards").select("id", { count: "exact", head: true }).eq("place_id", c.place_id);
+      if (!count) await supabase.from("places").delete().eq("id", c.place_id);
+    }
+    await supabase.from("stay_candidates").update({ status: "candidate", place_id: u.createdPlace ? null : c.place_id }).eq("id", c.id);
+    return NextResponse.json({ ok: true });
+  }
+
+  const hadPlace = !!c.place_id;
   const placeId = await ensurePlace(supabase, user.id, c);
   if (!placeId) return NextResponse.json({ error: "Couldn't save the place" }, { status: 500 });
   // Already on the journey? Then there is nothing to add.
   const { data: existing } = await supabase.from("cards").select("id").eq("trip_id", c.trip_id).eq("place_id", placeId).neq("status", "cut").limit(1);
   let cardId = existing?.[0]?.id ?? null;
+  const createdCard = !cardId;
   if (!cardId) {
     cardId = crypto.randomUUID();
     const { error } = await supabase.from("cards").insert({
@@ -55,5 +71,5 @@ export async function POST(request: NextRequest) {
   }
   if (c.status !== "chosen") await supabase.from("stay_candidates").update({ status: "saved", place_id: placeId }).eq("id", c.id);
   else await supabase.from("stay_candidates").update({ place_id: placeId }).eq("id", c.id);
-  return NextResponse.json({ ok: true, placeId, cardId });
+  return NextResponse.json({ ok: true, placeId, cardId, createdCard, createdPlace: !hadPlace });
 }
