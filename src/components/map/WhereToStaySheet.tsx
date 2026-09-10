@@ -192,6 +192,14 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
       if (!res.ok) { toast({ message: "Couldn't do that." }); return; }
       publish(cands.filter((x) => x.id !== c.id));
       if (focusedId === c.id) onFocus(null);
+      toast({
+        message: `${c.name} won't come back`,
+        undo: async () => {
+          const r = await fetch("/api/stays/mark", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ candidateId: c.id, action: "unreject" }) });
+          if (!r.ok) { toast({ message: "Couldn't undo that." }); return; }
+          await reload();
+        },
+      });
     } finally {
       setBusyId(null);
     }
@@ -308,7 +316,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-display italic truncate" style={{ fontSize: 17, lineHeight: 1.24, color: INK }}>
+                        <p className="font-display italic line-clamp-2" style={{ fontSize: 17, lineHeight: 1.24, color: INK }}>
                           {c.name}{chosen ? <span className="ml-2 not-italic font-sans text-[10px] uppercase tracking-wide" style={{ color: SIENNA }}>Your stay</span> : c.status === "saved" ? <span className="ml-2 not-italic font-sans text-[10px] uppercase tracking-wide" style={{ color: CAPTION }}>On your map</span> : null}
                         </p>
                         {meta && <p className="text-[12.5px] mt-[3px] leading-snug" style={{ color: CAPTION }}>{meta}</p>}
@@ -319,11 +327,11 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                           <div className="flex flex-wrap gap-1.5 mt-2" onClick={(e) => e.stopPropagation()}>
                             <span className="text-[12.5px] self-center mr-1" style={{ color: SIENNA }}>Not for us:</span>
                             {REASONS.map((r) => (
-                              <button key={r.key} type="button" onClick={() => reject(c, r.key)} className="h-[30px] px-3 rounded-full text-[12.5px] font-medium" style={{ color: INK, border: "1px solid rgba(26,26,46,0.2)" }}>
+                              <button key={r.key} type="button" onClick={() => reject(c, r.key)} className="h-9 px-3 rounded-full text-[12.5px] font-medium" style={{ color: INK, border: "1px solid rgba(26,26,46,0.2)" }}>
                                 {r.label}
                               </button>
                             ))}
-                            <button type="button" onClick={() => setAskingId(null)} className="h-[30px] px-2 text-[12.5px]" style={{ color: CAPTION }}>Keep</button>
+                            <button type="button" onClick={() => setAskingId(null)} className="h-9 px-2 text-[12.5px]" style={{ color: CAPTION }}>Keep</button>
                           </div>
                         ) : (
                           <div className="flex items-center gap-1.5 mt-2" onClick={(e) => e.stopPropagation()}>
@@ -331,13 +339,13 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                               type="button"
                               disabled={busy || chosen}
                               onClick={() => choose(c)}
-                              className="h-[30px] px-3.5 rounded-full text-[12.5px] font-medium text-white disabled:opacity-60"
+                              className="h-9 px-3.5 rounded-full text-[12.5px] font-medium text-white disabled:opacity-60"
                               style={{ background: INK }}
                             >
                               {chosen ? "Chosen" : busy ? "…" : "Choose"}
                             </button>
                             {c.status === "candidate" && (
-                              <button type="button" disabled={busy} onClick={() => save(c)} className="h-[30px] px-3.5 rounded-full text-[12.5px] font-medium" style={{ color: INK, border: "1px solid rgba(26,26,46,0.2)" }}>
+                              <button type="button" disabled={busy} onClick={() => save(c)} className="h-9 px-3.5 rounded-full text-[12.5px] font-medium" style={{ color: INK, border: "1px solid rgba(26,26,46,0.2)" }}>
                                 Save
                               </button>
                             )}
@@ -346,13 +354,13 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                               aria-label={c.feel === "up" ? "Un-heart" : "Heart"}
                               aria-pressed={c.feel === "up"}
                               onClick={() => heart(c)}
-                              className="ml-auto h-[30px] w-[30px] inline-flex items-center justify-center"
+                              className="ml-auto h-9 w-9 inline-flex items-center justify-center"
                               style={{ color: c.feel === "up" ? SIENNA : CAPTION }}
                             >
                               <svg width="17" height="17" viewBox="0 0 24 24" fill={c.feel === "up" ? SIENNA : "none"} stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.4 4.5 7 4.5c2 0 3.4 1.1 5 3 1.6-1.9 3-3 5-3 3.6 0 5.6 3.5 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2z" /></svg>
                             </button>
                             {!chosen && (
-                              <button type="button" aria-label="Not for us" onClick={() => setAskingId(c.id)} className="h-[30px] px-2 text-[13px]" style={{ color: CAPTION }}>
+                              <button type="button" aria-label="Not for us" onClick={() => setAskingId(c.id)} className="h-9 w-9 inline-flex items-center justify-center text-[14px]" style={{ color: CAPTION }}>
                                 ✕
                               </button>
                             )}

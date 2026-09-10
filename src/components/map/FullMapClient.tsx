@@ -757,7 +757,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
 
         {/* Map canvas */}
         {hasToken ? (
-          <div ref={mapContainerRef} style={{ position: "absolute", inset: 0, right: panelOpen ? 400 : 0 }} />
+          <div ref={mapContainerRef} className={showStays && !readOnly && !isDesktop ? "stays-open" : undefined} style={{ position: "absolute", inset: 0, right: panelOpen ? 400 : 0 }} />
         ) : (
           <div style={{ position: "absolute", inset: 0 }} className="bg-gray-50 flex flex-col items-center justify-center gap-1">
             <p className="text-sm font-medium text-gray-500">Map unavailable</p>

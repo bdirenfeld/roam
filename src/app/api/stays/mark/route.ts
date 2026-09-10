@@ -17,8 +17,8 @@ export async function POST(request: NextRequest) {
   if (!(await underQuota(supabase, "stayWrite", QUOTA.stayWrite))) return quotaExceeded("stay changes");
 
   const body = await request.json().catch(() => ({})) as { candidateId?: string; action?: string; reason?: string };
-  if (!body.candidateId || !["save", "unsave", "reject", "heart"].includes(body.action ?? "")) {
-    return NextResponse.json({ error: "candidateId and action (save | unsave | reject | heart) are required" }, { status: 400 });
+  if (!body.candidateId || !["save", "unsave", "reject", "unreject", "heart"].includes(body.action ?? "")) {
+    return NextResponse.json({ error: "candidateId and action (save | unsave | reject | unreject | heart) are required" }, { status: 400 });
   }
   const { data: cand } = await supabase.from("stay_candidates").select("*").eq("id", body.candidateId).maybeSingle();
   if (!cand) return NextResponse.json({ error: "No such candidate" }, { status: 404 });
@@ -31,6 +31,11 @@ export async function POST(request: NextRequest) {
     const feel = c.feel === "up" ? null : "up";
     await supabase.from("stay_candidates").update({ feel }).eq("id", c.id);
     return NextResponse.json({ ok: true, feel });
+  }
+
+  if (body.action === "unreject") {
+    await supabase.from("stay_candidates").update({ status: c.place_id ? "saved" : "candidate", reject_reason: null }).eq("id", c.id);
+    return NextResponse.json({ ok: true });
   }
 
   if (body.action === "reject") {
