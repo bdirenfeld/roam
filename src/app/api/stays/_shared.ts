@@ -5,7 +5,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { StayCandidate } from "@/types/database";
-import { buildStayBrief, type BriefPin, type StayBrief } from "@/lib/stays/brief";
+import { buildStayBrief, countryOfPins, type BriefPin, type StayBrief } from "@/lib/stays/brief";
 
 export interface TripContext {
   trip: {
@@ -16,6 +16,8 @@ export interface TripContext {
   };
   days: { id: string; date: string; day_number: number }[];
   brief: StayBrief;
+  /** Where the journey is, from its own pins — "Italy", "USA", "Japan". */
+  country: string | null;
   /** Stay-type places already saved on this journey, once each. */
   savedStays: { place_id: string; title: string; address: string | null; lat: number; lng: number; google_place_id: string | null; rating: number | null; website: string | null }[];
 }
@@ -49,7 +51,7 @@ export async function loadTripContext(supabase: SupabaseClient, tripId: string, 
   }
 
   const brief = buildStayBrief({ startDate: trip.start_date, endDate: trip.end_date, partyAges: trip.party_ages, partySize: trip.party_size, pins });
-  return { trip, days: (days ?? []) as TripContext["days"], brief, savedStays };
+  return { trip, days: (days ?? []) as TripContext["days"], brief, country: countryOfPins(pins), savedStays };
 }
 
 // ── Google ────────────────────────────────────────────────────────────────
@@ -154,7 +156,9 @@ export async function stayOffers(
     url.searchParams.set("children_ages", childrenAges.join(","));
   }
   url.searchParams.set("currency", "CAD");
-  url.searchParams.set("gl", "ca");
+  // No gl: it is the country the SEARCHER is in, and setting it to Canada
+  // pulled Palm Springs results across North America. The country belongs in
+  // the query instead (Brennan, 10 Sept 2026).
   url.searchParams.set("hl", "en");
   if (wantHouse) url.searchParams.set("vacation_rentals", "true");
   url.searchParams.set("api_key", key);

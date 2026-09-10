@@ -203,6 +203,8 @@ export interface StayBriefRow {
   brief: Record<string, unknown>
   area_text: string | null
   split_text: string | null
+  /** Set when the prices are for a different year: the journey's own dates were unquotable. */
+  price_year: number | null
 }
 
 export interface StayCandidate {

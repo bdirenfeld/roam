@@ -26,6 +26,8 @@ interface Props {
   startDate: string;
   endDate: string;
   nights: number;
+  /** The year the prices are for, when it is not the journey's own. */
+  priceYear?: number | null;
   busy: boolean;
   onChoose: () => void;
   onSave: () => void;
@@ -58,7 +60,7 @@ async function loadPhotos(googlePlaceId: string): Promise<{ photos: string[]; we
   return { photos: urls, website: (json.result?.website as string | undefined) ?? null };
 }
 
-export default function StayCardSheet({ inPanel = false, backLabel = "Back", candidate: c, brief, startDate, endDate, nights, busy, onChoose, onSave, onClose }: Props) {
+export default function StayCardSheet({ inPanel = false, backLabel = "Back", candidate: c, brief, startDate, endDate, nights, priceYear = null, busy, onChoose, onSave, onClose }: Props) {
   // The search already resolved the first few photos; only an older row still fetches.
   const [photos, setPhotos] = useState<string[] | null>(c.photos?.length ? c.photos : null);
   const [website, setWebsite] = useState<string | null>(c.url);
@@ -156,11 +158,20 @@ export default function StayCardSheet({ inPanel = false, backLabel = "Back", can
                 )}
               </Row>
             )}
-            {c.total != null && (
-              <Row icon="💶" k={`${fmtRange(startDate, endDate)} · ${nights} ${nights === 1 ? "night" : "nights"}`}>
-                {`${cad(Number(c.total))}${c.nightly_cad != null ? ` · ${cad(Number(c.nightly_cad))} a night` : ""}${c.site ? ` · ${siteName(c.site)}` : ""}`}
-              </Row>
-            )}
+            <Row icon="💶" k={`${fmtRange(startDate, endDate)} · ${nights} ${nights === 1 ? "night" : "nights"}`}>
+              {c.total != null ? (
+                <>
+                  {`${cad(Number(c.total))}${c.nightly_cad != null ? ` · ${cad(Number(c.nightly_cad))} a night` : ""}${c.site ? ` · ${siteName(c.site)}` : ""}`}
+                  {priceYear && (
+                    <span className="block font-normal" style={{ color: SIENNA }}>
+                      Typical: this is the same week in {priceYear}, the closest anyone quotes.
+                    </span>
+                  )}
+                </>
+              ) : (
+                <span className="font-normal" style={{ color: CAPTION }}>No price yet — nobody is quoting these dates.</span>
+              )}
+            </Row>
             {c.drive?.line && <Row icon="🚗" k="From here">{c.drive.line}</Row>}
             {(c.score != null || c.review_notes) && (
               <Row icon="💬" k={c.score != null ? `${scoreLabel(c.score, scale, c.reviews)}${c.site ? ` on ${siteName(c.site)}` : ""}` : "Reviews"}>

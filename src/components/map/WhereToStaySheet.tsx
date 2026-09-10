@@ -272,6 +272,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
               startDate={trip.start_date}
               endDate={trip.end_date}
               nights={nights}
+              priceYear={brief?.price_year ?? null}
               busy={busyId === open.id}
               onChoose={() => choose(open)}
               onSave={() => save(open)}
@@ -414,6 +415,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
           startDate={trip.start_date}
           endDate={trip.end_date}
           nights={nights}
+          priceYear={brief?.price_year ?? null}
           busy={busyId === open.id}
           onChoose={() => choose(open)}
           onSave={() => save(open)}

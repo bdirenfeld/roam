@@ -11,11 +11,13 @@ import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import { loadTripContext, googleKey, driveMinutes, lodgingNear, placeExtras, serpApiKey, stayOffers } from "../_shared";
 import { driveHours, driveLine, driveDelta, usableAnchorIndexes } from "@/lib/stays/drive";
 import { areaHeadline, areaLine, splitText, reviewNotes } from "@/lib/stays/text";
+import { priceWindow, priceWindowNote } from "@/lib/stays/priceWindow";
 
 // Five rows, not ten: the stays already saved on the journey come first and
 // Google fills what is left ("way too many options" — Brennan, 9 Sept 2026).
 const MAX_TOTAL = 5;
 const LETTERS = "ABCDEFGHIJKL";
+
 
 export async function POST(request: NextRequest) {
   const gate = await requireUser();
@@ -121,11 +123,20 @@ export async function POST(request: NextRequest) {
 
   // Google Hotels first when the key is there: it is the only source that
   // knows the price for these dates and this party, and the bed count.
+  // Nobody quotes a rate for a date that has gone: New York ran 23-26 July and
+  // the search came back priceless, which read as a fault. But the shortlist is
+  // still worth having — "I'm going to New York, where should I stay" is a real
+  // question to ask of a finished journey (Brennan, 10 Sept 2026). So the price
+  // window rolls forward whole years until it is in the future, which keeps the
+  // season honest (New York in July stays New York in July), and the sheet says
+  // which dates the prices are for.
+  const priced = priceWindow(trip.start_date, trip.end_date);
   const serp = serpApiKey();
   if (serp) {
     const ages = (trip.party_ages ?? []).filter((a) => a < 18);
     const adults = Math.max(1, (trip.party_size ?? brief.party.total) - ages.length);
-    const offers = await stayOffers(serp, centre.label, trip.start_date, trip.end_date, adults, ages, wantHouse);
+    const where = ctx.country ? `${centre.label}, ${ctx.country}` : centre.label;
+    const offers = await stayOffers(serp, where, priced.start, priced.end, adults, ages, wantHouse);
 
     // Everything already on the list is re-priced from THIS run, so a saved or
     // hearted row never shows last month's number (Brennan, 10 Sept 2026).
@@ -281,7 +292,8 @@ export async function POST(request: NextRequest) {
     user_id: user.id,
     ran_at: new Date().toISOString(),
     brief: JSON.parse(JSON.stringify(brief)),
-    area_text: [headline, line].filter(Boolean).join(" ") || null,
+    area_text: [headline, line, priceWindowNote(priced, trip.start_date)].filter(Boolean).join(" ") || null,
+    price_year: priced.shifted ? Number(priced.start.slice(0, 4)) : null,
     split_text: splitText(brief, centreMinutes),
   };
   const { error: briefErr } = await supabase.from("stay_briefs").upsert(briefRow, { onConflict: "trip_id" });

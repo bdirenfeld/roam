@@ -82,3 +82,8 @@ create index if not exists stay_candidates_trip_id_idx on public.stay_candidates
 alter table public.stay_candidates
   add column if not exists photos text[] not null default '{}',
   add column if not exists feel text;                 -- up | down
+
+-- 10 Sept 2026: when the journey's own dates are unquotable (already gone, or
+-- beyond about a year), the search prices the same days in a year that is
+-- bookable and records which year, so the sheet can say so.
+alter table public.stay_briefs add column if not exists price_year integer;

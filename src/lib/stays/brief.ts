@@ -145,6 +145,34 @@ export function townFromAddress(address: string | null): string | null {
  * is a pin at Pearson), so airports only become anchors within
  * AIRPORT_MAX_KM of the centre; the rest are dropped entirely.
  */
+/**
+ * The country an address ends in, or null when it stops at a postal code.
+ * The stay search needs it: asking Google for "Palm Springs" while telling it
+ * the searcher is in Canada returned places across North America (Brennan,
+ * 10 Sept 2026).
+ */
+export function countryFromAddress(address: string | null): string | null {
+  if (!address) return null;
+  const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
+  if (parts.length < 2) return null;
+  const last = parts[parts.length - 1];
+  if (/\d/.test(last) || last.length < 3) return null;
+  return last;
+}
+
+/** The country most of these pins agree on. */
+export function countryOfPins(pins: { address: string | null }[]): string | null {
+  const counts = new Map<string, number>();
+  for (const p of pins) {
+    const c = countryFromAddress(p.address);
+    if (c) counts.set(c, (counts.get(c) ?? 0) + 1);
+  }
+  let best: string | null = null;
+  let n = 0;
+  counts.forEach((count, c) => { if (count > n) { n = count; best = c; } });
+  return best;
+}
+
 function isFlight(p: BriefPin): boolean {
   return p.subType === "flight_arrival" || p.subType === "flight_departure";
 }

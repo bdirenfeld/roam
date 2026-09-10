@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import journeys from "./fixtures/journeys.json";
-import { buildStayBrief, type BriefPin, type StayBrief } from "./brief";
+import { buildStayBrief, countryOfPins, type BriefPin, type StayBrief } from "./brief";
 import { areaHeadline } from "./text";
 
 /**
@@ -126,5 +126,29 @@ describe("what each journey should say", () => {
     const b = briefs.get("Last Week of Summer")!;
     expect(airport("Last Week of Summer")).toBeNull();
     expect(b.splitCandidates).toEqual([]);
+  });
+});
+
+describe("the search's own inputs, per journey", () => {
+  it("knows which country each journey is in, so the search is not biased home", () => {
+    const countries = Object.fromEntries(ALL.map((j) => [j.title, countryOfPins(j.pins)]));
+    expect(countries).toMatchObject({
+      "Australia": "Australia",
+      "Costa Rica": "Costa Rica",
+      "Japan": "Japan",
+      "New York (Mia & Daddy)": "USA",
+      "Palm Springs": "USA",
+      "Rome April 2026": "Italy",
+      "Santa Barbara Anniversary 2026": "USA",
+      "Tuscany": "Italy",
+      "Last Week of Summer": "Canada",
+    });
+  });
+
+  it("every journey has a centre to search around", () => {
+    for (const j of ALL) {
+      const b = briefs.get(j.title)!;
+      expect(b.evening, `${j.title} has no centre`).not.toBeNull();
+    }
   });
 });
