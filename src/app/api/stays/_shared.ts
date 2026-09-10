@@ -6,6 +6,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { StayCandidate } from "@/types/database";
 import { buildStayBrief, countryOfPins, type BriefPin, type StayBrief } from "@/lib/stays/brief";
+import { nightlyCeiling } from "@/lib/stays/budget";
 
 export interface TripContext {
   trip: {
@@ -18,6 +19,8 @@ export interface TripContext {
   brief: StayBrief;
   /** Where the journey is, from its own pins — "Italy", "USA", "Japan". */
   country: string | null;
+  /** What the Estimate budgets a night, so the search need not ask. */
+  nightlyRate: number | null;
   /** Stay-type places already saved on this journey, once each. */
   savedStays: { place_id: string; title: string; address: string | null; lat: number; lng: number; google_place_id: string | null; rating: number | null; website: string | null }[];
 }
@@ -30,6 +33,10 @@ export async function loadTripContext(supabase: SupabaseClient, tripId: string, 
     supabase.from("cards").select("day_id, start_time, status, place:places (id, title, address, lat, lng, sub_type, google_place_id, rating, website)").eq("trip_id", tripId).neq("status", "cut"),
   ]);
   if (!trip || trip.user_id !== userId) return null;
+
+  // The lodging budget already exists on the Estimate screen: no question to ask.
+  const { data: budgetRow } = await supabase.from("trip_budgets").select("assumptions").eq("trip_id", tripId).maybeSingle();
+  const nightlyRate = nightlyCeiling((budgetRow?.assumptions as Record<string, unknown> | null)?.nightlyRate);
 
   const dayDate = new Map<string, string>();
   for (const d of days ?? []) dayDate.set(d.id, d.date);
@@ -51,7 +58,7 @@ export async function loadTripContext(supabase: SupabaseClient, tripId: string, 
   }
 
   const brief = buildStayBrief({ startDate: trip.start_date, endDate: trip.end_date, partyAges: trip.party_ages, partySize: trip.party_size, pins });
-  return { trip, days: (days ?? []) as TripContext["days"], brief, country: countryOfPins(pins), savedStays };
+  return { trip, days: (days ?? []) as TripContext["days"], brief, country: countryOfPins(pins), nightlyRate, savedStays };
 }
 
 // ── Google ────────────────────────────────────────────────────────────────

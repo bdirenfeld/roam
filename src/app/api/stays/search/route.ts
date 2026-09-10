@@ -12,6 +12,7 @@ import { loadTripContext, googleKey, driveMinutes, lodgingNear, placeExtras, ser
 import { driveHours, driveLine, driveDelta, usableAnchorIndexes } from "@/lib/stays/drive";
 import { areaHeadline, areaLine, splitText, reviewNotes } from "@/lib/stays/text";
 import { priceWindow, priceWindowNote } from "@/lib/stays/priceWindow";
+import { budgetFlag, budgetVerdict, nightlyOf } from "@/lib/stays/budget";
 
 // Five rows, not ten: the stays already saved on the journey come first and
 // Google fills what is left ("way too many options" — Brennan, 9 Sept 2026).
@@ -163,6 +164,10 @@ export async function POST(request: NextRequest) {
 
     offers
       .filter((o) => (o.score ?? 0) >= 4.3 && (o.reviews ?? 0) >= 20)
+      // Twice what the Estimate budgets a night is not a near miss, it is a
+      // wasted row (Brennan, 10 Sept 2026). A journey with no Estimate has no
+      // ceiling and nothing is dropped.
+      .filter((o) => budgetVerdict(nightlyOf(o.nightly, o.total, brief.nights), ctx.nightlyRate) !== "far")
       .filter((o) => !skipNames.has(o.name.toLowerCase()))
       .filter((o) => !cands.some((c) => c.name.toLowerCase() === o.name.toLowerCase()))
       .filter((o) => !brief.fit.bedrooms || o.beds == null || o.beds >= brief.fit.bedrooms - 1)
@@ -229,6 +234,8 @@ export async function POST(request: NextRequest) {
     if (farthest) parts.push({ label: farthest.a.label, minutes: farthest.m });
     const flags: string[] = [];
     if (eveningIdx >= 0 && mins[eveningIdx] != null && (mins[eveningIdx] as number) > brief.radiusMin) flags.push("Outside the area");
+    const over = budgetFlag(nightlyOf(c.nightly ?? null, c.total ?? null, brief.nights), ctx.nightlyRate);
+    if (over) flags.push(over);
     return { c, hours, minutes, line: driveLine(parts), flags };
   });
   const bestHours = Math.min(...scored.map((s) => s.hours));
