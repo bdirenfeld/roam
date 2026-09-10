@@ -8,10 +8,11 @@ import MapSidebar, { SIDEBAR_SUB_TYPES } from "./MapSidebar";
 import PlaceSearch from "./PlaceSearch";
 import AddToTripSheet from "./AddToTripSheet";
 import WhereToStaySheet from "./WhereToStaySheet";
+import MapFilterSheet, { narrowedCount } from "./MapFilterSheet";
 import type { PlaceResult } from "./AddToTripSheet";
 import type { Trip, Day, Card, CardType, StayCandidate } from "@/types/database";
 import { makeMaterialPinElement, makePinElement } from "@/lib/mapPins";
-import { Funnel, Heart, Files } from "@phosphor-icons/react";
+import { Funnel, Files } from "@phosphor-icons/react";
 import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/plan/ConfirmationPreviewSheet";
 import DocumentsSheet from "@/components/plan/DocumentsSheet";
 import AppMenu from "@/components/ui/AppMenu";
@@ -280,6 +281,8 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
       if (show) marker.addTo(map); else marker.remove();
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const filterNarrowed = narrowedCount({ activeTypes, activeSubTypes, activeStatuses, lovedOnly });
 
   function handleSubTypesChange(next: Set<string>) {
     activeSubTypesRef.current = next;
@@ -798,125 +801,43 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
           <PlaceSearch onPlaceSelect={handlePlaceSelect} destination={trip.destination} lat={trip.destination_lat} lng={trip.destination_lng} />
         )}
 
-        {/* Filter button + pill bar — bottom-left, expands upward. View-only
-            (toggles pin visibility, mutates nothing). Mobile-only for owners
-            (desktop owners use the sidebar); shown on desktop too for guests,
-            since their sidebar is suppressed. */}
-        <div
-          className={`${readOnly ? "" : "md:hidden"} absolute bottom-4 left-3 flex flex-col gap-2`}
-          style={{ zIndex: 10 }}
-        >
-          {/* Pill rows — rendered above the button (flex-col, first child = top) */}
-          {filterOpen && (
-            <div className="flex flex-col gap-2 animate-in fade-in duration-200">
-              {/* Row 1 (top) — Categories */}
-              <div className="flex items-center gap-2">
-                {(
-                  [
-                    { typeKey: "activity"  as CardType, label: "Activity", color: "#1D9E75" },
-                    { typeKey: "food"      as CardType, label: "Food",     color: "#7C3AED" },
-                    { typeKey: "logistics" as CardType, label: "Logistics", color: "#1A1A2E" },
-                  ] as { typeKey: CardType; label: string; color: string }[]
-                ).map(({ typeKey, label, color }) => {
-                  const active = activeTypes.has(typeKey);
-                  return (
-                    <button
-                      key={typeKey}
-                      onClick={() => {
-                        const next = new Set(activeTypes);
-                        if (next.has(typeKey)) next.delete(typeKey); else next.add(typeKey);
-                        handleActiveTypesChange(next);
-                      }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200"
-                      style={{
-                        backdropFilter: "blur(8px)",
-                        WebkitBackdropFilter: "blur(8px)",
-                        background: active ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.5)",
-                        color: active ? "#374151" : "#9CA3AF",
-                      }}
-                    >
-                      <span
-                        className="w-1.5 h-1.5 rounded-full flex-shrink-0 transition-opacity duration-200"
-                        style={{ background: color, opacity: active ? 1 : 0.3 }}
-                      />
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Row 2 — Status. Hidden for guests: under RLS they only have
-                  scheduled pins, so the toggle would be dead. */}
-              {!readOnly && (
-              <div className="flex items-center gap-2">
-                {(
-                  [
-                    { status: "interested",   label: "Saved"    },
-                    { status: "in_itinerary", label: "Scheduled" },
-                  ] as { status: string; label: string }[]
-                ).map(({ status, label }) => {
-                  const active = activeStatuses.has(status);
-                  return (
-                    <button
-                      key={status}
-                      onClick={() => {
-                        const next = new Set(activeStatuses);
-                        if (next.has(status)) next.delete(status); else next.add(status);
-                        handleActiveStatusesChange(next);
-                      }}
-                      className="px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200"
-                      style={{
-                        backdropFilter: "blur(8px)",
-                        WebkitBackdropFilter: "blur(8px)",
-                        background: active ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.5)",
-                        color: active ? "#374151" : "#9CA3AF",
-                        textDecoration: active ? "none" : "line-through",
-                      }}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-
-                {/* Loved — the same filter the desktop sidebar has. Roam is
-                    mobile-first; leaving it desktop-only made the one
-                    un-gameable signal in the app unreachable on a phone. */}
-                <button
-                  onClick={() => handleLovedOnlyChange(!lovedOnly)}
-                  aria-pressed={lovedOnly}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200"
-                  style={{
-                    backdropFilter: "blur(8px)",
-                    WebkitBackdropFilter: "blur(8px)",
-                    background: lovedOnly ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.5)",
-                    color: lovedOnly ? "#B0541F" : "#9CA3AF",
-                  }}
-                >
-                  <Heart size={11} weight={lovedOnly ? "fill" : "light"} color={lovedOnly ? "#B0541F" : "#9CA3AF"} />
-                  Loved
-                </button>
-              </div>
+        {/* Filter — one button, and a short sheet that applies live so the pins
+            change while you choose. It used to be three rows of pills over the
+            map, where a tap REMOVED a kind; tapping Food now shows the food
+            (Brennan, 10 Sept 2026). View-only: it moves no data. Mobile-only
+            for owners (desktop owners have the sidebar); guests get it at every
+            width, since their sidebar is suppressed. */}
+        {!showStays && (
+          <div className={`${readOnly ? "" : "md:hidden"} absolute bottom-4 left-3`} style={{ zIndex: 10 }}>
+            <button
+              type="button"
+              onClick={() => setFilterOpen(true)}
+              aria-label="Filter the map"
+              className="h-9 pl-3 pr-3.5 rounded-full inline-flex items-center gap-2 text-[13px] font-medium shadow"
+              style={{ background: "rgba(255,255,255,0.95)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", color: "#1A1A2E" }}
+            >
+              <Funnel size={14} weight="light" color="#1A1A2E" />
+              Filter
+              {filterNarrowed > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10.5px] font-bold" style={{ background: "#B0541F", color: "#fff" }}>
+                  {filterNarrowed}
+                </span>
               )}
-            </div>
-          )}
+            </button>
+          </div>
+        )}
 
-          {/* Filter button — always at bottom of the stack */}
-          <button
-            onClick={() => setFilterOpen((v) => !v)}
-            className="self-start flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors duration-200"
-            style={{
-              backdropFilter: "blur(8px)",
-              WebkitBackdropFilter: "blur(8px)",
-              background: filterOpen ? "#1A1A2E" : "rgba(255,255,255,0.9)",
-              color: filterOpen ? "#FFFFFF" : "#374151",
-            }}
-          >
-            <Funnel size={13} weight="light" color={filterOpen ? "#FFFFFF" : "#374151"} />
-            {filterOpen ? "Done" : "Filter"}
-          </button>
-        </div>
-
-
+        {filterOpen && (
+          <MapFilterSheet
+            cards={localCards}
+            state={{ activeTypes, activeSubTypes, activeStatuses, lovedOnly }}
+            onTypes={handleActiveTypesChange}
+            onSubTypes={handleSubTypesChange}
+            onStatuses={handleActiveStatusesChange}
+            onLoved={handleLovedOnlyChange}
+            onClose={() => setFilterOpen(false)}
+          />
+        )}
 
         {/* First-visit intro — sits under the search bar until dismissed or
             the first real pin lands. Owner-only. */}
