@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { scoreLabel, siteName } from "@/lib/stays/price";
+import { bookingUrl, canPrefill, priceSearchUrl, noPriceReason, type StayDates } from "@/lib/stays/bookingUrl";
 import type { StayBrief } from "@/lib/stays/brief";
 import type { StayCandidate } from "@/types/database";
 
@@ -28,6 +29,8 @@ interface Props {
   nights: number;
   /** The year the prices are for, when it is not the journey's own. */
   priceYear?: number | null;
+  /** The nights and the party, for the link out — the site opens filled in. */
+  dates: StayDates;
   busy: boolean;
   onChoose: () => void;
   onSave: () => void;
@@ -60,7 +63,7 @@ async function loadPhotos(googlePlaceId: string): Promise<{ photos: string[]; we
   return { photos: urls, website: (json.result?.website as string | undefined) ?? null };
 }
 
-export default function StayCardSheet({ inPanel = false, backLabel = "Back", candidate: c, brief, startDate, endDate, nights, priceYear = null, busy, onChoose, onSave, onClose }: Props) {
+export default function StayCardSheet({ inPanel = false, backLabel = "Back", candidate: c, brief, startDate, endDate, nights, priceYear = null, dates, busy, onChoose, onSave, onClose }: Props) {
   // The search already resolved the first few photos; only an older row still fetches.
   const [photos, setPhotos] = useState<string[] | null>(c.photos?.length ? c.photos : null);
   const [website, setWebsite] = useState<string | null>(c.url);
@@ -93,6 +96,18 @@ export default function StayCardSheet({ inPanel = false, backLabel = "Back", can
     ? `${brief.fit.bedrooms - c.beds} bedroom${brief.fit.bedrooms - c.beds === 1 ? "" : "s"} short for your ${brief.party.total}`
     : null;
   const partyN = brief?.party.total;
+
+  // The way out of the card. Where we know the host, the page opens on this
+  // journey's nights and party rather than tonight for two. Where there is no
+  // price at all the link IS the answer, so it says so and carries the search.
+  const out: { href: string; label: string } | null = website
+    ? {
+        href: bookingUrl(website, dates) as string,
+        label: c.total == null ? "Find a price" : canPrefill(website) ? siteName(c.site ?? "google") : "Website",
+      }
+    : c.total == null
+      ? { href: priceSearchUrl(c.name, c.address ?? brief?.evening?.label ?? null, dates), label: "Find a price" }
+      : null;
 
   return (
     <div className={inPanel ? "absolute inset-0 z-[70] flex" : "fixed inset-0 z-[70] flex items-end"} role="dialog" aria-label={c.name}>
@@ -169,7 +184,12 @@ export default function StayCardSheet({ inPanel = false, backLabel = "Back", can
                   )}
                 </>
               ) : (
-                <span className="font-normal" style={{ color: CAPTION }}>No price yet — nobody is quoting these dates.</span>
+                // He asked for the reason, not a blank: "if no cost is
+                // available you need to say why" (10 Sept 2026). The link at
+                // the bottom of the card is where it can be found.
+                <span className="font-normal" style={{ color: CAPTION }}>
+                  {noPriceReason({ site: c.site, url: website, source: c.source })}
+                </span>
               )}
             </Row>
             {c.drive?.line && <Row icon="🚗" k="From here">{c.drive.line}</Row>}
@@ -196,9 +216,9 @@ export default function StayCardSheet({ inPanel = false, backLabel = "Back", can
               Save
             </button>
           )}
-          {website && (
-            <a href={website} target="_blank" rel="noopener noreferrer" className="h-12 px-4 inline-flex items-center text-[14px] font-medium" style={{ color: CAPTION }}>
-              {c.site && c.site !== "google" ? siteName(c.site) : "Website"} ↗
+          {out && (
+            <a href={out.href} target="_blank" rel="noopener noreferrer" className="h-12 px-4 inline-flex items-center text-[14px] font-medium" style={{ color: c.total == null ? INK : CAPTION }}>
+              {out.label} ↗
             </a>
           )}
         </div>

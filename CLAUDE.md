@@ -888,3 +888,22 @@ food instead of showing it. The pills now NARROW — everything showing → tap 
 back — and the collapsed button carries a sienna count when the map is narrowed.
 Do not rebuild the sheet, or put sub-type filtering on the phone, unless he asks
 for it by name. Sub-types stay on the desktop sidebar.
+
+### Links out of a stay card (Sept 2026)
+
+`src/lib/stays/bookingUrl.ts` fills the journey's dates and party into a
+listing link before it opens. Two traps behind it, both found by loading the
+URL rather than reasoning about it:
+
+- **Google Travel ignores dates.** `google.com/travel/search?q=…&checkin=…&checkout=…`
+  loads, looks right, and shows *tonight for two people*. It is the obvious
+  choice and it is wrong. The price fallback is Booking.com's
+  `searchresults.html`, which honours `checkin`/`checkout`/`group_adults`/
+  `group_children` and one repeated `age` per child.
+- **A host we do not recognise keeps its URL untouched.** A wrong parameter is
+  worse than none: it silently changes what the page shows.
+
+A stay row can have no price for two different reasons, and the card says
+which — a place that was never on a booking list (his saved villas, anything
+off the map) versus a listing with no rate for those nights. Never show a
+blank where a price would go.

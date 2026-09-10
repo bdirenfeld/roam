@@ -18,6 +18,7 @@ import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
 import { scoreLabel } from "@/lib/stays/price";
+import { noPriceReason, shiftToYear, type StayDates } from "@/lib/stays/bookingUrl";
 import type { StayBrief } from "@/lib/stays/brief";
 import type { StayCandidate, StayBriefRow, StayRejectReason, Trip } from "@/types/database";
 import StayCardSheet from "./StayCardSheet";
@@ -70,6 +71,16 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
   useEscapeKey(onClose, !openId);
   useEffect(() => { sheetRef.current?.focus(); }, []);
 
+  // The nights and the party behind every link out of this sheet. When the
+  // search had to roll the year to find a price, the links roll with it so the
+  // site opens on the dates the card is quoting.
+  const priced = shiftToYear(trip.start_date, trip.end_date, brief?.price_year ?? null);
+  const stayDates: StayDates = {
+    checkIn: priced.start,
+    checkOut: priced.end,
+    adults: (trip.party_ages ?? []).filter((a) => a >= 13).length || trip.party_size || 2,
+    childrenAges: (trip.party_ages ?? []).filter((a) => a < 13),
+  };
   const nights = Math.max(0, Math.round((new Date(trip.end_date + "T00:00:00").getTime() - new Date(trip.start_date + "T00:00:00").getTime()) / 86400000));
   const travellers = trip.party_size ?? trip.party_ages?.length ?? null;
 
@@ -273,6 +284,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
               endDate={trip.end_date}
               nights={nights}
               priceYear={brief?.price_year ?? null}
+              dates={stayDates}
               busy={busyId === open.id}
               onChoose={() => choose(open)}
               onSave={() => save(open)}
@@ -342,7 +354,11 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                         </p>
                         {meta && <p className="text-[12.5px] mt-[3px] leading-snug" style={{ color: CAPTION }}>{meta}</p>}
                         {c.flags?.length > 0 && <p className="text-[11px] font-medium mt-[3px]" style={{ color: SIENNA }}>{c.flags.join(" · ")}</p>}
-                        {c.total != null && <p className="text-[12.5px] mt-[3px]" style={{ color: INK }}>{cad(Number(c.total))} for {nights} nights</p>}
+                        {c.total != null ? (
+                          <p className="text-[12.5px] mt-[3px]" style={{ color: INK }}>{cad(Number(c.total))} for {nights} nights</p>
+                        ) : (
+                          <p className="text-[12.5px] mt-[3px]" style={{ color: CAPTION }}>{noPriceReason({ site: c.site, url: c.url, source: c.source })}</p>
+                        )}
 
                         {askingId === c.id ? (
                           <div className="flex flex-wrap gap-1.5 mt-2" onClick={(e) => e.stopPropagation()}>
@@ -416,6 +432,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
           endDate={trip.end_date}
           nights={nights}
           priceYear={brief?.price_year ?? null}
+          dates={stayDates}
           busy={busyId === open.id}
           onChoose={() => choose(open)}
           onSave={() => save(open)}
