@@ -49,7 +49,12 @@ export function areaLine(brief: StayBrief, airportMinFromEvening: number | null)
   const ev = brief.evening;
   if (!ev) return null;
   const parts: string[] = [];
-  parts.push(`${ev.days === 1 ? "One evening" : `${ev.days} evenings`} in ${ev.label}; stay within ${brief.radiusMin} minutes of it.`);
+  // A centre can now be won on pin mass alone — Japan's is Shibuya, where
+  // nothing is timed after five. Saying "one evening in Shibuya" would be an
+  // invention, so a centre with no late pins says what it actually is.
+  parts.push(ev.evenings
+    ? `${ev.days === 1 ? "One evening" : `${ev.days} evenings`} in ${ev.label}; stay within ${brief.radiusMin} minutes of it.`
+    : `${ev.days === 1 ? "A day" : `${ev.days} days`} around ${ev.label}; stay within ${brief.radiusMin} minutes of it.`);
   if (airportMinFromEvening != null) parts.push(`Airport ${fmtMinutes(airportMinFromEvening)}.`);
   return parts.join(" ");
 }

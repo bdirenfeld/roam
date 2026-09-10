@@ -8,7 +8,7 @@ const TUSCANY: StayBrief = {
   party: { total: 7, adults: 4, kids: 3, seniors: 2, under5: false },
   fit: { bedrooms: 4, baths: 3, askGroundFloor: true, askCot: false },
   kind: "house",
-  evening: { lat: 43.8431, lng: 10.5032, label: "Lucca", days: 2 },
+  evening: { lat: 43.8431, lng: 10.5032, label: "Lucca", days: 2, evenings: true },
   radiusMin: 15,
   stayDays: 2.5,
   anchors: [

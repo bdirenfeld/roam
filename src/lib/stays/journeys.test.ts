@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import journeys from "./fixtures/journeys.json";
 import { buildStayBrief, countryOfPins, type BriefPin, type StayBrief } from "./brief";
-import { areaHeadline } from "./text";
+import { areaHeadline, areaLine } from "./text";
 
 /**
  * Every journey Brennan has, run through the brief and read the way he would.
@@ -120,6 +120,20 @@ describe("what each journey should say", () => {
     for (const a of far) expect(a.kmFromEvening).toBeGreaterThan(500);
     // Whatever is that far away shows up as a split candidate when visited on 2+ days.
     for (const a of far.filter((a) => a.days >= 2)) expect(b.splitCandidates.map((s) => s.label)).toContain(a.label);
+  });
+
+it("Santa Barbara: the centre follows the pins, not one polo match at five", () => {
+    // Ranking on evenings alone put this on Carpinteria, where he has a single
+    // pin, while ten of thirteen sat in Santa Barbara and Montecito, and every
+    // suggestion came back fifteen minutes from the wrong town (10 Sept 2026).
+    const b = briefs.get("Santa Barbara Anniversary 2026")!;
+    expect(ev("Santa Barbara Anniversary 2026")).toBe("Montecito");
+    expect(b.evening!.label).not.toBe("Carpinteria");
+  });
+
+  it("Japan: a centre won on pins alone does not claim to have evenings", () => {
+    const b = briefs.get("Japan")!;
+    if (!b.evening!.evenings) expect(areaLine(b, null)).toMatch(/around/);
   });
 
   it("Last Week of Summer: at home, no airport, and a day out is still a day out", () => {

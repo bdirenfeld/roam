@@ -64,7 +64,7 @@ export interface StayBrief {
   kind: "house" | "hotel";
   anchors: Anchor[];
   /** The evening cluster with the most days, or null when no pin is after 17:00. */
-  evening: { lat: number; lng: number; label: string; days: number } | null;
+  evening: { lat: number; lng: number; label: string; days: number; evenings: boolean } | null;
   radiusMin: number;
   stayDays: number;
   /** Day-trip clusters worth a second base: 2+ days and far from the evening centre. */
@@ -75,6 +75,11 @@ export const EVENING_RADIUS_MIN = 15;
 const EVENING_FROM = "17:00";
 const STAY_DAY_BEFORE = "16:00";
 const EVENING_CLUSTER_KM = 3;
+// How a cluster earns the centre. Evenings dominate; pin mass breaks the ties
+// a single late pin used to win. Set against his nine journeys, Sept 2026.
+const EVENING_WEIGHT = 3;
+const DAY_WEIGHT = 1;
+const PIN_WEIGHT = 0.25;
 const DAYTRIP_CLUSTER_KM = 5;
 const SPLIT_KM = 50;
 const SPLIT_DAYS = 2;
@@ -272,21 +277,34 @@ export function buildStayBrief(input: BriefInput): StayBrief {
   const placed = input.pins.filter((p) => p.dayDate && !isStay(p));
   const airports = placed.filter(isAirport);
   const rest = placed.filter((p) => !isAirport(p));
-  const evenings = rest.filter((p) => (hhmm(p.startTime) ?? "") >= EVENING_FROM);
   const daytime = rest.filter((p) => (hhmm(p.startTime) ?? "00:00") < EVENING_FROM);
 
-  const eveningClusters = cluster(evenings, EVENING_CLUSTER_KM)
-    .map((c) => ({ c, days: distinctDays(c.pins) }))
-    .sort((a, b) => b.days - a.days || b.c.pins.length - a.c.pins.length);
-  // No pin after 17:00 (an imported plan with only daytime slots): the place
-  // visited on the most days stands in as the centre, so the brief still has
-  // a side of town and a radius to speak from.
-  const fallback = cluster(daytime, EVENING_CLUSTER_KM)
-    .map((c) => ({ c, days: distinctDays(c.pins) }))
-    .sort((a, b) => b.days - a.days || b.c.pins.length - a.c.pins.length)[0] ?? null;
-  const ev = eveningClusters[0] ?? fallback;
+  // Where to sleep. Evenings are the strongest vote, but they cannot be the
+  // ONLY vote: ranking on evenings alone put Santa Barbara's centre on
+  // Carpinteria, where he has a single pin — a polo match at five — while ten
+  // of his thirteen pins sat in Santa Barbara and Montecito, and every
+  // suggestion came back fifteen minutes from the wrong town (Brennan,
+  // 10 Sept 2026).
+  //
+  // So every pin is clustered, not just the late ones, and each cluster is
+  // scored. The weights are set from his nine journeys: evenings dominate, so
+  // Tuscany still centres on Lucca (2 evenings, 8 pins) rather than Florence
+  // (no evenings, 10 pins), which is a day trip and a split candidate. Pin
+  // mass is the tie-breaker that a lone evening used to win.
+  const scored = cluster(rest, EVENING_CLUSTER_KM).map((c) => {
+    const eveningDays = distinctDays(c.pins.filter((p) => (hhmm(p.startTime) ?? "") >= EVENING_FROM));
+    const allDays = distinctDays(c.pins);
+    return {
+      c,
+      eveningDays,
+      days: eveningDays || allDays,
+      score: eveningDays * EVENING_WEIGHT + allDays * DAY_WEIGHT + c.pins.length * PIN_WEIGHT,
+    };
+  }).sort((a, b) => b.score - a.score);
+
+  const ev = scored[0] ?? null;
   const evening = ev
-    ? { lat: ev.c.lat, lng: ev.c.lng, label: clusterLabel(ev.c), days: ev.days }
+    ? { lat: ev.c.lat, lng: ev.c.lng, label: clusterLabel(ev.c), days: ev.days, evenings: ev.eveningDays > 0 }
     : null;
   const kmFromEv = (lat: number, lng: number) =>
     evening ? Math.round(greatCircleKm(evening.lat, evening.lng, lat, lng)) : 0;
