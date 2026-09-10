@@ -49,8 +49,26 @@ export async function POST(request: NextRequest) {
   const placeId = await ensurePlace(supabase, user.id, c);
   if (!placeId) return NextResponse.json({ error: "Couldn't save the place" }, { status: 500 });
 
-  const first = days[0];
-  const last = days[days.length - 1];
+  /**
+   * A stay covers the nights of ITS base, not the whole journey.
+   *
+   * Japan is Tokyo for eight nights then Osaka for five, so choosing the Osaka
+   * hotel used to write check-in on day one and check-out on day fourteen —
+   * overwriting Tokyo's stay and claiming a booking nobody made (Brennan,
+   * 10 Sept 2026, "the part that is not UI"). The bases run in order from the
+   * start date, so base n begins after everything before it has been slept.
+   */
+  const { data: briefRow } = await supabase.from("stay_briefs").select("brief").eq("trip_id", c.trip_id).maybeSingle();
+  const bases = (((briefRow?.brief ?? {}) as { bases?: { nights: number }[] }).bases ?? []);
+  const baseIndex = Math.max(0, Math.min(Math.max(0, bases.length - 1), c.base ?? 0));
+  const multiBase = bases.length > 1;
+  const nightsBefore = multiBase ? bases.slice(0, baseIndex).reduce((n, b) => n + b.nights, 0) : 0;
+  const baseNights = multiBase ? (bases[baseIndex]?.nights ?? days.length - 1) : days.length - 1;
+  const firstIdx = Math.min(nightsBefore, days.length - 2);
+  const lastIdx = Math.min(firstIdx + baseNights, days.length - 1);
+
+  const first = days[firstIdx];
+  const last = days[lastIdx];
 
   // Other stays on the arrival and departure days step aside.
   const { data: stayCards } = await supabase
@@ -94,16 +112,39 @@ export async function POST(request: NextRequest) {
   if (cardErr) return failed("add the check-in and check-out", cardErr.message);
   cardsInserted = true;
 
-  {
+  // The journey carries one accommodation name, which only the first base can
+  // honestly fill. Choosing the Osaka hotel must not relabel the whole trip;
+  // the check-in and check-out cards above are what say where you sleep when.
+  if (baseIndex === 0) {
     const { error } = await supabase.from("trips").update({ accommodation_name: c.name, accommodation_address: c.address }).eq("id", c.trip_id);
     if (error) return failed("note where you're staying", error.message);
   }
 
-  // The Estimate line, only when there is a real number to put on it.
+  // The Estimate line, only when there is a real number to put on it. On a
+  // multi-base journey it is the blended rate across every stay chosen so far,
+  // because one nightly figure has to cover the whole trip.
   let prevNightly: number | null | undefined;
   let prevBasis: string | null | undefined;
-  const nights = days.length - 1;
-  const nightly = c.nightly_cad ?? nightlyFrom(c.total, nights);
+  const nights = Math.max(1, lastIdx - firstIdx);
+  let nightly = c.nightly_cad ?? nightlyFrom(c.total, nights);
+  if (multiBase && nightly != null) {
+    const { data: chosenRows } = await supabase
+      .from("stay_candidates")
+      .select("base, total, nightly_cad")
+      .eq("trip_id", c.trip_id)
+      .eq("status", "chosen");
+    let spend = Number(nightly) * nights;
+    let covered = nights;
+    for (const r of chosenRows ?? []) {
+      if ((r.base ?? 0) === baseIndex) continue;               // this one is counted above
+      const n = bases[r.base ?? 0]?.nights ?? 0;
+      const each = r.nightly_cad ?? nightlyFrom(r.total, n);
+      if (each == null || n <= 0) continue;
+      spend += Number(each) * n;
+      covered += n;
+    }
+    if (covered > 0) nightly = Math.round(spend / covered);
+  }
   if (nightly != null) {
     const { data: budget } = await supabase.from("trip_budgets").select("assumptions, basis").eq("trip_id", c.trip_id).maybeSingle();
     if (budget) {

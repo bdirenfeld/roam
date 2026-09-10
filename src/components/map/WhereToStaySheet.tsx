@@ -59,6 +59,9 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
   const [loading, setLoading] = useState(true);
   const [brief, setBrief] = useState<StayBriefRow | null>(null);
   const [cands, setCands] = useState<StayCandidate[]>([]);
+  /** Everything ever proposed for this journey, including set-aside and rejected. */
+  const [everything, setEverything] = useState<StayCandidate[]>([]);
+  const [showEarlier, setShowEarlier] = useState(false);
   const [running, setRunning] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +90,27 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
   const travellers = trip.party_size ?? trip.party_ages?.length ?? null;
 
   const publish = useCallback((rows: StayCandidate[]) => {
+    setEverything(rows);
     setCands(rows.filter((c) => c.status !== "rejected" && c.status !== "seen"));
+  }, []);
+
+  /**
+   * The search hands back only the live rows, but the ones it set aside are
+   * still there and must stay reachable — pressing Run again by accident used
+   * to lose five listings the moment the toast expired. So the new rows are
+   * merged over the history, and anything the search no longer lists is marked
+   * seen rather than dropped.
+   */
+  const mergeIn = useCallback((rows: StayCandidate[]) => {
+    setEverything((prev) => {
+      const fresh = new Map(rows.map((r) => [r.id, r]));
+      const merged = prev.map((old) => fresh.get(old.id)
+        ?? (old.status === "rejected" ? old : { ...old, status: "seen" as const }));
+      const known = new Set(merged.map((r) => r.id));
+      const all = [...merged, ...rows.filter((r) => !known.has(r.id))];
+      setCands(all.filter((c) => c.status !== "rejected" && c.status !== "seen"));
+      return all;
+    });
   }, []);
 
   const reload = useCallback(async () => {
@@ -173,6 +196,11 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baseIdx, loading, running, multi, shown.length]);
   const settled = (i: number) => cands.some((c) => (c.base ?? 0) === i && c.status === "chosen");
+  // Everything this base has pushed aside or that he said no to. Nothing is
+  // ever destroyed by Run again; it just stops being one of the five.
+  const earlier = everything
+    .filter((c) => (multi ? (c.base ?? 0) === baseIdx : true))
+    .filter((c) => c.status === "seen" || c.status === "rejected");
   const said = askSummary(parseAsk(wants));
   const chips = suggestions({
     house: briefObjForAsk?.kind === "house",
@@ -189,7 +217,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
       if (!res.ok) { setError(json.error ?? "That didn't work."); return; }
       const hadRows = cands.length > 0;
       setBrief(json.brief as StayBriefRow);
-      publish(json.candidates as StayCandidate[]);
+      mergeIn(json.candidates as StayCandidate[]);
       if (hadRows && json.undo) {
         toast({
           message: "Five new places",
@@ -197,7 +225,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
             const r = await fetch("/api/stays/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ undo: json.undo }) });
             const back = await r.json();
             if (!r.ok) { toast({ message: "Couldn't undo that." }); return; }
-            publish(back.candidates as StayCandidate[]);
+            mergeIn(back.candidates as StayCandidate[]);
           },
         });
       }
@@ -214,7 +242,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
       const res = await fetch("/api/stays/choose", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ candidateId: c.id }) });
       const json = await res.json();
       if (!res.ok) { toast({ message: json.error ?? "Couldn't choose it." }); return; }
-      publish(cands.map((x) => x.id === c.id ? { ...x, status: "chosen", place_id: json.placeId } : x.status === "chosen" ? { ...x, status: "saved" } : x));
+      publish(everything.map((x) => x.id === c.id ? { ...x, status: "chosen", place_id: json.placeId } : x.status === "chosen" ? { ...x, status: "saved" } : x));
       setOpenId(null);
       onChanged();
       toast({
@@ -239,7 +267,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
       const res = await fetch("/api/stays/mark", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ candidateId: c.id, action: "save" }) });
       const json = await res.json();
       if (!res.ok) { toast({ message: json.error ?? "Couldn't save it." }); return; }
-      publish(cands.map((x) => x.id === c.id && x.status !== "chosen" ? { ...x, status: "saved", place_id: json.placeId } : x));
+      publish(everything.map((x) => x.id === c.id && x.status !== "chosen" ? { ...x, status: "saved", place_id: json.placeId } : x));
       onChanged();
       toast({
         message: `${c.name} is on your map`,
@@ -255,11 +283,26 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
     }
   }
 
+  /** Put one back on the list. Works for a set-aside row and a rejected one. */
+  async function restore(c: StayCandidate) {
+    setBusyId(c.id);
+    try {
+      const action = c.status === "rejected" ? "unreject" : "restore";
+      const res = await fetch("/api/stays/mark", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ candidateId: c.id, action }) });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) { toast({ message: "Couldn't bring that back." }); return; }
+      publish(everything.map((x) => x.id === c.id ? { ...x, status: (json.status as StayCandidate["status"]) ?? "candidate", reject_reason: null } : x));
+      toast({ message: `${c.name} is back on the list` });
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function heart(c: StayCandidate) {
     const res = await fetch("/api/stays/mark", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ candidateId: c.id, action: "heart" }) });
     const json = await res.json();
     if (!res.ok) { toast({ message: "Couldn't do that." }); return; }
-    publish(cands.map((x) => x.id === c.id ? { ...x, feel: json.feel } : x));
+    publish(everything.map((x) => x.id === c.id ? { ...x, feel: json.feel } : x));
   }
 
   async function reject(c: StayCandidate, reason: StayRejectReason) {
@@ -268,7 +311,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
     try {
       const res = await fetch("/api/stays/mark", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ candidateId: c.id, action: "reject", reason }) });
       if (!res.ok) { toast({ message: "Couldn't do that." }); return; }
-      publish(cands.filter((x) => x.id !== c.id));
+      publish(everything.map((x) => x.id === c.id ? { ...x, status: "rejected" } : x));
       if (focusedId === c.id) onFocus(null);
       toast({
         message: `${c.name} won't come back`,
@@ -492,6 +535,35 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                   );
                 })}
 
+                {/* Nothing Run again pushed aside is gone — it is here, with a
+                    way back that does not time out. Rejected ones sit here too,
+                    with the reason given, so "not for us" is never a locked
+                    door (Brennan, 10 Sept 2026). */}
+                {showEarlier && earlier.map((c) => {
+                  const why = c.status === "rejected"
+                    ? `Not for us${c.reject_reason ? ` · ${REASONS.find((r) => r.key === c.reject_reason)?.label ?? ""}` : ""}`
+                    : "Replaced by a later run";
+                  return (
+                    <div key={c.id} className="flex gap-2.5 px-4 py-2.5 border-b" style={{ borderColor: "rgba(26,26,46,0.07)", background: "rgba(26,26,46,0.02)" }}>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-display italic line-clamp-1" style={{ fontSize: 15, lineHeight: 1.3, color: CAPTION }}>{c.name}</p>
+                        <p className="text-[11.5px] mt-[2px]" style={{ color: CAPTION }}>
+                          {why}{c.total != null ? ` · ${cad(Number(c.total))}` : ""}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={busyId === c.id}
+                        onClick={() => restore(c)}
+                        className="self-center h-8 px-3 rounded-full text-[12px] font-medium flex-shrink-0"
+                        style={{ color: INK, border: "1px solid rgba(26,26,46,0.2)" }}
+                      >
+                        {busyId === c.id ? "…" : "Bring back"}
+                      </button>
+                    </div>
+                  );
+                })}
+
                 <div className="px-4 pt-4">
                   {/* Write it however you'd say it. What a listing can answer
                       becomes a must-have; "would be nice" downgrades it; the
@@ -563,9 +635,25 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                       </p>
                     );
                   })()}
-                  <button type="button" onClick={run} disabled={running} className="mt-3 text-[12.5px] font-medium" style={{ color: CAPTION }}>
-                    {running ? "Looking…" : "Run again"}
-                  </button>
+                  <div className="mt-3 flex items-center gap-3">
+                    <button type="button" onClick={run} disabled={running} className="text-[12.5px] font-medium" style={{ color: CAPTION }}>
+                      {running ? "Looking…" : "Run again"}
+                    </button>
+                    {/* Nothing Run again sets aside is ever destroyed. The old
+                        way back was a toast that expired, so pressing the
+                        button by accident lost five listings for good
+                        (Brennan, 10 Sept 2026). This door does not time out. */}
+                    {earlier.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowEarlier((v) => !v)}
+                        className="text-[12.5px] font-medium"
+                        style={{ color: showEarlier ? INK : CAPTION }}
+                      >
+                        {showEarlier ? "Hide earlier" : `${earlier.length} earlier`}
+                      </button>
+                    )}
+                  </div>
                   {error && <p className="text-[12.5px] mt-2" style={{ color: SIENNA }}>{error}</p>}
                 </div>
               </>

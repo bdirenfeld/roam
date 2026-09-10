@@ -17,8 +17,8 @@ export async function POST(request: NextRequest) {
   if (!(await underQuota(supabase, "stayWrite", QUOTA.stayWrite))) return quotaExceeded("stay changes");
 
   const body = await request.json().catch(() => ({})) as { candidateId?: string; action?: string; reason?: string };
-  if (!body.candidateId || !["save", "unsave", "reject", "unreject", "heart"].includes(body.action ?? "")) {
-    return NextResponse.json({ error: "candidateId and action (save | unsave | reject | unreject | heart) are required" }, { status: 400 });
+  if (!body.candidateId || !["save", "unsave", "reject", "unreject", "heart", "restore"].includes(body.action ?? "")) {
+    return NextResponse.json({ error: "candidateId and action (save | unsave | reject | unreject | heart | restore) are required" }, { status: 400 });
   }
   const { data: cand } = await supabase.from("stay_candidates").select("*").eq("id", body.candidateId).maybeSingle();
   if (!cand) return NextResponse.json({ error: "No such candidate" }, { status: 404 });
@@ -32,6 +32,15 @@ export async function POST(request: NextRequest) {
     const { error } = await supabase.from("stay_candidates").update({ feel }).eq("id", c.id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true, feel });
+  }
+
+  // Bring back one that a Run again pushed aside. Replacing five with five
+  // used to be recoverable only through a toast that expires, so pressing the
+  // button by accident lost them for good (Brennan, 10 Sept 2026).
+  if (body.action === "restore") {
+    const { error } = await supabase.from("stay_candidates").update({ status: "candidate" }).eq("id", c.id).eq("status", "seen");
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true, status: "candidate" });
   }
 
   if (body.action === "unreject") {
