@@ -907,3 +907,19 @@ A stay row can have no price for two different reasons, and the card says
 which — a place that was never on a booking list (his saved villas, anything
 off the map) versus a listing with no rate for those nights. Never show a
 blank where a price would go.
+
+### Must-haves on a stay search (Sept 2026)
+
+One optional free-text line next to Run again, never a gate before the first
+search. `src/lib/stays/wants.ts` reads it: words a listing can actually answer
+(`pool`, `ac`) become must-haves, and the whole line is folded into the search
+text so the results lean the right way.
+
+**Three states, not two.** A pool is confirmed present, confirmed absent, or
+not listed. Only *confirmed absent* is dropped. "Not listed" keeps its place
+and the row carries a "Pool not listed" flag — treating it as a failure would
+empty a list like Tuscany's, where no row carries amenity data at all. Amenities
+come from SerpApi only; rows from Google Places or his own saved stays have none.
+
+The line is stored on `stay_briefs.brief.wants` (JSON, no migration) so Run
+again never makes him retype it.

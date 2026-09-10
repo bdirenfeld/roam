@@ -131,11 +131,18 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
     else if (Math.abs(dy) < 8) setTall((t) => !t);
   }
 
+  // What he asked for last time, so Run again never makes him retype it.
+  const [wants, setWants] = useState("");
+  useEffect(() => {
+    const w = (brief?.brief as { wants?: string | null } | undefined)?.wants;
+    if (typeof w === "string") setWants(w);
+  }, [brief]);
+
   async function run() {
     setRunning(true);
     setError(null);
     try {
-      const res = await fetch("/api/stays/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId: trip.id }) });
+      const res = await fetch("/api/stays/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId: trip.id, wants: wants.trim() || undefined }) });
       const json = await res.json();
       if (!res.ok) { setError(json.error ?? "That didn't work."); return; }
       const hadRows = cands.length > 0;
@@ -413,7 +420,20 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                 })}
 
                 <div className="px-4 pt-4">
-                  <button type="button" onClick={run} disabled={running} className="text-[12.5px] font-medium" style={{ color: CAPTION }}>
+                  {/* One optional line, never a gate: what it names that a
+                      listing can answer becomes a must-have, and the rest
+                      steers the search (Brennan, 10 Sept 2026). */}
+                  <input
+                    type="text"
+                    value={wants}
+                    onChange={(e) => setWants(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter" && !running) run(); }}
+                    placeholder="Anything it must have? e.g. pool"
+                    aria-label="Anything it must have"
+                    className="w-full h-11 px-3 rounded-lg text-[13.5px] bg-white"
+                    style={{ border: "1px solid rgba(26,26,46,0.18)", color: INK }}
+                  />
+                  <button type="button" onClick={run} disabled={running} className="mt-3 text-[12.5px] font-medium" style={{ color: CAPTION }}>
                     {running ? "Looking…" : "Run again"}
                   </button>
                   {error && <p className="text-[12.5px] mt-2" style={{ color: SIENNA }}>{error}</p>}

@@ -13,6 +13,7 @@ import { driveHours, driveLine, driveDelta, usableAnchorIndexes } from "@/lib/st
 import { areaHeadline, areaLine, splitText, reviewNotes } from "@/lib/stays/text";
 import { priceWindow, priceWindowNote } from "@/lib/stays/priceWindow";
 import { budgetFlag, budgetVerdict, nightlyOf } from "@/lib/stays/budget";
+import { parseWants, failsWants, wantsNote, wantsQuery } from "@/lib/stays/wants";
 
 // Five rows, not ten: the stays already saved on the journey come first and
 // Google fills what is left ("way too many options" — Brennan, 9 Sept 2026).
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
   const { supabase, user } = gate;
   if (!(await underQuota(supabase, "staySearch", QUOTA.staySearch))) return quotaExceeded("stay searches");
 
-  const body = await request.json().catch(() => ({})) as { tripId?: string; undo?: { tripId: string; seenIds: string[]; newIds: string[] } };
+  const body = await request.json().catch(() => ({})) as { tripId?: string; wants?: string; undo?: { tripId: string; seenIds: string[]; newIds: string[] } };
   // Undo of Run again: the five that were shown come back, the new five go.
   if (body.undo?.tripId) {
     const { data: t } = await supabase.from("trips").select("id, user_id").eq("id", body.undo.tripId).maybeSingle();
@@ -106,7 +107,13 @@ export async function POST(request: NextRequest) {
     : HOUSE_WORDS.test(wrongKindNames) ? false
     : HOTEL_WORDS.test(wrongKindNames) ? true
     : brief.kind === "house";
-  const query = wantHouse ? `villa with pool near ${centre.label}` : `hotel in ${centre.label}`;
+  // One free-text line, no form: whatever it names that a listing can answer
+  // becomes a must-have, and the whole line steers the words (Brennan, 10 Sept).
+  const asked = wantsQuery(body.wants);
+  const wants = parseWants(asked);
+  const query = asked
+    ? `${wantHouse ? "villa" : "hotel"} near ${centre.label}, ${asked}`
+    : wantHouse ? `villa with pool near ${centre.label}` : `hotel in ${centre.label}`;
   // A row kept from the last run comes back even when it is not one of the
   // journey's saved places — a hearted villa should not vanish because this
   // run's twenty results happen not to include it.
@@ -137,7 +144,7 @@ export async function POST(request: NextRequest) {
     const ages = (trip.party_ages ?? []).filter((a) => a < 18);
     const adults = Math.max(1, (trip.party_size ?? brief.party.total) - ages.length);
     const where = ctx.country ? `${centre.label}, ${ctx.country}` : centre.label;
-    const offers = await stayOffers(serp, where, priced.start, priced.end, adults, ages, wantHouse);
+    const offers = await stayOffers(serp, asked ? `${where}, ${asked}` : where, priced.start, priced.end, adults, ages, wantHouse);
 
     // Everything already on the list is re-priced from THIS run, so a saved or
     // hearted row never shows last month's number (Brennan, 10 Sept 2026).
@@ -168,6 +175,10 @@ export async function POST(request: NextRequest) {
       // wasted row (Brennan, 10 Sept 2026). A journey with no Estimate has no
       // ceiling and nothing is dropped.
       .filter((o) => budgetVerdict(nightlyOf(o.nightly, o.total, brief.nights), ctx.nightlyRate) !== "far")
+      // A must-have removes a row only when the listing says it is absent.
+      // "Not listed" is a third state and keeps its place — treating it as a
+      // failure would empty a list like Tuscany's, where no row has amenities.
+      .filter((o) => !failsWants(wants, { pool: o.pool, ac: o.ac }))
       .filter((o) => !skipNames.has(o.name.toLowerCase()))
       .filter((o) => !cands.some((c) => c.name.toLowerCase() === o.name.toLowerCase()))
       .filter((o) => !brief.fit.bedrooms || o.beds == null || o.beds >= brief.fit.bedrooms - 1)
@@ -236,6 +247,8 @@ export async function POST(request: NextRequest) {
     if (eveningIdx >= 0 && mins[eveningIdx] != null && (mins[eveningIdx] as number) > brief.radiusMin) flags.push("Outside the area");
     const over = budgetFlag(nightlyOf(c.nightly ?? null, c.total ?? null, brief.nights), ctx.nightlyRate);
     if (over) flags.push(over);
+    const unverified = wantsNote(wants, { pool: c.pool ?? null, ac: c.ac ?? null });
+    if (unverified) flags.push(unverified);
     return { c, hours, minutes, line: driveLine(parts), flags };
   });
   const bestHours = Math.min(...scored.map((s) => s.hours));
@@ -298,7 +311,7 @@ export async function POST(request: NextRequest) {
     trip_id: trip.id,
     user_id: user.id,
     ran_at: new Date().toISOString(),
-    brief: JSON.parse(JSON.stringify(brief)),
+    brief: { ...JSON.parse(JSON.stringify(brief)), wants: asked || null },
     area_text: [headline, line, priceWindowNote(priced, trip.start_date)].filter(Boolean).join(" ") || null,
     price_year: priced.shifted ? Number(priced.start.slice(0, 4)) : null,
     split_text: splitText(brief, centreMinutes),
