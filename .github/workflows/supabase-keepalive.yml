@@ -1,0 +1,115 @@
+# Keeps the free-tier Supabase projects from being auto-paused.
+#
+# Supabase pauses a Free project after ~7 days with no activity. On 2026-09-09
+# Ant Wilson's scan flagged `elevate-map` (16k customer locations, 125
+# technicians) as scheduled for pausing. A paused project can be revived from
+# the dashboard for 90 days; past that the data is download-only. This
+# workflow is the cheap insurance against that clock ever running out.
+#
+# It is a real database round-trip, not a ping of the domain: PostgREST has to
+# reach Postgres to answer a `select`, which is what the inactivity scan
+# measures. RLS is left doing its job — an empty `[]` is a perfectly good
+# answer here, because the point is that the query ran at all.
+#
+# Runs daily, so there are seven chances to land inside a seven-day window.
+#
+# WHY SECRETS AND NOT INLINE KEYS: this repository is PUBLIC. Roam's anon key
+# is already in the browser bundle and would cost nothing to commit, but
+# elevate-map's is not Roam's to publish — that project holds another
+# business's customer data. Both live in repository secrets so the two are
+# handled the same way and neither is ever a copy-paste away from being
+# public. Set them under Settings → Secrets and variables → Actions:
+#
+#   SUPABASE_KEEPALIVE_KEY_ELEVATE_MAP   elevate-map's publishable/anon key
+#   SUPABASE_KEEPALIVE_KEY_ROAM          Roam's publishable/anon key
+#
+# A MISSING OR ROTATED KEY FAILS THE JOB ON PURPOSE. The whole failure mode
+# this guards against is silence — a keep-alive that quietly stopped working
+# months ago is worse than no keep-alive, because you believe you have one.
+# A red run sends the usual GitHub failure email while there is still a week
+# to fix it.
+
+name: Supabase keep-alive
+
+on:
+  schedule:
+    # 13:19 UTC daily — a few minutes off the hour, because scheduled runs at
+    # :00 queue behind everyone else's and can be delayed by a long while.
+    - cron: "19 13 * * *"
+  workflow_dispatch:
+
+# Nothing here reads or writes the repository.
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    strategy:
+      # One project's outage must not cancel the other project's ping.
+      fail-fast: false
+      matrix:
+        include:
+          - name: elevate-map
+            ref: zxnxypramcgupommpuzd
+            # Any table the anon role may select from. `geocoding_cache` is a
+            # derived cache, so a query against it reads nothing sensitive
+            # even if a policy is ever loosened by accident.
+            table: geocoding_cache
+            secret_name: SUPABASE_KEEPALIVE_KEY_ELEVATE_MAP
+          - name: roam
+            ref: ejluvgjiqcwvqhzqpkrz
+            table: places
+            secret_name: SUPABASE_KEEPALIVE_KEY_ROAM
+
+    name: ${{ matrix.name }}
+
+    steps:
+      - name: Ping ${{ matrix.name }}
+        env:
+          KEY: ${{ secrets[matrix.secret_name] }}
+          REF: ${{ matrix.ref }}
+          TABLE: ${{ matrix.table }}
+          SECRET_NAME: ${{ matrix.secret_name }}
+        run: |
+          set -uo pipefail
+
+          if [ -z "${KEY:-}" ]; then
+            echo "::error::Repository secret ${SECRET_NAME} is not set, so ${REF} was never pinged."
+            echo "Add it under Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
+          URL="https://${REF}.supabase.co/rest/v1/${TABLE}?select=*&limit=1"
+          code="000"
+
+          # Three attempts: one blip on Supabase's edge should not raise an
+          # alarm, but three in a row is worth a look.
+          for attempt in 1 2 3; do
+            code=$(curl -sS -o /tmp/body.txt -w '%{http_code}' \
+                     --max-time 30 \
+                     -H "apikey: ${KEY}" \
+                     -H "Authorization: Bearer ${KEY}" \
+                     "${URL}") || code="000"
+
+            case "${code}" in
+              200|206)
+                echo "${REF}: HTTP ${code} - the database answered, the clock is reset."
+                exit 0
+                ;;
+            esac
+
+            echo "Attempt ${attempt}/3 for ${REF}: HTTP ${code}"
+            # The body names the cause (a bad key, a dropped table). A failure
+            # carries no row data, so it is safe in a public log.
+            head -c 300 /tmp/body.txt 2>/dev/null || true
+            echo
+            if [ "${attempt}" -lt 3 ]; then
+              sleep 15
+            fi
+          done
+
+          echo "::error::${REF} did not answer after 3 attempts (last HTTP ${code}). It is at risk of being paused."
+          exit 1

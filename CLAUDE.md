@@ -611,6 +611,38 @@ What it catches: unused imports, type errors, lint errors. What it does NOT
 catch: layout and behaviour regressions, which build perfectly cleanly. The
 three reverts of 2026-09-07 were all that second kind.
 
+## A Free Supabase project pauses after seven quiet days
+
+`.github/workflows/supabase-keepalive.yml` runs a `select ... limit 1` against
+every Free project once a day, so the inactivity clock never reaches seven.
+
+Ant Wilson's scan flagged `elevate-map` on 2026-09-02 and again on 2026-09-09.
+That project is not Roam — it is the Elevate map, 16,353 customer locations and
+125 technicians — and it is the one with no daily traffic to keep it warm. Roam
+is in the same matrix because a travel app whose owner goes travelling is
+exactly the app that stops being used for a week.
+
+It has to be a **query**, not a ping of the domain. PostgREST reaches Postgres
+to answer a select; nothing that stops at the edge counts as activity. RLS is
+left alone — an empty `[]` is a good answer, because the point is that the
+query ran.
+
+The keys are **repository secrets, not inline**, and this is the one decision
+worth not undoing: bdirenfeld/roam is a PUBLIC repository. Roam's own anon key
+is already in the browser bundle and would cost nothing to commit, but
+elevate-map's is not Roam's to publish. `SUPABASE_KEEPALIVE_KEY_ELEVATE_MAP`
+and `SUPABASE_KEEPALIVE_KEY_ROAM` under Settings → Secrets and variables.
+
+**A missing or rotated key fails the job on purpose.** The failure this guards
+against is silence: a keep-alive that quietly stopped working months ago is
+worse than none, because you believe you have one.
+
+Two things end it without a word: GitHub disables scheduled workflows in a repo
+with no commits for 60 days (Roam is pushed to constantly, so this is theory),
+and a paused project is only recoverable from the dashboard for 90 days —
+after that the data is download-only. The real fix is Pro on the org; this is
+the free one.
+
 ## The day template is gone — do not bring it back
 
 Removed 2026-09-07 (058879f). It never scaffolded *a* day; it bulk-inserted
