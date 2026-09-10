@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
   scored.sort((a, b) => a.hours - b.hours || (b.c.score ?? 0) - (a.c.score ?? 0));
 
   // Reviews for the Google ones (an Atmosphere-tier call each, capped by MAX_GOOGLE).
-  const notes = new Map<string, { texts: string[]; website: string | null; photos: string[] }>();
+  const notes = new Map<string, { texts: string[]; website: string | null; photos: string[]; rating: number | null; reviews: number | null }>();
   await Promise.all(scored.filter((s) => s.c.google_place_id).slice(0, 8).map(async (s) => {
     notes.set(s.c.google_place_id as string, await placeExtras(key, s.c.google_place_id as string));
   }));
@@ -153,9 +153,9 @@ export async function POST(request: NextRequest) {
       lng: s.c.lng,
       site: s.c.site,
       url: s.c.url ?? rv?.website ?? null,
-      score: s.c.score,
+      score: s.c.score ?? rv?.rating ?? null,
       score_scale: s.c.score_scale,
-      reviews: s.c.reviews,
+      reviews: s.c.reviews ?? rv?.reviews ?? null,
       review_notes: rv ? reviewNotes(rv.texts) : null,
       flags: delta ? [...s.flags, delta] : s.flags,
       drive: { hours: s.hours, line: s.line, minutes: s.minutes },

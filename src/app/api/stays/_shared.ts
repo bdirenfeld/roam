@@ -123,19 +123,19 @@ export async function lodgingNear(key: string, query: string, lat: number, lng: 
  * instantly — done at tap time it was a details call plus eight redirects
  * (Brennan, from his phone, 9 Sept 2026: "takes way too long").
  */
-export async function placeExtras(key: string, googlePlaceId: string, photoCount = 4): Promise<{ texts: string[]; website: string | null; photos: string[] }> {
+export async function placeExtras(key: string, googlePlaceId: string, photoCount = 4): Promise<{ texts: string[]; website: string | null; photos: string[]; rating: number | null; reviews: number | null }> {
   const url = new URL("https://maps.googleapis.com/maps/api/place/details/json");
   url.searchParams.set("place_id", googlePlaceId);
-  url.searchParams.set("fields", "reviews,website,photos");
+  url.searchParams.set("fields", "reviews,website,photos,rating,user_ratings_total");
   url.searchParams.set("key", key);
   try {
     const res = await fetch(url.toString(), { next: { revalidate: 0 } });
-    const json = await res.json() as { result?: { reviews?: { text?: string }[]; website?: string; photos?: { photo_reference?: string }[] } };
+    const json = await res.json() as { result?: { reviews?: { text?: string }[]; website?: string; photos?: { photo_reference?: string }[]; rating?: number; user_ratings_total?: number } };
     const refs = (json.result?.photos ?? []).map((p) => p.photo_reference).filter((r): r is string => !!r).slice(0, photoCount);
     const photos = (await Promise.all(refs.map((r) => photoUrl(key, r)))).filter((u): u is string => !!u);
-    return { texts: (json.result?.reviews ?? []).map((r) => r.text ?? "").filter(Boolean), website: json.result?.website ?? null, photos };
+    return { texts: (json.result?.reviews ?? []).map((r) => r.text ?? "").filter(Boolean), website: json.result?.website ?? null, photos, rating: json.result?.rating ?? null, reviews: json.result?.user_ratings_total ?? null };
   } catch {
-    return { texts: [], website: null, photos: [] };
+    return { texts: [], website: null, photos: [], rating: null, reviews: null };
   }
 }
 
