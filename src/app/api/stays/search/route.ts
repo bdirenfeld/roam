@@ -54,7 +54,9 @@ export async function POST(request: NextRequest) {
   const rejected = (previous ?? []).filter((p) => p.status === "rejected");
   // Run again brings five FRESH rows (Brennan, 9 Sept 2026): a row shown once and
   // not hearted is "seen" and is not proposed again, same as a rejected one.
-  const seenRows = (previous ?? []).filter((p) => p.status === "seen");
+  // The rows on the list right now count as seen too: they are about to be
+  // marked so, and must not come straight back as "fresh" (found 10 Sept 2026).
+  const seenRows = (previous ?? []).filter((p) => p.status === "seen" || (p.status === "candidate" && !p.feel));
   const skipNames = new Set([...rejected, ...seenRows].map((p) => p.name.toLowerCase()));
   const skipGoogle = new Set([...rejected, ...seenRows].map((p) => p.google_place_id).filter(Boolean));
   const skipPlaces = new Set([...rejected, ...seenRows].map((p) => p.place_id).filter(Boolean));
