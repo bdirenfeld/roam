@@ -86,6 +86,116 @@ export async function driveMinutes(key: string, origins: { lat: number; lng: num
   return out;
 }
 
+// ── Google Hotels, through SerpApi ────────────────────────────────────────
+// The one source that answers "what does it cost for OUR dates and OUR party",
+// and it carries the rest of what the card needs: bedrooms, beds, baths,
+// sleeps, amenities and photographs. Google Places has none of that.
+//
+// A price only exists once the place is bookable: for Lucca, 18 of 18 rentals
+// quoted a total for October 2026 and 1 of 18 for August 2027, because hosts
+// have not opened those calendars yet (checked 10 Sept 2026). So a missing
+// price is the truth about the date, not a failure — the card simply leaves
+// the line out.
+
+export interface StayOffer {
+  name: string; lat: number; lng: number; url: string | null; site: string;
+  total: number | null; nightly: number | null; currency: string;
+  score: number | null; reviews: number | null;
+  beds: number | null; baths: number | null; sleeps: number | null;
+  pool: boolean | null; ac: boolean | null; photos: string[];
+}
+
+export function serpApiKey(): string | null {
+  return process.env.SERPAPI_KEY ?? null;
+}
+
+/** vrbo | airbnb | booking | expedia | direct — from the link Google hands back. */
+function siteFromLink(link: string | undefined): string {
+  if (!link) return "google";
+  const l = link.toLowerCase();
+  if (l.includes("vrbo.")) return "vrbo";
+  if (l.includes("airbnb.")) return "airbnb";
+  if (l.includes("booking.com")) return "booking";
+  if (l.includes("expedia.")) return "expedia";
+  return "direct";
+}
+
+interface SerpProperty {
+  name?: string; link?: string; type?: string;
+  gps_coordinates?: { latitude?: number; longitude?: number };
+  rate_per_night?: { extracted_lowest?: number };
+  total_rate?: { extracted_lowest?: number };
+  overall_rating?: number; reviews?: number;
+  amenities?: string[]; essential_info?: string[];
+  images?: { thumbnail?: string; original_image?: string }[];
+}
+
+/**
+ * Stays near `where` that are actually available for these dates and this
+ * party. `wantHouse` asks for vacation rentals rather than hotel rooms.
+ */
+export async function stayOffers(
+  key: string,
+  where: string,
+  checkIn: string,
+  checkOut: string,
+  adults: number,
+  childrenAges: number[],
+  wantHouse: boolean,
+): Promise<StayOffer[]> {
+  const url = new URL("https://serpapi.com/search.json");
+  url.searchParams.set("engine", "google_hotels");
+  url.searchParams.set("q", where);
+  url.searchParams.set("check_in_date", checkIn);
+  url.searchParams.set("check_out_date", checkOut);
+  url.searchParams.set("adults", String(Math.max(1, adults)));
+  if (childrenAges.length) {
+    url.searchParams.set("children", String(childrenAges.length));
+    url.searchParams.set("children_ages", childrenAges.join(","));
+  }
+  url.searchParams.set("currency", "CAD");
+  url.searchParams.set("gl", "ca");
+  url.searchParams.set("hl", "en");
+  if (wantHouse) url.searchParams.set("vacation_rentals", "true");
+  url.searchParams.set("api_key", key);
+
+  try {
+    const res = await fetch(url.toString(), { next: { revalidate: 0 } });
+    const json = await res.json() as { properties?: SerpProperty[]; error?: string };
+    if (json.error) { console.error("[stays] serpapi:", json.error); return []; }
+    const num = (info: string[] | undefined, re: RegExp): number | null => {
+      for (const line of info ?? []) { const m = re.exec(line); if (m) return Number(m[1]); }
+      return null;
+    };
+    return (json.properties ?? [])
+      .filter((p) => p.name && p.gps_coordinates?.latitude != null && p.gps_coordinates?.longitude != null)
+      .map((p) => {
+        const amen = (p.amenities ?? []).join(" | ").toLowerCase();
+        return {
+          name: p.name as string,
+          lat: p.gps_coordinates!.latitude as number,
+          lng: p.gps_coordinates!.longitude as number,
+          url: p.link ?? null,
+          site: siteFromLink(p.link),
+          total: p.total_rate?.extracted_lowest ?? null,
+          nightly: p.rate_per_night?.extracted_lowest ?? null,
+          currency: "CAD",
+          score: p.overall_rating != null ? Math.round(p.overall_rating * 100) / 100 : null,
+          reviews: p.reviews ?? null,
+          beds: num(p.essential_info, /(\d+)\s*bedroom/i),
+          baths: num(p.essential_info, /([\d.]+)\s*bathroom/i),
+          sleeps: num(p.essential_info, /sleeps\s*(\d+)/i),
+          pool: amen ? /pool/.test(amen) : null,
+          ac: amen ? /air conditioning/.test(amen) : null,
+          photos: (p.images ?? []).map((i) => i.original_image ?? i.thumbnail).filter((u): u is string => !!u).slice(0, 6),
+        };
+      });
+  } catch (err) {
+    console.error("[stays] serpapi failed:", (err as Error).message);
+    return [];
+  }
+}
+
 export interface LodgingHit {
   google_place_id: string; name: string; address: string | null; lat: number; lng: number;
   rating: number | null; reviews: number | null;

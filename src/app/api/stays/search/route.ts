@@ -8,7 +8,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
-import { loadTripContext, googleKey, driveMinutes, lodgingNear, placeExtras } from "../_shared";
+import { loadTripContext, googleKey, driveMinutes, lodgingNear, placeExtras, serpApiKey, stayOffers } from "../_shared";
 import { driveHours, driveLine, driveDelta, usableAnchorIndexes } from "@/lib/stays/drive";
 import { areaHeadline, areaLine, splitText, reviewNotes } from "@/lib/stays/text";
 
@@ -75,6 +75,9 @@ export async function POST(request: NextRequest) {
   type Cand = {
     name: string; address: string | null; lat: number; lng: number; google_place_id: string | null; place_id: string | null;
     site: string; url: string | null; score: number | null; score_scale: 5 | 10; reviews: number | null; source: "saved" | "google";
+    total?: number | null; nightly?: number | null; currency?: string | null;
+    beds?: number | null; baths?: number | null; sleeps?: number | null;
+    pool?: boolean | null; ac?: boolean | null; photos?: string[];
   };
   const cands: Cand[] = ctx.savedStays
     .filter((s) => {
@@ -98,6 +101,28 @@ export async function POST(request: NextRequest) {
     : HOTEL_WORDS.test(wrongKindNames) ? true
     : brief.kind === "house";
   const query = wantHouse ? `villa with pool near ${centre.label}` : `hotel in ${centre.label}`;
+  // Google Hotels first when the key is there: it is the only source that
+  // knows the price for these dates and this party, and the bed count.
+  const serp = serpApiKey();
+  if (serp) {
+    const ages = (trip.party_ages ?? []).filter((a) => a < 18);
+    const adults = Math.max(1, (trip.party_size ?? brief.party.total) - ages.length);
+    const offers = await stayOffers(serp, centre.label, trip.start_date, trip.end_date, adults, ages, wantHouse);
+    offers
+      .filter((o) => (o.score ?? 0) >= 4.3 && (o.reviews ?? 0) >= 20)
+      .filter((o) => !skipNames.has(o.name.toLowerCase()))
+      .filter((o) => !cands.some((c) => c.name.toLowerCase() === o.name.toLowerCase()))
+      .filter((o) => !brief.fit.bedrooms || o.beds == null || o.beds >= brief.fit.bedrooms - 1)
+      .sort((a, b) => (b.score ?? 0) * Math.log((b.reviews ?? 1) + 1) - (a.score ?? 0) * Math.log((a.reviews ?? 1) + 1))
+      .slice(0, Math.max(0, MAX_TOTAL - cands.length))
+      .forEach((o) => cands.push({
+        name: o.name, address: null, lat: o.lat, lng: o.lng, google_place_id: null, place_id: null,
+        site: o.site, url: o.url, score: o.score, score_scale: 5, reviews: o.reviews, source: "google",
+        total: o.total, nightly: o.nightly, currency: o.currency,
+        beds: o.beds, baths: o.baths, sleeps: o.sleeps, pool: o.pool, ac: o.ac, photos: o.photos,
+      }));
+  }
+
   const already = new Set(cands.map((c) => c.name.toLowerCase()));
   const fresh = (hs: Awaited<ReturnType<typeof lodgingNear>>) => hs
     .filter((h) => !already.has(h.name.toLowerCase()) && !skipNames.has(h.name.toLowerCase()) && !skipGoogle.has(h.google_place_id))
@@ -158,7 +183,7 @@ export async function POST(request: NextRequest) {
 
   // Reviews for the Google ones (an Atmosphere-tier call each, capped by MAX_GOOGLE).
   const notes = new Map<string, { texts: string[]; website: string | null; photos: string[]; rating: number | null; reviews: number | null }>();
-  await Promise.all(scored.filter((s) => s.c.google_place_id).slice(0, 8).map(async (s) => {
+  await Promise.all(scored.filter((s) => s.c.google_place_id && !s.c.photos?.length).slice(0, 8).map(async (s) => {
     notes.set(s.c.google_place_id as string, await placeExtras(key, s.c.google_place_id as string));
   }));
 
@@ -183,6 +208,14 @@ export async function POST(request: NextRequest) {
       lng: s.c.lng,
       site: s.c.site,
       url: s.c.url ?? rv?.website ?? null,
+      total: s.c.total ?? null,
+      currency: s.c.currency ?? null,
+      nightly_cad: s.c.nightly ?? null,
+      beds: s.c.beds ?? null,
+      baths: s.c.baths ?? null,
+      sleeps: s.c.sleeps ?? null,
+      pool: s.c.pool ?? null,
+      ac: s.c.ac ?? null,
       score: s.c.score ?? rv?.rating ?? null,
       score_scale: s.c.score_scale,
       reviews: s.c.reviews ?? rv?.reviews ?? null,
@@ -192,7 +225,7 @@ export async function POST(request: NextRequest) {
       status: prior?.status ?? "candidate",
       source: s.c.source,
       feel: prior?.feel ?? null,
-      photos: rv?.photos?.length ? rv.photos : (prior?.photos ?? []),
+      photos: s.c.photos?.length ? s.c.photos : rv?.photos?.length ? rv.photos : (prior?.photos ?? []),
     };
   });
   const { data: written, error } = await supabase.from("stay_candidates").insert(rows).select("*");
