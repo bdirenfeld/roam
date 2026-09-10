@@ -143,6 +143,8 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
     const t = setTimeout(() => { try { map.resize(); } catch { /* not loaded yet */ } }, 30);
     return () => clearTimeout(t);
   }, [panelOpen]);
+  /** The candidate set the map has already framed, so a gesture is never undone. */
+  const fittedRef = useRef<string>("");
   const stayMarkersRef = useRef<{ remove: () => void }[]>([]);
   useEffect(() => {
     if (searchParams.get("stays") === "1" && !readOnly) setShowStays(true);
@@ -166,7 +168,13 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
       stayMarkersRef.current.push(marker);
       coords.push([c.lng, c.lat]);
     });
-    if (coords.length > 1 && !focusedStay) {
+    // Frame the candidates ONCE per set, never on every pass through this
+    // effect. Re-fitting on each render snapped the view back mid-gesture, so
+    // the map could not be pinched or zoomed while the sheet was open
+    // (Brennan, 10 Sept 2026). A different five re-frames; the same five do not.
+    const key = stayCands.map((c) => c.id).join(",");
+    if (coords.length > 1 && !focusedStay && fittedRef.current !== key) {
+      fittedRef.current = key;
       const bounds = coords.reduce(
         (b: unknown, coord) => (b as { extend: (c: [number, number]) => unknown }).extend(coord),
         new mb.LngLatBounds(coords[0], coords[0]),

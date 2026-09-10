@@ -38,9 +38,20 @@ export async function POST(request: NextRequest) {
   // used to be recoverable only through a toast that expires, so pressing the
   // button by accident lost them for good (Brennan, 10 Sept 2026).
   if (body.action === "restore") {
-    const { error } = await supabase.from("stay_candidates").update({ status: "candidate" }).eq("id", c.id).eq("status", "seen");
+    // It comes back with a FREE letter. Keeping its old one put two rows
+    // labelled A on the Japan list, and the letters are what tie a row to its
+    // pin (audit, 10 Sept 2026).
+    const { data: live } = await supabase
+      .from("stay_candidates")
+      .select("letter")
+      .eq("trip_id", c.trip_id)
+      .eq("base", c.base ?? 0)
+      .not("status", "in", "(rejected,seen)");
+    const taken = new Set((live ?? []).map((r) => r.letter).filter(Boolean));
+    const letter = "ABCDEFGHIJKL".split("").find((l) => !taken.has(l)) ?? c.letter;
+    const { error } = await supabase.from("stay_candidates").update({ status: "candidate", letter }).eq("id", c.id).eq("status", "seen");
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true, status: "candidate" });
+    return NextResponse.json({ ok: true, status: "candidate", letter });
   }
 
   if (body.action === "unreject") {

@@ -13,7 +13,7 @@
 // learns from. The handle drags: up for the full list, down to shrink, and
 // a tap on the title bar toggles it.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
@@ -76,17 +76,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
   useEscapeKey(onClose, !openId);
   useEffect(() => { sheetRef.current?.focus(); }, []);
 
-  // The nights and the party behind every link out of this sheet. When the
-  // search had to roll the year to find a price, the links roll with it so the
-  // site opens on the dates the card is quoting.
-  const priced = shiftToYear(trip.start_date, trip.end_date, brief?.price_year ?? null);
-  const stayDates: StayDates = {
-    checkIn: priced.start,
-    checkOut: priced.end,
-    adults: (trip.party_ages ?? []).filter((a) => a >= 13).length || trip.party_size || 2,
-    childrenAges: (trip.party_ages ?? []).filter((a) => a < 13),
-  };
-  const nights = Math.max(0, Math.round((new Date(trip.end_date + "T00:00:00").getTime() - new Date(trip.start_date + "T00:00:00").getTime()) / 86400000));
+  const tripNights = Math.max(0, Math.round((new Date(trip.end_date + "T00:00:00").getTime() - new Date(trip.start_date + "T00:00:00").getTime()) / 86400000));
   const travellers = trip.party_size ?? trip.party_ages?.length ?? null;
 
   const publish = useCallback((rows: StayCandidate[]) => {
@@ -177,8 +167,40 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
   const bases = briefObjForAsk?.bases ?? [];
   const multi = bases.length > 1;
   // Only this base's five, and only this base's line of copy.
-  const shown = multi ? cands.filter((c) => (c.base ?? 0) === baseIdx) : cands;
+  // MUST be memoised. A fresh array here is a new dependency every render, so
+  // the effect below pushed a new list to the map on every render, the map set
+  // state, and round it went — refitting the bounds every frame and fighting
+  // any attempt to pinch or zoom. Only Japan showed it, because a single-base
+  // journey passes `cands` straight through (Brennan, 10 Sept 2026).
+  const shown = useMemo(
+    () => (multi ? cands.filter((c) => (c.base ?? 0) === baseIdx) : cands),
+    [multi, cands, baseIdx],
+  );
   const areaText = (multi ? briefObjForAsk?.areaByBase?.[String(baseIdx)] : null) ?? brief?.area_text ?? null;
+
+  /**
+   * The nights and dates THIS base is for. The search prices Tokyo's eight
+   * nights, and the sheet was still labelling every row "for 13 nights" and
+   * opening the booking link on the whole journey (audit, 10 Sept 2026).
+   * Bases run in order from the start date, same as the server works it out.
+   */
+  const nights = multi ? (bases[baseIdx]?.nights ?? tripNights) : tripNights;
+  const addDays = (iso: string, n: number) => {
+    const d = new Date(iso + "T00:00:00Z");
+    d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().slice(0, 10);
+  };
+  const nightsBefore = multi ? bases.slice(0, baseIdx).reduce((n, b) => n + b.nights, 0) : 0;
+  const baseStart = addDays(trip.start_date, nightsBefore);
+  const baseEnd = addDays(baseStart, nights);
+  // When the search rolled the year to find a price, the link rolls with it.
+  const priced = shiftToYear(baseStart, baseEnd, brief?.price_year ?? null);
+  const stayDates: StayDates = {
+    checkIn: priced.start,
+    checkOut: priced.end,
+    adults: (trip.party_ages ?? []).filter((a) => a >= 13).length || trip.party_size || 2,
+    childrenAges: (trip.party_ages ?? []).filter((a) => a < 13),
+  };
   // Five pins, never ten: the map shows the base the sheet is on.
   useEffect(() => { onCandidates(shown); }, [shown, onCandidates]);
 
@@ -291,7 +313,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
       const res = await fetch("/api/stays/mark", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ candidateId: c.id, action }) });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) { toast({ message: "Couldn't bring that back." }); return; }
-      publish(everything.map((x) => x.id === c.id ? { ...x, status: (json.status as StayCandidate["status"]) ?? "candidate", reject_reason: null } : x));
+      publish(everything.map((x) => x.id === c.id ? { ...x, status: (json.status as StayCandidate["status"]) ?? "candidate", letter: (json.letter as string | undefined) ?? x.letter, reject_reason: null } : x));
       toast({ message: `${c.name} is back on the list` });
     } finally {
       setBusyId(null);
