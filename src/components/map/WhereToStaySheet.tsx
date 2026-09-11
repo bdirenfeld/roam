@@ -139,15 +139,28 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
   }, [focusedId]);
 
   // The handle: drag up for the full list, down to shrink; a tap toggles.
+  //
+  // A touch fires BOTH onTouchEnd and, a moment later, a synthetic click. With
+  // a toggle on each, every tap toggled twice and landed back where it started
+  // — and a real drag down was undone by the click that followed it. So the
+  // sheet could not be pulled down at all on a phone: "it's hard for me to do
+  // that" (Brennan, 10 Sept 2026). The touch wins; the click stands down.
+  const touchedAt = useRef(0);
   function onTouchStart(e: React.TouchEvent) { dragY.current = e.touches[0].clientY; }
   function onTouchEnd(e: React.TouchEvent) {
     const from = dragY.current;
     dragY.current = null;
     if (from == null) return;
     const dy = e.changedTouches[0].clientY - from;
+    touchedAt.current = Date.now();
     if (dy < -40) setTall(true);
     else if (dy > 40) setTall(false);
-    else if (Math.abs(dy) < 8) setTall((t) => !t);
+    else if (Math.abs(dy) < 12) setTall((t) => !t);
+  }
+  /** Mouse only. A synthetic click after a touch would undo what the drag just did. */
+  function onHeaderClick() {
+    if (Date.now() - touchedAt.current < 700) return;
+    setTall((t) => !t);
   }
 
   // What he asked for last time, so Run again never makes him retype it.
@@ -176,7 +189,9 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
     () => (multi ? cands.filter((c) => (c.base ?? 0) === baseIdx) : cands),
     [multi, cands, baseIdx],
   );
-  const areaText = (multi ? briefObjForAsk?.areaByBase?.[String(baseIdx)] : null) ?? brief?.area_text ?? null;
+  const areaText = multi
+    ? (briefObjForAsk?.areaByBase?.[String(baseIdx)] ?? null)
+    : (brief?.area_text ?? null);
 
   /**
    * The nights and dates THIS base is for. The search prices Tokyo's eight
@@ -369,15 +384,18 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
         >
           <div
             className="flex-shrink-0 cursor-grab select-none"
+            style={{ touchAction: "none" }}
             onTouchStart={onTouchStart}
             onTouchEnd={onTouchEnd}
-            onClick={() => setTall((t) => !t)}
+            onClick={onHeaderClick}
             role="button"
             aria-label={tall ? "Show more map" : "Show the full list"}
           >
+            {/* A bigger grab target and a bigger pill: the old one was a 3px
+                line inside a 28px strip. */}
             {!panel && (
-              <div className="flex justify-center pt-3 pb-2">
-                <span className="w-9 h-[3px] rounded-full bg-gray-300" />
+              <div className="flex justify-center pt-3.5 pb-3">
+                <span className="w-12 h-[4px] rounded-full bg-gray-300" />
               </div>
             )}
             <div className={`flex items-center justify-between px-5 pb-2.5 border-b border-gray-100 ${panel ? "pt-4" : ""}`}>
@@ -466,6 +484,22 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                   <div className="px-4 pt-3 pb-1 text-[12.5px] leading-relaxed" style={{ color: "rgba(26,26,46,0.75)" }}>
                     {areaText}{areaText && brief?.split_text ? " " : ""}
                     {brief?.split_text && <span style={{ color: SIENNA }}>{brief.split_text}</span>}
+                  </div>
+                )}
+
+                {/* Switching to a base that has not run yet left a white void
+                    with a small "Looking…" at the foot of the sheet, which
+                    reads as broken — he opened Osaka and reported seeing no
+                    hotels while the search was in flight (10 Sept 2026). The
+                    waiting goes where the rows will be. */}
+                {shown.length === 0 && (running || loading) && (
+                  <div className="px-4 py-10 text-center">
+                    <p className="text-[13px]" style={{ color: CAPTION }}>
+                      Looking for places {multi && bases[baseIdx] ? `around ${bases[baseIdx].label}` : "to stay"}…
+                    </p>
+                    <p className="text-[12px] mt-1" style={{ color: "rgba(26,26,46,0.42)" }}>
+                      Prices and drive times take a few seconds.
+                    </p>
                   </div>
                 )}
 
