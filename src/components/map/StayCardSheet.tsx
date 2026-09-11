@@ -36,6 +36,16 @@ interface Props {
   busy: boolean;
   /** Desktop only: leave Where to stay entirely, not just this card. */
   onCloseAll?: () => void;
+  /**
+   * Where this one sits in the list, so the card can move along it.
+   * "When you're in this mode, you should have a way that's easy to go
+   * between the other options, without having to go back to the menu"
+   * (Brennan, 11 Sept 2026). Comparing two places meant four taps: back,
+   * find the row, open the next, and back again to check the first.
+   */
+  place?: { letter: string; index: number; total: number };
+  onPrev?: () => void;
+  onNext?: () => void;
   onChoose: () => void;
   onSave: () => void;
   onClose: () => void;
@@ -67,7 +77,7 @@ async function loadPhotos(googlePlaceId: string): Promise<{ photos: string[]; we
   return { photos: urls, website: (json.result?.website as string | undefined) ?? null };
 }
 
-export default function StayCardSheet({ inPanel = false, backLabel = "Back", candidate: c, brief, startDate, endDate, nights, priceYear = null, othersPriced = false, dates, busy, onChoose, onSave, onClose, onCloseAll }: Props) {
+export default function StayCardSheet({ inPanel = false, backLabel = "Back", candidate: c, brief, startDate, endDate, nights, priceYear = null, othersPriced = false, dates, busy, onChoose, onSave, onClose, onCloseAll, place, onPrev, onNext }: Props) {
   // The search already resolved the first few photos; only an older row still fetches.
   const [photos, setPhotos] = useState<string[] | null>(c.photos?.length ? c.photos : null);
   const [website, setWebsite] = useState<string | null>(c.url);
@@ -76,6 +86,18 @@ export default function StayCardSheet({ inPanel = false, backLabel = "Back", can
   const cardRef = useRef<HTMLDivElement>(null);
   useEscapeKey(onClose);
   useEffect(() => { cardRef.current?.focus(); }, []);
+  // The same two moves from a keyboard. Typing in a field still wins.
+  useEffect(() => {
+    if (!onPrev && !onNext) return;
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
+      if (e.key === "ArrowRight") { e.preventDefault(); onNext?.(); }
+      if (e.key === "ArrowLeft") { e.preventDefault(); onPrev?.(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onPrev, onNext]);
   const step = (dir: 1 | -1) => { const el = stripRef.current; if (el) el.scrollBy({ left: dir * el.clientWidth, behavior: "smooth" }); };
 
   useEffect(() => {
@@ -170,6 +192,34 @@ export default function StayCardSheet({ inPanel = false, backLabel = "Back", can
             </button>
           )}
         </div>
+
+        {place && (onPrev || onNext) && (
+          <div className="flex-shrink-0 flex items-center justify-between border-b border-gray-100 px-2 py-1.5">
+            <button
+              type="button"
+              onClick={onPrev}
+              disabled={!onPrev}
+              aria-label="Previous place"
+              className="h-8 px-3 inline-flex items-center gap-1 text-[13px] font-medium disabled:opacity-30"
+              style={{ color: INK }}
+            >
+              <span aria-hidden="true">&lsaquo;</span> Previous
+            </button>
+            <span className="text-[12px] font-semibold tracking-wide" style={{ color: CAPTION }}>
+              {place.letter} of {place.total}
+            </span>
+            <button
+              type="button"
+              onClick={onNext}
+              disabled={!onNext}
+              aria-label="Next place"
+              className="h-8 px-3 inline-flex items-center gap-1 text-[13px] font-medium disabled:opacity-30"
+              style={{ color: INK }}
+            >
+              Next <span aria-hidden="true">&rsaquo;</span>
+            </button>
+          </div>
+        )}
 
         <div className="flex-1 min-h-0 overflow-y-auto px-5 pt-4 pb-28">
           <h2 className="text-[19px] font-bold text-gray-900 leading-snug">

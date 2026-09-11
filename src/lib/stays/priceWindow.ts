@@ -54,6 +54,6 @@ export function priceWindow(start: string, end: string, today: Date = new Date()
 /** The sentence the sheet shows when the window moved. */
 export function priceWindowNote(w: PriceWindow, tripStart: string): string | null {
   if (w.shifted === "past") return `These dates have passed; prices are for the same days in ${w.start.slice(0, 4)}.`;
-  if (w.shifted === "far") return `${tripStart.slice(0, 4)} is too far ahead to price; these are the same days in ${w.start.slice(0, 4)}.`;
+  if (w.shifted === "far") return `Priced for the same days in ${w.start.slice(0, 4)}, since ${tripStart.slice(0, 4)} is too far ahead.`;
   return null;
 }

@@ -11,14 +11,14 @@ import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import { loadTripContext, googleKey, driveMinutes, lodgingNear, placeExtras, serpApiKey, stayOffers } from "../_shared";
 import { driveHours, driveLine, driveDelta, usableAnchorIndexes } from "@/lib/stays/drive";
 import { greatCircleKm } from "@/lib/stays/brief";
-import { areaHeadline, areaLine, splitText, reviewNotes } from "@/lib/stays/text";
+import { areaHeadline, areaLine, baseArea, splitText, reviewNotes } from "@/lib/stays/text";
 import { priceWindow, priceWindowNote } from "@/lib/stays/priceWindow";
 import { budgetFlag, budgetVerdict, nightlyOf } from "@/lib/stays/budget";
 import { parseAsk, askNote, askBonus } from "@/lib/stays/wants";
 import { parseBudget } from "@/lib/stays/budgetInput";
 import { inventoriesFor } from "@/lib/stays/inventory";
-import { pickOffers } from "@/lib/stays/pickOffers";
-import { mapFill, exhaustedNote } from "@/lib/stays/mapFill";
+import { fillOffers } from "@/lib/stays/pickOffers";
+import { mapFill, exhaustedNote, repeatNote } from "@/lib/stays/mapFill";
 
 // Five rows, not ten: the stays already saved on the journey come first and
 // Google fills what is left ("way too many options" — Brennan, 9 Sept 2026).
@@ -27,6 +27,55 @@ const LETTERS = "ABCDEFGHIJKL";
 // A home base sits near the evenings. Beyond this it is a different trip.
 const MAX_OFFER_KM = 35;
 
+
+/**
+ * DELETE /api/stays/search { tripId } — forget every search for this journey.
+ *
+ * Brennan, 11 Sept 2026: "you should have a way to clear all the past
+ * searches, and then do the search from the beginning, and in theory you
+ * should get the same options if you haven't changed your search parameters."
+ *
+ * He is right, and it is not only tidiness. The search remembers what it has
+ * shown: a place seen once is not proposed again, so after five runs around
+ * Osaka there was nothing fresh left that anyone prices. Clearing the memory
+ * is what makes a second first-run possible.
+ *
+ * What it clears: every candidate row for the journey, every base, and the
+ * brief. What it does NOT touch: places and cards already on the map — those
+ * were put there deliberately and are not search history — and the nightly
+ * rate on the Estimate, which is the ceiling he typed. The accommodation
+ * basis line goes, because the stay it described no longer exists.
+ */
+export async function DELETE(request: NextRequest) {
+  const gate = await requireUser();
+  if ("response" in gate) return gate.response;
+  const { supabase, user } = gate;
+
+  const body = await request.json().catch(() => ({})) as { tripId?: string };
+  if (!body.tripId) return NextResponse.json({ error: "tripId is required" }, { status: 400 });
+  const { data: trip } = await supabase.from("trips").select("id, user_id").eq("id", body.tripId).maybeSingle();
+  if (!trip || trip.user_id !== user.id) return NextResponse.json({ error: "Not your journey" }, { status: 403 });
+
+  const { data: had } = await supabase.from("stay_candidates").select("id, status").eq("trip_id", trip.id);
+  const chose = (had ?? []).some((r) => r.status === "chosen");
+
+  const { error } = await supabase.from("stay_candidates").delete().eq("trip_id", trip.id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await supabase.from("stay_briefs").delete().eq("trip_id", trip.id);
+
+  if (chose) {
+    // The journey no longer has a stay chosen, so nothing should say it does.
+    await supabase.from("trips").update({ accommodation_name: null, accommodation_address: null }).eq("id", trip.id);
+    const { data: budget } = await supabase.from("trip_budgets").select("basis").eq("trip_id", trip.id).maybeSingle();
+    if (budget) {
+      const b = { ...((budget.basis ?? {}) as Record<string, string>) };
+      delete b.accommodation;
+      await supabase.from("trip_budgets").update({ basis: b, updated_at: new Date().toISOString() }).eq("trip_id", trip.id);
+    }
+  }
+
+  return NextResponse.json({ cleared: (had ?? []).length, unchose: chose });
+}
 
 export async function POST(request: NextRequest) {
   const gate = await requireUser();
@@ -112,6 +161,10 @@ export async function POST(request: NextRequest) {
   const skipNames = new Set([...rejected, ...seenRows].map((p) => p.name.toLowerCase()));
   const skipGoogle = new Set([...rejected, ...seenRows].map((p) => p.google_place_id).filter(Boolean));
   const skipPlaces = new Set([...rejected, ...seenRows].map((p) => p.place_id).filter(Boolean));
+  // "Seen" keeps a place off the NEXT list; "not for us" keeps it off every
+  // list. The two were one set, so when the fresh offers ran out there was no
+  // way to tell which ones could come back (Osaka, 11 Sept 2026).
+  const rejectedNames = new Set(rejected.map((p) => p.name.toLowerCase()));
   const tooFar = rejected.some((p) => p.reject_reason === "too_far");
   // "Wrong kind of place" on a villa asks for hotels next time, and the reverse.
   const wrongKind = rejected.filter((p) => p.reject_reason === "wrong_kind");
@@ -207,6 +260,11 @@ export async function POST(request: NextRequest) {
   // season honest (New York in July stays New York in July), and the sheet says
   // which dates the prices are for.
   const priced = priceWindow(baseStart, baseEnd);
+  // How much of this list is news. Both are read after the block, so the
+  // sheet can say "nothing new around Osaka" instead of quietly showing rows
+  // with no price (11 Sept 2026).
+  let repeated = 0;
+  let freshOffers = 0;
   const serp = serpApiKey();
   const ages = (trip.party_ages ?? []).filter((a) => a < 18);
   const adults = Math.max(1, (trip.party_size ?? brief.party.total) - ages.length);
@@ -265,7 +323,7 @@ export async function POST(request: NextRequest) {
     // test can call it. It sat here as a filter chain nothing could reach,
     // which is why "Gallo Cedrone, sleeps 6" landed on a Tuscany list for
     // seven and 228 green tests said nothing (Brennan, 11 Sept 2026).
-    pickOffers(offers, {
+    const picked = fillOffers(offers, {
       party: brief.party.total,
       fitBedrooms: brief.fit.bedrooms,
       nights: baseNights,
@@ -274,10 +332,14 @@ export async function POST(request: NextRequest) {
       centre: { lat: centre.lat, lng: centre.lng },
       maxKm: MAX_OFFER_KM,
       skipNames,
+      rejectedNames,
       taken: new Set(cands.map((c) => c.name.toLowerCase())),
       preferred: seenOffer,
       room: MAX_TOTAL - cands.length,
-    })
+    });
+    repeated = picked.repeated;
+    freshOffers = picked.rows.length - picked.repeated;
+    picked.rows
       .forEach((o) => cands.push({
         name: o.name, address: null, lat: o.lat, lng: o.lng, google_place_id: null, place_id: null,
         site: o.site, url: o.url, score: o.score, score_scale: 5, reviews: o.reviews, source: "google",
@@ -390,6 +452,13 @@ export async function POST(request: NextRequest) {
   // Replace the last run's rows. Rejected ones stay, so they are never proposed
   // again; saved and chosen come back as fresh rows with their status kept.
   const { data: nowSeen } = await supabase.from("stay_candidates").update({ status: "seen" }).eq("trip_id", trip.id).eq("base", baseIndex).eq("status", "candidate").is("feel", null).select("id");
+  // A place that has come back is on the list again, so its old set-aside row
+  // must go: otherwise the same hotel sits in the five AND under "N earlier".
+  const backAgain = repeated > 0 ? cands.filter((c) => c.total != null).map((c) => c.name) : [];
+  if (backAgain.length) {
+    await supabase.from("stay_candidates").delete()
+      .eq("trip_id", trip.id).eq("base", baseIndex).eq("status", "seen").in("name", backAgain);
+  }
   await supabase.from("stay_candidates").delete().eq("trip_id", trip.id).eq("base", baseIndex).or("status.in.(saved,chosen),feel.eq.up");
 
   const rows = scored.map((s, i) => {
@@ -439,7 +508,12 @@ export async function POST(request: NextRequest) {
   // area sentence is kept inside the brief JSON keyed by base and merged with
   // what the other base's run already wrote. Switching to Osaka must not blank
   // Tokyo's line.
-  const thisArea = [headline, line, priceWindowNote(priced, baseStart)].filter(Boolean).join(" ") || null;
+  // One base: where to sit relative to the centre. Several: where THIS one
+  // is, because the whole-journey direction belongs to neither of them.
+  const thisArea = (brief.bases.length > 1
+    ? [baseArea(brief, baseIndex)]
+    : [headline, line]
+  ).concat(priceWindowNote(priced, baseStart)).filter(Boolean).join(" ") || null;
   const { data: prevBrief } = await supabase.from("stay_briefs").select("brief").eq("trip_id", trip.id).maybeSingle();
   const prevJson = (prevBrief?.brief ?? {}) as { areaByBase?: Record<string, string | null> };
   const areaByBase = { ...(prevJson.areaByBase ?? {}), [String(baseIndex)]: thisArea };
@@ -448,7 +522,11 @@ export async function POST(request: NextRequest) {
     user_id: user.id,
     ran_at: new Date().toISOString(),
     brief: { ...JSON.parse(JSON.stringify(brief)), wants: asked || null, areaByBase, lastBase: baseIndex },
-    area_text: [thisArea, exhausted ? exhaustedNote(centre.label, cands.filter((c) => c.total != null).length, seenRows.length + rejected.length) : null].filter(Boolean).join(" ") || null,
+    area_text: [
+      thisArea,
+      repeatNote(centre.label, repeated, freshOffers),
+      exhausted ? exhaustedNote(centre.label, cands.filter((c) => c.total != null).length, seenRows.length + rejected.length) : null,
+    ].filter(Boolean).join(" ") || null,
     price_year: priced.shifted ? Number(priced.start.slice(0, 4)) : null,
     split_text: splitText(brief, centreMinutes),
   };

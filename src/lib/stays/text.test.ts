@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { compassWord, areaHeadline, areaLine, splitText, reviewNotes, fitFloorText, hostQuestions } from "./text";
+import { compassWord, areaHeadline, areaLine, baseArea, splitText, reviewNotes, fitFloorText, hostQuestions } from "./text";
 import type { StayBrief } from "./brief";
 
 /** The Tuscany brief as buildStayBrief returns it (see brief.test.ts), trimmed to what text needs. */
@@ -57,6 +57,38 @@ describe("areaLine and splitText", () => {
     expect(splitText({ ...TUSCANY, splitCandidates: [] }, {})).toBe("One base is enough.");
     expect(splitText(TUSCANY, {})).toBeNull();
     expect(splitText(TUSCANY, { Firenze: 45 })).toBeNull();
+  });
+});
+
+/**
+ * Japan, as it read on 11 Sept 2026: five sentences, one of them wrong and one
+ * of them a copy of the tabs above it. These pin what replaced them.
+ */
+const JAPAN: StayBrief = {
+  ...TUSCANY,
+  nights: 13, days: 14,
+  evening: { lat: 35.6580, lng: 139.7016, label: "Tokyo", days: 0, evenings: false },
+  bases: [
+    { label: "Tokyo", lat: 35.6580, lng: 139.7016, km: 0, pins: 22, nights: 8 },
+    { label: "Osaka", lat: 34.6937, lng: 135.5023, km: 400, pins: 7, nights: 5 },
+  ],
+};
+
+describe("more than one base", () => {
+  it("leaves the count and the night split to the switcher above it", () => {
+    // It used to say "— 2 places to stay. Roughly Tokyo 8 nights, Osaka 5",
+    // which is exactly what the two tabs say (Brennan, 11 Sept 2026).
+    expect(splitText(JAPAN, {})).toBe("Too spread out for one base.");
+    expect(splitText(JAPAN, {})).not.toMatch(/Tokyo|Osaka|[0-9]/);
+  });
+
+  it("gives each base its OWN line, not the whole journey's", () => {
+    // Both tabs used to carry "West of Tokyo, toward Osaka. Most of your
+    // places are around Tokyo" — wrong on the Osaka tab, and beside the point
+    // on Tokyo's now that Osaka has its own hotel.
+    expect(baseArea(JAPAN, 0)).toBe("Stay within 15 minutes of Tokyo.");
+    expect(baseArea(JAPAN, 1)).toBe("Stay within 15 minutes of Osaka.");
+    expect(baseArea(JAPAN, 2)).toBeNull();
   });
 });
 

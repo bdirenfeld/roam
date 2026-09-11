@@ -44,6 +44,8 @@ export interface PickOpts {
   maxKm: number;
   /** Rejected or already-seen names, lower-cased. */
   skipNames: Set<string>;
+  /** Rejected names ONLY, lower-cased. "Seen" is not a verdict; "not for us" is. */
+  rejectedNames?: Set<string>;
   /** Names already on the list this run, lower-cased. */
   taken: Set<string>;
   /** Normalised names from the inventory the journey actually wants. */
@@ -82,6 +84,33 @@ export function dropReason(o: Offer, opts: PickOpts): DropReason | null {
  * people left one — a hotel with 3,000 reviews should not outrank a villa with
  * thirty just for being a hotel.
  */
+/**
+ * The list, with the seen ones brought back once the fresh ones run out.
+ *
+ * Osaka, 11 Sept 2026: five runs in a day. Google prices about eighteen
+ * places for those nights, every run set its five aside as "seen", and by the
+ * fifth there was nothing fresh left to price. The list was then topped up
+ * from Google's map data, which can never carry a price, so every row read
+ * "No rate found for these nights" — twice reported, and twice I fixed
+ * something else.
+ *
+ * A price you have seen before beats no price at all. Rejections still stand,
+ * because "not for us" is a verdict; "seen" is only a memory. The count comes
+ * back so the sheet can say plainly that these are not new.
+ */
+export function fillOffers<T extends Offer>(offers: T[], opts: PickOpts): { rows: T[]; repeated: number } {
+  const fresh = pickOffers(offers, opts);
+  const room = Math.max(0, opts.room) - fresh.length;
+  if (room <= 0) return { rows: fresh, repeated: 0 };
+  const again = pickOffers(offers, {
+    ...opts,
+    skipNames: opts.rejectedNames ?? new Set<string>(),
+    taken: new Set(Array.from(opts.taken).concat(fresh.map((o) => o.name.toLowerCase()))),
+    room,
+  });
+  return { rows: [...fresh, ...again], repeated: again.length };
+}
+
 export function pickOffers<T extends Offer>(offers: T[], opts: PickOpts): T[] {
   return offers
     .filter((o) => dropReason(o, opts) === null)

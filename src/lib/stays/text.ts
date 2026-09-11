@@ -76,10 +76,11 @@ export function splitText(brief: StayBrief, minutesFromEvening: Record<string, n
   // nothing on the itinerary the nights are shared out by where the pins are,
   // so it is offered as a starting point, not stated as a plan.
   if (brief.bases.length > 1) {
-    const split = brief.bases
-      .map((b, i) => `${b.label} ${b.nights}${i === 0 ? (b.nights === 1 ? " night" : " nights") : ""}`)
-      .join(", ");
-    return `Too spread out for one base — ${brief.bases.length} places to stay. Roughly ${split}.`;
+    // The count and the night split sit on the base switcher directly above
+    // this line — "2 places to stay. Roughly Tokyo 8 nights, Osaka 5" was the
+    // same thing read twice (Brennan, 11 Sept 2026). What the tabs cannot say
+    // is WHY there are two, so that is all this keeps.
+    return "Too spread out for one base.";
   }
   const best = brief.splitCandidates
     .map((s) => ({ ...s, min: minutesFromEvening[s.label] ?? null }))
@@ -130,6 +131,21 @@ export function hostQuestions(brief: StayBrief): string[] {
   if (brief.fit.askCot) q.push("Is there a cot?");
   if (brief.kind === "house") q.push("Is there a supermarket within ten minutes?");
   return q;
+}
+
+/**
+ * The area line for ONE base of a journey that needs several.
+ *
+ * The whole-journey headline says which side of the single centre to sit on —
+ * "West of Tokyo, toward Osaka". That is advice for a trip with one base, and
+ * with a hotel in Osaka already it is beside the point; worse, every base got
+ * the SAME line, so the Osaka tab read "most of your places are around Tokyo"
+ * (Brennan, 11 Sept 2026). A base says the one thing that is true of it.
+ */
+export function baseArea(brief: StayBrief, i: number): string | null {
+  const b = brief.bases[i];
+  if (!b) return null;
+  return `Stay within ${brief.radiusMin} minutes of ${b.label}.`;
 }
 
 export type { Anchor };

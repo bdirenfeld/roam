@@ -27,7 +27,7 @@ describe("priceWindow", () => {
   it("rolls a far journey back a year, keeping the season", () => {
     const w = priceWindow("2028-04-02", "2028-04-15", TODAY);
     expect(w).toEqual({ start: "2027-04-02", end: "2027-04-15", shifted: "far" });
-    expect(priceWindowNote(w, "2028-04-02")).toBe("2028 is too far ahead to price; these are the same days in 2027.");
+    expect(priceWindowNote(w, "2028-04-02")).toBe("Priced for the same days in 2027, since 2028 is too far ahead.");
   });
 
   it("never rolls a window into the past to reach the horizon", () => {

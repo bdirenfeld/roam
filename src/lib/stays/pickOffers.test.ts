@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { pickOffers, dropReason, type Offer, type PickOpts } from "./pickOffers";
+import { pickOffers, fillOffers, dropReason, type Offer, type PickOpts } from "./pickOffers";
 import { parseAsk } from "./wants";
 
 /**
@@ -111,5 +111,60 @@ describe("a journey with no Estimate has no ceiling", () => {
   it("drops nothing on price", () => {
     const dear = offer({ name: "Very Dear", total: 40000 });
     expect(dropReason(dear, { ...TUSCANY, ceiling: null })).toBeNull();
+  });
+});
+
+/**
+ * The Osaka failure, as a test.
+ *
+ * Google prices about eighteen places around Osaka for a given week. Five
+ * runs in one day set five aside each time, the fresh ones ran out, and the
+ * list was topped up from map data that can never carry a price — so every
+ * row read "No rate found for these nights" (Brennan, 11 Sept 2026, the third
+ * time he reported it).
+ */
+describe("when the fresh offers run out", () => {
+  const OSAKA = { lat: 34.6937, lng: 135.5023 };
+  const town = (name: string, score: number) =>
+    offer({ name, score, reviews: 400, lat: OSAKA.lat, lng: OSAKA.lng, total: 1800, beds: null, sleeps: null });
+  const ALL = ["Citadines Namba", "Cross Hotel", "Hotel Noum", "ORI Nipponbashi", "e-stay namba", "The Lively Honmachi"]
+    .map((n, i) => town(n, 4.9 - i * 0.05));
+  const OPTS: PickOpts = {
+    party: 5, fitBedrooms: 3, nights: 5, ceiling: 600,
+    ask: parseAsk(null), centre: OSAKA, maxKm: 35,
+    skipNames: new Set(), taken: new Set(), preferred: new Set(), room: 5,
+  };
+
+  it("brings priced ones back rather than leaving the list short", () => {
+    // Everything has been shown once; nothing has been turned down.
+    const seen = new Set(ALL.map((o) => o.name.toLowerCase()));
+    expect(pickOffers(ALL, { ...OPTS, skipNames: seen })).toEqual([]);
+
+    const { rows, repeated } = fillOffers(ALL, { ...OPTS, skipNames: seen, rejectedNames: new Set() });
+    expect(rows).toHaveLength(5);
+    expect(repeated).toBe(5);
+    expect(rows.every((r) => r.total != null)).toBe(true);
+  });
+
+  it("never brings back one he turned down", () => {
+    const seen = new Set(ALL.map((o) => o.name.toLowerCase()));
+    const { rows } = fillOffers(ALL, {
+      ...OPTS, skipNames: seen, rejectedNames: new Set(["cross hotel", "hotel noum"]),
+    });
+    expect(rows.map((r) => r.name)).not.toContain("Cross Hotel");
+    expect(rows.map((r) => r.name)).not.toContain("Hotel Noum");
+    expect(rows).toHaveLength(4);
+  });
+
+  it("prefers the fresh ones, and only tops up with repeats", () => {
+    const seen = new Set(ALL.slice(2).map((o) => o.name.toLowerCase()));
+    const { rows, repeated } = fillOffers(ALL, { ...OPTS, skipNames: seen, rejectedNames: new Set() });
+    expect(rows.slice(0, 2).map((r) => r.name)).toEqual(["Citadines Namba", "Cross Hotel"]);
+    expect(repeated).toBe(3);
+    expect(new Set(rows.map((r) => r.name)).size).toBe(rows.length);
+  });
+
+  it("does not repeat anything when the fresh ones fill the list", () => {
+    expect(fillOffers(ALL, { ...OPTS, rejectedNames: new Set() }).repeated).toBe(0);
   });
 });

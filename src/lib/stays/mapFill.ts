@@ -40,6 +40,17 @@ export function mapFill(opts: {
   return { take: 0, exhausted: true };
 }
 
+/**
+ * What to say when the list is places he has already been shown. They carry
+ * prices, which the map rows they replaced never could — but he is owed the
+ * fact that this run found nothing new (Osaka, 11 Sept 2026).
+ */
+export function repeatNote(place: string, repeated: number, fresh: number): string | null {
+  if (repeated <= 0) return null;
+  if (fresh === 0) return `Nothing new around ${place} — these are the best of the ones you have seen. Start over to clear what the search remembers.`;
+  return `${repeated === 1 ? "One of these is a place" : `${repeated} of these are places`} you have seen before; nothing else around ${place} is quoting a price.`;
+}
+
 /** What to tell him when the area is used up rather than broken. */
 export function exhaustedNote(place: string, priced: number, earlier: number): string {
   const seen = earlier > 0 ? ` The ${earlier} you have already seen are under “${earlier} earlier”.` : "";

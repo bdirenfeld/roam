@@ -69,6 +69,8 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
   /** Everything ever proposed for this journey, including set-aside and rejected. */
   const [everything, setEverything] = useState<StayCandidate[]>([]);
   const [showEarlier, setShowEarlier] = useState(false);
+  /** Start over asks first: it throws away every run for the journey. */
+  const [confirmClear, setConfirmClear] = useState(false);
   /** The must-haves and the budget, open only while being set. */
   const [showTerms, setShowTerms] = useState(false);
   const [running, setRunning] = useState(false);
@@ -313,6 +315,41 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
     }
   }
 
+  /**
+   * Forget every search for this journey and run it again from nothing.
+   *
+   * "You should have a way to clear all the past searches, and then do the
+   * search from the beginning, and in theory you should get the same options
+   * if you haven't changed your search parameters" (Brennan, 11 Sept 2026).
+   *
+   * It is also the cure for the Osaka list. The search skips anything it has
+   * shown before, so five runs used up every place Google prices around
+   * Osaka and the rows that followed had no price at all. Cleared, the first
+   * five come back.
+   */
+  async function startOver() {
+    setConfirmClear(false);
+    setRunning(true);
+    try {
+      const res = await fetch("/api/stays/search", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId: trip.id }) });
+      if (!res.ok) { toast({ message: "Couldn't clear that." }); return; }
+      setBrief(null);
+      publish([]);
+      setOpenId(null);
+      setShowEarlier(false);
+      setBaseIdx(0);
+      onFocus(null);
+      tried.current.clear();
+      onChanged();
+    } catch {
+      toast({ message: "Couldn't clear that." });
+      return;
+    } finally {
+      setRunning(false);
+    }
+    await run();
+  }
+
   async function choose(c: StayCandidate) {
     setBusyId(c.id);
     try {
@@ -406,6 +443,23 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
   const briefObj = (brief?.brief ?? null) as StayBrief | null;
   const open = openId ? cands.find((c) => c.id === openId) ?? null : null;
 
+  // Moving along the list from inside the card. The pin follows, so the map
+  // and the card never disagree about which place is being looked at.
+  const openIdx = open ? shown.findIndex((x) => x.id === open.id) : -1;
+  const goTo = (i: number) => {
+    const next = shown[i];
+    if (!next) return;
+    onFocus(next);
+    setOpenId(next.id);
+  };
+  const stepper = open && openIdx >= 0 && shown.length > 1
+    ? {
+        place: { letter: open.letter ?? String(openIdx + 1), index: openIdx, total: shown.length },
+        onPrev: openIdx > 0 ? () => goTo(openIdx - 1) : undefined,
+        onNext: openIdx < shown.length - 1 ? () => goTo(openIdx + 1) : undefined,
+      }
+    : {};
+
   return (
     <>
       <div
@@ -464,6 +518,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
               onChoose={() => choose(open)}
               onSave={() => save(open)}
               onClose={() => setOpenId(null)}
+              {...stepper}
             />
           )}
 
@@ -770,6 +825,22 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                       and nobody read it as a control (Brennan, 10 Sept 2026:
                       "no one really knows it's a button"). Outlined rather
                       than solid, so it does not compete with Choose. */}
+                  {confirmClear && (
+                    <div className="mt-3 rounded-lg p-3" style={{ background: "rgba(176,84,31,0.06)" }}>
+                      <p className="text-[12.5px] leading-snug" style={{ color: INK }}>
+                        Forget every search for this journey and look again from nothing?
+                      </p>
+                      <p className="text-[12px] mt-1 leading-snug" style={{ color: CAPTION }}>
+                        Places you saved or chose stay on your map. Your must-haves and your nightly limit stay too.
+                      </p>
+                      <div className="flex items-center gap-2 mt-2.5">
+                        <button type="button" onClick={startOver} disabled={running} className="h-9 px-3.5 rounded-full text-[12.5px] font-semibold text-white disabled:opacity-60" style={{ background: SIENNA }}>
+                          Clear and start over
+                        </button>
+                        <button type="button" onClick={() => setConfirmClear(false)} className="h-9 px-2 text-[12.5px]" style={{ color: CAPTION }}>Keep it</button>
+                      </div>
+                    </div>
+                  )}
                   <div className="mt-3 flex items-center gap-3">
                     <button
                       type="button"
@@ -792,6 +863,21 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                         style={{ color: showEarlier ? INK : CAPTION }}
                       >
                         {showEarlier ? "Hide earlier" : `${earlier.length} earlier`}
+                      </button>
+                    )}
+                    {/* Every run narrows the ground: a place shown once is not
+                        shown again, so eventually nothing is left around here
+                        that anyone prices. This is the way back to the start
+                        (Brennan, 11 Sept 2026). */}
+                    {!confirmClear && (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmClear(true)}
+                        disabled={running}
+                        className="text-[12.5px] font-medium ml-auto disabled:opacity-40"
+                        style={{ color: CAPTION }}
+                      >
+                        Start over
                       </button>
                     )}
                   </div>
@@ -818,6 +904,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
           onChoose={() => choose(open)}
           onSave={() => save(open)}
           onClose={() => setOpenId(null)}
+          {...stepper}
         />
       )}
     </>
