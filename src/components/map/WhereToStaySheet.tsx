@@ -691,9 +691,19 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                       </p>
                     );
                   })()}
+                  {/* A real button. This was grey text beside other grey text
+                      and nobody read it as a control (Brennan, 10 Sept 2026:
+                      "no one really knows it's a button"). Outlined rather
+                      than solid, so it does not compete with Choose. */}
                   <div className="mt-3 flex items-center gap-3">
-                    <button type="button" onClick={run} disabled={running} className="text-[12.5px] font-medium" style={{ color: CAPTION }}>
-                      {running ? "Looking…" : "Run again"}
+                    <button
+                      type="button"
+                      onClick={run}
+                      disabled={running}
+                      className="h-10 px-4 rounded-full text-[13px] font-semibold disabled:opacity-60"
+                      style={{ color: INK, border: `1.5px solid ${INK}`, background: "transparent" }}
+                    >
+                      {running ? "Looking…" : "Search again"}
                     </button>
                     {/* Nothing Run again sets aside is ever destroyed. The old
                         way back was a toast that expired, so pressing the

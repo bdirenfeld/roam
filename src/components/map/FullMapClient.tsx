@@ -19,6 +19,7 @@ import JourneyHeader, { HEADER_GLYPH } from "@/components/ui/JourneyHeader";
 import { useGlobalSearch } from "@/components/search/GlobalSearch";
 import { useToast } from "@/components/ui/Toast";
 import { queuedInsert } from "@/lib/offline/queuedWrite";
+import { tapFilter } from "@/lib/map/tapFilter";
 
 // Purple circular pin for search result previews
 const TEMP_PIN_SVG =
@@ -319,18 +320,6 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
    * built and reverted the same morning: the pills cost no space and
    * sub-type filtering is desk work. Do not rebuild it without him asking.
    */
-  function tapFilter<T>(current: Set<T>, all: T[], key: T): Set<T> {
-    if (current.size >= all.length) return new Set([key]);
-    const next = new Set(current);
-    if (next.has(key)) {
-      if (next.size === 1) return new Set(all);
-      next.delete(key);
-    } else {
-      next.add(key);
-    }
-    return next;
-  }
-
   const ALL_FILTER_TYPES: CardType[] = ["activity", "food", "logistics"];
   const ALL_FILTER_STATUSES = ["interested", "in_itinerary"];
   const filterNarrowed =

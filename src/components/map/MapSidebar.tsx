@@ -7,7 +7,11 @@ import { getMaterialIconHTML, PIN_COLORS } from "@/lib/mapPins";
 import { createClient } from "@/lib/supabase/client";
 import { queuedDelete } from "@/lib/offline/queuedWrite";
 import LovedHeart, { LOVED_ACCENT } from "@/components/ui/LovedHeart";
+import { tapFilter } from "@/lib/map/tapFilter";
 import { readRecommendedBy, recommendedByLine } from "@/lib/recommendedBy";
+
+/** The two states a pin can be in. Saved is every pin, so it is not a filter. */
+const ALL_STATUSES = ["interested", "in_itinerary"];
 
 // ── Sub-type groups shown in the sidebar ─────────────────────
 interface SubTypeRow {
@@ -195,28 +199,26 @@ export default function MapSidebar({
 
         {/* ── Status filter pills ── */}
         <p className="text-[9.5px] tracking-[0.18em] uppercase font-semibold mb-2.5" style={{ color: "rgba(26,26,46,0.62)" }}>Status</p>
-        {/* Wraps: three pills don't fit the sidebar's width, so without this
-            the third is clipped at the edge and reads as a broken control
-            rather than a filter. */}
+        {/* Two pills now, Scheduled and Loved: both narrow, neither is the
+            whole map wearing a label. */}
         <div className="flex flex-wrap items-center gap-2 mb-1">
           {(
             [
-              // One vocabulary everywhere: a place is Saved, or it is Scheduled.
-              // This row said "Scheduled", the phone said "In Itinerary" and the
-              // save sheet said "map only" for the same two states.
-              { status: "interested",   label: "Saved",    hollow: true  },
+              // "Saved" is gone. Every pin on the map IS saved — that is what
+              // being on the map means — so the pill selected everything and
+              // filtered nothing (Brennan, 10 Sept 2026: "do we even need
+              // something for saved? ... you just want a filter to know what is
+              // on your trip or not, and hearted").
               { status: "in_itinerary", label: "Scheduled", hollow: false },
             ] as Array<{ status: string; label: string; hollow: boolean }>
           ).map(({ status, label, hollow }) => {
-            const isActive = activeStatuses.has(status);
+            // Narrowed, not toggled-off: the same tapFilter the phone overlay
+            // has always used, so the two surfaces finally behave alike.
+            const isActive = activeStatuses.size < ALL_STATUSES.length && activeStatuses.has(status);
             return (
               <button
                 key={status}
-                onClick={() => {
-                  const next = new Set(activeStatuses);
-                  if (isActive) next.delete(status); else next.add(status);
-                  setActiveStatuses(next);
-                }}
+                onClick={() => setActiveStatuses(tapFilter(activeStatuses, ALL_STATUSES, status))}
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium transition-all border"
                 style={
                   isActive
