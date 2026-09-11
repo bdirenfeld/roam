@@ -220,7 +220,13 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
    * opening the booking link on the whole journey (audit, 10 Sept 2026).
    * Bases run in order from the start date, same as the server works it out.
    */
-  const nights = multi ? (bases[baseIdx]?.nights ?? tripNights) : tripNights;
+  // The base's own nights whenever the brief has one — including a single-base
+  // journey, where it used to fall back to the trip's dates. They normally
+  // agree, so nothing showed; they diverge the moment the journey's dates are
+  // edited after a search, and then the row says "for 13 nights" beside a
+  // price that was quoted for 11. The price and the count must come from the
+  // same run (found by the state sweep, 11 Sept 2026).
+  const nights = bases[baseIdx]?.nights ?? tripNights;
   const addDays = (iso: string, n: number) => {
     const d = new Date(iso + "T00:00:00Z");
     d.setUTCDate(d.getUTCDate() + n);
