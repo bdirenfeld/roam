@@ -276,6 +276,11 @@ export async function POST(request: NextRequest) {
       .filter((o) => !skipNames.has(o.name.toLowerCase()))
       .filter((o) => !cands.some((c) => c.name.toLowerCase() === o.name.toLowerCase()))
       .filter((o) => !brief.fit.bedrooms || o.beds == null || o.beds >= brief.fit.bedrooms - 1)
+      // A listing that says how many it sleeps and says fewer than the party
+      // is not a near miss, it is the wrong house. "Gallo Cedrone, sleeps 6"
+      // sat on a Tuscany list for seven (Brennan, 11 Sept 2026). Silence is
+      // still allowed through — most listings do not say.
+      .filter((o) => o.sleeps == null || o.sleeps >= brief.party.total)
       // The other inventory is merged in so that anything already on the list
       // can be priced from it — but it must not take the list over. A hotel
       // has thousands of reviews where a villa has thirty, so on score alone
@@ -447,7 +452,7 @@ export async function POST(request: NextRequest) {
   const { error: briefErr } = await supabase.from("stay_briefs").upsert(briefRow, { onConflict: "trip_id" });
   if (briefErr) return NextResponse.json({ error: briefErr.message }, { status: 500 });
 
-  const { data: all } = await supabase.from("stay_candidates").select("*").eq("trip_id", trip.id).not("status", "in", "(rejected,seen)").order("letter");
+  const { data: all } = await supabase.from("stay_candidates").select("*").eq("trip_id", trip.id).order("letter");
   const newIds = ((written ?? []) as { id: string; status: string; feel: string | null }[]).filter((r) => r.status === "candidate" && !r.feel).map((r) => r.id);
   return NextResponse.json({ brief: briefRow, candidates: all ?? written, undo: { tripId: trip.id, seenIds: (nowSeen ?? []).map((r) => r.id), newIds } });
 }

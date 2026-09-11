@@ -75,25 +75,42 @@ export function googleKey(): string | null {
 export async function driveMinutes(key: string, origins: { lat: number; lng: number }[], dests: { lat: number; lng: number }[]): Promise<(number | null)[][]> {
   const out: (number | null)[][] = origins.map(() => dests.map(() => null));
   if (!origins.length || !dests.length) return out;
-  const perChunk = Math.max(1, Math.floor(100 / dests.length));
-  for (let i = 0; i < origins.length; i += perChunk) {
-    const chunk = origins.slice(i, i + perChunk);
-    const url = new URL("https://maps.googleapis.com/maps/api/distancematrix/json");
-    url.searchParams.set("origins", chunk.map((o) => `${o.lat},${o.lng}`).join("|"));
-    url.searchParams.set("destinations", dests.map((d) => `${d.lat},${d.lng}`).join("|"));
-    url.searchParams.set("mode", "driving");
-    url.searchParams.set("key", key);
-    try {
-      const res = await fetch(url.toString(), { next: { revalidate: 0 } });
-      const json = await res.json() as { status: string; rows?: { elements: { status: string; duration?: { value: number } }[] }[] };
-      if (json.status !== "OK" || !json.rows) continue;
-      json.rows.forEach((row, r) => {
-        row.elements.forEach((el, c) => {
-          out[i + r][c] = el.status === "OK" && el.duration ? Math.round(el.duration.value / 60) : null;
+
+  // Google caps DESTINATIONS at 25 per request as well as 100 elements. Only
+  // the element budget was respected, so a journey with more than 25 anchors
+  // got MAX_DIMENSIONS_EXCEEDED on every request, the `continue` left the
+  // matrix all-nulls, and nothing downstream noticed: every drive score fell
+  // to zero, no row showed a drive line, no "Outside the area" flag fired and
+  // the ranking quietly collapsed to review score alone (audit, 11 Sept 2026).
+  const MAX_DESTS = 25;
+  const MAX_ELEMENTS = 100;
+  for (let d0 = 0; d0 < dests.length; d0 += MAX_DESTS) {
+    const dChunk = dests.slice(d0, d0 + MAX_DESTS);
+    const perChunk = Math.max(1, Math.floor(MAX_ELEMENTS / dChunk.length));
+    for (let i = 0; i < origins.length; i += perChunk) {
+      const chunk = origins.slice(i, i + perChunk);
+      const url = new URL("https://maps.googleapis.com/maps/api/distancematrix/json");
+      url.searchParams.set("origins", chunk.map((o) => `${o.lat},${o.lng}`).join("|"));
+      url.searchParams.set("destinations", dChunk.map((d) => `${d.lat},${d.lng}`).join("|"));
+      url.searchParams.set("mode", "driving");
+      url.searchParams.set("key", key);
+      try {
+        const res = await fetch(url.toString(), { next: { revalidate: 0 } });
+        const json = await res.json() as { status: string; error_message?: string; rows?: { elements: { status: string; duration?: { value: number } }[] }[] };
+        if (json.status !== "OK" || !json.rows) {
+          // Loud, because the failure mode is a plausible-looking list with
+          // the whole geography half switched off.
+          console.error("[stays] distance matrix:", json.status, json.error_message ?? "");
+          continue;
+        }
+        json.rows.forEach((row, r) => {
+          row.elements.forEach((el, c) => {
+            out[i + r][d0 + c] = el.status === "OK" && el.duration ? Math.round(el.duration.value / 60) : null;
+          });
         });
-      });
-    } catch (err) {
-      console.error("[stays] distance matrix failed:", (err as Error).message);
+      } catch (err) {
+        console.error("[stays] distance matrix failed:", (err as Error).message);
+      }
     }
   }
   return out;

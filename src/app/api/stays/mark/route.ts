@@ -3,12 +3,34 @@
 //            day, like any pin), and stays on the list as "saved".
 //   reject — "Not for us", with the reason the next search learns from.
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import { ensurePlace } from "../_shared";
 import type { StayCandidate, StayRejectReason } from "@/types/database";
 
 const REASONS = new Set<StayRejectReason>(["too_far", "wrong_kind", "too_dear", "doesnt_fit"]);
+
+/**
+ * The first letter not in use on this base, so a row coming back onto the list
+ * never collides with one already there. Both ways back — restore from Earlier
+ * and un-reject — go through here.
+ */
+async function freeLetter(
+  supabase: SupabaseClient,
+  tripId: string,
+  base: number,
+  current: string | null,
+): Promise<string | null> {
+  const { data: live } = await supabase
+    .from("stay_candidates")
+    .select("letter")
+    .eq("trip_id", tripId)
+    .eq("base", base)
+    .not("status", "in", "(rejected,seen)");
+  const taken = new Set(((live ?? []) as { letter: string | null }[]).map((r) => r.letter).filter(Boolean));
+  return "ABCDEFGHIJKL".split("").find((l) => !taken.has(l)) ?? current;
+}
 
 export async function POST(request: NextRequest) {
   const gate = await requireUser();
@@ -41,23 +63,21 @@ export async function POST(request: NextRequest) {
     // It comes back with a FREE letter. Keeping its old one put two rows
     // labelled A on the Japan list, and the letters are what tie a row to its
     // pin (audit, 10 Sept 2026).
-    const { data: live } = await supabase
-      .from("stay_candidates")
-      .select("letter")
-      .eq("trip_id", c.trip_id)
-      .eq("base", c.base ?? 0)
-      .not("status", "in", "(rejected,seen)");
-    const taken = new Set((live ?? []).map((r) => r.letter).filter(Boolean));
-    const letter = "ABCDEFGHIJKL".split("").find((l) => !taken.has(l)) ?? c.letter;
+    const letter = await freeLetter(supabase, c.trip_id, c.base ?? 0, c.letter);
     const { error } = await supabase.from("stay_candidates").update({ status: "candidate", letter }).eq("id", c.id).eq("status", "seen");
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true, status: "candidate", letter });
   }
 
   if (body.action === "unreject") {
-    const { error } = await supabase.from("stay_candidates").update({ status: c.place_id ? "saved" : "candidate", reject_reason: null }).eq("id", c.id);
+    // Same free-letter rule as restore. Coming back with the letter it had
+    // meant two rows labelled the same once a later run had reassigned it —
+    // and the letters are what tie a row to its pin (audit, 11 Sept 2026).
+    const status = c.place_id ? "saved" : "candidate";
+    const letter = await freeLetter(supabase, c.trip_id, c.base ?? 0, c.letter);
+    const { error } = await supabase.from("stay_candidates").update({ status, reject_reason: null, letter }).eq("id", c.id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, status, letter });
   }
 
   if (body.action === "reject") {

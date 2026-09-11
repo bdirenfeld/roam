@@ -100,11 +100,23 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
    * merged over the history, and anything the search no longer lists is marked
    * seen rather than dropped.
    */
-  const mergeIn = useCallback((rows: StayCandidate[]) => {
+  const mergeIn = useCallback((rows: StayCandidate[], complete: boolean) => {
+    // A complete answer replaces the list outright. Guessing was the bug: a
+    // run deletes and re-inserts the saved and hearted rows with NEW ids, so
+    // marking the local copies "seen" left ghosts in Earlier whose Bring back
+    // hit a row that no longer existed (audit, 11 Sept 2026). The search now
+    // returns every row, seen and rejected included, so there is nothing left
+    // to infer. The undo path still answers with live rows only, and merges.
+    if (complete) {
+      setEverything(rows);
+      setCands(rows.filter((c) => c.status !== "rejected" && c.status !== "seen"));
+      return;
+    }
     setEverything((prev) => {
       const fresh = new Map(rows.map((r) => [r.id, r]));
+      const live = new Set(rows.map((r) => r.id));
       const merged = prev.map((old) => fresh.get(old.id)
-        ?? (old.status === "rejected" ? old : { ...old, status: "seen" as const }));
+        ?? (old.status === "rejected" || !live.has(old.id) ? old : { ...old, status: "seen" as const }));
       const known = new Set(merged.map((r) => r.id));
       const all = [...merged, ...rows.filter((r) => !known.has(r.id))];
       setCands(all.filter((c) => c.status !== "rejected" && c.status !== "seen"));
@@ -274,9 +286,9 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
       const res = await fetch("/api/stays/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId: trip.id, wants: wants.trim() || undefined, budget: budget.trim() || undefined, base: baseIdx }) });
       const json = await res.json();
       if (!res.ok) { setError(json.error ?? "That didn't work."); return; }
-      const hadRows = cands.length > 0;
+      const hadRows = shown.length > 0;
       setBrief(json.brief as StayBriefRow);
-      mergeIn(json.candidates as StayCandidate[]);
+      mergeIn(json.candidates as StayCandidate[], true);
       if (hadRows && json.undo) {
         toast({
           message: "Five new places",
@@ -284,7 +296,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
             const r = await fetch("/api/stays/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ undo: json.undo }) });
             const back = await r.json();
             if (!r.ok) { toast({ message: "Couldn't undo that." }); return; }
-            mergeIn(back.candidates as StayCandidate[]);
+            mergeIn(back.candidates as StayCandidate[], false);
           },
         });
       }
