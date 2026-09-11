@@ -34,6 +34,8 @@ interface Props {
   /** The nights and the party, for the link out — the site opens filled in. */
   dates: StayDates;
   busy: boolean;
+  /** Desktop only: leave Where to stay entirely, not just this card. */
+  onCloseAll?: () => void;
   onChoose: () => void;
   onSave: () => void;
   onClose: () => void;
@@ -65,7 +67,7 @@ async function loadPhotos(googlePlaceId: string): Promise<{ photos: string[]; we
   return { photos: urls, website: (json.result?.website as string | undefined) ?? null };
 }
 
-export default function StayCardSheet({ inPanel = false, backLabel = "Back", candidate: c, brief, startDate, endDate, nights, priceYear = null, othersPriced = false, dates, busy, onChoose, onSave, onClose }: Props) {
+export default function StayCardSheet({ inPanel = false, backLabel = "Back", candidate: c, brief, startDate, endDate, nights, priceYear = null, othersPriced = false, dates, busy, onChoose, onSave, onClose, onCloseAll }: Props) {
   // The search already resolved the first few photos; only an older row still fetches.
   const [photos, setPhotos] = useState<string[] | null>(c.photos?.length ? c.photos : null);
   const [website, setWebsite] = useState<string | null>(c.url);
@@ -148,9 +150,20 @@ export default function StayCardSheet({ inPanel = false, backLabel = "Back", can
             </div>
           )}
           {inPanel ? (
-            <button type="button" onClick={onClose} aria-label={backLabel} className="absolute top-3 left-3 h-8 px-3 rounded-full bg-white/90 flex items-center gap-1.5 text-[12.5px] font-medium text-gray-800 shadow">
-              <span aria-hidden="true">‹</span>{backLabel}
-            </button>
+            <>
+              <button type="button" onClick={onClose} aria-label={backLabel} className="absolute top-3 left-3 h-8 px-3 rounded-full bg-white/90 flex items-center gap-1.5 text-[12.5px] font-medium text-gray-800 shadow">
+                <span aria-hidden="true">‹</span>{backLabel}
+              </button>
+              {/* Back goes to the list; this leaves altogether. Without it the
+                  only way out of the card was back, then hunt for the ✕ on the
+                  list header — "there's no way to close the tab from this
+                  view" (Brennan, 11 Sept 2026). */}
+              {onCloseAll && (
+                <button type="button" onClick={onCloseAll} aria-label="Close Where to stay" className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center text-gray-600 shadow">
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M2 2l8 8M10 2l-8 8" /></svg>
+                </button>
+              )}
+            </>
           ) : (
             <button type="button" onClick={onClose} aria-label="Close" className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center text-gray-600 shadow">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M2 2l8 8M10 2l-8 8" /></svg>

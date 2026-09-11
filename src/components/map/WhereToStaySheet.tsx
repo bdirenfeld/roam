@@ -452,6 +452,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
               nights={nights}
               priceYear={brief?.price_year ?? null}
               othersPriced={othersPriced}
+              onCloseAll={onClose}
               dates={stayDates}
               busy={busyId === open.id}
               onChoose={() => choose(open)}
@@ -548,6 +549,13 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                   // so a half sheet showed a single hotel (measured 10 Sept
                   // 2026). What survives: the price, and either the warning or
                   // how near the closest thing is.
+                  // What the eye needs on a row: the price, then how well it
+                  // is thought of. "4.7 from 1,415" against "4.5 from 8" is a
+                  // real difference; "Outside the area" was on nearly every
+                  // Tuscany row and separated nothing (Brennan, 11 Sept 2026).
+                  const rated = c.score != null
+                    ? `${c.score} from ${(c.reviews ?? 0).toLocaleString("en-CA")}`
+                    : null;
                   const nearest = c.drive?.line ? String(c.drive.line).split(" · ")[0] : null;
                   const warning = c.flags?.length ? c.flags[0] : null;
                   return (
@@ -574,9 +582,8 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                           {c.total != null
                             ? <><span style={{ color: INK, fontWeight: 600 }}>{cad(Number(c.total))}</span>{` for ${nights} ${nights === 1 ? "night" : "nights"}`}</>
                             : noPriceReason({ site: c.site, url: c.url, source: c.source, othersPriced, party: travellers })}
-                          {warning
-                            ? <> · <span style={{ color: SIENNA, fontWeight: 600 }}>{warning}</span></>
-                            : nearest ? ` · ${nearest}` : null}
+                          {rated ? ` · ${rated}` : nearest ? ` · ${nearest}` : null}
+                          {warning && <> · <span style={{ color: SIENNA, fontWeight: 600 }}>{warning}</span></>}
                         </p>
 
                         {askingId === c.id ? (

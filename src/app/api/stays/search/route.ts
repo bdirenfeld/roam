@@ -18,6 +18,7 @@ import { parseAsk, askNote, askBonus } from "@/lib/stays/wants";
 import { parseBudget } from "@/lib/stays/budgetInput";
 import { inventoriesFor } from "@/lib/stays/inventory";
 import { pickOffers } from "@/lib/stays/pickOffers";
+import { mapFill, exhaustedNote } from "@/lib/stays/mapFill";
 
 // Five rows, not ten: the stays already saved on the journey come first and
 // Google fills what is left ("way too many options" — Brennan, 9 Sept 2026).
@@ -297,9 +298,19 @@ export async function POST(request: NextRequest) {
     const ids = new Set(pool.map((h) => h.google_place_id));
     pool = pool.concat(more.filter((h) => !ids.has(h.google_place_id)));
   }
+  // The map fills an EMPTY list, never a thin one. A map row can never carry
+  // a price, and padding with them is how the Osaka list ended up with four
+  // of five rows unpriced after three runs (Brennan, 11 Sept 2026).
+  const fill = mapFill({
+    have: cands.length,
+    priced: cands.filter((c) => c.total != null).length,
+    available: pool.length,
+    want: MAX_TOTAL,
+  });
+  const exhausted = fill.exhausted;
   pool
     .sort((a, b) => (b.rating ?? 0) * Math.log((b.reviews ?? 1) + 1) - (a.rating ?? 0) * Math.log((a.reviews ?? 1) + 1))
-    .slice(0, Math.max(0, MAX_TOTAL - cands.length))
+    .slice(0, fill.take)
     .forEach((h) => cands.push({
       name: h.name, address: h.address, lat: h.lat, lng: h.lng, google_place_id: h.google_place_id, place_id: null,
       site: "google", url: null, score: h.rating, score_scale: 5, reviews: h.reviews, source: "google",
@@ -352,7 +363,11 @@ export async function POST(request: NextRequest) {
     if (airportIdx >= 0) parts.push({ label: "airport", minutes: mins[airportIdx] });
     if (farthest) parts.push({ label: farthest.a.label, minutes: farthest.m });
     const flags: string[] = [];
-    if (eveningIdx >= 0 && mins[eveningIdx] != null && (mins[eveningIdx] as number) > brief.radiusMin) flags.push("Outside the area");
+    // "Outside the area" is gone. It was measured against a 15-minute radius
+    // nobody set, it fired on nearly every Tuscany row so it separated
+    // nothing, and it says vaguely what "Adds about 6.5 hours of driving over
+    // the trip" says exactly — the number that ruled out Villa Bottino in his
+    // own villa search (Brennan, 11 Sept 2026). The concrete one stays.
     const over = budgetFlag(nightlyOf(c.nightly ?? null, c.total ?? null, baseNights), ctx.nightlyRate);
     if (over) flags.push(over);
     // What he asked for: a nice-to-have that turned up is worth saying, and
@@ -433,7 +448,7 @@ export async function POST(request: NextRequest) {
     user_id: user.id,
     ran_at: new Date().toISOString(),
     brief: { ...JSON.parse(JSON.stringify(brief)), wants: asked || null, areaByBase, lastBase: baseIndex },
-    area_text: thisArea,
+    area_text: [thisArea, exhausted ? exhaustedNote(centre.label, cands.filter((c) => c.total != null).length, seenRows.length + rejected.length) : null].filter(Boolean).join(" ") || null,
     price_year: priced.shifted ? Number(priced.start.slice(0, 4)) : null,
     split_text: splitText(brief, centreMinutes),
   };

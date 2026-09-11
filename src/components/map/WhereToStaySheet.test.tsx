@@ -141,6 +141,26 @@ describe("what a row says", () => {
     expect(within(row as HTMLElement).queryByText(/13 nights/)).toBeNull();
   });
 
+  // "Outside the area isn't helpful ... it'd be better to have avg review and
+  // total reviews." It sat on nearly every Tuscany row and separated nothing.
+  it("shows how well a place is rated, and never says Outside the area", async () => {
+    mount();
+    const el = (await screen.findByText("Hotel Ryumeikan Tokyo")).closest("[data-cand]") as HTMLElement;
+    expect(within(el).getByText(/4\.7 from 1,415/)).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/Outside the area/);
+  });
+
+  it("still shows a warning that costs money or hours", async () => {
+    CANDIDATES = [
+      row({ id: "t1", name: "Dear Hotel", base: 0, letter: "A", total: 9999,
+            flags: ["Over your Estimate ($480 a night)"] } as Partial<StayCandidate> & { id: string; name: string }),
+    ];
+    mount();
+    const el = (await screen.findByText("Dear Hotel")).closest("[data-cand]") as HTMLElement;
+    expect(within(el).getByText(/Over your Estimate/)).toBeInTheDocument();
+    expect(within(el).getByText(/4\.7 from 1,415/)).toBeInTheDocument();
+  });
+
   it("never prints undefined or a zero count anywhere on the sheet", async () => {
     mount();
     await screen.findByText("Hotel Ryumeikan Tokyo");
