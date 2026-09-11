@@ -216,6 +216,10 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
     adults: (trip.party_ages ?? []).filter((a) => a >= 13).length || trip.party_size || 2,
     childrenAges: (trip.party_ages ?? []).filter((a) => a < 13),
   };
+  // If anything in this run priced, the dates are quotable — so a row with
+  // no price is about that property, not the calendar.
+  const othersPriced = shown.some((c) => c.total != null);
+
   // Five pins, never ten: the map shows the base the sheet is on.
   useEffect(() => { onCandidates(shown); }, [shown, onCandidates]);
 
@@ -417,6 +421,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
               endDate={trip.end_date}
               nights={nights}
               priceYear={brief?.price_year ?? null}
+              othersPriced={othersPriced}
               dates={stayDates}
               busy={busyId === open.id}
               onChoose={() => choose(open)}
@@ -536,7 +541,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                         {c.total != null ? (
                           <p className="text-[12.5px] mt-[3px]" style={{ color: INK }}>{cad(Number(c.total))} for {nights} nights</p>
                         ) : (
-                          <p className="text-[12.5px] mt-[3px]" style={{ color: CAPTION }}>{noPriceReason({ site: c.site, url: c.url, source: c.source })}</p>
+                          <p className="text-[12.5px] mt-[3px]" style={{ color: CAPTION }}>{noPriceReason({ site: c.site, url: c.url, source: c.source, othersPriced, party: travellers })}</p>
                         )}
 
                         {askingId === c.id ? (
@@ -737,6 +742,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
           endDate={trip.end_date}
           nights={nights}
           priceYear={brief?.price_year ?? null}
+          othersPriced={othersPriced}
           dates={stayDates}
           busy={busyId === open.id}
           onChoose={() => choose(open)}

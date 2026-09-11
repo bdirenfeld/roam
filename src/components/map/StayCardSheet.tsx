@@ -29,6 +29,8 @@ interface Props {
   nights: number;
   /** The year the prices are for, when it is not the journey's own. */
   priceYear?: number | null;
+  /** Did other places in this run come back priced? Then the dates are fine. */
+  othersPriced?: boolean;
   /** The nights and the party, for the link out — the site opens filled in. */
   dates: StayDates;
   busy: boolean;
@@ -63,7 +65,7 @@ async function loadPhotos(googlePlaceId: string): Promise<{ photos: string[]; we
   return { photos: urls, website: (json.result?.website as string | undefined) ?? null };
 }
 
-export default function StayCardSheet({ inPanel = false, backLabel = "Back", candidate: c, brief, startDate, endDate, nights, priceYear = null, dates, busy, onChoose, onSave, onClose }: Props) {
+export default function StayCardSheet({ inPanel = false, backLabel = "Back", candidate: c, brief, startDate, endDate, nights, priceYear = null, othersPriced = false, dates, busy, onChoose, onSave, onClose }: Props) {
   // The search already resolved the first few photos; only an older row still fetches.
   const [photos, setPhotos] = useState<string[] | null>(c.photos?.length ? c.photos : null);
   const [website, setWebsite] = useState<string | null>(c.url);
@@ -164,6 +166,20 @@ export default function StayCardSheet({ inPanel = false, backLabel = "Back", can
           {c.flags?.length > 0 && <p className="text-[12px] font-medium mt-2" style={{ color: SIENNA }}>{c.flags.join(" · ")}</p>}
 
           <div className="mt-5 space-y-4">
+            {/* A hotel publishes room types, not bedrooms, so this row used to
+                vanish entirely and the card looked like it was hiding
+                something. But the search asks Google for THIS party — two
+                adults and three children — and a property that cannot take
+                them comes back with no price at all. So a priced row has
+                already answered the question (Brennan, 10 Sept 2026). */}
+            {!fitLine && c.total != null && partyN && (
+              <Row icon="🛏" k={`Fits your ${partyN}`}>
+                Priced for all {partyN}
+                <span className="block font-normal" style={{ color: CAPTION }}>
+                  Hotels list room types rather than bedrooms.
+                </span>
+              </Row>
+            )}
             {fitLine && (
               <Row icon="🛏" k={partyN ? `Fits your ${partyN}` : "Fit"}>
                 {fitLine}
@@ -188,7 +204,7 @@ export default function StayCardSheet({ inPanel = false, backLabel = "Back", can
                 // available you need to say why" (10 Sept 2026). The link at
                 // the bottom of the card is where it can be found.
                 <span className="font-normal" style={{ color: CAPTION }}>
-                  {noPriceReason({ site: c.site, url: website, source: c.source })}
+                  {noPriceReason({ site: c.site, url: website, source: c.source, othersPriced, party: partyN ?? null })}
                 </span>
               )}
             </Row>

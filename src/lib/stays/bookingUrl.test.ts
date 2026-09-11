@@ -105,4 +105,21 @@ describe("noPriceReason", () => {
   it("stays general when the row came off the map or his own saves", () => {
     expect(noPriceReason({ site: "google", url: null, source: "saved" })).toBe("No rate found for these nights.");
   });
+
+  // Google prices for the party asked about and drops the price when a place
+  // cannot take them — Holiday Inn Express priced for two and not for five.
+  // So if the run priced other places, the dates are fine and this one is not.
+  it("separates dates nobody quotes from a place that cannot take the party", () => {
+    const listed = { site: "booking", url: "https://www.booking.com/1", source: "google" };
+    expect(noPriceReason({ ...listed, othersPriced: true, party: 5 }))
+      .toBe("No room for your 5 on these nights.");
+    // Nothing in the run priced: the dates are the problem, not the property.
+    expect(noPriceReason({ ...listed, othersPriced: false, party: 5 }))
+      .toBe("No rate for these nights on Booking.com.");
+  });
+
+  it("never blames the party for a row that was never on a booking list", () => {
+    expect(noPriceReason({ site: "google", url: null, source: "saved", othersPriced: true, party: 5 }))
+      .toBe("No rate found for these nights.");
+  });
 });

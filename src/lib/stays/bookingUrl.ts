@@ -122,9 +122,26 @@ export function shiftToYear(start: string, end: string, year: number | null): { 
  * shows, the search has already asked for the place by name and come back
  * empty, so the true sentence is that no rate was found for these nights.
  */
-export function noPriceReason(opts: { site: string | null; url: string | null; source: string | null }): string {
+export function noPriceReason(opts: {
+  site: string | null;
+  url: string | null;
+  source: string | null;
+  /** Did anything else in this run come back priced? Then the dates are fine. */
+  othersPriced?: boolean;
+  /** How many people we asked for. */
+  party?: number | null;
+}): string {
   const listed = opts.url && opts.site && opts.site !== "google";
-  return listed ? `No rate for these nights on ${siteLabel(opts.site)}.` : "No rate found for these nights.";
+  // Google prices for the party we ask about — two adults and three children —
+  // and a property that cannot take them comes back with no price at all
+  // (probed 10 Sept 2026: Holiday Inn Express priced for two and not for five).
+  // So when the same run priced other places, the dates are quotable and this
+  // one is the problem, not the calendar.
+  if (listed && opts.othersPriced && opts.party) {
+    return `No room for your ${opts.party} on these nights.`;
+  }
+  if (listed) return `No rate for these nights on ${siteLabel(opts.site)}.`;
+  return "No rate found for these nights.";
 }
 
 function siteLabel(site: string | null): string {
