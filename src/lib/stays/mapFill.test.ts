@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mapFill, exhaustedNote, repeatNote } from "./mapFill";
+import { mapFill, exhaustedNote, repeatNote, nothingNewNote } from "./mapFill";
 
 /**
  * The Osaka case, 11 Sept 2026. Three searches in, the priced hotels were
@@ -69,5 +69,21 @@ describe("repeatNote", () => {
       .toBe("2 of these are places you have seen before; nothing else around Osaka is quoting a price.");
     expect(repeatNote("Lucca", 1, 4))
       .toBe("One of these is a place you have seen before; nothing else around Lucca is quoting a price.");
+  });
+});
+
+describe("nothingNewNote", () => {
+  it("says what happened, why, and where the ones he has are", () => {
+    expect(nothingNewNote("New York", 12))
+      .toBe("The last search found nothing new around New York. You have seen every place anyone is quoting for these nights. The 12 you have already seen are below.");
+  });
+
+  it("reads properly for one", () => {
+    expect(nothingNewNote("Lucca", 1)).toMatch(/The 1 you have already seen is below\./);
+  });
+
+  it("leaves the pointer out when there is nothing to point at", () => {
+    expect(nothingNewNote("Osaka", 0))
+      .toBe("The last search found nothing new around Osaka. You have seen every place anyone is quoting for these nights.");
   });
 });

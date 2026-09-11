@@ -29,6 +29,7 @@ import { noPriceReason, shiftToYear, type StayDates } from "@/lib/stays/bookingU
 import { parseAsk, askSummary, suggestions } from "@/lib/stays/wants";
 import { parseBudget, budgetHint, budgetFieldValue } from "@/lib/stays/budgetInput";
 import { readiness } from "@/lib/stays/readiness";
+import { nothingNewNote } from "@/lib/stays/mapFill";
 import type { StayBrief } from "@/lib/stays/brief";
 import type { StayCandidate, StayBriefRow, StayRejectReason, Trip } from "@/types/database";
 import StayCardSheet from "./StayCardSheet";
@@ -72,6 +73,8 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
   const [showEarlier, setShowEarlier] = useState(false);
   /** Start over asks first: it throws away every run for the journey. */
   const [confirmClear, setConfirmClear] = useState(false);
+  /** Search again asks first once there is nothing left to find. */
+  const [confirmSpent, setConfirmSpent] = useState(false);
   /** The must-haves and the budget, open only while being set. */
   const [showTerms, setShowTerms] = useState(false);
   const [running, setRunning] = useState(false);
@@ -203,7 +206,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
     if (typeof w === "string") setWants(w);
   }, [brief]);
 
-  const briefObjForAsk = (brief?.brief ?? null) as (StayBrief & { wants?: string | null; areaByBase?: Record<string, string | null> }) | null;
+  const briefObjForAsk = (brief?.brief ?? null) as (StayBrief & { wants?: string | null; areaByBase?: Record<string, string | null>; spentByBase?: Record<string, boolean> }) | null;
   const bases = briefObjForAsk?.bases ?? [];
   const multi = bases.length > 1;
   // Only this base's five, and only this base's line of copy.
@@ -276,6 +279,8 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
     .filter((c) => (multi ? (c.base ?? 0) === baseIdx : true))
     .filter((c) => c.status === "seen" || c.status === "rejected");
   const said = askSummary(parseAsk(wants));
+  /** The last run here found nothing he had not already been shown. */
+  const spent = !!briefObjForAsk?.spentByBase?.[String(baseIdx)];
 
   // What the collapsed line says. Everything that has been set, in plain
   // words, so nothing is hidden — it just stops holding the floor.
@@ -579,7 +584,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                           type="button"
                           role="tab"
                           aria-selected={i === baseIdx}
-                          onClick={() => { setBaseIdx(i); setOpenId(null); onFocus(null); }}
+                          onClick={() => { setBaseIdx(i); setOpenId(null); setConfirmSpent(false); onFocus(null); }}
                           className="flex-1 py-[7px] px-1.5 rounded-full text-center leading-tight"
                           style={i === baseIdx
                             ? { background: "#fff", color: INK, boxShadow: "0 1px 3px rgba(26,26,46,0.16)" }
@@ -843,6 +848,38 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                       and nobody read it as a control (Brennan, 10 Sept 2026:
                       "no one really knows it's a button"). Outlined rather
                       than solid, so it does not compete with Choose. */}
+                  {/* Nothing left to find. Say so, say why, and point at the
+                      ones he already has — rather than spending a search to
+                      hand him the same five back (Brennan, 11 Sept 2026). */}
+                  {confirmSpent && !confirmClear && (
+                    <div className="mt-3 rounded-lg p-3" style={{ background: "rgba(26,26,46,0.045)" }}>
+                      <p className="text-[12.5px] leading-snug" style={{ color: INK }}>
+                        {nothingNewNote(bases[baseIdx]?.label ?? "here", earlier.length)}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2 mt-2.5">
+                        {earlier.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => { setShowEarlier(true); setConfirmSpent(false); }}
+                            className="h-9 px-3.5 rounded-full text-[12.5px] font-semibold text-white"
+                            style={{ background: INK }}
+                          >
+                            Show those {earlier.length}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => { setConfirmSpent(false); run(); }}
+                          disabled={running}
+                          className="h-9 px-3.5 rounded-full text-[12.5px] font-semibold disabled:opacity-60"
+                          style={{ color: INK, border: "1px solid rgba(26,26,46,0.25)" }}
+                        >
+                          Search anyway
+                        </button>
+                        <button type="button" onClick={() => setConfirmSpent(false)} className="h-9 px-2 text-[12.5px]" style={{ color: CAPTION }}>Not now</button>
+                      </div>
+                    </div>
+                  )}
                   {confirmClear && (
                     <div className="mt-3 rounded-lg p-3" style={{ background: "rgba(176,84,31,0.06)" }}>
                       <p className="text-[12.5px] leading-snug" style={{ color: INK }}>
@@ -872,7 +909,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                   <div className="mt-3 flex items-center gap-3">
                     <button
                       type="button"
-                      onClick={run}
+                      onClick={() => { if (spent && !confirmSpent) { setConfirmSpent(true); return; } run(); }}
                       disabled={running}
                       className="h-10 px-4 rounded-full text-[13px] font-semibold disabled:opacity-60"
                       style={{ color: INK, border: `1.5px solid ${INK}`, background: "transparent" }}

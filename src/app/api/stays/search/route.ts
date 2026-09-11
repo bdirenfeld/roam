@@ -563,13 +563,16 @@ export async function POST(request: NextRequest) {
     : [opener, line]
   ).concat(priceWindowNote(priced, baseStart)).filter(Boolean).join(" ") || null;
   const { data: prevBrief } = await supabase.from("stay_briefs").select("brief").eq("trip_id", trip.id).maybeSingle();
-  const prevJson = (prevBrief?.brief ?? {}) as { areaByBase?: Record<string, string | null> };
+  const prevJson = (prevBrief?.brief ?? {}) as { areaByBase?: Record<string, string | null>; spentByBase?: Record<string, boolean> };
   const areaByBase = { ...(prevJson.areaByBase ?? {}), [String(baseIndex)]: thisArea };
+  // Did this run turn up anything he has not been shown? The sheet reads it to
+  // warn BEFORE the next search rather than apologise after it.
+  const spentByBase = { ...(prevJson.spentByBase ?? {}), [String(baseIndex)]: freshOffers === 0 && repeated > 0 };
   const briefRow = {
     trip_id: trip.id,
     user_id: user.id,
     ran_at: new Date().toISOString(),
-    brief: { ...JSON.parse(JSON.stringify(brief)), wants: asked || null, areaByBase, lastBase: baseIndex },
+    brief: { ...JSON.parse(JSON.stringify(brief)), wants: asked || null, areaByBase, spentByBase, lastBase: baseIndex },
     area_text: [
       thisArea,
       repeatNote(centre.label, repeated, freshOffers),

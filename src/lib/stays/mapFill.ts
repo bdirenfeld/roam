@@ -51,6 +51,27 @@ export function repeatNote(place: string, repeated: number, fresh: number): stri
   return `${repeated === 1 ? "One of these is a place" : `${repeated} of these are places`} you have seen before; nothing else around ${place} is quoting a price.`;
 }
 
+/**
+ * What to say BEFORE spending another search, when the last one found nothing
+ * new. Null while there is still ground to cover.
+ *
+ * Brennan, 11 Sept 2026: "should it get to a point where you click it and you
+ * say there are no more we would recommend and why? Or say that as a warning
+ * before continuing, and to pick from the previous list."
+ *
+ * Right. The note after the run told him the list was repeats, which is a
+ * click and an API call too late. The search only knows about the places
+ * anyone quotes for these nights, and there are eighteen or so of them around
+ * any one town: once they have all been shown, running again cannot do
+ * anything except show them again.
+ */
+export function nothingNewNote(place: string, earlier: number): string {
+  const seen = earlier > 0
+    ? ` The ${earlier} you have already seen ${earlier === 1 ? "is" : "are"} below.`
+    : "";
+  return `The last search found nothing new around ${place}. You have seen every place anyone is quoting for these nights.${seen}`;
+}
+
 /** What to tell him when the area is used up rather than broken. */
 export function exhaustedNote(place: string, priced: number, earlier: number): string {
   const seen = earlier > 0 ? ` The ${earlier} you have already seen are under “${earlier} earlier”.` : "";

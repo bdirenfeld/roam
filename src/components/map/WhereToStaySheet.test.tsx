@@ -207,3 +207,77 @@ describe("the controls", () => {
     await waitFor(() => expect(screen.queryByLabelText("What matters here")).toBeNull());
   });
 });
+
+/**
+ * "Should it get to a point where you click it and you say there are no more
+ * we would recommend and why? Or say that as a warning before continuing, and
+ * to pick from the previous list." (Brennan, 11 Sept 2026)
+ *
+ * These check the SCREEN, not the sentence: the click must not spend a
+ * search, and the way back to what he already has must be on it.
+ */
+describe("when there is nothing left to find", () => {
+  function spend() {
+    CANDIDATES = [
+      ...TOKYO_ROWS,
+      row({ id: "t9", name: "Sakura Cross Kayabacho", base: 0, letter: "C", status: "seen" }),
+      row({ id: "t8", name: "Under Railway Hotel", base: 0, letter: "D", status: "seen" }),
+      ...OSAKA_ROWS,
+    ];
+    ((BRIEF_ROW as Record<string, unknown>).brief as Record<string, unknown>).spentByBase = { "0": true };
+  }
+
+  it("warns instead of searching, and points at the ones he has seen", async () => {
+    spend();
+    mount();
+    await waitFor(() => expect(screen.getByRole("dialog", { name: "Where to stay" })).toBeInTheDocument());
+    const spy = global.fetch as unknown as { mock: { calls: unknown[] } };
+    const before = spy.mock.calls.length;
+
+    await userEvent.click(screen.getByRole("button", { name: "Search again" }));
+
+    expect(screen.getByText(/found nothing new around Tokyo/)).toBeInTheDocument();
+    expect(screen.getByText(/every place anyone is quoting/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Show those 2/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Search anyway" })).toBeInTheDocument();
+    // The click cost him nothing.
+    expect(spy.mock.calls.length).toBe(before);
+  });
+
+  it("shows the earlier ones without searching", async () => {
+    spend();
+    mount();
+    await waitFor(() => expect(screen.getByRole("dialog", { name: "Where to stay" })).toBeInTheDocument());
+    await userEvent.click(screen.getByRole("button", { name: "Search again" }));
+    const spy = global.fetch as unknown as { mock: { calls: unknown[] } };
+    const before = spy.mock.calls.length;
+
+    await userEvent.click(screen.getByRole("button", { name: /Show those 2/ }));
+
+    expect(screen.getByText("Sakura Cross Kayabacho")).toBeInTheDocument();
+    expect(spy.mock.calls.length).toBe(before);
+  });
+
+  it("still searches when he says to anyway", async () => {
+    spend();
+    mount();
+    await waitFor(() => expect(screen.getByRole("dialog", { name: "Where to stay" })).toBeInTheDocument());
+    await userEvent.click(screen.getByRole("button", { name: "Search again" }));
+    const spy = global.fetch as unknown as { mock: { calls: unknown[] } };
+    const before = spy.mock.calls.length;
+
+    await userEvent.click(screen.getByRole("button", { name: "Search anyway" }));
+
+    expect(spy.mock.calls.length).toBeGreaterThan(before);
+  });
+
+  it("does not warn on a base that still has ground to cover", async () => {
+    spend();
+    mount();
+    await waitFor(() => expect(screen.getByRole("dialog", { name: "Where to stay" })).toBeInTheDocument());
+    // Osaka has not been exhausted, so its button just runs.
+    await userEvent.click(screen.getByRole("tab", { name: /Osaka/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Search again" }));
+    expect(screen.queryByText(/found nothing new/)).toBeNull();
+  });
+});
