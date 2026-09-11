@@ -62,6 +62,8 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
   /** Everything ever proposed for this journey, including set-aside and rejected. */
   const [everything, setEverything] = useState<StayCandidate[]>([]);
   const [showEarlier, setShowEarlier] = useState(false);
+  /** The must-haves and the budget, open only while being set. */
+  const [showTerms, setShowTerms] = useState(false);
   const [running, setRunning] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -243,6 +245,15 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
     .filter((c) => (multi ? (c.base ?? 0) === baseIdx : true))
     .filter((c) => c.status === "seen" || c.status === "rejected");
   const said = askSummary(parseAsk(wants));
+
+  // What the collapsed line says. Everything that has been set, in plain
+  // words, so nothing is hidden — it just stops holding the floor.
+  const budgetNightly = parseBudget(budget, nights).nightly;
+  const termsLine = [
+    said.must ? said.must.replace(/^Must have: /, "Must have ") : null,
+    said.nice,
+    budgetNightly ? `up to $${budgetNightly.toLocaleString("en-CA")} a night` : null,
+  ].filter(Boolean).join(" · ") || "Anything that matters here?";
   const chips = suggestions({
     house: briefObjForAsk?.kind === "house",
     askGroundFloor: briefObjForAsk?.fit?.askGroundFloor,
@@ -626,6 +637,24 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                 })}
 
                 <div className="px-4 pt-4">
+                  {/* One line, not seven controls.
+                      Measured on his phone: this footer was 227px of a 388px
+                      sheet and one listing of six was visible. Everything set
+                      here is set once, so it states itself in plain words and
+                      steps aside; Change brings it back (10 Sept 2026). */}
+                  {!showTerms && (
+                    <button
+                      type="button"
+                      onClick={() => setShowTerms(true)}
+                      className="w-full flex items-start justify-between gap-3 text-left"
+                    >
+                      <span className="text-[12.5px] leading-snug" style={{ color: CAPTION }}>{termsLine}</span>
+                      <span className="text-[12.5px] font-semibold flex-shrink-0" style={{ color: SIENNA }}>Change</span>
+                    </button>
+                  )}
+
+                  {showTerms && (
+                  <>
                   {/* Write it however you'd say it. What a listing can answer
                       becomes a must-have; "would be nice" downgrades it; the
                       rest steers the search, and the lines underneath say
@@ -696,6 +725,16 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                       </p>
                     );
                   })()}
+                  <button
+                    type="button"
+                    onClick={() => setShowTerms(false)}
+                    className="mt-2 text-[12.5px] font-semibold"
+                    style={{ color: SIENNA }}
+                  >
+                    Done
+                  </button>
+                  </>
+                  )}
                   {/* A real button. This was grey text beside other grey text
                       and nobody read it as a control (Brennan, 10 Sept 2026:
                       "no one really knows it's a button"). Outlined rather
