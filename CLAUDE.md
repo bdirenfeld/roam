@@ -953,3 +953,27 @@ mounted and the next one fails with "found multiple elements" on a component
 that is fine. And jsdom costs ~65s of startup on the first rendering file.
 
 **Still uncovered: the map.** Mapbox does not run in jsdom.
+
+### Tests that go looking (Sept 2026)
+
+Two suites invent the case instead of waiting to be shown one. Add to them
+rather than only writing a regression test after Brennan finds something.
+
+- **`src/lib/stays/invariants.test.ts`** generates 2,000 journeys from a seeded
+  PRNG — parties of 1–9, trips of one night to two months, pins from one street
+  to a continent, scheduled and not — and asserts what can never be false: base
+  nights sum to the journey's, no anchor weighted zero, no label starting with a
+  digit, a price window exactly as long as the trip, and no sentence containing
+  `undefined`, `NaN` or "0 days". **It also asserts what it explored** (how many
+  multi-base, how many big parties, how many long trips) so weakening the
+  generator fails the test rather than quietly making it decoration. A seed
+  replays a failure exactly.
+- **`src/components/map/WhereToStaySheet.sweep.test.tsx`** renders the sheet in
+  twelve states and checks four screen-level rules: nothing reads `undefined`,
+  no two visible rows share a letter, every button has an accessible name, and a
+  price always matches the nights beside it.
+
+The sweep earned its place immediately: it found that a SINGLE-base journey took
+its night count from the trip's dates rather than the base's. Identical in
+normal use, divergent the moment a journey's dates are edited after a search —
+"for 13 nights" beside a price quoted for 11.
