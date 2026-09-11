@@ -222,8 +222,8 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
   const stayDates: StayDates = {
     checkIn: priced.start,
     checkOut: priced.end,
-    adults: (trip.party_ages ?? []).filter((a) => a >= 13).length || trip.party_size || 2,
-    childrenAges: (trip.party_ages ?? []).filter((a) => a < 13),
+    adults: (trip.party_ages ?? []).filter((a) => a >= 18).length || trip.party_size || 2,
+    childrenAges: (trip.party_ages ?? []).filter((a) => a < 18),
   };
   // If anything in this run priced, the dates are quotable — so a row with
   // no price is about that property, not the calendar.
@@ -435,8 +435,8 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
               backLabel={`All ${shown.length === 5 ? "five" : shown.length}`}
               candidate={open}
               brief={briefObj}
-              startDate={trip.start_date}
-              endDate={trip.end_date}
+              startDate={baseStart}
+              endDate={baseEnd}
               nights={nights}
               priceYear={brief?.price_year ?? null}
               othersPriced={othersPriced}
@@ -783,8 +783,8 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
           key={open.id}
           candidate={open}
           brief={briefObj}
-          startDate={trip.start_date}
-          endDate={trip.end_date}
+          startDate={baseStart}
+          endDate={baseEnd}
           nights={nights}
           priceYear={brief?.price_year ?? null}
           othersPriced={othersPriced}

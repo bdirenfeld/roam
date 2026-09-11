@@ -16,6 +16,7 @@ import { priceWindow, priceWindowNote } from "@/lib/stays/priceWindow";
 import { budgetFlag, budgetVerdict, nightlyOf } from "@/lib/stays/budget";
 import { parseAsk, failsAsk, askNote, askBonus } from "@/lib/stays/wants";
 import { parseBudget } from "@/lib/stays/budgetInput";
+import { inventoriesFor } from "@/lib/stays/inventory";
 
 // Five rows, not ten: the stays already saved on the journey come first and
 // Google fills what is left ("way too many options" — Brennan, 9 Sept 2026).
@@ -223,10 +224,16 @@ export async function POST(request: NextRequest) {
     // Neither list contains the other. So ask for both and merge, the wanted
     // kind first, deduped on the name.
     const q = asked ? `${where}, ${asked}` : where;
-    const [wanted, other] = await Promise.all([
-      stayOffers(serp, q, priced.start, priced.end, adults, ages, wantHouse),
-      stayOffers(serp, q, priced.start, priced.end, adults, ages, !wantHouse),
+    // Google Hotels refuses a party over six, so on a journey like Tuscany —
+    // seven, with both grandparents — the hotel call errors out and returns
+    // nothing. Harmless on a villa journey, fatal on a hotel-shaped one where
+    // it would be the only search that ran (found 11 Sept 2026).
+    const inv = inventoriesFor(adults + ages.length, wantHouse);
+    const [rentals, hotels] = await Promise.all([
+      inv.rentals ? stayOffers(serp, q, priced.start, priced.end, adults, ages, true) : Promise.resolve([]),
+      inv.hotels ? stayOffers(serp, q, priced.start, priced.end, adults, ages, false) : Promise.resolve([]),
     ]);
+    const [wanted, other] = inv.prefer === "hotels" ? [hotels, rentals] : [rentals, hotels];
     const seenOffer = new Set(wanted.map((o) => norm(o.name)));
     const offers = [...wanted, ...other.filter((o) => !seenOffer.has(norm(o.name)))];
 

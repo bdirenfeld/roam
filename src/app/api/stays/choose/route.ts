@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import { ensurePlace, nextPosition } from "../_shared";
 import { nightlyFrom } from "@/lib/stays/price";
+import { blendNightly, accommodationBasis, type StayLeg } from "@/lib/stays/lodgingLine";
 import type { StayCandidate } from "@/types/database";
 
 interface Undo {
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
   const c = cand as StayCandidate & { google_place_id: string | null };
 
   const [{ data: trip }, { data: days }] = await Promise.all([
-    supabase.from("trips").select("id, user_id, start_date, end_date, accommodation_name, accommodation_address").eq("id", c.trip_id).maybeSingle(),
+    supabase.from("trips").select("id, user_id, title, start_date, end_date, accommodation_name, accommodation_address").eq("id", c.trip_id).maybeSingle(),
     supabase.from("days").select("id, date, day_number").eq("trip_id", c.trip_id).order("day_number"),
   ]);
   if (!trip || trip.user_id !== user.id) return NextResponse.json({ error: "Not your journey" }, { status: 403 });
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
    * start date, so base n begins after everything before it has been slept.
    */
   const { data: briefRow } = await supabase.from("stay_briefs").select("brief").eq("trip_id", c.trip_id).maybeSingle();
-  const bases = (((briefRow?.brief ?? {}) as { bases?: { nights: number }[] }).bases ?? []);
+  const bases = (((briefRow?.brief ?? {}) as { bases?: { label: string; nights: number }[] }).bases ?? []);
   const baseIndex = Math.max(0, Math.min(Math.max(0, bases.length - 1), c.base ?? 0));
   const multiBase = bases.length > 1;
   const nightsBefore = multiBase ? bases.slice(0, baseIndex).reduce((n, b) => n + b.nights, 0) : 0;
@@ -70,12 +71,20 @@ export async function POST(request: NextRequest) {
   const first = days[firstIdx];
   const last = days[lastIdx];
 
-  // Other stays on the arrival and departure days step aside.
-  const { data: stayCards } = await supabase
+  // Other stays on the arrival and departure days step aside — but NOT on a
+  // day this base shares with its neighbour. Bases are contiguous, so Tokyo's
+  // check-out day IS Osaka's check-in day; cutting there meant choosing Osaka
+  // destroyed Tokyo's check-out and choosing Tokyo destroyed Osaka's check-in,
+  // forever (audit, 11 Sept 2026).
+  const cutDayIds = [
+    baseIndex === 0 ? first.id : null,
+    baseIndex === Math.max(0, bases.length - 1) ? last.id : null,
+  ].filter((d): d is string => !!d);
+  const { data: stayCards } = cutDayIds.length === 0 ? { data: [] } : await supabase
     .from("cards")
     .select("id, status, place_id, day_id, place:places!inner (sub_type)")
     .eq("trip_id", c.trip_id)
-    .in("day_id", [first.id, last.id])
+    .in("day_id", cutDayIds)
     .neq("status", "cut")
     .in("place.sub_type", ["hotel", "accommodation"]);
   const cutCards = ((stayCards ?? []) as { id: string; status: string; place_id: string | null }[])
@@ -126,25 +135,31 @@ export async function POST(request: NextRequest) {
   let prevNightly: number | null | undefined;
   let prevBasis: string | null | undefined;
   const nights = Math.max(1, lastIdx - firstIdx);
-  let nightly = c.nightly_cad ?? nightlyFrom(c.total, nights);
-  if (multiBase && nightly != null) {
+  const ownNightly = c.nightly_cad ?? nightlyFrom(c.total, nights);
+
+  // Every stay on the journey, in trip order — not just this one and not just
+  // two. Two months away could be six or eight places, so the line is built
+  // for N (Brennan, 11 Sept 2026).
+  let legs: StayLeg[] = [{ label: bases[baseIndex]?.label ?? trip.title, nights, nightly: ownNightly }];
+  if (multiBase) {
     const { data: chosenRows } = await supabase
       .from("stay_candidates")
-      .select("base, total, nightly_cad")
+      .select("base, name, total, nightly_cad")
       .eq("trip_id", c.trip_id)
       .eq("status", "chosen");
-    let spend = Number(nightly) * nights;
-    let covered = nights;
-    for (const r of chosenRows ?? []) {
-      if ((r.base ?? 0) === baseIndex) continue;               // this one is counted above
-      const n = bases[r.base ?? 0]?.nights ?? 0;
-      const each = r.nightly_cad ?? nightlyFrom(r.total, n);
-      if (each == null || n <= 0) continue;
-      spend += Number(each) * n;
-      covered += n;
-    }
-    if (covered > 0) nightly = Math.round(spend / covered);
+    const others = (chosenRows ?? [])
+      .filter((r) => (r.base ?? 0) !== baseIndex)
+      .map((r) => {
+        const i = r.base ?? 0;
+        const n = bases[i]?.nights ?? 0;
+        return { i, label: bases[i]?.label ?? r.name, nights: n, nightly: r.nightly_cad ?? nightlyFrom(r.total, n) };
+      });
+    legs = [...others, { i: baseIndex, label: bases[baseIndex]?.label ?? trip.title, nights, nightly: ownNightly }]
+      .sort((a, b) => a.i - b.i)
+      .map(({ label, nights: n, nightly: rate }) => ({ label, nights: n, nightly: rate }));
   }
+  const nightly = blendNightly(legs) ?? ownNightly;
+  const basisLine = accommodationBasis(legs, multiBase ? bases.length : 1);
   if (nightly != null) {
     const { data: budget } = await supabase.from("trip_budgets").select("assumptions, basis").eq("trip_id", c.trip_id).maybeSingle();
     if (budget) {
@@ -155,7 +170,7 @@ export async function POST(request: NextRequest) {
       const when = new Date().toLocaleDateString("en-CA", { day: "numeric", month: "short" });
       const { error } = await supabase.from("trip_budgets").update({
         assumptions: { ...a, nightlyRate: nightly },
-        basis: { ...b, accommodation: `${c.name} · ${c.site ?? "listing"} · ${when}` },
+        basis: { ...b, accommodation: basisLine ? `${basisLine} · ${when}` : `${c.name} · ${c.site ?? "listing"} · ${when}` },
         updated_at: new Date().toISOString(),
       }).eq("trip_id", c.trip_id);
       if (error) {
@@ -165,7 +180,10 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const { data: prevChosen } = await supabase.from("stay_candidates").select("id").eq("trip_id", c.trip_id).eq("status", "chosen").neq("id", c.id).maybeSingle();
+  // Scoped to THIS base. Without it, choosing the Osaka hotel demoted the
+  // Tokyo one to "saved" — a two-base journey could never hold two chosen
+  // stays, and the two thrashed each other forever (audit, 11 Sept 2026).
+  const { data: prevChosen } = await supabase.from("stay_candidates").select("id").eq("trip_id", c.trip_id).eq("base", baseIndex).eq("status", "chosen").neq("id", c.id).maybeSingle();
   if (prevChosen) {
     const { error } = await supabase.from("stay_candidates").update({ status: "saved" }).eq("id", prevChosen.id);
     if (error) return failed("mark the stay", error.message);
