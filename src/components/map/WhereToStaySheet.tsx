@@ -8,6 +8,13 @@
 // line, then five rows. Tap a row and StayCardSheet opens — photos, who it
 // fits, the dates and price, the drives, the reviews, what to ask.
 //
+// A row is a summary, not a page. Name, price, and ONE reason — the warning
+// if there is one, otherwise how near the closest thing is. The drives, the
+// rating and the Choose/Save buttons live on the page, which is opened before
+// anything is decided anyway; on the row they made it 149px tall and a half
+// sheet showed a single hotel (measured 10 Sept 2026). The heart and the ✕
+// stay, because saying no should be one tap.
+//
 // Nothing here asks a question. The search reads the journey. "Not for us"
 // is two taps — the ✕, then a reason — and the reason is what the next run
 // learns from. The handle drags: up for the full list, down to shrink, and
@@ -17,7 +24,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
-import { scoreLabel } from "@/lib/stays/price";
+
 import { noPriceReason, shiftToYear, type StayDates } from "@/lib/stays/bookingUrl";
 import { parseAsk, askSummary, suggestions } from "@/lib/stays/wants";
 import { parseBudget, budgetHint, budgetFieldValue } from "@/lib/stays/budgetInput";
@@ -522,11 +529,15 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                 {shown.map((c) => {
                   const focused = focusedId === c.id;
                   const chosen = c.status === "chosen";
-                  const busy = busyId === c.id;
-                  const meta = [
-                    c.drive?.line,
-                    c.score != null ? scoreLabel(c.score, (c.score_scale === 10 ? 10 : 5), c.reviews) : null,
-                  ].filter(Boolean).join(" · ");
+
+                  // One reason, not four. The drive times to three towns and
+                  // the rating are page detail, and the page is opened before
+                  // anything is decided — on the row they made it 149px tall
+                  // so a half sheet showed a single hotel (measured 10 Sept
+                  // 2026). What survives: the price, and either the warning or
+                  // how near the closest thing is.
+                  const nearest = c.drive?.line ? String(c.drive.line).split(" · ")[0] : null;
+                  const warning = c.flags?.length ? c.flags[0] : null;
                   return (
                     <div
                       key={c.id}
@@ -535,7 +546,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                       className={`flex gap-2.5 px-4 py-3 border-b cursor-pointer active:bg-gray-50 ${flashId === c.id ? "stay-flash" : ""}`}
                       style={{ borderColor: "rgba(26,26,46,0.07)", background: focused ? "rgba(176,84,31,0.06)" : undefined }}
                     >
-                      <div className="w-[62px] flex-shrink-0 pt-[3px]">
+                      <div className="w-[32px] flex-shrink-0 pt-[2px]">
                         <span
                           className="inline-flex items-center justify-center w-[26px] h-[26px] rounded-full text-[12px] font-bold"
                           style={chosen || focused ? { background: SIENNA, color: "#fff", border: `2px solid ${SIENNA}` } : { color: SIENNA, border: `2px solid ${SIENNA}` }}
@@ -544,16 +555,17 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-display italic line-clamp-2" style={{ fontSize: 17, lineHeight: 1.24, color: INK }}>
+                        <p className="font-display italic line-clamp-2" style={{ fontSize: 16, lineHeight: 1.22, color: INK }}>
                           {c.name}{chosen ? <span className="ml-2 not-italic font-sans text-[10px] uppercase tracking-wide" style={{ color: SIENNA }}>Your stay</span> : c.status === "saved" ? <span className="ml-2 not-italic font-sans text-[10px] uppercase tracking-wide" style={{ color: CAPTION }}>On your map</span> : null}
                         </p>
-                        {meta && <p className="text-[12.5px] mt-[3px] leading-snug" style={{ color: CAPTION }}>{meta}</p>}
-                        {c.flags?.length > 0 && <p className="text-[11px] font-medium mt-[3px]" style={{ color: SIENNA }}>{c.flags.join(" · ")}</p>}
-                        {c.total != null ? (
-                          <p className="text-[12.5px] mt-[3px]" style={{ color: INK }}>{cad(Number(c.total))} for {nights} nights</p>
-                        ) : (
-                          <p className="text-[12.5px] mt-[3px]" style={{ color: CAPTION }}>{noPriceReason({ site: c.site, url: c.url, source: c.source, othersPriced, party: travellers })}</p>
-                        )}
+                        <p className="text-[12px] mt-[3px] leading-snug" style={{ color: CAPTION }}>
+                          {c.total != null
+                            ? <><span style={{ color: INK, fontWeight: 600 }}>{cad(Number(c.total))}</span>{` for ${nights} ${nights === 1 ? "night" : "nights"}`}</>
+                            : noPriceReason({ site: c.site, url: c.url, source: c.source, othersPriced, party: travellers })}
+                          {warning
+                            ? <> · <span style={{ color: SIENNA, fontWeight: 600 }}>{warning}</span></>
+                            : nearest ? ` · ${nearest}` : null}
+                        </p>
 
                         {askingId === c.id ? (
                           <div className="flex flex-wrap gap-1.5 mt-2" onClick={(e) => e.stopPropagation()}>
@@ -566,39 +578,33 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                             <button type="button" onClick={() => setAskingId(null)} className="h-9 px-2 text-[12.5px]" style={{ color: CAPTION }}>Keep</button>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-1.5 mt-2" onClick={(e) => e.stopPropagation()}>
-                            <button
-                              type="button"
-                              disabled={busy || chosen}
-                              onClick={() => choose(c)}
-                              className="h-9 px-3.5 rounded-full text-[12.5px] font-medium text-white disabled:opacity-60"
-                              style={{ background: INK }}
-                            >
-                              {chosen ? "Chosen" : busy ? "…" : "Choose"}
-                            </button>
-                            {c.status === "candidate" && (
-                              <button type="button" disabled={busy} onClick={() => save(c)} className="h-9 px-3.5 rounded-full text-[12.5px] font-medium" style={{ color: INK, border: "1px solid rgba(26,26,46,0.2)" }}>
-                                Save
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              aria-label={c.feel === "up" ? "Un-heart" : "Heart"}
-                              aria-pressed={c.feel === "up"}
-                              onClick={() => heart(c)}
-                              className="ml-auto h-9 w-9 inline-flex items-center justify-center"
-                              style={{ color: c.feel === "up" ? SIENNA : CAPTION }}
-                            >
-                              <svg width="17" height="17" viewBox="0 0 24 24" fill={c.feel === "up" ? SIENNA : "none"} stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.4 4.5 7 4.5c2 0 3.4 1.1 5 3 1.6-1.9 3-3 5-3 3.6 0 5.6 3.5 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2z" /></svg>
-                            </button>
-                            {!chosen && (
-                              <button type="button" aria-label="Not for us" onClick={() => setAskingId(c.id)} className="h-9 w-9 inline-flex items-center justify-center text-[14px]" style={{ color: CAPTION }}>
-                                ✕
-                              </button>
-                            )}
-                          </div>
+                          null
                         )}
                       </div>
+
+                      {/* Choose and Save moved to the page, which is opened
+                          before anything is decided anyway. The heart and the
+                          ✕ stay here, because saying no should still be one
+                          tap (Brennan, 10 Sept 2026). */}
+                      {askingId !== c.id && (
+                        <div className="flex items-start flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            aria-label={c.feel === "up" ? "Un-heart" : "Heart"}
+                            aria-pressed={c.feel === "up"}
+                            onClick={() => heart(c)}
+                            className="h-8 w-8 inline-flex items-center justify-center"
+                            style={{ color: c.feel === "up" ? SIENNA : CAPTION }}
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill={c.feel === "up" ? SIENNA : "none"} stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.4 4.5 7 4.5c2 0 3.4 1.1 5 3 1.6-1.9 3-3 5-3 3.6 0 5.6 3.5 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2z" /></svg>
+                          </button>
+                          {!chosen && (
+                            <button type="button" aria-label="Not for us" onClick={() => setAskingId(c.id)} className="h-8 w-8 inline-flex items-center justify-center text-[13px]" style={{ color: CAPTION }}>
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      )}
                       {c.photos?.[0] && (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={c.photos[0]} alt="" loading="lazy" className="w-[52px] h-[52px] rounded-lg object-cover flex-shrink-0" style={{ background: "rgba(26,26,46,0.06)" }} />
