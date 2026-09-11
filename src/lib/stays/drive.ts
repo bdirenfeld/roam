@@ -90,6 +90,29 @@ export function driveLine(parts: DrivePart[]): string {
  */
 export const HOURS_PER_NIGHT = 1;
 
+/**
+ * How far from the base a stay can sit, as a multiple of the radius the brief
+ * already tells him to stay inside ("stay within 15 minutes of it").
+ *
+ * Straight-line kilometres do not work in a city. The New York flat he
+ * queried was 8.9 km from his centre — comfortably inside the 35 km gate —
+ * and 44 minutes' drive, against 20 to 29 for the Manhattan hotels. Nine
+ * kilometres is not nine kilometres when there is a river in the way.
+ *
+ * Measured against every candidate on all nine journeys, 11 Sept 2026. The
+ * ones that belong are 3 to 34 minutes out (Rome's Palazzo Cinquecento is 34,
+ * Villa Bottino 24). The ones that do not start at 40: New York at 40 and 44,
+ * Palm Springs' Highland Springs Ranch at 42, Tokyo's Hakone ryokans at 112
+ * and 142, Sydney's farm stays at 72 and up.
+ */
+export const RADIUS_MULTIPLE = 2.5;
+
+/** True when a stay is simply not in the place the journey is in. */
+export function tooFarFromBase(minutes: number | null | undefined, radiusMin: number): boolean {
+  if (minutes == null || !Number.isFinite(minutes)) return false;
+  return minutes > Math.max(30, (radiusMin || 15) * RADIUS_MULTIPLE);
+}
+
 /** True when this stay costs so much extra driving it is a different trip. */
 export function tooMuchDriving(hours: number, bestHours: number, nights: number): boolean {
   if (!Number.isFinite(hours) || !Number.isFinite(bestHours)) return false;

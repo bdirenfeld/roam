@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseAsk, verdict, failsAsk, askNote, askBonus, askSummary, suggestions } from "./wants";
+import { parseAsk, verdict, failsAsk, unansweredNote, askNote, askBonus, askSummary, suggestions } from "./wants";
 
 /** What Google lists on a property that has a pool and a kitchen but no AC. */
 const VILLA = ["Outdoor pool", "Free parking", "Kitchen", "Washer", "Pet-friendly"];
@@ -195,5 +195,52 @@ describe("a short list is not an inventory", () => {
     const ask = parseAsk("we need a pool");
     expect(failsAsk(ask, ["Free Wi-Fi"], ["No pool"])).toBe(true);
     expect(failsAsk(ask, ["Free Wi-Fi"], [])).toBe(false);
+  });
+});
+
+/**
+ * Google names Wi-Fi on 68 of 76 real properties and breakfast on 13, so a
+ * must-have can be perfectly reasonable and mostly unanswerable. He asked to
+ * be told that once instead of reading "not listed" five times.
+ */
+describe("saying when a must-have could not be checked", () => {
+  const OSAKA = [
+    { amenities: ["Free Wi-Fi", "Kid-friendly"] },
+    { amenities: ["Free Wi-Fi", "Kitchen"] },
+    { amenities: [] },
+    { amenities: ["Free Wi-Fi", "Accessible"] },
+    { amenities: ["Free Wi-Fi"] },
+  ];
+
+  it("says so when most of the list cannot answer", () => {
+    expect(unansweredNote(parseAsk("breakfast"), OSAKA))
+      .toBe("Google doesn't say either way about breakfast for any of these. Worth checking the listing.");
+  });
+
+  it("counts when only some cannot answer", () => {
+    const mixed = [{ amenities: ["Free breakfast"] }, ...OSAKA.slice(0, 3)];
+    expect(unansweredNote(parseAsk("breakfast"), mixed))
+      .toBe("Google doesn't say either way about breakfast for 3 of these 4. Worth checking the listing.");
+  });
+
+  it("says nothing when the data does answer", () => {
+    expect(unansweredNote(parseAsk("wifi"), OSAKA)).toBeNull();
+    // Stated absent is an answer too, even though it is a no.
+    expect(unansweredNote(parseAsk("pool"), [{ amenities: ["Free Wi-Fi"], excluded: ["No pool"] }])).toBeNull();
+  });
+
+  it("says nothing when he asked for nothing, or there is nothing to check", () => {
+    expect(unansweredNote(parseAsk(null), OSAKA)).toBeNull();
+    expect(unansweredNote(parseAsk("breakfast"), [])).toBeNull();
+  });
+
+  it("never counts a nice-to-have as a must", () => {
+    expect(unansweredNote(parseAsk("breakfast would be nice"), OSAKA)).toBeNull();
+  });
+
+  it("names two at most, busiest first", () => {
+    const note = unansweredNote(parseAsk("we need breakfast, a hot tub and a shuttle"), OSAKA) ?? "";
+    expect(note.split(" or ").length).toBeLessThanOrEqual(2);
+    expect(note).toMatch(/breakfast|hot tub|airport shuttle/);
   });
 });

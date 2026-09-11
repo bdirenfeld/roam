@@ -173,6 +173,35 @@ export function failsAsk(ask: Ask, amenities: string[] | null | undefined, exclu
 }
 
 /**
+ * What to say once, under the list, when a must-have came back unanswered.
+ *
+ * Brennan asked for this after the breakfast bug: "should we mention it if one
+ * of our must-haves is not included in the data when making the API call?"
+ *
+ * Measured over 76 real properties on 11 Sept 2026, Google names Wi-Fi on 68
+ * of them and AC on 61, but breakfast on only 13 — and beach access on none at
+ * all. So asking for breakfast is a reasonable thing to do and mostly
+ * unanswerable, and he should be told that once rather than having to notice
+ * "not listed" row by row.
+ */
+export function unansweredNote(
+  ask: Ask,
+  rows: { amenities?: string[] | null; excluded?: string[] | null }[],
+): string | null {
+  if (!ask.musts.length || !rows.length) return null;
+  const blind = ask.musts
+    .map((m) => ({ m, n: rows.filter((r) => verdict(m.key, r.amenities, r.excluded) === "unknown").length }))
+    .filter((x) => x.n > rows.length / 2)
+    .sort((a, b) => b.n - a.n);
+  if (!blind.length) return null;
+  const nouns = blind.slice(0, 2).map((x) => x.m.noun.toLowerCase());
+  const what = nouns.length === 2 ? `${nouns[0]} or ${nouns[1]}` : nouns[0];
+  const n = blind[0].n;
+  const all = n === rows.length;
+  return `Google doesn't say either way about ${what} for ${all ? (n === 1 ? "this one" : "any of these") : `${n} of these ${rows.length}`}. Worth checking the listing.`;
+}
+
+/**
  * The note on a row kept but not verified, so a blank is never read as a yes.
  * Capped at two: a journey with no amenity data would otherwise repeat the
  * whole list on every row.

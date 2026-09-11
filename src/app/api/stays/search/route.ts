@@ -9,12 +9,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import { loadTripContext, googleKey, driveMinutes, lodgingNear, placeExtras, serpApiKey, stayOffers } from "../_shared";
-import { driveHours, driveLine, driveDelta, tooMuchDriving, usableAnchorIndexes } from "@/lib/stays/drive";
+import { driveHours, driveLine, driveDelta, usableAnchorIndexes } from "@/lib/stays/drive";
+import { shortlist } from "@/lib/stays/shortlist";
 import { greatCircleKm } from "@/lib/stays/brief";
 import { areaHeadline, areaLine, baseArea, splitText, reachNote, reviewNotes } from "@/lib/stays/text";
 import { priceWindow, priceWindowNote } from "@/lib/stays/priceWindow";
 import { budgetFlag, budgetVerdict, nightlyOf } from "@/lib/stays/budget";
-import { parseAsk, askNote, askBonus } from "@/lib/stays/wants";
+import { parseAsk, askNote, askBonus, unansweredNote } from "@/lib/stays/wants";
 import { parseBudget } from "@/lib/stays/budgetInput";
 import { inventoriesFor } from "@/lib/stays/inventory";
 import { readiness } from "@/lib/stays/readiness";
@@ -422,7 +423,14 @@ export async function POST(request: NextRequest) {
   const anchors = brief.anchors;
   const origins = cands.map((c) => ({ lat: c.lat, lng: c.lng }));
   origins.push({ lat: centre.lat, lng: centre.lng });
-  const matrix = await driveMinutes(key, origins, anchors.map((a) => ({ lat: a.lat, lng: a.lng })));
+  // The LAST destination is this base's own centre. Without it the only
+  // distance we had was straight-line kilometres, which says a flat across the
+  // river from Manhattan is 8.9 km away and says nothing about the 44 minutes
+  // it takes to get there (Brennan, 11 Sept 2026).
+  const destinations = anchors.map((a) => ({ lat: a.lat, lng: a.lng }));
+  destinations.push({ lat: centre.lat, lng: centre.lng });
+  const matrix = await driveMinutes(key, origins, destinations);
+  const centreCol = anchors.length;
   const fromCentre = matrix[cands.length];
   const centreMinutes: Record<string, number | null> = {};
   anchors.forEach((a, j) => { centreMinutes[a.label] = fromCentre[j]; });
@@ -461,19 +469,22 @@ export async function POST(request: NextRequest) {
     if (bonus) flags.push(bonus);
     const unverified = askNote(ask, c.amenities);
     if (unverified) flags.push(unverified);
-    return { c, hours, minutes, line: driveLine(parts), flags };
+    return { c, hours, minutes, toCentre: mins[centreCol], line: driveLine(parts), flags };
   });
   const bestHours = Math.min(...scored.map((s) => s.hours));
   // A place that costs hours of extra driving is not an option with a caveat,
   // it is a different trip. Anything he saved, chose or hearted stays whatever
   // it costs — that was his decision, not the search's.
-  const near = scored.filter((s) => keptFor(s.c) || !tooMuchDriving(s.hours, bestHours, baseNights));
-  // Never answer with nothing: if the rule empties the list, the closest one
-  // survives and keeps its warning.
-  const kept2 = near.length ? near : scored.slice().sort((a, b) => a.hours - b.hours).slice(0, 1);
-  kept2.sort((a, b) => a.hours - b.hours || (b.c.score ?? 0) - (a.c.score ?? 0));
+  // Which rows belong on the list is decided in lib/stays/shortlist.ts, where
+  // a test can feed it the real numbers off all nine of his journeys. It lived
+  // here, so nothing could check the LIST — only one rule at a time, and every
+  // rule passed while the list was still wrong (Brennan, 11 Sept 2026: "you
+  // need to test things and make them make sense before giving it to me").
+  const rows2 = scored.map((s) => ({ name: s.c.name, toCentre: s.toCentre, hours: s.hours, kept: !!keptFor(s.c), s }));
+  const survivors = shortlist(rows2, { radiusMin: brief.radiusMin, nights: baseNights }).map((x) => x.s);
+  survivors.sort((a, b) => a.hours - b.hours || (b.c.score ?? 0) - (a.c.score ?? 0));
   scored.length = 0;
-  scored.push(...kept2);
+  scored.push(...survivors);
 
   // Reviews for the Google ones (an Atmosphere-tier call each, capped by MAX_GOOGLE).
   const notes = new Map<string, { texts: string[]; website: string | null; photos: string[]; rating: number | null; reviews: number | null }>();
@@ -558,6 +569,7 @@ export async function POST(request: NextRequest) {
     area_text: [
       thisArea,
       repeatNote(centre.label, repeated, freshOffers),
+      unansweredNote(ask, cands.map((c) => ({ amenities: c.amenities, excluded: c.excluded }))),
       exhausted ? exhaustedNote(centre.label, cands.filter((c) => c.total != null).length, seenRows.length + rejected.length) : null,
     ].filter(Boolean).join(" ") || null,
     price_year: priced.shifted ? Number(priced.start.slice(0, 4)) : null,

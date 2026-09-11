@@ -101,16 +101,32 @@ export function dropReason(o: Offer, opts: PickOpts): DropReason | null {
  * back so the sheet can say plainly that these are not new.
  */
 export function fillOffers<T extends Offer>(offers: T[], opts: PickOpts): { rows: T[]; repeated: number } {
-  const fresh = pickOffers(offers, opts);
-  const room = Math.max(0, opts.room) - fresh.length;
-  if (room <= 0) return { rows: fresh, repeated: 0 };
-  const again = pickOffers(offers, {
-    ...opts,
-    skipNames: opts.rejectedNames ?? new Set<string>(),
-    taken: new Set(Array.from(opts.taken).concat(fresh.map((o) => o.name.toLowerCase()))),
-    room,
-  });
-  return { rows: [...fresh, ...again], repeated: again.length };
+  // Everything he has not turned down is in the running. Whether it has been
+  // shown before is a tie-breaker, not a gate.
+  const rejected = opts.rejectedNames ?? new Set<string>();
+  const eligible = offers.filter((o) => dropReason(o, { ...opts, skipNames: rejected }) === null);
+  const seen = (o: Offer) => opts.skipNames.has(o.name.toLowerCase());
+
+  // Four tiers, in the order a person would put them:
+  //   3  the right KIND of place, not shown before
+  //   2  the right kind, shown before
+  //   1  the other kind, not shown before
+  //   0  the other kind, shown before
+  //
+  // The middle two are the ones that were the wrong way round. New York's
+  // Manhattan hotels had all been shown, so they were skipped outright, and
+  // the five slots filled with brand-new rentals in New Jersey and Queens —
+  // "for New York nothing is in Manhattan near my pins" (Brennan, 11 Sept
+  // 2026). A hotel he has seen in the right place beats a flat he has not
+  // seen in the wrong one.
+  const tier = (o: T) => (opts.preferred.has(norm(o.name)) ? 2 : 0) + (seen(o) ? 0 : 1);
+
+  const rows = eligible
+    .sort((a, b) =>
+      tier(b) - tier(a)
+      || (b.score ?? 0) * Math.log((b.reviews ?? 1) + 1) - (a.score ?? 0) * Math.log((a.reviews ?? 1) + 1))
+    .slice(0, Math.max(0, opts.room));
+  return { rows, repeated: rows.filter(seen).length };
 }
 
 export function pickOffers<T extends Offer>(offers: T[], opts: PickOpts): T[] {
