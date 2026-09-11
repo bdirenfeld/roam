@@ -548,6 +548,10 @@ export async function POST(request: NextRequest) {
   const airportMin = airportIdx >= 0 ? fromCentre[airportIdx] : null;
   const headline = areaHeadline(brief);
   const line = areaLine(brief, airportMin);
+  // "In New York. 3 evenings in New York; stay within 15 minutes of it" says
+  // the place twice. When the headline has no direction left to give, the line
+  // below already carries everything it was going to say.
+  const opener = headline && line && headline === `In ${brief.evening?.label}.` ? null : headline;
   // There is one brief row per journey but a line of copy per base, so the
   // area sentence is kept inside the brief JSON keyed by base and merged with
   // what the other base's run already wrote. Switching to Osaka must not blank
@@ -556,7 +560,7 @@ export async function POST(request: NextRequest) {
   // is, because the whole-journey direction belongs to neither of them.
   const thisArea = (brief.bases.length > 1
     ? [baseArea(brief, baseIndex)]
-    : [headline, line]
+    : [opener, line]
   ).concat(priceWindowNote(priced, baseStart)).filter(Boolean).join(" ") || null;
   const { data: prevBrief } = await supabase.from("stay_briefs").select("brief").eq("trip_id", trip.id).maybeSingle();
   const prevJson = (prevBrief?.brief ?? {}) as { areaByBase?: Record<string, string | null> };

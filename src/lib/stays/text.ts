@@ -28,12 +28,22 @@ export function areaHeadline(brief: StayBrief): string | null {
   if (!ev) return null;
   const pulls = brief.anchors.filter((a) => a.kind !== "evening" && a.kmFromEvening >= 5);
   if (!pulls.length) return `In ${ev.label}.`;
+  // An airport can pull the centre, but it must never be the thing you are
+  // sent TOWARD. New York's only distant anchor is LaGuardia, so the sheet
+  // opened "North-east of New York, toward East Elmhurst" — three nights in
+  // Manhattan, and the advice was to sit near the airport (Brennan, 11 Sept
+  // 2026). With nothing else out there, there is no direction worth giving.
+  if (pulls.every((a) => a.kind === "airport")) return `In ${ev.label}.`;
   let wLat = 0, wLng = 0, w = 0;
   for (const a of pulls) { wLat += a.lat * a.days; wLng += a.lng * a.days; w += a.days; }
   const cLat = wLat / w, cLng = wLng / w;
   if (greatCircleKm(ev.lat, ev.lng, cLat, cLng) < 3) return `In ${ev.label}.`;
   const side = compassWord(ev.lat, ev.lng, cLat, cLng);
   // The direction is the heaviest anchor on that side; ties go to the airport.
+  // Ties still go to the airport: Pisa is a landmark everyone knows and
+  // Montefoscoli is a village nobody does, so "toward Pisa" is the better
+  // direction even though Pisa is also where the plane lands. The guard above
+  // is the one New York needed — an airport ALONE is not a direction.
   const onSide = pulls
     .filter((a) => compassWord(ev.lat, ev.lng, a.lat, a.lng) === side)
     .sort((a, b) => b.days - a.days || (a.kind === "airport" ? -1 : 1));

@@ -166,3 +166,40 @@ describe("what the nights cannot reach", () => {
     expect(reachNote(airportOnly)).toBeNull();
   });
 });
+
+/**
+ * New York, exactly as it stood on 11 Sept 2026: three nights, every pin in
+ * Manhattan, and LaGuardia the only anchor more than 5 km from the centre.
+ * The sheet opened "North-east of New York, toward East Elmhurst" — telling
+ * him to sit near the airport for a three-night trip to Manhattan.
+ */
+const NYC: StayBrief = {
+  ...TUSCANY,
+  nights: 3, days: 4, kind: "hotel", radiusMin: 15,
+  party: { total: 2, adults: 2, kids: 0, seniors: 0, under5: false },
+  evening: { lat: 40.7214, lng: -73.9896, label: "New York", days: 3, evenings: true },
+  anchors: [
+    { kind: "evening", label: "New York", lat: 40.7214, lng: -73.9896, days: 3, kmFromEvening: 0 },
+    { kind: "airport", label: "East Elmhurst", lat: 40.7769, lng: -73.8740, days: 1, kmFromEvening: 11 },
+    { kind: "daytrip", label: "New York", lat: 40.7300, lng: -73.9950, days: 1, kmFromEvening: 1 },
+  ],
+  splitCandidates: [],
+  bases: [{ label: "New York", lat: 40.7214, lng: -73.9896, km: 0, pins: 26, nights: 3 }],
+};
+
+describe("a city where the only thing out of town is the airport", () => {
+  it("does not send him toward the airport", () => {
+    const head = areaHeadline(NYC) ?? "";
+    expect(head).not.toMatch(/East Elmhurst/);
+    expect(head).toBe("In New York.");
+  });
+
+  it("still gives a direction when there is somewhere to go", () => {
+    // Tuscany's pull is real: day trips 34 to 74 km out, in one direction.
+    expect(areaHeadline(TUSCANY)).toBe("South of Lucca, toward Pisa.");
+  });
+
+  it("leaves the useful sentence intact", () => {
+    expect(areaLine(NYC, 28)).toBe("3 evenings in New York; stay within 15 minutes of it. Airport 28 min.");
+  });
+});
