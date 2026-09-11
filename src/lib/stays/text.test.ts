@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { compassWord, areaHeadline, areaLine, baseArea, splitText, reviewNotes, fitFloorText, hostQuestions } from "./text";
+import { compassWord, areaHeadline, areaLine, baseArea, splitText, reachNote, reviewNotes, fitFloorText, hostQuestions } from "./text";
 import type { StayBrief } from "./brief";
 
 /** The Tuscany brief as buildStayBrief returns it (see brief.test.ts), trimmed to what text needs. */
@@ -119,5 +119,50 @@ describe("fit floor and host questions", () => {
     const couple: StayBrief = { ...TUSCANY, kind: "hotel", party: { total: 2, adults: 2, kids: 0, seniors: 0, under5: false }, fit: { bedrooms: 1, baths: 1, askGroundFloor: false, askCot: false } };
     expect(fitFloorText(couple)).toBe("Needs 1 bedroom and 1 bath");
     expect(hostQuestions(couple)).toEqual([]);
+  });
+});
+
+describe("what the nights cannot reach", () => {
+  const far = (label, lat, lng, days) => ({ kind: "daytrip", label, lat, lng, days, kmFromEvening: 400 });
+  const JP = {
+    ...TUSCANY,
+    nights: 13, days: 14,
+    anchors: [
+      { kind: "evening", label: "Tokyo", lat: 35.658, lng: 139.7016, days: 2, kmFromEvening: 0 },
+      { kind: "airport", label: "Narita", lat: 35.7719, lng: 140.3929, days: 1, kmFromEvening: 60 },
+      far("Kagoshima", 31.5966, 130.5571, 2),
+      far("Hiroshima", 34.3853, 132.4553, 1),
+      far("Kanazawa", 36.5613, 136.6562, 1),
+    ],
+    bases: [
+      { label: "Tokyo", lat: 35.658, lng: 139.7016, km: 0, pins: 22, nights: 8 },
+      { label: "Osaka", lat: 34.6937, lng: 135.5023, km: 400, pins: 7, nights: 5 },
+    ],
+  };
+
+  it("names the places that sit outside every base", () => {
+    expect(reachNote(JP))
+      .toBe("Kagoshima, Hiroshima and Kanazawa sit well outside every base; 13 nights probably will not reach them.");
+  });
+
+  it("counts the rest once there are more than three", () => {
+    const more = { ...JP, anchors: [...JP.anchors, far("Sapporo", 43.0621, 141.3544, 1)] };
+    expect(reachNote(more))
+      .toBe("Kagoshima, Hiroshima and 2 more sit well outside every base; 13 nights probably will not reach them.");
+  });
+
+  it("names the one base when there is only one", () => {
+    const one = { ...JP, bases: [JP.bases[0]], anchors: JP.anchors.slice(0, 3) };
+    expect(reachNote(one))
+      .toBe("Kagoshima sits well outside Tokyo; 13 nights probably will not reach it.");
+  });
+
+  it("says nothing when everything is within reach", () => {
+    expect(reachNote(TUSCANY)).toBeNull();
+  });
+
+  it("never counts the airport as a place he wanted to go", () => {
+    const airportOnly = { ...JP, anchors: JP.anchors.slice(0, 2) };
+    expect(reachNote(airportOnly)).toBeNull();
   });
 });

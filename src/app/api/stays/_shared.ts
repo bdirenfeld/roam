@@ -22,6 +22,8 @@ export interface TripContext {
   /** What the Estimate budgets a night, so the search need not ask. */
   nightlyRate: number | null;
   /** Stay-type places already saved on this journey, once each. */
+  /** Places on the map with a location — how much the search has to go on. */
+  pinCount: number;
   savedStays: { place_id: string; title: string; address: string | null; lat: number; lng: number; google_place_id: string | null; rating: number | null; website: string | null }[];
 }
 
@@ -62,7 +64,7 @@ export async function loadTripContext(supabase: SupabaseClient, tripId: string, 
   }
 
   const brief = buildStayBrief({ startDate: trip.start_date, endDate: trip.end_date, partyAges: trip.party_ages, partySize: trip.party_size, pins });
-  return { trip, days: (days ?? []) as TripContext["days"], brief, country: countryOfPins(pins), nightlyRate, savedStays };
+  return { trip, days: (days ?? []) as TripContext["days"], brief, country: countryOfPins(pins), nightlyRate, savedStays, pinCount: pins.length };
 }
 
 // ── Google ────────────────────────────────────────────────────────────────

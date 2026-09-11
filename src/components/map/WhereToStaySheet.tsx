@@ -28,6 +28,7 @@ import { useToast } from "@/components/ui/Toast";
 import { noPriceReason, shiftToYear, type StayDates } from "@/lib/stays/bookingUrl";
 import { parseAsk, askSummary, suggestions } from "@/lib/stays/wants";
 import { parseBudget, budgetHint, budgetFieldValue } from "@/lib/stays/budgetInput";
+import { readiness } from "@/lib/stays/readiness";
 import type { StayBrief } from "@/lib/stays/brief";
 import type { StayCandidate, StayBriefRow, StayRejectReason, Trip } from "@/types/database";
 import StayCardSheet from "./StayCardSheet";
@@ -87,6 +88,9 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
   useEscapeKey(onClose, !openId);
   useEffect(() => { sheetRef.current?.focus(); }, []);
 
+  // Too early to suggest anything: say so where the button is, rather than
+  // letting him press it and reading an error (Brennan, 11 Sept 2026).
+  const ready = readiness(placesCount);
   const tripNights = Math.max(0, Math.round((new Date(trip.end_date + "T00:00:00").getTime() - new Date(trip.start_date + "T00:00:00").getTime()) / 86400000));
   const travellers = trip.party_size ?? trip.party_ages?.length ?? null;
 
@@ -534,12 +538,15 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                 <button
                   type="button"
                   onClick={run}
-                  disabled={running}
+                  disabled={running || !ready.ready}
                   className="mt-5 w-full h-12 rounded-full text-[15px] font-semibold text-white disabled:opacity-60"
                   style={{ background: INK }}
                 >
-                  {running ? "Looking…" : "Find places"}
+                  {running ? "Looking…" : ready.ready ? "Find places" : `Add ${ready.need} more`}
                 </button>
+                {ready.note && (
+                  <p className="text-[12.5px] mt-3 leading-relaxed" style={{ color: SIENNA }}>{ready.note}</p>
+                )}
                 <p className="text-[12.5px] mt-4" style={{ color: CAPTION }}>
                   From {placesCount} {placesCount === 1 ? "place" : "places"}{travellers ? `, ${travellers} travellers` : ""}, {nights} {nights === 1 ? "night" : "nights"}.
                 </p>

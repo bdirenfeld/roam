@@ -11,12 +11,13 @@ import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import { loadTripContext, googleKey, driveMinutes, lodgingNear, placeExtras, serpApiKey, stayOffers } from "../_shared";
 import { driveHours, driveLine, driveDelta, usableAnchorIndexes } from "@/lib/stays/drive";
 import { greatCircleKm } from "@/lib/stays/brief";
-import { areaHeadline, areaLine, baseArea, splitText, reviewNotes } from "@/lib/stays/text";
+import { areaHeadline, areaLine, baseArea, splitText, reachNote, reviewNotes } from "@/lib/stays/text";
 import { priceWindow, priceWindowNote } from "@/lib/stays/priceWindow";
 import { budgetFlag, budgetVerdict, nightlyOf } from "@/lib/stays/budget";
 import { parseAsk, askNote, askBonus } from "@/lib/stays/wants";
 import { parseBudget } from "@/lib/stays/budgetInput";
 import { inventoriesFor } from "@/lib/stays/inventory";
+import { readiness } from "@/lib/stays/readiness";
 import { fillOffers } from "@/lib/stays/pickOffers";
 import { mapFill, exhaustedNote, repeatNote } from "@/lib/stays/mapFill";
 
@@ -149,6 +150,10 @@ export async function POST(request: NextRequest) {
   const baseStart = addDays(trip.start_date, nightsBefore);
   const baseEnd = addDays(baseStart, baseNights);
   if (!centre) return NextResponse.json({ error: "Add a few places first so Roam knows where the journey goes." }, { status: 422 });
+  // Too early to ask. With three pins the centre IS those three pins, and the
+  // answer looks considered when it is an accident (Brennan, 11 Sept 2026).
+  const ready = readiness(ctx.pinCount);
+  if (!ready.ready) return NextResponse.json({ error: ready.note }, { status: 422 });
 
   // What an earlier run taught us.
   const { data: previous } = await supabase.from("stay_candidates").select("id, name, address, lat, lng, google_place_id, place_id, status, reject_reason, feel, photos, site, url, score, score_scale, reviews").eq("trip_id", trip.id).eq("base", baseIndex);
@@ -528,7 +533,7 @@ export async function POST(request: NextRequest) {
       exhausted ? exhaustedNote(centre.label, cands.filter((c) => c.total != null).length, seenRows.length + rejected.length) : null,
     ].filter(Boolean).join(" ") || null,
     price_year: priced.shifted ? Number(priced.start.slice(0, 4)) : null,
-    split_text: splitText(brief, centreMinutes),
+    split_text: [splitText(brief, centreMinutes), reachNote(brief)].filter(Boolean).join(" ") || null,
   };
   const { error: briefErr } = await supabase.from("stay_briefs").upsert(briefRow, { onConflict: "trip_id" });
   if (briefErr) return NextResponse.json({ error: briefErr.message }, { status: 500 });

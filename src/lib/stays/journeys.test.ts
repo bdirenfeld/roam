@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import journeys from "./fixtures/journeys.json";
 import { buildStayBrief, countryOfPins, type BriefPin, type StayBrief } from "./brief";
-import { areaHeadline, areaLine, splitText } from "./text";
+import { areaHeadline, areaLine, splitText, reachNote } from "./text";
 
 /**
  * Every journey Brennan has, run through the brief and read the way he would.
@@ -162,6 +162,24 @@ it("Santa Barbara: the centre follows the pins, not one polo match at five", () 
     expect(b.bases.reduce((n, x) => n + x.nights, 0)).toBe(b.nights);
     for (const x of b.bases) expect(x.nights).toBeGreaterThanOrEqual(2);
     expect(splitText(b, {})).toMatch(/Too spread out for one base/);
+    // What the bases leave behind. Kyushu is 1,000 km from the nearest one,
+    // and nothing used to say so: "there are a bunch of things on my map that
+    // I likely won't be able to do" (Brennan, 11 Sept 2026).
+    const note = reachNote(b) ?? "";
+    expect(note).toMatch(/^Kagoshima, /);
+    expect(note).toContain("13 nights probably will not reach them");
+  });
+
+  it("never names the same town twice in the reach line", () => {
+    // It did on the real Japan journey — "Kagoshima, Kagoshima and 3 more" —
+    // because two pins in one town are two anchors with one name. The hand-
+    // written fixture could not show that; all nine journeys could.
+    for (const j of ALL) {
+      const note = reachNote(briefs.get(j.title)!);
+      if (!note) continue;
+      const named = note.split(" sit")[0].split(/,| and /).map((x) => x.trim()).filter(Boolean);
+      expect(new Set(named).size, `${j.title}: ${note}`).toBe(named.length);
+    }
   });
 
   it("every other journey still needs only one base", () => {

@@ -148,4 +148,40 @@ export function baseArea(brief: StayBrief, i: number): string | null {
   return `Stay within ${brief.radiusMin} minutes of ${b.label}.`;
 }
 
+/** How far out a place can sit and still be a day from a base. */
+const REACH_KM = 100;
+
+/**
+ * The places the journey probably will not get to.
+ *
+ * Brennan, 11 Sept 2026: "if you are suggesting Osaka and Tokyo, there are a
+ * bunch of things on my map that I likely won't be able to do... you may want
+ * to include copy that the trip, for the time allotted and where most of the
+ * pins are, should centre in Tokyo and Osaka."
+ *
+ * The bases are chosen by weight of pins, so the outliers are silently left
+ * behind and nothing ever says so. Naming them is not a complaint about the
+ * plan; it is the sentence that lets him decide whether to move a base, drop
+ * a place, or add nights.
+ */
+export function reachNote(brief: StayBrief): string | null {
+  if (!brief.bases.length || !brief.anchors.length) return null;
+  const far = brief.anchors
+    .filter((a) => a.kind !== "airport" && a.kind !== "evening")
+    .filter((a) => Math.min(...brief.bases.map((b) => greatCircleKm(b.lat, b.lng, a.lat, a.lng))) > REACH_KM)
+    .sort((a, b) => b.days - a.days);
+  if (!far.length) return null;
+  // Two pins in the same town are two anchors with the same name, so the
+  // sentence read "Kagoshima, Kagoshima and 3 more" on his real Japan
+  // journey — caught by running all nine journeys through it, not by the
+  // example I wrote by hand (11 Sept 2026).
+  const names = Array.from(new Set(far.map((a) => a.label)));
+  const list = names.length === 1 ? names[0]
+    : names.length === 2 ? `${names[0]} and ${names[1]}`
+    : names.length === 3 ? `${names[0]}, ${names[1]} and ${names[2]}`
+    : `${names[0]}, ${names[1]} and ${names.length - 2} more`;
+  const where = brief.bases.length > 1 ? "every base" : brief.bases[0].label;
+  return `${list} ${far.length === 1 ? "sits" : "sit"} well outside ${where}; ${brief.nights} ${brief.nights === 1 ? "night" : "nights"} probably will not reach ${far.length === 1 ? "it" : "them"}.`;
+}
+
 export type { Anchor };
