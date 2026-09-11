@@ -147,8 +147,8 @@ export default function AppMenu({
           role="menu"
           className={
             mobile
-              ? "absolute right-0 top-full mt-1.5 z-[80] bg-white/97 backdrop-blur-xl rounded-xl shadow-xl w-[236px] py-1 overflow-hidden"
-              : "absolute right-0 z-[80] rounded-xl"
+              ? "absolute right-0 top-full mt-1.5 z-50 bg-white/97 backdrop-blur-xl rounded-xl shadow-xl w-[236px] py-1 overflow-hidden"
+              : "absolute right-0 z-[60] rounded-xl"
           }
           style={
             mobile
