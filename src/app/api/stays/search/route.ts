@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import { loadTripContext, googleKey, driveMinutes, lodgingNear, placeExtras, serpApiKey, stayOffers } from "../_shared";
-import { driveHours, driveLine, driveDelta, usableAnchorIndexes } from "@/lib/stays/drive";
+import { driveHours, driveLine, driveDelta, tooMuchDriving, usableAnchorIndexes } from "@/lib/stays/drive";
 import { greatCircleKm } from "@/lib/stays/brief";
 import { areaHeadline, areaLine, baseArea, splitText, reachNote, reviewNotes } from "@/lib/stays/text";
 import { priceWindow, priceWindowNote } from "@/lib/stays/priceWindow";
@@ -18,6 +18,7 @@ import { parseAsk, askNote, askBonus } from "@/lib/stays/wants";
 import { parseBudget } from "@/lib/stays/budgetInput";
 import { inventoriesFor } from "@/lib/stays/inventory";
 import { readiness } from "@/lib/stays/readiness";
+import { listingName } from "@/lib/stays/listingName";
 import { fillOffers } from "@/lib/stays/pickOffers";
 import { mapFill, exhaustedNote, repeatNote } from "@/lib/stays/mapFill";
 
@@ -463,7 +464,16 @@ export async function POST(request: NextRequest) {
     return { c, hours, minutes, line: driveLine(parts), flags };
   });
   const bestHours = Math.min(...scored.map((s) => s.hours));
-  scored.sort((a, b) => a.hours - b.hours || (b.c.score ?? 0) - (a.c.score ?? 0));
+  // A place that costs hours of extra driving is not an option with a caveat,
+  // it is a different trip. Anything he saved, chose or hearted stays whatever
+  // it costs — that was his decision, not the search's.
+  const near = scored.filter((s) => keptFor(s.c) || !tooMuchDriving(s.hours, bestHours, baseNights));
+  // Never answer with nothing: if the rule empties the list, the closest one
+  // survives and keeps its warning.
+  const kept2 = near.length ? near : scored.slice().sort((a, b) => a.hours - b.hours).slice(0, 1);
+  kept2.sort((a, b) => a.hours - b.hours || (b.c.score ?? 0) - (a.c.score ?? 0));
+  scored.length = 0;
+  scored.push(...kept2);
 
   // Reviews for the Google ones (an Atmosphere-tier call each, capped by MAX_GOOGLE).
   const notes = new Map<string, { texts: string[]; website: string | null; photos: string[]; rating: number | null; reviews: number | null }>();
@@ -494,7 +504,8 @@ export async function POST(request: NextRequest) {
       place_id: s.c.place_id ?? prior?.place_id ?? null,
       google_place_id: s.c.google_place_id,
       letter: LETTERS[i] ?? null,
-      name: s.c.name,
+      // A rental's "name" is its sales pitch. Keep the part that names it.
+      name: listingName(s.c.name),
       address: s.c.address,
       lat: s.c.lat,
       lng: s.c.lng,

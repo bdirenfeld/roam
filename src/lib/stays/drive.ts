@@ -76,6 +76,28 @@ export function driveLine(parts: DrivePart[]): string {
  * The cost of a hell-bent choice against the best-placed candidate, to the
  * nearest half hour. Under an hour it says nothing — that is noise, not a trade.
  */
+/**
+ * Extra driving a person would actually accept, in hours over the whole stay.
+ *
+ * Measured against every candidate on his nine journeys (11 Sept 2026). The
+ * ones that make sense cost between 0 and 0.55 hours a night more than the
+ * best; Villa Bottino, which he weighed up himself, is 0.76. Above an hour a
+ * night they stop being options: a New York list offered an Airbnb at 1.23,
+ * Santa Barbara a hotel in Ventura at 1.33, a Palm Springs run once proposed
+ * a cabin in Minnesota at 122, and Tokyo's list carried a Kyushu ryokan at
+ * 8.3. Every one of those was shown with a polite warning attached instead of
+ * being left out ("those don't make a whole lot of sense" — Brennan).
+ */
+export const HOURS_PER_NIGHT = 1;
+
+/** True when this stay costs so much extra driving it is a different trip. */
+export function tooMuchDriving(hours: number, bestHours: number, nights: number): boolean {
+  if (!Number.isFinite(hours) || !Number.isFinite(bestHours)) return false;
+  const extra = hours - bestHours;
+  if (extra <= 0) return false;
+  return extra > Math.max(1, nights) * HOURS_PER_NIGHT;
+}
+
 export function driveDelta(hours: number, bestHours: number): string | null {
   const d = Math.round((hours - bestHours) * 2) / 2;
   if (d < 1) return null;
