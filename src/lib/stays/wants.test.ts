@@ -3,8 +3,9 @@ import { parseAsk, verdict, failsAsk, askNote, askBonus, askSummary, suggestions
 
 /** What Google lists on a property that has a pool and a kitchen but no AC. */
 const VILLA = ["Outdoor pool", "Free parking", "Kitchen", "Washer", "Pet-friendly"];
-/** A hotel with air conditioning and no pool. */
+/** A hotel with air conditioning and no pool — and it SAYS it has no pool. */
 const HOTEL = ["Air conditioning", "Free Wi-Fi", "Free breakfast", "Bar"];
+const HOTEL_NOT = ["No pool"];
 /** Off the map or out of his own saves: no amenity data at all. */
 const NONE: string[] = [];
 
@@ -83,7 +84,11 @@ describe("reading must from nice", () => {
 describe("verdict", () => {
   it("keeps the three states apart", () => {
     expect(verdict("pool", VILLA)).toBe("yes");
-    expect(verdict("pool", HOTEL)).toBe("no");
+    // A no has to be STATED. This test used to read the four-word HOTEL list
+    // as a complete inventory, which is the assumption that emptied the Osaka
+    // list twice: a real list is two or three highlights (11 Sept 2026).
+    expect(verdict("pool", HOTEL, HOTEL_NOT)).toBe("no");
+    expect(verdict("pool", HOTEL)).toBe("unknown");
     expect(verdict("pool", NONE)).toBe("unknown");
     expect(verdict("pool", null)).toBe("unknown");
   });
@@ -97,14 +102,16 @@ describe("failsAsk", () => {
   const ask = parseAsk("we need a pool");
 
   it("drops only what the listing contradicts", () => {
-    expect(failsAsk(ask, HOTEL)).toBe(true);
+    expect(failsAsk(ask, HOTEL, HOTEL_NOT)).toBe(true);
+    // Silence is not a contradiction.
+    expect(failsAsk(ask, HOTEL)).toBe(false);
     expect(failsAsk(ask, VILLA)).toBe(false);
     // The Tuscany case: no amenities anywhere. Nothing may be dropped for that.
     expect(failsAsk(ask, NONE)).toBe(false);
   });
 
   it("never drops for a nice-to-have", () => {
-    expect(failsAsk(parseAsk("a pool would be nice"), HOTEL)).toBe(false);
+    expect(failsAsk(parseAsk("a pool would be nice"), HOTEL, HOTEL_NOT)).toBe(false);
   });
 });
 
@@ -136,5 +143,57 @@ describe("suggestions", () => {
     const s = suggestions({ house: true, askGroundFloor: true, askCot: true });
     expect(s[0]).toBe("Step-free");
     expect(s.length).toBe(5);
+  });
+});
+
+/**
+ * The rule that emptied Osaka.
+ *
+ * These are REAL amenity lists, pulled from SerpApi on 11 Sept 2026 for
+ * Osaka, 10-15 April 2027, two adults and three children. Every one of the
+ * eighteen properties looked like this, and not one mentioned breakfast — so
+ * "must have breakfast" read every list as a denial and deleted all of them.
+ * The list then filled with map rows that can never carry a price, and
+ * Brennan reported "no rates for Osaka" three times.
+ */
+describe("a short list is not an inventory", () => {
+  const DOYANEN = ["Free Wi-Fi", "Kid-friendly"];
+  const FAMILIAR = ["Free Wi-Fi", "Accessible", "Kid-friendly"];
+  const LEGALIE = ["Free Wi-Fi", "Kitchen"];
+  const TENGACHAYA: string[] = [];
+
+  it("never reads a missing word as a no", () => {
+    for (const list of [DOYANEN, FAMILIAR, LEGALIE, TENGACHAYA]) {
+      expect(verdict("breakfast", list)).toBe("unknown");
+      expect(verdict("pool", list)).toBe("unknown");
+    }
+  });
+
+  it("still says yes to what the list does name", () => {
+    expect(verdict("wifi", DOYANEN)).toBe("yes");
+    expect(verdict("kitchen", LEGALIE)).toBe("yes");
+    expect(verdict("accessible", FAMILIAR)).toBe("yes");
+    expect(verdict("kids", DOYANEN)).toBe("yes");
+  });
+
+  it("says no only when the listing states it", () => {
+    expect(verdict("ac", DOYANEN, ["No air conditioning"])).toBe("no");
+    expect(verdict("pets", FAMILIAR, ["Not pet-friendly"])).toBe("no");
+    // The exclusion is about something else, so the want is still unknown.
+    expect(verdict("breakfast", DOYANEN, ["No air conditioning"])).toBe("unknown");
+  });
+
+  it("keeps every real Osaka listing against a breakfast must-have", () => {
+    const ask = parseAsk("breakfast");
+    expect(ask.musts.map((m) => m.key)).toContain("breakfast");
+    for (const list of [DOYANEN, FAMILIAR, LEGALIE, TENGACHAYA]) {
+      expect(failsAsk(ask, list), JSON.stringify(list)).toBe(false);
+    }
+  });
+
+  it("still drops one that says it has no pool when a pool is required", () => {
+    const ask = parseAsk("we need a pool");
+    expect(failsAsk(ask, ["Free Wi-Fi"], ["No pool"])).toBe(true);
+    expect(failsAsk(ask, ["Free Wi-Fi"], [])).toBe(false);
   });
 });

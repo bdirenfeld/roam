@@ -72,8 +72,12 @@ describe("the other rules, each named", () => {
 
   it("drops one the listing says has no pool when a pool is a must", () => {
     const ask = parseAsk("we need a pool");
-    const noPool = offer({ name: "Dry Villa", amenities: ["Kitchen", "Free parking"] });
-    expect(dropReason(noPool, { ...TUSCANY, ask })).toBe("must-have");
+    // It has to SAY so. A two-line amenity list that happens not to mention a
+    // pool is not a denial — reading it as one deleted every Osaka offer
+    // (11 Sept 2026).
+    const said = { ...offer({ name: "Dry Villa", amenities: ["Kitchen", "Free parking"] }), excluded: ["No pool"] };
+    expect(dropReason(said, { ...TUSCANY, ask })).toBe("must-have");
+    expect(dropReason(offer({ name: "Quiet Villa", amenities: ["Kitchen", "Free parking"] }), { ...TUSCANY, ask })).toBeNull();
     // Not listed at all is a third state and keeps its place.
     expect(dropReason(offer({ name: "Unknown", amenities: [] }), { ...TUSCANY, ask })).toBeNull();
   });
@@ -166,5 +170,32 @@ describe("when the fresh offers run out", () => {
 
   it("does not repeat anything when the fresh ones fill the list", () => {
     expect(fillOffers(ALL, { ...OPTS, rejectedNames: new Set() }).repeated).toBe(0);
+  });
+});
+
+describe("a must-have does not delete the whole town", () => {
+  const OSAKA = { lat: 34.6937, lng: 135.5023 };
+  const hotel = (name: string, amenities: string[], excluded: string[] = []) =>
+    ({ ...offer({ name, total: 1800, beds: null, sleeps: null, score: 4.6, reviews: 900 }), lat: OSAKA.lat, lng: OSAKA.lng, amenities, excluded });
+  const OPTS: PickOpts = {
+    party: 5, fitBedrooms: 3, nights: 5, ceiling: 2500,
+    ask: parseAsk("breakfast"), centre: OSAKA, maxKm: 35,
+    skipNames: new Set(), taken: new Set(), preferred: new Set(), room: 5,
+  };
+
+  it("keeps the real Osaka listings, none of which mention breakfast", () => {
+    const list = [
+      hotel("DOYANEN HOTELS YAMATO", ["Free Wi-Fi", "Kid-friendly"]),
+      hotel("The Familiar Inn", ["Free Wi-Fi", "Accessible", "Kid-friendly"]),
+      hotel("HOTEL LEGALIE Osaka Shinsekai", ["Free Wi-Fi", "Kitchen"]),
+      hotel("TENGACHAYA INN", []),
+    ];
+    for (const h of list) expect(dropReason(h, OPTS), h.name).toBeNull();
+    expect(pickOffers(list, OPTS)).toHaveLength(4);
+  });
+
+  it("still drops one that states it has no breakfast", () => {
+    const said = hotel("No Breakfast Inn", ["Free Wi-Fi"], ["No breakfast"]);
+    expect(dropReason(said, OPTS)).toBe("must-have");
   });
 });

@@ -331,19 +331,30 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
    * Osaka and the rows that followed had no price at all. Cleared, the first
    * five come back.
    */
-  async function startOver() {
+  async function startOver(everywhere: boolean) {
     setConfirmClear(false);
     setRunning(true);
+    const here = multi && !everywhere ? baseIdx : null;
     try {
-      const res = await fetch("/api/stays/search", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId: trip.id }) });
+      const res = await fetch("/api/stays/search", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(here == null ? { tripId: trip.id } : { tripId: trip.id, base: here }),
+      });
       if (!res.ok) { toast({ message: "Couldn't clear that." }); return; }
-      setBrief(null);
-      publish([]);
       setOpenId(null);
       setShowEarlier(false);
-      setBaseIdx(0);
       onFocus(null);
-      tried.current.clear();
+      if (here == null) {
+        setBrief(null);
+        publish([]);
+        setBaseIdx(0);
+        tried.current.clear();
+      } else {
+        // This base only: the others keep their rows and their letters.
+        publish(everything.filter((c) => (c.base ?? 0) !== here));
+        tried.current.delete(here);
+      }
       onChanged();
     } catch {
       toast({ message: "Couldn't clear that." });
@@ -458,7 +469,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
   };
   const stepper = open && openIdx >= 0 && shown.length > 1
     ? {
-        place: { letter: open.letter ?? String(openIdx + 1), index: openIdx, total: shown.length },
+        place: { letter: open.letter ?? String(openIdx + 1) },
         onPrev: openIdx > 0 ? () => goTo(openIdx - 1) : undefined,
         onNext: openIdx < shown.length - 1 ? () => goTo(openIdx + 1) : undefined,
       }
@@ -835,15 +846,25 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                   {confirmClear && (
                     <div className="mt-3 rounded-lg p-3" style={{ background: "rgba(176,84,31,0.06)" }}>
                       <p className="text-[12.5px] leading-snug" style={{ color: INK }}>
-                        Forget every search for this journey and look again from nothing?
+                        {multi
+                          ? `Forget what the search remembers and look again from nothing?`
+                          : "Forget every search for this journey and look again from nothing?"}
                       </p>
                       <p className="text-[12px] mt-1 leading-snug" style={{ color: CAPTION }}>
                         Places you saved or chose stay on your map. Your must-haves and your nightly limit stay too.
                       </p>
-                      <div className="flex items-center gap-2 mt-2.5">
-                        <button type="button" onClick={startOver} disabled={running} className="h-9 px-3.5 rounded-full text-[12.5px] font-semibold text-white disabled:opacity-60" style={{ background: SIENNA }}>
-                          Clear and start over
+                      {/* Tokyo can be settled while Osaka is still being looked
+                          at. Clearing Osaka should not cost him Tokyo
+                          (Brennan, 11 Sept 2026). */}
+                      <div className="flex flex-wrap items-center gap-2 mt-2.5">
+                        <button type="button" onClick={() => startOver(false)} disabled={running} className="h-9 px-3.5 rounded-full text-[12.5px] font-semibold text-white disabled:opacity-60" style={{ background: SIENNA }}>
+                          {multi ? `Just ${bases[baseIdx]?.label ?? "here"}` : "Clear and start over"}
                         </button>
+                        {multi && (
+                          <button type="button" onClick={() => startOver(true)} disabled={running} className="h-9 px-3.5 rounded-full text-[12.5px] font-semibold disabled:opacity-60" style={{ color: INK, border: "1px solid rgba(26,26,46,0.25)" }}>
+                            Every base
+                          </button>
+                        )}
                         <button type="button" onClick={() => setConfirmClear(false)} className="h-9 px-2 text-[12.5px]" style={{ color: CAPTION }}>Keep it</button>
                       </div>
                     </div>

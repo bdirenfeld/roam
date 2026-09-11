@@ -137,6 +137,8 @@ export interface StayOffer {
   pool: boolean | null; ac: boolean | null; photos: string[];
   /** Exactly what Google lists, so a want beyond pool/AC can be checked too. */
   amenities: string[];
+  /** What it says it does NOT have. The only thing that can be read as a no. */
+  excluded: string[];
 }
 
 export function serpApiKey(): string | null {
@@ -160,7 +162,7 @@ interface SerpProperty {
   rate_per_night?: { extracted_lowest?: number };
   total_rate?: { extracted_lowest?: number };
   overall_rating?: number; reviews?: number;
-  amenities?: string[]; essential_info?: string[];
+  amenities?: string[]; excluded_amenities?: string[]; essential_info?: string[];
   images?: { thumbnail?: string; original_image?: string }[];
 }
 
@@ -222,6 +224,7 @@ export async function stayOffers(
           baths: num(p.essential_info, /([\d.]+)\s*bathroom/i),
           sleeps: num(p.essential_info, /sleeps\s*(\d+)/i),
           amenities: p.amenities ?? [],
+          excluded: p.excluded_amenities ?? [],
           pool: amen ? /pool/.test(amen) : null,
           ac: amen ? /air conditioning/.test(amen) : null,
           photos: (p.images ?? []).map((i) => i.original_image ?? i.thumbnail).filter((u): u is string => !!u).slice(0, 6),

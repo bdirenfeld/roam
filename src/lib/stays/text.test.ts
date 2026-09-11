@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { compassWord, areaHeadline, areaLine, baseArea, splitText, reachNote, reviewNotes, fitFloorText, hostQuestions } from "./text";
-import type { StayBrief } from "./brief";
+import type { StayBrief, Anchor } from "./brief";
 
 /** The Tuscany brief as buildStayBrief returns it (see brief.test.ts), trimmed to what text needs. */
 const TUSCANY: StayBrief = {
@@ -123,8 +123,8 @@ describe("fit floor and host questions", () => {
 });
 
 describe("what the nights cannot reach", () => {
-  const far = (label, lat, lng, days) => ({ kind: "daytrip", label, lat, lng, days, kmFromEvening: 400 });
-  const JP = {
+  const far = (label: string, lat: number, lng: number, days: number): Anchor => ({ kind: "daytrip", label, lat, lng, days, kmFromEvening: 400 });
+  const JP: StayBrief = {
     ...TUSCANY,
     nights: 13, days: 14,
     anchors: [

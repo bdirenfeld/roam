@@ -62,7 +62,9 @@ const VOCAB: { key: string; noun: string; typed: RegExp; listed: RegExp }[] = [
   { key: "breakfast", noun: "Breakfast", typed: /\bbreakfast\b/i, listed: /\bbreakfast\b/i },
   { key: "hottub", noun: "Hot tub", typed: /\bhot ?tub\b|\bjacuzzi\b/i, listed: /hot ?tub|jacuzzi/i },
   { key: "beach", noun: "Beach access", typed: /\bbeach ?(front|access)\b|\bon the beach\b/i, listed: /beach ?(front|access)/i },
-  { key: "kids", noun: "Child-friendly", typed: /\bcribs?\b|\bcots?\b|\bkid.?friendly\b|\bchild.?friendly\b/i, listed: /child.?friendly|\bcrib\b/i },
+  // Google's own word is "Kid-friendly" — the listed pattern only looked for
+  // "child-friendly" and never matched a real listing (11 Sept 2026).
+  { key: "kids", noun: "Child-friendly", typed: /\bcribs?\b|\bcots?\b|\bkid.?friendly\b|\bchild.?friendly\b/i, listed: /(child|kid).?friendly|\bcrib\b/i },
   { key: "accessible", noun: "Step-free", typed: /\baccessible\b|\bwheelchair\b|\bground ?floor\b|\bstep.?free\b/i, listed: /accessib|wheelchair/i },
   { key: "shuttle", noun: "Airport shuttle", typed: /\bshuttle\b|\bairport transfer\b/i, listed: /shuttle/i },
 ];
@@ -141,16 +143,33 @@ export function parseAsk(text: string | null | undefined): Ask {
  * An empty list means the listing carries no amenities at all — unknown, never
  * a no. Rows off the map and his own saved places are always in that state.
  */
-export function verdict(key: string, amenities: string[] | null | undefined): WantVerdict {
-  if (!amenities || !amenities.length) return "unknown";
+export function verdict(key: string, amenities: string[] | null | undefined, excluded?: string[] | null): WantVerdict {
   const v = VOCAB.find((x) => x.key === key);
   if (!v) return "unknown";
-  return v.listed.test(amenities.join(" | ")) ? "yes" : "no";
+  // Google says what a place does NOT have in its own field. That is the only
+  // thing that can be read as a no.
+  if (excluded && excluded.length && v.listed.test(excluded.join(" | "))) return "no";
+  if (!amenities || !amenities.length) return "unknown";
+  return v.listed.test(amenities.join(" | ")) ? "yes" : "unknown";
 }
 
-/** True only when the listing positively contradicts a must-have. */
-export function failsAsk(ask: Ask, amenities: string[] | null | undefined): boolean {
-  return ask.musts.some((w) => verdict(w.key, amenities) === "no");
+/**
+ * True only when the listing positively contradicts a must-have.
+ *
+ * It used to read a short amenity list as a complete one, and that emptied
+ * the Osaka list twice. Google returns two or three HIGHLIGHTS — real
+ * examples from 11 Sept 2026: ["Free Wi-Fi","Kid-friendly"], ["Free Wi-Fi",
+ * "Kitchen"], and for one hotel []. Not one of the eighteen properties around
+ * Osaka listed breakfast, so "must have breakfast" deleted every priced offer
+ * and the list filled with map rows that had no price at all. Brennan saw
+ * "no rates for Osaka" three times and none of it was about rates.
+ *
+ * Absence of a word from a list of two proves nothing. A no now has to be
+ * stated (SerpApi's own excluded_amenities), or it is unknown, and an unknown
+ * is carried onto the card as "Breakfast not listed" rather than acted on.
+ */
+export function failsAsk(ask: Ask, amenities: string[] | null | undefined, excluded?: string[] | null): boolean {
+  return ask.musts.some((w) => verdict(w.key, amenities, excluded) === "no");
 }
 
 /**

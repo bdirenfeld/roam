@@ -47,16 +47,19 @@ function show(extra: Record<string, unknown> = {}) {
 }
 
 describe("moving between the options from inside the card", () => {
-  it("says where you are in the list and offers both directions", async () => {
-    show({ place: { letter: "B", index: 1, total: 5 }, onPrev: vi.fn(), onNext: vi.fn() });
-    expect(screen.getByText("B of 5")).toBeInTheDocument();
+  it("names the place with the letter on its pin, and offers both directions", async () => {
+    show({ place: { letter: "B" }, onPrev: vi.fn(), onNext: vi.fn() });
+    // The letter alone: it names the pin on the map and the row in the list.
+    // "B of 5" read as a position and B is the second (Brennan, 11 Sept 2026).
+    expect(screen.getByText("B")).toBeInTheDocument();
+    expect(screen.queryByText(/of 5/)).toBeNull();
     expect(screen.getByRole("button", { name: "Previous place" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Next place" })).toBeEnabled();
   });
 
   it("moves when either one is pressed", async () => {
     const onPrev = vi.fn(), onNext = vi.fn();
-    show({ place: { letter: "B", index: 1, total: 5 }, onPrev, onNext });
+    show({ place: { letter: "B" }, onPrev, onNext });
     await userEvent.click(screen.getByRole("button", { name: "Next place" }));
     expect(onNext).toHaveBeenCalledOnce();
     await userEvent.click(screen.getByRole("button", { name: "Previous place" }));
@@ -64,7 +67,7 @@ describe("moving between the options from inside the card", () => {
   });
 
   it("greys out the direction that has nowhere to go", async () => {
-    show({ place: { letter: "A", index: 0, total: 5 }, onNext: vi.fn() });
+    show({ place: { letter: "A" }, onNext: vi.fn() });
     expect(screen.getByRole("button", { name: "Previous place" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Next place" })).toBeEnabled();
   });
@@ -77,7 +80,7 @@ describe("moving between the options from inside the card", () => {
 
   it("takes the arrow keys too, and does not fight the photo carousel", async () => {
     const onPrev = vi.fn(), onNext = vi.fn();
-    show({ place: { letter: "B", index: 1, total: 5 }, onPrev, onNext });
+    show({ place: { letter: "B" }, onPrev, onNext });
     await userEvent.keyboard("{ArrowRight}");
     expect(onNext).toHaveBeenCalledOnce();
     await userEvent.keyboard("{ArrowLeft}");
@@ -89,7 +92,7 @@ describe("moving between the options from inside the card", () => {
 
 describe("what the card still says while it does that", () => {
   it("keeps the price, the nights and the way out", async () => {
-    show({ place: { letter: "B", index: 1, total: 5 }, onNext: vi.fn() });
+    show({ place: { letter: "B" }, onNext: vi.fn() });
     expect(screen.getByText("Hotel Noum Osaka")).toBeInTheDocument();
     expect(screen.getByText(/10–15 Apr · 5 nights/)).toBeInTheDocument();
     expect(screen.getByText(/\$1,800/)).toBeInTheDocument();

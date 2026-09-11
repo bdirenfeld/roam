@@ -26,6 +26,8 @@ export interface Offer {
   beds: number | null;
   sleeps: number | null;
   amenities?: string[];
+  /** What the listing says it does NOT have — the only source of a "no". */
+  excluded?: string[];
 }
 
 export interface PickOpts {
@@ -67,7 +69,7 @@ export type DropReason =
 export function dropReason(o: Offer, opts: PickOpts): DropReason | null {
   if ((o.score ?? 0) < MIN_SCORE || (o.reviews ?? 0) < MIN_REVIEWS) return "score";
   if (budgetVerdict(nightlyOf(o.nightly, o.total, opts.nights), opts.ceiling) === "far") return "budget";
-  if (failsAsk(opts.ask, o.amenities)) return "must-have";
+  if (failsAsk(opts.ask, o.amenities, o.excluded)) return "must-have";
   if (greatCircleKm(o.lat, o.lng, opts.centre.lat, opts.centre.lng) > opts.maxKm) return "too far";
   if (opts.skipNames.has(o.name.toLowerCase())) return "seen";
   if (opts.taken.has(o.name.toLowerCase())) return "duplicate";

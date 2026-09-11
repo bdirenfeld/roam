@@ -41,8 +41,11 @@ const MAX_OFFER_KM = 35;
  * Osaka there was nothing fresh left that anyone prices. Clearing the memory
  * is what makes a second first-run possible.
  *
- * What it clears: every candidate row for the journey, every base, and the
- * brief. What it does NOT touch: places and cards already on the map — those
+ * What it clears: every candidate row for the journey and the brief — or, when
+ * a base is named, only that base's rows. "When you click to start over, it
+ * makes you start both locations like Osaka and Tokyo. What if you just want
+ * to do one?" (Brennan, 11 Sept 2026). Tokyo can be settled while Osaka is
+ * still being looked at, and settling it should not cost him Tokyo. What it does NOT touch: places and cards already on the map — those
  * were put there deliberately and are not search history — and the nightly
  * rate on the Estimate, which is the ceiling he typed. The accommodation
  * basis line goes, because the stay it described no longer exists.
@@ -52,21 +55,29 @@ export async function DELETE(request: NextRequest) {
   if ("response" in gate) return gate.response;
   const { supabase, user } = gate;
 
-  const body = await request.json().catch(() => ({})) as { tripId?: string };
+  const body = await request.json().catch(() => ({})) as { tripId?: string; base?: number };
   if (!body.tripId) return NextResponse.json({ error: "tripId is required" }, { status: 400 });
   const { data: trip } = await supabase.from("trips").select("id, user_id").eq("id", body.tripId).maybeSingle();
   if (!trip || trip.user_id !== user.id) return NextResponse.json({ error: "Not your journey" }, { status: 403 });
 
-  const { data: had } = await supabase.from("stay_candidates").select("id, status").eq("trip_id", trip.id);
+  const base = Number.isFinite(body.base) ? Math.max(0, Math.trunc(body.base as number)) : null;
+  const rows = supabase.from("stay_candidates").select("id, status").eq("trip_id", trip.id);
+  const { data: had } = await (base == null ? rows : rows.eq("base", base));
   const chose = (had ?? []).some((r) => r.status === "chosen");
 
-  const { error } = await supabase.from("stay_candidates").delete().eq("trip_id", trip.id);
+  const gone = supabase.from("stay_candidates").delete().eq("trip_id", trip.id);
+  const { error } = await (base == null ? gone : gone.eq("base", base));
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  await supabase.from("stay_briefs").delete().eq("trip_id", trip.id);
+  // The brief is one row for the whole journey, so clearing one base leaves it
+  // alone: the next run rewrites that base's own line inside it.
+  if (base == null) await supabase.from("stay_briefs").delete().eq("trip_id", trip.id);
 
   if (chose) {
-    // The journey no longer has a stay chosen, so nothing should say it does.
-    await supabase.from("trips").update({ accommodation_name: null, accommodation_address: null }).eq("id", trip.id);
+    // Only base 0 ever writes the journey's accommodation name, so clearing a
+    // later base must not blank it.
+    if (base == null || base === 0) {
+      await supabase.from("trips").update({ accommodation_name: null, accommodation_address: null }).eq("id", trip.id);
+    }
     const { data: budget } = await supabase.from("trip_budgets").select("basis").eq("trip_id", trip.id).maybeSingle();
     if (budget) {
       const b = { ...((budget.basis ?? {}) as Record<string, string>) };
@@ -75,7 +86,7 @@ export async function DELETE(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ cleared: (had ?? []).length, unchose: chose });
+  return NextResponse.json({ cleared: (had ?? []).length, unchose: chose, base });
 }
 
 export async function POST(request: NextRequest) {
@@ -190,6 +201,8 @@ export async function POST(request: NextRequest) {
     pool?: boolean | null; ac?: boolean | null; photos?: string[];
     /** Google's own amenity list, in memory only: the wants are checked against it. */
     amenities?: string[];
+    /** What the listing says it does NOT have — the only source of a "no". */
+    excluded?: string[];
   };
   const inCands = (list: Cand[], name: string, placeId: string | null) =>
     list.some((c) => c.name.toLowerCase() === name.toLowerCase() || (placeId && c.place_id === placeId));
@@ -288,7 +301,11 @@ export async function POST(request: NextRequest) {
     //   by name → 0, because `q` is a place, not a property
     // Neither list contains the other. So ask for both and merge, the wanted
     // kind first, deduped on the name.
-    const q = asked ? `${where}, ${asked}` : where;
+    // `q` is a LOCATION, and appending what he asked for makes it a worse
+    // one: probed on 11 Sept 2026, "Osaka, Japan" returned 12 priced hotels
+    // and "Osaka, Japan, breakfast" returned 8. The ask filters the results
+    // and steers Google's own text search below; it does not belong here.
+    const q = where;
     // Google Hotels refuses a party over six, so on a journey like Tuscany —
     // seven, with both grandparents — the hotel call errors out and returns
     // nothing. Harmless on a villa journey, fatal on a hotel-shaped one where
@@ -348,7 +365,7 @@ export async function POST(request: NextRequest) {
       .forEach((o) => cands.push({
         name: o.name, address: null, lat: o.lat, lng: o.lng, google_place_id: null, place_id: null,
         site: o.site, url: o.url, score: o.score, score_scale: 5, reviews: o.reviews, source: "google",
-        total: o.total, nightly: o.nightly, currency: o.currency, amenities: o.amenities,
+        total: o.total, nightly: o.nightly, currency: o.currency, amenities: o.amenities, excluded: o.excluded,
         beds: o.beds, baths: o.baths, sleeps: o.sleeps, pool: o.pool, ac: o.ac, photos: o.photos,
       }));
   }

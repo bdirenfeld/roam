@@ -43,7 +43,7 @@ interface Props {
    * (Brennan, 11 Sept 2026). Comparing two places meant four taps: back,
    * find the row, open the next, and back again to check the first.
    */
-  place?: { letter: string; index: number; total: number };
+  place?: { letter: string };
   onPrev?: () => void;
   onNext?: () => void;
   onChoose: () => void;
@@ -205,8 +205,11 @@ export default function StayCardSheet({ inPanel = false, backLabel = "Back", can
             >
               <span aria-hidden="true">&lsaquo;</span> Previous
             </button>
-            <span className="text-[12px] font-semibold tracking-wide" style={{ color: CAPTION }}>
-              {place.letter} of {place.total}
+            <span
+              className="inline-flex items-center justify-center w-[24px] h-[24px] rounded-full text-[11.5px] font-bold"
+              style={{ color: SIENNA, border: `2px solid ${SIENNA}` }}
+            >
+              {place.letter}
             </span>
             <button
               type="button"
