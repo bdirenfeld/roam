@@ -14,9 +14,10 @@ import { greatCircleKm } from "@/lib/stays/brief";
 import { areaHeadline, areaLine, splitText, reviewNotes } from "@/lib/stays/text";
 import { priceWindow, priceWindowNote } from "@/lib/stays/priceWindow";
 import { budgetFlag, budgetVerdict, nightlyOf } from "@/lib/stays/budget";
-import { parseAsk, failsAsk, askNote, askBonus } from "@/lib/stays/wants";
+import { parseAsk, askNote, askBonus } from "@/lib/stays/wants";
 import { parseBudget } from "@/lib/stays/budgetInput";
 import { inventoriesFor } from "@/lib/stays/inventory";
+import { pickOffers } from "@/lib/stays/pickOffers";
 
 // Five rows, not ten: the stays already saved on the journey come first and
 // Google fills what is left ("way too many options" — Brennan, 9 Sept 2026).
@@ -259,36 +260,23 @@ export async function POST(request: NextRequest) {
       if (hit.photos.length) c.photos = hit.photos;
     }
 
-    offers
-      .filter((o) => (o.score ?? 0) >= 4.3 && (o.reviews ?? 0) >= 20)
-      // Twice what the Estimate budgets a night is not a near miss, it is a
-      // wasted row (Brennan, 10 Sept 2026). A journey with no Estimate has no
-      // ceiling and nothing is dropped.
-      .filter((o) => budgetVerdict(nightlyOf(o.nightly, o.total, baseNights), ctx.nightlyRate) !== "far")
-      // A must-have removes a row only when the listing says it is absent.
-      // "Not listed" is a third state and keeps its place — treating it as a
-      // failure would empty a list like Tuscany's, where no row has amenities.
-      .filter((o) => !failsAsk(ask, o.amenities))
-      // A home base is near the evenings. Google offered Highland Springs
-      // Ranch, an hour and a half out, and it landed on the Palm Springs list
-      // reading "adds about 13 hours of driving" (Brennan, 10 Sept 2026).
-      .filter((o) => greatCircleKm(o.lat, o.lng, centre.lat, centre.lng) <= MAX_OFFER_KM)
-      .filter((o) => !skipNames.has(o.name.toLowerCase()))
-      .filter((o) => !cands.some((c) => c.name.toLowerCase() === o.name.toLowerCase()))
-      .filter((o) => !brief.fit.bedrooms || o.beds == null || o.beds >= brief.fit.bedrooms - 1)
-      // A listing that says how many it sleeps and says fewer than the party
-      // is not a near miss, it is the wrong house. "Gallo Cedrone, sleeps 6"
-      // sat on a Tuscany list for seven (Brennan, 11 Sept 2026). Silence is
-      // still allowed through — most listings do not say.
-      .filter((o) => o.sleeps == null || o.sleeps >= brief.party.total)
-      // The other inventory is merged in so that anything already on the list
-      // can be priced from it — but it must not take the list over. A hotel
-      // has thousands of reviews where a villa has thirty, so on score alone
-      // hotels would fill a house-shaped journey. The wanted kind ranks first.
-      .sort((a, b) =>
-        (seenOffer.has(norm(b.name)) ? 1 : 0) - (seenOffer.has(norm(a.name)) ? 1 : 0)
-        || (b.score ?? 0) * Math.log((b.reviews ?? 1) + 1) - (a.score ?? 0) * Math.log((a.reviews ?? 1) + 1))
-      .slice(0, Math.max(0, MAX_TOTAL - cands.length))
+    // Which offers earn a row now lives in lib/stays/pickOffers.ts, where a
+    // test can call it. It sat here as a filter chain nothing could reach,
+    // which is why "Gallo Cedrone, sleeps 6" landed on a Tuscany list for
+    // seven and 228 green tests said nothing (Brennan, 11 Sept 2026).
+    pickOffers(offers, {
+      party: brief.party.total,
+      fitBedrooms: brief.fit.bedrooms,
+      nights: baseNights,
+      ceiling: ctx.nightlyRate,
+      ask,
+      centre: { lat: centre.lat, lng: centre.lng },
+      maxKm: MAX_OFFER_KM,
+      skipNames,
+      taken: new Set(cands.map((c) => c.name.toLowerCase())),
+      preferred: seenOffer,
+      room: MAX_TOTAL - cands.length,
+    })
       .forEach((o) => cands.push({
         name: o.name, address: null, lat: o.lat, lng: o.lng, google_place_id: null, place_id: null,
         site: o.site, url: o.url, score: o.score, score_scale: 5, reviews: o.reviews, source: "google",
