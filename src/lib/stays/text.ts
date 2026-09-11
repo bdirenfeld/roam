@@ -8,6 +8,9 @@ import type { StayBrief, Anchor } from "./brief";
 import { greatCircleKm } from "./brief";
 import { fmtMinutes } from "./drive";
 
+/** How far out the journey has to reach before a direction means anything. */
+const OUT_OF_TOWN_KM = 25;
+
 /** Eight-point compass word for a bearing from `from` to `to`, in the phrase "South of Lucca". */
 export function compassWord(fromLat: number, fromLng: number, toLat: number, toLng: number): string {
   const dLng = (toLng - fromLng) * Math.cos(((fromLat + toLat) / 2) * Math.PI / 180);
@@ -28,12 +31,24 @@ export function areaHeadline(brief: StayBrief): string | null {
   if (!ev) return null;
   const pulls = brief.anchors.filter((a) => a.kind !== "evening" && a.kmFromEvening >= 5);
   if (!pulls.length) return `In ${ev.label}.`;
-  // An airport can pull the centre, but it must never be the thing you are
-  // sent TOWARD. New York's only distant anchor is LaGuardia, so the sheet
-  // opened "North-east of New York, toward East Elmhurst" — three nights in
-  // Manhattan, and the advice was to sit near the airport (Brennan, 11 Sept
-  // 2026). With nothing else out there, there is no direction worth giving.
-  if (pulls.every((a) => a.kind === "airport")) return `In ${ev.label}.`;
+  // A direction is only worth giving when the journey actually leaves town.
+  //
+  // Printed for all nine journeys on 11 Sept 2026. Where it reads well the
+  // farthest thing he is going to is a long way out: Tuscany 74 km, Costa
+  // Rica 56, Palm Springs 49 ("toward Joshua Tree"), Sydney 32. Where it
+  // reads badly everything is local and the sentence has to reach for the
+  // airport to find a direction at all:
+  //
+  //   New York, farthest 12 km  → "North-east of New York, toward East
+  //                                Elmhurst" — three nights in Manhattan and
+  //                                it points at LaGuardia
+  //   Rome, farthest 21 km      → "South of Roma, toward the airport"
+  //   Santa Barbara, 18 km      → "West of Montecito, toward Santa Barbara",
+  //                                which is also the airport
+  //
+  // Inside this radius the next sentence already says everything useful —
+  // stay within N minutes of the centre — so the direction is decoration.
+  if (Math.max(...pulls.map((a) => a.kmFromEvening)) < OUT_OF_TOWN_KM) return `In ${ev.label}.`;
   let wLat = 0, wLng = 0, w = 0;
   for (const a of pulls) { wLat += a.lat * a.days; wLng += a.lng * a.days; w += a.days; }
   const cLat = wLat / w, cLng = wLng / w;

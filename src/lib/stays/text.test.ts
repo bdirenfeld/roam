@@ -203,3 +203,39 @@ describe("a city where the only thing out of town is the airport", () => {
     expect(areaLine(NYC, 28)).toBe("3 evenings in New York; stay within 15 minutes of it. Airport 28 min.");
   });
 });
+
+/**
+ * The direction, across all nine of his journeys (printed 11 Sept 2026).
+ * Where it reads well the journey genuinely leaves town; where it read badly
+ * everything was local and the sentence reached for the airport to find a
+ * direction at all.
+ */
+describe("a direction is given only when the journey leaves town", () => {
+  const brief = (farKm: number, kind: "airport" | "daytrip" = "daytrip"): StayBrief => ({
+    ...TUSCANY,
+    evening: { lat: 43.8431, lng: 10.5032, label: "Lucca", days: 2, evenings: true },
+    anchors: [
+      { kind: "evening", label: "Lucca", lat: 43.8431, lng: 10.5032, days: 2, kmFromEvening: 0 },
+      { kind, label: "Somewhere", lat: 43.8431 + farKm / 111, lng: 10.5032, days: 2, kmFromEvening: farKm },
+    ],
+  });
+
+  it("says nothing directional when everything is within about 25 km", () => {
+    // New York 12 km, Santa Barbara 18, Rome 21 — all of them used to point
+    // at their own airport.
+    for (const km of [6, 12, 18, 21, 24]) {
+      expect(areaHeadline(brief(km)), `${km} km`).toBe("In Lucca.");
+    }
+  });
+
+  it("gives one once something is genuinely out of town", () => {
+    // Sydney 32 km, Palm Springs 49, Costa Rica 56, Tuscany 74.
+    for (const km of [32, 49, 56, 74]) {
+      expect(areaHeadline(brief(km)), `${km} km`).toBe("North of Lucca, toward Somewhere.");
+    }
+  });
+
+  it("keeps the four that read well, unchanged", () => {
+    expect(areaHeadline(TUSCANY)).toBe("South of Lucca, toward Pisa.");
+  });
+});
