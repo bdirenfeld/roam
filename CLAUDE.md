@@ -923,3 +923,33 @@ come from SerpApi only; rows from Google Places or his own saved stays have none
 
 The line is stored on `stay_briefs.brief.wants` (JSON, no migration) so Run
 again never makes him retype it.
+
+### Rendering tests (Sept 2026)
+
+`vitest.config.ts` once said "no jsdom and no React testing library ... the
+bugs this suite exists to catch were never rendering bugs". That was wrong.
+On 11 Sept Brennan found four faults in a row by opening the app while 228
+green tests said nothing: a render loop that fought the map's pinch, a touch
+and a click both firing so the sheet would not pull down, a blank white list
+while a base searched, and one base showing another's copy.
+
+**Every test lived in `src/lib` and called a pure function.** The suite could
+not render, click, or run a route. Two things came out of it:
+
+- **Logic that decides what the user sees belongs in `src/lib`, not inside a
+  route handler.** "Which offers become rows" sat as a filter chain inside a
+  450-line route and nothing could call it — which is how a villa sleeping six
+  reached a list for seven. It is `lib/stays/pickOffers.ts` now, and its
+  `dropReason()` names the rule that fired so a test can assert *why*.
+- **A `*.test.tsx` with `// @vitest-environment jsdom` renders for real.**
+  `src/components/map/WhereToStaySheet.test.tsx` is the pattern: mock
+  `@/lib/supabase/client`, `useToast` and any child sheet, then drive it with
+  `userEvent`.
+
+Two traps. Testing Library only auto-cleans when the framework's globals are
+on, and this repo imports `describe`/`it`/`expect` explicitly — without the
+`afterEach(cleanup)` in `src/test/setup.ts` every test leaves its render
+mounted and the next one fails with "found multiple elements" on a component
+that is fine. And jsdom costs ~65s of startup on the first rendering file.
+
+**Still uncovered: the map.** Mapbox does not run in jsdom.
