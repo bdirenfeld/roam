@@ -13,7 +13,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "shot": "node scripts/shot.mjs",
-    "shot:login": "node scripts/shot-login.mjs"
+    "shot:login": "node scripts/shot-login.mjs",
+    "import:places": "node scripts/import-places.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",

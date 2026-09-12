@@ -1059,3 +1059,37 @@ not a hidden tab, but a screenshot of a map still deserves the same suspicion.
 
 This does not make a mobile change verified. It makes it *looked at*, which is
 the step that was missing.
+
+## The enrichment call needs a session, not a key (`npm run import:places`)
+
+`/api/places/bulk-import` authenticates with the cookie-based SSR client, so
+the trip-import skill's standing instruction is to have Brennan paste a `fetch`
+into his browser console. That is where the pipeline stops — on 3 Sept a Palm
+Springs import reached "42 places need enrichment via app endpoint; awaiting
+user console paste" and never finished. It was not blocked on a decision. It
+was blocked on a person being at a desktop with the right tab open.
+
+```
+npm run import:places -- ChIJaaa ChIJbbb
+npm run import:places -- --file=ids.txt --type=activity --subtype=guided
+```
+
+It opens the app with the session `npm run shot:login` already saved and makes
+the same fetch the console would have, from the app's own origin: same cookies,
+same RLS, same quota, same 401 when it expires. It batches at the route's hard
+cap of 50, prints each row as `+` (new) or `=` (already had a row), names the
+reason for every failure, and writes the `place_id`s to
+`.shots/imported-places.json` because that is what the SQL step needs next.
+Re-running is safe — an existing row costs no Google lookup.
+
+**A shared secret was the other way to do this, and it is the wrong way.** An
+env-var API key mapped to a user id would work headlessly in a container, which
+is genuinely more than this can do. It would also be a second authentication
+path into a spending route, in a public repository, that no other part of the
+app has — permanently, to save a login that lasts weeks. The session was always
+the right credential; it just needed something other than a human to carry it.
+
+The skill still says "there is no service-key path — do not try to fake one",
+which remains true, and should now add: **there is a session path, and it is
+`npm run import:places`.** That text lives in the account's synced skills, not
+in this repo, so it has to be edited there.
