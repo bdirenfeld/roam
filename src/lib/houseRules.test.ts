@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import path from "node:path";
 
 /**
@@ -194,6 +195,84 @@ describe("an overlay-hosted screen is a flex item, never h-full", () => {
         "`h-full` resolves against the card's `md:h-auto` and collapses to " +
         "content height, so the body inside never scrolls on a desktop. See " +
         "CLAUDE.md, 'Overlay-hosted screens'.",
+    ).toEqual([]);
+  });
+});
+
+// ── A workflow's shell has to parse ───────────────────────────────────────
+// Nothing runs a GitHub workflow until it is pushed, so a shell syntax error
+// in one is found by the run that was supposed to be doing the checking. On
+// 12 Sept the red-alert step carried a heredoc whose `BODY` terminator sat
+// indented — a terminator has to be at column 0, and inside a YAML block
+// scalar it cannot be. The script died on `unexpected end of file`, and
+// because that step is deliberately `continue-on-error`, the job reported
+// SUCCESS. A broken alarm that reports success is worse than no alarm.
+//
+// `bash -n` parses without executing and would have caught it in a second.
+describe("every workflow's shell parses", () => {
+  const WORKFLOWS = path.resolve(SRC, "..", ".github", "workflows");
+
+  /**
+   * Pulls each `run: |` block out of a workflow. Written by hand rather than
+   * adding a YAML dependency for one check: block scalars are defined by
+   * indentation, so the rule is simply "keep taking lines indented deeper than
+   * the `run:` key", and blank lines belong to the block.
+   */
+  function runBlocks(text: string): string[] {
+    const lines = text.split("\n");
+    const blocks: string[] = [];
+    for (let i = 0; i < lines.length; i++) {
+      const opener = /^(\s*)-?\s*run:\s*[|>][-+]?\s*$/.exec(lines[i]);
+      if (!opener) continue;
+      const outer = opener[1].length;
+      const body: string[] = [];
+      let j = i + 1;
+      for (; j < lines.length; j++) {
+        const line = lines[j];
+        if (line.trim() === "") { body.push(""); continue; }
+        const indent = line.length - line.replace(/^\s*/, "").length;
+        if (indent <= outer) break;
+        body.push(line);
+      }
+      i = j - 1;
+      if (body.length) blocks.push(body.join("\n"));
+    }
+    return blocks;
+  }
+
+  it("finds the run blocks", () => {
+    const files = readdirSync(WORKFLOWS).filter((f) => /\.ya?ml$/.test(f));
+    let total = 0;
+    for (let i = 0; i < files.length; i++) {
+      total += runBlocks(readFileSync(path.join(WORKFLOWS, files[i]), "utf8")).length;
+    }
+    // Vacuously passing is the failure mode of every scan in this file.
+    expect(total).toBeGreaterThan(3);
+  });
+
+  it("parses under `bash -n`", () => {
+    const files = readdirSync(WORKFLOWS).filter((f) => /\.ya?ml$/.test(f));
+    const broken: string[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const blocks = runBlocks(readFileSync(path.join(WORKFLOWS, files[i]), "utf8"));
+      for (let b = 0; b < blocks.length; b++) {
+        // `${{ … }}` is GitHub's, not the shell's, and it is substituted before
+        // bash ever sees the script. Replace it with a plain word so the shape
+        // being parsed is the shape that will run.
+        const script = blocks[b].replace(/\$\{\{[^}]*\}\}/g, "EXPR");
+        const check = spawnSync("bash", ["-n"], { input: script, encoding: "utf8" });
+        if (check.status !== 0) {
+          broken.push(files[i] + " block " + (b + 1) + ": " + (check.stderr || "").trim());
+        }
+      }
+    }
+
+    expect(
+      broken,
+      "A workflow's shell is only run by the workflow, so a syntax error here " +
+        "is found by the run that was meant to be checking everything else — " +
+        "and a `continue-on-error` step reports success while doing nothing.",
     ).toEqual([]);
   });
 });

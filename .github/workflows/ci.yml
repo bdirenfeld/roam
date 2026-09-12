@@ -142,6 +142,7 @@ jobs:
       # says so in the job summary instead, and the first green run after this
       # lands proves whether the token can reach issues at all.
       - name: Open or close the "main is red" issue
+        id: notify
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -175,25 +176,22 @@ jobs:
               # The summary of the failing run is in the job summary of the
               # checks job; the body points at it rather than repeating it,
               # because it will go stale and the run will not.
-              cat > /tmp/body.md <<'BODY'
-              The Checks workflow failed.
-
-              **Look at which steps passed.** The run names all four, so a lone
-              type-check failure in a test file means the app still builds and
-              deploys — that is a small fix, not an outage.
-
-              This issue closes itself on the next green push to main. It exists
-              because on 11 Sept main went red and stayed red for nine commits
-              without anyone noticing: a workflow that is red every time stops
-              being a signal.
-              BODY
-              sed -i 's/^              //' /tmp/body.md
-              printf '\nFailed at `%s` — [run](%s)\n' "$short" "$RUN_URL" >> /tmp/body.md
+              {
+                printf '%s\n\n' "The Checks workflow failed."
+                printf '%s\n' "**Look at which steps passed.** The run names all four, so a lone"
+                printf '%s\n' "type-check failure in a test file means the app still builds and"
+                printf '%s\n\n' "deploys — that is a small fix, not an outage."
+                printf '%s\n' "This issue closes itself on the next green push to main. It exists"
+                printf '%s\n' "because on 11 Sept main went red and stayed red for nine commits"
+                printf '%s\n' "without anyone noticing: a workflow that is red every time stops"
+                printf '%s\n\n' "being a signal."
+                printf 'Failed at `%s` — [run](%s)\n' "$short" "$RUN_URL"
+              } > "$RUNNER_TEMP/body.md"
               url=$(gh issue create \
                 --title "main is red" \
                 --label ci-red \
                 --assignee "${{ github.repository_owner }}" \
-                --body-file /tmp/body.md)
+                --body-file "$RUNNER_TEMP/body.md")
               echo "Opened $url — main is red." >> "$GITHUB_STEP_SUMMARY"
             fi
           else
@@ -205,3 +203,14 @@ jobs:
               echo "main is green, and nothing to close (issues readable, so the alarm is armed)." >> "$GITHUB_STEP_SUMMARY"
             fi
           fi
+
+      # The step above is continue-on-error so it can never turn a green run
+      # red. That is right, and it is also how its first version failed in
+      # silence: a heredoc terminator cannot sit at column 0 inside a YAML
+      # block scalar, the script died on a syntax error, and the job reported
+      # success. A warning annotation is the middle ground — visible on the run
+      # page, fatal to nothing.
+      - name: Say if the alarm itself is broken
+        if: always() && steps.notify.outcome != 'success'
+        run: |
+          echo "::warning title=CI alarm is broken::The red-alert step did not run cleanly. A red main will not open an issue until this is fixed."

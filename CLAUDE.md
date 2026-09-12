@@ -1125,6 +1125,16 @@ of which needs anyone to think of opening the Actions tab. The step is
 green run red**, which is the disease, not the cure. If the token cannot reach
 issues it says so in the job summary instead.
 
+**The alarm's own first version failed silently**, which is the lesson twice
+over: its heredoc terminator sat indented, and a heredoc terminator has to be
+at column 0 — inside a YAML block scalar it cannot be. The script died on a
+syntax error, and because the step is `continue-on-error` the job reported
+SUCCESS. Caught by reading the log, not the tick. Two things came out of it: a
+second step raises a `::warning::` annotation when the notifier does not
+succeed, and `houseRules.test.ts` now runs `bash -n` over every `run:` block in
+every workflow. Nothing else runs a workflow's shell until it is pushed, so
+that one second of parsing is the only check it ever gets.
+
 The deeper point, worth keeping: **a check that is red every time is not a
 check.** A real breakage then looks identical to the noise you have already
 learned to scroll past. Red-after-green is a signal; red-after-red means the
