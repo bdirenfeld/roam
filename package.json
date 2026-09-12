@@ -11,7 +11,9 @@
     "seed:local": "ts-node --esm scripts/seed-local.ts",
     "backfill:coords": "ts-node --esm scripts/backfill-coords.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "shot": "node scripts/shot.mjs",
+    "shot:login": "node scripts/shot-login.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",

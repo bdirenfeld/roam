@@ -1018,3 +1018,44 @@ on `tsc --noEmit` and stayed red for a day.
 
 Run **all three** before pushing — `npx tsc --noEmit`, `npm test`, `npm run
 build`. Any one of them passing says nothing about the other two.
+
+## Looking at the phone without the phone (`npm run shot`)
+
+`scripts/shot.mjs` opens a real Chromium at **390×844 with touch** and writes a
+PNG, so a mobile layout can be looked at before it is pushed rather than after
+Brennan finds it.
+
+```
+npm run shot -- /trips/<id>/days/<dayId>        # phone, the default
+npm run shot -- /trips/<id>/plan --wide         # 1280, the same question again
+npm run shot -- https://…/journey/<token>       # no session needed
+npm run shot -- /trips --full                   # whole document, not the fold
+```
+
+It prints the three numbers that catch what this repo actually ships: viewport
+width, document width × height, and HTTP status. **A document wider than the
+viewport at 390px is always a bug**, and a document far taller than its content
+is the escaped-Mapbox-marker signature from `bc5f376`.
+
+**The session.** Most of the app is behind Google sign-in and a script cannot
+do an OAuth dance, so sign in once: `npm run shot:login` opens a headed browser,
+waits for you to land inside the app, and saves the cookies to `.auth/roam.json`
+(git-ignored). Every later shot reuses it. A remote container has no browser to
+sign in with — public pages still work there, the signed-in app does not.
+
+**Playwright is deliberately not in `package.json`.** `npm ci` in the checks
+workflow would pull a browser on every run, and that workflow's value is that it
+finishes in under two minutes. It is a local tool: `npm i -D playwright &&
+npx playwright install chromium`. Claude Code's containers ship one globally and
+the script finds it.
+
+**Two things it cannot do**, and saying so is the point of writing it down:
+press-and-hold is still Brennan's thumb, and a container that blocks
+fonts.googleapis.com renders in fallback faces — the script detects that and
+says the type is not the real type, because otherwise the hydration error it
+causes gets diagnosed as a bug in the page. It also does not replace `document.
+visibilityState`: Mapbox paints nothing in a hidden tab, and a headless shot is
+not a hidden tab, but a screenshot of a map still deserves the same suspicion.
+
+This does not make a mobile change verified. It makes it *looked at*, which is
+the step that was missing.

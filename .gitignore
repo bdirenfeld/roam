@@ -38,3 +38,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Screenshots and the saved browser session behind them (scripts/shot.mjs)
+.shots
+.auth
