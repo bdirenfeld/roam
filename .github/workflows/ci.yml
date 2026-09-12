@@ -55,21 +55,153 @@ jobs:
       # `npm ci` installs exactly what package-lock.json pins and fails if the
       # lockfile and package.json disagree — which is itself worth catching.
       - name: Install
+        id: install
         run: npm ci
 
-      # Type check first: it is the fastest of the three and catches the most.
+      # ── Every step runs, even after one fails ──────────────────────────
+      # A job normally stops at the first failing step. On 11 Sept that hid
+      # the whole picture: one line in layers.test.ts used a `matchAll` spread
+      # this project's ES5 target cannot compile, the type check failed, and
+      # lint, tests and build were never run — on that push or on the eight
+      # that followed it. The app was fine the entire time and nothing said
+      # so, because a red run naming one broken test file looks exactly like a
+      # red run where everything is broken.
+      #
+      # So each step carries an id and `if: always()`, and the gate at the end
+      # fails the job. A red run now names every broken thing at once, and
+      # which steps PASSED is the useful half of that.
+
+      # Type check first: it is the fastest of the four and catches the most.
       - name: Type check
+        id: typecheck
+        if: always() && steps.install.outcome == 'success'
         run: npx tsc --noEmit
 
       # Warnings are allowed through; errors are not. An unused import is an
       # error to `next build`, so catching it here saves a red deploy.
       - name: Lint
+        id: lint
+        if: always() && steps.install.outcome == 'success'
         run: npm run lint
 
       # Pure-function tests over fixtures copied from the live database. They
       # need no secrets and no network, and they run in about two seconds.
       - name: Test
+        id: test
+        if: always() && steps.install.outcome == 'success'
         run: npm test
 
       - name: Build
+        id: build
+        if: always() && steps.install.outcome == 'success'
         run: npm run build
+
+      # The gate. Without this the job would go green with failing steps in it.
+      - name: Verdict
+        if: always()
+        run: |
+          fail=0
+          for step in "type check:${{ steps.typecheck.outcome }}" \
+                      "lint:${{ steps.lint.outcome }}" \
+                      "tests:${{ steps.test.outcome }}" \
+                      "build:${{ steps.build.outcome }}"; do
+            name="${step%:*}"; outcome="${step##*:}"
+            if [ "$outcome" = "success" ]; then
+              echo "- ✓ $name" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "- ✗ $name ($outcome)" >> "$GITHUB_STEP_SUMMARY"
+              fail=1
+            fi
+          done
+          cat "$GITHUB_STEP_SUMMARY"
+          exit $fail
+
+  # ── Say so when main goes red ─────────────────────────────────────────────
+  # The checks above are a report, and a report only works if somebody reads
+  # it. On 11 Sept main went red and stayed red for nine commits, because a
+  # workflow that is red every time stops being a signal — a genuine breakage
+  # looks identical to the noise you have already started ignoring.
+  #
+  # So a red main opens ONE issue and comments on it each time it stays red;
+  # a green main closes it. An issue sends an email and shows a badge on the
+  # repo, neither of which requires anyone to think of looking at the Actions
+  # tab.
+  #
+  # Push-to-main only: a pull request's own checks are already visible on it.
+  red-alert:
+    needs: checks
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      # continue-on-error, deliberately: a notifier that cannot post must never
+      # turn a GREEN run red. A false red is the exact disease this treats. It
+      # says so in the job summary instead, and the first green run after this
+      # lands proves whether the token can reach issues at all.
+      - name: Open or close the "main is red" issue
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RESULT: ${{ needs.checks.result }}
+          SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -u
+
+          # The label is how the one issue is found again. Creating it is
+          # idempotent; `gh issue create --label` fails on a label that does
+          # not exist yet.
+          gh label create ci-red \
+            --color B60205 \
+            --description "main is failing the Checks workflow" >/dev/null 2>&1 || true
+
+          existing=$(gh issue list --label ci-red --state open --limit 1 --json number --jq '.[0].number // empty' 2>&1) || {
+            echo "::warning::Could not read issues — $existing"
+            echo "Could not read issues. Settings → Actions → General → Workflow permissions may be read-only." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          }
+
+          short=$(echo "$SHA" | cut -c1-7)
+
+          if [ "$RESULT" != "success" ]; then
+            if [ -n "$existing" ]; then
+              gh issue comment "$existing" --body "Still red at \`$short\`. [Run]($RUN_URL)"
+              echo "Commented on #$existing — main is still red." >> "$GITHUB_STEP_SUMMARY"
+            else
+              # The summary of the failing run is in the job summary of the
+              # checks job; the body points at it rather than repeating it,
+              # because it will go stale and the run will not.
+              cat > /tmp/body.md <<'BODY'
+              The Checks workflow failed.
+
+              **Look at which steps passed.** The run names all four, so a lone
+              type-check failure in a test file means the app still builds and
+              deploys — that is a small fix, not an outage.
+
+              This issue closes itself on the next green push to main. It exists
+              because on 11 Sept main went red and stayed red for nine commits
+              without anyone noticing: a workflow that is red every time stops
+              being a signal.
+              BODY
+              sed -i 's/^              //' /tmp/body.md
+              printf '\nFailed at `%s` — [run](%s)\n' "$short" "$RUN_URL" >> /tmp/body.md
+              url=$(gh issue create \
+                --title "main is red" \
+                --label ci-red \
+                --assignee "${{ github.repository_owner }}" \
+                --body-file /tmp/body.md)
+              echo "Opened $url — main is red." >> "$GITHUB_STEP_SUMMARY"
+            fi
+          else
+            if [ -n "$existing" ]; then
+              gh issue close "$existing" --comment "Green again at \`$short\`. [Run]($RUN_URL)"
+              echo "Closed #$existing — main is green again." >> "$GITHUB_STEP_SUMMARY"
+            else
+              # Not idle: this line is the proof the token can reach issues.
+              echo "main is green, and nothing to close (issues readable, so the alarm is armed)." >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi

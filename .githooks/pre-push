@@ -1,0 +1,33 @@
+#!/bin/sh
+# Runs the Checks workflow's four steps before the push, instead of after.
+#
+# The workflow is a report: it runs once the code is already on main, so a red
+# run means the breakage has shipped. On 11 Sept that gap let nine commits
+# stack on top of one uncompilable line, and because GitHub stops at the first
+# failing step, lint, tests and build were not run on any of them.
+#
+# Installed by `npm install` (the `prepare` script points core.hooksPath here),
+# so it is versioned with the repo rather than living in one clone's .git.
+#
+#   git push --no-verify     skips it, deliberately.
+#
+# Skipped when CHECKS_SKIP is set, which the workflow itself does not need —
+# nothing inside Actions pushes.
+
+if [ -n "$CHECKS_SKIP" ]; then
+  echo "pre-push: CHECKS_SKIP is set, skipping."
+  exit 0
+fi
+
+if [ ! -d node_modules ]; then
+  echo "pre-push: no node_modules — run \`npm ci\` first, or push with --no-verify."
+  exit 1
+fi
+
+echo "pre-push: running the checks (about 90s; --no-verify skips)"
+node scripts/checks.mjs || {
+  echo ""
+  echo "pre-push: NOT pushing. Fix the above, or \`git push --no-verify\` if you"
+  echo "          mean it. Every step ran, so the list above is complete."
+  exit 1
+}

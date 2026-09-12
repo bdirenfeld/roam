@@ -12,9 +12,11 @@
     "backfill:coords": "ts-node --esm scripts/backfill-coords.ts",
     "test": "vitest run",
     "test:watch": "vitest",
+    "checks": "node scripts/checks.mjs",
     "shot": "node scripts/shot.mjs",
     "shot:login": "node scripts/shot-login.mjs",
-    "import:places": "node scripts/import-places.mjs"
+    "import:places": "node scripts/import-places.mjs",
+    "prepare": "git config core.hooksPath .githooks 2>/dev/null || true"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",

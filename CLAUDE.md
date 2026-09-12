@@ -604,8 +604,9 @@ building locally with placeholders — 36/36 pages, exit 0. Keep it that way. A
 rotated key can then never turn the checks red, and anything genuinely needing
 a live key is caught by Vercel's own build immediately after.
 
-Do not treat this as a substitute for the local build gate before pushing —
-it runs after the push, so a red run means bad code is already on main.
+Do not treat this as a substitute for the local gate before pushing — it runs
+after the push, so a red run means bad code is already on main. That gate is
+`npm run checks`, and `.githooks/pre-push` runs it for you.
 
 What it catches: unused imports, type errors, lint errors. What it does NOT
 catch: layout and behaviour regressions, which build perfectly cleanly. The
@@ -1093,3 +1094,38 @@ The skill still says "there is no service-key path — do not try to fake one",
 which remains true, and should now add: **there is a session path, and it is
 `npm run import:places`.** That text lives in the account's synced skills, not
 in this repo, so it has to be edited there.
+
+## The checks are a gate now, and a red main says so (`npm run checks`)
+
+Two changes, both bought by the same episode: main went red on 11 Sept and
+stayed red for **nine commits**, and nobody noticed.
+
+**`npm run checks` runs all four steps and does not stop at the first
+failure.** Type check, lint, tests, build — about 90 seconds, or
+`npm run checks -- --fast` for the first three in thirty. GitHub stops a job at
+its first failing step, which is what hid the real picture: the type check
+failed on one line of `layers.test.ts`, so lint, tests and build never ran, on
+that push or the eight after it. The app was building perfectly the whole time
+and nothing said so. **Which steps PASSED is the useful half of a red run** — a
+lone type-check failure in a test file is a small fix, not an outage.
+
+`.githooks/pre-push` runs it before the push rather than after. It is versioned
+in the repo and `npm install` points git at it (the `prepare` script sets
+`core.hooksPath`), so a fresh clone has it. `git push --no-verify` skips it, and
+that should feel deliberate.
+
+**The workflow now reports every step and gates at the end** (`Verdict`), so one
+red run names everything that is wrong at once.
+
+**A red main opens an issue, and a green main closes it.** One issue, labelled
+`ci-red`, assigned to the owner; a run that is still red comments on it rather
+than opening a second. An issue sends an email and shows on the repo, neither
+of which needs anyone to think of opening the Actions tab. The step is
+`continue-on-error` on purpose — **a notifier that cannot post must never turn a
+green run red**, which is the disease, not the cure. If the token cannot reach
+issues it says so in the job summary instead.
+
+The deeper point, worth keeping: **a check that is red every time is not a
+check.** A real breakage then looks identical to the noise you have already
+learned to scroll past. Red-after-green is a signal; red-after-red means the
+alarm itself needs fixing first.
