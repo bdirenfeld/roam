@@ -196,7 +196,7 @@ export default function ProfileForm({ initial = null, variant = "page", onDismis
   if (!overlay) return body;
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-white">
+    <div className="flex-1 min-h-0 flex flex-col bg-white">
       <div className="flex items-center h-11 border-b border-gray-100 flex-shrink-0 relative bg-white">
         <button
           onClick={onDismiss}

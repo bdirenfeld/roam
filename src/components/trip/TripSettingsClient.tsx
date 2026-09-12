@@ -517,7 +517,7 @@ export default function TripSettingsClient({
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className={overlay ? "flex flex-col h-full min-h-0 bg-white" : "flex flex-col min-h-dvh bg-white"}>
+    <div className={overlay ? "flex-1 min-h-0 flex flex-col bg-white" : "flex flex-col min-h-dvh bg-white"}>
       {/* Sticky header. Same row in both hosts; only the dismiss glyph
           changes — a back chevron on the page, a close cross in the overlay. */}
       <div className="flex items-center h-11 border-b border-gray-100 flex-shrink-0 relative bg-white sticky top-0 z-10">

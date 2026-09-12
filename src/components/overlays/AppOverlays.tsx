@@ -684,7 +684,7 @@ function TripSettingsBody({
 /** The settings header on its own, for the loading and blocked states. */
 function SettingsFrame({ onClose, children }: { onClose: () => void; children: ReactNode }) {
   return (
-    <div className="flex flex-col h-full min-h-0 bg-white">
+    <div className="flex-1 min-h-0 flex flex-col bg-white">
       <div className="flex items-center h-11 border-b border-gray-100 flex-shrink-0 relative bg-white">
         <button
           onClick={onClose}

@@ -977,3 +977,44 @@ The sweep earned its place immediately: it found that a SINGLE-base journey took
 its night count from the trip's dates rather than the base's. Identical in
 normal use, divergent the moment a journey's dates are edited after a search —
 "for 13 nights" beside a price quoted for 11.
+
+## Rules that are prose here and a test there (`lib/houseRules.test.ts`)
+
+A rule written only in this file is remembered when somebody happens to read
+that paragraph, which is not the same as always. Three of the rules above are
+also assertions now, each naming the failure that bought it:
+
+- **`void` on a Supabase builder** — no `void` in front of a chain containing
+  `.from(` or `.rpc(`, because that sends no request at all.
+- **One ordering rule** — exactly one `agendaOrder`, and no other comparator
+  that reads `start_time`.
+- **Overlay-hosted screens** — a screen that takes `variant="overlay"` never
+  puts `h-full` in a className that also carries `flex-col` or `min-h-0`.
+
+The third one was not decoration: it found **four live violations** the day it
+was written — `ProfileForm`, `NewJourneyForm`, `TripSettingsClient` and the
+settings loading frame all sized their overlay root `flex flex-col h-full
+min-h-0`, the exact spelling the Estimate was fixed away from in `a967532`.
+Latent on a phone (the card's 92dvh is a real height, so both spellings
+resolve the same) and live on a desktop.
+
+**When you would add a rule to this file, ask first whether it can be an
+assertion.** Ship the guard; leave one sentence here pointing at it. This file
+went from 1,381 words to 10,368 in a month, and a rule nobody can run is the
+cheapest kind to write and the most expensive kind to rely on.
+
+Discovery is by token, not by a hand-kept list — any file mentioning
+`variant="overlay"` is an overlay-hosted screen — so a new screen is covered
+the day it is written. A guard that needs a list to be updated is a guard that
+goes stale in the same way the prose did.
+
+## `npm test` is green and `tsc --noEmit` is not the same question
+
+`src/lib/ui/layers.test.ts` shipped on 11 Sept spreading `matchAll`, which this
+project cannot compile: no `target` is set, so TypeScript uses ES5 and refuses
+to iterate the iterator `matchAll` returns. Vitest transpiles with esbuild,
+which does not care, so all 375 tests passed while the Checks workflow went red
+on `tsc --noEmit` and stayed red for a day.
+
+Run **all three** before pushing — `npx tsc --noEmit`, `npm test`, `npm run
+build`. Any one of them passing says nothing about the other two.

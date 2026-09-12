@@ -28,11 +28,19 @@ function read(rel: string): string {
 /** The highest z-index in a file — the layer that file paints on. */
 function layerOf(rel: string): number {
   const src = read(rel);
-  const found = [...src.matchAll(/\bz-\[(\d+)\]|\bz-(\d+)\b/g)]
-    .map((m) => Number(m[1] ?? m[2]))
-    .filter((n) => Number.isFinite(n));
+  // `exec` in a loop rather than spreading `matchAll`: this project sets no
+  // `target`, so TypeScript compiles it as ES5 and cannot iterate the
+  // iterator matchAll returns. Vitest transpiles with esbuild and never
+  // noticed — `tsc --noEmit` in the checks workflow did.
+  const found: number[] = [];
+  const re = /\bz-\[(\d+)\]|\bz-(\d+)\b/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(src)) !== null) {
+    const n = Number(m[1] !== undefined ? m[1] : m[2]);
+    if (Number.isFinite(n)) found.push(n);
+  }
   expect(found.length, `${rel} declares no z-index`).toBeGreaterThan(0);
-  return Math.max(...found);
+  return Math.max.apply(null, found);
 }
 
 const HEADER = "components/ui/JourneyHeader.tsx";

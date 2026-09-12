@@ -622,7 +622,7 @@ export default function NewJourneyForm({
   }, [isValid, saving, destination, tripName, startDate, endDate, partySize, coverUrl, inviteEmails, router, onCreated, toast]);
 
   return (
-    <div className={overlay ? "flex flex-col h-full min-h-0 bg-white" : "flex flex-col min-h-dvh bg-white"}>
+    <div className={overlay ? "flex-1 min-h-0 flex flex-col bg-white" : "flex flex-col min-h-dvh bg-white"}>
 
       {/* Header. Same row in both hosts; only the dismiss glyph changes —
           a back chevron on the page, a close cross in the overlay. */}
