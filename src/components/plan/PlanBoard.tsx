@@ -2422,9 +2422,13 @@ function CardTile({
           than a hole. */}
       {place && (
         <div
-          className="relative w-full overflow-hidden flex items-center justify-center text-[#1A1A2E]"
+          className="relative w-full overflow-hidden flex items-center justify-center text-[#1A1A2E] cursor-pointer"
           style={{ height: 96, background: "#E8E3DA" }}
           onPointerEnter={() => warmPhoto(photoIdx + 1)}
+          // A tap on the photo opens the card, like a tap on the words. It
+          // never did, and on a phone the photo is most of the card
+          // (Brennan, 15 Sept 2026).
+          onClick={onTap}
         >
           <span
             // eslint-disable-next-line react/no-danger
@@ -2451,7 +2455,7 @@ function CardTile({
                 type="button"
                 aria-label="Previous photo"
                 onClick={(e) => { e.stopPropagation(); stepPhoto(-1); }}
-                className="absolute top-0 h-full w-9 hidden md:flex items-center text-white cursor-pointer opacity-[0.28] transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100 left-0 justify-start pl-1"
+                className="absolute top-0 h-full w-9 flex items-center text-white cursor-pointer opacity-[0.28] transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100 left-0 justify-start pl-1"
               >
                 <span style={{ display: "flex", filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.5))" }}>
                   <CaretLeft size={15} weight="bold" />
@@ -2461,7 +2465,7 @@ function CardTile({
                 type="button"
                 aria-label="Next photo"
                 onClick={(e) => { e.stopPropagation(); stepPhoto(1); }}
-                className="absolute top-0 h-full w-9 hidden md:flex items-center text-white cursor-pointer opacity-[0.28] transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100 right-0 justify-end pr-1"
+                className="absolute top-0 h-full w-9 flex items-center text-white cursor-pointer opacity-[0.28] transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100 right-0 justify-end pr-1"
               >
                 <span style={{ display: "flex", filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.5))" }}>
                   <CaretRight size={15} weight="bold" />

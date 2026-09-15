@@ -14,12 +14,16 @@ export function mapLineLabel(placed: number): string | null {
 
 const KEY = "roam.dayMap.open";
 
-/** Whether the day map was left open last time; folded until he opens it. */
+/**
+ * Whether the day map shows. OPEN until he folds it: with it folded the list
+ * lost its contrast and its key — "it's kind of hard to know what's important"
+ * (Brennan, 15 Sept 2026). The fold is a choice, remembered, not the default.
+ */
 export function readMapOpen(storage: Pick<Storage, "getItem"> | null | undefined): boolean {
   try {
-    return storage?.getItem(KEY) === "1";
+    return storage?.getItem(KEY) !== "0";
   } catch {
-    return false;
+    return true;
   }
 }
 

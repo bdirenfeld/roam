@@ -410,7 +410,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   // keeps its sticky map column. Read the phone width and the remembered
   // choice after mount, so the server render and the first client render agree.
   const [phone, setPhone] = useState(false);
-  const [mapOpen, setMapOpen] = useState(false);
+  const [mapOpen, setMapOpen] = useState(true);
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 767px)");
     const apply = () => setPhone(mq.matches);

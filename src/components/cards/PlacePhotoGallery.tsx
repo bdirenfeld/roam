@@ -155,9 +155,7 @@ export default function PlacePhotoGallery({
         className="flex h-full overflow-x-auto overflow-y-hidden overscroll-x-contain snap-x snap-mandatory [&::-webkit-scrollbar]:hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/80"
         style={{ scrollbarWidth: "none" }}
       >
-        {/* Ten dots and a "1/10" counter said the same thing twice (Essential
-            audit, 15 Sept 2026). Dots for a handful; past that the counter alone. */}
-        {Array.from({ length: count > 5 ? 0 : count }, (_, i) => (
+        {Array.from({ length: count }, (_, i) => (
           <div key={i} className="w-full h-full flex-shrink-0 snap-start bg-gray-100">
             {i <= eagerUpTo && (
               /* eslint-disable-next-line @next/next/no-img-element */
