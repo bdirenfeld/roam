@@ -107,19 +107,14 @@ export function fillOffers<T extends Offer>(offers: T[], opts: PickOpts): { rows
   const eligible = offers.filter((o) => dropReason(o, { ...opts, skipNames: rejected }) === null);
   const seen = (o: Offer) => opts.skipNames.has(o.name.toLowerCase());
 
-  // Four tiers, in the order a person would put them:
-  //   3  the right KIND of place, not shown before
-  //   2  the right kind, shown before
-  //   1  the other kind, not shown before
-  //   0  the other kind, shown before
-  //
-  // The middle two are the ones that were the wrong way round. New York's
-  // Manhattan hotels had all been shown, so they were skipped outright, and
-  // the five slots filled with brand-new rentals in New Jersey and Queens —
-  // "for New York nothing is in Manhattan near my pins" (Brennan, 11 Sept
-  // 2026). A hotel he has seen in the right place beats a flat he has not
-  // seen in the wrong one.
-  const tier = (o: T) => (opts.preferred.has(norm(o.name)) ? 2 : 0) + (seen(o) ? 0 : 1);
+  // Whether he has seen a place before no longer moves it at all (Brennan,
+  // 15 Sept 2026: stop hiding places already shown — "always show the best
+  // five"). A decision tool that rotates its answer to look fresh is odd, and
+  // the rotation is what put three "No room for your 5" rows above priced
+  // hotels on the Tokyo list. So: a price beats no price, the kind the
+  // journey wants beats the other kind, then how well it is thought of.
+  // Rejections still stand — those were dropped above.
+  const tier = (o: T) => (o.total != null || o.nightly != null ? 2 : 0) + (opts.preferred.has(norm(o.name)) ? 1 : 0);
 
   const rows = eligible
     .sort((a, b) =>

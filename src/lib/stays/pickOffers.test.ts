@@ -160,12 +160,22 @@ describe("when the fresh offers run out", () => {
     expect(rows).toHaveLength(4);
   });
 
-  it("prefers the fresh ones, and only tops up with repeats", () => {
-    const seen = new Set(ALL.slice(2).map((o) => o.name.toLowerCase()));
+  it("having been shown before moves nothing: the best five are the best five", () => {
+    // Brennan, 15 Sept 2026: stop hiding places already seen. The old rule
+    // ranked two unseen ones above four better-rated seen ones.
+    const seen = new Set(ALL.slice(0, 4).map((o) => o.name.toLowerCase()));
     const { rows, repeated } = fillOffers(ALL, { ...OPTS, skipNames: seen, rejectedNames: new Set() });
-    expect(rows.slice(0, 2).map((r) => r.name)).toEqual(["Citadines Namba", "Cross Hotel"]);
-    expect(repeated).toBe(3);
+    expect(rows.map((r) => r.name)).toEqual(ALL.slice(0, 5).map((o) => o.name));
+    expect(repeated).toBe(4);
     expect(new Set(rows.map((r) => r.name)).size).toBe(rows.length);
+  });
+
+  it("a price beats no price, whatever the rating", () => {
+    const unpriced = offer({ name: "Hilton Osaka", score: 4.3, reviews: 9618, lat: OSAKA.lat, lng: OSAKA.lng, total: null, nightly: null, beds: null, sleeps: null });
+    const { rows } = fillOffers([unpriced, ...ALL], { ...OPTS, rejectedNames: new Set() });
+    expect(rows.map((r) => r.name)).not.toContain("Hilton Osaka");
+    const { rows: short } = fillOffers([unpriced, ALL[0]], { ...OPTS, rejectedNames: new Set() });
+    expect(short.map((r) => r.name)).toEqual(["Citadines Namba", "Hilton Osaka"]);
   });
 
   it("does not repeat anything when the fresh ones fill the list", () => {

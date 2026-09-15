@@ -21,7 +21,7 @@ import { inventoriesFor } from "@/lib/stays/inventory";
 import { readiness } from "@/lib/stays/readiness";
 import { listingName } from "@/lib/stays/listingName";
 import { fillOffers } from "@/lib/stays/pickOffers";
-import { mapFill, exhaustedNote, repeatNote } from "@/lib/stays/mapFill";
+import { mapFill, exhaustedNote } from "@/lib/stays/mapFill";
 import { bookedStay, pickSaved } from "@/lib/stays/ownStays";
 
 // Five rows, not ten: the stays already saved on the journey come first and
@@ -179,10 +179,15 @@ export async function POST(request: NextRequest) {
   // not hearted is "seen" and is not proposed again, same as a rejected one.
   // The rows on the list right now count as seen too: they are about to be
   // marked so, and must not come straight back as "fresh" (found 10 Sept 2026).
+  // A place shown before is NOT skipped any more (Brennan, 15 Sept 2026).
+  // "Seen" survives only as history under "N earlier"; the only thing that
+  // keeps a place off the list is "not for us". The old rule rotated the
+  // best hotels out to look fresh, and by the fifth run Osaka had nothing
+  // priced left to show.
   const seenRows = (previous ?? []).filter((p) => p.status === "seen" || (p.status === "candidate" && !p.feel));
-  const skipNames = new Set([...rejected, ...seenRows].map((p) => p.name.toLowerCase()));
-  const skipGoogle = new Set([...rejected, ...seenRows].map((p) => p.google_place_id).filter(Boolean));
-  const skipPlaces = new Set([...rejected, ...seenRows].map((p) => p.place_id).filter(Boolean));
+  const skipNames = new Set(rejected.map((p) => p.name.toLowerCase()));
+  const skipGoogle = new Set(rejected.map((p) => p.google_place_id).filter(Boolean));
+  const skipPlaces = new Set(rejected.map((p) => p.place_id).filter(Boolean));
   // "Seen" keeps a place off the NEXT list; "not for us" keeps it off every
   // list. The two were one set, so when the fresh offers ran out there was no
   // way to tell which ones could come back (Osaka, 11 Sept 2026).
@@ -305,8 +310,6 @@ export async function POST(request: NextRequest) {
   // How much of this list is news. Both are read after the block, so the
   // sheet can say "nothing new around Osaka" instead of quietly showing rows
   // with no price (11 Sept 2026).
-  let repeated = 0;
-  let freshOffers = 0;
   const serp = serpApiKey();
   const ages = (trip.party_ages ?? []).filter((a) => a < 18);
   const adults = Math.max(1, (trip.party_size ?? brief.party.total) - ages.length);
@@ -377,14 +380,12 @@ export async function POST(request: NextRequest) {
       ask,
       centre: { lat: centre.lat, lng: centre.lng },
       maxKm: MAX_OFFER_KM,
-      skipNames,
+      skipNames: new Set(seenRows.map((p) => p.name.toLowerCase())),
       rejectedNames,
       taken: new Set(cands.map((c) => c.name.toLowerCase())),
       preferred: seenOffer,
       room: MAX_TOTAL - cands.length,
     });
-    repeated = picked.repeated;
-    freshOffers = picked.rows.length - picked.repeated;
     picked.rows
       .forEach((o) => cands.push({
         name: o.name, address: null, lat: o.lat, lng: o.lng, google_place_id: null, place_id: null,
@@ -523,7 +524,7 @@ export async function POST(request: NextRequest) {
   const { data: nowSeen } = await supabase.from("stay_candidates").update({ status: "seen" }).eq("trip_id", trip.id).eq("base", baseIndex).eq("status", "candidate").is("feel", null).select("id");
   // A place that has come back is on the list again, so its old set-aside row
   // must go: otherwise the same hotel sits in the five AND under "N earlier".
-  const backAgain = repeated > 0 ? cands.filter((c) => c.total != null).map((c) => c.name) : [];
+  const backAgain = cands.map((c) => c.name);
   if (backAgain.length) {
     await supabase.from("stay_candidates").delete()
       .eq("trip_id", trip.id).eq("base", baseIndex).eq("status", "seen").in("name", backAgain);
@@ -593,7 +594,9 @@ export async function POST(request: NextRequest) {
   const areaByBase = { ...(prevJson.areaByBase ?? {}), [String(baseIndex)]: thisArea };
   // Did this run turn up anything he has not been shown? The sheet reads it to
   // warn BEFORE the next search rather than apologise after it.
-  const spentByBase = { ...(prevJson.spentByBase ?? {}), [String(baseIndex)]: freshOffers === 0 && repeated > 0 };
+  // Nothing is hidden any more, so a run can never be "spent": the best five
+  // today are the best five today. The flag stays false for the sheet.
+  const spentByBase = { ...(prevJson.spentByBase ?? {}), [String(baseIndex)]: false };
   const briefRow = {
     trip_id: trip.id,
     user_id: user.id,
@@ -601,7 +604,6 @@ export async function POST(request: NextRequest) {
     brief: { ...JSON.parse(JSON.stringify(brief)), wants: asked || null, areaByBase, spentByBase, lastBase: baseIndex },
     area_text: [
       thisArea,
-      repeatNote(centre.label, repeated, freshOffers),
       unansweredNote(ask, cands.map((c) => ({ amenities: c.amenities, excluded: c.excluded }))),
       exhausted ? exhaustedNote(centre.label, cands.filter((c) => c.total != null).length, seenRows.length + rejected.length) : null,
     ].filter(Boolean).join(" ") || null,
