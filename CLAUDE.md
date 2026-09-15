@@ -1191,3 +1191,18 @@ for the place, and any calendar a host has not opened. Two answers shipped:
   the price is whatever he saw on the site. The row arrives `feel: "up"` so
   every later run keeps it and no cull touches it. `DELETE` with the id is
   the undo. `freeLetter` lives in `_shared.ts` now (mark and add share it).
+
+### Nights per base, and "seen" is history not a filter (15 Sept 2026)
+
+- **`trips.stay_nights`** (migration 012) is his split by base label,
+  `{"Tokyo": 5}`; `applyNightsByBase()` in `lib/stays/brief.ts` lays it over
+  the pin-count guess so the nights always sum to the journey's. Set from the
+  steppers under the base switcher (`PATCH /api/stays/nights`); the sheet then
+  re-runs EVERY base, because the remainder moved too. **Any new column must
+  also go in `lib/schemaSnapshot.ts`** or `schemaContract.test.ts` goes red.
+- **A place shown before is no longer skipped.** Only `rejected` keeps a place
+  off the list; `seen` rows survive as history under "N earlier" and any old
+  seen row for a place back on the list is deleted so it is not listed twice.
+  `fillOffers` ranks: priced first, then the wanted kind, then score × log
+  reviews — novelty moves nothing. `spentByBase` is always false now; the
+  "nothing new" confirm in the sheet is dead code awaiting removal.
