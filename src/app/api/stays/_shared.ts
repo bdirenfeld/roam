@@ -24,7 +24,7 @@ export interface TripContext {
   /** Stay-type places already saved on this journey, once each. */
   /** Places on the map with a location — how much the search has to go on. */
   pinCount: number;
-  savedStays: { place_id: string; title: string; address: string | null; lat: number; lng: number; google_place_id: string | null; rating: number | null; website: string | null }[];
+  savedStays: { place_id: string; title: string; address: string | null; lat: number; lng: number; google_place_id: string | null; rating: number | null; website: string | null; scheduledDays: string[] }[];
 }
 
 /** The journey, its days, its pins and the brief built from them. Null when the caller does not own it. */
@@ -57,9 +57,17 @@ export async function loadTripContext(supabase: SupabaseClient, tripId: string, 
     // empty — so day_id alone would put Tokyo and Kagoshima on one afternoon.
     const scheduled = c.status === "in_itinerary";
     pins.push({ title: p.title, address: p.address, lat: p.lat, lng: p.lng, subType: p.sub_type, dayDate: scheduled && c.day_id ? dayDate.get(c.day_id) ?? null : null, startTime: scheduled ? c.start_time : null, scheduled });
-    if ((p.sub_type === "hotel" || p.sub_type === "accommodation") && !seenStay.has(p.id)) {
-      seenStay.add(p.id);
-      savedStays.push({ place_id: p.id, title: p.title, address: p.address, lat: p.lat, lng: p.lng, google_place_id: p.google_place_id, rating: p.rating, website: p.website });
+    if (p.sub_type === "hotel" || p.sub_type === "accommodation") {
+      // A stay-type place, once — and which days it is actually ON, so the
+      // search can tell a booked stay from a saved idea (audit, 15 Sept 2026).
+      const day = scheduled && c.day_id ? dayDate.get(c.day_id) ?? null : null;
+      if (!seenStay.has(p.id)) {
+        seenStay.add(p.id);
+        savedStays.push({ place_id: p.id, title: p.title, address: p.address, lat: p.lat, lng: p.lng, google_place_id: p.google_place_id, rating: p.rating, website: p.website, scheduledDays: day ? [day] : [] });
+      } else if (day) {
+        const row = savedStays.find((x) => x.place_id === p.id);
+        if (row && !row.scheduledDays.includes(day)) row.scheduledDays.push(day);
+      }
     }
   }
 

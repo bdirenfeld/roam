@@ -22,6 +22,7 @@ import { readiness } from "@/lib/stays/readiness";
 import { listingName } from "@/lib/stays/listingName";
 import { fillOffers } from "@/lib/stays/pickOffers";
 import { mapFill, exhaustedNote, repeatNote } from "@/lib/stays/mapFill";
+import { bookedStay, pickSaved } from "@/lib/stays/ownStays";
 
 // Five rows, not ten: the stays already saved on the journey come first and
 // Google fills what is left ("way too many options" — Brennan, 9 Sept 2026).
@@ -226,9 +227,16 @@ export async function POST(request: NextRequest) {
     return best;
   };
 
+  // The stay the journey has already booked — check-in and check-out on
+  // the days, or the name the journey carries — is the chosen row, whatever
+  // an earlier run did with it. Montecito Inn and Villa Bottino had both been
+  // set aside as "seen" on journeys where they ARE the stay (audit, 15 Sept
+  // 2026). It is exempt from every cull and never counts as a repeat.
+  const bookedId = bookedStay(ctx.savedStays, trip.accommodation_name);
   const cands: Cand[] = ctx.savedStays
     .filter((s) => nearestBase(s.lat, s.lng) === baseIndex)
     .filter((s) => {
+      if (s.place_id === bookedId) return true;
       const prior = kept.find((k) => k.place_id === s.place_id || k.name.toLowerCase() === s.title.toLowerCase());
       if (prior) return true; // saved / chosen / hearted always come back
       return !skipPlaces.has(s.place_id) && !skipNames.has(s.title.toLowerCase()) && !(s.google_place_id && skipGoogle.has(s.google_place_id));
@@ -268,6 +276,17 @@ export async function POST(request: NextRequest) {
       score: k.score ?? null, score_scale: k.score_scale === 10 ? 10 : 5, reviews: k.reviews ?? null,
       source: "saved", photos: k.photos ?? [],
     });
+  }
+  // His own places take at most two rows. Tokyo had four saved hotels, so the
+  // search could propose ONE place — forever — and none of the four priced
+  // (audit, 15 Sept 2026). Chosen and hearted rows always stay; the rest keep
+  // their pins on the map and simply stop crowding the five.
+  const isChosen = (c: Cand) => c.place_id != null && (c.place_id === bookedId || kept.some((k) => k.status === "chosen" && (k.place_id === c.place_id || k.name.toLowerCase() === c.name.toLowerCase())));
+  const isHearted = (c: Cand) => kept.some((k) => k.feel === "up" && ((c.place_id && k.place_id === c.place_id) || (c.google_place_id && k.google_place_id === c.google_place_id) || k.name.toLowerCase() === c.name.toLowerCase()));
+  {
+    const savedRows = cands.filter((c) => c.source === "saved").map((c) => ({ c, lat: c.lat, lng: c.lng, chosen: isChosen(c), hearted: isHearted(c) }));
+    const keepSaved = new Set(pickSaved(savedRows, { lat: centre.lat, lng: centre.lng }).map((x) => x.c));
+    for (let i = cands.length - 1; i >= 0; i--) if (cands[i].source === "saved" && !keepSaved.has(cands[i])) cands.splice(i, 1);
   }
 
   // Google Hotels first when the key is there: it is the only source that
@@ -413,7 +432,7 @@ export async function POST(request: NextRequest) {
   // is never dropped, whatever it costs.
   for (let i = cands.length - 1; i >= 0; i--) {
     const c = cands[i];
-    if (keptFor(c)) continue;
+    if (isChosen(c) || isHearted(c)) continue;
     const nightly = nightlyOf(c.nightly ?? null, c.total ?? null, baseNights);
     if (budgetVerdict(nightly, ctx.nightlyRate) === "far") cands.splice(i, 1);
   }
@@ -480,7 +499,11 @@ export async function POST(request: NextRequest) {
   // here, so nothing could check the LIST — only one rule at a time, and every
   // rule passed while the list was still wrong (Brennan, 11 Sept 2026: "you
   // need to test things and make them make sense before giving it to me").
-  const rows2 = scored.map((s) => ({ name: s.c.name, toCentre: s.toCentre, hours: s.hours, kept: !!keptFor(s.c), s }));
+  // Only what he said YES to is exempt from the drive rules: the booked or
+  // chosen stay, and anything hearted. A place merely saved goes through them
+  // like any other — Gora Kadan and Asaba Ryokan, two hours from Tokyo, sat
+  // on the Tokyo list because "saved" was enough (audit, 15 Sept 2026).
+  const rows2 = scored.map((s) => ({ name: s.c.name, toCentre: s.toCentre, hours: s.hours, kept: isChosen(s.c) || isHearted(s.c), s }));
   const survivors = shortlist(rows2, { radiusMin: brief.radiusMin, nights: baseNights }).map((x) => x.s);
   survivors.sort((a, b) => a.hours - b.hours || (b.c.score ?? 0) - (a.c.score ?? 0));
   scored.length = 0;
@@ -536,7 +559,7 @@ export async function POST(request: NextRequest) {
       review_notes: rv ? reviewNotes(rv.texts) : null,
       flags: delta ? [...s.flags, delta] : s.flags,
       drive: { hours: s.hours, line: s.line, minutes: s.minutes },
-      status: prior?.status ?? "candidate",
+      status: s.c.place_id && s.c.place_id === bookedId ? "chosen" : prior?.status ?? "candidate",
       source: s.c.source,
       feel: prior?.feel ?? null,
       photos: s.c.photos?.length ? s.c.photos : rv?.photos?.length ? rv.photos : (prior?.photos ?? []),
