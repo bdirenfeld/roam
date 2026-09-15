@@ -1128,11 +1128,35 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   </svg>
                 </a>
               )}
-              {/* Attachments and Link-place were icons here — five glyphs above
-                  the place's own name (Essential audit, 15 Sept 2026). They are
-                  rare doors; they live under the ⋯ with Move / Copy / Take off.
-                  Website and Call stay: those are opened on the day. */}
-              {!readOnly && ((localCard.status === "in_itinerary" && days && days.length > 0) || place?.type === "logistics" || place?.type === "activity") && (
+              {/* Paperclip — attachments (logistics and activity cards only) */}
+              {!readOnly && (place?.type === "logistics" || place?.type === "activity") && (
+                <button
+                  onClick={() => setShowAttachments(true)}
+                  className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                  aria-label="Attachments"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                  </svg>
+                </button>
+              )}
+              {!readOnly && localCard.status === "in_itinerary" && (
+                <button
+                  onClick={() => setShowLinkSheet(true)}
+                  className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                  aria-label="Link place from map"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+                    <circle cx="12" cy="9" r="2.5" />
+                  </svg>
+                </button>
+              )}
+              {/* Move / Copy / Take off this day — behind the ⋯. Brennan tried
+                  Move and Take-off as header buttons (Sep 2026) and found the
+                  row cluttered, so the header keeps its glyphs and the verbs
+                  live here. The sheet still closes itself after a move. */}
+              {!readOnly && localCard.status === "in_itinerary" && days && days.length > 0 && (
                 <div className="relative">
                   <button
                     onClick={() => setShowCardMenu((v) => !v)}
@@ -1151,25 +1175,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                         role="menu"
                         className="absolute right-0 top-9 z-50 w-44 bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden"
                       >
-                        {(place?.type === "logistics" || place?.type === "activity") && (
-                          <button
-                            role="menuitem"
-                            onClick={() => { setShowCardMenu(false); setShowAttachments(true); }}
-                            className="w-full text-left px-3.5 py-2.5 text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                          >
-                            Attachments
-                          </button>
-                        )}
-                        {localCard.status === "in_itinerary" && (
-                          <button
-                            role="menuitem"
-                            onClick={() => { setShowCardMenu(false); setShowLinkSheet(true); }}
-                            className="w-full text-left px-3.5 py-2.5 text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors border-t border-gray-100"
-                          >
-                            Link place from map
-                          </button>
-                        )}
-                        {localCard.status === "in_itinerary" && days && days.length > 1 && (
+                        {days.length > 1 && (
                           <button
                             role="menuitem"
                             onClick={() => { setShowCardMenu(false); setShowMovePicker(true); }}
@@ -1178,7 +1184,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                             Move to day
                           </button>
                         )}
-                        {localCard.status === "in_itinerary" && days && days.length > 1 && (
+                        {days.length > 1 && (
                           <button
                             role="menuitem"
                             disabled={isCopying}
@@ -1188,7 +1194,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                             {isCopying ? "Copying…" : "Copy to another day"}
                           </button>
                         )}
-                        {localCard.status === "in_itinerary" && onCardDelete && (
+                        {onCardDelete && (
                           <button
                             role="menuitem"
                             disabled={isDeleting}

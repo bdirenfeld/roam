@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
-import { readMapOpen, writeMapOpen } from "@/lib/day/mapLine";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CaretLeft, CaretRight } from "@phosphor-icons/react";
@@ -405,21 +404,6 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   }, [localCards]);
 
   const [isCardOpen, setIsCardOpen] = useState(false);
-  // On a phone the day map folds to one line until he opens it (Essential
-  // audit, 15 Sept 2026: a 192px map sat before the first card). Desktop
-  // keeps its sticky map column. Read the phone width and the remembered
-  // choice after mount, so the server render and the first client render agree.
-  const [phone, setPhone] = useState(false);
-  const [mapOpen, setMapOpen] = useState(true);
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 767px)");
-    const apply = () => setPhone(mq.matches);
-    apply();
-    mq.addEventListener("change", apply);
-    setMapOpen(readMapOpen(window.localStorage));
-    return () => mq.removeEventListener("change", apply);
-  }, []);
-  const toggleMapOpen = () => setMapOpen((v) => { writeMapOpen(window.localStorage, !v); return !v; });
   const [swipeDir, setSwipeDir] = useState<"left" | "right" | null>(null);
   const [gapTimes, setGapTimes] = useState<{ start: string; end: string } | null>(null);
 
@@ -793,21 +777,6 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
         activeDayId={dayWithCards.id}
         tripId={trip.id}
         onDaySelect={handleDaySelect}
-        trailing={phone && !mapExpanded && mappableCards.length > 0 ? (
-          <button
-            type="button"
-            onClick={toggleMapOpen}
-            aria-expanded={mapOpen}
-            aria-label={mapOpen ? "Hide the map" : `Show the map · ${mappableCards.length} ${mappableCards.length === 1 ? "place" : "places"}`}
-            className="h-[34px] px-2.5 rounded-full inline-flex items-center gap-1.5 text-[12px] font-semibold"
-            style={mapOpen
-              ? { background: "#1A1A2E", color: "#fff", border: "1px solid #1A1A2E" }
-              : { background: "#fff", color: "#1A1A2E", border: "1px solid rgba(26,26,46,0.2)" }}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" /><line x1="8" y1="2" x2="8" y2="18" /><line x1="16" y1="6" x2="16" y2="22" /></svg>
-            {mappableCards.length}
-          </button>
-        ) : undefined}
       />
 
       {/* Mobile-only weather expansion */}
@@ -974,9 +943,8 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           </div>
         )}
 
-        {/* Map — desktop col 2 row 1, sticky. Mobile: one line until opened. */}
+        {/* Map — desktop col 2 row 1, sticky. Mobile: natural flow below Companion. */}
         <div className="md:col-start-2 md:row-start-1 md:sticky md:top-6 md:self-start">
-          {(!phone || mapOpen || mapExpanded || mappableCards.length === 0) && (
           <DayMap
             cards={mappableCards}
             // Passed on every day, numbered or not. DayMap draws a separate
@@ -1002,7 +970,6 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
               />
             }
           />
-          )}
         </div>
 
         {/* Timeline — desktop col 1 spanning rows. Mobile: natural flow below Map. */}
@@ -1029,9 +996,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
               highlightedCardId={highlightedCardId}
               onGapTap={readOnly ? undefined : handleGapTap}
               onToggleConfirmed={readOnly ? undefined : handleToggleConfirmed}
-              // A numeral is a map key; with the map folded it points at nothing
-              // (Brennan, 15 Sept 2026). Numbers only while the map is on screen.
-              cardNumberById={phone && !mapOpen && !mapExpanded ? undefined : cardNumberById}
+              cardNumberById={cardNumberById}
               readOnly={readOnly}
               onTimeTap={readOnly ? undefined : (card) => setTimeCard(card)}
             />
