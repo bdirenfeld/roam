@@ -392,7 +392,17 @@ export function buildStayBrief(input: BriefInput): StayBrief {
     .filter((r) => r.pins >= REGION_MIN_PINS && r.pins >= rest.length * REGION_MIN_SHARE)
     .sort((a, b) => b.pins - a.pins);
   const room = Math.floor(nights / MIN_NIGHTS_PER_BASE);
-  const keep = regions.slice(0, Math.max(1, Math.min(regions.length, room)));
+  // The biggest regions earn a base; then they run in the order the journey
+  // visits them. Every date calculation downstream — which week each base is
+  // priced for, which day Choose writes check-in on — assumes base 0 is first
+  // in time, and pin count said nothing about time (audit, 15 Sept 2026;
+  // Japan only worked because Tokyo had the most pins AND came first). A
+  // region with no scheduled day keeps its pin-count place, after the dated.
+  const firstDay = (c: Cluster) => c.pins.map((p) => p.dayDate).filter((d): d is string => !!d).sort()[0] ?? null;
+  const keep = regions.slice(0, Math.max(1, Math.min(regions.length, room)))
+    .map((r, i) => ({ r, i, day: firstDay(r.c) }))
+    .sort((a, b) => (a.day && b.day ? (a.day < b.day ? -1 : a.day > b.day ? 1 : a.i - b.i) : a.day ? -1 : b.day ? 1 : a.i - b.i))
+    .map((x) => x.r);
   const totalPins = keep.reduce((n, r) => n + r.pins, 0) || 1;
   let left = nights;
   const bases = keep.map((r, i) => {

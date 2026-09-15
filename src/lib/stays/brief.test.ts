@@ -190,3 +190,23 @@ describe("applyNightsByBase", () => {
     expect(applyNightsByBase(three, { A: 4 }, 12).map((b) => b.nights)).toEqual([4, 4, 4]);
   });
 });
+
+describe("bases run in the order the journey visits them", () => {
+  // Two regions 300 km apart, five pins each, the SMALLER-by-pins one first
+  // in time. Pin count used to put the bigger one first; every date
+  // calculation downstream assumes base 0 is first in time.
+  const north = (n: number, date: string) => Array.from({ length: n }, (_, i) => pin(`North ${i}`, `${1000 + i} Rue Nord, Ville-Nord, QC, Canada`, 47.0 + i * 0.002, -71.0, "restaurant", date, "12:00:00"));
+  const south = (n: number, date: string) => Array.from({ length: n }, (_, i) => pin(`South ${i}`, `${2000 + i} Rue Sud, Ville-Sud, QC, Canada`, 44.5 + i * 0.002, -71.0, "restaurant", date, "12:00:00"));
+  it("the base visited first comes first, however many pins it has", () => {
+    const b = buildStayBrief({ startDate: "2027-06-01", endDate: "2027-06-09", partyAges: [42, 40], partySize: 2, pins: [...north(6, "2027-06-06"), ...south(3, "2027-06-02")] });
+    expect(b.bases).toHaveLength(2);
+    expect(b.bases[0].pins).toBe(3);
+    expect(b.bases[1].pins).toBe(6);
+    expect(b.bases.reduce((n, x) => n + x.nights, 0)).toBe(8);
+  });
+  it("with no dates at all, pin count still decides", () => {
+    const undated = [...north(6, ""), ...south(3, "")].map((p) => ({ ...p, dayDate: null, startTime: null, scheduled: false }));
+    const b = buildStayBrief({ startDate: "2027-06-01", endDate: "2027-06-09", partyAges: [42, 40], partySize: 2, pins: undated });
+    expect(b.bases[0].pins).toBe(6);
+  });
+});

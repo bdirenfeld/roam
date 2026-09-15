@@ -31,6 +31,7 @@ import { parseBudget, budgetHint, budgetFieldValue } from "@/lib/stays/budgetInp
 import { readiness } from "@/lib/stays/readiness";
 import { nothingNewNote } from "@/lib/stays/mapFill";
 import { orderRows } from "@/lib/stays/orderRows";
+import { markChosen } from "@/lib/stays/localState";
 import { searchCeiling } from "@/lib/stays/budget";
 import type { StayBrief } from "@/lib/stays/brief";
 import type { StayCandidate, StayBriefRow, StayRejectReason, Trip } from "@/types/database";
@@ -390,7 +391,8 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
       const res = await fetch("/api/stays/choose", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ candidateId: c.id }) });
       const json = await res.json();
       if (!res.ok) { toast({ message: json.error ?? "Couldn't choose it." }); return; }
-      publish(everything.map((x) => x.id === c.id ? { ...x, status: "chosen", place_id: json.placeId } : x.status === "chosen" ? { ...x, status: "saved" } : x));
+      // Scoped to the base, like the server: choosing Osaka must not un-tick Tokyo.
+      publish(markChosen(everything, c.id, json.placeId as string | null));
       setOpenId(null);
       onChanged();
       toast({

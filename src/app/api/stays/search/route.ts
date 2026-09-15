@@ -116,27 +116,6 @@ export async function POST(request: NextRequest) {
   if (!ctx) return NextResponse.json({ error: "Not your journey" }, { status: 403 });
   const { trip, brief } = ctx;
 
-  // The ceiling typed on the search itself wins, and goes back to the Estimate
-  // so the two never drift apart. "I don't think people are going to start
-  // from the budget menu and realize that the search ties to that" (Brennan,
-  // 10 Sept 2026) — so the field shows the Estimate's number and edits it.
-  const typed = parseBudget(body.budget, brief.nights);
-  if (typed.nightly != null && typed.nightly !== ctx.nightlyRate) {
-    ctx.nightlyRate = typed.nightly;
-    const { data: bRow } = await supabase.from("trip_budgets").select("assumptions, basis").eq("trip_id", trip.id).maybeSingle();
-    const a = (bRow?.assumptions ?? {}) as Record<string, unknown>;
-    const b = (bRow?.basis ?? {}) as Record<string, string>;
-    // The limit he typed is its own number now: Choose rewrites nightlyRate
-    // with what the stay costs, and must never lower what the next search may
-    // propose (Brennan, 15 Sept 2026). The Estimate still follows the field.
-    await supabase.from("trip_budgets").upsert({
-      trip_id: trip.id,
-      user_id: user.id,
-      assumptions: { ...a, nightlyRate: typed.nightly, nightlyCeiling: typed.nightly },
-      basis: { ...b, accommodation: "set on the stay search" },
-      updated_at: new Date().toISOString(),
-    }, { onConflict: "trip_id" });
-  }
 
   // Which base these five are for. A journey that needs two places to sleep
   // gets five for each, and the sheet switches between them rather than
@@ -166,6 +145,29 @@ export async function POST(request: NextRequest) {
   const nightsBefore = brief.bases.slice(0, baseIndex).reduce((n, b) => n + b.nights, 0);
   const baseStart = addDays(trip.start_date, nightsBefore);
   const baseEnd = addDays(baseStart, baseNights);
+  // The ceiling typed on the search itself wins, and goes back to the Estimate
+  // so the two never drift apart. "I don't think people are going to start
+  // from the budget menu and realize that the search ties to that" (Brennan,
+  // 10 Sept 2026) — so the field shows the Estimate's number and edits it.
+  // Against THIS base's nights — the sheet does the same, so "9,000 total"
+  // means the same ceiling on both sides (audit, 15 Sept 2026).
+  const typed = parseBudget(body.budget, baseNights);
+  if (typed.nightly != null && typed.nightly !== ctx.nightlyRate) {
+    ctx.nightlyRate = typed.nightly;
+    const { data: bRow } = await supabase.from("trip_budgets").select("assumptions, basis").eq("trip_id", trip.id).maybeSingle();
+    const a = (bRow?.assumptions ?? {}) as Record<string, unknown>;
+    const b = (bRow?.basis ?? {}) as Record<string, string>;
+    // The limit he typed is its own number now: Choose rewrites nightlyRate
+    // with what the stay costs, and must never lower what the next search may
+    // propose (Brennan, 15 Sept 2026). The Estimate still follows the field.
+    await supabase.from("trip_budgets").upsert({
+      trip_id: trip.id,
+      user_id: user.id,
+      assumptions: { ...a, nightlyRate: typed.nightly, nightlyCeiling: typed.nightly },
+      basis: { ...b, accommodation: "set on the stay search" },
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "trip_id" });
+  }
   if (!centre) return NextResponse.json({ error: "Add a few places first so Roam knows where the journey goes." }, { status: 422 });
   // Too early to ask. With three pins the centre IS those three pins, and the
   // answer looks considered when it is an accident (Brennan, 11 Sept 2026).
