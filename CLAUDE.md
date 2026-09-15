@@ -1169,3 +1169,25 @@ the rule.
 and git converts it to CRLF on Windows; esbuild then cannot strip it and
 `importIds.test.ts` fails with "Invalid or unexpected token" here while the
 Linux CI is green. A `.gitattributes` line (`*.mjs text eol=lf`) is the fix.
+
+### Paste a listing, and how wide the search looks (15 Sept 2026)
+
+Brennan: "how do we get the API to search all the listings" — he thought it
+was built. What is built: SerpApi Google Hotels, both inventories (hotels and
+vacation rentals, which is where Vrbo / Booking homes come from). What no API
+reaches: Airbnb (no API, not on Google), anything outside Google's top results
+for the place, and any calendar a host has not opened. Two answers shipped:
+
+- **Pages.** Google returns ~18 a page; the search read one. `inventoriesFor()`
+  now says how many pages each inventory gets (`PAGES_WANTED` 3 for the kind
+  the journey wants, `PAGES_OTHER` 1) — four SerpApi credits a run instead of
+  two, deduped on the name. Probed on Lucca: 18 + 18 + 18, all priced.
+- **`POST /api/stays/add`** — paste a link. `lib/stays/pasted.ts` cleans the
+  URL, names the site, reads a name out of a page title and parses the price
+  he typed. The page is fetched best-effort for `og:title` (4 s): **Vrbo
+  answers with a title and a photo and no coordinates; Booking returns a bot
+  wall; Airbnb a 3 KB shell** (probed 15 Sept 2026) — so Google Places
+  `findplacefromtext`, biased 60 km around the base, is what locates it, and
+  the price is whatever he saw on the site. The row arrives `feel: "up"` so
+  every later run keeps it and no cull touches it. `DELETE` with the id is
+  the undo. `freeLetter` lives in `_shared.ts` now (mark and add share it).
