@@ -48,6 +48,8 @@ export interface BriefInput {
   partyAges: number[] | null;
   partySize: number | null;
   pins: BriefPin[];
+  /** Nights per base he set himself, keyed by label. Wins over the pin-count guess. */
+  nightsByBase?: Record<string, number> | null;
 }
 
 export type AnchorKind = "airport" | "evening" | "daytrip";
@@ -424,6 +426,45 @@ export function buildStayBrief(input: BriefInput): StayBrief {
     radiusMin: EVENING_RADIUS_MIN,
     stayDays,
     splitCandidates,
-    bases,
+    bases: applyNightsByBase(bases, input.nightsByBase, nights),
   };
+}
+
+/**
+ * The split he typed, over the split the pins guessed.
+ *
+ * A base he set keeps its number; the bases he did not set share what is
+ * left in the proportion they already had; when every base is set and the
+ * sum is off, the last one absorbs the difference, so the nights always add
+ * up to the journey's (Japan: Tokyo 8 / Osaka 5 was a guess from pin counts
+ * with no way to say "actually 5 and 8", 15 Sept 2026).
+ */
+export function applyNightsByBase<T extends { label: string; nights: number }>(
+  bases: T[],
+  set: Record<string, number> | null | undefined,
+  total: number,
+): T[] {
+  if (!set || !bases.length) return bases;
+  const fixed = bases.map((b) => (typeof set[b.label] === "number" && set[b.label] >= 0 ? Math.min(total, Math.trunc(set[b.label])) : null));
+  if (fixed.every((f) => f == null)) return bases;
+  const out = bases.map((b) => ({ ...b }));
+  const used = fixed.reduce<number>((n, f) => n + (f ?? 0), 0);
+  let left = Math.max(0, total - used);
+  const free = fixed.map((f, i) => (f == null ? i : -1)).filter((i) => i >= 0);
+  if (free.length) {
+    const weight = free.reduce((n, i) => n + Math.max(0, bases[i].nights), 0) || free.length;
+    free.forEach((i, k) => {
+      const share = k === free.length - 1 ? left : Math.round(((bases[i].nights || 1) / weight) * Math.max(0, total - used));
+      const n = Math.min(share, left);
+      out[i].nights = n;
+      left -= n;
+    });
+  }
+  fixed.forEach((f, i) => { if (f != null) out[i].nights = f; });
+  if (!free.length) {
+    // Everything set: the last base takes the difference so the sum holds.
+    const sum = out.reduce((n, b) => n + b.nights, 0);
+    out[out.length - 1].nights = Math.max(0, out[out.length - 1].nights + (total - sum));
+  }
+  return out;
 }

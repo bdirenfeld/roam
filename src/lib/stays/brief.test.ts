@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   buildStayBrief, townFromAddress, partyFromAges, fitFromParty, kindFor, greatCircleKm,
-  type BriefPin,
+  type BriefPin, applyNightsByBase,
 } from "./brief";
 
 /**
@@ -162,5 +162,31 @@ describe("buildStayBrief with nothing scheduled", () => {
 describe("greatCircleKm", () => {
   it("Lucca to Florence is 61 km as the crow flies", () => {
     expect(Math.round(greatCircleKm(43.8431, 10.5032, 43.772, 11.2542))).toBe(61);
+  });
+});
+
+describe("applyNightsByBase", () => {
+  const japan = [{ label: "Tokyo", nights: 8 }, { label: "Osaka", nights: 5 }];
+  it("his number wins and the other base takes what is left", () => {
+    expect(applyNightsByBase(japan, { Tokyo: 5 }, 13).map((b) => b.nights)).toEqual([5, 8]);
+    expect(applyNightsByBase(japan, { Osaka: 9 }, 13).map((b) => b.nights)).toEqual([4, 9]);
+  });
+  it("nothing set means the guess stands, and the input is not mutated", () => {
+    expect(applyNightsByBase(japan, null, 13)).toBe(japan);
+    expect(applyNightsByBase(japan, { Kyoto: 3 }, 13)).toBe(japan);
+    applyNightsByBase(japan, { Tokyo: 2 }, 13);
+    expect(japan[0].nights).toBe(8);
+  });
+  it("the nights always add up to the journey's", () => {
+    const sets: Record<string, number>[] = [{ Tokyo: 0 }, { Tokyo: 13 }, { Tokyo: 20 }, { Tokyo: 6, Osaka: 6 }, { Tokyo: 10, Osaka: 10 }];
+    for (const set of sets) {
+      const out = applyNightsByBase(japan, set, 13);
+      expect(out.reduce((n, b) => n + b.nights, 0)).toBe(13);
+      expect(out.every((b) => b.nights >= 0)).toBe(true);
+    }
+  });
+  it("three bases: the unset ones share by their old proportion", () => {
+    const three = [{ label: "A", nights: 6 }, { label: "B", nights: 3 }, { label: "C", nights: 3 }];
+    expect(applyNightsByBase(three, { A: 4 }, 12).map((b) => b.nights)).toEqual([4, 4, 4]);
   });
 });

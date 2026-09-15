@@ -33,6 +33,8 @@ export interface Trip {
   party_ages: number[] | null
   accommodation_name: string | null
   accommodation_address: string | null
+  /** Nights per base, set by the owner, keyed by the base's label. Null = the brief's own split. */
+  stay_nights: Record<string, number> | null
   status: TripStatus
   archived: boolean
   archived_at: string | null

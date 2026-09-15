@@ -14,6 +14,7 @@ export interface TripContext {
     party_ages: number[] | null; party_size: number | null;
     destination_lat: number | null; destination_lng: number | null;
     accommodation_name: string | null; accommodation_address: string | null;
+    stay_nights: Record<string, number> | null;
   };
   days: { id: string; date: string; day_number: number }[];
   brief: StayBrief;
@@ -30,7 +31,7 @@ export interface TripContext {
 /** The journey, its days, its pins and the brief built from them. Null when the caller does not own it. */
 export async function loadTripContext(supabase: SupabaseClient, tripId: string, userId: string): Promise<TripContext | null> {
   const [{ data: trip }, { data: days }, { data: cards }] = await Promise.all([
-    supabase.from("trips").select("id, user_id, title, start_date, end_date, party_ages, party_size, destination_lat, destination_lng, accommodation_name, accommodation_address").eq("id", tripId).maybeSingle(),
+    supabase.from("trips").select("id, user_id, title, start_date, end_date, party_ages, party_size, destination_lat, destination_lng, accommodation_name, accommodation_address, stay_nights").eq("id", tripId).maybeSingle(),
     supabase.from("days").select("id, date, day_number").eq("trip_id", tripId).order("day_number"),
     supabase.from("cards").select("day_id, start_time, status, place:places (id, title, address, lat, lng, sub_type, google_place_id, rating, website)").eq("trip_id", tripId).neq("status", "cut"),
   ]);
@@ -71,7 +72,7 @@ export async function loadTripContext(supabase: SupabaseClient, tripId: string, 
     }
   }
 
-  const brief = buildStayBrief({ startDate: trip.start_date, endDate: trip.end_date, partyAges: trip.party_ages, partySize: trip.party_size, pins });
+  const brief = buildStayBrief({ startDate: trip.start_date, endDate: trip.end_date, partyAges: trip.party_ages, partySize: trip.party_size, pins, nightsByBase: (trip.stay_nights ?? null) as Record<string, number> | null });
   return { trip, days: (days ?? []) as TripContext["days"], brief, country: countryOfPins(pins), nightlyRate, savedStays, pinCount: pins.length };
 }
 

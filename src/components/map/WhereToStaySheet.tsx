@@ -87,6 +87,9 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
   const [pasteName, setPasteName] = useState("");
   const [pasteError, setPasteError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  /** Setting how many nights each base gets. Draft by label; null = not editing. */
+  const [nightsDraft, setNightsDraft] = useState<Record<string, number> | null>(null);
+  const [savingNights, setSavingNights] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [askingId, setAskingId] = useState<string | null>(null);
@@ -306,14 +309,15 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
     askCot: briefObjForAsk?.fit?.askCot,
   }).filter((c) => !new RegExp(c.split(" ")[0], "i").test(wants));
 
-  async function run() {
+  async function run() { return runBase(baseIdx); }
+  async function runBase(base: number) {
     setRunning(true);
     setError(null);
     try {
-      const res = await fetch("/api/stays/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId: trip.id, wants: wants.trim() || undefined, budget: budget.trim() || undefined, base: baseIdx }) });
+      const res = await fetch("/api/stays/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId: trip.id, wants: wants.trim() || undefined, budget: budget.trim() || undefined, base }) });
       const json = await res.json();
       if (!res.ok) { setError(json.error ?? "That didn't work."); return; }
-      const hadRows = shown.length > 0;
+      const hadRows = base === baseIdx && shown.length > 0;
       setBrief(json.brief as StayBriefRow);
       mergeIn(json.candidates as StayCandidate[], true);
       if (hadRows && json.undo) {
@@ -474,6 +478,29 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
       setPasteError("Couldn't add it. Try again.");
     } finally {
       setAdding(false);
+    }
+  }
+
+  /**
+   * The nights per base were a guess from pin counts with no way to say
+   * otherwise (15 Sept 2026). Set them here; every base is then searched
+   * again so each price is for the nights it will actually be booked for.
+   */
+  async function saveNights() {
+    if (!nightsDraft) return;
+    setSavingNights(true);
+    try {
+      const res = await fetch("/api/stays/nights", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId: trip.id, nights: nightsDraft }) });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) { toast({ message: json.error ?? "Couldn't set the nights." }); return; }
+      setNightsDraft(null);
+      setOpenId(null);
+      onFocus(null);
+      // Every base is re-priced: the remainder moved too.
+      for (let i = 0; i < bases.length; i++) await runBase(i);
+      onChanged();
+    } finally {
+      setSavingNights(false);
     }
   }
 
@@ -642,6 +669,46 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                         </button>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {multi && (
+                  <div className="px-4 pt-2">
+                    {nightsDraft ? (
+                      <div className="rounded-lg p-3" style={{ background: "rgba(26,26,46,0.045)" }}>
+                        <p className="text-[12.5px] leading-snug mb-2" style={{ color: INK }}>How many nights in each? The last one takes what is left of {tripNights}.</p>
+                        <div className="space-y-1.5">
+                          {bases.map((b, i) => {
+                            const last = i === bases.length - 1;
+                            const setSoFar = bases.slice(0, -1).reduce((n, x) => n + (nightsDraft[x.label] ?? x.nights), 0);
+                            const value = last ? Math.max(0, tripNights - setSoFar) : (nightsDraft[b.label] ?? b.nights);
+                            return (
+                              <div key={b.label + i} className="flex items-center justify-between">
+                                <span className="text-[13px] font-semibold" style={{ color: INK }}>{b.label}</span>
+                                <div className="flex items-center gap-1">
+                                  {!last && (
+                                    <button type="button" aria-label={`Fewer nights in ${b.label}`} disabled={value <= 0} onClick={() => setNightsDraft((d) => ({ ...(d ?? {}), [b.label]: value - 1 }))} className="w-9 h-9 rounded-full text-[16px] disabled:opacity-30" style={{ border: "1px solid rgba(26,26,46,0.2)", color: INK }}>−</button>
+                                  )}
+                                  <span className="w-[72px] text-center text-[13px] tabular-nums" style={{ color: INK }}>{value} {value === 1 ? "night" : "nights"}</span>
+                                  {!last && (
+                                    <button type="button" aria-label={`More nights in ${b.label}`} disabled={setSoFar >= tripNights} onClick={() => setNightsDraft((d) => ({ ...(d ?? {}), [b.label]: value + 1 }))} className="w-9 h-9 rounded-full text-[16px] disabled:opacity-30" style={{ border: "1px solid rgba(26,26,46,0.2)", color: INK }}>+</button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <p className="text-[11.5px] mt-2" style={{ color: CAPTION }}>Every base is searched again so the prices match.</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <button type="button" onClick={saveNights} disabled={savingNights || running} className="h-9 px-3.5 rounded-full text-[12.5px] font-semibold text-white disabled:opacity-60" style={{ background: INK }}>{savingNights ? "Saving…" : "Set the nights"}</button>
+                          <button type="button" onClick={() => setNightsDraft(null)} className="h-9 px-2 text-[12.5px]" style={{ color: CAPTION }}>Keep as is</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button type="button" onClick={() => setNightsDraft({})} className="text-[12px]" style={{ color: CAPTION }}>
+                        {bases.map((b) => `${b.label} ${b.nights}`).join(" · ")} · <span className="font-semibold" style={{ color: SIENNA }}>Set the nights</span>
+                      </button>
+                    )}
                   </div>
                 )}
 

@@ -44,7 +44,7 @@ export const SCHEMA: Record<string, string[]> = {
   trip_entry: ["trip_id", "passports", "data", "changed", "checked_at", "updated_at", "hidden_headline"],
   trip_lists: ["id", "trip_id", "title", "position", "created_at"],
   trip_members: ["id", "trip_id", "user_id", "role", "created_at"],
-  trips: ["id", "user_id", "title", "destination", "destination_lat", "destination_lng", "start_date", "end_date", "trip_purpose", "trip_type", "party_size", "party_ages", "accommodation_name", "accommodation_address", "status", "created_at", "archived", "archived_at", "cover_image_url", "share_token", "notes"],
+  trips: ["id", "user_id", "title", "destination", "destination_lat", "destination_lng", "start_date", "end_date", "trip_purpose", "trip_type", "party_size", "party_ages", "accommodation_name", "accommodation_address", "status", "created_at", "archived", "archived_at", "cover_image_url", "share_token", "notes", "stay_nights"],
   users: ["id", "name", "email", "home_airport", "home_country", "passport_country", "avatar_url", "created_at", "has_paid"],
   wishlist_destinations: ["id", "user_id", "name", "location", "lat", "lng", "drive_hours", "budget", "best_time", "why", "source", "created_at", "climate"],
 };
