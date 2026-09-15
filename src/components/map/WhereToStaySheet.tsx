@@ -297,7 +297,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
   const termsLine = [
     said.must ? said.must.replace(/^Must have: /, "Must have ") : null,
     said.nice,
-    budgetNightly ? `up to ${budgetNightly.toLocaleString("en-CA")} a night` : null,
+    budgetNightly ? `up to $${budgetNightly.toLocaleString("en-CA")} a night` : null,
     multi ? bases.map((b) => `${b.label} ${b.nights}`).join(", ") : null,
   ].filter(Boolean).join(" · ") || "Anything that matters here?";
   const chips = suggestions({
