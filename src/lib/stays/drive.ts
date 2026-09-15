@@ -62,8 +62,12 @@ export function driveHours(minutes: (number | null)[], weights: number[]): numbe
  * hour drop it, the way you would say it: "Lucca 10 min · airport 30 · Volterra 1 h 20".
  */
 export function driveLine(parts: DrivePart[]): string {
+  // "Tokyo 1 h 29 · Tokyo 1 h 52" — the evening anchor and a day-trip anchor
+  // can share a label (audit, 15 Sept 2026). The first mention stands.
+  const seen = new Set<string>();
   return parts
     .filter((p) => p.minutes != null)
+    .filter((p) => (seen.has(p.label) ? false : (seen.add(p.label), true)))
     .map((p, i) => {
       const m = p.minutes as number;
       const txt = i > 0 && m < 60 ? String(Math.round(m)) : fmtMinutes(m);

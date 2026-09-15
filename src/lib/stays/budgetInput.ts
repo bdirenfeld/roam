@@ -53,3 +53,17 @@ export function budgetHint(nightly: number | null, nights: number): string | nul
 export function budgetFieldValue(nightlyRate: number | null | undefined): string {
   return typeof nightlyRate === "number" && nightlyRate > 0 ? String(Math.round(nightlyRate)) : "";
 }
+
+/**
+ * What the Estimate says under Accommodation after the search's budget is
+ * edited. Three journeys read "set on the stay search" — a sentence that
+ * explains nothing about the number — because the edit overwrote whatever
+ * was there (audit, 15 Sept 2026). A line that names a chosen stay is his
+ * working and is left alone (null = do not write); anything else becomes the
+ * number and where it was set.
+ */
+export function budgetBasisLine(current: string | null | undefined, nightly: number, when: string): string | null {
+  const generic = !current || /^\d+ people needs/i.test(current) || /set on (the stay search|Where to stay)/i.test(current);
+  if (!generic) return null;
+  return `$${Math.round(nightly).toLocaleString("en-CA")} a night, set on Where to stay · ${when}`;
+}

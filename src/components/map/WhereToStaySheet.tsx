@@ -624,7 +624,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
               <div className="px-7 pt-8 text-center">
                 <p className="font-display italic" style={{ fontSize: 21, color: INK }}>Not decided yet.</p>
                 <p className="text-[13px] leading-relaxed mt-2" style={{ color: CAPTION }}>
-                  Five places that fit this journey, and what to ask before booking. About a minute.
+                  Five places that fit this journey, priced for your dates and party. About a minute.
                 </p>
                 <button
                   type="button"

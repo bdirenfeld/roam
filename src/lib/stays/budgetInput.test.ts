@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseBudget, budgetHint, budgetFieldValue } from "./budgetInput";
+import { parseBudget, budgetHint, budgetFieldValue, budgetBasisLine } from "./budgetInput";
 
 const NIGHTS = 7; // Palm Springs, 13–20 March.
 
@@ -64,5 +64,17 @@ describe("budgetFieldValue", () => {
     expect(budgetFieldValue(null)).toBe("");
     expect(budgetFieldValue(0)).toBe("");
     expect(budgetFieldValue(undefined)).toBe("");
+  });
+});
+
+describe("budgetBasisLine", () => {
+  it("says the number and where it was set", () => {
+    expect(budgetBasisLine("5 people needs 3 bedrooms", 1000, "15 Sep")).toBe("$1,000 a night, set on Where to stay · 15 Sep");
+    expect(budgetBasisLine("set on the stay search", 480, "15 Sep")).toBe("$480 a night, set on Where to stay · 15 Sep");
+    expect(budgetBasisLine(null, 480, "15 Sep")).toBe("$480 a night, set on Where to stay · 15 Sep");
+  });
+  it("never overwrites a line that names a chosen stay", () => {
+    expect(budgetBasisLine("Tokyo 8 × $640 + Osaka 5 × $520 · 11 Sep", 1000, "15 Sep")).toBeNull();
+    expect(budgetBasisLine("Villa Bottino · vrbo · 10 Sep", 1000, "15 Sep")).toBeNull();
   });
 });

@@ -64,3 +64,10 @@ describe("driveDelta", () => {
     expect(driveDelta(19.6, 19.6)).toBeNull();
   });
 });
+
+describe("driveLine never repeats a label", () => {
+  it("Gora Kadan: Tokyo once, not twice", () => {
+    expect(driveLine([{ label: "Tokyo", minutes: 89 }, { label: "Tokyo", minutes: 112 }])).toBe("Tokyo 1 h 29");
+    expect(driveLine([{ label: "Lucca", minutes: 10 }, { label: "airport", minutes: 30 }, { label: "Lucca", minutes: 12 }])).toBe("Lucca 10 min · airport 30");
+  });
+});

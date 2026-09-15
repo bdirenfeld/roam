@@ -16,7 +16,8 @@ import { areaHeadline, areaLine, baseArea, splitText, reachNote, reviewNotes } f
 import { priceWindow, priceWindowNote, unopenedWindow, unopenedNote } from "@/lib/stays/priceWindow";
 import { budgetFlag, budgetVerdict, nightlyOf } from "@/lib/stays/budget";
 import { parseAsk, askNote, askBonus, unansweredNote } from "@/lib/stays/wants";
-import { parseBudget } from "@/lib/stays/budgetInput";
+import { parseBudget, budgetBasisLine } from "@/lib/stays/budgetInput";
+import { assignLetters } from "@/lib/stays/letters";
 import { inventoriesFor } from "@/lib/stays/inventory";
 import { readiness } from "@/lib/stays/readiness";
 import { listingName } from "@/lib/stays/listingName";
@@ -27,7 +28,6 @@ import { bookedStay, pickSaved, isNotAStay } from "@/lib/stays/ownStays";
 // Five rows, not ten: the stays already saved on the journey come first and
 // Google fills what is left ("way too many options" — Brennan, 9 Sept 2026).
 const MAX_TOTAL = 5;
-const LETTERS = "ABCDEFGHIJKL";
 // A home base sits near the evenings. Beyond this it is a different trip.
 const MAX_OFFER_KM = 35;
 
@@ -164,7 +164,10 @@ export async function POST(request: NextRequest) {
       trip_id: trip.id,
       user_id: user.id,
       assumptions: { ...a, nightlyRate: typed.nightly, nightlyCeiling: typed.nightly },
-      basis: { ...b, accommodation: "set on the stay search" },
+      basis: (() => {
+        const line = budgetBasisLine(b.accommodation, typed.nightly, new Date().toLocaleDateString("en-CA", { day: "numeric", month: "short" }));
+        return line ? { ...b, accommodation: line } : b;
+      })(),
       updated_at: new Date().toISOString(),
     }, { onConflict: "trip_id" });
   }
@@ -175,7 +178,7 @@ export async function POST(request: NextRequest) {
   if (!ready.ready) return NextResponse.json({ error: ready.note }, { status: 422 });
 
   // What an earlier run taught us.
-  const { data: previous } = await supabase.from("stay_candidates").select("id, name, address, lat, lng, google_place_id, place_id, status, reject_reason, feel, photos, site, url, score, score_scale, reviews").eq("trip_id", trip.id).eq("base", baseIndex);
+  const { data: previous } = await supabase.from("stay_candidates").select("id, name, address, lat, lng, google_place_id, place_id, status, reject_reason, feel, photos, site, url, score, score_scale, reviews, letter").eq("trip_id", trip.id).eq("base", baseIndex);
   const rejected = (previous ?? []).filter((p) => p.status === "rejected");
   // Run again brings five FRESH rows (Brennan, 9 Sept 2026): a row shown once and
   // not hearted is "seen" and is not proposed again, same as a rejected one.
@@ -553,6 +556,8 @@ export async function POST(request: NextRequest) {
   // them, and a Choose undo issued before the run pointed at a dead id
   // (audit, 15 Sept 2026). Now they are updated in place; only new rows insert.
 
+  // A row he kept keeps its letter; the rest fill in around it.
+  const letters = assignLetters(scored.map((s) => ({ prior: keptFor(s.c)?.letter ?? null })));
   const rows = scored.map((s, i) => {
     const rv = s.c.google_place_id ? notes.get(s.c.google_place_id) : undefined;
     const delta = driveDelta(s.hours, bestHours);
@@ -563,7 +568,7 @@ export async function POST(request: NextRequest) {
       base: baseIndex,
       place_id: s.c.place_id ?? prior?.place_id ?? null,
       google_place_id: s.c.google_place_id,
-      letter: LETTERS[i] ?? null,
+      letter: letters[i],
       // A rental's "name" is its sales pitch. Keep the part that names it.
       name: listingName(s.c.name),
       address: s.c.address,
