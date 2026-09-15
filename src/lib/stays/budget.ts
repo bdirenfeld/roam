@@ -19,6 +19,20 @@ export function nightlyCeiling(rate: unknown): number | null {
   return typeof rate === "number" && rate > 0 ? rate : null;
 }
 
+/**
+ * What the search may propose a night, read off the Estimate's assumptions.
+ *
+ * Two numbers, not one. `nightlyRate` is what the journey will SPEND — Choose
+ * writes the chosen stay's rate into it so the Estimate is honest. The search
+ * used to read the same field as its limit, so choosing a $200 Tokyo hotel
+ * capped Osaka at $400 a night (Brennan, 15 Sept 2026: a chosen stay never
+ * lowers the ceiling). `nightlyCeiling` is the limit he typed on the search;
+ * until he types one, the Estimate's rate stands in.
+ */
+export function searchCeiling(assumptions: Record<string, unknown> | null | undefined): number | null {
+  return nightlyCeiling(assumptions?.nightlyCeiling) ?? nightlyCeiling(assumptions?.nightlyRate);
+}
+
 /** The nightly this candidate works out at, from whichever figure exists. */
 export function nightlyOf(nightly: number | null, total: number | null, nights: number): number | null {
   if (nightly != null && nightly > 0) return nightly;

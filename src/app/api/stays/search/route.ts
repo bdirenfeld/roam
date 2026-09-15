@@ -126,10 +126,13 @@ export async function POST(request: NextRequest) {
     const { data: bRow } = await supabase.from("trip_budgets").select("assumptions, basis").eq("trip_id", trip.id).maybeSingle();
     const a = (bRow?.assumptions ?? {}) as Record<string, unknown>;
     const b = (bRow?.basis ?? {}) as Record<string, string>;
+    // The limit he typed is its own number now: Choose rewrites nightlyRate
+    // with what the stay costs, and must never lower what the next search may
+    // propose (Brennan, 15 Sept 2026). The Estimate still follows the field.
     await supabase.from("trip_budgets").upsert({
       trip_id: trip.id,
       user_id: user.id,
-      assumptions: { ...a, nightlyRate: typed.nightly },
+      assumptions: { ...a, nightlyRate: typed.nightly, nightlyCeiling: typed.nightly },
       basis: { ...b, accommodation: "set on the stay search" },
       updated_at: new Date().toISOString(),
     }, { onConflict: "trip_id" });

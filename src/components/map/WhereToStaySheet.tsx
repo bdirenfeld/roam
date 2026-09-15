@@ -30,6 +30,8 @@ import { parseAsk, askSummary, suggestions } from "@/lib/stays/wants";
 import { parseBudget, budgetHint, budgetFieldValue } from "@/lib/stays/budgetInput";
 import { readiness } from "@/lib/stays/readiness";
 import { nothingNewNote } from "@/lib/stays/mapFill";
+import { orderRows } from "@/lib/stays/orderRows";
+import { searchCeiling } from "@/lib/stays/budget";
 import type { StayBrief } from "@/lib/stays/brief";
 import type { StayCandidate, StayBriefRow, StayRejectReason, Trip } from "@/types/database";
 import StayCardSheet from "./StayCardSheet";
@@ -97,9 +99,10 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
   const tripNights = Math.max(0, Math.round((new Date(trip.end_date + "T00:00:00").getTime() - new Date(trip.start_date + "T00:00:00").getTime()) / 86400000));
   const travellers = trip.party_size ?? trip.party_ages?.length ?? null;
 
+  // The chosen stay leads the list; the rest keep their letters' order.
   const publish = useCallback((rows: StayCandidate[]) => {
     setEverything(rows);
-    setCands(rows.filter((c) => c.status !== "rejected" && c.status !== "seen"));
+    setCands(orderRows(rows.filter((c) => c.status !== "rejected" && c.status !== "seen")));
   }, []);
 
   /**
@@ -117,8 +120,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
     // returns every row, seen and rejected included, so there is nothing left
     // to infer. The undo path still answers with live rows only, and merges.
     if (complete) {
-      setEverything(rows);
-      setCands(rows.filter((c) => c.status !== "rejected" && c.status !== "seen"));
+      publish(rows);
       return;
     }
     setEverything((prev) => {
@@ -128,10 +130,10 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
         ?? (old.status === "rejected" || !live.has(old.id) ? old : { ...old, status: "seen" as const }));
       const known = new Set(merged.map((r) => r.id));
       const all = [...merged, ...rows.filter((r) => !known.has(r.id))];
-      setCands(all.filter((c) => c.status !== "rejected" && c.status !== "seen"));
+      setCands(orderRows(all.filter((c) => c.status !== "rejected" && c.status !== "seen")));
       return all;
     });
-  }, []);
+  }, [publish]);
 
   const reload = useCallback(async () => {
     const supabase = createClient();
@@ -142,7 +144,8 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
     ]);
     setBrief((b.data as StayBriefRow | null) ?? null);
     publish((c.data ?? []) as StayCandidate[]);
-    const rate = (bud.data?.assumptions as { nightlyRate?: number } | null)?.nightlyRate ?? null;
+    // The field shows the search's own limit, not what the chosen stay costs.
+    const rate = searchCeiling(bud.data?.assumptions as Record<string, unknown> | null);
     setBudget((cur) => (cur ? cur : budgetFieldValue(rate)));
   }, [trip.id, publish]);
 

@@ -6,7 +6,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { StayCandidate } from "@/types/database";
 import { buildStayBrief, countryOfPins, type BriefPin, type StayBrief } from "@/lib/stays/brief";
-import { nightlyCeiling } from "@/lib/stays/budget";
+import { searchCeiling } from "@/lib/stays/budget";
 
 export interface TripContext {
   trip: {
@@ -38,7 +38,7 @@ export async function loadTripContext(supabase: SupabaseClient, tripId: string, 
 
   // The lodging budget already exists on the Estimate screen: no question to ask.
   const { data: budgetRow } = await supabase.from("trip_budgets").select("assumptions").eq("trip_id", tripId).maybeSingle();
-  const nightlyRate = nightlyCeiling((budgetRow?.assumptions as Record<string, unknown> | null)?.nightlyRate);
+  const nightlyRate = searchCeiling(budgetRow?.assumptions as Record<string, unknown> | null);
 
   const dayDate = new Map<string, string>();
   for (const d of days ?? []) dayDate.set(d.id, d.date);

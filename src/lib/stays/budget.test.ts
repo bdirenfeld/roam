@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { nightlyCeiling, nightlyOf, budgetVerdict, budgetFlag, OVER, FAR_OVER } from "./budget";
+import { nightlyCeiling, nightlyOf, budgetVerdict, budgetFlag, OVER, FAR_OVER, searchCeiling } from "./budget";
 
 describe("nightlyCeiling", () => {
   it("takes the Estimate's rate, and refuses a zero or a missing one", () => {
@@ -60,5 +60,19 @@ describe("budgetFlag", () => {
     const nightly = nightlyOf(null, 10381, 11) as number;
     expect(budgetVerdict(nightly, 480)).toBe("over");
     expect(budgetVerdict(nightly, 1000)).toBe("within");
+  });
+});
+
+describe("searchCeiling", () => {
+  it("the typed ceiling wins over the Estimate's rate", () => {
+    expect(searchCeiling({ nightlyRate: 200, nightlyCeiling: 480 })).toBe(480);
+  });
+  it("without a typed ceiling the Estimate's rate stands in", () => {
+    expect(searchCeiling({ nightlyRate: 200 })).toBe(200);
+    expect(searchCeiling({ nightlyRate: 200, nightlyCeiling: 0 })).toBe(200);
+  });
+  it("nothing usable is no ceiling", () => {
+    expect(searchCeiling(null)).toBeNull();
+    expect(searchCeiling({})).toBeNull();
   });
 });
