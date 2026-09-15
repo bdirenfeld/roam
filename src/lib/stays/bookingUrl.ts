@@ -132,6 +132,9 @@ export function noPriceReason(opts: {
   party?: number | null;
 }): string {
   const listed = opts.url && opts.site && opts.site !== "google";
+  // His own saved place: "No rate found for these nights" blamed the
+  // calendar for a price nobody looked up. General, no claim about listing.
+  if (opts.source === "saved" && !listed) return "No price on hand.";
   // Google prices for the party we ask about — two adults and three children —
   // and a property that cannot take them comes back with no price at all
   // (probed 10 Sept 2026: Holiday Inn Express priced for two and not for five).

@@ -31,6 +31,7 @@ import { parseBudget, budgetHint, budgetFieldValue } from "@/lib/stays/budgetInp
 import { readiness } from "@/lib/stays/readiness";
 import { nothingNewNote } from "@/lib/stays/mapFill";
 import { orderRows } from "@/lib/stays/orderRows";
+import { decisionLine } from "@/lib/stays/sheetCopy";
 import { markChosen } from "@/lib/stays/localState";
 import { searchCeiling } from "@/lib/stays/budget";
 import type { StayBrief } from "@/lib/stays/brief";
@@ -91,6 +92,8 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
   /** Setting how many nights each base gets. Draft by label; null = not editing. */
   const [nightsDraft, setNightsDraft] = useState<Record<string, number> | null>(null);
   const [savingNights, setSavingNights] = useState(false);
+  /** The rare doors — paste a listing, earlier, start over — behind one word. */
+  const [showMore, setShowMore] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [askingId, setAskingId] = useState<string | null>(null);
@@ -233,9 +236,10 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
     () => (multi ? cands.filter((c) => (c.base ?? 0) === baseIdx) : cands),
     [multi, cands, baseIdx],
   );
-  const areaText = multi
-    ? (briefObjForAsk?.areaByBase?.[String(baseIdx)] ?? null)
-    : (brief?.area_text ?? null);
+  // Above the rows: nothing, unless there is a decision to put to him. The
+  // area paragraph is gone (Essentialism pass, 15 Sept 2026); what it said is
+  // on the tab and on the card's price line already.
+  const decision = multi ? null : decisionLine(brief?.split_text);
 
   /**
    * The nights and dates THIS base is for. The search prices Tokyo's eight
@@ -293,7 +297,8 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
   const termsLine = [
     said.must ? said.must.replace(/^Must have: /, "Must have ") : null,
     said.nice,
-    budgetNightly ? `up to $${budgetNightly.toLocaleString("en-CA")} a night` : null,
+    budgetNightly ? `up to ${budgetNightly.toLocaleString("en-CA")} a night` : null,
+    multi ? bases.map((b) => `${b.label} ${b.nights}`).join(", ") : null,
   ].filter(Boolean).join(" · ") || "Anything that matters here?";
   const chips = suggestions({
     house: briefObjForAsk?.kind === "house",
@@ -656,51 +661,8 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                   </div>
                 )}
 
-                {multi && (
-                  <div className="px-4 pt-2">
-                    {nightsDraft ? (
-                      <div className="rounded-lg p-3" style={{ background: "rgba(26,26,46,0.045)" }}>
-                        <p className="text-[12.5px] leading-snug mb-2" style={{ color: INK }}>How many nights in each? The last one takes what is left of {tripNights}.</p>
-                        <div className="space-y-1.5">
-                          {bases.map((b, i) => {
-                            const last = i === bases.length - 1;
-                            const setSoFar = bases.slice(0, -1).reduce((n, x) => n + (nightsDraft[x.label] ?? x.nights), 0);
-                            const value = last ? Math.max(0, tripNights - setSoFar) : (nightsDraft[b.label] ?? b.nights);
-                            return (
-                              <div key={b.label + i} className="flex items-center justify-between">
-                                <span className="text-[13px] font-semibold" style={{ color: INK }}>{b.label}</span>
-                                <div className="flex items-center gap-1">
-                                  {!last && (
-                                    <button type="button" aria-label={`Fewer nights in ${b.label}`} disabled={value <= 0} onClick={() => setNightsDraft((d) => ({ ...(d ?? {}), [b.label]: value - 1 }))} className="w-9 h-9 rounded-full text-[16px] disabled:opacity-30" style={{ border: "1px solid rgba(26,26,46,0.2)", color: INK }}>−</button>
-                                  )}
-                                  <span className="w-[72px] text-center text-[13px] tabular-nums" style={{ color: INK }}>{value} {value === 1 ? "night" : "nights"}</span>
-                                  {!last && (
-                                    <button type="button" aria-label={`More nights in ${b.label}`} disabled={setSoFar >= tripNights} onClick={() => setNightsDraft((d) => ({ ...(d ?? {}), [b.label]: value + 1 }))} className="w-9 h-9 rounded-full text-[16px] disabled:opacity-30" style={{ border: "1px solid rgba(26,26,46,0.2)", color: INK }}>+</button>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        <p className="text-[11.5px] mt-2" style={{ color: CAPTION }}>Every base is searched again so the prices match.</p>
-                        <div className="flex items-center gap-2 mt-2">
-                          <button type="button" onClick={saveNights} disabled={savingNights || running} className="h-9 px-3.5 rounded-full text-[12.5px] font-semibold text-white disabled:opacity-60" style={{ background: INK }}>{savingNights ? "Saving…" : "Set the nights"}</button>
-                          <button type="button" onClick={() => setNightsDraft(null)} className="h-9 px-2 text-[12.5px]" style={{ color: CAPTION }}>Keep as is</button>
-                        </div>
-                      </div>
-                    ) : (
-                      <button type="button" onClick={() => setNightsDraft({})} className="text-[12px]" style={{ color: CAPTION }}>
-                        {bases.map((b) => `${b.label} ${b.nights}`).join(" · ")} · <span className="font-semibold" style={{ color: SIENNA }}>Set the nights</span>
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {(areaText || brief?.split_text) && (
-                  <div className="px-4 pt-3 pb-1 text-[12.5px] leading-relaxed" style={{ color: "rgba(26,26,46,0.75)" }}>
-                    {areaText}{areaText && brief?.split_text ? " " : ""}
-                    {brief?.split_text && <span style={{ color: SIENNA }}>{brief.split_text}</span>}
-                  </div>
+                {decision && (
+                  <div className="px-4 pt-3 pb-1 text-[12.5px] leading-relaxed" style={{ color: SIENNA }}>{decision}</div>
                 )}
 
                 {/* Switching to a base that has not run yet left a white void
@@ -794,22 +756,11 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                         )}
                       </div>
 
-                      {/* Choose and Save moved to the page, which is opened
-                          before anything is decided anyway. The heart and the
-                          ✕ stay here, because saying no should still be one
-                          tap (Brennan, 10 Sept 2026). */}
+                      {/* Only the ✕ on the row: saying no is one tap (Brennan,
+                          10 Sept 2026). The heart moved to the card, where the
+                          decision is made (Essentialism pass, 15 Sept 2026). */}
                       {askingId !== c.id && (
                         <div className="flex items-start flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            type="button"
-                            aria-label={c.feel === "up" ? "Un-heart" : "Heart"}
-                            aria-pressed={c.feel === "up"}
-                            onClick={() => heart(c)}
-                            className="h-8 w-8 inline-flex items-center justify-center"
-                            style={{ color: c.feel === "up" ? SIENNA : CAPTION }}
-                          >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill={c.feel === "up" ? SIENNA : "none"} stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.4 4.5 7 4.5c2 0 3.4 1.1 5 3 1.6-1.9 3-3 5-3 3.6 0 5.6 3.5 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2z" /></svg>
-                          </button>
                           {!chosen && (
                             <button type="button" aria-label="Not for us" onClick={() => setAskingId(c.id)} className="h-8 w-8 inline-flex items-center justify-center text-[13px]" style={{ color: CAPTION }}>
                               ✕
@@ -943,6 +894,38 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                       </p>
                     );
                   })()}
+                  {multi && (
+                    <div className="mt-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: "rgba(26,26,46,0.45)" }}>Nights in each</p>
+                      <div className="space-y-1.5">
+                        {bases.map((b, i) => {
+                          const draft = nightsDraft ?? {};
+                          const last = i === bases.length - 1;
+                          const setSoFar = bases.slice(0, -1).reduce((n, x) => n + (draft[x.label] ?? x.nights), 0);
+                          const value = last ? Math.max(0, tripNights - setSoFar) : (draft[b.label] ?? b.nights);
+                          return (
+                            <div key={b.label + i} className="flex items-center justify-between">
+                              <span className="text-[13px] font-semibold" style={{ color: INK }}>{b.label}</span>
+                              <div className="flex items-center gap-1">
+                                {!last && (
+                                  <button type="button" aria-label={`Fewer nights in ${b.label}`} disabled={value <= 0} onClick={() => setNightsDraft((d) => ({ ...(d ?? {}), [b.label]: value - 1 }))} className="w-9 h-9 rounded-full text-[16px] disabled:opacity-30" style={{ border: "1px solid rgba(26,26,46,0.2)", color: INK }}>−</button>
+                                )}
+                                <span className="w-[72px] text-center text-[13px] tabular-nums" style={{ color: INK }}>{value} {value === 1 ? "night" : "nights"}</span>
+                                {!last && (
+                                  <button type="button" aria-label={`More nights in ${b.label}`} disabled={setSoFar >= tripNights} onClick={() => setNightsDraft((d) => ({ ...(d ?? {}), [b.label]: value + 1 }))} className="w-9 h-9 rounded-full text-[16px] disabled:opacity-30" style={{ border: "1px solid rgba(26,26,46,0.2)", color: INK }}>+</button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {nightsDraft && Object.keys(nightsDraft).length > 0 && (
+                        <button type="button" onClick={saveNights} disabled={savingNights || running} className="mt-2 h-9 px-3.5 rounded-full text-[12.5px] font-semibold text-white disabled:opacity-60" style={{ background: INK }}>
+                          {savingNights ? "Saving…" : "Set the nights and search again"}
+                        </button>
+                      )}
+                    </div>
+                  )}
                   <button
                     type="button"
                     onClick={() => setShowTerms(false)}
@@ -1029,39 +1012,28 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                         way back was a toast that expired, so pressing the
                         button by accident lost five listings for good
                         (Brennan, 10 Sept 2026). This door does not time out. */}
-                    {!pasting && (
-                      <button
-                        type="button"
-                        onClick={() => { setPasting(true); setPasteError(null); }}
-                        className="text-[12.5px] font-medium"
-                        style={{ color: CAPTION }}
-                      >
-                        Paste a listing
-                      </button>
-                    )}
-                    {earlier.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setShowEarlier((v) => !v)}
-                        className="text-[12.5px] font-medium"
-                        style={{ color: showEarlier ? INK : CAPTION }}
-                      >
-                        {showEarlier ? "Hide earlier" : `${earlier.length} earlier`}
-                      </button>
-                    )}
-                    {/* Every run narrows the ground: a place shown once is not
-                        shown again, so eventually nothing is left around here
-                        that anyone prices. This is the way back to the start
-                        (Brennan, 11 Sept 2026). */}
-                    {!confirmClear && (
-                      <button
-                        type="button"
-                        onClick={() => setConfirmClear(true)}
-                        disabled={running}
-                        className="text-[12.5px] font-medium ml-auto disabled:opacity-40"
-                        style={{ color: CAPTION }}
-                      >
-                        Start over
+                    {showMore ? (
+                      <>
+                        {!pasting && (
+                          <button type="button" onClick={() => { setPasting(true); setPasteError(null); }} className="text-[12.5px] font-medium" style={{ color: CAPTION }}>
+                            Paste a listing
+                          </button>
+                        )}
+                        {earlier.length > 0 && (
+                          <button type="button" onClick={() => setShowEarlier((v) => !v)} className="text-[12.5px] font-medium" style={{ color: showEarlier ? INK : CAPTION }}>
+                            {showEarlier ? "Hide earlier" : `${earlier.length} earlier`}
+                          </button>
+                        )}
+                        {!confirmClear && (
+                          <button type="button" onClick={() => setConfirmClear(true)} disabled={running} className="text-[12.5px] font-medium disabled:opacity-40" style={{ color: CAPTION }}>
+                            Start over
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      // The rare doors behind one word (Essentialism pass, 15 Sept 2026).
+                      <button type="button" onClick={() => setShowMore(true)} aria-label="More" className="ml-auto text-[12.5px] font-medium" style={{ color: CAPTION }}>
+                        More ⋯
                       </button>
                     )}
                   </div>

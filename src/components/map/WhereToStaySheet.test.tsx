@@ -124,9 +124,12 @@ describe("the base switcher", () => {
 
   // His screenshot: the Osaka tab was showing "West of Tokyo ... most of your
   // places are around Tokyo".
-  it("never shows one base's description on another base's tab", async () => {
+  // The paragraph is gone altogether (Essentialism pass, 15 Sept 2026):
+  // the tab says Tokyo, the card's price line says 2027.
+  it("shows no area paragraph on either tab", async () => {
     mount();
-    expect(await screen.findByText(/around Tokyo/)).toBeInTheDocument();
+    await screen.findByText("Hotel Ryumeikan Tokyo");
+    expect(screen.queryByText(/around Tokyo/)).toBeNull();
     await userEvent.click(screen.getByRole("tab", { name: /Osaka/ }));
     await waitFor(() => expect(screen.queryByText(/around Tokyo/)).toBeNull());
   });
@@ -295,6 +298,9 @@ describe("a listing he found himself", () => {
 
   it("keeps the paste fields folded away until asked for", async () => {
     mount();
+    // Behind "More": a rare door is not on the surface.
+    expect(screen.queryByRole("button", { name: "Paste a listing" })).toBeNull();
+    await userEvent.click(await screen.findByRole("button", { name: "More" }));
     const btn = await screen.findByRole("button", { name: "Paste a listing" });
     expect(screen.queryByLabelText("Link to the listing")).toBeNull();
     await userEvent.click(btn);
@@ -308,6 +314,7 @@ describe("a listing he found himself", () => {
     const added = row({ id: "p1", name: "Villa La Magnolia", base: 0, letter: "C", total: 10400, site: "vrbo", feel: "up" });
     global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ candidate: added }) }) as unknown as typeof fetch;
     mount();
+    await userEvent.click(await screen.findByRole("button", { name: "More" }));
     await userEvent.click(await screen.findByRole("button", { name: "Paste a listing" }));
     await userEvent.type(screen.getByLabelText("Link to the listing"), "https://www.vrbo.com/pdp/lo/1");
     await userEvent.type(screen.getByLabelText("Total price you saw"), "10400");
@@ -320,5 +327,5 @@ describe("a listing he found himself", () => {
     expect(screen.getByText("$10,400")).toBeInTheDocument();
     // The fields fold away again.
     expect(screen.queryByLabelText("Link to the listing")).toBeNull();
-  });
+  }, 15000);
 });

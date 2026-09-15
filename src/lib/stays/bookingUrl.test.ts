@@ -103,7 +103,7 @@ describe("noPriceReason", () => {
   });
 
   it("stays general when the row came off the map or his own saves", () => {
-    expect(noPriceReason({ site: "google", url: null, source: "saved" })).toBe("No rate found for these nights.");
+    expect(noPriceReason({ site: "google", url: null, source: "saved" })).toBe("No price on hand.");
   });
 
   // Google prices for the party asked about and drops the price when a place
@@ -120,6 +120,13 @@ describe("noPriceReason", () => {
 
   it("never blames the party for a row that was never on a booking list", () => {
     expect(noPriceReason({ site: "google", url: null, source: "saved", othersPriced: true, party: 5 }))
-      .toBe("No rate found for these nights.");
+      .toBe("No price on hand.");
+  });
+});
+
+describe("noPriceReason on his own places", () => {
+  it("his own place says the price is simply not on hand — no blame, no claim", () => {
+    expect(noPriceReason({ site: "google", url: "https://hoshinoya.com", source: "saved", othersPriced: true, party: 5 })).toBe("No price on hand.");
+    expect(noPriceReason({ site: "google", url: null, source: "saved" })).toBe("No price on hand.");
   });
 });
