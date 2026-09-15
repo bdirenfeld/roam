@@ -303,7 +303,10 @@ export default function EstimateClient({
     basis: Record<string, string>;
   } | null>(null);
   const [why, setWhy] = useState(false);
-  const [open, setOpen] = useState({ standard: true, additional: true });
+  // Both groups open folded: the total, two subtotals, contingency, points and
+  // the Total are the screen; the nine lines with their fields are a tap away
+  // (Brennan, 15 Sept 2026: "the budget should open with all fields collapsed").
+  const [open, setOpen] = useState({ standard: false, additional: false });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   // The exchange rate, and whether the Excursions figure was typed by hand.
