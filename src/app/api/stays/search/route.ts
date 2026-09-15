@@ -548,7 +548,10 @@ export async function POST(request: NextRequest) {
     await supabase.from("stay_candidates").delete()
       .eq("trip_id", trip.id).eq("base", baseIndex).eq("status", "seen").in("name", backAgain);
   }
-  await supabase.from("stay_candidates").delete().eq("trip_id", trip.id).eq("base", baseIndex).or("status.in.(saved,chosen),feel.eq.up");
+  // Rows he saved, chose or hearted keep their ids. They used to be deleted
+  // here and re-inserted below with new ones — a failed insert in between lost
+  // them, and a Choose undo issued before the run pointed at a dead id
+  // (audit, 15 Sept 2026). Now they are updated in place; only new rows insert.
 
   const rows = scored.map((s, i) => {
     const rv = s.c.google_place_id ? notes.get(s.c.google_place_id) : undefined;
@@ -588,7 +591,20 @@ export async function POST(request: NextRequest) {
       photos: s.c.photos?.length ? s.c.photos : rv?.photos?.length ? rv.photos : (prior?.photos ?? []),
     };
   });
-  const { data: written, error } = await supabase.from("stay_candidates").insert(rows).select("*");
+  const priorIdOf = (c: Cand) => keptFor(c)?.id ?? null;
+  const toInsert = rows.filter((_, i) => !priorIdOf(scored[i].c));
+  const toUpdate = rows.map((r, i) => ({ id: priorIdOf(scored[i].c), r })).filter((x): x is { id: string; r: typeof rows[number] } => !!x.id);
+  for (const { id, r } of toUpdate) {
+    // Everything the run learned, onto the row he already has. Status and
+    // feel are his, and stay as the row carries them.
+    const { trip_id: _t, user_id: _u, status: _s, feel: _f, ...learned } = r;
+    void _t; void _u; void _s; void _f;
+    const { error: upErr } = await supabase.from("stay_candidates").update(learned).eq("id", id);
+    if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
+  }
+  const { data: written, error } = toInsert.length
+    ? await supabase.from("stay_candidates").insert(toInsert).select("*")
+    : { data: [] as { id: string; status: string; feel: string | null }[], error: null };
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const airportMin = airportIdx >= 0 ? fromCentre[airportIdx] : null;

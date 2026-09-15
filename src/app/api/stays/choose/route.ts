@@ -97,9 +97,22 @@ export async function POST(request: NextRequest) {
   const outId = crypto.randomUUID();
   let cardsInserted = false;
   let cardsCut = false;
+  let accommodationWritten = false;
+  let budgetWritten: { assumptions: Record<string, unknown>; basis: Record<string, string> } | null = null;
+  let demoted: string | null = null;
+  // The rollback used to stop at the cards: a failure at "mark the stay" left
+  // the journey's accommodation name and the Estimate rewritten, and the
+  // place ensurePlace created was never removed (audit, 15 Sept 2026).
   const rollback = async () => {
+    if (demoted) await supabase.from("stay_candidates").update({ status: "chosen" }).eq("id", demoted);
+    if (budgetWritten) await supabase.from("trip_budgets").update({ assumptions: budgetWritten.assumptions, basis: budgetWritten.basis }).eq("trip_id", c.trip_id);
+    if (accommodationWritten) await supabase.from("trips").update({ accommodation_name: trip.accommodation_name, accommodation_address: trip.accommodation_address }).eq("id", c.trip_id);
     if (cardsInserted) await supabase.from("cards").delete().in("id", [inId, outId]);
     if (cardsCut) for (const k of cutCards) await supabase.from("cards").update({ status: k.status }).eq("id", k.id);
+    if (!hadPlace && placeId) {
+      const { count } = await supabase.from("cards").select("id", { count: "exact", head: true }).eq("place_id", placeId);
+      if (!count) await supabase.from("places").delete().eq("id", placeId);
+    }
   };
   const failed = async (what: string, message: string) => {
     await rollback();
@@ -127,6 +140,7 @@ export async function POST(request: NextRequest) {
   if (baseIndex === 0) {
     const { error } = await supabase.from("trips").update({ accommodation_name: c.name, accommodation_address: c.address }).eq("id", c.trip_id);
     if (error) return failed("note where you're staying", error.message);
+    accommodationWritten = true;
   }
 
   // The Estimate line, only when there is a real number to put on it. On a
@@ -173,10 +187,8 @@ export async function POST(request: NextRequest) {
         basis: { ...b, accommodation: basisLine ? `${basisLine} · ${when}` : `${c.name} · ${c.site ?? "listing"} · ${when}` },
         updated_at: new Date().toISOString(),
       }).eq("trip_id", c.trip_id);
-      if (error) {
-        await supabase.from("trips").update({ accommodation_name: trip.accommodation_name, accommodation_address: trip.accommodation_address }).eq("id", c.trip_id);
-        return failed("update the Estimate", error.message);
-      }
+      if (error) return failed("update the Estimate", error.message);
+      budgetWritten = { assumptions: a, basis: b };
     }
   }
 
@@ -187,6 +199,7 @@ export async function POST(request: NextRequest) {
   if (prevChosen) {
     const { error } = await supabase.from("stay_candidates").update({ status: "saved" }).eq("id", prevChosen.id);
     if (error) return failed("mark the stay", error.message);
+    demoted = prevChosen.id;
   }
   {
     const { error } = await supabase.from("stay_candidates").update({ status: "chosen", place_id: placeId }).eq("id", c.id);
