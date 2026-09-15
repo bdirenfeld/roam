@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import journeys from "./fixtures/journeys.json";
-import { priceWindow, priceWindowNote, PRICE_HORIZON_DAYS } from "./priceWindow";
+import { priceWindow, priceWindowNote, PRICE_HORIZON_DAYS, unopenedWindow, unopenedNote, type PriceWindow } from "./priceWindow";
 
 /**
  * Run over every journey Brennan has, on the day this was written, because
@@ -67,5 +67,18 @@ describe("priceWindow", () => {
       "Tuscany": null,
       "Japan": "far",
     });
+  });
+});
+
+describe("unopenedWindow", () => {
+  const today = new Date("2026-09-15T12:00:00Z");
+  it("a journey far enough out rolls back to the same week a year earlier", () => {
+    const w = unopenedWindow("2028-02-10", "2028-02-20", today);
+    expect(w).toEqual({ start: "2027-02-10", end: "2027-02-20", shifted: "unopened" });
+    expect(priceWindowNote(w as PriceWindow, "2028-02-10")).toBe("Nobody is quoting 2028 yet; prices are the same week in 2027.");
+  });
+  it("Tuscany, Aug 2027, asked in Sept 2026: last year's week has already gone, so there is nothing to roll to", () => {
+    expect(unopenedWindow("2027-08-18", "2027-08-29", today)).toBeNull();
+    expect(unopenedNote("2027-08-18")).toBe("Nobody is quoting August 2027 yet. Check again nearer the date.");
   });
 });

@@ -85,3 +85,20 @@ export function pickSaved<T extends SavedRow>(rows: T[], base: { lat: number; ln
     .map((x) => x.r);
   return [...must, ...rest.slice(0, Math.max(0, max - must.length))];
 }
+
+/**
+ * Whether a saved place typed "hotel" is obviously NOT somewhere to sleep.
+ * Holiday Pet Care — Finn's kennel — sat on the Last Week of Summer list as
+ * row C because the type said hotel (audit, 15 Sept 2026). Precision over
+ * recall: a villa can be called anything ("La Magnolia"), so only the plain
+ * non-stays are turned away, by Google's own types when the row carries
+ * them and by the name otherwise.
+ */
+const NOT_A_STAY_TYPES = new Set(["pet_store", "veterinary_care", "parking", "storage", "airport", "train_station", "bus_station", "transit_station", "car_rental", "gym", "school", "hospital"]);
+const NOT_A_STAY_WORDS = /\b(pet|kennel|dog|cat|boarding|daycare|vet|veterinary|clinic|parking|storage|airport|station|car rental|gym|school|hospital|dentist)\b/i;
+
+export function isNotAStay(title: string, types?: string[] | null): boolean {
+  if (types?.some((t) => NOT_A_STAY_TYPES.has(t))) return true;
+  if (types?.includes("lodging")) return false;
+  return NOT_A_STAY_WORDS.test(title);
+}

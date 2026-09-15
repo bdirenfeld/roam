@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { bookedStay, pickSaved, MAX_SAVED_ROWS } from "./ownStays";
+import { bookedStay, pickSaved, isNotAStay, MAX_SAVED_ROWS } from "./ownStays";
 
 // Real shapes off the live database, 15 Sept 2026.
 const tuscany = [
@@ -56,5 +56,18 @@ describe("pickSaved", () => {
   });
   it("an empty list is an empty list", () => {
     expect(pickSaved([], tokyo)).toEqual([]);
+  });
+});
+
+describe("isNotAStay", () => {
+  it("turns the kennel away, by name or by type", () => {
+    expect(isNotAStay("Holiday Pet Care")).toBe(true);
+    expect(isNotAStay("Somewhere Nice", ["pet_store", "point_of_interest"])).toBe(true);
+  });
+  it("keeps every real stay, however it is named", () => {
+    for (const n of ["Villa Bottino", "La Magnolia", "HOSHINOYA Tokyo", "Modern Casita", "Montecito Inn", "11 Howard", "Banco 19 B&B"]) {
+      expect(isNotAStay(n)).toBe(false);
+    }
+    expect(isNotAStay("Dog & Duck", ["lodging"])).toBe(false);
   });
 });

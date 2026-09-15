@@ -13,7 +13,7 @@
 // in July stays New York in July — and the sheet says which dates the prices
 // are for.
 
-export type PriceShift = "past" | "far" | null;
+export type PriceShift = "past" | "far" | "unopened" | null;
 export interface PriceWindow { start: string; end: string; shifted: PriceShift }
 
 /** Furthest ahead anyone quotes, near enough. */
@@ -51,8 +51,31 @@ export function priceWindow(start: string, end: string, today: Date = new Date()
   return { start, end, shifted: null };
 }
 
+/**
+ * Inside the horizon, but nobody is quoting: Tuscany for August 2027 came
+ * back 0 of 5 priced in September 2026 because hosts had not opened that
+ * calendar (audit, 15 Sept 2026). The same week a year earlier is the
+ * closest anyone has a number for — worth showing as "typical", and saying
+ * so. Null when a year back would already be in the past.
+ */
+export function unopenedWindow(start: string, end: string, today: Date = new Date()): PriceWindow | null {
+  const todayStr = today.toISOString().slice(0, 10);
+  const s = addYears(start, -1);
+  const e = addYears(end, -1);
+  if (s <= todayStr) return null;
+  return { start: s, end: e, shifted: "unopened" };
+}
+
+/** When places came back but not one has a price, and there is no earlier week to fall back on. */
+export function unopenedNote(tripStart: string): string {
+  const d = new Date(tripStart + "T00:00:00Z");
+  const month = d.toLocaleDateString("en-GB", { month: "long", timeZone: "UTC" });
+  return `Nobody is quoting ${month} ${d.getUTCFullYear()} yet. Check again nearer the date.`;
+}
+
 /** The sentence the sheet shows when the window moved. */
 export function priceWindowNote(w: PriceWindow, tripStart: string): string | null {
+  if (w.shifted === "unopened") return `Nobody is quoting ${tripStart.slice(0, 4)} yet; prices are the same week in ${w.start.slice(0, 4)}.`;
   if (w.shifted === "past") return `These dates have passed; prices are for the same days in ${w.start.slice(0, 4)}.`;
   if (w.shifted === "far") return `Priced for the same days in ${w.start.slice(0, 4)}, since ${tripStart.slice(0, 4)} is too far ahead.`;
   return null;

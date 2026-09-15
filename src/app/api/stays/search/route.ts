@@ -13,7 +13,7 @@ import { driveHours, driveLine, driveDelta, usableAnchorIndexes } from "@/lib/st
 import { shortlist } from "@/lib/stays/shortlist";
 import { greatCircleKm } from "@/lib/stays/brief";
 import { areaHeadline, areaLine, baseArea, splitText, reachNote, reviewNotes } from "@/lib/stays/text";
-import { priceWindow, priceWindowNote } from "@/lib/stays/priceWindow";
+import { priceWindow, priceWindowNote, unopenedWindow, unopenedNote } from "@/lib/stays/priceWindow";
 import { budgetFlag, budgetVerdict, nightlyOf } from "@/lib/stays/budget";
 import { parseAsk, askNote, askBonus, unansweredNote } from "@/lib/stays/wants";
 import { parseBudget } from "@/lib/stays/budgetInput";
@@ -22,7 +22,7 @@ import { readiness } from "@/lib/stays/readiness";
 import { listingName } from "@/lib/stays/listingName";
 import { fillOffers } from "@/lib/stays/pickOffers";
 import { mapFill, exhaustedNote } from "@/lib/stays/mapFill";
-import { bookedStay, pickSaved } from "@/lib/stays/ownStays";
+import { bookedStay, pickSaved, isNotAStay } from "@/lib/stays/ownStays";
 
 // Five rows, not ten: the stays already saved on the journey come first and
 // Google fills what is left ("way too many options" — Brennan, 9 Sept 2026).
@@ -242,6 +242,8 @@ export async function POST(request: NextRequest) {
   // 2026). It is exempt from every cull and never counts as a repeat.
   const bookedId = bookedStay(ctx.savedStays, trip.accommodation_name);
   const cands: Cand[] = ctx.savedStays
+    // Typed "hotel" is not enough: Finn's kennel was row C (15 Sept 2026).
+    .filter((s) => !isNotAStay(s.title, s.types))
     .filter((s) => nearestBase(s.lat, s.lng) === baseIndex)
     .filter((s) => {
       if (s.place_id === bookedId) return true;
@@ -306,7 +308,9 @@ export async function POST(request: NextRequest) {
   // window rolls forward whole years until it is in the future, which keeps the
   // season honest (New York in July stays New York in July), and the sheet says
   // which dates the prices are for.
-  const priced = priceWindow(baseStart, baseEnd);
+  let priced = priceWindow(baseStart, baseEnd);
+  // Set when places came back and none of them priced, with nowhere to roll to.
+  let nothingQuoted = false;
   // How much of this list is news. Both are read after the block, so the
   // sheet can say "nothing new around Osaka" instead of quietly showing rows
   // with no price (11 Sept 2026).
@@ -342,7 +346,20 @@ export async function POST(request: NextRequest) {
       inv.rentals ? stayOffers(serp, q, priced.start, priced.end, adults, ages, true, inv.pages.rentals) : Promise.resolve([]),
       inv.hotels ? stayOffers(serp, q, priced.start, priced.end, adults, ages, false, inv.pages.hotels) : Promise.resolve([]),
     ]);
-    const [wanted, other] = inv.prefer === "hotels" ? [hotels, rentals] : [rentals, hotels];
+    let [wanted, other] = inv.prefer === "hotels" ? [hotels, rentals] : [rentals, hotels];
+    // Places came back but not one of them has a price: the calendar is not
+    // open yet (Tuscany, Aug 2027, 0 of 5 priced). Ask once more for the same
+    // week a year earlier, and say so on the sheet.
+    if ((wanted.length || other.length) && ![...wanted, ...other].some((o) => o.total != null) && !priced.shifted) {
+      const back = unopenedWindow(baseStart, baseEnd);
+      if (back) {
+        const again = await stayOffers(serp, q, back.start, back.end, adults, ages, inv.prefer === "rentals", inv.prefer === "rentals" ? inv.pages.rentals : inv.pages.hotels);
+        if (again.some((o) => o.total != null)) { wanted = again; other = []; priced = back; }
+        else nothingQuoted = true;
+      } else {
+        nothingQuoted = true;
+      }
+    }
     const seenOffer = new Set(wanted.map((o) => norm(o.name)));
     const offers = [...wanted, ...other.filter((o) => !seenOffer.has(norm(o.name)))];
 
@@ -588,7 +605,7 @@ export async function POST(request: NextRequest) {
   const thisArea = (brief.bases.length > 1
     ? [baseArea(brief, baseIndex)]
     : [opener, line]
-  ).concat(priceWindowNote(priced, baseStart)).filter(Boolean).join(" ") || null;
+  ).concat(priceWindowNote(priced, baseStart), nothingQuoted ? unopenedNote(baseStart) : null).filter(Boolean).join(" ") || null;
   const { data: prevBrief } = await supabase.from("stay_briefs").select("brief").eq("trip_id", trip.id).maybeSingle();
   const prevJson = (prevBrief?.brief ?? {}) as { areaByBase?: Record<string, string | null>; spentByBase?: Record<string, boolean> };
   const areaByBase = { ...(prevJson.areaByBase ?? {}), [String(baseIndex)]: thisArea };

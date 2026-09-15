@@ -25,7 +25,7 @@ export interface TripContext {
   /** Stay-type places already saved on this journey, once each. */
   /** Places on the map with a location — how much the search has to go on. */
   pinCount: number;
-  savedStays: { place_id: string; title: string; address: string | null; lat: number; lng: number; google_place_id: string | null; rating: number | null; website: string | null; scheduledDays: string[] }[];
+  savedStays: { place_id: string; title: string; address: string | null; lat: number; lng: number; google_place_id: string | null; rating: number | null; website: string | null; scheduledDays: string[]; types: string[] | null }[];
 }
 
 /** The journey, its days, its pins and the brief built from them. Null when the caller does not own it. */
@@ -33,7 +33,7 @@ export async function loadTripContext(supabase: SupabaseClient, tripId: string, 
   const [{ data: trip }, { data: days }, { data: cards }] = await Promise.all([
     supabase.from("trips").select("id, user_id, title, start_date, end_date, party_ages, party_size, destination_lat, destination_lng, accommodation_name, accommodation_address, stay_nights").eq("id", tripId).maybeSingle(),
     supabase.from("days").select("id, date, day_number").eq("trip_id", tripId).order("day_number"),
-    supabase.from("cards").select("day_id, start_time, status, place:places (id, title, address, lat, lng, sub_type, google_place_id, rating, website)").eq("trip_id", tripId).neq("status", "cut"),
+    supabase.from("cards").select("day_id, start_time, status, place:places (id, title, address, lat, lng, sub_type, google_place_id, rating, website, details)").eq("trip_id", tripId).neq("status", "cut"),
   ]);
   if (!trip || trip.user_id !== userId) return null;
 
@@ -44,7 +44,7 @@ export async function loadTripContext(supabase: SupabaseClient, tripId: string, 
   const dayDate = new Map<string, string>();
   for (const d of days ?? []) dayDate.set(d.id, d.date);
 
-  type Row = { day_id: string | null; start_time: string | null; status: string; place: { id: string; title: string; address: string | null; lat: number | null; lng: number | null; sub_type: string | null; google_place_id: string | null; rating: number | null; website: string | null } | null };
+  type Row = { day_id: string | null; start_time: string | null; status: string; place: { id: string; title: string; address: string | null; lat: number | null; lng: number | null; sub_type: string | null; google_place_id: string | null; rating: number | null; website: string | null; details: Record<string, unknown> | null } | null };
   const rows = (cards ?? []) as unknown as Row[];
 
   const pins: BriefPin[] = [];
@@ -64,7 +64,7 @@ export async function loadTripContext(supabase: SupabaseClient, tripId: string, 
       const day = scheduled && c.day_id ? dayDate.get(c.day_id) ?? null : null;
       if (!seenStay.has(p.id)) {
         seenStay.add(p.id);
-        savedStays.push({ place_id: p.id, title: p.title, address: p.address, lat: p.lat, lng: p.lng, google_place_id: p.google_place_id, rating: p.rating, website: p.website, scheduledDays: day ? [day] : [] });
+        savedStays.push({ place_id: p.id, title: p.title, address: p.address, lat: p.lat, lng: p.lng, google_place_id: p.google_place_id, rating: p.rating, website: p.website, scheduledDays: day ? [day] : [], types: Array.isArray(p.details?.types) ? (p.details.types as string[]) : null });
       } else if (day) {
         const row = savedStays.find((x) => x.place_id === p.id);
         if (row && !row.scheduledDays.includes(day)) row.scheduledDays.push(day);
