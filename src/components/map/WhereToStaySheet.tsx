@@ -80,6 +80,13 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
   /** The must-haves and the budget, open only while being set. */
   const [showTerms, setShowTerms] = useState(false);
   const [running, setRunning] = useState(false);
+  /** A listing he found himself: link, the price he saw, a name if the page won't say. */
+  const [pasting, setPasting] = useState(false);
+  const [pasteUrl, setPasteUrl] = useState("");
+  const [pastePrice, setPastePrice] = useState("");
+  const [pasteName, setPasteName] = useState("");
+  const [pasteError, setPasteError] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [askingId, setAskingId] = useState<string | null>(null);
@@ -432,6 +439,41 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
       toast({ message: `${c.name} is back on the list` });
     } finally {
       setBusyId(null);
+    }
+  }
+
+  /**
+   * The search compares what Google Hotels hands it — about eighteen a page,
+   * no Airbnb, nothing whose calendar is shut. The villa he chose for Tuscany
+   * came from Vrbo, off-app, so the app's list was a second, weaker list
+   * (15 Sept 2026). Paste the link and it joins the five, priced at what he
+   * saw and driven like the rest.
+   */
+  async function addPasted() {
+    setAdding(true);
+    setPasteError(null);
+    try {
+      const res = await fetch("/api/stays/add", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId: trip.id, base: baseIdx, url: pasteUrl.trim(), price: pastePrice.trim() || undefined, name: pasteName.trim() || undefined }) });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) { setPasteError(json.error ?? "Couldn't add it."); return; }
+      const row = json.candidate as StayCandidate;
+      publish([...everything, row]);
+      setPasting(false);
+      setPasteUrl(""); setPastePrice(""); setPasteName("");
+      onFocus(row);
+      toast({
+        message: `${row.name} is on the list`,
+        undo: async () => {
+          const r = await fetch("/api/stays/add", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ candidateId: row.id }) });
+          if (!r.ok) { toast({ message: "Couldn't undo that." }); return; }
+          onFocus(null);
+          await reload();
+        },
+      });
+    } catch {
+      setPasteError("Couldn't add it. Try again.");
+    } finally {
+      setAdding(false);
     }
   }
 
@@ -923,6 +965,16 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                         way back was a toast that expired, so pressing the
                         button by accident lost five listings for good
                         (Brennan, 10 Sept 2026). This door does not time out. */}
+                    {!pasting && (
+                      <button
+                        type="button"
+                        onClick={() => { setPasting(true); setPasteError(null); }}
+                        className="text-[12.5px] font-medium"
+                        style={{ color: CAPTION }}
+                      >
+                        Paste a listing
+                      </button>
+                    )}
                     {earlier.length > 0 && (
                       <button
                         type="button"
@@ -949,6 +1001,60 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                       </button>
                     )}
                   </div>
+                  {pasting && (
+                    <div className="mt-3 rounded-lg p-3 space-y-2" style={{ background: "rgba(26,26,46,0.045)" }}>
+                      <p className="text-[12.5px] leading-snug" style={{ color: INK }}>
+                        Found one somewhere else? It joins the list, priced at what you saw.
+                      </p>
+                      <input
+                        id="paste-url"
+                        type="url"
+                        inputMode="url"
+                        value={pasteUrl}
+                        onChange={(e) => setPasteUrl(e.target.value)}
+                        placeholder="Link to the listing"
+                        aria-label="Link to the listing"
+                        className="w-full h-11 px-3 rounded-lg bg-white text-[13.5px]"
+                        style={{ border: "1px solid rgba(26,26,46,0.18)", color: INK }}
+                      />
+                      <div className="flex gap-2">
+                        <input
+                          id="paste-price"
+                          type="text"
+                          inputMode="decimal"
+                          value={pastePrice}
+                          onChange={(e) => setPastePrice(e.target.value)}
+                          placeholder={`Total for ${nights} nights`}
+                          aria-label="Total price you saw"
+                          className="flex-1 min-w-0 h-11 px-3 rounded-lg bg-white text-[13.5px]"
+                          style={{ border: "1px solid rgba(26,26,46,0.18)", color: INK }}
+                        />
+                        <input
+                          id="paste-name"
+                          type="text"
+                          value={pasteName}
+                          onChange={(e) => setPasteName(e.target.value)}
+                          placeholder="Name, if we can't read it"
+                          aria-label="Name of the place"
+                          className="flex-1 min-w-0 h-11 px-3 rounded-lg bg-white text-[13.5px]"
+                          style={{ border: "1px solid rgba(26,26,46,0.18)", color: INK }}
+                        />
+                      </div>
+                      {pasteError && <p className="text-[12.5px]" style={{ color: SIENNA }}>{pasteError}</p>}
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={addPasted}
+                          disabled={adding || !/^https?:\/\//i.test(pasteUrl.trim())}
+                          className="h-9 px-3.5 rounded-full text-[12.5px] font-semibold text-white disabled:opacity-60"
+                          style={{ background: INK }}
+                        >
+                          {adding ? "Adding…" : "Add to the list"}
+                        </button>
+                        <button type="button" onClick={() => setPasting(false)} className="h-9 px-2 text-[12.5px]" style={{ color: CAPTION }}>Not now</button>
+                      </div>
+                    </div>
+                  )}
                   {error && <p className="text-[12.5px] mt-2" style={{ color: SIENNA }}>{error}</p>}
                 </div>
               </>

@@ -281,3 +281,39 @@ describe("when there is nothing left to find", () => {
     expect(screen.queryByText(/found nothing new/)).toBeNull();
   });
 });
+
+describe("a listing he found himself", () => {
+  beforeEach(() => {
+    CANDIDATES = [...TOKYO_ROWS];
+    BRIEF_ROW = { trip_id: TRIP.id, brief: { bases: BASES }, area_text: null, split_text: null };
+  });
+
+  it("keeps the paste fields folded away until asked for", async () => {
+    mount();
+    const btn = await screen.findByRole("button", { name: "Paste a listing" });
+    expect(screen.queryByLabelText("Link to the listing")).toBeNull();
+    await userEvent.click(btn);
+    expect(screen.getByLabelText("Link to the listing")).toBeInTheDocument();
+    expect(screen.getByLabelText("Total price you saw")).toBeInTheDocument();
+    // Nothing to add until there is a link.
+    expect(screen.getByRole("button", { name: "Add to the list" })).toBeDisabled();
+  });
+
+  it("adds it to THIS base's list, priced at what he saw", async () => {
+    const added = row({ id: "p1", name: "Villa La Magnolia", base: 0, letter: "C", total: 10400, site: "vrbo", feel: "up" });
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ candidate: added }) }) as unknown as typeof fetch;
+    mount();
+    await userEvent.click(await screen.findByRole("button", { name: "Paste a listing" }));
+    await userEvent.type(screen.getByLabelText("Link to the listing"), "https://www.vrbo.com/pdp/lo/1");
+    await userEvent.type(screen.getByLabelText("Total price you saw"), "10400");
+    await userEvent.click(screen.getByRole("button", { name: "Add to the list" }));
+    const spy = global.fetch as unknown as { mock: { calls: [string, { body: string }][] } };
+    const call = spy.mock.calls.find((c) => c[0] === "/api/stays/add");
+    expect(call).toBeTruthy();
+    expect(JSON.parse(call![1].body)).toMatchObject({ tripId: TRIP.id, base: 0, url: "https://www.vrbo.com/pdp/lo/1", price: "10400" });
+    await waitFor(() => expect(screen.getByText("Villa La Magnolia")).toBeInTheDocument());
+    expect(screen.getByText("$10,400")).toBeInTheDocument();
+    // The fields fold away again.
+    expect(screen.queryByLabelText("Link to the listing")).toBeNull();
+  });
+});

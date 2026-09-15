@@ -383,6 +383,27 @@ export async function ensurePlace(supabase: SupabaseClient, userId: string, c: S
   return inserted.id;
 }
 
+/**
+ * The first letter not in use on this base, so a row coming back onto the list
+ * never collides with one already there. Restore, un-reject and a pasted
+ * listing all go through here.
+ */
+export async function freeLetter(
+  supabase: SupabaseClient,
+  tripId: string,
+  base: number,
+  current: string | null,
+): Promise<string | null> {
+  const { data: live } = await supabase
+    .from("stay_candidates")
+    .select("letter")
+    .eq("trip_id", tripId)
+    .eq("base", base)
+    .not("status", "in", "(rejected,seen)");
+  const taken = new Set(((live ?? []) as { letter: string | null }[]).map((r) => r.letter).filter(Boolean));
+  return "ABCDEFGHIJKL".split("").find((l) => !taken.has(l)) ?? current;
+}
+
 export async function nextPosition(supabase: SupabaseClient, dayId: string): Promise<number> {
   const { data } = await supabase.from("cards").select("position").eq("day_id", dayId).order("position", { ascending: false }).limit(1);
   return (data?.[0]?.position ?? 0) + 1;

@@ -3,34 +3,12 @@
 //            day, like any pin), and stays on the list as "saved".
 //   reject — "Not for us", with the reason the next search learns from.
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
-import { ensurePlace } from "../_shared";
+import { ensurePlace, freeLetter } from "../_shared";
 import type { StayCandidate, StayRejectReason } from "@/types/database";
 
 const REASONS = new Set<StayRejectReason>(["too_far", "wrong_kind", "too_dear", "doesnt_fit"]);
-
-/**
- * The first letter not in use on this base, so a row coming back onto the list
- * never collides with one already there. Both ways back — restore from Earlier
- * and un-reject — go through here.
- */
-async function freeLetter(
-  supabase: SupabaseClient,
-  tripId: string,
-  base: number,
-  current: string | null,
-): Promise<string | null> {
-  const { data: live } = await supabase
-    .from("stay_candidates")
-    .select("letter")
-    .eq("trip_id", tripId)
-    .eq("base", base)
-    .not("status", "in", "(rejected,seen)");
-  const taken = new Set(((live ?? []) as { letter: string | null }[]).map((r) => r.letter).filter(Boolean));
-  return "ABCDEFGHIJKL".split("").find((l) => !taken.has(l)) ?? current;
-}
 
 export async function POST(request: NextRequest) {
   const gate = await requireUser();
