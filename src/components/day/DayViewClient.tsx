@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
-import { mapLineLabel, readMapOpen, writeMapOpen } from "@/lib/day/mapLine";
+import { readMapOpen, writeMapOpen } from "@/lib/day/mapLine";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CaretLeft, CaretRight } from "@phosphor-icons/react";
@@ -793,6 +793,21 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
         activeDayId={dayWithCards.id}
         tripId={trip.id}
         onDaySelect={handleDaySelect}
+        trailing={phone && !mapExpanded && mappableCards.length > 0 ? (
+          <button
+            type="button"
+            onClick={toggleMapOpen}
+            aria-expanded={mapOpen}
+            aria-label={mapOpen ? "Hide the map" : `Show the map · ${mappableCards.length} ${mappableCards.length === 1 ? "place" : "places"}`}
+            className="h-[34px] px-2.5 rounded-full inline-flex items-center gap-1.5 text-[12px] font-semibold"
+            style={mapOpen
+              ? { background: "#1A1A2E", color: "#fff", border: "1px solid #1A1A2E" }
+              : { background: "#fff", color: "#1A1A2E", border: "1px solid rgba(26,26,46,0.2)" }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" /><line x1="8" y1="2" x2="8" y2="18" /><line x1="16" y1="6" x2="16" y2="22" /></svg>
+            {mappableCards.length}
+          </button>
+        ) : undefined}
       />
 
       {/* Mobile-only weather expansion */}
@@ -961,18 +976,6 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
 
         {/* Map — desktop col 2 row 1, sticky. Mobile: one line until opened. */}
         <div className="md:col-start-2 md:row-start-1 md:sticky md:top-6 md:self-start">
-          {phone && !mapExpanded && mapLineLabel(mappableCards.length) && (
-            <button
-              type="button"
-              onClick={toggleMapOpen}
-              aria-expanded={mapOpen}
-              className="w-full h-11 px-4 flex items-center justify-between border-b border-gray-100 text-[13px] font-semibold"
-              style={{ color: "rgba(26,26,46,0.75)" }}
-            >
-              <span>{mapLineLabel(mappableCards.length)}</span>
-              <span aria-hidden="true" style={{ transform: mapOpen ? "rotate(90deg)" : "none", transition: "transform 140ms", color: "rgba(26,26,46,0.42)" }}>›</span>
-            </button>
-          )}
           {(!phone || mapOpen || mapExpanded || mappableCards.length === 0) && (
           <DayMap
             cards={mappableCards}
@@ -1026,7 +1029,9 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
               highlightedCardId={highlightedCardId}
               onGapTap={readOnly ? undefined : handleGapTap}
               onToggleConfirmed={readOnly ? undefined : handleToggleConfirmed}
-              cardNumberById={cardNumberById}
+              // A numeral is a map key; with the map folded it points at nothing
+              // (Brennan, 15 Sept 2026). Numbers only while the map is on screen.
+              cardNumberById={phone && !mapOpen && !mapExpanded ? undefined : cardNumberById}
               readOnly={readOnly}
               onTimeTap={readOnly ? undefined : (card) => setTimeCard(card)}
             />

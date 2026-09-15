@@ -8,6 +8,8 @@ interface Props {
   activeDayId: string;
   tripId: string;
   onDaySelect: (day: Day) => void;
+  /** A control at the right end of the row — the day map's pill (15 Sept 2026). */
+  trailing?: React.ReactNode;
 }
 
 /**
@@ -18,7 +20,7 @@ interface Props {
  * agenda read as a tool. It is dates now, the current one underlined. The
  * "Day N" line went with it: you know it's the first day because it's first.
  */
-export default function DayStrip({ days, activeDayId, onDaySelect }: Props) {
+export default function DayStrip({ days, activeDayId, onDaySelect, trailing }: Props) {
   const activeRef = useRef<HTMLButtonElement>(null);
 
   // Client-only today key — null on SSR and first paint so the today mark
@@ -51,7 +53,11 @@ export default function DayStrip({ days, activeDayId, onDaySelect }: Props) {
       className="sticky top-[58px] z-20 bg-white md:hidden"
       style={{ borderBottom: "1px solid rgba(26,26,46,0.10)" }}
     >
-      <div className="relative">
+      {/* The strip scrolls; the trailing pill does not. The map line under
+          this row cost 44px before the first card (Essential audit, 15 Sept
+          2026); as a pill here it costs the strip ~40px of width instead. */}
+      <div className="flex items-center">
+      <div className="relative flex-1 min-w-0">
         <div className="flex gap-2 px-3 pt-1.5 pb-3 overflow-x-auto scrollbar-none">
           {days.map((day) => {
             const isActive = day.id === activeDayId;
@@ -101,6 +107,8 @@ export default function DayStrip({ days, activeDayId, onDaySelect }: Props) {
           className="absolute right-0 top-0 bottom-0 w-8 pointer-events-none"
           style={{ background: "linear-gradient(to left, white, transparent)" }}
         />
+      </div>
+      {trailing && <div className="flex-shrink-0 pr-3 pt-1.5 pb-3">{trailing}</div>}
       </div>
     </div>
   );

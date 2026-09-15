@@ -1066,7 +1066,50 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-1.5 flex-shrink-0">
+
+          </div>
+
+          {/* Title — editable when linked to a place (owner); static otherwise */}
+          <div className="mt-2.5">
+            {place && !readOnly ? (
+              <TitleEditor
+                value={place.title}
+                onSave={(v) => saveTitle(v)}
+              />
+            ) : (
+              <h2 className="text-[19px] font-bold text-gray-900 leading-snug">{displayTitle}</h2>
+            )}
+            {/* The address, in words. The sheet had Maps, Website and Call
+                buttons but never said where the place was — on a journey
+                spanning eight towns that is the first thing you want. The
+                country is dropped; the town is the point. */}
+            {place?.address && (
+              (place.lat != null && place.lng != null) || (localCard.details as Record<string, unknown>)?.place_id != null ? (
+                /* The address IS the Maps button now. It was already printed
+                   here doing nothing, and the pill it replaces opened this same
+                   chooser. Underlined on hover only: it should read as the
+                   address first and a control second. */
+                <button
+                  type="button"
+                  onClick={() => setNavSheetOpen(true)}
+                  aria-label={`Directions to ${place.address}`}
+                  title="Directions"
+                  className="text-left text-[12.5px] leading-snug mt-1 hover:underline"
+                  style={{ color: "rgba(26,26,46,0.62)" }}
+                >
+                  {place.address.replace(/,\s*[^,]+$/, "")}
+                </button>
+              ) : (
+                <p className="text-[12.5px] leading-snug mt-1" style={{ color: "rgba(26,26,46,0.62)" }}>
+                  {place.address.replace(/,\s*[^,]+$/, "")}
+                </p>
+              )
+            )}
+          </div>
+
+          {/* The glyph row sits UNDER the name now — the name first, then the
+              doors (Essential audit mock, 15 Sept 2026). */}
+          <div className="flex items-center gap-1.5 mt-2">
               {/* Rating + price — badge row, right of type badge */}
               {(rating !== null && place?.sub_type !== "flight_arrival" && place?.sub_type !== "flight_departure" || badgePriceLabel) && (
                 <div className="flex items-center mr-0.5" style={{ gap: 3 }}>
@@ -1204,45 +1247,6 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 </div>
               )}
             </div>
-          </div>
-
-          {/* Title — editable when linked to a place (owner); static otherwise */}
-          <div className="mt-2.5">
-            {place && !readOnly ? (
-              <TitleEditor
-                value={place.title}
-                onSave={(v) => saveTitle(v)}
-              />
-            ) : (
-              <h2 className="text-[19px] font-bold text-gray-900 leading-snug">{displayTitle}</h2>
-            )}
-            {/* The address, in words. The sheet had Maps, Website and Call
-                buttons but never said where the place was — on a journey
-                spanning eight towns that is the first thing you want. The
-                country is dropped; the town is the point. */}
-            {place?.address && (
-              (place.lat != null && place.lng != null) || (localCard.details as Record<string, unknown>)?.place_id != null ? (
-                /* The address IS the Maps button now. It was already printed
-                   here doing nothing, and the pill it replaces opened this same
-                   chooser. Underlined on hover only: it should read as the
-                   address first and a control second. */
-                <button
-                  type="button"
-                  onClick={() => setNavSheetOpen(true)}
-                  aria-label={`Directions to ${place.address}`}
-                  title="Directions"
-                  className="text-left text-[12.5px] leading-snug mt-1 hover:underline"
-                  style={{ color: "rgba(26,26,46,0.62)" }}
-                >
-                  {place.address.replace(/,\s*[^,]+$/, "")}
-                </button>
-              ) : (
-                <p className="text-[12.5px] leading-snug mt-1" style={{ color: "rgba(26,26,46,0.62)" }}>
-                  {place.address.replace(/,\s*[^,]+$/, "")}
-                </p>
-              )
-            )}
-          </div>
 
           {/* Editable time row */}
           <div className="flex items-center gap-1 mt-1 flex-wrap -ml-2">
