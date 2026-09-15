@@ -306,7 +306,7 @@ export default function StayCardSheet({ inPanel = false, backLabel = "Back", can
           </button>
           {chosen ? (
             <>
-              <div className="flex-1 h-12 rounded-full text-[15px] font-semibold inline-flex items-center justify-center" style={{ color: SIENNA, background: "rgba(176,84,31,0.08)", border: "1px solid rgba(176,84,31,0.3)" }} aria-label="Staying here">
+              <div className="flex-1 h-12 rounded-full text-[14px] font-semibold inline-flex items-center justify-center whitespace-nowrap" style={{ color: SIENNA, background: "rgba(176,84,31,0.08)", border: "1px solid rgba(176,84,31,0.3)" }} aria-label="Staying here">
                 Staying here ✓
               </div>
               <button type="button" disabled={busy} onClick={onUnchoose} className="h-12 px-2 text-[13px] font-semibold disabled:opacity-60" style={{ color: CAPTION }}>
@@ -324,7 +324,7 @@ export default function StayCardSheet({ inPanel = false, backLabel = "Back", can
               {busy ? "…" : "Stay here"}
             </button>
           )}
-          {out && (
+          {out && !chosen && (
             <a href={out.href} target="_blank" rel="noopener noreferrer" className="h-12 px-4 inline-flex items-center text-[14px] font-medium" style={{ color: c.total == null ? INK : CAPTION }}>
               {out.label} ↗
             </a>
