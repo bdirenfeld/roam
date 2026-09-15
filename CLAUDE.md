@@ -1139,3 +1139,33 @@ The deeper point, worth keeping: **a check that is red every time is not a
 check.** A real breakage then looks identical to the noise you have already
 learned to scroll past. Red-after-green is a signal; red-after-red means the
 alarm itself needs fixing first.
+
+### The journey already knows where you sleep (15 Sept 2026)
+
+`lib/stays/ownStays.ts` holds two decisions the search route used to get wrong
+about places Brennan saved himself, both found by reading the live rows rather
+than the code:
+
+- **`bookedStay()`** — a stay-type place scheduled on a day (`in_itinerary`),
+  or the one `trips.accommodation_name` names, is the journey's stay. The
+  search writes it `chosen`, exempts it from every cull and never marks it
+  seen. Five of nine journeys had their real stay sitting as an unpriced
+  candidate, and two (Montecito Inn, Villa Bottino) had been pushed to
+  "seen". A saved idea that merely holds a `day_id` is NOT booked — Japan's
+  31 pins all hold day one.
+- **`pickSaved()`** — his own places take at most `MAX_SAVED_ROWS` (2) rows:
+  chosen and hearted always, then the nearest to the base. Tokyo had four
+  saved hotels, which left the search one slot forever and none of the four
+  priced. And a place merely *saved* now goes through the drive rules like
+  any other; only chosen and hearted are exempt.
+
+`lib/stays/stayRows.test.ts` runs both over `fixtures/stayRows.json` — every
+journey's `stay_candidates` plus the stay-type places on its itinerary, pulled
+from the live database. Pull it again when journeys change; the query is in
+the `roam-stay-audit-2` memory. Same lesson as roam-ship §10: the list, not
+the rule.
+
+**Windows checkout trap:** `scripts/import-places.mjs` starts with a shebang,
+and git converts it to CRLF on Windows; esbuild then cannot strip it and
+`importIds.test.ts` fails with "Invalid or unexpected token" here while the
+Linux CI is green. A `.gitattributes` line (`*.mjs text eol=lf`) is the fix.
