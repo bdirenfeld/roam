@@ -1206,3 +1206,16 @@ for the place, and any calendar a host has not opened. Two answers shipped:
   `fillOffers` ranks: priced first, then the wanted kind, then score × log
   reviews — novelty moves nothing. `spentByBase` is always false now; the
   "nothing new" confirm in the sheet is dead code awaiting removal.
+
+### The stay card: one decision (15 Sept 2026)
+
+Mock approved, copy his: **"Stay here"**, chosen reads **"Staying here ✓"**, the
+way back is **"Not here"**. There is no Save button any more — the heart is
+"keep it": `mark` action `heart` on a candidate row now also creates the place
+and an `interested` card (what Save wrote) and sets the row `saved`; un-hearting
+takes nothing off the map. `mark` action `unchoose` is the way back from Choose
+however long ago it was chosen: deletes that place's `details.stay` cards,
+clears `trips.accommodation_name` if this stay gave it, drops
+`basis.accommodation` when no chosen row is left, keeps the row `saved` +
+hearted. The list row is unchanged (heart and ✕ only); the decision lives on
+the card. Do not re-add a Save button or a second Choose door.
