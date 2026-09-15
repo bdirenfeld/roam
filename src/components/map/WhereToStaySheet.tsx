@@ -411,28 +411,6 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
     }
   }
 
-  async function save(c: StayCandidate) {
-    setBusyId(c.id);
-    try {
-      const res = await fetch("/api/stays/mark", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ candidateId: c.id, action: "save" }) });
-      const json = await res.json();
-      if (!res.ok) { toast({ message: json.error ?? "Couldn't save it." }); return; }
-      publish(everything.map((x) => x.id === c.id && x.status !== "chosen" ? { ...x, status: "saved", place_id: json.placeId } : x));
-      onChanged();
-      toast({
-        message: `${c.name} is on your map`,
-        undo: async () => {
-          const r = await fetch("/api/stays/mark", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ candidateId: c.id, action: "unsave", cardId: json.createdCard ? json.cardId : null, createdPlace: json.createdPlace }) });
-          if (!r.ok) { toast({ message: "Couldn't undo that." }); return; }
-          await reload();
-          onChanged();
-        },
-      });
-    } finally {
-      setBusyId(null);
-    }
-  }
-
   /** Put one back on the list. Works for a set-aside row and a rejected one. */
   async function restore(c: StayCandidate) {
     setBusyId(c.id);
@@ -506,11 +484,33 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
     }
   }
 
+  /**
+   * The heart keeps a place: on the map as a saved place (what Save used to
+   * write), through every later run, and out of every cull. One control for
+   * one idea (mock approved 15 Sept 2026). Un-hearting takes nothing off the
+   * map — the map's own delete has its own undo.
+   */
   async function heart(c: StayCandidate) {
     const res = await fetch("/api/stays/mark", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ candidateId: c.id, action: "heart" }) });
     const json = await res.json();
     if (!res.ok) { toast({ message: "Couldn't do that." }); return; }
-    publish(everything.map((x) => x.id === c.id ? { ...x, feel: json.feel } : x));
+    publish(everything.map((x) => x.id === c.id ? { ...x, feel: json.feel, status: (json.status as StayCandidate["status"]) ?? x.status, place_id: (json.placeId as string | null | undefined) ?? x.place_id } : x));
+    if (json.feel === "up") { onChanged(); toast({ message: `${c.name} is on your map` }); }
+  }
+
+  /** The way back from a chosen stay, from the card itself. */
+  async function unchoose(c: StayCandidate) {
+    setBusyId(c.id);
+    try {
+      const res = await fetch("/api/stays/mark", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ candidateId: c.id, action: "unchoose" }) });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) { toast({ message: json.error ?? "Couldn't undo that." }); return; }
+      publish(everything.map((x) => x.id === c.id ? { ...x, status: "saved", feel: "up" } : x));
+      onChanged();
+      toast({ message: `${c.name} is no longer your stay` });
+    } finally {
+      setBusyId(null);
+    }
   }
 
   async function reject(c: StayCandidate, reason: StayRejectReason) {
@@ -610,7 +610,8 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
               dates={stayDates}
               busy={busyId === open.id}
               onChoose={() => choose(open)}
-              onSave={() => save(open)}
+              onHeart={() => heart(open)}
+              onUnchoose={() => unchoose(open)}
               onClose={() => setOpenId(null)}
               {...stepper}
             />
@@ -1145,7 +1146,8 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
           dates={stayDates}
           busy={busyId === open.id}
           onChoose={() => choose(open)}
-          onSave={() => save(open)}
+          onHeart={() => heart(open)}
+          onUnchoose={() => unchoose(open)}
           onClose={() => setOpenId(null)}
           {...stepper}
         />

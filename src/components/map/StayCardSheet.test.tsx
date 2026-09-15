@@ -39,7 +39,8 @@ function show(extra: Record<string, unknown> = {}) {
       dates={DATES}
       busy={false}
       onChoose={vi.fn()}
-      onSave={vi.fn()}
+      onHeart={vi.fn()}
+      onUnchoose={vi.fn()}
       onClose={vi.fn()}
       {...extra}
     />,
@@ -96,6 +97,40 @@ describe("what the card still says while it does that", () => {
     expect(screen.getByText("Hotel Noum Osaka")).toBeInTheDocument();
     expect(screen.getByText(/10–15 Apr · 5 nights/)).toBeInTheDocument();
     expect(screen.getByText(/\$1,800/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Choose" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Stay here" })).toBeInTheDocument();
+  });
+});
+
+describe("one decision on the card", () => {
+  it("offers the heart and Stay here, and no Save", () => {
+    show();
+    expect(screen.getByRole("button", { name: "Stay here" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Heart" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+    expect(screen.queryByText("Not here")).toBeNull();
+  });
+  it("a chosen stay says so and carries its own way back", async () => {
+    const onUnchoose = vi.fn();
+    render(
+      <StayCardSheet
+        candidate={{ ...CAND, status: "chosen", feel: "up" } as unknown as StayCandidate}
+        brief={null} startDate="2027-04-10" endDate="2027-04-15" nights={5} dates={DATES} busy={false}
+        onChoose={vi.fn()} onHeart={vi.fn()} onUnchoose={onUnchoose} onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Staying here ✓")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Stay here" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Not here" }));
+    expect(onUnchoose).toHaveBeenCalled();
+  });
+  it("a saved row shows the heart filled, because saved and hearted are one idea now", () => {
+    render(
+      <StayCardSheet
+        candidate={{ ...CAND, status: "saved" } as unknown as StayCandidate}
+        brief={null} startDate="2027-04-10" endDate="2027-04-15" nights={5} dates={DATES} busy={false}
+        onChoose={vi.fn()} onHeart={vi.fn()} onUnchoose={vi.fn()} onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Un-heart" })).toHaveAttribute("aria-pressed", "true");
   });
 });

@@ -17,8 +17,8 @@ export async function POST(request: NextRequest) {
   if (!(await underQuota(supabase, "stayWrite", QUOTA.stayWrite))) return quotaExceeded("stay changes");
 
   const body = await request.json().catch(() => ({})) as { candidateId?: string; action?: string; reason?: string };
-  if (!body.candidateId || !["save", "unsave", "reject", "unreject", "heart", "restore"].includes(body.action ?? "")) {
-    return NextResponse.json({ error: "candidateId and action (save | unsave | reject | unreject | heart | restore) are required" }, { status: 400 });
+  if (!body.candidateId || !["save", "unsave", "reject", "unreject", "heart", "restore", "unchoose"].includes(body.action ?? "")) {
+    return NextResponse.json({ error: "candidateId and action (save | unsave | reject | unreject | heart | restore | unchoose) are required" }, { status: 400 });
   }
   const { data: cand } = await supabase.from("stay_candidates").select("*").eq("id", body.candidateId).maybeSingle();
   if (!cand) return NextResponse.json({ error: "No such candidate" }, { status: 404 });
@@ -26,12 +26,57 @@ export async function POST(request: NextRequest) {
   const { data: trip } = await supabase.from("trips").select("id, user_id").eq("id", c.trip_id).maybeSingle();
   if (!trip || trip.user_id !== user.id) return NextResponse.json({ error: "Not your journey" }, { status: 403 });
 
-  // A heart: kept on the next run and steers what it looks for. Tap again to take it back.
+  // A heart: kept on the next run, steers what it looks for — and, since the
+  // Save button went (15 Sept 2026), puts the place on the map the way Save
+  // did. Tap again to take the heart back; the map keeps the place.
   if (body.action === "heart") {
     const feel = c.feel === "up" ? null : "up";
+    if (feel === "up" && c.status === "candidate") {
+      const placeId = await ensurePlace(supabase, user.id, c);
+      if (!placeId) return NextResponse.json({ error: "Couldn't save the place" }, { status: 500 });
+      const { data: existing } = await supabase.from("cards").select("id").eq("trip_id", c.trip_id).eq("place_id", placeId).neq("status", "cut").limit(1);
+      if (!existing?.[0]) {
+        const { error } = await supabase.from("cards").insert({
+          id: crypto.randomUUID(), trip_id: c.trip_id, day_id: null, place_id: placeId, status: "interested", position: 0,
+          start_time: null, end_time: null, source_url: c.url, details: {}, ai_generated: false, confirmed: false,
+        });
+        if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+      const { error } = await supabase.from("stay_candidates").update({ feel, status: "saved", place_id: placeId }).eq("id", c.id);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ ok: true, feel, status: "saved", placeId });
+    }
     const { error } = await supabase.from("stay_candidates").update({ feel }).eq("id", c.id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true, feel });
+    return NextResponse.json({ ok: true, feel, status: c.status });
+  }
+
+  // The way back from Choose, on the card, however long ago it was chosen:
+  // the check-in and check-out come off the days, the journey's name is
+  // cleared if this stay gave it, the Estimate's working is dropped when no
+  // stay is left, and the row is kept (hearted) rather than forgotten.
+  if (body.action === "unchoose") {
+    if (c.status !== "chosen") return NextResponse.json({ error: "It is not your stay" }, { status: 409 });
+    if (c.place_id) {
+      const { error } = await supabase.from("cards").delete().eq("trip_id", c.trip_id).eq("place_id", c.place_id).not("details->>stay", "is", null);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    const { data: t } = await supabase.from("trips").select("accommodation_name").eq("id", c.trip_id).maybeSingle();
+    if (t?.accommodation_name && t.accommodation_name.toLowerCase() === c.name.toLowerCase()) {
+      await supabase.from("trips").update({ accommodation_name: null, accommodation_address: null }).eq("id", c.trip_id);
+    }
+    const { error: rowErr } = await supabase.from("stay_candidates").update({ status: "saved", feel: "up" }).eq("id", c.id);
+    if (rowErr) return NextResponse.json({ error: rowErr.message }, { status: 500 });
+    const { data: still } = await supabase.from("stay_candidates").select("id").eq("trip_id", c.trip_id).eq("status", "chosen").limit(1);
+    if (!still?.length) {
+      const { data: budget } = await supabase.from("trip_budgets").select("basis").eq("trip_id", c.trip_id).maybeSingle();
+      if (budget) {
+        const b = { ...((budget.basis ?? {}) as Record<string, string>) };
+        delete b.accommodation;
+        await supabase.from("trip_budgets").update({ basis: b, updated_at: new Date().toISOString() }).eq("trip_id", c.trip_id);
+      }
+    }
+    return NextResponse.json({ ok: true, status: "saved" });
   }
 
   // Bring back one that a Run again pushed aside. Replacing five with five

@@ -47,7 +47,10 @@ interface Props {
   onPrev?: () => void;
   onNext?: () => void;
   onChoose: () => void;
-  onSave: () => void;
+  /** The heart: kept on the map and through every run — what Save used to do, and what the heart already did. */
+  onHeart: () => void;
+  /** The way back from a chosen stay, on the card rather than in a toast that expires. */
+  onUnchoose: () => void;
   onClose: () => void;
 }
 
@@ -77,7 +80,7 @@ async function loadPhotos(googlePlaceId: string): Promise<{ photos: string[]; we
   return { photos: urls, website: (json.result?.website as string | undefined) ?? null };
 }
 
-export default function StayCardSheet({ inPanel = false, backLabel = "Back", candidate: c, brief, startDate, endDate, nights, priceYear = null, othersPriced = false, dates, busy, onChoose, onSave, onClose, onCloseAll, place, onPrev, onNext }: Props) {
+export default function StayCardSheet({ inPanel = false, backLabel = "Back", candidate: c, brief, startDate, endDate, nights, priceYear = null, othersPriced = false, dates, busy, onChoose, onHeart, onUnchoose, onClose, onCloseAll, place, onPrev, onNext }: Props) {
   // The search already resolved the first few photos; only an older row still fetches.
   const [photos, setPhotos] = useState<string[] | null>(c.photos?.length ? c.photos : null);
   const [website, setWebsite] = useState<string | null>(c.url);
@@ -111,6 +114,8 @@ export default function StayCardSheet({ inPanel = false, backLabel = "Back", can
   }, [c.google_place_id, c.photos]);
 
   const chosen = c.status === "chosen";
+  // A row already saved is kept the same way a hearted one is.
+  const kept = c.feel === "up" || c.status === "saved" || chosen;
   const scale: 5 | 10 = c.score_scale === 10 ? 10 : 5;
   // Only what the listing actually says. "Fits your 7 · needs 4 bedrooms" was
   // a floor dressed up as a fact (Brennan, 9 Sept 2026); without a bed count
@@ -283,19 +288,40 @@ export default function StayCardSheet({ inPanel = false, backLabel = "Back", can
           </div>
         </div>
 
-        <div className="absolute inset-x-0 bottom-0 bg-white border-t border-gray-100 px-5 pt-3 pb-6 flex gap-2">
+        {/* One decision on the card (mock approved 15 Sept 2026): the heart keeps
+            it, "Stay here" makes it the stay, and a chosen stay carries its own
+            way back — "Not here" — instead of a toast that expires. Save is gone;
+            the heart does what Save did. */}
+        <div className="absolute inset-x-0 bottom-0 bg-white border-t border-gray-100 px-5 pt-3 pb-6 flex items-center gap-2">
           <button
             type="button"
+            aria-label={kept ? "Un-heart" : "Heart"}
+            aria-pressed={kept}
             disabled={busy || chosen}
-            onClick={onChoose}
-            className="flex-1 h-12 rounded-full text-[15px] font-semibold text-white disabled:opacity-60"
-            style={{ background: INK }}
+            onClick={onHeart}
+            className="w-12 h-12 rounded-full flex-none inline-flex items-center justify-center disabled:opacity-60"
+            style={{ color: SIENNA, border: `1px solid ${kept ? "rgba(176,84,31,0.35)" : "rgba(26,26,46,0.25)"}`, background: kept ? "rgba(176,84,31,0.08)" : "transparent" }}
           >
-            {chosen ? "Chosen" : busy ? "…" : "Choose"}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill={kept ? SIENNA : "none"} stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.4 4.5 7 4.5c2 0 3.4 1.1 5 3 1.6-1.9 3-3 5-3 3.6 0 5.6 3.5 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2z" /></svg>
           </button>
-          {c.status === "candidate" && (
-            <button type="button" disabled={busy} onClick={onSave} className="flex-1 h-12 rounded-full text-[15px] font-semibold" style={{ color: INK, border: "1px solid rgba(26,26,46,0.25)" }}>
-              Save
+          {chosen ? (
+            <>
+              <div className="flex-1 h-12 rounded-full text-[15px] font-semibold inline-flex items-center justify-center" style={{ color: SIENNA, background: "rgba(176,84,31,0.08)", border: "1px solid rgba(176,84,31,0.3)" }} aria-label="Staying here">
+                Staying here ✓
+              </div>
+              <button type="button" disabled={busy} onClick={onUnchoose} className="h-12 px-2 text-[13px] font-semibold disabled:opacity-60" style={{ color: CAPTION }}>
+                Not here
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={onChoose}
+              className="flex-1 h-12 rounded-full text-[15px] font-semibold text-white disabled:opacity-60"
+              style={{ background: INK }}
+            >
+              {busy ? "…" : "Stay here"}
             </button>
           )}
           {out && (
