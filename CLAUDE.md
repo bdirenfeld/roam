@@ -1219,3 +1219,20 @@ clears `trips.accommodation_name` if this stay gave it, drops
 `basis.accommodation` when no chosen row is left, keeps the row `saved` +
 hearted. The list row is unchanged (heart and ✕ only); the decision lives on
 the card. Do not re-add a Save button or a second Choose door.
+
+### The Essentialism pass (15 Sept 2026)
+
+Brennan's lens, from McKeown: what is the one thing a screen is for, and how
+many things stand between the person and it? The Where-to-stay sheet had
+ELEVEN before the first row and he called it cluttered in two seconds. Now
+four: title, tabs, rows, one footer line. What went, and where:
+- The area paragraph is gone. Only a sentence ending "your call" survives
+  (`lib/stays/sheetCopy.ts` → `decisionLine`). The rest was said on the tab
+  or the card's price line already. Do not bring the paragraph back.
+- The nights line is gone; nights ride in the terms line and are set behind
+  "Change" alongside the must-haves and the budget.
+- The row has only the ✕. The heart lives on the card.
+- Paste a listing · N earlier · Start over sit behind one "More ⋯".
+- A saved row with no price reads "No price on hand." — general; the earlier
+  ruling stands that we never claim a place is unlisted.
+roam-ship §3b now carries this as lens 9, with the count as the score.
