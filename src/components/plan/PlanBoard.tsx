@@ -2451,7 +2451,7 @@ function CardTile({
                 type="button"
                 aria-label="Previous photo"
                 onClick={(e) => { e.stopPropagation(); stepPhoto(-1); }}
-                className="absolute top-0 h-full w-9 flex items-center text-white cursor-pointer opacity-[0.28] transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100 left-0 justify-start pl-1"
+                className="absolute top-0 h-full w-9 hidden md:flex items-center text-white cursor-pointer opacity-[0.28] transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100 left-0 justify-start pl-1"
               >
                 <span style={{ display: "flex", filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.5))" }}>
                   <CaretLeft size={15} weight="bold" />
@@ -2461,7 +2461,7 @@ function CardTile({
                 type="button"
                 aria-label="Next photo"
                 onClick={(e) => { e.stopPropagation(); stepPhoto(1); }}
-                className="absolute top-0 h-full w-9 flex items-center text-white cursor-pointer opacity-[0.28] transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100 right-0 justify-end pr-1"
+                className="absolute top-0 h-full w-9 hidden md:flex items-center text-white cursor-pointer opacity-[0.28] transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100 right-0 justify-end pr-1"
               >
                 <span style={{ display: "flex", filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.5))" }}>
                   <CaretRight size={15} weight="bold" />
@@ -2555,12 +2555,14 @@ function CardTile({
         </div>
       </button>
 
-      {/* Hover trash — desktop only, no menu or confirmation */}
+      {/* Hover trash — desktop only, no menu or confirmation. On a phone it
+          was an invisible 24px target on every card (Essential audit,
+          15 Sept 2026); the card sheet's Delete is the phone's door. */}
       {!isOverlay && onDelete && (
         <button
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded-full text-gray-400 hover:text-red-400 hover:bg-red-50 transition-all"
+          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 w-6 h-6 hidden md:flex items-center justify-center rounded-full text-gray-400 hover:text-red-400 hover:bg-red-50 transition-all"
           aria-label="Delete card"
         >
           <Trash size={14} weight="light" />

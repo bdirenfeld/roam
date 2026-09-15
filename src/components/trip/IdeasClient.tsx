@@ -191,17 +191,9 @@ function IdeaRow({
         </span>
       </button>
 
-      {/* Removing an idea is one tap on the row itself. It used to be a "Pass"
-          button hidden inside the expanded state, next to a "Keep" that only
-          moved it between two sections. */}
-      <button
-        onClick={onRemove}
-        aria-label={`Remove ${ideaHeadline(idea)}`}
-        className="shrink-0 w-11 h-11 mr-1 grid place-items-center text-[17px] leading-none rounded-full"
-        style={{ color: "rgba(26,26,46,0.28)" }}
-      >
-        ×
-      </button>
+      {/* No × on the row. Twenty-two rows carried forty-four controls
+          (Essential audit, 15 Sept 2026); Remove sits inside the open row
+          with the other actions, and the delete has undo. */}
       </div>
 
       {open && (
@@ -293,6 +285,15 @@ function IdeaRow({
               style={{ border: `1px solid ${RULE}`, color: CAPTION }}
             >
               Tag
+            </button>
+
+            <button
+              onClick={onRemove}
+              aria-label={`Remove ${ideaHeadline(idea)}`}
+              className="px-3 py-1.5 rounded-full text-[11.5px] ml-auto"
+              style={{ color: SOFT }}
+            >
+              Remove
             </button>
           </div>
 
