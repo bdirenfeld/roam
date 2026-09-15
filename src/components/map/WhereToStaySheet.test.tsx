@@ -173,7 +173,7 @@ describe("what a row says", () => {
 describe("a base that has not searched yet", () => {
   // "When I click on Osaka I don't see any of the hotels" — it was searching,
   // and the list was a white void.
-  it("says what it is doing, where the rows will be", async () => {
+  it("asks before spending a search, then says what it is doing where the rows will be", async () => {
     CANDIDATES = [...TOKYO_ROWS];                    // Osaka has nothing yet
     // The search must still be in flight when we look — that is the whole
     // point. A resolved fetch would show the finished state.
@@ -181,6 +181,11 @@ describe("a base that has not searched yet", () => {
     mount();
     await screen.findByText("Hotel Ryumeikan Tokyo");
     await userEvent.click(screen.getByRole("tab", { name: /Osaka/ }));
+    // No search without a tap (15 Sept 2026): the base asks first.
+    const spy = global.fetch as unknown as { mock: { calls: unknown[] } };
+    expect(spy.mock.calls.length).toBe(0);
+    await userEvent.click(await screen.findByRole("button", { name: "Find places around Osaka" }));
+    expect(spy.mock.calls.length).toBe(1);
     expect(await screen.findByText(/Looking for places around Osaka/)).toBeInTheDocument();
     // And not a white void: it says how long, too.
     expect(screen.getByText(/take a few seconds/)).toBeInTheDocument();

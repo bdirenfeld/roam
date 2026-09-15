@@ -273,19 +273,10 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
   // Five pins, never ten: the map shows the base the sheet is on.
   useEffect(() => { onCandidates(shown); }, [shown, onCandidates]);
 
-  // A base searches the first time you open it, not all of them up front:
-  // half the API calls, and the second base often goes unopened in a sitting.
-  // The ref stops a base with genuinely nothing to find from looping.
-  const tried = useRef<Set<number>>(new Set());
-  useEffect(() => {
-    if (loading || running || !multi) return;
-    if (shown.length || tried.current.has(baseIdx)) return;
-    tried.current.add(baseIdx);
-    void run();
-    // run() is stable enough here: it reads the latest state through closure
-    // on each render, and the guards above stop it firing twice for a base.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [baseIdx, loading, running, multi, shown.length]);
+  // A base that has not been searched asks first, the same way base one
+  // does. It used to run on its own the moment the tab was opened — a search
+  // spent without a tap, and the "nothing left" confirm skipped (audit,
+  // 15 Sept 2026).
   const settled = (i: number) => cands.some((c) => (c.base ?? 0) === i && c.status === "chosen");
   // Everything this base has pushed aside or that he said no to. Nothing is
   // ever destroyed by Run again; it just stops being one of the five.
@@ -321,17 +312,9 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
       const hadRows = base === baseIdx && shown.length > 0;
       setBrief(json.brief as StayBriefRow);
       mergeIn(json.candidates as StayCandidate[], true);
-      if (hadRows && json.undo) {
-        toast({
-          message: "Five new places",
-          undo: async () => {
-            const r = await fetch("/api/stays/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ undo: json.undo }) });
-            const back = await r.json();
-            if (!r.ok) { toast({ message: "Couldn't undo that." }); return; }
-            mergeIn(back.candidates as StayCandidate[], false);
-          },
-        });
-      }
+      // One way back, not two: the ones set aside sit under "N earlier",
+      // which does not expire. The toast's Undo was the second door.
+      if (hadRows) toast({ message: "Five new places" });
     } catch {
       setError("That didn't work. Try again.");
     } finally {
@@ -369,11 +352,9 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
         setBrief(null);
         publish([]);
         setBaseIdx(0);
-        tried.current.clear();
       } else {
         // This base only: the others keep their rows and their letters.
         publish(everything.filter((c) => (c.base ?? 0) !== here));
-        tried.current.delete(here);
       }
       onChanged();
     } catch {
@@ -727,6 +708,19 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                     reads as broken — he opened Osaka and reported seeing no
                     hotels while the search was in flight (10 Sept 2026). The
                     waiting goes where the rows will be. */}
+                {multi && shown.length === 0 && !running && !loading && (
+                  <div className="px-7 pt-8 pb-4 text-center">
+                    <p className="font-display italic" style={{ fontSize: 19, color: INK }}>Nothing here yet for {bases[baseIdx]?.label ?? "this base"}.</p>
+                    <button
+                      type="button"
+                      onClick={run}
+                      className="mt-4 w-full h-12 rounded-full text-[15px] font-semibold text-white"
+                      style={{ background: INK }}
+                    >
+                      Find places around {bases[baseIdx]?.label ?? "here"}
+                    </button>
+                  </div>
+                )}
                 {shown.length === 0 && (running || loading) && (
                   <div className="px-4 py-10 text-center">
                     <p className="text-[13px]" style={{ color: CAPTION }}>
