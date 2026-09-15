@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { mapLineLabel, readMapOpen, writeMapOpen } from "@/lib/day/mapLine";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CaretLeft, CaretRight } from "@phosphor-icons/react";
@@ -404,6 +405,21 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   }, [localCards]);
 
   const [isCardOpen, setIsCardOpen] = useState(false);
+  // On a phone the day map folds to one line until he opens it (Essential
+  // audit, 15 Sept 2026: a 192px map sat before the first card). Desktop
+  // keeps its sticky map column. Read the phone width and the remembered
+  // choice after mount, so the server render and the first client render agree.
+  const [phone, setPhone] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const apply = () => setPhone(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    setMapOpen(readMapOpen(window.localStorage));
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+  const toggleMapOpen = () => setMapOpen((v) => { writeMapOpen(window.localStorage, !v); return !v; });
   const [swipeDir, setSwipeDir] = useState<"left" | "right" | null>(null);
   const [gapTimes, setGapTimes] = useState<{ start: string; end: string } | null>(null);
 
@@ -943,8 +959,21 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           </div>
         )}
 
-        {/* Map — desktop col 2 row 1, sticky. Mobile: natural flow below Companion. */}
+        {/* Map — desktop col 2 row 1, sticky. Mobile: one line until opened. */}
         <div className="md:col-start-2 md:row-start-1 md:sticky md:top-6 md:self-start">
+          {phone && !mapExpanded && mapLineLabel(mappableCards.length) && (
+            <button
+              type="button"
+              onClick={toggleMapOpen}
+              aria-expanded={mapOpen}
+              className="w-full h-11 px-4 flex items-center justify-between border-b border-gray-100 text-[13px] font-semibold"
+              style={{ color: "rgba(26,26,46,0.75)" }}
+            >
+              <span>{mapLineLabel(mappableCards.length)}</span>
+              <span aria-hidden="true" style={{ transform: mapOpen ? "rotate(90deg)" : "none", transition: "transform 140ms", color: "rgba(26,26,46,0.42)" }}>›</span>
+            </button>
+          )}
+          {(!phone || mapOpen || mapExpanded || mappableCards.length === 0) && (
           <DayMap
             cards={mappableCards}
             // Passed on every day, numbered or not. DayMap draws a separate
@@ -970,6 +999,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
               />
             }
           />
+          )}
         </div>
 
         {/* Timeline — desktop col 1 spanning rows. Mobile: natural flow below Map. */}
