@@ -1236,3 +1236,22 @@ four: title, tabs, rows, one footer line. What went, and where:
 - A saved row with no price reads "No price on hand." — general; the earlier
   ruling stands that we never claim a place is unlisted.
 roam-ship §3b now carries this as lens 9, with the count as the score.
+
+### Reverted 15 Sept 2026: the day-view fold, and the card sheet's ⋯ move
+
+Built and reverted the same day. The day map folded to a pill on the strip
+(numerals only while it showed) and the card sheet's Attachments / Link-place
+icons moved under ⋯. Brennan on his phone: with the map folded "it's kind of
+hard to know what's important… there's no contrast between anything"; the
+menu mid-sheet was "very confusing"; and then: "I'm wondering if all these
+changes are necessary at all… revert." The day map is always on; the card
+sheet's glyph row is at the top with all its icons. **Do not re-propose a
+folding day map, an Outlook-style day grid or bar, or moving the card
+sheet's icons unless he names it.** What stayed from that afternoon: a tap
+on a Plan card's photo opens the card; the board's hover trash is hidden on a
+phone; photo dots cap at five, guarded by `PlacePhotoGallery.test.tsx`.
+
+The lesson is in roam-ship §3b lens 9: a control is removable only if its
+job has another door on the phone, and a component edit ships with a
+rendering test. The Essential lens still stands for the stay screens, where
+it worked.
