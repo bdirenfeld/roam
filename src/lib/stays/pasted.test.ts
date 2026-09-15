@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { siteOf, cleanUrl, nameFromTitle, parsePastedPrice } from "./pasted";
+import { siteOf, cleanUrl, nameFromTitle, parsePastedPrice, placementNote } from "./pasted";
 
 describe("cleanUrl", () => {
   it("keeps the link and drops the tracking", () => {
@@ -32,6 +32,16 @@ describe("nameFromTitle", () => {
   it("a plain title is the name", () => {
     expect(nameFromTitle("Mimaru Tokyo Ikebukuro")).toEqual({ name: "Mimaru Tokyo Ikebukuro", locality: null });
     expect(nameFromTitle(null)).toEqual({ name: null, locality: null });
+  });
+});
+
+describe("placementNote", () => {
+  it("says nothing when the place was found exactly", () => {
+    expect(placementNote("exact", "Carpinteria")).toBeNull();
+  });
+  it("names the town or the base when it had to guess", () => {
+    expect(placementNote("town", "Carpinteria")).toBe("Placed at Carpinteria, not the exact address");
+    expect(placementNote("centre", "Montecito")).toMatch(/centre of Montecito/);
   });
 });
 

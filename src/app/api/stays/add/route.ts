@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import { loadTripContext, googleKey, driveMinutes, placeExtras, freeLetter } from "../_shared";
-import { cleanUrl, siteOf, nameFromTitle, parsePastedPrice } from "@/lib/stays/pasted";
+import { cleanUrl, siteOf, nameFromTitle, parsePastedPrice, placementNote, type Placement } from "@/lib/stays/pasted";
 import { driveHours, driveLine, driveDelta, usableAnchorIndexes } from "@/lib/stays/drive";
 import { reviewNotes } from "@/lib/stays/text";
 import { listingName } from "@/lib/stays/listingName";
@@ -77,15 +77,28 @@ export async function POST(request: NextRequest) {
   find.searchParams.set("fields", "place_id,name,geometry,rating,user_ratings_total,formatted_address");
   find.searchParams.set("locationbias", `circle:60000@${centre.lat},${centre.lng}`);
   find.searchParams.set("key", key);
-  const found = await fetch(find.toString(), { next: { revalidate: 0 } })
-    .then((r) => r.json() as Promise<{ candidates?: { place_id: string; name?: string; geometry?: { location?: { lat: number; lng: number } }; rating?: number; user_ratings_total?: number; formatted_address?: string }[] }>)
-    .then((j) => j.candidates?.[0] ?? null)
-    .catch(() => null);
-  if (!found?.geometry?.location) {
-    return NextResponse.json({ error: `Couldn't place "${name}" near ${centre.label}. Add the town to the name and try again.` }, { status: 422 });
+  type Found = { place_id: string; name?: string; geometry?: { location?: { lat: number; lng: number } }; rating?: number; user_ratings_total?: number; formatted_address?: string };
+  const findPlace = async (input: string): Promise<Found | null> => {
+    find.searchParams.set("input", input);
+    return fetch(find.toString(), { next: { revalidate: 0 } })
+      .then((r) => r.json() as Promise<{ candidates?: Found[] }>)
+      .then((j) => j.candidates?.[0] ?? null)
+      .catch(() => null);
+  };
+  // A private rental is not a Google place: "Carpinteria Beach Townhouse"
+  // found nothing (15 Sept 2026). The town the title names is next best, and
+  // the base's own centre after that — the row says which.
+  let found = await findPlace(fromPage.locality ? `${name}, ${fromPage.locality}` : name);
+  let placed: Placement = "exact";
+  let placedLabel: string | null = null;
+  if (!found?.geometry?.location && fromPage.locality) {
+    found = await findPlace(fromPage.locality);
+    if (found?.geometry?.location) { placed = "town"; placedLabel = fromPage.locality; }
   }
-  const lat = found.geometry.location.lat;
-  const lng = found.geometry.location.lng;
+  const lat = found?.geometry?.location?.lat ?? centre.lat;
+  const lng = found?.geometry?.location?.lng ?? centre.lng;
+  if (!found?.geometry?.location) { placed = "centre"; placedLabel = centre.label; found = null; }
+  const placement = placementNote(placed, placedLabel);
 
   // Drives, the same way the search works them out.
   const anchors = brief.anchors;
@@ -109,7 +122,10 @@ export async function POST(request: NextRequest) {
   const bestHours = Math.min(hours, ...((live ?? []) as { drive: { hours?: number } | null }[]).map((r) => r.drive?.hours ?? Infinity));
   const delta = driveDelta(hours, bestHours);
 
-  const extras = await placeExtras(key, found.place_id);
+  // Google's photos and reviews only when Google actually knows THIS place;
+  // a town's photos on a villa row would be a lie.
+  const exact = placed === "exact" && found ? found : null;
+  const extras = exact ? await placeExtras(key, exact.place_id) : { texts: [], website: null, photos: [], rating: null, reviews: null };
   const price = parsePastedPrice(body.price, baseNights);
   const letter = await freeLetter(supabase, trip.id, baseIndex, null);
 
@@ -118,10 +134,10 @@ export async function POST(request: NextRequest) {
     user_id: user.id,
     base: baseIndex,
     place_id: null,
-    google_place_id: found.place_id,
+    google_place_id: exact?.place_id ?? null,
     letter,
     name: listingName(name),
-    address: found.formatted_address ?? null,
+    address: exact?.formatted_address ?? placedLabel,
     lat,
     lng,
     site: siteOf(url),
@@ -130,11 +146,11 @@ export async function POST(request: NextRequest) {
     currency: price.total != null ? "CAD" : null,
     nightly_cad: price.nightly,
     beds: null, baths: null, sleeps: null, pool: null, ac: null,
-    score: found.rating ?? extras.rating ?? null,
+    score: exact?.rating ?? extras.rating ?? null,
     score_scale: 5,
-    reviews: found.user_ratings_total ?? extras.reviews ?? null,
+    reviews: exact?.user_ratings_total ?? extras.reviews ?? null,
     review_notes: reviewNotes(extras.texts),
-    flags: delta ? [delta] : [],
+    flags: [placement, delta].filter((f): f is string => !!f),
     drive: { hours, line: driveLine(parts), minutes },
     status: "candidate",
     // His find. A heart keeps it through every later run and out of every cull.

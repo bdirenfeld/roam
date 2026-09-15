@@ -63,6 +63,21 @@ export function nameFromTitle(title: string | null | undefined): { name: string 
   return { name: t || null, locality: null };
 }
 
+/**
+ * How precisely the row was placed. A private rental is not a Google place —
+ * "Carpinteria Beach Townhouse" found nothing on 15 Sept 2026 — so the town
+ * the title names is the next best, and the base's own centre after that.
+ * Town-level is how the Tuscany villas were compared anyway; the row says so
+ * rather than pretending the drive times are exact.
+ */
+export type Placement = "exact" | "town" | "centre";
+
+export function placementNote(placed: Placement, label: string | null): string | null {
+  if (placed === "exact") return null;
+  if (placed === "town") return `Placed at ${label ?? "the town"}, not the exact address`;
+  return `Placed at the centre of ${label ?? "the base"} — add the town to the name for real drive times`;
+}
+
 /** The price he typed: a total for the stay, or a nightly rate with "a night". */
 export function parsePastedPrice(text: string | null | undefined, nights: number): { total: number | null; nightly: number | null } {
   if (!text) return { total: null, nightly: null };
