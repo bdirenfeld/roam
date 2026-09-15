@@ -336,8 +336,8 @@ export async function POST(request: NextRequest) {
     // it would be the only search that ran (found 11 Sept 2026).
     const inv = inventoriesFor(adults + ages.length, wantHouse);
     const [rentals, hotels] = await Promise.all([
-      inv.rentals ? stayOffers(serp, q, priced.start, priced.end, adults, ages, true) : Promise.resolve([]),
-      inv.hotels ? stayOffers(serp, q, priced.start, priced.end, adults, ages, false) : Promise.resolve([]),
+      inv.rentals ? stayOffers(serp, q, priced.start, priced.end, adults, ages, true, inv.pages.rentals) : Promise.resolve([]),
+      inv.hotels ? stayOffers(serp, q, priced.start, priced.end, adults, ages, false, inv.pages.hotels) : Promise.resolve([]),
     ]);
     const [wanted, other] = inv.prefer === "hotels" ? [hotels, rentals] : [rentals, hotels];
     const seenOffer = new Set(wanted.map((o) => norm(o.name)));

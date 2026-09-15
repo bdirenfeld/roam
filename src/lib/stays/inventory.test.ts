@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { inventoriesFor, MAX_HOTEL_GUESTS } from "./inventory";
+import { inventoriesFor, MAX_HOTEL_GUESTS, PAGES_WANTED, PAGES_OTHER } from "./inventory";
 
 describe("inventoriesFor", () => {
   it("asks both inventories for a party a hotel can take", () => {
-    expect(inventoriesFor(5, true)).toEqual({ rentals: true, hotels: true, prefer: "rentals" });
-    expect(inventoriesFor(2, false)).toEqual({ rentals: true, hotels: true, prefer: "hotels" });
+    expect(inventoriesFor(5, true)).toMatchObject({ rentals: true, hotels: true, prefer: "rentals" });
+    expect(inventoriesFor(2, false)).toMatchObject({ rentals: true, hotels: true, prefer: "hotels" });
   });
 
   it("stops asking for hotels above Google's cap", () => {
@@ -27,5 +27,16 @@ describe("inventoriesFor", () => {
 
   it("always searches rentals, whatever the party", () => {
     for (const n of [1, 2, 6, 7, 12]) expect(inventoriesFor(n, true).rentals).toBe(true);
+  });
+});
+
+describe("how many pages", () => {
+  it("the wanted kind gets more pages than the other", () => {
+    expect(PAGES_WANTED).toBeGreaterThan(PAGES_OTHER);
+    expect(inventoriesFor(5, true).pages).toEqual({ rentals: PAGES_WANTED, hotels: PAGES_OTHER });
+    expect(inventoriesFor(2, false).pages).toEqual({ rentals: PAGES_OTHER, hotels: PAGES_WANTED });
+  });
+  it("an inventory that is not asked gets no pages", () => {
+    expect(inventoriesFor(7, false).pages).toEqual({ rentals: PAGES_WANTED, hotels: 0 });
   });
 });

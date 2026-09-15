@@ -186,7 +186,38 @@ export async function stayOffers(
   adults: number,
   childrenAges: number[],
   wantHouse: boolean,
+  pages = 1,
 ): Promise<StayOffer[]> {
+  // Google pages at about eighteen. Each page is one credit; the caller says
+  // how many are worth it (lib/stays/inventory.ts). Pages are deduped on the
+  // name and the loop stops when Google has no more.
+  const out: StayOffer[] = [];
+  const seen = new Set<string>();
+  let token: string | null = null;
+  for (let i = 0; i < Math.max(1, pages); i++) {
+    const page = await stayOffersPage(key, where, checkIn, checkOut, adults, childrenAges, wantHouse, token);
+    for (const o of page.offers) {
+      const k = o.name.toLowerCase();
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(o);
+    }
+    token = page.next;
+    if (!token) break;
+  }
+  return out;
+}
+
+async function stayOffersPage(
+  key: string,
+  where: string,
+  checkIn: string,
+  checkOut: string,
+  adults: number,
+  childrenAges: number[],
+  wantHouse: boolean,
+  pageToken: string | null,
+): Promise<{ offers: StayOffer[]; next: string | null }> {
   const url = new URL("https://serpapi.com/search.json");
   url.searchParams.set("engine", "google_hotels");
   url.searchParams.set("q", where);
@@ -203,17 +234,19 @@ export async function stayOffers(
   // the query instead (Brennan, 10 Sept 2026).
   url.searchParams.set("hl", "en");
   if (wantHouse) url.searchParams.set("vacation_rentals", "true");
+  if (pageToken) url.searchParams.set("next_page_token", pageToken);
   url.searchParams.set("api_key", key);
 
   try {
     const res = await fetch(url.toString(), { next: { revalidate: 0 } });
-    const json = await res.json() as { properties?: SerpProperty[]; error?: string };
-    if (json.error) { console.error("[stays] serpapi:", json.error); return []; }
+    const json = await res.json() as { properties?: SerpProperty[]; error?: string; serpapi_pagination?: { next_page_token?: string } };
+    if (json.error) { console.error("[stays] serpapi:", json.error); return { offers: [], next: null }; }
+    const next = json.serpapi_pagination?.next_page_token ?? null;
     const num = (info: string[] | undefined, re: RegExp): number | null => {
       for (const line of info ?? []) { const m = re.exec(line); if (m) return Number(m[1]); }
       return null;
     };
-    return (json.properties ?? [])
+    const offers = (json.properties ?? [])
       .filter((p) => p.name && p.gps_coordinates?.latitude != null && p.gps_coordinates?.longitude != null)
       .map((p) => {
         const amen = (p.amenities ?? []).join(" | ").toLowerCase();
@@ -238,9 +271,10 @@ export async function stayOffers(
           photos: (p.images ?? []).map((i) => i.original_image ?? i.thumbnail).filter((u): u is string => !!u).slice(0, 6),
         };
       });
+    return { offers, next };
   } catch (err) {
     console.error("[stays] serpapi failed:", (err as Error).message);
-    return [];
+    return { offers: [], next: null };
   }
 }
 
