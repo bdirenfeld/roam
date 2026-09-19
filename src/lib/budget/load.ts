@@ -163,7 +163,13 @@ export async function loadEstimate(
         .from("cards")
         .select("id, details, status, confirmed, places(type, title), card_attachments(parsed_data, parse_status)")
         .eq("trip_id", tripId)
-        .eq("status", "in_itinerary"),
+        .eq("status", "in_itinerary")
+        // Archiving a card takes it off the board but leaves its status alone,
+        // so without this an archived excursion keeps paying for itself. Two
+        // dropped days (Volterra, Carrara) went on costing $645 on the Tuscany
+        // budget until Brennan spotted the total (19 Sep 2026). `archived` is
+        // null on older rows, so test for "not true" rather than false.
+        .not("archived", "is", true),
       supabase.from("trip_budgets").select("*").eq("trip_id", tripId).maybeSingle(),
     ]);
 

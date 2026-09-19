@@ -1255,3 +1255,33 @@ The lesson is in roam-ship §3b lens 9: a control is removable only if its
 job has another door on the phone, and a component edit ships with a
 rendering test. The Essential lens still stands for the stay screens, where
 it worked.
+
+## The Budget screen splits between two households (19 Sep 2026)
+
+It is called **Budget** now, not Estimate — "estimate" reads as a guess and this
+screen is the plan for the money. Only the user-facing strings changed; the route
+is still `/trips/[tripId]/estimate` so existing links keep working. If you rename
+the route later, redirect the old one.
+
+**Every `EstimateLine` declares a `share` basis** — `person`, `shared` or `ours`.
+It is a required field, so a tenth line cannot be added without classifying it,
+which is deliberate. Current assignment: flights, groceries, restaurants,
+excursions and tourist tax are `person`; accommodation and car hire are `shared`;
+dog boarding and gifts are `ours`. Groceries and restaurants are modelled `× days`
+and `× meals` rather than `× people`, so calling them per-person is a judgement —
+it says the guests eat their headcount's worth. Say so if it is ever questioned.
+
+**The invariant `split.us + split.guests === total` is the whole point** and is
+tested over nine permutations in `src/lib/budget/model.test.ts`. Contingency and
+points are apportioned by each household's share of the base, not evenly, which
+is what keeps it exact. Two figures that do not add up to the number above them
+are worse than no split at all — do not "simplify" this into even halves.
+
+`guestPeople > 0` is the switch. There is no separate tick and `Estimate.split`
+is `undefined` otherwise, so every solo journey renders the screen it always had.
+`guestPeople` counts **within** `people` — a party of 7 with 2 guests means 5 of
+your own — which is why the field's suffix reads "of 7".
+
+A guard worth keeping: `splitTotals` forces the guests' percentage to zero when
+`guestPeople` is zero. Without it a leftover 33% kept charging a household that
+was not coming. The test caught it; it was not caught by reading the code.
