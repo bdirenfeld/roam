@@ -177,7 +177,7 @@ export default function AppMenu({
               </button>
 
               {/* One order on every tab, most-used first: notes and bookings
-                  daily, Ideas where new things arrive, Estimate and Share
+                  daily, Ideas where new things arrive, Budget and Share
                   now and then, Settings last. No dividers — six plain rows
                   (Brennan, from his phone, Sep 2026). */}
               {extra?.map((item) => (
@@ -226,14 +226,14 @@ export default function AppMenu({
                 <EstimateLink
                   tripId={tripId}
                   role="menuitem"
-                  ariaLabel="Estimate"
+                  ariaLabel="Budget"
                   onBeforeOpen={() => setOpen(false)}
                   style={itemStyle}
                 >
                   <span style={glyphStyle}>
                     <Coins size={15} weight="light" />
                   </span>
-                  <Label title="Estimate" />
+                  <Label title="Budget" />
                 </EstimateLink>
               )}
 

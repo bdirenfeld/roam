@@ -63,6 +63,20 @@ export interface Assumptions {
   contingencyPct: number;
   /** Dollars covered by card points, deducted from the total. */
   pointsCredit: number;
+
+  // Splitting the journey between two households (Brennan, 19 Sep 2026: his
+  // parents join Tuscany and he cannot tell what they cost versus his five).
+  // Off until someone is travelling with you: `guestPeople` above zero is the
+  // switch, so there is no separate tick to forget.
+  /** Travellers in the second household. `people` stays the whole party. */
+  guestPeople: number;
+  /**
+   * What the guests cover of the lines one household cannot split by head —
+   * the villa, the car. Per-person lines ignore this and divide by headcount;
+   * the dog and the gifts are never theirs. A third by default because that is
+   * the shape of the conversation, not a rule.
+   */
+  guestSharePct: number;
   /** The exchange rate was typed by hand (kept), not taken from the market (refreshed daily). */
   fxTyped?: boolean;
 }
@@ -84,6 +98,24 @@ export interface EstimateLine {
   lump?: boolean;
   /** Where a lump figure came from, shown where the count would be. */
   hint?: string;
+  /**
+   * How this line divides when two households travel together.
+   * `person` — everyone pays for themselves, so it splits by headcount.
+   * `shared` — one bill for the whole party; the guests' share is a percentage.
+   * `ours`   — never the guests' (the dog, the gifts you are buying).
+   */
+  share: ShareBasis;
+}
+
+export type ShareBasis = "person" | "shared" | "ours";
+
+/** What each household owes. */
+export interface Split {
+  /** Travellers in each household. */
+  usPeople: number;
+  guestPeople: number;
+  us: number;
+  guests: number;
 }
 
 export interface Estimate {
@@ -96,6 +128,8 @@ export interface Estimate {
   perDay: number;
   uncostedExcursions: number;
   rolledExcursionCount: number;
+  /** Present only while someone is travelling with you. */
+  split?: Split;
 }
 
 const money = (n: number) => Math.round(n);
@@ -139,6 +173,11 @@ export function defaultAssumptions(
 
     contingencyPct: 10,
     pointsCredit: 0,
+
+    // Nobody else is coming until you say so, and then a third of the villa is
+    // the opening position rather than an answer.
+    guestPeople: 0,
+    guestSharePct: 33,
   };
 }
 
@@ -151,6 +190,53 @@ export function cardBudgetToCad(
   const base = b.per === "person" ? b.amount * partySize : b.amount;
   const rate = !b.currency || b.currency === "CAD" ? 1 : fxToCad;
   return base * rate;
+}
+
+/**
+ * Divide a computed journey between the two households.
+ *
+ * Per-person lines go by headcount, shared lines by the guests' percentage,
+ * and "ours" lines never move. Contingency and points follow the money: they
+ * are proportions of the whole, so each household carries them in the ratio of
+ * its own subtotal. That keeps `us + guests` equal to the total exactly, which
+ * is the only property worth guaranteeing here — two figures that do not add
+ * up to the number above them are worse than no split at all.
+ */
+export function splitTotals(
+  lines: EstimateLine[],
+  a: Assumptions,
+  contingency: number,
+  pointsCredit: number,
+): Split {
+  const guestPeople = Math.max(0, Math.min(a.guestPeople, Math.max(a.people, 0)));
+  const usPeople = Math.max(a.people, 0) - guestPeople;
+  const headcount = usPeople + guestPeople;
+  // Nobody travelling with you owes nothing, whatever the percentage says —
+  // otherwise a leftover 33% keeps charging a household that isn't coming.
+  const guestPct = guestPeople === 0
+    ? 0
+    : Math.max(0, Math.min(a.guestSharePct, 100)) / 100;
+
+  let guestBase = 0;
+  let base = 0;
+  for (const l of lines) {
+    if (!l.enabled) continue;
+    base += l.amount;
+    if (l.share === "person") {
+      // No headcount means nobody to divide between; the line stays ours.
+      guestBase += headcount > 0 ? (l.amount * guestPeople) / headcount : 0;
+    } else if (l.share === "shared") {
+      guestBase += l.amount * guestPct;
+    }
+  }
+
+  // Contingency up, points down, both in proportion — so the parts still sum.
+  const net = contingency - pointsCredit;
+  const guestNet = base > 0 ? (net * guestBase) / base : 0;
+  const guests = money(guestBase + guestNet);
+  const total = money(base + net);
+
+  return { usPeople, guestPeople, guests, us: total - guests };
 }
 
 export function compute(
@@ -166,6 +252,7 @@ export function compute(
   const lines: EstimateLine[] = [
     {
       key: "flights",
+      share: "person",
       label: "Flights",
       group: "standard",
       amount: money(a.flightPerPerson * people),
@@ -178,6 +265,7 @@ export function compute(
     },
     {
       key: "accommodation",
+      share: "shared",
       label: "Accommodation",
       group: "standard",
       amount: money(a.nightlyRate * a.nights),
@@ -190,6 +278,7 @@ export function compute(
     },
     {
       key: "groceries",
+      share: "person",
       label: "Groceries",
       group: "standard",
       amount: money(a.groceriesPerDay * days),
@@ -202,6 +291,7 @@ export function compute(
     },
     {
       key: "restaurants",
+      share: "person",
       label: "Restaurants",
       group: "standard",
       amount: money(a.perMealOut * a.mealsOut),
@@ -214,6 +304,7 @@ export function compute(
     },
     {
       key: "excursions",
+      share: "person",
       label: "Excursions",
       group: "standard",
       amount: money(a.excursionsTotal),
@@ -234,6 +325,7 @@ export function compute(
     },
     {
       key: "car",
+      share: "shared",
       label: "Car hire",
       group: "additional",
       amount: money(a.carEnabled ? a.carDayRate * days : 0),
@@ -247,6 +339,7 @@ export function compute(
     },
     {
       key: "dog",
+      share: "ours",
       label: "Dog boarding",
       group: "additional",
       amount: money(a.dogEnabled ? a.dogNightlyRate * a.dogNights : 0),
@@ -260,6 +353,7 @@ export function compute(
     },
     {
       key: "extras",
+      share: "ours",
       label: "Gifts",
       group: "additional",
       amount: money(a.extrasEnabled ? a.extrasPerDay * days : 0),
@@ -273,6 +367,7 @@ export function compute(
     },
     {
       key: "touristTax",
+      share: "person",
       label: "Tourist tax",
       group: "additional",
       amount: money(a.touristTaxEnabled ? a.touristTaxPerNight * a.nights : 0),
@@ -302,6 +397,11 @@ export function compute(
     perDay: money(total / Math.max(days, 1)),
     uncostedExcursions: opts.uncostedExcursions,
     rolledExcursionCount: opts.rolledExcursionCount,
+    // Absent unless someone is actually travelling with you, so the footer
+    // stays a single number on every other journey.
+    split: a.guestPeople > 0
+      ? splitTotals(lines, a, contingency, pointsCredit)
+      : undefined,
   };
 }
 

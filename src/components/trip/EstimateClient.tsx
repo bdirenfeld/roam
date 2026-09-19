@@ -440,7 +440,7 @@ export default function EstimateClient({
       setBasis((prev) => (prev.excursions ? prev : { ...prev, excursions: "Looked up by the app; each row says where its figure came from." }));
       const foundN = found.filter((f) => f.amount != null && f.kind === "found").length;
       const guessN = byId.size - foundN;
-      toast({ message: `${byId.size} ${byId.size === 1 ? "price" : "prices"} added${foundN ? `, ${foundN} found online` : ""}${guessN ? `, ${guessN} ${guessN === 1 ? "guess" : "guesses"}` : ""}.${remaining > 0 ? ` ${remaining} still to look up — tap Estimate again.` : ""}` });
+      toast({ message: `${byId.size} ${byId.size === 1 ? "price" : "prices"} added${foundN ? `, ${foundN} found online` : ""}${guessN ? `, ${guessN} ${guessN === 1 ? "guess" : "guesses"}` : ""}.${remaining > 0 ? ` ${remaining} still to look up — tap Budget again.` : ""}` });
       setWhy(true);
       setSaved(false);
     } catch {
@@ -689,6 +689,67 @@ export default function EstimateClient({
             }
           />
 
+          {/* Splitting with another household. The count is the switch — there
+              is no separate tick — and the share only appears once someone is
+              actually coming, so a solo journey keeps the screen it had. */}
+          <Shell
+            labelColor={CAPTION}
+            amountColor={SOFT}
+            label="Travelling with you"
+            amount={est.split ? `${est.split.usPeople} + ${est.split.guestPeople}` : "—"}
+            middle={
+              <>
+                <div className="w-[58px] shrink-0">
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    value={a.guestPeople === 0 ? "" : String(a.guestPeople)}
+                    onChange={(e) => setNum("guestPeople", e.target.value)}
+                    aria-label="Travellers in the other household"
+                    className="w-full rounded-full px-2 py-1.5 text-[12.5px] text-right"
+                    style={box(INK)}
+                  />
+                </div>
+                <span
+                  className="text-[11px] shrink-0 w-[44px] sm:w-[92px] pl-1"
+                  style={{ color: SOFT }}
+                >
+                  of {a.people}
+                </span>
+              </>
+            }
+          />
+
+          {est.split && (
+            <Shell
+              labelColor={CAPTION}
+              amountColor={INK}
+              label="Their share of villa & car"
+              amount={`${Math.max(0, Math.min(a.guestSharePct, 100))}%`}
+              middle={
+                <>
+                  <div className="w-[58px] shrink-0">
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      value={String(a.guestSharePct)}
+                      onChange={(e) => setNum("guestSharePct", e.target.value)}
+                      aria-label="Their share of the shared costs, percent"
+                      className="w-full rounded-full px-2 py-1.5 text-[12.5px] text-right"
+                      style={box(INK)}
+                    />
+                  </div>
+                  <span
+                    className="text-[11px] shrink-0 w-[44px] sm:w-[92px] pl-1"
+                    style={{ color: SOFT }}
+                  >
+                    %
+                  </span>
+                </>
+              }
+            />
+          )}
+
           {/* Deliberately NOT a Shell. The amount column is a fixed 62px, which
               the Playfair numerals overran — that was the clipping on the
               right. Here the figure sizes to its own content. */}
@@ -706,6 +767,25 @@ export default function EstimateClient({
               {cad(est.total)}
             </span>
           </div>
+
+          {/* The two halves sit under the Total, not instead of it — the whole
+              journey is still the number you came for. They always sum to it. */}
+          {est.split && (
+            <div
+              className="flex items-baseline justify-between gap-3"
+              style={{ borderTop: `1px solid ${RULE}`, padding: `11px ${PAD}px 13px` }}
+            >
+              <span className="text-[12.5px] shrink-0" style={{ color: CAPTION }}>
+                You ({est.split.usPeople})
+              </span>
+              <span className="text-[13px] text-right" style={{ color: INK }}>
+                {cad(est.split.us)}
+                <span style={{ color: SOFT }}>
+                  {" "}· them ({est.split.guestPeople}) {cad(est.split.guests)}
+                </span>
+              </span>
+            </div>
+          )}
         </div>
 
         {Object.keys(basis).length > 0 && (
@@ -906,7 +986,7 @@ export default function EstimateClient({
                 : { border: `1px solid rgba(26,26,46,0.22)`, color: INK, opacity: finding ? 0.7 : 1 }
             }
           >
-            {finding ? `Finding ${blankRows} ${blankRows === 1 ? "price" : "prices"}…` : "Estimate from this journey"}
+            {finding ? `Finding ${blankRows} ${blankRows === 1 ? "price" : "prices"}…` : "Budget from this journey"}
           </button>
         )}
 

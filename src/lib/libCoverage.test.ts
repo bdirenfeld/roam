@@ -35,7 +35,6 @@ const GRANDFATHERED = new Set([
   "autoDayTitle.ts",
   "budget/currency.ts",
   "budget/load.ts",
-  "budget/model.ts",
   "companion/prompt.ts",
   "companion/skeleton.ts",
   "countries.ts",

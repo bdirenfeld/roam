@@ -214,7 +214,7 @@ function EstimateProvider({ children }: { children: ReactNode }) {
     <EstimateCtx.Provider value={value}>
       {children}
       {tripId && (
-        <Overlay onClose={close} label="Estimate">
+        <Overlay onClose={close} label="Budget">
           <EstimateOverlayBody tripId={tripId} onClose={close} />
         </Overlay>
       )}

@@ -890,7 +890,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                     if (!hint) return null;
                     return (
                       <p className="text-[12px] mt-1" style={{ color: CAPTION }}>
-                        {hint}{b.fromTotal ? " · read as a total" : ""} · also on your Estimate
+                        {hint}{b.fromTotal ? " · read as a total" : ""} · also on your Budget
                       </p>
                     );
                   })()}
