@@ -85,10 +85,26 @@ describe("splitTotals", () => {
     expect(all.guests).toBe(2800 + 9900 + 1100);
   });
 
-  it("carries contingency and points in proportion, not evenly", () => {
+  it("carries contingency in proportion, not evenly", () => {
     const s = compute(tuscany({ contingencyPct: 10 }), NO_EXCURSIONS).split!;
     // Guests are 6430 of 21400 base; 10% contingency is 2140, their share 643.
     expect(s.guests).toBe(7073);
+  });
+
+  it("takes points off your side only — they are your points", () => {
+    const base = compute(tuscany(), NO_EXCURSIONS).split!;
+    const withPoints = compute(tuscany({ pointsCredit: 5000 }), NO_EXCURSIONS).split!;
+    expect(withPoints.guests).toBe(base.guests);        // untouched
+    expect(withPoints.us).toBe(base.us - 5000);         // all of it
+  });
+
+  it("only spills onto the guests once the credit exceeds your whole share", () => {
+    const plain = compute(tuscany(), NO_EXCURSIONS).split!;
+    // 21400 base, guests 6430, so your side is 14970. Redeem more than that.
+    const huge = compute(tuscany({ pointsCredit: 16000 }), NO_EXCURSIONS).split!;
+    expect(plain.us).toBe(14970);
+    expect(huge.us).toBe(0);
+    expect(huge.guests).toBe(plain.guests - (16000 - plain.us));
   });
 
   it("clamps a guest count above the party and a percentage outside 0–100", () => {

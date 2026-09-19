@@ -196,11 +196,13 @@ export function cardBudgetToCad(
  * Divide a computed journey between the two households.
  *
  * Per-person lines go by headcount, shared lines by the guests' percentage,
- * and "ours" lines never move. Contingency and points follow the money: they
- * are proportions of the whole, so each household carries them in the ratio of
- * its own subtotal. That keeps `us + guests` equal to the total exactly, which
- * is the only property worth guaranteeing here — two figures that do not add
- * up to the number above them are worse than no split at all.
+ * and "ours" lines never move. Contingency is a proportion of the whole, so
+ * each household carries it in the ratio of its own subtotal. Points are not
+ * apportioned at all — they are yours, and they come off your side.
+ *
+ * `us + guests` equals the total exactly, which is the only property worth
+ * guaranteeing here: two figures that do not add up to the number above them
+ * are worse than no split at all.
  */
 export function splitTotals(
   lines: EstimateLine[],
@@ -230,11 +232,22 @@ export function splitTotals(
     }
   }
 
-  // Contingency up, points down, both in proportion — so the parts still sum.
-  const net = contingency - pointsCredit;
-  const guestNet = base > 0 ? (net * guestBase) / base : 0;
-  const guests = money(guestBase + guestNet);
-  const total = money(base + net);
+  // Contingency is a proportion of the whole, so both households carry it in
+  // the ratio of their own subtotal. Points are NOT — they are yours, earned on
+  // your card, and spreading them across both households quietly hands your
+  // guests a discount you paid for. They come off your side first (Brennan,
+  // 19 Sep 2026: $1,810 of his points had landed on his parents' total).
+  const guestContingency = base > 0 ? (contingency * guestBase) / base : 0;
+  const guestGross = guestBase + guestContingency;
+  const usGross = base + contingency - guestGross;
+
+  // Only if the credit is bigger than your entire share does the remainder
+  // reach theirs — otherwise a large redemption would take you below zero.
+  const usCredit = Math.min(Math.max(pointsCredit, 0), Math.max(usGross, 0));
+  const guestCredit = Math.max(pointsCredit, 0) - usCredit;
+
+  const total = money(base + contingency - pointsCredit);
+  const guests = money(guestGross - guestCredit);
 
   return { usPeople, guestPeople, guests, us: total - guests };
 }
