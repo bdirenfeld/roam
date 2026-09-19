@@ -71,6 +71,14 @@ export interface ShareState {
   shareAvailable: boolean;
   shareToken: string | null;
   guests: { userId: string; name: string | null; email: string | null; avatarUrl: string | null }[];
+  /**
+   * Everyone emailed a link from inside Roam, newest first, whether or not
+   * they ever opened it. Copying the link by hand is not recorded — Brennan's
+   * call, 19 Sep 2026 — so this answers "who have I emailed", not "who has the
+   * link". Without it there was no way to tell, and he was re-sending to the
+   * same people.
+   */
+  invites: { email: string; sentAt: string; acceptedAt: string | null }[];
 }
 
 /**
@@ -86,13 +94,18 @@ export async function loadShareState(tripId: string): Promise<ShareState> {
   await assertOwner(tripId);
 
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    return { shareAvailable: false, shareToken: null, guests: [] };
+    return { shareAvailable: false, shareToken: null, guests: [], invites: [] };
   }
 
   const admin = createAdminClient();
-  const [{ data: trip }, { data: members }] = await Promise.all([
+  const [{ data: trip }, { data: members }, { data: inviteRows }] = await Promise.all([
     admin.from("trips").select("share_token").eq("id", tripId).maybeSingle(),
     admin.from("trip_members").select("user_id").eq("trip_id", tripId).eq("role", "guest"),
+    admin
+      .from("trip_invites")
+      .select("email, created_at, accepted_at")
+      .eq("trip_id", tripId)
+      .order("created_at", { ascending: false }),
   ]);
 
   const guestIds = (members ?? []).map((m) => m.user_id);
@@ -108,6 +121,11 @@ export async function loadShareState(tripId: string): Promise<ShareState> {
       name: u.name,
       email: u.email,
       avatarUrl: u.avatar_url ?? null,
+    })),
+    invites: (inviteRows ?? []).map((i) => ({
+      email: i.email as string,
+      sentAt: i.created_at as string,
+      acceptedAt: (i.accepted_at as string | null) ?? null,
     })),
   };
 }

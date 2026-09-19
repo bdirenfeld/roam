@@ -101,7 +101,12 @@ export default async function ClaimPage({ params, searchParams }: Props) {
         .from("cards")
         .select("id, day_id, start_time, end_time, position, details, place:places ( title, sub_type, address, photo_cache )")
         .eq("trip_id", t.id)
-        .eq("status", "in_itinerary"),
+        .eq("status", "in_itinerary")
+        // Archiving leaves cards.status at in_itinerary, so without this the
+        // people holding the link still see days you dropped. Brennan found
+        // the Carrara quarries on his shared page after removing them
+        // (19 Sep 2026). Null on older rows, so test for "not true".
+        .not("archived", "is", true),
     ]);
 
     if (dayErr || cardErr) {
@@ -220,6 +225,20 @@ export default async function ClaimPage({ params, searchParams }: Props) {
       { trip_id: trip.id, user_id: user.id, role: "guest" },
       { onConflict: "trip_id,user_id", ignoreDuplicates: true },
     );
+
+    // Close the loop on the invite, if this person was emailed one. Matched on
+    // address, so somebody who signs in with a different account than the one
+    // you wrote to stays "Sent" — which is honest: you cannot tell those apart,
+    // and a false "Joined" is worse than an unresolved row. Only ever stamps a
+    // row that has not been stamped, so the date is when they first opened it.
+    if (user.email) {
+      await admin
+        .from("trip_invites")
+        .update({ accepted_at: new Date().toISOString(), accepted_user_id: user.id })
+        .eq("trip_id", trip.id)
+        .eq("email", user.email.trim().toLowerCase())
+        .is("accepted_at", null);
+    }
   }
 
   // Land in the Day view on today's day, clamped to the journey range; if the

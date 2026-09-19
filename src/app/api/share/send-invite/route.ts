@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createShareLink } from "@/lib/share-actions";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
  * Send a journey invite by email.
@@ -118,10 +119,36 @@ export async function POST(request: NextRequest) {
       } catch { /* keep the status-code version */ }
       return NextResponse.json({ sent: false, reason: "provider-error", detail, url }, { status: 502 });
     }
+    // Only a send that actually left is recorded, so the list is "who I have
+    // emailed", not "who I have typed". Copying the link by hand records
+    // nothing — Brennan's call, 19 Sep 2026. A repeat send touches the same
+    // row rather than making a second one, and never un-accepts anybody.
+    await recordInvite(tripId, email, user.id);
+
     return NextResponse.json({ sent: true, url });
   } catch (err) {
     console.error("[Roam] Invite send threw:", err);
     return NextResponse.json({ sent: false, reason: "provider-error", url }, { status: 502 });
+  }
+}
+
+/**
+ * Log the send. Best effort on purpose: the email has already gone, and a
+ * failed bookkeeping write must not turn a delivered invite into an error the
+ * sender sees.
+ */
+async function recordInvite(tripId: string, email: string, invitedBy: string): Promise<void> {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return;
+  try {
+    const admin = createAdminClient();
+    await admin
+      .from("trip_invites")
+      .upsert(
+        { trip_id: tripId, email: email.trim().toLowerCase(), invited_by: invitedBy },
+        { onConflict: "trip_id,email", ignoreDuplicates: false },
+      );
+  } catch (err) {
+    console.error("[Roam] Invite recorded failed (email was sent):", err);
   }
 }
 

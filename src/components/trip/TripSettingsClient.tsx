@@ -132,6 +132,10 @@ export default function TripSettingsClient({
   const [shareSentTo, setShareSentTo] = useState<string | null>(null);
   const [shareToken, setShareToken] = useState<string | null>(initialShareToken);
   const [guests, setGuests] = useState<ShareGuest[]>(initialGuests);
+  // Who has been emailed a link, joined or not. Sending the same address twice
+  // touches one row, so this is the answer to "have I already sent this to
+  // them?" — the question Brennan kept having to guess at (19 Sep 2026).
+  const [invites, setInvites] = useState<{ email: string; sentAt: string; acceptedAt: string | null }[]>([]);
   const [linkBusy, setLinkBusy] = useState(false);
   const [confirmRevoke, setConfirmRevoke] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
@@ -146,7 +150,7 @@ export default function TripSettingsClient({
   const refreshShare = useCallback(() => {
     if (!shareAvailable) return;
     loadShareState(trip.id)
-      .then((s) => { setShareToken(s.shareToken); setGuests(s.guests); })
+      .then((s) => { setShareToken(s.shareToken); setGuests(s.guests); setInvites(s.invites); })
       .catch(() => { /* the server-rendered state stands */ });
   }, [shareAvailable, trip.id]);
   useEffect(() => { refreshShare(); }, [refreshShare]);
@@ -804,6 +808,26 @@ export default function TripSettingsClient({
                   </>
                 )}
               </div>
+
+              {/* Everyone emailed from here, joined or not. The line above says
+                  who is in; this says who was asked. Without it there was no
+                  way to tell the two apart and the same people got the link
+                  twice. Only sends from inside Roam appear — a link copied and
+                  pasted somewhere else is invisible, by choice. */}
+              {invites.length > 0 && (
+                <ul className="mt-2.5 flex flex-col gap-1">
+                  {invites.map((inv) => (
+                    <li key={inv.email} className="flex items-baseline justify-between gap-3 text-[12.5px]">
+                      <span className="truncate" style={{ color: "rgba(26,26,46,0.72)" }}>{inv.email}</span>
+                      <span className="shrink-0" style={{ color: "rgba(26,26,46,0.5)" }}>
+                        {inv.acceptedAt
+                          ? "Joined"
+                          : `Sent ${new Date(inv.sentAt).toLocaleDateString("en-CA", { day: "numeric", month: "short" })}`}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
         )}

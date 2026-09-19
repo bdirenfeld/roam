@@ -627,7 +627,7 @@ function TripSettingsBody({
         if (!cancelled) setShare(s);
       })
       .catch(() => {
-        if (!cancelled) setShare({ shareAvailable: false, shareToken: null, guests: [] });
+        if (!cancelled) setShare({ shareAvailable: false, shareToken: null, guests: [], invites: [] });
       });
 
     return () => {

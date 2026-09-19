@@ -1285,3 +1285,22 @@ your own — which is why the field's suffix reads "of 7".
 A guard worth keeping: `splitTotals` forces the guests' percentage to zero when
 `guestPeople` is zero. Without it a leftover 33% kept charging a household that
 was not coming. The test caught it; it was not caught by reading the code.
+
+**Archiving a card does not change `cards.status`.** It stays `in_itinerary`, so any query that
+filters only on status still sees it. The Budget loader had this bug and kept charging for two
+dropped days. If you write a query that sums or counts cards, filter `.not("archived","is",true)`
+as well — and `archived` is null on older rows, so test for "not true", never `.eq(false)`.
+
+## Who a journey was shared with (19 Sep 2026)
+
+`trip_members` only records people who **joined** — `user_id` is NOT NULL, so someone emailed a link
+who never signed in left no trace. That is why Brennan kept re-sending to the same people.
+
+`trip_invites` (trip_id, email, invited_by, created_at, accepted_at, accepted_user_id) fills the gap.
+Written by `/api/share/send-invite` **after** Resend accepts, never before — the list means "who I
+emailed", not "who I typed". Unique on `(trip_id, lower(email))`, so re-sending touches one row.
+Stamped `accepted_at` in the claim path on `/journey/[token]`, matched on email address.
+
+**A link copied by hand is deliberately invisible.** Brennan's call: only sends from inside Roam are
+tracked. If someone signs in with a different address than the one you wrote to, their invite stays
+"Sent" — you cannot tell those apart, and a false "Joined" is worse than an unresolved row.
