@@ -165,6 +165,21 @@ export default function AppMenu({
         >
           {tripId && (
             <>
+              {owner && (
+                <EstimateLink
+                  tripId={tripId}
+                  role="menuitem"
+                  ariaLabel="Budget"
+                  onBeforeOpen={() => setOpen(false)}
+                  style={itemStyle}
+                >
+                  <span style={glyphStyle}>
+                    <Coins size={15} weight="light" />
+                  </span>
+                  <Label title="Budget" />
+                </EstimateLink>
+              )}
+
               <button
                 role="menuitem"
                 onClick={() => { setOpen(false); notes.open(tripId); }}
@@ -176,10 +191,12 @@ export default function AppMenu({
                 <Label title="Notes" />
               </button>
 
-              {/* One order on every tab, most-used first: notes and bookings
-                  daily, Ideas where new things arrive, Budget and Share
-                  now and then, Settings last. No dividers — six plain rows
-                  (Brennan, from his phone, Sep 2026). */}
+              {/* One order on every tab, most-used first. Budget leads: it is
+                  the number you keep coming back to while a journey is being
+                  planned, and it sat fifth until Brennan said so (19 Sep 2026).
+                  Then notes and bookings daily, Ideas where new things arrive,
+                  Where to stay until the stay is booked, Share now and then,
+                  Settings last. No dividers — plain rows. */}
               {extra?.map((item) => (
                 <button
                   key={item.key}
@@ -220,21 +237,6 @@ export default function AppMenu({
                   </span>
                   <Label title="Where to stay" />
                 </Link>
-              )}
-
-              {owner && (
-                <EstimateLink
-                  tripId={tripId}
-                  role="menuitem"
-                  ariaLabel="Budget"
-                  onBeforeOpen={() => setOpen(false)}
-                  style={itemStyle}
-                >
-                  <span style={glyphStyle}>
-                    <Coins size={15} weight="light" />
-                  </span>
-                  <Label title="Budget" />
-                </EstimateLink>
               )}
 
               {/* Sharing lives in one place — the block in Settings with the

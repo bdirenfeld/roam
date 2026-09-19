@@ -242,9 +242,28 @@ export default function SharedItinerary({
               const cards = byDay.get(day.id) ?? [];
               if (cards.length === 0) return null;
               return (
-                <section key={day.id} className="mb-9">
-                  <DayHeading date={day.date} label={longDate(day.date)} title={day.title} />
-                  <div className="mt-3">
+                // Folded by default. Twelve days of an eleven-night journey ran
+                // to fifty cards on one page and Brennan's read of it was "too
+                // long, didn't read" (19 Sep 2026) — the people this link is for
+                // want to see the shape first and one day in detail, not a
+                // scroll. <details> does it with no JavaScript, so this page
+                // stays a server render and still works with the tab asleep.
+                <details key={day.id} className="mb-4 group">
+                  <summary
+                    className="cursor-pointer list-none flex items-baseline gap-2 py-1"
+                    style={{ borderBottom: `1px solid ${RULE}` }}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <DayHeading date={day.date} label={longDate(day.date)} title={day.title} />
+                    </div>
+                    <span
+                      className="shrink-0 text-[11px] tabular-nums"
+                      style={{ color: "rgba(26,26,46,0.45)" }}
+                    >
+                      {cards.length}
+                    </span>
+                  </summary>
+                  <div className="mt-3 mb-6">
                     {cards.map((c) => {
                       const when = formatTimeRange(c.start, c.end);
                       const name = c.place?.title ?? c.noteTitle ?? "Something planned";
@@ -302,7 +321,7 @@ export default function SharedItinerary({
                       );
                     })}
                   </div>
-                </section>
+                </details>
               );
             })}
           </div>

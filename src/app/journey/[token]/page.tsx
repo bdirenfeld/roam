@@ -95,7 +95,7 @@ export default async function ClaimPage({ params, searchParams }: Props) {
     // wrong column makes PostgREST return an error with null data, which
     // renders as a journey with no days at all (caught in review, Sept 2026).
     const [{ data: dayRows, error: dayErr }, { data: entryRow }, { data: cardRows, error: cardErr }] = await Promise.all([
-      admin.from("days").select("id, date, day_number, day_name").eq("trip_id", t.id).order("day_number"),
+      admin.from("days").select("id, date, day_number, day_name, theme").eq("trip_id", t.id).order("day_number"),
       admin.from("trip_entry").select("data").eq("trip_id", t.id).maybeSingle(),
       admin
         .from("cards")
@@ -139,7 +139,7 @@ export default async function ClaimPage({ params, searchParams }: Props) {
       id: d.id as string,
       date: d.date as string,
       dayNumber: d.day_number as number,
-      title: (d.day_name as string | null) ?? null,
+      title: ((d.theme as string | null) || (d.day_name as string | null)) ?? null,
     }));
 
     type Row = {
