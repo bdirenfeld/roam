@@ -1304,3 +1304,34 @@ Stamped `accepted_at` in the claim path on `/journey/[token]`, matched on email 
 **A link copied by hand is deliberately invisible.** Brennan's call: only sends from inside Roam are
 tracked. If someone signs in with a different address than the one you wrote to, their invite stays
 "Sent" — you cannot tell those apart, and a false "Joined" is worse than an unresolved row.
+
+## Archiving a card does not change its status
+
+`cards.archived = true` is the soft delete. It leaves `cards.status` at
+`in_itinerary`, so **any read that filters on `status` alone will keep showing
+cards the traveller has removed.** On 19 Sep 2026 Brennan deleted the Carrara
+quarry day from Tuscany three times and it came back every time; the writes were
+always correct, and the Agenda, Plan and Map queries simply never honoured them.
+
+- Guard every display read with `.not("archived", "is", true)`.
+- **Not `.eq("archived", false)`** — cards created before the column existed have
+  `archived = null`, and PostgREST's `eq` drops nulls, which silently hides real
+  cards instead.
+- `src/lib/data/archivedReads.test.ts` enforces this: it asserts each display
+  file has as many archived guards as it has `from("cards")` reads, and names the
+  offending file when it fails. Add new display surfaces to its list.
+- Still unguarded on purpose: the ~40 `from("cards")` calls in `src/app/api/*`,
+  the assistant and the stays logic. Those are writes and id lookups, not display
+  reads. If you make one of them render something, guard it.
+
+**A place he saved and a place he scheduled are two different rows.** The save is
+`status = 'interested'`, `ai_generated = false`, `day_id = null`; the scheduled
+copy is `status = 'in_itinerary'`, `ai_generated = true`. Archiving the schedule
+is meant to leave the save alone, so a pin correctly stays on the Map after the
+card disappears from the Agenda. Do not "fix" that.
+
+**Testing the Map in a driven Chrome tab:** a blank grey pane usually is not a
+regression. `document.visibilityState` is `hidden` in a backgrounded tab, which
+throttles rAF so Mapbox never paints, and `.mapboxgl-marker` count reads 0.
+Check `canvas.mapboxgl-canvas` exists with a non-zero width first — if it does,
+the component mounted and you are looking at throttling, not a broken map.
