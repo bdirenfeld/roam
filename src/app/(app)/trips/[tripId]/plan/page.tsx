@@ -47,6 +47,7 @@ export default async function PlanPage({ params }: Props) {
         .select(CARD_SELECT)
         .eq("trip_id", tripId)
         .eq("status", "in_itinerary")
+        .not("archived", "is", true)
         .order("position"),
       // The traveller's own columns, left to right.
       supabase
@@ -68,6 +69,7 @@ export default async function PlanPage({ params }: Props) {
         .eq("trip_id", tripId)
         .is("day_id", null)
         .not("list_id", "is", null)
+        .not("archived", "is", true)
         .order("position"),
     ]);
 

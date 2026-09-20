@@ -38,6 +38,10 @@ export default async function DayPage({ params }: Props) {
       `)
       .eq("day_id", dayId)
       .eq("status", "in_itinerary")
+      // Archiving leaves status at in_itinerary, so a removed card keeps
+      // rendering here forever without this. Null on older rows, so test
+      // for "not true", not false. (19 Sep 2026 — Carrara, day 2 of Tuscany.)
+      .not("archived", "is", true)
       .order("position"),
     // Hotel cards for the accommodation pin. type/sub_type live on the joined
     // places row, NOT on cards — filtering cards.type errored silently and
@@ -53,6 +57,7 @@ export default async function DayPage({ params }: Props) {
       `)
       .eq("trip_id", tripId)
       .neq("status", "cut")
+      .not("archived", "is", true)
       .eq("place.sub_type", "hotel"),
   ]);
 
@@ -62,7 +67,8 @@ export default async function DayPage({ params }: Props) {
     .from("cards")
     .select("id", { count: "exact", head: true })
     .eq("trip_id", tripId)
-    .eq("status", "interested");
+    .eq("status", "interested")
+    .not("archived", "is", true);
 
   if (!trip) redirect("/trips");
 

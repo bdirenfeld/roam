@@ -33,6 +33,7 @@ export default async function TripMapPage({ params }: Props) {
       `)
       .eq("trip_id", tripId)
       .neq("status", "cut")
+      .not("archived", "is", true)
       .order("day_id")
       .order("position"),
     user
