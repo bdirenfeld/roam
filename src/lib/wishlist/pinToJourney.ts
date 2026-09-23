@@ -18,16 +18,19 @@ import type { ResolvedPlace } from "@/lib/places/predictions";
 /** Google's categories, narrowed to Roam's taxonomy. Anything unrecognised is
  *  a self-directed activity — the neutral option, changed in a tap if wrong.
  *  Guessing beats asking here: the sheet is already three steps deep. */
-function classify(types: string[]): { type: string; sub_type: string } {
+// Only sub-types the rest of the app knows. This wrote `accommodation`,
+// `coffee_dessert` and `drinks`, which nothing else reads: a hotel pinned from
+// Ideas never became the stay (the day map and the shared page look for
+// `hotel`) and cafés fell out of the one label table (audit, 23 Sep 2026).
+export function classify(types: string[]): { type: string; sub_type: string } {
   const has = (t: string) => types.includes(t);
   if (has("restaurant") || has("meal_takeaway") || has("meal_delivery")) {
     return { type: "food", sub_type: "restaurant" };
   }
-  if (has("cafe") || has("bakery") || has("ice_cream_shop")) {
-    return { type: "food", sub_type: "coffee_dessert" };
-  }
-  if (has("bar") || has("night_club")) return { type: "food", sub_type: "drinks" };
-  if (has("lodging")) return { type: "logistics", sub_type: "accommodation" };
+  if (has("ice_cream_shop")) return { type: "food", sub_type: "dessert" };
+  if (has("cafe") || has("bakery")) return { type: "food", sub_type: "coffee" };
+  if (has("bar") || has("night_club")) return { type: "food", sub_type: "bar" };
+  if (has("lodging")) return { type: "logistics", sub_type: "hotel" };
   if (has("spa")) return { type: "activity", sub_type: "wellness" };
   return { type: "activity", sub_type: "self_directed" };
 }

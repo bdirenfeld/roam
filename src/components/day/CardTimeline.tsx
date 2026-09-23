@@ -107,7 +107,16 @@ export default function CardTimeline({
   const renderAddControls = (row: boolean) =>
     !readOnly && (onAddFromSaved || onGapTap) ? (
       <div className={`w-full pt-2 ${row ? "md:ml-[94px]" : ""}`}>
-        {onGapTap && <AddPlaceRow onClick={() => onGapTap("", "")} centered={!row} />}
+        {/* The count rides on the row on every day, not only an empty one:
+            the saved pile was otherwise invisible once a day had one card
+            (Puglia: 24 saved, none placed; Mike: all 8 stops on Day 1). */}
+        {onGapTap && (
+          <AddPlaceRow
+            onClick={() => onGapTap("", "")}
+            centered={!row}
+            hint={savedCount > 0 ? `${savedCount} saved` : undefined}
+          />
+        )}
         {!onGapTap && onAddFromSaved && (
           <button
             onClick={onAddFromSaved}
@@ -141,15 +150,9 @@ export default function CardTimeline({
             </svg>
           </div>
           <p className="text-sm font-semibold text-gray-500">Nothing planned yet</p>
-          {/* The saved pile is invisible from here otherwise, and a day that
-              only says "nothing" reads as a dead end when the places are
-              already one tap below (Sept 2026: a tester saved 24 places for
-              Puglia and scheduled none of them onto 16 days). */}
-          {!readOnly && savedCount > 0 && (
-            <p className="mt-1.5 text-[13px] max-w-[260px]" style={{ color: "rgba(26,26,46,0.62)" }}>
-              {savedCount} {savedCount === 1 ? "place is" : "places are"} saved for this journey. Add one below.
-            </p>
-          )}
+          {/* The saved count used to be a sentence here, on empty days only.
+              It now rides on the Add row below on every day ("· 12 saved"),
+              so saying it here as well would say it twice. */}
           <div className="mt-6 w-full max-w-[320px]">{renderAddControls(false)}</div>
         </div>
       ) : (

@@ -545,7 +545,7 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
               unscheduled pin; picking a day writes it onto the plan in one go. */}
           {days.length > 0 && (
             <div className="mb-4">
-              <p className="text-[11px] text-gray-400 mb-1.5 ml-0.5">Put it on a day (optional)</p>
+              <p className="text-[11px] text-gray-400 mb-1.5 ml-0.5">Put on a day (optional)</p>
               {/* A select, not a chip strip: a 12-day journey doesn't fit in a
                   row, and nudge arrows over the chips were worse than the
                   problem. One tap opens the whole journey at any length. */}
@@ -590,7 +590,7 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
             {saving
               ? "Checking…"
               : targetDay
-              ? `Add to day ${targetDay.day_number}`
+              ? `Put on Day ${targetDay.day_number}`
               : "Save to the map only"}
           </button>
         </div>

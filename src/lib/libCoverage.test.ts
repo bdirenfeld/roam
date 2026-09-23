@@ -67,7 +67,6 @@ const GRANDFATHERED = new Set([
   "tripRecency.ts",
   "unsplash.ts",
   "wishlist/climate.ts",
-  "wishlist/pinToJourney.ts",
   "yearView/bugSeasons.ts",
   "yearView/hci.ts",
   "yearView/openWindows.ts",

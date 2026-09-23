@@ -425,8 +425,12 @@ function CardBody({
       // filled "scheduled" styling — not on the next page load.
       onCardCreated?.(newCard);
       onClose();
+      // The popup closed and the pin changed colour; nothing said which day.
+      toast({ message: `Put on Day ${day.day_number}` });
+    } else {
+      toast({ message: "Couldn't put it on that day. Try again." });
     }
-  }, [tripId, card.place_id, card.place, scheduling, supabase, onCardCreated, onClose]);
+  }, [tripId, card.place_id, card.place, scheduling, supabase, onCardCreated, onClose, toast]);
 
   // A scheduled pin used to refuse ("remove it from your day plan first")
   // and offer nothing to do it with. It now offers the action itself.
@@ -714,7 +718,7 @@ function CardBody({
                 style={{ background: "#EDECE8", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)", fontWeight: 600, fontSize: "13.5px", color: "#1A1A2E", letterSpacing: "-0.005em" }}
               >
                 <BookmarkSimple size={14} weight="light" color="#1A1A2E" />
-                Add to day
+                Put on a day
               </button>
             )}
           </>

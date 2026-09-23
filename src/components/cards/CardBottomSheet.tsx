@@ -1502,7 +1502,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 onClick={() => setShowDayPicker(true)}
                 className="w-full py-3 rounded-xl bg-activity text-white text-[14px] font-bold active:scale-[0.98] transition-all"
               >
-                Assign to day
+                Put on a day
               </button>
             </div>
           )}
@@ -1575,7 +1575,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         {/* Day picker overlay */}
         {showDayPicker && days && (
           <DayPickerOverlay
-            title="Assign to day"
+            title="Put on a day"
             days={days}
             onSelect={handleAssignToDay}
             onClose={() => setShowDayPicker(false)}

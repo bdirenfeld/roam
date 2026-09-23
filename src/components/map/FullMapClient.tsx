@@ -549,6 +549,15 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
     if (tempPinRef.current) { tempPinRef.current.remove(); tempPinRef.current = null; }
     setPendingPlace(null);
     registerNewCard(card);
+    // A save used to say nothing: a hollow pin appeared and the "sort it into
+    // a day later" line had vanished with the first-visit card. So say what
+    // happened, and where "later" is.
+    const onDay = card.day_id ? days.find((d) => d.id === card.day_id) : null;
+    toast({
+      message: onDay
+        ? `Put on Day ${onDay.day_number}`
+        : "Saved to your map. Tap its pin to put it on a day.",
+    });
   }
   registerNewCardRef.current = registerNewCard;
 
