@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import type { Card, CardStatus, DayWithCards } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
+import { queuedInsert } from "@/lib/offline/queuedWrite";
 
 // ── ParsedConfirmation — matches API response ─────────────────
 export interface ParsedConfirmation {
@@ -35,8 +36,6 @@ const TYPE_LABEL: Record<string, string> = {
   restaurant:       "Restaurant",
   activity:         "Activity",
 };
-
-const SKELETON_TITLES = ["Arrival", "Departure", "Flight", "Morning Coffee", "Check-in"];
 
 function findMatchingDay(days: DayWithCards[], date: string | null): string | null {
   if (!date) return null;
@@ -84,6 +83,7 @@ export default function ConfirmationPreviewSheet({
   );
 
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const patchDraft = (idx: number, patch: Partial<ItemDraft>) =>
     setDrafts((prev) => prev.map((d, i) => i === idx ? { ...d, ...patch } : d));
@@ -128,92 +128,79 @@ export default function ConfirmationPreviewSheet({
   }, [onClose]);
 
   // ── Save all cards ───────────────────────────────────────────
+  // All the cards from one confirmation go in ONE insert, so they land
+  // together or not at all. It used to insert them one by one, log a failure
+  // to the console, and close the sheet as if everything had imported — a
+  // round trip could come back as the outbound flight alone (audit, 23 Sep
+  // 2026). queuedInsert also holds the write when the phone has no signal and
+  // sends it when it's back, the same as every other add in Roam. Only a real
+  // refusal keeps the sheet open, with everything still filled in.
+  //
+  // Gone too: a step that deleted template "skeleton" cards by title. Cards
+  // have no title column, so that query failed on every import — and the day
+  // template it cleaned up after was removed on 7 Sep 2026.
   const handleSave = useCallback(async () => {
     const canSave = drafts.every((d) => d.title.trim() && d.dayId);
     if (!canSave || saving) return;
     setSaving(true);
+    setSaveError(null);
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setSaving(false); return; }
+    // The stored session, not a network call: this has to work on a bad signal.
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
+    if (!user) { setSaving(false); setSaveError("You're signed out. Sign in and try again."); return; }
 
-    const createdCards: Card[] = [];
-    const deletedIds:   string[] = [];
-
-    for (let i = 0; i < items.length; i++) {
+    const nextPos = new Map<string, number>();
+    const createdCards: Card[] = drafts.map((draft, i) => {
       const parsed = items[i];
-      const draft  = drafts[i];
-
-      // Fix 3 — delete skeleton cards on the same day (empty details only)
-      const { data: skeletons } = await supabase
-        .from("cards")
-        .select("id")
-        .eq("day_id", draft.dayId)
-        .in("title", SKELETON_TITLES)
-        .eq("details", {});
-
-      const skelIds = (skeletons ?? []).map((r: { id: string }) => r.id);
-      if (skelIds.length) {
-        await supabase.from("cards").delete().in("id", skelIds);
-        deletedIds.push(...skelIds);
-      }
-
-      // Compute position after skeleton removal
       const dayCards = days.find((d) => d.id === draft.dayId)?.cards ?? [];
-      const remaining = dayCards.filter((c) => !skelIds.includes(c.id));
-      const endPos = remaining.reduce((m, c) => Math.max(m, c.position), 0) + 1;
+      const pos = nextPos.get(draft.dayId) ?? dayCards.reduce((m, c) => Math.max(m, c.position), 0) + 1;
+      nextPos.set(draft.dayId, pos + 1);
 
-      // Build details
       const details: Record<string, unknown> = { title: draft.title.trim() };
       if (confNo.trim())       details.confirmation = confNo.trim();
       if (parsed.phone)        details.phone        = parsed.phone;
       if (parsed.website)      details.website      = parsed.website;
       if (draft.notes.trim())  details.notes        = draft.notes.trim();
 
-      const cardId = crypto.randomUUID();
-      const startTime = draft.time.trim()    ? `${draft.time.trim().slice(0, 5)}:00`    : null;
-      const endTime   = draft.endTime.trim() ? `${draft.endTime.trim().slice(0, 5)}:00` : null;
+      return {
+        id:           crypto.randomUUID(),
+        day_id:       draft.dayId,
+        list_id:      null,
+        trip_id:      tripId,
+        start_time:   draft.time.trim()    ? `${draft.time.trim().slice(0, 5)}:00`    : null,
+        end_time:     draft.endTime.trim() ? `${draft.endTime.trim().slice(0, 5)}:00` : null,
+        position:     pos,
+        status:       "in_itinerary" as CardStatus,
+        source_url:   null,
+        details:      details as Card["details"],
+        ai_generated: false,
+        confirmed:    false,
+        created_at:   new Date().toISOString(),
+        place_id:     null,
+        place:        null,
+      };
+    });
 
-      const { error } = await supabase.from("cards").insert({
-        id:              cardId,
-        day_id:          draft.dayId,
-        trip_id:         tripId,
-        start_time:      startTime,
-        end_time:        endTime,
-        position:        endPos,
-        status:          "in_itinerary",
-        source_url:      null,
-        details:         details as Card["details"],
-        ai_generated:    false,
-        place_id:        null,
-      });
-      if (error) console.error("[ConfirmationPreviewSheet] card insert failed:", error);
-
-      if (!error) {
-        const newCard: Card = {
-          id:           cardId,
-          day_id:       draft.dayId,
-          list_id:      null,
-          trip_id:      tripId,
-          start_time:   startTime,
-          end_time:     endTime,
-          position:     endPos,
-          status:       "in_itinerary" as CardStatus,
-          source_url:   null,
-          details:      details as Card["details"],
-          ai_generated: false,
-          confirmed:    false,
-          created_at:   new Date().toISOString(),
-          place_id:     null,
-          place:        null,
-        };
-        createdCards.push(newCard);
-      }
+    // The columns the insert has always written — not the display-only fields.
+    const rows = createdCards.map((c) => ({
+      id: c.id, day_id: c.day_id, trip_id: c.trip_id, start_time: c.start_time, end_time: c.end_time,
+      position: c.position, status: c.status, source_url: null, details: c.details, ai_generated: false, place_id: null,
+    }));
+    const { error } = await queuedInsert("cards", rows);
+    if (error) {
+      console.error("[ConfirmationPreviewSheet] import refused:", error);
+      setSaving(false);
+      setSaveError("Couldn't add these to the plan. Nothing was added — tap to try again.");
+      return;
     }
+    const deletedIds: string[] = [];
 
     // Save document record — best-effort, never blocks card creation
     const documentType = items[0]?.type.startsWith("flight") ? "flight"
                        : items[0]?.type ?? "activity";
-    const { error: docError } = await supabase.from("documents").insert({
+    const { error: docError } = await queuedInsert("documents", {
+      id:            crypto.randomUUID(),
       trip_id:       tripId,
       user_id:       user.id,
       file_name:     fileName,
@@ -420,6 +407,11 @@ export default function ConfirmationPreviewSheet({
 
         {/* Save — sticky bottom */}
         <div className="absolute bottom-0 left-0 right-0 px-5 py-4 bg-white border-t border-gray-100">
+          {saveError && (
+            <p role="alert" className="text-[13px] mb-2.5 text-center" style={{ color: "#A8372B" }}>
+              {saveError}
+            </p>
+          )}
           <button
             onClick={handleSave}
             disabled={!canSave}
