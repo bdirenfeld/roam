@@ -1335,3 +1335,29 @@ regression. `document.visibilityState` is `hidden` in a backgrounded tab, which
 throttles rAF so Mapbox never paints, and `.mapboxgl-marker` count reads 0.
 Check `canvas.mapboxgl-canvas` exists with a non-zero width first — if it does,
 the component mounted and you are looking at throttling, not a broken map.
+
+## The adoption audit fixes (23 Sep 2026)
+
+- **Your year is Brennan's alone.** `lib/household.ts` → `isHouseholdOwner(userId)`. The family
+  birthdays (`lib/yearView/familyDates.ts`) are imported ONLY by the server page and passed to
+  `YearView` as a prop — a client component ships whatever it imports to every browser.
+  `household.test.ts` fails if YearView value-imports them again. The date picker's school chips
+  are owner-only too. When this becomes per-person, replace the one switch.
+- **Revoke is not "everyone loses access".** It nulls the link; joined guests keep the journey
+  (membership is access). Settings keeps showing them after a revoke so they can be removed.
+  Copy lives in `lib/shareCopy.ts`.
+- **Never `upsert(..., { onConflict: "trip_id,email" })` on `trip_invites`.** Its unique index is on
+  `lower(email)`, which a column list can't name → 42P10 on every write, swallowed; the table was
+  empty 19–23 Sep. The route now selects, then updates or inserts, and reads the error.
+- **The shared page** shows each stop's Meet / Bring / Before you go / Check-in lines
+  (`lib/sharedItinerary.ts` → `stopExtras`, never `confirmation`), "Tonight: <hotel>" per day from
+  hotel cards (`tonightByDay`: carried forward, none on the last day, trip accommodation only as a
+  fallback), opens today (before the trip: day 1), shows empty days as free days, allows zoom, and
+  unfurls with the journey's title and dates. A dead token → `InvitationUnavailable`.
+- **The saved count means "still waiting for a day"** (`lib/savedPile.ts`): scheduling copies, so
+  a raw count of `interested` never went down. It rides on every day's Add row ("· 12 saved").
+- **One verb: "Put on a day"** (pin, card sheet, save sheet). Don't reintroduce Add to day / Assign.
+- **The journey menu is six rows for the owner**: Budget, Notes, Bookings, Ideas, Where to stay,
+  Share & settings. Guests: Notes, Bookings. `AppMenu.test.tsx` pins both lists.
+- The Map has one search for owners (the place search); the header glyph stays for guests only.
+- Render tests that load `@phosphor-icons/react` under jsdom hang for minutes — mock the icons.
