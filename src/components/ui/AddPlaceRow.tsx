@@ -12,14 +12,10 @@ export default function AddPlaceRow({
   /** The empty state: centred, no rule above. */
   centered = false,
   className = "",
-  hint,
 }: {
   onClick: () => void;
   centered?: boolean;
   className?: string;
-  /** A quiet count after the words — "12 saved" — so the pile of saved places
-   *  is visible from every day, not only an empty one. */
-  hint?: string;
 }) {
   return (
     <button
@@ -35,9 +31,6 @@ export default function AddPlaceRow({
         +
       </span>
       Add a place
-      {hint && (
-        <span style={{ color: "rgba(26,26,46,0.5)" }}>· {hint}</span>
-      )}
     </button>
   );
 }

@@ -1,53 +1,11 @@
-// ── What the shared page says under each stop and each day ────────────────
-// The people a journey is shared with ask the same five questions every
-// morning (the Costa Rica problem). Two of the answers were already written on
-// the cards — where to meet, what to bring — and the shared page never showed
-// them; a third, where we sleep tonight, lived in one fixed line that was
-// blank on New York and could not describe Rome's two hotels. 23 Sep 2026.
-
-export interface StopExtra {
-  label: string;
-  text: string;
-}
-
-function str(v: unknown): string | null {
-  return typeof v === "string" && v.trim() && v.trim().toUpperCase() !== "TBD" ? v.trim() : null;
-}
-
-/**
- * The practical lines under one stop, from fields the organiser already fills
- * in on the card. Never the confirmation number: a link can be forwarded to a
- * taxi driver, and a booking reference is someone's paperwork.
- */
-export function stopExtras(details: Record<string, unknown> | null | undefined): StopExtra[] {
-  if (!details) return [];
-  const out: StopExtra[] = [];
-
-  const point = str(details.meeting_point);
-  const time = str(details.meeting_time);
-  if (point || time) {
-    out.push({ label: "Meet", text: [time, point].filter(Boolean).join(" · ") });
-  }
-
-  const bring = details.what_to_bring;
-  const bringText = Array.isArray(bring)
-    ? bring.map(str).filter(Boolean).join(", ")
-    : str(bring);
-  if (bringText) out.push({ label: "Bring", text: bringText });
-
-  const prep = str(details.prep);
-  if (prep) out.push({ label: "Before you go", text: prep });
-
-  const checkIn = str(details.check_in_time);
-  const checkOut = str(details.check_out_time);
-  if (checkIn || checkOut) {
-    out.push({
-      label: "Check-in",
-      text: [checkIn && `from ${checkIn}`, checkOut && `out by ${checkOut}`].filter(Boolean).join(" · "),
-    });
-  }
-  return out;
-}
+// ── What the shared page says under each day ──────────────────────────────
+// "Where are we sleeping tonight?" is the question a family asks most (the
+// Costa Rica problem). It lived in one fixed line for the whole trip that was
+// blank on New York and could not describe Rome's two hotels.
+//
+// The card extras (meeting point, what to bring, prep) were shown here for a
+// few hours on 23 Sep 2026 and cut: Brennan wants this page "super, super
+// simple". Anything that matters goes in the card note, which does show.
 
 export interface Stay {
   name: string | null;

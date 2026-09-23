@@ -25,8 +25,6 @@ interface Props {
   readOnly?: boolean;
   /** Tap on a card's time chip: open the quick time sheet for it. */
   onTimeTap?: (card: Card) => void;
-  /** Places saved for this journey and not yet on any day. */
-  savedCount?: number;
 }
 
 function minutesBetween(end: string | null, start: string | null): number {
@@ -81,7 +79,6 @@ export default function CardTimeline({
   cardNumberById,
   readOnly = false,
   onTimeTap,
-  savedCount = 0,
 }: Props) {
   const { cards } = dayWithCards;
 
@@ -107,16 +104,7 @@ export default function CardTimeline({
   const renderAddControls = (row: boolean) =>
     !readOnly && (onAddFromSaved || onGapTap) ? (
       <div className={`w-full pt-2 ${row ? "md:ml-[94px]" : ""}`}>
-        {/* The count rides on the row on every day, not only an empty one:
-            the saved pile was otherwise invisible once a day had one card
-            (Puglia: 24 saved, none placed; Mike: all 8 stops on Day 1). */}
-        {onGapTap && (
-          <AddPlaceRow
-            onClick={() => onGapTap("", "")}
-            centered={!row}
-            hint={savedCount > 0 ? `${savedCount} saved` : undefined}
-          />
-        )}
+        {onGapTap && <AddPlaceRow onClick={() => onGapTap("", "")} centered={!row} />}
         {!onGapTap && onAddFromSaved && (
           <button
             onClick={onAddFromSaved}
@@ -150,9 +138,10 @@ export default function CardTimeline({
             </svg>
           </div>
           <p className="text-sm font-semibold text-gray-500">Nothing planned yet</p>
-          {/* The saved count used to be a sentence here, on empty days only.
-              It now rides on the Add row below on every day ("· 12 saved"),
-              so saying it here as well would say it twice. */}
+          {/* No saved count here or on the Add row (Brennan, 23 Sep 2026: "what
+              does 20 saved actually give you? What if you have 50?"). A number
+              says a pile exists, not what is in it; the answer is a list of the
+              places themselves, which is the Left to place proposal. */}
           <div className="mt-6 w-full max-w-[320px]">{renderAddControls(false)}</div>
         </div>
       ) : (

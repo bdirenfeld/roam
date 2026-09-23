@@ -43,8 +43,9 @@ function journey(today: string): SharedJourney {
       {
         id: "c1", dayId: "d3", start: "10:00", end: "11:30",
         place: { title: "Sloomoo Institute", sub_type: "museum", address: "475 Broadway", photo: null },
-        noteTitle: null, note: null,
-        extras: [{ label: "Before you go", text: "Sign the waiver before you leave the hotel" }],
+        noteTitle: null, note: "Sign the waiver before you leave the hotel",
+        // Real card fields the page must NOT show — cut 23 Sep 2026 to keep it simple.
+        ...({ details: { meeting_point: "81st Street entrance" } } as object),
       },
     ],
   };
@@ -53,10 +54,9 @@ function journey(today: string): SharedJourney {
 describe("the shared page", () => {
   const today = localDate(new Date());
 
-  it("shows the organiser's before-you-go line under the stop", () => {
+  it("shows the card note — the one place for anything that matters", () => {
     render(<SharedItinerary token="t" journey={journey(today)} />);
     expect(screen.getByText("Sign the waiver before you leave the hotel")).toBeTruthy();
-    expect(screen.getByText(/Before you go/)).toBeTruthy();
   });
 
   it("says where everyone sleeps, tappable into maps, and nothing on the leaving day", () => {
@@ -70,9 +70,11 @@ describe("the shared page", () => {
     expect(day4.textContent).not.toMatch(/Tonight/);
   });
 
-  it("shows the end time, not just the start", () => {
-    render(<SharedItinerary token="t" journey={journey(today)} />);
-    expect(screen.getByText(/to 11:30/)).toBeTruthy();
+  it("stays simple: a start time, no end time and no meeting-point lines", () => {
+    const { container } = render(<SharedItinerary token="t" journey={journey(today)} />);
+    expect(screen.getByText("10:00 AM")).toBeTruthy();
+    expect(container.textContent).not.toMatch(/to 11:30|11:30/);
+    expect(container.textContent).not.toMatch(/Meet:|Before you go:|81st Street/);
   });
 
   it("opens today's day and leaves the others folded", () => {

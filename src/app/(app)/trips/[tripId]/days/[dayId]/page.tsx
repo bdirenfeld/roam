@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import DayViewClient from "@/components/day/DayViewClient";
 import { getTripAccess } from "@/lib/trip-access";
 import { withAttachmentCount } from "@/lib/attachmentCount";
-import { unplacedCount } from "@/lib/savedPile";
 import type { Card, DayWithCards, Trip, Day } from "@/types/database";
 
 interface Props {
@@ -62,16 +61,6 @@ export default async function DayPage({ params }: Props) {
       .eq("place.sub_type", "hotel"),
   ]);
 
-  // How many saved places are still waiting for a day. It used to count every
-  // save, and a save is never removed when its place is scheduled (scheduling
-  // copies), so the number never went down as the plan filled in. Two place-id
-  // lists, no other columns.
-  const [{ data: savedRows }, { data: placedRows }] = await Promise.all([
-    supabase.from("cards").select("place_id").eq("trip_id", tripId).eq("status", "interested").not("archived", "is", true),
-    supabase.from("cards").select("place_id").eq("trip_id", tripId).eq("status", "in_itinerary").not("archived", "is", true),
-  ]);
-  const savedCount = unplacedCount(savedRows ?? [], placedRows ?? []);
-
   if (!trip) redirect("/trips");
 
   const currentDay = (days ?? []).find((d: Day) => d.id === dayId);
@@ -93,7 +82,6 @@ export default async function DayPage({ params }: Props) {
       // Notes ride the `*` select, so they arrive with the page payload and
       // work offline.
       initialNotes={(trip as Trip).notes ?? null}
-      savedCount={savedCount ?? 0}
       readOnly={readOnly}
     />
   );

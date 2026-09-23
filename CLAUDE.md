@@ -1349,13 +1349,15 @@ the component mounted and you are looking at throttling, not a broken map.
 - **Never `upsert(..., { onConflict: "trip_id,email" })` on `trip_invites`.** Its unique index is on
   `lower(email)`, which a column list can't name → 42P10 on every write, swallowed; the table was
   empty 19–23 Sep. The route now selects, then updates or inserts, and reads the error.
-- **The shared page** shows each stop's Meet / Bring / Before you go / Check-in lines
-  (`lib/sharedItinerary.ts` → `stopExtras`, never `confirmation`), "Tonight: <hotel>" per day from
+- **The shared page stays "super, super simple"** (Brennan, same day): day, start time, place,
+  address, the card note. Meeting-point / bring / prep lines and end times were shipped and CUT the
+  same day — do not re-add them; anything that matters goes in the card note. It keeps
+  "Tonight: <hotel>" per day from
   hotel cards (`tonightByDay`: carried forward, none on the last day, trip accommodation only as a
   fallback), opens today (before the trip: day 1), shows empty days as free days, allows zoom, and
   unfurls with the journey's title and dates. A dead token → `InvitationUnavailable`.
-- **The saved count means "still waiting for a day"** (`lib/savedPile.ts`): scheduling copies, so
-  a raw count of `interested` never went down. It rides on every day's Add row ("· 12 saved").
+- **No saved count on the day** ("· 12 saved" was shipped and cut: "what if you have 50?"). A number
+  says a pile exists, not what is in it. The answer he is weighing is the Left to place list.
 - **One verb: "Put on a day"** (pin, card sheet, save sheet). Don't reintroduce Add to day / Assign.
 - **The journey menu is six rows for the owner**: Budget, Notes, Bookings, Ideas, Where to stay,
   Share & settings. Guests: Notes, Bookings. `AppMenu.test.tsx` pins both lists.

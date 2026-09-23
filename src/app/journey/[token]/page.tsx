@@ -6,7 +6,7 @@ import SharedItinerary, { type SharedCard, type SharedDay, type SharedEntryLine 
 import { cachedPhotoUrl } from "@/lib/places/photoCache";
 import { agendaOrder } from "@/lib/agendaOrder";
 import { cardTimes } from "@/lib/cardTime";
-import { stopExtras, tonightByDay, guestSafeCover } from "@/lib/sharedItinerary";
+import { tonightByDay, guestSafeCover } from "@/lib/sharedItinerary";
 import type { Metadata, Viewport } from "next";
 
 // Rendered per request, never cached: opening the link always shows the plan
@@ -218,11 +218,6 @@ export default async function ClaimPage({ params, searchParams }: Props) {
         // owner got the explanation (Brennan, Sept 2026 — the Costa Rica
         // problem: "everyone was asking me the same questions every day").
         note: typeof c.details?.notes === "string" ? (c.details.notes as string) : null,
-        // Where to meet, what to bring, what to do before leaving — written on
-        // the card by the organiser and, until 23 Sep 2026, never shown here.
-        // New York's "sign the Sloomoo waiver before you leave the hotel" was
-        // invisible to the three people it was written for.
-        extras: stopExtras(c.details),
         place: c.place
           ? {
               title: c.place.title,

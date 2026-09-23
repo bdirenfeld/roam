@@ -1,41 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { stopExtras, tonightByDay, guestSafeCover } from "./sharedItinerary";
-
-// Field shapes and values below are the real ones on Brennan's cards
-// (queried 23 Sep 2026): what_to_bring is an array, the rest are strings, and
-// "TBD" is what an unfilled confirmation looks like.
-describe("stopExtras", () => {
-  it("shows the meeting point and time together", () => {
-    expect(
-      stopExtras({
-        meeting_point: "Rose Center for Earth and Space entrance, 81st Street between Central Park West and Columbus Avenue",
-        meeting_time: "5:20",
-      }),
-    ).toEqual([
-      { label: "Meet", text: "5:20 · Rose Center for Earth and Space entrance, 81st Street between Central Park West and Columbus Avenue" },
-    ]);
-  });
-
-  it("joins a what-to-bring list", () => {
-    expect(
-      stopExtras({ what_to_bring: ["The wagon or stroller — the grounds are big and Bodhi will not walk them", "Five refillable water bottles", "Sunscreen"] }),
-    ).toEqual([
-      { label: "Bring", text: "The wagon or stroller — the grounds are big and Bodhi will not walk them, Five refillable water bottles, Sunscreen" },
-    ]);
-  });
-
-  it("shows prep and hotel times", () => {
-    expect(stopExtras({ prep: "Swimsuits, sunscreen, towels, sunglasses, water", check_in_time: "2:00 PM", check_out_time: "10:30 AM" })).toEqual([
-      { label: "Before you go", text: "Swimsuits, sunscreen, towels, sunglasses, water" },
-      { label: "Check-in", text: "from 2:00 PM · out by 10:30 AM" },
-    ]);
-  });
-
-  it("never shows a confirmation number, and drops blanks and TBD", () => {
-    expect(stopExtras({ confirmation: "ABC123", meeting_point: "TBD", prep: "  ", what_to_bring: [] })).toEqual([]);
-    expect(stopExtras(null)).toEqual([]);
-  });
-});
+import { tonightByDay, guestSafeCover } from "./sharedItinerary";
 
 describe("tonightByDay", () => {
   // Costa Rica: the Casita checked in on day 1 and out on day 9 (of 9).

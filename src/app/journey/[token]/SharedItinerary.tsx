@@ -23,7 +23,7 @@ import { plainNote } from "@/lib/plainNote";
 import DayHeading from "./DayHeading";
 import RefreshOnFocus from "./RefreshOnFocus";
 import JoinButton from "./JoinButton";
-import type { StopExtra, Stay } from "@/lib/sharedItinerary";
+import type { Stay } from "@/lib/sharedItinerary";
 
 const INK = "#1A1A2E";
 const CAPTION = "rgba(26,26,46,0.62)";
@@ -43,7 +43,6 @@ export interface SharedCard {
   place: SharedPlace | null;
   noteTitle: string | null;
   note: string | null;
-  extras: StopExtra[];
 }
 export interface SharedDay {
   id: string;
@@ -285,16 +284,12 @@ export default function SharedItinerary({
                         <div key={c.id} className="flex gap-3 py-3.5" style={{ borderBottom: `1px solid ${RULE}` }}>
                           <div className="w-[62px] shrink-0 pt-[3px]">
                             {when && (
-                              // Start AND end, at a size an older reader can see:
-                              // it was the start alone in 10px grey capitals, so
-                              // "when are we back?" had no answer.
+                              // The start time only — Brennan, 23 Sep 2026: this
+                              // page is for family and must stay "super, super
+                              // simple". An end time was tried and cut the same
+                              // day. Kept at a size an older reader can see.
                               <span className="block text-[12.5px] leading-[1.3] tabular-nums" style={{ color: "rgba(26,26,46,0.8)" }}>
                                 {when.split(" – ")[0]}
-                                {when.split(" – ")[1] && (
-                                  <span className="block text-[11.5px]" style={{ color: "rgba(26,26,46,0.55)" }}>
-                                    to {when.split(" – ")[1]}
-                                  </span>
-                                )}
                               </span>
                             )}
                           </div>
@@ -330,19 +325,6 @@ export default function SharedItinerary({
                               >
                                 {plainNote(c.note)}
                               </p>
-                            )}
-                            {c.extras.length > 0 && (
-                              // The practical lines the organiser wrote on the
-                              // card: where to meet, what to bring, what to do
-                              // before leaving. Same weight as the note.
-                              <dl className="mt-2 flex flex-col gap-1">
-                                {c.extras.map((x) => (
-                                  <div key={x.label} className="text-[12.5px] leading-[1.5]">
-                                    <dt className="inline font-medium" style={{ color: INK }}>{x.label}: </dt>
-                                    <dd className="inline m-0" style={{ color: "rgba(26,26,46,0.72)" }}>{x.text}</dd>
-                                  </div>
-                                ))}
-                              </dl>
                             )}
                           </div>
                           {c.place?.photo && (
