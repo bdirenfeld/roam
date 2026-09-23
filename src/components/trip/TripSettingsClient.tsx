@@ -97,10 +97,15 @@ export default function TripSettingsClient({
   const overlay = variant === "overlay";
   const scrollerRef = useRef<HTMLDivElement>(null);
 
-  const dismiss = useCallback(() => {
+  // Set below, once the save exists; closing waits for anything pending.
+  const flushRef = useRef<() => Promise<boolean>>(async () => false);
+  const dismiss = useCallback(async () => {
+    const wrote = await flushRef.current();
+    if (wrote && onSaved) { onSaved(); return; }
+    if (wrote) router.refresh();
     if (onDismiss) onDismiss();
     else router.back();
-  }, [onDismiss, router]);
+  }, [onDismiss, onSaved, router]);
 
   // Archive / restore / delete all end the same way: there is no longer a
   // sensible "back" for this journey, so land on the journeys list.
@@ -221,9 +226,12 @@ export default function TripSettingsClient({
     setShowCoverSheet(false);
   };
 
-  const handleSave = async () => {
-    if (saving) return;
-    if (!title.trim()) { setError("Journey name is required."); return; }
+  // ── Saves as you go ────────────────────────────────────────────
+  // Every field writes itself a moment after you stop typing, the way Notes
+  // and cards always have. There is no Save button: it was the only thing
+  // standing between an edit and ×, and × won (audit, 23 Sep 2026).
+  const persist = async (): Promise<boolean> => {
+    if (!title.trim()) { setError("A journey needs a name."); return false; }
 
     setSaving(true);
     setWarning(null);
@@ -249,10 +257,13 @@ export default function TripSettingsClient({
           const firstRemoved = daysToRemove[0];
           const cardLabel = count === 1 ? "1 card" : `${count} cards`;
           setWarning(
-            `Day ${firstRemoved.day_number} has ${cardLabel} — move them before shortening the trip.`
+            `Day ${firstRemoved.day_number} has ${cardLabel} — move them before shortening the journey.`
           );
+          // The dates go back to what is saved, so nothing shows that isn't true.
+          setStartDate(savedDates.current.start);
+          setEndDate(savedDates.current.end);
           setSaving(false);
-          return;
+          return false;
         }
       }
 
@@ -269,18 +280,28 @@ export default function TripSettingsClient({
         .eq("id", trip.id);
 
       if (tripError) {
-        setError("Failed to save trip settings. Please try again.");
+        setError("Couldn't save that. Check your connection and try again.");
         setSaving(false);
-        return;
+        return false;
       }
+
+      // The day rows below were written unchecked and the screen said Saved
+      // either way; a failure part-way now says so (audit, 23 Sep 2026).
+      const failed = (e: { message?: string } | null) => {
+        if (!e) return false;
+        setError("The dates saved, but the days didn't all update. Try again.");
+        setSaving(false);
+        return true;
+      };
 
       // Delete removed days (safe — checked above)
       if (newDayCount < oldDayCount) {
         const daysToRemove = sortedDays.slice(newDayCount);
-        await supabase
+        const { error: delErr } = await supabase
           .from("days")
           .delete()
           .in("id", daysToRemove.map((d) => d.id));
+        if (failed(delErr)) return false;
       }
 
       // Recalculate existing day dates if start_date changed or day count changed
@@ -291,10 +312,11 @@ export default function TripSettingsClient({
           const day = daysToUpdate[i];
           const newDate = new Date(newStart);
           newDate.setDate(newDate.getDate() + i);
-          await supabase
+          const { error: dayErr } = await supabase
             .from("days")
             .update({ date: newDate.toISOString().slice(0, 10) })
             .eq("id", day.id);
+          if (failed(dayErr)) return false;
         }
       }
 
@@ -313,17 +335,59 @@ export default function TripSettingsClient({
             day_name: `Day ${i + 1}`,
           });
         }
-        await supabase.from("days").insert(newDaysToInsert);
+        const { error: insErr } = await supabase.from("days").insert(newDaysToInsert);
+        if (failed(insErr)) return false;
       }
 
-      // Saved. On the page that means going back the way you came; in an
-      // overlay the host refreshes the screen underneath and closes.
-      if (onSaved) onSaved();
-      else router.back();
-    } catch {
-      setError("An unexpected error occurred. Please try again.");
+      savedDates.current = { start: startDate, end: endDate };
       setSaving(false);
+      return true;
+    } catch {
+      setError("Couldn't save that. Check your connection and try again.");
+      setSaving(false);
+      return false;
     }
+  };
+
+  // What the database holds, so a refused shortening can put the dates back.
+  const savedDates = useRef({ start: trip.start_date, end: trip.end_date });
+  // Debounced: a name is typed a letter at a time, and each letter is not a
+  // save. Dates and travellers change in one tap and save as quickly.
+  const [savedOnce, setSavedOnce] = useState(false);
+  const pending = useRef(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const persistRef = useRef(persist);
+  persistRef.current = persist;
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) { first.current = false; return; }
+    pending.current = true;
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(async () => {
+      pending.current = false;
+      if (await persistRef.current()) setSavedOnce(true);
+    }, 700);
+  }, [title, destination, partySize, startDate, endDate]);
+  // The overlay can also close from outside — a swipe down, Escape, the
+  // backdrop — without going through dismiss. Whatever is still waiting is
+  // sent on the way out rather than dropped.
+  useEffect(() => () => {
+    if (!pending.current) return;
+    if (timer.current) clearTimeout(timer.current);
+    pending.current = false;
+    void persistRef.current();
+  }, []);
+  const everSaved = useRef(false);
+  everSaved.current = savedOnce;
+  flushRef.current = async () => {
+    if (pending.current) {
+      if (timer.current) clearTimeout(timer.current);
+      pending.current = false;
+      const ok = await persistRef.current();
+      if (!ok) return everSaved.current;
+      return true;
+    }
+    return everSaved.current;
   };
 
   const handleArchive = async () => {
@@ -547,13 +611,14 @@ export default function TripSettingsClient({
         <span className="absolute left-0 right-0 text-center text-[16px] font-semibold text-gray-900 pointer-events-none">
           Settings
         </span>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="absolute right-1 px-3 h-11 text-[15px] font-semibold text-[#1A1A2E] disabled:opacity-40 transition-opacity"
+        {/* No Save button: every field saves itself. This says it did. */}
+        <span
+          className="absolute right-3 text-[12.5px] pointer-events-none"
+          style={{ color: "rgba(26,26,46,0.55)" }}
+          aria-live="polite"
         >
-          {saving ? "Saving…" : "Save"}
-        </button>
+          {saving ? "Saving…" : savedOnce && !error && !warning ? "Saved ✓" : ""}
+        </span>
       </div>
 
       {/* Scrollable content. pb-24 in the overlay is the phone keyboard's room

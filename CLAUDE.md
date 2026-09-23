@@ -1363,3 +1363,9 @@ the component mounted and you are looking at throttling, not a broken map.
   Share & settings. Guests: Notes, Bookings. `AppMenu.test.tsx` pins both lists.
 - The Map has one search for owners (the place search); the header glyph stays for guests only.
 - Render tests that load `@phosphor-icons/react` under jsdom hang for minutes — mock the icons.
+- **Budget and Settings save as you go** (no Save button, 23 Sep 2026). A debounced effect
+  (700 ms) writes after edits stop; the × / back path flushes what is pending first; an unmount
+  cleanup sends anything still waiting when the overlay is closed from outside (Escape, swipe).
+  Don't bring a Save button back — × used to discard every edit silently. Settings' day
+  writes are now checked; a refused shortening puts the dates back. Tests:
+  `EstimateClient.test.tsx`, `TripSettingsClient.test.tsx`.

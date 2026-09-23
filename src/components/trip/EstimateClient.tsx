@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CaretLeft, CaretDown, Check, X } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
@@ -307,8 +307,11 @@ export default function EstimateClient({
   // the Total are the screen; the nine lines with their fields are a tap away
   // (Brennan, 15 Sept 2026: "the budget should open with all fields collapsed").
   const [open, setOpen] = useState({ standard: false, additional: false });
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  // Saves as you go (audit, 23 Sep 2026). There was a Save button, and
+  // closing with × threw every change away without a word — the only screen
+  // in Roam that worked that way. Every edit now writes itself a moment after
+  // it stops, and closing sends anything still waiting.
+  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   // The exchange rate, and whether the Excursions figure was typed by hand.
   // Saved untouched, the line is saved as 0 — which the loader reads as
   // "nothing typed", so the cards' sum keeps flowing through on every open
@@ -331,7 +334,6 @@ export default function EstimateClient({
     const people = raw.trim() === "" ? 0 : Math.max(0, Math.floor(Number(raw)));
     if (Number.isNaN(people)) return;
     setItems((prev) => prev.map((x) => (x.cardId === cardId ? { ...x, people } : x)));
-    setSaved(false);
   };
   // Who pays on this card. Written to details.cost_people; the loader reads
   // it back as the row's headcount and rolls the line at that count.
@@ -354,7 +356,6 @@ export default function EstimateClient({
     const amount = raw.trim() === "" ? null : Number(raw);
     if (amount !== null && Number.isNaN(amount)) return;
     setItems((prev) => prev.map((x) => (x.cardId === cardId ? { ...x, amount } : x)));
-    setSaved(false);
   };
   // Takes the value from the field itself, not from state: a blur that lands
   // in the same tick as the last keystroke would otherwise read the old row.
@@ -399,7 +400,6 @@ export default function EstimateClient({
     if (key === "excursionsTotal") setExcursionsTyped(true);
     setA((p) => ({ ...p, [key]: v }));
     setPrev(null); // editing by hand ends the undo window
-    setSaved(false);
   }, []);
 
   const emptyKeys = FILLS.filter(([k]) => a[k] === 0);
@@ -442,7 +442,6 @@ export default function EstimateClient({
       const guessN = byId.size - foundN;
       toast({ message: `${byId.size} ${byId.size === 1 ? "price" : "prices"} added${foundN ? `, ${foundN} found online` : ""}${guessN ? `, ${guessN} ${guessN === 1 ? "guess" : "guesses"}` : ""}.${remaining > 0 ? ` ${remaining} still to look up — tap Budget again.` : ""}` });
       setWhy(true);
-      setSaved(false);
     } catch {
       toast({ message: "Couldn't look prices up just now. Try again." });
     } finally {
@@ -475,7 +474,6 @@ export default function EstimateClient({
     setA(next);
     setBasis({ ...basis, ...added });
     setWhy(true);
-    setSaved(false);
   };
 
   // Clear every price at once, counts untouched. Without this, blanking the
@@ -493,7 +491,6 @@ export default function EstimateClient({
     setPrev({ a, basis });
     setA(next);
     setBasis({});
-    setSaved(false);
   };
 
   const undo = () => {
@@ -501,21 +498,23 @@ export default function EstimateClient({
     setA(prev.a);
     setBasis(prev.basis);
     setPrev(null);
-    setSaved(false);
   };
 
   const toggle = useCallback((key: keyof Assumptions) => {
     setA((p) => ({ ...p, [key]: !p[key] }));
-    setSaved(false);
   }, []);
 
-  const save = async () => {
-    setSaving(true);
+  const persist = async (): Promise<boolean> => {
+    setStatus("saving");
     const supabase = createClient();
+    // The stored session: this runs on every edit and must not need the network
+    // just to learn who is signed in.
     const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (user) {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const user = session?.user;
+    if (!user) { setStatus("error"); return false; }
+    {
       const { error } = await supabase.from("trip_budgets").upsert(
         {
           trip_id: tripId,
@@ -534,13 +533,47 @@ export default function EstimateClient({
       // "Saved" used to light before the server answered (UX audit, Sep
       // 2026, finding 1). It lights on success only; a refusal says so.
       if (error) {
-        toast({ message: "Couldn't save the estimate. Try again." });
-      } else {
-        setSaved(true);
-        router.refresh();
+        setStatus("error");
+        return false;
       }
+      setStatus("saved");
+      wrote.current = true;
+      return true;
     }
-    setSaving(false);
+  };
+
+  const wrote = useRef(false);
+  const pending = useRef(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const persistRef = useRef(persist);
+  persistRef.current = persist;
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) { first.current = false; return; }
+    pending.current = true;
+    setStatus("saving");
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      pending.current = false;
+      void persistRef.current();
+    }, 700);
+  }, [a, basis, fx, fxTyped, excursionsTyped]);
+  // Closed from outside (Escape, a swipe, the backdrop): send what is waiting.
+  useEffect(() => () => {
+    if (!pending.current) return;
+    if (timer.current) clearTimeout(timer.current);
+    pending.current = false;
+    void persistRef.current();
+  }, []);
+  const close = async () => {
+    if (pending.current) {
+      if (timer.current) clearTimeout(timer.current);
+      pending.current = false;
+      await persistRef.current();
+    }
+    if (wrote.current) router.refresh();
+    if (onDismiss) onDismiss();
+    else router.back();
   };
 
   const standard = est.lines.filter((l) => l.group === "standard");
@@ -577,7 +610,7 @@ export default function EstimateClient({
         }
       >
         <button
-          onClick={() => (onDismiss ? onDismiss() : router.back())}
+          onClick={() => void close()}
           className="flex items-center gap-1 mb-5 px-1"
           style={{ color: CAPTION, fontSize: 13 }}
         >
@@ -949,7 +982,7 @@ export default function EstimateClient({
                     value={fx}
                     onChange={(e) => {
                       const v = Number(e.target.value);
-                      if (!Number.isNaN(v)) { setFx(v); setFxTyped(true); setSaved(false); }
+                      if (!Number.isNaN(v)) { setFx(v); setFxTyped(true); }
                     }}
                     aria-label="Exchange rate to the dollar"
                     className="w-[64px] rounded-full px-2 py-1 text-[12.5px] text-right"
@@ -964,7 +997,7 @@ export default function EstimateClient({
                           ? `dollars per ${cardCurrency === "EUR" ? "euro" : cardCurrency}, the ${fxReferenceMonth ?? "reference"} rate (today's couldn't be fetched). `
                           : `dollars per ${cardCurrency === "EUR" ? "euro" : cardCurrency}, the last rate saved here. `}
                     {fxTyped ? (
-                      <button type="button" className="underline underline-offset-2" onClick={() => { setFxTyped(false); setFx(fxToCad); setSaved(false); }}>
+                      <button type="button" className="underline underline-offset-2" onClick={() => { setFxTyped(false); setFx(fxToCad); }}>
                         use today&rsquo;s rate
                       </button>
                     ) : "Type one to lock it."}
@@ -1010,19 +1043,19 @@ export default function EstimateClient({
           </button>
         )}
 
-        <button
-          onClick={save}
-          disabled={saving}
-          className="w-full rounded-full py-3.5 text-[14px] flex items-center justify-center gap-2 mt-3"
-          style={
-            emptyKeys.length === FILLS.length
-              ? { border: `1px solid rgba(26,26,46,0.22)`, color: INK, opacity: saving ? 0.6 : 1 }
-              : { background: INK, color: "#fff", opacity: saving ? 0.6 : 1 }
-          }
-        >
-          {saved && <Check size={14} weight="light" />}
-          {saving ? "Saving…" : saved ? "Saved" : "Save"}
-        </button>
+        {/* No Save button: every change saves itself. One quiet line says so,
+            and a failure offers the retry instead of a silent loss. */}
+        <p className="text-center text-[12.5px] mt-4 flex items-center justify-center gap-1.5" style={{ color: CAPTION }} aria-live="polite">
+          {status === "saving" && "Saving…"}
+          {status === "saved" && (<><Check size={13} weight="light" /> Saved</>)}
+          {status === "error" && (
+            <>
+              <span style={{ color: SIENNA }}>Couldn&apos;t save.</span>
+              <button type="button" className="underline underline-offset-2" onClick={() => void persistRef.current()}>Try again</button>
+            </>
+          )}
+          {status === "idle" && "Changes save as you type."}
+        </p>
       </div>
     </div>
   );
