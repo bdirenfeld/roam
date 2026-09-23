@@ -14,28 +14,40 @@
 // badge), so this cannot repeat the hydration failure the settings page had.
 
 import { useEffect, useRef, useState } from "react";
-import { isSameLocalDay } from "@/lib/isSameLocalDay";
+import { isSameLocalDay, isBeforeLocalDay } from "@/lib/isSameLocalDay";
 
 export default function DayHeading({
   date,
   label,
   title,
+  firstDay = false,
 }: {
   date: string;      // "YYYY-MM-DD"
   label: string;     // "Thursday 19 August"
   title: string | null;
+  /** The journey's first day: opened on arrival while the trip is still ahead. */
+  firstDay?: boolean;
 }) {
   const [isToday, setIsToday] = useState(false);
   const ref = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    if (!isSameLocalDay(date)) return;
+    // Days are folded. Landing on today's heading and leaving it shut cost a
+    // tap on the one day that matters, so today opens itself — and before the
+    // trip starts, day one does (no scroll: the header is the right place to
+    // start reading then). After the trip, nothing opens.
+    const open = () => ref.current?.closest("details")?.setAttribute("open", "");
 
-    setIsToday(true);
-    // Jump, never glide: a smooth scroll through eleven days of itinerary is a
-    // long animation to watch before you can read anything.
-    ref.current?.scrollIntoView({ block: "start", behavior: "auto" });
-  }, [date]);
+    if (isSameLocalDay(date)) {
+      setIsToday(true);
+      open();
+      // Jump, never glide: a smooth scroll through eleven days of itinerary is
+      // a long animation to watch before you can read anything.
+      ref.current?.scrollIntoView({ block: "start", behavior: "auto" });
+      return;
+    }
+    if (firstDay && isBeforeLocalDay(date)) open();
+  }, [date, firstDay]);
 
   return (
     <header ref={ref} style={{ scrollMarginTop: 16 }}>

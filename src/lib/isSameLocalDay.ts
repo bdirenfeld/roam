@@ -21,3 +21,9 @@ export function localDate(now: Date): string {
 export function isSameLocalDay(date: string, now: Date = new Date()): boolean {
   return localDate(now) === date;
 }
+
+/** Is this "YYYY-MM-DD" still ahead of `now`, in the reader's own timezone?
+ *  ISO dates compare correctly as strings. */
+export function isBeforeLocalDay(date: string, now: Date = new Date()): boolean {
+  return localDate(now) < date;
+}

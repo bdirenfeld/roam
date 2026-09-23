@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isSameLocalDay, localDate } from "./isSameLocalDay";
+import { isSameLocalDay, isBeforeLocalDay, localDate } from "./isSameLocalDay";
 
 /**
  * Runs at TZ=America/Toronto (vitest.config.ts). That is not incidental: on a
@@ -56,5 +56,14 @@ describe("isSameLocalDay", () => {
 
   it("returns false for a date outside the journey", () => {
     expect(isSameLocalDay("2027-08-19", new Date(2026, 7, 19, 12, 0))).toBe(false);
+  });
+});
+
+describe("isBeforeLocalDay", () => {
+  it("is true while the trip is still ahead, false on the day and after", () => {
+    const now = new Date(2026, 8, 23, 21, 30); // 9:30 PM on 23 Sep, already 24 Sep in UTC
+    expect(isBeforeLocalDay("2026-09-24", now)).toBe(true);
+    expect(isBeforeLocalDay("2026-09-23", now)).toBe(false);
+    expect(isBeforeLocalDay("2026-09-22", now)).toBe(false);
   });
 });

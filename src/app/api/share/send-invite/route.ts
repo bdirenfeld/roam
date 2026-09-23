@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createShareLink } from "@/lib/share-actions";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { inviteLines } from "@/lib/shareCopy";
 
 /**
  * Send a journey invite by email.
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
   // ownership check — a guest gets no row and no invite.
   const { data: trip } = await supabase
     .from("trips")
-    .select("id, title, share_token")
+    .select("id, title, share_token, start_date, end_date")
     .eq("id", tripId)
     .single();
   if (!trip) return NextResponse.json({ error: "Journey not found" }, { status: 404 });
@@ -78,6 +79,7 @@ export async function POST(request: NextRequest) {
     user.email ??
     "Someone";
   const journey = trip.title ?? "a journey";
+  const copy = inviteLines(senderName, journey, trip.start_date, trip.end_date);
 
   try {
     const res = await fetch("https://api.resend.com/emails", {
@@ -90,15 +92,12 @@ export async function POST(request: NextRequest) {
         from,
         to: [email],
         reply_to: user.email ?? undefined,
-        subject: `${senderName} shared “${journey}” with you`,
-        text:
-          `${senderName} shared a journey with you on Roam.\n\n` +
-          `${journey}\n${url}\n\n` +
-          `Open the link and sign in to see the plan — the days, the map, the places.\n`,
+        subject: copy.subject,
+        text: `${copy.lead}\n\n${url}\n\n${copy.how}\n\n— ${senderName}, via Roam\n`,
         html:
           `<div style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:#1A1A2E;line-height:1.6">` +
-          `<p>${escapeHtml(senderName)} shared a journey with you on Roam.</p>` +
-          `<p style="font-size:19px;font-style:italic;margin:18px 0 6px">${escapeHtml(journey)}</p>` +
+          `<p style="font-size:17px;margin:0 0 6px">${escapeHtml(copy.lead)}</p>` +
+          `<p style="color:rgba(26,26,46,.7);margin:0 0 16px">${escapeHtml(copy.how)}</p>` +
           `<p><a href="${url}" style="display:inline-block;background:#1A1A2E;color:#F5F4F1;` +
           `padding:10px 18px;border-radius:999px;text-decoration:none;font-weight:600">See the plan</a></p>` +
           `<p style="color:rgba(26,26,46,.55);font-size:13px">Or open: ${url}</p>` +

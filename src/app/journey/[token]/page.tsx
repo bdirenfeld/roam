@@ -2,15 +2,45 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
-import ClaimSignIn from "./ClaimSignIn";
 import SharedItinerary, { type SharedCard, type SharedDay, type SharedEntryLine } from "./SharedItinerary";
 import { cachedPhotoUrl } from "@/lib/places/photoCache";
 import { agendaOrder } from "@/lib/agendaOrder";
 import { cardTimes } from "@/lib/cardTime";
+import { stopExtras, tonightByDay, guestSafeCover } from "@/lib/sharedItinerary";
+import type { Metadata, Viewport } from "next";
 
 // Rendered per request, never cached: opening the link always shows the plan
 // as it stands right now.
 export const dynamic = "force-dynamic";
+
+// Pinch-zoom back on for this page. The app blocks it everywhere (layout.tsx),
+// which is a fair call inside the planner; this page is read by grandparents
+// on phones, and 10–12px type with no zoom is a wall.
+export const viewport: Viewport = { width: "device-width", initialScale: 1, maximumScale: 5 };
+
+// The preview a link unfurls into in WhatsApp or Messages. It said "Roam —
+// Your personal travel itinerary" for every journey; now it names the trip.
+export async function generateMetadata({ params }: { params: Promise<{ token: string }> }): Promise<Metadata> {
+  const { token } = await params;
+  const shareToken = token?.trim();
+  if (!shareToken) return { title: "Roam" };
+  const admin = createAdminClient();
+  const { data: t } = await admin
+    .from("trips")
+    .select("title, start_date, end_date, cover_image_url")
+    .eq("share_token", shareToken)
+    .maybeSingle();
+  if (!t) return { title: "Roam" };
+  const fmt = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  const dates = t.start_date && t.end_date ? `${fmt(t.start_date as string)} – ${fmt(t.end_date as string)}` : null;
+  const title = [t.title as string, dates].filter(Boolean).join(" · ");
+  const cover = guestSafeCover(t.cover_image_url as string | null);
+  return {
+    title,
+    description: "The plan, day by day. No account needed.",
+    openGraph: { title, description: "The plan, day by day. No account needed.", ...(cover ? { images: [cover] } : {}) },
+  };
+}
 
 interface Props {
   params: Promise<{ token: string }>;
@@ -83,7 +113,10 @@ export default async function ClaimPage({ params, searchParams }: Props) {
       .select("id, title, destination, start_date, end_date, cover_image_url, user_id, accommodation_name, accommodation_address")
       .eq("share_token", shareToken)
       .maybeSingle();
-    if (!t) return <ClaimSignIn token={shareToken} invite={null} />;
+    // A dead, revoked or mistyped link says so. It used to show "You're
+    // invited to a journey — Continue with Google", which sent people round a
+    // sign-in that could only end at this same screen.
+    if (!t) return <InvitationUnavailable />;
 
     let host: string | null = null;
     if (t.user_id) {
@@ -140,19 +173,32 @@ export default async function ClaimPage({ params, searchParams }: Props) {
           }
         : null;
 
-    const days: SharedDay[] = (dayRows ?? []).map((d) => ({
-      id: d.id as string,
-      date: d.date as string,
-      dayNumber: d.day_number as number,
-      title: ((d.theme as string | null) || (d.day_name as string | null)) ?? null,
-    }));
-
     type Row = {
       id: string; day_id: string | null; start_time: string | null; end_time: string | null;
       position: number | null; details: Record<string, unknown> | null;
       place: { title: string | null; sub_type: string | null; address: string | null; photo_cache: unknown } | null;
     };
-    const cards: SharedCard[] = ((cardRows ?? []) as unknown as Row[])
+    const rows = (cardRows ?? []) as unknown as Row[];
+
+    // Where everyone sleeps, day by day, from the hotel cards — the same cards
+    // the owner's day map pins. The single "Where we're staying" line it
+    // replaces was blank on New York (its hotel is only a card) and could not
+    // say that Rome moves hotels on day 3.
+    const hotels = rows
+      .filter((c) => c.place?.sub_type === "hotel")
+      .map((c) => ({ dayId: c.day_id, name: c.place?.title ?? null, address: c.place?.address ?? null }));
+    const baseDays = (dayRows ?? []).map((d) => ({ id: d.id as string, dayNumber: d.day_number as number }));
+    const tonight = tonightByDay(baseDays, hotels, staying);
+
+    const days: SharedDay[] = (dayRows ?? []).map((d) => ({
+      id: d.id as string,
+      date: d.date as string,
+      dayNumber: d.day_number as number,
+      title: ((d.theme as string | null) || (d.day_name as string | null)) ?? null,
+      tonight: tonight.get(d.id as string) ?? null,
+    }));
+
+    const cards: SharedCard[] = rows
       // The same rule the owner's agenda uses, from the same function. Sorting
       // on raw start_time here put Rome's overnight flight at the bottom of the
       // day it lands on for every guest, while the owner saw it at the top.
@@ -172,6 +218,11 @@ export default async function ClaimPage({ params, searchParams }: Props) {
         // owner got the explanation (Brennan, Sept 2026 — the Costa Rica
         // problem: "everyone was asking me the same questions every day").
         note: typeof c.details?.notes === "string" ? (c.details.notes as string) : null,
+        // Where to meet, what to bring, what to do before leaving — written on
+        // the card by the organiser and, until 23 Sep 2026, never shown here.
+        // New York's "sign the Sloomoo waiver before you leave the hotel" was
+        // invisible to the three people it was written for.
+        extras: stopExtras(c.details),
         place: c.place
           ? {
               title: c.place.title,
@@ -192,9 +243,8 @@ export default async function ClaimPage({ params, searchParams }: Props) {
           destination: (t.destination as string | null) ?? null,
           startDate: (t.start_date as string | null) ?? null,
           endDate: (t.end_date as string | null) ?? null,
-          cover: (t.cover_image_url as string | null) ?? null,
+          cover: guestSafeCover(t.cover_image_url as string | null),
           host,
-          staying,
           entry,
           days,
           cards,

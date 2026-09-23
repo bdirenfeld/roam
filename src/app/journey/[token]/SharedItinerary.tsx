@@ -23,6 +23,7 @@ import { plainNote } from "@/lib/plainNote";
 import DayHeading from "./DayHeading";
 import RefreshOnFocus from "./RefreshOnFocus";
 import JoinButton from "./JoinButton";
+import type { StopExtra, Stay } from "@/lib/sharedItinerary";
 
 const INK = "#1A1A2E";
 const CAPTION = "rgba(26,26,46,0.62)";
@@ -42,12 +43,15 @@ export interface SharedCard {
   place: SharedPlace | null;
   noteTitle: string | null;
   note: string | null;
+  extras: StopExtra[];
 }
 export interface SharedDay {
   id: string;
   date: string;
   dayNumber: number;
   title: string | null;
+  /** Where everyone sleeps that night; null on the leaving day. */
+  tonight: Stay | null;
 }
 export interface SharedEntryLine {
   label: string;
@@ -60,7 +64,6 @@ export interface SharedJourney {
   endDate: string | null;
   cover: string | null;
   host: string | null;
-  staying: { name: string | null; address: string | null } | null;
   entry: SharedEntryLine[];
   days: SharedDay[];
   cards: SharedCard[];
@@ -165,7 +168,7 @@ export default function SharedItinerary({
           </a>
         </p>
 
-        {(journey.staying || journey.entry.length > 0) && (
+        {journey.entry.length > 0 && (
           // Above the plan, not inside it: these are true on every day of the
           // trip, so burying them on day one would just move the question.
           <section
@@ -175,31 +178,9 @@ export default function SharedItinerary({
             <h2 className="text-[10px] uppercase" style={{ letterSpacing: "0.14em", color: "rgba(26,26,46,0.5)" }}>
               Good to know
             </h2>
-            <dl className="mt-3 flex flex-col gap-3">
-              {journey.staying && (
-                <div>
-                  <dt className="text-[10px] uppercase" style={{ letterSpacing: "0.07em", color: "rgba(26,26,46,0.5)" }}>
-                    Where we&rsquo;re staying
-                  </dt>
-                  <dd className="text-[13.5px] mt-[3px] leading-[1.45] m-0">
-                    {journey.staying.address ? (
-                      <a
-                        href={mapsHref(journey.staying.name, journey.staying.address)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="underline underline-offset-2"
-                        style={{ textDecorationColor: "rgba(26,26,46,0.25)" }}
-                      >
-                        {[journey.staying.name, journey.staying.address].filter(Boolean).join(" — ")}
-                      </a>
-                    ) : (
-                      journey.staying.name
-                    )}
-                  </dd>
-                </div>
-              )}
-            </dl>
-
+            {/* "Where we're staying" used to sit here as one line for the
+                whole trip. It now reads "Tonight: …" under each day, from that
+                day's hotel card (lib/sharedItinerary.ts, 23 Sep 2026). */}
             {journey.entry.length > 0 && (
               // Folded, because entry rules get read once before the trip and
               // never again, while the plan is read every day. Open, Tuscany's
@@ -207,15 +188,20 @@ export default function SharedItinerary({
               // to 902px — past the fold on a phone, which only swaps one
               // missing answer for another (measured on the live page).
               // <details> so it needs no JavaScript and no session.
-              <details className="mt-3">
+              <details className="mt-1 group/entry">
+                {/* A real tap target with a sign that it opens: it was bare
+                    13px text, about 18px tall, with nothing saying it folds. */}
                 <summary
-                  className="text-[13px] cursor-pointer list-none marker:content-none"
-                  style={{ color: "rgba(26,26,46,0.62)" }}
+                  className="text-[13.5px] cursor-pointer list-none marker:content-none flex items-center justify-between min-h-[44px]"
+                  style={{ color: INK }}
                 >
-                  What you need to get in
-                  <span className="ml-1.5" style={{ color: "rgba(26,26,46,0.4)" }}>
-                    ({journey.entry.length})
+                  <span>
+                    What you need to get in
+                    <span className="ml-1.5" style={{ color: "rgba(26,26,46,0.5)" }}>
+                      ({journey.entry.length})
+                    </span>
                   </span>
+                  <span aria-hidden="true" className="transition-transform group-open/entry:rotate-90" style={{ color: "rgba(26,26,46,0.45)" }}>›</span>
                 </summary>
                 <dl className="mt-3 flex flex-col gap-3">
               {journey.entry.map((line) => (
@@ -238,9 +224,10 @@ export default function SharedItinerary({
           </p>
         ) : (
           <div className="mt-8">
-            {journey.days.map((day) => {
+            {journey.days.map((day, i) => {
               const cards = byDay.get(day.id) ?? [];
-              if (cards.length === 0) return null;
+              // An empty day is shown, not skipped: skipping it made the dates
+              // jump, and on an empty "today" there was no Today to land on.
               return (
                 // Folded by default. Twelve days of an eleven-night journey ran
                 // to fifty cards on one page and Brennan's read of it was "too
@@ -254,16 +241,42 @@ export default function SharedItinerary({
                     style={{ borderBottom: `1px solid ${RULE}` }}
                   >
                     <div className="flex-1 min-w-0">
-                      <DayHeading date={day.date} label={longDate(day.date)} title={day.title} />
+                      <DayHeading
+                        date={day.date}
+                        label={longDate(day.date)}
+                        title={day.title}
+                        firstDay={i === 0}
+                      />
                     </div>
                     <span
                       className="shrink-0 text-[11px] tabular-nums"
                       style={{ color: "rgba(26,26,46,0.45)" }}
                     >
-                      {cards.length}
+                      {cards.length > 0 ? cards.length : ""}
                     </span>
                   </summary>
                   <div className="mt-3 mb-6">
+                    {day.tonight && (day.tonight.name || day.tonight.address) && (
+                      // Where everyone sleeps tonight — the question asked most
+                      // on any family trip. Tappable into the reader's maps app.
+                      <p className="text-[13px] mb-1 leading-[1.45]" style={{ color: CAPTION }}>
+                        Tonight:{" "}
+                        <a
+                          href={mapsHref(day.tonight.name, day.tonight.address ?? journey.destination ?? "")}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline underline-offset-2"
+                          style={{ color: INK, textDecorationColor: "rgba(26,26,46,0.25)" }}
+                        >
+                          {day.tonight.name ?? day.tonight.address}
+                        </a>
+                      </p>
+                    )}
+                    {cards.length === 0 && (
+                      <p className="text-[13.5px] py-3" style={{ color: CAPTION }}>
+                        Nothing planned — a free day.
+                      </p>
+                    )}
                     {cards.map((c) => {
                       const when = formatTimeRange(c.start, c.end);
                       const name = c.place?.title ?? c.noteTitle ?? "Something planned";
@@ -272,8 +285,16 @@ export default function SharedItinerary({
                         <div key={c.id} className="flex gap-3 py-3.5" style={{ borderBottom: `1px solid ${RULE}` }}>
                           <div className="w-[62px] shrink-0 pt-[3px]">
                             {when && (
-                              <span className="text-[10px] uppercase" style={{ letterSpacing: "0.08em", color: "rgba(26,26,46,0.45)" }}>
+                              // Start AND end, at a size an older reader can see:
+                              // it was the start alone in 10px grey capitals, so
+                              // "when are we back?" had no answer.
+                              <span className="block text-[12.5px] leading-[1.3] tabular-nums" style={{ color: "rgba(26,26,46,0.8)" }}>
                                 {when.split(" – ")[0]}
+                                {when.split(" – ")[1] && (
+                                  <span className="block text-[11.5px]" style={{ color: "rgba(26,26,46,0.55)" }}>
+                                    to {when.split(" – ")[1]}
+                                  </span>
+                                )}
                               </span>
                             )}
                           </div>
@@ -310,6 +331,19 @@ export default function SharedItinerary({
                                 {plainNote(c.note)}
                               </p>
                             )}
+                            {c.extras.length > 0 && (
+                              // The practical lines the organiser wrote on the
+                              // card: where to meet, what to bring, what to do
+                              // before leaving. Same weight as the note.
+                              <dl className="mt-2 flex flex-col gap-1">
+                                {c.extras.map((x) => (
+                                  <div key={x.label} className="text-[12.5px] leading-[1.5]">
+                                    <dt className="inline font-medium" style={{ color: INK }}>{x.label}: </dt>
+                                    <dd className="inline m-0" style={{ color: "rgba(26,26,46,0.72)" }}>{x.text}</dd>
+                                  </div>
+                                ))}
+                              </dl>
+                            )}
                           </div>
                           {c.place?.photo && (
                             // Only a photo already cached in our own bucket: the
@@ -338,7 +372,7 @@ export default function SharedItinerary({
               ? "This is the whole of it. A guest sees the plan, your notes and what they need to get in — not the map, Bookings, Ideas, or anything they could change."
               : `This page always shows the latest plan${firstName ? ` as ${firstName} changes it` : ""}. Keep the link, or sign in and the journey lives in your app — no link needed.`}
           </p>
-          {!preview && <JoinButton token={token} label="Keep this on your phone" />}
+          {!preview && <JoinButton token={token} label="Sign in to keep it in your Roam app" />}
         </div>
       </div>
     </main>

@@ -1,7 +1,22 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { revokeWarning, revokeToast } from "./shareCopy";
+import { revokeWarning, revokeToast, inviteLines, shortRange } from "./shareCopy";
+
+describe("the invite email", () => {
+  it("names the trip and its dates, and says no account is needed", () => {
+    const c = inviteLines("Brennan Direnfeld", "Costa Rica", "2026-03-04", "2026-03-12");
+    expect(c.subject).toBe("Brennan Direnfeld shared the plan for Costa Rica");
+    expect(c.lead).toBe("Here’s the plan for Costa Rica, Mar 4–12.");
+    expect(c.how).toMatch(/no account needed/);
+    // It said "sign in to see the plan — the days, the map": no sign-in is needed.
+    expect(Object.values(c).join(" ")).not.toMatch(/sign in|map/i);
+  });
+  it("spans months, and copes with no dates", () => {
+    expect(shortRange("2027-04-30", "2027-05-03")).toBe("Apr 30 – May 3");
+    expect(inviteLines("B", "Japan").lead).toBe("Here’s the plan for Japan.");
+  });
+});
 
 describe("revoke copy says what really happens", () => {
   it("with nobody joined, the link just stops", () => {
