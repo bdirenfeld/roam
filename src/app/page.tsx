@@ -10,7 +10,11 @@ const isSupabaseConfigured =
 // visitor never sees it — they're sent to /trips, where the existing has_paid
 // gate routes unpaid users on to /checkout. The middleware exempts exactly `/`
 // from the auth bounce so logged-out visitors land here.
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ signin?: string }>;
+}) {
   if (isSupabaseConfigured) {
     const supabase = await createClient();
     const {
@@ -19,5 +23,6 @@ export default async function Home() {
     if (user) redirect("/trips");
   }
 
-  return <LandingPage />;
+  const { signin } = await searchParams;
+  return <LandingPage signInFailed={signin === "failed"} />;
 }

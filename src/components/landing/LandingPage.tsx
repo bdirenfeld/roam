@@ -48,7 +48,7 @@ const PHASES = [
   },
 ];
 
-export default function LandingPage() {
+export default function LandingPage({ signInFailed = false }: { signInFailed?: boolean }) {
   const [isPending, startTransition] = useTransition();
 
   // Front-door sign-in — no `next`; the callback defaults to /trips. There is
@@ -60,7 +60,14 @@ export default function LandingPage() {
 
   // The other door: a sign-in link by email.
   const [email, setEmail] = useState("");
-  const [emailNote, setEmailNote] = useState<string | null>(null);
+  // A sign-in that failed on the way back (an expired or already-used email
+  // link, a link opened in a different browser, a Google refusal) lands here
+  // with ?signin=failed. It used to land here saying nothing at all.
+  const [emailNote, setEmailNote] = useState<string | null>(
+    signInFailed
+      ? "That sign-in didn't work. Email links only work once, in the browser you asked from. Send a new one, or use Google."
+      : null,
+  );
   const [emailPending, setEmailPending] = useState(false);
   async function handleEmail(e: React.FormEvent) {
     e.preventDefault();
@@ -237,6 +244,12 @@ export default function LandingPage() {
             </p>
             <div style={{ marginTop: 34 }}>
               <GoogleButton skin="light" size="lg" onClick={handleSignIn} pending={isPending} />
+              {/* Email sign-in on a computer too: it was phone-only, so anyone
+                  without a Google account could not sign in from a laptop. */}
+              <div style={{ maxWidth: 400 }}>
+                {emailForm}
+                {emailNoteEl}
+              </div>
             </div>
             <div style={{ marginTop: 16 }}>
               <GuideLink color={ON_DARK_TERMS} />
