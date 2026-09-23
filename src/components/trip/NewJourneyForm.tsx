@@ -746,6 +746,17 @@ export default function NewJourneyForm({
                 }
               }}
               onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+              // Typing "Lisbon" and moving on without tapping the suggestion
+              // left "Plan this journey" grey with no reason given. Leaving the
+              // field (or pressing Enter) now takes the top suggestion, which
+              // is what the person meant nearly every time.
+              onBlur={() => { if (!destination && !loadingDetails && suggestions[0]) void handleSelectSuggestion(suggestions[0]); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !destination && suggestions[0]) {
+                  e.preventDefault();
+                  void handleSelectSuggestion(suggestions[0]);
+                }
+              }}
               placeholder="City, Country"
               autoComplete="off"
               className="flex-1 text-[14px] text-[#1A1A2E] bg-transparent outline-none placeholder:text-[rgba(26,26,46,0.4)]"

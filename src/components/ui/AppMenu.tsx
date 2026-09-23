@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   Coins,
   DotsThree,
-  Gear,
   NotePencil,
   ShareNetwork,
   Lightbulb,
@@ -209,17 +208,23 @@ export default function AppMenu({
                 </button>
               ))}
 
-              <IdeasLink
-                from={{ id: tripId, title: tripTitle ?? "Journey" }}
-                role="menuitem"
-                onBeforeOpen={() => setOpen(false)}
-                style={itemStyle}
-              >
-                <span style={glyphStyle}>
-                  <Lightbulb size={15} weight="light" />
-                </span>
-                <Label title="Ideas" />
-              </IdeasLink>
+              {/* Owner only. Ideas are a planner's captures and a guest's
+                  Ideas page is their own, empty one — a passenger tapping it
+                  inside someone else's journey landed on nothing (audit,
+                  23 Sep 2026). Ideas beside Journeys still opens it. */}
+              {owner && (
+                <IdeasLink
+                  from={{ id: tripId, title: tripTitle ?? "Journey" }}
+                  role="menuitem"
+                  onBeforeOpen={() => setOpen(false)}
+                  style={itemStyle}
+                >
+                  <span style={glyphStyle}>
+                    <Lightbulb size={15} weight="light" />
+                  </span>
+                  <Label title="Ideas" />
+                </IdeasLink>
+              )}
 
               {/* Where to stay lives over the Map: the candidates are pins
                   against the pins the person chose. The row is a plain link
@@ -239,10 +244,10 @@ export default function AppMenu({
                 </Link>
               )}
 
-              {/* Sharing lives in one place — the block in Settings with the
-                  email field, the link and who has it. This row opens it
-                  there, scrolled to it. The sheet it used to open was a
-                  second copy of the same fields (Brennan, Sep 2026). */}
+              {/* Share and Settings were two rows opening the same screen —
+                  sharing lives in one block inside Settings. One row now, opened
+                  at the Share block; the settings are just above it. That puts
+                  the menu back at six rows (audit, 23 Sep 2026). */}
               {owner && (
                 <TripSettingsLink
                   tripId={tripId}
@@ -250,34 +255,14 @@ export default function AppMenu({
                   trip={trip}
                   days={days}
                   role="menuitem"
-                  ariaLabel="Share"
+                  ariaLabel="Share & settings"
                   onBeforeOpen={() => setOpen(false)}
                   style={itemStyle}
                 >
                   <span style={glyphStyle}>
                     <ShareNetwork size={15} weight="light" />
                   </span>
-                  <Label title="Share" />
-                </TripSettingsLink>
-              )}
-
-              {/* Settings used to sit in the profile dropdown on desktop and in
-                  this menu on a phone — the same screen behind two different
-                  doors depending on the width. It belongs with the journey. */}
-              {owner && (
-                <TripSettingsLink
-                  tripId={tripId}
-                  trip={trip}
-                  days={days}
-                  role="menuitem"
-                  ariaLabel="Settings"
-                  onBeforeOpen={() => setOpen(false)}
-                  style={itemStyle}
-                >
-                  <span style={glyphStyle}>
-                    <Gear size={15} weight="light" />
-                  </span>
-                  <Label title="Settings" />
+                  <Label title="Share & settings" />
                 </TripSettingsLink>
               )}
             </>

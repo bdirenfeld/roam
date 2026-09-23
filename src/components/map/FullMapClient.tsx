@@ -815,7 +815,11 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
           absolute
           backHref={`/trips/${trip.id}`}
           title={trip.title}
-          onSearch={() => search.open()}
+          // One search on the Map. The owner has the place search right below,
+          // which finds anything; a second glyph that searched only saved
+          // things sat on top of it and found no restaurants (audit, 23 Sep
+          // 2026). Guests have no place search, so they keep the glyph.
+          onSearch={readOnly ? () => search.open() : undefined}
           menu={
             <AppMenu
               variant="mobile"

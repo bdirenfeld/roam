@@ -13,6 +13,9 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 const DISMISS_KEY = "roam_install_banner_v2";
+const FIRST_SEEN_KEY = "roam_first_seen";
+/** A "coming back" is at least a few hours after the first look. */
+const RETURN_AFTER_MS = 4 * 60 * 60 * 1000;
 
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -42,6 +45,18 @@ export default function InstallBanner() {
   useEffect(() => {
     try { if (localStorage.getItem(DISMISS_KEY)) return; } catch { /* private mode */ }
     if (isStandalone()) return;
+    // Not on the very first visit. On iPhone it popped up on the first screen
+    // a new person ever saw and sat over "Add a place" before they had done
+    // anything (audit, 23 Sep 2026). Asking someone to install an app is for
+    // when they have come back — the second visit onward.
+    try {
+      if (!localStorage.getItem(FIRST_SEEN_KEY)) {
+        localStorage.setItem(FIRST_SEEN_KEY, String(Date.now()));
+        return;
+      }
+      const first = Number(localStorage.getItem(FIRST_SEEN_KEY));
+      if (Date.now() - first < RETURN_AFTER_MS) return;
+    } catch { /* private mode: storage throws, so never nag */ return; }
     if (isIosSafari()) { setMode("ios"); return; }
     const onPrompt = (e: Event) => {
       e.preventDefault();

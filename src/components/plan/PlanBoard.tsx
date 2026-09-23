@@ -1266,9 +1266,8 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
     mobileMinIdx,
     Math.min(mobileDayIdx, Math.max(0, days.length - 1)),
   );
-  // 0…n−1 is a list; n is the add-a-list pane; below zero is a day.
-  const mobileSlot = safeMobileIdx + lists.length + 1;
-  const currentMobileList = safeMobileIdx < 0 ? lists[mobileSlot] : undefined;
+  // The index can no longer go below zero (mobileMinIdx), so the list slots
+  // it once addressed are unreachable; their last reader was the dot row.
   const currentMobileDay = safeMobileIdx < 0 ? undefined : days[safeMobileIdx];
 
   const boardBgStyle: React.CSSProperties =
@@ -1365,7 +1364,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
               onDragEnd={handleMobileDragEnd}
               onDragCancel={handleDragCancel}
             >
-              {/* Day navigation header + dots — sticky on mobile */}
+              {/* Day navigation header — sticky on mobile */}
               <div className="sticky top-0 z-20 bg-white flex-shrink-0">
                 <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
                   <button
@@ -1410,29 +1409,10 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
                     {currentMobileDay.theme}
                   </p>
                 )}
-                {days.length > 1 && (
-                  <div className="flex items-center justify-center gap-1.5 py-1 bg-white">
-                    {/* One dot per day. The leading dots for lists and their
-                        composer went with lists themselves. */}
-                    {lists.map((list, i) => (
-                      <button
-                        key={list.id}
-                        onClick={() => setMobileDayIdx(mobileMinIdx + i)}
-                        aria-label={list.title}
-                        className={`rounded-full transition-all duration-200 ${
-                          currentMobileList?.id === list.id ? "w-4 h-1.5 bg-gray-600" : "w-1.5 h-1.5 bg-gray-300"
-                        }`}
-                      />
-                    ))}
-                    {days.map((_, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setMobileDayIdx(i)}
-                        className={`rounded-full transition-all duration-200 ${i === safeMobileIdx ? "w-4 h-1.5 bg-gray-600" : "w-1.5 h-1.5 bg-gray-300"}`}
-                      />
-                    ))}
-                  </div>
-                )}
+                {/* The row of day dots is gone (audit, 23 Sep 2026): sixteen
+                    6-pixel targets on a sixteen-day journey, and the list dots
+                    in it pointed at day indices since lists left the board.
+                    Days are paged by the arrows, the day picker and a swipe. */}
               </div>
 
 
