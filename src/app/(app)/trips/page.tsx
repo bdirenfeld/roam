@@ -9,6 +9,8 @@ import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
 import { belongsInPastJourneys, isPastJourney } from "@/lib/tripRecency";
 import { createSampleJourney } from "@/lib/sampleTrip/actions";
 import YearView from "@/components/trips/YearView";
+import { FAMILY_DATES } from "@/lib/yearView/familyDates";
+import { isHouseholdOwner } from "@/lib/household";
 import CollapsibleSection from "@/components/trip/CollapsibleSection";
 
 export default async function TripsPage() {
@@ -109,9 +111,13 @@ export default async function TripsPage() {
                   rather than above — it answers "when should we go", which is
                   a question you sit down to ask, not something you pass on the
                   way in. Only once a journey has real dates. */}
-              {hasDatedTrips && (
+              {/* Your year is drawn from Brennan's household — his family's
+                  birthdays and his kids' school calendar — so it is his alone.
+                  Everyone else would see his children's names and dates. */}
+              {hasDatedTrips && isHouseholdOwner(user?.id) && (
                 <div className="-mx-4 md:mx-0">
                   <YearView
+                    familyDates={FAMILY_DATES}
                     trips={(trips ?? []).map((t: Trip) => ({
                       id: t.id,
                       title: t.title,

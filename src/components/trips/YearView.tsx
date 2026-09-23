@@ -19,7 +19,7 @@ import { useSheetDrag as useSharedSheetDrag } from "@/hooks/useSheetDrag";
 import Link from "next/link";
 import { NewJourneyLink } from "@/components/overlays/AppOverlays";
 import { createClient } from "@/lib/supabase/client";
-import { FAMILY_DATES } from "@/lib/yearView/familyDates";
+import type { FamilyDate } from "@/lib/yearView/familyDates";
 import { SCHOOL_CALENDAR } from "@/lib/yearView/schoolCalendar";
 import {
   computeOpenWindows,
@@ -81,6 +81,10 @@ export interface YearViewTrip {
 
 interface Props {
   trips: YearViewTrip[];
+  // Passed from the server page, never imported here: a client component ships
+  // whatever it imports to the browser, and these are Brennan's family's
+  // birthdays (see lib/household.ts).
+  familyDates: FamilyDate[];
 }
 
 const OPEN_KEY = "roam_year_view_open";
@@ -271,7 +275,7 @@ function buildCalendarCells(year: number, month: number): Array<string | null> {
   return cells;
 }
 
-export default function YearView({ trips }: Props) {
+export default function YearView({ trips, familyDates }: Props) {
   // null until mounted — the body is client-only, so localStorage and the
   // viewport width can decide the default without a hydration mismatch.
   const [openState, setOpenState] = useState<boolean | null>(null);
@@ -736,7 +740,7 @@ export default function YearView({ trips }: Props) {
   // only near-coincident diamonds (< 0.8% apart, e.g. Dylan/Gorav a day
   // apart) collapse into one.
   const birthdayGroups = useMemo(() => {
-    const occurrences = FAMILY_DATES.map((f) => {
+    const occurrences = familyDates.map((f) => {
       const inStartYear = new Date(winStart.getFullYear(), f.month - 1, f.day);
       const date =
         inStartYear >= winStart && inStartYear <= winEnd
@@ -783,7 +787,7 @@ export default function YearView({ trips }: Props) {
     }));
     // posMid is derived purely from winStart/winEnd
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [winStart, winEnd]);
+  }, [familyDates, winStart, winEnd]);
 
   // Lane grows with the deepest name stack so nothing clips
   const bdayMaxLines = Math.max(1, ...birthdayGroups.map((g) => g.members.length));

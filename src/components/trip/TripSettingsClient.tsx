@@ -19,6 +19,7 @@ export interface ShareGuest {
 }
 import { NESTED_SHEET_ATTR } from "@/components/ui/Overlay";
 import { TRAVELLERS_ENABLED } from "@/lib/featureFlags";
+import { revokeWarning, revokeToast } from "@/lib/shareCopy";
 import type { Trip, Day } from "@/types/database";
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
@@ -413,9 +414,10 @@ export default function TripSettingsClient({
     try {
       await revokeShareLink(trip.id);
       setShareToken(null);
-      setGuests([]);
+      // Guests are NOT cleared: they joined, and joining (not the link) is
+      // what lets them in. The list stays so they can still be removed.
       setConfirmRevoke(false);
-      toast({ message: "Link revoked. Nobody can open it now." });
+      toast({ message: revokeToast(guests.length) });
     } catch {
       toast({ message: "Couldn't revoke the link. Try again." });
     } finally {
@@ -766,11 +768,14 @@ export default function TripSettingsClient({
                     {linkBusy ? "Making a link…" : "Make a link"}
                   </button>
                 )}
-                {sharePath && (
+                {/* Who joined stays visible after the link is revoked: they keep
+                    access (membership, not the link, lets them in), so this is
+                    the only place left to see them or take them off. */}
+                {(sharePath || guests.length > 0) && (
                   <>
                     <span aria-hidden="true">·</span>
                     {guests.length === 0 ? (
-                      <span>Nobody has opened it yet</span>
+                      <span>No one has joined yet</span>
                     ) : (
                       guests.map((g, i) => (
                         <span key={g.userId} className="inline-flex items-center gap-1">
@@ -795,15 +800,21 @@ export default function TripSettingsClient({
                         </span>
                       ))
                     )}
-                    <span aria-hidden="true">·</span>
-                    {confirmRevoke ? (
+                    {sharePath && (
                       <>
-                        <span>Everyone loses access.</span>
-                        <button type="button" onClick={revokeLink} disabled={linkBusy} style={{ color: "#A8372B" }}>Revoke</button>
-                        <button type="button" onClick={() => setConfirmRevoke(false)}>Keep</button>
+                        <span aria-hidden="true">·</span>
+                        {confirmRevoke ? (
+                          <>
+                            {/* Say what really happens: revoking stops the link,
+                                it does not remove anyone who already joined. */}
+                            <span>{revokeWarning(guests.length)}</span>
+                            <button type="button" onClick={revokeLink} disabled={linkBusy} style={{ color: "#A8372B" }}>Revoke</button>
+                            <button type="button" onClick={() => setConfirmRevoke(false)}>Keep</button>
+                          </>
+                        ) : (
+                          <button type="button" onClick={() => setConfirmRevoke(true)} className="underline underline-offset-2">Revoke</button>
+                        )}
                       </>
-                    ) : (
-                      <button type="button" onClick={() => setConfirmRevoke(true)} className="underline underline-offset-2">Revoke</button>
                     )}
                   </>
                 )}

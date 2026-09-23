@@ -42,6 +42,7 @@ export const SCHEMA: Record<string, string[]> = {
   travel_windows: ["id", "user_id", "label", "start_date", "end_date", "created_at"],
   trip_budgets: ["trip_id", "user_id", "currency", "fx_to_cad", "assumptions", "created_at", "updated_at", "basis"],
   trip_entry: ["trip_id", "passports", "data", "changed", "checked_at", "updated_at", "hidden_headline"],
+  trip_invites: ["id", "trip_id", "email", "invited_by", "created_at", "accepted_at", "accepted_user_id"],
   trip_lists: ["id", "trip_id", "title", "position", "created_at"],
   trip_members: ["id", "trip_id", "user_id", "role", "created_at"],
   trips: ["id", "user_id", "title", "destination", "destination_lat", "destination_lng", "start_date", "end_date", "trip_purpose", "trip_type", "party_size", "party_ages", "accommodation_name", "accommodation_address", "status", "created_at", "archived", "archived_at", "cover_image_url", "share_token", "notes", "stay_nights"],
@@ -85,6 +86,7 @@ export const TRIP_CHILDREN: { table: string; column: string; onDelete: string }[
   { table: "stay_candidates", column: "trip_id", onDelete: "CASCADE" },
   { table: "trip_budgets", column: "trip_id", onDelete: "CASCADE" },
   { table: "trip_entry", column: "trip_id", onDelete: "CASCADE" },
+  { table: "trip_invites", column: "trip_id", onDelete: "CASCADE" },
   { table: "trip_lists", column: "trip_id", onDelete: "CASCADE" },
   { table: "trip_members", column: "trip_id", onDelete: "CASCADE" },
 ];

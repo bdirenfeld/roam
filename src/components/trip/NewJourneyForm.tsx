@@ -25,6 +25,7 @@ import {
   addDays,
 } from "@/lib/yearView/openWindows";
 import type { OpenWindow, TravelWindowRow } from "@/lib/yearView/openWindows";
+import { isHouseholdOwner } from "@/lib/household";
 
 const UNSPLASH_KEY = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY;
 
@@ -226,6 +227,7 @@ export default function NewJourneyForm({
   const [pickerTrips,   setPickerTrips]   = useState<PickerTrip[]>([]);
   const [pickerWindows, setPickerWindows] = useState<TravelWindowRow[]>([]);
   const [pickerReady,   setPickerReady]   = useState(false);
+  const [isOwner,       setIsOwner]       = useState(false);
   const pickerFetched = useRef(false);
 
   useEffect(() => {
@@ -234,6 +236,8 @@ export default function NewJourneyForm({
     let cancelled = false;
     (async () => {
       const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!cancelled) setIsOwner(isHouseholdOwner(session?.user?.id));
       // RLS scopes both reads to the signed-in user
       const { data: tripRows } = await supabase
         .from("trips")
@@ -271,9 +275,15 @@ export default function NewJourneyForm({
     };
   }, []);
 
+  // The school-break and PA-day chips come from Brennan's kids' school board
+  // (lib/household.ts), so only his account gets them; for anyone else they
+  // would be someone else's holidays.
   const openWindows = useMemo(
-    () => computeOpenWindows({ trips: pickerTrips, travelWindows: pickerWindows, todayD, winEnd }),
-    [pickerTrips, pickerWindows, todayD, winEnd]
+    () =>
+      isOwner
+        ? computeOpenWindows({ trips: pickerTrips, travelWindows: pickerWindows, todayD, winEnd })
+        : [],
+    [isOwner, pickerTrips, pickerWindows, todayD, winEnd]
   );
 
   // Chips: EVERY open window in the rolling year, soonest first, in a

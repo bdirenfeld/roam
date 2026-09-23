@@ -139,14 +139,30 @@ export async function POST(request: NextRequest) {
  */
 async function recordInvite(tripId: string, email: string, invitedBy: string): Promise<void> {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return;
+  // Not an upsert: the only unique index is on (trip_id, lower(email)), and an
+  // ON CONFLICT column list can never name an expression, so the upsert that
+  // lived here failed with 42P10 on every send and the table stayed empty from
+  // 19 to 23 Sep 2026. Look the row up, then update or insert — and read the
+  // error, which the upsert never did.
   try {
     const admin = createAdminClient();
-    await admin
+    const lower = email.trim().toLowerCase();
+    const { data: existing, error: readErr } = await admin
       .from("trip_invites")
-      .upsert(
-        { trip_id: tripId, email: email.trim().toLowerCase(), invited_by: invitedBy },
-        { onConflict: "trip_id,email", ignoreDuplicates: false },
-      );
+      .select("id")
+      .eq("trip_id", tripId)
+      .eq("email", lower) // always stored lower-cased; ilike would treat _ as a wildcard
+      .maybeSingle();
+    if (readErr) throw readErr;
+    const { error } = existing
+      ? await admin
+          .from("trip_invites")
+          .update({ invited_by: invitedBy, created_at: new Date().toISOString() })
+          .eq("id", existing.id)
+      : await admin
+          .from("trip_invites")
+          .insert({ trip_id: tripId, email: lower, invited_by: invitedBy });
+    if (error) throw error;
   } catch (err) {
     console.error("[Roam] Invite recorded failed (email was sent):", err);
   }
