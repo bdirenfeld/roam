@@ -1332,11 +1332,16 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 Trello shape: many small checklists in context, not one long
                 trip-level one. FIRST, not last: below the detail fields it
                 sat under a long scroll in grey and was effectively hidden.
-                A guest reads it; only the owner works it. */}
-            <CardChecklist
-              items={readChecklist(localCard.details)}
-              onSave={readOnly ? undefined : saveChecklist}
-            />
+                A guest reads it; only the owner works it.
+                A card WITHOUT one shows nothing here: the empty "Add a
+                checklist" row is an empty field, and empty fields wait behind
+                "Add details" like Recommended by (Brennan, 24 Sep 2026). */}
+            {(() => {
+              const items = readChecklist(localCard.details);
+              const has = items !== null && items.length > 0;
+              if (!has && (readOnly || !showEmptyFields)) return null;
+              return <CardChecklist items={items} onSave={readOnly ? undefined : saveChecklist} />;
+            })()}
 
             {renderDetail()}
 

@@ -127,6 +127,9 @@ The benchmark: someone opens Roam in a Centurion Lounge and the person next to t
 ## Card sheet and save sheet — click-audit conventions (Sep 2026)
 - `AddToTripSheet` pre-picks type/sub_type from `place.details.types` via `lib/places/inferType` (the bulk importer's table). A miss leaves the pills unselected; never make the pill mandatory again — it was the most-taxed tap in the app.
 - `CardBottomSheet` delete has **no confirm**: every host (PlanBoard, DayViewClient, FullMapClient) offers a 6-second undo through `onCardDelete`. A new host that mounts the sheet must provide undo or it gets an unrecoverable delete.
+- The empty "Add a checklist" row IS gated behind "Add details" (24 Sep 2026): a card with no
+  checklist shows nothing at the top; open Add details to start one. A checklist with items
+  always shows first, as before.
 - Notes and recommended-by are never gated behind "Add details" for the owner. The standalone notes row in the sheet hides itself when `showEmptyFields` is on so the detail component's own row doesn't duplicate it.
 - The full tap-count audit and remaining batches live in memory (`roam-click-audit`).
 
