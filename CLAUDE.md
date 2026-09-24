@@ -1381,7 +1381,11 @@ the component mounted and you are looking at throttling, not a broken map.
   `lib/mapDayFilter.ts` (`dimForDay`, `dayCoords`) and the fade is applied in
   `syncVisibility` so a filter change keeps it. One ink colour for every day:
   he ruled out a colour per day ("a crazy rainbow"). Hidden until the map has
-  a real pin and the first-visit card is gone, because that card sits at 64px.
+  a real pin — and gated on NOTHING else. The first-visit card renders only
+  when there are no pins, so they never meet; gating on its `showHint` flag
+  hid the strip on his phone (never dismissed) and not on mine (24 Sep 2026).
+- Mapbox rewrites the marker WRAPPER's `style.opacity` on every move (its
+  occlusion feature). Fade or tint the inner disc, never the wrapper.
 - The two mockups behind this: v1 (map panel beside the board)
   https://claude.ai/artifact/DE5bmYwsecEX2JKED1yiDv and v2 (map as the board,
   routes with drive time) https://claude.ai/artifact/9AMo3rmPwd9toZbHG65d5h —
