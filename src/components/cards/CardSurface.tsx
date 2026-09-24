@@ -109,7 +109,10 @@ function noteLead(det: Record<string, unknown> | null): string | null {
  * photograph is used. The app already had those pictures and the agenda was
  * throwing them away for an identical grey placeholder.
  */
-export default function CardSurface({ card, dayDate, onTap, isHighlighted, onToggleConfirmed, onTimeTap, pinIndex }: Props) {
+// Row E (Brennan, 24 Sep 2026): the rail is the time and nothing else. The
+// pin number is not drawn on the row any more — the map pins keep it, and a
+// pin tap lifts its row. `pinIndex` stays in Props so callers need not change.
+export default function CardSurface({ card, dayDate, onTap, isHighlighted, onToggleConfirmed, onTimeTap }: Props) {
   const place     = card.place;
   const det       = card.details as Record<string, unknown> | null;
   const subLabel  = subTypeLabel(place?.sub_type);
@@ -132,8 +135,11 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
   const detail = isFlight
     ? flightRoute(det, timeRange)
     : place
-      ? [subLabel, shortAddress(place.address)].filter(Boolean).join(" · ") || null
+      ? (shortAddress(place.address) || subLabel || null)
       : noteLead(det);
+  // The category glyph leads the subtitle in place of the category word —
+  // "🍴 Via Rosina" says what "Restaurant · Via Rosina" said, in one shape.
+  const detailIcon = place ? getMaterialIconHTML(place.sub_type ?? null, 14) : null;
 
   const surfRating = place?.type === "food" ? place.rating : null;
   const isLoved    = place?.loved === true;
@@ -157,34 +163,10 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
       }`}
       style={{ borderBottom: "1px solid rgba(26,26,46,0.10)" }}
     >
-      {/* The rail. Untimed entries keep the column so every title starts on
-          the same line — an empty rail reads as "anytime", not as a gap.
-          The category glyph sits here, above the time — bare, at the weight
-          of a caption, the same shape the map marker carries. 
-*/}
+      {/* The rail is the time, in its pill, and nothing else (Row E, 24 Sep
+          2026). Untimed entries keep the column so every title starts on the
+          same line — an empty rail reads as "anytime", not as a gap. */}
       <div className="w-[62px] md:w-[74px] shrink-0 pt-[3px] flex flex-col items-start gap-[3px]">
-        {/* The category glyph, bare — the same fork, bed or flag the map
-            marker carries. Matching a shape is quicker than matching a digit,
-            and this is what tied rows to pins before the redesign. What was
-            wrong then was the grey rounded box around it, not the glyph. */}
-        {place && (
-          <span className="flex items-center gap-[5px]">
-            {pinIndex != null && (
-              <span
-                aria-label={`Pin ${pinIndex}`}
-                className="inline-flex items-center justify-center rounded-full tabular-nums"
-                style={{ width: 16, height: 16, fontSize: 9.5, fontWeight: 700, lineHeight: 1, color: "#1A1A2E", boxShadow: "inset 0 0 0 1.2px rgba(26,26,46,0.45)" }}
-              >
-                {pinIndex}
-              </span>
-            )}
-            <span
-              className="block opacity-40"
-              // eslint-disable-next-line react/no-danger
-              dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(place.sub_type ?? null, 15) }}
-            />
-          </span>
-        )}
         {onTimeTap ? (
           // The time as a chip: white is what you touch. Tapping it opens the
           // quick time sheet; the whole card is a button, so this is a span
@@ -242,10 +224,17 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
 
         {detail && (
           <p
-            className="text-[12.5px] md:text-[13px] mt-[3px] leading-[1.45] line-clamp-2"
+            className="text-[12.5px] md:text-[13px] mt-[3px] leading-[1.45] line-clamp-2 flex items-start gap-[4px]"
             style={{ color: "rgba(26,26,46,0.62)" }}
           >
-            {detail}
+            {detailIcon && (
+              <span
+                className="shrink-0 opacity-50 mt-[2px]"
+                // eslint-disable-next-line react/no-danger
+                dangerouslySetInnerHTML={{ __html: detailIcon }}
+              />
+            )}
+            <span className="min-w-0">{detail}</span>
           </p>
         )}
 
@@ -266,18 +255,30 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
         <CardBadges card={card} className="mt-1.5" onToggleBooked={onToggleConfirmed} />
       </div>
 
-      {/* The photograph, where there is one. Note cards and unlinked entries
-          get nothing rather than a placeholder — the asymmetry is honest. */}
-      {place?.id && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={`/api/places/photo?place_id=${place.id}&index=0&size=thumb`}
-          alt=""
-          loading="lazy"
-          className="w-[52px] h-[52px] md:w-[76px] md:h-[76px] rounded-lg object-cover shrink-0 bg-[rgba(26,26,46,0.04)]"
-          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-        />
-      )}
+      {/* Every row carries a tile so the column never drops out (Brennan, 24
+          Sep 2026: "notes should have a default picture even if there isn't
+          one selected"). A place shows its photo; a place with none, and a
+          note, show a quiet tile. The squint test: blur the screen and every
+          row is still time · title · picture. */}
+      <div
+        className="w-[52px] h-[52px] md:w-[76px] md:h-[76px] rounded-lg shrink-0 overflow-hidden flex items-center justify-center"
+        style={{ background: place?.id ? "rgba(26,26,46,0.05)" : "#F3EFE4" }}
+      >
+        {place?.id ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={`/api/places/photo?place_id=${place.id}&index=0&size=thumb`}
+            alt=""
+            loading="lazy"
+            className="w-full h-full object-cover"
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+          />
+        ) : (
+          <span className="material-symbols-outlined" style={{ fontSize: 18, color: "rgba(26,26,46,0.4)", fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20" }}>
+            edit_note
+          </span>
+        )}
+      </div>
     </Wrapper>
   );
 }

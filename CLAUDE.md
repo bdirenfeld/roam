@@ -85,8 +85,13 @@ The benchmark: someone opens Roam in a Centurion Lounge and the person next to t
 
 ## Card faces (agenda rows) — what a row is allowed to say
 - A row shows **facts, not prose**: category label + short address ("Restaurant · 235 Mulberry St, New York"); flights show `ORIGIN → DEST · time`. Notes are never surfaced on a card face — they read inconsistently and truncate mid-word. The writing lives inside the card.
-- The left rail carries the bare category glyph above the time. **Numbered pins were tried and rejected** — as filled discs they shouted over the names, as bare numerals they read as debris. Matching a fork to a fork beats matching 3 to 3.
-- Photographs come from `/api/places/photo?place_id=…&index=0` and hide themselves `onError`. Places without one get nothing rather than a grey placeholder — the asymmetry is honest.
+- **Row E (24 Sep 2026):** the left rail is the time in its pill and nothing else. The pin
+  number is not drawn on the row (the map pins keep it; a pin tap lifts the row). The category
+  glyph leads the subtitle in place of the category word ("🍴 Via Rosina"). Read left to right:
+  time · title · picture. Brennan's test: squint and every row must keep the same silhouette.
+- Every row carries a 52px tile. A place shows its photo; a place with none, and a note, show
+  a quiet tile (edit_note glyph on #F3EFE4). The old "no placeholder, the asymmetry is honest"
+  rule is gone: he asked for a default picture so notes don't "look weird".
 - `places.cover_image_url` is null for every row; photos are fetched client-side. Do not treat a null there as a missing image.
 
 ## Estimate (trip budget)
