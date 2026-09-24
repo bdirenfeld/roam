@@ -291,9 +291,11 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
       const lovedOk  = !lovedOnlyRef.current || card.place!.loved === true;
       const show = activeTypesRef.current.has(type) && subTypeOk && statusOk && lovedOk;
       if (show) marker.addTo(map); else marker.remove();
-      const el = marker.getElement() as HTMLElement;
-      el.style.transition = "opacity 150ms ease";
-      el.style.opacity = dimForDay(activeDayRef.current, card.day_id) ? "0.22" : "";
+      // The fade goes on the inner disc: Mapbox rewrites the wrapper's own
+      // opacity on every move (its occlusion feature), so a value set there
+      // lasts one frame. Verified live, 24 Sep 2026.
+      const disc = marker.getElement().firstElementChild as HTMLElement | null;
+      if (disc) disc.style.opacity = dimForDay(activeDayRef.current, card.day_id) ? "0.22" : "";
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -392,7 +394,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
     if (activeTypesRef.current.has(place.type) && subTypeOk && statusOk && lovedOk) {
       mbMarker.addTo(map);
     }
-    if (dimForDay(activeDayRef.current, card.day_id)) wrapper.style.opacity = "0.22";
+    if (dimForDay(activeDayRef.current, card.day_id)) inner.style.opacity = "0.22";
 
     mbMarker.getElement().addEventListener("click", (e: MouseEvent) => {
       e.stopPropagation();
