@@ -14,11 +14,11 @@ The benchmark: someone opens Roam in a Centurion Lounge and the person next to t
 - Single accent, used sparingly: `#C4622D` (burnt sienna)
 - Card surfaces: `#FFFFFF` white
 - Secondary text / icons: `#6B7280` warm slate
-- Display and body font: DM Sans (`font-display` = DM Sans 500, -0.01em). Since 24 Sep 2026.
-- Playfair Display italic is for ONE thing: the journey name on a journey card (`font-journey`).
-  Before that date every `font-display` was italic because the app only loaded Playfair's
-  italic faces — an accident, not a choice. `globals.css` neutralises the `italic` utility on
-  `.font-display`; do not add `italic` to display text and do not bring Playfair back elsewhere.
+- One typeface: DM Sans (`font-display` = DM Sans 500, -0.01em). Since 24 Sep 2026.
+- Playfair Display is not loaded any more. Before that date every `font-display` was italic
+  because the app only loaded Playfair's italic faces — an accident, not a choice. The journey
+  name on the cover was already DM Sans. `globals.css` neutralises the `italic` utility on
+  `.font-display`; do not add `italic` to display text and do not bring Playfair back.
 - Icons: Phosphor Icons at `weight="light"` — never Heroicons or Lucide
 
 ## Language and tone
@@ -36,7 +36,7 @@ The benchmark: someone opens Roam in a Centurion Lounge and the person next to t
 - Never use "Danger zone" section labels — use "Manage journey" instead
 - Never introduce multiple competing accent colors
 - Never use checkbox-heavy filter panels — use opacity and toggles
-- Never use bold Playfair — the journey name is regular weight, italic
+- Never reintroduce a serif display face without Brennan asking for it by name
 - Never push to a feature branch — always push directly to main
 - Never batch more than 2-3 related changes in a single prompt
 
