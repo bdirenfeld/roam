@@ -1375,15 +1375,10 @@ the component mounted and you are looking at throttling, not a broken map.
 - `BottomNav` is Agenda and Map. The Plan board is a desktop screen (masthead
   only); `/plan` still resolves on a phone but has no door there. Do not add a
   third tab back without Brennan naming it.
-- The Map's day strip (`FullMapClient`, phone only, under the search) FADES
-  pins that are not on the tapped day to 0.22 and frames the day; it never
-  removes a pin — removal is the Saved · Scheduled filter's job. The rule is
-  `lib/mapDayFilter.ts` (`dimForDay`, `dayCoords`) and the fade is applied in
-  `syncVisibility` so a filter change keeps it. One ink colour for every day:
-  he ruled out a colour per day ("a crazy rainbow"). Hidden until the map has
-  a real pin — and gated on NOTHING else. The first-visit card renders only
-  when there are no pins, so they never meet; gating on its `showHint` flag
-  hid the strip on his phone (never dismissed) and not on mine (24 Sep 2026).
+- The Map has NO day strip. One shipped on 24 Sep 2026 (tap a day, its pins
+  in ink, the rest faded) and Brennan had it removed the same day: "they're
+  unnecessary and don't solve a problem." Do not re-propose a day filter on
+  the Map unless he names it.
 - Mapbox rewrites the marker WRAPPER's `style.opacity` on every move (its
   occlusion feature). Fade or tint the inner disc, never the wrapper.
 - The two mockups behind this: v1 (map panel beside the board)
