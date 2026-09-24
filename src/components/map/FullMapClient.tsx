@@ -16,6 +16,14 @@ import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/
 import DocumentsSheet from "@/components/plan/DocumentsSheet";
 import AppMenu from "@/components/ui/AppMenu";
 import JourneyHeader, { HEADER_GLYPH } from "@/components/ui/JourneyHeader";
+import Link from "next/link";
+
+// A glyph-only control over the map is a 36px white disc, the same as the
+// zoom stack and the day map's map disc. Back and the menu are discs at the
+// top corners since 24 Sep 2026 (the ribbon that said "Tuscany" is gone: the
+// map already says it). Phone only; the desktop keeps its masthead.
+const MAP_DISC = "md:hidden absolute z-[65] w-9 h-9 rounded-full bg-white flex items-center justify-center active:opacity-70 text-[#1A1A2E]";
+const MAP_DISC_STYLE = { boxShadow: "0 1px 4px rgba(0,0,0,0.2)" } as const;
 import { useGlobalSearch } from "@/components/search/GlobalSearch";
 import { useToast } from "@/components/ui/Toast";
 import { queuedInsert } from "@/lib/offline/queuedWrite";
@@ -806,33 +814,52 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
 
 
 
-        {/* The app's one menu — phone only (desktop has it in the masthead).
-            This used to be a bare ⋯ that navigated to the Settings PAGE and
-            threw away pan, zoom and filters; it also sat under the search
-            pill, so nobody found it. Now it is the same menu as the Agenda,
-            beside the avatar, and Settings opens as an overlay over the map. */}
-        <JourneyHeader
-          absolute
-          backHref={`/trips/${trip.id}`}
-          title={trip.title}
-          // One search on the Map. The owner has the place search right below,
-          // which finds anything; a second glyph that searched only saved
-          // things sat on top of it and found no restaurants (audit, 23 Sep
-          // 2026). Guests have no place search, so they keep the glyph.
-          onSearch={readOnly ? () => search.open() : undefined}
-          menu={
-            <AppMenu
-              variant="mobile"
-              tripId={trip.id}
-              tripTitle={trip.title}
-              trip={trip}
-              days={days}
-              guest={readOnly}
-              extra={mapMenuExtra}
-              triggerClassName={HEADER_GLYPH}
-            />
-          }
-        />
+        {/* Phone chrome over the map. Owner: no ribbon — back disc top-left,
+            menu disc top-right, the place search between them on the same
+            36px row (Brennan, 24 Sep 2026: "remove Tuscany from the top …
+            you know it's the location of the trip"). Guest: the ribbon stays,
+            because a guest has no place search to fill the row and keeps the
+            saved-places search glyph instead. */}
+        {readOnly ? (
+          <JourneyHeader
+            absolute
+            backHref={`/trips/${trip.id}`}
+            title={trip.title}
+            onSearch={() => search.open()}
+            menu={
+              <AppMenu
+                variant="mobile"
+                tripId={trip.id}
+                tripTitle={trip.title}
+                trip={trip}
+                days={days}
+                guest={readOnly}
+                extra={mapMenuExtra}
+                triggerClassName={HEADER_GLYPH}
+              />
+            }
+          />
+        ) : (
+          <>
+            <Link href={`/trips/${trip.id}`} aria-label="Back" className={`${MAP_DISC} left-3 top-3`} style={MAP_DISC_STYLE}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </Link>
+            <div className={`${MAP_DISC} right-3 top-3`} style={MAP_DISC_STYLE}>
+              <AppMenu
+                variant="mobile"
+                tripId={trip.id}
+                tripTitle={trip.title}
+                trip={trip}
+                days={days}
+                guest={readOnly}
+                extra={mapMenuExtra}
+                triggerClassName="w-9 h-9 flex items-center justify-center"
+              />
+            </div>
+          </>
+        )}
 
         {/* Place search — the add-a-place entry; owner only */}
         {!readOnly && (

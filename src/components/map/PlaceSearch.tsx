@@ -98,12 +98,14 @@ export default function PlaceSearch({ onPlaceSelect, destination, lat, lng }: Pr
 
       {/* Always-visible search bar */}
       <div
-        className="absolute top-[68px] left-4 right-4 md:top-4 md:left-6 md:right-6 md:max-w-md"
+        // Phone: between the back and menu discs, on their 36px row. Desktop
+        // unchanged.
+        className="absolute top-3 left-[60px] right-[60px] md:top-4 md:left-6 md:right-6 md:max-w-md"
         style={{ zIndex: 20 }}
       >
         {/* Input pill */}
         <div
-          className="flex items-center gap-2 bg-white rounded-xl px-3 h-10 border border-gray-100"
+          className="flex items-center gap-2 bg-white rounded-full md:rounded-xl px-3 h-9 md:h-10 border border-gray-100"
           style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
