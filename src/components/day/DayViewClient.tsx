@@ -722,17 +722,14 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
             data would shrink the title the moment weather arrived. */}
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-[2px] pointer-events-none">
           <span
-            className={`font-display italic text-gray-900 ${
-              weatherReachable ? "text-[15px]" : "text-[19px]"
+            className={`font-display text-gray-900 ${
+              weatherReachable ? "text-[16px]" : "text-[18px]"
             }`}
           >
             {formatDayTitle(dayWithCards.date)}
           </span>
-          {shownTitle && (
-            <span className="font-display italic text-[11.5px] leading-none" style={{ color: "rgba(26,26,46,0.62)" }}>
-              {shownTitle}
-            </span>
-          )}
+          {/* The day's name used to sit here. Brennan, 24 Sep 2026: "remove the
+              name of the day so it's just the weather". */}
           {weatherReachable && (
             <WeatherSubtitle
               weather={dayWeather}

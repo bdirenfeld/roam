@@ -56,7 +56,7 @@ const TYPE_COLOR: Record<CardType, string> = {
 
 // ── Create-mode (editorial) tokens — match the design mockups ──
 const DM       = "'DM Sans', system-ui, sans-serif";
-const PF       = "'Playfair Display', Georgia, serif";
+const PF       = "'DM Sans', system-ui, sans-serif";
 const INK      = "#1A1A2E";
 const CAP      = "rgba(26,26,46,0.62)";
 const CAP_SOFT = "rgba(26,26,46,0.40)";
@@ -446,7 +446,7 @@ export default function LinkPlaceSheet(props: Props) {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p style={{ ...SMALL_CAPS, fontSize: "9.5px", color: CAP }}>{createDayLabel}</p>
-                <h3 style={{ fontFamily: PF, fontStyle: "italic", fontWeight: 500, fontSize: "23px", color: INK, letterSpacing: "-0.01em", marginTop: "6px" }}>Add from saved</h3>
+                <h3 style={{ fontFamily: PF, fontWeight: 500, fontSize: "21px", color: INK, letterSpacing: "-0.01em", marginTop: "6px" }}>Add from saved</h3>
               </div>
               <button onClick={onClose} className="p-1 -mr-1 mt-0.5" aria-label="Close">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={CAP} strokeWidth="1.6" strokeLinecap="round">
@@ -577,7 +577,7 @@ export default function LinkPlaceSheet(props: Props) {
         {/* Commit bar — create mode only */}
         {isCreate && (
           <div className="flex items-center gap-4 px-5 py-4 flex-shrink-0" style={{ borderTop: `1px solid ${RULE}`, background: "#F0EFEB" }}>
-            <span className="flex-1" style={{ fontFamily: PF, fontStyle: "italic", fontSize: "13.5px", color: CAP }}>
+            <span className="flex-1" style={{ fontFamily: PF, fontSize: "13.5px", color: CAP }}>
               {selectedIds.size === 0 ? "Select places to place on this day." : "The saved pile keeps its copy."}
             </span>
             <button

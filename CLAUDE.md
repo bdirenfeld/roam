@@ -14,8 +14,11 @@ The benchmark: someone opens Roam in a Centurion Lounge and the person next to t
 - Single accent, used sparingly: `#C4622D` (burnt sienna)
 - Card surfaces: `#FFFFFF` white
 - Secondary text / icons: `#6B7280` warm slate
-- Display font: Playfair Display italic (headings, trip names, screen titles)
-- Body font: DM Sans (all UI text, labels, buttons)
+- Display and body font: DM Sans (`font-display` = DM Sans 500, -0.01em). Since 24 Sep 2026.
+- Playfair Display italic is for ONE thing: the journey name on a journey card (`font-journey`).
+  Before that date every `font-display` was italic because the app only loaded Playfair's
+  italic faces — an accident, not a choice. `globals.css` neutralises the `italic` utility on
+  `.font-display`; do not add `italic` to display text and do not bring Playfair back elsewhere.
 - Icons: Phosphor Icons at `weight="light"` — never Heroicons or Lucide
 
 ## Language and tone
@@ -28,12 +31,12 @@ The benchmark: someone opens Roam in a Centurion Lounge and the person next to t
 - Copy should read like a well-edited travel magazine, not a productivity tool
 
 ## What to never do
-- Never use Inter or system fonts for display text
+- Never use Inter or a system font for display text; DM Sans is the one face
 - Never use aggressive red for soft or reversible actions
 - Never use "Danger zone" section labels — use "Manage journey" instead
 - Never introduce multiple competing accent colors
 - Never use checkbox-heavy filter panels — use opacity and toggles
-- Never use bold Playfair — always light or regular weight
+- Never use bold Playfair — the journey name is regular weight, italic
 - Never push to a feature branch — always push directly to main
 - Never batch more than 2-3 related changes in a single prompt
 
@@ -1385,3 +1388,12 @@ the component mounted and you are looking at throttling, not a broken map.
   https://claude.ai/artifact/DE5bmYwsecEX2JKED1yiDv and v2 (map as the board,
   routes with drive time) https://claude.ai/artifact/9AMo3rmPwd9toZbHG65d5h —
   both held; he chose the smallest change first.
+
+## Phone Agenda, quieted (24 Sep 2026)
+- No day name under the date on the phone header; that line is the weather. The desktop day
+  header keeps the name (it has no weather line). `shownTitle` still feeds the desktop.
+- No "1h free · add" rows on the phone (`GapRow` is `hidden md:flex`); the desktop keeps them
+  as its add-at-this-time door. Adding on the phone is "Add a place" and the map.
+- Header, date strip and day map are all pinned on the phone; the list scrolls under them.
+  Checked live at 375px on 24 Sep 2026 — do not "fix" the map scrolling away, it doesn't.
+- Mock this was built from: https://claude.ai/artifact/YEkKdrg5in6CxA1S46waju

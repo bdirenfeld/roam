@@ -37,7 +37,7 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap"
           rel="stylesheet"
         />
-        {/* Playfair Display — editorial display font */}
+        {/* Playfair Display — journey names only (`font-journey`); display text is DM Sans */}
         <link
           href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,400;1,500&display=swap"
           rel="stylesheet"

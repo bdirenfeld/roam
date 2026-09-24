@@ -55,12 +55,14 @@ function GapRow({ minutes, onTap }: { minutes: number; onTap: () => void }) {
       onPointerUp={() => setPressed(false)}
       onPointerLeave={() => setPressed(false)}
       onPointerCancel={() => setPressed(false)}
-      className="w-full flex gap-3 md:gap-5 py-2"
+      // Phone: gone (Brennan, 24 Sep 2026: "remove the free time parts").
+      // Desktop keeps the row; it is the add-at-this-time door there.
+      className="w-full hidden md:flex gap-3 md:gap-5 py-2"
       aria-label={`Add to this gap — ${gapLabel(minutes)}`}
     >
       <span className="w-[62px] md:w-[74px] shrink-0" />
       <span
-        className="text-[11px] md:text-[11.5px] italic"
+        className="text-[11px] md:text-[11.5px]"
         style={{ color: pressed ? "#B0541F" : "rgba(26,26,46,0.28)" }}
       >
         {gapLabel(minutes)} · add
@@ -170,7 +172,7 @@ export default function CardTimeline({
           {untimedCards.length > 0 && timedCards.length > 0 && (
             <p
               className="mb-2 pl-[33px] text-[12.5px]"
-              style={{ fontFamily: "'Playfair Display', Georgia, serif", fontStyle: "italic", color: "rgba(26,26,46,0.45)" }}
+              style={{ color: "rgba(26,26,46,0.45)" }}
             >
               {readOnly ? "No time yet" : "No time yet · tap the chip to set one"}
             </p>

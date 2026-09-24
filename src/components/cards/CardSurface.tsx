@@ -223,7 +223,7 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
             did. */}
         <div className="flex items-center gap-1.5 min-w-0">
           <p
-            className="min-w-0 font-display text-[17px] md:text-[20px] leading-[1.24] truncate"
+            className="min-w-0 font-display text-[15.5px] md:text-[18px] leading-[1.3] truncate"
             style={{ color: "#1A1A2E" }}
           >
             {title}

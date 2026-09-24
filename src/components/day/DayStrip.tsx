@@ -74,7 +74,7 @@ export default function DayStrip({ days, activeDayId, onDaySelect }: Props) {
                 }}
               >
                 <span
-                  className="block font-display text-[17px] leading-none"
+                  className="block font-display text-[16px] leading-none"
                   style={{ color: isActive ? "#1A1A2E" : "rgba(26,26,46,0.35)" }}
                 >
                   {dayNum}

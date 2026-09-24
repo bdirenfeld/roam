@@ -12,7 +12,7 @@ export default function LegalPage({ title, updated, children }: { title: string;
         <div className="legal text-[15px] leading-[1.65]">{children}</div>
       </div>
       <style>{`
-        .legal h2 { font-family: 'Playfair Display', Georgia, serif; font-style: italic; font-weight: 500; font-size: 21px; margin: 28px 0 8px; }
+        .legal h2 { font-weight: 500; font-size: 19px; margin: 28px 0 8px; }
         .legal p { margin: 0 0 12px; }
         .legal ul { margin: 0 0 12px; padding-left: 20px; }
         .legal li { margin: 0 0 8px; }

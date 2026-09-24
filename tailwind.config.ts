@@ -15,7 +15,10 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans:    ["DM Sans", "system-ui", "sans-serif"],
-        display: ["'Playfair Display'", "Georgia", "serif"],
+        // Display text is DM Sans (24 Sep 2026). Playfair italic survives for
+        // one thing, the journey name, as `font-journey`.
+        display: ["DM Sans", "system-ui", "sans-serif"],
+        journey: ["'Playfair Display'", "Georgia", "serif"],
       },
       colors: {
         // Roam brand palette

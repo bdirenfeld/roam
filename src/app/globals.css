@@ -24,6 +24,15 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Display text (24 Sep 2026). `font-display` is DM Sans now. The app only
+   ever loaded Playfair's italic faces, so every display element came out
+   italic whether or not anyone chose it — Brennan: "the italics maybe aren't
+   right". The `italic` utility that rode along at ~130 call sites is
+   neutralised here rather than edited out one by one. :where() keeps the
+   weight at zero specificity so any font-* utility still wins. */
+:where(.font-display) { font-weight: 500; letter-spacing: -0.01em; }
+.font-display.italic { font-style: normal; }
+
 /* Mobile-first container */
 .mobile-container {
   max-width: 390px;

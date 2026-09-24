@@ -2055,10 +2055,9 @@ function DayHeaderCell({ day, weather, onRename, autoTitle }: { day: DayWithCard
             aria-label={`${dayOfWeek} — tap to name this day`}
             className="block text-left hover:opacity-70 transition-opacity"
             style={{
-              fontFamily: "'Playfair Display', Georgia, serif",
-              fontSize: "22px",
+              fontFamily: "'DM Sans', system-ui, sans-serif",
+              fontSize: "20px",
               fontWeight: 500,
-              fontStyle: "italic",
               color: "rgb(26, 26, 46)",
               letterSpacing: "-0.01em",
               lineHeight: 1.1,
@@ -2069,10 +2068,9 @@ function DayHeaderCell({ day, weather, onRename, autoTitle }: { day: DayWithCard
           >{dayOfWeek}</button>
         ) : (
           <p style={{
-            fontFamily: "'Playfair Display', Georgia, serif",
-            fontSize: "22px",
+            fontFamily: "'DM Sans', system-ui, sans-serif",
+            fontSize: "20px",
             fontWeight: 500,
-            fontStyle: "italic",
             color: "rgb(26, 26, 46)",
             letterSpacing: "-0.01em",
             lineHeight: 1.1,

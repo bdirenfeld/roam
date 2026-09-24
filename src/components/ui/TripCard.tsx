@@ -187,7 +187,7 @@ export default function TripCard({ trip, openDayId }: Props) {
               <div className="w-9 h-1 bg-gray-200 rounded-full" />
             </div>
             <div className="flex-1 overflow-y-auto px-5 pt-3">
-              <h2 className="text-[22px] text-gray-900 mb-2 font-display italic">
+              <h2 className="text-[22px] text-gray-900 mb-2 font-journey italic">
                 Delete &ldquo;{trip.title}&rdquo;?
               </h2>
               <p className="text-[14px] text-gray-500 leading-relaxed">
