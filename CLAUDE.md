@@ -1378,11 +1378,18 @@ the component mounted and you are looking at throttling, not a broken map.
   writes are now checked; a refused shortening puts the dates back. Tests:
   `EstimateClient.test.tsx`, `TripSettingsClient.test.tsx`.
 
-## The phone has two tabs; the Map has a day strip (24 Sep 2026)
+## The phone has NO bottom bar; the Map has no day strip (24 Sep 2026)
 
-- `BottomNav` is Agenda and Map. The Plan board is a desktop screen (masthead
-  only); `/plan` still resolves on a phone but has no door there. Do not add a
-  third tab back without Brennan naming it.
+- `BottomNav` is deleted. Inside a journey the phone has two screens, Agenda
+  and Map. The door from Agenda to Map is the map-glyph disc top-right of the
+  day map (`DayMap`, `mapHref`) — it REPLACED the ⤢. The full-screen day map is
+  reached only by tapping a stacked pin; the disc collapses it while expanded;
+  the door back is the Map's ‹ arrow. Rule for map chrome: right edge = discs
+  and Mapbox marks (⤢, map, zoom, locate, ⓘ, wordmark); left edge = labelled
+  chips (Filter). Glyph-only means disc, labelled means chip, and a control
+  never crosses to the other edge. Nothing is pinned to the bottom of the
+  viewport any more, so no `pb-20` allowances either. The Plan board is a
+  desktop screen; `/plan` still resolves on a phone but has no door there.
 - The Map has NO day strip. One shipped on 24 Sep 2026 (tap a day, its pins
   in ink, the rest faded) and Brennan had it removed the same day: "they're
   unnecessary and don't solve a problem." Do not re-propose a day filter on

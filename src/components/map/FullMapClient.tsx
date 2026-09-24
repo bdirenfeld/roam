@@ -771,7 +771,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
   }, []);
 
   return (
-    <div className="flex w-full overflow-hidden h-[calc(100dvh-80px)] md:h-[calc(100dvh-64px)]">
+    <div className="flex w-full overflow-hidden h-dvh md:h-[calc(100dvh-64px)]">
 
       {/* ── Desktop sidebar ── (owner only — it carries per-card delete and the
           enrich utility; a guest gets the bare map) */}
@@ -844,8 +844,10 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
             (desktop owners use the sidebar); shown on desktop too for guests,
             since their sidebar is suppressed. */}
         <div
-          className={`${readOnly ? "" : "md:hidden"} absolute bottom-4 left-3 flex flex-col gap-2`}
-          style={{ zIndex: 10 }}
+          className={`${readOnly ? "" : "md:hidden"} absolute left-3 flex flex-col gap-2`}
+          // The bar that used to sit under this is gone (24 Sep 2026); clear the
+          // phone's home indicator instead.
+          style={{ zIndex: 10, bottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }}
         >
           {/* Pill rows — rendered above the button (flex-col, first child = top) */}
           {filterOpen && (

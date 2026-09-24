@@ -5,6 +5,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { Card } from "@/types/database";
 import { makeMaterialPinElement } from "@/lib/mapPins";
+import Link from "next/link";
+import { MapTrifold } from "@phosphor-icons/react";
 
 interface Props {
   cards: Card[];
@@ -24,6 +26,10 @@ interface Props {
   /** Fly to this card's pin (a tap on its row in the dock). The nonce lets
    *  the same card be asked for twice. */
   focus?: { cardId: string; nonce: number } | null;
+  /** Phone only: the door to the journey Map — the 36px white disc top-right
+   *  that used to be the ⤢. The bottom bar that used to be this door is gone
+   *  (24 Sep 2026). */
+  mapHref?: string;
 }
 
 // One placed pin, with what the stacking pass needs to know about it.
@@ -45,7 +51,7 @@ interface PinItem {
 // first layout.
 const PIN_FALLBACK_PX = 32;
 
-export default function DayMap({ cards, accommodationCard, centerLat, centerLng, onPinTap, pulsedCardId, expanded = false, onToggleExpand, dock, focus }: Props) {
+export default function DayMap({ cards, accommodationCard, centerLat, centerLng, onPinTap, pulsedCardId, expanded = false, onToggleExpand, dock, focus, mapHref }: Props) {
   const mapRef         = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<unknown>(null);
   const pinsRef        = useRef<PinItem[]>([]);
@@ -480,20 +486,30 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
           <div ref={dockListRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4">{dock}</div>
         </div>
       )}
-      {onToggleExpand && (
-        // Phone only: the desktop map is already 620px tall.
+      {mapHref && !expanded && (
+        // Phone only. One disc, top-right, the map glyph: it opens the journey
+        // Map screen (Brennan, 24 Sep 2026: "take out the expand arrows and
+        // replace that with the map icon"). The full-screen day map is still
+        // reached by tapping a stacked pin; the disc below collapses it.
+        <Link
+          href={mapHref}
+          aria-label="Open the journey map"
+          className="md:hidden absolute right-3 z-10 w-9 h-9 rounded-full bg-white flex items-center justify-center active:opacity-70"
+          style={{ top: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.2)", color: "#1A1A2E" }}
+        >
+          <MapTrifold size={17} weight="light" color="#1A1A2E" />
+        </Link>
+      )}
+      {onToggleExpand && expanded && (
+        // Phone only: the collapse control while the day map fills the screen.
         <button
           type="button"
           onClick={onToggleExpand}
-          aria-label={expanded ? "Back to the day" : "Fill the screen with the map"}
+          aria-label="Back to the day"
           className="md:hidden absolute right-3 z-10 w-9 h-9 rounded-full bg-white flex items-center justify-center active:opacity-70"
           style={{ top: expanded ? "max(12px, env(safe-area-inset-top))" : 12, boxShadow: "0 1px 4px rgba(0,0,0,0.2)", color: "#1A1A2E" }}
         >
-          {expanded ? (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" /><line x1="14" y1="10" x2="21" y2="3" /><line x1="3" y1="21" x2="10" y2="14" /></svg>
-          ) : (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" /></svg>
-          )}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" /><line x1="14" y1="10" x2="21" y2="3" /><line x1="3" y1="21" x2="10" y2="14" /></svg>
         </button>
       )}
     </div>

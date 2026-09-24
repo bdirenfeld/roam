@@ -952,6 +952,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
             expanded={mapExpanded}
             onToggleExpand={() => { setMapExpanded((v) => !v); setMapFocus(null); }}
             focus={mapFocus}
+            mapHref={`/trips/${trip.id}/map`}
             dock={
               <CardTimeline
                 dayWithCards={localDayWithCards}
@@ -968,7 +969,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
 
         {/* Timeline — desktop col 1 spanning rows. Mobile: natural flow below Map. */}
         <div
-          className={`flex-1 overflow-y-auto min-h-0 pb-20 md:flex-none md:overflow-visible md:min-h-0 md:pb-0 md:col-start-1 md:row-start-1 md:row-span-2 transition-opacity ${
+          className={`flex-1 overflow-y-auto min-h-0 pb-6 md:flex-none md:overflow-visible md:min-h-0 md:pb-0 md:col-start-1 md:row-start-1 md:row-span-2 transition-opacity ${
             contentVisible
               ? "opacity-100 duration-[200ms] ease-in"
               : "opacity-0 duration-[150ms] ease-out"

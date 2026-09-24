@@ -44,7 +44,7 @@ describe("CardSurface — Row E", () => {
 
   it("gives a note the default tile so the column never drops out", () => {
     const { container } = render(<CardSurface card={noteCard} dayDate="2027-08-31" />);
-    const glyphs = [...container.querySelectorAll(".material-symbols-outlined")].map((e) => e.textContent);
+    const glyphs = Array.from(container.querySelectorAll(".material-symbols-outlined")).map((e) => e.textContent);
     expect(glyphs).toContain("edit_note");
     expect(container.querySelector("img")).toBeNull();
   });
