@@ -89,6 +89,14 @@ The benchmark: someone opens Roam in a Centurion Lounge and the person next to t
   number is not drawn on the row (the map pins keep it; a pin tap lifts the row). The category
   glyph leads the subtitle in place of the category word ("🍴 Via Rosina"). Read left to right:
   time · title · picture. Brennan's test: squint and every row must keep the same silhouette.
+- **Two lines, no exceptions (24 Sep 2026):** title on line one, ONE meta line on line two,
+  truncated, nothing below. Hours warning replaces the address; rating and price follow;
+  then the badges (Booked, checklist, attachments) inline. Recommended-by is not on the face.
+  A note shows its lead line, cut at the edge. Every row is the same height; that is the
+  point ("visually it just looks off" when a row runs to three).
+- The day map box is `h-48 min-h-[12rem] flex-shrink-0` and the list scroller is
+  `overscroll-y-contain`: on Android the address bar changes the viewport height
+  mid-scroll and the map must not squish with it.
 - Every row carries a 52px tile. A place shows its photo; a place with none, and a note, show
   a quiet tile (edit_note glyph on #F3EFE4). The old "no placeholder, the asymmetry is honest"
   rule is gone: he asked for a default picture so notes don't "look weird".

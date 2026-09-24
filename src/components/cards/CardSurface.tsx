@@ -5,7 +5,6 @@ import { formatTimeRange } from "@/lib/formatTime";
 import { cardTimes } from "@/lib/cardTime";
 import { subTypeLabel } from "@/lib/subTypeLabel";
 import { getOpeningHoursConflict, openingHoursCaption, openingHoursTone } from "@/lib/openingHours";
-import { readRecommendedBy, recommendedByLine } from "@/lib/recommendedBy";
 import LovedHeart from "@/components/ui/LovedHeart";
 import CardBadges from "./CardBadges";
 
@@ -143,7 +142,6 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
 
   const surfRating = place?.type === "food" ? place.rating : null;
   const isLoved    = place?.loved === true;
-  const recommender = readRecommendedBy(det);
   const priceRange = place?.type === "food"
     ? getPriceRange(place.price_level ?? undefined, det?.currency_code as string | undefined)
     : null;
@@ -216,43 +214,36 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
               room for the word and where the Plan board says it too. */}
         </div>
 
-        {hoursSignal && (
-          <p className={`text-[11.5px] md:text-[12.5px] mt-[3px] truncate leading-snug ${openingHoursTone(hoursSignal)}`}>
-            {openingHoursCaption(hoursSignal)}
-          </p>
-        )}
-
-        {detail && (
-          <p
-            className="text-[12.5px] md:text-[13px] mt-[3px] leading-[1.45] line-clamp-2 flex items-start gap-[4px]"
-            style={{ color: "rgba(26,26,46,0.62)" }}
-          >
-            {detailIcon && (
-              <span
-                className="shrink-0 opacity-50 mt-[2px]"
-                // eslint-disable-next-line react/no-danger
-                dangerouslySetInnerHTML={{ __html: detailIcon }}
-              />
-            )}
-            <span className="min-w-0">{detail}</span>
-          </p>
-        )}
-
-        {priceRange && (
-          <p className="text-[11px] md:text-[11.5px] font-medium mt-[3px] leading-snug" style={{ color: "#B0541F" }}>
-            {surfRating !== null ? `★ ${surfRating.toFixed(1)} · ` : ""}{priceRange}
-          </p>
-        )}
-
-        {recommender && (
-          <p className="text-[11px] md:text-[11.5px] mt-[3px] truncate leading-snug" style={{ color: "rgba(26,26,46,0.4)" }}>
-            {recommendedByLine(recommender)}
-          </p>
-        )}
-
-        {/* No Booked pill here: the tick beside the title above is this card's
-            booked control, and it toggles. */}
-        <CardBadges card={card} className="mt-1.5" onToggleBooked={onToggleConfirmed} />
+        {/* Two lines, no exceptions (Brennan, 24 Sep 2026): the title above, and
+            ONE meta line here that truncates. Everything the face used to say
+            on its own line folds in, in priority order: an hours warning
+            replaces the address; rating and price follow; then the badges
+            (Booked, checklist, attachments). Recommended-by leaves the face and
+            stays in the card sheet. Notes: their lead line, cut at the edge.
+            Every row is the same height, which is the point. */}
+        <div
+          className="mt-[3px] flex items-center gap-[6px] min-w-0 text-[12.5px] md:text-[13px] leading-[1.45]"
+          style={{ color: "rgba(26,26,46,0.62)" }}
+        >
+          {detailIcon && !hoursSignal && (
+            <span
+              className="shrink-0 opacity-50"
+              // eslint-disable-next-line react/no-danger
+              dangerouslySetInnerHTML={{ __html: detailIcon }}
+            />
+          )}
+          {hoursSignal ? (
+            <span className={`min-w-0 truncate ${openingHoursTone(hoursSignal)}`}>{openingHoursCaption(hoursSignal)}</span>
+          ) : detail ? (
+            <span className="min-w-0 truncate">{detail}</span>
+          ) : null}
+          {priceRange && (
+            <span className="shrink-0 text-[11px] md:text-[11.5px] font-medium" style={{ color: "#B0541F" }}>
+              {surfRating !== null ? `★ ${surfRating.toFixed(1)} · ` : ""}{priceRange}
+            </span>
+          )}
+          <CardBadges card={card} className="shrink-0" onToggleBooked={onToggleConfirmed} />
+        </div>
       </div>
 
       {/* Every row carries a tile so the column never drops out (Brennan, 24

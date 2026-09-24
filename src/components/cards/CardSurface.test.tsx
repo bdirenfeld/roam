@@ -49,6 +49,17 @@ describe("CardSurface — Row E", () => {
     expect(container.querySelector("img")).toBeNull();
   });
 
+  it("is two lines, no exceptions: the rating sits on the meta line, not a third", () => {
+    const { container } = render(<CardSurface card={placeCard} dayDate="2027-08-31" />);
+    const title = Array.from(container.querySelectorAll("p")).find((e) => /Trattoria Mario/.test(e.textContent ?? ""));
+    expect(title).toBeTruthy();
+    const meta = title!.parentElement!.nextElementSibling as HTMLElement;
+    expect(meta.textContent).toMatch(/Via Rosina/);
+    expect(meta.textContent).toMatch(/★ 4\.6/);
+    // nothing renders after the meta line inside the text column
+    expect(meta.nextElementSibling).toBeNull();
+  });
+
   it("gives a place its photo inside the same tile", () => {
     const { container } = render(<CardSurface card={placeCard} dayDate="2027-08-31" />);
     const img = container.querySelector("img");
