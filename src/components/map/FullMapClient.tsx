@@ -16,6 +16,7 @@ import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/
 import DocumentsSheet from "@/components/plan/DocumentsSheet";
 import AppMenu from "@/components/ui/AppMenu";
 import JourneyHeader, { HEADER_GLYPH } from "@/components/ui/JourneyHeader";
+import { dimForDay, dayChipLabel, dayCoords } from "@/lib/mapDayFilter";
 import { useGlobalSearch } from "@/components/search/GlobalSearch";
 import { useToast } from "@/components/ui/Toast";
 import { queuedInsert } from "@/lib/offline/queuedWrite";
@@ -93,6 +94,8 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
   const activeSubTypesRef  = useRef<Set<string>>(makeInitialSubTypes());
   const activeTypesRef     = useRef<Set<CardType>>(new Set(["activity", "food", "logistics"] as CardType[]));
   const activeStatusesRef  = useRef<Set<string>>(new Set(["interested", "in_itinerary"]));
+  // Day strip: the chosen day reads in ink, everything else fades (never removed).
+  const activeDayRef       = useRef<string | null>(null);
   // "We loved this" as a filter — off by default, and composed with the type,
   // sub-type and status filters rather than replacing any of them.
   const lovedOnlyRef       = useRef<boolean>(false);
@@ -236,6 +239,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
   const [lovedOnly, setLovedOnlyState] = useState(false);
   const [pendingPlace, setPendingPlace] = useState<PlaceResult | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [activeDay, setActiveDayState] = useState<string | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tempPinRef = useRef<any>(null);
 
@@ -287,8 +291,34 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
       const lovedOk  = !lovedOnlyRef.current || card.place!.loved === true;
       const show = activeTypesRef.current.has(type) && subTypeOk && statusOk && lovedOk;
       if (show) marker.addTo(map); else marker.remove();
+      const el = marker.getElement() as HTMLElement;
+      el.style.transition = "opacity 150ms ease";
+      el.style.opacity = dimForDay(activeDayRef.current, card.day_id) ? "0.22" : "";
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /**
+   * Tap a day on the strip: its pins stay in ink, the rest fade, and the map
+   * frames the day. Tap it again (or All) to see the whole journey. The fade
+   * is applied by syncVisibility so a filter change keeps it.
+   */
+  function handleDayTap(dayId: string | null) {
+    const next = activeDayRef.current === dayId ? null : dayId;
+    activeDayRef.current = next;
+    setActiveDayState(next);
+    syncVisibility();
+    const map = mapInstRef.current;
+    const mb  = mbRef.current;
+    if (!map || !mb || !next) return;
+    const coords = dayCoords(localCards, next);
+    if (coords.length === 0) return;
+    if (coords.length === 1) { map.flyTo({ center: coords[0], zoom: Math.max(map.getZoom(), 13) }); return; }
+    const bounds = coords.reduce(
+      (b: unknown, coord) => (b as { extend: (c: [number, number]) => unknown }).extend(coord),
+      new mb.LngLatBounds(coords[0], coords[0]),
+    );
+    map.fitBounds(bounds, { padding: { top: 170, bottom: 80, left: 40, right: 40 }, maxZoom: 14 });
+  }
 
   function handleSubTypesChange(next: Set<string>) {
     activeSubTypesRef.current = next;
@@ -362,6 +392,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
     if (activeTypesRef.current.has(place.type) && subTypeOk && statusOk && lovedOk) {
       mbMarker.addTo(map);
     }
+    if (dimForDay(activeDayRef.current, card.day_id)) wrapper.style.opacity = "0.22";
 
     mbMarker.getElement().addEventListener("click", (e: MouseEvent) => {
       e.stopPropagation();
@@ -837,6 +868,40 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
         {/* Place search — the add-a-place entry; owner only */}
         {!readOnly && (
           <PlaceSearch onPlaceSelect={handlePlaceSelect} destination={trip.destination} lat={trip.destination_lat} lng={trip.destination_lng} />
+        )}
+
+        {/* Day strip — one row of pills under the search. Tap a day and its
+            pins read in ink while the rest fade; the map frames the day. No
+            colour per day (Brennan, 24 Sep 2026: "otherwise it's just going to
+            look like a crazy rainbow"). Phone only: the desktop has the sidebar. */}
+        {days.length > 0 && hasRealPins && !showHint && (
+          <div
+            className="md:hidden absolute left-0 right-0 flex gap-2 overflow-x-auto scrollbar-none px-4"
+            style={{ top: 120, zIndex: 10 }}
+            role="tablist"
+            aria-label="Day"
+          >
+            {[{ id: null as string | null, label: "All" }, ...days.map((d) => ({ id: d.id as string | null, label: dayChipLabel(d.date) }))].map(({ id, label }) => {
+              const on = activeDay === id;
+              return (
+                <button
+                  key={id ?? "all"}
+                  role="tab"
+                  aria-selected={on}
+                  onClick={() => handleDayTap(id)}
+                  className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors duration-200"
+                  style={{
+                    backdropFilter: "blur(8px)",
+                    WebkitBackdropFilter: "blur(8px)",
+                    background: on ? "#1A1A2E" : "rgba(255,255,255,0.9)",
+                    color: on ? "#FFFFFF" : "#374151",
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
         )}
 
         {/* Filter button + pill bar — bottom-left, expands upward. View-only
