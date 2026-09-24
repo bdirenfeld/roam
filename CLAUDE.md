@@ -1369,3 +1369,20 @@ the component mounted and you are looking at throttling, not a broken map.
   Don't bring a Save button back — × used to discard every edit silently. Settings' day
   writes are now checked; a refused shortening puts the dates back. Tests:
   `EstimateClient.test.tsx`, `TripSettingsClient.test.tsx`.
+
+## The phone has two tabs; the Map has a day strip (24 Sep 2026)
+
+- `BottomNav` is Agenda and Map. The Plan board is a desktop screen (masthead
+  only); `/plan` still resolves on a phone but has no door there. Do not add a
+  third tab back without Brennan naming it.
+- The Map's day strip (`FullMapClient`, phone only, under the search) FADES
+  pins that are not on the tapped day to 0.22 and frames the day; it never
+  removes a pin — removal is the Saved · Scheduled filter's job. The rule is
+  `lib/mapDayFilter.ts` (`dimForDay`, `dayCoords`) and the fade is applied in
+  `syncVisibility` so a filter change keeps it. One ink colour for every day:
+  he ruled out a colour per day ("a crazy rainbow"). Hidden until the map has
+  a real pin and the first-visit card is gone, because that card sits at 64px.
+- The two mockups behind this: v1 (map panel beside the board)
+  https://claude.ai/artifact/DE5bmYwsecEX2JKED1yiDv and v2 (map as the board,
+  routes with drive time) https://claude.ai/artifact/9AMo3rmPwd9toZbHG65d5h —
+  both held; he chose the smallest change first.
