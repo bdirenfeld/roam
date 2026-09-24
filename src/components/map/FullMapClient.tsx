@@ -875,8 +875,11 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
         {/* Day strip — one row of pills under the search. Tap a day and its
             pins read in ink while the rest fade; the map frames the day. No
             colour per day (Brennan, 24 Sep 2026: "otherwise it's just going to
-            look like a crazy rainbow"). Phone only: the desktop has the sidebar. */}
-        {days.length > 0 && hasRealPins && !showHint && (
+            look like a crazy rainbow"). Phone only: the desktop has the sidebar.
+            Gated on pins only — the intro card renders when there are NO pins,
+            so the two never meet. Gating on showHint hid the strip on any phone
+            that had never dismissed the intro (Brennan, 24 Sep 2026). */}
+        {days.length > 0 && hasRealPins && (
           <div
             className="md:hidden absolute left-0 right-0 flex gap-2 overflow-x-auto scrollbar-none px-4"
             style={{ top: 120, zIndex: 10 }}
