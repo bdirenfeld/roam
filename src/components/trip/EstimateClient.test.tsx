@@ -40,7 +40,21 @@ function open(onDismiss = vi.fn()) {
   return onDismiss;
 }
 
+/** Contingency lives inside the Additional group since 25 Sep 2026. */
+function openAdditional() {
+  fireEvent.click(screen.getByText("Additional"));
+}
+
 describe("Budget saves as you go", () => {
+  it("keeps contingency and points inside the Additional group", () => {
+    open();
+    expect(screen.queryByLabelText("Contingency percent")).toBeNull();
+    expect(screen.queryByLabelText("Amount paid with points")).toBeNull();
+    openAdditional();
+    expect(screen.getByLabelText("Contingency percent")).toBeTruthy();
+    expect(screen.getByLabelText("Amount paid with points")).toBeTruthy();
+  });
+
   it("has no Save button, and says changes save themselves", () => {
     open();
     expect(screen.queryByRole("button", { name: /^Save$/ })).toBeNull();
@@ -49,6 +63,7 @@ describe("Budget saves as you go", () => {
 
   it("writes a change a moment after typing stops", async () => {
     open();
+    openAdditional();
     fireEvent.change(screen.getByLabelText("Contingency percent"), { target: { value: "12" } });
     expect(upserts).toHaveLength(0);
     await act(async () => { vi.advanceTimersByTime(800); });
@@ -59,6 +74,7 @@ describe("Budget saves as you go", () => {
 
   it("closing straight away still saves the change", async () => {
     const done = open();
+    openAdditional();
     fireEvent.change(screen.getByLabelText("Contingency percent"), { target: { value: "15" } });
     await act(async () => { fireEvent.click(screen.getByText("Tuscany")); });
     expect(upserts).toHaveLength(1);

@@ -211,13 +211,18 @@ function GroupBar({
   lines,
   isOpen,
   onToggle,
+  extraAmount,
+  extraItems,
 }: {
   label: string;
   lines: EstimateLine[];
   isOpen: boolean;
   onToggle: () => void;
+  /** Money in the group that is not a line: contingency less points. */
+  extraAmount?: number;
+  extraItems?: number;
 }) {
-  const subtotal = lines.reduce((s, l) => s + (l.enabled ? l.amount : 0), 0);
+  const subtotal = lines.reduce((s, l) => s + (l.enabled ? l.amount : 0), 0) + (extraAmount ?? 0);
   return (
     <Shell
       pv={11}
@@ -243,7 +248,7 @@ function GroupBar({
           {!isOpen && (
             <span className="normal-case tracking-normal" style={{ color: SOFT }}>
               {" "}
-              · {lines.filter((l) => l.enabled).length} items
+              · {lines.filter((l) => l.enabled).length + (extraItems ?? 0)} items
             </span>
           )}
         </span>
@@ -303,8 +308,8 @@ export default function EstimateClient({
     basis: Record<string, string>;
   } | null>(null);
   const [why, setWhy] = useState(false);
-  // Both groups open folded: the total, two subtotals, contingency, points and
-  // the Total are the screen; the nine lines with their fields are a tap away
+  // Both groups open folded: the total, two subtotals and the Total are the
+  // screen (contingency and points are Additional's last two rows); the nine lines with their fields are a tap away
   // (Brennan, 15 Sept 2026: "the budget should open with all fields collapsed").
   const [open, setOpen] = useState({ standard: false, additional: false });
   // Saves as you go (audit, 23 Sep 2026). There was a Save button, and
@@ -660,67 +665,75 @@ export default function EstimateClient({
               <Row key={l.key} line={l} setNum={setNum} toggle={toggle} />
             ))}
 
+          {/* Contingency and points sit inside Additional (Brennan, 25 Sep
+              2026: "combine contingency and paid with points into the
+              additional items"), so folded, Standard + Additional = Total. */}
           <GroupBar
             label="Additional"
             lines={additional}
             isOpen={open.additional}
             onToggle={() => setOpen((p) => ({ ...p, additional: !p.additional }))}
+            extraAmount={est.contingency - est.pointsCredit}
+            extraItems={(a.contingencyPct > 0 ? 1 : 0) + (est.pointsCredit > 0 ? 1 : 0)}
           />
-          {open.additional &&
-            additional.map((l) => (
-              <Row key={l.key} line={l} setNum={setNum} toggle={toggle} />
-            ))}
+          {open.additional && (
+            <>
+              {additional.map((l) => (
+                <Row key={l.key} line={l} setNum={setNum} toggle={toggle} />
+              ))}
+              <Shell
+                labelColor={CAPTION}
+                amountColor={INK}
+                label="Contingency"
+                amount={cad(est.contingency)}
+                middle={
+                  <>
+                    <div className="w-[58px] shrink-0">
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        value={String(a.contingencyPct)}
+                        onChange={(e) => setNum("contingencyPct", e.target.value)}
+                        aria-label="Contingency percent"
+                        className="w-full rounded-full px-2 py-1.5 text-[12.5px] text-right"
+                        style={box(INK)}
+                      />
+                    </div>
+                    <span
+                      className="text-[11px] shrink-0 w-[44px] sm:w-[92px] pl-1"
+                      style={{ color: SOFT }}
+                    >
+                      %
+                    </span>
+                  </>
+                }
+              />
 
-          <Shell
-            labelColor={CAPTION}
-            amountColor={INK}
-            label="Contingency"
-            amount={cad(est.contingency)}
-            middle={
-              <>
-                <div className="w-[58px] shrink-0">
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    value={String(a.contingencyPct)}
-                    onChange={(e) => setNum("contingencyPct", e.target.value)}
-                    aria-label="Contingency percent"
-                    className="w-full rounded-full px-2 py-1.5 text-[12.5px] text-right"
-                    style={box(INK)}
-                  />
-                </div>
-                <span
-                  className="text-[11px] shrink-0 w-[44px] sm:w-[92px] pl-1"
-                  style={{ color: SOFT }}
-                >
-                  %
-                </span>
-              </>
-            }
-          />
+              <Shell
+                labelColor={est.pointsCredit > 0 ? SIENNA : CAPTION}
+                amountColor={est.pointsCredit > 0 ? SIENNA : INK}
+                label="Paid with points"
+                amount={`${est.pointsCredit > 0 ? "−" : ""}${cad(est.pointsCredit)}`}
+                middle={
+                  <>
+                    <div className="w-[58px] shrink-0">
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        value={a.pointsCredit === 0 ? "" : String(a.pointsCredit)}
+                        onChange={(e) => setNum("pointsCredit", e.target.value)}
+                        aria-label="Amount paid with points"
+                        className="w-full rounded-full px-2 py-1.5 text-[12.5px] text-right"
+                        style={box(est.pointsCredit > 0 ? SIENNA : INK)}
+                      />
+                    </div>
+                    <span className="shrink-0 w-[44px] sm:w-[92px]" />
+                  </>
+                }
+              />
 
-          <Shell
-            labelColor={est.pointsCredit > 0 ? SIENNA : CAPTION}
-            amountColor={est.pointsCredit > 0 ? SIENNA : INK}
-            label="Paid with points"
-            amount={`${est.pointsCredit > 0 ? "−" : ""}${cad(est.pointsCredit)}`}
-            middle={
-              <>
-                <div className="w-[58px] shrink-0">
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    value={a.pointsCredit === 0 ? "" : String(a.pointsCredit)}
-                    onChange={(e) => setNum("pointsCredit", e.target.value)}
-                    aria-label="Amount paid with points"
-                    className="w-full rounded-full px-2 py-1.5 text-[12.5px] text-right"
-                    style={box(est.pointsCredit > 0 ? SIENNA : INK)}
-                  />
-                </div>
-                <span className="shrink-0 w-[44px] sm:w-[92px]" />
-              </>
-            }
-          />
+            </>
+          )}
 
           {/* Splitting with another household. The count is the switch — there
               is no separate tick — and the share only appears once someone is

@@ -80,7 +80,15 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   // override; the real times are written once on drop.
   const [ghost, setGhost] = useState<{ id: string; day: number; min: number | null; endMin: number | null } | null>(null);
 
-  const nDays = days.length;
+  // Seven days at a time (Brennan, 25 Sep 2026: "you're never scrolling,
+  // you're just picking the week"). Longer journeys page with the arrows in
+  // the cell above the hours; a 7-day journey shows no arrows at all.
+  const [weekStart, setWeekStart] = useState(0);
+  const shown = useMemo(() => days.slice(weekStart, weekStart + 7), [days, weekStart]);
+  const shownRef = useRef(shown); shownRef.current = shown;
+  const weeks = Math.max(1, Math.ceil(days.length / 7));
+  const weekIdx = Math.floor(weekStart / 7);
+  const nDays = shown.length;
   const minWidth = HOURS_W + nDays * COL_MIN;
 
   // ── local state helpers ────────────────────────────────────────
@@ -193,7 +201,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
         const g = gridRef.current; if (!g) return;
         const r = g.getBoundingClientRect();
         const endMin = Math.max(toMin(cardTimes(d.card).start ?? "07:00:00") + 30, minutesAtY(e.clientY - r.top + g.scrollTop));
-        const dayIdx = daysRef.current.findIndex((x) => x.id === d.card.day_id);
+        const dayIdx = shownRef.current.findIndex((x) => x.id === d.card.day_id);
         setGhost({ id: d.card.id, day: dayIdx, min: toMin(cardTimes(d.card).start ?? "07:00:00"), endMin });
       }
     }
@@ -203,7 +211,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
       const wasOverMap = overMap; setOverMap(false);
       if (!d) return;
       if (!d.moved) { if (d.kind === "move") setSelectedCard(d.card); return; }
-      const dayList = daysRef.current;
+      const dayList = shownRef.current;
       if (d.kind === "move" && wasOverMap && overMapPanel(e.clientX, e.clientY)) {
         void takeOffDay(d.card);
         return;
@@ -346,7 +354,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const pinCards = useMemo(() => [...saved, ...days.flatMap((d) => d.cards)], [saved, days]);
 
   // ── layout per day ─────────────────────────────────────────────
-  const laidOut = useMemo(() => days.map((d, di) => {
+  const laidOut = useMemo(() => shown.map((d, di) => {
     const timed: Block[] = []; const untimed: Card[] = [];
     for (const c of d.cards) {
       if (ghost && ghost.id === c.id) {
@@ -365,7 +373,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
       else timed.push({ id: ghost.id, startMin: ghost.min, endMin: ghost.endMin });
     }
     return { day: d, placed: placeBlocks(timed), untimed };
-  }), [days, ghost, saved]);
+  }), [shown, days, ghost, saved]);
   const byId = useMemo(() => { const m = new Map<string, Card>(); saved.forEach((c) => m.set(c.id, c)); days.forEach((d) => d.cards.forEach((c) => m.set(c.id, c))); return m; }, [days, saved]);
 
   const hours: number[] = []; for (let h = HOUR_START; h <= HOUR_END; h++) hours.push(h);
@@ -377,8 +385,33 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
         <div className="flex flex-col h-full" style={{ minWidth: minWidth }}>
           {/* day headers */}
           <div className="grid border-b bg-white flex-shrink-0" style={{ ...gridStyle, borderColor: "rgba(26,26,46,0.10)" }}>
-            <div />
-            {days.map((d) => (
+            <div className="flex items-center justify-center gap-0.5">
+              {weeks > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setWeekStart((w) => Math.max(0, w - 7))}
+                    disabled={weekIdx === 0}
+                    aria-label="Previous week"
+                    title={`Week ${weekIdx} of ${weeks}`}
+                    className="w-5 h-5 rounded-full flex items-center justify-center disabled:opacity-25 hover:bg-[rgba(26,26,46,0.06)]"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWeekStart((w) => Math.min((weeks - 1) * 7, w + 7))}
+                    disabled={weekIdx === weeks - 1}
+                    aria-label="Next week"
+                    title={`Week ${weekIdx + 2} of ${weeks}`}
+                    className="w-5 h-5 rounded-full flex items-center justify-center disabled:opacity-25 hover:bg-[rgba(26,26,46,0.06)]"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+                  </button>
+                </>
+              )}
+            </div>
+            {shown.map((d) => (
               <div
                 key={d.id}
                 onClick={() => setActiveDayId((cur) => (cur === d.id ? null : d.id))}
