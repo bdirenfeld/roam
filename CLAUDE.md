@@ -132,6 +132,13 @@ The benchmark: someone opens Roam in a Centurion Lounge and the person next to t
   "Put on a day" is a quiet 36px chip on the action row with the three 36px discs to its
   right. The empty state is one line ("Add a note"); "more" only when there is something to
   unfold. "remove from map" lives in the open note state, not on the photo. ~150px closed.
+- **Condensed on the phone, hero on desktop (24 Sep 2026, latest):** `desktop` is a
+  matchMedia(min-width 768) state. Desktop always shows the swipeable photo at the top and
+  no tile ("leave the big picture at the top to scroll through"); ✕ closes. Phone: 44px tile
+  (no badge) matching the two text lines, `p-2.5`, action row `mt-2`, and no "Add a note"
+  line on the face — a pencil disc leads the action-row discs when there is no note and
+  opens the note straight into the editor (`DetailsField startEditing`). A saved note still
+  shows as one line. Mock: https://claude.ai/artifact/HSbDNXLPEPcKx4RiRYV3MY
 - `details.notes` and `details.recommended_by` are edited in place on the popup via `DetailsField` (tap the line; dotted link when empty). Each save merges one key and calls `onCardUpdate` so the pin restyles. The type editor behind the pencil still carries its own recommended-by input.
 - A scheduled copy of a place is a separate card: `recommended_by` set on the interested card does **not** carry to the in_itinerary card, and the map shows the scheduled (filled) pin first. `scheduleCardOnDay` should copy it; until it does, set both.
 
@@ -1451,9 +1458,18 @@ the component mounted and you are looking at throttling, not a broken map.
   tab's `MapPinPopup` with the same callbacks. "Put on a day" from a pin inserts a new
   scheduled card and leaves the saved one, exactly as on the Map tab. WeekMap iterates its
   Map with forEach: for-of over a Map fails the build (no downlevelIteration).
-- Still to come, all mocked at https://claude.ai/artifact/Wtio2jYAqHFkA5Kmcq9CDq: pin→week
-  and week→map drags, plan-first blocks (click an empty hour, name it, link a place later),
-  Where to stay as a panel over the map, the Map tab folding into Plan on the desktop.
+- Drags (24 Sep 2026): press a pin and move → `onPinDragStart` hands the card to the board's
+  drag machinery as kind `fromMap` (the map parks `dragPan` until pointerup; no
+  preventDefault or the pin's click dies). Drop on the grid = `scheduleCardOnDay` with an
+  hour-long block (Anytime lane = no times); the saved pin stays; Undo deletes the new card.
+  Drag a block over the map panel → `hot` tint; drop = `unscheduleCard` (Map tab's), Undo
+  re-inserts the scheduled card and deletes the created saved one. The ghost lookups
+  (`byId`, the untimed source) include the saved pile or a map card's ghost renders nothing.
+- The disc top-left of the map (`onToggleWide`) widens the map to the page and folds the
+  week away; a ResizeObserver calls `map.resize()` so the canvas follows its box.
+- Still to come, all mocked at https://claude.ai/artifact/Wtio2jYAqHFkA5Kmcq9CDq: plan-first
+  blocks (click an empty hour, name it, link a place later), Where to stay as a panel over
+  the map, the Map tab folding into Plan on the desktop.
 - Tailwind opacity trap: `bg-white/97` is not a step Tailwind generates, so the class did not
   exist and the phone AppMenu had no background over the Map until 24 Sep 2026. Use a real
   step (`/95`) or brackets (`/[0.97]`), and check the compiled CSS when something is see-through.
