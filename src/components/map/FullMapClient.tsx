@@ -4,7 +4,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import MapPinPopup from "./MapPinPopup";
-import MapSidebar, { SIDEBAR_SUB_TYPES } from "./MapSidebar";
+import MapSidebar, { SIDEBAR_SUB_TYPES, GROUPS } from "./MapSidebar";
 import PlaceSearch from "./PlaceSearch";
 import { lookupPlace, TEMP_PIN_SVG } from "./lookupPlace";
 import AddToTripSheet from "./AddToTripSheet";
@@ -820,6 +820,43 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
           {/* Pill rows — rendered above the button (flex-col, first child = top) */}
           {filterOpen && (
             <div className="flex flex-col gap-2 animate-in fade-in duration-200">
+              {/* Row 0 — the phone sub-type row (25 Sep 2026): once ONE category
+                  is chosen, its rows as pills with counts, the type pills' rule
+                  (tap = only that, again = all). Drives activeSubTypes, the same
+                  set the desktop sidebar drives. */}
+              {activeTypes.size === 1 && (() => {
+                const only = Array.from(activeTypes)[0];
+                const group = GROUPS.find((g) => g.typeKey === only);
+                if (!group) return null;
+                const rows = group.rows.map((r) => ({
+                  ...r,
+                  n: localCards.filter((c) => c.place && r.subTypes.includes(c.place.sub_type ?? "") && activeStatuses.has(c.status ?? "") && (!lovedOnly || c.place.loved === true)).length,
+                  on: r.subTypes.every((st) => activeSubTypes.has(st)),
+                })).filter((r) => r.n > 0);
+                if (rows.length === 0) return null;
+                const allOn = rows.every((r) => r.on);
+                const tap = (label: string) => {
+                  const next = new Set(activeSubTypes);
+                  const onlyThis = rows.filter((r) => r.on).length === 1 && rows.find((r) => r.label === label)?.on;
+                  rows.forEach((r) => {
+                    const want = allOn ? r.label === label : onlyThis ? true : r.label === label ? !r.on : r.on;
+                    r.subTypes.forEach((st) => { if (want) next.add(st); else next.delete(st); });
+                  });
+                  handleSubTypesChange(next);
+                };
+                return (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {rows.map((r) => {
+                      const chosen = r.on && !allOn;
+                      return (
+                        <button key={r.label} onClick={() => tap(r.label)} className="px-2.5 py-1 rounded-full text-[11.5px] font-medium transition-all duration-200" style={{ backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", background: chosen ? "#1A1A2E" : r.on ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.5)", color: chosen ? "#FFFFFF" : r.on ? "#374151" : "#9CA3AF" }}>
+                          {r.label} <span style={{ opacity: 0.55 }}>{r.n}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
               {/* Row 1 (top) — Categories */}
               <div className="flex items-center gap-2">
                 {(

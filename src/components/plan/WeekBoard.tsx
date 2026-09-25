@@ -23,6 +23,7 @@ import { createClient } from "@/lib/supabase/client";
 import { scheduleCardOnDay, unscheduleCard } from "@/lib/scheduleCard";
 import { arrangeDay, type ArrangeItem, type Busy, type Anchor } from "@/lib/week/arrange";
 import { PIN_COLORS, getMaterialIconHTML } from "@/lib/mapPins";
+import { autoDayTitle } from "@/lib/autoDayTitle";
 import { useToast } from "@/components/ui/Toast";
 import { cardTimes } from "@/lib/cardTime";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
@@ -88,6 +89,21 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const [overMap, setOverMap] = useState(false);
   // The header's "…" menu, by day id.
   const [headerMenu, setHeaderMenu] = useState<string | null>(null);
+  // Day names (25 Sep 2026): automatic from the cards (`autoDayTitle`), or the
+  // name you typed (`days.theme`), which wins. Rename from the "…" menu; an
+  // empty name goes back to automatic.
+  const [renamingDay, setRenamingDay] = useState<string | null>(null);
+  const [nameDraft, setNameDraft] = useState("");
+  const commitRename = useCallback(async () => {
+    const id = renamingDay; if (!id) return;
+    setRenamingDay(null);
+    const theme = nameDraft.trim() || null;
+    const day = daysRef.current.find((d) => d.id === id); if (!day || (day.theme ?? null) === theme) return;
+    const before = day.theme ?? null;
+    setDays((prev) => prev.map((d) => (d.id === id ? { ...d, theme } : d)));
+    const { error } = await queuedUpdate("days", { id }, { theme });
+    if (error) { setDays((prev) => prev.map((d) => (d.id === id ? { ...d, theme: before } : d))); toast({ message: "Couldn't rename it. Try again." }); }
+  }, [renamingDay, nameDraft, toast]);
   useEffect(() => {
     if (!headerMenu) return;
     const off = () => setHeaderMenu(null);
@@ -474,7 +490,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     const t = e.target as HTMLElement;
     if (t !== e.currentTarget && !t.dataset.hourline) return;   // a block, not the empty hour
     const min = minAtY(e.clientY); if (min === null) return;
-    setDraftText(""); setDraftBlock({ dayId, dayIdx, min: Math.floor(min / 15) * 15 });
+    setDraftText(""); setDraftBlock({ dayId, dayIdx, min });
   };
   const commitDraft = useCallback(async () => {
     const d = draftBlock; const title = draftText.trim();
@@ -551,13 +567,13 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const gridStyle = { gridTemplateColumns: `${HOURS_W}px repeat(${nDays}, minmax(${COL_MIN}px, 1fr))` } as const;
 
   return (
-    <div ref={frameRef} className="flex h-[calc(100dvh-64px)] bg-[#F5F4F1] select-none">
+    <div ref={frameRef} className="flex h-[calc(100dvh-64px)] bg-[#F5F4F1]">
       {/* One scroller for both axes (25 Sep 2026): the header and the Anytime
           lane stick to the top, the hours gutter sticks to the left. Two nested
           scrollers (sideways outside, down inside) left the gutter sliding
           away once the map was widened, because sticky only knows its nearest
           scrolling ancestor. */}
-      <div ref={gridRef} data-week-scroll="1" className={`weekScroll flex-1 min-w-0 overflow-auto ${mapWide ? "hidden" : ""}`}>
+      <div ref={gridRef} data-week-scroll="1" className={`weekScroll flex-1 min-w-0 overflow-auto select-none ${mapWide ? "hidden" : ""}`}>
         <div className="flex flex-col" style={{ minWidth: minWidth }}>
           <div className="sticky top-0 z-[9]">
           {/* day headers */}
@@ -588,7 +604,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                 </>
               )}
             </div>
-            {shown.map((d) => (
+            {shown.map((d, i) => (
               <div
                 key={d.id}
                 onClick={() => setActiveDayId((cur) => (cur === d.id ? null : d.id))}
@@ -606,12 +622,27 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                 >…</button>
                 {headerMenu === d.id && (
                   <div onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} className="absolute right-1.5 top-8 z-30 bg-white rounded-[10px] p-1 w-[172px] text-[12.5px] font-normal" style={{ border: "1px solid rgba(26,26,46,0.10)", boxShadow: "0 16px 34px rgba(26,26,46,0.17)" }}>
+                    <button className="w-full text-left px-2.5 py-[7px] rounded-md hover:bg-[#F3EFE4]" onClick={() => { setHeaderMenu(null); setNameDraft(d.theme ?? ""); setRenamingDay(d.id); }}>Rename this day</button>
                     <button className="w-full text-left px-2.5 py-[7px] rounded-md hover:bg-[#F3EFE4]" onClick={() => { setHeaderMenu(null); void arrangeThisDay(d.id); }}>Arrange this day</button>
-                    <button className="w-full text-left px-2.5 py-[7px] rounded-md hover:bg-[#F3EFE4]" onClick={() => { setHeaderMenu(null); setActiveDayId((cur) => (cur === d.id ? null : d.id)); }}>{activeDayId === d.id ? "Show every day on the map" : "Show only on the map"}</button>
                   </div>
                 )}
                 <div className="text-[13px] font-semibold leading-tight">{dow(d.date)}<span className="ml-1.5 text-[11px] font-medium text-activity/40">{dayLabel(d.date)}</span></div>
-                <div className="text-[10.5px] text-activity/60 truncate mt-0.5">{d.theme ?? d.day_name ?? " "}</div>
+                {renamingDay === d.id ? (
+                  <input
+                    autoFocus
+                    value={nameDraft}
+                    onChange={(e) => setNameDraft(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") void commitRename(); if (e.key === "Escape") setRenamingDay(null); }}
+                    onBlur={() => void commitRename()}
+                    onClick={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    placeholder={autoDayTitle(d, i === 0, i === shown.length - 1) ?? "Name this day"}
+                    aria-label="Name this day"
+                    className="w-full text-[10.5px] mt-0.5 bg-white rounded px-1 outline-none ring-1 ring-[#1A1A2E]"
+                  />
+                ) : (
+                  <div className="text-[10.5px] text-activity/60 truncate mt-0.5">{d.theme ?? autoDayTitle(d, i === 0, i === shown.length - 1) ?? " "}</div>
+                )}
               </div>
             ))}
           </div>

@@ -43,17 +43,17 @@ describe("placeBlocks", () => {
 });
 
 describe("moves and resizes", () => {
-  it("a move keeps the duration and snaps to 15 minutes", () => {
+  it("a move keeps the duration and snaps to 30 minutes", () => {
     const r = movedTimes({ id: "x", startMin: toMin("10:20:00"), endMin: toMin("11:20:00") }, 13 * 60 + 7);
     expect(r).toEqual({ start: "13:00:00", end: "14:00:00" });
   });
   it("a move of a no-end card stays no-end", () => {
     const r = movedTimes({ id: "x", startMin: toMin("15:00:00"), endMin: null }, 9 * 60 + 22);
-    expect(r).toEqual({ start: "09:15:00", end: null });
+    expect(r).toEqual({ start: "09:30:00", end: null });
   });
   it("a resize never ends within 30 minutes of the start", () => {
     expect(resizedEnd({ id: "x", startMin: toMin("09:00:00"), endMin: toMin("11:00:00") }, 9 * 60 + 5)).toBe("09:30:00");
-    expect(resizedEnd({ id: "x", startMin: toMin("09:00:00"), endMin: toMin("11:00:00") }, 12 * 60 + 8)).toBe("12:15:00");
+    expect(resizedEnd({ id: "x", startMin: toMin("09:00:00"), endMin: toMin("11:00:00") }, 12 * 60 + 8)).toBe("12:00:00");
   });
 
   it("drags the start earlier or later, snapped, 30 minutes from the end at most", () => {
@@ -61,11 +61,11 @@ describe("moves and resizes", () => {
     expect(resizedStart(b, 8 * 60 + 7)).toBe("08:00:00");
     expect(resizedStart(b, 10 * 60 + 50)).toBe("10:30:00");
     expect(resizedStart(b, 5 * 60)).toBe("07:00:00");
-    expect(resizedStart({ id: "y", startMin: toMin("09:00:00"), endMin: null }, 12 * 60 + 20)).toBe("12:15:00");
+    expect(resizedStart({ id: "y", startMin: toMin("09:00:00"), endMin: null }, 12 * 60 + 20)).toBe("12:30:00");
   });
   it("maps grid pixels back to snapped minutes inside the drawn hours", () => {
     expect(minutesAtY(0)).toBe(HOUR_START * 60);
-    expect(minutesAtY(PX_PER_HOUR * 3 + 10)).toBe(HOUR_START * 60 + 180 + 15);
+    expect(minutesAtY(PX_PER_HOUR * 3 + 10)).toBe(HOUR_START * 60 + 180);
     expect(minutesAtY(-500)).toBe(HOUR_START * 60);
   });
   it("round-trips the stored time shape", () => {

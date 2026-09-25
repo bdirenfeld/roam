@@ -3,12 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { UserCircle, Calendar, Columns, MapPin, Plus, Question, Files } from "@phosphor-icons/react";
-import { SearchButton } from "@/components/search/GlobalSearch";
+import { UserCircle, Calendar, Columns, MapPin, Plus, Files } from "@phosphor-icons/react";
 import SharedWithFaces from "@/components/trip/SharedWithFaces";
 import AppMenu from "@/components/ui/AppMenu";
 import {
-  GuideLink,
   NewJourneyLink,
   ProfileLink,
 } from "@/components/overlays/AppOverlays";
@@ -382,26 +380,10 @@ export default function DesktopMasthead() {
         </NewJourneyLink>
       )}
 
-      {/* Search — the one way to find a place when you can't remember which
-          journey it's on. Also on "/" and ⌘/Ctrl-K from anywhere. */}
-      <SearchButton
-        className="inline-flex items-center gap-[7px] h-[33px] pl-[10px] pr-[13px] mr-2 rounded-lg text-[rgba(26,26,46,0.62)]"
-        size={15}
-        strokeWidth={1.6}
-        label="Search"
-      />
-
-      {/* How Roam works — the quick-start guide. Its only other door was a
-          Profile row hidden at this width, so a signed-in desktop user had
-          no way to it (UX audit, Sep 2026, finding 3). */}
-      <GuideLink
-        ariaLabel="How Roam works"
-        title="How Roam works"
-        className="inline-flex items-center justify-center w-[33px] h-[33px] mr-1 rounded-lg text-[rgba(26,26,46,0.62)] hover:bg-[rgba(26,26,46,0.06)] transition-colors"
-      >
-        <Question size={17} weight="light" />
-      </GuideLink>
-
+      {/* No Search and no "?" here since 25 Sep 2026 (Brennan): the map has
+          its own search and the Journeys page finds a journey; the guide is
+          a long page nobody reads and will come back as short recordings.
+          "/" and ⌘/Ctrl-K still open search from anywhere. */}
       {/* Everything reached occasionally, named, in one menu — including Plan
           a journey, which is why this renders off a journey as well as on one.
           The phone has shown this list all along; this is it at desktop width. */}

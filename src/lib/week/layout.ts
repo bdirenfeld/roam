@@ -7,7 +7,7 @@
 export const HOUR_START = 7;      // 7 am
 export const HOUR_END   = 23;     // 11 pm — the last row starts here
 export const PX_PER_HOUR = 48;
-export const SNAP_MIN    = 15;
+export const SNAP_MIN    = 30;   // drags land on the half hour (Brennan, 25 Sep 2026); the card keeps exact times
 export const NO_END_MIN  = 45;    // a card with a start and no end draws this tall
 export const MIN_LEN_MIN = 30;    // a resize can't go shorter than this
 
