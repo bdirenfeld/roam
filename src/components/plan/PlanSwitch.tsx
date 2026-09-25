@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useState } from "react";
-import type { Trip, DayWithCards, ListWithCards } from "@/types/database";
+import type { Trip, DayWithCards, ListWithCards, Card } from "@/types/database";
 import WeekBoard from "./WeekBoard";
 import PlanBoard from "./PlanBoard";
 
@@ -18,6 +18,8 @@ interface Props {
   trip: Trip;
   initialDays: DayWithCards[];
   initialLists: ListWithCards[];
+  /** Dayless saved places, for the map beside the week. */
+  initialSaved: Card[];
   initialNotes: string | null;
 }
 
@@ -31,5 +33,5 @@ export default function PlanSwitch(props: Props) {
     return () => mq.removeEventListener("change", apply);
   }, []);
   if (phone) return <PlanBoard {...props} />;
-  return <WeekBoard trip={props.trip} initialDays={props.initialDays} />;
+  return <WeekBoard trip={props.trip} initialDays={props.initialDays} initialSaved={props.initialSaved} />;
 }

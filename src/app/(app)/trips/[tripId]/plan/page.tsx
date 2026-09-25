@@ -34,7 +34,7 @@ export default async function PlanPage({ params }: Props) {
     card_attachments ( id )
   `;
 
-  const [{ data: trip }, { data: days }, { data: cards }, { data: lists }, { data: listCards }] =
+  const [{ data: trip }, { data: days }, { data: cards }, { data: lists }, { data: listCards }, { data: savedCards }] =
     await Promise.all([
       supabase.from("trips").select("*").eq("id", tripId).single(),
       supabase
@@ -71,6 +71,17 @@ export default async function PlanPage({ params }: Props) {
         .not("list_id", "is", null)
         .not("archived", "is", true)
         .order("position"),
+      // The saved pile, for the map beside the week (24 Sep 2026): every
+      // dayless place the traveller has pinned. Hollow pins on the map; a
+      // pin's "Put on a day" makes a scheduled card beside it.
+      supabase
+        .from("cards")
+        .select(CARD_SELECT)
+        .eq("trip_id", tripId)
+        .eq("status", "interested")
+        .is("day_id", null)
+        .not("place_id", "is", null)
+        .not("archived", "is", true),
     ]);
 
   if (!trip) redirect("/trips");
@@ -102,10 +113,13 @@ export default async function PlanPage({ params }: Props) {
   void [lists, listCardList];
   const listsWithCards: ListWithCards[] = [];
 
+  const saved = ((savedCards ?? []) as Card[]).filter((c) => c.place && c.place.lat != null && c.place.lng != null);
+
   return (
     <PlanSwitch
       trip={trip as Trip}
       initialDays={daysWithCards}
+      initialSaved={saved}
       initialLists={listsWithCards}
       // Notes ride the `*` select, so they arrive with the page payload and
       // work offline.

@@ -6,7 +6,9 @@
  * grid. Drag a block sideways to change its day, up and down to change its
  * time, its bottom edge to change its end; click it to open the card sheet.
  * Every write goes through queuedUpdate and shows the app's one toast with
- * Undo. Phase 1 — the map beside it, plan-first blocks and Where to stay are
+ * Undo. Phase 2 (24 Sep 2026) put the map beside it (WeekMap): hover a block
+ * and its pin lifts, click a day header and the other days' pins fade, click
+ * a pin and the Map tab's card opens. Plan-first blocks and Where to stay are
  * the next pushes (mock: https://claude.ai/artifact/Wtio2jYAqHFkA5Kmcq9CDq).
  *
  * The geometry (lanes for overlaps, snapping, no-end height) is in
@@ -19,6 +21,7 @@ import { queuedUpdate, queuedInsert } from "@/lib/offline/queuedWrite";
 import { useToast } from "@/components/ui/Toast";
 import { cardTimes } from "@/lib/cardTime";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
+import WeekMap from "./WeekMap";
 import {
   placeBlocks, movedTimes, resizedEnd, minutesAtY, toMin, fmt12, gridHeight,
   HOUR_START, HOUR_END, PX_PER_HOUR, NO_END_MIN, type Block,
@@ -27,6 +30,8 @@ import {
 interface Props {
   trip: Trip;
   initialDays: DayWithCards[];
+  /** Dayless saved places: hollow pins on the map, nothing on the grid. */
+  initialSaved: Card[];
 }
 
 const COL_MIN = 168;   // px — seven days fit beside a 440px map at 1440; more scroll sideways
@@ -48,10 +53,13 @@ type Drag =
   | { kind: "move"; card: Card; fromDay: string; x0: number; y0: number; offY: number; moved: boolean }
   | { kind: "resize"; card: Card; y0: number; end0: number; moved: boolean };
 
-export default function WeekBoard({ trip, initialDays }: Props) {
+export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const { toast } = useToast();
   const [days, setDays] = useState<DayWithCards[]>(initialDays);
   const daysRef = useRef(days); daysRef.current = days;
+  const [saved, setSaved] = useState<Card[]>(initialSaved);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [activeDayId, setActiveDayId] = useState<string | null>(null);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [hover, setHover] = useState<{ day: number; min: number | null } | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
@@ -225,6 +233,37 @@ export default function WeekBoard({ trip, initialDays }: Props) {
     setDays((prev) => prev.map((d) => (d.id === card.day_id ? { ...d, cards: [...d.cards, card] } : d)));
   }, []);
 
+  // ── the map's callbacks ────────────────────────────────────────
+  // A pin's card is either on a day (patch it there) or in the saved pile.
+  const mapCardUpdate = useCallback((updated: Card) => {
+    if (updated.day_id) { patchCard(updated.id, updated, updated.day_id); return; }
+    setSaved((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+  }, [patchCard]);
+  // "Put on a day" makes a new scheduled card; the saved one stays, as on the Map tab.
+  const mapCardCreated = useCallback((created: Card) => {
+    if (!created.day_id) { setSaved((prev) => [...prev, created]); return; }
+    setDays((prev) => prev.map((d) => (d.id === created.day_id && !d.cards.some((c) => c.id === created.id) ? { ...d, cards: [...d.cards, created] } : d)));
+  }, []);
+  const mapCardDelete = useCallback((cardId: string) => {
+    const inSaved = saved.find((c) => c.id === cardId);
+    if (!inSaved) { handleCardDelete(cardId); return; }
+    setSaved((prev) => prev.filter((c) => c.id !== cardId));
+    toast({
+      message: "Removed from the map",
+      undo: async () => {
+        const { error } = await queuedInsert("cards", {
+          id: inSaved.id, day_id: null, trip_id: inSaved.trip_id,
+          start_time: null, end_time: null, position: inSaved.position,
+          status: inSaved.status, source_url: inSaved.source_url, details: inSaved.details,
+          ai_generated: inSaved.ai_generated, confirmed: inSaved.confirmed, place_id: inSaved.place_id,
+        });
+        if (error) { toast({ message: "Couldn't bring it back. Try again." }); return; }
+        setSaved((prev) => (prev.some((c) => c.id === inSaved.id) ? prev : [...prev, inSaved]));
+      },
+    });
+  }, [saved, handleCardDelete, toast]);
+  const pinCards = useMemo(() => [...saved, ...days.flatMap((d) => d.cards)], [saved, days]);
+
   // ── layout per day ─────────────────────────────────────────────
   const laidOut = useMemo(() => days.map((d, di) => {
     const timed: Block[] = []; const untimed: Card[] = [];
@@ -252,14 +291,20 @@ export default function WeekBoard({ trip, initialDays }: Props) {
   const gridStyle = { gridTemplateColumns: `${HOURS_W}px repeat(${nDays}, minmax(${COL_MIN}px, 1fr))` } as const;
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-64px)] bg-[#F5F4F1] select-none">
-      <div className="flex-1 min-h-0 overflow-x-auto">
+    <div className="flex h-[calc(100dvh-64px)] bg-[#F5F4F1] select-none">
+      <div className="flex-1 min-w-0 overflow-x-auto">
         <div className="flex flex-col h-full" style={{ minWidth: minWidth }}>
           {/* day headers */}
           <div className="grid border-b bg-white flex-shrink-0" style={{ ...gridStyle, borderColor: "rgba(26,26,46,0.10)" }}>
             <div />
             {days.map((d) => (
-              <div key={d.id} className="px-2 py-2 border-l min-w-0" style={{ borderColor: "rgba(26,26,46,0.10)" }}>
+              <div
+                key={d.id}
+                onClick={() => setActiveDayId((cur) => (cur === d.id ? null : d.id))}
+                className="px-2 py-2 border-l min-w-0 cursor-pointer transition-colors"
+                title={activeDayId === d.id ? "Show every day on the map" : "Show only this day on the map"}
+                style={{ borderColor: "rgba(26,26,46,0.10)", background: activeDayId === d.id ? "#F3EFE4" : undefined, opacity: activeDayId && activeDayId !== d.id ? 0.55 : 1 }}
+              >
                 <div className="text-[13px] font-semibold leading-tight">{dow(d.date)}<span className="ml-1.5 text-[11px] font-medium text-activity/40">{dayLabel(d.date)}</span></div>
                 <div className="text-[10.5px] text-activity/60 truncate mt-0.5">{d.theme ?? d.day_name ?? " "}</div>
               </div>
@@ -274,6 +319,8 @@ export default function WeekBoard({ trip, initialDays }: Props) {
                   <div
                     key={c.id}
                     onPointerDown={(e) => onBlockPointerDown(e, c, day.id)}
+                    onPointerEnter={() => setHoveredId(c.id)}
+                    onPointerLeave={() => setHoveredId((h) => (h === c.id ? null : h))}
                     className="text-[10px] font-medium bg-white rounded-[5px] px-1.5 py-[3px] truncate max-w-full cursor-grab"
                     style={{ border: "1px solid rgba(26,26,46,0.10)", borderLeft: `3px solid ${isNote(c) ? "rgba(26,26,46,0.4)" : "#1A1A2E"}`, opacity: ghost?.id === c.id ? 0.6 : 1 }}
                     title={cardTitle(c)}
@@ -308,7 +355,9 @@ export default function WeekBoard({ trip, initialDays }: Props) {
                         <div
                           key={c.id}
                           onPointerDown={(e) => onBlockPointerDown(e, c, day.id)}
-                          className={`absolute rounded-[6px] overflow-hidden cursor-grab ${selectedCard?.id === c.id ? "ring-1 ring-[#B0541F]" : ""}`}
+                          onPointerEnter={() => setHoveredId(c.id)}
+                          onPointerLeave={() => setHoveredId((h) => (h === c.id ? null : h))}
+                          className={`absolute rounded-[6px] overflow-hidden cursor-grab ${selectedCard?.id === c.id || hoveredId === c.id ? "ring-1 ring-[#B0541F]" : ""}`}
                           style={{
                             top: b.top, height: b.height,
                             left: `calc(${b.lane * laneW}% + 3px)`, width: `calc(${laneW}% - 6px)`,
@@ -340,6 +389,22 @@ export default function WeekBoard({ trip, initialDays }: Props) {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* The map. 380px from lg, 440px from xl; below lg the week stands alone
+          and the Map tab still has the full map. */}
+      <div className="hidden lg:block w-[380px] xl:w-[440px] flex-shrink-0 h-full">
+        <WeekMap
+          trip={trip}
+          days={days}
+          cards={pinCards}
+          hoveredId={hoveredId}
+          activeDayId={activeDayId}
+          onHover={setHoveredId}
+          onCardUpdate={mapCardUpdate}
+          onCardCreated={mapCardCreated}
+          onCardDelete={mapCardDelete}
+        />
       </div>
 
       {selectedCard && (
