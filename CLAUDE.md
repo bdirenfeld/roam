@@ -1504,11 +1504,22 @@ the component mounted and you are looking at throttling, not a broken map.
   the end, never before 7am).
 - The masthead's Agenda / Plan is one segmented control with a measured sliding thumb, not
   two pills (25 Sep 2026).
-- Still to come, mocked at https://claude.ai/artifact/Re8LgyCtx1jWw3PRZYMo7W and
-  https://claude.ai/artifact/Wtio2jYAqHFkA5Kmcq9CDq: the sub-type row in the Filter once a
-  category is chosen; plan-first blocks (click an empty hour, name it, link a place
-  later); Where to stay as a panel over the map. Menu options mocked at
-  https://claude.ai/artifact/Mc6jFQTci62sEV4KbeHtCJ.
+- Filter's sub-type row (25 Sep 2026): once ONE category is chosen, that group's rows from
+  `MapSidebar.GROUPS` (now exported) appear as pills with counts; `rowsOff` hides a row's
+  sub-types. Rows with no pins are not shown.
+- Plan first (25 Sep 2026): a click on an empty hour (the column itself or an hour line,
+  `data-hourline`) opens a dashed draft block with "What's the plan?"; Enter creates a
+  place-less card there (`scheduleCardOnDay placeId null, details.title`), an hour long, with
+  Undo. A finished drag sets `justDraggedRef` so its click does not open a draft. The
+  place is linked later from the card sheet's link-a-place.
+- Where to stay on the Plan (25 Sep 2026): the desktop menu links to `/plan?stays=1`; WeekBoard
+  opens `showStays` + wide, WeekMap mounts `WhereToStaySheet panel` over its map and draws
+  the lettered candidate pins (`makePinElement`), framing once per set with 440px of right
+  padding for the panel. The phone still goes to `/map?stays=1`.
+- The hours gutter, the Anytime label and the arrows cell are `sticky left-0` so they stay
+  put when the week scrolls sideways (25 Sep 2026).
+- The desktop AppMenu is the same 3-across tiles as the phone (25 Sep 2026). Mocks:
+  https://claude.ai/artifact/Re8LgyCtx1jWw3PRZYMo7W, https://claude.ai/artifact/Mc6jFQTci62sEV4KbeHtCJ.
 - The phone AppMenu is a 3-across grid of 64px tiles under the disc (25 Sep 2026), titles
   "Stay" and "Settings" there; desktop keeps rows. A bottom sheet was mocked and rejected:
   the trigger is top-right, so the menu opens where the thumb already is.
