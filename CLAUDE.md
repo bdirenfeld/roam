@@ -1542,6 +1542,12 @@ the component mounted and you are looking at throttling, not a broken map.
 - The header "…" is three items: Rename this day, Give times to the rest (timeless blocks
   only), Rearrange the whole day (every block re-timed by the engine; confirmed cards stay as
   fixed points; anything that no longer fits goes anytime; Undo restores every time).
+- A batch drop skips places already on that day (dedupe by place_id, and within the batch)
+  and the toast says how many were already there. It happened: the same six places went on
+  a Tuscany day twice, tray then drag, three seconds apart (25 Sep 2026).
+- Bulk actions on the week: Shift/Ctrl-click blocks (`pickedBlocks`, ring-2 ink), a tray at
+  the bottom of the week with Move to a day, Take off the day, Delete; Esc or ✕ clears;
+  every action has Undo.
 - The phone Map's Filter has the same sub-type row (once one category is chosen), driving
   `activeSubTypes` — the set the desktop sidebar used — with the type pills' tap rule.
 - The desktop AppMenu is the same 3-across tiles as the phone (25 Sep 2026). Mocks:

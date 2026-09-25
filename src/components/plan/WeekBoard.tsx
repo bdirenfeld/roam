@@ -80,6 +80,16 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   // block lands there; a place can be linked from its sheet later.
   const [draftBlock, setDraftBlock] = useState<{ dayId: string; dayIdx: number; min: number } | null>(null);
   const [draftText, setDraftText] = useState("");
+  // Bulk actions (25 Sep 2026): Shift-click blocks to pick them; a tray offers
+  // Move to a day, Take off the day, Delete. Esc or ✕ clears.
+  const [pickedBlocks, setPickedBlocks] = useState<Set<string>>(() => new Set());
+  const [bulkMove, setBulkMove] = useState(false);
+  useEffect(() => {
+    if (pickedBlocks.size === 0) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { setPickedBlocks(new Set()); setBulkMove(false); } };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [pickedBlocks.size]);
   const justDraggedRef = useRef(false);
   const daysRef = useRef(days); daysRef.current = days;
   const [saved, setSaved] = useState<Card[]>(initialSaved);
@@ -229,6 +239,11 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   // ── drag: move ─────────────────────────────────────────────────
   const onBlockPointerDown = (e: React.PointerEvent, card: Card, fromDay: string) => {
     if (e.button !== 0) return;
+    if (e.shiftKey || e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      setPickedBlocks((prev) => { const next = new Set(prev); if (next.has(card.id)) next.delete(card.id); else next.add(card.id); return next; });
+      return;
+    }
     const el = e.currentTarget as HTMLElement;
     dragRef.current = { kind: "move", card, fromDay, x0: e.clientX, y0: e.clientY, offY: e.clientY - el.getBoundingClientRect().top, moved: false };
     e.preventDefault();
@@ -459,7 +474,13 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   // saved pins stay. Undo deletes the new cards.
   const putMany = useCallback(async (picked: Card[], day: Day) => {
     const target = daysRef.current.find((d) => d.id === day.id); if (!target) return;
-    const withPlace = picked.filter((c) => c.place_id);
+    // A place already on that day is not added again (the tray and the drag
+    // both write; a second go must not double the day — 25 Sep 2026).
+    const already = new Set(target.cards.map((c) => c.place_id).filter(Boolean));
+    const seen = new Set<string>();
+    const withPlace = picked.filter((c) => c.place_id && !already.has(c.place_id) && !seen.has(c.place_id) && seen.add(c.place_id));
+    const skipped = picked.filter((c) => c.place_id).length - withPlace.length;
+    if (withPlace.length === 0) { toast({ message: `Already on ${dow(target.date)}.` }); return; }
     const { placed, unplaced } = arrangeDay(withPlace.map(toItem), busyOf(target, new Set()), anchorOf(target));
     const times = new Map(placed.map((p) => [p.id, p]));
     const created: Card[] = [];
@@ -473,7 +494,10 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     setMapWide(false); tintDay(day.id);
     const n = created.length;
     toast({
-      message: unplaced.length ? `${n} on ${dow(target.date)}; ${unplaced.length} didn't fit, left anytime` : `${n} ${n === 1 ? "place" : "places"} on ${dow(target.date)}, in walking order`,
+      message: [
+        unplaced.length ? `${n} on ${dow(target.date)}; ${unplaced.length} didn't fit, left anytime` : `${n} ${n === 1 ? "place" : "places"} on ${dow(target.date)}, in walking order`,
+        skipped ? `${skipped} already there` : "",
+      ].filter(Boolean).join(" · "),
       undo: async () => {
         for (const c of created) await queuedDelete("cards", { id: c.id });
         const ids = new Set(created.map((c) => c.id));
@@ -557,6 +581,41 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
       },
     });
   }, [patchCard, toast]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── bulk actions on picked blocks ──────────────────────────────
+  const pickedCards = useMemo(() => days.flatMap((d) => d.cards).filter((c) => pickedBlocks.has(c.id)), [days, pickedBlocks]);
+  const bulkMoveTo = useCallback(async (day: Day) => {
+    const cards = pickedCards; setPickedBlocks(new Set()); setBulkMove(false);
+    const before = cards.map((c) => ({ id: c.id, day_id: c.day_id }));
+    for (const c of cards) { patchCard(c.id, { day_id: day.id }, day.id); await queuedUpdate("cards", { id: c.id }, { day_id: day.id }); }
+    toast({
+      message: `${cards.length} moved to ${dow(day.date)}`,
+      undo: async () => { for (const b of before) { patchCard(b.id, { day_id: b.day_id }, b.day_id ?? undefined); await queuedUpdate("cards", { id: b.id }, { day_id: b.day_id }); } },
+    });
+  }, [pickedCards, patchCard, toast]);
+  const bulkTakeOff = useCallback(async () => {
+    const cards = pickedCards; setPickedBlocks(new Set());
+    for (const c of cards) await takeOffDay(c);
+  }, [pickedCards, takeOffDay]);
+  const bulkDelete = useCallback(async () => {
+    const cards = pickedCards; setPickedBlocks(new Set());
+    const ids = new Set(cards.map((c) => c.id));
+    setDays((prev) => prev.map((d) => ({ ...d, cards: d.cards.filter((c) => !ids.has(c.id)) })));
+    for (const c of cards) await queuedDelete("cards", { id: c.id });
+    toast({
+      message: `${cards.length} deleted`,
+      undo: async () => {
+        for (const gone of cards) {
+          const { error } = await queuedInsert("cards", {
+            id: gone.id, day_id: gone.day_id, trip_id: gone.trip_id, start_time: gone.start_time, end_time: gone.end_time,
+            position: gone.position, status: gone.status, source_url: gone.source_url, details: gone.details,
+            ai_generated: gone.ai_generated, confirmed: gone.confirmed, place_id: gone.place_id,
+          });
+          if (!error) setDays((prev) => prev.map((d) => (d.id === gone.day_id && !d.cards.some((c) => c.id === gone.id) ? { ...d, cards: [...d.cards, gone] } : d)));
+        }
+      },
+    });
+  }, [pickedCards, toast]);
 
   // ── the map's callbacks ────────────────────────────────────────
   // A pin's card is either on a day (patch it there) or in the saved pile.
@@ -707,7 +766,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                     onPointerDown={(e) => onBlockPointerDown(e, c, day.id)}
                     onPointerEnter={() => setHoveredId(c.id)}
                     onPointerLeave={() => setHoveredId((h) => (h === c.id ? null : h))}
-                    className="text-[10px] font-medium bg-white rounded-[5px] px-1.5 py-[3px] truncate max-w-full cursor-grab"
+                    className={`text-[10px] font-medium bg-white rounded-[5px] px-1.5 py-[3px] truncate max-w-full cursor-grab ${pickedBlocks.has(c.id) ? "ring-2 ring-[#1A1A2E]" : ""}`}
                     style={{ border: "1px solid rgba(26,26,46,0.10)", borderLeft: `3px solid ${isNote(c) ? "rgba(26,26,46,0.4)" : PIN_COLORS[c.place!.type]}`, opacity: ghost?.id === c.id ? 0.6 : 1 }}
                     title={cardTitle(c)}
                   >{cardTitle(c)}</div>
@@ -764,7 +823,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                           onPointerDown={(e) => onBlockPointerDown(e, c, day.id)}
                           onPointerEnter={() => setHoveredId(c.id)}
                           onPointerLeave={() => setHoveredId((h) => (h === c.id ? null : h))}
-                          className={`absolute rounded-[6px] overflow-hidden cursor-grab ${selectedCard?.id === c.id || hoveredId === c.id ? "ring-1 ring-[#B0541F]" : ""}`}
+                          className={`absolute rounded-[6px] overflow-hidden cursor-grab ${pickedBlocks.has(c.id) ? "ring-2 ring-[#1A1A2E]" : selectedCard?.id === c.id || hoveredId === c.id ? "ring-1 ring-[#B0541F]" : ""}`}
                           style={{
                             top: b.top, height: b.height,
                             left: `calc(${b.lane * laneW}% + 3px)`, width: `calc(${laneW}% - 6px)`,
@@ -843,6 +902,27 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
         />
       </div>
 
+      {pickedBlocks.size > 0 && !mapWide && (
+        <div className="absolute left-1/2 -translate-x-1/2 z-[40] bg-white rounded-full flex items-center gap-1.5 pl-4 pr-1.5 py-1.5" style={{ bottom: 20, boxShadow: "0 8px 24px rgba(26,26,46,0.18)", marginLeft: -(mapWidth / 2) }}>
+          <span className="text-[13px] font-semibold whitespace-nowrap">{pickedBlocks.size} {pickedBlocks.size === 1 ? "block" : "blocks"}</span>
+          {bulkMove ? (
+            <div className="flex items-center gap-1 overflow-x-auto max-w-[420px]">
+              {days.map((d) => (
+                <button key={d.id} onClick={() => void bulkMoveTo(d)} className="h-8 px-3 rounded-full text-[12.5px] font-medium whitespace-nowrap hover:bg-[#1A1A2E] hover:text-white transition-colors" style={{ background: "rgba(26,26,46,0.06)" }}>{dow(d.date)} {new Date(d.date + "T00:00:00").getDate()}</button>
+              ))}
+            </div>
+          ) : (
+            <>
+              <button onClick={() => setBulkMove(true)} className="h-8 px-3 rounded-full text-[12.5px] font-medium whitespace-nowrap" style={{ background: "rgba(26,26,46,0.06)" }}>Move to a day</button>
+              <button onClick={() => void bulkTakeOff()} className="h-8 px-3 rounded-full text-[12.5px] font-medium whitespace-nowrap" style={{ background: "rgba(26,26,46,0.06)" }}>Take off the day</button>
+              <button onClick={() => void bulkDelete()} className="h-8 px-3 rounded-full text-[12.5px] font-medium whitespace-nowrap text-[#B0541F]" style={{ background: "rgba(176,84,31,0.08)" }}>Delete</button>
+            </>
+          )}
+          <button onClick={() => { setPickedBlocks(new Set()); setBulkMove(false); }} aria-label="Clear the selection" className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 hover:bg-gray-200">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+          </button>
+        </div>
+      )}
       {dragChip && (
         <div
           className="fixed z-[90] pointer-events-none rounded-[6px] bg-white px-2.5 py-1.5 text-[12px] font-medium max-w-[220px] truncate"
