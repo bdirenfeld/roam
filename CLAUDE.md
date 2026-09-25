@@ -1443,7 +1443,17 @@ the component mounted and you are looking at throttling, not a broken map.
   {day_id, start_time, end_time} with the app's one toast and Undo. Flights: the block reads
   through `cardTimes` (arrivals swap start/end) but a move writes raw `start_time`; leave
   flights where they are or fix that first.
-- Phases still to come, all mocked at https://claude.ai/artifact/Wtio2jYAqHFkA5Kmcq9CDq:
-  the map beside the week (hover lifts the pin, day header filters, pin→week and
-  week→map drags), plan-first blocks (click an empty hour, name it, link a place later),
+- Phase 2 (24 Sep 2026): `WeekMap` sits to the right from lg (380px, 440px at xl), one
+  Mapbox map with the Map tab's pins (filled = on a day, hollow = saved). The plan page also
+  loads the saved pile (status interested, no day, has a place). Hover a block → its pin
+  scales up (on the INNER disc; Mapbox rewrites the wrapper's opacity/transform); click a day
+  header → the other days' pins fade to 0.22 and the header tints; click a pin → the Map
+  tab's `MapPinPopup` with the same callbacks. "Put on a day" from a pin inserts a new
+  scheduled card and leaves the saved one, exactly as on the Map tab. WeekMap iterates its
+  Map with forEach: for-of over a Map fails the build (no downlevelIteration).
+- Still to come, all mocked at https://claude.ai/artifact/Wtio2jYAqHFkA5Kmcq9CDq: pin→week
+  and week→map drags, plan-first blocks (click an empty hour, name it, link a place later),
   Where to stay as a panel over the map, the Map tab folding into Plan on the desktop.
+- Tailwind opacity trap: `bg-white/97` is not a step Tailwind generates, so the class did not
+  exist and the phone AppMenu had no background over the Map until 24 Sep 2026. Use a real
+  step (`/95`) or brackets (`/[0.97]`), and check the compiled CSS when something is see-through.
