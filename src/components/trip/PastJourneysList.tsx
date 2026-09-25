@@ -189,7 +189,7 @@ export default function PastJourneysList({ trips, openDayByTrip }: Props) {
               className="flex items-center gap-[18px] flex-1 min-w-0 hover:opacity-80 transition-opacity"
             >
               <div
-                className="w-14 h-14 rounded-full flex-shrink-0"
+                className="w-14 h-14 rounded-xl flex-shrink-0"
                 style={{
                   backgroundImage: trip.cover_image_url
                     ? `url(${trip.cover_image_url})`
