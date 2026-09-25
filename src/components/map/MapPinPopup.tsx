@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, type ReactNode } from "react";
-import { PencilSimple, Trash, BookmarkSimple, Heart } from "@phosphor-icons/react";
+import { Trash, BookmarkSimple, Heart } from "@phosphor-icons/react";
 import type { Card, CardType, Day } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { queuedDelete } from "@/lib/offline/queuedWrite";
@@ -394,7 +394,6 @@ function CardBody({
   // cards saved before the place row carried these fields (transitional).
   const phone            = place?.phone ?? (details?.phone as string | undefined) ?? undefined;
   const rating           = place.rating ?? undefined;
-  const userRatingsTotal = details?.userRatingsTotal as number | undefined;
   const website          = place?.website ?? (details?.website as string | undefined) ?? undefined;
   const recommendedBy    = readRecommendedBy(details);
   const notesRaw         = details?.notes;
@@ -407,6 +406,10 @@ function CardBody({
   const [isDeleting, setIsDeleting]               = useState(false);
   const [deleteError, setDeleteError]             = useState<string | null>(null);
   const [showDayList, setShowDayList]             = useState(false);
+  // The note and the recommender fold to one line (Brennan, 24 Sep 2026:
+  // "the comments need to be collapsed so that the card itself isn't super big").
+  const [notesOpen, setNotesOpen]                 = useState(false);
+  const source = card.source_url && card.source_url !== website ? card.source_url : null;
   const [scheduling, setScheduling]               = useState(false);
 
   // Door 2: place this pin onto a day as a new in_itinerary card via the shared
@@ -513,24 +516,6 @@ function CardBody({
       {/* Content */}
       <div className="px-3 pt-3 pb-3 overflow-y-auto flex-1">
 
-        {/* Type badge + pencil */}
-        <div className="flex items-center gap-1 mb-1">
-          {subTypeLabel && (
-            <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-              {subTypeLabel}
-            </span>
-          )}
-          {onCardUpdate && (
-            <button
-              onClick={() => setIsEditing((v) => !v)}
-              className="p-0.5 rounded hover:bg-gray-100 transition-colors"
-              aria-label="Edit type"
-            >
-              <PencilSimple size={11} weight="light" color="#9CA3AF" />
-            </button>
-          )}
-        </div>
-
         {/* Inline editor */}
         {isEditing && onCardUpdate && (
           <TypeEditor
@@ -562,52 +547,153 @@ function CardBody({
           )}
         </div>
 
-        {rating !== undefined && (
-          <div className="flex items-center gap-1.5 mt-1">
-            <StarRating rating={rating} />
-            <span className="text-[12px] font-semibold text-gray-700">{rating.toFixed(1)}</span>
-            {userRatingsTotal && (
-              <span className="text-[11px] text-gray-400">({userRatingsTotal.toLocaleString()})</span>
-            )}
+        {/* One row (Brennan, 24 Sep 2026): stars out of five and the category
+            on the left, the three doors — directions, website, call — as the
+            card sheet's 28px glyph discs on the right. The category word is the
+            type editor's trigger; the pencil chip that used to open the card is
+            gone. A disc that does not apply is not drawn. The source link is
+            not a fourth disc (four wrapped the row): it rides on the fold line. */}
+        {(rating !== undefined || subTypeLabel || website || phone || (place.lat != null && place.lng != null)) && (
+          <div className="flex items-center justify-between gap-2 mt-1 min-h-[28px]">
+            <div className="flex items-center gap-1.5 min-w-0 whitespace-nowrap overflow-hidden">
+              {rating !== undefined && (
+                <>
+                  <StarRating rating={rating} />
+                  <span className="text-[12px] font-semibold text-gray-700">{rating.toFixed(1)}</span>
+                </>
+              )}
+              {subTypeLabel && (
+                onCardUpdate ? (
+                  <button
+                    onClick={() => setIsEditing((v) => !v)}
+                    aria-label="Change the type"
+                    className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors truncate"
+                  >
+                    {rating !== undefined ? "· " : ""}{subTypeLabel}
+                  </button>
+                ) : (
+                  <span className="text-[11px] text-gray-400 truncate">{rating !== undefined ? "· " : ""}{subTypeLabel}</span>
+                )
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {place.lat != null && place.lng != null && (
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Directions"
+                  title="Directions"
+                  className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11" /></svg>
+                </a>
+              )}
+              {website && (
+                <a
+                  href={website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Website"
+                  title="Website"
+                  className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>
+                </a>
+              )}
+              {phone && (
+                <a
+                  href={`tel:${phone}`}
+                  aria-label="Call"
+                  title={phone}
+                  className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.44 2 2 0 0 1 3.6 1.2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.8a2 2 0 0 1-.45 2.11L7.6 9.1a16 16 0 0 0 7.3 7.3l1.27-1.26a2 2 0 0 1 2.11-.45c.9.34 1.84.57 2.8.7A2 2 0 0 1 22 16.92z" /></svg>
+                </a>
+              )}
+            </div>
           </div>
         )}
-        {/* Who told you, and what you wanted to remember — both editable
-            right here. Tap the line to change it; the quiet dotted link
-            appears only when the field is empty and you can write. */}
-        <DetailsField
-          card={card}
-          fieldKey="recommended_by"
-          value={recommendedBy}
-          accent={PIN_COLORS[place.type]}
-          onSaved={onCardUpdate}
-          emptyLabel="Who recommended it?"
-          placeholder="Who recommended this…"
-          render={(v) => (
-            <p className="text-[11px] text-gray-400 mt-1 leading-snug">
-              <span className="text-amber-400">★</span> {recommendedByLine(v)}
-            </p>
-          )}
-        />
-        <DetailsField
-          card={card}
-          fieldKey="notes"
-          value={notes}
-          multiline
-          accent={PIN_COLORS[place.type]}
-          onSaved={onCardUpdate}
-          emptyLabel="Add a note"
-          placeholder="What you wanted to remember about this place…"
-          render={(v) => (
-            <p
-              className="text-[12px] text-gray-600 mt-1.5 leading-snug whitespace-pre-line"
-              style={{ display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}
-            >
-              {v}
-            </p>
-          )}
-        />
-        {notes && notes.length > 200 && (
-          <p className="text-[10px] text-gray-400 mt-0.5">Tap the note to read or edit all of it.</p>
+        {/* The note and the recommender, folded. Closed: the first line of the
+            note, then one grey line — "more · from TikTok · ★ recommended by".
+            Open: the full note and the recommender, both tap-to-edit as
+            before, then "less". Nothing here ever costs more than two lines
+            while closed, so Add to a day stays above the fold. */}
+        {notesOpen ? (
+          <>
+            <DetailsField
+              card={card}
+              fieldKey="notes"
+              value={notes}
+              multiline
+              accent={PIN_COLORS[place.type]}
+              onSaved={onCardUpdate}
+              emptyLabel="Add a note"
+              placeholder="What you wanted to remember about this place…"
+              render={(v) => (
+                <p className="text-[12px] text-gray-600 mt-1.5 leading-snug whitespace-pre-line">{v}</p>
+              )}
+            />
+            <DetailsField
+              card={card}
+              fieldKey="recommended_by"
+              value={recommendedBy}
+              accent={PIN_COLORS[place.type]}
+              onSaved={onCardUpdate}
+              emptyLabel="Who recommended it?"
+              placeholder="Who recommended this…"
+              render={(v) => (
+                <p className="text-[11px] text-gray-400 mt-1 leading-snug">
+                  <span className="text-amber-400">★</span> {recommendedByLine(v)}
+                </p>
+              )}
+            />
+            {source && (
+              <a href={source} target="_blank" rel="noopener noreferrer" className="block mt-1 text-[11px] text-gray-400 hover:text-gray-600 underline decoration-dotted underline-offset-2">
+                from {sourceLabel(source)}
+              </a>
+            )}
+            <button onClick={() => setNotesOpen(false)} className="mt-1 text-[11px] text-gray-400 hover:text-gray-600 underline decoration-dotted underline-offset-2">
+              less
+            </button>
+          </>
+        ) : (
+          <>
+            {notes ? (
+              <button onClick={() => setNotesOpen(true)} className="block w-full text-left" aria-label="Read the note">
+                <p className="text-[12px] text-gray-600 mt-1.5 leading-snug truncate">{notes}</p>
+              </button>
+            ) : (
+              <DetailsField
+                card={card}
+                fieldKey="notes"
+                value={null}
+                multiline
+                accent={PIN_COLORS[place.type]}
+                onSaved={onCardUpdate}
+                emptyLabel="Add a note"
+                placeholder="What you wanted to remember about this place…"
+                render={(v) => <p className="text-[12px] text-gray-600 mt-1.5 leading-snug">{v}</p>}
+              />
+            )}
+            {(notes || source || recommendedBy || onCardUpdate) && (
+              <p className="mt-0.5 text-[11px] text-gray-400 leading-snug truncate">
+                <button onClick={() => setNotesOpen(true)} className="underline decoration-dotted underline-offset-2 hover:text-gray-600">more</button>
+                {source && (
+                  <>
+                    {" · "}
+                    <a href={source} target="_blank" rel="noopener noreferrer" className="underline decoration-dotted underline-offset-2 hover:text-gray-600">from {sourceLabel(source)}</a>
+                  </>
+                )}
+                {recommendedBy && (
+                  <>
+                    {" · "}
+                    <span className="text-amber-400">★</span> {recommendedByLine(recommendedBy)}
+                  </>
+                )}
+              </p>
+            )}
+          </>
         )}
 
         {showDayList && canAddToDay ? (
@@ -646,70 +732,6 @@ function CardBody({
           </div>
         ) : (
           <>
-            {/* Compact pill action buttons */}
-            <div className="flex gap-1.5 mt-3 flex-wrap">
-              {place.lat != null && place.lng != null && (
-                <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-blue-200 bg-blue-50 text-[11px] font-semibold text-blue-600 hover:bg-blue-100 transition-colors"
-                >
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-                    <circle cx="12" cy="9" r="2.5" />
-                  </svg>
-                  Maps
-                </a>
-              )}
-              {website && (
-                <a
-                  href={website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-gray-200 bg-gray-50 text-[11px] font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
-                >
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="2" y1="12" x2="22" y2="12" />
-                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                  </svg>
-                  Website
-                </a>
-              )}
-
-              {/* Where the place came from, named — "TikTok", not "Website".
-                  It used to be shown only when the place had no site of its
-                  own, and labelled as the site: a restaurant with a homepage
-                  silently swallowed the reel you found it in. Remembering why
-                  a place is on the list is most of what a saved link is for. */}
-              {card.source_url && card.source_url !== website && (
-                <a
-                  href={card.source_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-gray-200 bg-gray-50 text-[11px] font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
-                >
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5" />
-                    <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.5-1.5" />
-                  </svg>
-                  {sourceLabel(card.source_url)}
-                </a>
-              )}
-              {phone && (
-                <a
-                  href={`tel:${phone}`}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-gray-200 bg-gray-50 text-[11px] font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
-                >
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.44 2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.9a16 16 0 0 0 6.09 6.09l.98-.98a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
-                  </svg>
-                  Call
-                </a>
-              )}
-            </div>
-
             {/* Door 2 — Add to day */}
             {canAddToDay && (
               <button

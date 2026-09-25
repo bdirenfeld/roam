@@ -121,6 +121,12 @@ The benchmark: someone opens Roam in a Centurion Lounge and the person next to t
 - A screen mounted inside `Overlay` must make its root a **flex item of the card** — `flex-1 min-h-0 flex flex-col` — never `h-full`. The desktop card is `h-auto max-h-[86vh]`, so a percentage height resolves to auto, the card clips at 86vh and the `flex-1 min-h-0 overflow-y-auto` body inside never gets a bound. That was the "Estimate won't scroll on desktop" bug (fixed in `a967532`). Mobile hid it because the sheet is a fixed `h-[92dvh]`.
 
 ## Map pin popup (MapPinPopup.tsx)
+- **The pin card, shortened (24 Sep 2026):** no type chip; the stars row carries the category
+  (tap the word to change the type) on the left and three 28px glyph discs on the right —
+  directions, website, call — the card sheet's disc style. The old worded pills are gone. The
+  source link is NOT a fourth disc (four wrapped the 300px card): it rides on the fold line.
+  Note and recommender fold to one line + "more · from TikTok · ★ recommended by"; open, both
+  are tap-to-edit as before, then "less". Mock: https://claude.ai/artifact/QJDdayfWXwDyEoDyjvPSTc
 - `details.notes` and `details.recommended_by` are edited in place on the popup via `DetailsField` (tap the line; dotted link when empty). Each save merges one key and calls `onCardUpdate` so the pin restyles. The type editor behind the pencil still carries its own recommended-by input.
 - A scheduled copy of a place is a separate card: `recommended_by` set on the interested card does **not** carry to the in_itinerary card, and the map shows the scheduled (filled) pin first. `scheduleCardOnDay` should copy it; until it does, set both.
 
