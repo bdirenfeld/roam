@@ -37,7 +37,10 @@ interface Props {
 }
 
 const COL_MIN = 168;   // px — seven days fit beside a 440px map at 1440; more scroll sideways
+const COL_FLOOR = 120; // px — the seam will not push a day column below this
 const HOURS_W = 52;
+const MAP_MIN = 300;
+const MAP_WIDTH_KEY = "roam.week.mapWidth";
 
 function dow(date: string): string {
   return new Date(date + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short" });
@@ -68,6 +71,33 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const [overMap, setOverMap] = useState(false);
   // The map can take the whole page (the week folds away) and come back.
   const [mapWide, setMapWide] = useState(false);
+  // The seam drags (25 Sep 2026): the map is as wide as you left it, between
+  // MAP_MIN and whatever leaves the week its column floor. Remembered per
+  // browser; 440px until you touch it.
+  const [mapWidth, setMapWidth] = useState(440);
+  const [seamHot, setSeamHot] = useState(false);
+  const frameRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    try { const v = Number(localStorage.getItem(MAP_WIDTH_KEY)); if (v >= MAP_MIN) setMapWidth(v); } catch { /* private mode */ }
+  }, []);
+  const onSeamPointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    setSeamHot(true);
+    const frame = frameRef.current;
+    const move = (ev: PointerEvent) => {
+      if (!frame) return;
+      const r = frame.getBoundingClientRect();
+      const maxW = Math.max(MAP_MIN, r.width - (HOURS_W + nDays * COL_FLOOR));
+      setMapWidth(Math.round(Math.min(maxW, Math.max(MAP_MIN, r.right - ev.clientX))));
+    };
+    const up = () => {
+      setSeamHot(false);
+      setMapWidth((w) => { try { localStorage.setItem(MAP_WIDTH_KEY, String(w)); } catch { /* ignore */ } return w; });
+      window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up);
+    };
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+  };
   const mapPanelRef = useRef<HTMLDivElement | null>(null);
   const supabase = useMemo(() => createClient(), []);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
@@ -380,7 +410,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const gridStyle = { gridTemplateColumns: `${HOURS_W}px repeat(${nDays}, minmax(${COL_MIN}px, 1fr))` } as const;
 
   return (
-    <div className="flex h-[calc(100dvh-64px)] bg-[#F5F4F1] select-none">
+    <div ref={frameRef} className="flex h-[calc(100dvh-64px)] bg-[#F5F4F1] select-none">
       <div className={`flex-1 min-w-0 overflow-x-auto ${mapWide ? "hidden" : ""}`}>
         <div className="flex flex-col h-full" style={{ minWidth: minWidth }}>
           {/* day headers */}
@@ -507,7 +537,19 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
 
       {/* The map. 380px from lg, 440px from xl; below lg the week stands alone
           and the Map tab still has the full map. */}
-      <div ref={mapPanelRef} className={mapWide ? "block flex-1 min-w-0 h-full" : "hidden lg:block w-[380px] xl:w-[440px] flex-shrink-0 h-full"}>
+      {/* the seam: a 4px grip, ink while held */}
+      {!mapWide && (
+        <div
+          onPointerDown={onSeamPointerDown}
+          className="hidden lg:flex w-[10px] -mx-[5px] relative z-10 cursor-col-resize items-center justify-center flex-shrink-0"
+          aria-label="Drag to resize the map"
+          role="separator"
+          aria-orientation="vertical"
+        >
+          <span className="w-1 h-9 rounded-sm transition-colors" style={{ background: seamHot ? "#1A1A2E" : "rgba(26,26,46,0.18)" }} />
+        </div>
+      )}
+      <div ref={mapPanelRef} className={mapWide ? "block flex-1 min-w-0 h-full" : "hidden lg:block flex-shrink-0 h-full"} style={mapWide ? undefined : { width: mapWidth }}>
         <WeekMap
           onPinDragStart={onPinDragStart}
           hot={overMap}
