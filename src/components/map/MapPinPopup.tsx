@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, type ReactNode } from "react";
-import { Trash, BookmarkSimple, Heart } from "@phosphor-icons/react";
+import { BookmarkSimple, Heart } from "@phosphor-icons/react";
 import type { Card, CardType, Day } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { queuedDelete } from "@/lib/offline/queuedWrite";
@@ -409,6 +409,10 @@ function CardBody({
   // The note and the recommender fold to one line (Brennan, 24 Sep 2026:
   // "the comments need to be collapsed so that the card itself isn't super big").
   const [notesOpen, setNotesOpen]                 = useState(false);
+  // The photos fold too: a 64px tile beside the name opens the swipeable
+  // gallery above the card (Brennan, 24 Sep 2026: "the overall card itself
+  // just needs to be smaller").
+  const [photosOpen, setPhotosOpen]               = useState(false);
   const source = card.source_url && card.source_url !== website ? card.source_url : null;
   const [scheduling, setScheduling]               = useState(false);
 
@@ -478,40 +482,31 @@ function CardBody({
           Google place id: every image goes through the authenticated proxy,
           which resolves the photo reference server-side so no API key ever
           reaches the browser. */}
-      <PlacePhotoGallery
-        key={place.id}
-        placeId={place.id}
-        hasGooglePhotos={!!place.google_place_id}
-        fallbackLat={place.lat}
-        fallbackLng={place.lng}
-        title={place.title}
-        height={160}
-      />
+      {photosOpen && (
+        <PlacePhotoGallery
+          key={place.id}
+          placeId={place.id}
+          hasGooglePhotos={!!place.google_place_id}
+          fallbackLat={place.lat}
+          fallbackLng={place.lng}
+          title={place.title}
+          height={180}
+        />
+      )}
 
-      {/* Close button */}
+      {/* Close — over the gallery when it is open, a grey disc on the card when
+          it is not. Tapping it with the photos open folds them first. */}
       <button
-        onClick={onClose}
-        className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/40 flex items-center justify-center hover:bg-black/60 transition-colors"
+        onClick={() => (photosOpen ? setPhotosOpen(false) : onClose())}
+        className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center transition-colors z-10 ${photosOpen ? "bg-black/40 hover:bg-black/60" : "bg-gray-100 hover:bg-gray-200"}`}
         style={{ backdropFilter: "blur(8px)" }}
-        aria-label="Close"
+        aria-label={photosOpen ? "Hide photos" : "Close"}
       >
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={photosOpen ? "white" : "#1A1A2E"} strokeWidth="2.5" strokeLinecap="round">
           <line x1="18" y1="6" x2="6" y2="18" />
           <line x1="6" y1="6" x2="18" y2="18" />
         </svg>
       </button>
-
-      {/* Trash button */}
-      {onCardDelete && (
-        <button
-          onClick={handleTrashClick}
-          className="absolute top-2 right-10 w-6 h-6 rounded-full bg-black/40 flex items-center justify-center hover:bg-black/60 transition-colors"
-          style={{ backdropFilter: "blur(8px)" }}
-          aria-label="Delete place"
-        >
-          <Trash size={11} weight="light" color="white" />
-        </button>
-      )}
 
       {/* Content */}
       <div className="px-3 pt-3 pb-3 overflow-y-auto flex-1">
@@ -525,37 +520,48 @@ function CardBody({
           />
         )}
 
-        {/* Title + the heart. Loving a place from the map was previously
-            impossible — you could see the mark here but only set it from the
-            card sheet, which is a dead end for anyone living on the map tab. */}
-        <div className="flex items-start gap-2">
-          <h2 className="flex-1 min-w-0 text-[15px] font-bold text-gray-900 leading-snug">{place.title}</h2>
-          {onCardUpdate && card.place_id && (
-            <button
-              onClick={toggleLoved}
-              aria-pressed={place.loved === true}
-              aria-label={place.loved ? "We loved this — tap to unset" : "We loved this"}
-              title="We loved this"
-              className="flex-shrink-0 -mt-0.5 p-1"
-            >
-              <Heart
-                size={15}
-                weight={place.loved ? "fill" : "light"}
-                color={place.loved ? "#B0541F" : "#9CA3AF"}
-              />
-            </button>
-          )}
-        </div>
-
-        {/* One row (Brennan, 24 Sep 2026): stars out of five and the category
-            on the left, the three doors — directions, website, call — as the
-            card sheet's 28px glyph discs on the right. The category word is the
-            type editor's trigger; the pencil chip that used to open the card is
-            gone. A disc that does not apply is not drawn. The source link is
-            not a fourth disc (four wrapped the row): it rides on the fold line. */}
-        {(rating !== undefined || subTypeLabel || website || phone || (place.lat != null && place.lng != null)) && (
-          <div className="flex items-center justify-between gap-2 mt-1 min-h-[28px]">
-            <div className="flex items-center gap-1.5 min-w-0 whitespace-nowrap overflow-hidden">
+        {/* The top row (24 Sep 2026): a 64px photo tile that opens the gallery,
+            then the name with the heart at its end, then one line of stars
+            and category. The doors sit on the action row below. */}
+        <div className="flex items-start gap-2.5">
+          <button
+            type="button"
+            onClick={() => setPhotosOpen((v) => !v)}
+            aria-label={photosOpen ? "Hide photos" : "Show photos"}
+            className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-[rgba(26,26,46,0.05)]"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`/api/places/photo?place_id=${place.id}&index=0&size=thumb`}
+              alt=""
+              loading="lazy"
+              className="w-full h-full object-cover"
+              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+            />
+            {place.google_place_id && (
+              <span className="absolute right-1 bottom-1 rounded-full bg-black/50 text-white text-[9px] font-semibold px-1.5 py-[2px] leading-none">photos</span>
+            )}
+          </button>
+          <div className="flex-1 min-w-0 pr-6">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <h2 className="min-w-0 truncate text-[15px] font-bold text-gray-900 leading-snug">{place.title}</h2>
+  {onCardUpdate && card.place_id && (
+              <button
+                onClick={toggleLoved}
+                aria-pressed={place.loved === true}
+                aria-label={place.loved ? "We loved this — tap to unset" : "We loved this"}
+                title="We loved this"
+                className="flex-shrink-0 p-0.5"
+              >
+                <Heart
+                  size={15}
+                  weight={place.loved ? "fill" : "light"}
+                  color={place.loved ? "#B0541F" : "#9CA3AF"}
+                />
+              </button>
+            )}
+            </div>
+            <div className="flex items-center gap-1.5 mt-0.5 whitespace-nowrap overflow-hidden">
               {rating !== undefined && (
                 <>
                   <StarRating rating={rating} />
@@ -576,44 +582,9 @@ function CardBody({
                 )
               )}
             </div>
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-              {place.lat != null && place.lng != null && (
-                <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Directions"
-                  title="Directions"
-                  className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11" /></svg>
-                </a>
-              )}
-              {website && (
-                <a
-                  href={website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Website"
-                  title="Website"
-                  className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>
-                </a>
-              )}
-              {phone && (
-                <a
-                  href={`tel:${phone}`}
-                  aria-label="Call"
-                  title={phone}
-                  className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.44 2 2 0 0 1 3.6 1.2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.8a2 2 0 0 1-.45 2.11L7.6 9.1a16 16 0 0 0 7.3 7.3l1.27-1.26a2 2 0 0 1 2.11-.45c.9.34 1.84.57 2.8.7A2 2 0 0 1 22 16.92z" /></svg>
-                </a>
-              )}
-            </div>
           </div>
-        )}
+        </div>
+
         {/* The note and the recommender, folded. Closed: the first line of the
             note, then one grey line — "more · from TikTok · ★ recommended by".
             Open: the full note and the recommender, both tap-to-edit as
@@ -653,9 +624,16 @@ function CardBody({
                 from {sourceLabel(source)}
               </a>
             )}
-            <button onClick={() => setNotesOpen(false)} className="mt-1 text-[11px] text-gray-400 hover:text-gray-600 underline decoration-dotted underline-offset-2">
-              less
-            </button>
+            <div className="mt-1 flex items-center gap-3">
+              <button onClick={() => setNotesOpen(false)} className="text-[11px] text-gray-400 hover:text-gray-600 underline decoration-dotted underline-offset-2">
+                less
+              </button>
+              {onCardDelete && (
+                <button onClick={handleTrashClick} className="text-[11px] text-gray-400 hover:text-red-600 underline decoration-dotted underline-offset-2" aria-label="Delete place">
+                  remove from map
+                </button>
+              )}
+            </div>
           </>
         ) : (
           <>
@@ -676,7 +654,7 @@ function CardBody({
                 render={(v) => <p className="text-[12px] text-gray-600 mt-1.5 leading-snug">{v}</p>}
               />
             )}
-            {(notes || source || recommendedBy || onCardUpdate) && (
+            {(notes || source || recommendedBy) && (
               <p className="mt-0.5 text-[11px] text-gray-400 leading-snug truncate">
                 <button onClick={() => setNotesOpen(true)} className="underline decoration-dotted underline-offset-2 hover:text-gray-600">more</button>
                 {source && (
@@ -732,17 +710,57 @@ function CardBody({
           </div>
         ) : (
           <>
-            {/* Door 2 — Add to day */}
-            {canAddToDay && (
+            {/* The action row (24 Sep 2026): Put on a day as a quiet chip, the
+                doors as 36px discs on the right — directions, website, call.
+                One family, one height; ink is for a true primary. */}
+            <div className="mt-2.5 flex items-center justify-between gap-2">
+            {canAddToDay ? (
               <button
                 onClick={() => setShowDayList(true)}
-                className="mt-2.5 w-full flex items-center justify-center gap-2 rounded-[10px] px-3.5 py-2.5 active:opacity-70 transition-opacity"
-                style={{ background: "#EDECE8", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)", fontWeight: 600, fontSize: "13.5px", color: "#1A1A2E", letterSpacing: "-0.005em" }}
+                className="flex items-center gap-1.5 rounded-full h-9 px-3.5 active:opacity-70 transition-opacity"
+                style={{ background: "rgba(26,26,46,0.06)", fontWeight: 500, fontSize: "12.5px", color: "#1A1A2E" }}
               >
                 <BookmarkSimple size={14} weight="light" color="#1A1A2E" />
                 Put on a day
               </button>
-            )}
+            ) : <span />}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {place.lat != null && place.lng != null && (
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Directions"
+                  title="Directions"
+                  className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11" /></svg>
+                </a>
+              )}
+              {website && (
+                <a
+                  href={website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Website"
+                  title="Website"
+                  className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>
+                </a>
+              )}
+              {phone && (
+                <a
+                  href={`tel:${phone}`}
+                  aria-label="Call"
+                  title={phone}
+                  className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.44 2 2 0 0 1 3.6 1.2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.8a2 2 0 0 1-.45 2.11L7.6 9.1a16 16 0 0 0 7.3 7.3l1.27-1.26a2 2 0 0 1 2.11-.45c.9.34 1.84.57 2.8.7A2 2 0 0 1 22 16.92z" /></svg>
+                </a>
+              )}
+            </div>
+            </div>
           </>
         )}
 

@@ -127,6 +127,11 @@ The benchmark: someone opens Roam in a Centurion Lounge and the person next to t
   source link is NOT a fourth disc (four wrapped the 300px card): it rides on the fold line.
   Note and recommender fold to one line + "more · from TikTok · ★ recommended by"; open, both
   are tap-to-edit as before, then "less". Mock: https://claude.ai/artifact/QJDdayfWXwDyEoDyjvPSTc
+- **Half the size (24 Sep 2026, later):** no hero. A 64px photo tile beside the name opens the
+  swipeable gallery above the card (`photosOpen`); ✕ folds it. Heart at the end of the name.
+  "Put on a day" is a quiet 36px chip on the action row with the three 36px discs to its
+  right. The empty state is one line ("Add a note"); "more" only when there is something to
+  unfold. "remove from map" lives in the open note state, not on the photo. ~150px closed.
 - `details.notes` and `details.recommended_by` are edited in place on the popup via `DetailsField` (tap the line; dotted link when empty). Each save merges one key and calls `onCardUpdate` so the pin restyles. The type editor behind the pencil still carries its own recommended-by input.
 - A scheduled copy of a place is a separate card: `recommended_by` set on the interested card does **not** carry to the in_itinerary card, and the map shows the scheduled (filled) pin first. `scheduleCardOnDay` should copy it; until it does, set both.
 
