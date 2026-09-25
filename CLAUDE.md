@@ -1535,6 +1535,13 @@ the component mounted and you are looking at throttling, not a broken map.
 - Week day names: `days.theme` if set, else `autoDayTitle` from the cards. The header's
   "…" is two items, Rename this day (inline input; empty = back to automatic) and Arrange
   this day. "Show only on the map" went: the header click does it.
+- Selecting pins (25 Sep 2026): the Select disc works at panel width too; Shift/Ctrl-click a
+  pin selects without the disc (first one turns select mode on; Esc leaves). Dragging a
+  selected pin carries the whole selection as one chip ("4 places", `fromMapMany`); a drop on
+  a day column runs `putMany`, and the board bumps `selectionEpoch` so the map clears.
+- The header "…" is three items: Rename this day, Give times to the rest (timeless blocks
+  only), Rearrange the whole day (every block re-timed by the engine; confirmed cards stay as
+  fixed points; anything that no longer fits goes anytime; Undo restores every time).
 - The phone Map's Filter has the same sub-type row (once one category is chosen), driving
   `activeSubTypes` — the set the desktop sidebar used — with the type pills' tap rule.
 - The desktop AppMenu is the same 3-across tiles as the phone (25 Sep 2026). Mocks:
