@@ -64,8 +64,12 @@ interface Props {
   /** The map fills the page (the week is folded away). */
   wide?: boolean;
   onToggleWide?: () => void;
-  /** Several chosen pins go onto one day, arranged (the wide map's Select). */
+  /** Several chosen pins go onto one day, arranged (the Select disc's tray). */
   onPutMany?: (cards: Card[], day: Day) => Promise<void> | void;
+  /** A selected pin was dragged: the whole selection travels as one chip. */
+  onClusterDragStart?: (cards: Card[]) => void;
+  /** Bumped by the board after a drop lands, so the selection clears. */
+  selectionEpoch?: number;
   /** Where to stay, as a panel on the right of this map (the Map tab's sheet). */
   showStays?: boolean;
   onCloseStays?: () => void;
@@ -78,7 +82,7 @@ function placed(c: Card): boolean {
   return typeof c.place?.lat === "number" && typeof c.place?.lng === "number";
 }
 
-export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onHover, onCardUpdate, onCardCreated, onCardDelete, onPinDragStart, hot, wide, onToggleWide, onPutMany, showStays, onCloseStays, onStaysChanged }: Props) {
+export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onHover, onCardUpdate, onCardCreated, onCardDelete, onPinDragStart, hot, wide, onToggleWide, onPutMany, onClusterDragStart, selectionEpoch, showStays, onCloseStays, onStaysChanged }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
   const mbRef = useRef<any>(null);  // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -127,7 +131,17 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
     setSelectMode(false); setPicked(new Set()); setBox(null);
     mapRef.current?.dragPan.enable();
   }, []);
-  useEffect(() => { if (!wide && selectMode) leaveSelect(); }, [wide, selectMode, leaveSelect]);
+  // A drop on the week clears the selection (the board bumps the epoch).
+  const epochRef = useRef(selectionEpoch);
+  useEffect(() => { if (selectionEpoch !== epochRef.current) { epochRef.current = selectionEpoch; if (selectMode) leaveSelect(); } }, [selectionEpoch, selectMode, leaveSelect]);
+  const onClusterDragStartRef = useRef(onClusterDragStart); onClusterDragStartRef.current = onClusterDragStart;
+  const pickedRef = useRef(picked); pickedRef.current = picked;
+  useEffect(() => {
+    if (!selectMode) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") leaveSelect(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectMode, leaveSelect]);
   const toggleSelect = () => {
     if (selectMode) { leaveSelect(); return; }
     setSelectMode(true); mapRef.current?.dragPan.disable(); close();
@@ -150,15 +164,24 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
     const r = e.currentTarget.getBoundingClientRect();
     const start = { x0: e.clientX - r.left, y0: e.clientY - r.top, x1: e.clientX - r.left, y1: e.clientY - r.top };
     boxRef.current = start; setBox(start);
+    // Pressed on a pin that is already selected? Then a move drags the lot.
+    const pressedSelected = pinsIn({ x0: start.x0 - 16, y0: start.y0 - 16, x1: start.x0 + 16, y1: start.y0 + 16 }).some((id) => pickedRef.current.has(id));
+    let cluster = false;
     const move = (ev: PointerEvent) => {
       const b = boxRef.current; if (!b) return;
+      if (pressedSelected && !cluster && (Math.abs(ev.clientX - r.left - b.x0) > 6 || Math.abs(ev.clientY - r.top - b.y0) > 6)) {
+        cluster = true; boxRef.current = null; setBox(null);
+        onClusterDragStartRef.current?.(cards.filter((c) => pickedRef.current.has(c.id)));
+        window.removeEventListener("pointermove", move);
+        return;
+      }
       const nb = { ...b, x1: ev.clientX - r.left, y1: ev.clientY - r.top };
       boxRef.current = nb; setBox(nb);
     };
     const up = () => {
       window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up);
       const b = boxRef.current; boxRef.current = null; setBox(null);
-      if (!b) return;
+      if (!b || cluster) return;
       const dragged = Math.abs(b.x1 - b.x0) > 6 || Math.abs(b.y1 - b.y0) > 6;
       const hit = dragged ? pinsIn(b) : pinsIn({ x0: b.x0 - 16, y0: b.y0 - 16, x1: b.x0 + 16, y1: b.y0 + 16 }).slice(0, 1);
       setPicked((prev) => {
@@ -297,6 +320,13 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
       wrapper.addEventListener("mouseleave", () => onHoverRef.current(null));
       wrapper.addEventListener("click", (e) => {
         e.stopPropagation();
+        // Shift/Ctrl-click (25 Sep 2026): select without the disc. The first
+        // one turns select mode on; taps then toggle; Esc or ✕ leaves.
+        if (e.shiftKey || e.ctrlKey || e.metaKey) {
+          setSelectMode(true); map.dragPan.disable(); close();
+          setPicked((prev) => { const next = new Set(prev); next.add(cardRef.current.id); return next; });
+          return;
+        }
         setSelected(cardRef.current);
         setAnchor(anchorFor(cardRef.current));
       });
@@ -361,7 +391,7 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
           )}
         </div>
       )}
-      {wide && onPutMany && (
+      {onPutMany && (
         <button
           type="button"
           onClick={toggleSelect}
