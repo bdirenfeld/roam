@@ -55,6 +55,14 @@ describe("Budget saves as you go", () => {
     expect(screen.getByLabelText("Amount paid with points")).toBeTruthy();
   });
 
+  it("folds the split rows under Sharing, with labels that fit a phone", () => {
+    open();
+    expect(screen.queryByLabelText("Travellers in the other household")).toBeNull();
+    fireEvent.click(screen.getByText("Sharing"));
+    expect(screen.getByLabelText("Travellers in the other household")).toBeTruthy();
+    expect(screen.getByText("Other travellers")).toBeTruthy();
+  });
+
   it("has no Save button, and says changes save themselves", () => {
     open();
     expect(screen.queryByRole("button", { name: /^Save$/ })).toBeNull();

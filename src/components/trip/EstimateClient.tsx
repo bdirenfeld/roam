@@ -213,6 +213,8 @@ function GroupBar({
   onToggle,
   extraAmount,
   extraItems,
+  caption,
+  amountText,
 }: {
   label: string;
   lines: EstimateLine[];
@@ -221,6 +223,9 @@ function GroupBar({
   /** Money in the group that is not a line: contingency less points. */
   extraAmount?: number;
   extraItems?: number;
+  /** A group that is not a sum of lines says its own folded caption and amount. */
+  caption?: string;
+  amountText?: string;
 }) {
   const subtotal = lines.reduce((s, l) => s + (l.enabled ? l.amount : 0), 0) + (extraAmount ?? 0);
   return (
@@ -230,7 +235,7 @@ function GroupBar({
       onClick={onToggle}
       labelColor={CAPTION}
       amountColor={CAPTION}
-      amount={cad(subtotal)}
+      amount={amountText ?? cad(subtotal)}
       leading={
         <CaretDown
           size={12}
@@ -248,7 +253,7 @@ function GroupBar({
           {!isOpen && (
             <span className="normal-case tracking-normal" style={{ color: SOFT }}>
               {" "}
-              · {lines.filter((l) => l.enabled).length + (extraItems ?? 0)} items
+              · {caption ?? `${lines.filter((l) => l.enabled).length + (extraItems ?? 0)} items`}
             </span>
           )}
         </span>
@@ -311,7 +316,7 @@ export default function EstimateClient({
   // Both groups open folded: the total, two subtotals and the Total are the
   // screen (contingency and points are Additional's last two rows); the nine lines with their fields are a tap away
   // (Brennan, 15 Sept 2026: "the budget should open with all fields collapsed").
-  const [open, setOpen] = useState({ standard: false, additional: false });
+  const [open, setOpen] = useState({ standard: false, additional: false, sharing: false });
   // Saves as you go (audit, 23 Sep 2026). There was a Save button, and
   // closing with × threw every change away without a word — the only screen
   // in Roam that worked that way. Every edit now writes itself a moment after
@@ -735,65 +740,81 @@ export default function EstimateClient({
             </>
           )}
 
-          {/* Splitting with another household. The count is the switch — there
-              is no separate tick — and the share only appears once someone is
-              actually coming, so a solo journey keeps the screen it had. */}
-          <Shell
-            labelColor={CAPTION}
-            amountColor={SOFT}
-            label="Travelling with you"
-            amount={est.split ? `${est.split.usPeople} + ${est.split.guestPeople}` : "—"}
-            middle={
-              <>
-                <div className="w-[58px] shrink-0">
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    value={a.guestPeople === 0 ? "" : String(a.guestPeople)}
-                    onChange={(e) => setNum("guestPeople", e.target.value)}
-                    aria-label="Travellers in the other household"
-                    className="w-full rounded-full px-2 py-1.5 text-[12.5px] text-right"
-                    style={box(INK)}
-                  />
-                </div>
-                <span
-                  className="text-[11px] shrink-0 w-[44px] sm:w-[92px] pl-1"
-                  style={{ color: SOFT }}
-                >
-                  of {a.people}
-                </span>
-              </>
-            }
+          {/* Sharing with another household (Brennan, 25 Sep 2026: its own
+              group, and wording that fits a phone — the old "Travelling with
+              you" and "Their share of villa & car" were cut off at 360px).
+              The count is the switch — there is no separate tick — and the
+              share row only appears once someone is actually coming. Folded,
+              the bar says who is coming and what they owe. */}
+          <GroupBar
+            label="Sharing"
+            lines={[]}
+            isOpen={open.sharing}
+            onToggle={() => setOpen((p) => ({ ...p, sharing: !p.sharing }))}
+            caption={est.split ? `${est.split.guestPeople} of ${a.people} are theirs` : "just you"}
+            amountText={est.split ? cad(est.split.guests) : "—"}
           />
+          {open.sharing && (
+            <>
+              <Shell
+                labelColor={CAPTION}
+                amountColor={SOFT}
+                label="Other travellers"
+                amount={est.split ? `${est.split.usPeople} + ${est.split.guestPeople}` : "—"}
+                middle={
+                  <>
+                    <div className="w-[58px] shrink-0">
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        value={a.guestPeople === 0 ? "" : String(a.guestPeople)}
+                        onChange={(e) => setNum("guestPeople", e.target.value)}
+                        aria-label="Travellers in the other household"
+                        className="w-full rounded-full px-2 py-1.5 text-[12.5px] text-right"
+                        style={box(INK)}
+                      />
+                    </div>
+                    <span
+                      className="text-[11px] shrink-0 w-[44px] sm:w-[92px] pl-1"
+                      style={{ color: SOFT }}
+                    >
+                      of {a.people}
+                    </span>
+                  </>
+                }
+              />
 
-          {est.split && (
-            <Shell
-              labelColor={CAPTION}
-              amountColor={INK}
-              label="Their share of villa & car"
-              amount={`${Math.max(0, Math.min(a.guestSharePct, 100))}%`}
-              middle={
-                <>
-                  <div className="w-[58px] shrink-0">
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      value={String(a.guestSharePct)}
-                      onChange={(e) => setNum("guestSharePct", e.target.value)}
-                      aria-label="Their share of the shared costs, percent"
-                      className="w-full rounded-full px-2 py-1.5 text-[12.5px] text-right"
-                      style={box(INK)}
-                    />
-                  </div>
-                  <span
-                    className="text-[11px] shrink-0 w-[44px] sm:w-[92px] pl-1"
-                    style={{ color: SOFT }}
-                  >
-                    %
-                  </span>
-                </>
-              }
-            />
+              {est.split && (
+                <Shell
+                  labelColor={CAPTION}
+                  amountColor={INK}
+                  label="Their share"
+                  amount={`${Math.max(0, Math.min(a.guestSharePct, 100))}%`}
+                  middle={
+                    <>
+                      <div className="w-[58px] shrink-0">
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          value={String(a.guestSharePct)}
+                          onChange={(e) => setNum("guestSharePct", e.target.value)}
+                          aria-label="Their share of the shared costs, percent"
+                          className="w-full rounded-full px-2 py-1.5 text-[12.5px] text-right"
+                          style={box(INK)}
+                        />
+                      </div>
+                      <span
+                        className="text-[11px] shrink-0 w-[44px] sm:w-[92px] pl-1"
+                        style={{ color: SOFT }}
+                      >
+                        %
+                      </span>
+                    </>
+                  }
+                />
+              )}
+
+            </>
           )}
 
           {/* Deliberately NOT a Shell. The amount column is a fixed 62px, which

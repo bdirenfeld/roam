@@ -147,6 +147,9 @@ The benchmark: someone opens Roam in a Centurion Lounge and the person next to t
   (Brennan, 25 Sep 2026). Folded, the Additional bar carries `extraAmount` = contingency −
   points and `extraItems`, so Standard + Additional = Total on the folded screen. Tests open
   the group first (`openAdditional()`).
+- The split rows are a third group, **Sharing** (25 Sep 2026): folded, `caption` = "3 of 8 are
+  theirs" / "just you" and `amountText` = their share. Rows inside are "Other travellers" and
+  "Their share" — the old labels were cut off at 360px. Keep row labels under ~16 characters.
 
 ## Card sheet and save sheet — click-audit conventions (Sep 2026)
 - `AddToTripSheet` pre-picks type/sub_type from `place.details.types` via `lib/places/inferType` (the bulk importer's table). A miss leaves the pills unselected; never make the pill mandatory again — it was the most-taxed tap in the app.
