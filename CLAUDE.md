@@ -142,6 +142,12 @@ The benchmark: someone opens Roam in a Centurion Lounge and the person next to t
 - `details.notes` and `details.recommended_by` are edited in place on the popup via `DetailsField` (tap the line; dotted link when empty). Each save merges one key and calls `onCardUpdate` so the pin restyles. The type editor behind the pencil still carries its own recommended-by input.
 - A scheduled copy of a place is a separate card: `recommended_by` set on the interested card does **not** carry to the in_itinerary card, and the map shows the scheduled (filled) pin first. `scheduleCardOnDay` should copy it; until it does, set both.
 
+## Budget (Estimate) screen
+- Contingency and Paid with points are the last two rows INSIDE the Additional group
+  (Brennan, 25 Sep 2026). Folded, the Additional bar carries `extraAmount` = contingency −
+  points and `extraItems`, so Standard + Additional = Total on the folded screen. Tests open
+  the group first (`openAdditional()`).
+
 ## Card sheet and save sheet — click-audit conventions (Sep 2026)
 - `AddToTripSheet` pre-picks type/sub_type from `place.details.types` via `lib/places/inferType` (the bulk importer's table). A miss leaves the pills unselected; never make the pill mandatory again — it was the most-taxed tap in the app.
 - `CardBottomSheet` delete has **no confirm**: every host (PlanBoard, DayViewClient, FullMapClient) offers a 6-second undo through `onCardDelete`. A new host that mounts the sheet must provide undo or it gets an unrecoverable delete.
@@ -1467,9 +1473,18 @@ the component mounted and you are looking at throttling, not a broken map.
   (`byId`, the untimed source) include the saved pile or a map card's ghost renders nothing.
 - The disc top-left of the map (`onToggleWide`) widens the map to the page and folds the
   week away; a ResizeObserver calls `map.resize()` so the canvas follows its box.
-- Still to come, all mocked at https://claude.ai/artifact/Wtio2jYAqHFkA5Kmcq9CDq: plan-first
+- The Map tab is folded into Plan on desktop (25 Sep 2026): `DesktopMasthead` hides it for
+  owners (guests keep it; they have no Plan). The week's map carries the search pill
+  (`PlaceSearch positionClassName`), the add-a-place sheet through `lookupPlace` (shared with
+  FullMapClient, which is now a thin wrapper around it) and the phone-style Filter pill. The
+  widen disc sits top-right; the zoom stack moved to the bottom-right to free the top row.
+- Seven days at a time (25 Sep 2026): `shown = days.slice(weekStart, +7)`; the drag maths
+  and layout run over `shown`, the sheets and the map still get every day. Two arrows sit in
+  the cell above the hours only when the journey has more than seven days. Mock (the
+  rejected stepper row and mini month): https://claude.ai/artifact/RJPUY24bUs9CcWLn3ikaVc
+- Still to come, mocked at https://claude.ai/artifact/Wtio2jYAqHFkA5Kmcq9CDq: plan-first
   blocks (click an empty hour, name it, link a place later), Where to stay as a panel over
-  the map, the Map tab folding into Plan on the desktop.
+  the map.
 - Tailwind opacity trap: `bg-white/97` is not a step Tailwind generates, so the class did not
   exist and the phone AppMenu had no background over the Map until 24 Sep 2026. Use a real
   step (`/95`) or brackets (`/[0.97]`), and check the compiled CSS when something is see-through.
