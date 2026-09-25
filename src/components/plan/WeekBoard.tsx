@@ -16,6 +16,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { Trip, DayWithCards, Card, Day } from "@/types/database";
 import { queuedUpdate, queuedInsert, queuedDelete } from "@/lib/offline/queuedWrite";
 import { createClient } from "@/lib/supabase/client";
@@ -63,7 +64,20 @@ type Drag =
 
 export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const { toast } = useToast();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [days, setDays] = useState<DayWithCards[]>(initialDays);
+  // The map can take the whole page (the week folds away) and come back.
+  const [mapWide, setMapWide] = useState(false);
+  // Where to stay (25 Sep 2026): ?stays=1 opens the panel over the map, wide.
+  const [showStays, setShowStays] = useState(false);
+  useEffect(() => { if (searchParams.get("stays") === "1") { setShowStays(true); setMapWide(true); } }, [searchParams]);
+  const closeStays = useCallback(() => { setShowStays(false); setMapWide(false); router.replace("/trips/" + trip.id + "/plan"); }, [router, trip.id]);
+  // Plan first (25 Sep 2026): click an empty hour, name it, a timeless-place
+  // block lands there; a place can be linked from its sheet later.
+  const [draftBlock, setDraftBlock] = useState<{ dayId: string; dayIdx: number; min: number } | null>(null);
+  const [draftText, setDraftText] = useState("");
+  const justDraggedRef = useRef(false);
   const daysRef = useRef(days); daysRef.current = days;
   const [saved, setSaved] = useState<Card[]>(initialSaved);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -71,8 +85,6 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   // A block dragged over the map: the panel tints, and the drop takes the
   // card off its day (the Map tab's unschedule, so a saved pin remains).
   const [overMap, setOverMap] = useState(false);
-  // The map can take the whole page (the week folds away) and come back.
-  const [mapWide, setMapWide] = useState(false);
   // The header's "…" menu, by day id.
   const [headerMenu, setHeaderMenu] = useState<string | null>(null);
   useEffect(() => {
@@ -271,6 +283,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
       const g = ghost; setGhost(null); setHover(null); setDragChip(null);
       const wasOverMap = overMap; setOverMap(false);
       if (!d) return;
+      if (d.moved) { justDraggedRef.current = true; window.setTimeout(() => { justDraggedRef.current = false; }, 0); }
       if (!d.moved) { if (d.kind === "move") setSelectedCard(d.card); return; }
       const dayList = shownRef.current;
       if (d.kind === "move" && wasOverMap && overMapPanel(e.clientX, e.clientY)) {
@@ -454,6 +467,31 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     });
   }, [patchCard, toast]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── plan first ─────────────────────────────────────────────────
+  const onColumnClick = (e: React.MouseEvent<HTMLDivElement>, dayId: string, dayIdx: number) => {
+    if (justDraggedRef.current) return;
+    const t = e.target as HTMLElement;
+    if (t !== e.currentTarget && !t.dataset.hourline) return;   // a block, not the empty hour
+    const min = minAtY(e.clientY); if (min === null) return;
+    setDraftText(""); setDraftBlock({ dayId, dayIdx, min: Math.floor(min / 15) * 15 });
+  };
+  const commitDraft = useCallback(async () => {
+    const d = draftBlock; const title = draftText.trim();
+    setDraftBlock(null);
+    if (!d || !title) return;
+    const created = await scheduleCardOnDay(supabase, { tripId: trip.id, dayId: d.dayId, placeId: null, details: { title }, startTime: toTime(d.min), endTime: toTime(Math.min(d.min + 60, HOUR_END * 60 + 45)) });
+    if (!created) { toast({ message: "Couldn't add it. Try again." }); return; }
+    setDays((prev) => prev.map((x) => (x.id === d.dayId ? { ...x, cards: [...x.cards, created] } : x)));
+    toast({
+      message: `"${title}" at ${fmt12(d.min)}. Open it to link a place.`,
+      undo: async () => {
+        const { error } = await queuedDelete("cards", { id: created.id });
+        if (error) { toast({ message: "Couldn't undo. Try again." }); return; }
+        setDays((prev) => prev.map((x) => ({ ...x, cards: x.cards.filter((c) => c.id !== created.id) })));
+      },
+    });
+  }, [draftBlock, draftText, supabase, trip.id, toast]);
+
   // ── the map's callbacks ────────────────────────────────────────
   // A pin's card is either on a day (patch it there) or in the saved pile.
   const mapCardUpdate = useCallback((updated: Card) => {
@@ -517,7 +555,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
         <div className="flex flex-col h-full" style={{ minWidth: minWidth }}>
           {/* day headers */}
           <div className="grid border-b bg-white flex-shrink-0" style={{ ...gridStyle, borderColor: "rgba(26,26,46,0.10)" }}>
-            <div className="flex items-center justify-center gap-0.5">
+            <div className="flex items-center justify-center gap-0.5 sticky left-0 z-[8] bg-white">
               {weeks > 1 && (
                 <>
                   <button
@@ -572,7 +610,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
           </div>
           {/* anytime lane */}
           <div ref={laneRef} className="grid border-b flex-shrink-0" style={{ ...gridStyle, borderColor: "rgba(26,26,46,0.10)", minHeight: 38 }}>
-            <div className="text-[9px] text-activity/40 text-right pr-1.5 pt-3 uppercase tracking-[0.06em]">Anytime</div>
+            <div className="text-[9px] text-activity/40 text-right pr-1.5 pt-3 uppercase tracking-[0.06em] sticky left-0 z-[8] bg-[#F5F4F1]">Anytime</div>
             {laidOut.map(({ day, untimed }, di) => (
               <div key={day.id} className="border-l px-[3px] py-[5px] flex flex-wrap gap-[3px] content-start min-w-0 transition-colors" style={{ borderColor: "rgba(26,26,46,0.10)", background: hover && hover.day === di && hover.min === null ? "rgba(26,26,46,0.05)" : undefined }}>
                 {untimed.map((c) => (
@@ -592,17 +630,37 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
           {/* the hours */}
           <div ref={gridRef} className="relative flex-1 min-h-0 overflow-y-auto">
             <div ref={colsRef} className="grid relative" style={{ ...gridStyle, height: gridHeight() }}>
-              <div className="relative">
+              <div className="relative sticky left-0 z-[8] bg-[#F5F4F1]">
                 {hours.map((h) => (
                   <div key={h} className="absolute right-1.5 text-[10px] text-activity/40 tabular-nums" style={{ top: (h - HOUR_START) * PX_PER_HOUR - 6 }}>{h % 12 || 12}{h < 12 ? " am" : " pm"}</div>
                 ))}
               </div>
               <div className="contents">
                 {laidOut.map(({ day, placed }, di) => (
-                  <div key={day.id} className="relative border-l min-w-0 transition-colors" style={{ borderColor: "rgba(26,26,46,0.10)", background: hover && hover.day === di && hover.min !== null ? "rgba(26,26,46,0.04)" : undefined }}>
+                  <div key={day.id} onClick={(e) => onColumnClick(e, day.id, di)} className="relative border-l min-w-0 transition-colors cursor-cell" style={{ borderColor: "rgba(26,26,46,0.10)", background: hover && hover.day === di && hover.min !== null ? "rgba(26,26,46,0.04)" : undefined }}>
                     {hours.map((h) => (
-                      <div key={h} className="absolute left-0 right-0" style={{ top: (h - HOUR_START) * PX_PER_HOUR, borderTop: "1px solid rgba(26,26,46,0.06)" }} />
+                      <div key={h} data-hourline="1" className="absolute left-0 right-0" style={{ top: (h - HOUR_START) * PX_PER_HOUR, borderTop: "1px solid rgba(26,26,46,0.06)" }} />
                     ))}
+                    {draftBlock && draftBlock.dayId === day.id && (
+                      <div
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => e.stopPropagation()}
+                        className="absolute left-[3px] right-[3px] rounded-[6px] z-[7]"
+                        style={{ top: ((draftBlock.min - HOUR_START * 60) / 60) * PX_PER_HOUR, height: PX_PER_HOUR, background: "#F3EFE4", border: "1px dashed rgba(26,26,46,0.35)", borderLeft: "3px solid rgba(26,26,46,0.4)", padding: "4px 6px" }}
+                      >
+                        <input
+                          autoFocus
+                          value={draftText}
+                          onChange={(e) => setDraftText(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") void commitDraft(); if (e.key === "Escape") setDraftBlock(null); }}
+                          onBlur={() => void commitDraft()}
+                          placeholder="What's the plan?"
+                          aria-label="Name the plan"
+                          className="w-full bg-transparent text-[11px] font-medium outline-none placeholder:text-activity/40"
+                        />
+                        <div className="text-[9.5px] text-activity/60 tabular-nums">{fmt12(draftBlock.min)} – {fmt12(Math.min(draftBlock.min + 60, HOUR_END * 60 + 45))}</div>
+                      </div>
+                    )}
                     {placed.map((b) => {
                       const c = byId.get(b.id); if (!c) return null;
                       const note = isNote(c);
@@ -673,6 +731,9 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
           wide={mapWide}
           onToggleWide={() => setMapWide((w) => !w)}
           onPutMany={putMany}
+          showStays={showStays}
+          onCloseStays={closeStays}
+          onStaysChanged={() => router.refresh()}
           trip={trip}
           days={days}
           cards={pinCards}

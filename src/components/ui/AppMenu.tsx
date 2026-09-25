@@ -93,7 +93,8 @@ export default function AppMenu({
   const ownerItems = tripId ? (guest ? 1 : 5) + (extra?.length ?? 0) : 1;
   const tileCols = Math.min(3, Math.max(1, ownerItems));
 
-  const itemStyle: React.CSSProperties = mobile ? {
+  // Tiles on the desktop too (Brennan, 25 Sep 2026): the same two rows.
+  const itemStyle: React.CSSProperties = {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
@@ -108,24 +109,12 @@ export default function AppMenu({
     border: "none",
     cursor: "pointer",
     textDecoration: "none",
-  } : {
-    display: "flex",
-    gap: 12,
-    alignItems: "flex-start",
-    padding: "9px 10px",
-    borderRadius: 9,
-    width: "100%",
-    textAlign: "left",
-    background: "transparent",
-    border: "none",
-    cursor: "pointer",
-    textDecoration: "none",
   };
 
   const glyphStyle: React.CSSProperties = {
-    width: mobile ? 24 : 28,
-    height: mobile ? 24 : 28,
-    borderRadius: mobile ? 7 : 8,
+    width: 24,
+    height: 24,
+    borderRadius: 7,
     background: mobile ? "#F3F4F6" : "#FFFFFF",
     border: mobile ? "none" : `1px solid ${RULE}`,
     display: "flex",
@@ -137,7 +126,7 @@ export default function AppMenu({
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const Label = ({ title, sub: _sub }: { title: string; sub?: string }) => (
-    <span style={{ display: "block", fontSize: mobile ? 11 : 14, color: INK, lineHeight: 1.2, fontWeight: mobile ? 500 : 400, alignSelf: "center", maxWidth: "100%" }}>
+    <span style={{ display: "block", fontSize: 11, color: INK, lineHeight: 1.2, fontWeight: 500, alignSelf: "center", maxWidth: "100%" }}>
       {title}
     </span>
   );
@@ -181,11 +170,13 @@ export default function AppMenu({
               ? { display: "grid", gridTemplateColumns: `repeat(${tileCols}, 64px)`, gap: 2, border: `1px solid ${RULE}`, boxShadow: "0 16px 34px rgba(26,26,46,0.17)" }
               : {
                   top: "calc(100% + 8px)",
-                  width: 288,
+                  display: "grid",
+                  gridTemplateColumns: `repeat(${tileCols}, 64px)`,
+                  gap: 2,
                   background: "#FFFFFF",
                   border: `1px solid ${RULE}`,
                   boxShadow: "0 16px 34px rgba(26,26,46,0.17)",
-                  padding: 7,
+                  padding: 6,
                 }
           }
         >
@@ -258,7 +249,9 @@ export default function AppMenu({
                   so it works from every tab and opens the sheet on arrival. */}
               {owner && (
                 <Link
-                  href={"/trips/" + tripId + "/map?stays=1"}
+                  // Desktop owners have no Map tab: the stay panel opens over the
+                  // Plan's map (25 Sep 2026). The phone keeps the Map screen.
+                  href={"/trips/" + tripId + (mobile ? "/map?stays=1" : "/plan?stays=1")}
                   role="menuitem"
                   aria-label="Where to stay"
                   onClick={() => setOpen(false)}
@@ -267,7 +260,7 @@ export default function AppMenu({
                   <span style={glyphStyle}>
                     <Bed size={15} weight="light" />
                   </span>
-                  <Label title={mobile ? "Stay" : "Where to stay"} />
+                  <Label title="Stay" />
                 </Link>
               )}
 
@@ -289,7 +282,7 @@ export default function AppMenu({
                   <span style={glyphStyle}>
                     <ShareNetwork size={15} weight="light" />
                   </span>
-                  <Label title={mobile ? "Settings" : "Share & settings"} />
+                  <Label title="Settings" />
                 </TripSettingsLink>
               )}
             </>

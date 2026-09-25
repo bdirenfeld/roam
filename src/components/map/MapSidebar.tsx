@@ -26,7 +26,7 @@ interface Group {
   rows: SubTypeRow[];
 }
 
-const GROUPS: Group[] = [
+export const GROUPS: Group[] = [
   {
     label: "Activity",
     color: "#0D9488",

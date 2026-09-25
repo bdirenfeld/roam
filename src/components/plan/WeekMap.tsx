@@ -25,6 +25,10 @@ import { lookupPlace } from "@/components/map/lookupPlace";
 import { TEMP_PIN_SVG } from "@/components/map/lookupPlace";
 import { useToast } from "@/components/ui/Toast";
 import { Funnel, Heart } from "@phosphor-icons/react";
+import { GROUPS } from "@/components/map/MapSidebar";
+import WhereToStaySheet from "@/components/map/WhereToStaySheet";
+import { makePinElement } from "@/lib/mapPins";
+import type { StayCandidate } from "@/types/database";
 import type { CardType } from "@/types/database";
 
 const ALL_TYPES: CardType[] = ["activity", "food", "logistics"];
@@ -62,6 +66,10 @@ interface Props {
   onToggleWide?: () => void;
   /** Several chosen pins go onto one day, arranged (the wide map's Select). */
   onPutMany?: (cards: Card[], day: Day) => Promise<void> | void;
+  /** Where to stay, as a panel on the right of this map (the Map tab's sheet). */
+  showStays?: boolean;
+  onCloseStays?: () => void;
+  onStaysChanged?: () => void;
 }
 
 type Marker = { marker: any; wrapper: HTMLElement; inner: HTMLElement; cardRef: { current: Card } }; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -70,7 +78,7 @@ function placed(c: Card): boolean {
   return typeof c.place?.lat === "number" && typeof c.place?.lng === "number";
 }
 
-export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onHover, onCardUpdate, onCardCreated, onCardDelete, onPinDragStart, hot, wide, onToggleWide, onPutMany }: Props) {
+export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onHover, onCardUpdate, onCardCreated, onCardDelete, onPinDragStart, hot, wide, onToggleWide, onPutMany, showStays, onCloseStays, onStaysChanged }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
   const mbRef = useRef<any>(null);  // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -90,7 +98,14 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
   const [types, setTypes] = useState<Set<CardType>>(() => new Set(ALL_TYPES));
   const [statuses, setStatuses] = useState<Set<string>>(() => new Set(ALL_STATUSES));
   const [lovedOnly, setLovedOnly] = useState(false);
-  const narrowed = (ALL_TYPES.length - types.size) + (ALL_STATUSES.length - statuses.size) + (lovedOnly ? 1 : 0);
+  // The sub-type row (25 Sep 2026): once ONE category is chosen, its rows
+  // (Restaurant, Coffee, …) appear as pills with counts; a row switched off
+  // hides its sub-types. The row is the old sidebar, as pills.
+  const [rowsOff, setRowsOff] = useState<Set<string>>(() => new Set());
+  const onlyType = types.size === 1 ? Array.from(types)[0] : null;
+  const subRows = onlyType ? GROUPS.find((g) => g.typeKey === onlyType)?.rows ?? [] : [];
+  const offSubs = new Set(subRows.filter((r) => rowsOff.has(r.label)).flatMap((r) => r.subTypes));
+  const narrowed = (ALL_TYPES.length - types.size) + (ALL_STATUSES.length - statuses.size) + (lovedOnly ? 1 : 0) + (onlyType ? subRows.filter((r) => rowsOff.has(r.label)).length : 0);
 
   // Select (25 Sep 2026): on the wide map, a disc turns pointer drags into a
   // box and taps into toggles; the chosen pins get a ring, the rest fade, and
@@ -147,6 +162,38 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
     window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
   };
   const selectedCards = cards.filter((c) => picked.has(c.id));
+
+  // Where to stay (25 Sep 2026): the Map tab's candidates as lettered pins on
+  // this map, framed once per set, the focused one enlarged.
+  const [stayCands, setStayCands] = useState<StayCandidate[]>([]);
+  const [focusedStay, setFocusedStay] = useState<StayCandidate | null>(null);
+  const stayMarkers = useRef<any[]>([]); // eslint-disable-line @typescript-eslint/no-explicit-any
+  const fittedRef = useRef<string>("");
+  useEffect(() => {
+    const map = mapRef.current, mb = mbRef.current;
+    stayMarkers.current.forEach((m) => m.remove()); stayMarkers.current = [];
+    if (!ready || !map || !mb || !showStays) return;
+    const coords: [number, number][] = [];
+    stayCands.forEach((c) => {
+      if (c.lat == null || c.lng == null) return;
+      const { wrapper, inner } = makePinElement("logistics", "hotel", c.status === "chosen" ? "in_itinerary" : "interested", { label: c.letter ?? "", onClick: () => setFocusedStay(c) });
+      inner.title = c.name;
+      if (focusedStay?.id === c.id) { inner.dataset.selected = "1"; inner.style.transform = "scale(1.35)"; }
+      stayMarkers.current.push(new mb.Marker({ element: wrapper, anchor: "center" }).setLngLat([c.lng, c.lat]).addTo(map));
+      coords.push([c.lng, c.lat]);
+    });
+    const key = stayCands.map((c) => c.id).join(",");
+    if (coords.length > 1 && !focusedStay && fittedRef.current !== key) {
+      fittedRef.current = key;
+      const b = coords.reduce((acc: any, pt) => acc.extend(pt), new mb.LngLatBounds(coords[0], coords[0])); // eslint-disable-line @typescript-eslint/no-explicit-any
+      map.fitBounds(b, { padding: { top: 80, bottom: 80, left: 40, right: 440 }, maxZoom: 13 });
+    }
+  }, [showStays, stayCands, focusedStay, ready]);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !focusedStay || focusedStay.lat == null || focusedStay.lng == null) return;
+    map.flyTo({ center: [focusedStay.lng, focusedStay.lat], zoom: Math.max(map.getZoom(), 12) });
+  }, [focusedStay]);
 
   const clearTemp = () => { if (tempPinRef.current) { tempPinRef.current.remove(); tempPinRef.current = null; } };
   const handlePlaceSelect = useCallback(async (placeId: string, sessionToken: string) => {
@@ -266,7 +313,7 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
     markers.current.forEach((m, id) => {
       const c = m.cardRef.current;
       const dim = activeDayId !== null && c.day_id !== activeDayId;
-      const shown = types.has(c.place!.type) && statuses.has(c.day_id ? "in_itinerary" : "interested") && (!lovedOnly || c.place!.loved === true);
+      const shown = types.has(c.place!.type) && statuses.has(c.day_id ? "in_itinerary" : "interested") && (!lovedOnly || c.place!.loved === true) && !(c.place!.sub_type && offSubs.has(c.place!.sub_type));
       m.wrapper.style.display = shown ? "" : "none";
       const isSel = picked.has(id);
       const fade = picked.size > 0 && !isSel;
@@ -275,7 +322,8 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
       m.inner.style.boxShadow = isSel ? "0 0 0 3px #fff, 0 0 0 5px #1A1A2E" : "";
       m.wrapper.style.zIndex = id === hoveredId || isSel ? "5" : "";
     });
-  }, [hoveredId, activeDayId, cards, types, statuses, lovedOnly, picked]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hoveredId, activeDayId, cards, types, statuses, lovedOnly, picked, rowsOff]);
 
   // Click a day header and the map goes to that day (25 Sep 2026): fit the map
   // to the day's pins, one pin gets a zoom, and clicking the day again fits
@@ -392,6 +440,20 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
       <div className="absolute left-3 bottom-8 z-10 flex flex-col gap-2">
         {filterOpen && (
           <div className="flex flex-col gap-2">
+            {subRows.length > 0 && (
+              <div className="flex items-center gap-1.5 flex-wrap max-w-[420px]">
+                {subRows.map((r) => {
+                  const n = cards.filter((c) => c.place && r.subTypes.includes(c.place.sub_type ?? "") && statuses.has(c.day_id ? "in_itinerary" : "interested") && (!lovedOnly || c.place.loved === true)).length;
+                  if (n === 0) return null;
+                  const on = !rowsOff.has(r.label);
+                  return (
+                    <button key={r.label} onClick={() => setRowsOff((prev) => { const next = new Set(prev); if (next.has(r.label)) next.delete(r.label); else next.add(r.label); return next; })} className="px-2.5 py-1 rounded-full text-[11.5px] font-medium transition-all duration-200" style={{ ...pillStyle(on, false), textDecoration: on ? "none" : "line-through" }}>
+                      {r.label} <span style={{ opacity: 0.55 }}>{n}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <div className="flex items-center gap-2">
               {([["activity", "Activity", "#1D9E75"], ["food", "Food", "#7C3AED"], ["logistics", "Logistics", "#1A1A2E"]] as [CardType, string, string][]).map(([k, label, color]) => {
                 const active = types.has(k); const chosen = active && types.size < ALL_TYPES.length;
@@ -423,6 +485,18 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
           {!filterOpen && narrowed > 0 && <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold" style={{ background: "#B0541F", color: "#FFFFFF" }}>{narrowed}</span>}
         </button>
       </div>
+      {showStays && onCloseStays && (
+        <WhereToStaySheet
+          panel
+          trip={trip}
+          placesCount={cards.filter(placed).length}
+          focusedId={focusedStay?.id ?? null}
+          onFocus={setFocusedStay}
+          onCandidates={setStayCands}
+          onChanged={() => onStaysChanged?.()}
+          onClose={() => { setFocusedStay(null); onCloseStays(); }}
+        />
+      )}
       {selected && (
         <MapPinPopup
           card={selected}
