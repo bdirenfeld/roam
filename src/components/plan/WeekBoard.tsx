@@ -98,12 +98,15 @@ export default function WeekBoard({ trip, initialDays }: Props) {
   }, [patchCard, toast]);
 
   // ── geometry of the pointer ────────────────────────────────────
+  // The column container is display:contents (no box), so measure the grid
+  // itself and skip the hours gutter. Verified the hard way, 24 Sep 2026.
   function dayAtX(clientX: number): number | null {
     const cols = colsRef.current; if (!cols) return null;
     const r = cols.getBoundingClientRect();
-    if (clientX < r.left || clientX > r.right) return null;
-    const w = r.width / nDays;
-    return Math.min(nDays - 1, Math.floor((clientX - r.left) / w));
+    const left = r.left + HOURS_W;
+    if (clientX < left || clientX > r.right) return null;
+    const w = (r.width - HOURS_W) / nDays;
+    return Math.min(nDays - 1, Math.floor((clientX - left) / w));
   }
   function minAtY(clientY: number): number | null {
     const g = gridRef.current; if (!g) return null;
@@ -281,13 +284,13 @@ export default function WeekBoard({ trip, initialDays }: Props) {
           </div>
           {/* the hours */}
           <div ref={gridRef} className="relative flex-1 min-h-0 overflow-y-auto">
-            <div className="grid relative" style={{ ...gridStyle, height: gridHeight() }}>
+            <div ref={colsRef} className="grid relative" style={{ ...gridStyle, height: gridHeight() }}>
               <div className="relative">
                 {hours.map((h) => (
                   <div key={h} className="absolute right-1.5 text-[10px] text-activity/40 tabular-nums" style={{ top: (h - HOUR_START) * PX_PER_HOUR - 6 }}>{h % 12 || 12}{h < 12 ? " am" : " pm"}</div>
                 ))}
               </div>
-              <div ref={colsRef} className="contents">
+              <div className="contents">
                 {laidOut.map(({ day, placed }, di) => (
                   <div key={day.id} className="relative border-l min-w-0 transition-colors" style={{ borderColor: "rgba(26,26,46,0.10)", background: hover && hover.day === di && hover.min !== null ? "rgba(26,26,46,0.04)" : undefined }}>
                     {hours.map((h) => (
