@@ -1503,7 +1503,10 @@ the component mounted and you are looking at throttling, not a broken map.
   https://claude.ai/artifact/Wtio2jYAqHFkA5Kmcq9CDq: the sub-type row in the Filter once a
   category is chosen; plan-first blocks (click an empty hour, name it, link a place
   later); Where to stay as a panel over the map. Menu options mocked at
-  https://claude.ai/artifact/Mc6jFQTci62sEV4KbeHtCJ (tiles recommended), undecided.
+  https://claude.ai/artifact/Mc6jFQTci62sEV4KbeHtCJ.
+- The phone AppMenu is a 3-across grid of 64px tiles under the disc (25 Sep 2026), titles
+  "Stay" and "Settings" there; desktop keeps rows. A bottom sheet was mocked and rejected:
+  the trigger is top-right, so the menu opens where the thumb already is.
 - Tailwind opacity trap: `bg-white/97` is not a step Tailwind generates, so the class did not
   exist and the phone AppMenu had no background over the Map until 24 Sep 2026. Use a real
   step (`/95`) or brackets (`/[0.97]`), and check the compiled CSS when something is see-through.

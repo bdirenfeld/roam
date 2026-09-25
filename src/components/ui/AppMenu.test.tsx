@@ -43,9 +43,9 @@ function rows(guest: boolean) {
 }
 
 describe("the journey menu", () => {
-  it("is six rows for the owner, Share and Settings as one", () => {
+  it("is six tiles for the owner, Share and Settings as one, phone-short words", () => {
     const r = rows(false);
-    expect(r).toEqual(["Budget", "Notes", "Bookings", "Ideas", "Where to stay", "Share & settings"]);
+    expect(r).toEqual(["Budget", "Notes", "Bookings", "Ideas", "Stay", "Settings"]);
   });
 
   it("is Notes and Bookings for a guest — no planner's Ideas", () => {

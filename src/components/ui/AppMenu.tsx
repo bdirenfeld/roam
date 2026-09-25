@@ -86,13 +86,34 @@ export default function AppMenu({
   }, [open]);
 
   const mobile = variant === "mobile";
+  // Tiles on the phone (Brennan, 25 Sep 2026: "condense the list"): 3 across,
+  // 64px each, under the disc where the thumb already is — half the height
+  // of six rows. A bottom sheet was mocked and rejected: the trigger is
+  // top-right, so the menu must open there, not make the thumb travel.
+  const ownerItems = tripId ? (guest ? 1 : 5) + (extra?.length ?? 0) : 1;
+  const tileCols = Math.min(3, Math.max(1, ownerItems));
 
-  const itemStyle: React.CSSProperties = {
+  const itemStyle: React.CSSProperties = mobile ? {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    width: 64,
+    height: 58,
+    padding: "4px 2px",
+    borderRadius: 9,
+    textAlign: "center",
+    background: "transparent",
+    border: "none",
+    cursor: "pointer",
+    textDecoration: "none",
+  } : {
     display: "flex",
     gap: 12,
     alignItems: "flex-start",
-    padding: mobile ? "10px 12px" : "9px 10px",
-    borderRadius: mobile ? 0 : 9,
+    padding: "9px 10px",
+    borderRadius: 9,
     width: "100%",
     textAlign: "left",
     background: "transparent",
@@ -102,9 +123,9 @@ export default function AppMenu({
   };
 
   const glyphStyle: React.CSSProperties = {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
+    width: mobile ? 24 : 28,
+    height: mobile ? 24 : 28,
+    borderRadius: mobile ? 7 : 8,
     background: mobile ? "#F3F4F6" : "#FFFFFF",
     border: mobile ? "none" : `1px solid ${RULE}`,
     display: "flex",
@@ -116,7 +137,7 @@ export default function AppMenu({
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const Label = ({ title, sub: _sub }: { title: string; sub?: string }) => (
-    <span style={{ display: "block", fontSize: mobile ? 14 : 14, color: INK, lineHeight: 1.3, fontWeight: mobile ? 500 : 400, alignSelf: "center" }}>
+    <span style={{ display: "block", fontSize: mobile ? 11 : 14, color: INK, lineHeight: 1.2, fontWeight: mobile ? 500 : 400, alignSelf: "center", maxWidth: "100%" }}>
       {title}
     </span>
   );
@@ -150,12 +171,12 @@ export default function AppMenu({
           role="menu"
           className={
             mobile
-              ? "absolute right-0 top-full mt-1.5 z-[80] bg-white rounded-xl shadow-xl w-[236px] py-1 overflow-hidden"
+              ? "absolute right-0 top-full mt-1.5 z-[80] bg-white rounded-xl shadow-xl p-1.5 overflow-hidden"
               : "absolute right-0 z-[60] rounded-xl"
           }
           style={
             mobile
-              ? undefined
+              ? { display: "grid", gridTemplateColumns: `repeat(${tileCols}, 64px)`, gap: 2 }
               : {
                   top: "calc(100% + 8px)",
                   width: 288,
@@ -244,7 +265,7 @@ export default function AppMenu({
                   <span style={glyphStyle}>
                     <Bed size={15} weight="light" />
                   </span>
-                  <Label title="Where to stay" />
+                  <Label title={mobile ? "Stay" : "Where to stay"} />
                 </Link>
               )}
 
@@ -266,7 +287,7 @@ export default function AppMenu({
                   <span style={glyphStyle}>
                     <ShareNetwork size={15} weight="light" />
                   </span>
-                  <Label title="Share & settings" />
+                  <Label title={mobile ? "Settings" : "Share & settings"} />
                 </TripSettingsLink>
               )}
             </>
