@@ -36,6 +36,9 @@ interface Props {
   onPinDragStart?: (card: Card) => void;
   /** A week block is being dragged over the map. */
   hot?: boolean;
+  /** The map fills the page (the week is folded away). */
+  wide?: boolean;
+  onToggleWide?: () => void;
 }
 
 type Marker = { marker: any; wrapper: HTMLElement; inner: HTMLElement; cardRef: { current: Card } }; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -44,7 +47,7 @@ function placed(c: Card): boolean {
   return typeof c.place?.lat === "number" && typeof c.place?.lng === "number";
 }
 
-export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onHover, onCardUpdate, onCardCreated, onCardDelete, onPinDragStart, hot }: Props) {
+export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onHover, onCardUpdate, onCardCreated, onCardDelete, onPinDragStart, hot, wide, onToggleWide }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
   const mbRef = useRef<any>(null);  // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -83,6 +86,9 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
       });
       mapRef.current = map;
       map.addControl(new mb.AttributionControl({ compact: true }), "bottom-right");
+      const ro = new ResizeObserver(() => map.resize());
+      ro.observe(containerRef.current!);
+      map.once("remove", () => ro.disconnect());
       map.addControl(new mb.NavigationControl({ showCompass: false }), "top-right");
       map.on("move", () => setSelected((s) => { if (s) setAnchor(anchorFor(s)); return s; }));
       map.once("load", async () => {
@@ -164,6 +170,24 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
   return (
     <div className="relative h-full min-h-0 border-l" style={{ borderColor: "rgba(26,26,46,0.10)" }}>
       <div ref={containerRef} className="absolute inset-0" onClick={close} />
+      {onToggleWide && (
+        <button
+          type="button"
+          onClick={onToggleWide}
+          aria-label={wide ? "Show the week beside the map" : "Widen the map"}
+          title={wide ? "Show the week" : "Widen the map"}
+          className="absolute left-3 top-3 z-10 w-9 h-9 rounded-full bg-white flex items-center justify-center text-[#1A1A2E] hover:bg-gray-50"
+          style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.2)" }}
+        >
+          {wide ? (
+            /* collapse: arrows pointing in */
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" /><line x1="14" y1="10" x2="21" y2="3" /><line x1="3" y1="21" x2="10" y2="14" /></svg>
+          ) : (
+            /* expand: arrows pointing out */
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" /></svg>
+          )}
+        </button>
+      )}
       {hot && (
         <div className="absolute inset-2 rounded-xl pointer-events-none flex items-end justify-center pb-4" style={{ background: "rgba(26,26,46,0.08)", border: "2px dashed rgba(26,26,46,0.35)" }}>
           <span className="text-[12px] font-medium px-3 py-1.5 rounded-full bg-white" style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.2)" }}>Drop to take it off the day</span>

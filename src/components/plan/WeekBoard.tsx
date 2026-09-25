@@ -66,6 +66,8 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   // A block dragged over the map: the panel tints, and the drop takes the
   // card off its day (the Map tab's unschedule, so a saved pin remains).
   const [overMap, setOverMap] = useState(false);
+  // The map can take the whole page (the week folds away) and come back.
+  const [mapWide, setMapWide] = useState(false);
   const mapPanelRef = useRef<HTMLDivElement | null>(null);
   const supabase = useMemo(() => createClient(), []);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
@@ -371,7 +373,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
 
   return (
     <div className="flex h-[calc(100dvh-64px)] bg-[#F5F4F1] select-none">
-      <div className="flex-1 min-w-0 overflow-x-auto">
+      <div className={`flex-1 min-w-0 overflow-x-auto ${mapWide ? "hidden" : ""}`}>
         <div className="flex flex-col h-full" style={{ minWidth: minWidth }}>
           {/* day headers */}
           <div className="grid border-b bg-white flex-shrink-0" style={{ ...gridStyle, borderColor: "rgba(26,26,46,0.10)" }}>
@@ -472,10 +474,12 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
 
       {/* The map. 380px from lg, 440px from xl; below lg the week stands alone
           and the Map tab still has the full map. */}
-      <div ref={mapPanelRef} className="hidden lg:block w-[380px] xl:w-[440px] flex-shrink-0 h-full">
+      <div ref={mapPanelRef} className={mapWide ? "block flex-1 min-w-0 h-full" : "hidden lg:block w-[380px] xl:w-[440px] flex-shrink-0 h-full"}>
         <WeekMap
           onPinDragStart={onPinDragStart}
           hot={overMap}
+          wide={mapWide}
+          onToggleWide={() => setMapWide((w) => !w)}
           trip={trip}
           days={days}
           cards={pinCards}
