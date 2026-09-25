@@ -1485,9 +1485,25 @@ the component mounted and you are looking at throttling, not a broken map.
   and layout run over `shown`, the sheets and the map still get every day. Two arrows sit in
   the cell above the hours only when the journey has more than seven days. Mock (the
   rejected stepper row and mini month): https://claude.ai/artifact/RJPUY24bUs9CcWLn3ikaVc
-- Still to come, mocked at https://claude.ai/artifact/Wtio2jYAqHFkA5Kmcq9CDq: plan-first
-  blocks (click an empty hour, name it, link a place later), Where to stay as a panel over
-  the map.
+- The seam drags (25 Sep 2026): `mapWidth` state, MAP_MIN 300, the week keeps COL_FLOOR
+  120 a column; remembered in localStorage `roam.week.mapWidth`. A 10px grip, ink while held.
+- Arranging (25 Sep 2026): `lib/week/arrange.ts` (tested) gives places times by rules —
+  meals into slots (coffee 9, lunch 12:30, dinner 19:30, bar 20:45, second of a kind takes
+  the next slot), sights in nearest-neighbour order from an anchor with walking time
+  (80 m/min, 5–30), existing timed blocks as obstacles, 15-min snaps. Two doors: on the
+  WIDE map a Select disc (box-drag or tap; pins ring, others fade; a tray of day chips), and
+  a "…" on a day header's hover with "Arrange this day" (only timeless blocks get times).
+  Anchor = the day's first timed place, else its first place, else the destination; a
+  stay with a pin should go first when there is one. Undo reverses every write.
+- Blocks resize from both edges: the top edge is `resizedStart` (never within 30 min of
+  the end, never before 7am).
+- The masthead's Agenda / Plan is one segmented control with a measured sliding thumb, not
+  two pills (25 Sep 2026).
+- Still to come, mocked at https://claude.ai/artifact/Re8LgyCtx1jWw3PRZYMo7W and
+  https://claude.ai/artifact/Wtio2jYAqHFkA5Kmcq9CDq: the sub-type row in the Filter once a
+  category is chosen; plan-first blocks (click an empty hour, name it, link a place
+  later); Where to stay as a panel over the map. Menu options mocked at
+  https://claude.ai/artifact/Mc6jFQTci62sEV4KbeHtCJ (tiles recommended), undecided.
 - Tailwind opacity trap: `bg-white/97` is not a step Tailwind generates, so the class did not
   exist and the phone AppMenu had no background over the Map until 24 Sep 2026. Use a real
   step (`/95`) or brackets (`/[0.97]`), and check the compiled CSS when something is see-through.
