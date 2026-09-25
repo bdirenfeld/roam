@@ -101,11 +101,20 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
   // The sub-type row (25 Sep 2026): once ONE category is chosen, its rows
   // (Restaurant, Coffee, …) appear as pills with counts; a row switched off
   // hides its sub-types. The row is the old sidebar, as pills.
-  const [rowsOff, setRowsOff] = useState<Set<string>>(() => new Set());
+  // null = every row. Same rule as the type pills: tap one and it is the only
+  // one shown (ink); tap it again and every row is back.
+  const [rowsOn, setRowsOn] = useState<Set<string> | null>(null);
   const onlyType = types.size === 1 ? Array.from(types)[0] : null;
+  useEffect(() => { setRowsOn(null); }, [onlyType]);
   const subRows = onlyType ? GROUPS.find((g) => g.typeKey === onlyType)?.rows ?? [] : [];
-  const offSubs = new Set(subRows.filter((r) => rowsOff.has(r.label)).flatMap((r) => r.subTypes));
-  const narrowed = (ALL_TYPES.length - types.size) + (ALL_STATUSES.length - statuses.size) + (lovedOnly ? 1 : 0) + (onlyType ? subRows.filter((r) => rowsOff.has(r.label)).length : 0);
+  const rowLabels = subRows.map((r) => r.label);
+  const rowActive = (label: string) => rowsOn === null || rowsOn.has(label);
+  const offSubs = new Set(subRows.filter((r) => !rowActive(r.label)).flatMap((r) => r.subTypes));
+  const tapRow = (label: string) => {
+    const next = tapFilter(rowsOn ?? new Set(rowLabels), rowLabels, label);
+    setRowsOn(next.size === rowLabels.length ? null : next);
+  };
+  const narrowed = (ALL_TYPES.length - types.size) + (ALL_STATUSES.length - statuses.size) + (lovedOnly ? 1 : 0) + (onlyType && rowsOn ? rowLabels.length - rowsOn.size : 0);
 
   // Select (25 Sep 2026): on the wide map, a disc turns pointer drags into a
   // box and taps into toggles; the chosen pins get a ring, the rest fade, and
@@ -323,7 +332,7 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
       m.wrapper.style.zIndex = id === hoveredId || isSel ? "5" : "";
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hoveredId, activeDayId, cards, types, statuses, lovedOnly, picked, rowsOff]);
+  }, [hoveredId, activeDayId, cards, types, statuses, lovedOnly, picked, rowsOn]);
 
   // Click a day header and the map goes to that day (25 Sep 2026): fit the map
   // to the day's pins, one pin gets a zoom, and clicking the day again fits
@@ -445,9 +454,10 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
                 {subRows.map((r) => {
                   const n = cards.filter((c) => c.place && r.subTypes.includes(c.place.sub_type ?? "") && statuses.has(c.day_id ? "in_itinerary" : "interested") && (!lovedOnly || c.place.loved === true)).length;
                   if (n === 0) return null;
-                  const on = !rowsOff.has(r.label);
+                  const active = rowActive(r.label);
+                  const chosen = active && rowsOn !== null;
                   return (
-                    <button key={r.label} onClick={() => setRowsOff((prev) => { const next = new Set(prev); if (next.has(r.label)) next.delete(r.label); else next.add(r.label); return next; })} className="px-2.5 py-1 rounded-full text-[11.5px] font-medium transition-all duration-200" style={{ ...pillStyle(on, false), textDecoration: on ? "none" : "line-through" }}>
+                    <button key={r.label} onClick={() => tapRow(r.label)} className="px-2.5 py-1 rounded-full text-[11.5px] font-medium transition-all duration-200" style={pillStyle(active, chosen)}>
                       {r.label} <span style={{ opacity: 0.55 }}>{n}</span>
                     </button>
                   );

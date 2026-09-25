@@ -200,6 +200,10 @@ export default function DesktopMasthead() {
     <header
       className="hidden md:flex"
       style={{
+        // Stays put while the page scrolls (Brennan, 25 Sep 2026).
+        position: "sticky",
+        top: 0,
+        zIndex: 40,
         height: 64,
         paddingLeft: 28,
         paddingRight: 28,

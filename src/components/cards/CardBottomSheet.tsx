@@ -1157,7 +1157,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   row cluttered, so the header keeps its glyphs and the verbs
                   live here. The sheet still closes itself after a move. */}
               {!readOnly && localCard.status === "in_itinerary" && days && days.length > 0 && (
-                <div className="relative">
+                <div className={place ? "relative" : "relative mr-10" /* a note card has the ✕ in this corner: keep the ⋯ clear of it (Brennan, 25 Sep 2026) */}>
                   <button
                     onClick={() => setShowCardMenu((v) => !v)}
                     aria-expanded={showCardMenu}
@@ -1328,21 +1328,6 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         {/* Scrollable detail content */}
         <div className="relative flex-1 min-h-0">
           <div ref={scrollRef} className="absolute inset-0 overflow-y-auto px-5 py-5">
-            {/* Checklist — the card's own list of things to tick off, the
-                Trello shape: many small checklists in context, not one long
-                trip-level one. FIRST, not last: below the detail fields it
-                sat under a long scroll in grey and was effectively hidden.
-                A guest reads it; only the owner works it.
-                A card WITHOUT one shows nothing here: the empty "Add a
-                checklist" row is an empty field, and empty fields wait behind
-                "Add details" like Recommended by (Brennan, 24 Sep 2026). */}
-            {(() => {
-              const items = readChecklist(localCard.details);
-              const has = items !== null && items.length > 0;
-              if (!has && (readOnly || !showEmptyFields)) return null;
-              return <CardChecklist items={items} onSave={readOnly ? undefined : saveChecklist} />;
-            })()}
-
             {renderDetail()}
 
             {/* Notes, always reachable. The detail components render notes
@@ -1361,6 +1346,21 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 />
               </div>
             )}
+
+            {/* Checklist — the card's own list of things to tick off, the
+                Trello shape: many small checklists in context, not one long
+                trip-level one. Below the notes (Brennan, 25 Sep 2026): the note
+                is what you read first; the list is what you work through.
+                A guest reads it; only the owner works it.
+                A card WITHOUT one shows nothing here: the empty "Add a
+                checklist" row is an empty field, and empty fields wait behind
+                "Add details" like Recommended by (Brennan, 24 Sep 2026). */}
+            {(() => {
+              const items = readChecklist(localCard.details);
+              const has = items !== null && items.length > 0;
+              if (!has && (readOnly || !showEmptyFields)) return null;
+              return <CardChecklist items={items} onSave={readOnly ? undefined : saveChecklist} />;
+            })()}
 
             {/* Recommended by — a person, not a rating. The map's add flow can
                 set it at save time; this is where it gets added or corrected

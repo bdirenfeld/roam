@@ -22,6 +22,7 @@ import { queuedUpdate, queuedInsert, queuedDelete } from "@/lib/offline/queuedWr
 import { createClient } from "@/lib/supabase/client";
 import { scheduleCardOnDay, unscheduleCard } from "@/lib/scheduleCard";
 import { arrangeDay, type ArrangeItem, type Busy, type Anchor } from "@/lib/week/arrange";
+import { PIN_COLORS, getMaterialIconHTML } from "@/lib/mapPins";
 import { useToast } from "@/components/ui/Toast";
 import { cardTimes } from "@/lib/cardTime";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
@@ -192,10 +193,10 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     return Math.min(nDays - 1, Math.floor((clientX - left) / w));
   }
   function minAtY(clientY: number): number | null {
-    const g = gridRef.current; if (!g) return null;
+    const g = colsRef.current; if (!g) return null;
     const r = g.getBoundingClientRect();
     if (clientY < r.top || clientY > r.bottom) return null;
-    return minutesAtY(clientY - r.top + g.scrollTop);
+    return minutesAtY(clientY - r.top);
   }
   function overMapPanel(x: number, y: number): boolean {
     const p = mapPanelRef.current; if (!p) return false;
@@ -263,17 +264,17 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
         setGhost({ id: d.card.id, day, min, endMin: dur !== null ? min + dur : null });
         setHover({ day, min });
       } else if (d.kind === "resizeStart") {
-        const g = gridRef.current; if (!g) return;
+        const g = colsRef.current; if (!g) return;
         const r = g.getBoundingClientRect();
         const t = cardTimes(d.card);
         const end = t.end ? toMin(t.end) : null;
-        const min = toMin(resizedStart({ id: d.card.id, startMin: toMin(t.start ?? "07:00:00"), endMin: end }, minutesAtY(e.clientY - r.top + g.scrollTop)));
+        const min = toMin(resizedStart({ id: d.card.id, startMin: toMin(t.start ?? "07:00:00"), endMin: end }, minutesAtY(e.clientY - r.top)));
         const dayIdx = shownRef.current.findIndex((x) => x.id === d.card.day_id);
         setGhost({ id: d.card.id, day: dayIdx, min, endMin: end });
       } else {
-        const g = gridRef.current; if (!g) return;
+        const g = colsRef.current; if (!g) return;
         const r = g.getBoundingClientRect();
-        const endMin = Math.max(toMin(cardTimes(d.card).start ?? "07:00:00") + 30, minutesAtY(e.clientY - r.top + g.scrollTop));
+        const endMin = Math.max(toMin(cardTimes(d.card).start ?? "07:00:00") + 30, minutesAtY(e.clientY - r.top));
         const dayIdx = shownRef.current.findIndex((x) => x.id === d.card.day_id);
         setGhost({ id: d.card.id, day: dayIdx, min: toMin(cardTimes(d.card).start ?? "07:00:00"), endMin });
       }
@@ -551,8 +552,14 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
 
   return (
     <div ref={frameRef} className="flex h-[calc(100dvh-64px)] bg-[#F5F4F1] select-none">
-      <div className={`flex-1 min-w-0 overflow-x-auto ${mapWide ? "hidden" : ""}`}>
-        <div className="flex flex-col h-full" style={{ minWidth: minWidth }}>
+      {/* One scroller for both axes (25 Sep 2026): the header and the Anytime
+          lane stick to the top, the hours gutter sticks to the left. Two nested
+          scrollers (sideways outside, down inside) left the gutter sliding
+          away once the map was widened, because sticky only knows its nearest
+          scrolling ancestor. */}
+      <div ref={gridRef} data-week-scroll="1" className={`weekScroll flex-1 min-w-0 overflow-auto ${mapWide ? "hidden" : ""}`}>
+        <div className="flex flex-col" style={{ minWidth: minWidth }}>
+          <div className="sticky top-0 z-[9]">
           {/* day headers */}
           <div className="grid border-b bg-white flex-shrink-0" style={{ ...gridStyle, borderColor: "rgba(26,26,46,0.10)" }}>
             <div className="flex items-center justify-center gap-0.5 sticky left-0 z-[8] bg-white">
@@ -609,7 +616,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
             ))}
           </div>
           {/* anytime lane */}
-          <div ref={laneRef} className="grid border-b flex-shrink-0" style={{ ...gridStyle, borderColor: "rgba(26,26,46,0.10)", minHeight: 38 }}>
+          <div ref={laneRef} className="grid border-b flex-shrink-0 bg-[#F5F4F1]" style={{ ...gridStyle, borderColor: "rgba(26,26,46,0.10)", minHeight: 38 }}>
             <div className="text-[9px] text-activity/40 text-right pr-1.5 pt-3 uppercase tracking-[0.06em] sticky left-0 z-[8] bg-[#F5F4F1]">Anytime</div>
             {laidOut.map(({ day, untimed }, di) => (
               <div key={day.id} className="border-l px-[3px] py-[5px] flex flex-wrap gap-[3px] content-start min-w-0 transition-colors" style={{ borderColor: "rgba(26,26,46,0.10)", background: hover && hover.day === di && hover.min === null ? "rgba(26,26,46,0.05)" : undefined }}>
@@ -620,17 +627,18 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                     onPointerEnter={() => setHoveredId(c.id)}
                     onPointerLeave={() => setHoveredId((h) => (h === c.id ? null : h))}
                     className="text-[10px] font-medium bg-white rounded-[5px] px-1.5 py-[3px] truncate max-w-full cursor-grab"
-                    style={{ border: "1px solid rgba(26,26,46,0.10)", borderLeft: `3px solid ${isNote(c) ? "rgba(26,26,46,0.4)" : "#1A1A2E"}`, opacity: ghost?.id === c.id ? 0.6 : 1 }}
+                    style={{ border: "1px solid rgba(26,26,46,0.10)", borderLeft: `3px solid ${isNote(c) ? "rgba(26,26,46,0.4)" : PIN_COLORS[c.place!.type]}`, opacity: ghost?.id === c.id ? 0.6 : 1 }}
                     title={cardTitle(c)}
                   >{cardTitle(c)}</div>
                 ))}
               </div>
             ))}
           </div>
+          </div>
           {/* the hours */}
-          <div ref={gridRef} className="relative flex-1 min-h-0 overflow-y-auto">
+          <div className="relative">
             <div ref={colsRef} className="grid relative" style={{ ...gridStyle, height: gridHeight() }}>
-              <div className="relative sticky left-0 z-[8] bg-[#F5F4F1]">
+              <div className="sticky left-0 z-[8] bg-[#F5F4F1]">
                 {hours.map((h) => (
                   <div key={h} className="absolute right-1.5 text-[10px] text-activity/40 tabular-nums" style={{ top: (h - HOUR_START) * PX_PER_HOUR - 6 }}>{h % 12 || 12}{h < 12 ? " am" : " pm"}</div>
                 ))}
@@ -681,14 +689,20 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                             left: `calc(${b.lane * laneW}% + 3px)`, width: `calc(${laneW}% - 6px)`,
                             background: note ? "#F3EFE4" : "#FFFFFF",
                             border: `1px ${noEnd ? "dashed" : "solid"} rgba(26,26,46,0.10)`,
-                            borderLeft: `3px solid ${note ? "rgba(26,26,46,0.4)" : "#1A1A2E"}`,
+                            // The pin's colour on the edge and its glyph before the
+                            // name (Brennan, 25 Sep 2026): three colours the map
+                            // already taught, so a glance says food, sight, transit.
+                            borderLeft: `3px solid ${note ? "rgba(26,26,46,0.4)" : PIN_COLORS[c.place!.type]}`,
                             boxShadow: isGhost ? "0 10px 24px rgba(26,26,46,0.22)" : "0 1px 2px rgba(26,26,46,0.05)",
                             opacity: isGhost ? 0.9 : 1, zIndex: isGhost ? 6 : 1,
                             padding: short ? "2px 6px" : "4px 6px",
                           }}
                         >
                           <div onPointerDown={(e) => onStartHandlePointerDown(e, c)} className="absolute left-0 right-0 top-0 h-[6px] cursor-ns-resize" aria-label="Change the start time" />
-                          <div className="text-[11px] font-medium leading-tight truncate pointer-events-none">{cardTitle(c)}</div>
+                          <div className="text-[11px] font-medium leading-tight truncate pointer-events-none flex items-center gap-1">
+                            {!note && <span className="inline-flex flex-shrink-0 opacity-70" dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(c.place!.sub_type, 12) }} />}
+                            <span className="truncate">{cardTitle(c)}</span>
+                          </div>
                           {!short && (
                             <div className="text-[9.5px] text-activity/60 truncate tabular-nums pointer-events-none">
                               {isGhost && ghost?.min !== null && ghost ? fmt12(ghost.min) : t.start ? fmt12(toMin(t.start)) : ""}
