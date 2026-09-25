@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback, useRef, type ReactNode } from "react";
-import { BookmarkSimple, Heart } from "@phosphor-icons/react";
+import { useState, useCallback, useEffect, useRef, type ReactNode } from "react";
+import { BookmarkSimple, Heart, PencilSimple } from "@phosphor-icons/react";
 import type { Card, CardType, Day } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { queuedDelete } from "@/lib/offline/queuedWrite";
@@ -242,6 +242,7 @@ function DetailsField({
   multiline,
   accent,
   onSaved,
+  startEditing,
 }: {
   card: Card;
   fieldKey: "notes" | "recommended_by";
@@ -252,9 +253,11 @@ function DetailsField({
   multiline?: boolean;
   accent: string;
   onSaved?: (updated: Card) => void;
+  /** Open in the editor at once (the phone's pencil disc). */
+  startEditing?: boolean;
 }) {
   const supabase = createClient();
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(!!startEditing);
   const [draft, setDraft]     = useState(value ?? "");
   const [saving, setSaving]   = useState(false);
   const [failed, setFailed]   = useState(false);
@@ -413,6 +416,21 @@ function CardBody({
   // gallery above the card (Brennan, 24 Sep 2026: "the overall card itself
   // just needs to be smaller").
   const [photosOpen, setPhotosOpen]               = useState(false);
+  // Desktop keeps the big swipeable photo at the top (Brennan, 24 Sep 2026:
+  // "the desktop you can leave the big picture at the top to scroll
+  // through"); the phone folds it behind the 44px tile.
+  const [desktop, setDesktop]                     = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const apply = () => setDesktop(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+  const hero = desktop || photosOpen;
+  // The phone has no "Add a note" line on the face; a pencil disc on the
+  // action row opens the note straight into the editor.
+  const [noteAuto, setNoteAuto]                   = useState(false);
   const source = card.source_url && card.source_url !== website ? card.source_url : null;
   const [scheduling, setScheduling]               = useState(false);
 
@@ -482,7 +500,7 @@ function CardBody({
           Google place id: every image goes through the authenticated proxy,
           which resolves the photo reference server-side so no API key ever
           reaches the browser. */}
-      {photosOpen && (
+      {hero && (
         <PlacePhotoGallery
           key={place.id}
           placeId={place.id}
@@ -497,19 +515,19 @@ function CardBody({
       {/* Close — over the gallery when it is open, a grey disc on the card when
           it is not. Tapping it with the photos open folds them first. */}
       <button
-        onClick={() => (photosOpen ? setPhotosOpen(false) : onClose())}
-        className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center transition-colors z-10 ${photosOpen ? "bg-black/40 hover:bg-black/60" : "bg-gray-100 hover:bg-gray-200"}`}
+        onClick={() => (photosOpen && !desktop ? setPhotosOpen(false) : onClose())}
+        className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center transition-colors z-10 ${hero ? "bg-black/40 hover:bg-black/60" : "bg-gray-100 hover:bg-gray-200"}`}
         style={{ backdropFilter: "blur(8px)" }}
-        aria-label={photosOpen ? "Hide photos" : "Close"}
+        aria-label={photosOpen && !desktop ? "Hide photos" : "Close"}
       >
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={photosOpen ? "white" : "#1A1A2E"} strokeWidth="2.5" strokeLinecap="round">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={hero ? "white" : "#1A1A2E"} strokeWidth="2.5" strokeLinecap="round">
           <line x1="18" y1="6" x2="6" y2="18" />
           <line x1="6" y1="6" x2="18" y2="18" />
         </svg>
       </button>
 
       {/* Content */}
-      <div className="px-3 pt-3 pb-3 overflow-y-auto flex-1">
+      <div className="p-2.5 md:p-3 overflow-y-auto flex-1">
 
         {/* Inline editor */}
         {isEditing && onCardUpdate && (
@@ -524,11 +542,12 @@ function CardBody({
             then the name with the heart at its end, then one line of stars
             and category. The doors sit on the action row below. */}
         <div className="flex items-start gap-2.5">
+          {!desktop && (
           <button
             type="button"
             onClick={() => setPhotosOpen((v) => !v)}
             aria-label={photosOpen ? "Hide photos" : "Show photos"}
-            className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-[rgba(26,26,46,0.05)]"
+            className="relative w-11 h-11 rounded-lg overflow-hidden flex-shrink-0 bg-[rgba(26,26,46,0.05)]"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -538,10 +557,8 @@ function CardBody({
               className="w-full h-full object-cover"
               onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
             />
-            {place.google_place_id && (
-              <span className="absolute right-1 bottom-1 rounded-full bg-black/50 text-white text-[9px] font-semibold px-1.5 py-[2px] leading-none">photos</span>
-            )}
           </button>
+          )}
           <div className="flex-1 min-w-0 pr-6">
             <div className="flex items-center gap-1.5 min-w-0">
               <h2 className="min-w-0 truncate text-[15px] font-bold text-gray-900 leading-snug">{place.title}</h2>
@@ -597,6 +614,7 @@ function CardBody({
               fieldKey="notes"
               value={notes}
               multiline
+              startEditing={noteAuto}
               accent={PIN_COLORS[place.type]}
               onSaved={onCardUpdate}
               emptyLabel="Add a note"
@@ -625,7 +643,7 @@ function CardBody({
               </a>
             )}
             <div className="mt-1 flex items-center gap-3">
-              <button onClick={() => setNotesOpen(false)} className="text-[11px] text-gray-400 hover:text-gray-600 underline decoration-dotted underline-offset-2">
+              <button onClick={() => { setNotesOpen(false); setNoteAuto(false); }} className="text-[11px] text-gray-400 hover:text-gray-600 underline decoration-dotted underline-offset-2">
                 less
               </button>
               {onCardDelete && (
@@ -641,7 +659,7 @@ function CardBody({
               <button onClick={() => setNotesOpen(true)} className="block w-full text-left" aria-label="Read the note">
                 <p className="text-[12px] text-gray-600 mt-1.5 leading-snug truncate">{notes}</p>
               </button>
-            ) : (
+            ) : desktop ? (
               <DetailsField
                 card={card}
                 fieldKey="notes"
@@ -653,7 +671,7 @@ function CardBody({
                 placeholder="What you wanted to remember about this place…"
                 render={(v) => <p className="text-[12px] text-gray-600 mt-1.5 leading-snug">{v}</p>}
               />
-            )}
+            ) : null}
             {(notes || source || recommendedBy) && (
               <p className="mt-0.5 text-[11px] text-gray-400 leading-snug truncate">
                 <button onClick={() => setNotesOpen(true)} className="underline decoration-dotted underline-offset-2 hover:text-gray-600">more</button>
@@ -713,7 +731,7 @@ function CardBody({
             {/* The action row (24 Sep 2026): Put on a day as a quiet chip, the
                 doors as 36px discs on the right — directions, website, call.
                 One family, one height; ink is for a true primary. */}
-            <div className="mt-2.5 flex items-center justify-between gap-2">
+            <div className="mt-2 md:mt-2.5 flex items-center justify-between gap-2">
             {canAddToDay ? (
               <button
                 onClick={() => setShowDayList(true)}
@@ -725,6 +743,17 @@ function CardBody({
               </button>
             ) : <span />}
             <div className="flex items-center gap-1.5 flex-shrink-0">
+              {!desktop && !notes && onCardUpdate && (
+                <button
+                  type="button"
+                  onClick={() => { setNoteAuto(true); setNotesOpen(true); }}
+                  aria-label="Add a note"
+                  title="Add a note"
+                  className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                >
+                  <PencilSimple size={15} weight="light" color="#1A1A2E" />
+                </button>
+              )}
               {place.lat != null && place.lng != null && (
                 <a
                   href={`https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}`}
