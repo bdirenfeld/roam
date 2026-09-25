@@ -1495,6 +1495,9 @@ the component mounted and you are looking at throttling, not a broken map.
   a "…" on a day header's hover with "Arrange this day" (only timeless blocks get times).
   Anchor = the day's first timed place, else its first place, else the destination; a
   stay with a pin should go first when there is one. Undo reverses every write.
+- A chip with the name rides with the pointer while a pin heads for the week or a block
+  heads for the map (`dragChip`); it hands over to the ghost block on the grid. Without it
+  the drag was invisible between the two (Brennan, 25 Sep 2026).
 - Blocks resize from both edges: the top edge is `resizedStart` (never within 30 min of
   the end, never before 7am).
 - The masthead's Agenda / Plan is one segmented control with a measured sliding thumb, not

@@ -119,6 +119,11 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   // While a drag is in flight the block follows the pointer through a live
   // override; the real times are written once on drop.
   const [ghost, setGhost] = useState<{ id: string; day: number; min: number | null; endMin: number | null } | null>(null);
+  // The thing in hand (Brennan, 25 Sep 2026: "you need the outline of an
+  // object to know you're dragging something"): a chip with the name rides
+  // with the pointer whenever a drag is outside the grid — a pin on its way
+  // to the week, a block on its way to the map.
+  const [dragChip, setDragChip] = useState<{ x: number; y: number; title: string } | null>(null);
 
   // Seven days at a time (Brennan, 25 Sep 2026: "you're never scrolling,
   // you're just picking the week"). Longer journeys page with the arrows in
@@ -229,9 +234,12 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
         const dur = t.start && t.end ? toMin(t.end) - toMin(t.start) : null;
         if (d.kind === "move" && overMapPanel(e.clientX, e.clientY)) {
           setOverMap(true); setGhost(null); setHover(null);
+          setDragChip({ x: e.clientX, y: e.clientY, title: cardTitle(d.card) });
           return;
         }
         setOverMap(false);
+        const onGrid = dayAtX(e.clientX) !== null && (overLane(e.clientY) || minAtY(e.clientY) !== null);
+        setDragChip(d.kind === "fromMap" && !onGrid ? { x: e.clientX, y: e.clientY, title: cardTitle(d.card) } : null);
         if (overLane(e.clientY)) {
           const day = dayAtX(e.clientX);
           setGhost(day === null ? null : { id: d.card.id, day, min: null, endMin: null });
@@ -260,7 +268,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     }
     function onUp(e: PointerEvent) {
       const d = dragRef.current; dragRef.current = null;
-      const g = ghost; setGhost(null); setHover(null);
+      const g = ghost; setGhost(null); setHover(null); setDragChip(null);
       const wasOverMap = overMap; setOverMap(false);
       if (!d) return;
       if (!d.moved) { if (d.kind === "move") setSelectedCard(d.card); return; }
@@ -677,6 +685,14 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
         />
       </div>
 
+      {dragChip && (
+        <div
+          className="fixed z-[90] pointer-events-none rounded-[6px] bg-white px-2.5 py-1.5 text-[12px] font-medium max-w-[220px] truncate"
+          style={{ left: dragChip.x + 14, top: dragChip.y + 10, border: "1px solid rgba(26,26,46,0.10)", borderLeft: "3px solid #1A1A2E", boxShadow: "0 10px 24px rgba(26,26,46,0.22)" }}
+        >
+          {dragChip.title}
+        </div>
+      )}
       {selectedCard && (
         <CardBottomSheet
           card={selectedCard}
