@@ -16,9 +16,11 @@ interface Props {
   destination?: string;
   lat?: number | null;
   lng?: number | null;
+  /** Where the pill sits; the week's map passes its own. */
+  positionClassName?: string;
 }
 
-export default function PlaceSearch({ onPlaceSelect, destination, lat, lng }: Props) {
+export default function PlaceSearch({ onPlaceSelect, destination, lat, lng, positionClassName }: Props) {
   const [query, setQuery]             = useState("");
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading]         = useState(false);
@@ -100,7 +102,7 @@ export default function PlaceSearch({ onPlaceSelect, destination, lat, lng }: Pr
       <div
         // Phone: between the back and menu discs, on their 36px row. Desktop
         // unchanged.
-        className="absolute top-3 left-[60px] right-[60px] md:top-4 md:left-6 md:right-6 md:max-w-md"
+        className={positionClassName ?? "absolute top-3 left-[60px] right-[60px] md:top-4 md:left-6 md:right-6 md:max-w-md"}
         style={{ zIndex: 20 }}
       >
         {/* Input pill */}

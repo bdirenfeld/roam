@@ -19,6 +19,27 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import type { Card, Day, Trip } from "@/types/database";
 import { makeMaterialPinElement } from "@/lib/mapPins";
 import MapPinPopup from "@/components/map/MapPinPopup";
+import PlaceSearch from "@/components/map/PlaceSearch";
+import AddToTripSheet, { type PlaceResult } from "@/components/map/AddToTripSheet";
+import { lookupPlace } from "@/components/map/lookupPlace";
+import { TEMP_PIN_SVG } from "@/components/map/lookupPlace";
+import { useToast } from "@/components/ui/Toast";
+import { Funnel, Heart } from "@phosphor-icons/react";
+import type { CardType } from "@/types/database";
+
+const ALL_TYPES: CardType[] = ["activity", "food", "logistics"];
+const ALL_STATUSES = ["interested", "in_itinerary"];
+/** Tap a pill: alone → only it; only it → all; else toggle. The Map tab's rule. */
+function tapFilter<T>(set: Set<T>, all: T[], key: T): Set<T> {
+  if (set.size === all.length) return new Set([key]);
+  if (set.size === 1 && set.has(key)) return new Set(all);
+  const next = new Set(set); if (next.has(key)) next.delete(key); else next.add(key);
+  return next.size === 0 ? new Set(all) : next;
+}
+const PILL = "px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200";
+function pillStyle(active: boolean, chosen: boolean): React.CSSProperties {
+  return { backdropFilter: "blur(8px)", background: chosen ? "#1A1A2E" : active ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.5)", color: chosen ? "#FFFFFF" : active ? "#374151" : "#9CA3AF" };
+}
 
 interface Props {
   trip: Trip;
@@ -56,6 +77,34 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
   const [selected, setSelected] = useState<Card | null>(null);
   const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
   const cardsRef = useRef(cards); cardsRef.current = cards;
+  const { toast } = useToast();
+  // Add a place (24 Sep 2026): the Map tab's search pill and sheet, so the
+  // desktop needs no Map tab. A purple temp pin marks the found place until
+  // the sheet closes.
+  const [pending, setPending] = useState<PlaceResult | null>(null);
+  const tempPinRef = useRef<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
+  // The Map tab's filters, phone style: a Filter pill bottom-left, two rows.
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [types, setTypes] = useState<Set<CardType>>(() => new Set(ALL_TYPES));
+  const [statuses, setStatuses] = useState<Set<string>>(() => new Set(ALL_STATUSES));
+  const [lovedOnly, setLovedOnly] = useState(false);
+  const narrowed = (ALL_TYPES.length - types.size) + (ALL_STATUSES.length - statuses.size) + (lovedOnly ? 1 : 0);
+
+  const clearTemp = () => { if (tempPinRef.current) { tempPinRef.current.remove(); tempPinRef.current = null; } };
+  const handlePlaceSelect = useCallback(async (placeId: string, sessionToken: string) => {
+    const found = await lookupPlace(placeId, sessionToken);
+    if (!found) return;
+    clearTemp();
+    const mb = mbRef.current, map = mapRef.current;
+    if (mb && map) {
+      const el = document.createElement("div");
+      el.style.cssText = "width:28px;height:28px;cursor:pointer;";
+      el.innerHTML = TEMP_PIN_SVG;
+      tempPinRef.current = new mb.Marker({ element: el, anchor: "center" }).setLngLat([found.lng, found.lat]).addTo(map);
+      map.flyTo({ center: [found.lng, found.lat], zoom: 15 });
+    }
+    setPending(found);
+  }, []);
   const onHoverRef = useRef(onHover); onHoverRef.current = onHover;
   const onPinDragStartRef = useRef(onPinDragStart); onPinDragStartRef.current = onPinDragStart;
 
@@ -89,7 +138,7 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
       const ro = new ResizeObserver(() => map.resize());
       ro.observe(containerRef.current!);
       map.once("remove", () => ro.disconnect());
-      map.addControl(new mb.NavigationControl({ showCompass: false }), "top-right");
+      map.addControl(new mb.NavigationControl({ showCompass: false }), "bottom-right");
       map.on("move", () => setSelected((s) => { if (s) setAnchor(anchorFor(s)); return s; }));
       map.once("load", async () => {
         try { await document.fonts.load('16px "Material Symbols Outlined"'); } catch { /* best effort */ }
@@ -159,11 +208,13 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
     markers.current.forEach((m, id) => {
       const c = m.cardRef.current;
       const dim = activeDayId !== null && c.day_id !== activeDayId;
+      const shown = types.has(c.place!.type) && statuses.has(c.day_id ? "in_itinerary" : "interested") && (!lovedOnly || c.place!.loved === true);
+      m.wrapper.style.display = shown ? "" : "none";
       m.inner.style.opacity = dim ? "0.22" : "";
       m.inner.style.transform = id === hoveredId ? "scale(1.4)" : "";
       m.wrapper.style.zIndex = id === hoveredId ? "5" : "";
     });
-  }, [hoveredId, activeDayId, cards]);
+  }, [hoveredId, activeDayId, cards, types, statuses, lovedOnly]);
 
   const close = useCallback(() => { setSelected(null); setAnchor(null); }, []);
 
@@ -176,7 +227,7 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
           onClick={onToggleWide}
           aria-label={wide ? "Show the week beside the map" : "Widen the map"}
           title={wide ? "Show the week" : "Widen the map"}
-          className="absolute left-3 top-3 z-10 w-9 h-9 rounded-full bg-white flex items-center justify-center text-[#1A1A2E] hover:bg-gray-50"
+          className="absolute right-3 top-3 z-10 w-9 h-9 rounded-full bg-white flex items-center justify-center text-[#1A1A2E] hover:bg-gray-50"
           style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.2)" }}
         >
           {wide ? (
@@ -196,6 +247,61 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
       {!process.env.NEXT_PUBLIC_MAPBOX_TOKEN && (
         <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-500">Map unavailable</div>
       )}
+      <PlaceSearch
+        onPlaceSelect={handlePlaceSelect}
+        destination={trip.destination}
+        lat={trip.destination_lat}
+        lng={trip.destination_lng}
+        positionClassName="absolute top-3 left-3 right-[60px] max-w-md"
+      />
+      {pending && (
+        <AddToTripSheet
+          place={pending}
+          tripId={trip.id}
+          days={days}
+          onClose={() => { clearTemp(); setPending(null); }}
+          onCardCreated={(c) => {
+            clearTemp(); setPending(null); onCardCreated(c);
+            const onDay = c.day_id ? days.find((d) => d.id === c.day_id) : null;
+            toast({ message: onDay ? `Put on Day ${onDay.day_number}` : "Saved to your map. Drag its pin onto the week." });
+          }}
+        />
+      )}
+      {/* Filter — the Map tab's phone control, bottom-left, rows open upward */}
+      <div className="absolute left-3 bottom-8 z-10 flex flex-col gap-2">
+        {filterOpen && (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              {([["activity", "Activity", "#1D9E75"], ["food", "Food", "#7C3AED"], ["logistics", "Logistics", "#1A1A2E"]] as [CardType, string, string][]).map(([k, label, color]) => {
+                const active = types.has(k); const chosen = active && types.size < ALL_TYPES.length;
+                return (
+                  <button key={k} onClick={() => setTypes(tapFilter(types, ALL_TYPES, k))} className={`flex items-center gap-1.5 ${PILL}`} style={pillStyle(active, chosen)}>
+                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: chosen ? "#FFFFFF" : color, opacity: active ? 1 : 0.3 }} />
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex items-center gap-2">
+              {([["interested", "Saved"], ["in_itinerary", "Scheduled"]] as [string, string][]).map(([k, label]) => {
+                const active = statuses.has(k); const chosen = active && statuses.size < ALL_STATUSES.length;
+                return (
+                  <button key={k} onClick={() => setStatuses(tapFilter(statuses, ALL_STATUSES, k))} className={PILL} style={{ ...pillStyle(active, chosen), textDecoration: active ? "none" : "line-through" }}>{label}</button>
+                );
+              })}
+              <button onClick={() => setLovedOnly((v) => !v)} aria-pressed={lovedOnly} className={`flex items-center gap-1.5 ${PILL}`} style={{ backdropFilter: "blur(8px)", background: lovedOnly ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.5)", color: lovedOnly ? "#B0541F" : "#9CA3AF" }}>
+                <Heart size={11} weight={lovedOnly ? "fill" : "light"} color={lovedOnly ? "#B0541F" : "#9CA3AF"} />
+                Loved
+              </button>
+            </div>
+          </div>
+        )}
+        <button onClick={() => setFilterOpen((v) => !v)} className={`self-start flex items-center gap-1.5 ${PILL}`} style={{ backdropFilter: "blur(8px)", background: filterOpen ? "#1A1A2E" : "rgba(255,255,255,0.9)", color: filterOpen ? "#FFFFFF" : "#374151", boxShadow: "0 1px 4px rgba(0,0,0,0.15)" }}>
+          <Funnel size={13} weight="light" color={filterOpen ? "#FFFFFF" : "#374151"} />
+          {filterOpen ? "Done" : "Filter"}
+          {!filterOpen && narrowed > 0 && <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold" style={{ background: "#B0541F", color: "#FFFFFF" }}>{narrowed}</span>}
+        </button>
+      </div>
       {selected && (
         <MapPinPopup
           card={selected}

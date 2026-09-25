@@ -569,7 +569,10 @@ function TripTabs({
     { id: "agenda" as const, label: "Agenda", icon: Calendar, href: agendaHref },
     { id: "plan" as const, label: "Plan", icon: Columns, href: `/trips/${tripId}/plan` },
     { id: "map" as const, label: "Map", icon: MapPin, href: `/trips/${tripId}/map` },
-  ].filter((t) => !(guest && t.id === "plan"));
+    // Owners: the map lives inside Plan since 24 Sep 2026 (beside the week,
+    // with a disc that widens it); the tab would be a second door to less.
+    // Guests have no Plan, so they keep the Map tab.
+  ].filter((t) => !(guest && t.id === "plan") && !(!guest && t.id === "map"));
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
