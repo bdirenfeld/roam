@@ -171,12 +171,14 @@ export default function AppMenu({
           role="menu"
           className={
             mobile
-              ? "absolute right-0 top-full mt-1.5 z-[80] bg-white rounded-xl shadow-xl p-1.5 overflow-hidden"
+              ? "absolute right-0 top-full mt-1.5 z-[80] bg-white rounded-xl p-1.5 overflow-hidden"
               : "absolute right-0 z-[60] rounded-xl"
           }
           style={
             mobile
-              ? { display: "grid", gridTemplateColumns: `repeat(${tileCols}, 64px)`, gap: 2 }
+              // A hairline as well as the shadow: over the white day strip the
+              // shadow alone left no edge (Brennan, 25 Sep 2026).
+              ? { display: "grid", gridTemplateColumns: `repeat(${tileCols}, 64px)`, gap: 2, border: `1px solid ${RULE}`, boxShadow: "0 16px 34px rgba(26,26,46,0.17)" }
               : {
                   top: "calc(100% + 8px)",
                   width: 288,
