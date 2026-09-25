@@ -1426,3 +1426,19 @@ the component mounted and you are looking at throttling, not a broken map.
 - Header, date strip and day map are all pinned on the phone; the list scrolls under them.
   Checked live at 375px on 24 Sep 2026 — do not "fix" the map scrolling away, it doesn't.
 - Mock this was built from: https://claude.ai/artifact/YEkKdrg5in6CxA1S46waju
+
+## The desktop Plan is a week (24 Sep 2026, phase 1)
+- `/plan` renders `PlanSwitch`: `WeekBoard` at md+, the old `PlanBoard` below md (only one is
+  mounted; PlanBoard is 2,500 lines with its own effects). Days across, hours 7am–11pm down,
+  48px an hour, every timed card a block; untimed cards in the Anytime lane above the grid.
+- Geometry is `lib/week/layout.ts` (lanes for overlaps, 15-min snap, no-end = 45px dashed,
+  30-min minimum on resize) and is tested against Rome's real times. Keep rules there.
+- Drag sideways = day, up/down = time (duration kept), bottom edge = end time, drop in the
+  lane = time removed, click = the card sheet. Every write is `queuedUpdate` on `cards`
+  {day_id, start_time, end_time} with the app's one toast and Undo. Flights: the block reads
+  through `cardTimes` (arrivals swap start/end) but a move writes raw `start_time`; leave
+  flights where they are or fix that first.
+- Phases still to come, all mocked at https://claude.ai/artifact/Wtio2jYAqHFkA5Kmcq9CDq:
+  the map beside the week (hover lifts the pin, day header filters, pin→week and
+  week→map drags), plan-first blocks (click an empty hour, name it, link a place later),
+  Where to stay as a panel over the map, the Map tab folding into Plan on the desktop.

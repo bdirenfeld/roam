@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import PlanBoard from "@/components/plan/PlanBoard";
+import PlanSwitch from "@/components/plan/PlanSwitch";
 import { getTripAccess } from "@/lib/trip-access";
 import { withAttachmentCount } from "@/lib/attachmentCount";
 import type { Trip, Day, DayWithCards, Card, ListWithCards } from "@/types/database";
@@ -103,7 +103,7 @@ export default async function PlanPage({ params }: Props) {
   const listsWithCards: ListWithCards[] = [];
 
   return (
-    <PlanBoard
+    <PlanSwitch
       trip={trip as Trip}
       initialDays={daysWithCards}
       initialLists={listsWithCards}
