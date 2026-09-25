@@ -8,6 +8,8 @@ interface Props {
   activeDayId: string;
   tripId: string;
   onDaySelect: (day: Day) => void;
+  /** Hold a day for its actions (rename, give times, rearrange). */
+  onDayLongPress?: (day: Day) => void;
 }
 
 /**
@@ -18,8 +20,20 @@ interface Props {
  * agenda read as a tool. It is dates now, the current one underlined. The
  * "Day N" line went with it: you know it's the first day because it's first.
  */
-export default function DayStrip({ days, activeDayId, onDaySelect }: Props) {
+export default function DayStrip({ days, activeDayId, onDaySelect, onDayLongPress }: Props) {
   const activeRef = useRef<HTMLButtonElement>(null);
+  // Long-press (500ms, no drift) fires the day's actions; the click that
+  // follows a long-press is swallowed.
+  const pressTimer = useRef<number | null>(null);
+  const pressed = useRef(false);
+  const start = useRef({ x: 0, y: 0 });
+  const clearPress = () => { if (pressTimer.current !== null) { window.clearTimeout(pressTimer.current); pressTimer.current = null; } };
+  const onDown = (day: Day) => (e: React.PointerEvent) => {
+    if (!onDayLongPress) return;
+    start.current = { x: e.clientX, y: e.clientY }; pressed.current = false;
+    pressTimer.current = window.setTimeout(() => { pressTimer.current = null; pressed.current = true; try { navigator.vibrate?.(30); } catch { /* */ } onDayLongPress(day); }, 500);
+  };
+  const onMove = (e: React.PointerEvent) => { if (Math.abs(e.clientX - start.current.x) > 8 || Math.abs(e.clientY - start.current.y) > 8) clearPress(); };
 
   // Client-only today key — null on SSR and first paint so the today mark
   // doesn't render before hydration. Avoids the UTC-vs-local date mismatch
@@ -67,7 +81,12 @@ export default function DayStrip({ days, activeDayId, onDaySelect }: Props) {
               <button
                 key={day.id}
                 ref={isActive ? activeRef : null}
-                onClick={() => onDaySelect(day)}
+                onClick={() => { if (pressed.current) { pressed.current = false; return; } onDaySelect(day); }}
+                onPointerDown={onDown(day)}
+                onPointerMove={onMove}
+                onPointerUp={clearPress}
+                onPointerCancel={clearPress}
+                onContextMenu={(e) => e.preventDefault()}
                 className="flex-shrink-0 min-w-[40px] text-center pb-2"
                 style={{
                   boxShadow: isActive ? "inset 0 -1.5px 0 #1A1A2E" : undefined,

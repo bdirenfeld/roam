@@ -353,6 +353,7 @@ function CardBody({
   onCardUpdate,
   onCardDelete,
   onCardCreated,
+  onPickMore,
   days,
   tripId,
 }: {
@@ -361,6 +362,8 @@ function CardBody({
   onCardUpdate?: (updated: Card) => void;
   onCardDelete?: (cardId: string) => void;
   onCardCreated?: (created: Card) => void;
+  /** The discoverable door into picking several pins (phone, 25 Sep 2026). */
+  onPickMore?: () => void;
   days?: Day[];
   tripId?: string;
 }) {
@@ -724,6 +727,11 @@ function CardBody({
                   </svg>
                 </button>
               ))}
+              {onPickMore && (
+                <button onClick={onPickMore} className="w-full flex items-center gap-2.5 px-3.5 py-3 text-left bg-white active:bg-gray-50 transition-colors" style={{ borderTop: "1px solid rgba(26,26,46,0.10)" }}>
+                  <span style={{ fontSize: "13px", color: "rgba(26,26,46,0.62)", letterSpacing: "-0.005em" }}>Pick more pins first</span>
+                </button>
+              )}
             </div>
           </div>
         ) : (
@@ -855,11 +863,13 @@ interface Props {
   onCardDelete?: (cardId: string) => void;
   /** Fired with the new in_itinerary card when this pin is added to a day. */
   onCardCreated?: (created: Card) => void;
+  /** The discoverable door into picking several pins (phone, 25 Sep 2026). */
+  onPickMore?: () => void;
   days?: Day[];
   tripId?: string;
 }
 
-export default function MapPinPopup({ card, anchorPos, onClose, onCardUpdate, onCardDelete, onCardCreated, days, tripId }: Props) {
+export default function MapPinPopup({ card, anchorPos, onClose, onCardUpdate, onCardDelete, onCardCreated, onPickMore, days, tripId }: Props) {
   useEscapeKey(onClose);
   if (anchorPos) {
     const vw        = typeof window !== "undefined" ? window.innerWidth : 800;
@@ -885,7 +895,7 @@ export default function MapPinPopup({ card, anchorPos, onClose, onCardUpdate, on
           className="bg-white rounded-2xl overflow-hidden flex flex-col"
           style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.20)", maxHeight: "65vh" }}
         >
-          <CardBody card={card} onClose={onClose} onCardUpdate={onCardUpdate} onCardDelete={onCardDelete} onCardCreated={onCardCreated} days={days} tripId={tripId} />
+          <CardBody card={card} onClose={onClose} onCardUpdate={onCardUpdate} onCardDelete={onCardDelete} onCardCreated={onCardCreated} onPickMore={onPickMore} days={days} tripId={tripId} />
         </div>
 
         {/* Downward triangle */}
@@ -917,7 +927,7 @@ export default function MapPinPopup({ card, anchorPos, onClose, onCardUpdate, on
         className="relative bg-white rounded-2xl overflow-hidden w-full max-w-sm animate-in zoom-in-95 duration-200 max-h-[85dvh] flex flex-col"
         style={{ boxShadow: "0 20px 60px rgba(0,0,0,0.25)" }}
       >
-        <CardBody card={card} onClose={onClose} onCardUpdate={onCardUpdate} onCardDelete={onCardDelete} onCardCreated={onCardCreated} days={days} tripId={tripId} />
+        <CardBody card={card} onClose={onClose} onCardUpdate={onCardUpdate} onCardDelete={onCardDelete} onCardCreated={onCardCreated} onPickMore={onPickMore} days={days} tripId={tripId} />
       </div>
     </div>
   );

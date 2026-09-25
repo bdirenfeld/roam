@@ -27,7 +27,10 @@ const MAP_DISC = "md:hidden absolute z-[65] w-9 h-9 rounded-full bg-white flex i
 const MAP_DISC_STYLE = { boxShadow: "0 1px 4px rgba(0,0,0,0.2)" } as const;
 import { useGlobalSearch } from "@/components/search/GlobalSearch";
 import { useToast } from "@/components/ui/Toast";
-import { queuedInsert } from "@/lib/offline/queuedWrite";
+import { queuedInsert, queuedDelete } from "@/lib/offline/queuedWrite";
+import { createClient } from "@/lib/supabase/client";
+import { scheduleCardOnDay } from "@/lib/scheduleCard";
+import { planBatch } from "@/lib/week/dayPlan";
 import { tapFilter } from "@/lib/map/tapFilter";
 
 // Purple circular pin for search result previews
@@ -240,6 +243,48 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
   const [lovedOnly, setLovedOnlyState] = useState(false);
   const [pendingPlace, setPendingPlace] = useState<PlaceResult | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
+  // Picking several pins (25 Sep 2026): long-press a pin (or "Pick more pins
+  // first" in a pin card) turns pick mode on; taps then toggle; the rest fade;
+  // a tray above the Filter offers the days; ✕ or an empty-map tap leaves.
+  // Mock: https://claude.ai/artifact/YZAUNZQhqBBwpmWweLPeeV
+  const [pickMode, setPickMode] = useState(false);
+  const [pickedIds, setPickedIds] = useState<Set<string>>(() => new Set());
+  const pickModeRef = useRef(false);
+  const longPressedRef = useRef(false);
+  const supabaseRef = useRef(createClient());
+  const enterPick = useCallback((cardId: string) => {
+    pickModeRef.current = true; setPickMode(true);
+    setPickedIds((prev) => { const next = new Set(prev); next.add(cardId); return next; });
+    try { navigator.vibrate?.(30); } catch { /* not every phone */ }
+  }, []);
+  const leavePick = useCallback(() => { pickModeRef.current = false; setPickMode(false); setPickedIds(new Set()); }, []);
+  const togglePick = useCallback((cardId: string) => {
+    setPickedIds((prev) => { const next = new Set(prev); if (next.has(cardId)) next.delete(cardId); else next.add(cardId); return next; });
+  }, []);
+  /** Long-press → pick; the click that follows a long-press is swallowed. */
+  const attachLongPress = useCallback((el: HTMLElement, cardRef: { current: Card }) => {
+    let timer: number | null = null; let x0 = 0, y0 = 0;
+    const clear = () => { if (timer !== null) { window.clearTimeout(timer); timer = null; } };
+    el.addEventListener("pointerdown", (e) => {
+      if (readOnly) return;
+      x0 = e.clientX; y0 = e.clientY; longPressedRef.current = false;
+      timer = window.setTimeout(() => { timer = null; longPressedRef.current = true; enterPick(cardRef.current.id); }, 500);
+    });
+    el.addEventListener("pointermove", (e) => { if (Math.abs(e.clientX - x0) > 8 || Math.abs(e.clientY - y0) > 8) clear(); });
+    el.addEventListener("pointerup", clear);
+    el.addEventListener("pointercancel", clear);
+    el.addEventListener("contextmenu", (e) => e.preventDefault());
+  }, [enterPick, readOnly]); // eslint-disable-line react-hooks/exhaustive-deps
+  // rings and fades follow the picked set
+  useEffect(() => {
+    MARKERS.forEach(({ marker }, id) => {
+      const inner = marker.getElement().children[0] as HTMLElement | undefined; if (!inner) return;
+      const on = pickedIds.has(id);
+      inner.style.boxShadow = on ? "0 0 0 3px #fff, 0 0 0 5px #1A1A2E" : "";
+      inner.style.opacity = pickMode && pickedIds.size > 0 && !on ? "0.35" : "";
+      if (on) inner.style.transform = "scale(1.25)"; else if (inner.dataset.selected !== "1") inner.style.transform = "";
+    });
+  }, [pickMode, pickedIds]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tempPinRef = useRef<any>(null);
 
@@ -367,9 +412,12 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
       mbMarker.addTo(map);
     }
 
+    attachLongPress(mbMarker.getElement(), cardRef);
     mbMarker.getElement().addEventListener("click", (e: MouseEvent) => {
       e.stopPropagation();
       clickedPinRef.current = true;
+      if (longPressedRef.current) { longPressedRef.current = false; return; }
+      if (pickModeRef.current) { togglePick(cardRef.current.id); return; }
       if (selectedInnerRef.current && selectedInnerRef.current !== inner) {
         selectedInnerRef.current.dataset.selected = "";
         selectedInnerRef.current.style.transform  = "";
@@ -473,6 +521,35 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
 
     setPendingPlace(pending);
   }
+
+  // The picked pins go on a day, arranged; then the day opens (the desktop
+  // narrows back to the week; the phone goes to the Agenda). Undo deletes
+  // the new cards from wherever the toast is tapped.
+  const putPickedOnDay = useCallback(async (day: Day) => {
+    const picked = localCards.filter((c) => pickedIds.has(c.id));
+    const dayCards = localCards.filter((c) => c.day_id === day.id);
+    const fallback = trip.destination_lat != null && trip.destination_lng != null ? { lat: trip.destination_lat, lng: trip.destination_lng } : null;
+    const { toAdd, times, skipped, unplaced } = planBatch(picked, dayCards, fallback);
+    leavePick();
+    if (toAdd.length === 0) { toast({ message: `Already on Day ${day.day_number}.` }); return; }
+    const created: Card[] = [];
+    for (const c of toAdd) {
+      const t = times.get(c.id);
+      const made = await scheduleCardOnDay(supabaseRef.current, { tripId: trip.id, dayId: day.id, placeId: c.place_id, place: c.place, startTime: t?.start ?? null, endTime: t?.end ?? null, details: c.details, sourceUrl: c.source_url });
+      if (made) { created.push(made); registerNewCardRef.current(made); }
+    }
+    if (created.length === 0) { toast({ message: "Couldn't put them on that day. Try again." }); return; }
+    const n = created.length;
+    toast({
+      message: [unplaced.length ? `${n} on Day ${day.day_number}; ${unplaced.length} without a time` : `${n} ${n === 1 ? "place" : "places"} on Day ${day.day_number}, in walking order`, skipped ? `${skipped} already there` : ""].filter(Boolean).join(" · "),
+      undo: async () => {
+        for (const c of created) { await queuedDelete("cards", { id: c.id }); const m = MARKERS.get(c.id); if (m) { m.marker.remove(); MARKERS.delete(c.id); } }
+        const ids = new Set(created.map((c) => c.id));
+        setLocalCards((prev) => prev.filter((c) => !ids.has(c.id)));
+      },
+    });
+    router.push("/trips/" + trip.id + "/days/" + day.id);
+  }, [localCards, pickedIds, trip, leavePick, toast, router]);
 
   function handleAddToTripClose() {
     if (tempPinRef.current) { tempPinRef.current.remove(); tempPinRef.current = null; }
@@ -657,9 +734,12 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
             .setLngLat([lng, lat])
             .addTo(map);
 
+          attachLongPress(mbMarker.getElement(), cardRef);
           mbMarker.getElement().addEventListener("click", (e: MouseEvent) => {
             e.stopPropagation();
             clickedPinRef.current = true;
+            if (longPressedRef.current) { longPressedRef.current = false; return; }
+            if (pickModeRef.current) { togglePick(cardRef.current.id); return; }
             if (selectedInnerRef.current && selectedInnerRef.current !== inner) {
               selectedInnerRef.current.dataset.selected = "";
               selectedInnerRef.current.style.transform  = "";
@@ -700,6 +780,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
 
       map.on("click", () => {
         if (clickedPinRef.current) { clickedPinRef.current = false; return; }
+        if (pickModeRef.current) { leavePick(); return; }
         deselectPin();
         setSelectedCard(null);
       });
@@ -800,6 +881,28 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
               />
             </div>
           </>
+        )}
+
+        {/* The pick tray — phone, above the Filter */}
+        {pickMode && pickedIds.size > 0 && !readOnly && (
+          <div className="md:hidden absolute left-3 right-3 z-[66] bg-white rounded-2xl p-3" style={{ bottom: "calc(64px + env(safe-area-inset-bottom, 0px))", boxShadow: "0 8px 24px rgba(26,26,46,0.18)" }}>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[13px] font-semibold">{pickedIds.size} {pickedIds.size === 1 ? "place" : "places"} on</span>
+              <button onClick={leavePick} aria-label="Stop picking" className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
+            </div>
+            <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
+              {days.map((d) => {
+                const dt = new Date(d.date + "T00:00:00");
+                return (
+                  <button key={d.id} onClick={() => void putPickedOnDay(d)} className="h-8 px-3 rounded-full text-[12.5px] font-medium whitespace-nowrap active:bg-[#1A1A2E] active:text-white" style={{ background: "rgba(26,26,46,0.06)" }}>
+                    {dt.toLocaleDateString("en-GB", { weekday: "short" })} {dt.getDate()}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         )}
 
         {/* Place search — the add-a-place entry; owner only */}
@@ -1013,6 +1116,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
             onCardUpdate={readOnly ? undefined : handleCardUpdate}
             onCardDelete={readOnly ? undefined : (cardId) => { deselectPin(); handleCardDelete(cardId); }}
             onCardCreated={readOnly ? undefined : (created) => { deselectPin(); registerNewCard(created); }}
+            onPickMore={readOnly ? undefined : () => { const id = selectedCard!.id; deselectPin(); setSelectedCard(null); enterPick(id); }}
             days={readOnly ? undefined : days}
             tripId={readOnly ? undefined : trip.id}
           />

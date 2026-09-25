@@ -26,6 +26,7 @@ import { JourneyNotesSheet } from "@/components/trip/JourneyNotes";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 import { createClient } from "@/lib/supabase/client";
 import { queuedUpdate, queuedInsert } from "@/lib/offline/queuedWrite";
+import { planExisting } from "@/lib/week/dayPlan";
 import { applyOverlayAll } from "@/lib/offline/writeQueue";
 import { COMPANION_ENABLED } from "@/lib/featureFlags";
 import type { Trip, Day, DayWithCards, Card } from "@/types/database";
@@ -259,6 +260,31 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   // finding 4). Edited inline in the desktop header; the phone shows it and
   // names days from the Plan's day header, as before.
   const [dayTitle, setDayTitle] = useState<string>(dayWithCards.theme ?? "");
+  // Long-press a day in the strip (25 Sep 2026): Rename (this day only), Give
+  // times to the rest, Rearrange the whole day — the desktop header's menu on
+  // the phone. Mock: https://claude.ai/artifact/YZAUNZQhqBBwpmWweLPeeV
+  const [dayMenu, setDayMenu] = useState<Day | null>(null);
+  const [phoneRenaming, setPhoneRenaming] = useState(false);
+  const [phoneName, setPhoneName] = useState("");
+  const arrangeDayCards = useCallback(async (day: Day, mode: "rest" | "all") => {
+    setDayMenu(null);
+    const { data } = await supabase.from("cards").select("*, place:places (id, title, type, sub_type, lat, lng)").eq("day_id", day.id).not("archived", "is", true);
+    const cards = (data ?? []) as Card[];
+    const fallback = trip.destination_lat != null && trip.destination_lng != null ? { lat: trip.destination_lat, lng: trip.destination_lng } : null;
+    const { updates, before, unplaced } = planExisting(cards, mode, fallback);
+    if (updates.length === 0) { toast({ message: mode === "rest" ? "Everything on this day already has a time." : "Nothing to rearrange." }); return; }
+    const apply = (list: { id: string; start_time: string | null; end_time: string | null }[]) => {
+      if (day.id === dayWithCards.id) setLocalCards((prev) => prev.map((c) => { const u = list.find((x) => x.id === c.id); return u ? { ...c, start_time: u.start_time, end_time: u.end_time } : c; }).sort(agendaOrder));
+    };
+    apply(updates);
+    for (const u of updates) await queuedUpdate("cards", { id: u.id }, { start_time: u.start_time, end_time: u.end_time });
+    const dow = new Date(day.date + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short" });
+    toast({
+      message: unplaced.length ? `${dow} arranged; ${unplaced.length} left without a time` : `${dow} arranged`,
+      undo: async () => { apply(before); for (const b of before) await queuedUpdate("cards", { id: b.id }, { start_time: b.start_time, end_time: b.end_time }); router.refresh(); },
+    });
+    router.refresh();
+  }, [supabase, trip.destination_lat, trip.destination_lng, dayWithCards.id, toast, router]);
   const [editingTitle, setEditingTitle] = useState(false);
   useEffect(() => {
     setDayTitle(dayWithCards.theme ?? "");
@@ -772,7 +798,36 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
         activeDayId={dayWithCards.id}
         tripId={trip.id}
         onDaySelect={handleDaySelect}
+        onDayLongPress={readOnly ? undefined : (d) => { setPhoneRenaming(false); setDayMenu(d); }}
       />
+      {dayMenu && (
+        <div className="md:hidden fixed inset-0 z-[70]" onClick={() => setDayMenu(null)}>
+          <div className="absolute left-3 right-3 top-[124px] bg-white rounded-xl p-1.5 text-[14px]" style={{ border: "1px solid rgba(26,26,46,0.10)", boxShadow: "0 16px 34px rgba(26,26,46,0.17)" }} onClick={(e) => e.stopPropagation()}>
+            <div className="px-3 pt-2 pb-1 text-[10.5px] uppercase tracking-wider" style={{ color: "rgba(26,26,46,0.40)" }}>
+              {new Date(dayMenu.date + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
+            </div>
+            {dayMenu.id === dayWithCards.id && (
+              <button className="w-full text-left px-3 py-3 rounded-lg active:bg-[#F3EFE4]" onClick={() => { setPhoneName(dayTitle); setPhoneRenaming(true); setDayMenu(null); }}>Rename this day</button>
+            )}
+            <button className="w-full text-left px-3 py-3 rounded-lg active:bg-[#F3EFE4]" onClick={() => void arrangeDayCards(dayMenu, "rest")}>Give times to the rest</button>
+            <button className="w-full text-left px-3 py-3 rounded-lg active:bg-[#F3EFE4]" onClick={() => void arrangeDayCards(dayMenu, "all")}>Rearrange the whole day</button>
+          </div>
+        </div>
+      )}
+      {phoneRenaming && (
+        <div className="md:hidden px-4 py-2 bg-white" style={{ borderBottom: "1px solid rgba(26,26,46,0.10)" }}>
+          <input
+            autoFocus
+            value={phoneName}
+            onChange={(e) => setPhoneName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { setPhoneRenaming(false); void commitDayTitle(phoneName); } if (e.key === "Escape") setPhoneRenaming(false); }}
+            onBlur={() => { setPhoneRenaming(false); void commitDayTitle(phoneName); }}
+            placeholder="Name this day (empty keeps it automatic)"
+            aria-label="Name this day"
+            className="w-full text-[14px] bg-[#F5F4F1] rounded-lg px-3 py-2 outline-none"
+          />
+        </div>
+      )}
 
       {/* Mobile-only weather expansion */}
       <div className="md:hidden">

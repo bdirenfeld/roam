@@ -1548,6 +1548,20 @@ the component mounted and you are looking at throttling, not a broken map.
 - Bulk actions on the week: Shift/Ctrl-click blocks (`pickedBlocks`, ring-2 ink), a tray at
   the bottom of the week with Move to a day, Take off the day, Delete; Esc or ✕ clears;
   every action has Undo.
+- `lib/week/dayPlan.ts` (tested) is the bridge from cards to the engine: `planExisting`
+  (rest | all) and `planBatch` (dedupe, times keyed by picked id). The phone uses it; the
+  desktop board still carries its own copy of the same logic.
+- Phone pick-and-arrange (25 Sep 2026, mock https://claude.ai/artifact/YZAUNZQhqBBwpmWweLPeeV):
+  long-press a pin (500ms, ≤8px drift, vibrate) enters pick mode; taps toggle; the rest
+  fade; an empty-map tap or ✕ leaves. Both pin-creation paths in FullMapClient wire
+  `attachLongPress` and the click guard. The pin card's day list ends with "Pick more pins
+  first" (`onPickMore`). The tray above the Filter lists the days; a tap runs
+  `putPickedOnDay` (planBatch → scheduleCardOnDay per card → registerNewCard) and then
+  `router.push` to that day; Undo deletes the new cards.
+- Agenda: long-press a day in `DayStrip` (`onDayLongPress`) → a phone menu: Rename this day
+  (current day only; inline input under the strip → `commitDayTitle`), Give times to the
+  rest, Rearrange the whole day (`arrangeDayCards`: fetches that day's cards, planExisting,
+  queuedUpdate each, local list patched when it is the open day, router.refresh, Undo).
 - The phone Map's Filter has the same sub-type row (once one category is chosen), driving
   `activeSubTypes` — the set the desktop sidebar used — with the type pills' tap rule.
 - The desktop AppMenu is the same 3-across tiles as the phone (25 Sep 2026). Mocks:
