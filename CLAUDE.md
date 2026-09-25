@@ -1516,8 +1516,18 @@ the component mounted and you are looking at throttling, not a broken map.
   opens `showStays` + wide, WeekMap mounts `WhereToStaySheet panel` over its map and draws
   the lettered candidate pins (`makePinElement`), framing once per set with 440px of right
   padding for the panel. The phone still goes to `/map?stays=1`.
-- The hours gutter, the Anytime label and the arrows cell are `sticky left-0` so they stay
-  put when the week scrolls sideways (25 Sep 2026).
+- ONE scroller for the week (25 Sep 2026): the outer div scrolls both ways; the header +
+  Anytime lane are a `sticky top-0` block, the hours gutter, Anytime label and arrows cell
+  are `sticky left-0`. Two nested scrollers (sideways outside, down inside) broke both the
+  sticky gutter (sticky only knows its nearest scrolling ancestor) and the header/column
+  alignment (the inner scrollbar stole width from the columns, not the header). The pointer
+  maths read `colsRef`'s rect, which moves with the scroll, so no scrollTop arithmetic.
+- Filter sub-type pills follow the type pills' rule (tap = only that, again = all;
+  `rowsOn`, null = all), never a strike-through.
+- Blocks carry the pin's category colour on the left edge (`PIN_COLORS`) and the sub-type
+  glyph before the name; notes stay grey-edged and glyphless.
+- Card sheet: on a note card the ⋯ keeps `mr-10` clear of the ✕; the checklist renders
+  BELOW the notes (was first), both 25 Sep 2026. The desktop masthead is sticky.
 - The desktop AppMenu is the same 3-across tiles as the phone (25 Sep 2026). Mocks:
   https://claude.ai/artifact/Re8LgyCtx1jWw3PRZYMo7W, https://claude.ai/artifact/Mc6jFQTci62sEV4KbeHtCJ.
 - The phone AppMenu is a 3-across grid of 64px tiles under the disc (25 Sep 2026), titles
