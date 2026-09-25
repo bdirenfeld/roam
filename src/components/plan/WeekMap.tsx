@@ -6,7 +6,11 @@
  * (the same pins the Map tab draws). It knows three things from the week:
  * which card is hovered (its pin lifts), which day is chosen (other days'
  * pins fade), and it hands a tapped pin's card to the same MapPinPopup the
- * Map tab uses, so Put on a day, notes and the rest work unchanged.
+ * Map tab uses, so Put on a day, notes and the rest work unchanged. A pin
+ * can also be dragged straight onto the week (the board owns that drag; the
+ * map only reports the pointerdown and parks its own panning), and while a
+ * block is dragged over the map the panel tints to say "drop here to take
+ * it off the day".
  * Mock: https://claude.ai/artifact/Wtio2jYAqHFkA5Kmcq9CDq
  */
 
@@ -28,6 +32,10 @@ interface Props {
   onCardUpdate: (card: Card) => void;
   onCardCreated: (card: Card) => void;
   onCardDelete: (cardId: string) => void;
+  /** A pin was pressed; the board may turn it into a drag onto the week. */
+  onPinDragStart?: (card: Card) => void;
+  /** A week block is being dragged over the map. */
+  hot?: boolean;
 }
 
 type Marker = { marker: any; wrapper: HTMLElement; inner: HTMLElement; cardRef: { current: Card } }; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -36,7 +44,7 @@ function placed(c: Card): boolean {
   return typeof c.place?.lat === "number" && typeof c.place?.lng === "number";
 }
 
-export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onHover, onCardUpdate, onCardCreated, onCardDelete }: Props) {
+export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onHover, onCardUpdate, onCardCreated, onCardDelete, onPinDragStart, hot }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
   const mbRef = useRef<any>(null);  // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -46,6 +54,7 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
   const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
   const cardsRef = useRef(cards); cardsRef.current = cards;
   const onHoverRef = useRef(onHover); onHoverRef.current = onHover;
+  const onPinDragStartRef = useRef(onPinDragStart); onPinDragStartRef.current = onPinDragStart;
 
   const anchorFor = useCallback((c: Card) => {
     const map = mapRef.current, el = containerRef.current;
@@ -122,6 +131,16 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
         setSelected(cardRef.current);
         setAnchor(anchorFor(cardRef.current));
       });
+      // Press and move = drag onto the week. Panning is parked until the
+      // pointer lifts so the map does not slide under the drag; no
+      // preventDefault, or the click above would never fire.
+      wrapper.addEventListener("pointerdown", (e) => {
+        if (e.button !== 0 || !onPinDragStartRef.current) return;
+        map.dragPan.disable();
+        const release = () => { map.dragPan.enable(); window.removeEventListener("pointerup", release); };
+        window.addEventListener("pointerup", release);
+        onPinDragStartRef.current(cardRef.current);
+      });
       markers.current.set(c.id, { marker, wrapper, inner, cardRef });
     }
     markers.current.forEach((m, id) => {
@@ -145,6 +164,11 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
   return (
     <div className="relative h-full min-h-0 border-l" style={{ borderColor: "rgba(26,26,46,0.10)" }}>
       <div ref={containerRef} className="absolute inset-0" onClick={close} />
+      {hot && (
+        <div className="absolute inset-2 rounded-xl pointer-events-none flex items-end justify-center pb-4" style={{ background: "rgba(26,26,46,0.08)", border: "2px dashed rgba(26,26,46,0.35)" }}>
+          <span className="text-[12px] font-medium px-3 py-1.5 rounded-full bg-white" style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.2)" }}>Drop to take it off the day</span>
+        </div>
+      )}
       {!process.env.NEXT_PUBLIC_MAPBOX_TOKEN && (
         <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-500">Map unavailable</div>
       )}

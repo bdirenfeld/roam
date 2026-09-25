@@ -17,13 +17,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Trip, DayWithCards, Card } from "@/types/database";
-import { queuedUpdate, queuedInsert } from "@/lib/offline/queuedWrite";
+import { queuedUpdate, queuedInsert, queuedDelete } from "@/lib/offline/queuedWrite";
+import { createClient } from "@/lib/supabase/client";
+import { scheduleCardOnDay, unscheduleCard } from "@/lib/scheduleCard";
 import { useToast } from "@/components/ui/Toast";
 import { cardTimes } from "@/lib/cardTime";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import WeekMap from "./WeekMap";
 import {
-  placeBlocks, movedTimes, resizedEnd, minutesAtY, toMin, fmt12, gridHeight,
+  placeBlocks, movedTimes, resizedEnd, minutesAtY, toMin, toTime, fmt12, gridHeight,
   HOUR_START, HOUR_END, PX_PER_HOUR, NO_END_MIN, type Block,
 } from "@/lib/week/layout";
 
@@ -51,6 +53,7 @@ function isNote(c: Card): boolean { return !c.place_id; }
 
 type Drag =
   | { kind: "move"; card: Card; fromDay: string; x0: number; y0: number; offY: number; moved: boolean }
+  | { kind: "fromMap"; card: Card; x0: number; y0: number; offY: number; moved: boolean }
   | { kind: "resize"; card: Card; y0: number; end0: number; moved: boolean };
 
 export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
@@ -60,6 +63,11 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const [saved, setSaved] = useState<Card[]>(initialSaved);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [activeDayId, setActiveDayId] = useState<string | null>(null);
+  // A block dragged over the map: the panel tints, and the drop takes the
+  // card off its day (the Map tab's unschedule, so a saved pin remains).
+  const [overMap, setOverMap] = useState(false);
+  const mapPanelRef = useRef<HTMLDivElement | null>(null);
+  const supabase = useMemo(() => createClient(), []);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [hover, setHover] = useState<{ day: number; min: number | null } | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
@@ -122,6 +130,11 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     if (clientY < r.top || clientY > r.bottom) return null;
     return minutesAtY(clientY - r.top + g.scrollTop);
   }
+  function overMapPanel(x: number, y: number): boolean {
+    const p = mapPanelRef.current; if (!p) return false;
+    const r = p.getBoundingClientRect();
+    return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  }
   function overLane(clientY: number): boolean {
     const l = laneRef.current; if (!l) return false;
     const r = l.getBoundingClientRect();
@@ -135,6 +148,10 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     dragRef.current = { kind: "move", card, fromDay, x0: e.clientX, y0: e.clientY, offY: e.clientY - el.getBoundingClientRect().top, moved: false };
     e.preventDefault();
   };
+  const onPinDragStart = useCallback((card: Card) => {
+    // Position is read from the first pointermove (the map's event is not a React one).
+    dragRef.current = { kind: "fromMap", card, x0: NaN, y0: NaN, offY: 0, moved: false };
+  }, []);
   const onHandlePointerDown = (e: React.PointerEvent, card: Card) => {
     if (e.button !== 0) return;
     e.stopPropagation(); e.preventDefault();
@@ -146,14 +163,20 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   useEffect(() => {
     function onMove(e: PointerEvent) {
       const d = dragRef.current; if (!d) return;
+      if (d.kind === "fromMap" && Number.isNaN(d.x0)) { d.x0 = e.clientX; d.y0 = e.clientY; return; }
       if (!d.moved) {
-        const dist = d.kind === "move" ? Math.abs(e.clientX - d.x0) + Math.abs(e.clientY - d.y0) : Math.abs(e.clientY - d.y0);
+        const dist = d.kind !== "resize" ? Math.abs(e.clientX - d.x0) + Math.abs(e.clientY - d.y0) : Math.abs(e.clientY - d.y0);
         if (dist < 4) return;
         d.moved = true;
       }
-      if (d.kind === "move") {
+      if (d.kind === "move" || d.kind === "fromMap") {
         const t = cardTimes(d.card);
         const dur = t.start && t.end ? toMin(t.end) - toMin(t.start) : null;
+        if (d.kind === "move" && overMapPanel(e.clientX, e.clientY)) {
+          setOverMap(true); setGhost(null); setHover(null);
+          return;
+        }
+        setOverMap(false);
         if (overLane(e.clientY)) {
           const day = dayAtX(e.clientX);
           setGhost(day === null ? null : { id: d.card.id, day, min: null, endMin: null });
@@ -172,12 +195,23 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
         setGhost({ id: d.card.id, day: dayIdx, min: toMin(cardTimes(d.card).start ?? "07:00:00"), endMin });
       }
     }
-    function onUp() {
+    function onUp(e: PointerEvent) {
       const d = dragRef.current; dragRef.current = null;
       const g = ghost; setGhost(null); setHover(null);
+      const wasOverMap = overMap; setOverMap(false);
       if (!d) return;
       if (!d.moved) { if (d.kind === "move") setSelectedCard(d.card); return; }
       const dayList = daysRef.current;
+      if (d.kind === "move" && wasOverMap && overMapPanel(e.clientX, e.clientY)) {
+        void takeOffDay(d.card);
+        return;
+      }
+      if (d.kind === "fromMap") {
+        if (!g) return;
+        const target = dayList[g.day];
+        void putFromMap(d.card, target, g.min);
+        return;
+      }
       if (d.kind === "move" && g) {
         const target = dayList[g.day];
         if (g.min === null) {
@@ -203,7 +237,52 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     return () => { window.removeEventListener("pointermove", onMove); window.removeEventListener("pointerup", onUp); };
     // dayAtX/minAtY/overLane read refs and nDays; nDays only changes with days, which re-runs via ghost writes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ghost, write, nDays]);
+  }, [ghost, write, nDays, overMap]);
+
+  // ── the map drops ──────────────────────────────────────────────
+  // Pin → week: a new scheduled card at the drop time (an hour long, or no
+  // time in the Anytime lane); the saved pin stays, as on the Map tab. Undo
+  // deletes the new card.
+  const putFromMap = useCallback(async (card: Card, target: DayWithCards, min: number | null) => {
+    if (!card.place_id) return;
+    const startTime = min === null ? null : toTime(min);
+    const endTime = min === null ? null : toTime(Math.min(min + 60, HOUR_END * 60));
+    const created = await scheduleCardOnDay(supabase, { tripId: trip.id, dayId: target.id, placeId: card.place_id, place: card.place, startTime, endTime, details: card.details, sourceUrl: card.source_url });
+    if (!created) { toast({ message: "Couldn't put it on that day. Try again." }); return; }
+    setDays((prev) => prev.map((d) => (d.id === target.id ? { ...d, cards: [...d.cards, created] } : d)));
+    toast({
+      message: min === null ? `Put on ${dow(target.date)}, anytime` : `Put on ${dow(target.date)} ${fmt12(min)}`,
+      undo: async () => {
+        const { error } = await queuedDelete("cards", { id: created.id });
+        if (error) { toast({ message: "Couldn't undo. Try again." }); return; }
+        setDays((prev) => prev.map((d) => ({ ...d, cards: d.cards.filter((c) => c.id !== created.id) })));
+      },
+    });
+  }, [supabase, trip.id, toast]);
+  // Week → map: the Map tab's unschedule (deletes the scheduled card, makes a
+  // saved one if the place had none). Undo reverses both.
+  const takeOffDay = useCallback(async (card: Card) => {
+    const { ok, created } = await unscheduleCard(supabase, card);
+    if (!ok) { toast({ message: "Couldn't take it off the day. Try again." }); return; }
+    setDays((prev) => prev.map((d) => ({ ...d, cards: d.cards.filter((c) => c.id !== card.id) })));
+    if (created) setSaved((prev) => [...prev, created]);
+    const day = daysRef.current.find((d) => d.id === card.day_id);
+    toast({
+      message: `Taken off ${day ? dow(day.date) : "the day"}, still on the map`,
+      undo: async () => {
+        const { error } = await queuedInsert("cards", {
+          id: card.id, day_id: card.day_id, trip_id: card.trip_id,
+          start_time: card.start_time, end_time: card.end_time,
+          position: card.position, status: card.status, source_url: card.source_url,
+          details: card.details, ai_generated: card.ai_generated,
+          confirmed: card.confirmed, place_id: card.place_id,
+        });
+        if (error) { toast({ message: "Couldn't undo. Try again." }); return; }
+        setDays((prev) => prev.map((d) => (d.id === card.day_id && !d.cards.some((c) => c.id === card.id) ? { ...d, cards: [...d.cards, card] } : d)));
+        if (created) { await queuedDelete("cards", { id: created.id }); setSaved((prev) => prev.filter((c) => c.id !== created.id)); }
+      },
+    });
+  }, [supabase, toast]);
 
   // ── sheet callbacks ────────────────────────────────────────────
   const handleCardUpdate = useCallback((updated: Card) => {
@@ -280,12 +359,12 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     }
     // a block dragged INTO this day from another
     if (ghost && ghost.day === di && !d.cards.some((c) => c.id === ghost.id)) {
-      if (ghost.min === null) { const src = days.flatMap((x) => x.cards).find((c) => c.id === ghost.id); if (src) untimed.push(src); }
+      if (ghost.min === null) { const src = [...saved, ...days.flatMap((x) => x.cards)].find((c) => c.id === ghost.id); if (src) untimed.push(src); }
       else timed.push({ id: ghost.id, startMin: ghost.min, endMin: ghost.endMin });
     }
     return { day: d, placed: placeBlocks(timed), untimed };
-  }), [days, ghost]);
-  const byId = useMemo(() => { const m = new Map<string, Card>(); days.forEach((d) => d.cards.forEach((c) => m.set(c.id, c))); return m; }, [days]);
+  }), [days, ghost, saved]);
+  const byId = useMemo(() => { const m = new Map<string, Card>(); saved.forEach((c) => m.set(c.id, c)); days.forEach((d) => d.cards.forEach((c) => m.set(c.id, c))); return m; }, [days, saved]);
 
   const hours: number[] = []; for (let h = HOUR_START; h <= HOUR_END; h++) hours.push(h);
   const gridStyle = { gridTemplateColumns: `${HOURS_W}px repeat(${nDays}, minmax(${COL_MIN}px, 1fr))` } as const;
@@ -393,8 +472,10 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
 
       {/* The map. 380px from lg, 440px from xl; below lg the week stands alone
           and the Map tab still has the full map. */}
-      <div className="hidden lg:block w-[380px] xl:w-[440px] flex-shrink-0 h-full">
+      <div ref={mapPanelRef} className="hidden lg:block w-[380px] xl:w-[440px] flex-shrink-0 h-full">
         <WeekMap
+          onPinDragStart={onPinDragStart}
+          hot={overMap}
           trip={trip}
           days={days}
           cards={pinCards}
