@@ -277,6 +277,21 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
     });
   }, [hoveredId, activeDayId, cards, types, statuses, lovedOnly, picked]);
 
+  // Click a day header and the map goes to that day (25 Sep 2026): fit the map
+  // to the day's pins, one pin gets a zoom, and clicking the day again fits
+  // the whole journey back.
+  useEffect(() => {
+    const map = mapRef.current, mb = mbRef.current;
+    if (!ready || !map || !mb) return;
+    const pool = activeDayId === null ? cards : cards.filter((c) => c.day_id === activeDayId);
+    const pts = pool.filter(placed).map((c) => [c.place!.lng!, c.place!.lat!] as [number, number]);
+    if (pts.length === 0) return;
+    if (pts.length === 1) { map.flyTo({ center: pts[0], zoom: Math.max(map.getZoom(), 14), duration: 600 }); return; }
+    const b = pts.reduce((acc: any, pt) => acc.extend(pt), new mb.LngLatBounds(pts[0], pts[0])); // eslint-disable-line @typescript-eslint/no-explicit-any
+    map.fitBounds(b, { padding: { top: 70, bottom: 60, left: 30, right: 60 }, maxZoom: 15, duration: 600 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeDayId, ready]);
+
   const close = useCallback(() => { setSelected(null); setAnchor(null); }, []);
 
   return (

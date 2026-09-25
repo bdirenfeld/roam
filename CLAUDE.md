@@ -1495,6 +1495,8 @@ the component mounted and you are looking at throttling, not a broken map.
   a "…" on a day header's hover with "Arrange this day" (only timeless blocks get times).
   Anchor = the day's first timed place, else its first place, else the destination; a
   stay with a pin should go first when there is one. Undo reverses every write.
+- A day header click also fits the map to that day (fitBounds, or a zoom for one pin) and
+  the second click fits the journey back (25 Sep 2026).
 - A chip with the name rides with the pointer while a pin heads for the week or a block
   heads for the map (`dragChip`); it hands over to the ghost block on the grid. Without it
   the drag was invisible between the two (Brennan, 25 Sep 2026).
