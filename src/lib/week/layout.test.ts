@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { placeBlocks, movedTimes, resizedEnd, minutesAtY, toMin, toTime, fmt12, PX_PER_HOUR, NO_END_MIN, HOUR_START } from "./layout";
+import { placeBlocks, movedTimes, resizedEnd, resizedStart, minutesAtY, toMin, toTime, fmt12, PX_PER_HOUR, NO_END_MIN, HOUR_START } from "./layout";
 
 /**
  * Times copied from Rome April 2026 (24 Sep 2026): Friday has Historic Center
@@ -54,6 +54,14 @@ describe("moves and resizes", () => {
   it("a resize never ends within 30 minutes of the start", () => {
     expect(resizedEnd({ id: "x", startMin: toMin("09:00:00"), endMin: toMin("11:00:00") }, 9 * 60 + 5)).toBe("09:30:00");
     expect(resizedEnd({ id: "x", startMin: toMin("09:00:00"), endMin: toMin("11:00:00") }, 12 * 60 + 8)).toBe("12:15:00");
+  });
+
+  it("drags the start earlier or later, snapped, 30 minutes from the end at most", () => {
+    const b = { id: "x", startMin: toMin("09:00:00"), endMin: toMin("11:00:00") };
+    expect(resizedStart(b, 8 * 60 + 7)).toBe("08:00:00");
+    expect(resizedStart(b, 10 * 60 + 50)).toBe("10:30:00");
+    expect(resizedStart(b, 5 * 60)).toBe("07:00:00");
+    expect(resizedStart({ id: "y", startMin: toMin("09:00:00"), endMin: null }, 12 * 60 + 20)).toBe("12:15:00");
   });
   it("maps grid pixels back to snapped minutes inside the drawn hours", () => {
     expect(minutesAtY(0)).toBe(HOUR_START * 60);

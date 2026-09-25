@@ -109,6 +109,12 @@ export function resizedEnd(b: Block, newEndMin: number): string {
   return toTime(Math.max(b.startMin + MIN_LEN_MIN, snap(newEndMin)));
 }
 
+/** The top edge dragged: a new start, never past (end − 30 min), never before the grid. */
+export function resizedStart(b: Block, newStartMin: number): string {
+  const latest = b.endMin === null ? Infinity : b.endMin - MIN_LEN_MIN;
+  return toTime(Math.min(latest, Math.max(HOUR_START * 60, snap(newStartMin))));
+}
+
 export function fmt12(m: number): string {
   const h = Math.floor(m / 60), mm = m % 60;
   return `${h % 12 || 12}${mm ? ":" + (mm < 10 ? "0" : "") + mm : ""}${h < 12 ? "am" : "pm"}`;

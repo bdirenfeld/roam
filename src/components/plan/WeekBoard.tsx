@@ -16,16 +16,17 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Trip, DayWithCards, Card } from "@/types/database";
+import type { Trip, DayWithCards, Card, Day } from "@/types/database";
 import { queuedUpdate, queuedInsert, queuedDelete } from "@/lib/offline/queuedWrite";
 import { createClient } from "@/lib/supabase/client";
 import { scheduleCardOnDay, unscheduleCard } from "@/lib/scheduleCard";
+import { arrangeDay, type ArrangeItem, type Busy, type Anchor } from "@/lib/week/arrange";
 import { useToast } from "@/components/ui/Toast";
 import { cardTimes } from "@/lib/cardTime";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import WeekMap from "./WeekMap";
 import {
-  placeBlocks, movedTimes, resizedEnd, minutesAtY, toMin, toTime, fmt12, gridHeight,
+  placeBlocks, movedTimes, resizedEnd, resizedStart, minutesAtY, toMin, toTime, fmt12, gridHeight,
   HOUR_START, HOUR_END, PX_PER_HOUR, NO_END_MIN, type Block,
 } from "@/lib/week/layout";
 
@@ -57,7 +58,8 @@ function isNote(c: Card): boolean { return !c.place_id; }
 type Drag =
   | { kind: "move"; card: Card; fromDay: string; x0: number; y0: number; offY: number; moved: boolean }
   | { kind: "fromMap"; card: Card; x0: number; y0: number; offY: number; moved: boolean }
-  | { kind: "resize"; card: Card; y0: number; end0: number; moved: boolean };
+  | { kind: "resize"; card: Card; y0: number; end0: number; moved: boolean }
+  | { kind: "resizeStart"; card: Card; y0: number; moved: boolean };
 
 export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const { toast } = useToast();
@@ -71,6 +73,14 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const [overMap, setOverMap] = useState(false);
   // The map can take the whole page (the week folds away) and come back.
   const [mapWide, setMapWide] = useState(false);
+  // The header's "…" menu, by day id.
+  const [headerMenu, setHeaderMenu] = useState<string | null>(null);
+  useEffect(() => {
+    if (!headerMenu) return;
+    const off = () => setHeaderMenu(null);
+    window.addEventListener("pointerdown", off);
+    return () => window.removeEventListener("pointerdown", off);
+  }, [headerMenu]);
   // The seam drags (25 Sep 2026): the map is as wide as you left it, between
   // MAP_MIN and whatever leaves the week its column floor. Remembered per
   // browser; 440px until you touch it.
@@ -192,6 +202,11 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     // Position is read from the first pointermove (the map's event is not a React one).
     dragRef.current = { kind: "fromMap", card, x0: NaN, y0: NaN, offY: 0, moved: false };
   }, []);
+  const onStartHandlePointerDown = (e: React.PointerEvent, card: Card) => {
+    if (e.button !== 0) return;
+    e.stopPropagation(); e.preventDefault();
+    dragRef.current = { kind: "resizeStart", card, y0: e.clientY, moved: false };
+  };
   const onHandlePointerDown = (e: React.PointerEvent, card: Card) => {
     if (e.button !== 0) return;
     e.stopPropagation(); e.preventDefault();
@@ -205,7 +220,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
       const d = dragRef.current; if (!d) return;
       if (d.kind === "fromMap" && Number.isNaN(d.x0)) { d.x0 = e.clientX; d.y0 = e.clientY; return; }
       if (!d.moved) {
-        const dist = d.kind !== "resize" ? Math.abs(e.clientX - d.x0) + Math.abs(e.clientY - d.y0) : Math.abs(e.clientY - d.y0);
+        const dist = d.kind === "move" || d.kind === "fromMap" ? Math.abs(e.clientX - d.x0) + Math.abs(e.clientY - d.y0) : Math.abs(e.clientY - d.y0);
         if (dist < 4) return;
         d.moved = true;
       }
@@ -227,6 +242,14 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
         if (day === null || min === null) { setGhost(null); setHover(null); return; }
         setGhost({ id: d.card.id, day, min, endMin: dur !== null ? min + dur : null });
         setHover({ day, min });
+      } else if (d.kind === "resizeStart") {
+        const g = gridRef.current; if (!g) return;
+        const r = g.getBoundingClientRect();
+        const t = cardTimes(d.card);
+        const end = t.end ? toMin(t.end) : null;
+        const min = toMin(resizedStart({ id: d.card.id, startMin: toMin(t.start ?? "07:00:00"), endMin: end }, minutesAtY(e.clientY - r.top + g.scrollTop)));
+        const dayIdx = shownRef.current.findIndex((x) => x.id === d.card.day_id);
+        setGhost({ id: d.card.id, day: dayIdx, min, endMin: end });
       } else {
         const g = gridRef.current; if (!g) return;
         const r = g.getBoundingClientRect();
@@ -264,6 +287,10 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
         const times = movedTimes(block, g.min);
         if (target.id === d.card.day_id && times.start === d.card.start_time) return;
         void write(d.card, { day_id: target.id, start_time: times.start, end_time: times.end }, `Moved to ${dow(target.date)} ${fmt12(toMin(times.start))}`);
+      } else if (d.kind === "resizeStart" && g && g.min !== null) {
+        const start = toTime(g.min);
+        if (start === d.card.start_time) return;
+        void write(d.card, { day_id: d.card.day_id, start_time: start, end_time: d.card.end_time }, `${cardTitle(d.card)} now starts ${fmt12(g.min)}`);
       } else if (d.kind === "resize" && g && g.endMin !== null) {
         const t = cardTimes(d.card);
         const block: Block = { id: d.card.id, startMin: toMin(t.start ?? "07:00:00"), endMin: t.end ? toMin(t.end) : null };
@@ -351,6 +378,73 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const handleCardCopied = useCallback((card: Card) => {
     setDays((prev) => prev.map((d) => (d.id === card.day_id ? { ...d, cards: [...d.cards, card] } : d)));
   }, []);
+
+  // ── arranging (lib/week/arrange) ───────────────────────────────
+  const toItem = (c: Card): ArrangeItem => ({ id: c.id, type: c.place?.type ?? "activity", subType: c.place?.sub_type ?? null, lat: c.place?.lat ?? null, lng: c.place?.lng ?? null });
+  const busyOf = (day: DayWithCards, except: Set<string>): Busy[] => day.cards.flatMap((c) => {
+    if (except.has(c.id)) return [];
+    const t = cardTimes(c); if (!t.start) return [];
+    const s = toMin(t.start); return [{ startMin: s, endMin: t.end ? toMin(t.end) : s + NO_END_MIN }];
+  });
+  // Where the walking starts: the day's first timed place, else its first
+  // place, else the journey's centre. (A stay with a pin would go first.)
+  const anchorOf = (day: DayWithCards): Anchor | null => {
+    const withPoint = day.cards.filter((c) => c.place?.lat != null && c.place?.lng != null);
+    const timed = withPoint.filter((c) => cardTimes(c).start).sort((a, b) => toMin(cardTimes(a).start!) - toMin(cardTimes(b).start!));
+    const first = timed[0] ?? withPoint[0];
+    if (first) return { lat: first.place!.lat!, lng: first.place!.lng! };
+    return trip.destination_lat != null && trip.destination_lng != null ? { lat: trip.destination_lat, lng: trip.destination_lng } : null;
+  };
+  const tintDay = (id: string) => { setActiveDayId(id); window.setTimeout(() => setActiveDayId((cur) => (cur === id ? null : cur)), 2500); };
+
+  // Door 1: several pins → a day. New scheduled cards at arranged times; the
+  // saved pins stay. Undo deletes the new cards.
+  const putMany = useCallback(async (picked: Card[], day: Day) => {
+    const target = daysRef.current.find((d) => d.id === day.id); if (!target) return;
+    const withPlace = picked.filter((c) => c.place_id);
+    const { placed, unplaced } = arrangeDay(withPlace.map(toItem), busyOf(target, new Set()), anchorOf(target));
+    const times = new Map(placed.map((p) => [p.id, p]));
+    const created: Card[] = [];
+    for (const c of withPlace) {
+      const t = times.get(c.id);
+      const made = await scheduleCardOnDay(supabase, { tripId: trip.id, dayId: day.id, placeId: c.place_id, place: c.place, startTime: t ? toTime(t.startMin) : null, endTime: t ? toTime(t.endMin) : null, details: c.details, sourceUrl: c.source_url });
+      if (made) created.push(made);
+    }
+    if (created.length === 0) { toast({ message: "Couldn't put them on that day. Try again." }); return; }
+    setDays((prev) => prev.map((d) => (d.id === day.id ? { ...d, cards: [...d.cards, ...created] } : d)));
+    setMapWide(false); tintDay(day.id);
+    const n = created.length;
+    toast({
+      message: unplaced.length ? `${n} on ${dow(target.date)}; ${unplaced.length} didn't fit, left anytime` : `${n} ${n === 1 ? "place" : "places"} on ${dow(target.date)}, in walking order`,
+      undo: async () => {
+        for (const c of created) await queuedDelete("cards", { id: c.id });
+        const ids = new Set(created.map((c) => c.id));
+        setDays((prev) => prev.map((d) => ({ ...d, cards: d.cards.filter((c) => !ids.has(c.id)) })));
+      },
+    });
+  }, [supabase, trip.id, trip.destination_lat, trip.destination_lng, toast]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Door 2: a day's timeless blocks get times around the timed ones.
+  const arrangeThisDay = useCallback(async (dayId: string) => {
+    const day = daysRef.current.find((d) => d.id === dayId); if (!day) return;
+    const untimed = day.cards.filter((c) => !cardTimes(c).start);
+    if (untimed.length === 0) { toast({ message: "Everything on this day already has a time." }); return; }
+    const { placed, unplaced } = arrangeDay(untimed.map(toItem), busyOf(day, new Set(untimed.map((c) => c.id))), anchorOf(day));
+    if (placed.length === 0) { toast({ message: "No room left on this day." }); return; }
+    const before = new Map(untimed.map((c) => [c.id, { start_time: c.start_time, end_time: c.end_time }]));
+    for (const p of placed) {
+      const next = { start_time: toTime(p.startMin), end_time: toTime(p.endMin) };
+      patchCard(p.id, next, dayId);
+      await queuedUpdate("cards", { id: p.id }, next);
+    }
+    tintDay(dayId);
+    toast({
+      message: unplaced.length ? `${dow(day.date)} arranged; ${unplaced.length} didn't fit` : `${dow(day.date)} arranged`,
+      undo: async () => {
+        for (const p of placed) { const b = before.get(p.id)!; patchCard(p.id, b, dayId); await queuedUpdate("cards", { id: p.id }, b); }
+      },
+    });
+  }, [patchCard, toast]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── the map's callbacks ────────────────────────────────────────
   // A pin's card is either on a day (patch it there) or in the saved pile.
@@ -445,10 +539,24 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
               <div
                 key={d.id}
                 onClick={() => setActiveDayId((cur) => (cur === d.id ? null : d.id))}
-                className="px-2 py-2 border-l min-w-0 cursor-pointer transition-colors"
+                className="group relative px-2 py-2 border-l min-w-0 cursor-pointer transition-colors"
                 title={activeDayId === d.id ? "Show every day on the map" : "Show only this day on the map"}
                 style={{ borderColor: "rgba(26,26,46,0.10)", background: activeDayId === d.id ? "#F3EFE4" : undefined, opacity: activeDayId && activeDayId !== d.id ? 0.55 : 1 }}
               >
+                <button
+                  type="button"
+                  aria-label="Day actions"
+                  onClick={(e) => { e.stopPropagation(); setHeaderMenu((cur) => (cur === d.id ? null : d.id)); }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  className={`absolute right-1.5 top-1.5 w-[22px] h-[22px] rounded-full flex items-center justify-center text-[12px] font-bold transition-opacity ${headerMenu === d.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                  style={{ background: "rgba(26,26,46,0.06)" }}
+                >…</button>
+                {headerMenu === d.id && (
+                  <div onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} className="absolute right-1.5 top-8 z-30 bg-white rounded-[10px] p-1 w-[172px] text-[12.5px] font-normal" style={{ border: "1px solid rgba(26,26,46,0.10)", boxShadow: "0 16px 34px rgba(26,26,46,0.17)" }}>
+                    <button className="w-full text-left px-2.5 py-[7px] rounded-md hover:bg-[#F3EFE4]" onClick={() => { setHeaderMenu(null); void arrangeThisDay(d.id); }}>Arrange this day</button>
+                    <button className="w-full text-left px-2.5 py-[7px] rounded-md hover:bg-[#F3EFE4]" onClick={() => { setHeaderMenu(null); setActiveDayId((cur) => (cur === d.id ? null : d.id)); }}>{activeDayId === d.id ? "Show every day on the map" : "Show only on the map"}</button>
+                  </div>
+                )}
                 <div className="text-[13px] font-semibold leading-tight">{dow(d.date)}<span className="ml-1.5 text-[11px] font-medium text-activity/40">{dayLabel(d.date)}</span></div>
                 <div className="text-[10.5px] text-activity/60 truncate mt-0.5">{d.theme ?? d.day_name ?? " "}</div>
               </div>
@@ -513,6 +621,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                             padding: short ? "2px 6px" : "4px 6px",
                           }}
                         >
+                          <div onPointerDown={(e) => onStartHandlePointerDown(e, c)} className="absolute left-0 right-0 top-0 h-[6px] cursor-ns-resize" aria-label="Change the start time" />
                           <div className="text-[11px] font-medium leading-tight truncate pointer-events-none">{cardTitle(c)}</div>
                           {!short && (
                             <div className="text-[9.5px] text-activity/60 truncate tabular-nums pointer-events-none">
@@ -555,6 +664,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
           hot={overMap}
           wide={mapWide}
           onToggleWide={() => setMapWide((w) => !w)}
+          onPutMany={putMany}
           trip={trip}
           days={days}
           cards={pinCards}

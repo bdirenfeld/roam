@@ -574,8 +574,35 @@ function TripTabs({
     // Guests have no Plan, so they keep the Map tab.
   ].filter((t) => !(guest && t.id === "plan") && !(!guest && t.id === "map"));
 
+  // One segmented control, not two floating pills (Brennan, 25 Sep 2026): a
+  // binary view switch reads as one thing. The thumb slides between the
+  // segments; it is measured from the links so the labels stay real text.
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const [thumb, setThumb] = useState<{ left: number; width: number } | null>(null);
+  useEffect(() => {
+    const wrap = wrapRef.current; if (!wrap) return;
+    const measure = () => {
+      const on = wrap.querySelector<HTMLElement>("[data-on='1']");
+      if (!on) { setThumb(null); return; }
+      setThumb({ left: on.offsetLeft, width: on.offsetWidth });
+    };
+    measure();
+    const ro = new ResizeObserver(measure); ro.observe(wrap);
+    return () => ro.disconnect();
+  }, [activeTab, TABS.length]);
+
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+    <div
+      ref={wrapRef}
+      role="tablist"
+      style={{ position: "relative", display: "inline-flex", alignItems: "center", padding: 3, borderRadius: 999, background: "rgba(26,26,46,0.05)", boxShadow: `inset 0 0 0 1px ${RULE}`, flexShrink: 0 }}
+    >
+      {thumb && (
+        <span
+          aria-hidden
+          style={{ position: "absolute", top: 3, bottom: 3, left: thumb.left, width: thumb.width, borderRadius: 999, background: "#fff", boxShadow: "0 1px 2px rgba(26,26,46,0.08)", transition: "left 160ms ease, width 160ms ease" }}
+        />
+      )}
       {TABS.map((t) => {
         const on = t.id === activeTab;
         const Icon = t.icon;
@@ -583,9 +610,12 @@ function TripTabs({
           <Link
             key={t.id}
             href={t.href}
+            role="tab"
+            aria-selected={on}
+            data-on={on ? "1" : undefined}
             style={{
-              background: on ? "#fff" : "transparent",
-              padding: "8px 14px",
+              position: "relative",
+              padding: "6px 14px",
               borderRadius: 999,
               display: "flex",
               alignItems: "center",
@@ -593,11 +623,9 @@ function TripTabs({
               fontWeight: on ? 600 : 500,
               fontSize: 13,
               color: on ? INK : CAPTION,
-              boxShadow: on
-                ? `0 0 0 1px ${RULE}, 0 1px 2px rgba(26,26,46,0.05)`
-                : "none",
               letterSpacing: "-0.005em",
               textDecoration: "none",
+              transition: "color 160ms",
             }}
           >
             <Icon size={14} weight="light" color={on ? INK : CAPTION} />

@@ -60,6 +60,8 @@ interface Props {
   /** The map fills the page (the week is folded away). */
   wide?: boolean;
   onToggleWide?: () => void;
+  /** Several chosen pins go onto one day, arranged (the wide map's Select). */
+  onPutMany?: (cards: Card[], day: Day) => Promise<void> | void;
 }
 
 type Marker = { marker: any; wrapper: HTMLElement; inner: HTMLElement; cardRef: { current: Card } }; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -68,7 +70,7 @@ function placed(c: Card): boolean {
   return typeof c.place?.lat === "number" && typeof c.place?.lng === "number";
 }
 
-export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onHover, onCardUpdate, onCardCreated, onCardDelete, onPinDragStart, hot, wide, onToggleWide }: Props) {
+export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onHover, onCardUpdate, onCardCreated, onCardDelete, onPinDragStart, hot, wide, onToggleWide, onPutMany }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
   const mbRef = useRef<any>(null);  // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -89,6 +91,62 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
   const [statuses, setStatuses] = useState<Set<string>>(() => new Set(ALL_STATUSES));
   const [lovedOnly, setLovedOnly] = useState(false);
   const narrowed = (ALL_TYPES.length - types.size) + (ALL_STATUSES.length - statuses.size) + (lovedOnly ? 1 : 0);
+
+  // Select (25 Sep 2026): on the wide map, a disc turns pointer drags into a
+  // box and taps into toggles; the chosen pins get a ring, the rest fade, and
+  // a tray offers the days. Panning is parked while it is on.
+  const [selectMode, setSelectMode] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(() => new Set());
+  const [box, setBox] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
+  const boxRef = useRef<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
+  const leaveSelect = useCallback(() => {
+    setSelectMode(false); setPicked(new Set()); setBox(null);
+    mapRef.current?.dragPan.enable();
+  }, []);
+  useEffect(() => { if (!wide && selectMode) leaveSelect(); }, [wide, selectMode, leaveSelect]);
+  const toggleSelect = () => {
+    if (selectMode) { leaveSelect(); return; }
+    setSelectMode(true); mapRef.current?.dragPan.disable(); close();
+  };
+  /** Pins whose projected point lies in the box (container pixels). */
+  const pinsIn = (b: { x0: number; y0: number; x1: number; y1: number }): string[] => {
+    const map = mapRef.current; if (!map) return [];
+    const [l, r] = [Math.min(b.x0, b.x1), Math.max(b.x0, b.x1)], [t, btm] = [Math.min(b.y0, b.y1), Math.max(b.y0, b.y1)];
+    const out: string[] = [];
+    markers.current.forEach((m, id) => {
+      if (m.wrapper.style.display === "none") return;
+      const c = m.cardRef.current; if (!placed(c)) return;
+      const p = map.project([c.place!.lng!, c.place!.lat!]);
+      if (p.x >= l && p.x <= r && p.y >= t && p.y <= btm) out.push(id);
+    });
+    return out;
+  };
+  const onSelectPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const start = { x0: e.clientX - r.left, y0: e.clientY - r.top, x1: e.clientX - r.left, y1: e.clientY - r.top };
+    boxRef.current = start; setBox(start);
+    const move = (ev: PointerEvent) => {
+      const b = boxRef.current; if (!b) return;
+      const nb = { ...b, x1: ev.clientX - r.left, y1: ev.clientY - r.top };
+      boxRef.current = nb; setBox(nb);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up);
+      const b = boxRef.current; boxRef.current = null; setBox(null);
+      if (!b) return;
+      const dragged = Math.abs(b.x1 - b.x0) > 6 || Math.abs(b.y1 - b.y0) > 6;
+      const hit = dragged ? pinsIn(b) : pinsIn({ x0: b.x0 - 16, y0: b.y0 - 16, x1: b.x0 + 16, y1: b.y0 + 16 }).slice(0, 1);
+      setPicked((prev) => {
+        const next = new Set(prev);
+        if (dragged) hit.forEach((id) => next.add(id));
+        else hit.forEach((id) => { if (next.has(id)) next.delete(id); else next.add(id); });
+        return next;
+      });
+    };
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+  };
+  const selectedCards = cards.filter((c) => picked.has(c.id));
 
   const clearTemp = () => { if (tempPinRef.current) { tempPinRef.current.remove(); tempPinRef.current = null; } };
   const handlePlaceSelect = useCallback(async (placeId: string, sessionToken: string) => {
@@ -210,17 +268,65 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
       const dim = activeDayId !== null && c.day_id !== activeDayId;
       const shown = types.has(c.place!.type) && statuses.has(c.day_id ? "in_itinerary" : "interested") && (!lovedOnly || c.place!.loved === true);
       m.wrapper.style.display = shown ? "" : "none";
-      m.inner.style.opacity = dim ? "0.22" : "";
-      m.inner.style.transform = id === hoveredId ? "scale(1.4)" : "";
-      m.wrapper.style.zIndex = id === hoveredId ? "5" : "";
+      const isSel = picked.has(id);
+      const fade = picked.size > 0 && !isSel;
+      m.inner.style.opacity = dim || fade ? (fade ? "0.35" : "0.22") : "";
+      m.inner.style.transform = id === hoveredId || isSel ? "scale(1.25)" : "";
+      m.inner.style.boxShadow = isSel ? "0 0 0 3px #fff, 0 0 0 5px #1A1A2E" : "";
+      m.wrapper.style.zIndex = id === hoveredId || isSel ? "5" : "";
     });
-  }, [hoveredId, activeDayId, cards, types, statuses, lovedOnly]);
+  }, [hoveredId, activeDayId, cards, types, statuses, lovedOnly, picked]);
 
   const close = useCallback(() => { setSelected(null); setAnchor(null); }, []);
 
   return (
     <div className="relative h-full min-h-0 border-l" style={{ borderColor: "rgba(26,26,46,0.10)" }}>
       <div ref={containerRef} className="absolute inset-0" onClick={close} />
+      {selectMode && (
+        <div className="absolute inset-0 z-[6] cursor-crosshair" onPointerDown={onSelectPointerDown}>
+          {box && (
+            <div className="absolute rounded-lg pointer-events-none" style={{ left: Math.min(box.x0, box.x1), top: Math.min(box.y0, box.y1), width: Math.abs(box.x1 - box.x0), height: Math.abs(box.y1 - box.y0), border: "1.5px dashed #1A1A2E", background: "rgba(26,26,46,0.06)" }} />
+          )}
+        </div>
+      )}
+      {wide && onPutMany && (
+        <button
+          type="button"
+          onClick={toggleSelect}
+          aria-pressed={selectMode}
+          aria-label={selectMode ? "Stop selecting" : "Select several pins"}
+          title={selectMode ? "Done selecting" : "Select several pins"}
+          className="absolute right-[60px] top-3 z-10 w-9 h-9 rounded-full flex items-center justify-center hover:opacity-90"
+          style={{ background: selectMode ? "#1A1A2E" : "#fff", color: selectMode ? "#fff" : "#1A1A2E", boxShadow: "0 1px 4px rgba(0,0,0,0.2)" }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray={selectMode ? undefined : "3 3"}><rect x="4" y="4" width="16" height="16" rx="2" /></svg>
+        </button>
+      )}
+      {selectMode && selectedCards.length > 0 && (
+        <div className="absolute left-1/2 -translate-x-1/2 z-[7] bg-white rounded-full flex items-center gap-1.5 pl-4 pr-1.5 py-1.5 max-w-[calc(100%-24px)]" style={{ bottom: 32, boxShadow: "0 8px 24px rgba(26,26,46,0.18)" }}>
+          <span className="text-[13px] font-semibold whitespace-nowrap">{selectedCards.length} {selectedCards.length === 1 ? "place" : "places"} on</span>
+          <div className="flex items-center gap-1 overflow-x-auto">
+            {days.map((d) => {
+              const n = cards.filter((c) => c.day_id === d.id).length;
+              const dt = new Date(d.date + "T00:00:00");
+              return (
+                <button
+                  key={d.id}
+                  onClick={() => { const chosen = selectedCards; leaveSelect(); void onPutMany?.(chosen, d); }}
+                  title={n === 0 ? "Nothing on it yet" : `${n} ${n === 1 ? "thing" : "things"} already`}
+                  className="h-8 px-3 rounded-full text-[12.5px] font-medium whitespace-nowrap hover:bg-[#1A1A2E] hover:text-white transition-colors"
+                  style={{ background: "rgba(26,26,46,0.06)" }}
+                >
+                  {dt.toLocaleDateString("en-GB", { weekday: "short" })} {dt.getDate()}
+                </button>
+              );
+            })}
+          </div>
+          <button onClick={leaveSelect} aria-label="Clear the selection" className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 hover:bg-gray-200">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+          </button>
+        </div>
+      )}
       {onToggleWide && (
         <button
           type="button"
