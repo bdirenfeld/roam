@@ -141,12 +141,16 @@ export default function AppMenu({
         <DotsThree size={mobile ? 20 : 18} weight={mobile ? "light" : "bold"} />
       </button>
 
+      {/* Solid white, no blur (24 Sep 2026): the old bg-white/97 was not a
+          Tailwind opacity step, so no background was ever generated and the
+          menu was transparent over the phone Map — pins and city labels read
+          straight through it. z-[80] clears the map discs (65). */}
       {open && (
         <div
           role="menu"
           className={
             mobile
-              ? "absolute right-0 top-full mt-1.5 z-50 bg-white/97 backdrop-blur-xl rounded-xl shadow-xl w-[236px] py-1 overflow-hidden"
+              ? "absolute right-0 top-full mt-1.5 z-[80] bg-white rounded-xl shadow-xl w-[236px] py-1 overflow-hidden"
               : "absolute right-0 z-[60] rounded-xl"
           }
           style={
