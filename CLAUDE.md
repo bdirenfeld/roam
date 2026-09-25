@@ -1527,7 +1527,16 @@ the component mounted and you are looking at throttling, not a broken map.
 - Blocks carry the pin's category colour on the left edge (`PIN_COLORS`) and the sub-type
   glyph before the name; notes stay grey-edged and glyphless.
 - Card sheet: on a note card the ⋯ keeps `mr-10` clear of the ✕; the checklist renders
-  BELOW the notes (was first), both 25 Sep 2026. The desktop masthead is sticky.
+  BELOW the notes (was first), both 25 Sep 2026. The desktop masthead is sticky, and has
+  no Search and no "?" (the map searches; the guide will return as short recordings).
+- Drags snap to 30 minutes (`SNAP_MIN`); the card sheet still takes exact times.
+  `select-none` sits on the grid scroller only — on the root it blocked the sheet's and
+  the pin card's note editors (25 Sep 2026).
+- Week day names: `days.theme` if set, else `autoDayTitle` from the cards. The header's
+  "…" is two items, Rename this day (inline input; empty = back to automatic) and Arrange
+  this day. "Show only on the map" went: the header click does it.
+- The phone Map's Filter has the same sub-type row (once one category is chosen), driving
+  `activeSubTypes` — the set the desktop sidebar used — with the type pills' tap rule.
 - The desktop AppMenu is the same 3-across tiles as the phone (25 Sep 2026). Mocks:
   https://claude.ai/artifact/Re8LgyCtx1jWw3PRZYMo7W, https://claude.ai/artifact/Mc6jFQTci62sEV4KbeHtCJ.
 - The phone AppMenu is a 3-across grid of 64px tiles under the disc (25 Sep 2026), titles
