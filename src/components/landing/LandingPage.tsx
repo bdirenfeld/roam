@@ -19,31 +19,31 @@ const ON_DARK_TERMS = "rgba(250,247,242,0.70)";
 const ON_DARK_CAPTION = "rgba(250,247,242,0.85)";
 
 // The three movements — numeral, italic word, body line, and the real app plate.
-// Plates are static screenshots cropped to hide Android system chrome (top status
-// bar + bottom nav bar) via object-position; only the app UI shows. `pos` tunes
-// each crop's vertical origin: map/day land cleanly at 42%, but plan's header is
-// taller, so it needs a lower origin (60%) to start the crop at the card list and
-// avoid clipping mid-header (the "Fri, Jul 24" label + pagination dots).
+// Plates are phone-width captures of the live app (26 Sep 2026, Rome April 2026 —
+// public places only, no villa or future dates on a public page), taken from a
+// 430px Chrome window, so there is no phone chrome to hide. `pos` picks the part
+// of each tall capture the portrait plate shows: the map's cluster of pins, the
+// picked pin with its tray of days at the bottom, and the day from its header.
 const PHASES = [
   {
     n: "i",
     word: "Brainstorm",
     src: "/landing/screen-map.jpeg",
-    pos: "50% 42%",
+    pos: "50% 55%",
     line: "Throw down every place you might want to go. From a friend, a blog, a link — it all lands on one map.",
   },
   {
     n: "ii",
     word: "Decide",
     src: "/landing/screen-plan.jpeg",
-    pos: "50% 60%",
+    pos: "50% 100%",
     line: "Figure out what you'll actually do. Pull each place into a day, and watch the trip take shape.",
   },
   {
     n: "iii",
     word: "Go",
     src: "/landing/screen-day.jpeg",
-    pos: "50% 42%",
+    pos: "50% 0%",
     line: "Then just follow your agenda — each place in order, one day at a time.",
   },
 ];
