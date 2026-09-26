@@ -29,6 +29,7 @@ import { cardTimes } from "@/lib/cardTime";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import DocumentsSheet from "./DocumentsSheet";
 import WeekMap from "./WeekMap";
+import { weekColumns, weekMinWidth } from "@/lib/week/focus";
 import {
   placeBlocks, movedTimes, resizedEnd, resizedStart, minutesAtY, toMin, toTime, fmt12, gridHeight,
   HOUR_START, HOUR_END, PX_PER_HOUR, NO_END_MIN, type Block,
@@ -58,6 +59,14 @@ function cardTitle(c: Card): string {
   return c.place?.title ?? det?.title ?? (det?.notes ? det.notes.slice(0, 60) : "(untitled)");
 }
 function isNote(c: Card): boolean { return !c.place_id; }
+/** The first sentence of a card's notes, for the widened day. */
+function noteLine(c: Card): string {
+  const n = (c.details as { notes?: string } | null)?.notes?.trim();
+  if (!n) return "";
+  const first = n.split(/\n/)[0];
+  const m = first.match(/^.*?[.!?](\s|$)/);
+  return (m ? m[0] : first).trim();
+}
 
 type Drag =
   | { kind: "move"; card: Card; fromDay: string; x0: number; y0: number; offY: number; moved: boolean }
@@ -105,6 +114,19 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const [saved, setSaved] = useState<Card[]>(initialSaved);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [activeDayId, setActiveDayId] = useState<string | null>(null);
+  // One screen (26 Sep 2026): a day header widens that day in place — the
+  // other days shrink to strips, the map fits the day. The header again, a
+  // strip, or Esc goes back. It replaced a jump to the Agenda page.
+  const [focusDayId, setFocusDayId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!focusDayId) return;
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (e.key === "Escape" && !(t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA"))) setFocusDayId(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [focusDayId]);
   // A block dragged over the map: the panel tints, and the drop takes the
   // card off its day (the Map tab's unschedule, so a saved pin remains).
   const [overMap, setOverMap] = useState(false);
@@ -184,7 +206,10 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const weeks = Math.max(1, Math.ceil(days.length / 7));
   const weekIdx = Math.floor(weekStart / 7);
   const nDays = shown.length;
-  const minWidth = HOURS_W + nDays * COL_MIN;
+  const focusIdx = focusDayId ? shown.findIndex((d) => d.id === focusDayId) : -1;
+  const minWidth = weekMinWidth(HOURS_W, nDays, COL_MIN, focusIdx);
+  // The day the map fits and fades to: the focused one, else a drop's tint.
+  const mapDayId = focusIdx >= 0 ? focusDayId : activeDayId;
 
   // ── local state helpers ────────────────────────────────────────
   const patchCard = useCallback((id: string, patch: Partial<Card>, toDayId?: string) => {
@@ -219,15 +244,16 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   }, [patchCard, toast]);
 
   // ── geometry of the pointer ────────────────────────────────────
-  // The column container is display:contents (no box), so measure the grid
-  // itself and skip the hours gutter. Verified the hard way, 24 Sep 2026.
+  // The column container is display:contents (no box), so each day column is
+  // measured on its own: with a day in focus they are no longer equal widths.
   function dayAtX(clientX: number): number | null {
     const cols = colsRef.current; if (!cols) return null;
-    const r = cols.getBoundingClientRect();
-    const left = r.left + HOURS_W;
-    if (clientX < left || clientX > r.right) return null;
-    const w = (r.width - HOURS_W) / nDays;
-    return Math.min(nDays - 1, Math.floor((clientX - left) / w));
+    const dayCols = cols.querySelectorAll<HTMLElement>("[data-daycol]");
+    for (let i = 0; i < dayCols.length; i++) {
+      const r = dayCols[i].getBoundingClientRect();
+      if (clientX >= r.left && clientX <= r.right) return i;
+    }
+    return null;
   }
   function minAtY(clientY: number): number | null {
     const g = colsRef.current; if (!g) return null;
@@ -682,7 +708,8 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const byId = useMemo(() => { const m = new Map<string, Card>(); saved.forEach((c) => m.set(c.id, c)); days.forEach((d) => d.cards.forEach((c) => m.set(c.id, c))); return m; }, [days, saved]);
 
   const hours: number[] = []; for (let h = HOUR_START; h <= HOUR_END; h++) hours.push(h);
-  const gridStyle = { gridTemplateColumns: `${HOURS_W}px repeat(${nDays}, minmax(${COL_MIN}px, 1fr))` } as const;
+  const gridStyle = { gridTemplateColumns: weekColumns(HOURS_W, nDays, COL_MIN, focusIdx), transition: "grid-template-columns 200ms ease" } as const;
+  const collapsed = (i: number) => focusIdx >= 0 && i !== focusIdx;
 
   return (
     <div ref={frameRef} className="flex h-[calc(100dvh-64px)] bg-[#F5F4F1]">
@@ -701,7 +728,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                 <>
                   <button
                     type="button"
-                    onClick={() => setWeekStart((w) => Math.max(0, w - 7))}
+                    onClick={() => { setFocusDayId(null); setWeekStart((w) => Math.max(0, w - 7)); }}
                     disabled={weekIdx === 0}
                     aria-label="Previous week"
                     title={`Week ${weekIdx} of ${weeks}`}
@@ -711,7 +738,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setWeekStart((w) => Math.min((weeks - 1) * 7, w + 7))}
+                    onClick={() => { setFocusDayId(null); setWeekStart((w) => Math.min((weeks - 1) * 7, w + 7)); }}
                     disabled={weekIdx === weeks - 1}
                     aria-label="Next week"
                     title={`Week ${weekIdx + 2} of ${weeks}`}
@@ -722,16 +749,29 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                 </>
               )}
             </div>
-            {shown.map((d, i) => (
+            {shown.map((d, i) => collapsed(i) ? (
+              <button
+                key={d.id}
+                type="button"
+                onClick={() => setFocusDayId(d.id)}
+                data-testid="day-strip"
+                className="border-l py-2 min-w-0 text-center text-[10.5px] font-semibold leading-tight hover:bg-[#F3EFE4] transition-colors"
+                style={{ borderColor: "rgba(26,26,46,0.10)" }}
+                title={`${dow(d.date)} ${dayLabel(d.date)}`}
+                aria-label={`Open ${dow(d.date)} ${dayLabel(d.date)}`}
+              >
+                {dow(d.date)}<br /><span className="font-normal text-activity/50">{new Date(d.date + "T00:00:00").getDate()}</span>
+              </button>
+            ) : (
               <div
                 key={d.id}
-                // One screen (26 Sep 2026): a day header opens that day — the
-                // Agenda, with its own map fitted to the day. "‹ Week" in the
-                // masthead comes back. It used to fade the other days' pins.
-                onClick={() => router.push(`/trips/${trip.id}/days/${d.id}`)}
+                // One screen (26 Sep 2026): a day header widens that day in
+                // place; again goes back to the week. The map fits the day.
+                onClick={() => setFocusDayId((cur) => (cur === d.id ? null : d.id))}
                 className="group relative px-2 py-2 border-l min-w-0 cursor-pointer transition-colors hover:bg-[#F3EFE4]"
-                title="Open this day"
-                style={{ borderColor: "rgba(26,26,46,0.10)", background: activeDayId === d.id ? "#F3EFE4" : undefined, opacity: activeDayId && activeDayId !== d.id ? 0.55 : 1 }}
+                title={focusIdx === i ? "Back to the week (Esc)" : "Open this day"}
+                data-testid={focusIdx === i ? "day-focused" : "day-header"}
+                style={{ borderColor: "rgba(26,26,46,0.10)", background: mapDayId === d.id ? "#F3EFE4" : undefined, opacity: mapDayId && mapDayId !== d.id ? 0.55 : 1 }}
               >
                 <button
                   type="button"
@@ -748,7 +788,14 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                     <button className="w-full text-left px-2.5 py-[7px] rounded-md hover:bg-[#F3EFE4]" onClick={() => { setHeaderMenu(null); void rearrangeEverything(d.id); }}>Rearrange the whole day</button>
                   </div>
                 )}
-                <div className="text-[13px] font-semibold leading-tight">{dow(d.date)}<span className="ml-1.5 text-[11px] font-medium text-activity/40">{dayLabel(d.date)}</span></div>
+                {focusIdx === i ? (
+                  <div className="text-[15px] font-semibold leading-tight flex items-baseline gap-2">
+                    {new Date(d.date + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
+                    <span className="text-[11px] font-normal text-activity/50">{d.cards.length} {d.cards.length === 1 ? "plan" : "plans"} · Esc for the week</span>
+                  </div>
+                ) : (
+                  <div className="text-[13px] font-semibold leading-tight">{dow(d.date)}<span className="ml-1.5 text-[11px] font-medium text-activity/40">{dayLabel(d.date)}</span></div>
+                )}
                 {renamingDay === d.id ? (
                   <input
                     autoFocus
@@ -773,7 +820,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
             <div className="text-[9px] text-activity/40 text-right pr-1.5 pt-3 uppercase tracking-[0.06em] sticky left-0 z-[8] bg-[#F5F4F1]">Anytime</div>
             {laidOut.map(({ day, untimed }, di) => (
               <div key={day.id} className="border-l px-[3px] py-[5px] flex flex-wrap gap-[3px] content-start min-w-0 transition-colors" style={{ borderColor: "rgba(26,26,46,0.10)", background: hover && hover.day === di && hover.min === null ? "rgba(26,26,46,0.05)" : undefined }}>
-                {untimed.map((c) => (
+                {!collapsed(di) && untimed.map((c) => (
                   <div
                     key={c.id}
                     onPointerDown={(e) => onBlockPointerDown(e, c, day.id)}
@@ -798,7 +845,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
               </div>
               <div className="contents">
                 {laidOut.map(({ day, placed }, di) => (
-                  <div key={day.id} onClick={(e) => onColumnClick(e, day.id, di)} className="relative border-l min-w-0 transition-colors cursor-cell" style={{ borderColor: "rgba(26,26,46,0.10)", background: hover && hover.day === di && hover.min !== null ? "rgba(26,26,46,0.04)" : undefined }}>
+                  <div key={day.id} data-daycol={day.id} onClick={(e) => (collapsed(di) ? setFocusDayId(day.id) : onColumnClick(e, day.id, di))} className={`relative border-l min-w-0 transition-colors ${collapsed(di) ? "cursor-pointer hover:bg-[rgba(26,26,46,0.04)]" : "cursor-cell"}`} style={{ borderColor: "rgba(26,26,46,0.10)", background: collapsed(di) ? "rgba(26,26,46,0.02)" : hover && hover.day === di && hover.min !== null ? "rgba(26,26,46,0.04)" : undefined }}>
                     {hours.map((h) => (
                       <div key={h} data-hourline="1" className="absolute left-0 right-0" style={{ top: (h - HOUR_START) * PX_PER_HOUR, borderTop: "1px solid rgba(26,26,46,0.06)" }} />
                     ))}
@@ -825,6 +872,11 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                     {placed.map((b) => {
                       const c = byId.get(b.id); if (!c) return null;
                       const note = isNote(c);
+                      // A strip keeps the shape of its day: coloured bars, no text.
+                      if (collapsed(di)) return (
+                        <div key={c.id} className="absolute rounded-[3px] pointer-events-none" style={{ top: b.top, height: Math.max(b.height, 12), left: 6, right: 6, background: note ? "rgba(26,26,46,0.18)" : PIN_COLORS[c.place!.type], opacity: 0.55 }} />
+                      );
+                      const wide = focusIdx === di;
                       const noEnd = b.endMin === null;
                       const t = cardTimes(c);
                       const short = b.height < 34;
@@ -861,6 +913,15 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                               {isGhost && ghost?.min !== null && ghost ? fmt12(ghost.min) : t.start ? fmt12(toMin(t.start)) : ""}
                               {isGhost && ghost?.endMin != null ? ` – ${fmt12(ghost.endMin)}` : t.end ? ` – ${fmt12(toMin(t.end))}` : " · no end yet"}
                             </div>
+                          )}
+                          {wide && !short && (c.place?.address || noteLine(c)) && (
+                            <div className="text-[10.5px] text-activity/60 truncate pointer-events-none mt-px">
+                              {c.place?.address ? c.place.address.split(",").slice(0, 2).join(",") : noteLine(c)}
+                              {c.place?.rating ? <span style={{ color: "#B45309" }}> · ★ {c.place.rating}</span> : null}
+                            </div>
+                          )}
+                          {wide && b.height >= 70 && c.place && noteLine(c) && (
+                            <div className="text-[10.5px] text-activity/80 leading-snug pointer-events-none mt-0.5 line-clamp-2">{noteLine(c)}</div>
                           )}
                           {c.confirmed && <span className="absolute right-1.5 top-1 text-[9px] font-bold pointer-events-none" style={{ color: "#2F7A46" }}>✓</span>}
                           <div onPointerDown={(e) => onHandlePointerDown(e, c)} className="absolute left-0 right-0 bottom-0 h-[7px] cursor-ns-resize" aria-label="Change the end time">
@@ -907,7 +968,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
           days={days}
           cards={pinCards}
           hoveredId={hoveredId}
-          activeDayId={activeDayId}
+          activeDayId={mapDayId}
           onHover={setHoveredId}
           onCardUpdate={mapCardUpdate}
           onCardCreated={mapCardCreated}

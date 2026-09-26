@@ -1603,3 +1603,15 @@ the component mounted and you are looking at throttling, not a broken map.
   same day: Brennan wants the Journeys page as the landing page — "it's perfectly fine the way it
   is. No notes." Do not re-propose skipping it. Also ruled: "Your year" stays folded by default
   ("too much information"). Switching journeys from inside one is the "Tuscany ▾" dropdown.
+
+## Day ⇄ week on one screen (26 Sep 2026)
+- A desktop day header no longer navigates: `WeekBoard` keeps `focusDayId`; that day's column
+  widens (`lib/week/focus.ts`, tested — every track written out so `grid-template-columns`
+  animates) and the rest become 34px strips of coloured bars. The header again, a strip, or Esc
+  (not while typing) goes back; the week arrows clear it. `mapDayId` (focus, else a drop's tint)
+  feeds `WeekMap.activeDayId`, so the map fits and fades to the focused day. `dayAtX` measures
+  each `[data-daycol]` because columns are no longer equal. The wide day shows address · rating and
+  a note's first sentence (`noteLine`).
+- Journeys open on the week on a computer: `trips/page.tsx` leaves `openDayByTrip` empty unless
+  `isPhone` (`lib/device.ts`), so cards link to `/trips/{id}`, which sends an OWNER on a computer to
+  `/plan` and everyone else to the day. The phone is unchanged.

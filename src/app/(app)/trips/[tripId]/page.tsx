@@ -1,6 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
+import { headers } from "next/headers";
+import { isPhone } from "@/lib/device";
+import { getTripAccess } from "@/lib/trip-access";
 
 interface Props {
   params: Promise<{ tripId: string }>;
@@ -20,6 +23,14 @@ export default async function TripPage({ params }: Props) {
     .single();
 
   if (!trip) redirect("/trips");
+
+  // On a computer the owner plans on the week (26 Sep 2026); a guest has no
+  // week, and the phone opens on the day.
+  const h = await headers();
+  if (!isPhone(h.get("user-agent"), h.get("sec-ch-ua-mobile"))) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if ((await getTripAccess(supabase, tripId, user?.id)) === "owner") redirect(`/trips/${tripId}/plan`);
+  }
 
   // Entering the journey: land on today's day, clamped to the journey range
   // (first day before it starts, last day once it's over). Fetch every day so

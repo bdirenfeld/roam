@@ -6,6 +6,8 @@ import PastJourneysList from "@/components/trip/PastJourneysList";
 import type { Trip } from "@/types/database";
 import { fetchAndStoreCover } from "@/lib/unsplash";
 import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
+import { headers } from "next/headers";
+import { isPhone } from "@/lib/device";
 import { belongsInPastJourneys, isPastJourney } from "@/lib/tripRecency";
 import { createSampleJourney } from "@/lib/sampleTrip/actions";
 import YearView from "@/components/trips/YearView";
@@ -58,8 +60,13 @@ export default async function TripsPage() {
   for (const day of allDays ?? []) {
     (daysByTrip[day.trip_id] ??= []).push({ id: day.id, date: day.date });
   }
+  // On a computer a journey opens on the week (26 Sep 2026): with no day id
+  // the card links to /trips/{id}, which sends an owner to the week and a
+  // guest to the day. The phone still links straight to the day.
+  const h = await headers();
+  const phone = isPhone(h.get("user-agent"), h.get("sec-ch-ua-mobile"));
   const openDayByTrip: Record<string, string> = {};
-  for (const [tripId, days] of Object.entries(daysByTrip)) {
+  if (phone) for (const [tripId, days] of Object.entries(daysByTrip)) {
     const openDay = resolveDefaultDay(days);
     if (openDay) openDayByTrip[tripId] = openDay.id;
   }
