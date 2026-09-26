@@ -19,7 +19,6 @@ import { groupTrips, type SwitcherTrip } from "@/lib/tripSwitcher";
 const INK = "#1A1A2E";
 const RULE = "rgba(26,26,46,0.10)";
 const CAPTION = "rgba(26,26,46,0.62)";
-const CAPTION_SOFT = "rgba(26,26,46,0.35)";
 
 type UserSummary = { name: string | null; email: string | null; avatarUrl: string | null };
 
@@ -54,7 +53,6 @@ function formatDateRange(start: string, end: string): string {
  */
 export default function DesktopMasthead() {
   const pathname = usePathname() ?? "";
-  const onJourneys = !pathname.startsWith("/trips/");
 
   // Derive trip ID + section segment from the current path. Matches
   // /trips/{id}, /trips/{id}/plan, /trips/{id}/days/{dayId}, /trips/{id}/map,
@@ -201,44 +199,20 @@ export default function DesktopMasthead() {
         Roam
       </Link>
 
-      <div
-        style={{
-          width: 1,
-          height: 22,
-          background: RULE,
-          margin: "0 22px",
-        }}
-      />
-
+      {/* "Roam" is the way home (26 Sep 2026): the "Journeys ›" link beside it
+          went to the same page, and "Tuscany ▾" switches journeys. Inside a
+          journey the bar reads "Roam | Tuscany ▾"; on Journeys, just "Roam". */}
       <nav style={{ display: "flex", alignItems: "center" }}>
-        <Link
-          href="/trips"
-          className="font-display italic"
-          style={{
-            padding: "6px 2px",
-            fontWeight: onJourneys ? 500 : 400,
-            fontSize: 17,
-            color: onJourneys ? INK : currentTripId ? CAPTION : INK,
-            letterSpacing: "-0.005em",
-            borderBottom: onJourneys ? `1px solid ${INK}` : "1px solid transparent",
-            textDecoration: "none",
-          }}
-        >
-          Journeys
-        </Link>
-
         {showTripStrip && currentTripId && (
           <>
-            <span
-              className="font-display italic"
+            <div
               style={{
-                color: CAPTION_SOFT,
-                padding: "0 10px",
-                fontSize: 17,
+                width: 1,
+                height: 22,
+                background: RULE,
+                margin: "0 22px",
               }}
-            >
-              ›
-            </span>
+            />
             <div
               style={{
                 display: "flex",
