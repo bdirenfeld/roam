@@ -7,12 +7,10 @@ import {
   DotsThree,
   NotePencil,
   ShareNetwork,
-  Lightbulb,
   Bed,
 } from "@phosphor-icons/react";
 import {
   EstimateLink,
-  IdeasLink,
   TripSettingsLink,
   useJourneyNotes,
 } from "@/components/overlays/AppOverlays";
@@ -42,7 +40,6 @@ const RULE = "rgba(26,26,46,0.12)";
 export default function AppMenu({
   variant,
   tripId,
-  tripTitle,
   trip,
   days,
   guest = false,
@@ -52,7 +49,6 @@ export default function AppMenu({
 }: {
   variant: "mobile" | "desktop";
   tripId: string | null;
-  tripTitle: string | null;
   /** Seeds the Settings overlay — the day view already holds both. */
   trip?: Trip;
   days?: Day[];
@@ -211,7 +207,7 @@ export default function AppMenu({
               {/* One order on every tab, most-used first. Budget leads: it is
                   the number you keep coming back to while a journey is being
                   planned, and it sat fifth until Brennan said so (19 Sep 2026).
-                  Then notes and bookings daily, Ideas where new things arrive,
+                  Then notes and bookings daily,
                   Where to stay until the stay is booked, Share now and then,
                   Settings last. No dividers — plain rows. */}
               {extra?.map((item) => (
@@ -225,24 +221,6 @@ export default function AppMenu({
                   <Label title={item.title} />
                 </button>
               ))}
-
-              {/* Owner only. Ideas are a planner's captures and a guest's
-                  Ideas page is their own, empty one — a passenger tapping it
-                  inside someone else's journey landed on nothing (audit,
-                  23 Sep 2026). Ideas beside Journeys still opens it. */}
-              {owner && (
-                <IdeasLink
-                  from={{ id: tripId, title: tripTitle ?? "Journey" }}
-                  role="menuitem"
-                  onBeforeOpen={() => setOpen(false)}
-                  style={itemStyle}
-                >
-                  <span style={glyphStyle}>
-                    <Lightbulb size={15} weight="light" />
-                  </span>
-                  <Label title="Ideas" />
-                </IdeasLink>
-              )}
 
               {/* Where to stay lives over the Map: the candidates are pins
                   against the pins the person chose. The row is a plain link
@@ -288,21 +266,6 @@ export default function AppMenu({
             </>
           )}
 
-          {/* Off a journey (the Journeys index at desktop width) the menu is
-              just Ideas; the masthead carries Search, Plan a journey and the
-              avatar. */}
-          {!tripId && (
-            <IdeasLink
-              role="menuitem"
-              onBeforeOpen={() => setOpen(false)}
-              style={itemStyle}
-            >
-              <span style={glyphStyle}>
-                <Lightbulb size={15} weight="light" />
-              </span>
-              <Label title="Ideas" />
-            </IdeasLink>
-          )}
         </div>
       )}
 

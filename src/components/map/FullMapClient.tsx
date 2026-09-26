@@ -157,6 +157,20 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
   useEffect(() => {
     if (searchParams.get("stays") === "1" && !readOnly) setShowStays(true);
   }, [searchParams, readOnly]);
+  // ?pin=<card id> — a place just shared in from TikTok or Instagram. Fly to
+  // it and open its card, which carries Put on a day. Once per id, and after
+  // the first frame has framed the journey, so the fit doesn't undo the fly.
+  const pinParam = searchParams.get("pin");
+  const openedPinRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!mapReady || !pinParam || openedPinRef.current === pinParam) return;
+    const card = localCards.find((c) => c.id === pinParam);
+    if (!card?.place || card.place.lat == null || card.place.lng == null) return;
+    openedPinRef.current = pinParam;
+    const t = setTimeout(() => handleSidebarCardSelect(card), 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapReady, pinParam, localCards]);
   useEffect(() => {
     const mb = mbRef.current;
     const map = mapInstRef.current;
@@ -852,7 +866,6 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
               <AppMenu
                 variant="mobile"
                 tripId={trip.id}
-                tripTitle={trip.title}
                 trip={trip}
                 days={days}
                 guest={readOnly}
@@ -872,7 +885,6 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
               <AppMenu
                 variant="mobile"
                 tripId={trip.id}
-                tripTitle={trip.title}
                 trip={trip}
                 days={days}
                 guest={readOnly}

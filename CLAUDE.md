@@ -108,11 +108,14 @@ The benchmark: someone opens Roam in a Centurion Lounge and the person next to t
 - Defaults ship with **prices blank and counts real** — the app never invents a price. `suggest()` fills them from a great-circle flight band and per-card `details.budget`.
 - **Sub-components must live at module scope.** Defining `Row`/`Shell` inside the component body gives them a new identity every render, which remounts the subtree and destroys the focused `<input>` — that was the "typing one digit kicks me out of the cell" bug.
 
-## Ideas capture (share target)
-- `public/manifest.json` declares a `share_target` at `/share`, so Roam appears in the Android share sheet from TikTok, Instagram, Reddit, Lonely Planet.
+## Share target: straight to the map (26 Sep 2026)
+- `public/manifest.json` declares a `share_target` at `/share`, so Roam appears in the **Android** share sheet (TikTok → Share → More → Roam; Instagram → paper plane → Share to → Roam). iPhones cannot share into a web app.
 - Two things break this silently and both have bitten: `public/sw.js` caching `/manifest.json` as an immutable asset (**bump `VERSION` on every sw.js change**), and `src/middleware.ts` intercepting `manifest.json`/`sw.js` (the matcher must exclude both).
-- Table `ideas` (id, user_id, url, title, note, source, status, `tags text[]`), own-rows RLS, GIN index on tags.
-- **Unfinished:** nothing promotes an Idea to the wishlist — the capture → resolve → wishlist pipeline stops one step short, pending geocoding.
+- **Ideas is retired.** Brennan: "cut out all the middle steps". `/share` is the map's search, full screen. Pick a place → `nearbyJourney` (`lib/share/journeys.ts`: within 150 km of the destination point OR any pin; archived journeys count, live ones win) → `pinPlaceToJourney` → `/trips/{id}/map?pin={cardId}`, which flies to the pin and opens its card (Put on a day lives there) + a toast with Undo. No journey near → one list: journeys, Wishlist (household owner only — it lives inside Your year), "A different place". Undo deletes the card and returns to `/share?choose={googlePlaceId}`, i.e. that list. Wishlist saves land on `/trips?year=1`, which opens Your year.
+- Nothing is written until a place is picked (the old screen saved an `ideas` row on arrival). Accepted: an interrupted share is lost.
+- TikTok only: `/api/share/suggest` follows the short link to the full URL (oEmbed answers far more often for it), reads the caption, asks Claude Haiku for the one place (`lib/share/caption.ts` parses), finds it with Google Find Place, and the screen shows it as the first row. Never saves on a guess. Instagram gives no caption. Quota `shareSuggest` 60/day.
+- The `ideas` table stays for the record; `/ideas` redirects to `/trips`. Its screens, `PromoteToWishlistSheet`, `IdeaEmbed`, `SetLocationSheet` and `/api/embed` were deleted with it.
+- Prototype agreed before the build: https://claude.ai/artifact/LbU5wJTRTRyppJimMNbtXh
 
 ## Mobile reachability trap
 - `DesktopMasthead` is `hidden md:flex`. Anything whose only entry point is added there is **invisible on a phone**. This has shipped twice (the estimate entry point, then ideas). Every new destination needs a mobile door.
@@ -162,7 +165,7 @@ The benchmark: someone opens Roam in a Centurion Lounge and the person next to t
 
 ## Unscheduling (lib/scheduleCard.ts → unscheduleCard)
 - Scheduling COPIES, so "take off this day" = delete the scheduled row, after making sure an `interested` copy of the place exists on the journey (one is written if not). Callers then fire `onCardDelete(card.id)` so the host's existing 6-second undo applies. The map popup also fires `onCardCreated` for the copy it may have written, so the hollow pin appears without a reload.
-- The shared `AppMenu` now carries Ideas (a plain link) and, on the phone only, Profile. Desktop keeps Profile/Sign out in the masthead avatar dropdown.
+- The shared `AppMenu` carried Ideas until 26 Sep 2026 (retired); on the phone only, Profile. Desktop keeps Profile/Sign out in the masthead avatar dropdown.
 
 ## Bottom sheets: the whole sheet swipes (hooks/useSheetDrag.ts)
 - Bind `useSheetDrag` handlers on the sheet ROOT, never only the handle — Brennan has asked for this twice. Pass `{ mobileOnly: true }` for sheets that become centred modals at md+. The hook finds the nearest scrollable ancestor of the touch target, so a list inside the sheet still scrolls and a swipe only dismisses when that list is at the top; wire `onTouchCancel` too.
@@ -243,7 +246,7 @@ anything shaped like a whole bill (`cost_total`, `total_cost`, `amount_paid`…)
 price. The parser names fields loosely, so match on shape, never a fixed key list. The row is
 tagged "ticket"; typing over it writes the card and wins. Nothing is written to the card by the read.
 
-## Ideas: links play in place (api/embed, trip/IdeaEmbed.tsx)
+## Ideas: links play in place (RETIRED 26 Sep 2026 with Ideas; kept for history)
 `/api/embed?url=` resolves short links (vt./vm.tiktok.com, youtu.be) and returns a player URL for
 TikTok (`/embed/v2/<id>`), YouTube (`/embed/<id>`, Shorts portrait) and Instagram (`/<kind>/<code>/embed/`,
 best effort — private posts stay blank). The row loads it only when opened. The row shows a 200px poster with a play button first (TikTok oEmbed / YouTube hqdefault; Instagram has none, so a plain tile); the tap that swaps in the player also asks for autoplay. Never auto-play in a list. There is no CSP in
@@ -372,9 +375,7 @@ and forget must be `.then(({ error }) => …)`, never `void`.
   `day/TimeSheet.tsx`. Never add a second time editor.
 - **One label table.** `lib/subTypeLabel.ts` names every place kind; a new
   `sub_type` goes there or it renders humanised from the key.
-- **Ideas is an overlay** from every ··· menu (`IdeasLink` / `useIdeas` in
-  AppOverlays), like Estimate and Settings; `/ideas` stays for the masthead
-  tab and links. Screens hosted in `Overlay` take `variant="overlay"` +
+- Screens hosted in `Overlay` take `variant="overlay"` +
   `onDismiss` and render × instead of ‹.
 - **Install banner** is `ui/InstallBanner.tsx`, mounted once in (app)/layout.
   Android gets the browser's own prompt behind a button; iPhone gets the
@@ -1405,8 +1406,8 @@ the component mounted and you are looking at throttling, not a broken map.
 - **No saved count on the day** ("· 12 saved" was shipped and cut: "what if you have 50?"). A number
   says a pile exists, not what is in it. The answer he is weighing is the Left to place list.
 - **One verb: "Put on a day"** (pin, card sheet, save sheet). Don't reintroduce Add to day / Assign.
-- **The journey menu is six rows for the owner**: Budget, Notes, Bookings, Ideas, Where to stay,
-  Share & settings. Guests: Notes, Bookings. `AppMenu.test.tsx` pins both lists.
+- **The journey menu is five rows for the owner**: Budget, Notes, Bookings, Where to stay,
+  Share & settings (Ideas retired 26 Sep 2026). Guests: Notes, Bookings. `AppMenu.test.tsx` pins both lists.
 - The Map has one search for owners (the place search); the header glyph stays for guests only.
 - Render tests that load `@phosphor-icons/react` under jsdom hang for minutes — mock the icons.
 - **Budget and Settings save as you go** (no Save button, 23 Sep 2026). A debounced effect

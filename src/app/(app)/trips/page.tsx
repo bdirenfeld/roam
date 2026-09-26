@@ -19,7 +19,7 @@ export default async function TripsPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: profile }, { data: rawTrips }, { data: allDays }, { count: ideaCount }] = await Promise.all([
+  const [{ data: profile }, { data: rawTrips }, { data: allDays }] = await Promise.all([
     supabase.from("users").select("avatar_url").eq("id", user?.id ?? "").single(),
     supabase
       .from("trips")
@@ -30,12 +30,6 @@ export default async function TripsPage() {
       .from("days")
       .select("id, trip_id, date")
       .order("day_number", { ascending: true }),
-    // Unsorted captures only — the badge is a to-triage count, not a total.
-    supabase
-      .from("ideas")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user?.id ?? "")
-      .eq("status", "inbox"),
   ]);
 
   // Backfill cover images for trips that have a destination but no cover yet
@@ -83,7 +77,7 @@ export default async function TripsPage() {
 
   return (
     <div>
-      <AppHeader avatarUrl={profile?.avatar_url} showNewTrip ideaCount={ideaCount ?? 0} />
+      <AppHeader avatarUrl={profile?.avatar_url} showNewTrip />
 
       {/* Desktop bounded column; mobile passes through */}
       <div className="md:max-w-[1100px] md:mx-auto md:px-14 md:pt-10 md:pb-12">

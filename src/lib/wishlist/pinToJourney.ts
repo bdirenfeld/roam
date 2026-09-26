@@ -36,8 +36,8 @@ export function classify(types: string[]): { type: string; sub_type: string } {
 }
 
 export type PinResult =
-  | { ok: true; duplicate: false; placeName: string }
-  | { ok: true; duplicate: true; placeName: string }
+  | { ok: true; duplicate: false; placeName: string; cardId: string }
+  | { ok: true; duplicate: true; placeName: string; cardId: string }
   | { ok: false; message: string };
 
 export async function pinPlaceToJourney(
@@ -84,10 +84,10 @@ export async function pinPlaceToJourney(
     .eq("place_id", placeRow.id)
     .limit(1);
   if (existing && existing.length > 0) {
-    return { ok: true, duplicate: true, placeName: place.name };
+    return { ok: true, duplicate: true, placeName: place.name, cardId: existing[0]!.id as string };
   }
 
-  const { error: cardErr } = await supabase.from("cards").insert({
+  const { data: card, error: cardErr } = await supabase.from("cards").insert({
     day_id: null,
     trip_id: tripId,
     start_time: null,
@@ -97,10 +97,10 @@ export async function pinPlaceToJourney(
     place_id: placeRow.id,
     source_url: sourceUrl ?? null,
     details: null,
-  });
+  }).select("id").single();
 
-  if (cardErr) {
+  if (cardErr || !card) {
     return { ok: false, message: "Couldn't add it to the journey. Try again." };
   }
-  return { ok: true, duplicate: false, placeName: place.name };
+  return { ok: true, duplicate: false, placeName: place.name, cardId: card.id as string };
 }

@@ -62,4 +62,5 @@ export const QUOTA = {
   staySearch:    500,  // Where to stay. Lifted from 30 on 10 Sept 2026 at his request so testing
                        // never hits a wall; still a backstop against a runaway loop.
   stayWrite:     100,  // choose / save / not-for-us
+  shareSuggest:   60,  // a TikTok shared in: caption → Claude Haiku → Google
 } as const;

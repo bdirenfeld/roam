@@ -1334,7 +1334,6 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
           <AppMenu
             variant="mobile"
             tripId={trip.id}
-            tripTitle={trip.title}
             trip={trip}
             days={days}
             triggerClassName="flex items-center justify-center w-11 h-11 text-gray-500 hover:text-gray-800 transition-colors"

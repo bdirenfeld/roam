@@ -302,6 +302,7 @@ export default function YearView({ trips, familyDates }: Props) {
   const [wishlist, setWishlist] = useState<WishlistDest[]>([]);
   // Undo window for the two instant deletes (wishlist place, ideal window)
   const [undo, setUndo] = useState<{ label: string; restore: () => Promise<void> } | null>(null);
+  const rootRef = useRef<HTMLElement | null>(null);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showUndo = (label: string, restore: () => Promise<void>) => {
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
@@ -325,7 +326,13 @@ export default function YearView({ trips, familyDates }: Props) {
     try {
       stored = localStorage.getItem(OPEN_KEY);
     } catch {}
-    if (stored === "1") setOpenState(true);
+    // ?year=1 — a share just saved a place to the Wishlist, which lives in
+    // here. Open for this visit and bring it into view; the remembered
+    // choice is left alone.
+    if (new URLSearchParams(window.location.search).get("year") === "1") {
+      setOpenState(true);
+      setTimeout(() => rootRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 150);
+    } else if (stored === "1") setOpenState(true);
     else if (stored === "0") setOpenState(false);
     // Closed by default everywhere (simplification audit, group three). It
     // used to open itself on desktop, which put two thousand lines of planning
@@ -990,6 +997,7 @@ export default function YearView({ trips, familyDates }: Props) {
 
       {isOpen && (
     <section
+      ref={rootRef}
       className="mx-4 mt-3 md:mx-0 md:mt-4 rounded-[14px]"
       style={{ border: "1px solid rgba(26,26,46,0.08)", background: CARD_BG }}
     >

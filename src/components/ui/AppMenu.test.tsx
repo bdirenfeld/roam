@@ -17,7 +17,6 @@ vi.mock("@/components/overlays/AppOverlays", () => {
   );
   return {
     EstimateLink: Row,
-    IdeasLink: Row,
     TripSettingsLink: Row,
     useJourneyNotes: () => ({ open: vi.fn() }),
   };
@@ -37,7 +36,7 @@ afterEach(cleanup);
 const bookings = [{ key: "bookings", title: "Bookings", sub: "", icon: null, onClick: () => {} }];
 
 function rows(guest: boolean) {
-  render(<AppMenu variant="mobile" tripId="t1" tripTitle="Tuscany" guest={guest} extra={bookings} triggerClassName="" />);
+  render(<AppMenu variant="mobile" tripId="t1" guest={guest} extra={bookings} triggerClassName="" />);
   fireEvent.click(screen.getByLabelText("More options"));
   return screen.getAllByRole("menuitem").map((el) => el.textContent?.trim());
 }
@@ -45,7 +44,7 @@ function rows(guest: boolean) {
 describe("the journey menu", () => {
   it("is six tiles for the owner, Share and Settings as one, phone-short words", () => {
     const r = rows(false);
-    expect(r).toEqual(["Budget", "Notes", "Bookings", "Ideas", "Stay", "Settings"]);
+    expect(r).toEqual(["Budget", "Notes", "Bookings", "Stay", "Settings"]);
   });
 
   it("is Notes and Bookings for a guest — no planner's Ideas", () => {

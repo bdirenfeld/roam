@@ -780,7 +780,6 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
         <AppMenu
           variant="mobile"
           tripId={trip.id}
-          tripTitle={trip.title}
           trip={trip}
           days={days}
           guest={readOnly}

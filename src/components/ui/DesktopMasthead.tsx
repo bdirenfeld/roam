@@ -38,11 +38,6 @@ let USER_CACHE: UserSummary | null = null;
 // for the same trip. Matches the weather supplemental-data pattern in CLAUDE.md.
 const TRIP_CACHE = new Map<string, TripContext>();
 
-// Same count the phone header shows: captures still sitting in the inbox, not
-// every idea ever saved. Cached like the rest so moving between pages does not
-// re-count. Null until the first read, so the dot never renders from a guess.
-let INBOX_CACHE: number | null = null;
-
 function formatDateRange(start: string, end: string): string {
   const fmt = (s: string) => {
     const [y, m, d] = s.split("-").map(Number);
@@ -58,9 +53,7 @@ function formatDateRange(start: string, end: string): string {
  */
 export default function DesktopMasthead() {
   const pathname = usePathname() ?? "";
-  const onJourneys =
-    !pathname.startsWith("/trips/") && !pathname.startsWith("/ideas");
-  const onIdeas = pathname.startsWith("/ideas");
+  const onJourneys = !pathname.startsWith("/trips/");
 
   // Derive trip ID + section segment from the current path. Matches
   // /trips/{id}, /trips/{id}/plan, /trips/{id}/days/{dayId}, /trips/{id}/map,
@@ -86,24 +79,6 @@ export default function DesktopMasthead() {
   // A guest doesn't get the Plan tab or the Trip settings entry (both
   // owner-only). The route guards enforce this; here we just don't offer it.
   const [guest, setGuest] = useState(false);
-  // The dot lived only on the phone header, so seventeen untriaged captures
-  // were invisible on the machine you actually triage from (Brennan, Sep 2026).
-  // Same signal, same person, both screens.
-  const [inbox, setInbox] = useState<number>(INBOX_CACHE ?? 0);
-  useEffect(() => {
-    let cancelled = false;
-    createClient()
-      .from("ideas")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "inbox")
-      .then(({ count }) => {
-        if (cancelled || count == null) return;
-        INBOX_CACHE = count;
-        setInbox(count);
-      });
-    return () => { cancelled = true; };
-  }, [pathname]);
-
   useEffect(() => {
     if (!currentTripId) { setGuest(false); return; }
     let cancelled = false;
@@ -251,36 +226,6 @@ export default function DesktopMasthead() {
           Journeys
         </Link>
 
-        {/* Ideas is a destination, not a utility — you browse it and stay a
-            while. That is why it sits in the nav rather than as a glyph
-            beside the avatar. */}
-        <Link
-          href="/ideas"
-          className="font-display italic relative"
-          style={{
-            padding: "6px 2px",
-            marginLeft: 18,
-            fontWeight: onIdeas ? 500 : 400,
-            fontSize: 17,
-            color: onIdeas ? INK : CAPTION,
-            letterSpacing: "-0.005em",
-            borderBottom: onIdeas ? `1px solid ${INK}` : "1px solid transparent",
-            textDecoration: "none",
-          }}
-        >
-          Ideas
-          {/* The phone header's dot, same 6px and same accent. Not a number:
-              this says "there is something to sort", and the page itself says
-              how much. */}
-          {inbox > 0 && (
-            <span
-              aria-hidden
-              className="absolute w-[6px] h-[6px] rounded-full"
-              style={{ top: 4, right: -6, background: "#B0541F" }}
-            />
-          )}
-        </Link>
-
         {showTripStrip && currentTripId && (
           <>
             <span
@@ -387,13 +332,11 @@ export default function DesktopMasthead() {
       {/* Everything reached occasionally, named, in one menu — including Plan
           a journey, which is why this renders off a journey as well as on one.
           The phone has shown this list all along; this is it at desktop width. */}
-      {/* Off a journey the menu had one row, Ideas, which is already a tab
-          beside Journeys (Brennan, Sep 2026) — so it renders on a journey only. */}
+      {/* On a journey only: off one there is nothing left to put in it. */}
       {currentTripId && (
       <AppMenu
         variant="desktop"
         tripId={currentTripId}
-        tripTitle={tripCtx?.title ?? null}
         guest={guest}
         // Bookings, as on the phone. The sheet belongs to the open screen
         // (Agenda, Plan, Map); this row only asks for it.
