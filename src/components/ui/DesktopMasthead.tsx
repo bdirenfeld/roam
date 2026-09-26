@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/client";
 import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
 import { signOut } from "@/lib/auth-actions";
 import { isTripGuest } from "@/lib/trip-access-client";
+import { groupTrips, type SwitcherTrip } from "@/lib/tripSwitcher";
 
 const INK = "#1A1A2E";
 const RULE = "rgba(26,26,46,0.10)";
@@ -246,21 +247,7 @@ export default function DesktopMasthead() {
                 minWidth: 0,
               }}
             >
-              <span
-                className="font-display italic"
-                style={{
-                  fontWeight: 500,
-                  fontSize: 17,
-                  color: INK,
-                  letterSpacing: "-0.005em",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  maxWidth: 360,
-                }}
-              >
-                {tripCtx?.title ?? " "}
-              </span>
+              <TripSwitcher currentTripId={currentTripId} title={tripCtx?.title ?? " "} />
               <span
                 style={{
                   fontSize: 10,
@@ -275,22 +262,52 @@ export default function DesktopMasthead() {
               </span>
             </div>
 
-            <div
-              style={{
-                width: 1,
-                height: 22,
-                background: RULE,
-                margin: "0 22px",
-                flexShrink: 0,
-              }}
-            />
+            {/* One screen (26 Sep 2026): the owner's Agenda / Plan switch is
+                gone on desktop. The week is home; a day header opens that day,
+                and "‹ Week" is the way back. Guests have no week, so they keep
+                their Agenda / Map tabs. */}
+            {(guest || segment !== "plan") && (
+              <div
+                style={{
+                  width: 1,
+                  height: 22,
+                  background: RULE,
+                  margin: "0 22px",
+                  flexShrink: 0,
+                }}
+              />
+            )}
 
-            <TripTabs
-              tripId={currentTripId}
-              segment={segment}
-              firstDayId={tripCtx?.firstDayId ?? null}
-              guest={guest}
-            />
+            {guest ? (
+              <TripTabs
+                tripId={currentTripId}
+                segment={segment}
+                firstDayId={tripCtx?.firstDayId ?? null}
+                guest={guest}
+              />
+            ) : segment !== "plan" ? (
+              <Link
+                href={`/trips/${currentTripId}/plan`}
+                data-testid="back-to-week"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: "6px 14px 6px 10px",
+                  borderRadius: 999,
+                  background: "rgba(26,26,46,0.05)",
+                  boxShadow: `inset 0 0 0 1px ${RULE}`,
+                  fontWeight: 600,
+                  fontSize: 13,
+                  color: INK,
+                  textDecoration: "none",
+                  flexShrink: 0,
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><polyline points="15 18 9 12 15 6" /></svg>
+                Week
+              </Link>
+            ) : null}
           </>
         )}
       </nav>
@@ -473,6 +490,126 @@ export default function DesktopMasthead() {
         )}
       </div>
     </header>
+  );
+}
+
+// The journeys for the switcher, fetched once per session on first open.
+let SWITCHER_CACHE: SwitcherTrip[] | null = null;
+
+/**
+ * "Tuscany ▾" (26 Sep 2026): the journey's name opens a list of the others,
+ * so switching journeys does not mean going back to Journeys first. A row
+ * goes to /trips/{id}, which lands on that journey's current day.
+ */
+function TripSwitcher({ currentTripId, title }: { currentTripId: string; title: string }) {
+  const [open, setOpen] = useState(false);
+  const [trips, setTrips] = useState<SwitcherTrip[] | null>(SWITCHER_CACHE);
+  const ref = useRef<HTMLDivElement | null>(null);
+  const pathname = usePathname();
+
+  useEffect(() => { setOpen(false); }, [pathname]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || SWITCHER_CACHE) return;
+    let cancelled = false;
+    createClient()
+      .from("trips")
+      .select("id, title, start_date, end_date, archived")
+      .then(({ data, error }) => {
+        if (error) { console.error("[TripSwitcher] trips fetch failed:", error); return; }
+        SWITCHER_CACHE = (data ?? []) as SwitcherTrip[];
+        if (!cancelled) setTrips(SWITCHER_CACHE);
+      });
+    return () => { cancelled = true; };
+  }, [open]);
+
+  const today = new Date().toLocaleDateString("en-CA");
+  const groups = trips ? groupTrips(trips, today) : null;
+
+  const row = (t: SwitcherTrip) => {
+    const on = t.id === currentTripId;
+    return (
+      <Link
+        key={t.id}
+        href={`/trips/${t.id}`}
+        onClick={() => setOpen(false)}
+        role="menuitem"
+        aria-current={on ? "page" : undefined}
+        className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#F3EFE4]"
+        style={{ textDecoration: "none", color: INK, background: on ? "#F3EFE4" : undefined }}
+      >
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ display: "block", fontSize: 14, fontWeight: on ? 600 : 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.title}</span>
+          <span style={{ display: "block", fontSize: 10, letterSpacing: "0.12em", color: CAPTION, marginTop: 1 }}>{formatDateRange(t.start_date, t.end_date)}</span>
+        </span>
+        {on && (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={INK} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M5 12l5 5 9-10" /></svg>
+        )}
+      </Link>
+    );
+  };
+  const heading = (label: string) => (
+    <div style={{ padding: "10px 12px 4px", fontSize: 10, fontWeight: 600, letterSpacing: "0.12em", color: CAPTION }}>{label}</div>
+  );
+
+  return (
+    <div ref={ref} style={{ position: "relative", minWidth: 0 }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title="Switch journey"
+        className="font-display italic hover:bg-[rgba(26,26,46,0.05)]"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          margin: "-4px -8px",
+          padding: "4px 8px",
+          borderRadius: 8,
+          border: 0,
+          background: open ? "rgba(26,26,46,0.05)" : "transparent",
+          cursor: "pointer",
+          fontWeight: 500,
+          fontSize: 17,
+          color: INK,
+          letterSpacing: "-0.005em",
+          whiteSpace: "nowrap",
+          maxWidth: 380,
+        }}
+      >
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{title}</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={CAPTION} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ flexShrink: 0 }}><polyline points="6 9 12 15 18 9" /></svg>
+      </button>
+      {open && (
+        <div
+          role="menu"
+          data-testid="trip-switcher"
+          className="absolute z-[70] bg-white rounded-[14px] p-1.5"
+          style={{ left: -8, top: 34, width: 300, maxHeight: "70vh", overflowY: "auto", border: `1px solid ${RULE}`, boxShadow: "0 16px 34px rgba(26,26,46,0.17)", fontStyle: "normal" }}
+        >
+          {!groups && <div style={{ padding: 12, fontSize: 13, color: CAPTION }}>Loading…</div>}
+          {groups && groups.upcoming.length > 0 && heading("UPCOMING")}
+          {groups?.upcoming.map(row)}
+          {groups && groups.past.length > 0 && heading("PAST")}
+          {groups?.past.map(row)}
+          <div style={{ height: 1, background: RULE, margin: "6px 4px" }} />
+          <Link href="/trips/new" onClick={() => setOpen(false)} role="menuitem" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[#F3EFE4]" style={{ textDecoration: "none", color: INK, fontSize: 14, fontWeight: 600 }}>
+            <Plus size={14} weight="bold" /> Plan a journey
+          </Link>
+        </div>
+      )}
+    </div>
   );
 }
 

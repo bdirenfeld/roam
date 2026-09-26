@@ -27,6 +27,7 @@ import { autoDayTitle } from "@/lib/autoDayTitle";
 import { useToast } from "@/components/ui/Toast";
 import { cardTimes } from "@/lib/cardTime";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
+import DocumentsSheet from "./DocumentsSheet";
 import WeekMap from "./WeekMap";
 import {
   placeBlocks, movedTimes, resizedEnd, resizedStart, minutesAtY, toMin, toTime, fmt12, gridHeight,
@@ -76,6 +77,15 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const [showStays, setShowStays] = useState(false);
   useEffect(() => { if (searchParams.get("stays") === "1") { setShowStays(true); setMapWide(true); } }, [searchParams]);
   const closeStays = useCallback(() => { setShowStays(false); setMapWide(false); router.replace("/trips/" + trip.id + "/plan"); }, [router, trip.id]);
+  // Bookings (26 Sep 2026): the masthead menu asks the open screen for it
+  // with "roam:open-bookings". The Agenda and the Map listened; the week did
+  // not, so on the desktop Plan the menu row did nothing.
+  const [showDocs, setShowDocs] = useState(false);
+  useEffect(() => {
+    const onOpen = () => setShowDocs(true);
+    window.addEventListener("roam:open-bookings", onOpen);
+    return () => window.removeEventListener("roam:open-bookings", onOpen);
+  }, []);
   // Plan first (25 Sep 2026): click an empty hour, name it, a timeless-place
   // block lands there; a place can be linked from its sheet later.
   const [draftBlock, setDraftBlock] = useState<{ dayId: string; dayIdx: number; min: number } | null>(null);
@@ -715,9 +725,12 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
             {shown.map((d, i) => (
               <div
                 key={d.id}
-                onClick={() => setActiveDayId((cur) => (cur === d.id ? null : d.id))}
-                className="group relative px-2 py-2 border-l min-w-0 cursor-pointer transition-colors"
-                title={activeDayId === d.id ? "Show every day on the map" : "Show only this day on the map"}
+                // One screen (26 Sep 2026): a day header opens that day — the
+                // Agenda, with its own map fitted to the day. "‹ Week" in the
+                // masthead comes back. It used to fade the other days' pins.
+                onClick={() => router.push(`/trips/${trip.id}/days/${d.id}`)}
+                className="group relative px-2 py-2 border-l min-w-0 cursor-pointer transition-colors hover:bg-[#F3EFE4]"
+                title="Open this day"
                 style={{ borderColor: "rgba(26,26,46,0.10)", background: activeDayId === d.id ? "#F3EFE4" : undefined, opacity: activeDayId && activeDayId !== d.id ? 0.55 : 1 }}
               >
                 <button
@@ -942,6 +955,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
           tripDestination={trip.destination}
         />
       )}
+      {showDocs && <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} />}
     </div>
   );
 }

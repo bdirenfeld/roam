@@ -1583,3 +1583,17 @@ the component mounted and you are looking at throttling, not a broken map.
 - Tailwind opacity trap: `bg-white/97` is not a step Tailwind generates, so the class did not
   exist and the phone AppMenu had no background over the Map until 24 Sep 2026. Use a real
   step (`/95`) or brackets (`/[0.97]`), and check the compiled CSS when something is see-through.
+
+## One screen on desktop (26 Sep 2026)
+- The owner's Agenda / Plan switch is gone from `DesktopMasthead`. The week is home: a day
+  header on `WeekBoard` pushes `/trips/{id}/days/{dayId}` (the Agenda, with its own map fitted to
+  the day) and a "‹ Week" pill in the masthead goes back. It replaced the header click that faded
+  the other days' pins (`activeDayId` is still used by `tintDay` after drops). Guests keep
+  `TripTabs` (Agenda / Map). The phone is untouched (masthead is `hidden md:flex`).
+- "Tuscany ▾": the journey name is `TripSwitcher` — upcoming soonest first, then past, archived
+  left out (`lib/tripSwitcher.ts`, tested on his real trips). A row goes to `/trips/{id}`.
+- Bookings: the masthead row fires `roam:open-bookings`; every desktop screen must listen.
+  `WeekBoard` did not, so the row did nothing on Plan. `lib/ui/bookingsListeners.test.ts` now
+  asserts every screen in its SCREENS list listens — add a new desktop screen there.
+- `houseRules.test.ts > every workflow's shell parses` fails on this Windows machine with and
+  without these changes (bash -n on ci.yml); not caused here.
