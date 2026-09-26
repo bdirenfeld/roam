@@ -1597,3 +1597,8 @@ the component mounted and you are looking at throttling, not a broken map.
   asserts every screen in its SCREENS list listens — add a new desktop screen there.
 - `houseRules.test.ts > every workflow's shell parses` fails on this Windows machine with and
   without these changes (bash -n on ci.yml); not caused here.
+- Landing (26 Sep 2026): a signed-in visit to `/` (typed URL, PWA `start_url`, and sign-in — the
+  auth callback now defaults to `/`) opens the next journey on a computer (`lib/landing.ts`:
+  under way, else soonest upcoming, archived skipped; else `/trips`). A phone (client hint
+  `sec-ch-ua-mobile`, else UA) still gets `/trips`. Budget and Settings already open as overlays
+  over the page from the journey menu (AppOverlays) — they were never separate screens on click.

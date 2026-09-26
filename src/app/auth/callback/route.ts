@@ -10,7 +10,9 @@ export async function GET(request: Request) {
   // Read the post-login destination from the cookie set in signInWithGoogle,
   // fall back to /trips if absent.
   const cookieStore = await cookies();
-  const next = cookieStore.get("auth_redirect_next")?.value ?? "/trips";
+  // "/" decides where a signed-in person lands (the next journey on a computer,
+  // Journeys on a phone) — see app/page.tsx and lib/landing.ts.
+  const next = cookieStore.get("auth_redirect_next")?.value ?? "/";
   cookieStore.delete("auth_redirect_next");
 
   // OAuth provider returned an error (e.g. user denied permission)
