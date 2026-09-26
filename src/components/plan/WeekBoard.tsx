@@ -30,6 +30,7 @@ import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import DocumentsSheet from "./DocumentsSheet";
 import WeekMap from "./WeekMap";
 import { weekColumns, weekMinWidth } from "@/lib/week/focus";
+import { shortAddress, firstSentence } from "@/lib/week/cardText";
 import {
   placeBlocks, movedTimes, resizedEnd, resizedStart, minutesAtY, toMin, toTime, fmt12, gridHeight,
   HOUR_START, HOUR_END, PX_PER_HOUR, NO_END_MIN, type Block,
@@ -60,13 +61,7 @@ function cardTitle(c: Card): string {
 }
 function isNote(c: Card): boolean { return !c.place_id; }
 /** The first sentence of a card's notes, for the widened day. */
-function noteLine(c: Card): string {
-  const n = (c.details as { notes?: string } | null)?.notes?.trim();
-  if (!n) return "";
-  const first = n.split(/\n/)[0];
-  const m = first.match(/^.*?[.!?](\s|$)/);
-  return (m ? m[0] : first).trim();
-}
+function noteLine(c: Card): string { return firstSentence((c.details as { notes?: string } | null)?.notes); }
 
 type Drag =
   | { kind: "move"; card: Card; fromDay: string; x0: number; y0: number; offY: number; moved: boolean }
@@ -916,7 +911,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                           )}
                           {wide && !short && (c.place?.address || noteLine(c)) && (
                             <div className="text-[10.5px] text-activity/60 truncate pointer-events-none mt-px">
-                              {c.place?.address ? c.place.address.split(",").slice(0, 2).join(",") : noteLine(c)}
+                              {c.place?.address ? shortAddress(c.place.address) : noteLine(c)}
                               {c.place?.rating ? <span style={{ color: "#B45309" }}> · ★ {c.place.rating}</span> : null}
                             </div>
                           )}
