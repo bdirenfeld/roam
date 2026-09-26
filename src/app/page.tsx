@@ -1,7 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
-import { isPhone, landingTripId } from "@/lib/landing";
 import LandingPage from "@/components/landing/LandingPage";
 
 const isSupabaseConfigured =
@@ -22,20 +20,7 @@ export default async function Home({
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    if (user) {
-      // On a computer, open straight into the next journey (26 Sep 2026);
-      // the phone, and anyone with nothing ahead, gets the Journeys list.
-      const h = await headers();
-      if (!isPhone(h.get("user-agent"), h.get("sec-ch-ua-mobile"))) {
-        const { data: trips } = await supabase
-          .from("trips")
-          .select("id, title, start_date, end_date, archived");
-        const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
-        const id = landingTripId(trips ?? [], today);
-        if (id) redirect(`/trips/${id}`);
-      }
-      redirect("/trips");
-    }
+    if (user) redirect("/trips");
   }
 
   const { signin } = await searchParams;
