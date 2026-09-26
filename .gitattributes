@@ -1,0 +1,4 @@
+# The shebang in scripts/*.mjs must stay LF. With core.autocrlf on Windows it
+# was checked out as CRLF, which vitest cannot strip, so importIds.test.ts
+# failed to load here while Linux CI was green.
+*.mjs text eol=lf

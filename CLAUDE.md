@@ -302,6 +302,11 @@ its subtitle is the weather): back, italic title + small line, search, menu, 44p
 bar. `ui/AddPlaceRow.tsx` is the one "Add a place" (ringed plus, quiet row; `centered` for an
 empty state). Primary buttons are `rounded-full` ink pills, one per screen. Bookings lives in the
 menu only — no separate chip on any width.
+**The phone ··· menu's own z-index is inert.** It always sits inside a host that is its own
+stacking context: JourneyHeader (z-30 in flow on Plan; pinned at 65 over the Map for guests) or,
+for an owner on the Map, FullMapClient's `MAP_DISC` (65). The Map ladder is sheet 60 → host 65 → full-screen card 70. If the menu
+hides behind something, raise the HOST, never the menu. The menu was raised to 80 twice (11 and
+24 Sept) and fixed nothing either time; `lib/ui/layers.test.ts` now fails on it for both hosts.
 Ground tokens (Sep 5 2026, Brennan chose "warm near-white" over the cream): `--background`
 #F5F4F1; secondary tint #F0EFEB (was #F7F3EA); the "Add from saved" pill #EDECE8 (was #F2EDE3).
 The cream #FAF7F2 is gone everywhere, including as off-white text on ink buttons.
@@ -1217,7 +1222,10 @@ the rule.
 **Windows checkout trap:** `scripts/import-places.mjs` starts with a shebang,
 and git converts it to CRLF on Windows; esbuild then cannot strip it and
 `importIds.test.ts` fails with "Invalid or unexpected token" here while the
-Linux CI is green. A `.gitattributes` line (`*.mjs text eol=lf`) is the fix.
+Linux CI is green. Fixed 26 Sept 2026: `.gitattributes` now has `*.mjs text
+eol=lf`. An old checkout keeps its CRLF copy until the file is checked out
+again (`rm` it, `git checkout -- <file>`); `git ls-files --eol '*.mjs'` should
+say `w/lf` for every one.
 
 ### Paste a listing, and how wide the search looks (15 Sept 2026)
 

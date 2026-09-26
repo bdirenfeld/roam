@@ -17,6 +17,12 @@ import path from "node:path";
  * here, in the only place that can see both.
  *
  * If you move a layer, this test tells you what else has to move.
+ *
+ * Since 24 Sept the menu has TWO hosts on the map. A guest still gets
+ * JourneyHeader; the owner gets a floating back disc and a menu disc
+ * (FullMapClient's MAP_DISC). Both are stacking contexts on the same layer,
+ * and the same day the menu was raised to 80 "to clear the map discs" — from
+ * inside one of them, where the number lifts it past nothing.
  */
 
 const SRC = path.resolve(__dirname, "../..");
@@ -43,10 +49,20 @@ function layerOf(rel: string): number {
   return Math.max.apply(null, found);
 }
 
+/** The layer of one className constant, e.g. `const MAP_DISC = "… z-[65] …"`. */
+function layerOfConst(rel: string, name: string): number {
+  const decl = new RegExp(`const ${name} = "([^"]*)"`).exec(read(rel));
+  expect(decl, `${rel} no longer declares ${name}`).not.toBeNull();
+  const z = /\bz-\[(\d+)\]|\bz-(\d+)\b/.exec(decl![1]);
+  expect(z, `${name} in ${rel} has no z-index`).not.toBeNull();
+  return Number(z![1] !== undefined ? z![1] : z![2]);
+}
+
 const HEADER = "components/ui/JourneyHeader.tsx";
 const SHEET = "components/map/WhereToStaySheet.tsx";
 const CARD = "components/map/StayCardSheet.tsx";
 const MENU = "components/ui/AppMenu.tsx";
+const MAP = "components/map/FullMapClient.tsx";
 
 describe("the map screen's stacking order", () => {
   it("puts the header ABOVE the sheet, because the menu lives inside the header", () => {
@@ -66,9 +82,21 @@ describe("the map screen's stacking order", () => {
     // anything outside the header. If someone raises it expecting a fix, this
     // says where to look instead.
     const menu = layerOf(MENU);
-    const header = layerOf(HEADER);
-    expect(menu, `AppMenu at z-${menu} cannot escape JourneyHeader at z-${header}; raise the HEADER`)
-      .toBeLessThanOrEqual(header);
+    const hosts: [string, number][] = [
+      ["JourneyHeader", layerOf(HEADER)],
+      ["the map's MAP_DISC", layerOfConst(MAP, "MAP_DISC")],
+    ];
+    for (const [host, z] of hosts) {
+      expect(menu, `AppMenu at z-${menu} cannot escape ${host} at z-${z}. Put the menu's number back; if the menu is hidden, raise the HOST`)
+        .toBeLessThanOrEqual(z);
+    }
+  });
+
+  it("gives the owner's menu disc the header's place in the ladder", () => {
+    // Owners on the map have no JourneyHeader; the disc is the header there.
+    const disc = layerOfConst(MAP, "MAP_DISC");
+    expect(disc, "MAP_DISC must sit above WhereToStaySheet").toBeGreaterThan(layerOf(SHEET));
+    expect(layerOf(CARD), "StayCardSheet must cover MAP_DISC").toBeGreaterThan(disc);
   });
 
   it("leaves a gap between layers, so the next thing has somewhere to go", () => {

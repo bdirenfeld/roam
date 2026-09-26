@@ -150,13 +150,18 @@ export default function AppMenu({
       {/* Solid white, no blur (24 Sep 2026): the old bg-white/97 was not a
           Tailwind opacity step, so no background was ever generated and the
           menu was transparent over the phone Map — pins and city labels read
-          straight through it. z-[80] clears the map discs (65). */}
+          straight through it.
+          Its z-index only orders it against its host's other children. Every
+          phone host (JourneyHeader, the map's menu disc) is its own stacking
+          context at layer 65, so a bigger number here lifts it past nothing
+          outside; if the menu is hidden, raise the HOST. lib/ui/layers.test.ts
+          holds it to that. */}
       {open && (
         <div
           role="menu"
           className={
             mobile
-              ? "absolute right-0 top-full mt-1.5 z-[80] bg-white rounded-xl p-1.5 overflow-hidden"
+              ? "absolute right-0 top-full mt-1.5 z-50 bg-white rounded-xl p-1.5 overflow-hidden"
               : "absolute right-0 z-[60] rounded-xl"
           }
           style={
