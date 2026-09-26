@@ -28,6 +28,15 @@ import { fetchClimate, compactAddress } from "@/lib/wishlist/climate";
 import { nearbyJourney, rankJourneys } from "@/lib/share/journeys";
 import type { ShareJourney } from "@/lib/share/journeys";
 import { isTikTok } from "@/lib/share/caption";
+import { providerOf } from "@/lib/share/embed";
+
+interface Preview {
+  provider: "tiktok" | "instagram";
+  embedUrl: string | null;
+  poster: string | null;
+  caption: string | null;
+  author: string | null;
+}
 
 interface Suggestion {
   placeId: string;
@@ -81,6 +90,13 @@ export default function ShareCatchClient({
   const [place, setPlace] = useState<ResolvedPlace | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The video you shared, shown above the question (Brennan, 26 Sep 2026: a
+  // bare search box made you forget what you were saving). Big until you
+  // start typing, then a small tile so the results fit above the keyboard.
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [typing, setTyping] = useState(false);
+  const source = providerOf(link);
   const token = useRef(
     typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
   );
@@ -97,6 +113,18 @@ export default function ShareCatchClient({
     });
     return () => { cancelled = true; };
   }, [choose]);
+
+  useEffect(() => {
+    if (!source) return;
+    let cancelled = false;
+    fetch(`/api/share/preview?url=${encodeURIComponent(link!)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { preview?: Preview | null } | null) => {
+        if (!cancelled && d?.preview) setPreview(d.preview);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [link, source]);
 
   // TikTok only: read the caption for the place it is about. A suggestion,
   // shown as the first row; typing replaces it.
@@ -248,54 +276,115 @@ export default function ShareCatchClient({
     );
   }
 
-  // ── Which place? The map's search, full screen, keyboard up.
+  // ── Which place? The shared video, the question, then the map's search.
   const showSuggestion = suggestion && query.trim().length < 2;
+  const compact = typing || query.length > 0;
+  const appName = source === "instagram" ? "Instagram" : "TikTok";
+  const shownCaption = preview?.caption ?? caption;
+  const byline = [appName, preview?.author ? `@${preview.author}` : null].filter(Boolean).join(" · ");
+
   return (
     <div className="min-h-screen bg-white" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}>
-      <div className="mx-auto w-full max-w-[520px]">
-        <div className="px-4 pb-2">
-          <div
-            className="flex items-center gap-2 bg-white rounded-full px-4 h-11 border border-gray-100"
-            style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              autoFocus
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              enterKeyHint="search"
-              placeholder="Search places…"
-              aria-label="Which place is this?"
-              className="flex-1 bg-transparent text-[16px] text-gray-900 placeholder:text-gray-400 outline-none"
-            />
-            {busy && (
-              <svg className="w-4 h-4 text-gray-400 animate-spin flex-shrink-0" viewBox="0 0 24 24" fill="none" aria-label="Saving">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16v-4l-3 3 3 3v-4a8 8 0 01-8-8z" />
-              </svg>
+      <div className="mx-auto w-full max-w-[520px] px-4 pb-8">
+        {source && !compact && (
+          <div className="mb-4">
+            {playing && preview?.embedUrl ? (
+              <iframe
+                src={preview.embedUrl}
+                title={`${appName} video`}
+                className="w-full rounded-xl bg-black"
+                style={{ height: "70vh", border: 0 }}
+                allow="autoplay; encrypted-media; picture-in-picture"
+                allowFullScreen
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => preview?.embedUrl && setPlaying(true)}
+                aria-label={`Play the ${appName} video`}
+                className="relative block w-full rounded-xl overflow-hidden"
+                style={{ height: "42vh", background: "#1A1A2E" }}
+              >
+                {preview?.poster && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={preview.poster} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                )}
+                {preview?.embedUrl && (
+                  <span className="absolute inset-0 flex items-center justify-center">
+                    <span className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "rgba(0,0,0,0.45)" }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff" aria-hidden><path d="M8 5v14l11-7z" /></svg>
+                    </span>
+                  </span>
+                )}
+              </button>
             )}
+            {shownCaption && <p className="mt-2.5 text-[14px] text-gray-900 leading-snug line-clamp-2">{shownCaption}</p>}
+            <p className="mt-1 text-[12px] text-gray-400">{byline}</p>
           </div>
-        </div>
+        )}
 
-        <div>
-          {showSuggestion && (
+        {source && compact && (
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-14 rounded-md overflow-hidden flex-shrink-0" style={{ background: "#1A1A2E" }}>
+              {preview?.poster && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={preview.poster} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              )}
+            </div>
+            <div className="min-w-0">
+              {shownCaption && <p className="text-[13px] text-gray-900 leading-snug line-clamp-2">{shownCaption}</p>}
+              <p className="text-[11.5px] text-gray-400">{byline}</p>
+            </div>
+          </div>
+        )}
+
+        <h1 className={`font-display text-gray-900 leading-tight mb-2 ${compact ? "text-[18px]" : "text-[22px]"}`}>Which place is this?</h1>
+
+        {showSuggestion && (
+          <div className="-mx-4 border-t border-gray-50">
             <PlaceRow
               main={suggestion.name}
               sub={compactAddress(suggestion.address, suggestion.name)}
               disabled={busy}
               onClick={() => pick(suggestion.placeId)}
             />
+          </div>
+        )}
+
+        <div
+          className="flex items-center gap-2 bg-white rounded-full px-4 h-11 border border-gray-100 mt-3"
+          style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onFocus={() => { setTyping(true); setPlaying(false); }}
+            onBlur={() => { if (!query) setTyping(false); }}
+            enterKeyHint="search"
+            placeholder={suggestion ? "Something else…" : "Search places…"}
+            aria-label="Which place is this?"
+            className="flex-1 bg-transparent text-[16px] text-gray-900 placeholder:text-gray-400 outline-none"
+          />
+          {busy && (
+            <svg className="w-4 h-4 text-gray-400 animate-spin flex-shrink-0" viewBox="0 0 24 24" fill="none" aria-label="Saving">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16v-4l-3 3 3 3v-4a8 8 0 01-8-8z" />
+            </svg>
           )}
+        </div>
+
+        <div className="-mx-4 mt-1">
           {!showSuggestion &&
             preds.map((p) => (
               <PlaceRow key={p.place_id} main={predMain(p)} sub={predSecondary(p) || undefined} disabled={busy} onClick={() => pick(p.place_id)} />
             ))}
         </div>
 
-        {error && <p className="px-4 pt-3 text-[13px]" style={{ color: "#B0541F" }}>{error}</p>}
+        {error && <p className="pt-3 text-[13px]" style={{ color: "#B0541F" }}>{error}</p>}
       </div>
     </div>
   );

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import { isTikTok, trimCaption, parseGuess } from "@/lib/share/caption";
+import { fullTikTokUrl, tiktokOembed, withTimeout } from "../_tiktok";
 
 // ── The place a shared TikTok is probably about ──────────────────────────
 //
@@ -12,40 +13,7 @@ import { isTikTok, trimCaption, parseGuess } from "@/lib/share/caption";
 
 export const maxDuration = 20;
 
-const UA =
-  "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
-
 const none = () => NextResponse.json({ suggestion: null });
-
-async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | null> {
-  return Promise.race([p, new Promise<null>((r) => setTimeout(() => r(null), ms))]);
-}
-
-/** A short link's full form, without its tracking query. oEmbed answers far
- *  more often for the full URL than for vt.tiktok.com (6 of 10 vs 4 of 10 on
- *  his saved links). */
-async function fullUrl(url: string): Promise<string> {
-  try {
-    const res = await withTimeout(fetch(url, { redirect: "follow", headers: { "User-Agent": UA } }), 5000);
-    return (res?.url || url).split("?")[0]!;
-  } catch {
-    return url;
-  }
-}
-
-async function caption(url: string): Promise<string | null> {
-  try {
-    const res = await withTimeout(
-      fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`, { headers: { "User-Agent": UA } }),
-      5000,
-    );
-    if (!res?.ok) return null;
-    const data = (await res.json()) as { title?: unknown };
-    return typeof data.title === "string" && data.title.trim() ? data.title : null;
-  } catch {
-    return null;
-  }
-}
 
 const SYSTEM = `You read captions of short travel videos and name the one specific place the video is about: a restaurant, bar, hotel, beach, landmark, village or town.
 Reply with JSON only: {"name": string|null, "near": string|null}.
@@ -64,7 +32,7 @@ export async function GET(request: NextRequest) {
   const googleKey = process.env.GOOGLE_PLACES_API_KEY;
   if (!apiKey || !googleKey) return none();
 
-  const text = await caption(await fullUrl(link!));
+  const text = (await tiktokOembed(await fullTikTokUrl(link!)))?.caption ?? null;
   if (!text) return none();
 
   let guess: ReturnType<typeof parseGuess> = null;

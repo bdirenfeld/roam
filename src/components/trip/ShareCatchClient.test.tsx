@@ -122,9 +122,36 @@ describe("ShareCatchClient", () => {
     expect(await screen.findByText("BABAE")).toBeTruthy();
   });
 
-  it("does not ask TikTok about an Instagram link", async () => {
+  it("does not ask for a place guess on an Instagram link, only its preview", async () => {
     render(<ShareCatchClient link="https://www.instagram.com/reel/abc/" caption={null} journeys={journeys} wishlist choose={null} />);
     await new Promise((r) => setTimeout(r, 20));
-    expect(fetch).not.toHaveBeenCalled();
+    const urls = (fetch as unknown as { mock: { calls: [string][] } }).mock.calls.map((c) => c[0]);
+    expect(urls.some((u) => u.startsWith("/api/share/suggest"))).toBe(false);
+    expect(urls.some((u) => u.startsWith("/api/share/preview"))).toBe(true);
+  });
+
+  it("shows the shared video above the question, and shrinks it once you type", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (u: string) => ({
+      ok: true,
+      json: async () =>
+        u.startsWith("/api/share/preview")
+          ? { preview: { provider: "tiktok", embedUrl: "https://www.tiktok.com/embed/v2/1", poster: "https://p/1.jpg", caption: "Florence hole in the wall 🍹 Babae Firenze📍", author: "florencefinds" } }
+          : { suggestion: null },
+    })));
+    render(<ShareCatchClient link="https://vt.tiktok.com/ZSqJ1G8RJ/" caption={null} journeys={journeys} wishlist choose={null} />);
+    expect(await screen.findByLabelText("Play the TikTok video")).toBeTruthy();
+    expect(screen.getByText(/Babae Firenze/)).toBeTruthy();
+    expect(screen.getByText("TikTok · @florencefinds")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Which place is this?" })).toBeTruthy();
+    // Nothing grabs the keyboard on arrival — you see the video first.
+    expect(document.activeElement).not.toBe(screen.getByLabelText("Which place is this?"));
+    // Tap play: the player replaces the poster.
+    fireEvent.click(screen.getByLabelText("Play the TikTok video"));
+    expect(screen.getByTitle("TikTok video").getAttribute("src")).toBe("https://www.tiktok.com/embed/v2/1");
+    // Start typing: the big player goes, the caption stays in a small tile.
+    fireEvent.focus(screen.getByLabelText("Which place is this?"));
+    expect(screen.queryByTitle("TikTok video")).toBeNull();
+    expect(screen.queryByLabelText("Play the TikTok video")).toBeNull();
+    expect(screen.getByText(/Babae Firenze/)).toBeTruthy();
   });
 });

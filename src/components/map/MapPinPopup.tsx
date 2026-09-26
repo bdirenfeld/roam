@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef, type ReactNode } from "react";
-import { BookmarkSimple, Heart, PencilSimple } from "@phosphor-icons/react";
+import { BookmarkSimple, Heart, PencilSimple, Trash } from "@phosphor-icons/react";
 import type { Card, CardType, Day } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { queuedDelete } from "@/lib/offline/queuedWrite";
@@ -529,6 +529,24 @@ function CardBody({
         </svg>
       </button>
 
+      {/* Remove — a bin beside the close, always showing. It lived behind
+          "more" as "remove from map", where Brennan could not find it on his
+          phone (26 Sep 2026) — and a place saved from TikTok by mistake has
+          to come off in one obvious tap. The bottom row has no room: a
+          restaurant already fills it with four discs. The confirm below
+          makes a slip harmless. */}
+      {onCardDelete && !(photosOpen && !desktop) && (
+        <button
+          onClick={handleTrashClick}
+          className={`absolute top-2 right-9 w-6 h-6 rounded-full flex items-center justify-center transition-colors z-10 ${hero ? "bg-black/40 hover:bg-black/60" : "bg-gray-100 hover:bg-gray-200"}`}
+          style={{ backdropFilter: "blur(8px)" }}
+          aria-label="Remove from map"
+          title="Remove from map"
+        >
+          <Trash size={12} weight="regular" color={hero ? "white" : "#1A1A2E"} />
+        </button>
+      )}
+
       {/* Content */}
       <div className="p-2.5 md:p-3 overflow-y-auto flex-1">
 
@@ -562,7 +580,7 @@ function CardBody({
             />
           </button>
           )}
-          <div className="flex-1 min-w-0 pr-6">
+          <div className={`flex-1 min-w-0 ${onCardDelete ? "pr-14" : "pr-6"}`}>
             <div className="flex items-center gap-1.5 min-w-0">
               <h2 className="min-w-0 truncate text-[15px] font-bold text-gray-900 leading-snug">{place.title}</h2>
   {onCardUpdate && card.place_id && (
@@ -649,11 +667,6 @@ function CardBody({
               <button onClick={() => { setNotesOpen(false); setNoteAuto(false); }} className="text-[11px] text-gray-400 hover:text-gray-600 underline decoration-dotted underline-offset-2">
                 less
               </button>
-              {onCardDelete && (
-                <button onClick={handleTrashClick} className="text-[11px] text-gray-400 hover:text-red-600 underline decoration-dotted underline-offset-2" aria-label="Delete place">
-                  remove from map
-                </button>
-              )}
             </div>
           </>
         ) : (
