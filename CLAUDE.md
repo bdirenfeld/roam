@@ -1597,3 +1597,9 @@ the component mounted and you are looking at throttling, not a broken map.
   asserts every screen in its SCREENS list listens — add a new desktop screen there.
 - `houseRules.test.ts > every workflow's shell parses` fails on this Windows machine with and
   without these changes (bash -n on ci.yml); not caused here.
+
+## Reverted: opening Roam straight into the next journey (26 Sep 2026)
+- `49540a3` sent a signed-in desktop visit to `/` straight into the next journey. Reverted the
+  same day: Brennan wants the Journeys page as the landing page — "it's perfectly fine the way it
+  is. No notes." Do not re-propose skipping it. Also ruled: "Your year" stays folded by default
+  ("too much information"). Switching journeys from inside one is the "Tuscany ▾" dropdown.
