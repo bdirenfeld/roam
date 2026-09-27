@@ -326,6 +326,18 @@ export default function CreateCardSheet({
     setTimeout(() => inputRef.current?.focus(), 50);
   }, []);
 
+  // After an add the sheet stays open for the next one (the Agenda keeps it
+  // open on purpose), so it must go back to an empty search. Left on the
+  // added place, its "Add <name>" button added the same place again
+  // (found 26 Sep 2026 walking a new journey as a first-time user).
+  const resetForNext = useCallback(() => {
+    setSelected(null);
+    setType(null);
+    setSubType(null);
+    setTitle("");
+    setPredictions([]);
+  }, []);
+
   const handleCreate = useCallback(async () => {
     if (!title.trim() || saving) return;
     setSaving(true);
@@ -426,6 +438,7 @@ export default function CreateCardSheet({
         created_at: new Date().toISOString(),
         place_id: placeRow.id, place: joinedPlace,
       });
+      resetForNext();
       return;
     }
 
@@ -449,9 +462,10 @@ export default function CreateCardSheet({
       confirmed: false, created_at: new Date().toISOString(),
       place_id: null, place: null,
     });
+    resetForNext();
   }, [
     title, startTime, endTime, saving, selected, type, subType,
-    dayId, listId, tripId, endPosition, initialStatus, extraDetails, supabase, onCardCreated, toast,
+    dayId, listId, tripId, endPosition, initialStatus, extraDetails, supabase, onCardCreated, toast, resetForNext,
   ]);
 
   const canCreate = title.trim().length > 0 && !loadingPlace;

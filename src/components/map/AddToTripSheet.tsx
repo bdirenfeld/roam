@@ -130,10 +130,13 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
   // bulk importer trusts — so Save is live the moment the sheet opens. The
   // type pill used to be a mandatory tap on every single save even when Google
   // had already said "restaurant" (Brennan's click audit, Sep 2026). The pills
-  // stay, so a wrong guess is one tap to fix; a miss (no usable Google type)
-  // leaves the pills unselected exactly as before.
+  // stay, so a wrong guess is one tap to fix.
   const googleTypes = (place.details as { types?: string[] } | null | undefined)?.types;
-  const inferred = inferType(googleTypes);
+  // A miss (Google says only "point_of_interest") falls back to a sight, so
+  // Save is never dead on arrival: a first-time user tapped a grey Save on
+  // Mount Royal Chalet and nothing happened (26 Sep 2026). One tap re-types it.
+  const guessed = inferType(googleTypes);
+  const inferred = guessed.type ? guessed : { type: "activity" as const, sub_type: "self_directed" };
   // Google's generic "food" says nothing about gelato vs. espresso vs. dinner;
   // the name usually does, so a generic food hit is refined by the sheet's own
   // keyword rules. A specific Google category (cafe, bakery, bar) is kept.
