@@ -9,6 +9,11 @@ const HOME = "CAD";
 export const HOME_CURRENCY = HOME;
 
 const BY_COUNTRY: Record<string, string> = {
+  // Regions that are one currency, or mostly (27 Sep 2026): a summer across
+  // "Europe" priced its excursions in dollars. The British Isles and
+  // Scandinavia are not the euro; they stay unset rather than guessed.
+  europe: "EUR", "western europe": "EUR", "the mediterranean": "EUR", "the alps": "EUR",
+  "southeast asia": "USD", "central america": "USD", "the caribbean": "USD",
   // Euro area
   italy: "EUR", france: "EUR", spain: "EUR", portugal: "EUR", germany: "EUR", netherlands: "EUR",
   belgium: "EUR", austria: "EUR", ireland: "EUR", greece: "EUR", finland: "EUR", croatia: "EUR",

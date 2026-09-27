@@ -33,7 +33,6 @@ const GRANDFATHERED = new Set([
   "attachmentCount.ts",
   "auth-actions.ts",
   "autoDayTitle.ts",
-  "budget/currency.ts",
   "budget/load.ts",
   "companion/prompt.ts",
   "companion/skeleton.ts",

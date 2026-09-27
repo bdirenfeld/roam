@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
     supabase.from("trips").select("destination, start_date, end_date").eq("id", tripId).single(),
     supabase
       .from("cards")
-      .select("id, details, position, days(date), places(type, sub_type, title), card_attachments(parsed_data, parse_status)")
+      .select("id, place_id, details, position, days(date), places(type, sub_type, title), card_attachments(parsed_data, parse_status)")
       .eq("trip_id", tripId)
       .eq("status", "in_itinerary"),
   ]);
@@ -122,14 +122,26 @@ export async function POST(req: NextRequest) {
     .slice(0, 1500);
 
   // Only the blanks: no typed cost, no budget, no readable ticket.
-  const blanks = ordered.flatMap((c) => {
+  const allBlanks = ordered.flatMap((c) => {
     const place = c.places as { type?: string; sub_type?: string | null; title?: string } | null;
     if (place?.type !== "activity") return [];
     const det = (c.details ?? {}) as Record<string, unknown>;
     if (typeof det.cost_per_person === "number") return [];
     if (det.budget && typeof (det.budget as { amount?: unknown }).amount === "number") return [];
     if (ticketCost((c as { card_attachments?: { parsed_data: unknown; parse_status: string | null }[] | null }).card_attachments)) return [];
-    return [{ id: c.id as string, title: place.title ?? "an activity", subType: place.sub_type ?? null, notes: typeof det.notes === "string" ? det.notes : null, details: det }];
+    return [{ id: c.id as string, placeId: (c.place_id as string | null) ?? null, title: place.title ?? "an activity", subType: place.sub_type ?? null, notes: typeof det.notes === "string" ? det.notes : null, details: det }];
+  });
+  // One lookup per place (27 Sep 2026): a day camp repeated on ten weekdays
+  // was ten lookups for one price, and used up the fifteen before anything
+  // else on the journey got one. The first card asks; its twins get the answer.
+  const twins = new Map<string, typeof allBlanks>();
+  const firstOf = new Map<string, string>();
+  const blanks = allBlanks.filter((b) => {
+    const lead = b.placeId ? firstOf.get(b.placeId) : undefined;
+    if (lead) { twins.get(lead)!.push(b); return false; }
+    if (b.placeId) firstOf.set(b.placeId, b.id);
+    twins.set(b.id, []);
+    return true;
   }).slice(0, 15);
 
   if (blanks.length === 0) return NextResponse.json({ items: [], currency });
@@ -145,13 +157,15 @@ export async function POST(req: NextRequest) {
     if (r.amount == null) return;
     const card = blanks.find((b) => b.id === r.cardId);
     if (!card) return;
-    const details = {
-      ...card.details,
-      cost_per_person: r.amount,
-      budget: { amount: r.amount, currency, per: "person", confidence: "estimated", basis: r.note ?? (r.kind === "found" ? "found online" : "estimated") },
-      cost_source: { kind: r.kind, url: r.url, note: r.note, at: new Date().toISOString() },
-    };
-    await supabase.from("cards").update({ details }).eq("id", r.cardId);
+    for (const c of [card, ...(twins.get(card.id) ?? [])]) {
+      const details = {
+        ...c.details,
+        cost_per_person: r.amount,
+        budget: { amount: r.amount, currency, per: "person", confidence: "estimated", basis: r.note ?? (r.kind === "found" ? "found online" : "estimated") },
+        cost_source: { kind: r.kind, url: r.url, note: r.note, at: new Date().toISOString() },
+      };
+      await supabase.from("cards").update({ details }).eq("id", c.id);
+    }
   };
   const results: Found[] = [];
   let i = 0;
@@ -165,5 +179,7 @@ export async function POST(req: NextRequest) {
   }
   const remaining = Math.max(0, blanks.length - i);
 
-  return NextResponse.json({ items: results, currency, remaining });
+  // The twins answer with their lead, so the screen fills every row.
+  const items = results.flatMap((r) => [r, ...(twins.get(r.cardId) ?? []).map((t) => ({ ...r, cardId: t.id }))]);
+  return NextResponse.json({ items, currency, remaining });
 }
