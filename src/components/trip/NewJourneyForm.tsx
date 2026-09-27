@@ -13,6 +13,7 @@
 // bottom out a field behind itself.
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { matchRegions, REGIONS } from "@/lib/places/regions";
 import { getAuthUser } from "@/lib/supabase/authUser";
 import { useRouter } from "next/navigation";
 import { Camera } from "@phosphor-icons/react";
@@ -389,7 +390,12 @@ export default function NewJourneyForm({
           `/api/places/autocomplete?input=${encodeURIComponent(destInput)}&sessiontoken=${sessionToken.current}&types=(regions)`,
         );
         const data = await res.json() as { predictions?: DestinationPrediction[] };
-        setSuggestions(data.predictions ?? []);
+        // Continents and multi-country regions first (lib/places/regions).
+        const regions: DestinationPrediction[] = matchRegions(destInput).map((r) => ({
+          description: r.name, place_id: `region:${r.name}`,
+          structured_formatting: { main_text: r.name, secondary_text: "Several countries" },
+        }));
+        setSuggestions([...regions, ...(data.predictions ?? [])]);
         setShowSuggestions(true);
       } catch { /* ignore */ }
     }, 300);
@@ -403,16 +409,19 @@ export default function NewJourneyForm({
     setLoadingDetails(true);
     setCoverError(false);
     try {
-      const res  = await fetch(
+      // A region (Europe, the Caribbean) is Roam's own: no Google place behind it.
+      const region = p.place_id.startsWith("region:") ? REGIONS.find((r) => r.name === p.description) : undefined;
+      const res  = region ? null : await fetch(
         `/api/places/details?place_id=${encodeURIComponent(p.place_id)}&sessiontoken=${sessionToken.current}`,
       );
-      const data = await res.json() as { result?: { geometry?: { location?: { lat: number; lng: number } } } };
-      if (data.result?.geometry?.location) {
+      const data = res ? await res.json() as { result?: { geometry?: { location?: { lat: number; lng: number } } } } : null;
+      const loc = region ? { lat: region.lat, lng: region.lng } : data?.result?.geometry?.location;
+      if (loc) {
         setDestination({
           name:    p.description,
-          placeId: p.place_id,
-          lat:     data.result.geometry.location.lat,
-          lng:     data.result.geometry.location.lng,
+          placeId: region ? "" : p.place_id,
+          lat:     loc.lat,
+          lng:     loc.lng,
         });
         sessionToken.current = crypto.randomUUID();
 
