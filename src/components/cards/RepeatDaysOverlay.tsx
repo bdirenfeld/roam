@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Day } from "@/types/database";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { weeksOf } from "@/lib/week/repeat";
@@ -36,10 +36,18 @@ export default function RepeatDaysOverlay({
     return n;
   });
   const chosen = days.filter((d) => picked.has(d.id));
+  // Open at the card's own week, not the journey's first: a camp in August
+  // on a summer from July sat six weeks down the list.
+  const listRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const here = currentDayId ? listRef.current?.querySelector<HTMLElement>(`[data-week-has="${currentDayId}"]`) : null;
+    if (here && listRef.current) listRef.current.scrollTop = here.offsetTop - listRef.current.offsetTop;
+  }, [currentDayId]);
   const fmt = (date: string, o: Intl.DateTimeFormatOptions) => new Date(date + "T00:00:00").toLocaleDateString("en-GB", o);
 
   return (
-    <div className="absolute inset-0 z-10 bg-white rounded-t-2xl flex flex-col">
+    // z-30: above the card's photo arrows (z-22), which showed through.
+    <div className="absolute inset-0 z-30 bg-white rounded-t-2xl flex flex-col">
       <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-gray-100 flex-shrink-0">
         <h3 className="text-[16px] font-bold text-gray-900">Repeat on</h3>
         <button
@@ -53,12 +61,12 @@ export default function RepeatDaysOverlay({
           </svg>
         </button>
       </div>
-      <div className="overflow-y-auto flex-1">
+      <div ref={listRef} className="overflow-y-auto flex-1">
         {weeks.map((w) => {
           const open = w.weekdays.filter(can);
           const allOn = open.length > 0 && open.every((d) => picked.has(d.id));
           return (
-            <div key={w.monday} className="border-b border-gray-100">
+            <div key={w.monday} className="border-b border-gray-100" data-week-has={w.days.some((d) => d.id === currentDayId) ? currentDayId ?? undefined : undefined}>
               <div className="flex items-center justify-between px-5 pt-3 pb-1">
                 <span className="text-[11px] uppercase tracking-widest text-gray-400">Week of {fmt(w.monday, { day: "numeric", month: "short" })}</span>
                 {open.length > 1 && (

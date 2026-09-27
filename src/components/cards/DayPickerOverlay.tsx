@@ -28,7 +28,7 @@ export default function DayPickerOverlay({
 }) {
   useEscapeKey(onClose);
   return (
-    <div className="absolute inset-0 z-10 bg-white rounded-t-2xl flex flex-col">
+    <div className="absolute inset-0 z-30 bg-white rounded-t-2xl flex flex-col">
       <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-gray-100 flex-shrink-0">
         <h3 className="text-[16px] font-bold text-gray-900">{title}</h3>
         <button

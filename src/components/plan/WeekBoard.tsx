@@ -648,7 +648,11 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const mapCardCreated = useCallback((created: Card) => {
     if (!created.day_id) { setSaved((prev) => [...prev, created]); return; }
     setDays((prev) => prev.map((d) => (d.id === created.day_id && !d.cards.some((c) => c.id === created.id) ? { ...d, cards: [...d.cards, created] } : d)));
-  }, []);
+    // Show where it went (27 Sep 2026): "Put on Mon 16 Aug" from the map left
+    // the week on 1 July, and the camp was nowhere to be seen.
+    const i = daysRef.current.findIndex((d) => d.id === created.day_id);
+    if (i >= 0) { setWeekStart(Math.floor(i / 7) * 7); tintDay(created.day_id); }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const mapCardDelete = useCallback((cardId: string) => {
     const inSaved = saved.find((c) => c.id === cardId);
     if (!inSaved) { handleCardDelete(cardId); return; }

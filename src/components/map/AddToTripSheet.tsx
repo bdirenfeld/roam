@@ -293,6 +293,8 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
         place:     joinedPlace,
         details,
         sourceUrl: place.mapsUrl ?? null,
+        // A camp on a day is drop-off to pick-up; its repeats copy the time.
+        ...(subType === "camp" ? { startTime: "09:00", endTime: "15:00" } : {}),
       });
       setSaving(false);
       if (scheduled) onCardCreated(scheduled);
