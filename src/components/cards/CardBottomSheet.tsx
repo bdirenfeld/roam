@@ -35,6 +35,7 @@ import WellnessDetail from "./detail/WellnessDetail";
 import LogisticsDetail from "./detail/LogisticsDetail";
 import ActivityDetail from "./detail/ActivityDetail";
 import HotelDetail from "./detail/HotelDetail";
+import { withDetails } from "@/lib/cardDetails";
 
 /** Read Google's `weekday_text` (seven "Monday: 9:00 AM – 5:00 PM" lines) off
  *  the raw place hours. The bottom sheet is the deliberate lookup surface, so it
@@ -425,7 +426,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   // Queued-but-unsent edits are laid over the incoming row on open. The Day
   // view already does this for its list, but the sheet is also opened from the
   // Plan board, whose cards come straight from the cached page payload.
-  const [localCard, setLocalCard] = useState<Card>(() => applyOverlay("cards", card));
+  const [localCard, setLocalCard] = useState<Card>(() => withDetails(applyOverlay("cards", card)));
   const [showDayPicker,     setShowDayPicker]     = useState(false);
   const [showMovePicker,    setShowMovePicker]    = useState(false);
   const [showCopyPicker,    setShowCopyPicker]    = useState(false);

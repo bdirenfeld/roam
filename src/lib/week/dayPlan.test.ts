@@ -87,3 +87,35 @@ describe("planBatch across days", () => {
     expect(Array.from(s)).toEqual(["p2"]);
   });
 });
+// 27 Sep 2026: a Mediterranean cruise. The ship leaves without you.
+describe("portBounds (all aboard)", () => {
+  const PORT = { lat: 42.0935, lng: 11.7925 }, COLOSSEUM = { lat: 41.8902, lng: 12.4922 };
+  const port = (start: string, end: string | null = null) =>
+    card("port", { title: "Civitavècchia Port", sub: "transit", type: "logistics", at: PORT, start_time: start, end_time: end });
+  const mid = { first: false, last: false };
+  it("an afternoon time on a port day is all aboard: nothing is planned after it", () => {
+    const sights = ["a", "b", "c", "d", "e", "f"].map((id) => card(id, { at: COLOSSEUM }));
+    const { updates, unplaced } = planExisting([port("16:30"), ...sights], "rest", null, mid);
+    expect(updates.length).toBeGreaterThan(0);
+    expect(unplaced.length).toBeGreaterThan(0);          // six 90-minute sights do not fit before the ship
+    for (const u of updates) expect(u.end_time! <= "16:30").toBe(true);
+  });
+  it("a window ashore (arrive to all aboard) is the day, not an obstacle", () => {
+    const { updates, unplaced } = planExisting([port("08:00", "17:00"), card("col", { at: COLOSSEUM })], "rest", null, mid);
+    expect(unplaced).toEqual([]);
+    expect(updates[0].start_time! >= "08:00" && updates[0].end_time! <= "17:00").toBe(true);
+  });
+  it("Re-plan never moves the port's time", () => {
+    const { updates } = planExisting([port("16:30"), card("col", { at: COLOSSEUM })], "all", null, mid);
+    expect(updates.map((u) => u.id)).toEqual(["col"]);
+  });
+  it("last day: nothing before you are off the ship", () => {
+    const { updates } = planExisting([port("08:00", "10:00"), card("col", { at: COLOSSEUM })], "rest", null, { first: false, last: true });
+    expect(updates[0].start_time! >= "10:00").toBe(true);
+  });
+  it("a train station is not a port and bounds nothing", () => {
+    const station = card("st", { title: "Kyoto Station", sub: "transit", type: "logistics", start_time: "16:30" });
+    const { updates } = planExisting([station, card("a"), card("b"), card("c"), card("d"), card("e")], "rest", null, mid);
+    expect(updates.some((u) => u.start_time! > "16:30")).toBe(true);
+  });
+});

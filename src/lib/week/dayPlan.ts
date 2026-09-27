@@ -8,6 +8,7 @@ import type { Card } from "@/types/database";
 import { cardTimes } from "@/lib/cardTime";
 import { arrangeDay, type ArrangeItem, type Busy, type Anchor, type DayEdge } from "./arrange";
 import { toMin, toTime, NO_END_MIN } from "./layout";
+import { isPortName } from "@/lib/places/inferType";
 
 export interface TimeUpdate { id: string; start_time: string | null; end_time: string | null }
 
@@ -42,6 +43,34 @@ export function flightBounds(dayCards: Card[], edge?: DayEdge): Busy[] {
   return out;
 }
 
+/** A cruise port with a time on it (27 Sep 2026). */
+function isTimedPort(c: Card): boolean {
+  return c.place?.sub_type === "transit" && isPortName(c.place?.title) && !!cardTimes(c).start;
+}
+
+/**
+ * A cruise port bounds its day the way a flight does (27 Sep 2026): the ship
+ * leaves without you. Give the port card the all-aboard time and nothing is
+ * planned after it; on boarding day nothing after boarding. On the last day
+ * the time is when you are off the ship, and nothing is planned before it.
+ * On a port day a card with both times is the window ashore — arrive to all
+ * aboard — and a single morning time is only the arrival.
+ */
+export function portBounds(dayCards: Card[], edge?: DayEdge): Busy[] {
+  return dayCards.filter(isTimedPort).flatMap((c): Busy[] => {
+    const t = cardTimes(c); const s = toMin(t.start!); const e = t.end ? toMin(t.end) : null;
+    if (edge?.last && !edge.first) return [{ startMin: 0, endMin: e ?? s + 30 }];
+    if (edge?.first) return [{ startMin: s, endMin: 24 * 60 }];
+    if (e !== null) return [{ startMin: 0, endMin: s }, { startMin: e, endMin: 24 * 60 }];
+    return s < 12 * 60 ? [{ startMin: 0, endMin: s + 30 }] : [{ startMin: s, endMin: 24 * 60 }];
+  });
+}
+/** The ports whose own span is the window, not an obstacle: port days with both times. */
+function windowPorts(dayCards: Card[], edge?: DayEdge): Set<string> {
+  if (edge?.first || edge?.last) return new Set();
+  return new Set(dayCards.filter((c) => isTimedPort(c) && cardTimes(c).end).map((c) => c.id));
+}
+
 /** Where the walking starts: the first timed place, else the first place, else the fallback. */
 export function anchorOf(cards: Card[], fallback: Anchor | null): Anchor | null {
   const withPoint = cards.filter((c) => c.place?.lat != null && c.place?.lng != null);
@@ -59,11 +88,11 @@ export function planExisting(dayCards: Card[], mode: "rest" | "all", fallback: A
   // A timed flight is a fixed point even when not marked confirmed: Re-plan
   // must not walk the flight home to a new hour (26 Sep 2026).
   const isTimedFlight = (c: Card) => (c.place?.sub_type ?? "").startsWith("flight") && !!cardTimes(c).start;
-  const movable = mode === "rest" ? dayCards.filter((c) => !cardTimes(c).start) : dayCards.filter((c) => !c.confirmed && !isTimedFlight(c));
+  const movable = mode === "rest" ? dayCards.filter((c) => !cardTimes(c).start) : dayCards.filter((c) => !c.confirmed && !isTimedFlight(c) && !isTimedPort(c));
   if (movable.length === 0) return { updates: [], before: [], unplaced: [] };
   const moving = new Set(movable.map((c) => c.id));
   const fixed = dayCards.filter((c) => !moving.has(c.id));
-  const { placed, unplaced } = arrangeDay(movable.map(toItem), [...busyOf(dayCards, moving), ...flightBounds(fixed, edge)], anchorOf(fixed, fallback), edge);
+  const { placed, unplaced } = arrangeDay(movable.map(toItem), [...busyOf(dayCards, new Set(Array.from(moving).concat(Array.from(windowPorts(fixed, edge))))), ...flightBounds(fixed, edge), ...portBounds(fixed, edge)], anchorOf(fixed, fallback), edge);
   const updates: TimeUpdate[] = placed.map((p) => ({ id: p.id, start_time: toTime(p.startMin), end_time: toTime(p.endMin) }));
   if (mode === "all") for (const id of unplaced) updates.push({ id, start_time: null, end_time: null });
   const before: TimeUpdate[] = movable.filter((c) => updates.some((u) => u.id === c.id)).map((c) => ({ id: c.id, start_time: c.start_time, end_time: c.end_time }));
@@ -89,7 +118,7 @@ export function planBatch(picked: Card[], dayCards: Card[], fallback: Anchor | n
     return true;
   });
   const skipped = picked.filter((c) => c.place_id).length - toAdd.length - elsewhere;
-  const { placed, unplaced } = arrangeDay(toAdd.map(toItem), [...busyOf(dayCards), ...flightBounds(dayCards, opts.edge)], anchorOf(dayCards, fallback), opts.edge);
+  const { placed, unplaced } = arrangeDay(toAdd.map(toItem), [...busyOf(dayCards, windowPorts(dayCards, opts.edge)), ...flightBounds(dayCards, opts.edge), ...portBounds(dayCards, opts.edge)], anchorOf(dayCards, fallback), opts.edge);
   const times = new Map(placed.map((p) => [p.id, { start: toTime(p.startMin), end: toTime(p.endMin) }]));
   return { toAdd, times, skipped, elsewhere, unplaced };
 }

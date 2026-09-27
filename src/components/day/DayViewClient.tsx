@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { dayArea } from "@/lib/places/dayArea";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CaretLeft, CaretRight } from "@phosphor-icons/react";
@@ -251,6 +252,12 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   // them after a sync that has already landed is a no-op.
   const [localCards, setLocalCards] = useState<Card[]>(() =>
     applyOverlayAll("cards", [...dayWithCards.cards]).sort(agendaOrder)
+  );
+  // Search where this day is, not the journey's one destination: a cruise's
+  // Rome day searched "Barcelona, Spain" (lib/places/dayArea, 27 Sep 2026).
+  const searchArea = dayArea(
+    localCards.filter((c) => c.status === "in_itinerary" && c.place).map((c) => ({ lat: c.place!.lat, lng: c.place!.lng, address: c.place!.address, sub_type: c.place!.sub_type })),
+    { label: trip.destination, lat: trip.destination_lat, lng: trip.destination_lng },
   );
   // Undo window after a delete — holds the removed row for re-insert
   const { toast } = useToast();
@@ -1096,9 +1103,9 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
                 .map((c) => c.place_id as string),
             )
           }
-          destination={trip.destination}
-          destinationLat={trip.destination_lat}
-          destinationLng={trip.destination_lng}
+          destination={searchArea.label}
+          destinationLat={searchArea.lat}
+          destinationLng={searchArea.lng}
           onClose={handleCreateClose}
           onCardCreated={handleCardCreated}
           hidden={addHidden}
