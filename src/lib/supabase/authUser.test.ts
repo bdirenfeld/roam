@@ -10,9 +10,11 @@ const client = (result: unknown) => {
 
 describe("getAuthUser", () => {
   it("reads the user from the verified token without calling Supabase Auth", async () => {
-    const { c, getUser } = client({ data: { claims: { sub: "u-1", email: "b@example.com" } }, error: null });
+    const { c, getUser, getClaims } = client({ data: { claims: { sub: "u-1", email: "b@example.com" } }, error: null });
     expect(await getAuthUser(c)).toEqual({ id: "u-1", email: "b@example.com" });
     expect(getUser).not.toHaveBeenCalled();
+    // with the key shipped in the app, so a cold start does not fetch it (27 Sep 2026)
+    expect(getClaims.mock.calls[0][1]?.jwks?.keys?.[0]?.kid).toBe("7b1790e8-825d-49bb-9493-8d7c152b765b");
   });
   it("is null when there is no session or the token fails verification", async () => {
     expect(await getAuthUser(client({ data: null, error: null }).c)).toBeNull();

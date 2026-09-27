@@ -47,7 +47,9 @@ export async function GET(request: NextRequest) {
     const data = await res.json() as { predictions?: { place_id: string }[] } & Record<string, unknown>;
     if (found.length) {
       const seen = new Set(found.map((p) => p.place_id));
-      data.predictions = [...found, ...(data.predictions ?? []).filter((p) => !seen.has(p.place_id))];
+      // Enough found where you are: the name matches from elsewhere (camps in
+      // New Jersey under the Barcelona ones) only get in the way.
+      data.predictions = found.length >= 3 ? found : [...found, ...(data.predictions ?? []).filter((p) => !seen.has(p.place_id))];
     }
     return NextResponse.json(data);
   } catch {

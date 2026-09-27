@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { PROJECT_JWKS } from "./jwks";
 
 export interface AuthUser { id: string; email: string | null }
 
@@ -18,7 +19,7 @@ export interface AuthUser { id: string; email: string | null }
  * checkout read user_metadata or a verified email).
  */
 export async function getAuthUser(supabase: SupabaseClient): Promise<AuthUser | null> {
-  const { data, error } = await supabase.auth.getClaims();
+  const { data, error } = await supabase.auth.getClaims(undefined, { jwks: PROJECT_JWKS });
   const sub = data?.claims?.sub;
   if (error || typeof sub !== "string" || !sub) return null;
   const email = data?.claims?.email;
