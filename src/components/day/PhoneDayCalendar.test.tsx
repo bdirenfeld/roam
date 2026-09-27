@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
-import type { Day } from "@/types/database";
+import type { Card, Day } from "@/types/database";
 
 /**
  * The phone's calendar, rendered (27 Sep 2026). Before it the phone had no
@@ -38,9 +38,20 @@ const days: Day[] = Array.from({ length: 62 }, (_, i) => {
   return { id: `d-${date}`, trip_id: "t1", day_number: i + 1, date } as unknown as Day;
 });
 
-function open(activeDayId = "d-2027-07-02") {
+// The Europe summer's hotel cards (live, 27 Sep 2026).
+const hotel = (day: number, title: string, address: string, status = "in_itinerary") => ({
+  id: `h${day}${status}`, day_id: days[day - 1].id, status, place: { title, address, sub_type: "hotel" },
+}) as unknown as Card;
+const EUROPE = [
+  hotel(1, "Presidential Apartments, Kensington", "Kensington Apartments, 6-12 Barkston Gardens, London SW5 0EN, UK"),
+  hotel(10, "Citadines Saint-Germain-des-Prés Paris (Apart hotel Paris)", "53 ter Quai des Grands Augustins, 75006 Paris, France"),
+  hotel(20, "Hotel Ilaria - Lucca", "Via del Fosso, 26, 55100 Lucca LU, Italy"),
+  hotel(41, "Lugaris Rambla - Barcelona Beach Apartments", "Rambla del Poblenou, 16-20, Sant Martí, 08005 Barcelona, Spain"),
+];
+
+function open(activeDayId = "d-2027-07-02", hotelCards: Card[] = []) {
   const onSelect = vi.fn(), onClose = vi.fn();
-  render(<PhoneDayCalendar tripId="t1" days={days} activeDayId={activeDayId} top={58} onSelect={onSelect} onClose={onClose} />);
+  render(<PhoneDayCalendar tripId="t1" days={days} hotelCards={hotelCards} activeDayId={activeDayId} top={58} onSelect={onSelect} onClose={onClose} />);
   return { onSelect, onClose };
 }
 
@@ -83,5 +94,21 @@ describe("the phone day calendar", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("dialog").parentElement!);
     expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it("with two or more stays it is laid out by stay: the bar, then each stay's days", () => {
+    const { onSelect } = open("d-2027-07-20", EUROPE);
+    expect(screen.queryByText("July 2027")).toBeNull();
+    const bar = ["London", "Paris", "Lucca", "Barcelona"].map((t) => screen.getByRole("button", { name: new RegExp(`^${t}, `) }));
+    expect(bar.map((b) => b.getAttribute("aria-label"))).toEqual(["London, 9 days", "Paris, 10 days", "Lucca, 21 days", "Barcelona, 22 days"]);
+    expect(screen.getByText("Hotel Ilaria - Lucca")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Tuesday 24 August/ }));
+    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: "d-2027-08-24" }));
+  });
+
+  it("a saved hotel is not a stay: one booked hotel stays a plain calendar", () => {
+    open("d-2027-07-02", [EUROPE[0], { ...EUROPE[1], status: "interested" } as Card]);
+    expect(screen.getByText("July 2027")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Paris, / })).toBeNull();
   });
 });

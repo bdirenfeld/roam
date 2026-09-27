@@ -837,6 +837,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
         <PhoneDayCalendar
           tripId={trip.id}
           days={days}
+          hotelCards={hotelCards}
           activeDayId={dayWithCards.id}
           top={phoneCal}
           onSelect={handleDaySelect}

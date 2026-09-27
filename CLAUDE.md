@@ -1630,8 +1630,15 @@ the component mounted and you are looking at throttling, not a broken map.
   tile = nothing on it. The weather line under the date keeps its own panel; opening one shuts
   the other. Before this the phone's only calendar was the "Day N of M" chip on the phone Plan
   board, which a phone cannot reach.
-- Step 2, held for his verdict on this one: group the calendar by stay (hotel runs, the
-  `tonightByDay` rule) when a journey has 2+ stays; two stays in one town are labelled by hotel.
-  Mock: https://claude.ai/artifact/9waoTGRDYveVmi5Kj51HgA
+- With 2+ stays it is laid out BY STAY, not by month (step 2, same day): a bar of the whole
+  journey to scale (tap = scroll to that stay, sienna tick = the open day), then each stay's
+  days under its town. `lib/week/journeyStays.ts`, tested on every live journey's hotel
+  cards: runs of the same `tonightByDay` hotel; the last day and days before the first
+  check-in join their neighbour; two stays in a row in one town are named by hotel (Rome,
+  not "Roma · Roma"); one hotel or none → null → the plain months. Only `in_itinerary`
+  hotel cards count — a saved idea can hold a day_id. The stays come from the page's
+  `hotelCards`, so the layout is right on the first frame. Mock:
+  https://claude.ai/artifact/9waoTGRDYveVmi5Kj51HgA. Not done: town names on the date
+  strip, and the desktop calendar still goes by month.
 - Both calendars' mark reads are in `archivedReads.test.ts`; the desktop one had no archived
   guard until this change.
