@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Card, Day } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
-import { dayMarks, monthGrids, type CalDay } from "@/lib/week/tripCalendar";
+import { monthGrids, type CalDay } from "@/lib/week/tripCalendar";
 import { journeyStays } from "@/lib/week/journeyStays";
 
 /**
@@ -15,9 +15,10 @@ import { journeyStays } from "@/lib/week/journeyStays";
  * lived on the phone Plan board, which a phone has no door to.
  *
  * It drops from under the header (`top` is the header's measured bottom),
- * where the thumb already is, like the ··· menu. A dot marks a planned day,
- * an arrow a travel day (flight, train, check-in); a day with nothing on it
- * is the paler tile. The marks cost one small read, made only on open, and
+ * where the thumb already is, like the ··· menu. A dot marks a planned day;
+ * a day with nothing on it is the paler tile. Two states, no key: a travel-day
+ * arrow shipped the same day and was cut when Brennan asked what it meant.
+ * The marks cost one small read, made only on open, and
  * fail quietly: without them it is still a calendar.
  *
  * With two or more stays it is laid out by stay, not by month (27 Sep 2026,
@@ -39,7 +40,7 @@ export default function PhoneDayCalendar({
   onClose: () => void;
 }) {
   useEscapeKey(onClose);
-  const [marks, setMarks] = useState<{ planned: Set<string>; travel: Set<string> } | null>(null);
+  const [planned, setPlanned] = useState<Set<string> | null>(null);
   // Today is decided in the browser, after mount (a server in UTC calls it
   // tomorrow from 8pm Eastern).
   const [todayStr, setTodayStr] = useState<string | null>(null);
@@ -54,7 +55,7 @@ export default function PhoneDayCalendar({
     let off = false;
     createClient()
       .from("cards")
-      .select("day_id, place:places(sub_type)")
+      .select("day_id")
       .eq("trip_id", tripId)
       .eq("status", "in_itinerary")
       .not("archived", "is", true)
@@ -62,8 +63,7 @@ export default function PhoneDayCalendar({
       .then(({ data, error }) => {
         if (off) return;
         if (error) { console.error("PhoneDayCalendar marks:", error); return; }
-        const rows = (data ?? []) as unknown as { day_id: string | null; place: { sub_type: string | null } | null }[];
-        setMarks(dayMarks(rows.map((r) => ({ day_id: r.day_id, sub_type: r.place?.sub_type ?? null }))));
+        setPlanned(new Set((data ?? []).map((r) => r.day_id as string)));
       });
     return () => { off = true; };
   }, [tripId]);
@@ -72,7 +72,7 @@ export default function PhoneDayCalendar({
     activeRef.current?.scrollIntoView({ block: "nearest" });
   }, []);
 
-  const months = useMemo(() => monthGrids(days, marks?.planned, marks?.travel), [days, marks]);
+  const months = useMemo(() => monthGrids(days, planned ?? undefined), [days, planned]);
   const byId = useMemo(() => new Map(days.map((d) => [d.id, d])), [days]);
   const cellById = useMemo(() => {
     const m = new Map<string, CalDay>();
@@ -97,9 +97,9 @@ export default function PhoneDayCalendar({
   const cell = (d: Day, c: CalDay | undefined) => {
     const on = d.id === activeDayId;
     const today = d.date === todayStr;
-    const planned = !!c?.planned, travel = !!c?.travel;
-    const quiet = marks !== null && !planned;
-    const what = travel ? ", travel day" : planned ? ", planned" : marks ? ", nothing planned" : "";
+    const has = !!c?.planned;
+    const quiet = planned !== null && !has;
+    const what = has ? ", planned" : planned ? ", nothing planned" : "";
     return (
       <button
         key={d.id}
@@ -117,7 +117,7 @@ export default function PhoneDayCalendar({
       >
         <span className="leading-none">{+d.date.slice(8, 10)}</span>
         <span aria-hidden className="h-2 text-[9px] leading-[8px]">
-          {travel ? "→" : planned ? <span className="inline-block w-1 h-1 rounded-full bg-current align-middle" /> : null}
+          {has ? <span className="inline-block w-1 h-1 rounded-full bg-current align-middle" /> : null}
         </span>
       </button>
     );
@@ -227,11 +227,6 @@ export default function PhoneDayCalendar({
             </div>
           </div>
         ))}
-        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-[11px]" style={{ color: "rgba(26,26,46,0.62)" }}>
-          <span>• planned</span>
-          <span>→ travel day</span>
-          {todayDay && <span><span className="inline-block w-2.5 h-2.5 rounded-[3px] align-[-1px] mr-1" style={{ boxShadow: "inset 0 0 0 1.5px #D18A2E" }} />today</span>}
-        </div>
       </div>
     </div>
   );

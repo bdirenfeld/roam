@@ -11,10 +11,7 @@ import type { Card, Day } from "@/types/database";
 
 // Rows as the calendar reads them, from the Europe summer journey: 1 July
 // lands at Heathrow, 2 July is the British Museum, 3 July has nothing.
-const rows = [
-  { day_id: "d-2027-07-01", place: { sub_type: "flight_arrival" } },
-  { day_id: "d-2027-07-02", place: { sub_type: "guided" } },
-];
+const rows = [{ day_id: "d-2027-07-01" }, { day_id: "d-2027-07-02" }];
 const calls: { method: string; args: unknown[] }[] = [];
 vi.mock("@/lib/supabase/client", () => {
   const chain: Record<string, unknown> = {};
@@ -65,10 +62,11 @@ describe("the phone day calendar", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it("marks the travel day, the planned day and the empty day apart", async () => {
+  it("two states and no key: planned, or nothing planned — no travel arrow", async () => {
     open();
-    await waitFor(() => expect(screen.getByRole("button", { name: "Thursday 1 July, travel day" })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Thursday 1 July, planned" })).toBeTruthy());
     expect(screen.getByRole("button", { name: "Friday 2 July, planned" })).toBeTruthy();
+    expect(screen.queryByText("→")).toBeNull();
     expect(screen.getByRole("button", { name: "Saturday 3 July, nothing planned" })).toBeTruthy();
   });
 

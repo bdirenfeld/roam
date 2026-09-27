@@ -1625,9 +1625,9 @@ the component mounted and you are looking at throttling, not a broken map.
 
 ## The phone's door to any day (27 Sep 2026)
 - The date in the phone Agenda header is a button with ▾: it opens `day/PhoneDayCalendar`, the
-  journey's months dropping from under the header (measured, `data-day-header`). Dot = planned,
-  → = travel day (flight, train, hotel: `TRAVEL_SUB_TYPES` in `lib/week/tripCalendar.ts`), pale
-  tile = nothing on it. The weather line under the date keeps its own panel; opening one shuts
+  journey's months dropping from under the header (measured, `data-day-header`). Two states and
+  no key: dot = planned, pale tile = nothing on it. A → for travel days shipped and was cut the
+  same day — he asked what it meant, and the stay layout already shows where you move. The weather line under the date keeps its own panel; opening one shuts
   the other. Before this the phone's only calendar was the "Day N of M" chip on the phone Plan
   board, which a phone cannot reach.
 - With 2+ stays it is laid out BY STAY, not by month (step 2, same day): a bar of the whole
