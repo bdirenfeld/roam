@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import TripCalendar from "@/components/ui/TripCalendar";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserCircle, Calendar, Columns, MapPin, Plus, Files } from "@phosphor-icons/react";
@@ -29,6 +30,7 @@ type TripContext = {
   end_date: string;
   firstDayId: string | null;
   cruise: boolean;
+  days: { id: string; date: string }[];
 };
 
 // Module-level cache — survives client navigations and avoids re-hitting
@@ -72,6 +74,7 @@ export default function DesktopMasthead() {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  const [calOpen, setCalOpen] = useState(false);
   const [tripCtx, setTripCtx] = useState<TripContext | null>(
     () => (currentTripId ? TRIP_CACHE.get(currentTripId) ?? null : null),
   );
@@ -116,6 +119,7 @@ export default function DesktopMasthead() {
           // Mid-trip, the Agenda tab should land on today, not Day 1
           firstDayId: resolveDefaultDay(days ?? [])?.id ?? null,
           cruise: (trip as { cruise?: boolean }).cruise === true,
+          days: (days ?? []) as { id: string; date: string }[],
         };
         TRIP_CACHE.set(currentTripId, next);
         setTripCtx(next);
@@ -226,17 +230,36 @@ export default function DesktopMasthead() {
               }}
             >
               <TripSwitcher currentTripId={currentTripId} title={tripCtx?.title ?? " "} />
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 500,
-                  color: CAPTION,
-                  letterSpacing: "0.14em",
-                  whiteSpace: "nowrap",
-                  flexShrink: 0,
-                }}
-              >
-                {tripCtx ? formatDateRange(tripCtx.start_date, tripCtx.end_date) : " "}
+              {/* The dates open the journey as a calendar (27 Sep 2026): a
+                  two-month summer was nine clicks of the week arrows away
+                  from its last week. */}
+              <span style={{ position: "relative", flexShrink: 0 }}>
+                <button
+                  type="button"
+                  onClick={() => setCalOpen((v) => !v)}
+                  disabled={!tripCtx?.days?.length}
+                  aria-expanded={calOpen}
+                  title="Jump to a day"
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 500,
+                    color: CAPTION,
+                    letterSpacing: "0.14em",
+                    whiteSpace: "nowrap",
+                    background: "none",
+                    border: 0,
+                    padding: "2px 4px",
+                    margin: "-2px -4px",
+                    borderRadius: 6,
+                    cursor: tripCtx?.days?.length ? "pointer" : "default",
+                  }}
+                  className="hover:bg-[rgba(26,26,46,0.06)]"
+                >
+                  {tripCtx ? formatDateRange(tripCtx.start_date, tripCtx.end_date) : " "}
+                </button>
+                {calOpen && tripCtx && currentTripId && (
+                  <TripCalendar tripId={currentTripId} days={tripCtx.days} guest={guest} onClose={() => setCalOpen(false)} />
+                )}
               </span>
             </div>
 
