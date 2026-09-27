@@ -28,6 +28,16 @@ export function tripCountries(destination: string | null | undefined, addresses:
   return out;
 }
 
+/**
+ * Nothing to enter at home (27 Sep 2026): a Muskoka or Niagara weekend showed
+ * an entry line and a toast on its first add. Canadian passports are the
+ * default, so a journey only in Canada is not checked.
+ */
+export const HOME_COUNTRY = "Canada";
+export function needsEntryCheck(countries: string[]): boolean {
+  return countries.some((c) => c !== HOME_COUNTRY);
+}
+
 const EUROPE = ["United Kingdom", "Ireland", "France", "Spain", "Portugal", "Italy", "Germany", "Netherlands", "Belgium", "Luxembourg", "Switzerland", "Austria", "Denmark", "Sweden", "Norway", "Finland", "Iceland", "Czechia", "Czech Republic", "Poland", "Hungary", "Croatia", "Slovenia", "Greece", "Malta", "Monaco", "Montenegro", "Estonia", "Latvia", "Lithuania", "Slovakia", "Romania", "Bulgaria", "Albania", "Cyprus"];
 const EUROPE_REGIONS = new Set(["Europe", "Western Europe", "Eastern Europe", "Scandinavia", "The Balkans", "The Mediterranean", "The British Isles", "The Alps"]);
 

@@ -745,6 +745,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       setIsCopying(false);
       const missed = targets.length - made.length;
       toast({
+        duration: 12000,
         message: missed ? `On ${made.length} more ${made.length === 1 ? "day" : "days"}; ${missed} couldn't be added` : `On ${made.length} more ${made.length === 1 ? "day" : "days"}`,
         undo: made.length ? async () => {
           for (const c of made) { await queuedDelete("cards", { id: c.id }); onCardDelete?.(c.id); }

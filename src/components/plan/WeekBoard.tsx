@@ -527,6 +527,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     setMapWide(false); tintDay(day.id);
     const n = created.length;
     toast({
+      duration: 12000,
       message: [
         unplaced.length ? `${n} on ${dow(target.date)}; ${unplaced.length} didn't fit, left anytime` : `${n} ${n === 1 ? "place" : "places"} on ${dow(target.date)}, in walking order`,
         skipped ? `${skipped} already there` : "",
@@ -604,6 +605,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     await applyPlan(dayId, updates);
     tintDay(dayId);
     toast({
+      duration: 12000,
       message: unplaced.length ? `${dow(day.date)} rearranged; ${unplaced.length} left anytime` : `${dow(day.date)} rearranged`,
       undo: () => applyPlan(dayId, before),
     });

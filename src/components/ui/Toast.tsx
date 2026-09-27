@@ -68,7 +68,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           key={current.key}
           role="status"
           aria-live="polite"
-          className="fixed bottom-24 md:bottom-8 left-1/2 -translate-x-1/2 z-[80] max-w-[min(92vw,420px)] bg-gray-900 text-white text-[13px] font-medium rounded-2xl shadow-lg flex items-center gap-3 animate-in fade-in"
+          // On a computer the toast sits under the masthead (27 Sep 2026): at the
+          // bottom it covered the centred sheets' own buttons — "Copy to 9 days"
+          // sat under "Something to do before Spain" for seven seconds.
+          className="fixed bottom-24 md:bottom-auto md:top-[76px] left-1/2 -translate-x-1/2 z-[80] max-w-[min(92vw,420px)] bg-gray-900 text-white text-[13px] font-medium rounded-2xl shadow-lg flex items-center gap-3 animate-in fade-in"
           style={{ padding: current.undo ? "6px 6px 6px 16px" : "10px 16px", maxWidth: "calc(100vw - 32px)" }}
         >
           <span>{current.message}</span>

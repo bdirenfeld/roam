@@ -401,6 +401,12 @@ export default function TripSettingsClient({
       return;
     }
     leave();
+    // Said and undoable (27 Sep 2026): the journey used to just vanish.
+    toast({
+      message: `"${trip.title}" archived`,
+      undo: async () => { await setTripArchived(createClient(), trip.id, false); router.refresh(); },
+      duration: 8000,
+    });
   };
 
   const handleRestore = async () => {

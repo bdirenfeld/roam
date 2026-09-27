@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
-import { tripCountries } from "@/lib/entry/countries";
+import { tripCountries, needsEntryCheck } from "@/lib/entry/countries";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
 import type { EntryAdvisory, EntryData, EntryLine } from "@/lib/entry/types";
@@ -69,6 +69,7 @@ export async function POST(req: NextRequest) {
   const byDay = (placed ?? []).slice().sort((x, y) => String((x.days as { date?: string } | null)?.date ?? "").localeCompare(String((y.days as { date?: string } | null)?.date ?? "")));
   const countries = tripCountries(trip.destination as string | null, byDay.map((c) => (c.place as { address?: string | null } | null)?.address));
   if (countries.length === 0) return NextResponse.json({ error: "Nothing on the journey to check yet" }, { status: 409 });
+  if (!needsEntryCheck(countries)) return NextResponse.json({ error: "A journey at home has no entry to check" }, { status: 409 });
   const country = countries.length > 1 ? countries.join(" · ") : (countries[0] ?? countryOf((trip.destination as string) ?? ""));
   const nights = trip.start_date && trip.end_date
     ? Math.round((new Date(trip.end_date as string).getTime() - new Date(trip.start_date as string).getTime()) / 86400000)

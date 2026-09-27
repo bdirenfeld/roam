@@ -39,3 +39,13 @@ describe("searching where the journey goes", () => {
     expect(preferCountries(preds, [])).toEqual(preds);
   });
 });
+
+import { needsEntryCheck } from "./countries";
+describe("needsEntryCheck", () => {
+  it("a journey only in Canada has nothing to enter", () => {
+    expect(needsEntryCheck(tripCountries("Niagara Falls, ON, Canada", ["6650 Niagara Pkwy, Niagara Falls, ON L2E 6X8, Canada"]))).toBe(false);
+  });
+  it("one step across a border and it does", () => {
+    expect(needsEntryCheck(["Canada", "United States"])).toBe(true);
+  });
+});

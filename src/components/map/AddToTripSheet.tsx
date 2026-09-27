@@ -119,6 +119,8 @@ function StarRating({ rating }: { rating: number }) {
 export default function AddToTripSheet({ place, tripId, days, onClose, onCardCreated }: Props) {
   const supabase = createClient();
   const withMonth = spansMonths(days.map((d) => d.date));
+  const todayIso = new Date().toLocaleDateString("en-CA");
+  const underway = days.some((d) => d.date === todayIso);
   const { toast } = useToast();
   const sheetRef = useRef<HTMLDivElement>(null);
   const dragY    = useRef(0);
@@ -473,7 +475,10 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
           )}
 
           {/* Hours */}
-          {(place.openNow !== undefined || place.todayHours) && (
+          {/* "Open now" is about today; months before a journey it only
+              confuses ("Closed" on a bar you will visit in September). Shown
+              while the journey is under way (27 Sep 2026). */}
+          {underway && (place.openNow !== undefined || place.todayHours) && (
             <p className="text-[12px] mb-2">
               {/* "Closed · Closed" when today's hours are just "Closed" (27 Sep 2026): say it once. */}
               {place.openNow !== undefined && !(/^closed$/i.test(place.todayHours ?? "")) && (
