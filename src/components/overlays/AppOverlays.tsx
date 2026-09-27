@@ -257,6 +257,7 @@ function EstimateOverlayBody({
       cardCurrency={data.cardCurrency}
       excursionItems={data.excursionItems}
       excursionFree={data.excursionFree}
+      cruise={data.cruise}
       dateRange={data.dateRange}
       distanceKm={data.distanceKm}
       peak={data.peak}

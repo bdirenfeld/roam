@@ -28,6 +28,7 @@ type TripContext = {
   start_date: string;
   end_date: string;
   firstDayId: string | null;
+  cruise: boolean;
 };
 
 // Module-level cache — survives client navigations and avoids re-hitting
@@ -97,7 +98,7 @@ export default function DesktopMasthead() {
         const [{ data: trip }, { data: days }] = await Promise.all([
           supabase
             .from("trips")
-            .select("id, title, start_date, end_date")
+            .select("id, title, start_date, end_date, cruise")
             .eq("id", currentTripId)
             .single(),
           supabase
@@ -114,6 +115,7 @@ export default function DesktopMasthead() {
           end_date: trip.end_date,
           // Mid-trip, the Agenda tab should land on today, not Day 1
           firstDayId: resolveDefaultDay(days ?? [])?.id ?? null,
+          cruise: (trip as { cruise?: boolean }).cruise === true,
         };
         TRIP_CACHE.set(currentTripId, next);
         setTripCtx(next);
@@ -329,6 +331,7 @@ export default function DesktopMasthead() {
         variant="desktop"
         tripId={currentTripId}
         guest={guest}
+        noStay={tripCtx?.cruise === true}
         // Bookings, as on the phone. The sheet belongs to the open screen
         // (Agenda, Plan, Map); this row only asks for it.
         extra={showTripStrip && !guest ? [

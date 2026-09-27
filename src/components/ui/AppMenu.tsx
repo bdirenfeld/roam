@@ -43,6 +43,7 @@ export default function AppMenu({
   trip,
   days,
   guest = false,
+  noStay = false,
   triggerClassName,
   wrapperClassName,
   extra,
@@ -53,6 +54,8 @@ export default function AppMenu({
   trip?: Trip;
   days?: Day[];
   guest?: boolean;
+  /** A cruise has no Where to stay: the ship is the stay (27 Sep 2026). */
+  noStay?: boolean;
   triggerClassName: string;
   /** Positions the whole control (trigger + menu); the map floats it. */
   wrapperClassName?: string;
@@ -230,7 +233,7 @@ export default function AppMenu({
               {/* Where to stay lives over the Map: the candidates are pins
                   against the pins the person chose. The row is a plain link
                   so it works from every tab and opens the sheet on arrival. */}
-              {owner && (
+              {owner && !noStay && !trip?.cruise && (
                 <Link
                   // Desktop owners have no Map tab: the stay panel opens over the
                   // Plan's map (25 Sep 2026). The phone keeps the Map screen.

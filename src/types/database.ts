@@ -29,6 +29,8 @@ export interface Trip {
   end_date: string
   trip_purpose: string | null
   trip_type: string | null
+  /** A cruise (27 Sep 2026): the Budget prices a fare, not a hotel; no Where to stay. */
+  cruise?: boolean
   party_size: number
   party_ages: number[] | null
   accommodation_name: string | null

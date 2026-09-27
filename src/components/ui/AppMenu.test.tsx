@@ -35,8 +35,8 @@ afterEach(cleanup);
 
 const bookings = [{ key: "bookings", title: "Bookings", sub: "", icon: null, onClick: () => {} }];
 
-function rows(guest: boolean) {
-  render(<AppMenu variant="mobile" tripId="t1" guest={guest} extra={bookings} triggerClassName="" />);
+function rows(guest: boolean, noStay = false) {
+  render(<AppMenu variant="mobile" tripId="t1" guest={guest} noStay={noStay} extra={bookings} triggerClassName="" />);
   fireEvent.click(screen.getByLabelText("More options"));
   return screen.getAllByRole("menuitem").map((el) => el.textContent?.trim());
 }
@@ -49,5 +49,9 @@ describe("the journey menu", () => {
 
   it("is Notes and Bookings for a guest — no planner's Ideas", () => {
     expect(rows(true)).toEqual(["Notes", "Bookings"]);
+  });
+
+  it("has no Stay on a cruise: the ship is the stay (27 Sep 2026)", () => {
+    expect(rows(false, true)).toEqual(["Budget", "Notes", "Bookings", "Settings"]);
   });
 });

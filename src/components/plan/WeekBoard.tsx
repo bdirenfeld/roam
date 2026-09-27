@@ -21,7 +21,6 @@ import type { Trip, DayWithCards, Card, Day } from "@/types/database";
 import { queuedUpdate, queuedInsert, queuedDelete } from "@/lib/offline/queuedWrite";
 import { createClient } from "@/lib/supabase/client";
 import { scheduleCardOnDay, unscheduleCard } from "@/lib/scheduleCard";
-import { arrangeDay, type ArrangeItem, type Busy, type Anchor } from "@/lib/week/arrange";
 import { PIN_COLORS, getMaterialIconHTML } from "@/lib/mapPins";
 import { autoDayTitle } from "@/lib/autoDayTitle";
 import { useToast } from "@/components/ui/Toast";
@@ -30,7 +29,7 @@ import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import DocumentsSheet from "./DocumentsSheet";
 import WeekMap from "./WeekMap";
 import { weekColumns, weekMinWidth } from "@/lib/week/focus";
-import { planBatch, plannedOtherDays, flightBounds } from "@/lib/week/dayPlan";
+import { planBatch, planExisting, plannedOtherDays } from "@/lib/week/dayPlan";
 import { shortAddress, firstSentence } from "@/lib/week/cardText";
 import {
   placeBlocks, movedTimes, resizedEnd, resizedStart, minutesAtY, toMin, toTime, fmt12, gridHeight,
@@ -485,22 +484,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   }, []);
 
   // ── arranging (lib/week/arrange) ───────────────────────────────
-  const toItem = (c: Card): ArrangeItem => ({ id: c.id, type: c.place?.type ?? "activity", subType: c.place?.sub_type ?? null, lat: c.place?.lat ?? null, lng: c.place?.lng ?? null });
-  const busyOf = (day: DayWithCards, except: Set<string>): Busy[] => day.cards.flatMap((c) => {
-    if (except.has(c.id)) return [];
-    const t = cardTimes(c); if (!t.start) return [];
-    const s = toMin(t.start); return [{ startMin: s, endMin: t.end ? toMin(t.end) : s + NO_END_MIN }];
-  });
-  // Where the walking starts: the day's first timed place, else its first
-  // place, else the journey's centre. (A stay with a pin would go first.)
-  const anchorOf = (day: DayWithCards): Anchor | null => {
-    const withPoint = day.cards.filter((c) => c.place?.lat != null && c.place?.lng != null);
-    const timed = withPoint.filter((c) => cardTimes(c).start).sort((a, b) => toMin(cardTimes(a).start!) - toMin(cardTimes(b).start!));
-    const first = timed[0] ?? withPoint[0];
-    if (first) return { lat: first.place!.lat!, lng: first.place!.lng! };
-    return trip.destination_lat != null && trip.destination_lng != null ? { lat: trip.destination_lat, lng: trip.destination_lng } : null;
-  };
-  // First or last day of the journey, for flightBounds (lib/week/dayPlan).
+  // First or last day of the journey, for the planner's hinges (lib/week/dayPlan).
   const edgeOf = (id: string) => { const all = daysRef.current; return { first: all[0]?.id === id, last: all[all.length - 1]?.id === id }; };
   const tintDay = (id: string) => { setActiveDayId(id); window.setTimeout(() => setActiveDayId((cur) => (cur === id ? null : cur)), 2500); };
 
@@ -544,26 +528,29 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   }, [supabase, trip.id, trip.destination_lat, trip.destination_lng, toast]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Door 2: a day's timeless blocks get times around the timed ones.
+  // One planner for the week, the day page and the phone (lib/week/dayPlan):
+  // the week used to call the engine itself and missed what the planner knows
+  // (ports, all aboard, the first and last day's hinges; 27 Sep 2026).
+  const planFallback = trip.destination_lat != null && trip.destination_lng != null ? { lat: trip.destination_lat, lng: trip.destination_lng } : null;
+  const applyPlan = useCallback(async (dayId: string, list: { id: string; start_time: string | null; end_time: string | null }[]) => {
+    for (const u of list) {
+      const next = { start_time: u.start_time, end_time: u.end_time };
+      patchCard(u.id, next, dayId);
+      await queuedUpdate("cards", { id: u.id }, next);
+    }
+  }, [patchCard]);
   const arrangeThisDay = useCallback(async (dayId: string) => {
     const day = daysRef.current.find((d) => d.id === dayId); if (!day) return;
-    const untimed = day.cards.filter((c) => !cardTimes(c).start);
-    if (untimed.length === 0) { toast({ message: "Everything on this day already has a time." }); return; }
-    const { placed, unplaced } = arrangeDay(untimed.map(toItem), [...busyOf(day, new Set(untimed.map((c) => c.id))), ...flightBounds(day.cards, edgeOf(dayId))], anchorOf(day));
-    if (placed.length === 0) { toast({ message: "No room left on this day." }); return; }
-    const before = new Map(untimed.map((c) => [c.id, { start_time: c.start_time, end_time: c.end_time }]));
-    for (const p of placed) {
-      const next = { start_time: toTime(p.startMin), end_time: toTime(p.endMin) };
-      patchCard(p.id, next, dayId);
-      await queuedUpdate("cards", { id: p.id }, next);
-    }
+    if (!day.cards.some((c) => !cardTimes(c).start)) { toast({ message: "Everything on this day already has a time." }); return; }
+    const { updates, before, unplaced } = planExisting(day.cards, "rest", planFallback, edgeOf(dayId));
+    if (updates.length === 0) { toast({ message: "No room left on this day." }); return; }
+    await applyPlan(dayId, updates);
     tintDay(dayId);
     toast({
       message: unplaced.length ? `${dow(day.date)} arranged; ${unplaced.length} didn't fit` : `${dow(day.date)} arranged`,
-      undo: async () => {
-        for (const p of placed) { const b = before.get(p.id)!; patchCard(p.id, b, dayId); await queuedUpdate("cards", { id: p.id }, b); }
-      },
+      undo: () => applyPlan(dayId, before),
     });
-  }, [patchCard, toast]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [applyPlan, toast]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── plan first ─────────────────────────────────────────────────
   const onColumnClick = (e: React.MouseEvent<HTMLDivElement>, dayId: string, dayIdx: number) => {
@@ -594,31 +581,15 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   // as fixed points. Undo puts every time back.
   const rearrangeEverything = useCallback(async (dayId: string) => {
     const day = daysRef.current.find((d) => d.id === dayId); if (!day) return;
-    const movable = day.cards.filter((c) => !c.confirmed && !((c.place?.sub_type ?? "").startsWith("flight") && cardTimes(c).start));
-    if (movable.length === 0) { toast({ message: "Everything on this day is confirmed." }); return; }
-    const fixed = new Set(movable.map((c) => c.id));
-    const staying = day.cards.filter((c) => !fixed.has(c.id));
-    const { placed, unplaced } = arrangeDay(movable.map(toItem), [...busyOf(day, fixed), ...flightBounds(staying, edgeOf(dayId))], anchorOf({ ...day, cards: staying }));
-    if (placed.length === 0) { toast({ message: "No room left on this day." }); return; }
-    const before = new Map(movable.map((c) => [c.id, { start_time: c.start_time, end_time: c.end_time }]));
-    for (const p of placed) {
-      const next = { start_time: toTime(p.startMin), end_time: toTime(p.endMin) };
-      patchCard(p.id, next, dayId);
-      await queuedUpdate("cards", { id: p.id }, next);
-    }
-    for (const id of unplaced) {
-      const next = { start_time: null, end_time: null };
-      patchCard(id, next, dayId);
-      await queuedUpdate("cards", { id }, next);
-    }
+    const { updates, before, unplaced } = planExisting(day.cards, "all", planFallback, edgeOf(dayId));
+    if (updates.length === 0) { toast({ message: "Everything on this day is confirmed." }); return; }
+    await applyPlan(dayId, updates);
     tintDay(dayId);
     toast({
       message: unplaced.length ? `${dow(day.date)} rearranged; ${unplaced.length} left anytime` : `${dow(day.date)} rearranged`,
-      undo: async () => {
-        for (const [id, b] of Array.from(before)) { patchCard(id, b, dayId); await queuedUpdate("cards", { id }, b); }
-      },
+      undo: () => applyPlan(dayId, before),
     });
-  }, [patchCard, toast]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [applyPlan, toast]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── bulk actions on picked blocks ──────────────────────────────
   const pickedCards = useMemo(() => days.flatMap((d) => d.cards).filter((c) => pickedBlocks.has(c.id)), [days, pickedBlocks]);

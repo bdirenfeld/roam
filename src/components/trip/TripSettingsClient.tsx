@@ -164,6 +164,7 @@ export default function TripSettingsClient({
   const [startDate, setStartDate] = useState(trip.start_date);
   const [endDate, setEndDate] = useState(trip.end_date);
   const [partySize, setPartySize] = useState(trip.party_size);
+  const [cruise, setCruise] = useState(trip.cruise === true);
 
   // Cover image — tracked locally so hero updates immediately after save
   const [currentCoverUrl, setCurrentCoverUrl] = useState<string | null>(trip.cover_image_url ?? null);
@@ -276,6 +277,7 @@ export default function TripSettingsClient({
           start_date: startDate,
           end_date: endDate,
           party_size: partySize,
+          cruise,
         })
         .eq("id", trip.id);
 
@@ -367,7 +369,7 @@ export default function TripSettingsClient({
       pending.current = false;
       if (await persistRef.current()) setSavedOnce(true);
     }, 700);
-  }, [title, destination, partySize, startDate, endDate]);
+  }, [title, destination, partySize, startDate, endDate, cruise]);
   // The overlay can also close from outside — a swipe down, Escape, the
   // backdrop — without going through dismiss. Whatever is still waiting is
   // sent on the way out rather than dropped.
@@ -744,6 +746,21 @@ export default function TripSettingsClient({
               </button>
             </div>
           </div>
+
+          {/* Cruise (27 Sep 2026): the ship is the hotel and most meals, so the
+              Budget prices a fare instead, and Where to stay goes away. */}
+          <button
+            type="button"
+            onClick={() => setCruise((v) => !v)}
+            aria-pressed={cruise}
+            className="w-full flex items-center px-5 py-[14px] text-left"
+          >
+            <span className="text-[10px] uppercase tracking-widest text-gray-400 w-20 flex-shrink-0">Cruise</span>
+            <span className="flex-1 text-[14px] text-[#1A1A2E]">{cruise ? "Yes, on a ship" : "No"}</span>
+            <span className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 ${cruise ? "bg-activity" : "bg-gray-200"}`}>
+              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${cruise ? "left-[18px]" : "left-0.5"}`} />
+            </span>
+          </button>
 
         </div>
 

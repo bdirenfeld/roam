@@ -252,9 +252,25 @@ export function splitTotals(
   return { usPeople, guestPeople, guests, us: total - guests };
 }
 
+/**
+ * A cruise's budget (27 Sep 2026): the ship is the hotel and most of the
+ * meals, and the port taxes are in the fare. Accommodation becomes the fare
+ * per person; groceries, car hire and tourist tax go. The fare keeps the
+ * accommodation line's stored rate, read per person instead of per night.
+ */
+export function cruiseLines(lines: EstimateLine[], a: Assumptions): EstimateLine[] {
+  const people = Math.max(a.people, 0);
+  return lines
+    .filter((l) => l.key !== "groceries" && l.key !== "car" && l.key !== "touristTax")
+    .map((l) => l.key !== "accommodation" ? l : {
+      ...l, label: "Cruise fare", share: "person", amount: money(a.nightlyRate * people),
+      count: a.people, countKey: "people", countLabel: "people",
+    });
+}
+
 export function compute(
   a: Assumptions,
-  opts: { uncostedExcursions: number; rolledExcursionCount: number },
+  opts: { uncostedExcursions: number; rolledExcursionCount: number; cruise?: boolean },
 ): Estimate {
   // Counts multiply as typed — 0 travellers means $0 of flights (Brennan,
   // Sep 2026: "when you put flights to zero it still drives a cost"). The
@@ -262,7 +278,7 @@ export function compute(
   const people = Math.max(a.people, 0);
   const days = Math.max(a.days, 0);
 
-  const lines: EstimateLine[] = [
+  const base: EstimateLine[] = [
     {
       key: "flights",
       share: "person",
@@ -393,6 +409,7 @@ export function compute(
       enabledKey: "touristTaxEnabled",
     },
   ];
+  const lines = opts.cruise ? cruiseLines(base, a) : base;
 
   const subtotal = lines.reduce((s, l) => s + (l.enabled ? l.amount : 0), 0);
   const contingency = money((subtotal * a.contingencyPct) / 100);
@@ -456,7 +473,7 @@ const near = (n: number, to: number) => Math.round(n / to) * to;
 
 export function suggest(
   a: Assumptions,
-  ctx: { distanceKm: number; peak: boolean },
+  ctx: { distanceKm: number; peak: boolean; cruise?: boolean },
 ): Suggestion {
   const people = Math.max(a.people, 1);
   const km = ctx.distanceKm;
@@ -472,10 +489,13 @@ export function suggest(
   const bedrooms = Math.max(1, Math.ceil(people / 2));
   const vehicles = people > 5 ? 2 : 1;
 
+  // A cruise fare is quoted per person for the sailing; a mid-market
+  // balcony cabin runs about $190 a person a night.
+  const cruiseFare = near(190 * Math.max(a.nights, 1), 10);
   return {
     values: {
       flightPerPerson: fare,
-      nightlyRate: near(150 + bedrooms * 110, 10),
+      nightlyRate: ctx.cruise ? cruiseFare : near(150 + bedrooms * 110, 10),
       groceriesPerDay: near(22 * people, 10),
       perMealOut: near(57 * people, 10),
       carDayRate: near(vehicles * 105, 10),
@@ -485,7 +505,7 @@ export function suggest(
     },
     basis: {
       flights: home ? "at home · no flights" : `${km.toLocaleString("en-CA")} km from Toronto · ${bandName}${ctx.peak ? " · +15% peak season" : ""}`,
-      accommodation: `${people} people needs ${bedrooms} bedrooms`,
+      accommodation: ctx.cruise ? `$190 per person per night × ${a.nights} nights, balcony cabin` : `${people} people needs ${bedrooms} bedrooms`,
       groceries: `$22 per person per day × ${people}`,
       restaurants: `$57 a head × ${people}`,
       car: `${vehicles} ${vehicles === 1 ? "vehicle" : "vehicles"} · includes fuel and tolls`,

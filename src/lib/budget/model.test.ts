@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { compute, defaultAssumptions, splitTotals, type Assumptions } from "./model";
+import { compute, defaultAssumptions, splitTotals, suggest, type Assumptions } from "./model";
 
 /**
  * Splitting a journey between two households.
@@ -134,5 +134,32 @@ describe("compute", () => {
     const d = defaultAssumptions(5, 11);
     expect(d.guestPeople).toBe(0);
     expect(d.guestSharePct).toBe(33);
+  });
+});
+
+// 27 Sep 2026: a family of five on a 7-night Mediterranean cruise.
+describe("a cruise", () => {
+  const a = { ...defaultAssumptions(5, 7), nightlyRate: 1330, groceriesPerDay: 110, carEnabled: true, carDayRate: 210, touristTaxEnabled: true, touristTaxPerNight: 15 };
+  const opts = { uncostedExcursions: 0, rolledExcursionCount: 0 };
+  it("prices a fare per person instead of hotel nights, with no groceries, car or tourist tax", () => {
+    const est = compute(a, { ...opts, cruise: true });
+    const keys = est.lines.map((l) => l.key);
+    expect(keys).not.toContain("groceries");
+    expect(keys).not.toContain("car");
+    expect(keys).not.toContain("touristTax");
+    const fare = est.lines.find((l) => l.key === "accommodation")!;
+    expect(fare.label).toBe("Cruise fare");
+    expect(fare.amount).toBe(1330 * 5);
+    expect(fare.countLabel).toBe("people");
+  });
+  it("leaves every other journey as it was", () => {
+    const est = compute(a, opts);
+    expect(est.lines.find((l) => l.key === "accommodation")!.amount).toBe(1330 * 7);
+    expect(est.lines.map((l) => l.key)).toContain("groceries");
+  });
+  it("suggests a fare for the sailing, per person", () => {
+    const s = suggest(a, { distanceKm: 6500, peak: false, cruise: true });
+    expect(s.values.nightlyRate).toBe(1330);
+    expect(s.basis.accommodation).toContain("per person");
   });
 });

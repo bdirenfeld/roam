@@ -105,6 +105,8 @@ export interface EstimateData {
   dateRange: string;
   distanceKm: number;
   peak: boolean;
+  /** A cruise: the fare replaces the hotel (lib/budget/model cruiseLines). */
+  cruise: boolean;
 }
 
 const fmt = (iso: string | null) =>
@@ -154,7 +156,7 @@ export async function loadEstimate(
       supabase
         .from("trips")
         .select(
-          "id, title, destination, start_date, end_date, party_size, destination_lat, destination_lng",
+          "id, title, destination, start_date, end_date, party_size, destination_lat, destination_lng, cruise",
         )
         .eq("id", tripId)
         .single(),
@@ -323,5 +325,6 @@ export async function loadEstimate(
     peak: trip.start_date
       ? [7, 8, 12].includes(Number(trip.start_date.slice(5, 7)))
       : false,
+    cruise: (trip as { cruise?: boolean }).cruise === true,
   };
 }

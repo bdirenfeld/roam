@@ -280,6 +280,8 @@ interface Props {
   dateRange: string;
   distanceKm: number;
   peak: boolean;
+  /** A cruise: the fare replaces the hotel, no groceries, car or tourist tax. */
+  cruise?: boolean;
   /** "page" is the standalone route; "overlay" hands the frame to the host. */
   variant?: "page" | "overlay";
   /** Close, when hosted in an overlay. Defaults to router.back(). */
@@ -299,6 +301,7 @@ export default function EstimateClient({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   excursionFree: _excursionFree,
   dateRange,
+  cruise = false,
   distanceKm,
   peak,
   variant = "page",
@@ -400,8 +403,9 @@ export default function EstimateClient({
       compute(a, {
         uncostedExcursions: items.filter((x) => x.amount == null).length,
         rolledExcursionCount: items.filter((x) => x.amount != null).length,
+        cruise,
       }),
-    [a, items],
+    [a, items, cruise],
   );
 
   const setNum = useCallback((key: keyof Assumptions, raw: string) => {
@@ -468,7 +472,7 @@ export default function EstimateClient({
 
   const runSuggest = () => {
     void findPrices();
-    const s = suggest(a, { distanceKm, peak });
+    const s = suggest(a, { distanceKm, peak, cruise });
     const next = { ...a };
     if (distanceKm < 80) { next.carEnabled = false; next.dogEnabled = false; }
     if (!excursionsTyped) next.excursionsTotal = rowsTotal();
