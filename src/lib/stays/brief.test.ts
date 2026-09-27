@@ -233,3 +233,18 @@ describe("a UK postcode is not part of the town", () => {
     expect(townFromAddress("Oxford Street, London W1, UK")).toBe("London");
   });
 });
+
+describe("booked stays set the nights", () => {
+  const stay = (title: string, lat: number, lng: number, d: string) => pin(title, `${title}, Somewhere`, lat, lng, "hotel", d, "15:00:00");
+  const sight = (lat: number, lng: number, d: string) => pin("Sight", "Somewhere", lat, lng, "self_directed", d, "10:00:00");
+  it("London 1 Jul, Paris 10 Jul, Lucca 20 Jul, Barcelona 10 Aug run 9/10/21/21, not by pin count", () => {
+    const pins = [
+      stay("London flat", 51.49, -0.19, "2027-07-01"), ...[2, 3, 4, 5, 7].map((d) => sight(51.51, -0.12, `2027-07-0${d}`)),
+      stay("Paris flat", 48.85, 2.33, "2027-07-10"), sight(48.86, 2.29, "2027-07-11"),
+      stay("Lucca hotel", 43.84, 10.50, "2027-07-20"), sight(43.72, 10.40, "2027-07-21"),
+      stay("Barcelona flat", 41.38, 2.18, "2027-08-10"), ...[16, 17, 18, 19, 20, 23, 24, 25].map((d) => sight(41.28, 1.99, `2027-08-${d}`)),
+    ];
+    const b = buildStayBrief({ startDate: "2027-07-01", endDate: "2027-08-31", partyAges: [44, 41, 10, 8, 5], partySize: 5, pins });
+    expect(b.bases.map((x) => x.nights)).toEqual([9, 10, 21, 21]);
+  });
+});

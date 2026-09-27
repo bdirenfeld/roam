@@ -411,12 +411,21 @@ export function buildStayBrief(input: BriefInput): StayBrief {
     .sort((a, b) => (a.day && b.day ? (a.day < b.day ? -1 : a.day > b.day ? 1 : a.i - b.i) : a.day ? -1 : b.day ? 1 : a.i - b.i))
     .map((x) => x.r);
   const totalPins = keep.reduce((n, r) => n + r.pins, 0) || 1;
+  // When every base already has a stay checked into on a day, the dates say
+  // how long each one is (27 Sep 2026): a Europe summer booked London 1 July,
+  // Paris 10 July, Lucca 20 July, Barcelona 10 August came out 17/12/9/23 by
+  // pin count, not 9/10/21/21. Each base runs from its check-in to the next.
+  const checkIn = (c: Cluster) => c.pins.filter(isStay).map((p) => p.dayDate).filter((d): d is string => !!d).sort()[0] ?? null;
+  const ins = keep.map((r) => checkIn(r.c));
+  const at = ins.map((d) => (d ? dayList.indexOf(d) : -1));
+  const byDates = keep.length > 1 && at.every((x, i) => x >= 0 && (i === 0 || x > at[i - 1]));
+  const dated = byDates ? at.map((x, i) => (i === keep.length - 1 ? nights : at[i + 1]) - (i === 0 ? 0 : x)) : null;
   let left = nights;
   const bases = keep.map((r, i) => {
-    const share = i === keep.length - 1
+    const share = dated ? dated[i] : i === keep.length - 1
       ? left
       : Math.max(MIN_NIGHTS_PER_BASE, Math.round((r.pins / totalPins) * nights));
-    const nightsHere = Math.min(share, left - MIN_NIGHTS_PER_BASE * (keep.length - 1 - i));
+    const nightsHere = dated ? share : Math.min(share, left - MIN_NIGHTS_PER_BASE * (keep.length - 1 - i));
     left -= nightsHere;
     // A region is 100 km wide, so its centroid can land on the wrong town —
     // Tuscany's came out "Firenze" when the base is Lucca. The region holding

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { CaretDown } from "@phosphor-icons/react";
 import type { Day } from "@/types/database";
+import { monthGrids } from "@/lib/week/tripCalendar";
 
 interface Props {
   days: Day[];
@@ -101,7 +102,7 @@ export default function DayPicker({ days, onSelect, mode, activeDayId, align = "
               // screen, never past an edge. Uses the CSS min() function directly,
               // no calc wrapper.
               maxWidth: "min(280px, 100vw - 24px)",
-              maxHeight: 296,
+              maxHeight: 380,
               overflowY: "auto",
               boxShadow: "0 8px 28px rgba(26,26,46,0.08), 0 0 0 1px rgba(26,26,46,0.03)",
             }}
@@ -119,82 +120,45 @@ export default function DayPicker({ days, onSelect, mode, activeDayId, align = "
                 Jump to today · Day {todayDay.day_number}
               </button>
             )}
-            <div className="mt-1 flex flex-col gap-0.5">
-              {days.map((d) => {
-                const dt = new Date(d.date + "T00:00:00");
-                const dow = dt.toLocaleDateString("en-GB", { weekday: "short" });
-                const dayNum = dt.getDate();
-                // en-US, matching DayHeaderCell and the week bars. en-GB
-                // abbreviates September as "Sept", which put "4 Sept" in this
-                // popover directly above a bar reading "4–5 Sep".
-                const monthName = dt.toLocaleDateString("en-US", { month: "short" });
-                const on = mode === "active" && d.id === activeDayId;
-                return (
-                  <button
-                    key={d.id}
-                    ref={on ? activeRowRef : null}
-                    role="menuitem"
-                    onClick={() => {
-                      setOpen(false);
-                      onSelect(d);
-                    }}
-                    className="flex items-center gap-3.5 w-full px-2.5 py-2 rounded-md text-left"
-                    style={{
-                      background: on ? "#fff" : "transparent",
-                      boxShadow: on ? "0 0 0 1px rgba(26,26,46,0.12)" : "none",
-                    }}
-                  >
-                    <span
-                      className="font-display italic text-[22px] w-8 text-center"
-                      style={{
-                        color: on ? "#1A1A2E" : "rgba(26,26,46,0.62)",
-                        letterSpacing: "-0.01em",
-                      }}
-                    >
-                      {dayNum}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <div
-                        className="text-[13px] font-medium text-activity"
-                        style={{ letterSpacing: "-0.005em" }}
-                      >
-                        {dow}, {dayNum} {monthName}
-                      </div>
-                      <div className="text-[11px] mt-px" style={{ color: "rgba(26,26,46,0.62)" }}>
-                        Day {d.day_number}
-                      </div>
-                    </div>
-                    {d.date === todayStr && (
-                      <span
+            {/* A calendar, not a list (27 Sep 2026): on a two-month summer the
+                list was 62 rows, and the phone was otherwise swipe after swipe.
+                One tap on the chip, one on a date. */}
+            {monthGrids(days).map((m) => (
+              <div key={m.key} className="mt-2 first:mt-1">
+                <p className="text-[12px] font-semibold text-activity mb-1.5 px-0.5">{m.label}</p>
+                <div className="grid grid-cols-7 gap-0.5 text-[10px] mb-0.5" style={{ color: "rgba(26,26,46,0.45)" }}>
+                  {["M", "T", "W", "T", "F", "S", "S"].map((l, i) => <span key={i} className="text-center">{l}</span>)}
+                </div>
+                <div className="grid grid-cols-7 gap-0.5">
+                  {m.weeks.flat().map((c, i) => {
+                    if (!c) return <span key={i} />;
+                    const n = +c.date.slice(8, 10);
+                    const d = c.dayId ? days.find((x) => x.id === c.dayId) : undefined;
+                    if (!d) return <span key={i} className="h-9 flex items-center justify-center text-[12px]" style={{ color: "rgba(26,26,46,0.25)" }}>{n}</span>;
+                    const on = mode === "active" && d.id === activeDayId;
+                    const today = d.date === todayStr;
+                    return (
+                      <button
+                        key={i}
+                        ref={on ? activeRowRef : null}
+                        role="menuitem"
+                        aria-label={`Day ${d.day_number}, ${new Date(d.date + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}`}
+                        title={foldedDayIds?.has(d.id) ? "In a collapsed week" : undefined}
+                        onClick={() => { setOpen(false); onSelect(d); }}
+                        className="h-9 rounded-lg text-[13px] font-medium transition-colors"
                         style={{
-                          fontSize: "8.5px",
-                          fontWeight: 600,
-                          letterSpacing: "0.09em",
-                          textTransform: "uppercase",
-                          color: "#D18A2E",
+                          background: on ? "#1A1A2E" : "#F3EFE4",
+                          color: on ? "#fff" : "#1A1A2E",
+                          boxShadow: today && !on ? "inset 0 0 0 1.5px #D18A2E" : "none",
                         }}
                       >
-                        Today
-                      </span>
-                    )}
-                    {foldedDayIds?.has(d.id) && (
-                      <span
-                        style={{
-                          fontSize: "8.5px",
-                          fontWeight: 600,
-                          letterSpacing: "0.09em",
-                          textTransform: "uppercase",
-                          color: "#B0541F",
-                        }}
-                      >
-                        Collapsed
-                      </span>
-                    )}
-                    {on && <div className="w-1 h-1 rounded-full bg-activity" />}
-                  </button>
-                );
-              })}
-            </div>
+                        {n}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </>
       )}
