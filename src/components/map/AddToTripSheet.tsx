@@ -475,12 +475,15 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
           {/* Hours */}
           {(place.openNow !== undefined || place.todayHours) && (
             <p className="text-[12px] mb-2">
-              {place.openNow !== undefined && (
+              {/* "Closed · Closed" when today's hours are just "Closed" (27 Sep 2026): say it once. */}
+              {place.openNow !== undefined && !(/^closed$/i.test(place.todayHours ?? "")) && (
                 <span className={`font-bold mr-1.5 ${place.openNow ? "text-green-600" : "text-red-500"}`}>
                   {place.openNow ? "Open now" : "Closed"}
                 </span>
               )}
-              {place.todayHours && <span className="text-gray-500">{place.todayHours}</span>}
+              {place.todayHours && (/^closed$/i.test(place.todayHours)
+                ? <span className="font-bold text-red-500">Closed today</span>
+                : <span className="text-gray-500">{place.todayHours}</span>)}
             </p>
           )}
 

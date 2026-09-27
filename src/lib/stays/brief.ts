@@ -387,7 +387,13 @@ export function buildStayBrief(input: BriefInput): StayBrief {
   // to carry real weight before it earns a base of its own. With nothing on
   // the itinerary the nights can only be shared out by where the pins are,
   // which is a starting point rather than a plan.
-  const regions = cluster(rest, REGION_KM)
+  // A stay already on the itinerary is a strong vote for its region (27 Sep
+  // 2026): a Europe summer with a London flat booked from 1 July and ten
+  // camp days in Barcelona came out as one Barcelona stay for all 61 nights,
+  // and the London flat "added 308 hours of driving". Counted twice, so a
+  // booked stay earns its region a base on its own.
+  const booked = input.pins.filter((p) => isStay(p) && p.lat != null && p.lng != null && onDay(p));
+  const regions = cluster([...rest, ...booked, ...booked], REGION_KM)
     .map((c) => ({ c, pins: c.pins.length }))
     .filter((r) => r.pins >= REGION_MIN_PINS && r.pins >= rest.length * REGION_MIN_SHARE)
     .sort((a, b) => b.pins - a.pins);

@@ -210,3 +210,18 @@ describe("bases run in the order the journey visits them", () => {
     expect(b.bases[0].pins).toBe(6);
   });
 });
+
+// 27 Sep 2026: a family summer across Europe, built through the app — a London
+// flat booked from 1 July and a Barcelona day camp on ten weekdays in August.
+describe("a booked stay earns its own base", () => {
+  const flat = pin("Presidential Apartments, Kensington", "6-12 Barkston Gardens, London SW5 0ER, UK", 51.4922, -0.1917, "hotel", "2027-07-01", "");
+  const camp = (d: string) => pin("Summer Camp Barcelona Enforex", "Avinguda de Carl Friedrich Gauss, 13, 08860 Castelldefels, Barcelona, Spain", 41.2757, 1.9868, "camp", d, "09:00:00");
+  const camps = ["16", "17", "18", "19", "20", "23", "24", "25", "26", "27"].map((d) => camp(`2027-08-${d}`));
+  it("London first, then Barcelona, not one Barcelona stay for sixty-one nights", () => {
+    const b = buildStayBrief({ startDate: "2027-07-01", endDate: "2027-08-31", partyAges: [44, 41, 10, 8, 5], partySize: 5, pins: [flat, ...camps] });
+    expect(b.bases).toHaveLength(2);
+    expect(b.bases[0].lat).toBeCloseTo(51.49, 1);
+    expect(b.bases[1].lat).toBeCloseTo(41.28, 1);
+    expect(b.bases.reduce((n, x) => n + x.nights, 0)).toBe(61);
+  });
+});
