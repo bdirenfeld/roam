@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { inferType } from "@/lib/places/inferType";
+import { inferTypeOrSight } from "@/lib/places/inferType";
 import type { Card, CardType, Day, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
@@ -135,8 +135,7 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
   // A miss (Google says only "point_of_interest") falls back to a sight, so
   // Save is never dead on arrival: a first-time user tapped a grey Save on
   // Mount Royal Chalet and nothing happened (26 Sep 2026). One tap re-types it.
-  const guessed = inferType(googleTypes);
-  const inferred = guessed.type ? guessed : { type: "activity" as const, sub_type: "self_directed" };
+  const inferred = inferTypeOrSight(googleTypes);
   // Google's generic "food" says nothing about gelato vs. espresso vs. dinner;
   // the name usually does, so a generic food hit is refined by the sheet's own
   // keyword rules. A specific Google category (cafe, bakery, bar) is kept.

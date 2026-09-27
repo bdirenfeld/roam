@@ -46,7 +46,6 @@ const GRANDFATHERED = new Set([
   "offline/writeQueue.ts",
   "openingHours.ts",
   "places/fetchDetails.ts",
-  "places/inferType.ts",
   "places/photoCache.ts",
   "places/predictions.ts",
   "planWeeks.ts",

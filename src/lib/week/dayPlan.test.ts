@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { planExisting, planBatch, busyOf, anchorOf } from "./dayPlan";
+import { planExisting, planBatch, busyOf, anchorOf, flightBounds, plannedOtherDays } from "./dayPlan";
 import type { Card } from "@/types/database";
 
 const P = { pantheon: { lat: 41.8986, lng: 12.4769 }, navona: { lat: 41.8992, lng: 12.4731 }, trevi: { lat: 41.9009, lng: 12.4833 } };
@@ -48,5 +48,42 @@ describe("planBatch", () => {
     expect(r.toAdd.map((c) => c.id)).toEqual(["t1"]);
     expect(r.skipped).toBe(2);
     expect(r.times.get("t1")?.start).toBe("09:45:00");
+  });
+});
+
+// 26 Sep 2026, the Japan test journey: day 12 had Kansai Airport at 3pm and
+// the lasso scheduled Dotonbori at 4pm and a shrine at 10:15pm.
+describe("flightBounds", () => {
+  const flightHome = card("kix", { type: "logistics", sub: "flight_arrival", start_time: "15:00:00", end_time: "16:00:00" });
+  it("closes the last day at the flight home", () => {
+    expect(flightBounds([flightHome], { first: false, last: true })).toEqual([{ startMin: 900, endMin: 1440 }]);
+  });
+  it("opens the first day at landing", () => {
+    expect(flightBounds([flightHome], { first: true, last: false })).toEqual([{ startMin: 0, endMin: 960 }]);
+  });
+  it("leaves middle days and flightless days alone", () => {
+    expect(flightBounds([flightHome], { first: false, last: false })).toEqual([]);
+    expect(flightBounds([card("a")], { first: false, last: true })).toEqual([]);
+    expect(flightBounds([flightHome])).toEqual([]);
+  });
+  it("keeps a batch on the last day before the flight", () => {
+    const r = planBatch([card("dotonbori"), card("shrine", { at: P.navona })], [flightHome], null, { edge: { first: false, last: true } });
+    for (const t of Array.from(r.times.values())) expect(t.end <= "15:00").toBe(true);
+  });
+});
+
+describe("planBatch across days", () => {
+  it("skips places already planned on another day and counts them", () => {
+    const usj = card("usj-saved", { place_id: "p-usj", day_id: null as unknown as string, status: "interested" });
+    const aquarium = card("aq", { place_id: "p-aq", day_id: null as unknown as string, status: "interested" });
+    const sunday = card("usj-sun", { place_id: "p-usj", day_id: "sun" });
+    const r = planBatch([usj, aquarium], [], null, { plannedElsewhere: plannedOtherDays([sunday], "mon") });
+    expect(r.toAdd.map((c) => c.id)).toEqual(["aq"]);
+    expect(r.elsewhere).toBe(1);
+    expect(r.skipped).toBe(0);
+  });
+  it("plannedOtherDays ignores the target day and saved pins", () => {
+    const s = plannedOtherDays([card("a", { day_id: "mon", place_id: "p1" }), card("b", { day_id: "sun", place_id: "p2" }), card("c", { day_id: null as unknown as string, place_id: "p3" })], "mon");
+    expect(Array.from(s)).toEqual(["p2"]);
   });
 });

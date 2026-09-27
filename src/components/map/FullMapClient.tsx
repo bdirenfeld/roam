@@ -30,7 +30,7 @@ import { useToast } from "@/components/ui/Toast";
 import { queuedInsert, queuedDelete } from "@/lib/offline/queuedWrite";
 import { createClient } from "@/lib/supabase/client";
 import { scheduleCardOnDay } from "@/lib/scheduleCard";
-import { planBatch } from "@/lib/week/dayPlan";
+import { planBatch, plannedOtherDays } from "@/lib/week/dayPlan";
 import { tapFilter } from "@/lib/map/tapFilter";
 
 // Purple circular pin for search result previews
@@ -543,9 +543,9 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
     const picked = localCards.filter((c) => pickedIds.has(c.id));
     const dayCards = localCards.filter((c) => c.day_id === day.id);
     const fallback = trip.destination_lat != null && trip.destination_lng != null ? { lat: trip.destination_lat, lng: trip.destination_lng } : null;
-    const { toAdd, times, skipped, unplaced } = planBatch(picked, dayCards, fallback);
+    const { toAdd, times, skipped, elsewhere, unplaced } = planBatch(picked, dayCards, fallback, { plannedElsewhere: plannedOtherDays(localCards, day.id), edge: { first: days[0]?.id === day.id, last: days[days.length - 1]?.id === day.id } });
     leavePick();
-    if (toAdd.length === 0) { toast({ message: `Already on Day ${day.day_number}.` }); return; }
+    if (toAdd.length === 0) { toast({ message: elsewhere ? `Already planned on other days.` : `Already on Day ${day.day_number}.` }); return; }
     const created: Card[] = [];
     for (const c of toAdd) {
       const t = times.get(c.id);
@@ -555,7 +555,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
     if (created.length === 0) { toast({ message: "Couldn't put them on that day. Try again." }); return; }
     const n = created.length;
     toast({
-      message: [unplaced.length ? `${n} on Day ${day.day_number}; ${unplaced.length} without a time` : `${n} ${n === 1 ? "place" : "places"} on Day ${day.day_number}, in walking order`, skipped ? `${skipped} already there` : ""].filter(Boolean).join(" · "),
+      message: [unplaced.length ? `${n} on Day ${day.day_number}; ${unplaced.length} without a time` : `${n} ${n === 1 ? "place" : "places"} on Day ${day.day_number}, in walking order`, skipped ? `${skipped} already there` : "", elsewhere ? `${elsewhere} already on other days` : ""].filter(Boolean).join(" · "),
       undo: async () => {
         for (const c of created) { await queuedDelete("cards", { id: c.id }); const m = MARKERS.get(c.id); if (m) { m.marker.remove(); MARKERS.delete(c.id); } }
         const ids = new Set(created.map((c) => c.id));
@@ -563,7 +563,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
       },
     });
     router.push("/trips/" + trip.id + "/days/" + day.id);
-  }, [localCards, pickedIds, trip, leavePick, toast, router]);
+  }, [localCards, pickedIds, trip, days, leavePick, toast, router]);
 
   function handleAddToTripClose() {
     if (tempPinRef.current) { tempPinRef.current.remove(); tempPinRef.current = null; }

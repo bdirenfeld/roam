@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import { createClient } from "@/lib/supabase/server";
 import { fetchPlaceDetails } from "@/lib/places/fetchDetails";
-import { inferType } from "@/lib/places/inferType";
+import { inferTypeOrSight } from "@/lib/places/inferType";
 
 interface Defaults {
   type: string;
@@ -139,7 +139,10 @@ export async function POST(req: NextRequest) {
       resolvedType    = parsedDefaults.type;
       resolvedSubType = parsedDefaults.sub_type;
     } else {
-      const inferred  = inferType(result.types);
+      // Never skip a place for want of a category: a street or market
+      // becomes a sight (inferTypeOrSight). It used to fail as inference_failed
+      // and the assistant's import silently dropped it (26 Sep 2026).
+      const inferred  = inferTypeOrSight(result.types);
       resolvedType    = inferred.type;
       resolvedSubType = inferred.sub_type;
     }

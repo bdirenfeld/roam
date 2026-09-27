@@ -30,6 +30,7 @@ import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import DocumentsSheet from "./DocumentsSheet";
 import WeekMap from "./WeekMap";
 import { weekColumns, weekMinWidth } from "@/lib/week/focus";
+import { planBatch, plannedOtherDays, flightBounds } from "@/lib/week/dayPlan";
 import { shortAddress, firstSentence } from "@/lib/week/cardText";
 import {
   placeBlocks, movedTimes, resizedEnd, resizedStart, minutesAtY, toMin, toTime, fmt12, gridHeight,
@@ -499,6 +500,8 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     if (first) return { lat: first.place!.lat!, lng: first.place!.lng! };
     return trip.destination_lat != null && trip.destination_lng != null ? { lat: trip.destination_lat, lng: trip.destination_lng } : null;
   };
+  // First or last day of the journey, for flightBounds (lib/week/dayPlan).
+  const edgeOf = (id: string) => { const all = daysRef.current; return { first: all[0]?.id === id, last: all[all.length - 1]?.id === id }; };
   const tintDay = (id: string) => { setActiveDayId(id); window.setTimeout(() => setActiveDayId((cur) => (cur === id ? null : cur)), 2500); };
 
   // Door 1: several pins → a day. New scheduled cards at arranged times; the
@@ -507,17 +510,19 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     const target = daysRef.current.find((d) => d.id === day.id); if (!target) return;
     // A place already on that day is not added again (the tray and the drag
     // both write; a second go must not double the day — 25 Sep 2026).
-    const already = new Set(target.cards.map((c) => c.place_id).filter(Boolean));
-    const seen = new Set<string>();
-    const withPlace = picked.filter((c) => c.place_id && !already.has(c.place_id) && !seen.has(c.place_id) && seen.add(c.place_id));
-    const skipped = picked.filter((c) => c.place_id).length - withPlace.length;
-    if (withPlace.length === 0) { toast({ message: `Already on ${dow(target.date)}.` }); return; }
-    const { placed, unplaced } = arrangeDay(withPlace.map(toItem), busyOf(target, new Set()), anchorOf(target));
-    const times = new Map(placed.map((p) => [p.id, p]));
+    // Shared with the phone (lib/week/dayPlan): skips places already on this
+    // day or planned on another, and a flight home closes the last day.
+    const fallback = trip.destination_lat != null && trip.destination_lng != null ? { lat: trip.destination_lat, lng: trip.destination_lng } : null;
+    const all = daysRef.current;
+    const { toAdd: withPlace, times, skipped, elsewhere, unplaced } = planBatch(picked, target.cards, fallback, {
+      plannedElsewhere: plannedOtherDays(all.flatMap((d) => d.cards), day.id),
+      edge: edgeOf(day.id),
+    });
+    if (withPlace.length === 0) { toast({ message: elsewhere ? `Already planned: ${elsewhere} on other days${skipped ? `, ${skipped} on ${dow(target.date)}` : ""}.` : `Already on ${dow(target.date)}.` }); return; }
     const created: Card[] = [];
     for (const c of withPlace) {
       const t = times.get(c.id);
-      const made = await scheduleCardOnDay(supabase, { tripId: trip.id, dayId: day.id, placeId: c.place_id, place: c.place, startTime: t ? toTime(t.startMin) : null, endTime: t ? toTime(t.endMin) : null, details: c.details, sourceUrl: c.source_url });
+      const made = await scheduleCardOnDay(supabase, { tripId: trip.id, dayId: day.id, placeId: c.place_id, place: c.place, startTime: t ? t.start : null, endTime: t ? t.end : null, details: c.details, sourceUrl: c.source_url });
       if (made) created.push(made);
     }
     if (created.length === 0) { toast({ message: "Couldn't put them on that day. Try again." }); return; }
@@ -528,6 +533,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
       message: [
         unplaced.length ? `${n} on ${dow(target.date)}; ${unplaced.length} didn't fit, left anytime` : `${n} ${n === 1 ? "place" : "places"} on ${dow(target.date)}, in walking order`,
         skipped ? `${skipped} already there` : "",
+        elsewhere ? `${elsewhere} already on other days` : "",
       ].filter(Boolean).join(" · "),
       undo: async () => {
         for (const c of created) await queuedDelete("cards", { id: c.id });
@@ -542,7 +548,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     const day = daysRef.current.find((d) => d.id === dayId); if (!day) return;
     const untimed = day.cards.filter((c) => !cardTimes(c).start);
     if (untimed.length === 0) { toast({ message: "Everything on this day already has a time." }); return; }
-    const { placed, unplaced } = arrangeDay(untimed.map(toItem), busyOf(day, new Set(untimed.map((c) => c.id))), anchorOf(day));
+    const { placed, unplaced } = arrangeDay(untimed.map(toItem), [...busyOf(day, new Set(untimed.map((c) => c.id))), ...flightBounds(day.cards, edgeOf(dayId))], anchorOf(day));
     if (placed.length === 0) { toast({ message: "No room left on this day." }); return; }
     const before = new Map(untimed.map((c) => [c.id, { start_time: c.start_time, end_time: c.end_time }]));
     for (const p of placed) {
@@ -588,10 +594,11 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   // as fixed points. Undo puts every time back.
   const rearrangeEverything = useCallback(async (dayId: string) => {
     const day = daysRef.current.find((d) => d.id === dayId); if (!day) return;
-    const movable = day.cards.filter((c) => !c.confirmed);
+    const movable = day.cards.filter((c) => !c.confirmed && !((c.place?.sub_type ?? "").startsWith("flight") && cardTimes(c).start));
     if (movable.length === 0) { toast({ message: "Everything on this day is confirmed." }); return; }
     const fixed = new Set(movable.map((c) => c.id));
-    const { placed, unplaced } = arrangeDay(movable.map(toItem), busyOf(day, fixed), anchorOf({ ...day, cards: day.cards.filter((c) => c.confirmed) }));
+    const staying = day.cards.filter((c) => !fixed.has(c.id));
+    const { placed, unplaced } = arrangeDay(movable.map(toItem), [...busyOf(day, fixed), ...flightBounds(staying, edgeOf(dayId))], anchorOf({ ...day, cards: staying }));
     if (placed.length === 0) { toast({ message: "No room left on this day." }); return; }
     const before = new Map(movable.map((c) => [c.id, { start_time: c.start_time, end_time: c.end_time }]));
     for (const p of placed) {

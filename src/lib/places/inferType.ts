@@ -52,6 +52,18 @@ const RULES: ReadonlyArray<readonly [string, RoamType, string]> = [
   ["performing_arts_theater", "activity",  "event"],
 ];
 
+/**
+ * inferType, but never empty: a place Google tags only as a street, a
+ * neighbourhood or a bare point_of_interest (Tsukiji Outer Market, Takeshita
+ * Street, Dotonbori, Mount Royal Chalet) becomes a sight you wander. Without
+ * this the map's Save sat greyed out and the assistant's imports dropped the
+ * place silently (26 Sep 2026). A wrong guess is one tap to re-type.
+ */
+export function inferTypeOrSight(googleTypes: string[] | null | undefined): { type: RoamType; sub_type: string } {
+  const t = inferType(googleTypes);
+  return t.type && t.sub_type ? { type: t.type, sub_type: t.sub_type } : { type: "activity", sub_type: "self_directed" };
+}
+
 export function inferType(googleTypes: string[] | null | undefined): InferredType {
   if (!googleTypes || googleTypes.length === 0) return { type: null, sub_type: null };
   const set = new Set(googleTypes);

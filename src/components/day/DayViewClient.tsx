@@ -271,7 +271,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
     const { data } = await supabase.from("cards").select("*, place:places (id, title, type, sub_type, lat, lng)").eq("day_id", day.id).not("archived", "is", true);
     const cards = (data ?? []) as Card[];
     const fallback = trip.destination_lat != null && trip.destination_lng != null ? { lat: trip.destination_lat, lng: trip.destination_lng } : null;
-    const { updates, before, unplaced } = planExisting(cards, mode, fallback);
+    const { updates, before, unplaced } = planExisting(cards, mode, fallback, { first: days[0]?.id === day.id, last: days[days.length - 1]?.id === day.id });
     if (updates.length === 0) { toast({ message: mode === "rest" ? "Everything on this day already has a time." : "Nothing to rearrange." }); return; }
     const apply = (list: { id: string; start_time: string | null; end_time: string | null }[]) => {
       if (day.id === dayWithCards.id) setLocalCards((prev) => prev.map((c) => { const u = list.find((x) => x.id === c.id); return u ? { ...c, start_time: u.start_time, end_time: u.end_time } : c; }).sort(agendaOrder));
