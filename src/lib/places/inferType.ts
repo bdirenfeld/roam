@@ -7,6 +7,10 @@ export interface InferredType {
 
 // First-match-wins: iterate rules in order, return on first Google type present in the set.
 const RULES: ReadonlyArray<readonly [string, RoamType, string]> = [
+  // A hotel with a restaurant is a hotel (27 Sep 2026): Great Wolf Lodge and
+  // the Château Laurier both came out Restaurant with "restaurant" checked first.
+  ["lodging",                 "logistics", "hotel"],
+  ["hotel",                   "logistics", "hotel"],
   ["restaurant",              "food",      "restaurant"],
   ["meal_takeaway",           "food",      "restaurant"],
   ["meal_delivery",           "food",      "restaurant"],
@@ -20,8 +24,6 @@ const RULES: ReadonlyArray<readonly [string, RoamType, string]> = [
   // tag a gelateria as ["food","point_of_interest","store","establishment"],
   // and without this row "store" won and a gelateria became a shop.
   ["food",                    "food",      "restaurant"],
-  ["lodging",                 "logistics", "hotel"],
-  ["hotel",                   "logistics", "hotel"],
   ["airport",                 "logistics", "flight_arrival"],
   ["transit_station",         "logistics", "transit"],
   ["train_station",           "logistics", "transit"],
@@ -90,7 +92,8 @@ export function inferTypeOrSight(googleTypes: string[] | null | undefined, name?
  * tourist attraction, so a cruise day filed the ship's port as a sight to
  * wander. Only overrides a sight or nothing, never a museum or a restaurant.
  */
-const PORT_NAME = /\b(cruise|cruises|ferry|ferries|creuers|cruceros|croisi[eè]res?|crociere)\b|\bmar[ií]tim[ao]\b|\bmarittima\b|\b(porto|puerto|port) (di|de|del|of)\b|\bport$/i;
+// Terminals and ports, not boats: "Niagara City Cruises" is a sightseeing tour (27 Sep 2026).
+const PORT_NAME = /\b(cruise|ferry|ferries)\s+(terminal|port|pier|dock)s?\b|\bterminal\s+(de\s+)?(creuers|cruceros|croisi[eè]res?|crociere)\b|\bmar[ií]tim[ao]\b|\bmarittima\b|\b(porto|puerto|port) (di|de|del|of)\b|\bport$/i;
 /**
  * A bar, not a restaurant (27 Sep 2026). Google tags a Broadway honky-tonk
  * and a restaurant with a bar the same way — "bar, food, restaurant" in
@@ -101,6 +104,7 @@ const PORT_NAME = /\b(cruise|cruises|ferry|ferries|creuers|cruceros|croisi[eè]r
 const BAR_NAME = /\b(bar|pub|lounge|saloon|tavern|taproom|brewery|brewing|speakeasy|cocktails?|aperitivo|honky[- ]?tonk)\b|beer garden/i;
 export function isBarLike(googleTypes: string[] | null | undefined, name: string | null | undefined): boolean {
   const t = new Set(googleTypes ?? []);
+  if (t.has("lodging")) return false; // a hotel with a bar is a hotel
   if (!t.has("bar") && !t.has("night_club")) return false;
   return !t.has("restaurant") || BAR_NAME.test(name ?? "");
 }

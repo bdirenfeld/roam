@@ -112,3 +112,20 @@ describe("names and churches", () => {
     expect(inferTypeOrSight(["establishment", "food", "point_of_interest", "restaurant"], "Dishoom Covent Garden")).toEqual({ type: "food", sub_type: "restaurant" });
   });
 });
+
+describe("a hotel with a restaurant", () => {
+  it("is a hotel", () => {
+    expect(inferTypeOrSight(["amusement_park", "bowling_alley", "establishment", "food", "lodging", "point_of_interest", "restaurant", "tourist_attraction"], "Great Wolf Lodge | Niagara")).toEqual({ type: "logistics", sub_type: "hotel" });
+    expect(inferTypeOrSight(["establishment", "food", "lodging", "point_of_interest", "restaurant"], "Fairmont Château Laurier")).toEqual({ type: "logistics", sub_type: "hotel" });
+    expect(inferTypeOrSight(["bar", "establishment", "lodging", "point_of_interest"], "The Hoxton Bar & Hotel")).toEqual({ type: "logistics", sub_type: "hotel" });
+    expect(inferTypeOrSight(["establishment", "health", "lodging", "point_of_interest", "spa"], "Four Seasons Hotel Toronto")).toEqual({ type: "logistics", sub_type: "hotel" });
+  });
+});
+
+describe("a boat tour is not a port", () => {
+  it("Niagara City Cruises is a tour, not transit", () => {
+    expect(isPortName("Niagara City Cruises")).toBe(false);
+    expect(isPortName("Hornblower Niagara Cruises")).toBe(false);
+    expect(isPortName("Dover Ferry Terminal")).toBe(true);
+  });
+});

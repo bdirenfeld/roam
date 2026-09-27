@@ -134,3 +134,12 @@ describe("a day that starts nowhere near its places", () => {
     expect(placed[0].startMin).toBe(9 * 60 + 45);
   });
 });
+
+describe("a stay is a check-in", () => {
+  it("goes in mid-afternoon for half an hour, not first thing as a sight", () => {
+    const { placed } = arrangeDay([item("lodge", "logistics", "hotel", TREVI), item("nav", "activity", "explore", NAVONA)], [], PANTHEON);
+    const by = Object.fromEntries(placed.map((p) => [p.id, p]));
+    expect(by.lodge).toEqual({ id: "lodge", startMin: 15 * 60, endMin: 15 * 60 + 30 });
+    expect(by.nav.startMin).toBeLessThan(15 * 60);
+  });
+});

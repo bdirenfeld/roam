@@ -39,6 +39,8 @@ export function durationFor(type: ArrangeItem["type"], subType: string | null): 
     case "wellness": return 90;
     case "beach": return 150;
     case "camp": return 360;
+    case "hotel":
+    case "accommodation": return 30;
     case "grocery": return 30;
     case "transit": return 30;
     default: return type === "food" ? 60 : 90;
@@ -73,6 +75,10 @@ const SLOTS: Record<string, { lo: number; hi: number; want: number }[]> = {
   drinks:     [{ lo: 18 * 60, hi: 22 * 60, want: 20 * 60 + 45 }],
   // A day camp is the morning's fixed point, drop-off at nine (27 Sep 2026).
   camp:       [{ lo: 8 * 60 + 30, hi: 10 * 60, want: 9 * 60 }],
+  // A stay is a check-in, mid-afternoon (27 Sep 2026): Great Wolf Lodge was
+  // put at 9:45 on the Friday morning as if it were a sight.
+  hotel:         [{ lo: 14 * 60, hi: 19 * 60, want: 15 * 60 }],
+  accommodation: [{ lo: 14 * 60, hi: 19 * 60, want: 15 * 60 }],
 };
 
 const snap = (m: number) => Math.ceil(m / STEP) * STEP;
