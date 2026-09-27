@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/supabase/authUser";
 import { underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
@@ -77,7 +78,7 @@ Other stops on this journey, in order: ${siblings}`;
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser(supabase);
   if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   if (!(await underQuota(supabase, "findPrices", QUOTA.findPrices))) return quotaExceeded("price lookups");
 

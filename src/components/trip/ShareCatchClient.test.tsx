@@ -39,7 +39,7 @@ vi.mock("@/lib/wishlist/climate", () => ({
 }));
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
-    auth: { getUser: async () => ({ data: { user: { id: "u1" } } }) },
+    auth: { getClaims: async () => ({ data: { claims: { sub: "u1" } }, error: null }) },
     from: () => ({ delete: () => ({ eq: async () => ({}) }) }),
   }),
 }));

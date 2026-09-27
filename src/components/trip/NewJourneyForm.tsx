@@ -13,6 +13,7 @@
 // bottom out a field behind itself.
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { getAuthUser } from "@/lib/supabase/authUser";
 import { useRouter } from "next/navigation";
 import { Camera } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
@@ -544,7 +545,7 @@ export default function NewJourneyForm({
     setSaveError(null);
 
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getAuthUser(supabase);
     if (!user) {
       setSaving(false);
       setSaveError("Not signed in");

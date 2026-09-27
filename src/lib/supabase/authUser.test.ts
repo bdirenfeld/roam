@@ -20,3 +20,28 @@ describe("getAuthUser", () => {
     expect(await getAuthUser(client({ data: { claims: {} }, error: null }).c)).toBeNull();
   });
 });
+
+// 27 Sep 2026: every photo, every Add and every page asked Supabase Auth who
+// was signed in, at 1.7-13 s a question while Auth was slow. Only the screens
+// that need the full profile (user_metadata or a verified email) may ask.
+import { readFileSync, readdirSync, statSync } from "fs";
+import { join } from "path";
+const ALLOWED = new Set([
+  "src/app/(app)/profile/page.tsx",
+  "src/components/profile/ProfileForm.tsx",
+  "src/app/api/share/send-invite/route.ts",
+  "src/app/checkout/route.ts",
+]);
+function walk(dir: string): string[] {
+  return readdirSync(dir).flatMap((n) => {
+    const p = join(dir, n).split("\\").join("/");
+    return statSync(p).isDirectory() ? walk(p) : /\.tsx?$/.test(n) && !/\.test\./.test(n) ? [p] : [];
+  });
+}
+describe("who is signed in, without a round trip", () => {
+  it("only the profile, invites and checkout call auth.getUser()", () => {
+    const callers = [...walk("src/app"), ...walk("src/components"), ...walk("src/lib")]
+      .filter((f) => /auth\.getUser\(\)/.test(readFileSync(f, "utf8").replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g, "")));
+    expect(callers.filter((f) => !ALLOWED.has(f)), "use getAuthUser (lib/supabase/authUser)").toEqual([]);
+  });
+});

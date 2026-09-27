@@ -7,6 +7,7 @@
 // (mirrors the weather/trip caches in CLAUDE.md) — survives client navigations.
 
 import { createClient } from "@/lib/supabase/client";
+import { getAuthUser } from "@/lib/supabase/authUser";
 
 const cache = new Map<string, boolean>();
 
@@ -16,9 +17,7 @@ export async function isTripGuest(tripId: string): Promise<boolean> {
   if (cached !== undefined) return cached;
 
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser(supabase);
   if (!user) {
     cache.set(tripId, false);
     return false;

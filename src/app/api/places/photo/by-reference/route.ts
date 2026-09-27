@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/supabase/authUser";
 import { createClient } from "@/lib/supabase/server";
 import { underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 
@@ -6,7 +7,7 @@ export async function GET(request: NextRequest) {
   // Same auth gate as /api/places/photo — middleware already bounces
   // unauthenticated page loads, but API routes should not rely on it.
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser(supabase);
   if (!user) return new NextResponse(null, { status: 401 });
   if (!(await underQuota(supabase, "placePhoto", QUOTA.placePhoto))) return quotaExceeded("photos");
 

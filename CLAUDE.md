@@ -50,6 +50,8 @@ The benchmark: someone opens Roam in a Centurion Lounge and the person next to t
   timeout as "signed out", bouncing day taps to /login (phone showed "Application error"). getClaims checks
   the token locally; day pages went from 4–9 s to ~0.3–0.5 s. getUser stays only where user_metadata or a
   verified email is needed (profile, send-invite, checkout).
+  The same goes for the browser and the API routes (every photo request used to ask). The masthead
+  reads the avatar from `getSession()`. `authUser.test.ts` fails if anything else calls getUser.
 
 ## Database schema — the live DB is the source of truth
 - `supabase/migrations/001_schema.sql` is **stale**. Later schema changes (column drops, nullability) were applied directly to the live database and are **not** captured in `supabase/migrations/`.

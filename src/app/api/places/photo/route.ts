@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/supabase/authUser";
 import { createClient } from "@/lib/supabase/server";
 import { fetchPlaceDetails } from "@/lib/places/fetchDetails";
 import { cachedPhotoUrl, storePhoto, PHOTO_WIDTH, type PhotoSize } from "@/lib/places/photoCache";
@@ -84,7 +85,7 @@ function refreshStoredPhotos(
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser(supabase);
   if (!user) return new NextResponse(null, { status: 401 });
 
   const placeId = req.nextUrl.searchParams.get("place_id");

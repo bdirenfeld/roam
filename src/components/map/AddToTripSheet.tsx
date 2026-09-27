@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { inferTypeOrSight } from "@/lib/places/inferType";
 import type { Card, CardType, Day, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
+import { getAuthUser } from "@/lib/supabase/authUser";
 import { useToast } from "@/components/ui/Toast";
 import { scheduleCardOnDay } from "@/lib/scheduleCard";
 import { PIN_COLORS } from "@/lib/mapPins";
@@ -240,7 +241,7 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
     const finalSubType = subType ?? DEFAULT_SUB_TYPE[type];
 
     // ── Resolve places row: reuse existing (user_id, google_place_id) or insert ──
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getAuthUser(supabase);
     if (!user) { setSaving(false); return; }
 
     const { data: placeRow, error: placeErr } = await supabase

@@ -13,6 +13,7 @@
 // https://claude.ai/artifact/LbU5wJTRTRyppJimMNbtXh
 
 import { useEffect, useRef, useState } from "react";
+import { getAuthUser } from "@/lib/supabase/authUser";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
@@ -176,7 +177,7 @@ export default function ShareCatchClient({
     setBusy(true);
     setError(null);
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getAuthUser(supabase);
     if (!user) { setBusy(false); setError("You're signed out. Sign in and try again."); return; }
     const res = await pinPlaceToJourney(supabase, user.id, j.id, p, link);
     if (!res.ok) { setBusy(false); setError(res.message); return; }
@@ -198,7 +199,7 @@ export default function ShareCatchClient({
     setBusy(true);
     setError(null);
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getAuthUser(supabase);
     if (!user) { setBusy(false); setError("You're signed out. Sign in and try again."); return; }
     const { data: existing } = await supabase.from("wishlist_destinations").select("id, name, lat, lng");
     const hit = (existing ?? []).find(

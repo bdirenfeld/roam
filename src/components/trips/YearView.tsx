@@ -14,6 +14,7 @@
 // and cached at module level — the page render never waits on it.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { getAuthUser } from "@/lib/supabase/authUser";
 import type { CSSProperties } from "react";
 import { useSheetDrag as useSharedSheetDrag } from "@/hooks/useSheetDrag";
 import Link from "next/link";
@@ -369,9 +370,7 @@ export default function YearView({ trips, familyDates }: Props) {
     if (saving || !formStart || !formEnd || formEnd < formStart) return;
     setSaving(true);
     const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getAuthUser(supabase);
     if (!user) {
       setSaving(false);
       return;
@@ -488,9 +487,7 @@ export default function YearView({ trips, familyDates }: Props) {
     if (alreadySaved) return;
 
     const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getAuthUser(supabase);
     if (!user) return;
     // Climate computed up front so the new row behaves like a seeded one;
     // a failed fetch still inserts (climate null).
@@ -551,7 +548,7 @@ export default function YearView({ trips, familyDates }: Props) {
     }
     if (row) {
       showUndo(`Removed ${row.name}`, async () => {
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = await getAuthUser(supabase);
         if (!user) return;
         const { error: reErr } = await supabase.from("wishlist_destinations").insert({
           id: row.id, user_id: user.id, name: row.name, location: row.location,
@@ -673,7 +670,7 @@ export default function YearView({ trips, familyDates }: Props) {
     setTravelWindows((prev) => prev.filter((w) => w.id !== id));
     if (row) {
       showUndo(`Removed ${row.label || "window"}`, async () => {
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = await getAuthUser(supabase);
         if (!user) return;
         const { error: reErr } = await supabase.from("travel_windows").insert({
           id: row.id, user_id: user.id, label: row.label,

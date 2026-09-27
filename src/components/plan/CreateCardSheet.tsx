@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import type { Card, CardType, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
+import { getAuthUser } from "@/lib/supabase/authUser";
 import { isPortName } from "@/lib/places/inferType";
 import { queuedInsert, queuedDelete } from "@/lib/offline/queuedWrite";
 import { useToast } from "@/components/ui/Toast";
@@ -381,7 +382,7 @@ export default function CreateCardSheet({
       }
 
       const finalSubType = subType ?? SUB_TYPES[type][0].value;
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getAuthUser(supabase);
       if (!user) { setSaving(false); return; }
 
       const { data: placeRow, error: placeErr } = await supabase
