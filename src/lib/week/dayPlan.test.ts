@@ -109,6 +109,10 @@ describe("portBounds (all aboard)", () => {
     const { updates } = planExisting([port("16:30"), card("col", { at: COLOSSEUM })], "all", null, mid);
     expect(updates.map((u) => u.id)).toEqual(["col"]);
   });
+  it("a short port time is not a window: nothing lands on top of the port", () => {
+    const { updates } = planExisting([port("11:45", "13:15"), card("col", { at: COLOSSEUM })], "rest", null, mid);
+    expect(updates[0].start_time! >= "13:15").toBe(true);
+  });
   it("last day: nothing before you are off the ship", () => {
     const { updates } = planExisting([port("08:00", "10:00"), card("col", { at: COLOSSEUM })], "rest", null, { first: false, last: true });
     expect(updates[0].start_time! >= "10:00").toBe(true);

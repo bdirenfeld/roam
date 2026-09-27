@@ -53,22 +53,27 @@ function isTimedPort(c: Card): boolean {
  * leaves without you. Give the port card the all-aboard time and nothing is
  * planned after it; on boarding day nothing after boarding. On the last day
  * the time is when you are off the ship, and nothing is planned before it.
- * On a port day a card with both times is the window ashore — arrive to all
- * aboard — and a single morning time is only the arrival.
+ * On a port day a card spanning four hours or more is the window ashore —
+ * arrive to all aboard; anything shorter is a moment, not a window: in the
+ * morning the arrival, in the afternoon all aboard. (A port the old planner
+ * had given 11:45–1:15 was read as a window, and Re-plan put the Colosseum
+ * inside it, on top of the port — 27 Sep 2026.)
  */
+const WINDOW_MIN = 4 * 60;
+const isWindow = (c: Card): boolean => { const t = cardTimes(c); return !!(t.start && t.end) && toMin(t.end!) - toMin(t.start!) >= WINDOW_MIN; };
 export function portBounds(dayCards: Card[], edge?: DayEdge): Busy[] {
   return dayCards.filter(isTimedPort).flatMap((c): Busy[] => {
     const t = cardTimes(c); const s = toMin(t.start!); const e = t.end ? toMin(t.end) : null;
     if (edge?.last && !edge.first) return [{ startMin: 0, endMin: e ?? s + 30 }];
     if (edge?.first) return [{ startMin: s, endMin: 24 * 60 }];
-    if (e !== null) return [{ startMin: 0, endMin: s }, { startMin: e, endMin: 24 * 60 }];
+    if (e !== null && e - s >= WINDOW_MIN) return [{ startMin: 0, endMin: s }, { startMin: e, endMin: 24 * 60 }];
     return s < 12 * 60 ? [{ startMin: 0, endMin: s + 30 }] : [{ startMin: s, endMin: 24 * 60 }];
   });
 }
 /** The ports whose own span is the window, not an obstacle: port days with both times. */
 function windowPorts(dayCards: Card[], edge?: DayEdge): Set<string> {
   if (edge?.first || edge?.last) return new Set();
-  return new Set(dayCards.filter((c) => isTimedPort(c) && cardTimes(c).end).map((c) => c.id));
+  return new Set(dayCards.filter((c) => isTimedPort(c) && isWindow(c)).map((c) => c.id));
 }
 
 /** Where the walking starts: the first timed place, else the first place, else the fallback. */
