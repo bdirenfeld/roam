@@ -59,9 +59,23 @@ const RULES: ReadonlyArray<readonly [string, RoamType, string]> = [
  * this the map's Save sat greyed out and the assistant's imports dropped the
  * place silently (26 Sep 2026). A wrong guess is one tap to re-type.
  */
-export function inferTypeOrSight(googleTypes: string[] | null | undefined): { type: RoamType; sub_type: string } {
+export function inferTypeOrSight(googleTypes: string[] | null | undefined, name?: string | null): { type: RoamType; sub_type: string } {
   const t = inferType(googleTypes);
+  if ((t.type === null || t.sub_type === "self_directed") && isPortName(name)) return { type: "logistics", sub_type: "transit" };
   return t.type && t.sub_type ? { type: t.type, sub_type: t.sub_type } : { type: "activity", sub_type: "self_directed" };
+}
+
+/**
+ * A cruise terminal, ferry terminal or port, read from its name (27 Sep 2026).
+ * Google gives these no category of their own: Barcelona's Cruise Terminal B,
+ * Palma's Estació Marítima and Marseille's cruise terminal are all just
+ * "establishment, point_of_interest", and Civitavecchia's port comes back as a
+ * tourist attraction, so a cruise day filed the ship's port as a sight to
+ * wander. Only overrides a sight or nothing, never a museum or a restaurant.
+ */
+const PORT_NAME = /\b(cruise|cruises|ferry|ferries|creuers|cruceros|croisi[eè]res?|crociere)\b|\bmar[ií]tim[ao]\b|\bmarittima\b|\b(porto|puerto|port) (di|de|del|of)\b|\bport$/i;
+export function isPortName(name: string | null | undefined): boolean {
+  return !!name && PORT_NAME.test(name.trim());
 }
 
 export function inferType(googleTypes: string[] | null | undefined): InferredType {

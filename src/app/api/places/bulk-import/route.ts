@@ -143,7 +143,7 @@ export async function POST(req: NextRequest) {
       // Never skip a place for want of a category: a street or market
       // becomes a sight (inferTypeOrSight). It used to fail as inference_failed
       // and the assistant's import silently dropped it (26 Sep 2026).
-      const inferred  = inferTypeOrSight(result.types);
+      const inferred  = inferTypeOrSight(result.types, result.name);
       resolvedType    = inferred.type;
       resolvedSubType = inferred.sub_type;
     }

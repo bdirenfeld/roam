@@ -18,6 +18,8 @@ export interface ArrangeItem {
 export interface Busy { startMin: number; endMin: number }
 export interface Placed { id: string; startMin: number; endMin: number }
 export interface Anchor { lat: number; lng: number }
+/** Where a day sits in the journey: its first day, its last, or neither. */
+export interface DayEdge { first: boolean; last: boolean }
 
 export const DAY_START = 9 * 60;
 export const DAY_END = 22 * 60;
@@ -42,10 +44,17 @@ export function durationFor(type: ArrangeItem["type"], subType: string | null): 
   }
 }
 
-/** Walking minutes between two points: 80 m a minute, never under 5, never over 30. */
-export function walkMinutes(a: Anchor, b: Anchor): number {
+/**
+ * Minutes to get from one point to the next (27 Sep 2026). Up to 2 km it is a
+ * walk, 80 m a minute, never under 5. Beyond that it is a train, a taxi or a
+ * tender: 15 minutes to get going plus about 40 km/h, in 5-minute steps. The
+ * old rule capped every hop at 30 minutes, so a cruise day put the Colosseum
+ * 30 minutes from the ship at Civitavecchia, 70 km away.
+ */
+export function travelMinutes(a: Anchor, b: Anchor): number {
   const m = metres(a, b);
-  return Math.max(5, Math.min(30, Math.round(m / 80)));
+  if (m <= 2000) return Math.max(5, Math.round(m / 80));
+  return Math.max(25, Math.ceil((15 + m / 700) / 5) * 5);
 }
 function metres(a: Anchor, b: Anchor): number {
   const R = 6371000, toRad = (d: number) => (d * Math.PI) / 180;
@@ -103,7 +112,27 @@ export function walkingOrder<T extends ArrangeItem>(items: T[], anchor: Anchor |
 
 export interface Arranged { placed: Placed[]; unplaced: string[] }
 
-export function arrangeDay(items: ArrangeItem[], busy: Busy[], anchor: Anchor | null): Arranged {
+const isFlight = (i: ArrangeItem) => (i.subType ?? "").startsWith("flight");
+const isTransit = (i: ArrangeItem) => i.subType === "transit";
+
+/**
+ * A port, a station or an airport is where a day turns, not a sight to fit in
+ * between (27 Sep 2026, a cruise). It opens the day: you step off the ship or
+ * the train and go from there. On the journey's first day the flight opens it
+ * and the port closes it (you board in the evening); on the last day the port
+ * opens it and the flight home closes it.
+ */
+export function dayHinges(items: ArrangeItem[], edge?: DayEdge): { opens: ArrangeItem[]; middle: ArrangeItem[]; closes: ArrangeItem[] } {
+  const opens = (i: ArrangeItem) => (edge?.first ? isFlight(i) : isTransit(i));
+  const closes = (i: ArrangeItem) => (edge?.first ? isTransit(i) : edge?.last ? isFlight(i) : false);
+  return {
+    opens: items.filter(opens),
+    middle: items.filter((i) => !opens(i) && !closes(i)),
+    closes: items.filter((i) => !opens(i) && closes(i)),
+  };
+}
+
+export function arrangeDay(items: ArrangeItem[], busy: Busy[], anchor: Anchor | null, edge?: DayEdge): Arranged {
   const tl = new Timeline(busy);
   const placed: Placed[] = [];
   const unplaced: string[] = [];
@@ -124,13 +153,16 @@ export function arrangeDay(items: ArrangeItem[], busy: Busy[], anchor: Anchor | 
     tl.take(start, start + dur); placed.push({ id: it.id, startMin: start, endMin: start + dur });
   }
 
-  // 2. everything else in walking order, from the morning, walking time between
-  const sights = walkingOrder(items.filter((i) => !isMeal(i)), anchor);
+  // 2. everything else: what opens the day, then the sights in walking order
+  //    from there, then what closes it, with the travel time between each
+  const { opens, middle, closes } = dayHinges(items.filter((i) => !isMeal(i)), edge);
+  const opener = [...opens].reverse().find(hasPoint) ?? null;
+  const sights = [...opens, ...walkingOrder(middle, opener ?? anchor), ...closes];
   let cursor = DAY_START + 30;
-  let here: Anchor | null = anchor;
+  let here: Anchor | null = opens.length ? null : anchor;
   for (const it of sights) {
     const dur = durationFor(it.type, it.subType);
-    const walk = here && hasPoint(it) ? walkMinutes(here, it) : 10;
+    const walk = here && hasPoint(it) ? travelMinutes(here, it) : 10;
     const from = cursor + walk;
     const start = tl.find(from, dur, 24 * 60);
     if (start === null) { unplaced.push(it.id); continue; }

@@ -6,7 +6,7 @@
 
 import type { Card } from "@/types/database";
 import { cardTimes } from "@/lib/cardTime";
-import { arrangeDay, type ArrangeItem, type Busy, type Anchor } from "./arrange";
+import { arrangeDay, type ArrangeItem, type Busy, type Anchor, type DayEdge } from "./arrange";
 import { toMin, toTime, NO_END_MIN } from "./layout";
 
 export interface TimeUpdate { id: string; start_time: string | null; end_time: string | null }
@@ -24,8 +24,7 @@ export function busyOf(cards: Card[], except: Set<string> = new Set()): Busy[] {
   });
 }
 
-/** Where a day sits in the journey: its first day, its last, or neither. */
-export interface DayEdge { first: boolean; last: boolean }
+export type { DayEdge };
 
 /**
  * A flight bounds the day it is on (26 Sep 2026): nothing is arranged after
@@ -64,7 +63,7 @@ export function planExisting(dayCards: Card[], mode: "rest" | "all", fallback: A
   if (movable.length === 0) return { updates: [], before: [], unplaced: [] };
   const moving = new Set(movable.map((c) => c.id));
   const fixed = dayCards.filter((c) => !moving.has(c.id));
-  const { placed, unplaced } = arrangeDay(movable.map(toItem), [...busyOf(dayCards, moving), ...flightBounds(fixed, edge)], anchorOf(fixed, fallback));
+  const { placed, unplaced } = arrangeDay(movable.map(toItem), [...busyOf(dayCards, moving), ...flightBounds(fixed, edge)], anchorOf(fixed, fallback), edge);
   const updates: TimeUpdate[] = placed.map((p) => ({ id: p.id, start_time: toTime(p.startMin), end_time: toTime(p.endMin) }));
   if (mode === "all") for (const id of unplaced) updates.push({ id, start_time: null, end_time: null });
   const before: TimeUpdate[] = movable.filter((c) => updates.some((u) => u.id === c.id)).map((c) => ({ id: c.id, start_time: c.start_time, end_time: c.end_time }));
@@ -90,7 +89,7 @@ export function planBatch(picked: Card[], dayCards: Card[], fallback: Anchor | n
     return true;
   });
   const skipped = picked.filter((c) => c.place_id).length - toAdd.length - elsewhere;
-  const { placed, unplaced } = arrangeDay(toAdd.map(toItem), [...busyOf(dayCards), ...flightBounds(dayCards, opts.edge)], anchorOf(dayCards, fallback));
+  const { placed, unplaced } = arrangeDay(toAdd.map(toItem), [...busyOf(dayCards), ...flightBounds(dayCards, opts.edge)], anchorOf(dayCards, fallback), opts.edge);
   const times = new Map(placed.map((p) => [p.id, { start: toTime(p.startMin), end: toTime(p.endMin) }]));
   return { toAdd, times, skipped, elsewhere, unplaced };
 }

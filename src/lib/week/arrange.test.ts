@@ -1,11 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { arrangeDay, durationFor, walkMinutes, walkingOrder, type ArrangeItem } from "./arrange";
+import { arrangeDay, durationFor, travelMinutes, walkingOrder, type ArrangeItem } from "./arrange";
 
 // Rome, around the Pantheon.
 const PANTHEON = { lat: 41.8986, lng: 12.4769 };
 const NAVONA   = { lat: 41.8992, lng: 12.4731 };   // ~330 m west
 const TREVI    = { lat: 41.9009, lng: 12.4833 };   // ~590 m east
 const COLOSSEUM = { lat: 41.8902, lng: 12.4922 };  // ~1.6 km south-east
+const CIVITAVECCHIA = { lat: 42.0935, lng: 11.7925 }; // the cruise port, 62 km out
+const BCN_AIRPORT = { lat: 41.2974, lng: 2.0833 };
+const BCN_TERMINAL = { lat: 41.3524, lng: 2.1663 };
+const SAGRADA = { lat: 41.4036, lng: 2.1744 };
 
 const item = (id: string, type: ArrangeItem["type"], subType: string | null, at: { lat: number; lng: number } | null): ArrangeItem =>
   ({ id, type, subType, lat: at?.lat ?? null, lng: at?.lng ?? null });
@@ -21,11 +25,14 @@ describe("durations", () => {
 });
 
 describe("walking", () => {
-  it("is 80 m a minute, floored at 5 and capped at 30", () => {
-    expect(walkMinutes(PANTHEON, NAVONA)).toBe(5);
-    expect(walkMinutes(PANTHEON, TREVI)).toBe(7);
-    expect(walkMinutes(PANTHEON, COLOSSEUM)).toBe(20);
-    expect(walkMinutes(PANTHEON, { lat: 41.95, lng: 12.5 })).toBe(30);
+  it("walks up to 2 km at 80 m a minute, floored at 5", () => {
+    expect(travelMinutes(PANTHEON, NAVONA)).toBe(5);
+    expect(travelMinutes(PANTHEON, TREVI)).toBe(7);
+    expect(travelMinutes(PANTHEON, COLOSSEUM)).toBe(20);
+  });
+  it("rides beyond 2 km instead of capping at 30 minutes", () => {
+    expect(travelMinutes(PANTHEON, { lat: 41.95, lng: 12.5 })).toBe(25);   // 6 km across town
+    expect(travelMinutes(COLOSSEUM, CIVITAVECCHIA)).toBe(105);             // 62 km to the ship
   });
   it("orders by nearest neighbour from the anchor, unlocated last", () => {
     const order = walkingOrder(
@@ -78,5 +85,33 @@ describe("arrangeDay", () => {
     const { placed, unplaced } = arrangeDay([item("x", "activity", "tour", TREVI)], busy, null);
     expect(placed).toEqual([]);
     expect(unplaced).toEqual(["x"]);
+  });
+});
+
+// 27 Sep 2026: a Mediterranean cruise, built through the app.
+describe("a port or a flight hinges the day", () => {
+  it("a port day starts at the ship, with the ride to Rome before the Colosseum", () => {
+    const { placed } = arrangeDay(
+      [item("col", "activity", "self_directed", COLOSSEUM), item("port", "logistics", "transit", CIVITAVECCHIA)],
+      [], COLOSSEUM,
+    );
+    const by = Object.fromEntries(placed.map((p) => [p.id, p]));
+    expect(placed.map((p) => p.id)).toEqual(["port", "col"]);
+    expect(by.port.startMin).toBe(9 * 60 + 45);
+    expect(by.col.startMin).toBeGreaterThanOrEqual(by.port.endMin + 105);
+  });
+  it("embarkation day: land, see something, board last", () => {
+    const { placed } = arrangeDay(
+      [item("ship", "logistics", "transit", BCN_TERMINAL), item("sagrada", "activity", "self_directed", SAGRADA), item("fly", "logistics", "flight_arrival", BCN_AIRPORT)],
+      [], BCN_TERMINAL, { first: true, last: false },
+    );
+    expect(placed.map((p) => p.id)).toEqual(["fly", "sagrada", "ship"]);
+  });
+  it("last day: off the ship first, the flight home last", () => {
+    const { placed } = arrangeDay(
+      [item("fly", "logistics", "flight_arrival", BCN_AIRPORT), item("sagrada", "activity", "self_directed", SAGRADA), item("ship", "logistics", "transit", BCN_TERMINAL)],
+      [], BCN_AIRPORT, { first: false, last: true },
+    );
+    expect(placed.map((p) => p.id)).toEqual(["ship", "sagrada", "fly"]);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { inferType, inferTypeOrSight } from "./inferType";
+import { inferType, inferTypeOrSight, isPortName } from "./inferType";
 
 // Google `types` exactly as returned for real places (26 Sep 2026 test journeys).
 describe("inferType", () => {
@@ -28,5 +28,26 @@ describe("inferTypeOrSight", () => {
   });
   it("keeps a real category when there is one", () => {
     expect(inferTypeOrSight(["cafe", "food"])).toEqual({ type: "food", sub_type: "coffee" });
+  });
+});
+
+// Names and Google types exactly as returned for the ports of a Mediterranean cruise (27 Sep 2026).
+describe("ports", () => {
+  const TRANSIT = { type: "logistics", sub_type: "transit" };
+  it("reads a cruise or ferry port from its name, since Google gives it no category", () => {
+    expect(inferTypeOrSight(["establishment", "point_of_interest"], "Cruise Terminal B")).toEqual(TRANSIT);
+    expect(inferTypeOrSight(["establishment", "point_of_interest"], "Terminal de creuers C")).toEqual(TRANSIT);
+    expect(inferTypeOrSight(["establishment", "point_of_interest", "tourist_attraction"], "civitavecchia cruise port")).toEqual(TRANSIT);
+    expect(inferTypeOrSight(["establishment", "point_of_interest", "travel_agency"], "Civitavècchia Port")).toEqual(TRANSIT);
+    expect(inferTypeOrSight(["establishment", "natural_feature"], "Stazione Marittima")).toEqual(TRANSIT);
+    expect(inferTypeOrSight(["establishment", "point_of_interest"], "Cruise Terminal, Palma de Mallorca, Estacio Maritima 2")).toEqual(TRANSIT);
+  });
+  it("never turns a museum, a meal or a town into a port", () => {
+    expect(inferTypeOrSight(["museum", "establishment"], "Museu Marítim de Barcelona")).toEqual({ type: "activity", sub_type: "guided" });
+    expect(inferTypeOrSight(["restaurant", "food"], "Port of Call Grill").type).toBe("food");
+    expect(isPortName("Portofino")).toBe(false);
+    expect(isPortName("Sports Bar Barcelona")).toBe(false);
+    expect(isPortName("Vernazza")).toBe(false);
+    expect(inferTypeOrSight(["establishment", "point_of_interest"])).toEqual({ type: "activity", sub_type: "self_directed" });
   });
 });

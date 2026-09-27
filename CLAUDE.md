@@ -45,6 +45,11 @@ The benchmark: someone opens Roam in a Centurion Lounge and the person next to t
 - Google OAuth for authentication
 - Google Places API for card photos and place data
 - Deployed on Vercel, pushes go directly to main
+- **Server-side "who is signed in" = `getAuthUser(supabase)` (lib/supabase/authUser.ts), never `auth.getUser()`.**
+  getUser is a round trip to Supabase Auth; on 27 Sep 2026 Auth slowed to 4–13 s and middleware read the
+  timeout as "signed out", bouncing day taps to /login (phone showed "Application error"). getClaims checks
+  the token locally; day pages went from 4–9 s to ~0.3–0.5 s. getUser stays only where user_metadata or a
+  verified email is needed (profile, send-invite, checkout).
 
 ## Database schema — the live DB is the source of truth
 - `supabase/migrations/001_schema.sql` is **stale**. Later schema changes (column drops, nullability) were applied directly to the live database and are **not** captured in `supabase/migrations/`.
