@@ -1,6 +1,7 @@
 "use client";
 
 import "mapbox-gl/dist/mapbox-gl.css";
+import { dayChip, spansMonths } from "@/lib/dayChip";
 import { startZoomFor } from "@/lib/places/regions";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -596,7 +597,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
     const onDay = card.day_id ? days.find((d) => d.id === card.day_id) : null;
     toast({
       message: onDay
-        ? `Put on Day ${onDay.day_number}`
+        ? `Put on ${dayChip(onDay.date, spansMonths(days.map((d) => d.date)))}`
         : "Saved to your map. Tap its pin to put it on a day.",
     });
   }

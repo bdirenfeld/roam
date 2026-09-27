@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback, useState } from "react";
+import { dayChip, spansMonths } from "@/lib/dayChip";
 import TimeSheet from "@/components/day/TimeSheet";
 import { CaretDown, Clock, Heart } from "@phosphor-icons/react";
 import type { Card, ChecklistItem, Day, Place } from "@/types/database";
@@ -775,7 +776,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       }
 
       onCardCopied?.(created);
-      setCopyNotice({ text: `Copied to Day ${day.day_number}`, ok: true });
+      setCopyNotice({ text: `Copied to ${dayChip(day.date, spansMonths((days ?? []).map((d) => d.date)))}`, ok: true });
       setTimeout(() => setCopyNotice(null), 3000);
     },
     [localCard, isCopying, onCardCopied, supabase],

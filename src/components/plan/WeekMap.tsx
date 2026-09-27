@@ -15,6 +15,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { dayChip, spansMonths } from "@/lib/dayChip";
 import { startZoomFor } from "@/lib/places/regions";
 import "mapbox-gl/dist/mapbox-gl.css";
 import type { Card, Day, Trip } from "@/types/database";
@@ -473,7 +474,7 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
           onCardCreated={(c) => {
             clearTemp(); setPending(null); onCardCreated(c);
             const onDay = c.day_id ? days.find((d) => d.id === c.day_id) : null;
-            toast({ message: onDay ? `Put on Day ${onDay.day_number}` : "Saved to your map. Drag its pin onto the week." });
+            toast({ message: onDay ? `Put on ${dayChip(onDay.date, spansMonths(days.map((d) => d.date)))}` : "Saved to your map. Drag its pin onto the week." });
           }}
         />
       )}

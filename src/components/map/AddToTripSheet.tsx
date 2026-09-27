@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { dayChip, spansMonths } from "@/lib/dayChip";
 import { isDuplicateSave } from "@/lib/places/duplicateSave";
 import { inferTypeOrSight } from "@/lib/places/inferType";
 import type { Card, CardType, Day, Place } from "@/types/database";
@@ -113,16 +114,10 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
-/** "Mon 18" — the weekday is what a traveller actually picks a day by. */
-function fmtDayChip(date: string): string {
-  return new Date(date + "T00:00:00").toLocaleDateString("en-US", {
-    weekday: "short",
-    day:     "numeric",
-  });
-}
 
 export default function AddToTripSheet({ place, tripId, days, onClose, onCardCreated }: Props) {
   const supabase = createClient();
+  const withMonth = spansMonths(days.map((d) => d.date));
   const { toast } = useToast();
   const sheetRef = useRef<HTMLDivElement>(null);
   const dragY    = useRef(0);
@@ -571,7 +566,7 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
                 <option value="">Save to the map only</option>
                 {days.map((d) => (
                   <option key={d.id} value={d.id}>
-                    Day {d.day_number} · {fmtDayChip(d.date)}
+                    Day {d.day_number} · {dayChip(d.date, withMonth)}
                   </option>
                 ))}
               </select>
@@ -597,7 +592,7 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
             {saving
               ? "Checking…"
               : targetDay
-              ? `Put on Day ${targetDay.day_number}`
+              ? `Put on ${dayChip(targetDay.date, withMonth)}`
               : "Save to the map only"}
           </button>
         </div>

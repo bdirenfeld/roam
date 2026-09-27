@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef, type ReactNode } from "react";
+import { dayChip, spansMonths } from "@/lib/dayChip";
 import { BookmarkSimple, Heart, PencilSimple, Trash } from "@phosphor-icons/react";
 import type { Card, CardType, Day } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
@@ -454,7 +455,7 @@ function CardBody({
       onCardCreated?.(newCard);
       onClose();
       // The popup closed and the pin changed colour; nothing said which day.
-      toast({ message: `Put on Day ${day.day_number}` });
+      toast({ message: `Put on ${dayChip(day.date, spansMonths((days ?? []).map((d) => d.date)))}` });
     } else {
       toast({ message: "Couldn't put it on that day. Try again." });
     }
