@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { inferType, inferTypeOrSight, isPortName, isCruiseName, isBarLike } from "./inferType";
+import { inferType, inferTypeOrSight, isPortName, isCruiseName, isBarLike, isCampName } from "./inferType";
 
 // Google `types` exactly as returned for real places (26 Sep 2026 test journeys).
 describe("inferType", () => {
@@ -82,5 +82,17 @@ describe("a venue with a gift shop", () => {
     expect(inferType(["establishment", "museum", "point_of_interest", "store", "tourist_attraction"])).toEqual({ type: "activity", sub_type: "guided" }); // Ryman Auditorium
     expect(inferType(["clothing_store", "establishment", "store"])).toEqual({ type: "activity", sub_type: "shopping" });
     expect(inferType(["establishment", "point_of_interest", "store"])).toEqual({ type: "activity", sub_type: "shopping" });
+  });
+});
+
+describe("camps", () => {
+  it("a summer camp is a Camp, whatever Google calls it", () => {
+    expect(inferTypeOrSight(["establishment", "point_of_interest"], "Summer Camp Barcelona Enforex")).toEqual({ type: "activity", sub_type: "camp" });
+    expect(inferTypeOrSight(["establishment", "point_of_interest", "school"], "Offlimits Camps")).toEqual({ type: "activity", sub_type: "camp" });
+  });
+  it("a campground is somewhere to sleep", () => {
+    expect(isCampName("Camping La Rustica")).toBe(false);
+    expect(isCampName("Lake Louise Campground")).toBe(false);
+    expect(inferTypeOrSight(["campground", "lodging"], "Camp Bella Vista").type).toBe("logistics");
   });
 });

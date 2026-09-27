@@ -40,6 +40,9 @@ const ICONS: Record<string, (c: string) => string> = {
   // but stays here so legacy cards keep their pin.
   challenge: (c) =>
     `<path d="M14 2L5 15h7l-2 7 10-13h-7z" fill="${c}"/>`,
+  // A day camp: a pennant (27 Sep 2026).
+  camp: (c) =>
+    `<path d="M5 21V3" stroke="${c}" stroke-width="1.8" stroke-linecap="round" fill="none"/><path d="M5 4h12l-3 4 3 4H5z" fill="${c}"/>`,
   beach: (c) =>
     `<path d="M4 12a8 8 0 0 1 16 0z" fill="${c}"/><path d="M12 12l3 9M3 21h18" stroke="${c}" stroke-width="1.8" stroke-linecap="round" fill="none"/>`,
   // Food
@@ -149,6 +152,7 @@ const MATERIAL_ICONS: Record<string, string> = {
   event:            "event",
   challenge:        "directions_run",
   beach:            "beach_access",
+  camp:             "flag",
   self_directed:    "directions_walk",
   // Food
   restaurant:       "restaurant",

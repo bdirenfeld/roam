@@ -115,3 +115,12 @@ describe("a port or a flight hinges the day", () => {
     expect(placed.map((p) => p.id)).toEqual(["ship", "sagrada", "fly"]);
   });
 });
+
+describe("a day camp", () => {
+  it("is dropped off at nine and lasts till three; the day fits around it", () => {
+    const { placed } = arrangeDay([item("gelato", "food", "dessert", NAVONA), item("camp", "activity", "camp", TREVI), item("col", "activity", "explore", COLOSSEUM)], [], PANTHEON);
+    const by = Object.fromEntries(placed.map((p) => [p.id, p]));
+    expect(by.camp).toEqual({ id: "camp", startMin: 9 * 60, endMin: 15 * 60 });
+    expect(by.col.startMin >= 15 * 60 || by.col.endMin <= 9 * 60).toBe(true);
+  });
+});

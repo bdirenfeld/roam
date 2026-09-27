@@ -60,6 +60,7 @@ const SUB_TYPE_OPTIONS: Record<CardType, { label: string; value: string }[]> = {
     { label: "Wellness",      value: "wellness"       },
     { label: "Event",         value: "event"          },
     { label: "Beach",         value: "beach"          },
+    { label: "Camp",          value: "camp"           },
     { label: "Shopping",      value: "shopping"       },
   ],
   food: [

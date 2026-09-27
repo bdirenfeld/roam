@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef, type ReactNode } from "react";
+import { SUB_TYPE_LABEL } from "@/lib/subTypeLabel";
 import { dayChip, spansMonths } from "@/lib/dayChip";
 import { BookmarkSimple, Heart, PencilSimple, Trash } from "@phosphor-icons/react";
 import type { Card, CardType, Day } from "@/types/database";
@@ -43,31 +44,8 @@ function sourceLabel(url: string): string {
 }
 
 // ── Constants ────────────────────────────────────────────────
-const SUB_TYPE_LABEL: Record<string, string> = {
-  restaurant:       "Restaurant",
-  fine_dining:      "Restaurant",
-  street_food:      "Restaurant",
-  coffee:           "Coffee",
-  coffee_dessert:   "Coffee",
-  dessert:          "Dessert",
-  bar:              "Bar",
-  cocktail_bar:     "Bar",
-  drinks:           "Bar",
-  guided:           "Guided",
-  hosted:           "Guided",
-  self_directed:    "Self-Directed",
-  wellness:         "Wellness",
-  challenge:        "Race",
-  beach:            "Beach",
-  event:            "Event",
-  hotel:            "Hotel",
-  transit:          "Transit",
-  grocery:          "Grocery",
-  pet_care:         "Pet care",
-  medical:          "Medical",
-  flight_arrival:   "Flight Arrival",
-  flight_departure: "Flight Departure",
-};
+// One table for the names (lib/subTypeLabel): this copy said "Self-Directed"
+// and "Guided" where every other screen said Explore and Tour (27 Sep 2026).
 
 const TYPE_OPTIONS: { type: CardType; label: string }[] = [
   { type: "activity",  label: "Activity" },
@@ -83,6 +61,7 @@ const SUB_TYPE_OPTIONS: Record<CardType, { label: string; value: string }[]> = {
     { label: "Wellness",      value: "wellness"       },
     { label: "Event",         value: "event"          },
     { label: "Beach",         value: "beach"          },
+    { label: "Camp",          value: "camp"           },
   ],
   food:      [
     { label: "Restaurant", value: "restaurant" },

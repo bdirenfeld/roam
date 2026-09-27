@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import type { Card, CardType, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { getAuthUser } from "@/lib/supabase/authUser";
-import { isPortName, isBarLike } from "@/lib/places/inferType";
+import { isPortName, isBarLike, isCampName } from "@/lib/places/inferType";
 import { queuedInsert, queuedDelete } from "@/lib/offline/queuedWrite";
 import { useToast } from "@/components/ui/Toast";
 import { scheduleCardOnDay } from "@/lib/scheduleCard";
@@ -19,6 +19,7 @@ const SUB_TYPES: Record<CardType, { value: string; label: string }[]> = {
     { value: "wellness",      label: "Wellness"      },
     { value: "event",         label: "Event"         },
     { value: "beach",         label: "Beach"         },
+    { value: "camp",          label: "Camp"          },
   ],
   food: [
     { value: "restaurant", label: "Restaurant" },
@@ -64,6 +65,7 @@ function inferType(googleTypes: string[], name: string): { type: CardType; subTy
   if (t.has("restaurant") || t.has("meal_takeaway") || t.has("food"))
     return { type: "food", subType: "restaurant" };
   if (t.has("spa") || /massage|spa|wellness/i.test(name)) return { type: "activity", subType: "wellness" };
+  if (isCampName(name) && !t.has("lodging") && !t.has("campground")) return { type: "activity", subType: "camp" };
   if (t.has("beach"))                                     return { type: "activity", subType: "beach" };
   if (t.has("museum") || t.has("art_gallery") || t.has("park") || t.has("tourist_attraction"))
     return { type: "activity", subType: "self_directed" };

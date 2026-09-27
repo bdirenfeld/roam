@@ -12,6 +12,7 @@ export const SUB_TYPE_LABEL: Record<string, string> = {
   coffee:           "Coffee",
   dessert:          "Dessert",
   bar:              "Bar",
+  fine_dining:      "Fine dining",
   // activity
   // "Guided" and "Self-directed" were the database talking. A tour is a tour
   // (Colosseum, the Vatican, the truffle hunt, the cooking classes), and the
@@ -28,6 +29,8 @@ export const SUB_TYPE_LABEL: Record<string, string> = {
   event:            "Event",
   shopping:         "Shopping",
   beach:            "Beach",
+  // A kids' day camp or class: nine to three, most weekdays (27 Sep 2026).
+  camp:             "Camp",
   // logistics
   hotel:            "Hotel",
   accommodation:    "Hotel",

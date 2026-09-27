@@ -38,6 +38,7 @@ export function durationFor(type: ArrangeItem["type"], subType: string | null): 
     case "hosted": return 120;
     case "wellness": return 90;
     case "beach": return 150;
+    case "camp": return 360;
     case "grocery": return 30;
     case "transit": return 30;
     default: return type === "food" ? 60 : 90;
@@ -70,6 +71,8 @@ const SLOTS: Record<string, { lo: number; hi: number; want: number }[]> = {
   dessert:    [{ lo: 14 * 60, hi: 16 * 60, want: 14 * 60 + 15 }, { lo: 21 * 60, hi: 22 * 60 + 30, want: 21 * 60 + 15 }],
   bar:        [{ lo: 18 * 60, hi: 22 * 60, want: 20 * 60 + 45 }],
   drinks:     [{ lo: 18 * 60, hi: 22 * 60, want: 20 * 60 + 45 }],
+  // A day camp is the morning's fixed point, drop-off at nine (27 Sep 2026).
+  camp:       [{ lo: 8 * 60 + 30, hi: 10 * 60, want: 9 * 60 }],
 };
 
 const snap = (m: number) => Math.ceil(m / STEP) * STEP;
@@ -139,7 +142,9 @@ export function arrangeDay(items: ArrangeItem[], busy: Busy[], anchor: Anchor | 
 
   // 1. meals into their slots, first slot first (two restaurants = lunch and dinner)
   const used: Record<string, number> = {};
-  for (const it of items.filter(isMeal)) {
+  // A camp first: it is the day's fixed point, and a gelato must not take its morning.
+  const slotted = items.filter(isMeal).sort((x, y) => Number(y.subType === "camp") - Number(x.subType === "camp"));
+  for (const it of slotted) {
     const key = it.subType as string;
     const dur = durationFor(it.type, it.subType);
     const slots = SLOTS[key];

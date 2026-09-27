@@ -63,6 +63,7 @@ const RULES: ReadonlyArray<readonly [string, RoamType, string]> = [
  */
 export function inferTypeOrSight(googleTypes: string[] | null | undefined, name?: string | null): { type: RoamType; sub_type: string } {
   if (isBarLike(googleTypes, name)) return { type: "food", sub_type: "bar" };
+  if (isCampName(name) && !(googleTypes ?? []).some((t) => t === "lodging" || t === "campground")) return { type: "activity", sub_type: "camp" };
   const t = inferType(googleTypes);
   if ((t.type === null || t.sub_type === "self_directed") && isPortName(name)) return { type: "logistics", sub_type: "transit" };
   return t.type && t.sub_type ? { type: t.type, sub_type: t.sub_type } : { type: "activity", sub_type: "self_directed" };
@@ -89,6 +90,15 @@ export function isBarLike(googleTypes: string[] | null | undefined, name: string
   const t = new Set(googleTypes ?? []);
   if (!t.has("bar") && !t.has("night_club")) return false;
   return !t.has("restaurant") || BAR_NAME.test(name ?? "");
+}
+
+/**
+ * A kids' day camp or class, from its name (27 Sep 2026): "TBKids Barcelona"
+ * is a school to Google, "Summer Camp Barcelona Enforex" a point of interest.
+ * Not a campground or camping, which are somewhere to sleep.
+ */
+export function isCampName(name: string | null | undefined): boolean {
+  return !!name && /\b(day ?camps?|summer ?camps?|camps?|campus d'estiu|campamentos?|centro estivo|colonie?s? de vacances)\b/i.test(name) && !/\bcamp(ground|site|ing)\b/i.test(name);
 }
 
 /** A journey named as a cruise ("Mediterranean cruise", "Alaska sailing"). */

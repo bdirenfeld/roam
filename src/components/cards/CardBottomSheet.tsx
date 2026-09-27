@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback, useState } from "react";
-import { dayChip, spansMonths } from "@/lib/dayChip";
+import { SUB_TYPE_LABEL } from "@/lib/subTypeLabel";
 import TimeSheet from "@/components/day/TimeSheet";
 import { CaretDown, Clock, Heart } from "@phosphor-icons/react";
 import type { Card, ChecklistItem, Day, Place } from "@/types/database";
@@ -20,6 +20,7 @@ import AttachmentsPanel from "./AttachmentsPanel";
 import CardChecklist from "./CardChecklist";
 import { readChecklist } from "./cardChecklistModel";
 import DayPickerOverlay from "./DayPickerOverlay";
+import RepeatDaysOverlay from "./RepeatDaysOverlay";
 import PlacePhotoGallery from "./PlacePhotoGallery";
 import { NavigationSheet } from "@/components/ui/NavigationSheet";
 
@@ -78,31 +79,8 @@ function withoutConfirmation(details: Card["details"]): Card["details"] {
 }
 
 // ── Sub-type display labels ────────────────────────────────────
-const SUB_TYPE_LABEL: Record<string, string> = {
-  flight_arrival:   "Flight Arrival",
-  flight_departure: "Flight Departure",
-  self_directed:    "Self-Directed",
-  guided:           "Guided",
-  hosted:           "Guided",
-  wellness:         "Wellness",
-  event:            "Event",
-  challenge:        "Race",
-  beach:            "Beach",
-  restaurant:       "Restaurant",
-  coffee:           "Coffee",
-  coffee_dessert:   "Coffee",
-  dessert:          "Dessert",
-  fine_dining:      "Fine Dining",
-  bar:              "Bar",
-  cocktail_bar:     "Bar",
-  drinks:           "Bar",
-  hotel:            "Hotel",
-  transit:          "Transit",
-  grocery:          "Grocery",
-  pet_care:         "Pet care",
-  medical:          "Medical",
-  note:             "Note",
-};
+// One table for the names (lib/subTypeLabel): this copy said "Self-Directed"
+// and "Guided" where every other screen said Explore and Tour (27 Sep 2026).
 
 // ── Category options (top level of two-level picker) ──────────
 const CATEGORY_OPTIONS = [
@@ -120,6 +98,7 @@ const SUB_TYPE_OPTIONS: Record<string, { value: string; label: string }[]> = {
     { value: "wellness",      label: "Wellness"       },
     { value: "event",         label: "Event"          },
     { value: "beach",         label: "Beach"          },
+    { value: "camp",          label: "Camp"           },
   ],
   food: [
     { value: "restaurant", label: "Restaurant" },
@@ -447,7 +426,6 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     return () => window.removeEventListener("resize", measure);
   }, []);
   const [isCopying,         setIsCopying]         = useState(false);
-  const [copyNotice,        setCopyNotice]        = useState<{ text: string; ok: boolean } | null>(null);
   const [showLinkSheet,     setShowLinkSheet]     = useState(false);
   const [showAttachments,   setShowAttachments]   = useState(false);
   const [showEmptyFields,   setShowEmptyFields]   = useState(false);
@@ -747,39 +725,33 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     [localCard, onCardUpdate, onClose, supabase, toast],
   );
 
-  // ── Copy to another day (in_itinerary) ───────────────────────
-  // Writes a brand-new card on the target day through the shared insert helper
-  // — same place, same details, same times, unconfirmed. THIS card is never
-  // touched, so the sheet keeps showing the original.
-  const handleCopyToDay = useCallback(
-    async (day: Day) => {
+  // ── Repeat on other days (27 Sep 2026) ─────────────────────
+  // Copy to every ticked day at once — a day camp is the same card on each
+  // weekday. One toast, one Undo for the lot.
+  const handleRepeat = useCallback(
+    async (targets: Day[]) => {
       setShowCopyPicker(false);
-      if (day.id === localCard.day_id || isCopying) return;
+      if (isCopying || targets.length === 0) return;
       setIsCopying(true);
-
-      const created = await scheduleCardOnDay(supabase, {
-        tripId:    localCard.trip_id,
-        dayId:     day.id,
-        placeId:   localCard.place_id,
-        place:     localCard.place ?? null,
-        details:   localCard.details,
-        startTime: localCard.start_time,
-        endTime:   localCard.end_time,
-        sourceUrl: localCard.source_url,
-      });
-
-      setIsCopying(false);
-      if (!created) {
-        setCopyNotice({ text: "Couldn't copy — please try again.", ok: false });
-        setTimeout(() => setCopyNotice(null), 3000);
-        return;
+      const made: Card[] = [];
+      for (const day of targets) {
+        if (day.id === localCard.day_id) continue;
+        const created = await scheduleCardOnDay(supabase, {
+          tripId: localCard.trip_id, dayId: day.id, placeId: localCard.place_id, place: localCard.place ?? null,
+          details: localCard.details, startTime: localCard.start_time, endTime: localCard.end_time, sourceUrl: localCard.source_url,
+        });
+        if (created) { made.push(created); onCardCopied?.(created); }
       }
-
-      onCardCopied?.(created);
-      setCopyNotice({ text: `Copied to ${dayChip(day.date, spansMonths((days ?? []).map((d) => d.date)))}`, ok: true });
-      setTimeout(() => setCopyNotice(null), 3000);
+      setIsCopying(false);
+      const missed = targets.length - made.length;
+      toast({
+        message: missed ? `On ${made.length} more ${made.length === 1 ? "day" : "days"}; ${missed} couldn't be added` : `On ${made.length} more ${made.length === 1 ? "day" : "days"}`,
+        undo: made.length ? async () => {
+          for (const c of made) { await queuedDelete("cards", { id: c.id }); onCardDelete?.(c.id); }
+        } : undefined,
+      });
     },
-    [localCard, isCopying, onCardCopied, supabase],
+    [localCard, isCopying, onCardCopied, onCardDelete, supabase, toast],
   );
 
   // ── Type + sub-type change ─────────────────────────────────
@@ -1193,7 +1165,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                             onClick={() => { setShowCardMenu(false); setShowCopyPicker(true); }}
                             className="w-full text-left px-3.5 py-2.5 text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors border-t border-gray-100 disabled:opacity-50"
                           >
-                            {isCopying ? "Copying…" : "Copy to another day"}
+                            {isCopying ? "Copying…" : "Repeat on other days"}
                           </button>
                         )}
                         {onCardDelete && (
@@ -1498,8 +1470,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         {/* Bottom action area. Rendered only when it has something to say —
             an empty one still drew its top border and reserved padding, which
             is the shelf we just removed reappearing as a stripe. */}
-        {(!!copyNotice
-          || !!deleteError
+        {(!!deleteError
           || (!readOnly && localCard.status === "interested" && !!days && days.length > 0)) && (
         <div className="flex-shrink-0 border-t border-gray-100 bg-white">
           {/* Assign to Day — only for unplaced cards */}
@@ -1511,17 +1482,6 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               >
                 Put on a day
               </button>
-            </div>
-          )}
-
-          {/* Move / Copy now live behind the ⋯ in the header. What they left
-              behind is the confirmation, which becomes a toast: it has
-              something to say for three seconds, not a permanent shelf. */}
-          {copyNotice && (
-            <div className="px-5 pt-3 pb-3">
-              <p className={`text-[12px] text-center font-medium ${copyNotice.ok ? "text-activity" : "text-red-500"}`}>
-                {copyNotice.text}
-              </p>
             </div>
           )}
 
@@ -1570,11 +1530,10 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
 
         {/* Copy to day picker overlay — same list, different verb */}
         {showCopyPicker && days && (
-          <DayPickerOverlay
-            title="Copy to day"
+          <RepeatDaysOverlay
             days={days}
             currentDayId={localCard.day_id}
-            onSelect={handleCopyToDay}
+            onConfirm={handleRepeat}
             onClose={() => setShowCopyPicker(false)}
           />
         )}

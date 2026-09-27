@@ -38,6 +38,7 @@ export const GROUPS: Group[] = [
       { label: "Wellness",      subTypes: ["wellness"]          },
       { label: "Event",         subTypes: ["event"]             },
       { label: "Beach",         subTypes: ["beach"]             },
+      { label: "Camp",          subTypes: ["camp"]              },
     ],
   },
   {

@@ -135,6 +135,12 @@ function SubTypeIcon({ subType, color }: { subType: string; color: string }) {
           <path d="m8 3 4 8 5-5 5 15H2L8 3z" />
         </svg>
       );
+    case "camp":
+      return (
+        <svg {...s}>
+          <path d="M5 21V3" /><path d="M5 4h12l-3 4 3 4H5" />
+        </svg>
+      );
     case "beach":
       return (
         <svg {...s}>
