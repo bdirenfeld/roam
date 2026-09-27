@@ -14,12 +14,11 @@ import YearView from "@/components/trips/YearView";
 import { FAMILY_DATES } from "@/lib/yearView/familyDates";
 import { isHouseholdOwner } from "@/lib/household";
 import CollapsibleSection from "@/components/trip/CollapsibleSection";
+import { getAuthUser } from "@/lib/supabase/authUser";
 
 export default async function TripsPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser(supabase);
 
   const [{ data: profile }, { data: rawTrips }, { data: allDays }] = await Promise.all([
     supabase.from("users").select("avatar_url").eq("id", user?.id ?? "").single(),

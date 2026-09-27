@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import EstimateClient from "@/components/trip/EstimateClient";
 import { getTripAccess } from "@/lib/trip-access";
 import { loadEstimate } from "@/lib/budget/load";
+import { getAuthUser } from "@/lib/supabase/authUser";
 
 interface Props {
   params: Promise<{ tripId: string }>;
@@ -14,9 +15,7 @@ export default async function EstimatePage({ params }: Props) {
 
   // The estimate is the owner's own planning figure — a guest reads the journey
   // but has no business seeing what it costs. Same guard as Trip Settings.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser(supabase);
   if ((await getTripAccess(supabase, tripId, user?.id)) === "guest") {
     redirect(`/trips/${tripId}`);
   }

@@ -4,6 +4,7 @@ import PlanSwitch from "@/components/plan/PlanSwitch";
 import { getTripAccess } from "@/lib/trip-access";
 import { withAttachmentCount } from "@/lib/attachmentCount";
 import type { Trip, Day, DayWithCards, Card, ListWithCards } from "@/types/database";
+import { getAuthUser } from "@/lib/supabase/authUser";
 
 interface Props {
   params: Promise<{ tripId: string }>;
@@ -16,9 +17,7 @@ export default async function PlanPage({ params }: Props) {
   // The Plan board is owner-only. A guest can read the trip under RLS, so the
   // not-found check below won't catch them — guard explicitly and send them to
   // the Day view rather than a starved board.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser(supabase);
   if ((await getTripAccess(supabase, tripId, user?.id)) === "guest") {
     redirect(`/trips/${tripId}`);
   }

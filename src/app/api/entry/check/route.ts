@@ -3,6 +3,7 @@ import { underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
 import type { EntryAdvisory, EntryData, EntryLine } from "@/lib/entry/types";
+import { getAuthUser } from "@/lib/supabase/authUser";
 
 // ── What do these passports need to enter this country? ───────────────────
 //
@@ -35,7 +36,7 @@ const s = (v: unknown, max = 400): string | null => (typeof v === "string" && v.
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser(supabase);
   if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   if (!(await underQuota(supabase, "entryCheck", QUOTA.entryCheck))) return quotaExceeded("entry checks");
 

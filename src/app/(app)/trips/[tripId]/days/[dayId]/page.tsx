@@ -4,6 +4,7 @@ import DayViewClient from "@/components/day/DayViewClient";
 import { getTripAccess } from "@/lib/trip-access";
 import { withAttachmentCount } from "@/lib/attachmentCount";
 import type { Card, DayWithCards, Trip, Day } from "@/types/database";
+import { getAuthUser } from "@/lib/supabase/authUser";
 
 interface Props {
   params: Promise<{ tripId: string; dayId: string }>;
@@ -12,9 +13,7 @@ interface Props {
 export default async function DayPage({ params }: Props) {
   const { tripId, dayId } = await params;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser(supabase);
   // Guests get a read-only Day view; owners get the full editing surface.
   const access = await getTripAccess(supabase, tripId, user?.id);
   const readOnly = access === "guest";

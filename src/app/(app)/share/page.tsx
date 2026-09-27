@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import ShareCatchClient from "@/components/trip/ShareCatchClient";
 import { isHouseholdOwner } from "@/lib/household";
 import type { ShareJourney } from "@/lib/share/journeys";
+import { getAuthUser } from "@/lib/supabase/authUser";
 
 interface Props {
   searchParams: Promise<{ title?: string; text?: string; url?: string; choose?: string }>;
@@ -24,9 +25,7 @@ interface Props {
 export default async function SharePage({ searchParams }: Props) {
   const { title, text, url, choose } = await searchParams;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser(supabase);
   if (!user) redirect("/login");
 
   // Some apps put the link in `text` rather than `url`.

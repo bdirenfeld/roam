@@ -6,6 +6,7 @@ import { getTripAccess } from "@/lib/trip-access";
 import type { Person } from "@/components/trip/TravellersSection";
 import type { ShareGuest } from "@/components/trip/TripSettingsClient";
 import type { Trip, Day } from "@/types/database";
+import { getAuthUser } from "@/lib/supabase/authUser";
 
 interface Props {
   params: Promise<{ tripId: string }>;
@@ -18,9 +19,7 @@ export default async function TripSettingsPage({ params }: Props) {
   // Trip Settings is owner-only (it manages the journey, travellers, sharing).
   // A guest can read the trip under RLS, so guard explicitly and bounce them to
   // the Day view.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser(supabase);
   if ((await getTripAccess(supabase, tripId, user?.id)) === "guest") {
     redirect(`/trips/${tripId}`);
   }

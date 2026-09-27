@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/authUser";
 import { getTripAccess } from "@/lib/trip-access";
 import { buildTripSkeleton } from "@/lib/companion/skeleton";
 import { buildSystemPrompt } from "@/lib/companion/prompt";
@@ -583,9 +584,7 @@ export async function GET(req: NextRequest) {
   }
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser(supabase);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!(await underQuota(supabase, "assistant", QUOTA.assistant))) return quotaExceeded("the assistant");
 
@@ -620,9 +619,7 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser(supabase);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   let body: Record<string, unknown>;

@@ -8,6 +8,7 @@ import { agendaOrder } from "@/lib/agendaOrder";
 import { cardTimes } from "@/lib/cardTime";
 import { tonightByDay, guestSafeCover } from "@/lib/sharedItinerary";
 import type { Metadata, Viewport } from "next";
+import { getAuthUser } from "@/lib/supabase/authUser";
 
 // Rendered per request, never cached: opening the link always shows the plan
 // as it stands right now.
@@ -99,9 +100,7 @@ export default async function ClaimPage({ params, searchParams }: Props) {
   // Auth via the user's RLS client. Unauthenticated → hand off to the client
   // sign-in arm, which kicks off Google OAuth carrying this path as `next`.
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser(supabase);
   if (!user || preview) {
     // No account needed to READ. The link is the secret and holding it is the
     // permission; the people a journey was planned for should not have to

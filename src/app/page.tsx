@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import LandingPage from "@/components/landing/LandingPage";
+import { getAuthUser } from "@/lib/supabase/authUser";
 
 const isSupabaseConfigured =
   !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -17,9 +18,7 @@ export default async function Home({
 }) {
   if (isSupabaseConfigured) {
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getAuthUser(supabase);
     if (user) redirect("/trips");
   }
 

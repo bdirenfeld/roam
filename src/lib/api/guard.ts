@@ -9,16 +9,18 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import type { SupabaseClient, User } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { AuthUser } from "@/lib/supabase/authUser";
+import { getAuthUser } from "@/lib/supabase/authUser";
 
 export type Gate =
-  | { supabase: SupabaseClient; user: User }
+  | { supabase: SupabaseClient; user: AuthUser }
   | { response: NextResponse };
 
 /** The signed-in user, or the 401 to return. */
 export async function requireUser(): Promise<Gate> {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser(supabase);
   if (!user) return { response: NextResponse.json({ error: "Not signed in" }, { status: 401 }) };
   return { supabase, user };
 }

@@ -12,13 +12,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getTripAccess } from "@/lib/trip-access";
+import { getAuthUser } from "@/lib/supabase/authUser";
 
 // Re-assert ownership server-side before any admin write. Throws otherwise.
 async function assertOwner(tripId: string): Promise<void> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser(supabase);
   if (!user) throw new Error("Not signed in");
   const access = await getTripAccess(supabase, tripId, user.id);
   if (access !== "owner") throw new Error("Not allowed");

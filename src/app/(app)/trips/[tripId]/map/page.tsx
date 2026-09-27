@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import FullMapClient from "@/components/map/FullMapClient";
 import { getTripAccess } from "@/lib/trip-access";
 import type { Trip, Day, Card } from "@/types/database";
+import { getAuthUser } from "@/lib/supabase/authUser";
 
 interface Props {
   params: Promise<{ tripId: string }>;
@@ -11,7 +12,7 @@ interface Props {
 export default async function TripMapPage({ params }: Props) {
   const { tripId } = await params;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser(supabase);
   // Guests get a read-only map: no place search/add, no pin editing, no sidebar.
   const readOnly = (await getTripAccess(supabase, tripId, user?.id)) === "guest";
 

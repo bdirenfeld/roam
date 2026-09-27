@@ -10,6 +10,7 @@
 import { randomUUID } from "crypto";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/authUser";
 import samplePlaces from "./places.json";
 import {
   SAMPLE_TITLE,
@@ -28,9 +29,7 @@ function isoDate(d: Date): string {
 
 export async function createSampleJourney(): Promise<void> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser(supabase);
   if (!user) redirect("/");
 
   // ── Places: reuse the user's existing row per google_place_id (same dedup
