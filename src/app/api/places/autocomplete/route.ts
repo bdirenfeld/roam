@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import { isCategorySearch } from "@/lib/places/searchIntent";
+import { preferCountries } from "@/lib/entry/countries";
 
 export async function GET(request: NextRequest) {
   const gate = await requireUser();
@@ -13,6 +14,8 @@ export async function GET(request: NextRequest) {
   const types        = searchParams.get("types");
   const lat          = searchParams.get("lat");
   const lng          = searchParams.get("lng");
+  // The journey's countries: their results lead (lib/entry/countries).
+  const countries    = (searchParams.get("countries") ?? "").split("|").map((c) => c.trim()).filter(Boolean);
 
   if (!input?.trim()) {
     return NextResponse.json({ predictions: [] });
@@ -51,6 +54,7 @@ export async function GET(request: NextRequest) {
       // New Jersey under the Barcelona ones) only get in the way.
       data.predictions = found.length >= 3 ? found : [...found, ...(data.predictions ?? []).filter((p) => !seen.has(p.place_id))];
     }
+    if (countries.length && Array.isArray(data.predictions)) data.predictions = preferCountries(data.predictions as { description?: string; place_id: string }[], countries);
     return NextResponse.json(data);
   } catch {
     return NextResponse.json({ error: "Failed to fetch autocomplete" }, { status: 502 });

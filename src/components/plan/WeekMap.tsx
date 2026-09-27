@@ -15,6 +15,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { searchCountries } from "@/lib/entry/countries";
 import { dayChip, spansMonths } from "@/lib/dayChip";
 import { startZoomFor } from "@/lib/places/regions";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -463,6 +464,7 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
         lat={trip.destination_lat}
         lng={trip.destination_lng}
         getBias={() => { const c = mapRef.current?.getCenter(); return c ? { lat: c.lat, lng: c.lng } : null; }}
+        countries={searchCountries(trip.destination, cards.map((c) => c.place?.address))}
         positionClassName="absolute top-3 left-3 right-[60px] max-w-md"
       />
       {pending && (

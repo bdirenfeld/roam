@@ -112,12 +112,14 @@ interface Props {
   destination?: string | null;
   destinationLat?: number | null;
   destinationLng?: number | null;
+  /** The journey's countries: their results lead (27 Sep 2026). */
+  countries?: string[];
 }
 
 export default function CreateCardSheet({
   dayId, listId = null, tripId, endPosition, onClose, onCardCreated,
   initialStatus, extraDetails, initialStartTime, initialEndTime,
-  scheduledPlaceIds, destination, destinationLat, destinationLng, onPreviewCard, onCardRemoved, hidden = false,
+  scheduledPlaceIds, destination, destinationLat, destinationLng, countries, onPreviewCard, onCardRemoved, hidden = false,
 }: Props) {
   const { toast } = useToast();
   const supabase  = createClient();
@@ -259,6 +261,7 @@ export default function CreateCardSheet({
           params.set("lat", String(destinationLat));
           params.set("lng", String(destinationLng));
         }
+        if (countries?.length) params.set("countries", countries.join("|"));
         const res  = await fetch(`/api/places/autocomplete?${params.toString()}`);
         const data = await res.json();
         setPredictions((data.predictions ?? []).slice(0, 5));

@@ -27,3 +27,25 @@ export function tripCountries(destination: string | null | undefined, addresses:
   for (const a of addresses) add(countryPart(a));
   return out;
 }
+
+const EUROPE = ["United Kingdom", "Ireland", "France", "Spain", "Portugal", "Italy", "Germany", "Netherlands", "Belgium", "Luxembourg", "Switzerland", "Austria", "Denmark", "Sweden", "Norway", "Finland", "Iceland", "Czechia", "Czech Republic", "Poland", "Hungary", "Croatia", "Slovenia", "Greece", "Malta", "Monaco", "Montenegro", "Estonia", "Latvia", "Lithuania", "Slovakia", "Romania", "Bulgaria", "Albania", "Cyprus"];
+const EUROPE_REGIONS = new Set(["Europe", "Western Europe", "Eastern Europe", "Scandinavia", "The Balkans", "The Mediterranean", "The British Isles", "The Alps"]);
+
+/**
+ * The countries a search on this journey should prefer (27 Sep 2026): the
+ * ones it goes to, and a Europe region's countries before it has places.
+ * "Sagrada Familia Basilica" on a Europe summer came back as a church in
+ * Goiânia, Brazil.
+ */
+export function searchCountries(destination: string | null | undefined, addresses: (string | null | undefined)[]): string[] {
+  const own = tripCountries(destination, addresses);
+  return destination && EUROPE_REGIONS.has(destination) ? Array.from(new Set([...own, ...EUROPE])) : own;
+}
+
+/** Results in the preferred countries first, the rest after, each in Google's order. */
+export function preferCountries<T extends { description?: string }>(preds: T[], countries: string[]): T[] {
+  if (!countries.length) return preds;
+  const want = new Set(countries);
+  const hit = (p: T) => { const c = countryPart(p.description); return !!c && want.has(c); };
+  return [...preds.filter(hit), ...preds.filter((p) => !hit(p))];
+}

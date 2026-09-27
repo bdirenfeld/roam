@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { searchCountries } from "@/lib/entry/countries";
 import { tripCountries } from "@/lib/entry/countries";
 import { startZoomFor } from "@/lib/places/regions";
 import { dayArea } from "@/lib/places/dayArea";
@@ -1110,6 +1111,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           destination={searchArea.label}
           destinationLat={searchArea.lat}
           destinationLng={searchArea.lng}
+          countries={searchCountries(trip.destination, localCards.map((c) => c.place?.address))}
           onClose={handleCreateClose}
           onCardCreated={handleCardCreated}
           hidden={addHidden}

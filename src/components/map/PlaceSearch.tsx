@@ -24,9 +24,11 @@ interface Props {
    * centre point. Beats lat/lng when it answers.
    */
   getBias?: () => { lat: number; lng: number } | null;
+  /** The journey's countries: their results lead (27 Sep 2026). */
+  countries?: string[];
 }
 
-export default function PlaceSearch({ onPlaceSelect, destination, lat, lng, positionClassName, getBias }: Props) {
+export default function PlaceSearch({ onPlaceSelect, destination, lat, lng, positionClassName, getBias, countries }: Props) {
   const [query, setQuery]             = useState("");
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading]         = useState(false);
@@ -72,6 +74,7 @@ export default function PlaceSearch({ onPlaceSelect, destination, lat, lng, posi
           params.set("lat", String(bias.lat));
           params.set("lng", String(bias.lng));
         }
+        if (countries?.length) params.set("countries", countries.join("|"));
         const res  = await fetch(`/api/places/autocomplete?${params.toString()}`);
         const data = await res.json();
         setPredictions(data.predictions ?? []);

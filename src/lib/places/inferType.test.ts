@@ -96,3 +96,19 @@ describe("camps", () => {
     expect(inferTypeOrSight(["campground", "lodging"], "Camp Bella Vista").type).toBe("logistics");
   });
 });
+
+// Types exactly as Google returned them on the Europe summer (27 Sep 2026).
+describe("names and churches", () => {
+  it("a church with a gift shop is a sight, not Shopping", () => {
+    expect(inferTypeOrSight(["book_store", "church", "establishment", "place_of_worship", "point_of_interest", "store"], "Basílica de la Sagrada Família")).toEqual({ type: "activity", sub_type: "self_directed" });
+  });
+  it("a station Google calls a premise is transit", () => {
+    expect(inferTypeOrSight(["premise", "street_address"], "St Pancras International")).toEqual({ type: "logistics", sub_type: "transit" });
+    expect(inferTypeOrSight(["establishment", "point_of_interest"], "Firenze Santa Maria Novella Stazione")).toEqual({ type: "logistics", sub_type: "transit" });
+  });
+  it("a gelateria is dessert, a café is coffee, a restaurant stays a restaurant", () => {
+    expect(inferTypeOrSight(["establishment", "food", "point_of_interest", "store"], "Gelateria La Carraia")).toEqual({ type: "food", sub_type: "dessert" });
+    expect(inferTypeOrSight(["establishment", "food", "point_of_interest", "restaurant"], "Caffè Gilli")).toEqual({ type: "food", sub_type: "coffee" });
+    expect(inferTypeOrSight(["establishment", "food", "point_of_interest", "restaurant"], "Dishoom Covent Garden")).toEqual({ type: "food", sub_type: "restaurant" });
+  });
+});

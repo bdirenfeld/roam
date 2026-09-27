@@ -39,6 +39,12 @@ const RULES: ReadonlyArray<readonly [string, RoamType, string]> = [
   ["spa",                     "activity",  "wellness"],
   ["gym",                     "activity",  "wellness"],
   ["beauty_salon",            "activity",  "wellness"],
+  // A church with a gift shop is a church (Sagrada Família came out Shopping, 27 Sep 2026).
+  ["church",                  "activity",  "self_directed"],
+  ["place_of_worship",        "activity",  "self_directed"],
+  ["mosque",                  "activity",  "self_directed"],
+  ["synagogue",               "activity",  "self_directed"],
+  ["hindu_temple",            "activity",  "self_directed"],
   ["museum",                  "activity",  "guided"],
   ["art_gallery",             "activity",  "guided"],
   // Generic "store" after the museums: the Ryman Auditorium has a gift shop,
@@ -65,6 +71,13 @@ export function inferTypeOrSight(googleTypes: string[] | null | undefined, name?
   if (isBarLike(googleTypes, name)) return { type: "food", sub_type: "bar" };
   if (isCampName(name) && !(googleTypes ?? []).some((t) => t === "lodging" || t === "campground")) return { type: "activity", sub_type: "camp" };
   const t = inferType(googleTypes);
+  // Names that say what Google's generic tags do not (27 Sep 2026): St Pancras
+  // International is a "premise" to Google; a gelateria is "food".
+  if ((t.type === null || t.sub_type === "self_directed") && STATION_NAME.test(name ?? "")) return { type: "logistics", sub_type: "transit" };
+  if (t.type === "food" && t.sub_type === "restaurant") {
+    if (DESSERT_NAME.test(name ?? "")) return { type: "food", sub_type: "dessert" };
+    if (COFFEE_NAME.test(name ?? "")) return { type: "food", sub_type: "coffee" };
+  }
   if ((t.type === null || t.sub_type === "self_directed") && isPortName(name)) return { type: "logistics", sub_type: "transit" };
   return t.type && t.sub_type ? { type: t.type, sub_type: t.sub_type } : { type: "activity", sub_type: "self_directed" };
 }
@@ -100,6 +113,10 @@ export function isBarLike(googleTypes: string[] | null | undefined, name: string
 export function isCampName(name: string | null | undefined): boolean {
   return !!name && /\b(day ?camps?|summer ?camps?|camps?|campus d'estiu|campamentos?|centro estivo|colonie?s? de vacances)\b/i.test(name) && !/\bcamp(ground|site|ing)\b/i.test(name);
 }
+
+const STATION_NAME = /\b(station|stazione|estaci[oó]n?|gare|bahnhof|hauptbahnhof|termini|centraal|sants|st\.? pancras)\b/i;
+const DESSERT_NAME = /\b(gelat\w*|ice ?cream|glacier|helader\w*|pasticceri\w*|p[aâ]tisserie|bakery|boulangerie|panader\w*|dessert)\b/i;
+const COFFEE_NAME = /\b(caff[eè]|caf[eé]|coffee|espresso|roasters?)(?![a-z])/i;
 
 /** A journey named as a cruise ("Mediterranean cruise", "Alaska sailing"). */
 export function isCruiseName(name: string | null | undefined): boolean {

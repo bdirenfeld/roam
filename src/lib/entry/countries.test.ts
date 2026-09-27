@@ -19,3 +19,23 @@ describe("tripCountries", () => {
     expect(tripCountries("Japan", [])).toEqual(["Japan"]);
   });
 });
+
+import { searchCountries, preferCountries } from "./countries";
+describe("searching where the journey goes", () => {
+  it("puts the journey's countries first, keeping the rest", () => {
+    const preds = [
+      { description: "Santuário Basílica Sagrada Família, Rua C 14, Goiânia - GO, Brazil" },
+      { description: "Basílica de la Sagrada Família, Carrer de Mallorca, 401, Barcelona, Spain" },
+    ];
+    const c = searchCountries("Europe", []);
+    expect(preferCountries(preds, c).map((p) => p.description.split(", ").pop())).toEqual(["Spain", "Brazil"]);
+  });
+  it("UK in a result matches United Kingdom on the journey", () => {
+    const preds = [{ description: "Ontario Place, Toronto, ON, Canada" }, { description: "The British Museum, Great Russell St, London WC1B 3DG, UK" }];
+    expect(preferCountries(preds, searchCountries("London, UK", []))[0].description).toContain("British Museum");
+  });
+  it("no preference, no change", () => {
+    const preds = [{ description: "A, Brazil" }, { description: "B, Spain" }];
+    expect(preferCountries(preds, [])).toEqual(preds);
+  });
+});
