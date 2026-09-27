@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { planDayChanges } from "@/lib/tripDays";
 import { useRouter } from "next/navigation";
 import { Camera } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
@@ -241,24 +242,27 @@ export default function TripSettingsClient({
     const supabase = createClient();
 
     try {
-      const sortedDays = [...days].sort((a, b) => a.day_number - b.day_number);
-      const oldDayCount = sortedDays.length;
-      const newDayCount = countDays(startDate, endDate);
+      // What the new dates do to the days (lib/tripDays, 27 Sep 2026): read
+      // fresh, so a second change in a row does not work from stale dates.
+      // Only a change of dates touches the days; a new title or party size does not.
+      const datesChanged = startDate !== savedDates.current.start || endDate !== savedDates.current.end;
+      const { data: freshDays } = datesChanged ? await supabase.from("days").select("id, date, day_number").eq("trip_id", trip.id) : { data: null };
+      const current = (freshDays ?? days) as { id: string; date: string; day_number: number }[];
+      const plan = datesChanged ? planDayChanges(current, startDate, endDate) : { update: [], insert: [], remove: [] as string[] };
 
-      // Block save if shortening would remove days that have cards
-      if (newDayCount < oldDayCount) {
-        const daysToRemove = sortedDays.slice(newDayCount);
-        const dayIds = daysToRemove.map((d) => d.id);
+      // Block save if the change would remove days that have cards
+      if (plan.remove.length > 0) {
         const { count } = await supabase
           .from("cards")
           .select("id", { count: "exact", head: true })
-          .in("day_id", dayIds);
+          .in("day_id", plan.remove);
 
         if (count && count > 0) {
-          const firstRemoved = daysToRemove[0];
-          const cardLabel = count === 1 ? "1 card" : `${count} cards`;
+          const first = current.filter((d) => plan.remove.includes(d.id)).sort((x, y) => x.date.localeCompare(y.date))[0];
+          const cardLabel = count === 1 ? "1 plan" : `${count} plans`;
+          const when = new Date(first.date + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
           setWarning(
-            `Day ${firstRemoved.day_number} has ${cardLabel} — move them before shortening the journey.`
+            `${when} has ${cardLabel} — move them to another day first.`
           );
           // The dates go back to what is saved, so nothing shows that isn't true.
           setStartDate(savedDates.current.start);
@@ -296,48 +300,20 @@ export default function TripSettingsClient({
         return true;
       };
 
-      // Delete removed days (safe — checked above)
-      if (newDayCount < oldDayCount) {
-        const daysToRemove = sortedDays.slice(newDayCount);
-        const { error: delErr } = await supabase
-          .from("days")
-          .delete()
-          .in("id", daysToRemove.map((d) => d.id));
+      if (plan.remove.length) {
+        const { error: delErr } = await supabase.from("days").delete().in("id", plan.remove);
         if (failed(delErr)) return false;
       }
-
-      // Recalculate existing day dates if start_date changed or day count changed
-      if (startDate !== trip.start_date || newDayCount !== oldDayCount) {
-        const newStart = new Date(startDate + "T00:00:00");
-        const daysToUpdate = sortedDays.slice(0, Math.min(oldDayCount, newDayCount));
-        for (let i = 0; i < daysToUpdate.length; i++) {
-          const day = daysToUpdate[i];
-          const newDate = new Date(newStart);
-          newDate.setDate(newDate.getDate() + i);
-          const { error: dayErr } = await supabase
-            .from("days")
-            .update({ date: newDate.toISOString().slice(0, 10) })
-            .eq("id", day.id);
-          if (failed(dayErr)) return false;
-        }
+      for (const u of plan.update) {
+        const was = current.find((x) => x.id === u.id);
+        if (was && was.date === u.date && was.day_number === u.day_number) continue;
+        const { error: dayErr } = await supabase.from("days").update({ date: u.date, day_number: u.day_number }).eq("id", u.id);
+        if (failed(dayErr)) return false;
       }
-
-      // Insert new days if end_date extended
-      if (newDayCount > oldDayCount) {
-        const newStart = new Date(startDate + "T00:00:00");
-        const newDaysToInsert = [];
-        for (let i = oldDayCount; i < newDayCount; i++) {
-          const dayDate = new Date(newStart);
-          dayDate.setDate(dayDate.getDate() + i);
-          newDaysToInsert.push({
-            id: crypto.randomUUID(),
-            trip_id: trip.id,
-            date: dayDate.toISOString().slice(0, 10),
-            day_number: i + 1,
-            day_name: `Day ${i + 1}`,
-          });
-        }
-        const { error: insErr } = await supabase.from("days").insert(newDaysToInsert);
+      if (plan.insert.length) {
+        const { error: insErr } = await supabase.from("days").insert(plan.insert.map((n) => ({
+          id: crypto.randomUUID(), trip_id: trip.id, date: n.date, day_number: n.day_number, day_name: `Day ${n.day_number}`,
+        })));
         if (failed(insErr)) return false;
       }
 

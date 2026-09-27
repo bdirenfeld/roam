@@ -1006,7 +1006,7 @@ export default function EstimateClient({
                     </div>
                   ))}
                 <div
-                  className="flex items-center gap-2 py-2"
+                  className={`flex items-center gap-2 py-2 ${cardCurrency === "CAD" ? "hidden" : ""}`} /* no rate at home (27 Sep 2026) */
                   style={{ borderTop: `1px solid rgba(26,26,46,0.06)` }}
                 >
                   <span className="w-[76px] shrink-0 text-[11.5px]" style={{ color: INK }}>
