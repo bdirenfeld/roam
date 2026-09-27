@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { inferType, inferTypeOrSight, isPortName, isCruiseName } from "./inferType";
+import { inferType, inferTypeOrSight, isPortName, isCruiseName, isBarLike } from "./inferType";
 
 // Google `types` exactly as returned for real places (26 Sep 2026 test journeys).
 describe("inferType", () => {
@@ -59,5 +59,28 @@ describe("isCruiseName", () => {
     expect(isCruiseName("Tuscany")).toBe(false);
     expect(isCruiseName("Cruiseship-free Portugal")).toBe(false);
     expect(isCruiseName("")).toBe(false);
+  });
+});
+
+// Google types exactly as returned (27 Sep 2026): the Nashville bachelor party.
+describe("bars", () => {
+  const BAR_RESTAURANT = ["bar", "establishment", "food", "point_of_interest", "restaurant"];
+  it("a honky-tonk named as a bar is a bar", () => {
+    expect(inferTypeOrSight([...BAR_RESTAURANT, "tourist_attraction"], "Tootsies Orchid Lounge")).toEqual({ type: "food", sub_type: "bar" });
+    expect(inferTypeOrSight(BAR_RESTAURANT, "Honky Tonk Central")).toEqual({ type: "food", sub_type: "bar" });
+    expect(inferTypeOrSight(["bar", "establishment", "night_club", "point_of_interest"], "The Stage on Broadway")).toEqual({ type: "food", sub_type: "bar" });
+  });
+  it("a restaurant with a bar stays a restaurant", () => {
+    expect(inferTypeOrSight(BAR_RESTAURANT, "Husk Nashville").sub_type).toBe("restaurant");
+    expect(inferTypeOrSight(["bar", "establishment", "food", "night_club", "point_of_interest", "restaurant"], "Rolf and Daughters").sub_type).toBe("restaurant");
+    expect(isBarLike(["establishment", "food", "restaurant"], "Bar Italia")).toBe(false);
+  });
+});
+
+describe("a venue with a gift shop", () => {
+  it("is the venue, not Shopping", () => {
+    expect(inferType(["establishment", "museum", "point_of_interest", "store", "tourist_attraction"])).toEqual({ type: "activity", sub_type: "guided" }); // Ryman Auditorium
+    expect(inferType(["clothing_store", "establishment", "store"])).toEqual({ type: "activity", sub_type: "shopping" });
+    expect(inferType(["establishment", "point_of_interest", "store"])).toEqual({ type: "activity", sub_type: "shopping" });
   });
 });

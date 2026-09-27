@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import type { Card, CardType, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { getAuthUser } from "@/lib/supabase/authUser";
-import { isPortName } from "@/lib/places/inferType";
+import { isPortName, isBarLike } from "@/lib/places/inferType";
 import { queuedInsert, queuedDelete } from "@/lib/offline/queuedWrite";
 import { useToast } from "@/components/ui/Toast";
 import { scheduleCardOnDay } from "@/lib/scheduleCard";
@@ -60,7 +60,7 @@ function inferType(googleTypes: string[], name: string): { type: CardType; subTy
     return { type: "logistics", subType: "transit" };
   if (t.has("cafe") || /caff[eè]|coffee|espresso/i.test(name)) return { type: "food", subType: "coffee" };
   if (t.has("bakery") || /gelato|dessert|pastel/i.test(name))  return { type: "food", subType: "dessert" };
-  if (t.has("bar") || t.has("night_club"))                      return { type: "food", subType: "bar" };
+  if (isBarLike(googleTypes, name))                            return { type: "food", subType: "bar" };
   if (t.has("restaurant") || t.has("meal_takeaway") || t.has("food"))
     return { type: "food", subType: "restaurant" };
   if (t.has("spa") || /massage|spa|wellness/i.test(name)) return { type: "activity", subType: "wellness" };

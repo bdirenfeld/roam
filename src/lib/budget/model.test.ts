@@ -163,3 +163,18 @@ describe("a cruise", () => {
     expect(s.basis.accommodation).toContain("per person");
   });
 });
+
+// 27 Sep 2026: Dog boarding and Gifts were on for everyone.
+describe("dog and gifts follow the person, not Brennan", () => {
+  it("are off with nothing to go on", () => {
+    const a = defaultAssumptions(8, 3);
+    expect(a.dogEnabled).toBe(false);
+    expect(a.extrasEnabled).toBe(false);
+  });
+  it("follow the last journey's choice", () => {
+    const a = defaultAssumptions(5, 7, false, false, { dog: true, gifts: true });
+    expect(a.dogEnabled).toBe(true);
+    expect(a.extrasEnabled).toBe(true);
+    expect(defaultAssumptions(5, 7, true, false, { dog: true }).dogEnabled).toBe(false); // at home, no boarding
+  });
+});

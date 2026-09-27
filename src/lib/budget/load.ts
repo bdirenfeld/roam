@@ -174,6 +174,11 @@ export async function loadEstimate(
         .not("archived", "is", true),
       supabase.from("trip_budgets").select("*").eq("trip_id", tripId).maybeSingle(),
     ]);
+  // Your last other budget says whether you board a dog and buy gifts.
+  const { data: last } = saved ? { data: null } : await supabase
+    .from("trip_budgets").select("assumptions").neq("trip_id", tripId)
+    .order("updated_at", { ascending: false }).limit(1).maybeSingle();
+  const lastA = ((last as { assumptions?: Partial<Assumptions> } | null)?.assumptions ?? {}) as Partial<Assumptions>;
 
   if (!trip) return null;
 
@@ -269,7 +274,7 @@ export async function loadEstimate(
   // Within ~80 km of home: no car hire and no boarding for the dog by default.
   const atHome = lat != null && lng != null && greatCircleKm(HOME.lat, HOME.lng, lat, lng) < 80;
   const assumptions: Assumptions = {
-    ...defaultAssumptions(partySize, nights, atHome, isMetroCity(trip.destination as string | null)),
+    ...defaultAssumptions(partySize, nights, atHome, isMetroCity(trip.destination as string | null), { dog: lastA.dogEnabled, gifts: lastA.extrasEnabled }),
     excursionsTotal: rolledCad,
     ...savedA,
   };

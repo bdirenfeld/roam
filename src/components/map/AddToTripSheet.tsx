@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { isDuplicateSave } from "@/lib/places/duplicateSave";
 import { inferTypeOrSight } from "@/lib/places/inferType";
 import type { Card, CardType, Day, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
@@ -353,20 +354,23 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
     // exact Google place".
     const { data: existing } = await supabase
       .from("cards")
-      .select("id, place:places!inner(google_place_id)")
+      .select("id, day_id, place:places!inner(google_place_id)")
       .eq("trip_id", tripId)
       .eq("place.google_place_id", place.placeId)
-      .limit(1)
-      .maybeSingle();
+      .limit(50);
 
-    if (existing) {
+    // A place on another day is not a duplicate: the airport you land at on
+    // Thursday is the one you leave from on Sunday (27 Sep 2026). Warn only
+    // when it is already on the chosen day, or already saved and this is
+    // another map-only save.
+    if (isDuplicateSave((existing ?? []) as { day_id: string | null }[], targetDayId ?? null)) {
       setSaving(false);
       setShowDupConfirm(true);
       return;
     }
 
     await performInsert();
-  }, [type, subType, saving, supabase, tripId, place, performInsert]);
+  }, [type, subType, saving, supabase, tripId, place, performInsert, targetDayId]);
 
   const handleSaveAnyway = useCallback(async () => {
     setShowDupConfirm(false);

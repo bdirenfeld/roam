@@ -147,6 +147,12 @@ export function defaultAssumptions(
   home = false,
   /** A city with a metro: car hire starts off (Tokyo carried $1,430 of it before). */
   metro = false,
+  /**
+   * What this person chose on their last journey's budget (27 Sep 2026). Dog
+   * boarding and Gifts were on for everyone — Brennan's family, a tester with
+   * no dog, eight friends in Nashville. Nothing to go on means off.
+   */
+  habits: { dog?: boolean; gifts?: boolean } = {},
 ): Assumptions {
   return {
     // Counts are true — they come from the journey. Prices are left unset:
@@ -170,10 +176,10 @@ export function defaultAssumptions(
     // stays off until the traveller says otherwise.
     carEnabled: !home && !metro && nights >= 2,
     carDayRate: 0,
-    dogEnabled: !home && nights >= 1,
+    dogEnabled: !home && nights >= 1 && habits.dog === true,
     dogNightlyRate: 0,
     dogNights: nights + 1,
-    extrasEnabled: true,
+    extrasEnabled: habits.gifts === true,
     extrasPerDay: 0,
     touristTaxEnabled: false,
     touristTaxPerNight: 0,
