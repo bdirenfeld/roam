@@ -12,8 +12,12 @@ import { isPortName } from "@/lib/places/inferType";
 
 export interface TimeUpdate { id: string; start_time: string | null; end_time: string | null }
 
+/** An airport saved as transit (Tuscany's Pisa, older data) plans like a flight: last on the last day, not first (27 Sep 2026). */
+const AIRPORT_NAME = /\b(airport|aeroporto|aeropuerto|a[eé]roport|flughafen|airfield)\b/i;
 export function toItem(c: Card): ArrangeItem {
-  return { id: c.id, type: c.place?.type ?? "activity", subType: c.place?.sub_type ?? null, lat: c.place?.lat ?? null, lng: c.place?.lng ?? null };
+  const sub = c.place?.sub_type ?? null;
+  const asFlight = sub === "transit" && AIRPORT_NAME.test(c.place?.title ?? "");
+  return { id: c.id, type: c.place?.type ?? "activity", subType: asFlight ? "flight_arrival" : sub, lat: c.place?.lat ?? null, lng: c.place?.lng ?? null };
 }
 
 /** The timed blocks among `cards` (minus `except`) as obstacles. */

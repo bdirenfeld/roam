@@ -138,3 +138,12 @@ describe("stayAnchor", () => {
     expect(stayAnchor(days, [card("x", { day_id: "d1" })], "d1")).toBeNull();
   });
 });
+
+describe("an airport saved as transit", () => {
+  it("closes the last day like a flight (Tuscany's Pisa)", () => {
+    const pisa = card("pisa", { title: "Pisa International Airport", sub: "transit", type: "logistics", at: { lat: 43.6839, lng: 10.3927 } });
+    const { updates } = planExisting([pisa, card("a"), card("b")], "rest", null, { first: false, last: true });
+    const last = updates.slice().sort((x, y) => (x.start_time! < y.start_time! ? -1 : 1)).pop();
+    expect(last?.id).toBe("pisa");
+  });
+});
