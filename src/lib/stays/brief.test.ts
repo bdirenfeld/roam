@@ -225,3 +225,11 @@ describe("a booked stay earns its own base", () => {
     expect(b.bases.reduce((n, x) => n + x.nights, 0)).toBe(61);
   });
 });
+
+describe("a UK postcode is not part of the town", () => {
+  it("London SW5 0ER is London", () => {
+    expect(townFromAddress("6-12 Barkston Gardens, London SW5 0ER, UK")).toBe("London");
+    expect(townFromAddress("Great Russell St, London WC1B 3DG, UK")).toBe("London");
+    expect(townFromAddress("Oxford Street, London W1, UK")).toBe("London");
+  });
+});

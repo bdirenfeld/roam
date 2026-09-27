@@ -125,7 +125,11 @@ export async function POST(request: NextRequest) {
   const forBase = brief.bases[baseIndex] ?? null;
 
   // Where to look: this base, else the evening centre, else the destination.
-  const centre = forBase && baseIndex > 0
+  // A first base far from the evening centre is its own city: London on a
+  // summer whose evenings are Barcelona's searched Barcelona (27 Sep 2026).
+  const ownCentre = !!forBase && (baseIndex > 0 || !brief.evening
+    || greatCircleKm(brief.evening.lat, brief.evening.lng, forBase.lat, forBase.lng) > 100);
+  const centre = forBase && ownCentre
     ? { lat: forBase.lat, lng: forBase.lng, label: forBase.label }
     : brief.evening
       ? { lat: brief.evening.lat, lng: brief.evening.lng, label: brief.evening.label }
@@ -485,7 +489,8 @@ export async function POST(request: NextRequest) {
   // A cluster hours away from the evening centre (Tokyo → Kagoshima) is a
   // second base, not a day trip: it stays out of the hours and the line, and
   // the split sentence below is where it gets named.
-  const usable = usableAnchorIndexes(anchors, fromCentre);
+  const usable = usableAnchorIndexes(anchors, fromCentre, undefined, ownCentre && !!brief.evening
+    && greatCircleKm(brief.evening.lat, brief.evening.lng, centre.lat, centre.lng) > 100);
   const weights = anchors.map((a) => a.days);
   const scored = cands.map((c, i) => {
     const mins = matrix[i];

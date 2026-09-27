@@ -23,11 +23,19 @@ export function usableAnchorIndexes(
   anchors: { kind: string }[],
   minutesFromCentre: (number | null)[],
   maxMin: number = DAY_TRIP_MAX_MIN,
+  /**
+   * A second base (27 Sep 2026): the evening centre and the airport belong to
+   * another city too, so everything out of day-trip reach — or with no road
+   * at all — drops. The London flat on a Europe summer was scored against
+   * Barcelona's evenings and "added 308 hours of driving".
+   */
+  otherBase = false,
 ): number[] {
   const out: number[] = [];
   anchors.forEach((a, i) => {
     const m = minutesFromCentre[i];
     if (a.kind === "daytrip" && m != null && m > maxMin) return;
+    if (otherBase && (m == null || m > maxMin)) return;
     out.push(i);
   });
   return out;

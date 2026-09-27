@@ -151,6 +151,7 @@ function segmentCore(seg: string): { core: string; region: boolean } | null {
   else if ((m = /^(.+?)\s+[A-Z]{2,3}\s+\d{4}$/.exec(s))) core = m[1];          // "Sydney NSW 2000"
   else if ((m = /^(.+?)\s+\d{3}-\d{4}$/.exec(s))) core = m[1];                 // "Chiba 279-8511"
   else if ((m = /^(.+?)\s+[A-Z]{2}\s+[A-Z]\d[A-Z]\s?\d[A-Z]\d$/.exec(s))) core = m[1]; // "North York ON M3H 5L3"
+  else if ((m = /^(.+?)\s+[A-Z]{1,2}\d[A-Z\d]?(?:\s*\d[A-Z]{2})?$/.exec(s))) core = m[1]; // "London SW5 0ER", "London W1" (27 Sep 2026)
   else if ((m = /^(.+?)\s+[A-Z]{2,3}$/.exec(s))) core = m[1];                  // "Bondi Beach NSW"
   else if ((m = /^(.+?)\s+\d{5}$/.exec(s))) core = m[1];                       // "Roma 00186"
   if (STREET_WORDS.test(core)) return null;

@@ -71,3 +71,12 @@ describe("driveLine never repeats a label", () => {
     expect(driveLine([{ label: "Lucca", minutes: 10 }, { label: "airport", minutes: 30 }, { label: "Lucca", minutes: 12 }])).toBe("Lucca 10 min · airport 30");
   });
 });
+
+describe("a second base in another city", () => {
+  it("leaves out the other city's evenings, airport and anything with no road", () => {
+    const anchors = [{ kind: "evening" }, { kind: "airport" }, { kind: "daytrip" }];
+    expect(usableAnchorIndexes(anchors, [1320, 1400, 40], undefined, true)).toEqual([2]);
+    expect(usableAnchorIndexes(anchors, [null, 30, 40], undefined, true)).toEqual([1, 2]);
+    expect(usableAnchorIndexes(anchors, [1320, 1400, 40])).toEqual([0, 1, 2]); // the evening base keeps them
+  });
+});
