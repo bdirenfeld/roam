@@ -26,7 +26,7 @@ export default function TripCalendar({
   // The dots cost one small read, and only when the calendar is opened.
   useEffect(() => {
     let off = false;
-    createClient().from("cards").select("day_id").eq("trip_id", tripId).eq("status", "in_itinerary").not("day_id", "is", null)
+    createClient().from("cards").select("day_id").eq("trip_id", tripId).eq("status", "in_itinerary").not("archived", "is", true).not("day_id", "is", null)
       .then(({ data }) => { if (!off) setPlanned(new Set((data ?? []).map((c) => c.day_id as string))); });
     return () => { off = true; };
   }, [tripId]);

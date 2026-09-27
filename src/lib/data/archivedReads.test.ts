@@ -30,6 +30,10 @@ const DISPLAY_SURFACES = [
   "app/(app)/trips/[tripId]/plan/page.tsx",
   "app/(app)/trips/[tripId]/map/page.tsx",
   "app/journey/[token]/page.tsx",
+  // The journey calendars: their day marks count cards, so a removed one
+  // must not keep a day looking planned.
+  "components/day/PhoneDayCalendar.tsx",
+  "components/ui/TripCalendar.tsx",
 ];
 
 function read(rel: string): string {

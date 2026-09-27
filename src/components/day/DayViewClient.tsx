@@ -12,6 +12,7 @@ import DayStrip from "@/components/day/DayStrip";
 import EntryLine from "./EntryLine";
 import TimeSheet from "./TimeSheet";
 import DayPicker from "@/components/day/DayPicker";
+import PhoneDayCalendar from "@/components/day/PhoneDayCalendar";
 import { autoDayTitle } from "@/lib/autoDayTitle";
 import DayMap from "@/components/day/DayMap";
 import CardTimeline from "@/components/day/CardTimeline";
@@ -274,6 +275,9 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   // times to the rest, Rearrange the whole day (labelled "Fill in missing times" / "Re-plan the whole day" since 26 Sep 2026) — the desktop header's menu on
   // the phone. Mock: https://claude.ai/artifact/YZAUNZQhqBBwpmWweLPeeV
   const [dayMenu, setDayMenu] = useState<Day | null>(null);
+  // The phone calendar: null when shut, else the header's bottom edge (px).
+  const [phoneCal, setPhoneCal] = useState<number | null>(null);
+  const closePhoneCal = useCallback(() => setPhoneCal(null), []);
   const [phoneRenaming, setPhoneRenaming] = useState(false);
   const [phoneName, setPhoneName] = useState("");
   const arrangeDayCards = useCallback(async (day: Day, mode: "rest" | "all") => {
@@ -740,7 +744,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           should never scroll — but something outside that column does the
           scrolling on a phone, and the date and the way back went with it.
           Pinning it explicitly holds regardless of which element moves. */}
-      <div className="sticky top-0 z-30 relative flex items-center bg-white border-b border-gray-100 flex-shrink-0 h-[58px] md:hidden">
+      <div data-day-header className="sticky top-0 z-30 relative flex items-center bg-white border-b border-gray-100 flex-shrink-0 h-[58px] md:hidden">
         <Link
           href="/"
           className="flex items-center justify-center w-11 h-11 text-gray-500 hover:text-gray-800 transition-colors flex-shrink-0"
@@ -758,20 +762,39 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
             the date, not from whether the fetch has landed — keying it on the
             data would shrink the title the moment weather arrived. */}
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-[2px] pointer-events-none">
-          <span
-            className={`font-display text-gray-900 ${
+          {/* The date opens the journey calendar (27 Sep 2026) — the phone's
+              door to any day, as the masthead dates are on a computer. */}
+          <button
+            type="button"
+            onClick={(e) => {
+              const bar = (e.currentTarget.closest("[data-day-header]") as HTMLElement | null)?.getBoundingClientRect();
+              setWeatherExpanded(false);
+              setPhoneCal((open) => (open === null ? Math.round(bar?.bottom ?? 58) : null));
+            }}
+            aria-expanded={phoneCal !== null}
+            aria-haspopup="dialog"
+            aria-label={`${formatDayTitle(dayWithCards.date)}. Open the calendar`}
+            className={`pointer-events-auto flex items-center gap-[5px] px-2 py-px rounded-md font-display text-gray-900 ${
               weatherReachable ? "text-[16px]" : "text-[18px]"
             }`}
+            style={{ background: phoneCal !== null ? "rgba(26,26,46,0.06)" : "transparent" }}
           >
             {formatDayTitle(dayWithCards.date)}
-          </span>
+            <span
+              aria-hidden
+              className="text-[8px] transition-transform duration-200"
+              style={{ color: "rgba(26,26,46,0.4)", transform: phoneCal !== null ? "rotate(180deg)" : "none" }}
+            >
+              ▾
+            </span>
+          </button>
           {/* The day's name used to sit here. Brennan, 24 Sep 2026: "remove the
               name of the day so it's just the weather". */}
           {weatherReachable && (
             <WeatherSubtitle
               weather={dayWeather}
               expanded={weatherExpanded}
-              onToggle={() => setWeatherExpanded((v) => !v)}
+              onToggle={() => { setPhoneCal(null); setWeatherExpanded((v) => !v); }}
               controlsId="weather-expansion"
             />
           )}
@@ -810,6 +833,16 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
         onDaySelect={handleDaySelect}
         onDayLongPress={readOnly ? undefined : (d) => { setPhoneRenaming(false); setDayMenu(d); }}
       />
+      {phoneCal !== null && (
+        <PhoneDayCalendar
+          tripId={trip.id}
+          days={days}
+          activeDayId={dayWithCards.id}
+          top={phoneCal}
+          onSelect={handleDaySelect}
+          onClose={closePhoneCal}
+        />
+      )}
       {dayMenu && (
         <div className="md:hidden fixed inset-0 z-[70]" onClick={() => setDayMenu(null)}>
           <div className="absolute left-3 right-3 top-[124px] bg-white rounded-xl p-1.5 text-[14px]" style={{ border: "1px solid rgba(26,26,46,0.10)", boxShadow: "0 16px 34px rgba(26,26,46,0.17)" }} onClick={(e) => e.stopPropagation()}>

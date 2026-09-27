@@ -1622,3 +1622,16 @@ the component mounted and you are looking at throttling, not a broken map.
 - Journeys open on the week on a computer: `trips/page.tsx` leaves `openDayByTrip` empty unless
   `isPhone` (`lib/device.ts`), so cards link to `/trips/{id}`, which sends an OWNER on a computer to
   `/plan` and everyone else to the day. The phone is unchanged.
+
+## The phone's door to any day (27 Sep 2026)
+- The date in the phone Agenda header is a button with ▾: it opens `day/PhoneDayCalendar`, the
+  journey's months dropping from under the header (measured, `data-day-header`). Dot = planned,
+  → = travel day (flight, train, hotel: `TRAVEL_SUB_TYPES` in `lib/week/tripCalendar.ts`), pale
+  tile = nothing on it. The weather line under the date keeps its own panel; opening one shuts
+  the other. Before this the phone's only calendar was the "Day N of M" chip on the phone Plan
+  board, which a phone cannot reach.
+- Step 2, held for his verdict on this one: group the calendar by stay (hotel runs, the
+  `tonightByDay` rule) when a journey has 2+ stays; two stays in one town are labelled by hotel.
+  Mock: https://claude.ai/artifact/9waoTGRDYveVmi5Kj51HgA
+- Both calendars' mark reads are in `archivedReads.test.ts`; the desktop one had no archived
+  guard until this change.
