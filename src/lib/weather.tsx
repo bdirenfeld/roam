@@ -1,3 +1,4 @@
+import { forecastWindow } from "./weatherWindow";
 // ── Shared trip weather: Open-Meteo fetch, per-trip cache, icons ──────────
 // Extracted from DayViewClient so the Plan board can show per-day forecasts
 // too. Client-side only (fetch + module cache).
@@ -112,13 +113,15 @@ export async function fetchWeatherForTrip(
   startDate: string,
   endDate: string
 ): Promise<Record<string, DayWeather>> {
+  const win = forecastWindow(startDate, endDate, new Date().toISOString().slice(0, 10));
+  if (!win) return {};
   const params = new URLSearchParams({
     latitude: String(lat),
     longitude: String(lng),
     daily: "temperature_2m_max,temperature_2m_min,weathercode,precipitation_probability_max,wind_speed_10m_max,snowfall_sum",
     hourly: "precipitation_probability,temperature_2m,weathercode",
-    start_date: startDate,
-    end_date: endDate,
+    start_date: win.start,
+    end_date: win.end,
     timezone: "auto",
   });
 

@@ -34,6 +34,15 @@ export const REGIONS: Region[] = [
   { name: "The South Pacific", lat: -17.0, lng: -170.0, aliases: ["south pacific"] },
 ];
 
+/**
+ * How far out a map opens on a journey with nothing on it yet: a region
+ * shows the region, a city its streets. "Europe" opened on the streets of
+ * Tübingen, the continent's centre point (27 Sep 2026).
+ */
+export function startZoomFor(destination: string | null | undefined, cityZoom: number): number {
+  return destination && REGIONS.some((r) => r.name === destination) ? 3.5 : cityZoom;
+}
+
 const norm = (s: string) => s.toLowerCase().replace(/^the\s+/, "").trim();
 
 /** Regions whose name (or alias) starts with what was typed, from two letters. */

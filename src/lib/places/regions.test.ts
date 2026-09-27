@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { matchRegions } from "./regions";
+import { matchRegions, startZoomFor } from "./regions";
 
 describe("matchRegions", () => {
   it("offers Europe for 'Europe', not a hamlet in Brescia", () => {
@@ -14,5 +14,13 @@ describe("matchRegions", () => {
   it("stays quiet for a city or one letter", () => {
     expect(matchRegions("Rome")).toEqual([]);
     expect(matchRegions("e")).toEqual([]);
+  });
+});
+
+describe("startZoomFor", () => {
+  it("opens a region wide and a city close", () => {
+    expect(startZoomFor("Europe", 12)).toBe(3.5);
+    expect(startZoomFor("Barcelona, Spain", 12)).toBe(12);
+    expect(startZoomFor(null, 13)).toBe(13);
   });
 });

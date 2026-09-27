@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { startZoomFor } from "@/lib/places/regions";
 import { dayArea } from "@/lib/places/dayArea";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -1009,6 +1010,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
             accommodationCard={accommodationCard ?? undefined}
             centerLat={trip.destination_lat ?? 41.9028}
             centerLng={trip.destination_lng ?? 12.4964}
+            startZoom={startZoomFor(trip.destination, 13)}
             onPinTap={mapExpanded ? handleDockPinTap : handlePinTap}
             expanded={mapExpanded}
             onToggleExpand={() => { setMapExpanded((v) => !v); setMapFocus(null); }}

@@ -18,9 +18,15 @@ interface Props {
   lng?: number | null;
   /** Where the pill sits; the week's map passes its own. */
   positionClassName?: string;
+  /**
+   * Where the map is looking right now, read when a search runs (27 Sep
+   * 2026): "day camp" on a Europe summer searched around the continent's
+   * centre point. Beats lat/lng when it answers.
+   */
+  getBias?: () => { lat: number; lng: number } | null;
 }
 
-export default function PlaceSearch({ onPlaceSelect, destination, lat, lng, positionClassName }: Props) {
+export default function PlaceSearch({ onPlaceSelect, destination, lat, lng, positionClassName, getBias }: Props) {
   const [query, setQuery]             = useState("");
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading]         = useState(false);
@@ -61,9 +67,10 @@ export default function PlaceSearch({ onPlaceSelect, destination, lat, lng, posi
           input: query,
           sessiontoken: sessionToken.current,
         });
-        if (lat != null && lng != null) {
-          params.set("lat", String(lat));
-          params.set("lng", String(lng));
+        const bias = getBias?.() ?? (lat != null && lng != null ? { lat, lng } : null);
+        if (bias) {
+          params.set("lat", String(bias.lat));
+          params.set("lng", String(bias.lng));
         }
         const res  = await fetch(`/api/places/autocomplete?${params.toString()}`);
         const data = await res.json();

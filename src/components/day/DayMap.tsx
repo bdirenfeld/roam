@@ -13,6 +13,8 @@ interface Props {
   accommodationCard?: Card;
   centerLat: number;
   centerLng: number;
+  /** Zoom when the day has nothing on it: a region opens wide (lib/places/regions). */
+  startZoom?: number;
   /** Called when a regular card pin is tapped. */
   onPinTap?: (cardId: string) => void;
   /** When set, briefly pulses the pin for that card ID. */
@@ -51,7 +53,7 @@ interface PinItem {
 // first layout.
 const PIN_FALLBACK_PX = 32;
 
-export default function DayMap({ cards, accommodationCard, centerLat, centerLng, onPinTap, pulsedCardId, expanded = false, onToggleExpand, dock, focus, mapHref }: Props) {
+export default function DayMap({ cards, accommodationCard, centerLat, centerLng, startZoom = 13, onPinTap, pulsedCardId, expanded = false, onToggleExpand, dock, focus, mapHref }: Props) {
   const mapRef         = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<unknown>(null);
   const pinsRef        = useRef<PinItem[]>([]);
@@ -206,7 +208,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
         container: mapRef.current!,
         style: "mapbox://styles/mapbox/streets-v12",
         center: [centerLng, centerLat],
-        zoom: 13,
+        zoom: startZoom,
         attributionControl: false,
         logoPosition: "bottom-right",
       });

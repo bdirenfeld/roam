@@ -15,6 +15,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { startZoomFor } from "@/lib/places/regions";
 import "mapbox-gl/dist/mapbox-gl.css";
 import type { Card, Day, Trip } from "@/types/database";
 import { makeMaterialPinElement } from "@/lib/mapPins";
@@ -266,7 +267,7 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
         container: containerRef.current,
         style: "mapbox://styles/mapbox/streets-v12",
         center: [trip.destination_lng ?? 12.4964, trip.destination_lat ?? 41.9028],
-        zoom: 12,
+        zoom: startZoomFor(trip.destination, 12),
         attributionControl: false,
         logoPosition: "bottom-right",
       });
@@ -460,6 +461,7 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
         destination={trip.destination}
         lat={trip.destination_lat}
         lng={trip.destination_lng}
+        getBias={() => { const c = mapRef.current?.getCenter(); return c ? { lat: c.lat, lng: c.lng } : null; }}
         positionClassName="absolute top-3 left-3 right-[60px] max-w-md"
       />
       {pending && (

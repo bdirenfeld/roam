@@ -1,6 +1,7 @@
 "use client";
 
 import "mapbox-gl/dist/mapbox-gl.css";
+import { startZoomFor } from "@/lib/places/regions";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import MapPinPopup from "./MapPinPopup";
@@ -676,7 +677,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
         container: mapContainerRef.current!,
         style: "mapbox://styles/mapbox/streets-v12",
         center: [trip.destination_lng ?? 12.4964, trip.destination_lat ?? 41.9028],
-        zoom: 13,
+        zoom: startZoomFor(trip.destination, 13),
         attributionControl: false,
         logoPosition: "bottom-right",
       });
