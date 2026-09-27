@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { tripCountries } from "@/lib/entry/countries";
 import { startZoomFor } from "@/lib/places/regions";
 import { dayArea } from "@/lib/places/dayArea";
 import { useRouter } from "next/navigation";
@@ -797,7 +798,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
       </div>
 
       {/* Entry requirements — one line, only while something is undone. */}
-      <EntryLine trip={trip} days={days} dayDate={dayWithCards.date} readOnly={readOnly} />
+      <EntryLine trip={trip} days={days} dayDate={dayWithCards.date} readOnly={readOnly} countries={tripCountries(trip.destination, localCards.map((c) => c.place?.address))} />
 
       {/* Day strip — md:hidden lives inside DayStrip itself */}
       <DayStrip

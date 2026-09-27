@@ -16,7 +16,11 @@ import type { Trip, Day } from "@/types/database";
 
 const SIENNA = "#B0541F";
 
-export default function EntryLine({ trip, days, dayDate, readOnly }: { trip: Trip; days: Day[]; dayDate: string; readOnly?: boolean }) {
+export default function EntryLine({ trip, days, dayDate, readOnly, countries = [] }: {
+  trip: Trip; days: Day[]; dayDate: string; readOnly?: boolean;
+  /** Countries the open screen's places are in: one the last check did not cover asks again (27 Sep 2026). */
+  countries?: string[];
+}) {
   const supabase = createClient();
   const { toast } = useToast();
   const [entry, setEntry] = useState<TripEntry | null | undefined>(undefined);
@@ -69,7 +73,9 @@ export default function EntryLine({ trip, days, dayDate, readOnly }: { trip: Tri
       const ageDays = row?.checked_at ? (Date.now() - new Date(row.checked_at).getTime()) / 86400000 : Infinity;
       const firstTime = !row?.data;
       const dueRecheck = !firstTime && daysToGo <= 30 && ageDays > 7;
-      if (!firstTime && !dueRecheck) return;
+      const covered = row?.data?.countries ?? (row?.data?.country ? [row.data.country] : []);
+      const newCountry = !firstTime && countries.some((c) => !covered.includes(c));
+      if (!firstTime && !dueRecheck && !newCountry) return;
 
       const res = await fetch("/api/entry/check", {
         method: "POST",
@@ -89,7 +95,7 @@ export default function EntryLine({ trip, days, dayDate, readOnly }: { trip: Tri
     void run();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trip.id]);
+  }, [trip.id, countries.join("|")]);
 
   const headline = entryHeadline(entry?.data);
   // On the first day only, and only before departure — not on all eleven days

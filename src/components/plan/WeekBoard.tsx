@@ -16,6 +16,8 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { tripCountries } from "@/lib/entry/countries";
+import EntryLine from "@/components/day/EntryLine";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Trip, DayWithCards, Card, Day } from "@/types/database";
 import { queuedUpdate, queuedInsert, queuedDelete } from "@/lib/offline/queuedWrite";
@@ -198,6 +200,8 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const [weekStart, setWeekStart] = useState(0);
   const shown = useMemo(() => days.slice(weekStart, weekStart + 7), [days, weekStart]);
   const shownRef = useRef(shown); shownRef.current = shown;
+  // Where the journey goes, from its places: a new country re-runs the entry check.
+  const weekCountries = useMemo(() => tripCountries(trip.destination, days.flatMap((d) => d.cards.map((c) => c.place?.address))), [trip.destination, days]);
   // ?day=<id> opens the week on that day, in place (27 Sep 2026): the day
   // page sends a computer here rather than showing the old agenda.
   useEffect(() => {
@@ -701,6 +705,13 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
           scrolling ancestor. */}
       <div ref={gridRef} data-week-scroll="1" className={`weekScroll flex-1 min-w-0 overflow-auto select-none ${mapWide ? "hidden" : ""}`}>
         <div className="flex flex-col" style={{ minWidth: minWidth }}>
+          {/* Entry (27 Sep 2026): the check and its line lived only on the day
+              page, and a computer now opens the week — so since the week became
+              the owner's day, a new journey was never checked. Same line, same
+              rules: before departure, hidden with its ×. */}
+          <div className="sticky left-0 pb-2 empty:hidden" style={{ maxWidth: "min(100%, 100vw)" }}>
+            <EntryLine trip={trip} days={days} dayDate={days[0]?.date ?? ""} countries={weekCountries} />
+          </div>
           <div className="sticky top-0 z-[9]">
           {/* day headers */}
           <div className="grid border-b bg-white flex-shrink-0" style={{ ...gridStyle, borderColor: "rgba(26,26,46,0.10)" }}>

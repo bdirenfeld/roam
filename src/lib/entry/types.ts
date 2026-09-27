@@ -33,6 +33,8 @@ export interface EntryAdvisory {
 
 export interface EntryData {
   country: string;
+  /** Every country the check covered, in the order visited (27 Sep 2026). */
+  countries?: string[];
   /** Present from the first lookup that read it; null when the page gave none. */
   advisory?: EntryAdvisory | null;
   /** "action" while any action line is not done; "clear" otherwise. Derived on read. */

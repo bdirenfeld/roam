@@ -20,3 +20,9 @@ describe("a day on a computer opens in the week", () => {
     expect(week).toMatch(/setFocusDayId\(id\)/);
   });
 });
+
+describe("the week carries the entry check", () => {
+  it("renders EntryLine, since a computer no longer opens the day page", () => {
+    expect(week).toContain("<EntryLine");
+  });
+});

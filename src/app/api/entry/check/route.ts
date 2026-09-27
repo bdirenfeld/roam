@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
+import { tripCountries } from "@/lib/entry/countries";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
 import type { EntryAdvisory, EntryData, EntryLine } from "@/lib/entry/types";
@@ -61,7 +62,12 @@ export async function POST(req: NextRequest) {
 
   const passports = (body.passports?.length ? body.passports : (existing?.passports as string[] | undefined)) ?? ["Canadian"];
   const previous = (existing?.data ?? null) as EntryData | null;
-  const country = countryOf((trip.destination as string) ?? "");
+  // Every country the journey goes to, from its places (lib/entry/countries).
+  // A region with nothing on it yet has none: nothing to check, no charge.
+  const { data: placed } = await supabase.from("cards").select("place:places(address)").eq("trip_id", tripId).eq("status", "in_itinerary").not("archived", "is", true);
+  const countries = tripCountries(trip.destination as string | null, (placed ?? []).map((c) => (c.place as { address?: string | null } | null)?.address));
+  if (countries.length === 0) return NextResponse.json({ error: "Nothing on the journey to check yet" }, { status: 409 });
+  const country = countries.length > 1 ? countries.join(" · ") : (countries[0] ?? countryOf((trip.destination as string) ?? ""));
   const nights = trip.start_date && trip.end_date
     ? Math.round((new Date(trip.end_date as string).getTime() - new Date(trip.start_date as string).getTime()) / 86400000)
     : null;
@@ -84,7 +90,7 @@ Return exactly one JSON object and nothing after it:
 Rules: "text" is ONE plain sentence, at most 20 words, stating the requirement — not advice. "why" is at most 12 words, or null. "action" is true only when the traveller is REQUIRED to do something before departure (apply, register, fill a form, buy a return ticket, get a vaccination certificate): a visa that is not required is action false; an online authorization or entry form that is required is action true with the deadline it must be done by, given the travel dates. Anything merely recommended or advised (a consent letter, extra passport validity, travel insurance) is action false and its text starts with "Recommended:". Omit the "before" line entirely if there is nothing to do before departure. Add at most two more lines with key "other-1"/"other-2" for anything else that can stop entry (a vaccination certificate, a minor travelling with one parent needing a consent letter, a fee paid on arrival). Do not invent requirements; if the page does not say, do not add a line.`;
 
   const userMsg = `Destination: ${trip.destination}
-Country: ${country}
+${countries.length > 1 ? `Countries, in the order visited: ${countries.join(", ")}. Cover every one: each country's own visa and before-you-go rules as separate lines (key "visa-<country>" / "before-<country>", label naming the country). "country" is the countries joined with " · "; "advisory" is the highest level among them.` : `Country: ${country}`}
 Passports: ${passports.join(", ")}
 Party: ${trip.party_size ?? "unknown"} people, including children
 Travel dates: ${trip.start_date} to ${trip.end_date}${nights != null ? ` (${nights} nights)` : ""}
@@ -187,7 +193,8 @@ Today: ${new Date().toISOString().slice(0, 10)}`;
   }
 
   const data: EntryData = {
-    country: s(parsed.country, 80) ?? country,
+    country: countries.length > 1 ? country : (s(parsed.country, 80) ?? country),
+    countries,
     advisory,
     status: lines.some((l) => l.action && !l.done) ? "action" : "clear",
     lines,
