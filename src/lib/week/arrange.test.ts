@@ -124,3 +124,13 @@ describe("a day camp", () => {
     expect(by.col.startMin >= 15 * 60 || by.col.endMin <= 9 * 60).toBe(true);
   });
 });
+
+describe("a day that starts nowhere near its places", () => {
+  it("a London day on a Europe summer starts in London, not 17 hours from Germany", () => {
+    const TUBINGEN = { lat: 48.5, lng: 9.0 };
+    const BM = { lat: 51.5194, lng: -0.127 }, NHM = { lat: 51.4967, lng: -0.1764 };
+    const { placed, unplaced } = arrangeDay([item("bm", "activity", "guided", BM), item("nhm", "activity", "guided", NHM)], [], TUBINGEN);
+    expect(unplaced).toEqual([]);
+    expect(placed[0].startMin).toBe(9 * 60 + 45);
+  });
+});

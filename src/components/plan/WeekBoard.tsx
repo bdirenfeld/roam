@@ -31,7 +31,7 @@ import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import DocumentsSheet from "./DocumentsSheet";
 import WeekMap from "./WeekMap";
 import { weekColumns, weekMinWidth } from "@/lib/week/focus";
-import { planBatch, planExisting, plannedOtherDays } from "@/lib/week/dayPlan";
+import { planBatch, planExisting, plannedOtherDays, stayAnchor } from "@/lib/week/dayPlan";
 import { shortAddress, firstSentence } from "@/lib/week/cardText";
 import {
   placeBlocks, movedTimes, resizedEnd, resizedStart, minutesAtY, toMin, toTime, fmt12, gridHeight,
@@ -508,8 +508,9 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     // both write; a second go must not double the day — 25 Sep 2026).
     // Shared with the phone (lib/week/dayPlan): skips places already on this
     // day or planned on another, and a flight home closes the last day.
-    const fallback = trip.destination_lat != null && trip.destination_lng != null ? { lat: trip.destination_lat, lng: trip.destination_lng } : null;
     const all = daysRef.current;
+    const fallback = stayAnchor(all.map((d) => d.id), all.flatMap((d) => d.cards), day.id)
+      ?? (trip.destination_lat != null && trip.destination_lng != null ? { lat: trip.destination_lat, lng: trip.destination_lng } : null);
     const { toAdd: withPlace, times, skipped, elsewhere, unplaced } = planBatch(picked, target.cards, fallback, {
       plannedElsewhere: plannedOtherDays(all.flatMap((d) => d.cards), day.id),
       edge: edgeOf(day.id),
@@ -544,6 +545,11 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   // the week used to call the engine itself and missed what the planner knows
   // (ports, all aboard, the first and last day's hinges; 27 Sep 2026).
   const planFallback = trip.destination_lat != null && trip.destination_lng != null ? { lat: trip.destination_lat, lng: trip.destination_lng } : null;
+  // That night's stay first, then the journey's centre (lib/week/dayPlan stayAnchor).
+  const fallbackFor = (dayId: string) => {
+    const all = daysRef.current;
+    return stayAnchor(all.map((d) => d.id), all.flatMap((d) => d.cards), dayId) ?? planFallback;
+  };
   const applyPlan = useCallback(async (dayId: string, list: { id: string; start_time: string | null; end_time: string | null }[]) => {
     for (const u of list) {
       const next = { start_time: u.start_time, end_time: u.end_time };
@@ -554,7 +560,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const arrangeThisDay = useCallback(async (dayId: string) => {
     const day = daysRef.current.find((d) => d.id === dayId); if (!day) return;
     if (!day.cards.some((c) => !cardTimes(c).start)) { toast({ message: "Everything on this day already has a time." }); return; }
-    const { updates, before, unplaced } = planExisting(day.cards, "rest", planFallback, edgeOf(dayId));
+    const { updates, before, unplaced } = planExisting(day.cards, "rest", fallbackFor(dayId), edgeOf(dayId));
     if (updates.length === 0) { toast({ message: "No room left on this day." }); return; }
     await applyPlan(dayId, updates);
     tintDay(dayId);
@@ -593,7 +599,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   // as fixed points. Undo puts every time back.
   const rearrangeEverything = useCallback(async (dayId: string) => {
     const day = daysRef.current.find((d) => d.id === dayId); if (!day) return;
-    const { updates, before, unplaced } = planExisting(day.cards, "all", planFallback, edgeOf(dayId));
+    const { updates, before, unplaced } = planExisting(day.cards, "all", fallbackFor(dayId), edgeOf(dayId));
     if (updates.length === 0) { toast({ message: "Everything on this day is confirmed." }); return; }
     await applyPlan(dayId, updates);
     tintDay(dayId);

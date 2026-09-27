@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { planExisting, planBatch, busyOf, anchorOf, flightBounds, plannedOtherDays } from "./dayPlan";
+import { planExisting, planBatch, busyOf, anchorOf, flightBounds, plannedOtherDays, stayAnchor } from "./dayPlan";
 import type { Card } from "@/types/database";
 
 const P = { pantheon: { lat: 41.8986, lng: 12.4769 }, navona: { lat: 41.8992, lng: 12.4731 }, trevi: { lat: 41.9009, lng: 12.4833 } };
@@ -121,5 +121,20 @@ describe("portBounds (all aboard)", () => {
     const station = card("st", { title: "Kyoto Station", sub: "transit", type: "logistics", start_time: "16:30" });
     const { updates } = planExisting([station, card("a"), card("b"), card("c"), card("d"), card("e")], "rest", null, mid);
     expect(updates.some((u) => u.start_time! > "16:30")).toBe(true);
+  });
+});
+
+describe("stayAnchor", () => {
+  const hotel = (id: string, day: string, at: { lat: number; lng: number }) => card(id, { day_id: day, sub: "hotel", type: "logistics", at });
+  const LONDON = { lat: 51.49, lng: -0.19 }, PARIS = { lat: 48.86, lng: 2.35 };
+  const days = ["d1", "d2", "d10", "d11", "d12"];
+  it("a hotel runs until the next one", () => {
+    const cards = [hotel("lon", "d1", LONDON), hotel("par", "d10", PARIS), card("x", { day_id: "d2" })];
+    expect(stayAnchor(days, cards, "d2")).toEqual(LONDON);
+    expect(stayAnchor(days, cards, "d10")).toEqual(PARIS);
+    expect(stayAnchor(days, cards, "d12")).toEqual(PARIS);
+  });
+  it("nothing booked yet is nothing", () => {
+    expect(stayAnchor(days, [card("x", { day_id: "d1" })], "d1")).toBeNull();
   });
 });

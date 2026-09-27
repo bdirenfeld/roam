@@ -164,14 +164,21 @@ export function arrangeDay(items: ArrangeItem[], busy: Busy[], anchor: Anchor | 
   const opener = [...opens].reverse().find(hasPoint) ?? null;
   const sights = [...opens, ...walkingOrder(middle, opener ?? anchor), ...closes];
   let cursor = DAY_START + 30;
+  let placedSights = 0;
   let here: Anchor | null = opens.length ? null : anchor;
   for (const it of sights) {
     const dur = durationFor(it.type, it.subType);
-    const walk = here && hasPoint(it) ? travelMinutes(here, it) : 10;
+    // The first leg from the anchor counts only when the anchor is near: a
+    // day with nothing timed starts from the journey's centre, which on a
+    // Europe summer is southern Germany and on any multi-city trip the wrong
+    // city — 17 hours to the first London sight, so nothing fit (27 Sep 2026).
+    const firstLeg = placedSights === 0 && here === anchor;
+    const walk = here && hasPoint(it) && !(firstLeg && metres(here, it) > 100_000) ? travelMinutes(here, it) : 10;
     const from = cursor + walk;
     const start = tl.find(from, dur, 24 * 60);
     if (start === null) { unplaced.push(it.id); continue; }
     tl.take(start, start + dur); placed.push({ id: it.id, startMin: start, endMin: start + dur });
+    placedSights++;
     cursor = start + dur;
     if (hasPoint(it)) here = it;
   }

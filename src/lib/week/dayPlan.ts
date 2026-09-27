@@ -76,6 +76,26 @@ function windowPorts(dayCards: Card[], edge?: DayEdge): Set<string> {
   return new Set(dayCards.filter((c) => isTimedPort(c) && isWindow(c)).map((c) => c.id));
 }
 
+/**
+ * Where you wake up that day (27 Sep 2026): the last stay checked into on or
+ * before it — a hotel runs until the next one. The planner's fallback was the
+ * journey's centre, which on a summer through London, Paris, Tuscany and
+ * Barcelona is none of them.
+ */
+export function stayAnchor(dayIds: string[], cards: Card[], dayId: string): Anchor | null {
+  const at = dayIds.indexOf(dayId);
+  if (at < 0) return null;
+  let best: { i: number; a: Anchor } | null = null;
+  for (const c of cards) {
+    const st = c.place?.sub_type;
+    if ((st !== "hotel" && st !== "accommodation") || c.place?.lat == null || c.place?.lng == null) continue;
+    const i = dayIds.indexOf(c.day_id);
+    if (i < 0 || i > at) continue;
+    if (!best || i >= best.i) best = { i, a: { lat: c.place.lat, lng: c.place.lng } };
+  }
+  return best?.a ?? null;
+}
+
 /** Where the walking starts: the first timed place, else the first place, else the fallback. */
 export function anchorOf(cards: Card[], fallback: Anchor | null): Anchor | null {
   const withPoint = cards.filter((c) => c.place?.lat != null && c.place?.lng != null);

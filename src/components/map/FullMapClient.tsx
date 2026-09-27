@@ -32,7 +32,7 @@ import { useToast } from "@/components/ui/Toast";
 import { queuedInsert, queuedDelete } from "@/lib/offline/queuedWrite";
 import { createClient } from "@/lib/supabase/client";
 import { scheduleCardOnDay } from "@/lib/scheduleCard";
-import { planBatch, plannedOtherDays } from "@/lib/week/dayPlan";
+import { planBatch, plannedOtherDays, stayAnchor } from "@/lib/week/dayPlan";
 import { tapFilter } from "@/lib/map/tapFilter";
 
 // Purple circular pin for search result previews
@@ -544,7 +544,8 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
   const putPickedOnDay = useCallback(async (day: Day) => {
     const picked = localCards.filter((c) => pickedIds.has(c.id));
     const dayCards = localCards.filter((c) => c.day_id === day.id);
-    const fallback = trip.destination_lat != null && trip.destination_lng != null ? { lat: trip.destination_lat, lng: trip.destination_lng } : null;
+    const fallback = stayAnchor(days.map((d) => d.id), localCards, day.id)
+      ?? (trip.destination_lat != null && trip.destination_lng != null ? { lat: trip.destination_lat, lng: trip.destination_lng } : null);
     const { toAdd, times, skipped, elsewhere, unplaced } = planBatch(picked, dayCards, fallback, { plannedElsewhere: plannedOtherDays(localCards, day.id), edge: { first: days[0]?.id === day.id, last: days[days.length - 1]?.id === day.id } });
     leavePick();
     if (toAdd.length === 0) { toast({ message: elsewhere ? `Already planned on other days.` : `Already on Day ${day.day_number}.` }); return; }

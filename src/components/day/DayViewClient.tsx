@@ -29,7 +29,7 @@ import { JourneyNotesSheet } from "@/components/trip/JourneyNotes";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 import { createClient } from "@/lib/supabase/client";
 import { queuedUpdate, queuedInsert } from "@/lib/offline/queuedWrite";
-import { planExisting } from "@/lib/week/dayPlan";
+import { planExisting, stayAnchor } from "@/lib/week/dayPlan";
 import { applyOverlayAll } from "@/lib/offline/writeQueue";
 import { COMPANION_ENABLED } from "@/lib/featureFlags";
 import type { Trip, Day, DayWithCards, Card } from "@/types/database";
@@ -279,7 +279,8 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
     setDayMenu(null);
     const { data } = await supabase.from("cards").select("*, place:places (id, title, type, sub_type, lat, lng)").eq("day_id", day.id).not("archived", "is", true);
     const cards = (data ?? []) as Card[];
-    const fallback = trip.destination_lat != null && trip.destination_lng != null ? { lat: trip.destination_lat, lng: trip.destination_lng } : null;
+    const fallback = stayAnchor(days.map((d) => d.id), hotelCards, day.id)
+      ?? (trip.destination_lat != null && trip.destination_lng != null ? { lat: trip.destination_lat, lng: trip.destination_lng } : null);
     const { updates, before, unplaced } = planExisting(cards, mode, fallback, { first: days[0]?.id === day.id, last: days[days.length - 1]?.id === day.id });
     if (updates.length === 0) { toast({ message: mode === "rest" ? "Everything on this day already has a time." : "Nothing to rearrange." }); return; }
     const apply = (list: { id: string; start_time: string | null; end_time: string | null }[]) => {
