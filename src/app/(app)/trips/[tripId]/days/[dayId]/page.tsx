@@ -5,6 +5,8 @@ import { getTripAccess } from "@/lib/trip-access";
 import { withAttachmentCount } from "@/lib/attachmentCount";
 import type { Card, DayWithCards, Trip, Day } from "@/types/database";
 import { getAuthUser } from "@/lib/supabase/authUser";
+import { headers } from "next/headers";
+import { isPhone } from "@/lib/device";
 
 interface Props {
   params: Promise<{ tripId: string; dayId: string }>;
@@ -17,6 +19,13 @@ export default async function DayPage({ params }: Props) {
   // Guests get a read-only Day view; owners get the full editing surface.
   const access = await getTripAccess(supabase, tripId, user?.id);
   const readOnly = access === "guest";
+  // On a computer the owner's day lives inside the week (27 Sep 2026): Back,
+  // search results and a new journey kept landing here, on the old agenda
+  // page. The week opens with this day in place. Guests and phones stay.
+  if (access === "owner") {
+    const h = await headers();
+    if (!isPhone(h.get("user-agent"), h.get("sec-ch-ua-mobile"))) redirect(`/trips/${tripId}/plan?day=${dayId}`);
+  }
   // Parallel fetch — trip, all days, cards for today, hotel cards for all days
   const [
     { data: trip },

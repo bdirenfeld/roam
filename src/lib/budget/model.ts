@@ -48,6 +48,12 @@ export interface Assumptions {
   mealsOut: number;
   /** Seeded from the costed cards, then yours to overwrite. */
   excursionsTotal: number;
+  /**
+   * A cruise's fare per person for the sailing (27 Sep 2026). Its own number,
+   * not the hotel rate read differently: switching the journey to a cruise
+   * turned a $480-a-night villa rate into a $480 fare.
+   */
+  cruiseFarePerPerson: number;
 
   // Additional
   carEnabled: boolean;
@@ -157,6 +163,7 @@ export function defaultAssumptions(
     // Every other night out; a third was low for how this family travels.
     mealsOut: Math.max(2, Math.round(nights / 2)),
     excursionsTotal: 0,
+    cruiseFarePerPerson: 0,
 
     // Smart rather than arbitrary: a multi-night journey almost always needs a
     // car and leaves the dog behind; tourist tax is destination-specific, so it
@@ -255,15 +262,16 @@ export function splitTotals(
 /**
  * A cruise's budget (27 Sep 2026): the ship is the hotel and most of the
  * meals, and the port taxes are in the fare. Accommodation becomes the fare
- * per person; groceries, car hire and tourist tax go. The fare keeps the
- * accommodation line's stored rate, read per person instead of per night.
+ * per person; groceries, car hire and tourist tax go. The hotel rate is left
+ * alone, so switching back to a land journey gets it back.
  */
 export function cruiseLines(lines: EstimateLine[], a: Assumptions): EstimateLine[] {
   const people = Math.max(a.people, 0);
   return lines
     .filter((l) => l.key !== "groceries" && l.key !== "car" && l.key !== "touristTax")
     .map((l) => l.key !== "accommodation" ? l : {
-      ...l, label: "Cruise fare", share: "person", amount: money(a.nightlyRate * people),
+      ...l, label: "Cruise fare", share: "person", amount: money(a.cruiseFarePerPerson * people),
+      unit: a.cruiseFarePerPerson, unitKey: "cruiseFarePerPerson",
       count: a.people, countKey: "people", countLabel: "people",
     });
 }
@@ -495,7 +503,8 @@ export function suggest(
   return {
     values: {
       flightPerPerson: fare,
-      nightlyRate: ctx.cruise ? cruiseFare : near(150 + bedrooms * 110, 10),
+      nightlyRate: near(150 + bedrooms * 110, 10),
+      ...(ctx.cruise ? { cruiseFarePerPerson: cruiseFare } : {}),
       groceriesPerDay: near(22 * people, 10),
       perMealOut: near(57 * people, 10),
       carDayRate: near(vehicles * 105, 10),

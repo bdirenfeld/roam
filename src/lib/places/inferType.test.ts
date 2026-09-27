@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { inferType, inferTypeOrSight, isPortName } from "./inferType";
+import { inferType, inferTypeOrSight, isPortName, isCruiseName } from "./inferType";
 
 // Google `types` exactly as returned for real places (26 Sep 2026 test journeys).
 describe("inferType", () => {
@@ -49,5 +49,15 @@ describe("ports", () => {
     expect(isPortName("Sports Bar Barcelona")).toBe(false);
     expect(isPortName("Vernazza")).toBe(false);
     expect(inferTypeOrSight(["establishment", "point_of_interest"])).toEqual({ type: "activity", sub_type: "self_directed" });
+  });
+});
+
+describe("isCruiseName", () => {
+  it("reads a cruise from the journey's name", () => {
+    expect(isCruiseName("TEST - Mediterranean cruise")).toBe(true);
+    expect(isCruiseName("Alaska sailing")).toBe(true);
+    expect(isCruiseName("Tuscany")).toBe(false);
+    expect(isCruiseName("Cruiseship-free Portugal")).toBe(false);
+    expect(isCruiseName("")).toBe(false);
   });
 });

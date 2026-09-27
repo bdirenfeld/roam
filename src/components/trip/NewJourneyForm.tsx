@@ -16,6 +16,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Camera } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
+import { isCruiseName } from "@/lib/places/inferType";
 import { useToast } from "@/components/ui/Toast";
 import { NESTED_SHEET_ATTR } from "@/components/ui/Overlay";
 import type { NewJourneySeed } from "@/lib/newJourneySeed";
@@ -184,6 +185,11 @@ export default function NewJourneyForm({
   const [startDate,     setStartDate]     = useState(seededDates?.start ?? "");
   const [endDate,       setEndDate]       = useState(seededDates?.end ?? "");
   const [partySize,     setPartySize]     = useState(1);
+  // A cruise is decided when the journey is planned (Brennan, 27 Sep 2026),
+  // so it is asked here; Settings changes it later. It follows the name
+  // ("… cruise") until the row itself is tapped.
+  const [cruiseTap, setCruiseTap] = useState<boolean | null>(null);
+  const cruise = cruiseTap ?? isCruiseName(tripName);
   // Travellers starts where the last journey left it. A family app that
   // opens on "1" every time is a form to correct, not a plan (new-journey
   // audit, Sep 2026). Only until the traveller touches the control.
@@ -557,6 +563,7 @@ export default function NewJourneyForm({
       start_date:      startDate,
       end_date:        endDate,
       party_size:      partySize,
+      cruise,
       status:          "planning",
       // Persist manually chosen cover immediately so it's visible on the trip
       ...(coverUrl ? { cover_image_url: coverUrl } : {}),
@@ -629,7 +636,7 @@ export default function NewJourneyForm({
     const landing = days[0] ? `/trips/${tripId}/days/${days[0].id}` : `/trips/${tripId}`;
     if (onCreated) onCreated(tripId, landing);
     else router.push(landing);
-  }, [isValid, saving, destination, tripName, startDate, endDate, partySize, coverUrl, inviteEmails, router, onCreated, toast]);
+  }, [isValid, saving, destination, tripName, startDate, endDate, partySize, cruise, coverUrl, inviteEmails, router, onCreated, toast]);
 
   return (
     <div className={overlay ? "flex-1 min-h-0 flex flex-col bg-white" : "flex flex-col min-h-dvh bg-white"}>
@@ -842,6 +849,21 @@ export default function NewJourneyForm({
               </button>
             </div>
           </div>
+
+          {/* Cruise — the ship is the stay: the Budget prices a fare, and
+              Where to stay goes away. */}
+          <button
+            type="button"
+            onClick={() => setCruiseTap(!cruise)}
+            aria-pressed={cruise}
+            className="w-full flex items-center px-5 py-[14px] border-b border-black/5 text-left"
+          >
+            <span className="text-[10px] uppercase tracking-widest text-[#1A1A2E] w-20 flex-shrink-0">Cruise</span>
+            <span className="flex-1 text-[14px] text-[#1A1A2E]">{cruise ? "Yes, on a ship" : "No"}</span>
+            <span className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 ${cruise ? "bg-activity" : "bg-gray-200"}`}>
+              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${cruise ? "left-[18px]" : "left-0.5"}`} />
+            </span>
+          </button>
 
           {/* Invite — the share link only exists once the journey does, so
               the emails are taken here and sent right after Create. */}

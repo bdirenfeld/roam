@@ -198,6 +198,14 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const [weekStart, setWeekStart] = useState(0);
   const shown = useMemo(() => days.slice(weekStart, weekStart + 7), [days, weekStart]);
   const shownRef = useRef(shown); shownRef.current = shown;
+  // ?day=<id> opens the week on that day, in place (27 Sep 2026): the day
+  // page sends a computer here rather than showing the old agenda.
+  useEffect(() => {
+    const id = searchParams.get("day"); if (!id) return;
+    const i = daysRef.current.findIndex((d) => d.id === id); if (i < 0) return;
+    setWeekStart(Math.floor(i / 7) * 7);
+    setFocusDayId(id);
+  }, [searchParams]);
   const weeks = Math.max(1, Math.ceil(days.length / 7));
   const weekIdx = Math.floor(weekStart / 7);
   const nDays = shown.length;

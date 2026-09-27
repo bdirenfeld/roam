@@ -139,7 +139,7 @@ describe("compute", () => {
 
 // 27 Sep 2026: a family of five on a 7-night Mediterranean cruise.
 describe("a cruise", () => {
-  const a = { ...defaultAssumptions(5, 7), nightlyRate: 1330, groceriesPerDay: 110, carEnabled: true, carDayRate: 210, touristTaxEnabled: true, touristTaxPerNight: 15 };
+  const a = { ...defaultAssumptions(5, 7), nightlyRate: 480, cruiseFarePerPerson: 1330, groceriesPerDay: 110, carEnabled: true, carDayRate: 210, touristTaxEnabled: true, touristTaxPerNight: 15 };
   const opts = { uncostedExcursions: 0, rolledExcursionCount: 0 };
   it("prices a fare per person instead of hotel nights, with no groceries, car or tourist tax", () => {
     const est = compute(a, { ...opts, cruise: true });
@@ -154,12 +154,12 @@ describe("a cruise", () => {
   });
   it("leaves every other journey as it was", () => {
     const est = compute(a, opts);
-    expect(est.lines.find((l) => l.key === "accommodation")!.amount).toBe(1330 * 7);
+    expect(est.lines.find((l) => l.key === "accommodation")!.amount).toBe(480 * 7);   // the villa rate, untouched
     expect(est.lines.map((l) => l.key)).toContain("groceries");
   });
   it("suggests a fare for the sailing, per person", () => {
     const s = suggest(a, { distanceKm: 6500, peak: false, cruise: true });
-    expect(s.values.nightlyRate).toBe(1330);
+    expect(s.values.cruiseFarePerPerson).toBe(1330);
     expect(s.basis.accommodation).toContain("per person");
   });
 });

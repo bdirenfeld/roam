@@ -74,6 +74,11 @@ export function inferTypeOrSight(googleTypes: string[] | null | undefined, name?
  * wander. Only overrides a sight or nothing, never a museum or a restaurant.
  */
 const PORT_NAME = /\b(cruise|cruises|ferry|ferries|creuers|cruceros|croisi[eè]res?|crociere)\b|\bmar[ií]tim[ao]\b|\bmarittima\b|\b(porto|puerto|port) (di|de|del|of)\b|\bport$/i;
+/** A journey named as a cruise ("Mediterranean cruise", "Alaska sailing"). */
+export function isCruiseName(name: string | null | undefined): boolean {
+  return !!name && /\b(cruise|cruising|sailing|voyage)\b/i.test(name);
+}
+
 export function isPortName(name: string | null | undefined): boolean {
   return !!name && PORT_NAME.test(name.trim());
 }
