@@ -26,3 +26,10 @@ describe("the week carries the entry check", () => {
     expect(week).toContain("<EntryLine");
   });
 });
+
+describe("a narrow window opens the linked day too", () => {
+  it("the phone board reads ?day, since a narrow computer window renders it", () => {
+    const board = readFileSync("src/components/plan/PlanBoard.tsx", "utf8");
+    expect(board).toContain('searchParams.get("day")');
+  });
+});

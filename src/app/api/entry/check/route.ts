@@ -64,8 +64,10 @@ export async function POST(req: NextRequest) {
   const previous = (existing?.data ?? null) as EntryData | null;
   // Every country the journey goes to, from its places (lib/entry/countries).
   // A region with nothing on it yet has none: nothing to check, no charge.
-  const { data: placed } = await supabase.from("cards").select("place:places(address)").eq("trip_id", tripId).eq("status", "in_itinerary").not("archived", "is", true);
-  const countries = tripCountries(trip.destination as string | null, (placed ?? []).map((c) => (c.place as { address?: string | null } | null)?.address));
+  const { data: placed } = await supabase.from("cards").select("place:places(address), days(date)").eq("trip_id", tripId).eq("status", "in_itinerary").not("archived", "is", true);
+  // In the order visited: "United Kingdom · Spain", not whichever row came first.
+  const byDay = (placed ?? []).slice().sort((x, y) => String((x.days as { date?: string } | null)?.date ?? "").localeCompare(String((y.days as { date?: string } | null)?.date ?? "")));
+  const countries = tripCountries(trip.destination as string | null, byDay.map((c) => (c.place as { address?: string | null } | null)?.address));
   if (countries.length === 0) return NextResponse.json({ error: "Nothing on the journey to check yet" }, { status: 409 });
   const country = countries.length > 1 ? countries.join(" · ") : (countries[0] ?? countryOf((trip.destination as string) ?? ""));
   const nights = trip.start_date && trip.end_date

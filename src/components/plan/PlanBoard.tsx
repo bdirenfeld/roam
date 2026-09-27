@@ -29,6 +29,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { createClient } from "@/lib/supabase/client";
+import { useSearchParams } from "next/navigation";
 import { queuedInsert, queuedDelete } from "@/lib/offline/queuedWrite";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import CardBadges from "@/components/cards/CardBadges";
@@ -293,6 +294,14 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
     const idx = today ? initialDays.findIndex((d) => d.id === today.id) : 0;
     return idx >= 0 ? idx : 0;
   });
+  // ?day=<id> opens that day (27 Sep 2026): the day page sends a computer to
+  // /plan?day=, and a narrow window renders this board, which showed Day 1.
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const id = searchParams.get("day"); if (!id) return;
+    const i = initialDays.findIndex((d) => d.id === id);
+    if (i >= 0) setMobileDayIdx(i);
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
 
   // Desktop board X-scroller — jump-to-day scroll + conditional edge fades.
