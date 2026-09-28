@@ -117,7 +117,7 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
   const subLabel  = subTypeLabel(place?.sub_type);
   const shown    = cardTimes(card);
   const timeRange = formatTimeRange(shown.start, shown.end);
-  const hoursSignal = place ? getOpeningHoursConflict(place.hours, dayDate ?? null, card.start_time) : null;
+  const hoursSignal = place ? getOpeningHoursConflict(place.hours, dayDate ?? null, card.start_time, place.sub_type) : null;
   const noteSnippet = !place ? (det?.notes as string | undefined) : undefined;
   const title     = place?.title ?? (det?.title as string | undefined) ?? noteSnippet?.slice(0, 60) ?? "(untitled note)";
 

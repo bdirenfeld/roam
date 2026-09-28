@@ -43,7 +43,6 @@ const GRANDFATHERED = new Set([
   "newJourneySeed.ts",
   "offline/queuedWrite.ts",
   "offline/writeQueue.ts",
-  "openingHours.ts",
   "places/fetchDetails.ts",
   "places/photoCache.ts",
   "places/predictions.ts",

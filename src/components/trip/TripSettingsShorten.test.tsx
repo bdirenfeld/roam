@@ -63,6 +63,10 @@ async function shortenTo3rd() {
 describe("shortening a journey with plans on the dropped days", () => {
   it("says so, deletes nothing, and offers to move them", async () => {
     await shortenTo3rd();
+    // Putting the dates back saves again; the offer must survive that save
+    // (live, 27 Sep 2026, it vanished a second after it appeared).
+    await act(async () => { vi.advanceTimersByTime(800); });
+    await act(async () => { await Promise.resolve(); });
     expect(screen.getByText(/has 2 plans\./)).toBeTruthy();
     expect(writes.filter((w) => w.op === "delete")).toHaveLength(0);
     expect(screen.getByRole("button", { name: /Move them to the nearest day and shorten/ })).toBeTruthy();

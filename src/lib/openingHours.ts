@@ -63,6 +63,16 @@ function readValidPeriods(hours: unknown): ValidPeriod[] {
     const time = normalizeGoogleTime((open as { time?: unknown }).time);
     if (typeof day !== "number" || day < 0 || day > 6 || time === null) continue;
     valid.push({ day, time });
+    // A period that runs across days (Google writes "24 hours, Mon–Fri" as one
+    // period, Monday 0000 to Saturday 0000) is open all of every day between.
+    // Only the days wholly inside it: the close day keeps its own periods, so
+    // a bar open Friday 6 pm to 2 am still "Opens 6 PM" on Saturday. Reading
+    // the open day alone called Tuesday to Friday closed (28 Sep 2026).
+    const close = (period as { close?: unknown }).close;
+    const closeDay = typeof close === "object" && close !== null ? (close as { day?: unknown }).day : undefined;
+    if (typeof closeDay === "number" && closeDay >= 0 && closeDay <= 6 && closeDay !== day) {
+      for (let k = 1; k < 7 && (day + k) % 7 !== closeDay; k++) valid.push({ day: (day + k) % 7, time: "00:00" });
+    }
   }
   return valid;
 }
@@ -112,13 +122,20 @@ function weekdayIndex(dayDate: string): number | null {
  * stay silent. Silent when: no start_time (nothing to compare), no date
  * (cannot resolve the weekday), a note card / missing / malformed hours, the
  * place is open 24/7, no usable periods (unknown), or the scheduled time fits
- * the day's hours.
+ * the day's hours. Silent for a place you sleep in, too: a hotel's listed
+ * hours are its front desk or its restaurant, not whether you can check in
+ * (the Europe summer's Kensington apartments read "Closed Thursdays" on the
+ * night they arrived, 28 Sep 2026).
  */
+const SLEEP = new Set(["hotel", "accommodation"]);
+
 export function getOpeningHoursConflict(
   hours: unknown,
   dayDate: string | null,
   startTime: string | null,
+  subType?: string | null,
 ): OpeningHoursSignal | null {
+  if (subType && SLEEP.has(subType)) return null;
   // No scheduled time → nothing to compare against; do not invent one.
   if (!startTime) return null;
   // No date → cannot resolve the weekday (day_id is nullable in production).

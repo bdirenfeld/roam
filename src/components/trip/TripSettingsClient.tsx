@@ -241,8 +241,6 @@ export default function TripSettingsClient({
     if (!title.trim()) { setError("A journey needs a name."); return false; }
 
     setSaving(true);
-    setWarning(null);
-    setMoveOffer(null);
     setError(null);
 
     const supabase = createClient();
@@ -252,6 +250,10 @@ export default function TripSettingsClient({
       // fresh, so a second change in a row does not work from stale dates.
       // Only a change of dates touches the days; a new title or party size does not.
       const datesChanged = startDate !== savedDates.current.start || endDate !== savedDates.current.end;
+      // The refusal below puts the dates back, which saves again; only a new
+      // change of dates may clear what it said, or the offer vanished a second
+      // after it appeared (found live, 27 Sep 2026).
+      if (datesChanged) { setWarning(null); setMoveOffer(null); }
       const { data: freshDays } = datesChanged ? await supabase.from("days").select("id, date, day_number").eq("trip_id", trip.id) : { data: null };
       const current = (freshDays ?? days) as { id: string; date: string; day_number: number }[];
       const plan = datesChanged ? planDayChanges(current, startDate, endDate) : { update: [], insert: [], remove: [] as string[] };
