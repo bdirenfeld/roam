@@ -68,6 +68,7 @@ import AppMenu from "@/components/ui/AppMenu";
 import JourneyHeader from "@/components/ui/JourneyHeader";
 import AddPlaceRow from "@/components/ui/AddPlaceRow";
 import { getMaterialIconHTML } from "@/lib/mapPins";
+import { timeFirst } from "@/lib/agendaOrder";
 import { type DayWeather, fetchTripWeather, dayStopsAnchor, getWeatherCategory, WeatherIcon, HourlyStrip } from "@/lib/weather";
 
 // ── Constants ──────────────────────────────────────────────────
@@ -150,13 +151,25 @@ interface Props {
   initialNotes: string | null;
 }
 
+function orderDays(days: DayWithCards[]): DayWithCards[] {
+  let changed = false;
+  const out = days.map((d) => { const cards = timeFirst(d.cards); if (cards === d.cards) return d; changed = true; return { ...d, cards }; });
+  return changed ? out : days;
+}
+
 export default function PlanBoard({ trip, initialDays, initialLists, initialNotes }: Props) {
   const supabase = createClient();
   const search = useGlobalSearch();
   const { toast } = useToast();
   // Hidden file input behind the Bookings sheet's Upload button.
   const importInputRef = useRef<HTMLInputElement>(null);
-  const [days, setDays] = useState<DayWithCards[]>(initialDays);
+  // Every day kept in clock order (lib/agendaOrder timeFirst, 27 Sep 2026):
+  // whatever writes the days — a load, an add, a drag — lands timed cards by
+  // the clock, untimed after them in the order they were dragged to.
+  const [days, setDaysRaw] = useState<DayWithCards[]>(() => orderDays(initialDays));
+  const setDays = useCallback((v: DayWithCards[] | ((prev: DayWithCards[]) => DayWithCards[])) => {
+    setDaysRaw((prev) => orderDays(typeof v === "function" ? v(prev) : v));
+  }, []);
 
   // A day's title — "Lucca day", "Cinque Terre", "Rest" — so the column says
   // what the day is instead of making you infer it from the cards (Brennan,
@@ -941,6 +954,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
           finalDays = finalDays.map((d, i) =>
             i === dayIdx ? { ...d, cards: arrayMove(d.cards, oldIdx, newIdx) } : d
           );
+          finalDays = orderDays(finalDays);
           setDays(finalDays);
         }
       }
@@ -1012,6 +1026,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
           finalDays = finalDays.map((d, i) =>
             i === dayIdx ? { ...d, cards: arrayMove(d.cards, oldIdx, newIdx) } : d
           );
+          finalDays = orderDays(finalDays);
           setDays(finalDays);
         }
       }

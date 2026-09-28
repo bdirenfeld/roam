@@ -29,3 +29,22 @@ export function agendaOrder(a: OrderableCard, b: OrderableCard): number {
   else if (bt) return 1;
   return (a.position ?? 0) - (b.position ?? 0);
 }
+
+/**
+ * A day's cards in the order a phone's Plan board shows them (27 Sep 2026):
+ * timed cards by the clock, untimed after them in the order they are in now,
+ * so a drag among untimed cards still holds. The board listed by `position`
+ * alone, and Nashville's Day 1 read "hotel 3 pm, flight 10 am, lunch 12:30"
+ * because the hotel was added first. Returns the same array when nothing
+ * moves, so a render with nothing to do changes nothing.
+ */
+export function timeFirst<T extends TimedCard>(cards: T[]): T[] {
+  const at = cards.map((c, i) => ({ c, i, t: cardTimes(c).start }));
+  const sorted = [...at].sort((a, b) => {
+    if (a.t && b.t) return a.t.localeCompare(b.t) || a.i - b.i;
+    if (a.t) return -1;
+    if (b.t) return 1;
+    return a.i - b.i;
+  });
+  return sorted.every((x, i) => x.i === i) ? cards : sorted.map((x) => x.c);
+}

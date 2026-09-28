@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { agendaOrder, type OrderableCard } from "./agendaOrder";
+import { agendaOrder, timeFirst, type OrderableCard } from "./agendaOrder";
 
 /**
  * Rome, 22 April 2026, day 1 — the six real cards, copied from the database on
@@ -106,5 +106,17 @@ describe("agendaOrder — same time", () => {
     const a = card("Coffee", "coffee", "09:00:00", null, 2);
     const b = card("Bakery", "coffee", "09:00:00", null, 1);
     expect(order([a, b])).toEqual(["Bakery", "Coffee"]);
+  });
+});
+
+describe("timeFirst — the phone Plan board's order", () => {
+  const card = (id: string, start: string | null) => ({ id, start_time: start, end_time: null, details: {}, place: { sub_type: "restaurant" } });
+  it("puts Nashville's Day 1 in clock order, untimed after in their own order", () => {
+    const day = [card("hotel", "15:00"), card("walk", null), card("flight", "10:00"), card("bar", null), card("lunch", "12:30")];
+    expect(timeFirst(day).map((c) => c.id)).toEqual(["flight", "lunch", "hotel", "walk", "bar"]);
+  });
+  it("hands back the same array when already in order", () => {
+    const day = [card("a", "09:00"), card("b", null)];
+    expect(timeFirst(day)).toBe(day);
   });
 });
