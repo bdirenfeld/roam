@@ -94,11 +94,12 @@ describe("the phone day calendar", () => {
     expect(onClose).toHaveBeenCalledTimes(2);
   });
 
-  it("with two or more stays it is laid out by stay: the bar, then each stay's days", () => {
+  it("a long journey with two or more stays is laid out by stay, each under its name, no bar on top", () => {
     const { onSelect } = open("d-2027-07-20", EUROPE);
     expect(screen.queryByText("July 2027")).toBeNull();
-    const bar = ["London", "Paris", "Lucca", "Barcelona"].map((t) => screen.getByRole("button", { name: new RegExp(`^${t}, `) }));
-    expect(bar.map((b) => b.getAttribute("aria-label"))).toEqual(["London, 9 days", "Paris, 10 days", "Lucca, 21 days", "Barcelona, 22 days"]);
+    for (const t of ["London", "Paris", "Lucca", "Barcelona"]) expect(screen.getByText(t)).toBeTruthy();
+    expect(screen.getByText(/1 Jul – 9 Jul · 9 days/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Lucca, / })).toBeNull();
     expect(screen.getByText("Hotel Ilaria - Lucca")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Tuesday 24 August/ }));
     expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: "d-2027-08-24" }));
@@ -108,5 +109,13 @@ describe("the phone day calendar", () => {
     open("d-2027-07-02", [EUROPE[0], { ...EUROPE[1], status: "interested" } as Card]);
     expect(screen.getByText("July 2027")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /^Paris, / })).toBeNull();
+  });
+
+  it("a short journey is a plain calendar even with two hotels (Rome, 7 days)", () => {
+    const week = days.slice(0, 7);
+    const rome = [hotel(1, "Hotel NH Collection Roma", "Via Cavour, 00184 Roma RM, Italy"), hotel(3, "Banco 19 B&B", "Via del Banco di Santo Spirito, 00186 Roma RM, Italy")];
+    render(<PhoneDayCalendar tripId="t1" days={week} hotelCards={rome} activeDayId={week[1].id} top={58} onSelect={vi.fn()} onClose={vi.fn()} />);
+    expect(screen.getByText("July 2027")).toBeTruthy();
+    expect(screen.queryByText("Banco 19 B&B")).toBeNull();
   });
 });

@@ -5,7 +5,7 @@ import type { Card, Day } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { monthGrids, type CalDay } from "@/lib/week/tripCalendar";
-import { journeyStays } from "@/lib/week/journeyStays";
+import { journeyStays, STAY_LAYOUT_MIN_DAYS } from "@/lib/week/journeyStays";
 
 /**
  * The phone's way to any day of the journey (27 Sep 2026). The date in the
@@ -21,8 +21,10 @@ import { journeyStays } from "@/lib/week/journeyStays";
  * The marks cost one small read, made only on open, and
  * fail quietly: without them it is still a calendar.
  *
- * With two or more stays it is laid out by stay, not by month (27 Sep 2026,
- * step 2): a bar of the whole journey to scale on top, then each stay's days.
+ * A long journey (STAY_LAYOUT_MIN_DAYS or more) with two or more stays is
+ * laid out by stay, not by month (27 Sep 2026): each stay's days under its
+ * name. A short one is a plain calendar. The bar of stays that sat on top
+ * said the headings twice and was cut the same day (Brennan: "overkill").
  * The stays come from the hotel cards the page already holds, so the layout
  * is right on the first frame; only the marks wait for the read.
  */
@@ -81,17 +83,15 @@ export default function PhoneDayCalendar({
   }, [months]);
   // A saved idea can hold a day_id without being booked (Japan's saved pins
   // all hold day one); only a scheduled hotel card says where you sleep.
-  const stays = useMemo(() => journeyStays(
+  const stays = useMemo(() => days.length < STAY_LAYOUT_MIN_DAYS ? null : journeyStays(
     days.map((d) => ({ id: d.id, dayNumber: d.day_number })),
     hotelCards
       .filter((c) => c.status === "in_itinerary" && c.day_id)
       .map((c) => ({ dayId: c.day_id, name: c.place?.title ?? null, address: c.place?.address ?? null })),
   ), [days, hotelCards]);
   const panelRef = useRef<HTMLDivElement>(null);
-  const barRef = useRef<HTMLDivElement>(null);
   const todayDay = todayStr ? days.find((d) => d.date === todayStr) ?? null : null;
   const pick = (d: Day) => { onClose(); onSelect(d); };
-  const activeIndex = days.findIndex((d) => d.id === activeDayId);
   const shortDate = (iso: string) => new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 
   const cell = (d: Day, c: CalDay | undefined) => {
@@ -127,10 +127,6 @@ export default function PhoneDayCalendar({
       {["M", "T", "W", "T", "F", "S", "S"].map((l, i) => <span key={i} className="text-center">{l}</span>)}
     </div>
   );
-  const toStay = (i: number) => {
-    const el = panelRef.current?.querySelector<HTMLElement>(`[data-stay="${i}"]`);
-    if (el && panelRef.current) panelRef.current.scrollTo({ top: el.offsetTop - (barRef.current?.offsetHeight ?? 0) - 4, behavior: "smooth" });
-  };
 
   return (
     <div className="md:hidden fixed inset-0 z-[70]" onClick={onClose}>
@@ -159,33 +155,6 @@ export default function PhoneDayCalendar({
         )}
         {stays ? (
           <>
-            {/* The whole journey to scale; tap a stay to scroll to it. */}
-            <div ref={barRef} className="sticky -top-3 z-[1] bg-white -mx-4 px-4 pt-3 pb-2 mt-[-12px]">
-              <div className="relative flex gap-[3px] h-[30px]">
-                {stays.map((s, i) => {
-                  const here = s.dayIds.includes(activeDayId);
-                  return (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => toStay(i)}
-                      aria-label={`${s.label}, ${s.dayIds.length} days`}
-                      className="min-w-0 rounded-md px-1 text-left text-[11px] font-semibold truncate"
-                      style={{ flex: s.dayIds.length, background: here ? "#1A1A2E" : "#F3EFE4", color: here ? "#fff" : "#1A1A2E" }}
-                    >
-                      {s.label}
-                    </button>
-                  );
-                })}
-                {activeIndex >= 0 && (
-                  <span
-                    aria-hidden
-                    className="absolute -top-1 -bottom-1 w-[2px] rounded-full pointer-events-none"
-                    style={{ left: `calc(${((activeIndex + 0.5) / days.length) * 100}% - 1px)`, background: "#B0541F" }}
-                  />
-                )}
-              </div>
-            </div>
             {stays.map((s, i) => {
               const own = s.dayIds.map((id) => byId.get(id)).filter((d): d is Day => !!d);
               if (own.length === 0) return null;

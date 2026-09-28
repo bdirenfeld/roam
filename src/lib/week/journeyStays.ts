@@ -14,6 +14,13 @@ import { townFromAddress } from "@/lib/stays/brief";
  * "Roma · Roma". Null when the journey has fewer than two stays: one hotel is
  * a plain calendar, and a bar with one segment says nothing.
  */
+/**
+ * Below this a journey is a plain calendar even with two hotels (27 Sep 2026,
+ * Brennan on Rome, 7 days: "overkill"). Laying out by stay pays when there
+ * are weeks to find your way across, not when every date fits in two rows.
+ */
+export const STAY_LAYOUT_MIN_DAYS = 15;
+
 export interface JourneyStay {
   label: string;
   hotel: string;
