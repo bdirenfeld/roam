@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { planDayChanges } from "./tripDays";
+import { planDayChanges, rehomeDays } from "./tripDays";
 
 // Nashville, as it was: Thursday 16 to Sunday 19 September 2027.
 const NASH = [
@@ -29,5 +29,16 @@ describe("changing a journey's dates", () => {
   });
   it("a shorter move drops the last days", () => {
     expect(planDayChanges(NASH, "2027-10-14", "2027-10-15").remove).toEqual(["sat", "sun"]);
+  });
+});
+
+describe("rehomeDays", () => {
+  const kept = [{ id: "k1", date: "2027-07-03" }, { id: "k2", date: "2027-07-04" }, { id: "k3", date: "2027-07-05" }];
+  it("days cut off the front go to the new first day, off the end to the new last", () => {
+    expect(rehomeDays([{ id: "a", date: "2027-07-01" }, { id: "b", date: "2027-07-02" }, { id: "z", date: "2027-07-09" }], kept))
+      .toEqual({ a: "k1", b: "k1", z: "k3" });
+  });
+  it("nothing kept, nowhere to go", () => {
+    expect(rehomeDays([{ id: "a", date: "2027-07-01" }], [])).toEqual({});
   });
 });

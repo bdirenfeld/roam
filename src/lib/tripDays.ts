@@ -52,3 +52,23 @@ export function planDayChanges(days: DayRow[], start: string, end: string): DayC
   }
   return out;
 }
+
+/**
+ * Where the plans on a dropped day go when a journey is shortened (27 Sep
+ * 2026): the nearest day that stays — the new first day for days cut off the
+ * front, the new last day for days cut off the end. It used to refuse and
+ * send the person off to move every plan by hand first.
+ */
+export function rehomeDays(removed: DayRow[], kept: DayRow[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (kept.length === 0) return out;
+  const sorted = [...kept].sort((a, b) => a.date.localeCompare(b.date));
+  for (const r of removed) {
+    let best = sorted[0];
+    for (const k of sorted) {
+      if (Math.abs(t0(k.date) - t0(r.date)) < Math.abs(t0(best.date) - t0(r.date))) best = k;
+    }
+    out[r.id] = best.id;
+  }
+  return out;
+}

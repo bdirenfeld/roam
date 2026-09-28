@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { planDayChanges } from "@/lib/tripDays";
+import { planDayChanges, rehomeDays } from "@/lib/tripDays";
 import { useRouter } from "next/navigation";
 import { Camera } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
@@ -183,6 +183,8 @@ export default function TripSettingsClient({
   const [deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [warning, setWarning] = useState<string | null>(null);
+  // A refused shortening offers to move the plans for you (27 Sep 2026).
+  const [moveOffer, setMoveOffer] = useState<{ start: string; end: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Calendar picker state (isolated — only committed on Done)
@@ -232,11 +234,15 @@ export default function TripSettingsClient({
   // Every field writes itself a moment after you stop typing, the way Notes
   // and cards always have. There is no Save button: it was the only thing
   // standing between an edit and ×, and × won (audit, 23 Sep 2026).
-  const persist = async (): Promise<boolean> => {
+  const startState = startDate, endState = endDate;
+  const persist = async (opts: { move?: { start: string; end: string } } = {}): Promise<boolean> => {
+    const startDate = opts.move?.start ?? startState;
+    const endDate = opts.move?.end ?? endState;
     if (!title.trim()) { setError("A journey needs a name."); return false; }
 
     setSaving(true);
     setWarning(null);
+    setMoveOffer(null);
     setError(null);
 
     const supabase = createClient();
@@ -257,13 +263,12 @@ export default function TripSettingsClient({
           .select("id", { count: "exact", head: true })
           .in("day_id", plan.remove);
 
-        if (count && count > 0) {
+        if (count && count > 0 && !opts.move) {
           const first = current.filter((d) => plan.remove.includes(d.id)).sort((x, y) => x.date.localeCompare(y.date))[0];
           const cardLabel = count === 1 ? "1 plan" : `${count} plans`;
           const when = new Date(first.date + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
-          setWarning(
-            `${when} has ${cardLabel} — move them to another day first.`
-          );
+          setWarning(`${when} has ${cardLabel}.`);
+          setMoveOffer({ start: startDate, end: endDate });
           // The dates go back to what is saved, so nothing shows that isn't true.
           setStartDate(savedDates.current.start);
           setEndDate(savedDates.current.end);
@@ -300,6 +305,24 @@ export default function TripSettingsClient({
         return true;
       };
 
+      // Shortening with plans on the dropped days: they move to the nearest
+      // day that stays, at the end of its list, before the days go.
+      if (opts.move && plan.remove.length) {
+        const home = rehomeDays(current.filter((d) => plan.remove.includes(d.id)), current.filter((d) => !plan.remove.includes(d.id)));
+        const targets = Array.from(new Set(Object.values(home)));
+        const [{ data: moving }, { data: there }] = await Promise.all([
+          supabase.from("cards").select("id, day_id, position").in("day_id", plan.remove).order("position"),
+          supabase.from("cards").select("day_id, position").in("day_id", targets),
+        ]);
+        const next: Record<string, number> = {};
+        for (const c of (there ?? []) as { day_id: string; position: number | null }[]) next[c.day_id] = Math.max(next[c.day_id] ?? 0, c.position ?? 0);
+        for (const c of (moving ?? []) as { id: string; day_id: string }[]) {
+          const to = home[c.day_id]; if (!to) continue;
+          next[to] = (next[to] ?? 0) + 1;
+          const { error: mvErr } = await supabase.from("cards").update({ day_id: to, position: next[to] }).eq("id", c.id);
+          if (failed(mvErr)) return false;
+        }
+      }
       if (plan.remove.length) {
         const { error: delErr } = await supabase.from("days").delete().in("id", plan.remove);
         if (failed(delErr)) return false;
@@ -318,6 +341,7 @@ export default function TripSettingsClient({
       }
 
       savedDates.current = { start: startDate, end: endDate };
+      if (opts.move) { setStartDate(startDate); setEndDate(endDate); }
       setSaving(false);
       return true;
     } catch {
@@ -649,6 +673,15 @@ export default function TripSettingsClient({
         {warning && (
           <div className="mx-5 mt-3 px-3 py-2.5 bg-amber-50 border border-amber-100 rounded-xl">
             <p className="text-[13px] text-amber-700 font-medium">{warning}</p>
+            {moveOffer && (
+              <button
+                type="button"
+                onClick={async () => { const m = moveOffer; if (await persist({ move: m })) { setSavedOnce(true); toast({ message: "Plans moved and dates saved" }); } }}
+                className="mt-2 text-[13px] font-semibold text-[#1A1A2E] underline underline-offset-2"
+              >
+                Move them to the nearest day and shorten
+              </button>
+            )}
           </div>
         )}
         {error && (

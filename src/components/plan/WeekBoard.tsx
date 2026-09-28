@@ -33,6 +33,7 @@ import WeekMap from "./WeekMap";
 import { weekColumns, weekMinWidth } from "@/lib/week/focus";
 import { planBatch, planExisting, plannedOtherDays, stayAnchor } from "@/lib/week/dayPlan";
 import { shortAddress, firstSentence } from "@/lib/week/cardText";
+import { weekStarts, pageOf } from "@/lib/week/pages";
 import {
   placeBlocks, movedTimes, resizedEnd, resizedStart, minutesAtY, toMin, toTime, fmt12, gridHeight,
   HOUR_START, HOUR_END, PX_PER_HOUR, NO_END_MIN, type Block,
@@ -197,8 +198,13 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   // Seven days at a time (Brennan, 25 Sep 2026: "you're never scrolling,
   // you're just picking the week"). Longer journeys page with the arrows in
   // the cell above the hours; a 7-day journey shows no arrows at all.
-  const [weekStart, setWeekStart] = useState(0);
-  const shown = useMemo(() => days.slice(weekStart, weekStart + 7), [days, weekStart]);
+  // Past seven days a screen runs Monday to Sunday (lib/week/pages).
+  const starts = useMemo(() => weekStarts(days.map((d) => d.date)), [days]);
+  const startsRef = useRef(starts); startsRef.current = starts;
+  const [weekIdx, setWeekIdx] = useState(0);
+  const page = Math.min(weekIdx, starts.length - 1);
+  const weekStart = starts[page];
+  const shown = useMemo(() => days.slice(weekStart, starts[page + 1] ?? days.length), [days, starts, page, weekStart]);
   const shownRef = useRef(shown); shownRef.current = shown;
   // Where the journey goes, from its places: a new country re-runs the entry check.
   const weekCountries = useMemo(() => tripCountries(trip.destination, days.flatMap((d) => d.cards.map((c) => c.place?.address))), [trip.destination, days]);
@@ -207,11 +213,10 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   useEffect(() => {
     const id = searchParams.get("day"); if (!id) return;
     const i = daysRef.current.findIndex((d) => d.id === id); if (i < 0) return;
-    setWeekStart(Math.floor(i / 7) * 7);
+    setWeekIdx(pageOf(startsRef.current, i));
     setFocusDayId(id);
   }, [searchParams]);
-  const weeks = Math.max(1, Math.ceil(days.length / 7));
-  const weekIdx = Math.floor(weekStart / 7);
+  const weeks = starts.length;
   const nDays = shown.length;
   const focusIdx = focusDayId ? shown.findIndex((d) => d.id === focusDayId) : -1;
   const minWidth = weekMinWidth(HOURS_W, nDays, COL_MIN, focusIdx);
@@ -659,7 +664,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     // Show where it went (27 Sep 2026): "Put on Mon 16 Aug" from the map left
     // the week on 1 July, and the camp was nowhere to be seen.
     const i = daysRef.current.findIndex((d) => d.id === created.day_id);
-    if (i >= 0) { setWeekStart(Math.floor(i / 7) * 7); tintDay(created.day_id); }
+    if (i >= 0) { setWeekIdx(pageOf(startsRef.current, i)); tintDay(created.day_id); }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const mapCardDelete = useCallback((cardId: string) => {
     const inSaved = saved.find((c) => c.id === cardId);
@@ -732,20 +737,20 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                 <>
                   <button
                     type="button"
-                    onClick={() => { setFocusDayId(null); setWeekStart((w) => Math.max(0, w - 7)); }}
-                    disabled={weekIdx === 0}
+                    onClick={() => { setFocusDayId(null); setWeekIdx(Math.max(0, page - 1)); }}
+                    disabled={page === 0}
                     aria-label="Previous week"
-                    title={`Week ${weekIdx} of ${weeks}`}
+                    title={`Week ${page} of ${weeks}`}
                     className="w-5 h-5 rounded-full flex items-center justify-center disabled:opacity-25 hover:bg-[rgba(26,26,46,0.06)]"
                   >
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setFocusDayId(null); setWeekStart((w) => Math.min((weeks - 1) * 7, w + 7)); }}
-                    disabled={weekIdx === weeks - 1}
+                    onClick={() => { setFocusDayId(null); setWeekIdx(Math.min(weeks - 1, page + 1)); }}
+                    disabled={page === weeks - 1}
                     aria-label="Next week"
-                    title={`Week ${weekIdx + 2} of ${weeks}`}
+                    title={`Week ${page + 2} of ${weeks}`}
                     className="w-5 h-5 rounded-full flex items-center justify-center disabled:opacity-25 hover:bg-[rgba(26,26,46,0.06)]"
                   >
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>

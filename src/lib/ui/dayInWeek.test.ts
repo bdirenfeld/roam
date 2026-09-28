@@ -16,7 +16,8 @@ describe("a day on a computer opens in the week", () => {
   });
   it("the week reads ?day and opens that day in place, on the right week", () => {
     expect(week).toContain('searchParams.get("day")');
-    expect(week).toMatch(/setWeekStart\(Math\.floor\(i \/ 7\) \* 7\)/);
+    expect(week).toMatch(/setWeekIdx\(pageOf\(startsRef\.current, i\)\)/);
+    expect(week).toMatch(/weekStarts\(days\.map/);
     expect(week).toMatch(/setFocusDayId\(id\)/);
   });
 });
