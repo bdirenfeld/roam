@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
-import { render, screen, fireEvent, cleanup, act } from "@testing-library/react";
-import type { Card, Trip } from "@/types/database";
+import { render, screen, fireEvent, cleanup, act, waitFor } from "@testing-library/react";
+import type { Card, Day, Trip } from "@/types/database";
 import type { FindResult } from "@/lib/find/merge";
 
 /**
@@ -26,10 +26,15 @@ const result: FindResult = { placeId: "g1", name: "Trattoria Da Enzo", address: 
 
 const calls: { url: string; body: Record<string, unknown> }[] = [];
 beforeEach(() => {
-  vi.stubGlobal("fetch", vi.fn(async (url: string, init: { body: string }) => {
-    const body = JSON.parse(init.body);
+  vi.stubGlobal("fetch", vi.fn(async (url: string, init?: { body: string }) => {
+    const body = init?.body ? JSON.parse(init.body) : {};
     calls.push({ url, body });
     if (url === "/api/find") return { ok: true, json: async () => ({ results: [result], travellers: true }) };
+    if (url.startsWith("/api/places/details")) return { ok: true, json: async () => ({ result: {
+      photos: [{ photo_reference: "ref1" }], url: "https://maps.google.com/?cid=1", website: "https://daenzoal29.com", price_level: 2,
+      opening_hours: { weekday_text: ["Monday: Closed", "Tuesday: 12:30 – 3:00 PM", "Wednesday: 12:30 – 3:00 PM", "Thursday: 12:30 – 3:00 PM", "Friday: 12:30 – 3:00 PM", "Saturday: 12:30 – 3:00 PM", "Sunday: 12:30 – 3:00 PM"] },
+    } }) };
+    if (url.startsWith("/api/places/photo/by-reference")) return { ok: true, json: async () => ({ url: "https://photos.example/1.jpg" }) };
     return { ok: true, json: async () => ({ imported: [{ place_id: "p1", google_place_id: "g1", title: "Da Enzo al 29" }] }) };
   }));
 });
@@ -43,8 +48,10 @@ describe("Find sheet", () => {
     expect(calls[0].body).toMatchObject({ tripId: "t1", base: { label: "Rome", lat: 41.9, lng: 12.5 }, subType: "self_directed" });
     expect(screen.getByText("Trattoria Da Enzo")).toBeTruthy();
     expect(screen.getByRole("link", { name: "r/rome" })).toBeTruthy();
-    // Every category is Roam's own sub-type, shown as "have of want".
-    expect(screen.getByRole("button", { name: /Restaurant · 0 of \d+/ })).toBeTruthy();
+    // Every category is Roam's own sub-type, with no target: a count only once something is saved.
+    for (const label of ["Explore", "Restaurant", "Coffee", "Dessert", "Bar", "Guided", "Challenge", "Wellness", "Event", "Shopping"]) {
+      expect(screen.getByRole("button", { name: label })).toBeTruthy();
+    }
   });
 
   it("Save imports the place with the category's type and adds one saved pin", async () => {
@@ -83,5 +90,24 @@ describe("Find sheet", () => {
     const names = screen.getAllByText(/Colosseum|Trattoria Da Enzo/).map((e) => e.textContent);
     expect(names).toEqual(["Trattoria Da Enzo", "Colosseum"]);
     expect(screen.queryByText("Adding what travellers recommend…")).toBeNull();
+  });
+
+  it("a tap opens the place: photos, why and where from, the days it is shut, and Save", async () => {
+    const days = ["2026-04-22", "2026-04-23", "2026-04-24", "2026-04-25", "2026-04-26", "2026-04-27", "2026-04-28"].map((date, i) => ({ id: "d" + i, trip_id: "t1", day_number: i + 1, date })) as unknown as Day[];
+    const onSaved = vi.fn();
+    await act(async () => { render(<FindSheet trip={trip} days={days} cards={[] as Card[]} onClose={vi.fn()} onSaved={onSaved} />); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "More about Trattoria Da Enzo" })); });
+    const view = screen.getByRole("region", { name: "Trattoria Da Enzo" });
+    await waitFor(() => expect(view.querySelector("img")?.getAttribute("src")).toBe("https://photos.example/1.jpg"));
+    expect(screen.getByText("★ 4.6 · 9,000 reviews · $$")).toBeTruthy();
+    expect(screen.getByText("Closed Mon 27 Apr")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "From r/rome" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Google Maps" })).toBeTruthy();
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Save to your map" })); });
+    expect(onSaved).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Saved to your map ✓" })).toBeTruthy();
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "‹ Back to results" })); });
+    expect(screen.queryByRole("region", { name: "Trattoria Da Enzo" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Saved ✓" })).toBeTruthy();
   });
 });

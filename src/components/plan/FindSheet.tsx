@@ -7,6 +7,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { findBases, gapsFor, type FindBase } from "@/lib/find/gaps";
 import { combineFind, type FindResult } from "@/lib/find/merge";
+import { closedOnTrip, priceSigns } from "@/lib/find/detail";
 
 /**
  * Find (29 Sep 2026): places for what a base is short of, in Roam's own
@@ -25,14 +26,16 @@ export default function FindSheet({
   onClose: () => void;
   onSaved: (card: Card) => void;
 }) {
-  void days;
-  useEscapeKey(onClose);
+  // Escape steps back from a place to the list, then closes.
+  const [open, setOpen] = useState<FindResult | null>(null);
+  useEscapeKey(() => (open ? setOpen(null) : onClose()));
+  const dates = useMemo(() => days.map((d) => d.date).filter((d): d is string => !!d), [days]);
   const { toast } = useToast();
   const bases = useMemo(() => findBases(cards, trip), [cards, trip]);
   const [baseIdx, setBaseIdx] = useState(0);
   const base: FindBase | undefined = bases[Math.min(baseIdx, bases.length - 1)];
   const gaps = useMemo(() => (base ? gapsFor(base) : []), [base]);
-  const [sub, setSub] = useState<string>(() => (base ? (gapsFor(base).find((g) => g.short && g.want != null) ?? gapsFor(base)[0]).category.subType : "self_directed"));
+  const [sub, setSub] = useState<string>("self_directed");
   const [ask, setAsk] = useState("");
   // Per search: Google's half (about a second) and the travellers' half (20-40 s,
   // instant when cached), each undefined until it answers.
@@ -49,6 +52,7 @@ export default function FindSheet({
     const base = b;
     const k = keyOf(base, s, q);
     asked.current = k;
+    setOpen(null);
     bump((n) => n + 1);
     if (started.current.has(k)) return;
     started.current.add(k);
@@ -136,15 +140,15 @@ export default function FindSheet({
               ))}
             </div>
           )}
-          <div className="flex gap-1.5 flex-wrap">
+          <div className="flex gap-1.5 overflow-x-auto scrollbar-none -mx-5 px-5">
             {gaps.map((g) => {
               const on = g.category.subType === sub;
               return (
                 <button key={g.category.subType} type="button" onClick={() => { setSub(g.category.subType); void run(base, g.category.subType, null); }}
                   aria-pressed={on}
-                  className="h-8 px-2.5 rounded-lg text-[12px] font-medium whitespace-nowrap"
-                  style={{ background: on ? "#B0541F" : g.short ? "rgba(176,84,31,0.06)" : "rgba(26,26,46,0.04)", color: on ? "#fff" : g.short ? "#B0541F" : "rgba(26,26,46,0.6)", border: on ? "1px solid #B0541F" : g.short ? "1px solid rgba(176,84,31,0.35)" : "1px solid rgba(26,26,46,0.10)" }}>
-                  {g.category.label} · {g.want != null ? `${g.have} of ${g.want}` : g.have}
+                  className="h-8 px-2.5 rounded-lg text-[12px] font-medium whitespace-nowrap flex-shrink-0"
+                  style={{ background: on ? "#B0541F" : "rgba(26,26,46,0.04)", color: on ? "#fff" : "rgba(26,26,46,0.7)", border: on ? "1px solid #B0541F" : "1px solid rgba(26,26,46,0.10)" }}>
+                  {g.category.label}{g.have > 0 ? ` · ${g.have}` : ""}
                 </button>
               );
             })}
@@ -155,7 +159,10 @@ export default function FindSheet({
           </form>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-2">
+        {open && (
+          <FindPlace r={open} dates={dates} saved={saved.has(open.placeId)} onSave={() => void save(open)} onBack={() => setOpen(null)} />
+        )}
+        <div className={`flex-1 overflow-y-auto px-5 py-2 ${open ? "hidden" : ""}`}>
           {!base && <p className="py-6 text-[14px] text-activity/60">Set where the journey is going in Settings, and Find will start there.</p>}
           {base && loading && <p className="py-6 text-[14px] text-activity/60">Looking…</p>}
           {failed && <p className="py-6 text-[14px] text-[#B0541F]">{failed}</p>}
@@ -165,10 +172,12 @@ export default function FindSheet({
           {reading && <p className="pt-2 pb-1 text-[12px] text-activity/50">Adding what travellers recommend…</p>}
           {!loading && list.map((r) => (
             <div key={r.placeId} className="flex gap-3 py-3 border-b" style={{ borderColor: "rgba(26,26,46,0.07)" }}>
-              <div className="w-12 h-12 rounded-lg flex-shrink-0" style={{ background: category?.type === "food" ? "rgba(124,58,237,0.12)" : "rgba(29,158,117,0.14)" }} />
+              <button type="button" onClick={() => setOpen(r)} aria-label={`More about ${r.name}`} className="w-12 h-12 rounded-lg flex-shrink-0" style={{ background: category?.type === "food" ? "rgba(124,58,237,0.12)" : "rgba(29,158,117,0.14)" }} />
               <div className="flex-1 min-w-0">
-                <div className="text-[14px] font-semibold text-[#1A1A2E] truncate">{r.name}</div>
-                <div className="text-[12.5px] text-activity/70 leading-snug">{r.why}</div>
+                <button type="button" onClick={() => setOpen(r)} className="block w-full text-left">
+                  <div className="text-[14px] font-semibold text-[#1A1A2E] truncate">{r.name}</div>
+                  <div className="text-[12.5px] text-activity/70 leading-snug">{r.why}</div>
+                </button>
                 <div className="text-[11px] text-activity/45 mt-0.5 flex items-center gap-1.5 flex-wrap">
                   {r.from === "travellers" && r.source ? <a href={r.source.url} target="_blank" rel="noreferrer" className="underline underline-offset-2">{r.source.name}</a> : <span>{r.from === "travellers" ? "Travellers" : "Google"}</span>}
                   {r.kids && <span className="px-1.5 rounded text-[10px] font-semibold" style={{ background: "#E7F3EC", color: "#1D7A55" }}>Good with kids</span>}
@@ -182,6 +191,84 @@ export default function FindSheet({
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+type Details = {
+  photos?: { photo_reference: string }[];
+  opening_hours?: { weekday_text?: string[] };
+  website?: string;
+  url?: string;
+  price_level?: number;
+};
+
+/**
+ * One place, opened from Find's list (29 Sep 2026: "if you click on any of
+ * them, it doesn't open"). Photos, rating, the traveller's reason and page,
+ * which of the journey's days it is shut, and where it is; Save stays at
+ * the foot. Google details and photos load on open, not for the whole list.
+ */
+function FindPlace({ r, dates, saved, onSave, onBack }: { r: FindResult; dates: string[]; saved: boolean; onSave: () => void; onBack: () => void }) {
+  const [d, setD] = useState<Details | null>(null);
+  const [photos, setPhotos] = useState<string[]>([]);
+  useEffect(() => {
+    let live = true;
+    void (async () => {
+      const res = await fetch(`/api/places/details?place_id=${encodeURIComponent(r.placeId)}`).then((x) => x.json()).catch(() => null) as { result?: Details } | null;
+      if (!live) return;
+      const det = res?.result ?? {};
+      setD(det);
+      const refs = (det.photos ?? []).slice(0, 4).map((p) => p.photo_reference);
+      const urls = await Promise.all(refs.map((ref) =>
+        fetch(`/api/places/photo/by-reference?photo_reference=${encodeURIComponent(ref)}&maxwidth=640`).then((x) => x.json()).then((j: { url?: string }) => j.url ?? null).catch(() => null)));
+      if (live) setPhotos(urls.filter((u): u is string => !!u));
+    })();
+    return () => { live = false; };
+  }, [r.placeId]);
+
+  const closed = closedOnTrip(d?.opening_hours?.weekday_text, dates);
+  const price = priceSigns(d?.price_level);
+  const facts = [r.rating != null ? `★ ${r.rating}` : null, r.reviews ? `${r.reviews.toLocaleString("en-US")} reviews` : null, price].filter(Boolean).join(" · ");
+  return (
+    <div className="flex-1 overflow-y-auto flex flex-col" role="region" aria-label={r.name}>
+      <div className="px-5 pt-3">
+        <button type="button" onClick={onBack} className="min-h-[36px] text-[13px] font-medium text-[#B0541F]">‹ Back to results</button>
+      </div>
+      <div className="flex gap-2 overflow-x-auto scrollbar-none px-5 py-2">
+        {photos.length > 0
+          // eslint-disable-next-line @next/next/no-img-element
+          ? photos.map((u) => <img key={u} src={u} alt="" className="h-40 w-60 flex-shrink-0 rounded-xl object-cover bg-gray-100" />)
+          : <div className="h-40 w-full rounded-xl bg-gray-100" aria-hidden />}
+      </div>
+      <div className="px-5 pb-4 flex flex-col gap-2">
+        <h3 className="text-[18px] font-semibold text-[#1A1A2E] leading-snug">{r.name}</h3>
+        {facts && <div className="text-[13px] text-activity/70">{facts}</div>}
+        <p className="text-[14px] text-[#1A1A2E] leading-snug">{r.why}</p>
+        {r.source && <a href={r.source.url} target="_blank" rel="noreferrer" className="text-[12.5px] text-activity/60 underline underline-offset-2">From {r.source.name}</a>}
+        {r.kids && <span className="self-start px-1.5 rounded text-[11px] font-semibold" style={{ background: "#E7F3EC", color: "#1D7A55" }}>Good with kids</span>}
+        {d && (closed.length > 0
+          ? <div className="text-[13px] font-medium text-[#B0541F]">Closed {closed.join(", ")}</div>
+          : d.opening_hours?.weekday_text?.length ? <div className="text-[13px] text-activity/70">Open every day you&apos;re there</div> : null)}
+        <div className="text-[13px] text-activity/70">{r.address}</div>
+        <div className="flex gap-4 text-[13px] font-medium">
+          {d?.url && <a href={d.url} target="_blank" rel="noreferrer" className="text-[#1A1A2E] underline underline-offset-2">Google Maps</a>}
+          {d?.website && <a href={d.website} target="_blank" rel="noreferrer" className="text-[#1A1A2E] underline underline-offset-2">Website</a>}
+        </div>
+        {d?.opening_hours?.weekday_text?.length ? (
+          <details className="text-[12.5px] text-activity/70">
+            <summary className="cursor-pointer">Hours</summary>
+            <ul className="mt-1">{d.opening_hours.weekday_text.map((l) => <li key={l}>{l}</li>)}</ul>
+          </details>
+        ) : null}
+      </div>
+      <div className="sticky bottom-0 mt-auto px-5 py-3 bg-white border-t" style={{ borderColor: "rgba(26,26,46,0.08)" }}>
+        <button type="button" onClick={onSave} disabled={saved}
+          className="w-full h-11 rounded-full text-[14px] font-semibold"
+          style={{ background: saved ? "#E7F3EC" : "#1A1A2E", color: saved ? "#1D7A55" : "#fff" }}>
+          {saved ? "Saved to your map ✓" : "Save to your map"}
+        </button>
       </div>
     </div>
   );

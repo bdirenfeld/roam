@@ -112,7 +112,10 @@ export default function PlanMyTripSheet({
           <div>
             <h2 className="text-[18px] font-semibold text-[#1A1A2E] leading-tight">Plan my trip</h2>
             <p className="text-[13px] mt-1" style={{ color: over ? "#9A5B00" : "rgba(26,26,46,0.62)" }}>
-              {places} saved {places === 1 ? "place" : "places"} · {needText} of {preview.free} free days
+              {/* "5 of 3 free days" read as nonsense (New York test, 29 Sep 2026). */}
+              {places} saved {places === 1 ? "place" : "places"} · {over
+                ? `about ${needText} days of places for ${preview.free} free, so some stay saved`
+                : `${needText} of ${preview.free} free days`}
             </p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">

@@ -20,7 +20,7 @@ import { planBatch, stayAnchor, type DayEdge } from "@/lib/week/dayPlan";
 import { cardTimes } from "@/lib/cardTime";
 import { toMin, toTime } from "@/lib/week/layout";
 import { dayShare } from "./dayGroups";
-import { hoursWindow, retimeDay, sightMinutes, type RetimeItem } from "./retime";
+import { hoursWindow, assumedWindow, retimeDay, sightMinutes, type RetimeItem } from "./retime";
 
 /** Where Plan my trip put a card; absent on everything else. */
 export interface PlanMark { day: string; start: string | null }
@@ -198,7 +198,7 @@ export function buildDraft(
     const items: RetimeItem[] = toAdd.filter((c) => !sameSite.has(c.id)).map((c) => {
       const pin = pinOf.get(c.id)!;
       const t = times.get(c.id);
-      const w = hoursWindow((c.place as unknown as { hours?: unknown }).hours, date);
+      const w = hoursWindow((c.place as unknown as { hours?: unknown }).hours, date) ?? assumedWindow(pin.types);
       const share = dayShare(pin);
       const meal = p.group.meals.some((m) => m.id === c.id);
       // With children on the trip a bar is a late evening, from nine, for

@@ -18,22 +18,26 @@ export interface FindCategory {
   subType: string;
   type: "activity" | "food";
   label: string;
-  /** Places a day this base should have, or null when there is no sensible target. */
-  perDay: number | null;
 }
 
-/** The sub-types Find looks for, in Roam's labels. Bars too on a family trip: they plan as a late evening. */
+/**
+ * Every place sub-type a traveller goes to, in Roam's labels: Find covers the
+ * whole list, not a slice (his call, 29 Sep 2026). No targets: "7 of 14" was
+ * a guess (Tamarindo has about eight restaurants worth listing, and a family
+ * with a kitchen eats in), and he asked where the numbers came from. Each chip
+ * shows only how many are saved.
+ */
 export const FIND_CATEGORIES: FindCategory[] = [
-  // Two a day: what Plan my trip puts in a full day (morning and afternoon).
-  // At one a day the Rome test (29 Sep 2026) read "7 of 7" and planned four
-  // days of seven.
-  { subType: "self_directed", type: "activity", label: "Explore", perDay: 2 },
-  { subType: "restaurant", type: "food", label: "Restaurant", perDay: 2 },
-  { subType: "coffee", type: "food", label: "Coffee", perDay: 1 },
-  { subType: "dessert", type: "food", label: "Dessert", perDay: null },
-  { subType: "guided", type: "activity", label: "Guided", perDay: null },
-  { subType: "bar", type: "food", label: "Bar", perDay: null },
-  { subType: "shopping", type: "activity", label: "Shopping", perDay: null },
+  { subType: "self_directed", type: "activity", label: "Explore" },
+  { subType: "restaurant", type: "food", label: "Restaurant" },
+  { subType: "coffee", type: "food", label: "Coffee" },
+  { subType: "dessert", type: "food", label: "Dessert" },
+  { subType: "bar", type: "food", label: "Bar" },
+  { subType: "guided", type: "activity", label: "Guided" },
+  { subType: "challenge", type: "activity", label: "Challenge" },
+  { subType: "wellness", type: "activity", label: "Wellness" },
+  { subType: "event", type: "activity", label: "Event" },
+  { subType: "shopping", type: "activity", label: "Shopping" },
 ];
 
 export interface FindBase {
@@ -45,7 +49,7 @@ export interface FindBase {
   counts: Record<string, number>;
 }
 
-export interface Gap { category: FindCategory; have: number; want: number | null; short: boolean }
+export interface Gap { category: FindCategory; have: number }
 
 type TripLike = { destination: string | null; destination_lat: number | null; destination_lng: number | null; start_date: string; end_date: string };
 
@@ -106,12 +110,7 @@ export function findBases(cards: Card[], trip: TripLike): FindBase[] {
   }).sort((a, b) => b.days - a.days);
 }
 
-/** A base's gaps: every Find category with what it has, what it wants, and whether it is short. */
+/** Every Find category with how many places this base already has in it. */
 export function gapsFor(base: FindBase): Gap[] {
-  return FIND_CATEGORIES
-    .map((category) => {
-      const have = base.counts[category.subType] ?? 0;
-      const want = category.perDay ? category.perDay * base.days : null;
-      return { category, have, want, short: want != null ? have < want : have === 0 };
-    });
+  return FIND_CATEGORIES.map((category) => ({ category, have: base.counts[category.subType] ?? 0 }));
 }

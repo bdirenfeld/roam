@@ -14,6 +14,9 @@ const GOOGLE_WORDS: Record<string, string> = {
   guided: "tours",
   bar: "cocktail bar",
   shopping: "shops",
+  challenge: "hikes and climbs",
+  wellness: "spa and massage",
+  event: "live shows and events",
 };
 
 export function googleQuery(subType: string, base: string, ask: string | null): string {

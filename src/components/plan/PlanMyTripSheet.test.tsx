@@ -89,4 +89,12 @@ describe("Plan my trip sheet", () => {
     expect(deleted).toEqual([["k1"]]);
     expect(toasts[0].message).toBe("Removed 1 place Plan my trip added");
   });
+
+  it("when the places need more days than the trip has, it says some stay saved, not 'N of fewer days'", () => {
+    // Tokyo alone: one area, many days of places, a two-day journey.
+    const tokyo = cards.filter((c) => c.place && Math.abs(c.place.lat! - 35.68) < 0.3 && Math.abs(c.place.lng! - 139.7) < 0.4);
+    render(<PlanMyTripSheet trip={trip} days={days.slice(0, 2)} cards={tokyo} onClose={vi.fn()} onDrafted={vi.fn()} />);
+    expect(screen.getByText(/so some stay saved/)).toBeTruthy();
+    expect(screen.queryByText(/of 1 free days/)).toBeNull();
+  });
 });

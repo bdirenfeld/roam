@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { hoursWindow, retimeDay, sightMinutes, type RetimeItem } from "./retime";
+import { hoursWindow, assumedWindow, retimeDay, sightMinutes, type RetimeItem } from "./retime";
 
 // Hours as Google saved them on Brennan's Japan places (live, 29 Sep 2026).
 const daily = (open: string, close: string, days = [0, 1, 2, 3, 4, 5, 6]) => ({ periods: days.map((d) => ({ open: { day: d, time: open }, close: { day: d, time: close } })) });
@@ -61,5 +61,13 @@ describe("retimeDay", () => {
   it("moves round a card already on the day", () => {
     const t = retimeDay([sight("a", H(10), 0.5, null)], [{ start: H(11), end: H(12) }]);
     expect(t.get("a")!.start).toBeGreaterThanOrEqual(H(12));
+  });
+});
+
+describe("assumedWindow", () => {
+  it("a museum with no hours on file keeps daytime hours; a park has no opinion", () => {
+    expect(assumedWindow(["museum", "tourist_attraction"])).toEqual({ open: 600, close: 1020 });
+    expect(assumedWindow(["park", "tourist_attraction"])).toBeNull();
+    expect(assumedWindow(null)).toBeNull();
   });
 });

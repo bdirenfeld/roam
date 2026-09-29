@@ -68,6 +68,7 @@ export function mergeFind(
 const FOOD = ["restaurant", "cafe", "bakery", "bar", "meal_takeaway", "meal_delivery", "food", "night_club", "liquor_store"];
 const SIGHT = ["tourist_attraction", "museum", "park", "church", "place_of_worship", "art_gallery", "zoo", "aquarium", "amusement_park", "natural_feature", "stadium", "library", "campground", "city_hall", "synagogue", "mosque", "hindu_temple"];
 const FOOD_SUBTYPES = ["restaurant", "coffee", "dessert", "bar"];
+const SHOP = ["store", "clothing_store", "shoe_store", "jewelry_store", "book_store", "department_store", "shopping_mall", "home_goods_store", "furniture_store", "electronics_store"];
 
 // Never a place to visit, in any category: a traveller's "Colosseo" came back
 // as the metro station and was planned as a 2.5-hour sight (Rome test 2).
@@ -79,7 +80,15 @@ export function fitsCategory(subType: string, types: string[] | undefined): bool
   const food = types.some((t) => FOOD.includes(t));
   if (FOOD_SUBTYPES.includes(subType)) return food;
   if (subType === "shopping") return !food || types.includes("store");
-  return !food || types.some((t) => SIGHT.includes(t));
+  const sight = types.some((t) => SIGHT.includes(t));
+  if (subType === "self_directed") {
+    // Costa Rica test (29 Sep 2026): tour companies ("travel_agency") and a
+    // clothing shop came back as places to explore. A tour is Guided; a shop
+    // that is not also a sight is Shopping.
+    if (types.includes("travel_agency")) return false;
+    if (types.some((t) => SHOP.includes(t)) && !sight) return false;
+  }
+  return !food || sight;
 }
 
 // Two names for one place (Rome test 2, 29 Sep 2026): a traveller's

@@ -1679,8 +1679,14 @@ the component mounted and you are looking at throttling, not a broken map.
 - A "Find" chip beside Filter (week's map at lg+, phone Map; owners only) opens `FindSheet`:
   places for what a BASE is short of, so nobody has to go to Instagram, Reddit or TikTok.
 - Categories are Roam's own sub-types, never new slices (his call: "our database is pretty
-  MECE"): `FIND_CATEGORIES` in `lib/find/gaps.ts`. Explore, Restaurant and Coffee have a per-day
-  target and show "have of want"; the rest show a count only.
+  MECE"): `FIND_CATEGORIES` in `lib/find/gaps.ts` is ALL ten food and activity sub-types
+  (Wellness, Challenge, Event added 29 Sep). NO targets: "7 of 14" was a guess he questioned
+  ("how are you getting the numbers"), and Tamarindo has ~8 restaurants worth listing while a
+  family with a kitchen eats in. A chip shows a count once something is saved. Do not re-add
+  targets; Plan my trip is what says a day is thin.
+- A tap on a result opens `FindPlace` in the sheet (his words: "if you click on any of them, it
+  doesn't open"): photos, rating, the traveller's reason and page, the journey's days it is shut
+  (`closedOnTrip`), Google Maps and website, hours, and Save. Details and photos load on open only.
 - Bases come from `findBases` (the same regions as Plan my trip and Where to stay). An empty map
   searches the destination as one base, so it works for a new journey; with no destination
   coordinates the sheet says to set one in Settings.
@@ -1689,8 +1695,7 @@ the component mounted and you are looking at throttling, not a broken map.
   never shows); in parallel Google textsearch. `lib/find/merge` puts travellers first, drops
   what is already on the journey and anything over 60 km out. Quota `find: 40` a day.
 - The Rome test (29 Sep 2026: an empty Rome built only with Find + Plan my trip, set beside his
-  real Rome) set four rules: Explore wants TWO a day (what a planned day holds; one a day planned
-  4 of 7 days); the Explore prompt asks for the must-sees first, then the ones first-timers skip
+  real Rome) set these rules: the Explore prompt asks for the must-sees first, then the ones first-timers skip
   (no Vatican or Pantheon came back when it asked for "not the obvious"); `fitsCategory` keeps
   a bakery out of Explore by Google types; and the sheet asks `mode: "google"` and
   `mode: "travellers"` separately, showing Google's in about a second. Both halves are cached
@@ -1707,5 +1712,9 @@ the component mounted and you are looking at throttling, not a broken map.
 - When no area fits the journey whole, Plan my trip ticks the biggest and plans it as far as the
   days go (New York test: one city, 13 places, 3 free days; nothing was ticked and nothing written).
 - `bulkImport` is 300 a day: Find saves one place per tap, and one tester hit 100 in an afternoon.
+- New York / Costa Rica tests (29 Sep 2026): Explore never takes a `travel_agency` (tour
+  companies are Guided) or a shop that is not also a sight (Shopping). A museum-like place with
+  no hours on file keeps daytime hours in Plan my trip (`assumedWindow` in lib/plan/retime): the
+  Museum of Natural History, reused from his real New York with no hours, was planned at 7:30 pm.
 - Save = bulk-import one place with the category's type + an `interested` card carrying
   `details.find {why, source}`. Plan my trip then fits it into a day.

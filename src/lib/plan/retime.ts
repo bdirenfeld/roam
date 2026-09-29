@@ -53,6 +53,16 @@ export function hoursWindow(hours: unknown, date: string): Window | "closed" | n
   return open === null || close === null ? "closed" : { open, close };
 }
 
+// Places that keep office hours whatever Google says, used when it says
+// nothing: the Museum of Natural History, saved without hours, was planned
+// at 7:30 pm (New York test, 29 Sep 2026).
+const DAYTIME = ["museum", "art_gallery", "zoo", "aquarium", "amusement_park", "library", "church", "place_of_worship"];
+
+/** The window to assume when a place's hours are unknown: a daytime one for museum-like places, else none. */
+export function assumedWindow(types: string[] | null | undefined): Window | null {
+  return (types ?? []).some((t) => DAYTIME.includes(t)) ? { open: 10 * 60, close: 17 * 60 } : null;
+}
+
 export interface RetimeItem {
   id: string;
   /** The planner's start, minutes after midnight; null when it gave none. */

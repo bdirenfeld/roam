@@ -39,13 +39,15 @@ describe("findBases", () => {
 });
 
 describe("gapsFor", () => {
-  it("uses only Roam's categories, with a target for coffee, restaurants and sights", () => {
+  it("covers every place sub-type Roam has, with a count and no target", () => {
     const gaps = gapsFor({ label: "Kyoto", lat: 35, lng: 135.7, days: 4, counts: { restaurant: 1, self_directed: 3 } });
     expect(gaps.map((g) => g.category.subType)).toEqual(FIND_CATEGORIES.map((c) => c.subType));
+    // Roam's taxonomy (CLAUDE.md): food 4 sub-types, activity 6. Logistics are not places you go.
+    expect(FIND_CATEGORIES.filter((c) => c.type === "food").map((c) => c.subType).sort()).toEqual(["bar", "coffee", "dessert", "restaurant"]);
+    expect(FIND_CATEGORIES.filter((c) => c.type === "activity").map((c) => c.subType).sort()).toEqual(["challenge", "event", "guided", "self_directed", "shopping", "wellness"]);
     const by = (s: string) => gaps.find((g) => g.category.subType === s)!;
-    expect(by("coffee")).toMatchObject({ have: 0, want: 4, short: true });
-    expect(by("restaurant")).toMatchObject({ have: 1, want: 8, short: true });
-    expect(by("self_directed")).toMatchObject({ have: 3, want: 8, short: true });
-    expect(by("dessert")).toMatchObject({ have: 0, want: null, short: true });
+    expect(by("restaurant")).toEqual({ category: expect.any(Object), have: 1 });
+    expect(by("self_directed").have).toBe(3);
+    expect(by("wellness").have).toBe(0);
   });
 });

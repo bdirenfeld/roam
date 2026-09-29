@@ -105,3 +105,16 @@ describe("samePlace, strict", () => {
     expect(samePlace(at("Colosseum", 41.8902, 12.4922), at("Colosseum", 41.95, 12.49), true)).toBe(false);
   });
 });
+
+describe("Costa Rica test fixes", () => {
+  it("a tour company is Guided, not Explore; a shop is Shopping", () => {
+    const tour = ["establishment", "point_of_interest", "travel_agency"];
+    expect(fitsCategory("self_directed", tour)).toBe(false);
+    expect(fitsCategory("guided", tour)).toBe(true);
+    const shop = ["clothing_store", "establishment", "point_of_interest", "store"];
+    expect(fitsCategory("self_directed", shop)).toBe(false);
+    expect(fitsCategory("shopping", shop)).toBe(true);
+    // A shop that is also a sight (a famous market, a landmark bookshop) stays.
+    expect(fitsCategory("self_directed", ["book_store", "store", "tourist_attraction"])).toBe(true);
+  });
+});

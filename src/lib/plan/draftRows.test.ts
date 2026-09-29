@@ -206,4 +206,10 @@ describe("a journey shorter than any one area", () => {
     const { rows } = buildDraft("t2", cards, four, { kids: true, regions: p.suggested });
     expect(rows.length).toBeGreaterThanOrEqual(6);
   });
+  it("a museum with no hours on file is not planned for the evening", () => {
+    const p = previewDraft(cards, four, true);
+    const { rows } = buildDraft("t2", cards, four, { kids: true, regions: p.suggested });
+    const museum = rows.find((r) => r.place_id === "q8");
+    if (museum?.start_time) expect(museum.start_time < "15:00").toBe(true);
+  });
 });
