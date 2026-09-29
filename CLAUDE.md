@@ -1671,3 +1671,6 @@ the component mounted and you are looking at throttling, not a broken map.
 - Bars (his call, 29 Sep): with children on the trip a bar is a late evening, from 9 pm (`LATE_BAR`), one a day; without, the usual evening slot. Google types were backfilled for his 183 older places the same day (merged into `details.types`); new saves already store them.
 - The phone day map no longer expands (29 Sep 2026): a tap on stacked pins zooms the small map;
   the Map screen is the full-screen map. DayMap still supports `expanded` for other hosts.
+- The phone day stays a LIST (29 Sep 2026). An Outlook-style hours view, a List/Hours toggle and
+  "2 h free" gap lines were mocked (https://claude.ai/artifact/ScNmgyHjoptUFd3qvMbDuN) and
+  declined: "no need to change". Do not re-propose unless he names it.
