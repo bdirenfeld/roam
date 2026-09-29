@@ -124,7 +124,9 @@ export async function POST(req: NextRequest) {
       return checked.filter((x): x is FindResult => x !== null);
     } catch (e) {
       console.error("[find] travellers:", e);
-      return [];
+      // Said, not swallowed: an empty answer read as "Nothing new to add here"
+      // while the Claude account was out of credit (29 Sep 2026).
+      throw e;
     }
   };
 
@@ -159,7 +161,12 @@ export async function POST(req: NextRequest) {
     }).filter((x): x is FindResult => x !== null);
   };
 
-  const found = mode === "travellers" ? await travellers() : await google();
+  let found: FindResult[];
+  try {
+    found = mode === "travellers" ? await travellers() : await google();
+  } catch {
+    return NextResponse.json({ error: "Travellers' picks are unavailable just now" }, { status: 502 });
+  }
   // Thumbnails (29 Sep 2026: "shouldn't the little squares have pictures?").
   // For every place kept (up to 20 from Google, 8 from travellers): a journey
   // with many places saved sees further down the list, and Rome's Explore

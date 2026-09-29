@@ -126,3 +126,16 @@ describe("a cooking class is a Tour", () => {
     expect(fitsCategory("guided", ["subway_station", "transit_station"])).toBe(false);
   });
 });
+
+describe("chains", () => {
+  it("one branch of a chain, the best placed", () => {
+    const NY = { lat: 40.75, lng: -73.99 };
+    const out = mergeFind(NY, [], [
+      r("a", "google", { name: "787 Coffee", lat: 40.740, lng: -74.003, rating: 4.7, reviews: 900 }),
+      r("b", "google", { name: "787 Coffee", lat: 40.774, lng: -73.956, rating: 4.6, reviews: 300 }),
+      r("c", "google", { name: "787 coffee", lat: 40.760, lng: -73.988, rating: 4.5, reviews: 200 }),
+      r("d", "google", { name: "Bird & Branch", lat: 40.760, lng: -73.991, rating: 4.6, reviews: 800 }),
+    ], new Set());
+    expect(out.map((x) => x.placeId)).toEqual(["a", "d"]);
+  });
+});

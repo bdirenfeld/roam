@@ -127,4 +127,21 @@ describe("Find sheet", () => {
     expect((coffee.body.near as { lat: number }[])[0].lat).toBeCloseTo(41.8902, 3);
     expect(finds().find((c) => c.body.subType === "restaurant")!.body.near).toBeUndefined();
   });
+
+  it("says so when a search fails, and tapping the category tries again", async () => {
+    let down = true;
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: { body: string }) => {
+      const body = init?.body ? JSON.parse(init.body) : {};
+      calls.push({ url, body });
+      if (body.subType === "event" && body.mode === "google") return { ok: true, status: 200, json: async () => ({ results: [] }) };
+      if (body.subType === "event") return down ? { ok: false, status: 502, json: async () => ({ error: "unavailable" }) } : { ok: true, status: 200, json: async () => ({ results: [result] }) };
+      return { ok: true, status: 200, json: async () => ({ results: [] }) };
+    }));
+    await act(async () => { render(<FindSheet trip={trip} days={[]} cards={[] as Card[]} onClose={vi.fn()} onSaved={vi.fn()} />); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Event" })); });
+    expect(screen.getByText("Couldn't find places just now. Tap the category to try again.")).toBeTruthy();
+    down = false;
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Event" })); });
+    expect(screen.getByText("Trattoria Da Enzo")).toBeTruthy();
+  });
 });

@@ -44,7 +44,7 @@ export default function FindSheet({
   const [ask, setAsk] = useState("");
   // Per search: Google's half (about a second) and the travellers' half (20-40 s,
   // instant when cached), each undefined until it answers.
-  type Halves = { google?: FindResult[]; travellers?: FindResult[]; failed?: boolean; quota?: boolean };
+  type Halves = { google?: FindResult[]; travellers?: FindResult[]; failed?: { google?: boolean; travellers?: boolean }; quota?: boolean };
   const [results, setResults] = useState<Record<string, Halves>>({});
   const [saved, setSaved] = useState<Set<string>>(() => new Set());
   const asked = useRef<string | null>(null);
@@ -70,10 +70,12 @@ export default function FindSheet({
           const j = await res.json() as { results?: FindResult[]; error?: string };
           if (!res.ok || !j.results) { failed = true; quota = res.status === 429; } else found = j.results;
         } catch { failed = true; }
+        // A failed half can be asked again: tapping the chip retries it.
+        if (failed) started.current.delete(k + "|" + mode);
         setResults((prev) => {
           const cur = prev[k] ?? {};
           // One half failing is not a failure while the other has places.
-          return { ...prev, [k]: { ...cur, [mode]: found, failed: (cur.failed ?? false) || failed, quota: (cur.quota ?? false) || quota } };
+          return { ...prev, [k]: { ...cur, [mode]: found, failed: { ...cur.failed, [mode]: failed }, quota: (cur.quota ?? false) || quota } };
         });
       })();
     }
@@ -108,8 +110,8 @@ export default function FindSheet({
   const bothIn = now.google !== undefined && now.travellers !== undefined;
   const loading = list.length === 0 && !bothIn;
   const reading = list.length > 0 && now.travellers === undefined;
-  const failed = bothIn && list.length === 0 && now.failed
-    ? (now.quota ? "You've used today's finds. Try again tomorrow." : "Couldn't find places just now. Try again.")
+  const failed = bothIn && list.length === 0 && (now.failed?.google || now.failed?.travellers)
+    ? (now.quota ? "You've used today's finds. Try again tomorrow." : "Couldn't find places just now. Tap the category to try again.")
     : null;
   const category = gaps.find((g) => g.category.subType === sub)?.category;
 

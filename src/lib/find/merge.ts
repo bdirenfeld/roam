@@ -56,10 +56,13 @@ export function mergeFind(
   const ranked = [...google].sort((a, b) => (b.rating ?? 0) * Math.log10((b.reviews ?? 0) + 10) - (a.rating ?? 0) * Math.log10((a.reviews ?? 0) + 10));
   for (const r of [...travellers, ...ranked]) {
     if (out.length >= MAX_RESULTS) break;
-    if (seen.has(r.placeId) || onJourney(r)) continue;
+    // One branch of a chain: 787 Coffee came back four times near New York's sights.
+    const name = "name:" + r.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (seen.has(r.placeId) || seen.has(name) || onJourney(r)) continue;
     if (km(base, r) > FAR_KM) continue;
     if (r.from === "google" && !wellRated(r.rating, r.reviews)) continue;
     seen.add(r.placeId);
+    seen.add(name);
     out.push(r);
   }
   return out;
