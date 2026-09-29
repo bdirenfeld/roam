@@ -16,6 +16,9 @@ import { groupPins, km, type Grouping, type Pin } from "./dayGroups";
 import { placeGroups, regionLabel, freeDays, type DraftDay } from "./draftTrip";
 import { planBatch, stayAnchor, type DayEdge } from "@/lib/week/dayPlan";
 import { cardTimes } from "@/lib/cardTime";
+import { toMin, toTime } from "@/lib/week/layout";
+import { dayShare } from "./dayGroups";
+import { hoursWindow, retimeDay, sightMinutes, type RetimeItem } from "./retime";
 
 export const isDraft = (c: { details?: unknown }): boolean => (c.details as Record<string, unknown> | null | undefined)?.draft === true;
 
@@ -133,12 +136,44 @@ export function buildDraft(
     const edge: DayEdge = { first: i === 0, last: i === dayIds.length - 1 };
     const picked = [...p.group.items, ...p.group.meals].map((pin) => byId.get(pin.id)).filter((c): c is Card => !!c);
     const { toAdd, times } = planBatch(picked, on, stayAnchor(dayIds, scheduled, p.dayId), { edge });
+    // The planner's order, then real lengths and opening hours (./retime).
+    const date = dd[i].date;
+    const pinOf = new Map([...p.group.items, ...p.group.meals].map((x) => [x.id, x]));
+    const town = p.group.items.some((x) => (x.types ?? []).includes("locality"));
+    const inTown = toAdd.filter((c) => { const x = pinOf.get(c.id)!; return town && dayShare(x) < 1 && x.type === "activity" && !p.group.meals.some((m) => m.id === c.id); }).length;
+    // Two whole-day places on one site (Super Nintendo World inside Universal
+    // Studios) share one day: the second takes the first's hours.
+    const sameSite = new Map<string, string>();
+    toAdd.forEach((c, k) => {
+      const x = pinOf.get(c.id)!;
+      if (dayShare(x) < 1 || x.lat == null || x.lng == null) return;
+      const first = toAdd.slice(0, k).find((o) => { const y = pinOf.get(o.id)!; return dayShare(y) >= 1 && y.lat != null && y.lng != null && km({ lat: x.lat!, lng: x.lng! }, { lat: y.lat!, lng: y.lng! }) < 0.6; });
+      if (first) sameSite.set(c.id, first.id);
+    });
+    const items: RetimeItem[] = toAdd.filter((c) => !sameSite.has(c.id)).map((c) => {
+      const pin = pinOf.get(c.id)!;
+      const t = times.get(c.id);
+      const w = hoursWindow((c.place as unknown as { hours?: unknown }).hours, date);
+      const share = dayShare(pin);
+      const meal = p.group.meals.some((m) => m.id === c.id);
+      return {
+        id: c.id, start: t ? toMin(t.start) : null, end: t ? toMin(t.end) : null,
+        kind: meal ? "meal" : "sight",
+        // Inside a pinned town (Kamakura's beach) a place is part of the
+        // town's day: an hour and a half each, and the town leaves room.
+        minutes: town && share < 1 ? 90 : town && share >= 1 ? Math.max(180, sightMinutes(1) - 105 * inTown) : sightMinutes(share),
+        whole: share >= 1, window: w === "closed" ? { open: 0, close: 0 } : w,
+      };
+    });
+    const fixed = on.flatMap((c) => { const t = cardTimes(c); return t.start ? [{ start: toMin(t.start), end: t.end ? toMin(t.end) : toMin(t.start) + 60 }] : []; });
+    const real = retimeDay(items, fixed);
+    sameSite.forEach((first, id) => real.set(id, real.get(first) ?? null));
     let pos = on.reduce((m, c) => Math.max(m, c.position ?? 0), 0);
     for (const c of toAdd) {
-      const t = times.get(c.id);
+      const t = real.get(c.id);
       rows.push({
         day_id: p.dayId, trip_id: tripId, place_id: c.place_id as string, status: "in_itinerary", position: ++pos,
-        start_time: t?.start ?? null, end_time: t?.end ?? null, source_url: null,
+        start_time: t ? toTime(t.start) : null, end_time: t ? toTime(t.end) : null, source_url: null,
         details: { draft: true }, ai_generated: true, confirmed: false,
       });
     }

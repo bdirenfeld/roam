@@ -10,7 +10,11 @@ const saved = (fixture.trips.find((t) => t.title === "Japan")!.pins as Row[]).ma
   id: `c${i}`, trip_id: "t1", day_id: null, status: "interested", position: 0, details: {}, start_time: null, end_time: null,
   place_id: `p${i}`,
   place: { id: `p${i}`, title: p.t, type: p.ty, sub_type: p.st, lat: p.la, lng: p.ln, address: null, details: { types: p.types ?? [] },
-    hours: p.open ? { weekday_text: DAYNAMES.map((d, k) => `${d}: ${p.open![k] === "1" ? "9:00 AM – 6:00 PM" : "Closed"}`) } : null },
+    hours: p.open ? {
+      weekday_text: DAYNAMES.map((d, k) => `${d}: ${p.open![k] === "1" ? "9:00 AM – 6:00 PM" : "Closed"}`),
+      // Google's periods are Sunday-first; the fixture's open string is Monday-first.
+      periods: [0, 1, 2, 3, 4, 5, 6].filter((g) => p.open![(g + 6) % 7] === "1").map((g) => ({ open: { day: g, time: "0900" }, close: { day: g, time: "1800" } })),
+    } : null },
 })) as unknown as Card[];
 const days = Array.from({ length: 14 }, (_, i) => ({ id: `d${i + 1}`, day_number: i + 1, date: new Date(Date.UTC(2028, 3, 2 + i)).toISOString().slice(0, 10) }));
 const DOW = (dayId: string) => (new Date(days.find((d) => d.id === dayId)!.date + "T00:00:00Z").getUTCDay() + 6) % 7;
@@ -81,5 +85,26 @@ describe("which regions are ticked", () => {
     expect(p.suggested[0]).toBe(byPlace("Ghibli Museum"));
     expect(p.suggested).toContain(byPlace("Universal Studios Japan"));
     expect(p.suggested).not.toContain(byPlace("Yakushima Island"));
+  });
+});
+
+import { hoursWindow } from "./retime";
+describe("the draft keeps to opening hours and real lengths", () => {
+  it("every timed card is inside its place's hours that day, and a theme park is the day", () => {
+    const p = previewDraft(saved, days, true);
+    const { rows } = buildDraft("t1", saved, days, { kids: true, regions: p.suggested });
+    const byPlace = new Map(saved.map((c) => [c.place_id, c]));
+    const min = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+    for (const r of rows.filter((x) => x.start_time)) {
+      const date = days.find((d) => d.id === r.day_id)!.date;
+      const w = hoursWindow((byPlace.get(r.place_id)!.place as unknown as { hours: unknown }).hours, date);
+      expect(w).not.toBe("closed");
+      if (w && w !== "closed") {
+        expect(min(r.start_time!)).toBeGreaterThanOrEqual(w.open);
+        expect(min(r.end_time!)).toBeLessThanOrEqual(w.close);
+      }
+    }
+    const sea = rows.find((r) => byPlace.get(r.place_id)!.place!.title === "Tokyo DisneySea")!;
+    expect(min(sea.end_time!) - min(sea.start_time!)).toBeGreaterThanOrEqual(6 * 60);
   });
 });
