@@ -55,12 +55,23 @@ export interface Region {
 export interface Grouping {
   regions: Region[];
   groups: DayGroup[];
+  /** Days the groups need, with half a day for each move between regions. */
+  daysNeeded: number;
   /** Meals no group had room for: options, not days. */
   spareMeals: Pin[];
   left: { pin: Pin; reason: string }[];
 }
 
 export const REGION_KM = 45;
+/**
+ * A day everything in is a short walk apart can hold more: Brennan's own
+ * full city days ran about seven hours (Sydney day 2: the Opera House, the
+ * Rocks, Barangaroo and a playground, all within 2.5 km).
+ */
+export const WALKABLE_KM = 2.5;
+const WALKABLE_LOAD = 1.25;
+/** Moving between regions costs half a day. */
+export const MOVE_DAYS = 0.5;
 /** Widest a day may spread. */
 export const SPAN_KM = 15;
 const MEAL_KM = 3;
@@ -137,6 +148,12 @@ export function loadOf(items: Pin[]): number {
 
 export function groupPins(pins: Pin[], opts: { kids: boolean }): Grouping {
   const maxItems = opts.kids ? 3 : 4;
+  const fits = (items: (Pin & { lat: number; lng: number })[]) => {
+    let far = 0;
+    for (let a = 0; a < items.length; a++) for (let b = a + 1; b < items.length; b++) far = Math.max(far, km(items[a], items[b]));
+    const walkable = far <= WALKABLE_KM;
+    return items.length <= maxItems + (walkable ? 1 : 0) && loadOf(items) <= (walkable ? WALKABLE_LOAD : 1);
+  };
   const left: Grouping["left"] = [];
   const acts: (Pin & { lat: number; lng: number })[] = [];
   const meals: (Pin & { lat: number; lng: number })[] = [];
@@ -183,7 +200,7 @@ export function groupPins(pins: Pin[], opts: { kids: boolean }): Grouping {
       let best: { i: number; j: number; d: number } | null = null;
       for (let i = 0; i < gs.length; i++) for (let j = i + 1; j < gs.length; j++) {
         const items = [...gs[i].items, ...gs[j].items];
-        if (items.length > maxItems || loadOf(items) > 1) continue;
+        if (!fits(items)) continue;
         if (!andDays(gs[i].open, gs[j].open).includes("1")) continue;
         let reach = 0;
         for (const a of gs[i].items) for (const b of gs[j].items) reach = Math.max(reach, km(a, b));
@@ -198,7 +215,7 @@ export function groupPins(pins: Pin[], opts: { kids: boolean }): Grouping {
     // nearest group it fits.
     for (const small of gs.filter((g) => g.items.length === 1 && loadOf(g.items) <= 0.25)) {
       const home = gs
-        .filter((g) => g !== small && g.items.length < maxItems && loadOf([...g.items, ...small.items]) <= 1 && andDays(g.open, small.open).includes("1"))
+        .filter((g) => g !== small && fits([...g.items, ...small.items]) && andDays(g.open, small.open).includes("1"))
         .map((g) => ({ g, d: Math.max(...g.items.map((i) => km(i, small.items[0]))) }))
         .filter((c) => c.d <= span)
         .sort((a, b) => a.d - b.d)[0];
@@ -233,5 +250,7 @@ export function groupPins(pins: Pin[], opts: { kids: boolean }): Grouping {
     const days = groups.filter((g) => g.region === r).length;
     regions.push({ id: r, centre: centreOf(inR), days, pins: inR.length });
   }
-  return { regions, groups, spareMeals, left };
+  const visited = regions.filter((r) => r.days > 0).length;
+  const daysNeeded = groups.length + MOVE_DAYS * Math.max(0, visited - 1);
+  return { regions, groups, daysNeeded, spareMeals, left };
 }

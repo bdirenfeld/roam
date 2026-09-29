@@ -30,12 +30,22 @@ describe("groupPins on Brennan's journeys", () => {
     const g = run("Japan");
     const tokyo = g.groups[groupOf(g, "Ghibli Museum")].region;
     expect(g.regions.find((r) => r.id === tokyo)!.days).toBe(5);
-    expect(g.groups.length).toBeGreaterThan(14);
+    // 17 day-groups across 9 regions, plus half a day for each of 8 moves.
+    expect(g.groups.length).toBe(17);
+    expect(g.daysNeeded).toBe(21);
   });
 
   it("Japan: bars are left for you when children travel", () => {
     const g = run("Japan");
     expect(g.left.filter((l) => l.reason.startsWith("A bar"))).toHaveLength(6);
+  });
+
+  it("Rome: a walkable day holds more (Villa Borghese, the Spanish Steps, Trevi)", () => {
+    const g = run("Rome");
+    const day = g.groups[groupOf(g, "Villa Borghese Morning")];
+    expect(day.items.map((p) => p.title)).toEqual(expect.arrayContaining(["Spanish Steps", "Trevi Fountain"]));
+    expect(day.items.length).toBe(4);
+    expect(g.daysNeeded).toBe(6);
   });
 
   it("Sydney: Bondi with Bronte, the Opera House with the Rocks", () => {
@@ -56,8 +66,8 @@ describe("groupPins on Brennan's journeys", () => {
     for (const t of trips) {
       const g = groupPins(t.pins, { kids: t.kids });
       for (const x of g.groups) {
-        expect(x.load).toBeLessThanOrEqual(1);
-        expect(x.items.length).toBeLessThanOrEqual(t.kids ? 3 : 4);
+        expect(x.load).toBeLessThanOrEqual(1.25);
+        expect(x.items.length).toBeLessThanOrEqual(t.kids ? 4 : 5);
         expect(x.openDays).toMatch(/1/);
       }
       const placed = [...g.groups.flatMap((x) => [...x.items, ...x.meals]), ...g.spareMeals, ...g.left.map((l) => l.pin)].map((p) => p.id);
