@@ -1762,3 +1762,9 @@ the component mounted and you are looking at throttling, not a broken map.
   to /plan; a phone or a guest to the day. The card used to hit the front door or the day, whose
   day-shaped loading screen flashed before the week ("takes me to the old day view for a second").
 - Find's place view has ‹ › arrows on its photos: with a mouse the strip could not be moved.
+- Plan my trip writes each new card's note in his house format (`lib/plan/notes`): `**Intent**`
+  one sentence, then `**Know before you go**` bullets, plus that day's hours from the place's saved
+  hours (`dayHoursLine`). `api/plan/notes` runs after the insert, in the background: one Claude call
+  for the places not yet written, cached per place (and kids/adults) in `find_cache` under
+  `note|<google id>|…`, never overwriting a card that has notes. His request: "for each card you
+  need an overview and a know before you go written". Quota `planNotes` 30/day.

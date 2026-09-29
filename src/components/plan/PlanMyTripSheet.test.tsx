@@ -52,9 +52,16 @@ describe("Plan my trip sheet", () => {
 
   it("plans the trip in one insert and hands the cards back", async () => {
     const onDrafted = vi.fn(), onClose = vi.fn();
+    const asked: { url: string; body: { tripId: string; cardIds: string[] } }[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init: { body: string }) => { asked.push({ url, body: JSON.parse(init.body) }); return { json: async () => ({ written: 0 }) }; }));
     render(<PlanMyTripSheet trip={trip} days={days} cards={cards} onClose={onClose} onDrafted={onDrafted} />);
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Plan the trip" })); });
     expect(inserted).toHaveLength(1);
+    // Every new card's Intent and Know before you go is asked for, in one request.
+    expect(asked).toHaveLength(1);
+    expect(asked[0].url).toBe("/api/plan/notes");
+    expect(asked[0].body.cardIds.sort()).toEqual(inserted[0].map((r) => r.id as string).sort());
+    vi.unstubAllGlobals();
     const rows = inserted[0];
     expect(rows.length).toBeGreaterThan(10);
     expect(rows.every((r) => (r.details as { plan?: { day: string } }).plan?.day === r.day_id && r.status === "in_itinerary" && typeof r.id === "string")).toBe(true);

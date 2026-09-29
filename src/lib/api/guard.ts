@@ -66,5 +66,6 @@ export const QUOTA = {
   stayWrite:     100,  // choose / save / not-for-us
   shareSuggest:   60,  // a TikTok shared in: caption → Claude Haiku → Google
   find:           40,  // Find: Claude with web search + Google checks; cache misses only (29 Sep 2026)
+  planNotes:      30,  // Plan my trip notes: one Claude call per plan, places not yet written
   findGoogle:    200,  // Find: the fast Google half; cache misses only
 } as const;
