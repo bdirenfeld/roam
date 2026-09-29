@@ -14,7 +14,9 @@
  * Mock: https://claude.ai/artifact/Wtio2jYAqHFkA5Kmcq9CDq
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import PlanMyTripSheet from "./PlanMyTripSheet";
+import { pinsToPlan } from "@/lib/plan/draftRows";
 import { searchCountries } from "@/lib/entry/countries";
 import { dayChip, spansMonths } from "@/lib/dayChip";
 import { startZoomFor } from "@/lib/places/regions";
@@ -77,6 +79,8 @@ interface Props {
   showStays?: boolean;
   onCloseStays?: () => void;
   onStaysChanged?: () => void;
+  /** Plan my trip made draft cards (28 Sep 2026); the board adds them. */
+  onDraftCreated?: (created: Card[]) => void;
 }
 
 type Marker = { marker: any; wrapper: HTMLElement; inner: HTMLElement; cardRef: { current: Card } }; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -85,7 +89,10 @@ function placed(c: Card): boolean {
   return typeof c.place?.lat === "number" && typeof c.place?.lng === "number";
 }
 
-export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onHover, onCardUpdate, onCardCreated, onCardDelete, onPinDragStart, hot, wide, onToggleWide, onPutMany, onClusterDragStart, selectionEpoch, showStays, onCloseStays, onStaysChanged }: Props) {
+export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onHover, onCardUpdate, onCardCreated, onCardDelete, onPinDragStart, hot, wide, onToggleWide, onPutMany, onClusterDragStart, selectionEpoch, showStays, onCloseStays, onStaysChanged, onDraftCreated }: Props) {
+  // Plan my trip: a chip beside Filter while saved places are off the days.
+  const [planOpen, setPlanOpen] = useState(false);
+  const toPlan = useMemo(() => (onDraftCreated ? pinsToPlan(cards).length : 0), [cards, onDraftCreated]);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
   const mbRef = useRef<any>(null);  // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -524,12 +531,22 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
             </div>
           </div>
         )}
+        <div className="flex items-center gap-2">
         <button onClick={() => setFilterOpen((v) => !v)} className={`self-start flex items-center gap-1.5 ${PILL}`} style={{ backdropFilter: "blur(8px)", background: filterOpen ? "#1A1A2E" : "rgba(255,255,255,0.9)", color: filterOpen ? "#FFFFFF" : "#374151", boxShadow: "0 1px 4px rgba(0,0,0,0.15)" }}>
           <Funnel size={13} weight="light" color={filterOpen ? "#FFFFFF" : "#374151"} />
           {filterOpen ? "Done" : "Filter"}
           {!filterOpen && narrowed > 0 && <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold" style={{ background: "#B0541F", color: "#FFFFFF" }}>{narrowed}</span>}
         </button>
+        {!filterOpen && toPlan >= 2 && (
+          <button onClick={() => setPlanOpen(true)} className={`flex items-center gap-1.5 ${PILL}`} style={{ backdropFilter: "blur(8px)", background: "rgba(255,255,255,0.9)", color: "#1A1A2E", boxShadow: "0 1px 4px rgba(0,0,0,0.15)" }}>
+            Plan my trip
+          </button>
+        )}
+        </div>
       </div>
+      {planOpen && onDraftCreated && (
+        <PlanMyTripSheet trip={trip} days={days} cards={cards} onClose={() => setPlanOpen(false)} onDrafted={onDraftCreated} />
+      )}
       {showStays && onCloseStays && (
         <WhereToStaySheet
           panel

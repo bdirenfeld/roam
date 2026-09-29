@@ -29,7 +29,7 @@ export default async function TripMapPage({ params }: Props) {
       .select(`
         *,
         place:places (
-          id, title, type, sub_type, lat, lng, address, google_place_id, cover_image_url, rating, price_level, website, phone, hours, loved, loved_at
+          id, title, type, sub_type, lat, lng, address, google_place_id, cover_image_url, rating, price_level, website, phone, hours, loved, loved_at, types:details->types
         )
       `)
       .eq("trip_id", tripId)

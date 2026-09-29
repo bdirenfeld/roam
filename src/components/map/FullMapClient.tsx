@@ -3,7 +3,7 @@
 import "mapbox-gl/dist/mapbox-gl.css";
 import { dayChip, spansMonths } from "@/lib/dayChip";
 import { startZoomFor } from "@/lib/places/regions";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import MapPinPopup from "./MapPinPopup";
 import MapSidebar, { SIDEBAR_SUB_TYPES, GROUPS } from "./MapSidebar";
@@ -34,6 +34,8 @@ import { createClient } from "@/lib/supabase/client";
 import { scheduleCardOnDay } from "@/lib/scheduleCard";
 import { planBatch, plannedOtherDays, stayAnchor } from "@/lib/week/dayPlan";
 import { tapFilter } from "@/lib/map/tapFilter";
+import PlanMyTripSheet from "@/components/plan/PlanMyTripSheet";
+import { pinsToPlan, isDraft } from "@/lib/plan/draftRows";
 
 // Purple circular pin for search result previews
 
@@ -91,7 +93,11 @@ const MARKERS = new Map<string, MarkerEntry>();
 
 // userAvatarUrl stays in Props for the page that passes it; the avatar disc
 // it fed left with the one header (consistency sweep, Sep 2026).
-export default function FullMapClient({ trip, days, cards, readOnly = false }: Props) {
+export default function FullMapClient({ trip, days, cards: allCards, readOnly = false }: Props) {
+  // A guest never sees a "Plan my trip" draft (28 Sep 2026).
+  const cards = useMemo(() => (readOnly ? allCards.filter((c) => !isDraft(c)) : allCards), [allCards, readOnly]);
+  const [planOpen, setPlanOpen] = useState(false);
+  const toPlan = useMemo(() => (readOnly ? 0 : pinsToPlan(cards).length), [cards, readOnly]);
   const mapContainerRef  = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapInstRef       = useRef<any>(null);
@@ -1060,7 +1066,9 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
             </div>
           )}
 
-          {/* Filter button — always at bottom of the stack */}
+          {/* Filter button — always at bottom of the stack; Plan my trip
+              beside it while saved places are off the days (28 Sep 2026). */}
+          <div className="flex items-center gap-2">
           <button
             onClick={() => setFilterOpen((v) => !v)}
             className="self-start flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors duration-200"
@@ -1082,7 +1090,31 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
               </span>
             )}
           </button>
+          {!readOnly && !filterOpen && toPlan >= 2 && (
+            <button
+              onClick={() => setPlanOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium"
+              style={{ backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", background: "rgba(255,255,255,0.9)", color: "#1A1A2E" }}
+            >
+              Plan my trip
+            </button>
+          )}
+          </div>
         </div>
+        {planOpen && (
+          <PlanMyTripSheet
+            trip={trip}
+            days={days}
+            cards={cards}
+            onClose={() => setPlanOpen(false)}
+            onDrafted={(created) => {
+              // The draft is read on the day: go to its first day.
+              const order = new Map(days.map((d) => [d.id, d.day_number]));
+              const first = [...created].sort((a, b) => (order.get(a.day_id) ?? 0) - (order.get(b.day_id) ?? 0))[0];
+              if (first) router.push(`/trips/${trip.id}/days/${first.day_id}`);
+            }}
+          />
+        )}
 
 
 

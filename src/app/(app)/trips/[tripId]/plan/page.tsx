@@ -28,7 +28,7 @@ export default async function PlanPage({ params }: Props) {
   const CARD_SELECT = `
     *,
     place:places (
-      id, title, type, sub_type, lat, lng, address, google_place_id, cover_image_url, rating, price_level, website, phone, hours, loved, loved_at, photo_count
+      id, title, type, sub_type, lat, lng, address, google_place_id, cover_image_url, rating, price_level, website, phone, hours, loved, loved_at, photo_count, types:details->types
     ),
     card_attachments ( id )
   `;
@@ -78,7 +78,6 @@ export default async function PlanPage({ params }: Props) {
         .select(CARD_SELECT)
         .eq("trip_id", tripId)
         .eq("status", "interested")
-        .is("day_id", null)
         .not("place_id", "is", null)
         .not("archived", "is", true),
     ]);
@@ -112,7 +111,13 @@ export default async function PlanPage({ params }: Props) {
   void [lists, listCardList];
   const listsWithCards: ListWithCards[] = [];
 
-  const saved = ((savedCards ?? []) as Card[]).filter((c) => c.place && c.place.lat != null && c.place.lng != null);
+  // A saved place is saved whatever day it carries: 31 of Japan's 48 saved
+  // pins hold a stale day_id, and filtering on `day_id is null` left them off
+  // the week's map and out of "Plan my trip" (28 Sep 2026). The pile reads
+  // them as dayless; the rows are not touched.
+  const saved = ((savedCards ?? []) as Card[])
+    .filter((c) => c.place && c.place.lat != null && c.place.lng != null)
+    .map((c) => (c.day_id ? { ...c, day_id: null as unknown as string } : c));
 
   return (
     <PlanSwitch

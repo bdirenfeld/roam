@@ -31,6 +31,7 @@ export interface Pin {
   open?: string | null;
   /** Google place types, when saved. */
   types?: string[] | null;
+  address?: string | null;
 }
 
 export interface DayGroup {
