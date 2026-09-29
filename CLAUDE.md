@@ -1696,5 +1696,13 @@ the component mounted and you are looking at throttling, not a broken map.
   `mode: "travellers"` separately, showing Google's in about a second. Both halves are cached
   30 days in `public.find_cache` (service role only, shared by everyone, keyed by
   `cacheKey`: rounded base, category, question, kids or not); only misses count to quota.
+- Rome test 2 (same day) added: `NOT_A_PLACE` types (a traveller's "Colosseo" came back as the
+  metro station); `samePlace` merges a traveller's pick into Google's listing of the same place
+  (close by + a shared name stem: Colosseo/Colosseum, Pantheon/its piazza) and, strict (same name,
+  500 m), keeps what is already on the journey from coming back under another listing; the list
+  shows up to 12 (`MAX_SHOWN`) so two sights a day is reachable without typing.
+- Plan my trip spreads a light trip (`spreadGroups` in draftRows): when full days leave more
+  free days than one rest day a week, places are regrouped lighter (`loadCap` 0.75, then 0.5)
+  while they still fit. Rome's eight sights were three packed days and four empty ones.
 - Save = bulk-import one place with the category's type + an `interested` card carrying
   `details.find {why, source}`. Plan my trip then fits it into a day.

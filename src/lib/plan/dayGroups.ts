@@ -159,13 +159,19 @@ export function loadOf(items: Pin[]): number {
   return load;
 }
 
-export function groupPins(pins: Pin[], opts: { kids: boolean }): Grouping {
+/**
+ * `loadCap` below 1 fills each day less: draftRows asks for it when a trip
+ * has more days than its places need, so they spread out instead of three
+ * packed days and four empty ones (Rome test, 29 Sep 2026).
+ */
+export function groupPins(pins: Pin[], opts: { kids: boolean; loadCap?: number }): Grouping {
   const maxItems = opts.kids ? 3 : 4;
+  const fill = opts.loadCap ?? 1;
   const fits = (items: (Pin & { lat: number; lng: number })[]) => {
     let far = 0;
     for (let a = 0; a < items.length; a++) for (let b = a + 1; b < items.length; b++) far = Math.max(far, km(items[a], items[b]));
     const walkable = far <= WALKABLE_KM;
-    return items.length <= maxItems + (walkable ? 1 : 0) && loadOf(items) <= (walkable ? WALKABLE_LOAD : 1);
+    return items.length <= maxItems + (walkable ? 1 : 0) && loadOf(items) <= (walkable ? WALKABLE_LOAD : 1) * fill;
   };
   const left: Grouping["left"] = [];
   const acts: (Pin & { lat: number; lng: number })[] = [];

@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
   if (!trip) return NextResponse.json({ error: "Journey not found" }, { status: 404 });
   const [{ data: people }, { data: onTrip }] = await Promise.all([
     gate.supabase.from("people").select("birthdate").eq("trip_id", tripId),
-    gate.supabase.from("cards").select("place:places(google_place_id)").eq("trip_id", tripId).not("archived", "is", true),
+    gate.supabase.from("cards").select("place:places(google_place_id, title, lat, lng)").eq("trip_id", tripId).not("archived", "is", true),
   ]);
   const start = Date.parse(trip.start_date + "T12:00:00Z");
   const ages = [
@@ -56,13 +56,15 @@ export async function POST(req: NextRequest) {
     ...((people ?? []).map((p) => (p.birthdate ? Math.floor((start - Date.parse(p.birthdate + "T12:00:00Z")) / (365.25 * 86_400_000)) : null)).filter((a): a is number => a != null)),
   ];
   const childAges = ages.filter((a) => a < 13);
-  const already = new Set(((onTrip ?? []) as unknown as { place: { google_place_id: string | null } | null }[]).map((c) => c.place?.google_place_id).filter((x): x is string => !!x));
+  const tripPlaces = ((onTrip ?? []) as unknown as { place: { google_place_id: string | null; title: string; lat: number | null; lng: number | null } | null }[]).map((c) => c.place).filter((p): p is NonNullable<typeof p> => !!p);
+  const already = new Set(tripPlaces.map((p) => p.google_place_id).filter((x): x is string => !!x));
+  const known = tripPlaces.filter((p) => p.lat != null && p.lng != null).map((p) => ({ name: p.title, lat: p.lat!, lng: p.lng! }));
   const country = (trip.destination ?? "").split(",").pop()?.trim() || null;
   const month = new Date(start).toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
   const ask = typeof body?.ask === "string" ? body.ask.slice(0, 120) : null;
   const key = cacheKey({ mode, lat: base.lat, lng: base.lng, subType, ask, kids: childAges.length > 0 });
   const answer = (found: FindResult[]) => NextResponse.json({
-    results: mode === "travellers" ? mergeFind({ lat: base.lat!, lng: base.lng! }, found, [], already) : mergeFind({ lat: base.lat!, lng: base.lng! }, [], found, already),
+    results: mode === "travellers" ? mergeFind({ lat: base.lat!, lng: base.lng! }, found, [], already, known) : mergeFind({ lat: base.lat!, lng: base.lng! }, [], found, already, known),
     mode,
   });
 
@@ -123,7 +125,7 @@ export async function POST(req: NextRequest) {
     u.searchParams.set("radius", "15000");
     u.searchParams.set("key", googleKey);
     const j = await fetch(u.toString()).then((r) => r.json()).catch(() => null) as { results?: GPlace[] } | null;
-    return (j?.results ?? []).slice(0, 12).map((g) => {
+    return (j?.results ?? []).slice(0, 20).map((g) => {
       const kids = childAges.length > 0 && (g.types ?? []).some((t) => KIDS_TYPES.includes(t));
       const why = g.rating ? `Rated ${g.rating} on Google from ${(g.user_ratings_total ?? 0).toLocaleString("en-US")} reviews.` : "Well rated on Google.";
       return toResult(g, "google", why, null, kids);

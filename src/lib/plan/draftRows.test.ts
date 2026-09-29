@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import fixture from "./fixtures/trips.json";
 import type { Card } from "@/types/database";
-import { buildDraft, previewDraft, draftDays, pinsToPlan, openFromHours, untouchedPlan } from "./draftRows";
+import { buildDraft, previewDraft, draftDays, pinsToPlan, openFromHours, untouchedPlan, spreadGroups } from "./draftRows";
+import { groupPins, type Pin } from "./dayGroups";
 
 // Japan's saved pins as the app holds them: one saved card per place, 2–15 April 2028.
 const DAYNAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -141,5 +142,34 @@ describe("a bar on a family trip is a late evening", () => {
   it("with children it starts at nine or later; without, at the usual evening hour", () => {
     expect(barTime(true)! >= "21:00").toBe(true);
     expect(barTime(false)! < "21:00").toBe(true);
+  });
+});
+
+describe("spreadGroups", () => {
+  // Rome test 2 (29 Sep 2026): eight sights saved with Find, seven days
+  // (six free). Grouped as full days they made three packed days and left
+  // four empty; a person spreads them.
+  const sight = (id: string, lat: number, lng: number, types: string[], subType = "self_directed"): Pin =>
+    ({ id, title: id, type: "activity", subType, lat, lng, types });
+  const TA = ["tourist_attraction", "point_of_interest"];
+  const rome: Pin[] = [
+    sight("San Clemente", 41.8893, 12.4976, ["church", ...TA]),
+    sight("Colosseum", 41.8902, 12.4922, TA),
+    sight("Colosseum tour", 41.8930, 12.4893, ["point_of_interest"], "guided"),
+    sight("Galleria Borghese", 41.9142, 12.4921, ["museum", ...TA]),
+    sight("Santa Costanza", 41.9226, 12.5174, ["church", ...TA]),
+    sight("Pantheon", 41.8992, 12.4770, TA),
+    sight("Palazzo Sciarra", 41.8998, 12.4813, ["museum", ...TA]),
+    sight("Trevi Fountain", 41.9009, 12.4833, TA, "guided"),
+  ];
+  it("spreads a light trip over its days instead of packing it", () => {
+    const packed = groupPins(rome, { kids: false });
+    const spread = spreadGroups(rome, false, 6);
+    expect(packed.groups.length).toBeLessThanOrEqual(3);
+    expect(spread.groups.length).toBeGreaterThanOrEqual(5);
+    expect(spread.daysNeeded).toBeLessThanOrEqual(6);
+  });
+  it("leaves a full trip as it was", () => {
+    expect(spreadGroups(rome, false, 3).groups.length).toBe(groupPins(rome, { kids: false }).groups.length);
   });
 });

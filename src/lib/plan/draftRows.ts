@@ -99,11 +99,31 @@ export interface DraftPreview {
   suggested: number[];
 }
 
+/**
+ * Days as full as they need to be, and no fuller. Places are grouped into
+ * full days first; when that leaves more free days than a rest day a week,
+ * they are grouped again, lighter, as long as they still fit. Rome with
+ * nine sights and seven days came out as three packed days and four empty
+ * ones (29 Sep 2026); a person spreads them. A trip with more places than
+ * days (Japan) never gets here.
+ */
+export function spreadGroups(pins: Pin[], kids: boolean, free: number): Grouping {
+  let grouping = groupPins(pins, { kids });
+  const room = Math.floor(free) - Math.floor(free / 7);
+  for (const loadCap of [0.75, 0.5]) {
+    if (grouping.daysNeeded >= room) break;
+    const lighter = groupPins(pins, { kids, loadCap });
+    if (lighter.daysNeeded > room) break;
+    grouping = lighter;
+  }
+  return grouping;
+}
+
 export function previewDraft(cards: Card[], days: Pick<Day, "id" | "date" | "day_number">[], kids: boolean): DraftPreview {
   const pins = pinsToPlan(cards);
-  const grouping = groupPins(pins, { kids });
   const scheduled = cards.filter((c) => c.status === "in_itinerary" && c.day_id);
   const free = freeDays(draftDays(days, scheduled));
+  const grouping = spreadGroups(pins, kids, free);
   const regions = grouping.regions.filter((r) => r.days > 0).map((r) => {
     const mine = grouping.groups.filter((g) => g.region === r.id).flatMap((g) => g.items);
     return { id: r.id, label: regionLabel(mine) ?? mine[0]?.title ?? "Somewhere", days: r.days, places: r.pins };
