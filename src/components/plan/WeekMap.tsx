@@ -16,6 +16,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PlanMyTripSheet from "./PlanMyTripSheet";
+import { stackOrder, restack } from "@/lib/map/pinStack";
 import FindSheet from "./FindSheet";
 import { pinsToPlan, untouchedPlan } from "@/lib/plan/draftRows";
 import { searchCountries } from "@/lib/entry/countries";
@@ -363,6 +364,8 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
     markers.current.forEach((m, id) => {
       if (!seen.has(id)) { m.marker.remove(); markers.current.delete(id); }
     });
+    // A rebuilt or returning pin lands on top; put them all back in one order (lib/map/pinStack).
+    restack(stackOrder(Array.from(markers.current.values()).map((m) => ({ status: m.wrapper.dataset.status, el: m.wrapper }))).map((m) => m.el));
   }, [cards, ready, anchorFor]);
 
   // ── hover lift and day fade, on the inner disc (Mapbox owns the wrapper's opacity) ──

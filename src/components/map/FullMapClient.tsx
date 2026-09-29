@@ -1,6 +1,7 @@
 "use client";
 
 import "mapbox-gl/dist/mapbox-gl.css";
+import { stackOrder, restack } from "@/lib/map/pinStack";
 import { dayChip, spansMonths } from "@/lib/dayChip";
 import { startZoomFor } from "@/lib/places/regions";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
@@ -344,6 +345,13 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
     setAnchorPos(null);
   }
 
+  // One stacking order whatever was toggled last (lib/map/pinStack): Mapbox
+  // puts a pin that comes back on top of everything.
+  const restackAll = useCallback(() => {
+    const all = Array.from(MARKERS.values()).map((m) => ({ status: m.cardRef.current.status, el: m.marker.getElement() }));
+    restack(stackOrder(all).map((m) => m.el));
+  }, []);
+
   // ── Sync all marker visibility against type + sub-type + status toggles ─
   const syncVisibility = useCallback(() => {
     const map = mapInstRef.current;
@@ -360,6 +368,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
       const show = activeTypesRef.current.has(type) && subTypeOk && statusOk && lovedOk;
       if (show) marker.addTo(map); else marker.remove();
     });
+    restackAll();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleSubTypesChange(next: Set<string>) {
@@ -434,6 +443,8 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
     if (activeTypesRef.current.has(place.type) && subTypeOk && statusOk && lovedOk) {
       mbMarker.addTo(map);
     }
+    // Registered below; restack once it is in MARKERS.
+    queueMicrotask(() => restackAll());
 
     attachLongPress(mbMarker.getElement(), cardRef);
     mbMarker.getElement().addEventListener("click", (e: MouseEvent) => {
@@ -780,6 +791,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
 
           MARKERS.set(card.id, { marker: mbMarker, type: place.type, cardRef });
         });
+        restackAll();
 
         setMapReady(true);
 

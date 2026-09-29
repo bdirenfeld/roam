@@ -1724,3 +1724,14 @@ the component mounted and you are looking at throttling, not a broken map.
   across the chips never waits. Only cache misses count to quota.
 - Save = bulk-import one place with the category's type + an `interested` card carrying
   `details.find {why, source}`. Plan my trip then fits it into a day.
+
+## Map pins keep one stacking order (29 Sep 2026)
+- Mapbox's `Marker.addTo` appends a returning pin to the end of the canvas container (on top) and
+  does nothing for one already shown, so the stacking followed whatever was toggled last: Food
+  off and on laid food over activities, and a place's pale saved pin could cover its planned one
+  (Brennan: "it kind of puts the icons behind it"). `lib/map/pinStack` `restack(stackOrder(...))`
+  runs after every filter change, pin add and the first build on the full Map, and after the
+  week's map follows its cards: saved under planned, otherwise card order. `pinStack.test.ts`
+  reads both map files and fails if either stops restacking.
+- Find's thumbnails are resolved for every kept result (Rome's Explore showed photos on 5 of 12
+  when only the top 12 were done: a journey with many places saved sees further down the list).

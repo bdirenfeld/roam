@@ -134,11 +134,12 @@ export async function POST(req: NextRequest) {
 
   const found = mode === "travellers" ? await travellers() : await google();
   // Thumbnails (29 Sep 2026: "shouldn't the little squares have pictures?").
-  // Only for what the list could show, resolved once here and kept with the
-  // answer in the shared cache, so a photo is paid for once per place per
-  // month, not on every open. A failed one leaves the plain tile.
-  const likely = new Set((mode === "travellers" ? mergeFind(base as { lat: number; lng: number }, found, [], new Set()) : mergeFind(base as { lat: number; lng: number }, [], found, new Set())).map((r) => r.placeId));
-  await Promise.all(found.filter((r) => r.photoRef && likely.has(r.placeId)).map(async (r) => {
+  // For every place kept (up to 20 from Google, 8 from travellers): a journey
+  // with many places saved sees further down the list, and Rome's Explore
+  // showed photos on 5 of 12 when only the top 12 were done. Resolved once
+  // here and kept with the answer in the shared cache, so a photo is paid for
+  // once per place per month, not on every open. A failed one leaves the tile.
+  await Promise.all(found.filter((r) => r.photoRef).map(async (r) => {
     const u = new URL("https://maps.googleapis.com/maps/api/place/photo");
     u.searchParams.set("photoreference", r.photoRef!);
     u.searchParams.set("maxwidth", "240");
