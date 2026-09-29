@@ -1665,6 +1665,6 @@ the component mounted and you are looking at throttling, not a broken map.
   base's (`byPlan`, after check-in dates). The draft tray and the day's bar link to it.
 - The saved pile on the week loads saved cards whatever `day_id` they carry (31 of Japan's hold a
   stale day one); they read as dayless.
-- Open, his call: bars on a trip with children are left for him (option: one late evening).
+- Bars (his call, 29 Sep): with children on the trip a bar is a late evening, from 9 pm (`LATE_BAR`), one a day; without, the usual evening slot. Google types were backfilled for his 183 older places the same day (merged into `details.types`); new saves already store them.
 - The phone day map no longer expands (29 Sep 2026): a tap on stacked pins zooms the small map;
   the Map screen is the full-screen map. DayMap still supports `expanded` for other hosts.

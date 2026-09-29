@@ -60,9 +60,11 @@ describe("Plan my trip sheet", () => {
     expect((onDrafted.mock.calls[0][0] as Card[])[0].place).toBeTruthy();
     expect(toasts[0].message).toMatch(/^Draft on \d+ days/);
     expect(onClose).toHaveBeenCalled();
-    // No bars for a party of five with no ages saved: they may be children.
+    // A party of five with no ages saved may have children: bars are a late evening, from nine.
     const bars = cards.filter((c) => c.place!.sub_type === "bar").map((c) => c.place_id);
-    expect(rows.some((r) => bars.includes(r.place_id as string))).toBe(false);
+    const barRows = rows.filter((r) => bars.includes(r.place_id as string));
+    expect(barRows.length).toBeGreaterThan(0);
+    for (const r of barRows) if (r.start_time) expect((r.start_time as string) >= "21:00").toBe(true);
   });
 
   it("unticking a region leaves its places out", async () => {

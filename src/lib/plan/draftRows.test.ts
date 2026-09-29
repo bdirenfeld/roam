@@ -125,3 +125,17 @@ describe("travel days and the stamp shop", () => {
     expect([0, 6]).toContain(dow);
   });
 });
+
+describe("a bar on a family trip is a late evening", () => {
+  const mk = (id: string, title: string, type: string, sub: string, lat: number, lng: number) => ({
+    id, trip_id: "t1", day_id: null, status: "interested", position: 0, details: {}, start_time: null, end_time: null, place_id: "p" + id,
+    place: { id: "p" + id, title, type, sub_type: sub, lat, lng, address: null, types: [], hours: null },
+  }) as unknown as Card;
+  const pair = [mk("s", "A museum", "activity", "self_directed", 35.68, 139.76), mk("b", "A bar", "food", "bar", 35.681, 139.761)];
+  const three = days.slice(1, 4); // three middle days, all full
+  const barTime = (kids: boolean) => buildDraft("t1", pair, three, { kids }).rows.find((r) => r.place_id === "pb")?.start_time;
+  it("with children it starts at nine or later; without, at the usual evening hour", () => {
+    expect(barTime(true)! >= "21:00").toBe(true);
+    expect(barTime(false)! < "21:00").toBe(true);
+  });
+});

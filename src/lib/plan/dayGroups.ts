@@ -16,8 +16,9 @@
  *   MAX_ITEMS places, SPAN_KM across, one weekday everything is open).
  * - Meals and coffee take no day time: each joins the nearest group with a
  *   free slot open that day; the rest are spare options, not extra days.
- * - Bars on a journey with children, and anything with no location, are left
- *   for the person to place.
+ * - Anything with no location is left for the person to place. A bar joins a
+ *   day like a meal, one a day; with children on the trip it is a late
+ *   evening, after nine (lib/plan/draftRows; Brennan, 29 Sep 2026).
  */
 
 export interface Pin {
@@ -177,7 +178,6 @@ export function groupPins(pins: Pin[], opts: { kids: boolean }): Grouping {
     if (p.type === "logistics") continue;
     if (!located(p)) { left.push({ pin: p, reason: "No location" }); continue; }
     if (p.type === "food") {
-      if (p.subType === "bar" && opts.kids) { left.push({ pin: p, reason: "A bar, with children on the trip" }); continue; }
       meals.push(p);
       continue;
     }

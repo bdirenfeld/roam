@@ -30,6 +30,8 @@ export function openFromHours(hours: unknown): string | null {
 }
 
 const FLIGHT = new Set(["flight_arrival", "flight_departure"]);
+/** A bar on a trip with children starts no earlier than nine. */
+export const LATE_BAR = 21 * 60;
 
 /**
  * How much of each day is free: a planned sight takes it; a flight leaves
@@ -163,8 +165,13 @@ export function buildDraft(
       const w = hoursWindow((c.place as unknown as { hours?: unknown }).hours, date);
       const share = dayShare(pin);
       const meal = p.group.meals.some((m) => m.id === c.id);
+      // With children on the trip a bar is a late evening, from nine, for
+      // whoever goes out once they are down (Brennan, 29 Sep 2026).
+      const late = opts.kids && pin.subType === "bar";
+      const s0 = t ? toMin(t.start) : null;
+      const start = late ? Math.max(s0 ?? LATE_BAR, LATE_BAR) : s0;
       return {
-        id: c.id, start: t ? toMin(t.start) : null, end: t ? toMin(t.end) : null,
+        id: c.id, start, end: late ? start! + 90 : t ? toMin(t.end) : null,
         kind: meal ? "meal" : "sight",
         // Inside a pinned town (Kamakura's beach) a place is part of the
         // town's day: an hour and a half each, and the town leaves room.

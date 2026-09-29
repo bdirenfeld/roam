@@ -35,9 +35,11 @@ describe("groupPins on Brennan's journeys", () => {
     expect(g.daysNeeded).toBe(20.5);
   });
 
-  it("Japan: bars are left for you when children travel", () => {
+  it("Japan: bars join days like a meal, one a day", () => {
     const g = run("Japan");
-    expect(g.left.filter((l) => l.reason.startsWith("A bar"))).toHaveLength(6);
+    expect(g.left.filter((l) => /bar/i.test(l.reason))).toHaveLength(0);
+    expect(g.groups.every((x) => x.meals.filter((m) => m.subType === "bar").length <= 1)).toBe(true);
+    expect(g.groups.some((x) => x.meals.some((m) => m.subType === "bar"))).toBe(true);
   });
 
   it("Rome: a day whose places are all a short walk apart holds more", () => {
