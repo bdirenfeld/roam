@@ -38,3 +38,13 @@ describe("the doors to Plan my trip", () => {
     expect(week).toMatch(/onDraftCreated=\{draftCreated\}/);
   });
 });
+
+describe("the draft leads to Where to stay", () => {
+  it("the week's tray and the day's bar both open it", () => {
+    expect(read("src/components/plan/WeekBoard.tsx")).toMatch(/setShowStays\(true\); setMapWide\(true\); \}\}[^>]*>Where to stay</);
+    expect(read("src/components/day/DayViewClient.tsx")).toMatch(/map\?stays=1`\)\}[^>]*>Where to stay</);
+  });
+  it("Plan my trip and Where to stay share one rule for a base", () => {
+    expect(read("src/lib/plan/dayGroups.ts")).toMatch(/export \{ REGION_KM \} from "@\/lib\/stays\/brief"/);
+  });
+});

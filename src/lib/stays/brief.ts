@@ -111,7 +111,7 @@ const SPLIT_KM = 50;
 // How far apart two places have to be to be different bases rather than one
 // area with a day trip in it. Lucca to Florence is 60 km and IS one base with
 // a day trip; Tokyo to Osaka is 400 km and is not.
-const REGION_KM = 100;
+export const REGION_KM = 100;
 // A region earns a base with this many pins, or this share of the journey.
 const REGION_MIN_PINS = 2;
 const REGION_MIN_SHARE = 0.1;
@@ -396,7 +396,9 @@ export function buildStayBrief(input: BriefInput): StayBrief {
   const booked = input.pins.filter((p) => isStay(p) && p.lat != null && p.lng != null && onDay(p));
   const regions = cluster([...rest, ...booked, ...booked], REGION_KM)
     .map((c) => ({ c, pins: c.pins.length }))
-    .filter((r) => r.pins >= REGION_MIN_PINS && r.pins >= rest.length * REGION_MIN_SHARE)
+    // A region with a day planned in it is a base whatever its size: the plan
+    // says you go there (29 Sep 2026, Plan my trip).
+    .filter((r) => r.c.pins.some((p) => p.dayDate) || (r.pins >= REGION_MIN_PINS && r.pins >= rest.length * REGION_MIN_SHARE))
     .sort((a, b) => b.pins - a.pins);
   const room = Math.floor(nights / MIN_NIGHTS_PER_BASE);
   // The biggest regions earn a base; then they run in the order the journey
@@ -419,7 +421,15 @@ export function buildStayBrief(input: BriefInput): StayBrief {
   const ins = keep.map((r) => checkIn(r.c));
   const at = ins.map((d) => (d ? dayList.indexOf(d) : -1));
   const byDates = keep.length > 1 && at.every((x, i) => x >= 0 && (i === 0 || x > at[i - 1]));
-  const dated = byDates ? at.map((x, i) => (i === keep.length - 1 ? nights : at[i + 1]) - (i === 0 ? 0 : x)) : null;
+  // Without every check-in, the planned days say it instead (29 Sep 2026):
+  // when each base's places sit on days, in order, a base runs from its
+  // first planned day to the next base's — the same nights Plan my trip
+  // drafted, so the two screens agree on where you sleep.
+  const planStart = keep.map((r) => { const d = firstDay(r.c); return d ? dayList.indexOf(d) : -1; });
+  const byPlan = !byDates && keep.length > 1 && planStart.every((x, i) => x >= 0 && (i === 0 || x > planStart[i - 1]));
+  const dated = byDates
+    ? at.map((x, i) => (i === keep.length - 1 ? nights : at[i + 1]) - (i === 0 ? 0 : x))
+    : byPlan ? planStart.map((x, i) => (i === keep.length - 1 ? nights : planStart[i + 1]) - (i === 0 ? 0 : x)) : null;
   let left = nights;
   const bases = keep.map((r, i) => {
     const share = dated ? dated[i] : i === keep.length - 1

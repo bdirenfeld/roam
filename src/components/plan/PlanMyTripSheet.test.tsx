@@ -45,7 +45,7 @@ describe("Plan my trip sheet", () => {
     const regions = screen.getAllByRole("button", { pressed: true });
     expect(regions.length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByRole("button", { pressed: false }).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/of 14 free days/)).toBeTruthy();
+    expect(screen.getByText(/of 13 free days/)).toBeTruthy();
   });
 
   it("makes one insert of draft cards and hands them back", async () => {

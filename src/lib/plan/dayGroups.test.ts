@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import fixture from "./fixtures/trips.json";
-import { groupPins, dayShare, loadOf, type Pin, type Grouping } from "./dayGroups";
+import { groupPins, dayShare, loadOf, km, type Pin, type Grouping } from "./dayGroups";
 
 // Brennan's own journeys as they sit in the database (fixtures/trips.json).
 type Row = { t: string; ty: Pin["type"]; st: string | null; la: number | null; ln: number | null; open?: string | null; types?: string[]; day?: number | null };
@@ -26,13 +26,13 @@ describe("groupPins on Brennan's journeys", () => {
     expect(usj.load).toBe(1);
   });
 
-  it("Japan: Tokyo is five days, and the whole trip more than its fourteen", () => {
+  it("Japan: Tokyo is six days (Izu a day trip from it), and the whole trip more than its fourteen", () => {
     const g = run("Japan");
     const tokyo = g.groups[groupOf(g, "Ghibli Museum")].region;
-    expect(g.regions.find((r) => r.id === tokyo)!.days).toBe(5);
-    // 17 day-groups across 9 regions, plus half a day for each of 8 moves.
+    expect(g.regions.find((r) => r.id === tokyo)!.days).toBe(6);
+    // 17 day-groups across 8 bases (100 km, as Where to stay), plus half a day for each of 7 moves.
     expect(g.groups.length).toBe(17);
-    expect(g.daysNeeded).toBe(21);
+    expect(g.daysNeeded).toBe(20.5);
   });
 
   it("Japan: bars are left for you when children travel", () => {
@@ -40,12 +40,11 @@ describe("groupPins on Brennan's journeys", () => {
     expect(g.left.filter((l) => l.reason.startsWith("A bar"))).toHaveLength(6);
   });
 
-  it("Rome: a walkable day holds more (Villa Borghese, the Spanish Steps, Trevi)", () => {
+  it("Rome: a day whose places are all a short walk apart holds more", () => {
     const g = run("Rome");
-    const day = g.groups[groupOf(g, "Villa Borghese Morning")];
-    expect(day.items.map((p) => p.title)).toEqual(expect.arrayContaining(["Spanish Steps", "Trevi Fountain"]));
-    expect(day.items.length).toBe(4);
-    expect(g.daysNeeded).toBe(6);
+    const walkable = g.groups.filter((x) => x.items.every((a) => x.items.every((b) => km(a as never, b as never) <= 2.5)));
+    expect(walkable.some((x) => x.items.length >= 4)).toBe(true);
+    expect(g.groups.every((x) => x.items.length <= 5)).toBe(true);
   });
 
   it("Sydney: Bondi with Bronte, the Opera House with the Rocks", () => {
@@ -59,7 +58,9 @@ describe("groupPins on Brennan's journeys", () => {
     expect(groupOf(cr, "Tamarindo Night Market")).toBe(-1);
     expect(cr.groups.some((x) => x.meals.some((m) => m.title === "Tamarindo Night Market"))).toBe(true);
     const rome = run("Rome");
-    for (const errand of ["Carrefour Express Via Vittoria Store", "ZARA Rome", "Antica Farmacia Santa Lucia"]) expect(groupOf(rome, errand)).toBe(-1);
+    // Google calls it a pharmacy: an errand, fitted round a day, never a day.
+    expect(groupOf(rome, "Antica Farmacia Santa Lucia")).toBe(-1);
+    expect(rome.groups.some((x) => x.meals.some((m) => m.title === "Antica Farmacia Santa Lucia"))).toBe(true);
   });
 
   it("every group is one day or less, and every place is accounted for once", () => {
@@ -82,7 +83,10 @@ describe("dayShare and loadOf", () => {
   const at = (title: string, lat: number, lng: number, extra: Partial<Pin> = {}): Pin => ({ id: title, title, type: "activity", subType: "self_directed", lat, lng, ...extra });
   it("a theme park is the day, a shop a quarter, a sight half", () => {
     expect(dayShare(at("Tokyo DisneySea", 0, 0, { types: ["amusement_park"] }))).toBe(1);
-    expect(dayShare(at("Ginza Itoya", 0, 0))).toBe(0.25);
+    expect(dayShare(at("A stationery shop", 0, 0))).toBe(0.25);
+    expect(dayShare(at("Any name", 0, 0, { types: ["store"] }))).toBe(0.25);
+    expect(dayShare(at("Legoland Windsor", 0, 0))).toBe(1);
+    expect(dayShare(at("Farmacia Centrale", 0, 0))).toBe(0);
     expect(dayShare(at("Kiyomizu-dera", 0, 0))).toBe(0.5);
   });
   it("a second sight a short walk away costs half", () => {

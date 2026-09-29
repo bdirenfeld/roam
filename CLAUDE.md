@@ -1642,3 +1642,29 @@ the component mounted and you are looking at throttling, not a broken map.
   strip, and the desktop calendar still goes by month.
 - Both calendars' mark reads are in `archivedReads.test.ts`; the desktop one had no archived
   guard until this change.
+
+## Plan my trip (28–29 Sep 2026)
+- A chip beside Filter (the week's map at lg+, the phone Map) opens `PlanMyTripSheet`: the saved
+  places not on any day become a DRAFT — ordinary scheduled copies with `details.draft = true`,
+  `ai_generated = true`. Keep clears the mark; Clear deletes the draft cards (week tray, the
+  day "…" menu, the phone day's bar; "Keep all days"). Guests never see a draft (shared page,
+  Map and day filter them; `lib/ui/draftGuests.test.ts`). Nothing already on a day is touched.
+- The engine is `lib/plan`, all rules, all tested on his real pins (`fixtures/trips.json`):
+  `dayGroups` (places → day-sized groups; a region = a BASE, the same `REGION_KM` 100 km as
+  `lib/stays/brief`), `draftTrip` (groups → days: shortest loop home via `roundTrip`, first and
+  last days half, travel day half, never a closed weekday, fewest-open-days first, spare days
+  spread), `retime` (real lengths — whole day ~7 h, half 2.5 h, shop 1 h — and opening hours;
+  what cannot fit its hours is left untimed), `draftRows` (composes them; `hasChildren` from
+  ages, then birthdates, then party ≥ 3).
+- **No place names in rules.** Brennan, 29 Sep: "we can't just make these one-offs." Types from
+  Google first (`types:details->types` is selected on the plan and map pages), then general words
+  only; theme-park chains are the one list allowed. Japan/Rome/Costa Rica/Australia are TEST
+  CASES, never special cases.
+- Where to stay agrees: a region with a planned day is a base whatever its size, and when every
+  base's places sit on days in order, its nights run from its first planned day to the next
+  base's (`byPlan`, after check-in dates). The draft tray and the day's bar link to it.
+- The saved pile on the week loads saved cards whatever `day_id` they carry (31 of Japan's hold a
+  stale day one); they read as dayless.
+- Open, his call: bars on a trip with children are left for him (option: one late evening).
+- The phone day map no longer expands (29 Sep 2026): a tap on stacked pins zooms the small map;
+  the Map screen is the full-screen map. DayMap still supports `expanded` for other hosts.

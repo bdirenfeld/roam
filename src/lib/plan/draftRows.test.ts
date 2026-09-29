@@ -23,10 +23,10 @@ describe("Plan my trip, end to end on Japan", () => {
   const preview = previewDraft(saved, days, true);
 
   it("says the pins don't fit and suggests regions that do", () => {
-    expect(preview.free).toBe(14);
+    expect(preview.free).toBe(13); // 14 days, the first and last half days
     const need = preview.regions.filter((r) => preview.suggested.includes(r.id)).reduce((s, r) => s + r.days, 0) + 0.5 * (preview.suggested.length - 1);
-    expect(need).toBeLessThanOrEqual(14);
-    expect(preview.regions.reduce((s, r) => s + r.days, 0)).toBeGreaterThan(14);
+    expect(need).toBeLessThanOrEqual(13);
+    expect(preview.regions.reduce((s, r) => s + r.days, 0)).toBeGreaterThan(13);
   });
 
   it("drafts timed cards on free days, never on a closed day, each place once", () => {
@@ -106,5 +106,22 @@ describe("the draft keeps to opening hours and real lengths", () => {
     }
     const sea = rows.find((r) => byPlace.get(r.place_id)!.place!.title === "Tokyo DisneySea")!;
     expect(min(sea.end_time!) - min(sea.start_time!)).toBeGreaterThanOrEqual(6 * 60);
+  });
+});
+
+describe("travel days and the stamp shop", () => {
+  it("the first and last days are half days even with no flight saved", () => {
+    const dd = draftDays(days, []);
+    expect(dd[0].free).toBe(0.5);
+    expect(dd[13].free).toBe(0.5);
+    expect(dd[5].free).toBe(1);
+  });
+  it("a place open only at weekends gets Tokyo's weekend, not DisneySea", () => {
+    const p = previewDraft(saved, days, true);
+    const { rows } = buildDraft("t1", saved, days, { kids: true, regions: p.suggested });
+    const stamps = rows.find((r) => saved.find((c) => c.place_id === r.place_id)!.place!.title.startsWith("Shinimonogurui"));
+    expect(stamps).toBeTruthy();
+    const dow = new Date(days.find((d) => d.id === stamps!.day_id)!.date + "T00:00:00Z").getUTCDay();
+    expect([0, 6]).toContain(dow);
   });
 });

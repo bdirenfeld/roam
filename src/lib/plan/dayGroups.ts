@@ -63,7 +63,14 @@ export interface Grouping {
   left: { pin: Pin; reason: string }[];
 }
 
-export const REGION_KM = 45;
+/**
+ * A region is a base: where you sleep. One number with Where to stay
+ * (lib/stays/brief), so the two agree on where you are each night (29 Sep
+ * 2026) — Lucca and Florence (60 km) are one villa with a day trip; Tokyo
+ * and Osaka are two bases.
+ */
+export { REGION_KM } from "@/lib/stays/brief";
+import { REGION_KM } from "@/lib/stays/brief";
 /**
  * A day everything in is a short walk apart can hold more: Brennan's own
  * full city days ran about seven hours (Sydney day 2: the Opera House, the
@@ -81,17 +88,21 @@ const WALK_KM = 1;
 /** A pinned town's day covers what is inside it (Kamakura and its beach). */
 const TOWN_KM = 5;
 
-const WHOLE_TYPES = ["amusement_park", "zoo", "locality", "national_park"];
-const WHOLE_NAME = /disney|universal studios|nintendo world|national park|wildlife park|island|gorge|monkey park|wine tour|day trip|luna park/i;
-const SMALL_TYPES = ["store", "shopping_mall", "clothing_store", "book_store"];
-const SMALL_NAME = /\btoys?\b|stamps?\b|itoya|kyukyodo|massage|wellness|spa\b/i;
+// What a place costs of a day comes from Google's place types first; the
+// name is read only for general words, never for particular places (29 Sep
+// 2026, Brennan: "we can't just make these one-offs"). The chains are theme
+// parks that are the same everywhere, not places on one journey.
+const WHOLE_TYPES = ["amusement_park", "zoo", "aquarium", "locality", "national_park"];
+const WHOLE_NAME = /\b(theme park|amusement park|water ?park|safari|national park|wildlife park|island|gorge|canyon|day trip|excursion|wine tour|food tour)\b|\b(disney(land|sea|world)?|universal studios|legoland|six flags|seaworld|europa-park|portaventura)\b/i;
+const SMALL_TYPES = ["store", "shopping_mall", "clothing_store", "book_store", "department_store", "jewelry_store", "home_goods_store", "shoe_store", "spa", "beauty_salon"];
+const SMALL_NAME = /\b(shop|store|boutique|stationery|stationer|market|mall|outlet|toys?|massage|spa|wellness)\b/i;
 /** Errands fit around a day the way a coffee does; they never make one. */
 const ERRAND_TYPES = ["pharmacy", "supermarket", "grocery_or_supermarket", "convenience_store"];
-const ERRAND_NAME = /carrefour|farmacia|pharmacy|supermarket|\bzara\b/i;
+const ERRAND_NAME = /\b(pharmacy|chemist|drugstore|farmacia|pharmacie|apotheke|supermarket|supermercato|supermarché|grocery|convenience store)\b/i;
 export const isErrand = (p: Pin) =>
   p.type === "activity" && ((p.types ?? []).some((t) => ERRAND_TYPES.includes(t)) || ERRAND_NAME.test(p.title));
 const NOT_A_VISIT = ["taxi_stand", "travel_agency_office"];
-const NOT_A_VISIT_NAME = /^stazione taxi|taxi stand/i;
+const NOT_A_VISIT_NAME = /\btaxi\b/i;
 /** Evening things join a day the way dinner does: a night walk, a night market, golden hour. */
 const EVENING_NAME = /night walk|night market|golden hour|sunset|evening|aperitivo/i;
 export const isEvening = (p: Pin) => p.type === "activity" && EVENING_NAME.test(p.title);

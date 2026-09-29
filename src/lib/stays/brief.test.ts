@@ -248,3 +248,26 @@ describe("booked stays set the nights", () => {
     expect(b.bases.map((x) => x.nights)).toEqual([9, 10, 21, 21]);
   });
 });
+
+describe("bases follow the planned days (Plan my trip, 29 Sep 2026)", () => {
+  // A ten-day Japan: Tokyo on days 1–5, Osaka on days 6–10, no hotels booked.
+  const d = (n: number) => `2028-04-${String(n + 1).padStart(2, "0")}`;
+  const T = (n: number) => pin("Tokyo sight " + n, "1-1 Marunouchi, Chiyoda City, Tokyo 100-0005, Japan", 35.68, 139.76 + n * 0.001, "self_directed", d(n), "10:00:00");
+  const O = (n: number) => pin("Osaka sight " + n, "1-1 Namba, Chuo Ward, Osaka 542-0076, Japan", 34.67, 135.5 + n * 0.001, "self_directed", d(n), "10:00:00");
+  const brief = buildStayBrief({ startDate: d(1), endDate: d(10), partyAges: null, partySize: 5, pins: [T(1), T(2), T(3), T(4), T(5), O(6), O(7), O(8), O(9), O(10), T(11), T(12)].slice(0, 10) });
+  it("each base's nights run from its first planned day to the next base's", () => {
+    expect(brief.bases).toHaveLength(2);
+    expect(brief.bases.map((b) => b.nights)).toEqual([5, 4]);
+    // Many places on few days: counting places would give Tokyo most of the
+    // nights; the plan has Tokyo for two days and Osaka for the rest.
+    const dense = buildStayBrief({ startDate: d(1), endDate: d(10), partyAges: null, partySize: 5, pins: [
+      { ...T(1), title: "a" }, { ...T(1), title: "b" }, { ...T(1), title: "c" }, { ...T(1), title: "e" }, { ...T(2), title: "f" }, { ...T(2), title: "g" },
+      O(3), O(5), O(7), O(9),
+    ] });
+    expect(dense.bases.map((b) => b.nights)).toEqual([2, 7]);
+  });
+  it("a small region with a planned day still earns a base", () => {
+    const small = buildStayBrief({ startDate: d(1), endDate: d(10), partyAges: null, partySize: 5, pins: [T(1), T(2), T(3), T(4), T(5), T(6), T(7), T(8), O(9)] });
+    expect(small.bases.length).toBe(2);
+  });
+});

@@ -31,13 +31,20 @@ export function openFromHours(hours: unknown): string | null {
 
 const FLIGHT = new Set(["flight_arrival", "flight_departure"]);
 
-/** How much of each day is free: a planned sight takes it; a flight leaves half. */
+/**
+ * How much of each day is free: a planned sight takes it; a flight leaves
+ * half; so do the first and last days, which are travel days whether or not
+ * a flight is saved — Japan has none, and its first draft put a full day at
+ * DisneySea on the day they land (29 Sep 2026).
+ */
 export function draftDays(days: Pick<Day, "id" | "date" | "day_number">[], scheduled: Card[]): DraftDay[] {
-  return [...days].sort((a, b) => a.day_number - b.day_number).map((d) => {
+  const ordered = [...days].sort((a, b) => a.day_number - b.day_number);
+  return ordered.map((d, i) => {
     const on = scheduled.filter((c) => c.day_id === d.id);
     const taken = on.some((c) => c.place?.type === "activity" || (!c.place && !isDraft(c) && !!cardTimes(c).start));
     const flight = on.some((c) => FLIGHT.has(c.place?.sub_type ?? ""));
-    return { id: d.id, date: d.date, free: taken ? 0 : flight ? 0.5 : 1 };
+    const edge = ordered.length > 2 && (i === 0 || i === ordered.length - 1);
+    return { id: d.id, date: d.date, free: taken ? 0 : flight || edge ? 0.5 : 1 };
   });
 }
 

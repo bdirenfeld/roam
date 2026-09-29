@@ -114,3 +114,13 @@ describe("placeGroups orders regions as a loop", () => {
     expect(seq[seq.length - 1]).not.toBe(reg("Yamagata"));
   });
 });
+
+describe("the place open on the fewest days goes first", () => {
+  it("Tokyo from a Sunday, every day free: the weekend-only stamp shop gets the Sunday", () => {
+    const g = groupPins(pinsOf("Japan"), { kids: true });
+    const tokyo = g.groups.find((x) => x.items.some((p) => p.title === "Ghibli Museum"))!.region;
+    const { placed } = placeGroups(g, daysFrom("2028-04-02", 6), { regions: [tokyo] });
+    const stamps = placed.find((p) => p.group.items.some((i) => i.title.startsWith("Shinimonogurui")));
+    expect(stamps?.dayId).toBe("d1");
+  });
+});

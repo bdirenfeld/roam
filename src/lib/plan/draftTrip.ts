@@ -127,7 +127,15 @@ export function placeGroups(
     const free = !arrived && ri > 0 ? Math.min(day.free, 0.5) : day.free;
     arrived = true;
     const wd = weekdayOf(day.date);
-    const k = queue[ri].findIndex((g) => g.openDays[wd] === "1" && Math.min(g.load, 1) <= free + 1e-9);
+    // Of what is open today and fits, the place open on the fewest days goes
+    // first: DisneySea (every day) took Tokyo's Sunday and left no weekend for
+    // the stamp shop, open Saturdays and Sundays only (29 Sep 2026).
+    let k = -1, fewest = 8;
+    queue[ri].forEach((g, j) => {
+      if (g.openDays[wd] !== "1" || Math.min(g.load, 1) > free + 1e-9) return;
+      const n = g.openDays.split("").filter((c) => c === "1").length;
+      if (n < fewest) { fewest = n; k = j; }
+    });
     if (k >= 0) {
       const [g] = queue[ri].splice(k, 1);
       placed.push({ dayId: day.id, group: g });

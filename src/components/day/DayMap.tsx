@@ -264,7 +264,8 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
           pinsRef.current.push(item);
 
           // Tap: a plain pin opens its card. A pin standing for several zooms
-          // in until they come apart, filling the screen first on a phone.
+          // in until they come apart (the host may also expand the map; the
+          // day view no longer does, 29 Sep 2026).
           inner.style.cursor = "pointer";
           inner.addEventListener("click", () => {
             if (item.group) {

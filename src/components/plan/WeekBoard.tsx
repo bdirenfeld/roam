@@ -1045,6 +1045,8 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
         <div data-draft-tray className="absolute left-1/2 -translate-x-1/2 z-[40] bg-white rounded-full flex items-center gap-1.5 pl-4 pr-1.5 py-1.5" style={{ bottom: 20, boxShadow: "0 8px 24px rgba(26,26,46,0.18)", marginLeft: -(mapWidth / 2) }}>
           <span className="text-[13px] font-semibold whitespace-nowrap">Draft</span>
           <span className="text-[12.5px] whitespace-nowrap text-activity/60 mr-1">{draftCards.length} {draftCards.length === 1 ? "place" : "places"} on {new Set(draftCards.map((c) => c.day_id)).size} days</span>
+          {/* The draft's bases are Where to stay's bases (same 100 km rule, nights from the planned days). */}
+          <button onClick={() => { setShowStays(true); setMapWide(true); }} className="h-8 px-3 rounded-full text-[12.5px] font-medium whitespace-nowrap" style={{ background: "rgba(26,26,46,0.06)" }}>Where to stay</button>
           <button onClick={() => void clearDraft(draftCards)} className="h-8 px-3 rounded-full text-[12.5px] font-medium whitespace-nowrap text-[#B0541F]" style={{ background: "rgba(176,84,31,0.08)" }}>Clear draft</button>
           <button onClick={() => void keepDraft(draftCards)} className="h-8 px-3 rounded-full text-[12.5px] font-semibold whitespace-nowrap text-white" style={{ background: "#1A1A2E" }}>Keep all</button>
         </div>

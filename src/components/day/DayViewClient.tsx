@@ -312,6 +312,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
       <button type="button" onClick={() => void clearDayDraft()} className="h-9 px-3.5 rounded-full text-[13px] font-medium text-[#B0541F]" style={{ background: "rgba(176,84,31,0.08)" }}>Clear</button>
       <button type="button" onClick={() => void keepDayDraft()} className="h-9 px-3.5 rounded-full text-[13px] font-semibold text-white" style={{ background: "#1A1A2E" }}>Keep</button>
       <button type="button" onClick={() => void keepAllDrafts()} className="h-9 px-2 text-[12.5px] font-medium underline underline-offset-2 text-activity/70">Keep all days</button>
+      <button type="button" onClick={() => router.push(`/trips/${trip.id}/map?stays=1`)} className="h-9 px-2 text-[12.5px] font-medium underline underline-offset-2 text-activity/70">Where to stay</button>
     </div>
   ) : null;
 
@@ -547,25 +548,8 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
   // The card whose time chip was tapped: the quick time sheet is open for it.
   const [timeCard, setTimeCard] = useState<Card | null>(null);
-  // Phone: the day map filling the screen (⤢, or a tap on a stacked pin).
-  const [mapExpanded, setMapExpanded] = useState(false);
-  // While it fills the screen, a card tap flies the map to its pin and lifts
-  // the row; the same card tapped again opens it. A pin tap scrolls the
-  // docked list to its card instead of opening it.
-  const [mapFocus, setMapFocus] = useState<{ cardId: string; nonce: number } | null>(null);
-  const handleDockCardTap = useCallback((card: Card) => {
-    if (mapFocus?.cardId === card.id) { setSelectedCard(card); setIsCardOpen(true); return; }
-    setMapFocus((f) => ({ cardId: card.id, nonce: (f?.nonce ?? 0) + 1 }));
-    setHighlightedCardId(card.id);
-    setTimeout(() => setHighlightedCardId(null), 1200);
-  }, [mapFocus]);
-  const handleDockPinTap = useCallback((cardId: string) => {
-    const el = document.querySelector(`[data-card-id="${cardId}"]`);
-    el?.scrollIntoView({ behavior: "smooth", block: "center" });
-    setHighlightedCardId(cardId);
-    setTimeout(() => setHighlightedCardId(null), 1200);
-    setMapFocus((f) => ({ cardId, nonce: (f?.nonce ?? 0) + 1 }));
-  }, []);
+  // The day map no longer fills the screen (29 Sep 2026, Brennan: the Map
+  // screen already does that). A tap on stacked pins zooms the small map in.
 
   // For a card with no time, the sheet opens at the end of the day's last
   // timed card (or an hour after its start, or 9 AM on an empty day), so the
@@ -1097,22 +1081,8 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
             centerLat={trip.destination_lat ?? 41.9028}
             centerLng={trip.destination_lng ?? 12.4964}
             startZoom={startZoomFor(trip.destination, 13)}
-            onPinTap={mapExpanded ? handleDockPinTap : handlePinTap}
-            expanded={mapExpanded}
-            onToggleExpand={() => { setMapExpanded((v) => !v); setMapFocus(null); }}
-            focus={mapFocus}
+            onPinTap={handlePinTap}
             mapHref={`/trips/${trip.id}/map`}
-            dock={
-              <>{draftBar}<CardTimeline
-                dayWithCards={localDayWithCards}
-                onCardTap={handleDockCardTap}
-                highlightedCardId={highlightedCardId}
-                onToggleConfirmed={readOnly ? undefined : handleToggleConfirmed}
-                cardNumberById={cardNumberById}
-                readOnly={readOnly}
-                onTimeTap={readOnly ? undefined : (card) => setTimeCard(card)}
-              /></>
-            }
           />
         </div>
 
