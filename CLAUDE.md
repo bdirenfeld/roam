@@ -1688,5 +1688,13 @@ the component mounted and you are looking at throttling, not a broken map.
   and its source link), every name checked on Google near the base (a name Google cannot place
   never shows); in parallel Google textsearch. `lib/find/merge` puts travellers first, drops
   what is already on the journey and anything over 60 km out. Quota `find: 40` a day.
+- The Rome test (29 Sep 2026: an empty Rome built only with Find + Plan my trip, set beside his
+  real Rome) set four rules: Explore wants TWO a day (what a planned day holds; one a day planned
+  4 of 7 days); the Explore prompt asks for the must-sees first, then the ones first-timers skip
+  (no Vatican or Pantheon came back when it asked for "not the obvious"); `fitsCategory` keeps
+  a bakery out of Explore by Google types; and the sheet asks `mode: "google"` and
+  `mode: "travellers"` separately, showing Google's in about a second. Both halves are cached
+  30 days in `public.find_cache` (service role only, shared by everyone, keyed by
+  `cacheKey`: rounded base, category, question, kids or not); only misses count to quota.
 - Save = bulk-import one place with the category's type + an `interested` card carrying
   `details.find {why, source}`. Plan my trip then fits it into a day.

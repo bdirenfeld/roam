@@ -24,7 +24,10 @@ export interface FindCategory {
 
 /** The sub-types Find looks for, in Roam's labels. Bars too on a family trip: they plan as a late evening. */
 export const FIND_CATEGORIES: FindCategory[] = [
-  { subType: "self_directed", type: "activity", label: "Explore", perDay: 1 },
+  // Two a day: what Plan my trip puts in a full day (morning and afternoon).
+  // At one a day the Rome test (29 Sep 2026) read "7 of 7" and planned four
+  // days of seven.
+  { subType: "self_directed", type: "activity", label: "Explore", perDay: 2 },
   { subType: "restaurant", type: "food", label: "Restaurant", perDay: 2 },
   { subType: "coffee", type: "food", label: "Coffee", perDay: 1 },
   { subType: "dessert", type: "food", label: "Dessert", perDay: null },

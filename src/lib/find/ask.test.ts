@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { googleQuery, travellersPrompt, parseTravellers } from "./ask";
+import { googleQuery, travellersPrompt, parseTravellers, cacheKey } from "./ask";
 
 describe("googleQuery", () => {
   it("names the category in plain words, or uses what the person asked", () => {
@@ -26,5 +26,24 @@ describe("parseTravellers", () => {
     expect(out[0]).toMatchObject({ kids: true, sourceUrl: "https://reddit.com/r/x" });
     expect(out[1].sourceUrl).toBeNull();
     expect(parseTravellers("no json here")).toEqual([]);
+  });
+});
+
+describe("cacheKey", () => {
+  it("one answer per base, category, question and kind of party", () => {
+    const k = (o: Partial<Parameters<typeof cacheKey>[0]>) => cacheKey({ mode: "travellers", lat: 41.9028, lng: 12.4964, subType: "restaurant", ask: null, kids: false, ...o });
+    expect(k({})).toBe("travellers|41.90|12.50|restaurant||adults");
+    expect(k({ lat: 41.9031 })).toBe(k({}));            // two journeys to Rome share
+    expect(k({ ask: "  Ramen  open late " })).toBe(k({ ask: "ramen open late" }));
+    expect(k({ kids: true })).not.toBe(k({}));
+    expect(k({ mode: "google" })).not.toBe(k({}));
+  });
+});
+
+describe("travellersPrompt, first visit", () => {
+  it("asks for the must-sees before the hidden gems when exploring", () => {
+    const base = { base: "Rome", country: "Italy", ask: null, party: 2, childAges: [], month: "April 2026" };
+    expect(travellersPrompt({ ...base, subType: "self_directed" })).toMatch(/should not miss/);
+    expect(travellersPrompt({ ...base, subType: "restaurant" })).not.toMatch(/should not miss/);
   });
 });

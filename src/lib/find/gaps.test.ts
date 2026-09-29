@@ -45,7 +45,7 @@ describe("gapsFor", () => {
     const by = (s: string) => gaps.find((g) => g.category.subType === s)!;
     expect(by("coffee")).toMatchObject({ have: 0, want: 4, short: true });
     expect(by("restaurant")).toMatchObject({ have: 1, want: 8, short: true });
-    expect(by("self_directed")).toMatchObject({ have: 3, want: 4, short: true });
+    expect(by("self_directed")).toMatchObject({ have: 3, want: 8, short: true });
     expect(by("dessert")).toMatchObject({ have: 0, want: null, short: true });
   });
 });

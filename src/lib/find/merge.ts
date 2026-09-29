@@ -19,6 +19,8 @@ export interface FindResult {
   source: { name: string; url: string } | null;
   from: "travellers" | "google";
   kids: boolean;
+  /** Google types, for fitsCategory. */
+  types?: string[];
 }
 
 export const FAR_KM = 60;
@@ -47,6 +49,38 @@ export function mergeFind(
     if (seen.has(r.placeId) || alreadyOnTrip.has(r.placeId)) continue;
     if (km(base, r) > FAR_KM) continue;
     if (r.from === "google" && !wellRated(r.rating, r.reviews)) continue;
+    seen.add(r.placeId);
+    out.push(r);
+  }
+  return out;
+}
+
+// ── Does a place belong in the category? (Rome test, 29 Sep 2026) ─────────
+// Boccione, a bakery, came back under Explore and was planned as a 2.5-hour
+// sight. Google's types decide: a sight is never ONLY somewhere to eat, and
+// somewhere to eat must be one. No types (rare) means no opinion.
+const FOOD = ["restaurant", "cafe", "bakery", "bar", "meal_takeaway", "meal_delivery", "food", "night_club", "liquor_store"];
+const SIGHT = ["tourist_attraction", "museum", "park", "church", "place_of_worship", "art_gallery", "zoo", "aquarium", "amusement_park", "natural_feature", "stadium", "library", "campground", "city_hall", "synagogue", "mosque", "hindu_temple"];
+const FOOD_SUBTYPES = ["restaurant", "coffee", "dessert", "bar"];
+
+export function fitsCategory(subType: string, types: string[] | undefined): boolean {
+  if (!types || types.length === 0) return true;
+  const food = types.some((t) => FOOD.includes(t));
+  if (FOOD_SUBTYPES.includes(subType)) return food;
+  if (subType === "shopping") return !food || types.includes("store");
+  return !food || types.some((t) => SIGHT.includes(t));
+}
+
+/**
+ * Google answers in about a second and the travellers in 20 to 40, so the
+ * sheet shows Google's first and puts the travellers on top when they land.
+ * Each list arrives already merged by the route; this only joins them.
+ */
+export function combineFind(travellers: FindResult[] | undefined, google: FindResult[] | undefined): FindResult[] {
+  const out: FindResult[] = [];
+  const seen = new Set<string>();
+  for (const r of [...(travellers ?? []), ...(google ?? [])]) {
+    if (out.length >= MAX_RESULTS || seen.has(r.placeId)) continue;
     seen.add(r.placeId);
     out.push(r);
   }

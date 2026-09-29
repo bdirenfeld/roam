@@ -39,7 +39,7 @@ describe("Find sheet", () => {
   it("on an empty map, searches the destination for the first gap straight away", async () => {
     await act(async () => { render(<FindSheet trip={trip} days={[]} cards={[] as Card[]} onClose={vi.fn()} onSaved={vi.fn()} />); });
     expect(screen.getByRole("dialog", { name: "Find places" })).toBeTruthy();
-    expect(calls[0].url).toBe("/api/find");
+    expect(calls.map((c) => c.body.mode)).toEqual(["google", "travellers"]);
     expect(calls[0].body).toMatchObject({ tripId: "t1", base: { label: "Rome", lat: 41.9, lng: 12.5 }, subType: "self_directed" });
     expect(screen.getByText("Trattoria Da Enzo")).toBeTruthy();
     expect(screen.getByRole("link", { name: "r/rome" })).toBeTruthy();
@@ -51,7 +51,7 @@ describe("Find sheet", () => {
     const onSaved = vi.fn();
     await act(async () => { render(<FindSheet trip={trip} days={[]} cards={[] as Card[]} onClose={vi.fn()} onSaved={onSaved} />); });
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Save" })); });
-    expect(calls[1]).toMatchObject({ url: "/api/places/bulk-import", body: { google_place_ids: ["g1"], defaults: { type: "activity", sub_type: "self_directed" } } });
+    expect(calls[2]).toMatchObject({ url: "/api/places/bulk-import", body: { google_place_ids: ["g1"], defaults: { type: "activity", sub_type: "self_directed" } } });
     expect(inserted).toHaveLength(1);
     expect(inserted[0]).toMatchObject({ trip_id: "t1", day_id: null, place_id: "p1", status: "interested", position: 0 });
     expect(onSaved).toHaveBeenCalledTimes(1);
@@ -62,8 +62,26 @@ describe("Find sheet", () => {
   it("switching category searches again, and coming back uses what it found", async () => {
     await act(async () => { render(<FindSheet trip={trip} days={[]} cards={[] as Card[]} onClose={vi.fn()} onSaved={vi.fn()} />); });
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: /^Restaurant/ })); });
-    expect(calls[1].body.subType).toBe("restaurant");
+    expect(calls.slice(2).map((c) => [c.body.subType, c.body.mode])).toEqual([["restaurant", "google"], ["restaurant", "travellers"]]);
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: /^Explore/ })); });
-    expect(calls).toHaveLength(2);
+    expect(calls).toHaveLength(4);
+  });
+
+  it("shows Google's places at once and puts the travellers' on top when they land", async () => {
+    let land: (v: unknown) => void = () => {};
+    const google: FindResult = { ...result, placeId: "g2", name: "Colosseum", from: "google", source: null, why: "Rated 4.8 on Google." };
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init: { body: string }) => {
+      const body = JSON.parse(init.body);
+      if (body.mode === "google") return { ok: true, json: async () => ({ results: [google] }) };
+      await new Promise((r) => { land = r; });
+      return { ok: true, json: async () => ({ results: [result] }) };
+    }));
+    await act(async () => { render(<FindSheet trip={trip} days={[]} cards={[] as Card[]} onClose={vi.fn()} onSaved={vi.fn()} />); });
+    expect(screen.getByText("Colosseum")).toBeTruthy();
+    expect(screen.getByText("Adding what travellers recommend…")).toBeTruthy();
+    await act(async () => { land(null); });
+    const names = screen.getAllByText(/Colosseum|Trattoria Da Enzo/).map((e) => e.textContent);
+    expect(names).toEqual(["Trattoria Da Enzo", "Colosseum"]);
+    expect(screen.queryByText("Adding what travellers recommend…")).toBeNull();
   });
 });

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
-import { googleQuery, travellersPrompt, parseTravellers } from "@/lib/find/ask";
-import { mergeFind, type FindResult } from "@/lib/find/merge";
+import { googleQuery, travellersPrompt, parseTravellers, cacheKey, CACHE_DAYS } from "@/lib/find/ask";
+import { mergeFind, fitsCategory, type FindResult } from "@/lib/find/merge";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // ── Find: places for one of a journey's gaps (29 Sep 2026) ────────────────
 //
@@ -13,6 +14,15 @@ import { mergeFind, type FindResult } from "@/lib/find/merge";
 // find near the base never reaches the person). Google: well-rated places
 // near the base for the same category. lib/find/merge puts them together.
 // Nothing is saved here; the sheet's Save does that.
+//
+// Two calls, not one (Rome test, 29 Sep 2026: 20-50 s a search). The sheet
+// asks mode "google" (about a second) and mode "travellers" (Claude, 20-40 s)
+// side by side and shows Google's while the travellers are read. Each answer
+// is kept in public.find_cache for CACHE_DAYS, shared by everyone: places are
+// public, and what is already on THIS journey is filtered per request. The
+// cache is service-role only (lib/supabase/admin) so no one can write into
+// another person's results. Only a travellers call that misses the cache
+// counts against the daily allowance.
 
 export const maxDuration = 60;
 
@@ -23,13 +33,12 @@ const KIDS_TYPES = ["amusement_park", "zoo", "aquarium", "park", "museum", "tour
 export async function POST(req: NextRequest) {
   const gate = await requireUser();
   if ("response" in gate) return gate.response;
-  const body = await req.json().catch(() => null) as { tripId?: string; base?: { label?: string; lat?: number; lng?: number }; subType?: string; ask?: string | null } | null;
+  const body = await req.json().catch(() => null) as { tripId?: string; base?: { label?: string; lat?: number; lng?: number }; subType?: string; ask?: string | null; mode?: string } | null;
   const tripId = body?.tripId, base = body?.base, subType = body?.subType ?? "self_directed";
+  const mode: "google" | "travellers" = body?.mode === "travellers" ? "travellers" : "google";
   if (!tripId || !base?.label || typeof base.lat !== "number" || typeof base.lng !== "number") {
     return NextResponse.json({ error: "tripId and base are required" }, { status: 400 });
   }
-  if (!(await underQuota(gate.supabase, "find", QUOTA.find))) return quotaExceeded("finds");
-
   const googleKey = process.env.GOOGLE_PLACES_API_KEY;
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!googleKey) return NextResponse.json({ error: "Google isn't configured" }, { status: 500 });
@@ -51,6 +60,21 @@ export async function POST(req: NextRequest) {
   const country = (trip.destination ?? "").split(",").pop()?.trim() || null;
   const month = new Date(start).toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
   const ask = typeof body?.ask === "string" ? body.ask.slice(0, 120) : null;
+  const key = cacheKey({ mode, lat: base.lat, lng: base.lng, subType, ask, kids: childAges.length > 0 });
+  const answer = (found: FindResult[]) => NextResponse.json({
+    results: mode === "travellers" ? mergeFind({ lat: base.lat!, lng: base.lng! }, found, [], already) : mergeFind({ lat: base.lat!, lng: base.lng! }, [], found, already),
+    mode,
+  });
+
+  let admin: ReturnType<typeof createAdminClient> | null = null;
+  try { admin = createAdminClient(); } catch { admin = null; }
+  if (admin) {
+    const since = new Date(Date.now() - CACHE_DAYS * 86_400_000).toISOString();
+    const { data: hit } = await admin.from("find_cache").select("results").eq("key", key).gte("created_at", since).maybeSingle();
+    if (hit) return answer(hit.results as FindResult[]);
+  }
+  if (mode === "travellers" && !(await underQuota(gate.supabase, "find", QUOTA.find))) return quotaExceeded("finds");
+  if (mode === "google" && !(await underQuota(gate.supabase, "findGoogle", QUOTA.findGoogle))) return quotaExceeded("finds");
 
   const findOnGoogle = async (input: string): Promise<GPlace | null> => {
     const u = new URL("https://maps.googleapis.com/maps/api/place/findplacefromtext/json");
@@ -65,10 +89,11 @@ export async function POST(req: NextRequest) {
   const toResult = (g: GPlace, from: FindResult["from"], why: string, source: FindResult["source"], kids: boolean): FindResult | null => {
     const loc = g.geometry?.location;
     if (!loc) return null;
+    if (!fitsCategory(subType, g.types)) return null;
     return { placeId: g.place_id, name: g.name, address: g.formatted_address ?? "", lat: loc.lat, lng: loc.lng, rating: g.rating ?? null, reviews: g.user_ratings_total ?? null, why, source, from, kids };
   };
 
-  const travellers = (async (): Promise<FindResult[]> => {
+  const travellers = async (): Promise<FindResult[]> => {
     if (!apiKey) return [];
     try {
       const client = new Anthropic({ apiKey });
@@ -89,9 +114,9 @@ export async function POST(req: NextRequest) {
       console.error("[find] travellers:", e);
       return [];
     }
-  })();
+  };
 
-  const google = (async (): Promise<FindResult[]> => {
+  const google = async (): Promise<FindResult[]> => {
     const u = new URL("https://maps.googleapis.com/maps/api/place/textsearch/json");
     u.searchParams.set("query", googleQuery(subType, base.label!, ask));
     u.searchParams.set("location", `${base.lat},${base.lng}`);
@@ -103,8 +128,10 @@ export async function POST(req: NextRequest) {
       const why = g.rating ? `Rated ${g.rating} on Google from ${(g.user_ratings_total ?? 0).toLocaleString("en-US")} reviews.` : "Well rated on Google.";
       return toResult(g, "google", why, null, kids);
     }).filter((x): x is FindResult => x !== null);
-  })();
+  };
 
-  const [t, g] = await Promise.all([travellers, google]);
-  return NextResponse.json({ results: mergeFind({ lat: base.lat, lng: base.lng }, t, g, already), travellers: t.length > 0 });
+  const found = mode === "travellers" ? await travellers() : await google();
+  // An empty answer is not kept: it is more likely a hiccup than the truth.
+  if (admin && found.length > 0) await admin.from("find_cache").upsert({ key, results: found, created_at: new Date().toISOString() });
+  return answer(found);
 }

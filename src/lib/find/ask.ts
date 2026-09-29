@@ -31,8 +31,11 @@ export function travellersPrompt(opts: {
     : `${opts.party} adult${opts.party === 1 ? "" : "s"}`;
   const what = opts.ask && opts.ask.trim() ? opts.ask.trim() : `${label.toLowerCase()} (Roam's category "${label}")`;
   return `Find ${what} in ${opts.base}${opts.country ? `, ${opts.country}` : ""} for ${who}, visiting in ${opts.month}.
-Search Reddit threads and travel blogs for places travellers who went recommend, not listicles of the obvious.
-Name up to 6 specific places (a named restaurant, café, sight or shop, never a neighbourhood or a chain in general).
+Search Reddit threads and travel blogs for what travellers who went recommend.
+${opts.subType === "self_directed" && !(opts.ask && opts.ask.trim())
+    ? `Start with the places a first visit should not miss, then add ones travellers loved that first-timers usually skip.`
+    : `Favour places travellers who went praise over the ones every listicle repeats.`}
+Name up to 8 specific places (a named restaurant, café, sight or shop, never a neighbourhood or a chain in general).
 Reply with JSON only:
 {"places":[{"name":string,"near":string,"why":string,"source_name":string,"source_url":string,"kids":boolean}]}
 "why" is one plain sentence under 16 words saying what is good about it. "kids" is true when it suits children.
@@ -59,8 +62,20 @@ export function parseTravellers(text: string): TravellerPick[] {
           kids: p.kids === true,
         }))
         .filter((p) => p.name.length > 1)
-        .slice(0, 6);
+        .slice(0, 8);
     } catch { /* next */ }
   }
   return [];
 }
+
+/**
+ * The shared cache's key (29 Sep 2026): the same base, category, question
+ * and kind of party gets the same answer for 30 days, whoever asks. Places
+ * are public; what is already on someone's journey is filtered after.
+ * The base is rounded to about a kilometre so two journeys to one city share.
+ */
+export function cacheKey(opts: { mode: "google" | "travellers"; lat: number; lng: number; subType: string; ask: string | null; kids: boolean }): string {
+  const q = (opts.ask ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+  return [opts.mode, opts.lat.toFixed(2), opts.lng.toFixed(2), opts.subType, q, opts.kids ? "kids" : "adults"].join("|");
+}
+export const CACHE_DAYS = 30;

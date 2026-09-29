@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { findBases, gapsFor, type FindBase } from "@/lib/find/gaps";
-import type { FindResult } from "@/lib/find/merge";
+import { combineFind, type FindResult } from "@/lib/find/merge";
 
 /**
  * Find (29 Sep 2026): places for what a base is short of, in Roam's own
@@ -34,31 +34,38 @@ export default function FindSheet({
   const gaps = useMemo(() => (base ? gapsFor(base) : []), [base]);
   const [sub, setSub] = useState<string>(() => (base ? (gapsFor(base).find((g) => g.short && g.want != null) ?? gapsFor(base)[0]).category.subType : "self_directed"));
   const [ask, setAsk] = useState("");
-  const [results, setResults] = useState<Record<string, FindResult[]>>({});
-  const [loading, setLoading] = useState<string | null>(null);
-  const [failed, setFailed] = useState<string | null>(null);
+  // Per search: Google's half (about a second) and the travellers' half (20-40 s,
+  // instant when cached), each undefined until it answers.
+  type Halves = { google?: FindResult[]; travellers?: FindResult[]; failed?: boolean; quota?: boolean };
+  const [results, setResults] = useState<Record<string, Halves>>({});
   const [saved, setSaved] = useState<Set<string>>(() => new Set());
   const asked = useRef<string | null>(null);
+  const started = useRef<Set<string>>(new Set());
 
   const keyOf = (b: FindBase, s: string, q: string | null) => `${b.label}|${s}|${q ?? ""}`;
   const [, bump] = useState(0);
-  const run = async (b: FindBase | undefined, s: string, q: string | null) => {
+  const run = (b: FindBase | undefined, s: string, q: string | null) => {
     if (!b) return;
     const base = b;
     const k = keyOf(base, s, q);
     asked.current = k;
     bump((n) => n + 1);
-    if (results[k]) return;
-    setLoading(k); setFailed(null);
-    try {
-      const res = await fetch("/api/find", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId: trip.id, base: { label: base.label, lat: base.lat, lng: base.lng }, subType: s, ask: q }) });
-      const j = await res.json() as { results?: FindResult[]; error?: string };
-      if (!res.ok || !j.results) throw new Error(j.error ?? "failed");
-      setResults((prev) => ({ ...prev, [k]: j.results! }));
-    } catch (e) {
-      setFailed(e instanceof Error && /limit|quota/i.test(e.message) ? "You've used today's finds. Try again tomorrow." : "Couldn't find places just now. Try again.");
-    } finally {
-      setLoading((cur) => (cur === k ? null : cur));
+    if (started.current.has(k)) return;
+    started.current.add(k);
+    for (const mode of ["google", "travellers"] as const) {
+      void (async () => {
+        let found: FindResult[] = [], failed = false, quota = false;
+        try {
+          const res = await fetch("/api/find", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId: trip.id, base: { label: base.label, lat: base.lat, lng: base.lng }, subType: s, ask: q, mode }) });
+          const j = await res.json() as { results?: FindResult[]; error?: string };
+          if (!res.ok || !j.results) { failed = true; quota = res.status === 429; } else found = j.results;
+        } catch { failed = true; }
+        setResults((prev) => {
+          const cur = prev[k] ?? {};
+          // One half failing is not a failure while the other has places.
+          return { ...prev, [k]: { ...cur, [mode]: found, failed: (cur.failed ?? false) || failed, quota: (cur.quota ?? false) || quota } };
+        });
+      })();
     }
   };
 
@@ -69,7 +76,14 @@ export default function FindSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const list = (asked.current && results[asked.current]) || [];
+  const now: Halves = (asked.current && results[asked.current]) || {};
+  const list = combineFind(now.travellers, now.google);
+  const bothIn = now.google !== undefined && now.travellers !== undefined;
+  const loading = list.length === 0 && !bothIn;
+  const reading = list.length > 0 && now.travellers === undefined;
+  const failed = bothIn && list.length === 0 && now.failed
+    ? (now.quota ? "You've used today's finds. Try again tomorrow." : "Couldn't find places just now. Try again.")
+    : null;
   const category = gaps.find((g) => g.category.subType === sub)?.category;
 
   const save = async (r: FindResult) => {
@@ -143,11 +157,12 @@ export default function FindSheet({
 
         <div className="flex-1 overflow-y-auto px-5 py-2">
           {!base && <p className="py-6 text-[14px] text-activity/60">Set where the journey is going in Settings, and Find will start there.</p>}
-          {loading && <p className="py-6 text-[14px] text-activity/60">Looking at what travellers recommend…</p>}
-          {!loading && failed && <p className="py-6 text-[14px] text-[#B0541F]">{failed}</p>}
-          {!loading && !failed && base && list.length === 0 && asked.current && results[asked.current] && (
+          {base && loading && <p className="py-6 text-[14px] text-activity/60">Looking…</p>}
+          {failed && <p className="py-6 text-[14px] text-[#B0541F]">{failed}</p>}
+          {!failed && base && bothIn && list.length === 0 && (
             <p className="py-6 text-[14px] text-activity/60">Nothing new to add here.</p>
           )}
+          {reading && <p className="pt-2 pb-1 text-[12px] text-activity/50">Adding what travellers recommend…</p>}
           {!loading && list.map((r) => (
             <div key={r.placeId} className="flex gap-3 py-3 border-b" style={{ borderColor: "rgba(26,26,46,0.07)" }}>
               <div className="w-12 h-12 rounded-lg flex-shrink-0" style={{ background: category?.type === "food" ? "rgba(124,58,237,0.12)" : "rgba(29,158,117,0.14)" }} />

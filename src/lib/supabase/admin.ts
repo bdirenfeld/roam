@@ -12,6 +12,10 @@
 //
 // Doing so would let an authenticated user read or mutate any other user's
 // data, defeating the entire RLS model.
+//
+// Exception by design: tables no user owns and no policy exposes, such as
+// public.find_cache (api/find), where the service role is the point: it stops
+// anyone signed in from writing into results others will read.
 import { createClient } from "@supabase/supabase-js";
 
 export function createAdminClient() {

@@ -33,6 +33,7 @@ export const SCHEMA: Record<string, string[]> = {
   client_errors: ["id", "user_id", "at", "kind", "message", "path", "stack", "user_agent"],
   companion_messages: ["id", "trip_id", "role", "content", "created_at", "conversation_id", "user_id"],
   days: ["id", "trip_id", "date", "day_number", "day_name", "narrative_position", "theme", "created_at"],
+  find_cache: ["key", "results", "created_at"],
   documents: ["id", "trip_id", "user_id", "file_name", "file_type", "document_type", "parsed_data", "card_ids", "created_at"],
   ideas: ["id", "user_id", "url", "title", "note", "source", "status", "created_at", "tags", "wishlist_destination_id", "pins_added", "pinned_trip_id", "place"],
   people: ["id", "trip_id", "name", "birthdate", "notes", "position", "created_at", "updated_at"],

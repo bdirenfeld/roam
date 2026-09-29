@@ -65,5 +65,6 @@ export const QUOTA = {
                        // never hits a wall; still a backstop against a runaway loop.
   stayWrite:     100,  // choose / save / not-for-us
   shareSuggest:   60,  // a TikTok shared in: caption → Claude Haiku → Google
-  find:           40,  // Find: Claude with web search + Google checks, per base and category (29 Sep 2026)
+  find:           40,  // Find: Claude with web search + Google checks; cache misses only (29 Sep 2026)
+  findGoogle:    200,  // Find: the fast Google half; cache misses only
 } as const;
