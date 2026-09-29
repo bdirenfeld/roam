@@ -11,6 +11,8 @@ import { findBases, gapsFor, FIND_CATEGORIES, type FindBase } from "@/lib/find/g
 const WARM_TRAVELLERS = new Set(["self_directed", "restaurant", "coffee", "dessert", "bar"]);
 import { combineFind, type FindResult } from "@/lib/find/merge";
 import { closedOnTrip, priceSigns } from "@/lib/find/detail";
+import { nearCentres, NEAR_PLAN } from "@/lib/find/near";
+import { DATED } from "@/lib/find/ask";
 
 /**
  * Find (29 Sep 2026): places for what a base is short of, in Roam's own
@@ -49,6 +51,10 @@ export default function FindSheet({
   const started = useRef<Set<string>>(new Set());
 
   const keyOf = (b: FindBase, s: string, q: string | null) => `${b.label}|${s}|${q ?? ""}`;
+  // Coffee and dessert: where the base's sights cluster, so they come from near the day (lib/find/near).
+  const nearOf = (b: FindBase, s: string) => (NEAR_PLAN.has(s) && b.sights.length
+    ? { near: nearCentres(b.sights, 4), nearNames: b.sights.slice(0, 6).map((x) => x.title) }
+    : {});
   const [, bump] = useState(0);
   // Fetch one half of one search, once. Shown or not, the answer is kept, so
   // a chip tapped later is already there.
@@ -60,7 +66,7 @@ export default function FindSheet({
       void (async () => {
         let found: FindResult[] = [], failed = false, quota = false;
         try {
-          const res = await fetch("/api/find", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId: trip.id, base: { label: base.label, lat: base.lat, lng: base.lng }, subType: s, ask: q, mode }) });
+          const res = await fetch("/api/find", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId: trip.id, base: { label: base.label, lat: base.lat, lng: base.lng }, subType: s, ask: q, mode, ...nearOf(base, s) }) });
           const j = await res.json() as { results?: FindResult[]; error?: string };
           if (!res.ok || !j.results) { failed = true; quota = res.status === 429; } else found = j.results;
         } catch { failed = true; }
@@ -182,7 +188,7 @@ export default function FindSheet({
         )}
         <div className={`flex-1 overflow-y-auto px-5 py-2 ${open ? "hidden" : ""}`}>
           {!base && <p className="py-6 text-[14px] text-activity/60">Set where the journey is going in Settings, and Find will start there.</p>}
-          {base && loading && <p className="py-6 text-[14px] text-activity/60">Looking…</p>}
+          {base && loading && <p className="py-6 text-[14px] text-activity/60">{DATED.has(sub) ? "Checking what's on while you're there…" : "Looking…"}</p>}
           {failed && <p className="py-6 text-[14px] text-[#B0541F]">{failed}</p>}
           {!failed && base && bothIn && list.length === 0 && (
             <p className="py-6 text-[14px] text-activity/60">Nothing new to add here.</p>

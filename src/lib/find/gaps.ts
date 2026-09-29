@@ -44,6 +44,8 @@ export interface FindBase {
   days: number;
   /** Places saved or planned at this base, by sub-type. */
   counts: Record<string, number>;
+  /** Its sights (activities), for coffee and dessert near the day (lib/find/near). */
+  sights: { title: string; lat: number; lng: number }[];
 }
 
 export interface Gap { category: FindCategory; have: number }
@@ -66,7 +68,7 @@ export function findBases(cards: Card[], trip: TripLike): FindBase[] {
   }
   if (pins.length === 0) {
     if (trip.destination_lat == null || trip.destination_lng == null) return [];
-    return [{ label: (trip.destination ?? "").split(",")[0].trim() || "Destination", lat: trip.destination_lat, lng: trip.destination_lng, days: total, counts: {} }];
+    return [{ label: (trip.destination ?? "").split(",")[0].trim() || "Destination", lat: trip.destination_lat, lng: trip.destination_lng, days: total, counts: {}, sights: [] }];
   }
 
   const g = groupPins(pins, { kids: false });
@@ -103,7 +105,8 @@ export function findBases(cards: Card[], trip: TripLike): FindBase[] {
     const counts: Record<string, number> = {};
     for (const p of mine) if (p.subType) counts[p.subType] = (counts[p.subType] ?? 0) + 1;
     const days = byPlan ? Math.max(1, planned.get(r.id)!.size) : alloc[i];
-    return { label: regionLabel(mine) ?? mine[0].title, lat: r.centre.lat, lng: r.centre.lng, days, counts };
+    const sights = mine.filter((p) => p.type === "activity").map((p) => ({ title: p.title, lat: p.lat!, lng: p.lng! }));
+    return { label: regionLabel(mine) ?? mine[0].title, lat: r.centre.lat, lng: r.centre.lng, days, counts, sights };
   }).sort((a, b) => b.days - a.days);
 }
 

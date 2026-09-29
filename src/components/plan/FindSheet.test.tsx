@@ -117,4 +117,14 @@ describe("Find sheet", () => {
     expect(screen.queryByRole("region", { name: "Trattoria Da Enzo" })).toBeNull();
     expect(screen.getByRole("button", { name: "Saved ✓" })).toBeTruthy();
   });
+
+  it("coffee and dessert are looked for near the sights already on the journey; events by date", async () => {
+    const colosseum = { id: "c1", trip_id: "t1", day_id: null, status: "interested", position: 0, details: {}, place_id: "p9",
+      place: { id: "p9", title: "Colosseum", type: "activity", sub_type: "self_directed", lat: 41.8902, lng: 12.4922, address: null } } as unknown as Card;
+    await act(async () => { render(<FindSheet trip={trip} days={[]} cards={[colosseum]} onClose={vi.fn()} onSaved={vi.fn()} />); });
+    const coffee = finds().find((c) => c.body.subType === "coffee" && c.body.mode === "travellers")!;
+    expect(coffee.body.nearNames).toEqual(["Colosseum"]);
+    expect((coffee.body.near as { lat: number }[])[0].lat).toBeCloseTo(41.8902, 3);
+    expect(finds().find((c) => c.body.subType === "restaurant")!.body.near).toBeUndefined();
+  });
 });

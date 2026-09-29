@@ -69,11 +69,12 @@ describe("groupPins on Brennan's journeys", () => {
     for (const t of trips) {
       const g = groupPins(t.pins, { kids: t.kids });
       for (const x of g.groups) {
-        expect(x.load).toBeLessThanOrEqual(1.25);
-        expect(x.items.length).toBeLessThanOrEqual(t.kids ? 4 : 5);
+        // With children no walkable bonus: three places, one day's load (Costa Rica test, 29 Sep 2026).
+        expect(x.load).toBeLessThanOrEqual(t.kids ? 1 : 1.25);
+        expect(x.items.length).toBeLessThanOrEqual(t.kids ? 3 : 5);
         expect(x.openDays).toMatch(/1/);
       }
-      const placed = [...g.groups.flatMap((x) => [...x.items, ...x.meals]), ...g.spareMeals, ...g.left.map((l) => l.pin)].map((p) => p.id);
+      const placed = [...g.groups.flatMap((x) => [...x.items, ...x.meals]), ...g.spareMeals, ...g.left.map((l) => l.pin), ...g.tours.map((x) => x.pin)].map((p) => p.id);
       expect(new Set(placed).size).toBe(placed.length);
       const expected = t.pins.filter((p) => p.type !== "logistics" && !/taxi/i.test(p.title)).map((p) => p.id);
       expect(placed.sort()).toEqual(expected.sort());
@@ -94,5 +95,29 @@ describe("dayShare and loadOf", () => {
   it("a second sight a short walk away costs half", () => {
     expect(loadOf([at("A", 41.9, 12.48), at("B", 41.901, 12.481)])).toBe(0.75);
     expect(loadOf([at("A", 41.9, 12.48), at("B", 41.95, 12.48)])).toBe(1);
+  });
+});
+
+describe("tour companies", () => {
+  it("never shape a day's route: they are set aside with their region", () => {
+    const at = (id: string, lat: number, lng: number, types: string[]) => ({ id, title: id, type: "activity" as const, subType: "self_directed", lat, lng, types });
+    const pins = [
+      at("Forum", 41.8925, 12.4853, ["tourist_attraction"]),
+      at("Colosseum", 41.8902, 12.4922, ["tourist_attraction"]),
+      at("Crown Tours", 41.9010, 12.4990, ["travel_agency", "point_of_interest"]),
+    ];
+    const g = groupPins(pins, { kids: false });
+    expect(g.groups.flatMap((x) => x.items).map((p) => p.id)).not.toContain("Crown Tours");
+    expect(g.tours.map((t) => [t.pin.id, t.region])).toEqual([["Crown Tours", g.groups[0].region]]);
+  });
+});
+
+describe("a walkable town with children", () => {
+  it("holds three places a day, not four", () => {
+    // Tamarindo, all within a kilometre: surf school, farmers' market, beach, wildlife rescue.
+    const at = (id: string, lat: number, lng: number) => ({ id, title: id, type: "activity" as const, subType: "self_directed", lat, lng, types: ["tourist_attraction"] });
+    const town = [at("Surf school", 10.2990, -85.8400), at("Market", 10.2995, -85.8390), at("Beach", 10.3000, -85.8410), at("Rescue", 10.2985, -85.8380)];
+    expect(Math.max(...groupPins(town, { kids: true }).groups.map((g) => g.items.length))).toBeLessThanOrEqual(3);
+    expect(Math.max(...groupPins(town, { kids: false }).groups.map((g) => g.items.length))).toBe(4);
   });
 });

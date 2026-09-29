@@ -1735,3 +1735,16 @@ the component mounted and you are looking at throttling, not a broken map.
   reads both map files and fails if either stops restacking.
 - Find's thumbnails are resolved for every kept result (Rome's Explore showed photos on 5 of 12
   when only the top 12 were done: a journey with many places saved sees further down the list).
+
+## Find and Plan my trip: fixes from the three test trips (29 Sep 2026, evening)
+- Coffee and dessert near the day (`lib/find/near`): with sights saved at a base, the sheet sends
+  up to 4 cluster centres (`nearCentres`) and the sights' names; Google uses Nearby Search around
+  each (1.2 km), travellers are told the sights, and everything beyond a walk is dropped
+  (`withinWalk`). An empty base still searches the city. New York's cafés were in Brooklyn/Queens.
+- Events, Races, Camps are DATED (`DATED` in lib/find/ask): no Google (it can only name venues,
+  his point: "it's just bringing up venues"), and the travellers' search asks what is on in the
+  city between the journey's start and end dates; "why" starts with the date. Cache key has the dates.
+- Plan my trip: with children, no walkable bonus (three places a day, load 1) — Tamarindo came
+  out at four sights and four meals. Tour companies (`travel_agency`) never shape a day: they go
+  on the lightest planned day of their region, untimed (`Grouping.tours`), not as a 2.5-hour stop
+  at their office (Rome: Carpe Diem Tours, Crown Tours).

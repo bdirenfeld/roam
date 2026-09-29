@@ -61,6 +61,14 @@ export interface Grouping {
   daysNeeded: number;
   /** Meals no group had room for: options, not days. */
   spareMeals: Pin[];
+  /**
+   * Tour companies (Google "travel_agency"), each with the region it belongs
+   * to. Their office is not where the day is spent, so they never shape a
+   * day's route; draftRows puts each on the lightest planned day of its
+   * region, untimed, to book (Rome test, 29 Sep 2026: Carpe Diem Tours and
+   * Crown Tours were planned as 2.5-hour stops at their offices).
+   */
+  tours: { pin: Pin; region: number }[];
   left: { pin: Pin; reason: string }[];
 }
 
@@ -171,11 +179,16 @@ export function groupPins(pins: Pin[], opts: { kids: boolean; loadCap?: number }
     let far = 0;
     for (let a = 0; a < items.length; a++) for (let b = a + 1; b < items.length; b++) far = Math.max(far, km(items[a], items[b]));
     const walkable = far <= WALKABLE_KM;
-    return items.length <= maxItems + (walkable ? 1 : 0) && loadOf(items) <= (walkable ? WALKABLE_LOAD : 1) * fill;
+    // The walkable bonus (one more place, a longer day) is for adults. With
+    // children a day is three places however close (Costa Rica test, 29 Sep
+    // 2026: Tamarindo's walkable days came out at four sights and four meals).
+    const bonus = walkable && !opts.kids;
+    return items.length <= maxItems + (bonus ? 1 : 0) && loadOf(items) <= (bonus ? WALKABLE_LOAD : 1) * fill;
   };
   const left: Grouping["left"] = [];
   const acts: (Pin & { lat: number; lng: number })[] = [];
   const meals: (Pin & { lat: number; lng: number })[] = [];
+  const tourPins: (Pin & { lat: number; lng: number })[] = [];
   const seen = new Set<string>();
   for (const p of pins) {
     const key = `${p.title}|${p.lat}|${p.lng}`;
@@ -188,6 +201,7 @@ export function groupPins(pins: Pin[], opts: { kids: boolean; loadCap?: number }
       continue;
     }
     if ((p.types ?? []).some((t) => NOT_A_VISIT.includes(t)) || NOT_A_VISIT_NAME.test(p.title)) continue;
+    if ((p.types ?? []).includes("travel_agency")) { tourPins.push(p); continue; }
     if (isEvening(p) || isErrand(p)) { meals.push(p); continue; }
     acts.push(p);
   }
@@ -268,7 +282,14 @@ export function groupPins(pins: Pin[], opts: { kids: boolean; loadCap?: number }
     const days = groups.filter((g) => g.region === r).length;
     regions.push({ id: r, centre: centreOf(inR), days, pins: inR.length });
   }
+  const tours: Grouping["tours"] = [];
+  for (const t of tourPins) {
+    let best = -1, d = Infinity;
+    regions.forEach((r) => { if (r.days === 0) return; const k = km(r.centre, t); if (k < d) { d = k; best = r.id; } });
+    if (best >= 0 && d <= REGION_KM) tours.push({ pin: t, region: best });
+    else left.push({ pin: t, reason: "Tour to book" });
+  }
   const visited = regions.filter((r) => r.days > 0).length;
   const daysNeeded = groups.length + MOVE_DAYS * Math.max(0, visited - 1);
-  return { regions, groups, daysNeeded, spareMeals, left };
+  return { regions, groups, daysNeeded, spareMeals, left, tours };
 }

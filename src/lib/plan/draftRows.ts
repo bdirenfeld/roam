@@ -228,7 +228,24 @@ export function buildDraft(
       });
     }
   }
-  const leftOut = unplaced.reduce((s, g) => s + g.items.length, 0) + grouping.left.length;
+  // Tour companies: the lightest planned day in their region, untimed, to book.
+  const count = new Map<string, number>();
+  for (const r of rows) count.set(r.day_id, (count.get(r.day_id) ?? 0) + 1);
+  let toursLeft = 0;
+  for (const t of grouping.tours) {
+    const card = byId.get(t.pin.id);
+    const choices = placed.filter((p) => p.group.region === t.region).map((p) => p.dayId);
+    if (!card || !choices.length) { toursLeft++; continue; }
+    const day = choices.sort((a, b) => (count.get(a) ?? 0) - (count.get(b) ?? 0) || dayIds.indexOf(a) - dayIds.indexOf(b))[0];
+    const pos = Math.max(0, ...rows.filter((r) => r.day_id === day).map((r) => r.position), ...scheduled.filter((c) => c.day_id === day).map((c) => c.position ?? 0)) + 1;
+    rows.push({
+      day_id: day, trip_id: tripId, place_id: card.place_id as string, status: "in_itinerary", position: pos,
+      start_time: null, end_time: null, source_url: null,
+      details: { plan: { day, start: null } }, ai_generated: true, confirmed: false,
+    });
+    count.set(day, (count.get(day) ?? 0) + 1);
+  }
+  const leftOut = unplaced.reduce((s, g) => s + g.items.length, 0) + grouping.left.length + toursLeft;
   return { rows, dayIds: Array.from(new Set(rows.map((r) => r.day_id))), leftOut };
 }
 

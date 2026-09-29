@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
-import { googleQuery, travellersPrompt, parseTravellers, cacheKey, CACHE_DAYS } from "@/lib/find/ask";
+import { googleQuery, travellersPrompt, parseTravellers, cacheKey, CACHE_DAYS, DATED } from "@/lib/find/ask";
+import { NEAR_PLAN, withinWalk } from "@/lib/find/near";
 import { mergeFind, fitsCategory, type FindResult } from "@/lib/find/merge";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -26,14 +27,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const maxDuration = 60;
 
-type GPlace = { place_id: string; name: string; formatted_address?: string; geometry?: { location?: { lat: number; lng: number } }; rating?: number; user_ratings_total?: number; types?: string[]; photos?: { photo_reference?: string }[] };
+type GPlace = { place_id: string; name: string; formatted_address?: string; vicinity?: string; geometry?: { location?: { lat: number; lng: number } }; rating?: number; user_ratings_total?: number; types?: string[]; photos?: { photo_reference?: string }[] };
 
 const KIDS_TYPES = ["amusement_park", "zoo", "aquarium", "park", "museum", "tourist_attraction"];
 
 export async function POST(req: NextRequest) {
   const gate = await requireUser();
   if ("response" in gate) return gate.response;
-  const body = await req.json().catch(() => null) as { tripId?: string; base?: { label?: string; lat?: number; lng?: number }; subType?: string; ask?: string | null; mode?: string } | null;
+  const body = await req.json().catch(() => null) as { tripId?: string; base?: { label?: string; lat?: number; lng?: number }; subType?: string; ask?: string | null; mode?: string; near?: { lat?: number; lng?: number }[]; nearNames?: string[] } | null;
   const tripId = body?.tripId, base = body?.base, subType = body?.subType ?? "self_directed";
   const mode: "google" | "travellers" = body?.mode === "travellers" ? "travellers" : "google";
   if (!tripId || !base?.label || typeof base.lat !== "number" || typeof base.lng !== "number") {
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
   if (!googleKey) return NextResponse.json({ error: "Google isn't configured" }, { status: 500 });
 
   // RLS: the trip is readable only by its members.
-  const { data: trip } = await gate.supabase.from("trips").select("id, destination, start_date, party_size, party_ages").eq("id", tripId).maybeSingle();
+  const { data: trip } = await gate.supabase.from("trips").select("id, destination, start_date, end_date, party_size, party_ages").eq("id", tripId).maybeSingle();
   if (!trip) return NextResponse.json({ error: "Journey not found" }, { status: 404 });
   const [{ data: people }, { data: onTrip }] = await Promise.all([
     gate.supabase.from("people").select("birthdate").eq("trip_id", tripId),
@@ -62,9 +63,18 @@ export async function POST(req: NextRequest) {
   const country = (trip.destination ?? "").split(",").pop()?.trim() || null;
   const month = new Date(start).toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
   const ask = typeof body?.ask === "string" ? body.ask.slice(0, 120) : null;
-  const key = cacheKey({ mode, lat: base.lat, lng: base.lng, subType, ask, kids: childAges.length > 0 });
+  // Events, races and camps happen on dates: no Google (it can only name
+  // venues), and the travellers' search is for what is on while you are there.
+  const dated = DATED.has(subType) && !ask;
+  if (dated && mode === "google") return NextResponse.json({ results: [], mode });
+  // Coffee and dessert near the day's sights, when the base has some (lib/find/near).
+  const near = NEAR_PLAN.has(subType) && !ask
+    ? (body?.near ?? []).filter((p): p is { lat: number; lng: number } => typeof p?.lat === "number" && typeof p?.lng === "number").slice(0, 4)
+    : [];
+  const nearNames = near.length ? (body?.nearNames ?? []).filter((n) => typeof n === "string").slice(0, 6).map((n) => n.slice(0, 60)) : [];
+  const key = cacheKey({ mode, lat: base.lat, lng: base.lng, subType, ask, kids: childAges.length > 0, near, when: dated ? `${trip.start_date}|${trip.end_date}` : null });
   const answer = (found: FindResult[]) => NextResponse.json({
-    results: mode === "travellers" ? mergeFind({ lat: base.lat!, lng: base.lng! }, found, [], already, known) : mergeFind({ lat: base.lat!, lng: base.lng! }, [], found, already, known),
+    results: withinWalk(mode === "travellers" ? mergeFind({ lat: base.lat!, lng: base.lng! }, found, [], already, known) : mergeFind({ lat: base.lat!, lng: base.lng! }, [], found, already, known), near),
     mode,
   });
 
@@ -92,7 +102,7 @@ export async function POST(req: NextRequest) {
     const loc = g.geometry?.location;
     if (!loc) return null;
     if (!fitsCategory(subType, g.types)) return null;
-    return { placeId: g.place_id, name: g.name, address: g.formatted_address ?? "", lat: loc.lat, lng: loc.lng, rating: g.rating ?? null, reviews: g.user_ratings_total ?? null, why, source, from, kids, photoRef: g.photos?.[0]?.photo_reference ?? null };
+    return { placeId: g.place_id, name: g.name, address: g.formatted_address ?? g.vicinity ?? "", lat: loc.lat, lng: loc.lng, rating: g.rating ?? null, reviews: g.user_ratings_total ?? null, why, source, from, kids, photoRef: g.photos?.[0]?.photo_reference ?? null };
   };
 
   const travellers = async (): Promise<FindResult[]> => {
@@ -102,7 +112,7 @@ export async function POST(req: NextRequest) {
       const res = await client.messages.create({
         model: "claude-sonnet-4-6",
         max_tokens: 1500,
-        messages: [{ role: "user", content: travellersPrompt({ base: base.label!, country, subType, ask, party: trip.party_size ?? ages.length ?? 2, childAges, month }) }],
+        messages: [{ role: "user", content: travellersPrompt({ base: base.label!, country, subType, ask, party: trip.party_size ?? ages.length ?? 2, childAges, month, from: trip.start_date, to: trip.end_date, near: nearNames }) }],
         tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }],
       });
       const text = res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("\n");
@@ -119,13 +129,30 @@ export async function POST(req: NextRequest) {
   };
 
   const google = async (): Promise<FindResult[]> => {
-    const u = new URL("https://maps.googleapis.com/maps/api/place/textsearch/json");
-    u.searchParams.set("query", googleQuery(subType, base.label!, ask));
-    u.searchParams.set("location", `${base.lat},${base.lng}`);
-    u.searchParams.set("radius", "15000");
-    u.searchParams.set("key", googleKey);
-    const j = await fetch(u.toString()).then((r) => r.json()).catch(() => null) as { results?: GPlace[] } | null;
-    return (j?.results ?? []).slice(0, 20).map((g) => {
+    let raw: GPlace[];
+    if (near.length) {
+      // Around each cluster of the day's sights, a short walk out.
+      const seenIds = new Set<string>();
+      const lists = await Promise.all(near.map(async (c) => {
+        const u = new URL("https://maps.googleapis.com/maps/api/place/nearbysearch/json");
+        u.searchParams.set("location", `${c.lat},${c.lng}`);
+        u.searchParams.set("radius", "1200");
+        u.searchParams.set("keyword", subType === "coffee" ? "coffee" : "dessert gelato bakery");
+        u.searchParams.set("key", googleKey);
+        const j = await fetch(u.toString()).then((r) => r.json()).catch(() => null) as { results?: GPlace[] } | null;
+        return (j?.results ?? []).slice(0, 8);
+      }));
+      raw = lists.flat().filter((g) => !seenIds.has(g.place_id) && seenIds.add(g.place_id));
+    } else {
+      const u = new URL("https://maps.googleapis.com/maps/api/place/textsearch/json");
+      u.searchParams.set("query", googleQuery(subType, base.label!, ask));
+      u.searchParams.set("location", `${base.lat},${base.lng}`);
+      u.searchParams.set("radius", "15000");
+      u.searchParams.set("key", googleKey);
+      const j = await fetch(u.toString()).then((r) => r.json()).catch(() => null) as { results?: GPlace[] } | null;
+      raw = (j?.results ?? []).slice(0, 20);
+    }
+    return raw.map((g) => {
       const kids = childAges.length > 0 && (g.types ?? []).some((t) => KIDS_TYPES.includes(t));
       const why = g.rating ? `Rated ${g.rating} on Google from ${(g.user_ratings_total ?? 0).toLocaleString("en-US")} reviews.` : "Well rated on Google.";
       return toResult(g, "google", why, null, kids);

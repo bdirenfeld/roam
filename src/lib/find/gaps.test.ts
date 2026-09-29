@@ -16,7 +16,7 @@ const JAPAN = { destination: "Japan", destination_lat: 36.2, destination_lng: 13
 describe("findBases", () => {
   it("a journey with nothing on its map has one base: its destination, all its days", () => {
     const b = findBases([], { destination: "Rome, Italy", destination_lat: 41.9, destination_lng: 12.5, start_date: "2026-04-22", end_date: "2026-04-28" });
-    expect(b).toEqual([{ label: "Rome", lat: 41.9, lng: 12.5, days: 7, counts: {} }]);
+    expect(b).toEqual([{ label: "Rome", lat: 41.9, lng: 12.5, days: 7, counts: {}, sights: [] }]);
   });
 
   it("Japan's saved places make several bases, Tokyo the biggest, days adding to the trip", () => {
@@ -41,7 +41,7 @@ describe("findBases", () => {
 
 describe("gapsFor", () => {
   it("covers every place sub-type Roam has, with a count and no target", () => {
-    const gaps = gapsFor({ label: "Kyoto", lat: 35, lng: 135.7, days: 4, counts: { restaurant: 1, self_directed: 3 } });
+    const gaps = gapsFor({ label: "Kyoto", lat: 35, lng: 135.7, days: 4, counts: { restaurant: 1, self_directed: 3 }, sights: [] });
     expect(gaps.map((g) => g.category.subType)).toEqual(FIND_CATEGORIES.map((c) => c.subType));
     // The same kinds, in the same words, as the map's Filter: food 4, activity 7.
     const filter = GROUPS.filter((g) => g.typeKey === "food" || g.typeKey === "activity").flatMap((g) => g.rows.map((r) => ({ label: r.label, subType: r.subTypes[0] })));

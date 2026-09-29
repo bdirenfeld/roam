@@ -206,6 +206,19 @@ describe("a journey shorter than any one area", () => {
     const { rows } = buildDraft("t2", cards, four, { kids: true, regions: p.suggested });
     expect(rows.length).toBeGreaterThanOrEqual(6);
   });
+  it("a tour company goes on the lightest planned day, untimed, never as a stop at its office", () => {
+    const tour = { id: "tour", trip_id: "t2", day_id: null, status: "interested", position: 0, details: {}, start_time: null, end_time: null, place_id: "qt",
+      place: { id: "qt", title: "Central Park Bike Tours", type: "activity", sub_type: "guided", lat: 40.766, lng: -73.979, address: null, details: { types: ["travel_agency", "point_of_interest"] }, hours: null } } as unknown as Card;
+    const all = [...cards, tour];
+    const p = previewDraft(all, four, true);
+    const { rows } = buildDraft("t2", all, four, { kids: true, regions: p.suggested });
+    const row = rows.find((r) => r.place_id === "qt")!;
+    expect(row).toBeTruthy();
+    expect(row.start_time).toBeNull();
+    const perDay = (d: string) => rows.filter((r) => r.day_id === d && r.place_id !== "qt").length;
+    const planned = Array.from(new Set(rows.map((r) => r.day_id)));
+    expect(perDay(row.day_id)).toBe(Math.min(...planned.map(perDay)));
+  });
   it("a museum with no hours on file is not planned for the evening", () => {
     const p = previewDraft(cards, four, true);
     const { rows } = buildDraft("t2", cards, four, { kids: true, regions: p.suggested });

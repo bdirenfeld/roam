@@ -34,7 +34,9 @@ describe("parseTravellers", () => {
 describe("cacheKey", () => {
   it("one answer per base, category, question and kind of party", () => {
     const k = (o: Partial<Parameters<typeof cacheKey>[0]>) => cacheKey({ mode: "travellers", lat: 41.9028, lng: 12.4964, subType: "restaurant", ask: null, kids: false, ...o });
-    expect(k({})).toBe("travellers|41.90|12.50|restaurant||adults");
+    expect(k({})).toBe("travellers|41.90|12.50|restaurant||adults||");
+    expect(k({ near: [{ lat: 40.7795, lng: -73.9695 }] })).not.toBe(k({})); // coffee near the day is its own answer
+    expect(k({ when: "2026-04-22|2026-04-28" })).not.toBe(k({}));
     expect(k({ lat: 41.9031 })).toBe(k({}));            // two journeys to Rome share
     expect(k({ ask: "  Ramen  open late " })).toBe(k({ ask: "ramen open late" }));
     expect(k({ kids: true })).not.toBe(k({}));
@@ -47,5 +49,19 @@ describe("travellersPrompt, first visit", () => {
     const base = { base: "Rome", country: "Italy", ask: null, party: 2, childAges: [], month: "April 2026" };
     expect(travellersPrompt({ ...base, subType: "self_directed" })).toMatch(/should not miss/);
     expect(travellersPrompt({ ...base, subType: "restaurant" })).not.toMatch(/should not miss/);
+  });
+});
+
+describe("travellersPrompt, dated kinds and near the day", () => {
+  const base = { base: "Rome", country: "Italy", ask: null, party: 2, childAges: [], month: "April 2026" };
+  it("asks what is on during the journey's dates for events, races and camps", () => {
+    const p = travellersPrompt({ ...base, subType: "event", from: "2026-04-22", to: "2026-04-28" });
+    expect(p).toMatch(/between 2026-04-22 and 2026-04-28/);
+    expect(p).toMatch(/never a venue with nothing on/);
+    expect(travellersPrompt({ ...base, subType: "challenge", from: "2026-04-22", to: "2026-04-28" })).toMatch(/running races/);
+  });
+  it("keeps coffee to a short walk from the day's sights", () => {
+    expect(travellersPrompt({ ...base, subType: "coffee", near: ["Colosseum", "Pantheon"] })).toMatch(/around Colosseum, Pantheon/);
+    expect(travellersPrompt({ ...base, subType: "restaurant", near: ["Colosseum"] })).not.toMatch(/short walk/);
   });
 });
