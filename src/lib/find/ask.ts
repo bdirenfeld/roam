@@ -11,12 +11,13 @@ const GOOGLE_WORDS: Record<string, string> = {
   restaurant: "restaurants",
   coffee: "coffee shop",
   dessert: "dessert gelato bakery",
-  guided: "tours",
+  guided: "tours and classes",
   bar: "cocktail bar",
-  shopping: "shops",
-  challenge: "hikes and climbs",
+  challenge: "running races",
   wellness: "spa and massage",
   event: "live shows and events",
+  beach: "beaches",
+  camp: "kids day camps",
 };
 
 export function googleQuery(subType: string, base: string, ask: string | null): string {

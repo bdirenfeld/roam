@@ -107,14 +107,14 @@ describe("samePlace, strict", () => {
 });
 
 describe("Costa Rica test fixes", () => {
-  it("a tour company is Guided, not Explore; a shop is Shopping", () => {
+  it("a tour company is a Tour, not Explore; a clothes shop is neither", () => {
     const tour = ["establishment", "point_of_interest", "travel_agency"];
     expect(fitsCategory("self_directed", tour)).toBe(false);
     expect(fitsCategory("guided", tour)).toBe(true);
     const shop = ["clothing_store", "establishment", "point_of_interest", "store"];
     expect(fitsCategory("self_directed", shop)).toBe(false);
-    expect(fitsCategory("shopping", shop)).toBe(true);
-    // A shop that is also a sight (a famous market, a landmark bookshop) stays.
-    expect(fitsCategory("self_directed", ["book_store", "store", "tourist_attraction"])).toBe(true);
+    // A bookshop is Explore in Roam (his Strand and McNally Jackson), and so is a shop that is a sight.
+    expect(fitsCategory("self_directed", ["book_store", "store", "point_of_interest"])).toBe(true);
+    expect(fitsCategory("self_directed", ["clothing_store", "tourist_attraction"])).toBe(true);
   });
 });

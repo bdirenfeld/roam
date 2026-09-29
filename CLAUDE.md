@@ -1679,8 +1679,9 @@ the component mounted and you are looking at throttling, not a broken map.
 - A "Find" chip beside Filter (week's map at lg+, phone Map; owners only) opens `FindSheet`:
   places for what a BASE is short of, so nobody has to go to Instagram, Reddit or TikTok.
 - Categories are Roam's own sub-types, never new slices (his call: "our database is pretty
-  MECE"): `FIND_CATEGORIES` in `lib/find/gaps.ts` is ALL ten food and activity sub-types
-  (Wellness, Challenge, Event added 29 Sep). NO targets: "7 of 14" was a guess he questioned
+  MECE"): `FIND_CATEGORIES` in `lib/find/gaps.ts` is EXACTLY the map Filter's food and activity
+  rows (MapSidebar `GROUPS`), labelled by `subTypeLabel` (Tour, Race, Beach, Camp...); a test
+  fails if they drift. No Shopping: the app has none (bookshops are Explore). NO targets: "7 of 14" was a guess he questioned
   ("how are you getting the numbers"), and Tamarindo has ~8 restaurants worth listing while a
   family with a kitchen eats in. A chip shows a count once something is saved. Do not re-add
   targets; Plan my trip is what says a day is thin.

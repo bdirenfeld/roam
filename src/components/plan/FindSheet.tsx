@@ -236,7 +236,7 @@ function FindPlace({ r, dates, saved, onSave, onBack }: { r: FindResult; dates: 
       <div className="px-5 pt-3">
         <button type="button" onClick={onBack} className="min-h-[36px] text-[13px] font-medium text-[#B0541F]">‹ Back to results</button>
       </div>
-      <div className="flex gap-2 overflow-x-auto scrollbar-none px-5 py-2">
+      <div className="flex gap-2 overflow-x-auto scrollbar-none px-5 py-2 flex-shrink-0">
         {photos.length > 0
           // eslint-disable-next-line @next/next/no-img-element
           ? photos.map((u) => <img key={u} src={u} alt="" className="h-40 w-60 flex-shrink-0 rounded-xl object-cover bg-gray-100" />)

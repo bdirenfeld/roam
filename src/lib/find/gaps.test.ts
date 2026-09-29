@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { GROUPS } from "@/components/map/MapSidebar";
 import fixture from "@/lib/plan/fixtures/trips.json";
 import type { Card } from "@/types/database";
 import { findBases, gapsFor, FIND_CATEGORIES } from "./gaps";
@@ -42,12 +43,12 @@ describe("gapsFor", () => {
   it("covers every place sub-type Roam has, with a count and no target", () => {
     const gaps = gapsFor({ label: "Kyoto", lat: 35, lng: 135.7, days: 4, counts: { restaurant: 1, self_directed: 3 } });
     expect(gaps.map((g) => g.category.subType)).toEqual(FIND_CATEGORIES.map((c) => c.subType));
-    // Roam's taxonomy (CLAUDE.md): food 4 sub-types, activity 6. Logistics are not places you go.
-    expect(FIND_CATEGORIES.filter((c) => c.type === "food").map((c) => c.subType).sort()).toEqual(["bar", "coffee", "dessert", "restaurant"]);
-    expect(FIND_CATEGORIES.filter((c) => c.type === "activity").map((c) => c.subType).sort()).toEqual(["challenge", "event", "guided", "self_directed", "shopping", "wellness"]);
+    // The same kinds, in the same words, as the map's Filter: food 4, activity 7.
+    const filter = GROUPS.filter((g) => g.typeKey === "food" || g.typeKey === "activity").flatMap((g) => g.rows.map((r) => ({ label: r.label, subType: r.subTypes[0] })));
+    expect(FIND_CATEGORIES.map((c) => `${c.label}:${c.subType}`).sort()).toEqual(filter.map((r) => `${r.label}:${r.subType}`).sort());
     const by = (s: string) => gaps.find((g) => g.category.subType === s)!;
     expect(by("restaurant")).toEqual({ category: expect.any(Object), have: 1 });
     expect(by("self_directed").have).toBe(3);
-    expect(by("wellness").have).toBe(0);
+    expect(by("beach").have).toBe(0);
   });
 });

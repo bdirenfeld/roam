@@ -13,6 +13,7 @@
 import type { Card } from "@/types/database";
 import { groupPins, type Pin } from "@/lib/plan/dayGroups";
 import { regionLabel } from "@/lib/plan/draftTrip";
+import { subTypeLabel } from "@/lib/subTypeLabel";
 
 export interface FindCategory {
   subType: string;
@@ -21,24 +22,20 @@ export interface FindCategory {
 }
 
 /**
- * Every place sub-type a traveller goes to, in Roam's labels: Find covers the
- * whole list, not a slice (his call, 29 Sep 2026). No targets: "7 of 14" was
- * a guess (Tamarindo has about eight restaurants worth listing, and a family
- * with a kitchen eats in), and he asked where the numbers came from. Each chip
- * shows only how many are saved.
+ * Exactly the food and activity kinds a person can pick anywhere else in Roam
+ * (the map's Filter, the add-a-place sheet), in the same words: Find covers
+ * the whole list, not a slice, and cannot drift from it (his call, 29 Sep
+ * 2026; the first cut said "Guided" where the app says "Tour", and had a
+ * Shopping the app does not). Explore first because Find opens on it, then
+ * the rest by how often a trip needs them. No targets: "7 of 14" was a guess
+ * (Tamarindo has about eight restaurants worth listing, and a family with a
+ * kitchen eats in); a chip shows only how many are saved.
  */
-export const FIND_CATEGORIES: FindCategory[] = [
-  { subType: "self_directed", type: "activity", label: "Explore" },
-  { subType: "restaurant", type: "food", label: "Restaurant" },
-  { subType: "coffee", type: "food", label: "Coffee" },
-  { subType: "dessert", type: "food", label: "Dessert" },
-  { subType: "bar", type: "food", label: "Bar" },
-  { subType: "guided", type: "activity", label: "Guided" },
-  { subType: "challenge", type: "activity", label: "Challenge" },
-  { subType: "wellness", type: "activity", label: "Wellness" },
-  { subType: "event", type: "activity", label: "Event" },
-  { subType: "shopping", type: "activity", label: "Shopping" },
+const KINDS: [string, FindCategory["type"]][] = [
+  ["self_directed", "activity"], ["restaurant", "food"], ["coffee", "food"], ["dessert", "food"], ["bar", "food"],
+  ["guided", "activity"], ["beach", "activity"], ["wellness", "activity"], ["event", "activity"], ["challenge", "activity"], ["camp", "activity"],
 ];
+export const FIND_CATEGORIES: FindCategory[] = KINDS.map(([subType, type]) => ({ subType, type, label: subTypeLabel(subType)! }));
 
 export interface FindBase {
   label: string;

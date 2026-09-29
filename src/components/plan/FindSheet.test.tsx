@@ -49,7 +49,7 @@ describe("Find sheet", () => {
     expect(screen.getByText("Trattoria Da Enzo")).toBeTruthy();
     expect(screen.getByRole("link", { name: "r/rome" })).toBeTruthy();
     // Every category is Roam's own sub-type, with no target: a count only once something is saved.
-    for (const label of ["Explore", "Restaurant", "Coffee", "Dessert", "Bar", "Guided", "Challenge", "Wellness", "Event", "Shopping"]) {
+    for (const label of ["Explore", "Restaurant", "Coffee", "Dessert", "Bar", "Tour", "Beach", "Wellness", "Event", "Race", "Camp"]) {
       expect(screen.getByRole("button", { name: label })).toBeTruthy();
     }
   });
