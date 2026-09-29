@@ -50,6 +50,38 @@ function nearestFirst<T>(items: T[], at: (t: T) => { lat: number; lng: number },
   return out;
 }
 
+/**
+ * The order to visit places that adds the least travel, ending back where it
+ * began — the flight home usually leaves from where you landed. Nearest-next
+ * left the far one for last: Japan went Tokyo, Izu, Kanazawa, Osaka and then
+ * 600 km to Yamagata on the final day (29 Sep 2026). Exact up to 8 stops;
+ * nearest-next beyond that.
+ */
+export function roundTrip<T>(items: T[], at: (t: T) => { lat: number; lng: number }, from: { lat: number; lng: number } | null): T[] {
+  if (items.length <= 2 || items.length > 8 || !from) return nearestFirst(items, at, from);
+  // The place you start is first; the rest are ordered after it.
+  let k0 = 0;
+  items.forEach((t, i) => { if (km(at(t), from) < km(at(items[k0]), from)) k0 = i; });
+  const first = items[k0];
+  const rest = [...items.slice(0, k0), ...items.slice(k0 + 1)];
+  let best: T[] = items, cost = Infinity;
+  const walk = (path: T[], left: T[], sofar: number) => {
+    if (sofar >= cost) return;
+    if (!left.length) {
+      // Two directions round a loop cost the same: end nearer home.
+      // The loop closes where it began (the first region), so both directions cost the same.
+      const last = km(at(path[path.length - 1]), at(first));
+      const total = sofar + last * 1.001;
+      if (total < cost) { cost = total; best = path; }
+      return;
+    }
+    const here = path.length ? at(path[path.length - 1]) : from;
+    left.forEach((t, i) => walk([...path, t], [...left.slice(0, i), ...left.slice(i + 1)], sofar + km(here, at(t))));
+  };
+  walk([first], rest, km(from, at(first)));
+  return best;
+}
+
 export function placeGroups(
   grouping: Grouping,
   days: DraftDay[],
@@ -59,7 +91,7 @@ export function placeGroups(
   const regions = grouping.regions.filter((r) => chosen.has(r.id) && r.days > 0);
   // With no stay or airport to start from, begin where most of the days are.
   const start = opts.start ?? [...regions].sort((a, b) => b.days - a.days)[0]?.centre ?? null;
-  const order = nearestFirst(regions, (r) => r.centre, start);
+  const order = roundTrip(regions, (r) => r.centre, start);
 
   const queue: DayGroup[][] = [];
   let here = start;

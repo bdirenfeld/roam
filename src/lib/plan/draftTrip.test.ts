@@ -90,3 +90,27 @@ describe("regionLabel", () => {
     expect(regionLabel([])).toBeNull();
   });
 });
+
+import { roundTrip } from "./draftTrip";
+describe("roundTrip", () => {
+  it("Japan from Tokyo: Yamagata is not left for the last day", () => {
+    const at = { Tokyo: { lat: 35.68, lng: 139.76 }, Izu: { lat: 34.97, lng: 139.1 }, Kanazawa: { lat: 36.56, lng: 136.65 }, Osaka: { lat: 34.67, lng: 135.5 }, Yamagata: { lat: 38.25, lng: 140.34 } } as Record<string, { lat: number; lng: number }>;
+    const order = roundTrip(Object.keys(at), (k) => at[k], at.Tokyo);
+    expect(order[0]).toBe("Tokyo");
+    expect(order[order.length - 1]).not.toBe("Yamagata");
+    // Yamagata sits next to Tokyo at one end of the loop.
+    expect([1, order.length - 1]).toContain(order.indexOf("Yamagata"));
+  });
+});
+
+describe("placeGroups orders regions as a loop", () => {
+  it("Japan: Yamagata is visited next to Tokyo, not flown to on the last day", () => {
+    const g = groupPins(pinsOf("Japan"), { kids: true });
+    const reg = (t: string) => g.groups.find((x) => x.items.some((p) => p.title === t))!.region;
+    const chosen = [reg("Ghibli Museum"), reg("Itō"), reg("Kanazawa"), reg("Kiyomizu-dera"), reg("Yamagata")];
+    const { placed } = placeGroups(g, daysFrom("2028-04-02", 14), { regions: chosen, start: { lat: 35.68, lng: 139.76 } });
+    const seq = placed.map((p) => p.group.region).filter((r, i, a) => i === 0 || a[i - 1] !== r);
+    expect(seq[0]).toBe(reg("Ghibli Museum"));
+    expect(seq[seq.length - 1]).not.toBe(reg("Yamagata"));
+  });
+});
