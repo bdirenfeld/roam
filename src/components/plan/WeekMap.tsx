@@ -85,6 +85,10 @@ interface Props {
 
 type Marker = { marker: any; wrapper: HTMLElement; inner: HTMLElement; cardRef: { current: Card } }; // eslint-disable-line @typescript-eslint/no-explicit-any
 
+/** How close, and how slowly, the map goes to a day. */
+const DAY_ZOOM = 13;
+const DAY_GLIDE_MS = 1000;
+
 function placed(c: Card): boolean {
   return typeof c.place?.lat === "number" && typeof c.place?.lng === "number";
 }
@@ -384,9 +388,12 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
     const pool = activeDayId === null ? cards : cards.filter((c) => c.day_id === activeDayId);
     const pts = pool.filter(placed).map((c) => [c.place!.lng!, c.place!.lat!] as [number, number]);
     if (pts.length === 0) return;
-    if (pts.length === 1) { map.flyTo({ center: pts[0], zoom: Math.max(map.getZoom(), 14), duration: 600 }); return; }
+    // Gently (29 Sep 2026, Brennan: "zooms too aggressively … a little too
+    // close"): a straight glide, not a fly-out-and-dive, stopping at the
+    // neighbourhood, with room round the day's places.
+    if (pts.length === 1) { map.easeTo({ center: pts[0], zoom: Math.min(Math.max(map.getZoom(), DAY_ZOOM - 1), DAY_ZOOM), duration: DAY_GLIDE_MS }); return; }
     const b = pts.reduce((acc: any, pt) => acc.extend(pt), new mb.LngLatBounds(pts[0], pts[0])); // eslint-disable-line @typescript-eslint/no-explicit-any
-    map.fitBounds(b, { padding: { top: 70, bottom: 60, left: 30, right: 60 }, maxZoom: 15, duration: 600 });
+    map.fitBounds(b, { padding: { top: 110, bottom: 100, left: 70, right: 90 }, maxZoom: DAY_ZOOM, duration: DAY_GLIDE_MS, linear: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeDayId, ready]);
 

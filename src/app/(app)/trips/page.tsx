@@ -125,6 +125,8 @@ export default async function TripsPage() {
                       start_date: t.start_date,
                       end_date: t.end_date,
                       archived: t.archived === true,
+                      destination_lat: t.destination_lat,
+                      destination_lng: t.destination_lng,
                       openDayId: openDayByTrip[t.id],
                     }))}
                   />

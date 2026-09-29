@@ -76,6 +76,9 @@ export interface YearViewTrip {
   start_date: string;
   end_date: string;
   archived: boolean;
+  /** Saved on the journey; used instead of asking Google on every page load. */
+  destination_lat?: number | null;
+  destination_lng?: number | null;
   // Same target TripCard links to — today's day clamped to the journey range
   openDayId?: string;
 }
@@ -819,6 +822,14 @@ export default function YearView({ trips, familyDates }: Props) {
       .filter((t) => !t.archived && t.end_date && parseDate(t.end_date) >= todayD)
       .sort((a, b) => a.start_date.localeCompare(b.start_date))[0];
     const name = (next?.destination || "Lisbon").split(",")[0].trim();
+    // The journey already knows where it is (29 Sep 2026): this used to ask
+    // Google twice on every Journeys page load, folded or not — the slowest
+    // thing on that page. Lisbon's point is fixed too.
+    if (next && typeof next.destination_lat === "number" && typeof next.destination_lng === "number") {
+      setDest({ label: name, lat: next.destination_lat, lng: next.destination_lng });
+      return;
+    }
+    if (!next?.destination) { setDest({ label: "Lisbon", lat: 38.7223, lng: -9.1393 }); return; }
     let cancelled = false;
     (async () => {
       // A throwaway token: this resolution isn't a user-typed session
@@ -838,7 +849,9 @@ export default function YearView({ trips, familyDates }: Props) {
   }, []);
 
   useEffect(() => {
-    if (!dest) return;
+    // Only once the section is open: it is folded by default, and the
+    // climate read is a network call nobody sees until then.
+    if (!dest || openState !== true) return;
     let cancelled = false;
     setClimate(null);
     setClimateError(false);
@@ -852,7 +865,7 @@ export default function YearView({ trips, familyDates }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [dest]);
+  }, [dest, openState]);
 
   // Tap-elsewhere dismisses the month detail strip (tapping another cell
   // switches via the cells' own toggle handlers)
