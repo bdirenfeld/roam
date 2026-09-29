@@ -1685,6 +1685,9 @@ the component mounted and you are looking at throttling, not a broken map.
   ("how are you getting the numbers"), and Tamarindo has ~8 restaurants worth listing while a
   family with a kitchen eats in. Chips show no number at all ("Explore · 7" read as a recommendation). Do not re-add
   targets; Plan my trip is what says a day is thin.
+- Find's chips are TWO levels like the Filter: an Activity | Food switch (the Where-to-stay switch
+  style), then that group's kinds. Bases and kinds WRAP, never scroll: a hidden-scrollbar row cut
+  Kagoshima and Dessert off at the edge and could not be scrolled (his note, 29 Sep 2026).
 - A tap on a result opens `FindPlace` in the sheet (his words: "if you click on any of them, it
   doesn't open"): photos, rating, the traveller's reason and page, the journey's days it is shut
   (`closedOnTrip`), Google Maps and website, hours, and Save. Details and photos load on open only.

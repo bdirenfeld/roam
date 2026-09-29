@@ -41,6 +41,7 @@ export default function FindSheet({
   const base: FindBase | undefined = bases[Math.min(baseIdx, bases.length - 1)];
   const gaps = useMemo(() => (base ? gapsFor(base) : []), [base]);
   const [sub, setSub] = useState<string>("self_directed");
+  const group = FIND_CATEGORIES.find((c) => c.subType === sub)?.type ?? "activity";
   const [ask, setAsk] = useState("");
   // Per search: Google's half (about a second) and the travellers' half (20-40 s,
   // instant when cached), each undefined until it answers.
@@ -155,7 +156,8 @@ export default function FindSheet({
             </button>
           </div>
           {bases.length > 1 && (
-            <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
+            // Wraps, never scrolls: a row that scrolled cut Kagoshima off at the edge (29 Sep 2026).
+            <div className="flex flex-wrap gap-1.5">
               {bases.map((b, i) => (
                 <button key={b.label + i} type="button" onClick={() => { setBaseIdx(i); run(b, sub, null); warm(b); }}
                   className="h-8 px-3 rounded-full text-[12.5px] font-medium whitespace-nowrap"
@@ -165,8 +167,20 @@ export default function FindSheet({
               ))}
             </div>
           )}
-          <div className="flex gap-1.5 overflow-x-auto scrollbar-none -mx-5 px-5">
-            {gaps.map((g) => {
+          {/* Two levels, as the map's Filter: Activity or Food, then that group's kinds.
+              Eleven chips in one scrolling row were cut off at the edge (his note, 29 Sep 2026). */}
+          <div className="flex gap-1.5 p-[3px] rounded-full" style={{ background: "rgba(26,26,46,0.045)" }} role="tablist" aria-label="Activity or food">
+            {(["activity", "food"] as const).map((t) => (
+              <button key={t} type="button" role="tab" aria-selected={group === t}
+                onClick={() => { if (group === t) return; const first = FIND_CATEGORIES.find((c) => c.type === t)!.subType; setSub(first); run(base, first, null); }}
+                className="flex-1 py-[7px] rounded-full text-[13px] font-semibold"
+                style={group === t ? { background: "#fff", color: "#1A1A2E", boxShadow: "0 1px 3px rgba(26,26,46,0.16)" } : { color: "rgba(26,26,46,0.6)" }}>
+                {t === "activity" ? "Activity" : "Food"}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {gaps.filter((g) => g.category.type === group).map((g) => {
               const on = g.category.subType === sub;
               return (
                 <button key={g.category.subType} type="button" onClick={() => { setSub(g.category.subType); void run(base, g.category.subType, null); }}

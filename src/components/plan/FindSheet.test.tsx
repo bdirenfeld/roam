@@ -41,7 +41,8 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); inserted.length = 0; toasts.length = 0; calls.length = 0; });
 
-describe("Find sheet", () => {
+// Rendering with jsdom is slow under the full suite; one test timed out at 7.7 s.
+describe("Find sheet", { timeout: 20000 }, () => {
   it("on an empty map, searches the destination straight away, with a photo on each result", async () => {
     await act(async () => { render(<FindSheet trip={trip} days={[]} cards={[] as Card[]} onClose={vi.fn()} onSaved={vi.fn()} />); });
     expect(screen.getByRole("dialog", { name: "Find places" })).toBeTruthy();
@@ -50,10 +51,15 @@ describe("Find sheet", () => {
     expect(screen.getByText("Trattoria Da Enzo")).toBeTruthy();
     expect(screen.getByRole("link", { name: "r/rome" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "More about Trattoria Da Enzo" }).querySelector("img")?.getAttribute("src")).toBe("https://photos.example/thumb.jpg");
-    // Roam's own kinds, in its words, and no number beside them ("Explore · 7" read as a target).
-    for (const label of ["Explore", "Restaurant", "Coffee", "Dessert", "Bar", "Tour", "Beach", "Wellness", "Event", "Race", "Camp"]) {
-      expect(screen.getByRole("button", { name: label })).toBeTruthy();
-    }
+    // Two levels, as the map's Filter: Activity's kinds first, Food's behind the switch. No numbers.
+    for (const label of ["Explore", "Tour", "Beach", "Wellness", "Event", "Race", "Camp"]) expect(screen.getByRole("button", { name: label })).toBeTruthy();
+    // Chips wrap; a scrolling row cut them off at the edge.
+    expect(screen.getByRole("button", { name: "Explore" }).parentElement!.className).toMatch(/flex-wrap/);
+    expect(screen.queryByRole("button", { name: "Restaurant" })).toBeNull();
+    await act(async () => { fireEvent.click(screen.getByRole("tab", { name: "Food" })); });
+    for (const label of ["Restaurant", "Coffee", "Dessert", "Bar"]) expect(screen.getByRole("button", { name: label })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Explore" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Restaurant" }).getAttribute("aria-pressed")).toBe("true"); // the switch opens the group's first kind
   });
 
   it("warms every category on open, so tapping across the chips never waits", async () => {
@@ -63,8 +69,10 @@ describe("Find sheet", () => {
     expect(google.size).toBe(11);
     expect(Array.from(travellers).sort()).toEqual(["bar", "coffee", "dessert", "restaurant", "self_directed"]);
     const before = finds().length;
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Restaurant" })); });
+    await act(async () => { fireEvent.click(screen.getByRole("tab", { name: "Food" })); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Coffee" })); });
     expect(finds().length).toBe(before); // already there
+    await act(async () => { fireEvent.click(screen.getByRole("tab", { name: "Activity" })); });
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Tour" })); });
     expect(finds().slice(before).map((c) => [c.body.subType, c.body.mode])).toEqual([["guided", "travellers"]]); // only the half not warmed
   });
