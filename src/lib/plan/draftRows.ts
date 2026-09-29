@@ -149,6 +149,10 @@ export function previewDraft(cards: Card[], days: Pick<Day, "id" | "date" | "day
     used += r.days + (suggested.length ? 0.5 : 0);
     suggested.push(r.id);
   }
+  // No area fits whole (New York test, 29 Sep 2026: 13 places, one city,
+  // three free days): plan the biggest area as far as the days go and leave
+  // the rest saved. Ticking nothing planned nothing, and said nothing.
+  if (!suggested.length && regions.length) suggested.push([...regions].sort((a, b) => b.days - a.days || b.places - a.places)[0].id);
   return { grouping, free, regions, suggested };
 }
 

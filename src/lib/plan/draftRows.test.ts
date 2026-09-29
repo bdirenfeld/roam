@@ -173,3 +173,37 @@ describe("spreadGroups", () => {
     expect(spreadGroups(rome, false, 3).groups.length).toBe(groupPins(rome, { kids: false }).groups.length);
   });
 });
+
+describe("a journey shorter than any one area", () => {
+  // New York test (29 Sep 2026): Find saved 13 places across the city for a
+  // four-day trip. The one area needed more days than the trip had, nothing
+  // was ticked, and Plan the trip wrote nothing.
+  const PARK = ["park", "point_of_interest"], TA = ["tourist_attraction", "point_of_interest"];
+  const ny: [string, string, string, number, number, string[]][] = [
+    ["Central Park", "activity", "self_directed", 40.783, -73.966, ["park", ...TA]],
+    ["Boat House", "activity", "self_directed", 40.775, -73.969, PARK],
+    ["Belvedere Castle", "activity", "self_directed", 40.779, -73.969, TA],
+    ["High Line", "activity", "self_directed", 40.748, -74.005, ["park", ...TA]],
+    ["Pier 86", "activity", "self_directed", 40.765, -73.999, PARK],
+    ["Pier 6 Playground", "activity", "self_directed", 40.692, -74.001, ["point_of_interest"]],
+    ["Slide Hill", "activity", "self_directed", 40.686, -74.024, ["point_of_interest"]],
+    ["Wave Hill", "activity", "self_directed", 40.898, -73.911, ["art_gallery", ...TA]],
+    ["Natural History", "activity", "guided", 40.781, -73.974, ["museum", ...TA]],
+    ["SUMMIT", "activity", "guided", 40.753, -73.979, ["museum", ...TA]],
+    ["Serendipity 3", "food", "restaurant", 40.762, -73.965, ["restaurant"]],
+    ["Juliana's", "food", "restaurant", 40.703, -73.993, ["restaurant"]],
+    ["Devocion", "food", "coffee", 40.715, -73.962, ["cafe"]],
+  ];
+  const cards = ny.map(([t, ty, st, la, ln, types], i) => ({
+    id: "n" + i, trip_id: "t2", day_id: null, status: "interested", position: 0, details: {}, start_time: null, end_time: null, place_id: "q" + i,
+    place: { id: "q" + i, title: t, type: ty, sub_type: st, lat: la, lng: ln, address: null, details: { types }, hours: null },
+  })) as unknown as Card[];
+  const four = Array.from({ length: 4 }, (_, i) => ({ id: "e" + (i + 1), day_number: i + 1, date: "2026-07-2" + (3 + i) }));
+  it("still plans the biggest area as far as the days go", () => {
+    const p = previewDraft(cards, four, true);
+    expect(p.regions.some((r) => r.days > p.free)).toBe(true);
+    expect(p.suggested).toHaveLength(1);
+    const { rows } = buildDraft("t2", cards, four, { kids: true, regions: p.suggested });
+    expect(rows.length).toBeGreaterThanOrEqual(6);
+  });
+});

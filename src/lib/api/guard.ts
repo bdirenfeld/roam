@@ -58,7 +58,7 @@ export const QUOTA = {
   placeDetails:  300,
   placePhoto:   1500,  // only photos NOT already cached in our bucket
   foodEnrich:    300,
-  bulkImport:    100,  // Find's Save imports one place per tap (raised from 20, 29 Sep 2026)
+  bulkImport:    300,  // Find's Save imports one place per tap: a 9-day family trip is ~50 saves (20 -> 100 -> 300, 29 Sep 2026)
   coverPhoto:     40,  // Unsplash
   embed:         200,  // link previews (follows short links outbound)
   staySearch:    500,  // Where to stay. Lifted from 30 on 10 Sept 2026 at his request so testing

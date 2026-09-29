@@ -1704,5 +1704,8 @@ the component mounted and you are looking at throttling, not a broken map.
 - Plan my trip spreads a light trip (`spreadGroups` in draftRows): when full days leave more
   free days than one rest day a week, places are regrouped lighter (`loadCap` 0.75, then 0.5)
   while they still fit. Rome's eight sights were three packed days and four empty ones.
+- When no area fits the journey whole, Plan my trip ticks the biggest and plans it as far as the
+  days go (New York test: one city, 13 places, 3 free days; nothing was ticked and nothing written).
+- `bulkImport` is 300 a day: Find saves one place per tap, and one tester hit 100 in an afternoon.
 - Save = bulk-import one place with the category's type + an `interested` card carrying
   `details.find {why, source}`. Plan my trip then fits it into a day.
