@@ -5,10 +5,12 @@
  * (./draftTrip) and times within a day (lib/week/dayPlan) — so both screens
  * that offer the button (the week's map, the phone Map) make the same draft.
  *
- * A draft card is an ordinary scheduled copy of a saved place, marked
- * `details.draft = true` and `ai_generated = true`. The saved card stays, as
- * it does for every scheduled copy. Keep clears the mark; Clear deletes the
- * draft cards. Nothing already on a day is touched.
+ * What it writes are ordinary scheduled cards — no draft stage, nothing to
+ * confirm (29 Sep 2026, Brennan: pressing Plan my trip plans the trip). Each
+ * carries `ai_generated` and `details.plan` = where it was put, so "Remove
+ * what Plan my trip added" can take off the cards still where it put them
+ * and leave any the person has moved. The saved card stays, as it does for
+ * every scheduled copy. Nothing already on a day is touched.
  */
 
 import type { Card, Day } from "@/types/database";
@@ -20,7 +22,17 @@ import { toMin, toTime } from "@/lib/week/layout";
 import { dayShare } from "./dayGroups";
 import { hoursWindow, retimeDay, sightMinutes, type RetimeItem } from "./retime";
 
-export const isDraft = (c: { details?: unknown }): boolean => (c.details as Record<string, unknown> | null | undefined)?.draft === true;
+/** Where Plan my trip put a card; absent on everything else. */
+export interface PlanMark { day: string; start: string | null }
+export const planMark = (c: { details?: unknown }): PlanMark | null => {
+  const m = (c.details as Record<string, unknown> | null | undefined)?.plan as PlanMark | undefined;
+  return m && typeof m.day === "string" ? m : null;
+};
+/** A card Plan my trip added that is still where it put it (not moved, not re-timed). */
+export const untouchedPlan = (c: { details?: unknown; day_id?: string | null; start_time?: string | null }): boolean => {
+  const m = planMark(c);
+  return !!m && m.day === c.day_id && (m.start ?? null) === (c.start_time ?? null);
+};
 
 /** Monday-first "1"/"0" from Google's weekday_text; null when unknown. */
 export function openFromHours(hours: unknown): string | null {
@@ -43,7 +55,7 @@ export function draftDays(days: Pick<Day, "id" | "date" | "day_number">[], sched
   const ordered = [...days].sort((a, b) => a.day_number - b.day_number);
   return ordered.map((d, i) => {
     const on = scheduled.filter((c) => c.day_id === d.id);
-    const taken = on.some((c) => c.place?.type === "activity" || (!c.place && !isDraft(c) && !!cardTimes(c).start));
+    const taken = on.some((c) => c.place?.type === "activity" || (!c.place && !!cardTimes(c).start));
     const flight = on.some((c) => FLIGHT.has(c.place?.sub_type ?? ""));
     const edge = ordered.length > 2 && (i === 0 || i === ordered.length - 1);
     return { id: d.id, date: d.date, free: taken ? 0 : flight || edge ? 0.5 : 1 };
@@ -73,7 +85,7 @@ export function pinsToPlan(cards: Card[]): Pin[] {
 export interface DraftRow {
   day_id: string; trip_id: string; place_id: string; status: "in_itinerary"; position: number;
   start_time: string | null; end_time: string | null; source_url: null;
-  details: { draft: true }; ai_generated: true; confirmed: false;
+  details: { plan: PlanMark }; ai_generated: true; confirmed: false;
 }
 
 export interface RegionChoice { id: number; label: string; days: number; places: number }
@@ -188,7 +200,7 @@ export function buildDraft(
       rows.push({
         day_id: p.dayId, trip_id: tripId, place_id: c.place_id as string, status: "in_itinerary", position: ++pos,
         start_time: t ? toTime(t.start) : null, end_time: t ? toTime(t.end) : null, source_url: null,
-        details: { draft: true }, ai_generated: true, confirmed: false,
+        details: { plan: { day: p.dayId, start: t ? toTime(t.start) : null } }, ai_generated: true, confirmed: false,
       });
     }
   }

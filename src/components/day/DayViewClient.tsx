@@ -21,7 +21,6 @@ import AppMenu from "@/components/ui/AppMenu";
 import { useToast } from "@/components/ui/Toast";
 import { formatTimeRange } from "@/lib/formatTime";
 import { agendaOrder } from "@/lib/agendaOrder";
-import { isDraft } from "@/lib/plan/draftRows";
 import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/plan/ConfirmationPreviewSheet";
 import DocumentsSheet from "@/components/plan/DocumentsSheet";
 import { Files, MagnifyingGlass } from "@phosphor-icons/react";
@@ -256,7 +255,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   // than flashing the stale value. Overlay values are absolute, so re-applying
   // them after a sync that has already landed is a no-op.
   const [localCards, setLocalCards] = useState<Card[]>(() =>
-    applyOverlayAll("cards", [...dayWithCards.cards]).filter((c) => !readOnly || !isDraft(c)).sort(agendaOrder)
+    applyOverlayAll("cards", [...dayWithCards.cards]).sort(agendaOrder)
   );
   // Search where this day is, not the journey's one destination: a cruise's
   // Rome day searched "Barcelona, Spain" (lib/places/dayArea, 27 Sep 2026).
@@ -266,55 +265,6 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   );
   // Undo window after a delete — holds the removed row for re-insert
   const { toast } = useToast();
-  // Plan my trip's draft on this day (28 Sep 2026): Keep clears the mark,
-  // Clear deletes the draft cards; "Keep all" keeps the whole journey's draft.
-  const dayDrafts = localCards.filter(isDraft);
-  const markDrafts = async (cards: Card[], draft: boolean) => {
-    const ids = new Set(cards.map((c) => c.id));
-    const detailsOf = (c: Card) => { const d = { ...(c.details as Record<string, unknown>) }; if (draft) d.draft = true; else delete d.draft; return d as Card["details"]; };
-    setLocalCards((prev) => prev.map((c) => (ids.has(c.id) ? { ...c, details: detailsOf(c) } : c)));
-    const results = await Promise.all(cards.map((c) => queuedUpdate("cards", { id: c.id }, { details: detailsOf(c) })));
-    return !results.some((r) => r.error);
-  };
-  const keepDayDraft = async () => {
-    const cards = dayDrafts;
-    if (!(await markDrafts(cards, false))) { toast({ message: "Couldn't keep it. Try again." }); return; }
-    toast({ message: "Kept", undo: async () => { await markDrafts(cards, true); } });
-  };
-  const keepAllDrafts = async () => {
-    const supabase = createClient();
-    const { data } = await supabase.from("cards").select("id, details").eq("trip_id", trip.id).eq("status", "in_itinerary").contains("details", { draft: true });
-    const all = (data ?? []) as Card[];
-    const ok = (await Promise.all(all.map((c) => { const d = { ...(c.details as Record<string, unknown>) }; delete d.draft; return queuedUpdate("cards", { id: c.id }, { details: d }); }))).every((r) => !r.error);
-    setLocalCards((prev) => prev.map((c) => { if (!isDraft(c)) return c; const d = { ...(c.details as Record<string, unknown>) }; delete d.draft; return { ...c, details: d as Card["details"] }; }));
-    toast({ message: ok ? `Kept the whole draft (${all.length} places)` : "Couldn't keep all of it. Try again." });
-    router.refresh();
-  };
-  const clearDayDraft = async () => {
-    const cards = dayDrafts;
-    const ids = new Set(cards.map((c) => c.id));
-    setLocalCards((prev) => prev.filter((c) => !ids.has(c.id)));
-    const { error } = await createClient().from("cards").delete().in("id", Array.from(ids));
-    if (error) { setLocalCards((prev) => [...prev, ...cards].sort(agendaOrder)); toast({ message: "Couldn't clear it. Try again." }); return; }
-    toast({
-      message: `Cleared ${cards.length} ${cards.length === 1 ? "place" : "places"}`,
-      undo: async () => {
-        const rows = cards.map((c) => ({ id: c.id, day_id: c.day_id, trip_id: c.trip_id, start_time: c.start_time, end_time: c.end_time, position: c.position, status: c.status, source_url: c.source_url, details: c.details, ai_generated: c.ai_generated, confirmed: c.confirmed, place_id: c.place_id }));
-        const r = await createClient().from("cards").insert(rows);
-        if (r.error) toast({ message: "Couldn't undo. Try again." }); else setLocalCards((prev) => [...prev, ...cards].sort(agendaOrder));
-      },
-    });
-  };
-  const draftBar = !readOnly && dayDrafts.length > 0 ? (
-    <div data-draft-bar className="flex items-center gap-2 flex-wrap py-2.5 border-b" style={{ borderColor: "rgba(26,26,46,0.10)" }}>
-      <span className="text-[13px] font-semibold text-activity">Draft</span>
-      <span className="text-[12.5px] text-activity/60 flex-1 min-w-0">{dayDrafts.length} {dayDrafts.length === 1 ? "place" : "places"} planned for you</span>
-      <button type="button" onClick={() => void clearDayDraft()} className="h-9 px-3.5 rounded-full text-[13px] font-medium text-[#B0541F]" style={{ background: "rgba(176,84,31,0.08)" }}>Clear</button>
-      <button type="button" onClick={() => void keepDayDraft()} className="h-9 px-3.5 rounded-full text-[13px] font-semibold text-white" style={{ background: "#1A1A2E" }}>Keep</button>
-      <button type="button" onClick={() => void keepAllDrafts()} className="h-9 px-2 text-[12.5px] font-medium underline underline-offset-2 text-activity/70">Keep all days</button>
-      <button type="button" onClick={() => router.push(`/trips/${trip.id}/map?stays=1`)} className="h-9 px-2 text-[12.5px] font-medium underline underline-offset-2 text-activity/70">Where to stay</button>
-    </div>
-  ) : null;
 
   // The day's title — "Arrival", "Lucca morning". The Plan showed it and the
   // Agenda, the screen you read on the day, did not (UX audit, Sep 2026,
@@ -1103,7 +1053,6 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
             }`}
             {...swipeHandlers}
           >
-            {draftBar}
             <CardTimeline
               dayWithCards={localDayWithCards}
               onCardTap={handleCardTap}

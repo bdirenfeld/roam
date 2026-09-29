@@ -35,7 +35,7 @@ import { scheduleCardOnDay } from "@/lib/scheduleCard";
 import { planBatch, plannedOtherDays, stayAnchor } from "@/lib/week/dayPlan";
 import { tapFilter } from "@/lib/map/tapFilter";
 import PlanMyTripSheet from "@/components/plan/PlanMyTripSheet";
-import { pinsToPlan, isDraft } from "@/lib/plan/draftRows";
+import { pinsToPlan, untouchedPlan } from "@/lib/plan/draftRows";
 
 // Purple circular pin for search result previews
 
@@ -93,11 +93,10 @@ const MARKERS = new Map<string, MarkerEntry>();
 
 // userAvatarUrl stays in Props for the page that passes it; the avatar disc
 // it fed left with the one header (consistency sweep, Sep 2026).
-export default function FullMapClient({ trip, days, cards: allCards, readOnly = false }: Props) {
-  // A guest never sees a "Plan my trip" draft (28 Sep 2026).
-  const cards = useMemo(() => (readOnly ? allCards.filter((c) => !isDraft(c)) : allCards), [allCards, readOnly]);
+export default function FullMapClient({ trip, days, cards, readOnly = false }: Props) {
   const [planOpen, setPlanOpen] = useState(false);
-  const toPlan = useMemo(() => (readOnly ? 0 : pinsToPlan(cards).length), [cards, readOnly]);
+  // Also shown while Plan my trip's cards are still where it put them: the sheet can take them off.
+  const toPlan = useMemo(() => (readOnly ? 0 : Math.max(pinsToPlan(cards).length, cards.some(untouchedPlan) ? 2 : 0)), [cards, readOnly]);
   const mapContainerRef  = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapInstRef       = useRef<any>(null);

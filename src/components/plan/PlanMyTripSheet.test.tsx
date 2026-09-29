@@ -7,20 +7,22 @@ import type { Card, Day, Trip } from "@/types/database";
 /**
  * Plan my trip, rendered on Japan's saved pins (28 Sep 2026): 48 places that
  * need about 21 days for a 14-day journey, so the regions are listed and the
- * ones that fit are ticked. "Make a draft" writes one insert of draft cards.
+ * ones that fit are ticked. "Plan the trip" writes one insert of ordinary cards.
  */
 
 const inserted: Record<string, unknown>[][] = [];
+const deleted: string[][] = [];
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
     from: () => ({
       insert: (rows: Record<string, unknown>[]) => { inserted.push(rows); return Promise.resolve({ error: null }); },
-      delete: () => ({ in: () => Promise.resolve({ error: null }) }),
+      delete: () => ({ in: (_k: string, ids: string[]) => { deleted.push(ids); return Promise.resolve({ error: null }); } }),
       select: () => ({ eq: () => Promise.resolve({ data: [] }) }),
     }),
   }),
 }));
 const toasts: { message: string }[] = [];
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }));
 vi.mock("@/components/ui/Toast", () => ({ useToast: () => ({ toast: (t: { message: string }) => toasts.push(t) }) }));
 
 import PlanMyTripSheet from "./PlanMyTripSheet";
@@ -36,7 +38,7 @@ const days = Array.from({ length: 14 }, (_, i) => ({ id: `d${i + 1}`, trip_id: "
 // As in the database: five travelling, no ages saved.
 const trip = { id: "t1", title: "Japan", destination: "Japan", party_ages: null, party_size: 5, start_date: "2028-04-02" } as unknown as Trip;
 
-afterEach(() => { cleanup(); inserted.length = 0; toasts.length = 0; });
+afterEach(() => { cleanup(); inserted.length = 0; deleted.length = 0; toasts.length = 0; });
 
 describe("Plan my trip sheet", () => {
   it("lists the regions with the days each needs, and ticks what fits", () => {
@@ -48,17 +50,17 @@ describe("Plan my trip sheet", () => {
     expect(screen.getByText(/of 13 free days/)).toBeTruthy();
   });
 
-  it("makes one insert of draft cards and hands them back", async () => {
+  it("plans the trip in one insert and hands the cards back", async () => {
     const onDrafted = vi.fn(), onClose = vi.fn();
     render(<PlanMyTripSheet trip={trip} days={days} cards={cards} onClose={onClose} onDrafted={onDrafted} />);
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Make a draft" })); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Plan the trip" })); });
     expect(inserted).toHaveLength(1);
     const rows = inserted[0];
     expect(rows.length).toBeGreaterThan(10);
-    expect(rows.every((r) => (r.details as { draft?: boolean }).draft === true && r.status === "in_itinerary" && typeof r.id === "string")).toBe(true);
+    expect(rows.every((r) => (r.details as { plan?: { day: string } }).plan?.day === r.day_id && r.status === "in_itinerary" && typeof r.id === "string")).toBe(true);
     expect(onDrafted).toHaveBeenCalledTimes(1);
     expect((onDrafted.mock.calls[0][0] as Card[])[0].place).toBeTruthy();
-    expect(toasts[0].message).toMatch(/^Draft on \d+ days/);
+    expect(toasts[0].message).toMatch(/^Planned \d+ places on \d+ days$/);
     expect(onClose).toHaveBeenCalled();
     // A party of five with no ages saved may have children: bars are a late evening, from nine.
     const bars = cards.filter((c) => c.place!.sub_type === "bar").map((c) => c.place_id);
@@ -71,11 +73,20 @@ describe("Plan my trip sheet", () => {
     render(<PlanMyTripSheet trip={trip} days={days} cards={cards} onClose={vi.fn()} onDrafted={vi.fn()} />);
     const ticked = screen.getAllByRole("button", { pressed: true });
     fireEvent.click(ticked[0]);
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Make a draft" })); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Plan the trip" })); });
     const one = inserted[0].length;
     cleanup(); inserted.length = 0;
     render(<PlanMyTripSheet trip={trip} days={days} cards={cards} onClose={vi.fn()} onDrafted={vi.fn()} />);
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Make a draft" })); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Plan the trip" })); });
     expect(inserted[0].length).toBeGreaterThan(one);
+  });
+
+  it("removes what Plan my trip added and nobody has moved, and leaves what was moved", async () => {
+    const put = { ...cards[0], id: "k1", status: "in_itinerary", day_id: "d3", start_time: "10:00:00", details: { plan: { day: "d3", start: "10:00:00" } } } as Card;
+    const moved = { ...cards[1], id: "k2", status: "in_itinerary", day_id: "d5", start_time: "10:00:00", details: { plan: { day: "d4", start: "10:00:00" } } } as Card;
+    render(<PlanMyTripSheet trip={trip} days={days} cards={[...cards, put, moved]} onClose={vi.fn()} onDrafted={vi.fn()} />);
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Remove what Plan my trip added (1 place)" })); });
+    expect(deleted).toEqual([["k1"]]);
+    expect(toasts[0].message).toBe("Removed 1 place Plan my trip added");
   });
 });

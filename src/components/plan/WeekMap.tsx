@@ -16,7 +16,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PlanMyTripSheet from "./PlanMyTripSheet";
-import { pinsToPlan } from "@/lib/plan/draftRows";
+import { pinsToPlan, untouchedPlan } from "@/lib/plan/draftRows";
 import { searchCountries } from "@/lib/entry/countries";
 import { dayChip, spansMonths } from "@/lib/dayChip";
 import { startZoomFor } from "@/lib/places/regions";
@@ -92,7 +92,8 @@ function placed(c: Card): boolean {
 export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onHover, onCardUpdate, onCardCreated, onCardDelete, onPinDragStart, hot, wide, onToggleWide, onPutMany, onClusterDragStart, selectionEpoch, showStays, onCloseStays, onStaysChanged, onDraftCreated }: Props) {
   // Plan my trip: a chip beside Filter while saved places are off the days.
   const [planOpen, setPlanOpen] = useState(false);
-  const toPlan = useMemo(() => (onDraftCreated ? pinsToPlan(cards).length : 0), [cards, onDraftCreated]);
+  // Also shown while Plan my trip's cards are still where it put them: the sheet can take them off.
+  const toPlan = useMemo(() => (onDraftCreated ? Math.max(pinsToPlan(cards).length, cards.some(untouchedPlan) ? 2 : 0) : 0), [cards, onDraftCreated]);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
   const mbRef = useRef<any>(null);  // eslint-disable-line @typescript-eslint/no-explicit-any

@@ -34,7 +34,6 @@ import { weekColumns, weekMinWidth } from "@/lib/week/focus";
 import { planBatch, planExisting, plannedOtherDays, stayAnchor } from "@/lib/week/dayPlan";
 import { shortAddress, firstSentence } from "@/lib/week/cardText";
 import { weekStarts, pageOf } from "@/lib/week/pages";
-import { isDraft } from "@/lib/plan/draftRows";
 import {
   placeBlocks, movedTimes, resizedEnd, resizedStart, minutesAtY, toMin, toTime, fmt12, gridHeight,
   HOUR_START, HOUR_END, PX_PER_HOUR, NO_END_MIN, type Block,
@@ -652,53 +651,38 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     });
   }, [pickedCards, toast]);
 
-  // ── Plan my trip's draft (28 Sep 2026) ─────────────────────────
-  // Draft cards arrive from the sheet on the map; Keep clears their mark,
-  // Clear deletes them. Both take a set of cards (one day's, or all) and
-  // both have Undo. Nothing else on a day is touched.
-  const draftCards = useMemo(() => days.flatMap((d) => d.cards.filter(isDraft)), [days]);
+  // ── Plan my trip (28–29 Sep 2026) ───────────────────────────────
+  // The plan lands as ordinary cards (no draft, nothing to confirm). Right
+  // after, a tray says what was planned with Where to stay and Undo; Undo
+  // deletes those cards. Taking them off later is in the sheet ("Remove what
+  // Plan my trip added").
+  const [recentPlan, setRecentPlan] = useState<Card[] | null>(null);
   const draftCreated = useCallback((created: Card[]) => {
     setDays((prev) => prev.map((d) => {
       const mine = created.filter((c) => c.day_id === d.id);
       return mine.length ? { ...d, cards: [...d.cards, ...mine] } : d;
     }));
+    setRecentPlan(created);
   }, []);
   useEffect(() => {
     const onGone = (e: Event) => {
       const ids = new Set((e as CustomEvent<string[]>).detail);
       setDays((prev) => prev.map((d) => ({ ...d, cards: d.cards.filter((c) => !ids.has(c.id)) })));
+      setRecentPlan(null);
     };
     window.addEventListener("roam:draft-removed", onGone);
     return () => window.removeEventListener("roam:draft-removed", onGone);
   }, []);
-  const setDraftMark = useCallback(async (cards: Card[], draft: boolean) => {
-    const ids = new Set(cards.map((c) => c.id));
-    const detailsOf = (c: Card) => { const d = { ...(c.details as Record<string, unknown>) }; if (draft) d.draft = true; else delete d.draft; return d as Card["details"]; };
-    setDays((prev) => prev.map((d) => ({ ...d, cards: d.cards.map((c) => (ids.has(c.id) ? { ...c, details: detailsOf(c) } : c)) })));
-    const results = await Promise.all(cards.map((c) => queuedUpdate("cards", { id: c.id }, { details: detailsOf(c) })));
-    return !results.some((r) => r.error);
-  }, []);
-  const keepDraft = useCallback(async (cards: Card[]) => {
-    if (!cards.length) return;
-    const ok = await setDraftMark(cards, false);
-    if (!ok) { toast({ message: "Couldn't keep it. Try again." }); return; }
-    toast({ message: cards.length === 1 ? "Kept" : `Kept ${cards.length} places`, undo: async () => { await setDraftMark(cards, true); } });
-  }, [setDraftMark, toast]);
-  const clearDraft = useCallback(async (cards: Card[]) => {
+  const undoPlan = useCallback(async () => {
+    const cards = recentPlan ?? [];
+    setRecentPlan(null);
     if (!cards.length) return;
     const ids = new Set(cards.map((c) => c.id));
     setDays((prev) => prev.map((d) => ({ ...d, cards: d.cards.filter((c) => !ids.has(c.id)) })));
     const { error } = await createClient().from("cards").delete().in("id", Array.from(ids));
-    if (error) { draftCreated(cards); toast({ message: "Couldn't clear it. Try again." }); return; }
-    toast({
-      message: `Cleared ${cards.length} ${cards.length === 1 ? "place" : "places"}`,
-      undo: async () => {
-        const rows = cards.map((c) => ({ id: c.id, day_id: c.day_id, trip_id: c.trip_id, start_time: c.start_time, end_time: c.end_time, position: c.position, status: c.status, source_url: c.source_url, details: c.details, ai_generated: c.ai_generated, confirmed: c.confirmed, place_id: c.place_id }));
-        const r = await createClient().from("cards").insert(rows);
-        if (r.error) toast({ message: "Couldn't undo. Try again." }); else draftCreated(cards);
-      },
-    });
-  }, [draftCreated, toast]);
+    if (error) { draftCreated(cards); toast({ message: "Couldn't undo it. Try again." }); return; }
+    toast({ message: `Took off ${cards.length} ${cards.length === 1 ? "place" : "places"}` });
+  }, [recentPlan, draftCreated, toast]);
 
   // ── the map's callbacks ────────────────────────────────────────
   // A pin's card is either on a day (patch it there) or in the saved pile.
@@ -844,12 +828,6 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                     <button className="w-full text-left px-2.5 py-[7px] rounded-md hover:bg-[#F3EFE4]" onClick={() => { setHeaderMenu(null); setNameDraft(d.theme ?? ""); setRenamingDay(d.id); }}>Rename this day</button>
                     <button className="w-full text-left px-2.5 py-[7px] rounded-md hover:bg-[#F3EFE4]" onClick={() => { setHeaderMenu(null); void arrangeThisDay(d.id); }}>Fill in missing times</button>
                     <button className="w-full text-left px-2.5 py-[7px] rounded-md hover:bg-[#F3EFE4]" onClick={() => { setHeaderMenu(null); void rearrangeEverything(d.id); }}>Re-plan the whole day</button>
-                    {d.cards.some(isDraft) && (
-                      <>
-                        <button className="w-full text-left px-2.5 py-[7px] rounded-md hover:bg-[#F3EFE4] font-medium" onClick={() => { setHeaderMenu(null); void keepDraft(d.cards.filter(isDraft)); }}>Keep this day&rsquo;s draft</button>
-                        <button className="w-full text-left px-2.5 py-[7px] rounded-md hover:bg-[#F3EFE4] text-[#B0541F]" onClick={() => { setHeaderMenu(null); void clearDraft(d.cards.filter(isDraft)); }}>Clear this day&rsquo;s draft</button>
-                      </>
-                    )}
                   </div>
                 )}
                 {focusIdx === i ? (
@@ -891,7 +869,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                     onPointerEnter={() => setHoveredId(c.id)}
                     onPointerLeave={() => setHoveredId((h) => (h === c.id ? null : h))}
                     className={`text-[10px] font-medium bg-white rounded-[5px] px-1.5 py-[3px] truncate max-w-full cursor-grab ${pickedBlocks.has(c.id) ? "ring-2 ring-[#1A1A2E]" : ""}`}
-                    style={{ border: isDraft(c) ? "1px dashed rgba(26,26,46,0.38)" : "1px solid rgba(26,26,46,0.10)", borderLeft: `3px solid ${isNote(c) ? "rgba(26,26,46,0.4)" : PIN_COLORS[c.place!.type]}`, opacity: ghost?.id === c.id ? 0.6 : 1 }}
+                    style={{ border: "1px solid rgba(26,26,46,0.10)", borderLeft: `3px solid ${isNote(c) ? "rgba(26,26,46,0.4)" : PIN_COLORS[c.place!.type]}`, opacity: ghost?.id === c.id ? 0.6 : 1 }}
                     title={cardTitle(c)}
                   >{cardTitle(c)}</div>
                 ))}
@@ -956,8 +934,8 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                           style={{
                             top: b.top, height: b.height,
                             left: `calc(${b.lane * laneW}% + 3px)`, width: `calc(${laneW}% - 6px)`,
-                            background: note ? "#F3EFE4" : isDraft(c) ? "#FBFAF7" : "#FFFFFF",
-                            border: isDraft(c) ? "1px dashed rgba(26,26,46,0.38)" : `1px ${noEnd ? "dashed" : "solid"} rgba(26,26,46,0.10)`,
+                            background: note ? "#F3EFE4" : "#FFFFFF",
+                            border: `1px ${noEnd ? "dashed" : "solid"} rgba(26,26,46,0.10)`,
                             // The pin's colour on the edge and its glyph before the
                             // name (Brennan, 25 Sep 2026): three colours the map
                             // already taught, so a glance says food, sight, transit.
@@ -1041,14 +1019,15 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
         />
       </div>
 
-      {draftCards.length > 0 && pickedBlocks.size === 0 && !mapWide && (
-        <div data-draft-tray className="absolute left-1/2 -translate-x-1/2 z-[40] bg-white rounded-full flex items-center gap-1.5 pl-4 pr-1.5 py-1.5" style={{ bottom: 20, boxShadow: "0 8px 24px rgba(26,26,46,0.18)", marginLeft: -(mapWidth / 2) }}>
-          <span className="text-[13px] font-semibold whitespace-nowrap">Draft</span>
-          <span className="text-[12.5px] whitespace-nowrap text-activity/60 mr-1">{draftCards.length} {draftCards.length === 1 ? "place" : "places"} on {new Set(draftCards.map((c) => c.day_id)).size} days</span>
-          {/* The draft's bases are Where to stay's bases (same 100 km rule, nights from the planned days). */}
+      {recentPlan && recentPlan.length > 0 && pickedBlocks.size === 0 && !mapWide && (
+        <div data-plan-tray className="absolute left-1/2 -translate-x-1/2 z-[40] bg-white rounded-full flex items-center gap-1.5 pl-4 pr-1.5 py-1.5" style={{ bottom: 20, boxShadow: "0 8px 24px rgba(26,26,46,0.18)", marginLeft: -(mapWidth / 2) }}>
+          <span className="text-[13px] font-semibold whitespace-nowrap mr-1">Planned {recentPlan.length} {recentPlan.length === 1 ? "place" : "places"} on {new Set(recentPlan.map((c) => c.day_id)).size} days</span>
+          {/* The plan's bases are Where to stay's bases (same 100 km rule, nights from the planned days). */}
           <button onClick={() => { setShowStays(true); setMapWide(true); }} className="h-8 px-3 rounded-full text-[12.5px] font-medium whitespace-nowrap" style={{ background: "rgba(26,26,46,0.06)" }}>Where to stay</button>
-          <button onClick={() => void clearDraft(draftCards)} className="h-8 px-3 rounded-full text-[12.5px] font-medium whitespace-nowrap text-[#B0541F]" style={{ background: "rgba(176,84,31,0.08)" }}>Clear draft</button>
-          <button onClick={() => void keepDraft(draftCards)} className="h-8 px-3 rounded-full text-[12.5px] font-semibold whitespace-nowrap text-white" style={{ background: "#1A1A2E" }}>Keep all</button>
+          <button onClick={() => void undoPlan()} className="h-8 px-3 rounded-full text-[12.5px] font-medium whitespace-nowrap text-[#B0541F]" style={{ background: "rgba(176,84,31,0.08)" }}>Undo</button>
+          <button onClick={() => setRecentPlan(null)} aria-label="Close" className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 hover:bg-gray-200">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+          </button>
         </div>
       )}
       {pickedBlocks.size > 0 && !mapWide && (

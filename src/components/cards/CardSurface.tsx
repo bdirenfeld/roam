@@ -165,10 +165,6 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
           2026). Untimed entries keep the column so every title starts on the
           same line — an empty rail reads as "anytime", not as a gap. */}
       <div className="w-[62px] md:w-[74px] shrink-0 pt-[3px] flex flex-col items-start gap-[3px]">
-        {/* Plan my trip's draft (28 Sep 2026): a word under the time until it is kept. */}
-        {(card.details as Record<string, unknown> | null)?.draft === true && (
-          <span data-draft-tag className="order-last text-[10px] font-semibold uppercase tracking-[0.08em] text-[#B0541F]">Draft</span>
-        )}
         {onTimeTap ? (
           // The time as a chip: white is what you touch. Tapping it opens the
           // quick time sheet; the whole card is a button, so this is a span

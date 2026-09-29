@@ -5,7 +5,6 @@ import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
 import SharedItinerary, { type SharedCard, type SharedDay, type SharedEntryLine } from "./SharedItinerary";
 import { cachedPhotoUrl } from "@/lib/places/photoCache";
 import { agendaOrder } from "@/lib/agendaOrder";
-import { isDraft } from "@/lib/plan/draftRows";
 import { cardTimes } from "@/lib/cardTime";
 import { tonightByDay, guestSafeCover } from "@/lib/sharedItinerary";
 import type { Metadata, Viewport } from "next";
@@ -199,8 +198,6 @@ export default async function ClaimPage({ params, searchParams }: Props) {
     }));
 
     const cards: SharedCard[] = rows
-      // A "Plan my trip" draft is the owner's until kept (28 Sep 2026).
-      .filter((c) => !isDraft(c))
       // The same rule the owner's agenda uses, from the same function. Sorting
       // on raw start_time here put Rome's overnight flight at the bottom of the
       // day it lands on for every guest, while the owner saw it at the top.

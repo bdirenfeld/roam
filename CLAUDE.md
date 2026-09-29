@@ -1645,10 +1645,13 @@ the component mounted and you are looking at throttling, not a broken map.
 
 ## Plan my trip (28–29 Sep 2026)
 - A chip beside Filter (the week's map at lg+, the phone Map) opens `PlanMyTripSheet`: the saved
-  places not on any day become a DRAFT — ordinary scheduled copies with `details.draft = true`,
-  `ai_generated = true`. Keep clears the mark; Clear deletes the draft cards (week tray, the
-  day "…" menu, the phone day's bar; "Keep all days"). Guests never see a draft (shared page,
-  Map and day filter them; `lib/ui/draftGuests.test.ts`). Nothing already on a day is touched.
+  places not on any day become the PLAN — ordinary scheduled cards, no draft stage, nothing to
+  confirm (29 Sep 2026, Brennan chose this over Keep/Clear per day and over Keep all). Each card
+  carries `ai_generated` and `details.plan = { day, start }` (where it was put). Undo: the week's
+  tray right after ("Planned N places · Where to stay · Undo") and the toast. Later: the sheet's
+  "Remove what Plan my trip added" deletes only cards still where it put them (`untouchedPlan`);
+  anything moved or re-timed stays. Guests see the plan like any other card. Nothing already on a
+  day is touched. `lib/ui/draftGuests.test.ts` keeps the draft stage gone.
 - The engine is `lib/plan`, all rules, all tested on his real pins (`fixtures/trips.json`):
   `dayGroups` (places → day-sized groups; a region = a BASE, the same `REGION_KM` 100 km as
   `lib/stays/brief`), `draftTrip` (groups → days: shortest loop home via `roundTrip`, first and

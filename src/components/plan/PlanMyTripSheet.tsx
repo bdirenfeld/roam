@@ -5,12 +5,14 @@ import type { Card, Day, Trip } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
-import { previewDraft, buildDraft, hasChildren } from "@/lib/plan/draftRows";
+import { useRouter } from "next/navigation";
+import { previewDraft, buildDraft, hasChildren, untouchedPlan } from "@/lib/plan/draftRows";
 
 /**
- * "Plan my trip" (28 Sep 2026): the journey's saved places become a draft
- * of the whole trip — dashed cards on free days, with times — which the
- * person keeps or clears day by day. When the places need more days than the
+ * "Plan my trip" (28 Sep 2026): the journey's saved places become the plan
+ * of the whole trip — ordinary cards on free days, with times; nothing to
+ * confirm (29 Sep 2026). Undo right after; later, "Remove what Plan my trip
+ * added" takes off the cards still where it put them. When the places need more days than the
  * journey has, the regions are listed with the days each needs and the ones
  * that fit are ticked; which to see is the person's call. Opened from the
  * Plan chip beside Filter on the week's map and on the phone Map.
@@ -29,6 +31,9 @@ export default function PlanMyTripSheet({
 }) {
   useEscapeKey(onClose);
   const { toast } = useToast();
+  const router = useRouter();
+  // Cards Plan my trip added that are still where it put them.
+  const planMade = useMemo(() => cards.filter(untouchedPlan), [cards]);
   // The travellers' birthdates, for a journey with no ages saved (New York's are people rows).
   const [birthdates, setBirthdates] = useState<(string | null)[]>([]);
   useEffect(() => {
@@ -56,17 +61,39 @@ export default function PlanMyTripSheet({
     const supabase = createClient();
     const { error } = await supabase.from("cards").insert(withIds);
     setBusy(false);
-    if (error) { toast({ message: "Couldn't make the draft. Try again." }); return; }
+    if (error) { toast({ message: "Couldn't plan it. Try again." }); return; }
     const placeOf = new Map(cards.filter((c) => c.place_id && c.place).map((c) => [c.place_id as string, c.place!]));
     const created = withIds.map((r) => ({ ...r, list_id: null, created_at: new Date().toISOString(), place: placeOf.get(r.place_id) ?? null })) as unknown as Card[];
     onDrafted(created);
     const dayCount = new Set(rows.map((r) => r.day_id)).size;
     toast({
-      message: `Draft on ${dayCount} ${dayCount === 1 ? "day" : "days"}. Keep or clear each day.`,
+      message: `Planned ${rows.length} ${rows.length === 1 ? "place" : "places"} on ${dayCount} ${dayCount === 1 ? "day" : "days"}`,
       undo: async () => {
         const r = await supabase.from("cards").delete().in("id", withIds.map((w) => w.id));
         if (r.error) toast({ message: "Couldn't undo. Try again." });
-        else window.dispatchEvent(new CustomEvent("roam:draft-removed", { detail: withIds.map((w) => w.id) }));
+        else { window.dispatchEvent(new CustomEvent("roam:draft-removed", { detail: withIds.map((w) => w.id) })); router.refresh(); }
+      },
+    });
+    onClose();
+  };
+
+  // Take off what Plan my trip added and nobody has moved since.
+  const removePlan = async () => {
+    const gone = planMade;
+    if (!gone.length) return;
+    setBusy(true);
+    const supabase = createClient();
+    const { error } = await supabase.from("cards").delete().in("id", gone.map((c) => c.id));
+    setBusy(false);
+    if (error) { toast({ message: "Couldn't remove them. Try again." }); return; }
+    window.dispatchEvent(new CustomEvent("roam:draft-removed", { detail: gone.map((c) => c.id) }));
+    router.refresh();
+    toast({
+      message: `Removed ${gone.length} ${gone.length === 1 ? "place" : "places"} Plan my trip added`,
+      undo: async () => {
+        const rows = gone.map((c) => ({ id: c.id, day_id: c.day_id, trip_id: c.trip_id, start_time: c.start_time, end_time: c.end_time, position: c.position, status: c.status, source_url: c.source_url, details: c.details, ai_generated: c.ai_generated, confirmed: c.confirmed, place_id: c.place_id }));
+        const r = await supabase.from("cards").insert(rows);
+        if (r.error) toast({ message: "Couldn't undo. Try again." }); else { onDrafted(gone); router.refresh(); }
       },
     });
     onClose();
@@ -124,12 +151,22 @@ export default function PlanMyTripSheet({
         <button
           type="button"
           onClick={() => void make()}
-          disabled={busy || chosen.size === 0}
+          disabled={busy || chosen.size === 0 || places === 0}
           className="h-11 rounded-full text-[14px] font-semibold text-white disabled:opacity-40"
           style={{ background: "#1A1A2E" }}
         >
-          {busy ? "Planning…" : "Make a draft"}
+          {busy ? "Planning…" : "Plan the trip"}
         </button>
+        {planMade.length > 0 && (
+          <button
+            type="button"
+            onClick={() => void removePlan()}
+            disabled={busy}
+            className="min-h-[44px] text-[13px] font-medium text-[#B0541F] disabled:opacity-40"
+          >
+            Remove what Plan my trip added ({planMade.length} {planMade.length === 1 ? "place" : "places"})
+          </button>
+        )}
       </div>
     </div>
   );

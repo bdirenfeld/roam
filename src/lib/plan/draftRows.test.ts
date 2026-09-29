@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import fixture from "./fixtures/trips.json";
 import type { Card } from "@/types/database";
-import { buildDraft, previewDraft, draftDays, pinsToPlan, openFromHours, isDraft } from "./draftRows";
+import { buildDraft, previewDraft, draftDays, pinsToPlan, openFromHours, untouchedPlan } from "./draftRows";
 
 // Japan's saved pins as the app holds them: one saved card per place, 2–15 April 2028.
 const DAYNAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -32,7 +32,8 @@ describe("Plan my trip, end to end on Japan", () => {
   it("drafts timed cards on free days, never on a closed day, each place once", () => {
     const { rows, dayIds } = buildDraft("t1", saved, days, { kids: true, regions: preview.suggested });
     expect(rows.length).toBeGreaterThan(10);
-    expect(rows.every((r) => r.details.draft && r.ai_generated && r.status === "in_itinerary")).toBe(true);
+    // Ordinary scheduled cards, each marked with where Plan my trip put it.
+    expect(rows.every((r) => r.details.plan.day === r.day_id && r.details.plan.start === r.start_time && r.ai_generated && r.status === "in_itinerary")).toBe(true);
     expect(new Set(rows.map((r) => r.place_id)).size).toBe(rows.length);
     expect(rows.filter((r) => r.start_time).length).toBeGreaterThan(rows.length * 0.8);
     const ghibli = rows.find((r) => r.place_id === saved.find((c) => c.place!.title === "Ghibli Museum")!.place_id);
@@ -58,11 +59,14 @@ describe("Plan my trip, end to end on Japan", () => {
     expect(pinsToPlan([...saved, onDay]).some((p) => p.title === "Kiyomizu-dera")).toBe(false);
   });
 
-  it("reads closed days from Google's text, and knows a draft card", () => {
+  it("reads closed days from Google's text, and knows a card Plan my trip put and nobody moved", () => {
     expect(openFromHours({ weekday_text: DAYNAMES.map((d) => `${d}: ${d === "Tuesday" ? "Closed" : "Open 24 hours"}`) })).toBe("1011111");
     expect(openFromHours(null)).toBeNull();
-    expect(isDraft({ details: { draft: true } } as unknown as Card)).toBe(true);
-    expect(isDraft({ details: {} } as unknown as Card)).toBe(false);
+    const put = { day_id: "d3", start_time: "10:00:00", details: { plan: { day: "d3", start: "10:00:00" } } };
+    expect(untouchedPlan(put)).toBe(true);
+    expect(untouchedPlan({ ...put, day_id: "d4" })).toBe(false);          // moved to another day
+    expect(untouchedPlan({ ...put, start_time: "14:00:00" })).toBe(false); // re-timed
+    expect(untouchedPlan({ day_id: "d3", start_time: null, details: {} })).toBe(false);
   });
 });
 
@@ -89,7 +93,7 @@ describe("which regions are ticked", () => {
 });
 
 import { hoursWindow } from "./retime";
-describe("the draft keeps to opening hours and real lengths", () => {
+describe("the plan keeps to opening hours and real lengths", () => {
   it("every timed card is inside its place's hours that day, and a theme park is the day", () => {
     const p = previewDraft(saved, days, true);
     const { rows } = buildDraft("t1", saved, days, { kids: true, regions: p.suggested });
