@@ -22,6 +22,10 @@ const GOOGLE_WORDS: Record<string, string> = {
 
 export function googleQuery(subType: string, base: string, ask: string | null): string {
   if (ask && ask.trim()) return `${ask.trim()} in ${base}`;
+  // "beaches in Tamarindo" gives Google's one Tamarindo Beach and nothing else,
+  // for any town with a beach of its name; "best beaches near" gives twenty
+  // (Costa Rica test, 29 Sep 2026).
+  if (subType === "beach") return `best beaches near ${base}`;
   return `${GOOGLE_WORDS[subType] ?? "things to do"} in ${base}`;
 }
 

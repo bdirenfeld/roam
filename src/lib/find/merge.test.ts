@@ -118,3 +118,11 @@ describe("Costa Rica test fixes", () => {
     expect(fitsCategory("self_directed", ["clothing_store", "tourist_attraction"])).toBe(true);
   });
 });
+
+describe("a cooking class is a Tour", () => {
+  it("keeps food-typed classes and food tours under Tour", () => {
+    // InRome Cooking Classes, as Google types it.
+    expect(fitsCategory("guided", ["establishment", "food", "point_of_interest", "restaurant"])).toBe(true);
+    expect(fitsCategory("guided", ["subway_station", "transit_station"])).toBe(false);
+  });
+});

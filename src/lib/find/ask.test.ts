@@ -5,6 +5,8 @@ describe("googleQuery", () => {
   it("names the category in plain words, or uses what the person asked", () => {
     expect(googleQuery("coffee", "Kyoto", null)).toBe("coffee shop in Kyoto");
     expect(googleQuery("restaurant", "Kyoto", "ramen open late")).toBe("ramen open late in Kyoto");
+    // Google answers "beaches in Tamarindo" with one beach; "best beaches near" with twenty.
+    expect(googleQuery("beach", "Tamarindo", null)).toBe("best beaches near Tamarindo");
   });
 });
 

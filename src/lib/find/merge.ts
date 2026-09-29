@@ -80,6 +80,9 @@ export function fitsCategory(subType: string, types: string[] | undefined): bool
   if (types.some((t) => NOT_A_PLACE.includes(t))) return false;
   const food = types.some((t) => FOOD.includes(t));
   if (FOOD_SUBTYPES.includes(subType)) return food;
+  // Cooking classes and food tours are Tours that Google types as restaurants
+  // (InRome Cooking Classes, on his real Rome trip).
+  if (subType === "guided") return true;
   const sight = types.some((t) => SIGHT.includes(t));
   if (subType === "self_directed") {
     // Costa Rica test (29 Sep 2026): tour companies ("travel_agency") and a
