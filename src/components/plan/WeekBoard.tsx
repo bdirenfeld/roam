@@ -16,6 +16,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCardNotes, withNotes } from "@/hooks/useCardNotes";
 import { tripCountries } from "@/lib/entry/countries";
 import EntryLine from "@/components/day/EntryLine";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -110,6 +111,8 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const justDraggedRef = useRef(false);
   const daysRef = useRef(days); daysRef.current = days;
   const [saved, setSaved] = useState<Card[]>(initialSaved);
+  // Every card that lands on a day gets its Intent and Know before you go (hooks/useCardNotes).
+  useCardNotes(trip.id, days.flatMap((d) => d.cards), true, (notes) => setDays((prev) => prev.map((d) => ({ ...d, cards: d.cards.map((c) => withNotes(c, notes)) }))));
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [activeDayId, setActiveDayId] = useState<string | null>(null);
   // One screen (26 Sep 2026): a day header widens that day in place — the

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect, useMemo, createContext, useContext } from "react";
+import { useCardNotes, withNotes } from "@/hooks/useCardNotes";
 import { subTypeLabel } from "@/lib/subTypeLabel";
 import { autoDayTitle } from "@/lib/autoDayTitle";
 import { cardTimes } from "@/lib/cardTime";
@@ -170,6 +171,8 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   const setDays = useCallback((v: DayWithCards[] | ((prev: DayWithCards[]) => DayWithCards[])) => {
     setDaysRaw((prev) => orderDays(typeof v === "function" ? v(prev) : v));
   }, []);
+  // Every card that lands on a day gets its Intent and Know before you go (hooks/useCardNotes).
+  useCardNotes(trip.id, days.flatMap((d) => d.cards), true, (notes) => setDays((prev) => prev.map((d) => ({ ...d, cards: d.cards.map((c) => withNotes(c, notes)) }))));
 
   // A day's title — "Lucca day", "Cinque Terre", "Rest" — so the column says
   // what the day is instead of making you infer it from the cards (Brennan,

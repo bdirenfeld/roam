@@ -78,3 +78,25 @@ export function composeNote(n: WrittenNote, hoursLine: string | null): string {
   const points = [...n.know, ...(hoursLine ? [hoursLine] : [])];
   return `**Intent**\n${n.intent}` + (points.length ? `\n\n**Know before you go**\n${points.map((p) => `- ${p}`).join("\n")}` : "");
 }
+
+/**
+ * Cards from this moment on get notes when they land on a day, however they
+ * got there (his call, 29 Sep 2026: "whenever a place goes onto a day").
+ * Older cards are left alone: he builds some journeys by hand (Tuscany) and
+ * a note appearing in them unasked would be writing in his notebook.
+ */
+export const NOTES_FROM = "2026-09-29T22:30:00Z";
+
+type NoteCard = { id: string; status?: string | null; day_id?: string | null; place_id?: string | null; created_at?: string | null; details?: unknown; place?: { type?: string | null } | null };
+
+/** The cards on a day, with a place, created since `since`, with no notes yet. */
+export function cardsNeedingNotes(cards: NoteCard[], since = NOTES_FROM): string[] {
+  const from = Date.parse(since);
+  return cards
+    // Hotels, flights and transit are bookings, not places to explain.
+    .filter((c) => c.status === "in_itinerary" && c.day_id && c.place_id && c.place?.type !== "logistics")
+    // No created_at: made on screen this session, not yet reloaded from the database.
+    .filter((c) => !c.created_at || Date.parse(c.created_at) >= from)
+    .filter((c) => { const n = (c.details as { notes?: unknown } | null)?.notes; return !(typeof n === "string" && n.trim()); })
+    .map((c) => c.id);
+}

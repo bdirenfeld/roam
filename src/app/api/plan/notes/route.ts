@@ -93,12 +93,14 @@ export async function POST(req: NextRequest) {
   const dateOf = new Map((days ?? []).map((d) => [d.id as string, d.date as string]));
 
   let count = 0;
+  const out: Record<string, string> = {};
   await Promise.all(cards.map(async (c) => {
     const n = written[c.place!.google_place_id!];
     if (!n) return;
     const notes = composeNote(n, dayHoursLine(c.place!.hours?.weekday_text, c.day_id ? dateOf.get(c.day_id) ?? null : null));
     const { error } = await gate.supabase.from("cards").update({ details: { ...(c.details ?? {}), notes } }).eq("id", c.id);
-    if (!error) count++;
+    if (!error) { count++; out[c.id] = notes; }
   }));
-  return NextResponse.json({ written: count });
+  // The notes themselves, so the screen shows them without a reload.
+  return NextResponse.json({ written: count, notes: out });
 }

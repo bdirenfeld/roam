@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { notesPrompt, parseNotes, dayHoursLine, composeNote } from "./notes";
+import { notesPrompt, parseNotes, dayHoursLine, composeNote, cardsNeedingNotes } from "./notes";
 import { plainNote } from "@/lib/plainNote";
 
 describe("notesPrompt", () => {
@@ -35,5 +35,24 @@ describe("composeNote", () => {
     expect(note).toBe("**Intent**\nBernini and Caravaggio in a small villa.\n\n**Know before you go**\n- Timed entry: book weeks ahead\n- Open 9:00 AM – 7:00 PM that day");
     expect(plainNote(note)).toMatch(/^Intent\nBernini/);
     expect(composeNote({ intent: "A park.", know: [] }, null)).toBe("**Intent**\nA park.");
+  });
+});
+
+
+describe("cardsNeedingNotes", () => {
+  const since = "2026-09-29T22:30:00Z";
+  const c = (id: string, o: Record<string, unknown> = {}) => ({ id, status: "in_itinerary", day_id: "d1", place_id: "p1", created_at: "2026-09-30T10:00:00Z", details: {}, ...o });
+  it("new cards on a day with a place and no notes; nothing older, saved, or already written", () => {
+    const cards = [
+      c("new"),
+      c("old", { created_at: "2026-09-20T10:00:00Z" }),          // his hand-built journeys
+      c("saved", { status: "interested", day_id: null }),
+      c("note-card", { place_id: null }),
+      c("written", { details: { notes: "**Intent**\nAlready there." } }),
+      c("blank", { details: { notes: "  " } }),
+      c("just-made", { created_at: undefined }),
+      c("hotel", { place: { type: "logistics" } }),
+    ];
+    expect(cardsNeedingNotes(cards, since)).toEqual(["new", "blank", "just-made"]);
   });
 });

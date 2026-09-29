@@ -1768,3 +1768,8 @@ the component mounted and you are looking at throttling, not a broken map.
   for the places not yet written, cached per place (and kids/adults) in `find_cache` under
   `note|<google id>|…`, never overwriting a card that has notes. His request: "for each card you
   need an overview and a know before you go written". Quota `planNotes` 30/day.
+- ...and for any card that lands on a day, however it got there (`hooks/useCardNotes`, in WeekBoard,
+  PlanBoard and DayViewClient; never for a guest): cards created since `NOTES_FROM` (29 Sep 2026)
+  with a place, not logistics, and no notes. Older cards are never written into (he builds some
+  journeys by hand). One module-wide `asked` set so screens and Plan my trip never ask twice; the
+  answer is broadcast as a `roam:notes` event and each screen folds it into its own state.

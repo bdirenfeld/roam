@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { requestNotes } from "@/hooks/useCardNotes";
 import type { Card, Day, Trip } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
@@ -65,10 +66,9 @@ export default function PlanMyTripSheet({
     const placeOf = new Map(cards.filter((c) => c.place_id && c.place).map((c) => [c.place_id as string, c.place!]));
     const created = withIds.map((r) => ({ ...r, list_id: null, created_at: new Date().toISOString(), place: placeOf.get(r.place_id) ?? null })) as unknown as Card[];
     onDrafted(created);
-    // Each card's Intent and Know before you go, written in the background
-    // (api/plan/notes); the week refreshes when they land. Nothing waits on it.
-    void fetch("/api/plan/notes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId: trip.id, cardIds: withIds.map((w) => w.id) }) })
-      .then((r) => r.json()).then((j: { written?: number }) => { if (j.written) router.refresh(); }).catch(() => {});
+    // Each card's Intent and Know before you go, for every planned day at once
+    // (hooks/useCardNotes): screens showing the cards fold the notes in.
+    void requestNotes(trip.id, withIds.map((w) => w.id));
     const dayCount = new Set(rows.map((r) => r.day_id)).size;
     toast({
       message: `Planned ${rows.length} ${rows.length === 1 ? "place" : "places"} on ${dayCount} ${dayCount === 1 ? "day" : "days"}`,

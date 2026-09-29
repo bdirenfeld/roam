@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { useCardNotes, withNotes } from "@/hooks/useCardNotes";
 import { searchCountries } from "@/lib/entry/countries";
 import { tripCountries } from "@/lib/entry/countries";
 import { startZoomFor } from "@/lib/places/regions";
@@ -257,6 +258,8 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   const [localCards, setLocalCards] = useState<Card[]>(() =>
     applyOverlayAll("cards", [...dayWithCards.cards]).sort(agendaOrder)
   );
+  // A card that lands on this day gets its Intent and Know before you go (hooks/useCardNotes); never for a guest.
+  useCardNotes(trip.id, localCards, !readOnly, (notes) => setLocalCards((prev) => prev.map((c) => withNotes(c, notes))));
   // Search where this day is, not the journey's one destination: a cruise's
   // Rome day searched "Barcelona, Spain" (lib/places/dayArea, 27 Sep 2026).
   const searchArea = dayArea(
