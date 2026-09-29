@@ -5,7 +5,10 @@ import type { Card, Day, Trip } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
-import { findBases, gapsFor, type FindBase } from "@/lib/find/gaps";
+import { findBases, gapsFor, FIND_CATEGORIES, type FindBase } from "@/lib/find/gaps";
+
+/** The kinds whose travellers' picks are fetched before they are asked for. */
+const WARM_TRAVELLERS = new Set(["self_directed", "restaurant", "coffee", "dessert", "bar"]);
 import { combineFind, type FindResult } from "@/lib/find/merge";
 import { closedOnTrip, priceSigns } from "@/lib/find/detail";
 
@@ -47,16 +50,13 @@ export default function FindSheet({
 
   const keyOf = (b: FindBase, s: string, q: string | null) => `${b.label}|${s}|${q ?? ""}`;
   const [, bump] = useState(0);
-  const run = (b: FindBase | undefined, s: string, q: string | null) => {
-    if (!b) return;
-    const base = b;
+  // Fetch one half of one search, once. Shown or not, the answer is kept, so
+  // a chip tapped later is already there.
+  const load = (base: FindBase, s: string, q: string | null, modes: ("google" | "travellers")[]) => {
     const k = keyOf(base, s, q);
-    asked.current = k;
-    setOpen(null);
-    bump((n) => n + 1);
-    if (started.current.has(k)) return;
-    started.current.add(k);
-    for (const mode of ["google", "travellers"] as const) {
+    for (const mode of modes) {
+      if (started.current.has(k + "|" + mode)) continue;
+      started.current.add(k + "|" + mode);
       void (async () => {
         let found: FindResult[] = [], failed = false, quota = false;
         try {
@@ -72,10 +72,27 @@ export default function FindSheet({
       })();
     }
   };
+  const run = (b: FindBase | undefined, s: string, q: string | null) => {
+    if (!b) return;
+    asked.current = keyOf(b, s, q);
+    setOpen(null);
+    bump((n) => n + 1);
+    load(b, s, q, ["google", "travellers"]);
+  };
+  // Tapping across the chips should never wait (29 Sep 2026: "make sure things
+  // load faster"). On open, and on a new base, every category's Google half is
+  // fetched (a second each, cheap), and the travellers' half for the kinds a
+  // trip uses most. The server keeps both for a month for everyone, so a city
+  // someone has searched is instant.
+  const warm = (b: FindBase | undefined) => {
+    if (!b) return;
+    for (const c of FIND_CATEGORIES) load(b, c.subType, null, WARM_TRAVELLERS.has(c.subType) ? ["google", "travellers"] : ["google"]);
+  };
 
-  // First open: look straight away for the first gap.
+  // First open: look straight away, then warm the rest.
   useEffect(() => {
-    void run(base, sub, null);
+    run(base, sub, null);
+    warm(base);
     // Once, on open; later searches come from the chips.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -132,7 +149,7 @@ export default function FindSheet({
           {bases.length > 1 && (
             <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
               {bases.map((b, i) => (
-                <button key={b.label + i} type="button" onClick={() => { setBaseIdx(i); void run(b, sub, null); }}
+                <button key={b.label + i} type="button" onClick={() => { setBaseIdx(i); run(b, sub, null); warm(b); }}
                   className="h-8 px-3 rounded-full text-[12.5px] font-medium whitespace-nowrap"
                   style={{ background: i === baseIdx ? "#1A1A2E" : "rgba(26,26,46,0.06)", color: i === baseIdx ? "#fff" : "#1A1A2E" }}>
                   {b.label}
@@ -148,7 +165,8 @@ export default function FindSheet({
                   aria-pressed={on}
                   className="h-8 px-2.5 rounded-lg text-[12px] font-medium whitespace-nowrap flex-shrink-0"
                   style={{ background: on ? "#B0541F" : "rgba(26,26,46,0.04)", color: on ? "#fff" : "rgba(26,26,46,0.7)", border: on ? "1px solid #B0541F" : "1px solid rgba(26,26,46,0.10)" }}>
-                  {g.category.label}{g.have > 0 ? ` · ${g.have}` : ""}
+                  {/* No count: "Explore · 7" read as a recommended number (Brennan, 29 Sep 2026). */}
+                  {g.category.label}
                 </button>
               );
             })}
@@ -172,7 +190,10 @@ export default function FindSheet({
           {reading && <p className="pt-2 pb-1 text-[12px] text-activity/50">Adding what travellers recommend…</p>}
           {!loading && list.map((r) => (
             <div key={r.placeId} className="flex gap-3 py-3 border-b" style={{ borderColor: "rgba(26,26,46,0.07)" }}>
-              <button type="button" onClick={() => setOpen(r)} aria-label={`More about ${r.name}`} className="w-12 h-12 rounded-lg flex-shrink-0" style={{ background: category?.type === "food" ? "rgba(124,58,237,0.12)" : "rgba(29,158,117,0.14)" }} />
+              <button type="button" onClick={() => setOpen(r)} aria-label={`More about ${r.name}`} className="w-12 h-12 rounded-lg flex-shrink-0 overflow-hidden" style={{ background: category?.type === "food" ? "rgba(124,58,237,0.12)" : "rgba(29,158,117,0.14)" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {r.photo && <img src={r.photo} alt="" loading="lazy" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />}
+              </button>
               <div className="flex-1 min-w-0">
                 <button type="button" onClick={() => setOpen(r)} className="block w-full text-left">
                   <div className="text-[14px] font-semibold text-[#1A1A2E] truncate">{r.name}</div>
@@ -212,7 +233,7 @@ type Details = {
  */
 function FindPlace({ r, dates, saved, onSave, onBack }: { r: FindResult; dates: string[]; saved: boolean; onSave: () => void; onBack: () => void }) {
   const [d, setD] = useState<Details | null>(null);
-  const [photos, setPhotos] = useState<string[]>([]);
+  const [photos, setPhotos] = useState<string[]>(r.photo ? [r.photo] : []);
   useEffect(() => {
     let live = true;
     void (async () => {
@@ -223,7 +244,8 @@ function FindPlace({ r, dates, saved, onSave, onBack }: { r: FindResult; dates: 
       const refs = (det.photos ?? []).slice(0, 4).map((p) => p.photo_reference);
       const urls = await Promise.all(refs.map((ref) =>
         fetch(`/api/places/photo/by-reference?photo_reference=${encodeURIComponent(ref)}&maxwidth=640`).then((x) => x.json()).then((j: { url?: string }) => j.url ?? null).catch(() => null)));
-      if (live) setPhotos(urls.filter((u): u is string => !!u));
+      const got = urls.filter((u): u is string => !!u);
+      if (live && got.length) setPhotos(got);
     })();
     return () => { live = false; };
   }, [r.placeId]);

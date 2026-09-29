@@ -1683,7 +1683,7 @@ the component mounted and you are looking at throttling, not a broken map.
   rows (MapSidebar `GROUPS`), labelled by `subTypeLabel` (Tour, Race, Beach, Camp...); a test
   fails if they drift. No Shopping: the app has none (bookshops are Explore). NO targets: "7 of 14" was a guess he questioned
   ("how are you getting the numbers"), and Tamarindo has ~8 restaurants worth listing while a
-  family with a kitchen eats in. A chip shows a count once something is saved. Do not re-add
+  family with a kitchen eats in. Chips show no number at all ("Explore · 7" read as a recommendation). Do not re-add
   targets; Plan my trip is what says a day is thin.
 - A tap on a result opens `FindPlace` in the sheet (his words: "if you click on any of them, it
   doesn't open"): photos, rating, the traveller's reason and page, the journey's days it is shut
@@ -1717,5 +1717,10 @@ the component mounted and you are looking at throttling, not a broken map.
   companies are Guided) or a shop that is not also a sight (Shopping). A museum-like place with
   no hours on file keeps daytime hours in Plan my trip (`assumedWindow` in lib/plan/retime): the
   Museum of Natural History, reused from his real New York with no hours, was planned at 7:30 pm.
+- Result thumbnails: the route resolves Google's photo for what the list could show and keeps the
+  URL in `find_cache` (paid once a month per place, not per open); the tile shows if it fails.
+- Speed: on open (and on a new base) the sheet fetches every category's Google half and the
+  travellers' half for Explore/Restaurant/Coffee/Dessert/Bar (`WARM_TRAVELLERS`), so tapping
+  across the chips never waits. Only cache misses count to quota.
 - Save = bulk-import one place with the category's type + an `interested` card carrying
   `details.find {why, source}`. Plan my trip then fits it into a day.

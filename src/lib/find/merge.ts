@@ -21,6 +21,10 @@ export interface FindResult {
   kids: boolean;
   /** Google types, for fitsCategory. */
   types?: string[];
+  /** A small photo (Google's), resolved once by the route and kept in the shared cache. */
+  photo?: string | null;
+  /** Google's reference for that photo, before it is resolved. */
+  photoRef?: string | null;
 }
 
 export const FAR_KM = 60;

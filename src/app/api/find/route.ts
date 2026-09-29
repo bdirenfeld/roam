@@ -26,7 +26,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const maxDuration = 60;
 
-type GPlace = { place_id: string; name: string; formatted_address?: string; geometry?: { location?: { lat: number; lng: number } }; rating?: number; user_ratings_total?: number; types?: string[] };
+type GPlace = { place_id: string; name: string; formatted_address?: string; geometry?: { location?: { lat: number; lng: number } }; rating?: number; user_ratings_total?: number; types?: string[]; photos?: { photo_reference?: string }[] };
 
 const KIDS_TYPES = ["amusement_park", "zoo", "aquarium", "park", "museum", "tourist_attraction"];
 
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     const u = new URL("https://maps.googleapis.com/maps/api/place/findplacefromtext/json");
     u.searchParams.set("input", input);
     u.searchParams.set("inputtype", "textquery");
-    u.searchParams.set("fields", "place_id,name,formatted_address,geometry,rating,user_ratings_total,types");
+    u.searchParams.set("fields", "place_id,name,formatted_address,geometry,rating,user_ratings_total,types,photos");
     u.searchParams.set("locationbias", `circle:40000@${base.lat},${base.lng}`);
     u.searchParams.set("key", googleKey);
     const j = await fetch(u.toString()).then((r) => r.json()).catch(() => null) as { candidates?: GPlace[] } | null;
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
     const loc = g.geometry?.location;
     if (!loc) return null;
     if (!fitsCategory(subType, g.types)) return null;
-    return { placeId: g.place_id, name: g.name, address: g.formatted_address ?? "", lat: loc.lat, lng: loc.lng, rating: g.rating ?? null, reviews: g.user_ratings_total ?? null, why, source, from, kids };
+    return { placeId: g.place_id, name: g.name, address: g.formatted_address ?? "", lat: loc.lat, lng: loc.lng, rating: g.rating ?? null, reviews: g.user_ratings_total ?? null, why, source, from, kids, photoRef: g.photos?.[0]?.photo_reference ?? null };
   };
 
   const travellers = async (): Promise<FindResult[]> => {
@@ -133,6 +133,18 @@ export async function POST(req: NextRequest) {
   };
 
   const found = mode === "travellers" ? await travellers() : await google();
+  // Thumbnails (29 Sep 2026: "shouldn't the little squares have pictures?").
+  // Only for what the list could show, resolved once here and kept with the
+  // answer in the shared cache, so a photo is paid for once per place per
+  // month, not on every open. A failed one leaves the plain tile.
+  const likely = new Set((mode === "travellers" ? mergeFind(base as { lat: number; lng: number }, found, [], new Set()) : mergeFind(base as { lat: number; lng: number }, [], found, new Set())).map((r) => r.placeId));
+  await Promise.all(found.filter((r) => r.photoRef && likely.has(r.placeId)).map(async (r) => {
+    const u = new URL("https://maps.googleapis.com/maps/api/place/photo");
+    u.searchParams.set("photoreference", r.photoRef!);
+    u.searchParams.set("maxwidth", "240");
+    u.searchParams.set("key", googleKey);
+    r.photo = await fetch(u.toString(), { redirect: "manual" }).then((x) => x.headers.get("location")).catch(() => null);
+  }));
   // An empty answer is not kept: it is more likely a hiccup than the truth.
   if (admin && found.length > 0) await admin.from("find_cache").upsert({ key, results: found, created_at: new Date().toISOString() });
   return answer(found);
