@@ -1751,3 +1751,14 @@ the component mounted and you are looking at throttling, not a broken map.
   out at four sights and four meals. Tour companies (`travel_agency`) never shape a day: they go
   on the lightest planned day of their region, untimed (`Grouping.tours`), not as a 2.5-hour stop
   at their office (Rome: Carpe Diem Tours, Crown Tours).
+
+## Speed and links (29 Sep 2026, late)
+- Maps are flat and fog-free (`projection: "mercator"`, `setFog(null)` on style.load) in the full Map,
+  the week's map and the day map: Mapbox 3 draws streets-v12 as a globe with fog, and every HTML
+  pin then re-checks its fog opacity as the map moves ("zoom is choppy"). `lib/map/mapSetup.test.ts`
+  reads all three. Pins are still HTML markers; a WebGL symbol layer is the next step if it still drags.
+- Find and Plan my trip sheets load with `next/dynamic` when first opened, not with the page.
+- Journey links go where they open in one step (`lib/tripHref`): an owner on a computer straight
+  to /plan; a phone or a guest to the day. The card used to hit the front door or the day, whose
+  day-shaped loading screen flashed before the week ("takes me to the old day view for a second").
+- Find's place view has ‹ › arrows on its photos: with a mouse the strip could not be moved.

@@ -15,9 +15,11 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import PlanMyTripSheet from "./PlanMyTripSheet";
+import dynamic from "next/dynamic";
+// Loaded when first opened: they were in every week page's download (29 Sep 2026).
+const PlanMyTripSheet = dynamic(() => import("./PlanMyTripSheet"), { ssr: false });
 import { stackOrder, restack } from "@/lib/map/pinStack";
-import FindSheet from "./FindSheet";
+const FindSheet = dynamic(() => import("./FindSheet"), { ssr: false });
 import { pinsToPlan, untouchedPlan } from "@/lib/plan/draftRows";
 import { searchCountries } from "@/lib/entry/countries";
 import { dayChip, spansMonths } from "@/lib/dayChip";
@@ -284,6 +286,10 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
       const map = new mb.Map({
         container: containerRef.current,
         style: "mapbox://styles/mapbox/streets-v12",
+        // Flat, no fog (29 Sep 2026: "zoom is choppy"). Mapbox 3 draws this
+        // style as a globe with fog, and every HTML pin then re-checks its
+        // fog opacity as the map moves. A city map looks the same flat.
+        projection: "mercator",
         center: [trip.destination_lng ?? 12.4964, trip.destination_lat ?? 41.9028],
         zoom: startZoomFor(trip.destination, 12),
         attributionControl: false,
@@ -296,6 +302,7 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
       map.once("remove", () => ro.disconnect());
       map.addControl(new mb.NavigationControl({ showCompass: false }), "bottom-right");
       map.on("move", () => setSelected((s) => { if (s) setAnchor(anchorFor(s)); return s; }));
+      map.on("style.load", () => { try { map.setFog(null); } catch { /* older styles have none */ } });
       map.once("load", async () => {
         try { await document.fonts.load('16px "Material Symbols Outlined"'); } catch { /* best effort */ }
         if (mapRef.current !== map) return;

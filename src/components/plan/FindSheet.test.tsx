@@ -152,4 +152,26 @@ describe("Find sheet", { timeout: 20000 }, () => {
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Event" })); });
     expect(screen.getByText("Trattoria Da Enzo")).toBeTruthy();
   });
+
+  it("the photos have arrows, so a mouse can move through them", async () => {
+    // jsdom has no layout: a strip wider than its box, and a scrollBy to watch.
+    const scrolled: number[] = [];
+    const proto = HTMLElement.prototype as unknown as Record<string, unknown>;
+    const saved = { sw: Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollWidth"), cw: Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientWidth") };
+    Object.defineProperty(HTMLElement.prototype, "scrollWidth", { configurable: true, get: () => 1000 });
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => 400 });
+    proto.scrollBy = function (o: { left: number }) { scrolled.push(o.left); };
+    try {
+      await act(async () => { render(<FindSheet trip={trip} days={[]} cards={[] as Card[]} onClose={vi.fn()} onSaved={vi.fn()} />); });
+      await act(async () => { fireEvent.click(screen.getByRole("button", { name: "More about Trattoria Da Enzo" })); });
+      const next = await screen.findByRole("button", { name: "Next photo" });
+      expect(screen.queryByRole("button", { name: "Previous photo" })).toBeNull(); // at the start
+      await act(async () => { fireEvent.click(next); });
+      expect(scrolled).toEqual([248]);
+    } finally {
+      if (saved.sw) Object.defineProperty(HTMLElement.prototype, "scrollWidth", saved.sw); else delete (proto as Record<string, unknown>).scrollWidth;
+      if (saved.cw) Object.defineProperty(HTMLElement.prototype, "clientWidth", saved.cw); else delete (proto as Record<string, unknown>).clientWidth;
+      delete proto.scrollBy;
+    }
+  });
 });

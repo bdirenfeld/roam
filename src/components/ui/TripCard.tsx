@@ -15,9 +15,9 @@ import type { Trip } from "@/types/database";
 
 interface Props {
   trip: Trip;
-  // The day to open when this card is tapped — today's day clamped to the
-  // journey range, resolved upstream. Falls back to the trip root when absent.
-  openDayId?: string;
+  // Where a tap goes, resolved upstream by lib/tripHref (the week on a
+  // computer, the day on a phone). Falls back to the trip root when absent.
+  href?: string;
 }
 
 function tripNights(start: string, end: string): number {
@@ -40,7 +40,7 @@ function formatDateCompact(start: string, end: string): string {
   return `${sMonth} ${sDay} – ${eMonth} ${eDay} · ${nightsStr}`;
 }
 
-export default function TripCard({ trip, openDayId }: Props) {
+export default function TripCard({ trip, href }: Props) {
   const router = useRouter();
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(trip.cover_image_url ?? null);
   const [showModal,     setShowModal]     = useState(false);
@@ -71,7 +71,7 @@ export default function TripCard({ trip, openDayId }: Props) {
   return (
     <>
       <div className="group relative">
-        <Link href={openDayId ? `/trips/${trip.id}/days/${openDayId}` : `/trips/${trip.id}`} className="block">
+        <Link href={href ?? `/trips/${trip.id}`} className="block">
           <article className="rounded-2xl overflow-hidden border border-gray-100 bg-white active:scale-[0.99] transition-all duration-150 [@media(hover:hover)]:group-hover:shadow-[0_0_0_1.5px_rgba(196,98,45,0.3)]">
 
             {/* The name and dates sit on the photograph rather than in a white

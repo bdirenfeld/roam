@@ -14,8 +14,8 @@ import type { Trip } from "@/types/database";
 
 interface Props {
   trips: Trip[];
-  // Day each journey opens to when tapped — resolved upstream; trip root when absent.
-  openDayByTrip: Record<string, string>;
+  // Where each journey opens when tapped (lib/tripHref); trip root when absent.
+  hrefByTrip: Record<string, string>;
 }
 
 function formatDateShort(start: string, end: string): string {
@@ -69,7 +69,7 @@ function YearDivider({ year, first }: { year: string; first: boolean }) {
   );
 }
 
-export default function PastJourneysList({ trips, openDayByTrip }: Props) {
+export default function PastJourneysList({ trips, hrefByTrip }: Props) {
   const router = useRouter();
   const [deleteTarget, setDeleteTarget] = useState<Trip | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -79,10 +79,7 @@ export default function PastJourneysList({ trips, openDayByTrip }: Props) {
   const groups = groupByYear(trips);
   const showYears = groups.length > 1;
 
-  const hrefFor = (trip: Trip) =>
-    openDayByTrip[trip.id]
-      ? `/trips/${trip.id}/days/${openDayByTrip[trip.id]}`
-      : `/trips/${trip.id}`;
+  const hrefFor = (trip: Trip) => hrefByTrip[trip.id] ?? `/trips/${trip.id}`;
 
   const handleRestore = async (trip: Trip) => {
     const supabase = createClient();

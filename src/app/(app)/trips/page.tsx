@@ -8,6 +8,7 @@ import { fetchAndStoreCover } from "@/lib/unsplash";
 import { resolveDefaultDay } from "@/lib/resolveDefaultDay";
 import { headers } from "next/headers";
 import { isPhone } from "@/lib/device";
+import { tripHref } from "@/lib/tripHref";
 import { belongsInPastJourneys, isPastJourney } from "@/lib/tripRecency";
 import { createSampleJourney } from "@/lib/sampleTrip/actions";
 import YearView from "@/components/trips/YearView";
@@ -69,6 +70,12 @@ export default async function TripsPage() {
     const openDay = resolveDefaultDay(days);
     if (openDay) openDayByTrip[tripId] = openDay.id;
   }
+  // One step to where the journey opens (lib/tripHref): an owner on a
+  // computer straight to the week, never via the day's loading screen.
+  const hrefByTrip: Record<string, string> = {};
+  for (const t of (rawTrips ?? []) as Trip[]) {
+    hrefByTrip[t.id] = tripHref(t.id, { phone, owner: t.user_id === user?.id, openDayId: openDayByTrip[t.id] });
+  }
 
   // Dates are facts, archive is a choice — never mixed (Brennan, Aug 26):
   // "Past journeys" holds only trips whose dates have passed; explicitly
@@ -102,7 +109,7 @@ export default async function TripsPage() {
               {upcoming.length > 0 && (
                 <div className="space-y-3 mb-8 md:space-y-0 md:grid md:grid-cols-2 md:gap-7 md:mb-14">
                   {upcoming.map((trip: Trip) => (
-                    <TripCard key={trip.id} trip={trip} openDayId={openDayByTrip[trip.id]} />
+                    <TripCard key={trip.id} trip={trip} href={hrefByTrip[trip.id]} />
                   ))}
                 </div>
               )}
@@ -127,7 +134,7 @@ export default async function TripsPage() {
                       archived: t.archived === true,
                       destination_lat: t.destination_lat,
                       destination_lng: t.destination_lng,
-                      openDayId: openDayByTrip[t.id],
+                      href: hrefByTrip[t.id],
                     }))}
                   />
                 </div>
@@ -140,7 +147,7 @@ export default async function TripsPage() {
                   label="Past journeys"
                   className="mt-7 mb-3 md:mt-10"
                 >
-                  <PastJourneysList trips={past} openDayByTrip={openDayByTrip} />
+                  <PastJourneysList trips={past} hrefByTrip={hrefByTrip} />
                 </CollapsibleSection>
               )}
 
@@ -149,7 +156,7 @@ export default async function TripsPage() {
                   trip back in Upcoming; a date-past one lands in Past above. */}
               {archivedTrips.length > 0 && (
                 <CollapsibleSection label="Archived">
-                  <PastJourneysList trips={archivedTrips} openDayByTrip={openDayByTrip} />
+                  <PastJourneysList trips={archivedTrips} hrefByTrip={hrefByTrip} />
                 </CollapsibleSection>
               )}
             </>

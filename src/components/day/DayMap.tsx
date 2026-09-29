@@ -207,6 +207,10 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
       const map = new mb.Map({
         container: mapRef.current!,
         style: "mapbox://styles/mapbox/streets-v12",
+        // Flat, no fog (29 Sep 2026: "zoom is choppy"). Mapbox 3 draws this
+        // style as a globe with fog, and every HTML pin then re-checks its
+        // fog opacity as the map moves. A city map looks the same flat.
+        projection: "mercator",
         center: [centerLng, centerLat],
         zoom: startZoom,
         attributionControl: false,
@@ -216,6 +220,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
 
       map.addControl(new mb.AttributionControl({ compact: true }), "bottom-right");
 
+      map.on("style.load", () => { try { map.setFog(null); } catch { /* older styles have none */ } });
       map.on("load", async () => {
         // Wait for Material Symbols font so icons render on first paint
         try {

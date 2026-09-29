@@ -13,6 +13,8 @@
 // bottom out a field behind itself.
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { tripHref } from "@/lib/tripHref";
+import { isPhone } from "@/lib/device";
 import { matchRegions, REGIONS } from "@/lib/places/regions";
 import { getAuthUser } from "@/lib/supabase/authUser";
 import { useRouter } from "next/navigation";
@@ -643,7 +645,8 @@ export default function NewJourneyForm({
       });
     }
 
-    const landing = days[0] ? `/trips/${tripId}/days/${days[0].id}` : `/trips/${tripId}`;
+    // One step to where it opens (lib/tripHref): the week on a computer, Day 1 on a phone.
+    const landing = tripHref(tripId, { phone: isPhone(navigator.userAgent, null), owner: true, openDayId: days[0]?.id });
     if (onCreated) onCreated(tripId, landing);
     else router.push(landing);
   }, [isValid, saving, destination, tripName, startDate, endDate, partySize, cruise, coverUrl, inviteEmails, router, onCreated, toast]);

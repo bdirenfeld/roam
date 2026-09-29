@@ -35,8 +35,10 @@ import { createClient } from "@/lib/supabase/client";
 import { scheduleCardOnDay } from "@/lib/scheduleCard";
 import { planBatch, plannedOtherDays, stayAnchor } from "@/lib/week/dayPlan";
 import { tapFilter } from "@/lib/map/tapFilter";
-import PlanMyTripSheet from "@/components/plan/PlanMyTripSheet";
-import FindSheet from "@/components/plan/FindSheet";
+import dynamic from "next/dynamic";
+// Loaded when first opened, not with the map (29 Sep 2026).
+const PlanMyTripSheet = dynamic(() => import("@/components/plan/PlanMyTripSheet"), { ssr: false });
+const FindSheet = dynamic(() => import("@/components/plan/FindSheet"), { ssr: false });
 import { pinsToPlan, untouchedPlan } from "@/lib/plan/draftRows";
 
 // Purple circular pin for search result previews
@@ -696,6 +698,10 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
       const map = new mb.Map({
         container: mapContainerRef.current!,
         style: "mapbox://styles/mapbox/streets-v12",
+        // Flat, no fog (29 Sep 2026: "zoom is choppy"). Mapbox 3 draws this
+        // style as a globe with fog, and every HTML pin then re-checks its
+        // fog opacity as the map moves. A city map looks the same flat.
+        projection: "mercator",
         center: [trip.destination_lng ?? 12.4964, trip.destination_lat ?? 41.9028],
         zoom: startZoomFor(trip.destination, 13),
         attributionControl: false,
@@ -712,6 +718,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
       });
       map.addControl(geolocate, "bottom-right");
 
+      map.on("style.load", () => { try { map.setFog(null); } catch { /* older styles have none */ } });
       map.once("load", async () => {
         if (mapInstRef.current !== map) return;
 

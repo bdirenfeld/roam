@@ -542,7 +542,8 @@ function TripSwitcher({ currentTripId, title }: { currentTripId: string; title: 
     return (
       <Link
         key={t.id}
-        href={`/trips/${t.id}`}
+        // Desktop only: straight to the week (lib/tripHref); a guest's /plan sends them on to the day.
+        href={`/trips/${t.id}/plan`}
         onClick={() => setOpen(false)}
         role="menuitem"
         aria-current={on ? "page" : undefined}

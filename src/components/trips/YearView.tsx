@@ -79,8 +79,8 @@ export interface YearViewTrip {
   /** Saved on the journey; used instead of asking Google on every page load. */
   destination_lat?: number | null;
   destination_lng?: number | null;
-  // Same target TripCard links to — today's day clamped to the journey range
-  openDayId?: string;
+  // Same target TripCard links to (lib/tripHref)
+  href?: string;
 }
 
 interface Props {
@@ -1095,7 +1095,7 @@ export default function YearView({ trips, familyDates }: Props) {
                     return (
                       <Link
                         key={t.id}
-                        href={t.openDayId ? `/trips/${t.id}/days/${t.openDayId}` : `/trips/${t.id}`}
+                        href={t.href ?? `/trips/${t.id}`}
                         title={`${t.title} · ${formatRange(start, end)}`}
                         style={{
                           position: "absolute",

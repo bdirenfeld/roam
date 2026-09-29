@@ -256,6 +256,18 @@ type Details = {
 function FindPlace({ r, dates, saved, onSave, onBack }: { r: FindResult; dates: string[]; saved: boolean; onSave: () => void; onBack: () => void }) {
   const [d, setD] = useState<Details | null>(null);
   const [photos, setPhotos] = useState<string[]>(r.photo ? [r.photo] : []);
+  const strip = useRef<HTMLDivElement>(null);
+  const [canBack, setCanBack] = useState(false);
+  const [canNext, setCanNext] = useState(false);
+  const edges = () => {
+    const el = strip.current;
+    if (!el) return;
+    setCanBack(el.scrollLeft > 4);
+    setCanNext(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  };
+  useEffect(edges, [photos]);
+  // One photo (240 px and the gap) at a time.
+  const step = (dir: number) => strip.current?.scrollBy({ left: dir * 248 });
   useEffect(() => {
     let live = true;
     void (async () => {
@@ -280,11 +292,24 @@ function FindPlace({ r, dates, saved, onSave, onBack }: { r: FindResult; dates: 
       <div className="px-5 pt-3">
         <button type="button" onClick={onBack} className="min-h-[36px] text-[13px] font-medium text-[#B0541F]">‹ Back to results</button>
       </div>
-      <div className="flex gap-2 overflow-x-auto scrollbar-none px-5 py-2 flex-shrink-0">
-        {photos.length > 0
-          // eslint-disable-next-line @next/next/no-img-element
-          ? photos.map((u) => <img key={u} src={u} alt="" className="h-40 w-60 flex-shrink-0 rounded-xl object-cover bg-gray-100" />)
-          : <div className="h-40 w-full rounded-xl bg-gray-100" aria-hidden />}
+      {/* Arrows as well as a swipe: with a mouse the strip could not be moved (29 Sep 2026). */}
+      <div className="relative flex-shrink-0">
+        <div ref={strip} onScroll={edges} className="flex gap-2 overflow-x-auto scrollbar-none px-5 py-2 scroll-smooth">
+          {photos.length > 0
+            // eslint-disable-next-line @next/next/no-img-element
+            ? photos.map((u) => <img key={u} src={u} alt="" onLoad={edges} className="h-40 w-60 flex-shrink-0 rounded-xl object-cover bg-gray-100" />)
+            : <div className="h-40 w-full rounded-xl bg-gray-100" aria-hidden />}
+        </div>
+        {canBack && (
+          <button type="button" aria-label="Previous photo" onClick={() => step(-1)}
+            className="absolute left-7 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center text-[18px] leading-none text-[#1A1A2E]"
+            style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.2)" }}>‹</button>
+        )}
+        {canNext && (
+          <button type="button" aria-label="Next photo" onClick={() => step(1)}
+            className="absolute right-7 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center text-[18px] leading-none text-[#1A1A2E]"
+            style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.2)" }}>›</button>
+        )}
       </div>
       <div className="px-5 pb-4 flex flex-col gap-2">
         <h3 className="text-[18px] font-semibold text-[#1A1A2E] leading-snug">{r.name}</h3>
