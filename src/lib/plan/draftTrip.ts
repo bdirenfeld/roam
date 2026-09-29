@@ -103,54 +103,72 @@ export function placeGroups(
     here = r.centre;
   }
 
-  const placed: Placement[] = [];
   const unplaced: DayGroup[] = grouping.groups.filter((g) => !chosen.has(g.region));
 
   // Spare days are spread through the trip as free days, not all left at the
   // end: Costa Rica came out as five full days and then four empty ones.
   const usable = days.filter((d) => d.free > 0);
   const needed = queue.reduce((s, q) => s + q.length, 0);
-  const spare = usable.length - needed;
-  const rest = new Set<string>();
-  if (spare > 0) {
-    for (let k = 1; k <= spare; k++) rest.add(usable[Math.min(usable.length - 1, Math.round((k * usable.length) / (spare + 1)))].id);
-  }
-
-  let ri = 0;
-  let arrived = false;
-  for (let di = 0; di < days.length; di++) {
-    const day = days[di];
-    while (ri < queue.length && queue[ri].length === 0) { ri++; arrived = false; }
-    if (ri >= queue.length) break;
-    if (day.free <= 0 || rest.has(day.id)) continue;
-    // The first day in a region after the first one is spent getting there.
-    const free = !arrived && ri > 0 ? Math.min(day.free, 0.5) : day.free;
-    arrived = true;
-    const wd = weekdayOf(day.date);
-    // Of what is open today and fits, the place open on the fewest days goes
-    // first: DisneySea (every day) took Tokyo's Sunday and left no weekend for
-    // the stamp shop, open Saturdays and Sundays only (29 Sep 2026).
-    let k = -1, fewest = 8;
-    queue[ri].forEach((g, j) => {
-      if (g.openDays[wd] !== "1" || Math.min(g.load, 1) > free + 1e-9) return;
-      const n = g.openDays.split("").filter((c) => c === "1").length;
-      if (n < fewest) { fewest = n; k = j; }
-    });
-    if (k >= 0) {
-      const [g] = queue[ri].splice(k, 1);
-      placed.push({ dayId: day.id, group: g });
-      continue;
+  // What is spare once travel is counted: a move between regions and the
+  // first and last days hold only half a day, so a full-day group needs a
+  // full day. Counting every day as whole kept four rest days on Japan and
+  // left Kanazawa out (29 Sep 2026).
+  const moves = Math.max(0, queue.filter((q) => q.length).length - 1);
+  const fullDays = usable.filter((d) => d.free >= 1).length - moves;
+  const halfDays = usable.length - usable.filter((d) => d.free >= 1).length + moves;
+  const big = queue.reduce((s, q) => s + q.filter((g) => Math.min(g.load, 1) > 0.5).length, 0);
+  const spare = Math.min(fullDays - big, fullDays + halfDays - needed);
+  // Rest days are given up one at a time while anything does not fit: a
+  // spread-out rest day is worth less than a place you saved.
+  const run = (restCount: number) => {
+    const rest = new Set<string>();
+    for (let k = 1; k <= restCount; k++) rest.add(usable[Math.min(usable.length - 1, Math.round((k * usable.length) / (restCount + 1)))].id);
+    const q = queue.map((x) => [...x]);
+    const placed: Placement[] = [];
+    const dropped: DayGroup[] = [];
+    let ri = 0;
+    let arrived = false;
+    for (let di = 0; di < days.length; di++) {
+      const day = days[di];
+      while (ri < q.length && q[ri].length === 0) { ri++; arrived = false; }
+      if (ri >= q.length) break;
+      if (day.free <= 0 || rest.has(day.id)) continue;
+      // The first day in a region after the first one is spent getting there.
+      const free = !arrived && ri > 0 ? Math.min(day.free, 0.5) : day.free;
+      arrived = true;
+      const wd = weekdayOf(day.date);
+      // Of what is open today and fits, the place open on the fewest days goes
+      // first: DisneySea (every day) took Tokyo's Sunday and left no weekend for
+      // the stamp shop, open Saturdays and Sundays only (29 Sep 2026).
+      let k = -1, fewest = 8;
+      q[ri].forEach((g, j) => {
+        if (g.openDays[wd] !== "1" || Math.min(g.load, 1) > free + 1e-9) return;
+        const n = g.openDays.split("").filter((c) => c === "1").length;
+        if (n < fewest) { fewest = n; k = j; }
+      });
+      if (k >= 0) {
+        const [g] = q[ri].splice(k, 1);
+        placed.push({ dayId: day.id, group: g });
+        continue;
+      }
+      // Nothing here is open today. Wait a day if something opens tomorrow;
+      // otherwise what is left is closed while you are here (the stamp shop,
+      // weekends only) and goes back to you, and the trip moves on today.
+      const tomorrow = (wd + 1) % 7;
+      if (q[ri].some((g) => g.openDays[tomorrow] === "1") || q[ri].every((g) => Math.min(g.load, 1) > free + 1e-9)) continue;
+      dropped.push(...q[ri].splice(0));
+      di--;
     }
-    // Nothing here is open today. Wait a day if something opens tomorrow;
-    // otherwise what is left is closed while you are here (the stamp shop,
-    // weekends only) and goes back to you, and the trip moves on today.
-    const tomorrow = (wd + 1) % 7;
-    if (queue[ri].some((g) => g.openDays[tomorrow] === "1") || queue[ri].every((g) => Math.min(g.load, 1) > free + 1e-9)) continue;
-    unplaced.push(...queue[ri].splice(0));
-    di--;
+    const left = q.flat();
+    return { placed, dropped, left };
+  };
+  let best = run(Math.max(0, spare));
+  for (let r = Math.max(0, spare) - 1; r >= 0 && best.left.length > 0; r--) {
+    const next = run(r);
+    if (next.left.length < best.left.length) best = next;
   }
-  for (const q of queue) unplaced.push(...q);
-  return { placed, unplaced };
+  unplaced.push(...best.dropped, ...best.left);
+  return { placed: best.placed, unplaced };
 }
 
 /** A region's name: the town most of its places are in. */

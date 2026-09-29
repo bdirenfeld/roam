@@ -104,14 +104,17 @@ describe("roundTrip", () => {
 });
 
 describe("placeGroups orders regions as a loop", () => {
-  it("Japan: Yamagata is visited next to Tokyo, not flown to on the last day", () => {
+  it("Japan: Yamagata is visited next to Tokyo in the loop", () => {
     const g = groupPins(pinsOf("Japan"), { kids: true });
     const reg = (t: string) => g.groups.find((x) => x.items.some((p) => p.title === t))!.region;
     const chosen = [reg("Ghibli Museum"), reg("Itō"), reg("Kanazawa"), reg("Kiyomizu-dera"), reg("Yamagata")];
     const { placed } = placeGroups(g, daysFrom("2028-04-02", 14), { regions: chosen, start: { lat: 35.68, lng: 139.76 } });
     const seq = placed.map((p) => p.group.region).filter((r, i, a) => i === 0 || a[i - 1] !== r);
     expect(seq[0]).toBe(reg("Ghibli Museum"));
-    expect(seq[seq.length - 1]).not.toBe(reg("Yamagata"));
+    // Yamagata is next to Tokyo in the loop — straight after it, or the last
+    // stop before home — never between Osaka and Kanazawa.
+    const y = seq.indexOf(reg("Yamagata"));
+    expect([1, seq.length - 1]).toContain(y);
   });
 });
 
