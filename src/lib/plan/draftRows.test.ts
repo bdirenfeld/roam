@@ -61,3 +61,25 @@ describe("Plan my trip, end to end on Japan", () => {
     expect(isDraft({ details: {} } as unknown as Card)).toBe(false);
   });
 });
+
+import { hasChildren } from "./draftRows";
+describe("hasChildren", () => {
+  it("reads ages, then birthdates, then assumes a party of three or more might", () => {
+    expect(hasChildren([43, 40, 10, 8, 5], [], 7, "2027-08-24")).toBe(true);
+    expect(hasChildren([44, 41], [], 2, "2026-10-09")).toBe(false);
+    // New York: Brennan and Mia, as people with birthdates.
+    expect(hasChildren(null, ["1984-04-03", "2019-08-07"], 2, "2026-07-23")).toBe(true);
+    expect(hasChildren(null, [], 5, "2028-04-02")).toBe(true); // Japan, no ages saved
+    expect(hasChildren(null, [], 2, "2026-04-22")).toBe(false); // Rome, the two of them
+  });
+});
+
+describe("which regions are ticked", () => {
+  it("Japan: Tokyo, then Osaka and the places near what is ticked — not an island a flight away", () => {
+    const p = previewDraft(saved, days, true);
+    const byPlace = (title: string) => p.grouping.groups.find((g) => g.items.some((i) => i.title === title))!.region;
+    expect(p.suggested[0]).toBe(byPlace("Ghibli Museum"));
+    expect(p.suggested).toContain(byPlace("Universal Studios Japan"));
+    expect(p.suggested).not.toContain(byPlace("Yakushima Island"));
+  });
+});

@@ -16,6 +16,7 @@ vi.mock("@/lib/supabase/client", () => ({
     from: () => ({
       insert: (rows: Record<string, unknown>[]) => { inserted.push(rows); return Promise.resolve({ error: null }); },
       delete: () => ({ in: () => Promise.resolve({ error: null }) }),
+      select: () => ({ eq: () => Promise.resolve({ data: [] }) }),
     }),
   }),
 }));
@@ -32,7 +33,8 @@ const cards = (fixture.trips.find((t) => t.title === "Japan")!.pins as Row[]).ma
     hours: p.open ? { weekday_text: DAYNAMES.map((d, k) => `${d}: ${p.open![k] === "1" ? "9:00 AM – 6:00 PM" : "Closed"}`) } : null },
 })) as unknown as Card[];
 const days = Array.from({ length: 14 }, (_, i) => ({ id: `d${i + 1}`, trip_id: "t1", day_number: i + 1, date: new Date(Date.UTC(2028, 3, 2 + i)).toISOString().slice(0, 10) })) as unknown as Day[];
-const trip = { id: "t1", title: "Japan", destination: "Japan", party_ages: [44, 41, 10, 8, 5] } as unknown as Trip;
+// As in the database: five travelling, no ages saved.
+const trip = { id: "t1", title: "Japan", destination: "Japan", party_ages: null, party_size: 5, start_date: "2028-04-02" } as unknown as Trip;
 
 afterEach(() => { cleanup(); inserted.length = 0; toasts.length = 0; });
 
@@ -58,6 +60,9 @@ describe("Plan my trip sheet", () => {
     expect((onDrafted.mock.calls[0][0] as Card[])[0].place).toBeTruthy();
     expect(toasts[0].message).toMatch(/^Draft on \d+ days/);
     expect(onClose).toHaveBeenCalled();
+    // No bars for a party of five with no ages saved: they may be children.
+    const bars = cards.filter((c) => c.place!.sub_type === "bar").map((c) => c.place_id);
+    expect(rows.some((r) => bars.includes(r.place_id as string))).toBe(false);
   });
 
   it("unticking a region leaves its places out", async () => {

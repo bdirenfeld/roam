@@ -12,7 +12,7 @@
  */
 
 import type { Card, Day } from "@/types/database";
-import { groupPins, type Grouping, type Pin } from "./dayGroups";
+import { groupPins, km, type Grouping, type Pin } from "./dayGroups";
 import { placeGroups, regionLabel, freeDays, type DraftDay } from "./draftTrip";
 import { planBatch, stayAnchor, type DayEdge } from "@/lib/week/dayPlan";
 import { cardTimes } from "@/lib/cardTime";
@@ -84,12 +84,26 @@ export function previewDraft(cards: Card[], days: Pick<Day, "id" | "date" | "day
     const mine = grouping.groups.filter((g) => g.region === r.id).flatMap((g) => g.items);
     return { id: r.id, label: regionLabel(mine) ?? mine[0]?.title ?? "Somewhere", days: r.days, places: r.pins };
   });
-  // Biggest regions first while they fit, half a day for each move after the first.
+  // What to tick: the region with the most days first, then, while they
+  // fit, the region with the most places for how far it is from what is
+  // already ticked (half a day per move). "Biggest first" alone ticked
+  // Yakushima, an island a flight away, ahead of the places beside Tokyo.
+  const centre = new Map(grouping.regions.map((r) => [r.id, r.centre]));
   const suggested: number[] = [];
   let used = 0;
-  for (const r of [...regions].sort((a, b) => b.days - a.days)) {
-    const cost = r.days + (suggested.length ? 0.5 : 0);
-    if (used + cost <= free) { suggested.push(r.id); used += cost; }
+  const left = [...regions];
+  while (left.length) {
+    const score = (r: RegionChoice) => {
+      if (!suggested.length) return r.days * 1000 + r.places;
+      const d = Math.min(...suggested.map((id) => km(centre.get(id)!, centre.get(r.id)!)));
+      return r.places / (1 + d / 300);
+    };
+    left.sort((a, b) => score(b) - score(a));
+    const i = left.findIndex((r) => used + r.days + (suggested.length ? 0.5 : 0) <= free);
+    if (i < 0) break;
+    const [r] = left.splice(i, 1);
+    used += r.days + (suggested.length ? 0.5 : 0);
+    suggested.push(r.id);
   }
   return { grouping, free, regions, suggested };
 }
@@ -131,4 +145,19 @@ export function buildDraft(
   }
   const leftOut = unplaced.reduce((s, g) => s + g.items.length, 0) + grouping.left.length;
   return { rows, dayIds: Array.from(new Set(rows.map((r) => r.day_id))), leftOut };
+}
+
+/**
+ * Whether children are on the journey, for day loads and bars (28 Sep 2026).
+ * Ages first, then the travellers' birthdates at the start of the trip; with
+ * neither, a party of three or more is taken to maybe include children —
+ * Japan (five of them) has no ages saved, and leaving the bars to the person
+ * costs nothing, while scheduling them for a nine-year-old would be absurd.
+ */
+export function hasChildren(ages: number[] | null, birthdates: (string | null)[], partySize: number, startDate: string): boolean {
+  if (ages && ages.length) return ages.some((a) => a < 13);
+  const start = Date.parse(startDate + "T00:00:00Z");
+  const known = birthdates.filter((b): b is string => !!b).map((b) => (start - Date.parse(b + "T00:00:00Z")) / (365.25 * 86_400_000));
+  if (known.length) return known.some((a) => a < 13);
+  return partySize >= 3;
 }

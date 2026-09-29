@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Card, Day, Trip } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
-import { previewDraft, buildDraft } from "@/lib/plan/draftRows";
+import { previewDraft, buildDraft, hasChildren } from "@/lib/plan/draftRows";
 
 /**
  * "Plan my trip" (28 Sep 2026): the journey's saved places become a draft
@@ -29,7 +29,15 @@ export default function PlanMyTripSheet({
 }) {
   useEscapeKey(onClose);
   const { toast } = useToast();
-  const kids = (trip.party_ages ?? []).some((a) => a < 13);
+  // The travellers' birthdates, for a journey with no ages saved (New York's are people rows).
+  const [birthdates, setBirthdates] = useState<(string | null)[]>([]);
+  useEffect(() => {
+    let off = false;
+    createClient().from("people").select("birthdate").eq("trip_id", trip.id)
+      .then(({ data }) => { if (!off && data) setBirthdates(data.map((r) => r.birthdate as string | null)); });
+    return () => { off = true; };
+  }, [trip.id]);
+  const kids = hasChildren(trip.party_ages, birthdates, trip.party_size, trip.start_date);
   const preview = useMemo(() => previewDraft(cards, days, kids), [cards, days, kids]);
   const [chosen, setChosen] = useState<Set<number>>(() => new Set(preview.suggested));
   const [busy, setBusy] = useState(false);

@@ -11,6 +11,11 @@ export function weekStarts(dates: string[]): number[] {
   dates.forEach((d, i) => {
     if (i > 0 && new Date(d + "T00:00:00Z").getUTCDay() === 1) out.push(i);
   });
+  // A stub of one or two days at either end joins its neighbour (29 Sep
+  // 2026): Japan starts on a Sunday, and its first screen was that Sunday
+  // alone.
+  if (out.length > 1 && out[1] <= 2) out.splice(1, 1);
+  if (out.length > 1 && dates.length - out[out.length - 1] <= 2) out.pop();
   return out;
 }
 
