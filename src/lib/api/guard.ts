@@ -58,11 +58,12 @@ export const QUOTA = {
   placeDetails:  300,
   placePhoto:   1500,  // only photos NOT already cached in our bucket
   foodEnrich:    300,
-  bulkImport:     20,
+  bulkImport:    100,  // Find's Save imports one place per tap (raised from 20, 29 Sep 2026)
   coverPhoto:     40,  // Unsplash
   embed:         200,  // link previews (follows short links outbound)
   staySearch:    500,  // Where to stay. Lifted from 30 on 10 Sept 2026 at his request so testing
                        // never hits a wall; still a backstop against a runaway loop.
   stayWrite:     100,  // choose / save / not-for-us
   shareSuggest:   60,  // a TikTok shared in: caption → Claude Haiku → Google
+  find:           40,  // Find: Claude with web search + Google checks, per base and category (29 Sep 2026)
 } as const;

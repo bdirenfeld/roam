@@ -35,6 +35,7 @@ import { scheduleCardOnDay } from "@/lib/scheduleCard";
 import { planBatch, plannedOtherDays, stayAnchor } from "@/lib/week/dayPlan";
 import { tapFilter } from "@/lib/map/tapFilter";
 import PlanMyTripSheet from "@/components/plan/PlanMyTripSheet";
+import FindSheet from "@/components/plan/FindSheet";
 import { pinsToPlan, untouchedPlan } from "@/lib/plan/draftRows";
 
 // Purple circular pin for search result previews
@@ -95,6 +96,7 @@ const MARKERS = new Map<string, MarkerEntry>();
 // it fed left with the one header (consistency sweep, Sep 2026).
 export default function FullMapClient({ trip, days, cards, readOnly = false }: Props) {
   const [planOpen, setPlanOpen] = useState(false);
+  const [findOpen, setFindOpen] = useState(false);
   // Also shown while Plan my trip's cards are still where it put them: the sheet can take them off.
   const toPlan = useMemo(() => (readOnly ? 0 : Math.max(pinsToPlan(cards).length, cards.some(untouchedPlan) ? 2 : 0)), [cards, readOnly]);
   const mapContainerRef  = useRef<HTMLDivElement>(null);
@@ -1098,8 +1100,20 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
               Plan my trip
             </button>
           )}
+          {!readOnly && !filterOpen && (
+            <button
+              onClick={() => setFindOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium"
+              style={{ backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", background: "rgba(255,255,255,0.9)", color: "#1A1A2E" }}
+            >
+              Find
+            </button>
+          )}
           </div>
         </div>
+        {findOpen && (
+          <FindSheet trip={trip} days={days} cards={cards} onClose={() => setFindOpen(false)} onSaved={() => router.refresh()} />
+        )}
         {planOpen && (
           <PlanMyTripSheet
             trip={trip}

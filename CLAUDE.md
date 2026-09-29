@@ -1674,3 +1674,19 @@ the component mounted and you are looking at throttling, not a broken map.
 - The phone day stays a LIST (29 Sep 2026). An Outlook-style hours view, a List/Hours toggle and
   "2 h free" gap lines were mocked (https://claude.ai/artifact/ScNmgyHjoptUFd3qvMbDuN) and
   declined: "no need to change". Do not re-propose unless he names it.
+
+## Find (29 Sep 2026)
+- A "Find" chip beside Filter (week's map at lg+, phone Map; owners only) opens `FindSheet`:
+  places for what a BASE is short of, so nobody has to go to Instagram, Reddit or TikTok.
+- Categories are Roam's own sub-types, never new slices (his call: "our database is pretty
+  MECE"): `FIND_CATEGORIES` in `lib/find/gaps.ts`. Explore, Restaurant and Coffee have a per-day
+  target and show "have of want"; the rest show a count only.
+- Bases come from `findBases` (the same regions as Plan my trip and Where to stay). An empty map
+  searches the destination as one base, so it works for a new journey; with no destination
+  coordinates the sheet says to set one in Settings.
+- `api/find`: Claude + web search reads Reddit and blogs (travellers' picks, each with a reason
+  and its source link), every name checked on Google near the base (a name Google cannot place
+  never shows); in parallel Google textsearch. `lib/find/merge` puts travellers first, drops
+  what is already on the journey and anything over 60 km out. Quota `find: 40` a day.
+- Save = bulk-import one place with the category's type + an `interested` card carrying
+  `details.find {why, source}`. Plan my trip then fits it into a day.

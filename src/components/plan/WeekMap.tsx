@@ -16,6 +16,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PlanMyTripSheet from "./PlanMyTripSheet";
+import FindSheet from "./FindSheet";
 import { pinsToPlan, untouchedPlan } from "@/lib/plan/draftRows";
 import { searchCountries } from "@/lib/entry/countries";
 import { dayChip, spansMonths } from "@/lib/dayChip";
@@ -96,6 +97,8 @@ function placed(c: Card): boolean {
 export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onHover, onCardUpdate, onCardCreated, onCardDelete, onPinDragStart, hot, wide, onToggleWide, onPutMany, onClusterDragStart, selectionEpoch, showStays, onCloseStays, onStaysChanged, onDraftCreated }: Props) {
   // Plan my trip: a chip beside Filter while saved places are off the days.
   const [planOpen, setPlanOpen] = useState(false);
+  // Find (29 Sep 2026): places for what a base is short of.
+  const [findOpen, setFindOpen] = useState(false);
   // Also shown while Plan my trip's cards are still where it put them: the sheet can take them off.
   const toPlan = useMemo(() => (onDraftCreated ? Math.max(pinsToPlan(cards).length, cards.some(untouchedPlan) ? 2 : 0) : 0), [cards, onDraftCreated]);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -550,10 +553,18 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
             Plan my trip
           </button>
         )}
+        {!filterOpen && onDraftCreated && (
+          <button onClick={() => setFindOpen(true)} className={`flex items-center gap-1.5 ${PILL}`} style={{ backdropFilter: "blur(8px)", background: "rgba(255,255,255,0.9)", color: "#1A1A2E", boxShadow: "0 1px 4px rgba(0,0,0,0.15)" }}>
+            Find
+          </button>
+        )}
         </div>
       </div>
       {planOpen && onDraftCreated && (
         <PlanMyTripSheet trip={trip} days={days} cards={cards} onClose={() => setPlanOpen(false)} onDrafted={onDraftCreated} />
+      )}
+      {findOpen && (
+        <FindSheet trip={trip} days={days} cards={cards} onClose={() => setFindOpen(false)} onSaved={onCardCreated} />
       )}
       {showStays && onCloseStays && (
         <WhereToStaySheet
