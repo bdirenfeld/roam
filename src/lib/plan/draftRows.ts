@@ -21,6 +21,7 @@ import { cardTimes } from "@/lib/cardTime";
 import { toMin, toTime } from "@/lib/week/layout";
 import { dayShare } from "./dayGroups";
 import { hoursWindow, assumedWindow, retimeDay, sightMinutes, type RetimeItem } from "./retime";
+import { isAirport, dayBounds, freeWithin, boundBlocks } from "./airports";
 
 /** Where Plan my trip put a card; absent on everything else. */
 export interface PlanMark { day: string; start: string | null }
@@ -56,9 +57,12 @@ export function draftDays(days: Pick<Day, "id" | "date" | "day_number">[], sched
   return ordered.map((d, i) => {
     const on = scheduled.filter((c) => c.day_id === d.id);
     const taken = on.some((c) => c.place?.type === "activity" || (!c.place && !!cardTimes(c).start));
-    const flight = on.some((c) => FLIGHT.has(c.place?.sub_type ?? ""));
+    // An airport counts as a flight however it was saved (./airports).
+    const flight = on.some((c) => FLIGHT.has(c.place?.sub_type ?? "") || isAirport(c));
     const edge = ordered.length > 2 && (i === 0 || i === ordered.length - 1);
-    return { id: d.id, date: d.date, free: taken ? 0 : flight || edge ? 0.5 : 1 };
+    const free = taken ? 0 : flight || edge ? 0.5 : 1;
+    // A morning departure or an afternoon landing leaves nothing to plan.
+    return { id: d.id, date: d.date, free: freeWithin(dayBounds(on, { first: i === 0, last: i === ordered.length - 1 }), free) };
   });
 }
 
@@ -175,6 +179,7 @@ export function buildDraft(
 
   const byId = new Map(cards.map((c) => [c.id, c]));
   const rows: DraftRow[] = [];
+  let airportLeft = 0;
   for (const p of placed) {
     const on = scheduled.filter((c) => c.day_id === p.dayId);
     const i = dayIds.indexOf(p.dayId);
@@ -216,11 +221,17 @@ export function buildDraft(
       };
     });
     const fixed = on.flatMap((c) => { const t = cardTimes(c); return t.start ? [{ start: toMin(t.start), end: t.end ? toMin(t.end) : toMin(t.start) + 60 }] : []; });
-    const real = retimeDay(items, fixed);
+    // Nothing before landing or after leaving for the airport (./airports).
+    const bounds = dayBounds(on, edge);
+    const bounded = bounds.from !== null || bounds.until !== null;
+    const real = retimeDay(items, [...fixed, ...boundBlocks(bounds)]);
     sameSite.forEach((first, id) => real.set(id, real.get(first) ?? null));
     let pos = on.reduce((m, c) => Math.max(m, c.position ?? 0), 0);
     for (const c of toAdd) {
       const t = real.get(c.id);
+      // On an airport day, what does not fit before the flight stays saved
+      // rather than landing untimed after it.
+      if (bounded && !t) { airportLeft++; continue; }
       rows.push({
         day_id: p.dayId, trip_id: tripId, place_id: c.place_id as string, status: "in_itinerary", position: ++pos,
         start_time: t ? toTime(t.start) : null, end_time: t ? toTime(t.end) : null, source_url: null,
@@ -245,7 +256,7 @@ export function buildDraft(
     });
     count.set(day, (count.get(day) ?? 0) + 1);
   }
-  const leftOut = unplaced.reduce((s, g) => s + g.items.length, 0) + grouping.left.length + toursLeft;
+  const leftOut = unplaced.reduce((s, g) => s + g.items.length, 0) + grouping.left.length + toursLeft + airportLeft;
   return { rows, dayIds: Array.from(new Set(rows.map((r) => r.day_id))), leftOut };
 }
 

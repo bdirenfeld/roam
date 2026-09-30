@@ -1773,3 +1773,17 @@ the component mounted and you are looking at throttling, not a broken map.
   with a place, not logistics, and no notes. Older cards are never written into (he builds some
   journeys by hand). One module-wide `asked` set so screens and Plan my trip never ask twice; the
   answer is broadcast as a `roam:notes` event and each screen folds it into its own state.
+
+## Plan my trip ends and starts at the airport (30 Sep 2026)
+
+- Tuscany's last day had "10:00 Pisa International Airport" saved as an ordinary `transit` stop, and
+  Plan my trip put Florence after it. `lib/plan/airports`: an airport is a flight card, anything
+  Google types `airport`, or anything named one (airport/aeroporto/aéroport/aeropuerto/flughafen…).
+- First and last days only: the last day's plans end 1 h before an airport stop, 3 h before a
+  flight; the first day's start 1 h 30 after landing (the later of start/end — journeys store the
+  landing in either). Middle-of-trip flights stay ordinary fixed blocks.
+- `draftDays`: a departure by noon or a landing after 15:00 leaves the day with nothing to plan;
+  otherwise at most half a day. `buildDraft`: what does not fit inside the bounds stays saved
+  (counted in "some stay saved"), never untimed after the flight.
+- Map zoom, same day ("still zoomed in a bit too close"): picking a day on the week map stops at
+  zoom 12 (`DAY_ZOOM`, guarded in lib/ui/pageLoad.test), the phone day map's fit at 14.

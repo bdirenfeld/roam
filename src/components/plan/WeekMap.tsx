@@ -90,7 +90,7 @@ interface Props {
 type Marker = { marker: any; wrapper: HTMLElement; inner: HTMLElement; cardRef: { current: Card } }; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 /** How close, and how slowly, the map goes to a day. */
-const DAY_ZOOM = 13;
+const DAY_ZOOM = 12;
 const DAY_GLIDE_MS = 1000;
 
 function placed(c: Card): boolean {

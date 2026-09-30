@@ -49,7 +49,11 @@ describe("Plan my trip, end to end on Japan", () => {
     ] as unknown as Card[];
     const dd = draftDays(days, planned);
     expect(dd[2].free).toBe(0);
-    expect(dd[0].free).toBe(0.5);
+    // Landing at 2 pm: nothing can start before 3:30 (lib/plan/airports), so the day is left free.
+    expect(dd[0].free).toBe(0);
+    // Landing at 10 am leaves the afternoon: half a day.
+    const morning = planned.map((c) => (c.id === "x2" ? { ...c, start_time: "10:00:00" } : c)) as Card[];
+    expect(draftDays(days, morning)[0].free).toBe(0.5);
     const { rows } = buildDraft("t1", [...saved, ...planned], days, { kids: true, regions: preview.suggested });
     expect(rows.some((r) => r.day_id === "d3")).toBe(false);
   });
@@ -224,5 +228,19 @@ describe("a journey shorter than any one area", () => {
     const { rows } = buildDraft("t2", cards, four, { kids: true, regions: p.suggested });
     const museum = rows.find((r) => r.place_id === "q8");
     if (museum?.start_time) expect(museum.start_time < "15:00").toBe(true);
+  });
+});
+
+describe("the last day ends at the airport", () => {
+  it("nothing is planned after leaving for the airport; what does not fit stays saved", () => {
+    // Tuscany (30 Sep 2026): Pisa airport saved as a transit stop at 10:00 on the last day.
+    const lastDay = days[days.length - 1].id;
+    const airport = { id: "ap", day_id: lastDay, status: "in_itinerary", position: 1, details: {}, start_time: "10:00:00", end_time: null, place_id: "pa",
+      place: { title: "Pisa International Airport", type: "logistics", sub_type: "transit", lat: 43.687, lng: 10.394 } } as unknown as Card;
+    const dd = draftDays(days, [airport]);
+    expect(dd[dd.length - 1].free).toBe(0);
+    const p = previewDraft([...saved, airport], days, true);
+    const { rows } = buildDraft("t1", [...saved, airport], days, { kids: true, regions: p.suggested });
+    expect(rows.filter((r) => r.day_id === lastDay)).toEqual([]);
   });
 });

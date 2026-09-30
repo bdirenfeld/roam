@@ -426,7 +426,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
             (b, coord) => b.extend(coord),
             new mb.LngLatBounds(allCoords[0], allCoords[0]),
           );
-          map.fitBounds(bounds, { padding: 50, maxZoom: 15 });
+          map.fitBounds(bounds, { padding: 50, maxZoom: 14 }); // 14 (30 Sep 2026): 15 read as "too close"
         } else if (allCoords.length === 1) {
           // A single stop still deserves the zoom — late-trip days often have
           // one pin and no accommodation span, which used to leave the map

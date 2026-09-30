@@ -27,7 +27,8 @@ describe("the Journeys page does no lookups it does not need", () => {
 describe("picking a day moves the week's map gently", () => {
   const map = readFileSync("src/components/plan/WeekMap.tsx", "utf8");
   it("a straight glide to the neighbourhood, not a dive to the street", () => {
-    expect(map).toMatch(/const DAY_ZOOM = 13;/);
+    // 12, not 13 (30 Sep 2026): "still zoomed in a bit too close".
+    expect(map).toMatch(/const DAY_ZOOM = 12;/);
     expect(map).toMatch(/maxZoom: DAY_ZOOM, duration: DAY_GLIDE_MS, linear: true/);
     expect(map).not.toMatch(/maxZoom: 15, duration: 600/);
   });
