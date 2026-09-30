@@ -1864,3 +1864,13 @@ the component mounted and you are looking at throttling, not a broken map.
   (`batchesOf`, `NOTES_BATCH` in lib/plan/notes), and `planNotes` is 100 a day.
 - A trip a year out has no published programme: yearly events on those dates count, and "why"
   starts "Usually". Find logs what the travellers' search named ("[find] travellers").
+
+## Notes at once on a drop (30 Sep 2026)
+
+- "Can it be almost instantaneous": useCardNotes asks at once (was 1.5 s), and the week board warms
+  the journey's saved places once per page load (`warmNotes`, api/plan/notes `warm: true`): notes
+  go into the shared cache only, never into the saved cards, so a drop is a cache hit.
+- Museums and galleries (`isMuseum` in lib/plan/dayGroups: Google museum/art_gallery or the name) take
+  3 h on drops and in Plan my trip (was 90 min / 2 h 30): "closer to like 3 hours".
+- Find's travellers call: max_tokens 1500 -> 4000 (five searches left no room; Tuscany events came back
+  empty), and an empty answer logs stop_reason and the tail of Claude's text.

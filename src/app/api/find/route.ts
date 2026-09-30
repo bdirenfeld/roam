@@ -113,7 +113,8 @@ export async function POST(req: NextRequest) {
       const client = new Anthropic({ apiKey });
       const res = await client.messages.create({
         model: "claude-sonnet-4-6",
-        max_tokens: 1500,
+        // Room for the answer after up to five searches: 1500 cut Tuscany's events off mid-reply (30 Sep 2026).
+        max_tokens: 4000,
         messages: [{ role: "user", content: travellersPrompt({ base: base.label!, country, subType, ask, party: trip.party_size ?? ages.length ?? 2, childAges, month, from: trip.start_date, to: trip.end_date, near: nearNames }) }],
         // Events search a region's calendars, not one town's: more reading.
         tools: [{ type: "web_search_20250305", name: "web_search", max_uses: subType === "event" ? 5 : 3 }],
@@ -121,7 +122,7 @@ export async function POST(req: NextRequest) {
       const text = res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("\n");
       const picks = parseTravellers(text);
       // What the search named, and what Google could place: an empty list is otherwise silent.
-      console.log("[find] travellers", subType, base.label, "named", picks.length, picks.map((p) => p.name).join(" / ").slice(0, 400));
+      console.log("[find] travellers", subType, base.label, "named", picks.length, picks.map((p) => p.name).join(" / ").slice(0, 400), picks.length ? "" : `stop=${res.stop_reason} text=${text.slice(-300)}`);
       const checked = await Promise.all(picks.map(async (p) => {
         const g = await findOnGoogle(`${p.name}, ${p.near ?? base.label}`);
         return g ? toResult(g, "travellers", p.why, p.sourceUrl ? { name: p.sourceName ?? new URL(p.sourceUrl).hostname, url: p.sourceUrl } : null, childAges.length > 0 && p.kids) : null;

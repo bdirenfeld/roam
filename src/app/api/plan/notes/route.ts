@@ -23,7 +23,11 @@ type Row = {
 export async function POST(req: NextRequest) {
   const gate = await requireUser();
   if ("response" in gate) return gate.response;
-  const body = await req.json().catch(() => null) as { tripId?: string; cardIds?: string[] } | null;
+  const body = await req.json().catch(() => null) as { tripId?: string; cardIds?: string[]; warm?: boolean } | null;
+  // Warm: write the saved places' notes into the shared cache only, never into
+  // the saved cards, so a place dropped on a day later gets its note at once
+  // (Brennan, 30 Sep 2026: "can it be almost instantaneous").
+  const warm = body?.warm === true;
   const tripId = body?.tripId;
   const cardIds = (body?.cardIds ?? []).filter((x) => typeof x === "string").slice(0, 80);
   if (!tripId || cardIds.length === 0) return NextResponse.json({ error: "tripId and cardIds are required" }, { status: 400 });
@@ -31,11 +35,11 @@ export async function POST(req: NextRequest) {
   // RLS: only the journey's own cards come back.
   const [{ data: trip }, { data: rows }, { data: people }] = await Promise.all([
     gate.supabase.from("trips").select("id, start_date, party_size, party_ages").eq("id", tripId).maybeSingle(),
-    gate.supabase.from("cards").select("id, day_id, details, place:places(google_place_id, title, sub_type, address, hours, details)").eq("trip_id", tripId).in("id", cardIds),
+    gate.supabase.from("cards").select("id, day_id, details, place:places(google_place_id, title, type, sub_type, address, hours, details)").eq("trip_id", tripId).in("id", cardIds),
     gate.supabase.from("people").select("birthdate").eq("trip_id", tripId),
   ]);
   if (!trip) return NextResponse.json({ error: "Journey not found" }, { status: 404 });
-  const cards = ((rows ?? []) as unknown as Row[]).filter((c) => c.place?.google_place_id && !(typeof c.details?.notes === "string" && c.details.notes.trim()));
+  const cards = ((rows ?? []) as unknown as Row[]).filter((c) => c.place?.google_place_id && (c.place as { type?: string }).type !== "logistics" && !(typeof c.details?.notes === "string" && c.details.notes.trim()));
   if (cards.length === 0) return NextResponse.json({ written: 0 });
 
   const start = Date.parse(trip.start_date + "T12:00:00Z");
@@ -93,6 +97,7 @@ export async function POST(req: NextRequest) {
     }
     if (!Object.keys(written).length) return NextResponse.json({ written: 0, error: "Notes are unavailable just now" }, { status: 502 });
   }
+  if (warm) return NextResponse.json({ warmed: Object.keys(written).length });
 
   // The day each card is on, for its hours line.
   const dayIds = Array.from(new Set(cards.map((c) => c.day_id).filter((d): d is string => !!d)));

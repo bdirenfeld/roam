@@ -16,7 +16,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useCardNotes, withNotes } from "@/hooks/useCardNotes";
+import { useCardNotes, withNotes, warmNotes } from "@/hooks/useCardNotes";
 import { tripCountries } from "@/lib/entry/countries";
 import EntryLine from "@/components/day/EntryLine";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -34,7 +34,7 @@ import WeekMap from "./WeekMap";
 import { weekColumns, weekMinWidth } from "@/lib/week/focus";
 import { planBatch, planExisting, plannedOtherDays, stayAnchor } from "@/lib/week/dayPlan";
 import { durationFor } from "@/lib/week/arrange";
-import { placeShare } from "@/lib/plan/dayGroups";
+import { placeShare, isMuseum } from "@/lib/plan/dayGroups";
 import { shortAddress, firstSentence } from "@/lib/week/cardText";
 import { weekStarts, pageOf } from "@/lib/week/pages";
 import {
@@ -115,6 +115,8 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const [saved, setSaved] = useState<Card[]>(initialSaved);
   // Every card that lands on a day gets its Intent and Know before you go (hooks/useCardNotes).
   useCardNotes(trip.id, days.flatMap((d) => d.cards), true, (notes) => setDays((prev) => prev.map((d) => ({ ...d, cards: d.cards.map((c) => withNotes(c, notes)) }))));
+  // The saved places' notes, written ahead so a drop shows its note at once.
+  useEffect(() => { warmNotes(trip.id, saved.filter((c) => c.place_id).map((c) => c.id)); }, [trip.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [activeDayId, setActiveDayId] = useState<string | null>(null);
   // One screen (26 Sep 2026): a day header widens that day in place — the
@@ -412,7 +414,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
         // Out of Anytime (no times yet): as long as that kind of place takes,
         // the same as a pin dropped from the map (lib/week/arrange durationFor).
         const fromAnytime = !t.start && !t.end;
-        const block: Block = { id: d.card.id, startMin: t.start ? toMin(t.start) : g.min, endMin: t.end ? toMin(t.end) : fromAnytime ? g.min + durationFor(d.card.place?.type ?? "activity", d.card.place?.sub_type ?? null, g.min, placeShare(d.card.place)) : null };
+        const block: Block = { id: d.card.id, startMin: t.start ? toMin(t.start) : g.min, endMin: t.end ? toMin(t.end) : fromAnytime ? g.min + durationFor(d.card.place?.type ?? "activity", d.card.place?.sub_type ?? null, g.min, placeShare(d.card.place), isMuseum(d.card.place)) : null };
         const times = movedTimes(block, g.min);
         if (target.id === d.card.day_id && times.start === d.card.start_time) return;
         void write(d.card, { day_id: target.id, start_time: times.start, end_time: times.end }, `Moved to ${dow(target.date)} ${fmt12(toMin(times.start))}`);
@@ -443,7 +445,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const putFromMap = useCallback(async (card: Card, target: DayWithCards, min: number | null) => {
     if (!card.place_id) return;
     const startTime = min === null ? null : toTime(min);
-    const endTime = min === null ? null : toTime(Math.min(min + durationFor(card.place?.type ?? "activity", card.place?.sub_type ?? null, min, placeShare(card.place)), HOUR_END * 60 + 45));
+    const endTime = min === null ? null : toTime(Math.min(min + durationFor(card.place?.type ?? "activity", card.place?.sub_type ?? null, min, placeShare(card.place), isMuseum(card.place)), HOUR_END * 60 + 45));
     const created = await scheduleCardOnDay(supabase, { tripId: trip.id, dayId: target.id, placeId: card.place_id, place: card.place, startTime, endTime, details: card.details, sourceUrl: card.source_url });
     if (!created) { toast({ message: "Couldn't put it on that day. Try again." }); return; }
     setDays((prev) => prev.map((d) => (d.id === target.id ? { ...d, cards: [...d.cards, created] } : d)));

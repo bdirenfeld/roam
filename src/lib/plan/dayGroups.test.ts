@@ -133,3 +133,15 @@ describe("placeShare: a card's place, as Plan my trip sizes it", () => {
     expect(placeShare(null)).toBe(0);
   });
 });
+
+import { isMuseum } from "./dayGroups";
+describe("a museum is three hours", () => {
+  it("by Google's type or the name, in his journeys' languages", () => {
+    expect(isMuseum({ title: "Ghibli Museum", details: { types: ["museum"] } })).toBe(true);
+    expect(isMuseum({ title: "Uffizi", types: ["art_gallery"] })).toBe(true);
+    expect(isMuseum({ title: "Museo Nazionale Romano" })).toBe(true);
+    expect(isMuseum({ title: "Galleria Borghese" })).toBe(true);
+    expect(isMuseum({ title: "Kiyomizu-dera", details: { types: ["place_of_worship"] } })).toBe(false);
+    expect(isMuseum(null)).toBe(false);
+  });
+});

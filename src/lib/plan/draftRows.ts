@@ -19,7 +19,7 @@ import { placeGroups, regionLabel, freeDays, type DraftDay } from "./draftTrip";
 import { planBatch, stayAnchor, type DayEdge } from "@/lib/week/dayPlan";
 import { cardTimes } from "@/lib/cardTime";
 import { toMin, toTime } from "@/lib/week/layout";
-import { dayShare } from "./dayGroups";
+import { dayShare, isMuseum, MUSEUM_MIN } from "./dayGroups";
 import { hoursWindow, assumedWindow, retimeDay, sightMinutes, type RetimeItem } from "./retime";
 import { isAirport, dayBounds, freeWithin, boundBlocks } from "./airports";
 import { paceDays, firstNightDinner, DINNER_AT } from "./pace";
@@ -220,7 +220,7 @@ export function buildDraft(
         kind: meal ? "meal" : "sight",
         // Inside a pinned town (Kamakura's beach) a place is part of the
         // town's day: an hour and a half each, and the town leaves room.
-        minutes: town && share < 1 ? 90 : town && share >= 1 ? Math.max(180, sightMinutes(1) - 105 * inTown) : sightMinutes(share),
+        minutes: town && share < 1 ? 90 : town && share >= 1 ? Math.max(180, sightMinutes(1) - 105 * inTown) : share < 1 && pin.type === "activity" && isMuseum(pin) ? MUSEUM_MIN : sightMinutes(share),
         whole: share >= 1, window: w === "closed" ? { open: 0, close: 0 } : w,
       };
     });

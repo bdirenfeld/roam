@@ -31,6 +31,21 @@ export async function requestNotes(tripId: string, cardIds: string[]): Promise<R
   }
 }
 
+/**
+ * Write the notes for a journey's saved places ahead of time, into the shared
+ * cache only (api/plan/notes, warm). A place dropped on a day then gets its
+ * note in well under a second instead of waiting for Claude. Once per journey
+ * per page load; places already written cost nothing.
+ */
+const warmed = new Set<string>();
+export function warmNotes(tripId: string, savedCardIds: string[]): void {
+  if (warmed.has(tripId) || savedCardIds.length === 0) return;
+  warmed.add(tripId);
+  void fetch("/api/plan/notes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId, cardIds: savedCardIds.slice(0, 80), warm: true }) })
+    .then((r) => { if (!r.ok) warmed.delete(tripId); })
+    .catch(() => warmed.delete(tripId));
+}
+
 type NoteCard = Parameters<typeof cardsNeedingNotes>[0][number];
 
 /** Asks for notes for any card on a day that needs them, a moment after the cards settle. */
@@ -45,7 +60,9 @@ export function useCardNotes(tripId: string, cards: NoteCard[], enabled: boolean
   }, []);
   useEffect(() => {
     if (!key) return;
-    const t = window.setTimeout(() => { void requestNotes(tripId, key.split(",")); }, 1500);
+    // Asked at once: a place dropped on a day wants its note now (30 Sep 2026;
+    // it was a second and a half later, then Claude).
+    const t = window.setTimeout(() => { void requestNotes(tripId, key.split(",")); }, 0);
     return () => window.clearTimeout(t);
   }, [tripId, key]);
 }

@@ -136,6 +136,21 @@ export function placeShare(place: { type?: string | null; title?: string | null;
   return dayShare({ id: "", title: place.title ?? "", type: "activity", subType: place.sub_type ?? null, lat: null, lng: null, types: Array.isArray(types) ? (types as string[]) : null });
 }
 
+/**
+ * A museum or gallery: three hours, not an hour and a half (Brennan, 30 Sep
+ * 2026: "Studio Ghibli or other museums are probably going to be longer than
+ * 90 min ... closer to like 3 hours"). Google's type, or the name in the
+ * languages his journeys use.
+ */
+export const MUSEUM_MIN = 180;
+const MUSEUM_NAME = /\b(museum|museo|mus[eé]e|museu|gallery|galleria|galerie|galleries|pinacoteca)\b/i;
+export function isMuseum(place: { title?: string | null; types?: unknown; details?: unknown } | null | undefined): boolean {
+  if (!place) return false;
+  const types = place.types ?? (place.details as { types?: unknown } | null)?.types;
+  if (Array.isArray(types) && (types.includes("museum") || types.includes("art_gallery"))) return true;
+  return MUSEUM_NAME.test(place.title ?? "");
+}
+
 export function km(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const R = 6371, r = (d: number) => (d * Math.PI) / 180;
   const dLat = r(b.lat - a.lat), dLng = r(b.lng - a.lng);

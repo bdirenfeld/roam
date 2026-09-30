@@ -50,3 +50,18 @@ describe("withNotes", () => {
     expect(withNotes({ id: "z", details: {} }, { a: "N" })).toEqual({ id: "z", details: {} });
   });
 });
+
+import { warmNotes } from "./useCardNotes";
+describe("notes at once when a place is dropped", () => {
+  it("asks straight away, not a second and a half later", async () => {
+    renderHook(() => useCardNotes("t9", [card("now")], true, vi.fn()));
+    await act(async () => { vi.advanceTimersByTime(1); await Promise.resolve(); });
+    expect(calls.map((c) => c.cardIds)).toEqual([["now"]]);
+  });
+  it("writes the saved places' notes ahead, into the cache only, once per journey", () => {
+    warmNotes("japan", ["s1", "s2"]);
+    warmNotes("japan", ["s1", "s2"]);
+    warmNotes("empty", []);
+    expect(calls).toEqual([{ tripId: "japan", cardIds: ["s1", "s2"], warm: true }]);
+  });
+});

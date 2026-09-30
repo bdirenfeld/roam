@@ -26,6 +26,9 @@ describe("durations", () => {
     // A whole-day place (DisneySea) is the day, whatever its sub-type.
     expect(durationFor("activity", "self_directed", 9 * 60 + 45, 1)).toBe(420);
     expect(durationFor("activity", "self_directed", 9 * 60 + 45, 0.5)).toBe(90);
+    // A museum (the Ghibli Museum): three hours. A café called "museum" is still a café.
+    expect(durationFor("activity", "guided", 12 * 60, 0.5, true)).toBe(180);
+    expect(durationFor("food", "coffee", 12 * 60, 0, true)).toBe(30);
     expect(durationFor("activity", "explore")).toBe(90);
     expect(durationFor("food", "unknown")).toBe(60);
   });
@@ -156,7 +159,7 @@ describe("a pin dragged from the map onto the week", () => {
   it("takes its kind's length at the drop time, not an hour, and a whole-day place the day (WeekBoard putFromMap)", () => {
     const board = readFileSync("src/components/plan/WeekBoard.tsx", "utf8");
     const put = board.slice(board.indexOf("const putFromMap"), board.indexOf("const putFromMap") + 900);
-    expect(put).toMatch(/min \+ durationFor\(card\.place\?\.type \?\? "activity", card\.place\?\.sub_type \?\? null, min, placeShare\(card\.place\)\)/);
+    expect(put).toMatch(/min \+ durationFor\(card\.place\?\.type \?\? "activity", card\.place\?\.sub_type \?\? null, min, placeShare\(card\.place\), isMuseum\(card\.place\)\)/);
     expect(put).not.toMatch(/min \+ 60/);
   });
 });
@@ -165,6 +168,6 @@ describe("a card dragged out of Anytime onto a time", () => {
   it("takes its kind's length, the same as a map drop (WeekBoard move)", () => {
     const board = readFileSync("src/components/plan/WeekBoard.tsx", "utf8");
     const move = board.slice(board.indexOf("const fromAnytime"), board.indexOf("const fromAnytime") + 500);
-    expect(move).toMatch(/fromAnytime \? g\.min \+ durationFor\(d\.card\.place\?\.type \?\? "activity", d\.card\.place\?\.sub_type \?\? null, g\.min, placeShare\(d\.card\.place\)\)/);
+    expect(move).toMatch(/fromAnytime \? g\.min \+ durationFor\(d\.card\.place\?\.type \?\? "activity", d\.card\.place\?\.sub_type \?\? null, g\.min, placeShare\(d\.card\.place\), isMuseum\(d\.card\.place\)\)/);
   });
 });

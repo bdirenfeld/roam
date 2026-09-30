@@ -9,7 +9,7 @@ import { cardTimes } from "@/lib/cardTime";
 import { arrangeDay, type ArrangeItem, type Busy, type Anchor, type DayEdge } from "./arrange";
 import { toMin, toTime, NO_END_MIN } from "./layout";
 import { isPortName } from "@/lib/places/inferType";
-import { placeShare } from "@/lib/plan/dayGroups";
+import { placeShare, isMuseum } from "@/lib/plan/dayGroups";
 
 export interface TimeUpdate { id: string; start_time: string | null; end_time: string | null }
 
@@ -18,7 +18,7 @@ const AIRPORT_NAME = /\b(airport|aeroporto|aeropuerto|a[eé]roport|flughafen|air
 export function toItem(c: Card): ArrangeItem {
   const sub = c.place?.sub_type ?? null;
   const asFlight = sub === "transit" && AIRPORT_NAME.test(c.place?.title ?? "");
-  return { id: c.id, type: c.place?.type ?? "activity", subType: asFlight ? "flight_arrival" : sub, lat: c.place?.lat ?? null, lng: c.place?.lng ?? null, share: placeShare(c.place) };
+  return { id: c.id, type: c.place?.type ?? "activity", subType: asFlight ? "flight_arrival" : sub, lat: c.place?.lat ?? null, lng: c.place?.lng ?? null, share: placeShare(c.place), museum: isMuseum(c.place) };
 }
 
 /** The timed blocks among `cards` (minus `except`) as obstacles. */
