@@ -33,6 +33,7 @@ import DocumentsSheet from "./DocumentsSheet";
 import WeekMap from "./WeekMap";
 import { weekColumns, weekMinWidth } from "@/lib/week/focus";
 import { planBatch, planExisting, plannedOtherDays, stayAnchor } from "@/lib/week/dayPlan";
+import { durationFor } from "@/lib/week/arrange";
 import { shortAddress, firstSentence } from "@/lib/week/cardText";
 import { weekStarts, pageOf } from "@/lib/week/pages";
 import {
@@ -431,13 +432,14 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   }, [ghost, write, nDays, overMap]);
 
   // ── the map drops ──────────────────────────────────────────────
-  // Pin → week: a new scheduled card at the drop time (an hour long, or no
-  // time in the Anytime lane); the saved pin stays, as on the Map tab. Undo
-  // deletes the new card.
+  // Pin → week: a new scheduled card at the drop time, as long as that kind
+  // of place takes (lib/week/arrange durationFor: dinner two hours, coffee
+  // half an hour), or no time in the Anytime lane; the saved pin stays, as on
+  // the Map tab. Undo deletes the new card.
   const putFromMap = useCallback(async (card: Card, target: DayWithCards, min: number | null) => {
     if (!card.place_id) return;
     const startTime = min === null ? null : toTime(min);
-    const endTime = min === null ? null : toTime(Math.min(min + 60, HOUR_END * 60));
+    const endTime = min === null ? null : toTime(Math.min(min + durationFor(card.place?.type ?? "activity", card.place?.sub_type ?? null, min), HOUR_END * 60 + 45));
     const created = await scheduleCardOnDay(supabase, { tripId: trip.id, dayId: target.id, placeId: card.place_id, place: card.place, startTime, endTime, details: card.details, sourceUrl: card.source_url });
     if (!created) { toast({ message: "Couldn't put it on that day. Try again." }); return; }
     setDays((prev) => prev.map((d) => (d.id === target.id ? { ...d, cards: [...d.cards, created] } : d)));

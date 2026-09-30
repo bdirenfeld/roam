@@ -25,17 +25,21 @@ export const DAY_START = 9 * 60;
 export const DAY_END = 22 * 60;
 const STEP = 15;
 
-/** How long a thing takes, by what it is. */
-export function durationFor(type: ArrangeItem["type"], subType: string | null): number {
+/**
+ * How long a thing takes, by what it is — and for a restaurant, by when:
+ * dinner (from 5 pm) is two hours, lunch 75 minutes. Brennan, 30 Sep 2026:
+ * "dinners would be 2 hours, coffee 30 minutes, a tour maybe 90 minutes".
+ */
+export function durationFor(type: ArrangeItem["type"], subType: string | null, startMin?: number | null): number {
   switch (subType) {
-    case "coffee": return 45;
+    case "coffee": return 30;
     case "dessert": return 30;
-    case "restaurant": return 75;
+    case "restaurant": return startMin != null && startMin >= 17 * 60 ? 120 : 75;
     case "bar":
     case "drinks": return 90;
     case "tour":
     case "guided":
-    case "hosted": return 120;
+    case "hosted": return 90;
     case "wellness": return 90;
     case "beach": return 150;
     case "camp": return 360;
@@ -152,13 +156,15 @@ export function arrangeDay(items: ArrangeItem[], busy: Busy[], anchor: Anchor | 
   const slotted = items.filter(isMeal).sort((x, y) => Number(y.subType === "camp") - Number(x.subType === "camp"));
   for (const it of slotted) {
     const key = it.subType as string;
-    const dur = durationFor(it.type, it.subType);
     const slots = SLOTS[key];
     let start: number | null = null;
+    let dur = durationFor(it.type, it.subType);
     for (let k = used[key] ?? 0; k < slots.length && start === null; k++) {
       const s = slots[k];
-      start = tl.find(s.want, dur, s.hi + dur) ?? tl.find(s.lo, dur, s.hi + dur);
-      if (start !== null) used[key] = k + 1;
+      // A dinner slot takes a dinner's length.
+      const d = durationFor(it.type, it.subType, s.want);
+      start = tl.find(s.want, d, s.hi + d) ?? tl.find(s.lo, d, s.hi + d);
+      if (start !== null) { used[key] = k + 1; dur = d; }
     }
     if (start === null) { unplaced.push(it.id); continue; }
     tl.take(start, start + dur); placed.push({ id: it.id, startMin: start, endMin: start + dur });

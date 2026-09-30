@@ -47,7 +47,8 @@ describe("Plan my trip sheet", () => {
     const regions = screen.getAllByRole("button", { pressed: true });
     expect(regions.length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByRole("button", { pressed: false }).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/of 13 free days/)).toBeTruthy();
+    // 14 days less settling in, the last half day and two days off (lib/plan/pace).
+    expect(screen.getByText(/of 10.5 free days/)).toBeTruthy();
   });
 
   it("plans the trip in one insert and hands the cards back", async () => {

@@ -1787,3 +1787,26 @@ the component mounted and you are looking at throttling, not a broken map.
   (counted in "some stay saved"), never untimed after the flight.
 - Map zoom, same day ("still zoomed in a bit too close"): picking a day on the week map stops at
   zoom 12 (`DAY_ZOOM`, guarded in lib/ui/pageLoad.test), the phone day map's fit at 14.
+
+## Plan my trip keeps a pace (30 Sep 2026)
+
+- `lib/plan/pace`, his rules: arrival day you rest, day 2 near home, day trips from day 3, breaks —
+  and a weekend breaks them all ("that's the purpose of the trip"). By length:
+  up to 4 days, no rules and the farthest group (> 5 km from home) goes first — New York got the
+  Natural History Museum back; 5–7 days, day 1 half and near home, day 2 near home (≤ 25 km);
+  8+ days, day 1 settles in (only a dinner ≤ 3 km from home rated ≥ 4.4, 6:30, two hours — "isn't
+  a big deal ... especially if it's close and really good"), day 2 near home.
+- Breaks are a run limit, not fixed days: never more than 4 busy days in a row with kids, 5
+  without; any day with nothing on it resets the count. Fixed break days (tried first) gave Costa
+  Rica three empty days in the middle; the run limit gives his real shape (busy 2–5, day 6 off).
+  `breaksNeeded` comes off the free days before regions are ticked and places grouped.
+- placeGroups now waits for ANY later open day, not just tomorrow, before dropping a place that
+  is closed today, and counts dropped places when choosing how many spare rest days to keep.
+- Testing a planner rule: run the old and new planner over live journeys (NY, Costa Rica) as
+  empty trips with only logistics scheduled, and set both beside what he actually did.
+- Bars with kids at 9 pm are his rule (29 Sep), not a bug — don't "fix" them.
+
+## A pin dragged onto the week takes its kind's length (30 Sep 2026)
+
+- `durationFor(type, subType, startMin)`: dinner (from 5 pm) 2 h, lunch 75 min, coffee 30, tour
+  90 — his numbers. WeekBoard `putFromMap` used a flat hour; arrange's dinner slot now takes 2 h.

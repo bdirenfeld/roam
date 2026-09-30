@@ -22,6 +22,7 @@ import { toMin, toTime } from "@/lib/week/layout";
 import { dayShare } from "./dayGroups";
 import { hoursWindow, assumedWindow, retimeDay, sightMinutes, type RetimeItem } from "./retime";
 import { isAirport, dayBounds, freeWithin, boundBlocks } from "./airports";
+import { paceDays, firstNightDinner, DINNER_AT } from "./pace";
 
 /** Where Plan my trip put a card; absent on everything else. */
 export interface PlanMark { day: string; start: string | null }
@@ -113,7 +114,8 @@ export interface DraftPreview {
  */
 export function spreadGroups(pins: Pin[], kids: boolean, free: number): Grouping {
   let grouping = groupPins(pins, { kids });
-  const room = Math.floor(free) - Math.floor(free / 7);
+  // Days off are already out of free (lib/plan/pace breaksNeeded).
+  const room = Math.floor(free);
   for (const loadCap of [0.75, 0.5]) {
     if (grouping.daysNeeded >= room) break;
     const lighter = groupPins(pins, { kids, loadCap });
@@ -126,7 +128,8 @@ export function spreadGroups(pins: Pin[], kids: boolean, free: number): Grouping
 export function previewDraft(cards: Card[], days: Pick<Day, "id" | "date" | "day_number">[], kids: boolean): DraftPreview {
   const pins = pinsToPlan(cards);
   const scheduled = cards.filter((c) => c.status === "in_itinerary" && c.day_id);
-  const free = freeDays(draftDays(days, scheduled));
+  const paced = paceDays(draftDays(days, scheduled), kids);
+  const free = freeDays(paced.days) - paced.breaksNeeded;
   const grouping = spreadGroups(pins, kids, free);
   const regions = grouping.regions.filter((r) => r.days > 0).map((r) => {
     const mine = grouping.groups.filter((g) => g.region === r.id).flatMap((g) => g.items);
@@ -169,13 +172,14 @@ export function buildDraft(
 ): { rows: DraftRow[]; dayIds: string[]; leftOut: number } {
   const { grouping } = previewDraft(cards, days, opts.kids);
   const scheduled = cards.filter((c) => c.status === "in_itinerary" && c.day_id);
-  const dd = draftDays(days, scheduled);
+  const paced = paceDays(draftDays(days, scheduled), opts.kids);
+  const dd = paced.days;
   const dayIds = dd.map((d) => d.id);
   const hotel = scheduled.find((c) => (c.place?.sub_type === "hotel" || c.place?.sub_type === "accommodation") && c.place.lat != null);
   const flight = scheduled.find((c) => FLIGHT.has(c.place?.sub_type ?? "") && c.place?.lat != null);
   const startCard = hotel ?? flight;
   const start = startCard ? { lat: startCard.place!.lat!, lng: startCard.place!.lng! } : null;
-  const { placed, unplaced } = placeGroups(grouping, dd, { regions: opts.regions, start });
+  const { placed, unplaced } = placeGroups(grouping, dd, { regions: opts.regions, start, nearOnly: paced.nearOnly, farFirst: paced.farFirst, maxRun: paced.maxRun });
 
   const byId = new Map(cards.map((c) => [c.id, c]));
   const rows: DraftRow[] = [];
@@ -236,6 +240,29 @@ export function buildDraft(
         day_id: p.dayId, trip_id: tripId, place_id: c.place_id as string, status: "in_itinerary", position: ++pos,
         start_time: t ? toTime(t.start) : null, end_time: t ? toTime(t.end) : null, source_url: null,
         details: { plan: { day: p.dayId, start: t ? toTime(t.start) : null } }, ai_generated: true, confirmed: false,
+      });
+    }
+  }
+  // A long trip's settling-in day: one dinner, if a really good one is saved
+  // near home (./pace).
+  const firstId = dayIds[0];
+  if (paced.pace === "long" && firstId) {
+    const onFirst = scheduled.filter((c) => c.day_id === firstId);
+    const planned = new Set([...rows.map((r) => r.place_id), ...scheduled.map((c) => c.place_id)]);
+    const options = onFirst.some((c) => c.place?.type === "food") ? [] : cards
+      .filter((c) => c.status === "interested" && c.place && c.place_id && !planned.has(c.place_id))
+      .map((c) => {
+        const w = hoursWindow((c.place as unknown as { hours?: unknown }).hours, dd[0].date);
+        return { id: c.id, lat: c.place!.lat, lng: c.place!.lng, rating: c.place!.rating == null ? null : Number(c.place!.rating), subType: c.place!.sub_type, open: w !== "closed" && (w === null || w.close >= DINNER_AT + 90) };
+      });
+    const dinner = firstNightDinner(options, start, dayBounds(onFirst, { first: true, last: dayIds.length === 1 }).from);
+    const card = dinner && byId.get(dinner.id);
+    if (dinner && card) {
+      const pos = Math.max(0, ...onFirst.map((c) => c.position ?? 0)) + 1;
+      rows.push({
+        day_id: firstId, trip_id: tripId, place_id: card.place_id as string, status: "in_itinerary", position: pos,
+        start_time: toTime(dinner.start), end_time: toTime(dinner.end), source_url: null,
+        details: { plan: { day: firstId, start: toTime(dinner.start) } }, ai_generated: true, confirmed: false,
       });
     }
   }

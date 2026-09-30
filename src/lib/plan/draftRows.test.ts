@@ -24,10 +24,11 @@ describe("Plan my trip, end to end on Japan", () => {
   const preview = previewDraft(saved, days, true);
 
   it("says the pins don't fit and suggests regions that do", () => {
-    expect(preview.free).toBe(13); // 14 days, the first and last half days
+    // 14 days: settle in on day 1, the last a half day, two days off: never more than four busy days in a row (lib/plan/pace).
+    expect(preview.free).toBe(10.5);
     const need = preview.regions.filter((r) => preview.suggested.includes(r.id)).reduce((s, r) => s + r.days, 0) + 0.5 * (preview.suggested.length - 1);
-    expect(need).toBeLessThanOrEqual(13);
-    expect(preview.regions.reduce((s, r) => s + r.days, 0)).toBeGreaterThan(13);
+    expect(need).toBeLessThanOrEqual(10.5);
+    expect(preview.regions.reduce((s, r) => s + r.days, 0)).toBeGreaterThan(10.5);
   });
 
   it("drafts timed cards on free days, never on a closed day, each place once", () => {

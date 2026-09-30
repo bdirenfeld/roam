@@ -16,9 +16,13 @@ const item = (id: string, type: ArrangeItem["type"], subType: string | null, at:
 
 describe("durations", () => {
   it("knows a coffee from a tour", () => {
-    expect(durationFor("food", "coffee")).toBe(45);
+    // His numbers, 30 Sep 2026: dinner two hours, coffee half an hour, a tour 90 minutes.
+    expect(durationFor("food", "coffee")).toBe(30);
+    expect(durationFor("food", "restaurant", 19 * 60)).toBe(120);
+    expect(durationFor("food", "restaurant", 12 * 60 + 30)).toBe(75);
     expect(durationFor("food", "restaurant")).toBe(75);
-    expect(durationFor("activity", "tour")).toBe(120);
+    expect(durationFor("activity", "tour")).toBe(90);
+    expect(durationFor("activity", "guided")).toBe(90);
     expect(durationFor("activity", "explore")).toBe(90);
     expect(durationFor("food", "unknown")).toBe(60);
   });
@@ -141,5 +145,15 @@ describe("a stay is a check-in", () => {
     const by = Object.fromEntries(placed.map((p) => [p.id, p]));
     expect(by.lodge).toEqual({ id: "lodge", startMin: 15 * 60, endMin: 15 * 60 + 30 });
     expect(by.nav.startMin).toBeLessThan(15 * 60);
+  });
+});
+
+import { readFileSync } from "fs";
+describe("a pin dragged from the map onto the week", () => {
+  it("takes its kind's length at the drop time, not an hour (WeekBoard putFromMap)", () => {
+    const board = readFileSync("src/components/plan/WeekBoard.tsx", "utf8");
+    const put = board.slice(board.indexOf("const putFromMap"), board.indexOf("const putFromMap") + 900);
+    expect(put).toMatch(/min \+ durationFor\(card\.place\?\.type \?\? "activity", card\.place\?\.sub_type \?\? null, min\)/);
+    expect(put).not.toMatch(/min \+ 60/);
   });
 });
