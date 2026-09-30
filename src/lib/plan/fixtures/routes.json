@@ -1,0 +1,438 @@
+{
+ "_source": "Google Directions, 30 Sep 2026, trimmed",
+ "romeTivoliTransit": {
+  "status": "OK",
+  "routes": [
+   {
+    "legs": [
+     {
+      "duration": {
+       "text": "1 hour 9 mins",
+       "value": 4138
+      },
+      "distance": {
+       "text": "31.1 km",
+       "value": 31069
+      },
+      "steps": [
+       {
+        "travel_mode": "TRANSIT",
+        "duration": {
+         "text": "15 mins",
+         "value": 876
+        },
+        "transit_details": {
+         "line": {
+          "short_name": "B",
+          "name": "Metro B",
+          "vehicle": {
+           "type": "SUBWAY"
+          }
+         },
+         "departure_stop": {
+          "name": "Termini"
+         },
+         "arrival_stop": {
+          "name": "Ponte Mammolo"
+         },
+         "num_stops": 9
+        }
+       },
+       {
+        "travel_mode": "WALKING",
+        "duration": {
+         "text": "1 min",
+         "value": 83
+        }
+       },
+       {
+        "travel_mode": "TRANSIT",
+        "duration": {
+         "text": "38 mins",
+         "value": 2280
+        },
+        "transit_details": {
+         "line": {
+          "short_name": "PI5A",
+          "name": "Roma Ponte Mammolo - Tivoli # PI5A",
+          "vehicle": {
+           "type": "BUS"
+          }
+         },
+         "departure_stop": {
+          "name": "ROMA | Ponte Mammolo (Metro B) # f9014"
+         },
+         "arrival_stop": {
+          "name": "TIVOLI | Piazzale Nazioni Unite # f8977"
+         },
+         "num_stops": 31
+        }
+       },
+       {
+        "travel_mode": "WALKING",
+        "duration": {
+         "text": "11 mins",
+         "value": 631
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "romeTivoliDrive": {
+  "status": "OK",
+  "routes": [
+   {
+    "legs": [
+     {
+      "duration": {
+       "text": "46 mins",
+       "value": 2753
+      },
+      "distance": {
+       "text": "34.8 km",
+       "value": 34805
+      },
+      "steps": [
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "2 mins",
+         "value": 123
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "1 min",
+         "value": 20
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "1 min",
+         "value": 34
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "1 min",
+         "value": 11
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "1 min",
+         "value": 10
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "1 min",
+         "value": 70
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "1 min",
+         "value": 70
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "1 min",
+         "value": 29
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "1 min",
+         "value": 75
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "1 min",
+         "value": 76
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "1 min",
+         "value": 12
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "1 min",
+         "value": 15
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "1 min",
+         "value": 48
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "1 min",
+         "value": 38
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "2 mins",
+         "value": 97
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "1 min",
+         "value": 68
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "4 mins",
+         "value": 245
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "9 mins",
+         "value": 545
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "2 mins",
+         "value": 105
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "2 mins",
+         "value": 123
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "1 min",
+         "value": 83
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "9 mins",
+         "value": 544
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "1 min",
+         "value": 87
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "1 min",
+         "value": 10
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "1 min",
+         "value": 36
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "1 min",
+         "value": 60
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "1 min",
+         "value": 19
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "1 min",
+         "value": 37
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "1 min",
+         "value": 47
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "1 min",
+         "value": 7
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "1 min",
+         "value": 9
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "tamarindoPaloVerdeDrive": {
+  "status": "OK",
+  "routes": [
+   {
+    "legs": [
+     {
+      "duration": {
+       "text": "2 hours 32 mins",
+       "value": 9095
+      },
+      "distance": {
+       "text": "129 km",
+       "value": 128608
+      },
+      "steps": [
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "1 min",
+         "value": 13
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "1 min",
+         "value": 12
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "9 mins",
+         "value": 522
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "1 min",
+         "value": 9
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "11 mins",
+         "value": 653
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "28 mins",
+         "value": 1686
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "43 mins",
+         "value": 2551
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "1 min",
+         "value": 74
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "17 mins",
+         "value": 1020
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "1 min",
+         "value": 40
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "29 mins",
+         "value": 1718
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "10 mins",
+         "value": 621
+        }
+       },
+       {
+        "travel_mode": "DRIVING",
+        "duration": {
+         "text": "3 mins",
+         "value": 176
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "tamarindoPaloVerdeTransit": {
+  "status": "ZERO_RESULTS",
+  "routes": []
+ }
+}

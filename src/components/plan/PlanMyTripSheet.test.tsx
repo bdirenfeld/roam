@@ -54,14 +54,14 @@ describe("Plan my trip sheet", () => {
   it("plans the trip in one insert and hands the cards back", async () => {
     const onDrafted = vi.fn(), onClose = vi.fn();
     const asked: { url: string; body: { tripId: string; cardIds: string[] } }[] = [];
-    vi.stubGlobal("fetch", vi.fn(async (url: string, init: { body: string }) => { asked.push({ url, body: JSON.parse(init.body) }); return { json: async () => ({ written: 0 }) }; }));
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init: { body: string }) => { asked.push({ url, body: JSON.parse(init.body) }); return { ok: true, json: async () => ({ written: 0, created: [] }) }; }));
     render(<PlanMyTripSheet trip={trip} days={days} cards={cards} onClose={onClose} onDrafted={onDrafted} />);
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Plan the trip" })); });
     expect(inserted).toHaveLength(1);
-    // Every new card's Intent and Know before you go is asked for, in one request.
-    expect(asked).toHaveLength(1);
-    expect(asked[0].url).toBe("/api/plan/notes");
-    expect(asked[0].body.cardIds.sort()).toEqual(inserted[0].map((r) => r.id as string).sort());
+    // Every new card's Intent and Know before you go, and a travel card for
+    // each day trip: one request each, with every new card.
+    expect(asked.map((a) => a.url).sort()).toEqual(["/api/plan/getting-there", "/api/plan/notes"]);
+    for (const a of asked) expect(a.body.cardIds.sort()).toEqual(inserted[0].map((r) => r.id as string).sort());
     vi.unstubAllGlobals();
     const rows = inserted[0];
     expect(rows.length).toBeGreaterThan(10);

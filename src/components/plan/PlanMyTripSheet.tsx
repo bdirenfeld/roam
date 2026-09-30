@@ -69,13 +69,23 @@ export default function PlanMyTripSheet({
     // Each card's Intent and Know before you go, for every planned day at once
     // (hooks/useCardNotes): screens showing the cards fold the notes in.
     void requestNotes(trip.id, withIds.map((w) => w.id));
+    // A travel card before each day trip, the better of driving and public
+    // transport from that night's stay (api/plan/getting-there). Undo takes them too.
+    const travel: string[] = [];
+    void fetch("/api/plan/getting-there", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId: trip.id, cardIds: withIds.map((w) => w.id) }) })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: { created?: string[]; moved?: unknown[] } | null) => {
+        if (j?.created?.length || j?.moved?.length) { travel.push(...(j.created ?? [])); router.refresh(); }
+      })
+      .catch(() => undefined);
     const dayCount = new Set(rows.map((r) => r.day_id)).size;
     toast({
       message: `Planned ${rows.length} ${rows.length === 1 ? "place" : "places"} on ${dayCount} ${dayCount === 1 ? "day" : "days"}`,
       undo: async () => {
-        const r = await supabase.from("cards").delete().in("id", withIds.map((w) => w.id));
+        const ids = [...withIds.map((w) => w.id), ...travel];
+        const r = await supabase.from("cards").delete().in("id", ids);
         if (r.error) toast({ message: "Couldn't undo. Try again." });
-        else { window.dispatchEvent(new CustomEvent("roam:draft-removed", { detail: withIds.map((w) => w.id) })); router.refresh(); }
+        else { window.dispatchEvent(new CustomEvent("roam:draft-removed", { detail: ids })); router.refresh(); }
       },
     });
     onClose();

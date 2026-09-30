@@ -331,6 +331,8 @@ function toDbTime(v: string): string {
  */
 /** "09:30" + 90 → "11:00". Wraps past midnight; returns null on bad input. */
 
+const isDirections = (u: string) => u.startsWith("https://www.google.com/maps/dir/");
+
 // ── Note detail (free-form textarea) ─────────────────────────
 function NoteDetail({ notes, onSave }: { notes: string; onSave: (v: string) => void }) {
   const [draft, setDraft] = useState(notes);
@@ -1280,14 +1282,15 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 transition-colors"
-                  aria-label="Source"
+                  aria-label={isDirections(localCard.source_url) ? "Directions" : "Source"}
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="10" />
                     <line x1="2" y1="12" x2="22" y2="12" />
                     <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
                   </svg>
-                  Source
+                  {/* A travel card links to the route (lib/plan/gettingThere). */}
+                  {isDirections(localCard.source_url) ? "Directions" : "Source"}
                 </a>
               </>
             )}

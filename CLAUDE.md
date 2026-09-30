@@ -1817,3 +1817,20 @@ the component mounted and you are looking at throttling, not a broken map.
 - Live-drag testing with Chrome MCP `left_click_drag`: the tool does not send a final pointermove at
   the drop point, and WeekBoard drops where the last move was — so a test card lands a day or two
   off (Sun → Tue). That is the tool, not the app; check the card's times, not its day.
+
+## Getting there: a travel card before each day trip (30 Sep 2026)
+
+- His ask: a logistics card "on how to get to those places, knowing where the home base is" that
+  "optimize[s] the best way to get there and provide[s] details on how to do it". After Plan my
+  trip inserts, the sheet POSTs the new ids to `api/plan/getting-there` (quota `gettingThere` 30).
+- `lib/plan/gettingThere`: a day trip is the day's first planned place > 25 km (NEAR_KM) from that
+  night's stay; one note card per day (place_id null, `details.getting_there`, `details.plan` so
+  Undo and "Remove what Plan my trip added" take it), timed leave → arrive, `source_url` = Google
+  Maps directions in the chosen mode (the card sheet labels it "Directions").
+- Best way: Google Directions driving + transit (legacy API, same key as Places; cached a month in
+  find_cache "route|"). Transit is asked for the same weekday/hour this coming week (no timetables
+  two years out), hour shifted by longitude. Parking +15 min, changes +10 (kids) / +5. With no
+  rental saved on the journey (`hasCar`), driving must beat transit by a third — Rome→Tivoli is
+  46 min by car, 69 by metro+bus, and a family in Rome has no car.
+- Google has NO transit data for Japan or rural Costa Rica (ZERO_RESULTS): the card says so and
+  points at Google Maps' own transit view. Leaving before 8 am moves that day's planned cards later.
