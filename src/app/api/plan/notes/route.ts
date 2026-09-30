@@ -13,7 +13,8 @@ import { notesPrompt, parseNotes, dayHoursLine, composeNote, batchesOf, NOTES_BA
 // from the place's own saved hours. A card that already has notes is never
 // touched. If Claude is unavailable the cards simply stay as they were.
 
-export const maxDuration = 60;
+// Web searches and Claude writing: 60 s cut Tuscany's event search off (30 Sep 2026).
+export const maxDuration = 180;
 
 type Row = {
   id: string; day_id: string | null; details: Record<string, unknown> | null;

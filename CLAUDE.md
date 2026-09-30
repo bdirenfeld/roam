@@ -1874,3 +1874,5 @@ the component mounted and you are looking at throttling, not a broken map.
   3 h on drops and in Plan my trip (was 90 min / 2 h 30): "closer to like 3 hours".
 - Find's travellers call: max_tokens 1500 -> 4000 (five searches left no room; Tuscany events came back
   empty), and an empty answer logs stop_reason and the tail of Claude's text.
+- Find, card notes and Getting there run up to 180 s (maxDuration): five web searches plus the answer
+  ran past 60 s on Tuscany's events (504).

@@ -16,7 +16,8 @@ import { dayTrips, routeFrom, travelCard, leaveBy, bestWay, hasCar, directionsUr
 // before 8 am, that day's planned cards move later instead. Routes are kept
 // in find_cache for a month ("route|" keys).
 
-export const maxDuration = 60;
+// Web searches and Claude writing: 60 s cut Tuscany's event search off (30 Sep 2026).
+export const maxDuration = 180;
 
 const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
 const toTime = (m: number) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}:00`;

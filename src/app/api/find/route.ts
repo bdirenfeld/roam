@@ -25,7 +25,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // another person's results. Only a travellers call that misses the cache
 // counts against the daily allowance.
 
-export const maxDuration = 60;
+// Web searches and Claude writing: 60 s cut Tuscany's event search off (30 Sep 2026).
+export const maxDuration = 180;
 
 type GPlace = { place_id: string; name: string; formatted_address?: string; vicinity?: string; geometry?: { location?: { lat: number; lng: number } }; rating?: number; user_ratings_total?: number; types?: string[]; photos?: { photo_reference?: string }[] };
 
