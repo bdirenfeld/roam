@@ -149,3 +149,13 @@ describe("an event may be a day trip away", () => {
     expect(mergeFind(lucca, [bravio], [], new Set(), [], EVENT_FAR_KM)).toHaveLength(1);
   });
 });
+
+describe("an event's place can be a square or a town", () => {
+  it("Piazza Grande (Google: a street) and Montepulciano (a town) for events and races; not for places to explore", () => {
+    expect(fitsCategory("event", ["route"])).toBe(true);
+    expect(fitsCategory("event", ["locality", "political"])).toBe(true);
+    expect(fitsCategory("challenge", ["route"])).toBe(true);
+    expect(fitsCategory("event", ["parking"])).toBe(false);
+    expect(fitsCategory("self_directed", ["route"])).toBe(false);
+  });
+});

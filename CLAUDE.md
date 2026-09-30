@@ -1851,5 +1851,7 @@ the component mounted and you are looking at throttling, not a broken map.
   Montepulciano, last Sunday of August, ~130 km from the villa near Lucca) — "events should find really
   cool stuff like that". Two blockers: the prompt searched only the base town, and mergeFind dropped
   anything over FAR_KM (60). Events now search within ~2 h' drive, lead with palios, historic races,
-  sagre, processions, re-enactments; keep results to EVENT_FAR_KM (170); 5 web searches, not 3. Cache
+  sagre, processions, re-enactments; keep results to EVENT_FAR_KM (170); 5 web searches, not 3. An event
+  or race may sit in a square or a town: Google types Piazza Grande as "route", which fitsCategory
+  dropped for every kind — the first live run came back empty. Cache
   key gained "|region" so old event answers are not served.

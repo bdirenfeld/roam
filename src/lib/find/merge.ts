@@ -87,6 +87,11 @@ const NOT_A_PLACE = ["transit_station", "subway_station", "train_station", "bus_
 
 export function fitsCategory(subType: string, types: string[] | undefined): boolean {
   if (!types || types.length === 0) return true;
+  // An event or a race happens in a square or a town: Google types Piazza
+  // Grande, where Montepulciano rolls its barrels, as a street ("route"), and
+  // every Tuscany event came back empty (30 Sep 2026). Only a car park or a
+  // station is never where one is.
+  if (subType === "event" || subType === "challenge") return !types.some((t) => ["parking", "transit_station", "subway_station", "train_station", "bus_station", "light_rail_station", "postal_code", "country"].includes(t));
   if (types.some((t) => NOT_A_PLACE.includes(t))) return false;
   const food = types.some((t) => FOOD.includes(t));
   if (FOOD_SUBTYPES.includes(subType)) return food;
