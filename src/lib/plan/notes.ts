@@ -100,3 +100,13 @@ export function cardsNeedingNotes(cards: NoteCard[], since = NOTES_FROM): string
     .filter((c) => { const n = (c.details as { notes?: unknown } | null)?.notes; return !(typeof n === "string" && n.trim()); })
     .map((c) => c.id);
 }
+
+/** Places per Claude call: a batch finds its words well inside the 60-second limit. */
+export const NOTES_BATCH = 6;
+
+/** Split a list into runs of at most `size`. */
+export function batchesOf<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}

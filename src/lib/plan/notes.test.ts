@@ -56,3 +56,13 @@ describe("cardsNeedingNotes", () => {
     expect(cardsNeedingNotes(cards, since)).toEqual(["new", "blank", "just-made"]);
   });
 });
+
+import { batchesOf, NOTES_BATCH } from "./notes";
+describe("notes are written six places a call", () => {
+  it("Japan's 23 cards: four calls of at most six, none lost", () => {
+    const b = batchesOf(Array.from({ length: 23 }, (_, i) => i), NOTES_BATCH);
+    expect(b.map((x) => x.length)).toEqual([6, 6, 6, 5]);
+    expect(b.flat()).toHaveLength(23);
+    expect(batchesOf([], 6)).toEqual([]);
+  });
+});

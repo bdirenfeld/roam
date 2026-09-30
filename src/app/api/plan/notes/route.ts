@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { notesPrompt, parseNotes, dayHoursLine, composeNote, type NotePlace, type WrittenNote } from "@/lib/plan/notes";
+import { notesPrompt, parseNotes, dayHoursLine, composeNote, batchesOf, NOTES_BATCH, type NotePlace, type WrittenNote } from "@/lib/plan/notes";
 
 // ── Notes for the cards Plan my trip just placed (29 Sep 2026) ─────────────
 //
@@ -67,24 +67,31 @@ export async function POST(req: NextRequest) {
       const p = cards.find((c) => c.place!.google_place_id === g)!.place!;
       return { key: g, title: p.title, subType: p.sub_type, address: p.address, types: p.details?.types ?? [] };
     });
-    try {
-      const res = await new Anthropic({ apiKey }).messages.create({
+    // Six places a call, all at once: Japan's 23 in one call ran past the
+    // 60-second limit and wrote nothing (30 Sep 2026).
+    const client = new Anthropic({ apiKey });
+    const batches = batchesOf(places, NOTES_BATCH);
+    const results = await Promise.allSettled(batches.map(async (batch) => {
+      const res = await client.messages.create({
         model: "claude-sonnet-4-6",
-        max_tokens: 6000,
-        messages: [{ role: "user", content: notesPrompt(places, who) }],
+        max_tokens: 2500,
+        messages: [{ role: "user", content: notesPrompt(batch, who) }],
       });
       const text = res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("\n");
-      const got = parseNotes(text);
-      Object.assign(written, got);
-      if (admin) {
-        const now = new Date().toISOString();
-        const up = Object.entries(got).map(([g, n]) => ({ key: keyOf(g), results: n, created_at: now }));
-        if (up.length) await admin.from("find_cache").upsert(up);
-      }
-    } catch (e) {
-      console.error("[plan/notes]", e);
-      if (!Object.keys(written).length) return NextResponse.json({ written: 0, error: "Notes are unavailable just now" }, { status: 502 });
+      return parseNotes(text);
+    }));
+    const got: Record<string, WrittenNote> = {};
+    for (const r of results) {
+      if (r.status === "fulfilled") Object.assign(got, r.value);
+      else console.error("[plan/notes]", r.reason);
     }
+    Object.assign(written, got);
+    if (admin) {
+      const now = new Date().toISOString();
+      const up = Object.entries(got).map(([g, n]) => ({ key: keyOf(g), results: n, created_at: now }));
+      if (up.length) await admin.from("find_cache").upsert(up);
+    }
+    if (!Object.keys(written).length) return NextResponse.json({ written: 0, error: "Notes are unavailable just now" }, { status: 502 });
   }
 
   // The day each card is on, for its hours line.
