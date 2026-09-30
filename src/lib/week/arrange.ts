@@ -14,6 +14,8 @@ export interface ArrangeItem {
   subType: string | null;
   lat: number | null;
   lng: number | null;
+  /** Share of a day (lib/plan/dayGroups): 1 is a whole-day place. */
+  share?: number;
 }
 export interface Busy { startMin: number; endMin: number }
 export interface Placed { id: string; startMin: number; endMin: number }
@@ -22,6 +24,7 @@ export interface Anchor { lat: number; lng: number }
 export interface DayEdge { first: boolean; last: boolean }
 
 export const DAY_START = 9 * 60;
+export const WHOLE_DAY_MIN = 420;
 export const DAY_END = 22 * 60;
 const STEP = 15;
 
@@ -30,7 +33,10 @@ const STEP = 15;
  * dinner (from 5 pm) is two hours, lunch 75 minutes. Brennan, 30 Sep 2026:
  * "dinners would be 2 hours, coffee 30 minutes, a tour maybe 90 minutes".
  */
-export function durationFor(type: ArrangeItem["type"], subType: string | null, startMin?: number | null): number {
+export function durationFor(type: ArrangeItem["type"], subType: string | null, startMin?: number | null, share?: number): number {
+  // A theme park, a zoo, a national park, an island: the day (Plan my trip's
+  // length for one, lib/plan/retime sightMinutes).
+  if (share !== undefined && share >= 1) return WHOLE_DAY_MIN;
   switch (subType) {
     case "coffee": return 30;
     case "dessert": return 30;
@@ -179,7 +185,7 @@ export function arrangeDay(items: ArrangeItem[], busy: Busy[], anchor: Anchor | 
   let placedSights = 0;
   let here: Anchor | null = opens.length ? null : anchor;
   for (const it of sights) {
-    const dur = durationFor(it.type, it.subType);
+    const dur = durationFor(it.type, it.subType, null, it.share);
     // The first leg from the anchor counts only when the anchor is near: a
     // day with nothing timed starts from the journey's centre, which on a
     // Europe summer is southern Germany and on any multi-city trip the wrong

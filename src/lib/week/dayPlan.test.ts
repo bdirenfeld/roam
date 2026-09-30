@@ -147,3 +147,11 @@ describe("an airport saved as transit", () => {
     expect(last?.id).toBe("pisa");
   });
 });
+
+import { toItem as toItemShare } from "./dayPlan";
+describe("several pins onto a day: a whole-day place is the day", () => {
+  it("toItem carries the place's share of a day", () => {
+    const disney = { id: "c1", place: { type: "activity", title: "Tokyo DisneySea", sub_type: "self_directed", lat: 35.6, lng: 139.9, details: { types: ["amusement_park"] } } } as unknown as Card;
+    expect(toItemShare(disney).share).toBe(1);
+  });
+});

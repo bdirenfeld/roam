@@ -1810,3 +1810,10 @@ the component mounted and you are looking at throttling, not a broken map.
 
 - `durationFor(type, subType, startMin)`: dinner (from 5 pm) 2 h, lunch 75 min, coffee 30, tour
   90 — his numbers. WeekBoard `putFromMap` used a flat hour; arrange's dinner slot now takes 2 h.
+- ...and a whole-day place (theme park, zoo, national park, island — `placeShare` in
+  lib/plan/dayGroups, the same test Plan my trip uses) takes 7 hours on any drop, single or many
+  (ArrangeItem.share, set in lib/week/dayPlan toItem). His catch: "I don't think it accounts for
+  all day activities".
+- Live-drag testing with Chrome MCP `left_click_drag`: the tool does not send a final pointermove at
+  the drop point, and WeekBoard drops where the last move was — so a test card lands a day or two
+  off (Sun → Tue). That is the tool, not the app; check the card's times, not its day.

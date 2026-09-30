@@ -23,6 +23,9 @@ describe("durations", () => {
     expect(durationFor("food", "restaurant")).toBe(75);
     expect(durationFor("activity", "tour")).toBe(90);
     expect(durationFor("activity", "guided")).toBe(90);
+    // A whole-day place (DisneySea) is the day, whatever its sub-type.
+    expect(durationFor("activity", "self_directed", 9 * 60 + 45, 1)).toBe(420);
+    expect(durationFor("activity", "self_directed", 9 * 60 + 45, 0.5)).toBe(90);
     expect(durationFor("activity", "explore")).toBe(90);
     expect(durationFor("food", "unknown")).toBe(60);
   });
@@ -150,10 +153,10 @@ describe("a stay is a check-in", () => {
 
 import { readFileSync } from "fs";
 describe("a pin dragged from the map onto the week", () => {
-  it("takes its kind's length at the drop time, not an hour (WeekBoard putFromMap)", () => {
+  it("takes its kind's length at the drop time, not an hour, and a whole-day place the day (WeekBoard putFromMap)", () => {
     const board = readFileSync("src/components/plan/WeekBoard.tsx", "utf8");
     const put = board.slice(board.indexOf("const putFromMap"), board.indexOf("const putFromMap") + 900);
-    expect(put).toMatch(/min \+ durationFor\(card\.place\?\.type \?\? "activity", card\.place\?\.sub_type \?\? null, min\)/);
+    expect(put).toMatch(/min \+ durationFor\(card\.place\?\.type \?\? "activity", card\.place\?\.sub_type \?\? null, min, placeShare\(card\.place\)\)/);
     expect(put).not.toMatch(/min \+ 60/);
   });
 });

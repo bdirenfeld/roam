@@ -121,3 +121,15 @@ describe("a walkable town with children", () => {
     expect(Math.max(...groupPins(town, { kids: false }).groups.map((g) => g.items.length))).toBe(4);
   });
 });
+
+import { placeShare } from "./dayGroups";
+describe("placeShare: a card's place, as Plan my trip sizes it", () => {
+  it("DisneySea and a national park are the day; a museum half; food nothing", () => {
+    expect(placeShare({ type: "activity", title: "Tokyo DisneySea", sub_type: "self_directed", details: { types: ["tourist_attraction"] } })).toBe(1);
+    expect(placeShare({ type: "activity", title: "Palo Verde National Park", sub_type: "guided", details: { types: ["park"] } })).toBe(1);
+    expect(placeShare({ type: "activity", title: "Anywhere", sub_type: null, types: ["zoo"] })).toBe(1);
+    expect(placeShare({ type: "activity", title: "Ghibli Museum", sub_type: "guided", details: { types: ["museum"] } })).toBe(0.5);
+    expect(placeShare({ type: "food", title: "Gion Unagi Kawato", sub_type: "restaurant" })).toBe(0);
+    expect(placeShare(null)).toBe(0);
+  });
+});

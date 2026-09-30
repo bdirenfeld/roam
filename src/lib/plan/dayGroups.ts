@@ -125,6 +125,17 @@ export function dayShare(p: Pin): number {
   return 0.5;
 }
 
+/**
+ * A saved place's share of a day, straight from the card's place: what Plan my
+ * trip uses, for the week's drops too — DisneySea dragged onto a day was an
+ * hour and a half (30 Sep 2026: "I don't think it accounts for all day activities").
+ */
+export function placeShare(place: { type?: string | null; title?: string | null; sub_type?: string | null; types?: unknown; details?: unknown } | null | undefined): number {
+  if (!place || place.type !== "activity") return 0;
+  const types = place.types ?? (place.details as { types?: unknown } | null)?.types;
+  return dayShare({ id: "", title: place.title ?? "", type: "activity", subType: place.sub_type ?? null, lat: null, lng: null, types: Array.isArray(types) ? (types as string[]) : null });
+}
+
 export function km(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const R = 6371, r = (d: number) => (d * Math.PI) / 180;
   const dLat = r(b.lat - a.lat), dLng = r(b.lng - a.lng);
