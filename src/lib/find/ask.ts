@@ -131,3 +131,22 @@ export function cacheKey(opts: { mode: "google" | "travellers"; lat: number; lng
   return [opts.mode, opts.lat.toFixed(2), opts.lng.toFixed(2), opts.subType, q, opts.kids ? "kids" : "adults", near, opts.when ?? ""].join("|");
 }
 export const CACHE_DAYS = 30;
+
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+/**
+ * Whether an event's "why" falls on the journey's dates. The search is told
+ * to keep to them and sometimes does not: Tuscany's answer carried the
+ * Luminara di Santa Croce, 13 September, for a trip ending on the 4th
+ * (30 Sep 2026). Every "13 Sep"-style date in the text is read against the
+ * trip's year(s); one inside keeps it, all outside drop it, none found keeps it.
+ */
+export function onTripDates(why: string, from: string, to: string): boolean {
+  const found = Array.from(why.matchAll(/\b(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b/gi));
+  if (!found.length) return true;
+  const a = Date.parse(from + "T00:00:00Z"), b = Date.parse(to + "T00:00:00Z");
+  const years = new Set([new Date(a).getUTCFullYear(), new Date(b).getUTCFullYear()]);
+  return found.some((m) => {
+    const month = MONTHS.indexOf(m[2].toLowerCase().slice(0, 3));
+    return Array.from(years).some((y) => { const t = Date.UTC(y, month, Number(m[1])); return t >= a && t <= b; });
+  });
+}

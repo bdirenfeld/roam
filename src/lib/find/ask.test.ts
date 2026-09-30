@@ -77,3 +77,14 @@ describe("events a day trip away, the special ones first", () => {
     expect(travellersPrompt({ base: "Lucca", country: "Italy", subType: "camp", ask: null, party: 5, childAges: [10], month: "August 2027", from: "2027-08-24", to: "2027-09-04" })).toMatch(/happening in Lucca, Italy between/);
   });
 });
+
+import { onTripDates } from "./ask";
+describe("an event must fall on the journey's dates", () => {
+  it("Tuscany, 24 Aug – 4 Sep 2027: the Bravio stays, the Luminara (13 Sep) goes", () => {
+    expect(onTripDates("Usually Sun 29 Aug: Bravio delle Botti – barrel-rolling race", "2027-08-24", "2027-09-04")).toBe(true);
+    expect(onTripDates("Sun 13 Sep (eve starts 13th): Luminara di Santa Croce", "2027-08-24", "2027-09-04")).toBe(false);
+    expect(onTripDates("Usually early Sep: End of Summer Party on the Walls", "2027-08-24", "2027-09-04")).toBe(true);
+    // A trip across New Year.
+    expect(onTripDates("Sat 1 Jan: New Year's Day parade", "2027-12-28", "2028-01-03")).toBe(true);
+  });
+});

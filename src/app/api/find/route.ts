@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
-import { googleQuery, travellersPrompt, parseTravellers, cacheKey, CACHE_DAYS, DATED } from "@/lib/find/ask";
+import { googleQuery, travellersPrompt, parseTravellers, cacheKey, CACHE_DAYS, DATED, onTripDates } from "@/lib/find/ask";
 import { NEAR_PLAN, withinWalk } from "@/lib/find/near";
 import { mergeFind, fitsCategory, FAR_KM, EVENT_FAR_KM, type FindResult } from "@/lib/find/merge";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -121,7 +121,8 @@ export async function POST(req: NextRequest) {
         tools: [{ type: "web_search_20250305", name: "web_search", max_uses: subType === "event" ? 5 : 3 }],
       });
       const text = res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("\n");
-      const picks = parseTravellers(text);
+      // Dated kinds keep to the journey's dates (lib/find/ask onTripDates).
+      const picks = parseTravellers(text).filter((p) => !dated || onTripDates(p.why, trip.start_date as string, trip.end_date as string));
       // What the search named, and what Google could place: an empty list is otherwise silent.
       console.log("[find] travellers", subType, base.label, "named", picks.length, picks.map((p) => p.name).join(" / ").slice(0, 400), picks.length ? "" : `stop=${res.stop_reason} text=${text.slice(-300)}`);
       const checked = await Promise.all(picks.map(async (p) => {

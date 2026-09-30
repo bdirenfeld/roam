@@ -1876,3 +1876,5 @@ the component mounted and you are looking at throttling, not a broken map.
   empty), and an empty answer logs stop_reason and the tail of Claude's text.
 - Find, card notes and Getting there run up to 180 s (maxDuration): five web searches plus the answer
   ran past 60 s on Tuscany's events (504).
+- Event results must fall on the trip's dates (`onTripDates`, lib/find/ask): the search returned the
+  Luminara (13 Sep) for a trip ending 4 Sep. First good run: Bravio delle Botti, "Usually Sun 29 Aug".
