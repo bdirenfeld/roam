@@ -409,7 +409,10 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
           return;
         }
         const t = cardTimes(d.card);
-        const block: Block = { id: d.card.id, startMin: t.start ? toMin(t.start) : g.min, endMin: t.end ? toMin(t.end) : null };
+        // Out of Anytime (no times yet): as long as that kind of place takes,
+        // the same as a pin dropped from the map (lib/week/arrange durationFor).
+        const fromAnytime = !t.start && !t.end;
+        const block: Block = { id: d.card.id, startMin: t.start ? toMin(t.start) : g.min, endMin: t.end ? toMin(t.end) : fromAnytime ? g.min + durationFor(d.card.place?.type ?? "activity", d.card.place?.sub_type ?? null, g.min, placeShare(d.card.place)) : null };
         const times = movedTimes(block, g.min);
         if (target.id === d.card.day_id && times.start === d.card.start_time) return;
         void write(d.card, { day_id: target.id, start_time: times.start, end_time: times.end }, `Moved to ${dow(target.date)} ${fmt12(toMin(times.start))}`);

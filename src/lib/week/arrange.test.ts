@@ -160,3 +160,11 @@ describe("a pin dragged from the map onto the week", () => {
     expect(put).not.toMatch(/min \+ 60/);
   });
 });
+
+describe("a card dragged out of Anytime onto a time", () => {
+  it("takes its kind's length, the same as a map drop (WeekBoard move)", () => {
+    const board = readFileSync("src/components/plan/WeekBoard.tsx", "utf8");
+    const move = board.slice(board.indexOf("const fromAnytime"), board.indexOf("const fromAnytime") + 500);
+    expect(move).toMatch(/fromAnytime \? g\.min \+ durationFor\(d\.card\.place\?\.type \?\? "activity", d\.card\.place\?\.sub_type \?\? null, g\.min, placeShare\(d\.card\.place\)\)/);
+  });
+});

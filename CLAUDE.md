@@ -1834,3 +1834,13 @@ the component mounted and you are looking at throttling, not a broken map.
   46 min by car, 69 by metro+bus, and a family in Rome has no car.
 - Google has NO transit data for Japan or rural Costa Rica (ZERO_RESULTS): the card says so and
   points at Google Maps' own transit view. Leaving before 8 am moves that day's planned cards later.
+
+## A lazy screen after a deploy reloads instead of crashing (30 Sep 2026)
+
+- Brennan pressed Plan my trip on a page loaded before a deploy: "Application error". The sheet is
+  `next/dynamic` and its chunk belonged to the old build (ChunkLoadError, 404). Every `dynamic(` in
+  the app now goes through `reloadOnStale` (lib/chunkReload): a missing chunk reloads the page once
+  (never twice inside a minute). `chunkReload.test` fails if a new `dynamic(` skips it.
+- Frequent pushes make this likelier; a reload also fixes it by hand.
+- Same push: a card dragged out of Anytime onto a time gets its kind's length (durationFor, whole-day
+  places the day), like a map drop — it used to land with no end.

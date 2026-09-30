@@ -16,10 +16,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { reloadOnStale } from "@/lib/chunkReload";
 // Loaded when first opened: they were in every week page's download (29 Sep 2026).
-const PlanMyTripSheet = dynamic(() => import("./PlanMyTripSheet"), { ssr: false });
+const PlanMyTripSheet = dynamic(reloadOnStale(() => import("./PlanMyTripSheet")), { ssr: false });
 import { stackOrder, restack } from "@/lib/map/pinStack";
-const FindSheet = dynamic(() => import("./FindSheet"), { ssr: false });
+const FindSheet = dynamic(reloadOnStale(() => import("./FindSheet")), { ssr: false });
 import { pinsToPlan, untouchedPlan } from "@/lib/plan/draftRows";
 import { searchCountries } from "@/lib/entry/countries";
 import { dayChip, spansMonths } from "@/lib/dayChip";

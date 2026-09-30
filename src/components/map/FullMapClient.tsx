@@ -36,9 +36,10 @@ import { scheduleCardOnDay } from "@/lib/scheduleCard";
 import { planBatch, plannedOtherDays, stayAnchor } from "@/lib/week/dayPlan";
 import { tapFilter } from "@/lib/map/tapFilter";
 import dynamic from "next/dynamic";
+import { reloadOnStale } from "@/lib/chunkReload";
 // Loaded when first opened, not with the map (29 Sep 2026).
-const PlanMyTripSheet = dynamic(() => import("@/components/plan/PlanMyTripSheet"), { ssr: false });
-const FindSheet = dynamic(() => import("@/components/plan/FindSheet"), { ssr: false });
+const PlanMyTripSheet = dynamic(reloadOnStale(() => import("@/components/plan/PlanMyTripSheet")), { ssr: false });
+const FindSheet = dynamic(reloadOnStale(() => import("@/components/plan/FindSheet")), { ssr: false });
 import { pinsToPlan, untouchedPlan } from "@/lib/plan/draftRows";
 
 // Purple circular pin for search result previews

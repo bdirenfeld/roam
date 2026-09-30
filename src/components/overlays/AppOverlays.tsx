@@ -29,6 +29,7 @@ import {
 import type { CSSProperties, MouseEvent, ReactNode } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { reloadOnStale } from "@/lib/chunkReload";
 import { useRouter } from "next/navigation";
 import Overlay from "@/components/ui/Overlay";
 import { JourneyNotesSheet } from "@/components/trip/JourneyNotes";
@@ -50,16 +51,16 @@ export type { NewJourneySeed };
 // shell paints instantly either way — only what goes inside it waits. `ssr:
 // false` because none of them can render on the server anyway: each is a
 // client screen that reads through the browser Supabase client.
-const NewJourneyForm = dynamic(() => import("@/components/trip/NewJourneyForm"), {
+const NewJourneyForm = dynamic(reloadOnStale(() => import("@/components/trip/NewJourneyForm")), {
   ssr: false,
 });
-const ProfileForm = dynamic(() => import("@/components/profile/ProfileForm"), {
+const ProfileForm = dynamic(reloadOnStale(() => import("@/components/profile/ProfileForm")), {
   ssr: false,
 });
-const TripSettingsClient = dynamic(() => import("@/components/trip/TripSettingsClient"), {
+const TripSettingsClient = dynamic(reloadOnStale(() => import("@/components/trip/TripSettingsClient")), {
   ssr: false,
 });
-const EstimateClient = dynamic(() => import("@/components/trip/EstimateClient"), {
+const EstimateClient = dynamic(reloadOnStale(() => import("@/components/trip/EstimateClient")), {
   ssr: false,
 });
 
