@@ -69,11 +69,13 @@ on these dates. Then the best concerts, shows and markets.`
       : "";
     return `Find ${DATED_WORDS[opts.subType]} happening ${reach} between ${opts.from} and ${opts.to}, for ${who}.${lead}
 Search event listings, official city, regional and tourism sites, race calendars and local news for that year. Only include
-things that actually take place on at least one of those dates; never a venue with nothing on.
+things that take place on at least one of those dates; never a venue with nothing on. If that year's programme is not
+published yet, include events held every year on those dates (a fixed day, or a rule like "the last Sunday of August")
+and start "why" with "Usually" and the day.
 Name up to 8. For each, "name" is the venue or starting point Google Maps would know, "near" is the neighbourhood.
 Reply with JSON only:
 {"places":[{"name":string,"near":string,"why":string,"source_name":string,"source_url":string,"kids":boolean}]}
-"why" starts with the date or dates (e.g. "Sat 25 Apr: ...") and says in under 16 words what it is.
+"why" starts with the date or dates (e.g. "Sat 25 Apr: ..." or "Usually Sun 29 Aug: ...") and says in under 16 words what it is.
 "kids" is true when it suits children. "source_url" must be a page you actually read.`;
   }
   const nearLine = opts.near && opts.near.length && NEAR_KINDS.has(opts.subType)

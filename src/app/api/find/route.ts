@@ -120,6 +120,8 @@ export async function POST(req: NextRequest) {
       });
       const text = res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("\n");
       const picks = parseTravellers(text);
+      // What the search named, and what Google could place: an empty list is otherwise silent.
+      console.log("[find] travellers", subType, base.label, "named", picks.length, picks.map((p) => p.name).join(" / ").slice(0, 400));
       const checked = await Promise.all(picks.map(async (p) => {
         const g = await findOnGoogle(`${p.name}, ${p.near ?? base.label}`);
         return g ? toResult(g, "travellers", p.why, p.sourceUrl ? { name: p.sourceName ?? new URL(p.sourceUrl).hostname, url: p.sourceUrl } : null, childAges.length > 0 && p.kids) : null;

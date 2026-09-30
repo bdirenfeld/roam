@@ -1862,3 +1862,5 @@ the component mounted and you are looking at throttling, not a broken map.
   still asked, failed and counted (43 of a 30 allowance → 429s); then, with credit, one Claude call
   for 23 places ran past Vercel's 60 s and wrote nothing. Now six places a call, all in parallel
   (`batchesOf`, `NOTES_BATCH` in lib/plan/notes), and `planNotes` is 100 a day.
+- A trip a year out has no published programme: yearly events on those dates count, and "why"
+  starts "Usually". Find logs what the travellers' search named ("[find] travellers").

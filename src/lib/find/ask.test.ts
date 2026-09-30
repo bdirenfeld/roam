@@ -71,6 +71,8 @@ describe("events a day trip away, the special ones first", () => {
     const p = travellersPrompt({ base: "Lucca", country: "Italy", subType: "event", ask: null, party: 5, childAges: [10, 8, 5], month: "August 2027", from: "2027-08-24", to: "2027-09-04" });
     expect(p).toMatch(/within about two hours' drive of Lucca, Italy between 2027-08-24 and 2027-09-04/);
     expect(p).toMatch(/palios and historic races/);
+    // A trip a year out: next year's programme is not published, so yearly events on those dates count.
+    expect(p).toMatch(/held every year on those dates/);
     // Races and camps stay in town.
     expect(travellersPrompt({ base: "Lucca", country: "Italy", subType: "camp", ask: null, party: 5, childAges: [10], month: "August 2027", from: "2027-08-24", to: "2027-09-04" })).toMatch(/happening in Lucca, Italy between/);
   });
