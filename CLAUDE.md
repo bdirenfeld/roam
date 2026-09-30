@@ -1844,3 +1844,12 @@ the component mounted and you are looking at throttling, not a broken map.
 - Frequent pushes make this likelier; a reload also fixes it by hand.
 - Same push: a card dragged out of Anytime onto a time gets its kind's length (durationFor, whole-day
   places the day), like a map drop — it used to land with no end.
+
+## Events reach a day trip away, special ones first (30 Sep 2026)
+
+- His ask: Tuscany's Events should pick up "that barrel rolling festival" (Bravio delle Botti,
+  Montepulciano, last Sunday of August, ~130 km from the villa near Lucca) — "events should find really
+  cool stuff like that". Two blockers: the prompt searched only the base town, and mergeFind dropped
+  anything over FAR_KM (60). Events now search within ~2 h' drive, lead with palios, historic races,
+  sagre, processions, re-enactments; keep results to EVENT_FAR_KM (170); 5 web searches, not 3. Cache
+  key gained "|region" so old event answers are not served.

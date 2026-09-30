@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import { googleQuery, travellersPrompt, parseTravellers, cacheKey, CACHE_DAYS, DATED } from "@/lib/find/ask";
 import { NEAR_PLAN, withinWalk } from "@/lib/find/near";
-import { mergeFind, fitsCategory, type FindResult } from "@/lib/find/merge";
+import { mergeFind, fitsCategory, FAR_KM, EVENT_FAR_KM, type FindResult } from "@/lib/find/merge";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // ── Find: places for one of a journey's gaps (29 Sep 2026) ────────────────
@@ -67,14 +67,16 @@ export async function POST(req: NextRequest) {
   // venues), and the travellers' search is for what is on while you are there.
   const dated = DATED.has(subType) && !ask;
   if (dated && mode === "google") return NextResponse.json({ results: [], mode });
+  // Events reach a day trip away (lib/find/merge EVENT_FAR_KM).
+  const farKm = dated && subType === "event" ? EVENT_FAR_KM : FAR_KM;
   // Coffee and dessert near the day's sights, when the base has some (lib/find/near).
   const near = NEAR_PLAN.has(subType) && !ask
     ? (body?.near ?? []).filter((p): p is { lat: number; lng: number } => typeof p?.lat === "number" && typeof p?.lng === "number").slice(0, 4)
     : [];
   const nearNames = near.length ? (body?.nearNames ?? []).filter((n) => typeof n === "string").slice(0, 6).map((n) => n.slice(0, 60)) : [];
-  const key = cacheKey({ mode, lat: base.lat, lng: base.lng, subType, ask, kids: childAges.length > 0, near, when: dated ? `${trip.start_date}|${trip.end_date}` : null });
+  const key = cacheKey({ mode, lat: base.lat, lng: base.lng, subType, ask, kids: childAges.length > 0, near, when: dated ? `${trip.start_date}|${trip.end_date}|region` : null });
   const answer = (found: FindResult[]) => NextResponse.json({
-    results: withinWalk(mode === "travellers" ? mergeFind({ lat: base.lat!, lng: base.lng! }, found, [], already, known) : mergeFind({ lat: base.lat!, lng: base.lng! }, [], found, already, known), near),
+    results: withinWalk(mode === "travellers" ? mergeFind({ lat: base.lat!, lng: base.lng! }, found, [], already, known, farKm) : mergeFind({ lat: base.lat!, lng: base.lng! }, [], found, already, known, farKm), near),
     mode,
   });
 
@@ -113,7 +115,8 @@ export async function POST(req: NextRequest) {
         model: "claude-sonnet-4-6",
         max_tokens: 1500,
         messages: [{ role: "user", content: travellersPrompt({ base: base.label!, country, subType, ask, party: trip.party_size ?? ages.length ?? 2, childAges, month, from: trip.start_date, to: trip.end_date, near: nearNames }) }],
-        tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }],
+        // Events search a region's calendars, not one town's: more reading.
+        tools: [{ type: "web_search_20250305", name: "web_search", max_uses: subType === "event" ? 5 : 3 }],
       });
       const text = res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("\n");
       const picks = parseTravellers(text);

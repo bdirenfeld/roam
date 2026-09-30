@@ -28,6 +28,8 @@ export interface FindResult {
 }
 
 export const FAR_KM = 60;
+/** Events reach a day trip away: Montepulciano's barrel race is 130 km from Lucca. */
+export const EVENT_FAR_KM = 170;
 export const MAX_RESULTS = 12;
 /** The sheet's list, both halves together: enough to reach two sights a day on a week's trip. */
 export const MAX_SHOWN = 12;
@@ -48,6 +50,7 @@ export function mergeFind(
   alreadyOnTrip: Set<string>,
   /** The journey's places by name and position: the Colosseum under Guided is the Colosseum saved under Explore. */
   onTrip: { name: string; lat: number; lng: number }[] = [],
+  farKm: number = FAR_KM,
 ): FindResult[] {
   const out: FindResult[] = [];
   const seen = new Set<string>();
@@ -59,7 +62,7 @@ export function mergeFind(
     // One branch of a chain: 787 Coffee came back four times near New York's sights.
     const name = "name:" + r.name.toLowerCase().replace(/[^a-z0-9]/g, "");
     if (seen.has(r.placeId) || seen.has(name) || onJourney(r)) continue;
-    if (km(base, r) > FAR_KM) continue;
+    if (km(base, r) > farKm) continue;
     if (r.from === "google" && !wellRated(r.rating, r.reviews)) continue;
     seen.add(r.placeId);
     seen.add(name);

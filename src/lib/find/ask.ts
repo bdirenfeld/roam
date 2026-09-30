@@ -58,8 +58,17 @@ export function travellersPrompt(opts: {
   const what = opts.ask && opts.ask.trim() ? opts.ask.trim() : `${label.toLowerCase()} (Roam's category "${label}")`;
   const where = `${opts.base}${opts.country ? `, ${opts.country}` : ""}`;
   if (DATED.has(opts.subType) && !(opts.ask && opts.ask.trim()) && opts.from && opts.to) {
-    return `Find ${DATED_WORDS[opts.subType]} happening in ${where} between ${opts.from} and ${opts.to}, for ${who}.
-Search event listings, official city and tourism sites, race calendars and local news for that year. Only include
+    // Events reach a day trip away and lead with what is special to those
+    // dates: Tuscany's Bravio delle Botti, the barrel race in Montepulciano two
+    // hours from the villa, is the thing to plan a day around (Brennan, 30 Sep 2026).
+    const reach = opts.subType === "event" ? `in or within about two hours' drive of ${where}` : `in ${where}`;
+    const lead = opts.subType === "event"
+      ? `\nLead with what makes these dates special here: traditional festivals, palios and historic races, village food
+festivals, feast-day processions and re-enactments, the kind a visitor would plan a day around and could only see
+on these dates. Then the best concerts, shows and markets.`
+      : "";
+    return `Find ${DATED_WORDS[opts.subType]} happening ${reach} between ${opts.from} and ${opts.to}, for ${who}.${lead}
+Search event listings, official city, regional and tourism sites, race calendars and local news for that year. Only include
 things that actually take place on at least one of those dates; never a venue with nothing on.
 Name up to 8. For each, "name" is the venue or starting point Google Maps would know, "near" is the neighbourhood.
 Reply with JSON only:

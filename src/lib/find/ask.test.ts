@@ -65,3 +65,13 @@ describe("travellersPrompt, dated kinds and near the day", () => {
     expect(travellersPrompt({ ...base, subType: "restaurant", near: ["Colosseum"] })).not.toMatch(/short walk/);
   });
 });
+
+describe("events a day trip away, the special ones first", () => {
+  it("Tuscany: within two hours of Lucca, leading with palios and historic races (the Bravio delle Botti)", () => {
+    const p = travellersPrompt({ base: "Lucca", country: "Italy", subType: "event", ask: null, party: 5, childAges: [10, 8, 5], month: "August 2027", from: "2027-08-24", to: "2027-09-04" });
+    expect(p).toMatch(/within about two hours' drive of Lucca, Italy between 2027-08-24 and 2027-09-04/);
+    expect(p).toMatch(/palios and historic races/);
+    // Races and camps stay in town.
+    expect(travellersPrompt({ base: "Lucca", country: "Italy", subType: "camp", ask: null, party: 5, childAges: [10], month: "August 2027", from: "2027-08-24", to: "2027-09-04" })).toMatch(/happening in Lucca, Italy between/);
+  });
+});

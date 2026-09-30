@@ -139,3 +139,13 @@ describe("chains", () => {
     expect(out.map((x) => x.placeId)).toEqual(["a", "d"]);
   });
 });
+
+import { EVENT_FAR_KM } from "./merge";
+describe("an event may be a day trip away", () => {
+  it("Montepulciano's barrel race from a villa near Lucca: kept for events, dropped for places", () => {
+    const lucca = { lat: 43.83, lng: 10.45 };
+    const bravio = { placeId: "mp", name: "Piazza Grande", lat: 43.0925, lng: 11.7808, rating: 4.8, reviews: 3000, from: "travellers" as const, why: "Sun 29 Aug: Bravio delle Botti" } as unknown as Parameters<typeof mergeFind>[1][number];
+    expect(mergeFind(lucca, [bravio], [], new Set())).toHaveLength(0);
+    expect(mergeFind(lucca, [bravio], [], new Set(), [], EVENT_FAR_KM)).toHaveLength(1);
+  });
+});
