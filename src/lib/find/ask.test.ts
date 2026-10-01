@@ -167,3 +167,10 @@ describe("month-only dates", () => {
     expect(travellersPrompt({ base: "Osaka", country: "Japan", subType: "dessert", ask: null, party: 5, childAges: [10], month: "April 2028" })).toMatch(/not inside a theme park/);
   });
 });
+
+describe("weekday ranges", () => {
+  it("Tokyo's camps: 'Mon 2 – Wed 12 Apr' on a 2028 trip is 'Sun 2 – Wed 12 Apr'", () => {
+    expect(fixWeekdays("Usually Mon 2 – Wed 12 Apr: Elev8 Spring Camp", "2028-04-02", "2028-04-15")).toBe("Usually Sun 2 – Wed 12 Apr: Elev8 Spring Camp");
+    expect(fixWeekdays("Usually Mon 3 – Fri 7 Apr: Code Quest", "2028-04-02", "2028-04-15")).toBe("Usually Mon 3 – Fri 7 Apr: Code Quest");
+  });
+});

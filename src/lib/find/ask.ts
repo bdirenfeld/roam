@@ -241,6 +241,16 @@ export function fixWeekdays(why: string, from: string, to: string): string {
       }
     }
   }
+  // A range's first day takes the month written at its end: "Mon 2 – Wed 12 Apr"
+  // on a 2028 trip reads "Sun 2 – Wed 12 Apr" (Tokyo's camps, 30 Sep 2026).
+  why = why.replace(/\b(Sun|Mon|Tue|Wed|Thu|Fri|Sat)[a-z]*\.?\s+(\d{1,2})(\s*[–-]\s*(?:(?:Sun|Mon|Tue|Wed|Thu|Fri|Sat)[a-z]*\.?\s+)?\d{1,2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec))/g, (all, _wd, day, tail, mon) => {
+    const m = MON.indexOf(mon);
+    for (const y of years) {
+      const t = Date.UTC(y, m, Number(day));
+      if (t >= a && t <= b) return `${DAYS[new Date(t).getUTCDay()]} ${day}${tail}`;
+    }
+    return all;
+  });
   return why.replace(/\b(Sun|Mon|Tue|Wed|Thu|Fri|Sat)[a-z]*\.?\s+(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)([a-z]*)/g, (all, _wd, day, mon, rest) => {
     const m = MON.indexOf(mon);
     for (const y of years) {

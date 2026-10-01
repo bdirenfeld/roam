@@ -1924,3 +1924,5 @@ the component mounted and you are looking at throttling, not a broken map.
   food not inside a theme park (Osaka desserts were Universal Studios stands); races are ones you enter
   (Osaka gave a horse race); month-only dates must fall in the trip's months (Tokyo "usually mid-June").
   Month words are whole and capitalised — "market" read as March, "may" as May. FIND_PROMPT_V v3.
+- Weekday ranges ("Mon 2 – Wed 12 Apr") are corrected too, and dated answers are corrected as served, so
+  cached ones are right without asking again. Audit verdict after three rounds: Tuscany and Japan read well.

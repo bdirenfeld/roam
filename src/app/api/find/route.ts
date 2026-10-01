@@ -80,10 +80,11 @@ export async function POST(req: NextRequest) {
     : [];
   const nearNames = near.length ? (body?.nearNames ?? []).filter((n) => typeof n === "string").slice(0, 6).map((n) => n.slice(0, 60)) : [];
   const key = cacheKey({ mode, lat: base.lat, lng: base.lng, subType, ask, kids, near, when: dated ? `${trip.start_date}|${trip.end_date}|region2` : null });
-  const answer = (found: FindResult[]) => NextResponse.json({
+  // Dated answers get their weekdays checked as served, cached ones included (lib/find/ask fixWeekdays).
+  const answer = (raw: FindResult[]) => { const found = dated ? raw.map((r) => (r.why ? { ...r, why: fixWeekdays(r.why, trip.start_date as string, trip.end_date as string) } : r)) : raw; return NextResponse.json({
     results: withinWalk(mode === "travellers" ? mergeFind({ lat: base.lat!, lng: base.lng! }, found, [], already, known, farKm) : mergeFind({ lat: base.lat!, lng: base.lng! }, [], found, already, known, farKm), near),
     mode,
-  });
+  }); };
 
   let admin: ReturnType<typeof createAdminClient> | null = null;
   try { admin = createAdminClient(); } catch { admin = null; }
