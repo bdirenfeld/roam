@@ -1507,6 +1507,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             card={localCard}
             onClose={() => setShowAttachments(false)}
             onCardUpdate={(updated) => { setLocalCard(updated); onCardUpdate?.(updated); }}
+            // A booking's check-out and the rest of its package land on other
+            // days: the host splices them in as it does a copied card.
+            onCardsAdded={(cards) => cards.forEach((c) => onCardCopied?.(c))}
           />
         )}
 

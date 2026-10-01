@@ -6,7 +6,7 @@
  * real place, so no pin, no photo and no stay.
  */
 
-export type ConfirmationType = "flight_arrival" | "flight_departure" | "hotel" | "restaurant" | "activity";
+export type ConfirmationType = "flight_arrival" | "flight_departure" | "hotel" | "car_rental" | "restaurant" | "activity";
 
 export interface ParsedConfirmation {
   type: ConfirmationType;
@@ -28,6 +28,10 @@ export interface ParsedConfirmation {
   /** Hotels: the day and time you leave. */
   check_out_date?: string | null;
   check_out_time?: string | null;
+  /** Rental cars: when and where it goes back. */
+  drop_off_date?: string | null;
+  drop_off_time?: string | null;
+  drop_off_location?: string | null;
 }
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -51,6 +55,10 @@ export function confirmationDetails(p: ParsedConfirmation, edits: { title: strin
     set("seat", p.seat);
   }
   if (p.type === "hotel" && clean(p.check_out_date) && ISO.test(p.check_out_date!.trim())) d.check_out = p.check_out_date!.trim();
+  if (p.type === "car_rental") {
+    set("drop_off_location", p.drop_off_location);
+    if (clean(p.drop_off_date) && ISO.test(p.drop_off_date!.trim())) d.drop_off = p.drop_off_date!.trim();
+  }
   return d;
 }
 
@@ -60,7 +68,7 @@ export function confirmationDetails(p: ParsedConfirmation, edits: { title: strin
  * which the reader puts in `address`.
  */
 export function placeQuery(p: ParsedConfirmation): string | null {
-  if (isFlight(p.type)) return clean(p.address);
+  if (isFlight(p.type) || p.type === "car_rental") return clean(p.address);
   const parts = [clean(p.title), clean(p.address)].filter(Boolean);
   return parts.length ? parts.join(", ") : null;
 }
@@ -68,6 +76,8 @@ export function placeQuery(p: ParsedConfirmation): string | null {
 /** The sub-type the place is saved as, as the map's Add sheet would. */
 export function placeSubType(t: ConfirmationType): { type: "logistics" | "food" | "activity"; sub_type: string } {
   if (isFlight(t) || t === "hotel") return { type: "logistics", sub_type: t };
+  // Roam has no car category; a pick-up desk is a transit stop, as a station is.
+  if (t === "car_rental") return { type: "logistics", sub_type: "transit" };
   if (t === "restaurant") return { type: "food", sub_type: "restaurant" };
   return { type: "activity", sub_type: "self_directed" };
 }
@@ -76,4 +86,33 @@ export function placeSubType(t: ConfirmationType): { type: "logistics" | "food" 
 export function checkOutTime(p: ParsedConfirmation): string {
   const t = clean(p.check_out_time);
   return t && /^\d{1,2}:\d{2}/.test(t) ? `${t.padStart(5, "0").slice(0, 5)}:00` : "11:00:00";
+}
+
+const asTime = (t: string | null | undefined, fallback: string) => {
+  const c = clean(t);
+  return c && /^\d{1,2}:\d{2}/.test(c) ? `${c.padStart(5, "0").slice(0, 5)}:00` : fallback;
+};
+
+/**
+ * The second event a booking ends with, when it has one: a hotel's check-out
+ * and a rental car's drop-off (1 Oct 2026: "flight, hotel, car" booked in one
+ * go). The card is the same place as the first, on the day it names.
+ */
+export function closingEvent(p: ParsedConfirmation, name: string): { date: string; time: string; title: string } | null {
+  const day = (v: string | null | undefined) => (clean(v) && ISO.test(v!.trim()) ? v!.trim() : null);
+  if (p.type === "hotel") {
+    const date = day(p.check_out_date);
+    return date ? { date, time: checkOutTime(p), title: `Check out of ${name}` } : null;
+  }
+  if (p.type === "car_rental") {
+    const date = day(p.drop_off_date);
+    const where = clean(p.drop_off_location);
+    return date ? { date, time: asTime(p.drop_off_time, "10:00:00"), title: where ? `Return the rental car · ${where}` : "Return the rental car" } : null;
+  }
+  return null;
+}
+
+/** The first event's title: a car's reads as the pick-up. */
+export function openingTitle(p: ParsedConfirmation, title: string): string {
+  return p.type === "car_rental" && !/pick.?up/i.test(title) ? `Pick up rental car · ${title}` : title;
 }

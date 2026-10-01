@@ -1988,3 +1988,11 @@ the component mounted and you are looking at throttling, not a broken map.
   ConfirmationPreviewSheet looks each booking's place up (autocomplete → bulk-import, as Find saves), so the
   card has a pin/photos and a hotel counts in stayRuns; a failed lookup leaves the old note card. A hotel gets
   a Check out select (prefilled) and a "Check out of X" card at the booking's time (11:00 if none).
+- One booking reader (1 Oct 2026, lib/confirmations/prompt): Bookings' upload AND a flight/hotel card's attachment
+  use CONFIRMATION_PROMPT — one object per booking, so a package (flight out + home, hotel, car) is separate items.
+  The old attachment prompt returned flat keys Apply never mapped (no flight number; an Expedia package put the
+  hotel's address on the flight). Booking attachments store parsed_data = { bookings: [...] }; other card types keep
+  the open prompt. Apply (AttachmentsPanel) fills the card from its own booking (lib/confirmations/match), adds its
+  closing event (hotel check-out / car drop-off, toCards.closingEvent) on that day, and opens ConfirmationPreviewSheet
+  headed "We also found these in your confirmation" for the rest. Rental cars = logistics/transit, "Pick up rental car"
+  + "Return the rental car". resolvePlace lives in lib/confirmations for both sheets.

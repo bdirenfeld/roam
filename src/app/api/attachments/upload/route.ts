@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import Anthropic from "@anthropic-ai/sdk";
+import { CONFIRMATION_PROMPT, extractBookings } from "@/lib/confirmations/prompt";
 
 export const maxDuration = 30;
 
@@ -107,22 +108,32 @@ export async function POST(req: NextRequest) {
       source: { type: "base64", media_type: "application/pdf", data: base64 },
     });
   }
+  // A flight's or hotel's attachment is a booking (1 Oct 2026): it is read
+  // with Bookings' reader (lib/confirmations/prompt), every booking in it kept
+  // as { bookings: [...] }, so Apply fills this card AND adds the rest — the
+  // return flight, the hotel's check-out. Anything else keeps the open reader.
+  const { data: owner } = await supabase.from("cards").select("place:places(sub_type)").eq("id", cardId).maybeSingle();
+  const sub = (owner as { place?: { sub_type?: string | null } | null } | null)?.place?.sub_type ?? null;
+  const asBooking = sub === "hotel" || sub === "flight_arrival" || sub === "flight_departure";
+
   contentBlocks.push({
     type: "text",
-    text: "Extract all relevant travel information from this document and return as a JSON object.",
+    text: asBooking
+      ? "Extract all travel bookings from this confirmation and return a JSON array."
+      : "Extract all relevant travel information from this document and return as a JSON object.",
   });
 
   try {
     const response = await client.messages.create({
       model:      "claude-sonnet-4-6",
-      max_tokens: 1024,
-      system:     PARSE_SYSTEM_PROMPT,
+      max_tokens: asBooking ? 1600 : 1024,
+      system:     asBooking ? CONFIRMATION_PROMPT : PARSE_SYSTEM_PROMPT,
       messages:   [{ role: "user", content: contentBlocks }],
     });
 
     const raw = response.content.find((b) => b.type === "text");
     if (!raw || raw.type !== "text") throw new Error("No text in response");
-    const parsedData = extractJson(raw.text);
+    const parsedData: Record<string, unknown> = asBooking ? { bookings: extractBookings(raw.text) } : extractJson(raw.text);
 
     const { data: updated } = await supabase
       .from("card_attachments")

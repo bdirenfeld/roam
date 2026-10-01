@@ -3,7 +3,21 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import FileViewer from "@/components/ui/FileViewer";
 import { createClient } from "@/lib/supabase/client";
-import type { Card, CardAttachment } from "@/types/database";
+import type { Card, CardAttachment, DayWithCards } from "@/types/database";
+import ConfirmationPreviewSheet from "@/components/plan/ConfirmationPreviewSheet";
+import { scheduleCardOnDay } from "@/lib/scheduleCard";
+import { confirmationDetails, closingEvent, openingTitle, isFlight, type ParsedConfirmation } from "@/lib/confirmations/toCards";
+import { matchBooking, otherBookings } from "@/lib/confirmations/match";
+
+// A flight's or hotel's attachment is read as bookings (1 Oct 2026, the
+// upload route): every booking in the email, so an Expedia package is a
+// flight out, a flight home, a hotel and a car. Older attachments are flat.
+const bookingsOf = (a: CardAttachment): ParsedConfirmation[] | null => {
+  const b = (a.parsed_data as { bookings?: unknown } | null)?.bookings;
+  return Array.isArray(b) && b.length ? (b as ParsedConfirmation[]) : null;
+};
+const BOOKING_LABEL: Record<string, string> = { flight_arrival: "Flight", flight_departure: "Flight", hotel: "Hotel", car_rental: "Rental car", restaurant: "Restaurant", activity: "Activity" };
+const when = (b: ParsedConfirmation) => [b.date, b.time].filter(Boolean).join(" · ");
 
 // ── Helpers ───────────────────────────────────────────────────
 function formatBytes(bytes: number): string {
@@ -239,6 +253,16 @@ function AttachmentRow({
       {/* Parsed data section */}
       {isExpanded && hasParsed && (
         <div className="px-3 py-3 border-t border-gray-100">
+          {bookingsOf(attachment) ? (
+            <div className="flex flex-col gap-2 mb-3" data-testid="parsed-bookings">
+              {bookingsOf(attachment)!.map((b, i) => (
+                <div key={i} className="flex gap-2 items-baseline">
+                  <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide w-20 flex-shrink-0">{BOOKING_LABEL[b.type] ?? "Booking"}</span>
+                  <span className="text-[12px] text-gray-700 flex-1 break-words">{b.title}{when(b) ? <span className="text-gray-400"> · {when(b)}</span> : null}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
           <div className="flex flex-col gap-1.5 mb-3">
             {Object.entries(attachment.parsed_data as Record<string, unknown>)
               .filter(([, v]) => v != null && v !== "")
@@ -253,6 +277,7 @@ function AttachmentRow({
                 </div>
               ))}
           </div>
+          )}
           <button
             onClick={onApply}
             className="w-full py-2 rounded-lg bg-activity text-white text-[12px] font-semibold hover:opacity-80 transition-colors"
@@ -270,9 +295,11 @@ interface Props {
   card: Card;
   onClose: () => void;
   onCardUpdate?: (card: Card) => void;
+  /** New cards an applied booking added to other days (its check-out, the rest of a package). */
+  onCardsAdded?: (cards: Card[]) => void;
 }
 
-export default function AttachmentsPanel({ card, onClose, onCardUpdate }: Props) {
+export default function AttachmentsPanel({ card, onClose, onCardUpdate, onCardsAdded }: Props) {
   const supabase    = createClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -285,7 +312,11 @@ export default function AttachmentsPanel({ card, onClose, onCardUpdate }: Props)
   const [isUploading, setIsUploading]   = useState(false);
   const [uploadError, setUploadError]   = useState<string | null>(null);
   const [expandedId,  setExpandedId]    = useState<string | null>(null);
-  const [applySuccess, setApplySuccess] = useState(false);
+  const [applySuccess, setApplySuccess] = useState<string | false>(false);
+  // The rest of a package, offered in Bookings' own check-and-add sheet.
+  const [moreFound, setMoreFound] = useState<{ items: ParsedConfirmation[]; days: DayWithCards[]; fileName: string; fileType: string } | null>(null);
+  // Set by Apply, read once it has written (a ref: Apply and the write run in one tick).
+  const pendingBooking = useRef<{ b: ParsedConfirmation | null; others: ParsedConfirmation[]; att: CardAttachment } | null>(null);
 
   // confirmApply: pending merge that has overwrite conflicts
   const [confirmApply, setConfirmApply] = useState<{
@@ -361,10 +392,22 @@ export default function AttachmentsPanel({ card, onClose, onCardUpdate }: Props)
     const parsed = attachment.parsed_data;
     if (!parsed) return;
 
-    const { details: mappedDetails, topLevel, placeAddress } = remapParsedFields(
-      parsed as Record<string, unknown>,
-      card,
-    );
+    const bookings = bookingsOf(attachment);
+    let mappedDetails: Record<string, unknown>, topLevel: Record<string, unknown>, placeAddress: string | null = null;
+    if (bookings) {
+      const i = matchBooking(card.place?.sub_type, bookings);
+      const b = i >= 0 ? bookings[i] : null;
+      pendingBooking.current = { b, others: otherBookings(bookings, i), att: attachment };
+      if (!b) { void finishBooking(null, otherBookings(bookings, -1), attachment); return; }
+      const keepTitle = typeof (card.details as { title?: unknown })?.title === "string" ? (card.details as { title: string }).title : openingTitle(b, b.title);
+      mappedDetails = confirmationDetails(b, { title: keepTitle, notes: b.notes ?? "", confirmation: b.confirmation_number ?? "" });
+      delete mappedDetails.title;
+      const hhmm = (t: string | null) => (t && /^\d{1,2}:\d{2}/.test(t) ? `${t.padStart(5, "0").slice(0, 5)}:00` : null);
+      topLevel = { start_time: hhmm(b.time), end_time: isFlight(b.type) ? hhmm(b.end_time) : null };
+    } else {
+      pendingBooking.current = null;
+      ({ details: mappedDetails, topLevel, placeAddress } = remapParsedFields(parsed as Record<string, unknown>, card));
+    }
 
     const current        = (card.details ?? {}) as Record<string, unknown>;
     const overwriteKeys: string[] = [];
@@ -435,13 +478,42 @@ export default function AttachmentsPanel({ card, onClose, onCardUpdate }: Props)
 
       if (!error) {
         onCardUpdate?.({ ...card, details: merged as typeof card.details, ...topLevelUpdate } as typeof card);
-        setApplySuccess(true);
-        setTimeout(() => setApplySuccess(false), 2500);
+        const follow = pendingBooking.current;
+        if (follow) await finishBooking(follow.b, follow.others, follow.att);
+        else { setApplySuccess("Applied to card ✓"); setTimeout(() => setApplySuccess(false), 2500); }
       }
       setConfirmApply(null);
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [card, onCardUpdate, supabase],
   );
+
+  // After the card's own booking: its closing event (a hotel's check-out, a
+  // car's drop-off) goes on its day, as when one is added by hand; anything
+  // else in the email is offered in Bookings' check-and-add sheet (Brennan,
+  // 1 Oct 2026: "we found other confirmations, should we add them too?").
+  async function finishBooking(b: ParsedConfirmation | null, others: ParsedConfirmation[], att: CardAttachment) {
+    pendingBooking.current = null;
+    const { data: dayRows } = await supabase.from("days").select("*").eq("trip_id", card.trip_id).order("day_number");
+    const days = ((dayRows ?? []) as DayWithCards[]).map((d) => ({ ...d, cards: [] }));
+    const added: Card[] = [];
+    const close = b && card.place_id ? closingEvent(b, card.place?.title ?? b.title) : null;
+    const closeDay = close ? days.find((d) => d.date === close.date) : undefined;
+    if (close && closeDay && closeDay.id !== card.day_id) {
+      const { data: there } = await supabase.from("cards").select("id").eq("day_id", closeDay.id).eq("place_id", card.place_id!).limit(1);
+      if (!there?.length) {
+        const c = await scheduleCardOnDay(supabase, {
+          tripId: card.trip_id, dayId: closeDay.id, placeId: card.place_id, place: card.place ?? null,
+          details: { ...(card.details ?? {}), title: close.title }, startTime: close.time.slice(0, 5),
+        });
+        if (c) added.push(c);
+      }
+    }
+    if (added.length) onCardsAdded?.(added);
+    setApplySuccess(b ? (added.length ? `Applied ✓ · added “${(added[0].details as { title?: string }).title}”` : "Applied to card ✓") : false);
+    setTimeout(() => setApplySuccess(false), 3500);
+    if (others.length) setMoreFound({ items: others, days, fileName: att.file_name, fileType: att.file_type });
+  }
 
   // ── Render ──────────────────────────────────────────────────
   return (
@@ -496,7 +568,7 @@ export default function AttachmentsPanel({ card, onClose, onCardUpdate }: Props)
           <p className="text-[11px] text-red-500 mt-1.5 text-center">{uploadError}</p>
         )}
         {applySuccess && (
-          <p className="text-[11px] text-green-600 mt-1.5 text-center font-medium">Applied to card ✓</p>
+          <p className="text-[11px] text-green-600 mt-1.5 text-center font-medium">{applySuccess}</p>
         )}
         <p className="text-[10px] text-gray-400 mt-1.5 text-center">PDF, JPG, PNG accepted</p>
       </div>
@@ -528,6 +600,19 @@ export default function AttachmentsPanel({ card, onClose, onCardUpdate }: Props)
           </div>
         )}
       </div>
+
+      {moreFound && (
+        <ConfirmationPreviewSheet
+          items={moreFound.items}
+          fileName={moreFound.fileName}
+          fileType={moreFound.fileType}
+          days={moreFound.days}
+          tripId={card.trip_id}
+          heading="We also found these in your confirmation"
+          onClose={() => setMoreFound(null)}
+          onCardsCreated={(created) => { onCardsAdded?.(created); setMoreFound(null); }}
+        />
+      )}
 
       {/* Overwrite confirmation overlay */}
       {confirmApply && (

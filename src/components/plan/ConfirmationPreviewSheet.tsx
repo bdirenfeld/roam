@@ -4,35 +4,12 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import type { Card, CardStatus, DayWithCards, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { queuedInsert } from "@/lib/offline/queuedWrite";
-import { confirmationDetails, placeQuery, placeSubType, checkOutTime, type ParsedConfirmation } from "@/lib/confirmations/toCards";
+import { confirmationDetails, closingEvent, openingTitle, type ParsedConfirmation } from "@/lib/confirmations/toCards";
+import { resolvePlace } from "@/lib/confirmations/resolvePlace";
 
 // ── ParsedConfirmation — matches API response (lib/confirmations/toCards) ──
 export type { ParsedConfirmation };
 
-/**
- * The real place behind a booking (1 Oct 2026): looked up on Google by the
- * hotel's name and address or the flight's airport, and saved the way the
- * map saves one, so the card has a pin, photos and an address, and a hotel
- * counts as where you sleep. Any failure leaves the card as a plain note,
- * as before — the booking is never lost to a lookup.
- */
-async function resolvePlace(p: ParsedConfirmation): Promise<Place | null> {
-  const q = placeQuery(p);
-  if (!q) return null;
-  try {
-    const ac = await fetch(`/api/places/autocomplete?input=${encodeURIComponent(q)}`).then((r) => r.json()) as { predictions?: { place_id: string }[] };
-    const gid = ac.predictions?.[0]?.place_id;
-    if (!gid) return null;
-    const imp = await fetch("/api/places/bulk-import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ google_place_ids: [gid], defaults: placeSubType(p.type) }) })
-      .then((r) => r.json()) as { imported?: { place_id: string }[] };
-    const id = imp.imported?.[0]?.place_id;
-    if (!id) return null;
-    const { data } = await createClient().from("places").select("id, title, type, sub_type, lat, lng, address, google_place_id, cover_image_url, rating, price_level").eq("id", id).maybeSingle();
-    return (data as Place | null) ?? null;
-  } catch {
-    return null;
-  }
-}
 
 interface Props {
   items:           ParsedConfirmation[];
@@ -42,12 +19,15 @@ interface Props {
   tripId:          string;
   onClose:         () => void;
   onCardsCreated:  (cards: Card[], deletedIds: string[]) => void;
+  /** Replaces "Confirmation parsed" — e.g. the rest of an attached package. */
+  heading?:        string;
 }
 
 const TYPE_LABEL: Record<string, string> = {
   flight_arrival:   "Outbound Flight",
   flight_departure: "Return Flight",
   hotel:            "Hotel",
+  car_rental:       "Rental car",
   restaurant:       "Restaurant",
   activity:         "Activity",
 };
@@ -77,7 +57,7 @@ interface ItemDraft {
 }
 
 export default function ConfirmationPreviewSheet({
-  items, fileName, fileType, days, tripId, onClose, onCardsCreated,
+  items, fileName, fileType, days, tripId, onClose, onCardsCreated, heading,
 }: Props) {
   const supabase = createClient();
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -96,7 +76,7 @@ export default function ConfirmationPreviewSheet({
       endTime: p.end_time ?? "",
       address: p.address ?? "",
       notes:   p.notes ?? "",
-      outDayId: p.type === "hotel" ? (findMatchingDay(days, p.check_out_date ?? null) ?? "") : "",
+      outDayId: p.type === "hotel" ? (findMatchingDay(days, p.check_out_date ?? null) ?? "") : p.type === "car_rental" ? (findMatchingDay(days, p.drop_off_date ?? null) ?? "") : "",
     }))
   );
 
@@ -199,14 +179,15 @@ export default function ConfirmationPreviewSheet({
     const createdCards: Card[] = drafts.flatMap((draft, i) => {
       const parsed = items[i];
       const place = places[i];
-      const details = confirmationDetails(parsed, { title: draft.title, notes: draft.notes, confirmation: confNo });
-      const outDay = parsed.type === "hotel" ? days.find((d) => d.id === draft.outDayId) : undefined;
-      if (outDay?.date) details.check_out = outDay.date;
-      const main = card(draft.dayId, hhmm(draft.time), parsed.type === "hotel" ? null : hhmm(draft.endTime), details, place);
-      // A stay is two events, check-in and check-out, as one added by hand.
-      if (!outDay) return [main];
-      const name = place?.title ?? draft.title.trim();
-      return [main, card(outDay.id, checkOutTime(parsed), null, { ...details, title: `Check out of ${name}` }, place)];
+      const details = confirmationDetails(parsed, { title: openingTitle(parsed, draft.title.trim()), notes: draft.notes, confirmation: confNo });
+      const twoPart = parsed.type === "hotel" || parsed.type === "car_rental";
+      const outDay = twoPart ? days.find((d) => d.id === draft.outDayId) : undefined;
+      if (outDay?.date) details[parsed.type === "hotel" ? "check_out" : "drop_off"] = outDay.date;
+      const main = card(draft.dayId, hhmm(draft.time), twoPart ? null : hhmm(draft.endTime), details, place);
+      // A stay is two events, check-in and check-out; a car, pick-up and drop-off.
+      const close = outDay ? closingEvent({ ...parsed, check_out_date: outDay.date, drop_off_date: outDay.date }, place?.title ?? draft.title.trim()) : null;
+      if (!outDay || !close) return [main];
+      return [main, card(outDay.id, close.time, null, { ...details, title: close.title }, place)];
     });
 
     // The columns the insert has always written — not the display-only fields.
@@ -276,7 +257,7 @@ export default function ConfirmationPreviewSheet({
         <div className="flex items-center justify-between px-5 pt-3 pb-3 border-b border-gray-100 flex-shrink-0">
           <div>
             <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">
-              Confirmation parsed
+              {heading ?? "Confirmation parsed"}
             </p>
             <h3 className="text-[16px] font-bold text-gray-900">{sheetTitle}</h3>
           </div>
@@ -327,7 +308,7 @@ export default function ConfirmationPreviewSheet({
                   {/* Day assignment */}
                   <div>
                     <label htmlFor={`conf-${idx}-day`} className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
-                      {parsed.type === "hotel" ? "Check in" : "Day"}
+                      {parsed.type === "hotel" ? "Check in" : parsed.type === "car_rental" ? "Pick up" : "Day"}
                       {parsed.date && (
                         <span className="ml-1 font-normal normal-case text-gray-400">
                           ({parsed.date})
@@ -350,12 +331,12 @@ export default function ConfirmationPreviewSheet({
                   </div>
 
                   {/* Hotels: the day you leave, read from the booking */}
-                  {parsed.type === "hotel" && (
+                  {(parsed.type === "hotel" || parsed.type === "car_rental") && (
                     <div>
                       <label htmlFor={`conf-${idx}-out`} className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
-                        Check out
-                        {parsed.check_out_date && (
-                          <span className="ml-1 font-normal normal-case text-gray-400">({parsed.check_out_date})</span>
+                        {parsed.type === "hotel" ? "Check out" : "Drop off"}
+                        {(parsed.type === "hotel" ? parsed.check_out_date : parsed.drop_off_date) && (
+                          <span className="ml-1 font-normal normal-case text-gray-400">({parsed.type === "hotel" ? parsed.check_out_date : parsed.drop_off_date})</span>
                         )}
                       </label>
                       <select
@@ -378,7 +359,7 @@ export default function ConfirmationPreviewSheet({
                   <div className="flex gap-3">
                     <div className="flex-1">
                       <label htmlFor={`conf-${idx}-start`} className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
-                        {parsed.type.startsWith("flight") ? "Departs" : parsed.type === "hotel" ? "Check-in time" : "Start time"}
+                        {parsed.type.startsWith("flight") ? "Departs" : parsed.type === "hotel" ? "Check-in time" : parsed.type === "car_rental" ? "Pick-up time" : "Start time"}
                       </label>
                       <input
                         type="time"
@@ -388,7 +369,7 @@ export default function ConfirmationPreviewSheet({
                         className="w-full mt-1 px-3 py-2 text-[14px] text-gray-900 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-300"
                       />
                     </div>
-                    {parsed.type !== "hotel" && <div className="flex-1">
+                    {parsed.type !== "hotel" && parsed.type !== "car_rental" && <div className="flex-1">
                       <label htmlFor={`conf-${idx}-end`} className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
                         {parsed.type.startsWith("flight") ? "Arrives" : "End time"}
                       </label>

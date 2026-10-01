@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { confirmationDetails, placeQuery, placeSubType, checkOutTime, type ParsedConfirmation } from "./toCards";
+import { confirmationDetails, placeQuery, placeSubType, checkOutTime, closingEvent, openingTitle, type ParsedConfirmation } from "./toCards";
 
 // Shaped like the reader's answers for his Rome bookings (Air Canada AC890, Banco 19).
 const flight: ParsedConfirmation = {
@@ -13,6 +13,27 @@ const hotel: ParsedConfirmation = {
   check_out_date: "2026-04-28", check_out_time: "10:30",
 };
 const edits = (p: ParsedConfirmation) => ({ title: p.title, notes: p.notes ?? "", confirmation: p.confirmation_number ?? "" });
+
+describe("a rental car in a package is a pick-up and a drop-off", () => {
+  const car: ParsedConfirmation = {
+    type: "car_rental", title: "Hertz · Pisa Airport", confirmation_number: "H1", date: "2027-08-24", time: "11:30", end_time: null,
+    address: "Pisa International Airport", phone: null, website: null, notes: null, drop_off_date: "2027-09-04", drop_off_time: "08:00", drop_off_location: null,
+  };
+  it("is saved as a transit stop at the pick-up desk", () => {
+    expect(placeSubType("car_rental")).toEqual({ type: "logistics", sub_type: "transit" });
+    expect(placeQuery(car)).toBe("Pisa International Airport");
+  });
+  it("opens as the pick-up and closes on the drop-off day", () => {
+    expect(openingTitle(car, car.title)).toBe("Pick up rental car · Hertz · Pisa Airport");
+    expect(closingEvent(car, "Pisa Airport")).toEqual({ date: "2027-09-04", time: "08:00:00", title: "Return the rental car" });
+    expect(closingEvent({ ...car, drop_off_location: "Florence" }, "x")?.title).toBe("Return the rental car · Florence");
+    expect(confirmationDetails(car, { title: car.title, notes: "", confirmation: "H1" }).drop_off).toBe("2027-09-04");
+  });
+  it("a hotel closes with its check-out; a flight has no second event", () => {
+    expect(closingEvent(hotel, "Banco 19")).toEqual({ date: "2026-04-28", time: "10:30:00", title: "Check out of Banco 19" });
+    expect(closingEvent(flight, "FCO")).toBeNull();
+  });
+});
 
 describe("an uploaded confirmation fills the card as a hand-made one", () => {
   it("a flight's number, airline, airports and seat each have their own line", () => {

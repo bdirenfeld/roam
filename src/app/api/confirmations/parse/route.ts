@@ -1,60 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import Anthropic from "@anthropic-ai/sdk";
+import { CONFIRMATION_PROMPT, extractBookings } from "@/lib/confirmations/prompt";
 
 export const maxDuration = 30;
-
-const SYSTEM_PROMPT = `You are a travel confirmation parser. Extract structured data from travel confirmations.
-
-Always return a JSON array. For round-trip flights return TWO objects (outbound then return). For all other bookings return ONE object.
-
-Each object must have exactly these fields (no extra keys):
-{
-  "type": "flight_arrival" | "flight_departure" | "hotel" | "restaurant" | "activity",
-  "title": "string — e.g. 'Air Canada · YYZ → FCO' for flights, hotel/restaurant name for others",
-  "confirmation_number": "string or null — booking reference shared by both flights if round-trip",
-  "date": "YYYY-MM-DD or null — departure date for flights, check-in/reservation date for others",
-  "time": "HH:MM or null — departure time for flights, reservation time for restaurants/hotels",
-  "end_time": "HH:MM or null — arrival time for flights",
-  "address": "string or null — for flight_arrival the airport you LAND at, for flight_departure the airport you LEAVE from (name + city); full address for others",
-  "phone": "string or null",
-  "website": "string or null — airline website or booking URL",
-  "notes": "string or null — duration, passenger names, cabin class, anything else worth keeping",
-  "airline": "string or null — flights only, e.g. 'Air Canada'",
-  "flight_number": "string or null — flights only, e.g. 'AC890'",
-  "origin_airport": "string or null — flights only, where it departs, e.g. 'Toronto Pearson (YYZ)'",
-  "arriving_at": "string or null — flights only, where it lands, e.g. 'Rome Fiumicino (FCO)'",
-  "seat": "string or null — flights only",
-  "check_out_date": "YYYY-MM-DD or null — hotels only, the day you check out",
-  "check_out_time": "HH:MM or null — hotels only, the check-out time"
-}
-
-Round-trip flight rules:
-- Object 1: type "flight_arrival" — the outbound leg ARRIVING at the destination
-- Object 2: type "flight_departure" — the return leg DEPARTING from the destination
-- Both share the same confirmation_number
-
-Single flight:
-- Arriving at destination → type "flight_arrival"
-- Departing from destination → type "flight_departure"
-
-Return ONLY the JSON array. No markdown, no code fences, no explanation.`;
-
-function extractJson(text: string): unknown {
-  const t = text.trim();
-  // Try direct parse
-  try { return JSON.parse(t); } catch { /* fall through */ }
-  // Extract from code fences
-  const fenced = t.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (fenced) { try { return JSON.parse(fenced[1].trim()); } catch { /* fall through */ } }
-  // Try array first
-  const arr = t.match(/\[[\s\S]*\]/);
-  if (arr) { try { return JSON.parse(arr[0]); } catch { /* fall through */ } }
-  // Fall back to object (wrap in array)
-  const brace = t.match(/\{[\s\S]*\}/);
-  if (brace) { try { return [JSON.parse(brace[0])]; } catch { /* fall through */ } }
-  throw new Error("No valid JSON in response");
-}
 
 export async function POST(req: NextRequest) {
   const gate = await requireUser();
@@ -117,16 +66,15 @@ export async function POST(req: NextRequest) {
     const response = await client.messages.create({
       model:      "claude-sonnet-4-6",
       max_tokens: 1600,
-      system:     SYSTEM_PROMPT,
+      system:     CONFIRMATION_PROMPT,
       messages:   [{ role: "user", content: contentBlocks }],
     });
 
     const raw = response.content.find((b) => b.type === "text");
     if (!raw || raw.type !== "text") throw new Error("No text in response");
 
-    const result = extractJson(raw.text);
-    // Normalise to array
-    const parsed = Array.isArray(result) ? result : [result];
+    const parsed = extractBookings(raw.text);
+
     if (parsed.length === 0) throw new Error("No bookings found in document");
 
     return NextResponse.json({ parsed });
