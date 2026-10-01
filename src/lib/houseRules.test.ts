@@ -212,6 +212,13 @@ describe("an overlay-hosted screen is a flex item, never h-full", () => {
 describe("every workflow's shell parses", () => {
   const WORKFLOWS = path.resolve(SRC, "..", ".github", "workflows");
 
+  // Which bash (1 Oct 2026): on his Windows laptop `bash` is not on the PATH
+  // Node sees, so every block came back "could not run" and this read as a
+  // failure on every local run — a permanent red that hides real ones. Git
+  // for Windows ships one; with none at all the check says it was skipped.
+  const BASH = ["bash", "C:\\Program Files\\Git\\bin\\bash.exe", "C:\\Program Files\\Git\\usr\\bin\\bash.exe"]
+    .find((b) => spawnSync(b, ["-n"], { input: "true", encoding: "utf8" }).status === 0) ?? null;
+
   /**
    * Pulls each `run: |` block out of a workflow. Written by hand rather than
    * adding a YAML dependency for one check: block scalars are defined by
@@ -250,7 +257,11 @@ describe("every workflow's shell parses", () => {
     expect(total).toBeGreaterThan(3);
   });
 
-  it("parses under `bash -n`", () => {
+  it("a broken script is caught (so a pass means something)", { skip: !BASH }, () => {
+    expect(spawnSync(BASH!, ["-n"], { input: "if true; then\n  echo x\n", encoding: "utf8" }).status).not.toBe(0);
+  });
+
+  it.skipIf(!BASH)("parses under `bash -n`", () => {
     const files = readdirSync(WORKFLOWS).filter((f) => /\.ya?ml$/.test(f));
     const broken: string[] = [];
 
@@ -261,7 +272,7 @@ describe("every workflow's shell parses", () => {
         // bash ever sees the script. Replace it with a plain word so the shape
         // being parsed is the shape that will run.
         const script = blocks[b].replace(/\$\{\{[^}]*\}\}/g, "EXPR");
-        const check = spawnSync("bash", ["-n"], { input: script, encoding: "utf8" });
+        const check = spawnSync(BASH!, ["-n"], { input: script, encoding: "utf8" });
         if (check.status !== 0) {
           broken.push(files[i] + " block " + (b + 1) + ": " + (check.stderr || "").trim());
         }
