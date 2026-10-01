@@ -104,12 +104,7 @@ export interface TravellerPick { name: string; near: string | null; why: string;
 export function parseTravellers(text: string): TravellerPick[] {
   const t = text.trim();
   const candidates = [t, t.match(/```(?:json)?\s*([\s\S]*?)```/)?.[1], t.match(/\{[\s\S]*\}/)?.[0]];
-  for (const c of candidates) {
-    if (!c) continue;
-    try {
-      const j = JSON.parse(c.trim()) as { places?: unknown };
-      if (!Array.isArray(j.places)) continue;
-      return (j.places as Record<string, unknown>[])
+  const tidy = (places: Record<string, unknown>[]): TravellerPick[] => places
         .map((p) => ({
           name: typeof p.name === "string" ? p.name.trim().slice(0, 120) : "",
           near: typeof p.near === "string" ? p.near.trim().slice(0, 80) : null,
@@ -120,9 +115,24 @@ export function parseTravellers(text: string): TravellerPick[] {
         }))
         .filter((p) => p.name.length > 1)
         .slice(0, 8);
+  for (const c of candidates) {
+    if (!c) continue;
+    try {
+      const j = JSON.parse(c.trim()) as { places?: unknown };
+      if (!Array.isArray(j.places)) continue;
+      return tidy(j.places as Record<string, unknown>[]);
     } catch { /* next */ }
   }
-  return [];
+  // An answer cut off mid-list (Tokyo's events hit the length limit, 30 Sep
+  // 2026): keep every place that came through whole.
+  const whole: Record<string, unknown>[] = [];
+  const at = t.indexOf('"places"');
+  if (at >= 0) {
+    for (const m of Array.from(t.slice(at).matchAll(/\{[^{}]*\}/g))) {
+      try { whole.push(JSON.parse(m[0]) as Record<string, unknown>); } catch { /* a broken one */ }
+    }
+  }
+  return tidy(whole);
 }
 
 /**

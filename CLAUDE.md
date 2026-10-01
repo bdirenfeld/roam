@@ -1884,3 +1884,5 @@ the component mounted and you are looking at throttling, not a broken map.
   prompt says no adult-themed festivals (Kanamara Matsuri came back for Japan). Cache key "region2".
 - Find treats a party of 3+ with no ages saved as having children (as hasChildren does): Japan has no
   ages, so the adult-themed filter never ran and Kanamara Matsuri stayed.
+- Find's travellers answer: max_tokens 8000, and a reply cut off mid-list keeps every place that came
+  through whole (parseTravellers) — Tokyo's events stopped at max_tokens with 4000 and returned nothing.

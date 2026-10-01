@@ -123,3 +123,11 @@ describe("children with no ages saved", () => {
     expect(travellersPrompt({ base: "Rome", country: "Italy", subType: "event", ask: null, party: 2, childAges: [], month: "April 2026", from: "2026-04-22", to: "2026-04-28" })).not.toMatch(/adult-themed/);
   });
 });
+
+import { parseTravellers as parseCut } from "./ask";
+describe("an answer cut off mid-list", () => {
+  it("keeps the places that came through whole (Tokyo's events, 30 Sep 2026)", () => {
+    const cut = `{"places":[{"name":"Tsurugaoka Hachiman-gu","near":"Kamakura","why":"Sun 9 Apr: Kamakura Festival","source_name":"Go Tokyo","source_url":"https://www.gotokyo.org/x","kids":true},{"name":"Nezu Shrine","near":"Bunkyo","why":"Apr 2–15: Azalea Festival","source_name":"Go Tokyo","source_url":"https://www.gotokyo.org/y","kids":true},{"name":"Sumida Park, Tokyo","near":"Asakusa","why":"Sun 2`;
+    expect(parseCut(cut).map((p) => p.name)).toEqual(["Tsurugaoka Hachiman-gu", "Nezu Shrine"]);
+  });
+});

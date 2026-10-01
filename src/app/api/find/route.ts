@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
       const res = await client.messages.create({
         model: "claude-sonnet-4-6",
         // Room for the answer after up to five searches: 1500 cut Tuscany's events off mid-reply (30 Sep 2026).
-        max_tokens: 4000,
+        max_tokens: 8000,
         messages: [{ role: "user", content: travellersPrompt({ base: base.label!, country, subType, ask, party: trip.party_size ?? ages.length ?? 2, childAges, kids, month, from: trip.start_date, to: trip.end_date, near: nearNames }) }],
         // Events search a region's calendars, not one town's: more reading.
         tools: [{ type: "web_search_20250305", name: "web_search", max_uses: subType === "event" ? 5 : 3 }],
