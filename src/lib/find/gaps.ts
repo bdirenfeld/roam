@@ -50,6 +50,8 @@ export interface FindBase {
   counts: Record<string, number>;
   /** Its sights (activities), for coffee and dessert near the day (lib/find/near). */
   sights: { title: string; lat: number; lng: number }[];
+  /** The hotel the base sits on, when there is one: Find measures from it. */
+  stayName?: string;
 }
 
 export interface Gap { category: FindCategory; have: number }
@@ -122,7 +124,7 @@ export function findBases(cards: Card[], trip: TripLike): FindBase[] {
       .sort((a, b) => nights(b) - nights(a))[0];
     if (stay) {
       const town = townFromAddress(stay.place!.address ?? null);
-      return { label: town ?? regionLabel(mine) ?? mine[0].title, lat: stay.place!.lat!, lng: stay.place!.lng!, days, counts, sights };
+      return { label: town ?? regionLabel(mine) ?? mine[0].title, lat: stay.place!.lat!, lng: stay.place!.lng!, days, counts, sights, stayName: stay.place!.title };
     }
     return { label: regionLabel(mine) ?? mine[0].title, lat: r.centre.lat, lng: r.centre.lng, days, counts, sights };
   }).sort((a, b) => b.days - a.days);

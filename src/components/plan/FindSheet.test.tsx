@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
-import { render, screen, fireEvent, cleanup, act, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, act, waitFor, within } from "@testing-library/react";
 import type { Card, Day, Trip } from "@/types/database";
 import type { FindResult } from "@/lib/find/merge";
 
@@ -64,6 +64,18 @@ describe("Find sheet", { timeout: 20000 }, () => {
     for (const label of ["Restaurant", "Coffee", "Dessert", "Bar"]) expect(screen.getByRole("button", { name: label })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Explore" })).toBeNull();
     expect(screen.getByRole("button", { name: "Restaurant" }).getAttribute("aria-pressed")).toBe("true"); // the switch opens the group's first kind
+  });
+
+  it("says how far each place is from the hotel, in the list and once opened (Sandra, 1 Oct 2026)", async () => {
+    const hotel = { id: "h1", trip_id: "t1", day_id: "d1", status: "in_itinerary", place_id: "ph",
+      place: { id: "ph", title: "Banco 19 B&B", type: "logistics", sub_type: "hotel", lat: 41.8986, lng: 12.4683, address: "Via dei Banchi Nuovi 19, 00186 Roma RM" } } as unknown as Card;
+    const sight = { id: "s1", trip_id: "t1", day_id: "d1", status: "in_itinerary", place_id: "ps",
+      place: { id: "ps", title: "Pantheon", type: "activity", sub_type: "self_directed", lat: 41.8986, lng: 12.4769, address: null } } as unknown as Card;
+    await act(async () => { render(<FindSheet trip={trip} days={[]} cards={[hotel, sight]} onClose={vi.fn()} onSaved={vi.fn()} />); });
+    // Da Enzo in Trastevere, about 1.4 km from the B&B: walkable.
+    expect(screen.getByText(/min walk from Banco 19 B&B ·/)).toBeTruthy();
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "More about Trattoria Da Enzo" })); });
+    expect(within(screen.getByRole("region", { name: "Trattoria Da Enzo" })).getByText(/min walk from Banco 19 B&B$/)).toBeTruthy();
   });
 
   it("warms every category on open, so tapping across the chips never waits", async () => {

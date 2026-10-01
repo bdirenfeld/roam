@@ -3,7 +3,7 @@
 /**
  * The desktop Plan as a week (24 Sep 2026): days across, hours down, every
  * timed card a block at its time, untimed cards in their day's header (1 Oct
- * 2026; the Anytime lane became the hotel band). Drag a block sideways to change its day, up and down to change its
+ * 2026; there is no Anytime lane). Drag a block sideways to change its day, up and down to change its
  * time, its bottom edge to change its end; click it to open the card sheet.
  * Every write goes through queuedUpdate and shows the app's one toast with
  * Undo. Phase 2 (24 Sep 2026) put the map beside it (WeekMap): hover a block
@@ -38,7 +38,7 @@ import { placeShare, isMuseum } from "@/lib/plan/dayGroups";
 import { dayForCard, onlyOnLine } from "@/lib/plan/eventDays";
 import { shortAddress, firstSentence } from "@/lib/week/cardText";
 import { weekStarts, pageOf } from "@/lib/week/pages";
-import { stayRuns, addDays } from "@/lib/stays/stayRuns";
+import { stayRuns } from "@/lib/stays/stayRuns";
 import {
   placeBlocks, movedTimes, resizedEnd, resizedStart, minutesAtY, toMin, toTime, fmt12, gridHeight,
   HOUR_START, HOUR_END, PX_PER_HOUR, NO_END_MIN, type Block,
@@ -770,19 +770,17 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     return { day: d, placed: placeBlocks(timed), untimed };
   }), [shown, days, ghost, saved]);
   const byId = useMemo(() => { const m = new Map<string, Card>(); saved.forEach((c) => m.set(c.id, c)); days.forEach((d) => d.cards.forEach((c) => m.set(c.id, c))); return m; }, [days, saved]);
-  // Where you sleep (1 Oct 2026): the Anytime lane became one band per hotel
-  // across the nights it covers, like an all-day event in Outlook (Brennan:
-  // "the anytime row is where you should put the hotel row"). Untimed cards
-  // moved into their own day's header.
+  // Where you sleep (1 Oct 2026, lib/stays/stayRuns). The Anytime lane went
+  // (untimed cards sit in their day's header); a band across the hotel's
+  // nights replaced it and was dropped the same day (Brennan: "maybe just
+  // check-in and check-out"). A hotel shows as its check-in and check-out
+  // blocks, named so.
   const runs = useMemo(() => stayRuns(days.map((d) => ({ date: d.date, cards: d.cards })), trip.end_date), [days, trip.end_date]);
-  const weekStays = useMemo(() => {
-    return runs.flatMap((run) => {
-      const idx = shown.map((d, i) => (d.date >= run.checkIn && d.date < run.checkOut ? i : -1)).filter((i) => i >= 0);
-      if (!idx.length) return [];
-      const from = idx[0], to = idx[idx.length - 1];
-      return [{ run, from, to, before: run.checkIn < shown[from].date, after: run.checkOut > addDays(shown[to].date, 1) }];
-    });
-  }, [runs, shown]);
+  const blockTitle = (c: Card, date: string) => {
+    if (c.place?.sub_type !== "hotel") return cardTitle(c);
+    const run = runs.find((r) => r.placeId === c.place_id && (r.checkIn === date || r.checkOut === date));
+    return run ? `${run.checkIn === date ? "Check in" : "Check out"} · ${run.title}` : cardTitle(c);
+  };
 
   const hours: number[] = []; for (let h = HOUR_START; h <= HOUR_END; h++) hours.push(h);
   const gridStyle = { gridTemplateColumns: weekColumns(HOURS_W, nDays, COL_MIN, focusIdx), transition: "grid-template-columns 200ms ease" } as const;
@@ -918,40 +916,6 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
               </div>
             ))}
           </div>
-          {/* Staying: one band per hotel across its nights. */}
-          {weekStays.length > 0 && (
-            <div className="grid border-b flex-shrink-0 bg-[#F5F4F1]" data-testid="stay-band" style={{ ...gridStyle, borderColor: "rgba(26,26,46,0.10)" }}>
-              <div className="text-[9px] text-activity/40 text-right pr-1.5 pt-[11px] uppercase tracking-[0.06em] sticky left-0 z-[8] bg-[#F5F4F1]" style={{ gridColumn: 1, gridRow: 1 }}>Staying</div>
-              {weekStays.map(({ run, from, to, before, after }) => {
-                const wide = to > from;
-                return (
-                  <button
-                    key={run.cardId}
-                    type="button"
-                    onClick={() => { const c = byId.get(run.cardId); if (c) setSelectedCard(c); }}
-                    data-testid="stay"
-                    className="my-[5px] mx-[3px] min-w-0 flex items-center gap-1.5 px-2 py-[5px] text-[11.5px] bg-[#EEF0F5] hover:bg-[#E4E8F0] transition-colors text-left"
-                    style={{
-                      gridColumn: `${from + 2} / ${to + 3}`, gridRow: 1,
-                      border: "1.5px solid #2F3B52",
-                      borderRadius: `${before ? 2 : 7}px ${after ? 2 : 7}px ${after ? 2 : 7}px ${before ? 2 : 7}px`,
-                      borderLeftStyle: before ? "dashed" : "solid", borderRightStyle: after ? "dashed" : "solid",
-                    }}
-                    title={`${run.title} · ${dayLabel(run.checkIn)} – ${dayLabel(run.checkOut)} · ${run.nights} ${run.nights === 1 ? "night" : "nights"}`}
-                  >
-                    <span className="inline-flex flex-shrink-0 opacity-80" dangerouslySetInnerHTML={{ __html: getMaterialIconHTML("hotel", 13) }} />
-                    <span className="font-semibold truncate">{run.title}</span>
-                    {/* Beside the name, not at the far end: a week wider than
-                        the window scrolled the dates out of sight. */}
-                    <span className="text-activity/50 whitespace-nowrap flex-shrink-0">· </span>
-                    <span className="text-activity/50 whitespace-nowrap flex-shrink-0">
-                      {wide ? `${dayLabel(run.checkIn)} – ${dayLabel(run.checkOut)} · ` : ""}{run.nights} {run.nights === 1 ? "night" : "nights"}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
           </div>
           {/* the hours */}
           <div className="relative">
@@ -1024,7 +988,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                           <div onPointerDown={(e) => onStartHandlePointerDown(e, c)} className="absolute left-0 right-0 top-0 h-[6px] cursor-ns-resize" aria-label="Change the start time" />
                           <div className="text-[11px] font-medium leading-tight truncate pointer-events-none flex items-center gap-1">
                             {!note && <span className="inline-flex flex-shrink-0 opacity-70" dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(c.place!.sub_type, 12) }} />}
-                            <span className="truncate">{cardTitle(c)}</span>
+                            <span className="truncate">{blockTitle(c, day.date)}</span>
                           </div>
                           {!short && (
                             <div className="text-[9.5px] text-activity/60 truncate tabular-nums pointer-events-none">

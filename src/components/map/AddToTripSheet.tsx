@@ -294,7 +294,8 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
     // 1-based position = live max on that day + 1). The pin-popup door and the
     // plan board use the same helper, so the two paths cannot drift apart.
     if (targetDayId) {
-      if (finalSubType === "hotel" && leaveDay) details.check_out = leaveDay.date;
+      const stay = finalSubType === "hotel" && leaveDay;
+      if (stay) details.check_out = stay.date;
       const scheduled = await scheduleCardOnDay(supabase, {
         tripId,
         dayId:     targetDayId,
@@ -304,7 +305,18 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
         sourceUrl: place.mapsUrl ?? null,
         // A camp on a day is drop-off to pick-up; its repeats copy the time.
         ...(subType === "camp" ? { startTime: "09:00", endTime: "15:00" } : {}),
+        // A stay is two events (Brennan, 1 Oct 2026: "just check-in and
+        // check-out"): in at 3 pm here, out at 11 am on the day you leave, as
+        // he writes them by hand. Either time is a tap to change.
+        ...(stay ? { startTime: "15:00" } : {}),
       });
+      if (scheduled && stay) {
+        const out = await scheduleCardOnDay(supabase, {
+          tripId, dayId: stay.id, placeId: placeRow.id, place: joinedPlace,
+          details: { ...details, title: `Check out of ${place.name}` }, sourceUrl: place.mapsUrl ?? null, startTime: "11:00",
+        });
+        if (out) onCardCreated(out);
+      }
       setSaving(false);
       if (scheduled) onCardCreated(scheduled);
       return;

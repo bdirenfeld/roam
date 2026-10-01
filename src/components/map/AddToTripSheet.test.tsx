@@ -9,8 +9,8 @@ import type { Day } from "@/types/database";
  * nothing asked; the check-out is written once, on the check-in card.
  */
 
-const scheduled: { details: Record<string, unknown> }[] = [];
-vi.mock("@/lib/scheduleCard", () => ({ scheduleCardOnDay: vi.fn(async (_s: unknown, args: { details: Record<string, unknown> }) => { scheduled.push(args); return { id: "new" }; }) }));
+const scheduled: { dayId: string; startTime?: string | null; details: Record<string, unknown> }[] = [];
+vi.mock("@/lib/scheduleCard", () => ({ scheduleCardOnDay: vi.fn(async (_s: unknown, args: { dayId: string; startTime?: string | null; details: Record<string, unknown> }) => { scheduled.push(args); return { id: "new" }; }) }));
 vi.mock("@/lib/supabase/authUser", () => ({ getAuthUser: async () => ({ id: "u1" }) }));
 const chain = () => {
   const q: Record<string, unknown> = {};
@@ -45,8 +45,12 @@ describe("saving a hotel onto a day", () => {
     fireEvent.change(out, { target: { value: "d5" } });
     const save = screen.getByRole("button", { name: /^Stay / });
     await act(async () => { fireEvent.click(save); });
-    expect(scheduled).toHaveLength(1);
+    // Two events, as Brennan writes them: in at 3 pm, out at 11 am on the day you leave.
+    expect(scheduled).toHaveLength(2);
+    expect(scheduled[0]).toMatchObject({ dayId: "d1", startTime: "15:00" });
     expect(scheduled[0].details.check_out).toBe("2026-11-29");
+    expect(scheduled[1]).toMatchObject({ dayId: "d5", startTime: "11:00" });
+    expect(scheduled[1].details.title).toBe("Check out of Conrad Fort Lauderdale Beach");
   });
 
   it("anything else is put on a day as before, with no check-out", async () => {
@@ -55,6 +59,7 @@ describe("saving a hotel onto a day", () => {
     fireEvent.change(screen.getByLabelText("Put it on a day"), { target: { value: "d1" } });
     expect(screen.queryByLabelText("Check out")).toBeNull();
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: /^Put on / })); });
+    expect(scheduled).toHaveLength(1);
     expect(scheduled[0].details.check_out).toBeUndefined();
   });
 });

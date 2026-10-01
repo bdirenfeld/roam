@@ -1969,10 +1969,17 @@ the component mounted and you are looking at throttling, not a broken map.
   the same hotel on consecutive days (Sandra) = check out the morning after the last; else the next hotel's
   check-in, else trip end. Only booked cards count (Japan's 3 "interested" ryokans on day 1 are not stays).
 - Desktop week: the Anytime lane is GONE (his call: "the anytime row is where you should put the hotel row").
-  A "Staying" band spans each hotel's nights; dashed end = carries into the next/previous week. Untimed cards
-  sit dashed in their own day's header, and the header row is the drop target for "no time" (laneRef/overLane).
+  A "Staying" band across the nights shipped and was DROPPED the same day (he: "maybe just check-in and
+  check-out" — on a one-base trip it repeats itself). A hotel is two blocks, labelled "Check in · X" /
+  "Check out · X" (blockTitle). Don't re-propose the band. Untimed cards sit dashed in their own day's
+  header, and the header row is the drop target for "no time" (laneRef/overLane).
 - Phone day: nothing added on screen (he: "I don't want to crowd the screen"; the day map already shows the
   hotel pin each night). DayViewClient's hotel pin now comes from stayOn, so it stops at check-out.
-- Saving a hotel onto a day (AddToTripSheet) asks Check in + Check out and writes details.check_out; the hotel
+- Saving a hotel onto a day (AddToTripSheet) asks Check in + Check out, writes details.check_out, puts the
+  check-in at 15:00 and creates a "Check out of X" card at 11:00 on the day you leave (his hand-made pattern); the hotel
   sheet (HotelDetail) has a "Check-out day" date field. Next batch, agreed: distance in Find + in a stop's sheet
   (never as lines between phone rows).
+- Find distance (1 Oct 2026, lib/find/distance): each result says how far it is from the base's hotel
+  (FindBase.stayName), else from the base's middle; in the list's grey line and in the opened place.
+  Straight-line, free: <=1.5 km as minutes on foot, further as km. His ruling: distance shows in Find's list
+  (deciding), NOT on the day's rows (already decided; the map shows it). A stop's sheet is optional, not built.

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, fireEvent, cleanup, within } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import type { Card, DayWithCards, Trip } from "@/types/database";
 
 /**
@@ -37,16 +37,11 @@ const trip = { id: "t", title: "Tuscany", destination: "Tuscany, Italy", start_d
 afterEach(cleanup);
 
 describe("the week's top rows", () => {
-  it("shows the villa as one band across the week's nights, and no Anytime lane", () => {
+  it("has no Anytime lane and no hotel band; the villa is its check-in block", () => {
     render(<WeekBoard trip={trip} initialDays={days} initialSaved={[]} />);
-    const band = screen.getByTestId("stay-band");
-    const stays = within(band).getAllByTestId("stay");
-    expect(stays).toHaveLength(1);
-    expect(stays[0].textContent).toContain("Villa Zambaldi");
-    expect(stays[0].textContent).toMatch(/Villa Zambaldi· 24 Aug – 4 Sept? · 11 nights$/);
-    // It runs on into next week.
-    expect(stays[0].style.borderRightStyle).toBe("dashed");
     expect(screen.queryByText("Anytime")).toBeNull();
+    expect(screen.queryByTestId("stay-band")).toBeNull();
+    expect(screen.getByText("Check in · Villa Zambaldi")).toBeTruthy();
   });
 
   it("puts the untimed Cathedral in Friday's header", () => {
@@ -57,23 +52,10 @@ describe("the week's top rows", () => {
     expect(untimed[0].closest("[data-testid='day-header']")?.textContent).toContain("Fri");
   });
 
-  it("opens the hotel from the band", () => {
-    render(<WeekBoard trip={trip} initialDays={days} initialSaved={[]} />);
-    fireEvent.click(screen.getByTestId("stay"));
-    expect(screen.getByTestId("sheet").textContent).toBe("Villa Zambaldi");
-  });
-
-  it("next week, the band carries on from the left and stops before check-out", () => {
+  it("next week, the last morning's villa card reads as the check-out", () => {
     render(<WeekBoard trip={trip} initialDays={days} initialSaved={[]} />);
     fireEvent.click(screen.getByRole("button", { name: "Next week" }));
-    const stay = screen.getByTestId("stay");
-    expect(stay.style.borderLeftStyle).toBe("dashed");
-    expect(stay.style.borderRightStyle).toBe("solid");
-  });
-
-  it("a journey with no hotel has no band row at all", () => {
-    const bare = days.map((d) => ({ ...d, cards: d.cards.filter((c) => c.place?.sub_type !== "hotel") }));
-    render(<WeekBoard trip={trip} initialDays={bare} initialSaved={[]} />);
-    expect(screen.queryByTestId("stay-band")).toBeNull();
+    expect(screen.getByText("Check out · Villa Zambaldi")).toBeTruthy();
+    expect(screen.queryByText("Check in · Villa Zambaldi")).toBeNull();
   });
 });

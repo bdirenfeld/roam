@@ -14,6 +14,7 @@ import { closedOnTrip, priceSigns } from "@/lib/find/detail";
 import { DATED } from "@/lib/find/ask";
 import { findRequest } from "@/lib/find/request";
 import { whatsOnUrl } from "@/lib/find/yearly";
+import { distanceLine } from "@/lib/find/distance";
 
 /**
  * Find (29 Sep 2026): places for what a base is short of, in Roam's own
@@ -53,6 +54,9 @@ export default function FindSheet({
   const started = useRef<Set<string>>(new Set());
 
   const keyOf = (b: FindBase, s: string, q: string | null) => `${b.label}|${s}|${q ?? ""}`;
+  // How far from where you sleep (1 Oct 2026, lib/find/distance): from the
+  // hotel when the base has one, else from the middle of the base's places.
+  const awayOf = (r: FindResult) => (base && Number.isFinite(r.lat) && Number.isFinite(r.lng) ? distanceLine(base, r, base.stayName ?? base.label) : null);
   const [, bump] = useState(0);
   // Fetch one half of one search, once. Shown or not, the answer is kept, so
   // a chip tapped later is already there.
@@ -205,7 +209,7 @@ export default function FindSheet({
         </div>
 
         {open && (
-          <FindPlace r={open} dates={dates} saved={saved.has(open.placeId)} onSave={() => void save(open)} onBack={() => setOpen(null)} />
+          <FindPlace r={open} dates={dates} away={awayOf(open)} saved={saved.has(open.placeId)} onSave={() => void save(open)} onBack={() => setOpen(null)} />
         )}
         <div className={`flex-1 overflow-y-auto px-5 py-2 ${open ? "hidden" : ""}`}>
           {!base && <p className="py-6 text-[14px] text-activity/60">Set where the journey is going in Settings, and Find will start there.</p>}
@@ -235,6 +239,7 @@ export default function FindSheet({
                   <div className="text-[12.5px] text-activity/70 leading-snug">{r.why}</div>
                 </button>
                 <div className="text-[11px] text-activity/45 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                  {awayOf(r) && <span className="text-activity/70 font-medium">{awayOf(r)} ·</span>}
                   {r.from === "travellers" && r.source ? <a href={r.source.url} target="_blank" rel="noreferrer" className="underline underline-offset-2">{r.source.name}</a> : <span>{r.from === "travellers" ? "Travellers" : "Google"}</span>}
                   {r.kids && <span className="px-1.5 rounded text-[10px] font-semibold" style={{ background: "#E7F3EC", color: "#1D7A55" }}>Good with kids</span>}
                 </div>
@@ -266,7 +271,7 @@ type Details = {
  * which of the journey's days it is shut, and where it is; Save stays at
  * the foot. Google details and photos load on open, not for the whole list.
  */
-function FindPlace({ r, dates, saved, onSave, onBack }: { r: FindResult; dates: string[]; saved: boolean; onSave: () => void; onBack: () => void }) {
+function FindPlace({ r, dates, away, saved, onSave, onBack }: { r: FindResult; dates: string[]; away: string | null; saved: boolean; onSave: () => void; onBack: () => void }) {
   const [d, setD] = useState<Details | null>(null);
   const [photos, setPhotos] = useState<string[]>(r.photo ? [r.photo] : []);
   const strip = useRef<HTMLDivElement>(null);
@@ -334,7 +339,7 @@ function FindPlace({ r, dates, saved, onSave, onBack }: { r: FindResult; dates: 
         {d && (closed.length > 0
           ? <div className="text-[13px] font-medium text-[#B0541F]">Closed {closed.join(", ")}</div>
           : d.opening_hours?.weekday_text?.length ? <div className="text-[13px] text-activity/70">Open every day you&apos;re there</div> : null)}
-        <div className="text-[13px] text-activity/70">{r.address}</div>
+        <div className="text-[13px] text-activity/70">{r.address}{away ? <><br /><span className="font-medium">{away}</span></> : null}</div>
         <div className="flex gap-4 text-[13px] font-medium">
           {d?.url && <a href={d.url} target="_blank" rel="noreferrer" className="text-[#1A1A2E] underline underline-offset-2">Google Maps</a>}
           {d?.website && <a href={d.website} target="_blank" rel="noreferrer" className="text-[#1A1A2E] underline underline-offset-2">Website</a>}
