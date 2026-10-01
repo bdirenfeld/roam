@@ -10,6 +10,12 @@
 export interface FindResult {
   placeId: string;
   name: string;
+  /**
+   * An event's own name, shown before its venue (1 Oct 2026): the Bravio delle
+   * Botti came back as "Comune di Montepulciano" and was missed at the top of
+   * Tuscany's events.
+   */
+  title?: string | null;
   address: string;
   lat: number;
   lng: number;

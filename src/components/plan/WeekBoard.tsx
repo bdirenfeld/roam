@@ -445,7 +445,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   // on Thursday must not plan it for Thursday. Its own day (the nearest, when
   // it runs on several) takes it, and the toast says why.
   const eventTarget = (card: Card, target: DayWithCards) => dayForCard(card, daysRef.current, target);
-  const onlyOn = (card: Card, date: string) => onlyOnLine(cardTitle(card), date);
+  const onlyOn = (card: Card, date: string) => onlyOnLine(cardTitle(card), date, dayForCard(card, daysRef.current, daysRef.current.find((x) => x.date === date) ?? daysRef.current[0]).dates);
 
   // ── the map drops ──────────────────────────────────────────────
   // Pin → week: a new scheduled card at the drop time, as long as that kind

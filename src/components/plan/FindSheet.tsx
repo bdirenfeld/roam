@@ -117,9 +117,17 @@ export default function FindSheet({
     setSaved((prev) => new Set(prev).add(r.placeId));
     try {
       const imp = await fetch("/api/places/bulk-import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ google_place_ids: [r.placeId], defaults: { type: category.type, sub_type: category.subType } }) });
-      const j = await imp.json() as { imported?: { place_id: string; title: string }[] };
+      const j = await imp.json() as { imported?: { place_id: string; title: string; created?: boolean }[] };
       const placeId = j.imported?.[0]?.place_id;
       if (!placeId) throw new Error("import");
+      // An event's pin and card carry the event's name, not the venue's: a new
+      // place is named after it (the venue stays its address). A place already
+      // saved for its own sake keeps its name.
+      let title = j.imported![0].title;
+      if (r.title && j.imported![0].created) {
+        const { error: named } = await createClient().from("places").update({ title: r.title }).eq("id", placeId);
+        if (!named) title = r.title;
+      }
       const card = {
         id: crypto.randomUUID(), trip_id: trip.id, day_id: null, list_id: null, place_id: placeId, status: "interested", position: 0,
         start_time: null, end_time: null, source_url: r.source?.url ?? null,
@@ -127,8 +135,8 @@ export default function FindSheet({
       };
       const { error } = await createClient().from("cards").insert(card);
       if (error) throw error;
-      onSaved({ ...card, created_at: new Date().toISOString(), place: { id: placeId, title: j.imported![0].title, type: category.type, sub_type: category.subType, lat: r.lat, lng: r.lng, address: r.address } } as unknown as Card);
-      toast({ message: `Saved ${r.name} to your map` });
+      onSaved({ ...card, created_at: new Date().toISOString(), place: { id: placeId, title, type: category.type, sub_type: category.subType, lat: r.lat, lng: r.lng, address: r.address } } as unknown as Card);
+      toast({ message: `Saved ${r.title ?? r.name} to your map` });
     } catch {
       setSaved((prev) => { const n = new Set(prev); n.delete(r.placeId); return n; });
       toast({ message: "Couldn't save it. Try again." });
@@ -214,7 +222,8 @@ export default function FindSheet({
               </button>
               <div className="flex-1 min-w-0">
                 <button type="button" onClick={() => setOpen(r)} className="block w-full text-left">
-                  <div className="text-[14px] font-semibold text-[#1A1A2E] truncate">{r.name}</div>
+                  <div className="text-[14px] font-semibold text-[#1A1A2E] truncate">{r.title ?? r.name}</div>
+                  {r.title && <div className="text-[11.5px] text-activity/55 truncate">At {r.name}</div>}
                   <div className="text-[12.5px] text-activity/70 leading-snug">{r.why}</div>
                 </button>
                 <div className="text-[11px] text-activity/45 mt-0.5 flex items-center gap-1.5 flex-wrap">
@@ -308,7 +317,8 @@ function FindPlace({ r, dates, saved, onSave, onBack }: { r: FindResult; dates: 
         )}
       </div>
       <div className="px-5 pb-4 flex flex-col gap-2">
-        <h3 className="text-[18px] font-semibold text-[#1A1A2E] leading-snug">{r.name}</h3>
+        <h3 className="text-[18px] font-semibold text-[#1A1A2E] leading-snug">{r.title ?? r.name}</h3>
+        {r.title && <div className="text-[13px] text-activity/60 -mt-1.5">At {r.name}</div>}
         {facts && <div className="text-[13px] text-activity/70">{facts}</div>}
         <p className="text-[14px] text-[#1A1A2E] leading-snug">{r.why}</p>
         {r.source && <a href={r.source.url} target="_blank" rel="noreferrer" className="text-[12.5px] text-activity/60 underline underline-offset-2">From {r.source.name}</a>}

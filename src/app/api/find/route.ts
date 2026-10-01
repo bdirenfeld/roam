@@ -140,7 +140,8 @@ export async function POST(req: NextRequest) {
       console.log("[find] travellers", subType, base.label, "named", picks.length, picks.map((p) => p.name).join(" / ").slice(0, 400), picks.length ? "" : `stop=${res.stop_reason} text=${text.slice(-300)}`);
       const checked = await Promise.all(picks.map(async (p) => {
         const g = await findOnGoogle(`${p.name}, ${p.near ?? base.label}`);
-        return g ? toResult(g, "travellers", p.why, p.sourceUrl ? { name: p.sourceName ?? new URL(p.sourceUrl).hostname, url: p.sourceUrl } : null, kids && p.kids) : null;
+        const r = g ? toResult(g, "travellers", p.why, p.sourceUrl ? { name: p.sourceName ?? new URL(p.sourceUrl).hostname, url: p.sourceUrl } : null, kids && p.kids) : null;
+        return r && p.event ? { ...r, title: p.event } : r;
       }));
       return checked.filter((x): x is FindResult => x !== null);
     } catch (e) {

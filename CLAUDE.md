@@ -1935,3 +1935,9 @@ the component mounted and you are looking at throttling, not a broken map.
   move and multi-drop, the pin's Put on a day, the phone's pick-and-place; the toast says "X is on Sun 29 Aug,
   so it's there". Plan my trip puts dated events on their day untimed (`datedEvents`), out of the day groups.
   The pin popup now copies details to the scheduled card, as the week's drop does, so a later move still knows.
+- The "is on … so it's there" toast now explains: "X only happens on Sun 29 Aug, so I moved it there" (several
+  dates: which one it went to) — his ask. `dayForCard` returns the dates for it.
+- An event carries its own name (1 Oct 2026): the Bravio was first in Tuscany's events but titled "Comune di
+  Montepulciano" (its venue) and he missed it. The events prompt asks for "event" (its name) beside "name" (the
+  venue Google can place); FindResult.title; the sheet shows the event, "At {venue}" under it; Save renames a
+  NEW place after the event so its pin and card say Bravio (an existing place keeps its name). FIND_PROMPT_V v4.

@@ -425,7 +425,7 @@ function CardBody({
   const handleAddToDay = useCallback(async (chosen: Day) => {
     if (!tripId || !card.place_id || scheduling) return;
     // An event on set days goes to its own day (lib/plan/eventDays).
-    const { day, moved } = dayForCard(card, days ?? [], chosen);
+    const { day, moved, dates } = dayForCard(card, days ?? [], chosen);
     setScheduling(true);
     // Its details go with it, as the week's drop does: an event keeps the date line that holds it to its day.
     const newCard = await scheduleCardOnDay(supabase, {
@@ -438,7 +438,7 @@ function CardBody({
       onCardCreated?.(newCard);
       onClose();
       // The popup closed and the pin changed colour; nothing said which day.
-      toast({ message: moved ? onlyOnLine(card.place?.title ?? "It", day.date) : `Put on ${dayChip(day.date, spansMonths((days ?? []).map((d) => d.date)))}` });
+      toast({ message: moved ? onlyOnLine(card.place?.title ?? "It", day.date, dates) : `Put on ${dayChip(day.date, spansMonths((days ?? []).map((d) => d.date)))}` });
     } else {
       toast({ message: "Couldn't put it on that day. Try again." });
     }

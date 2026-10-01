@@ -11,9 +11,13 @@ import type { FindResult } from "@/lib/find/merge";
  */
 
 const inserted: Record<string, unknown>[] = [];
+const updated: { row: Record<string, unknown>; id: string }[] = [];
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
-    from: () => ({ insert: (row: Record<string, unknown>) => { inserted.push(row); return Promise.resolve({ error: null }); } }),
+    from: () => ({
+      insert: (row: Record<string, unknown>) => { inserted.push(row); return Promise.resolve({ error: null }); },
+      update: (row: Record<string, unknown>) => ({ eq: (_k: string, id: string) => { updated.push({ row, id }); return Promise.resolve({ error: null }); } }),
+    }),
   }),
 }));
 const toasts: { message: string }[] = [];
@@ -39,7 +43,7 @@ beforeEach(() => {
     return { ok: true, json: async () => ({ imported: [{ place_id: "p1", google_place_id: "g1", title: "Da Enzo al 29" }] }) };
   }));
 });
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); inserted.length = 0; toasts.length = 0; calls.length = 0; });
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); inserted.length = 0; updated.length = 0; toasts.length = 0; calls.length = 0; });
 
 // Rendering with jsdom is slow under the full suite; one test timed out at 7.7 s.
 describe("Find sheet", { timeout: 20000 }, () => {
@@ -173,5 +177,24 @@ describe("Find sheet", { timeout: 20000 }, () => {
       if (saved.cw) Object.defineProperty(HTMLElement.prototype, "clientWidth", saved.cw); else delete (proto as Record<string, unknown>).clientWidth;
       delete proto.scrollBy;
     }
+  });
+});
+
+describe("an event carries its own name", { timeout: 20000 }, () => {
+  it("the Bravio shows as itself, at its venue, and its new pin is named after it", async () => {
+    const bravio: FindResult = { ...result, placeId: "gmp", name: "Comune di Montepulciano", title: "Bravio delle Botti", why: "Sun 29 Aug: eight districts race 80 kg wine barrels uphill." };
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: { body: string }) => {
+      calls.push({ url, body: init?.body ? JSON.parse(init.body) : {} });
+      if (url === "/api/find") return { ok: true, json: async () => ({ results: [bravio] }) };
+      return { ok: true, json: async () => ({ imported: [{ place_id: "pmp", google_place_id: "gmp", title: "Comune di Montepulciano", created: true }] }) };
+    }));
+    const onSaved = vi.fn();
+    await act(async () => { render(<FindSheet trip={trip} days={[]} cards={[] as Card[]} onClose={vi.fn()} onSaved={onSaved} />); });
+    expect(screen.getByText("Bravio delle Botti")).toBeTruthy();
+    expect(screen.getByText("At Comune di Montepulciano")).toBeTruthy();
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Save" })); });
+    expect(updated).toEqual([{ row: { title: "Bravio delle Botti" }, id: "pmp" }]);
+    expect((onSaved.mock.calls[0][0] as Card).place!.title).toBe("Bravio delle Botti");
+    expect(toasts[0].message).toBe("Saved Bravio delle Botti to your map");
   });
 });

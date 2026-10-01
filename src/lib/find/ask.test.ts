@@ -35,7 +35,7 @@ describe("cacheKey", () => {
   it("one answer per base, category, question and kind of party", () => {
     const k = (o: Partial<Parameters<typeof cacheKey>[0]>) => cacheKey({ mode: "travellers", lat: 41.9028, lng: 12.4964, subType: "restaurant", ask: null, kids: false, ...o });
     // The travellers' answers carry the prompt version (FIND_PROMPT_V): a better question is asked again.
-    expect(k({})).toBe("travellersv3|41.90|12.50|restaurant||adults||");
+    expect(k({})).toBe("travellersv4|41.90|12.50|restaurant||adults||");
     expect(k({ near: [{ lat: 40.7795, lng: -73.9695 }] })).not.toBe(k({})); // coffee near the day is its own answer
     expect(k({ when: "2026-04-22|2026-04-28" })).not.toBe(k({}));
     expect(k({ lat: 41.9031 })).toBe(k({}));            // two journeys to Rome share
@@ -172,5 +172,15 @@ describe("weekday ranges", () => {
   it("Tokyo's camps: 'Mon 2 – Wed 12 Apr' on a 2028 trip is 'Sun 2 – Wed 12 Apr'", () => {
     expect(fixWeekdays("Usually Mon 2 – Wed 12 Apr: Elev8 Spring Camp", "2028-04-02", "2028-04-15")).toBe("Usually Sun 2 – Wed 12 Apr: Elev8 Spring Camp");
     expect(fixWeekdays("Usually Mon 3 – Fri 7 Apr: Code Quest", "2028-04-02", "2028-04-15")).toBe("Usually Mon 3 – Fri 7 Apr: Code Quest");
+  });
+});
+
+import { parseTravellers as parseEv } from "./ask";
+describe("an event's own name", () => {
+  it("is asked for and kept beside its venue", () => {
+    const p = travellersPrompt({ base: "Lucca", country: "Italy", subType: "event", ask: null, party: 5, childAges: [10], month: "August 2027", from: "2027-08-24", to: "2027-09-04" });
+    expect(p).toMatch(/"event" is the event's own name/);
+    const got = parseEv(`{"places":[{"event":"Bravio delle Botti","name":"Comune di Montepulciano","near":"Montepulciano","why":"Sun 29 Aug: barrel race","source_name":"x","source_url":"https://x.it","kids":true}]}`);
+    expect(got[0]).toMatchObject({ event: "Bravio delle Botti", name: "Comune di Montepulciano" });
   });
 });

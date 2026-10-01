@@ -98,9 +98,10 @@ and start "why" with "Usually" and the day.
 The journey's days, with their weekdays: ${tripCalendar(opts.from, opts.to)}. Give dates for that year, and work out a
 rule like "the second Sunday of April" from this calendar, not from another year's.${opts.childAges.length || opts.kids ? `
 Children are on this trip: leave out adult-themed events (sexual themes, nightlife, drinking festivals).` : ""}
-Name up to 8. For each, "name" is the venue or starting point Google Maps would know, "near" is the neighbourhood.
+Name up to 8. For each, "event" is the event's own name (e.g. "Bravio delle Botti"), "name" is the venue or starting
+point Google Maps would know, "near" is the neighbourhood.
 Reply with JSON only:
-{"places":[{"name":string,"near":string,"why":string,"source_name":string,"source_url":string,"kids":boolean}]}
+{"places":[{"event":string,"name":string,"near":string,"why":string,"source_name":string,"source_url":string,"kids":boolean}]}
 "why" starts with the date or dates (e.g. "Sat 25 Apr: ..." or "Usually Sun 29 Aug: ...") and says in under 16 words what it is.
 "kids" is true when it suits children. "source_url" must be a page you actually read.`;
   }
@@ -119,7 +120,7 @@ Reply with JSON only:
 "source_url" must be a page you actually read.`;
 }
 
-export interface TravellerPick { name: string; near: string | null; why: string; sourceName: string | null; sourceUrl: string | null; kids: boolean }
+export interface TravellerPick { name: string; near: string | null; why: string; sourceName: string | null; sourceUrl: string | null; kids: boolean; /** An event's own name; "name" is its venue. */ event?: string | null }
 
 export function parseTravellers(text: string): TravellerPick[] {
   const t = text.trim();
@@ -132,6 +133,7 @@ export function parseTravellers(text: string): TravellerPick[] {
           sourceName: typeof p.source_name === "string" ? p.source_name.trim().slice(0, 60) : null,
           sourceUrl: typeof p.source_url === "string" && /^https?:\/\//.test(p.source_url) ? p.source_url : null,
           kids: p.kids === true,
+          event: typeof p.event === "string" && p.event.trim() ? p.event.trim().slice(0, 120) : null,
         }))
         .filter((p) => p.name.length > 1)
         .slice(0, 8);
@@ -171,7 +173,7 @@ export function cacheKey(opts: { mode: "google" | "travellers"; lat: number; lng
 }
 export const CACHE_DAYS = 30;
 /** Bump when the travellers' prompt changes, so cached answers are asked again. */
-export const FIND_PROMPT_V = "v3";
+export const FIND_PROMPT_V = "v4";
 
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 /**

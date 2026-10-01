@@ -68,16 +68,26 @@ export function cardEventDates(card: { details?: unknown; place?: { sub_type?: s
  * set days, else the day chosen. Shared by every door onto a day (the week's
  * drops, the pin's Put on a day, the phone's pick-and-place).
  */
-export function dayForCard<D extends { id: string; date: string }>(card: Parameters<typeof cardEventDates>[0], days: D[], chosen: D): { day: D; moved: boolean } {
+export function dayForCard<D extends { id: string; date: string }>(card: Parameters<typeof cardEventDates>[0], days: D[], chosen: D): { day: D; moved: boolean; dates: string[] } {
   const ds = days.map((d) => d.date).filter(Boolean).sort();
-  if (!ds.length) return { day: chosen, moved: false };
-  const date = eventDay(cardEventDates(card, ds[0], ds[ds.length - 1]), chosen.date);
-  if (date === chosen.date) return { day: chosen, moved: false };
+  if (!ds.length) return { day: chosen, moved: false, dates: [] };
+  const allowed = cardEventDates(card, ds[0], ds[ds.length - 1]);
+  const date = eventDay(allowed, chosen.date);
+  if (date === chosen.date) return { day: chosen, moved: false, dates: allowed ?? [] };
   const day = days.find((d) => d.date === date);
-  return day ? { day, moved: true } : { day: chosen, moved: false };
+  return day ? { day, moved: true, dates: allowed ?? [] } : { day: chosen, moved: false, dates: allowed ?? [] };
 }
 
-/** "Bravio delle Botti is on Sun 29 Aug, so it's there". */
-export function onlyOnLine(title: string, date: string): string {
-  return `${title} is on ${new Date(date + "T00:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })}, so it's there`;
+const dayLabel = (date: string) => new Date(date + "T00:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+
+/**
+ * Why it moved, in his words (1 Oct 2026): "Bravio delle Botti only happens on
+ * Sun 29 Aug, so I moved it there"; with several dates, which one it went to.
+ */
+export function onlyOnLine(title: string, date: string, dates: string[] = [date]): string {
+  const all = dates.length ? dates : [date];
+  const when = all.length === 1 ? dayLabel(all[0])
+    : all.length === 2 ? `${dayLabel(all[0])} and ${dayLabel(all[1])}`
+    : `${dayLabel(all[0])} to ${dayLabel(all[all.length - 1])}`;
+  return all.length === 1 ? `${title} only happens on ${when}, so I moved it there` : `${title} only happens on ${when}, so I moved it to ${dayLabel(date)}`;
 }

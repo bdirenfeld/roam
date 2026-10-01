@@ -572,7 +572,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
     const ownDay = chosen.map((c) => ({ c, to: dayForCard(c, days, day) })).filter((x) => x.to.moved);
     for (const { c, to } of ownDay) {
       const made = await scheduleCardOnDay(supabaseRef.current, { tripId: trip.id, dayId: to.day.id, placeId: c.place_id, place: c.place, details: c.details, sourceUrl: c.source_url });
-      if (made) { registerNewCardRef.current(made); toast({ message: onlyOnLine(c.place?.title ?? "It", to.day.date) }); }
+      if (made) { registerNewCardRef.current(made); toast({ message: onlyOnLine(c.place?.title ?? "It", to.day.date, to.dates) }); }
     }
     const picked = chosen.filter((c) => !ownDay.some((x) => x.c.id === c.id));
     if (!picked.length) { leavePick(); return; }

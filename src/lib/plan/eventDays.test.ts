@@ -62,10 +62,13 @@ describe("every door onto a day", () => {
   const days = Array.from({ length: 12 }, (_, i) => ({ id: "d" + (i + 1), date: new Date(Date.UTC(2027, 7, 24 + i)).toISOString().slice(0, 10) }));
   const bravio = { place: { sub_type: "event" }, details: { find: { why: "Usually Sun 29 Aug: barrel race" } } };
   it("puts the Bravio on Sunday whichever day was chosen, and says so", () => {
-    expect(dayForCard(bravio, days, days[2])).toEqual({ day: days[5], moved: true });
-    expect(dayForCard(bravio, days, days[5])).toEqual({ day: days[5], moved: false });
-    expect(dayForCard({ place: { sub_type: "restaurant" } }, days, days[2])).toEqual({ day: days[2], moved: false });
-    expect(onlyOnLine("Bravio delle Botti", "2027-08-29")).toBe("Bravio delle Botti is on Sun 29 Aug, so it's there");
+    expect(dayForCard(bravio, days, days[2])).toEqual({ day: days[5], moved: true, dates: ["2027-08-29"] });
+    expect(dayForCard(bravio, days, days[5])).toEqual({ day: days[5], moved: false, dates: ["2027-08-29"] });
+    expect(dayForCard({ place: { sub_type: "restaurant" } }, days, days[2])).toEqual({ day: days[2], moved: false, dates: [] });
+    // His wording (1 Oct 2026): say why it moved.
+    expect(onlyOnLine("Bravio delle Botti", "2027-08-29", ["2027-08-29"])).toBe("Bravio delle Botti only happens on Sun 29 Aug, so I moved it there");
+    expect(onlyOnLine("Saga Dai Nenbutsu Kyogen", "2028-04-08", ["2028-04-07", "2028-04-08"])).toBe("Saga Dai Nenbutsu Kyogen only happens on Fri 7 Apr and Sat 8 Apr, so I moved it to Sat 8 Apr");
+    expect(onlyOnLine("Yayoi Matsuri", "2028-04-13", ["2028-04-13", "2028-04-14", "2028-04-15"])).toBe("Yayoi Matsuri only happens on Thu 13 Apr to Sat 15 Apr, so I moved it to Thu 13 Apr");
   });
 });
 
@@ -77,7 +80,7 @@ describe("every door onto a day keeps an event to its days", () => {
     expect(board).toMatch(/const \{ day: target, moved \} = eventTarget\(d\.card, dayList\[g\.day\]\)/); // a card moved
     expect(board).toMatch(/const onOtherDays = dropped\.filter\(\(c\) => eventTarget\(c, target\)\.moved\)/); // several dropped
     const pop = readFileSync("src/components/map/MapPinPopup.tsx", "utf8");
-    expect(pop).toMatch(/const \{ day, moved \} = dayForCard\(card, days \?\? \[\], chosen\)/);
+    expect(pop).toMatch(/const \{ day, moved, dates \} = dayForCard\(card, days \?\? \[\], chosen\)/);
     expect(pop).toMatch(/placeId: card\.place_id, place: card\.place, details: card\.details/);
     const phone = readFileSync("src/components/map/FullMapClient.tsx", "utf8");
     expect(phone).toMatch(/dayForCard\(c, days, day\)/);
