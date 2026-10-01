@@ -68,6 +68,9 @@ interface Props {
   /** Guest view — render every section read-only; no edit/add/delete/move
    *  controls, no editable fields, and the confirmation reference is hidden. */
   readOnly?: boolean;
+  /** A hotel's check-out as the host worked it out (lib/stays/stayRuns), so
+   *  the sheet says the same day the week's band does when none is written. */
+  stayCheckOut?: string | null;
 }
 
 /** Drop the booking/flight confirmation reference so it never renders for a
@@ -392,7 +395,7 @@ function TitleEditor({
 }
 
 // ── Main component ─────────────────────────────────────────────
-export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDelete, onCardCopied, days, tripDestination, readOnly = false }: Props) {
+export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDelete, onCardCopied, days, tripDestination, readOnly = false, stayCheckOut = null }: Props) {
   // Every field save reverts on refusal; it also says so now (UX audit,
   // Sep 2026, finding 1). Before, eight sites logged to the console only.
   const { toast } = useToast();
@@ -926,7 +929,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       case "logistics/flight_departure":
         return <FlightArrivalDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
       case "logistics/hotel":
-        return <HotelDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
+        return <HotelDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} stayCheckOut={stayCheckOut} />;
       case "activity/wellness":
         return <WellnessDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
       default:

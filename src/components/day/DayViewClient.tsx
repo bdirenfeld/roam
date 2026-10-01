@@ -620,17 +620,20 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   // nights include today, and none once it is checked out. It used to carry
   // the last hotel to the journey's end, so a tester's Fort Lauderdale hotel
   // sat on every day of the cruise that followed it.
+  const stays = useMemo(
+    () => stayRuns(days.map((d) => ({ date: d.date, cards: hotelCards.filter((c) => c.day_id === d.id) })), trip.end_date),
+    [days, hotelCards, trip.end_date],
+  );
   const accommodationCard = useMemo(() => {
     if (!hotelCards.length) return null;
     const mappable = (c: Card) => c.place != null && c.place.lat != null && c.place.lng != null;
-    const runs = stayRuns(days.map((d) => ({ date: d.date, cards: hotelCards.filter((c) => c.day_id === d.id) })), trip.end_date);
-    const run = stayOn(runs, dayWithCards.date);
+    const run = stayOn(stays, dayWithCards.date);
     if (!run) return null;
     const same = hotelCards.filter((c) => c.place_id === run.placeId && mappable(c));
     // Today's own card of that hotel (check-in or check-out) when there is one,
     // so its pin is the numbered stop, not a second pin beside it.
     return same.find((c) => c.day_id === dayWithCards.id) ?? same.find((c) => c.id === run.cardId) ?? same[0] ?? null;
-  }, [hotelCards, dayWithCards.date, dayWithCards.id, days, trip.end_date]);
+  }, [hotelCards, stays, dayWithCards.date, dayWithCards.id]);
 
   // Is the hotel on THIS day's list, or carried forward from an earlier one?
   // localCards holds only this day, so finding it here means it has a row —
@@ -1091,6 +1094,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           onCardCopied={handleCardCopied}
           days={days}
           tripDestination={trip.destination}
+          stayCheckOut={stays.find((r) => r.placeId === selectedCard.place_id)?.checkOut ?? null}
           readOnly={readOnly}
         />
       )}

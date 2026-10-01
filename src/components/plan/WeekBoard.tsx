@@ -774,15 +774,15 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   // across the nights it covers, like an all-day event in Outlook (Brennan:
   // "the anytime row is where you should put the hotel row"). Untimed cards
   // moved into their own day's header.
+  const runs = useMemo(() => stayRuns(days.map((d) => ({ date: d.date, cards: d.cards })), trip.end_date), [days, trip.end_date]);
   const weekStays = useMemo(() => {
-    const runs = stayRuns(days.map((d) => ({ date: d.date, cards: d.cards })), trip.end_date);
     return runs.flatMap((run) => {
       const idx = shown.map((d, i) => (d.date >= run.checkIn && d.date < run.checkOut ? i : -1)).filter((i) => i >= 0);
       if (!idx.length) return [];
       const from = idx[0], to = idx[idx.length - 1];
       return [{ run, from, to, before: run.checkIn < shown[from].date, after: run.checkOut > addDays(shown[to].date, 1) }];
     });
-  }, [days, shown, trip.end_date]);
+  }, [runs, shown]);
 
   const hours: number[] = []; for (let h = HOUR_START; h <= HOUR_END; h++) hours.push(h);
   const gridStyle = { gridTemplateColumns: weekColumns(HOURS_W, nDays, COL_MIN, focusIdx), transition: "grid-template-columns 200ms ease" } as const;
@@ -941,7 +941,10 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                   >
                     <span className="inline-flex flex-shrink-0 opacity-80" dangerouslySetInnerHTML={{ __html: getMaterialIconHTML("hotel", 13) }} />
                     <span className="font-semibold truncate">{run.title}</span>
-                    <span className="ml-auto pl-2 text-activity/50 whitespace-nowrap flex-shrink-0">
+                    {/* Beside the name, not at the far end: a week wider than
+                        the window scrolled the dates out of sight. */}
+                    <span className="text-activity/50 whitespace-nowrap flex-shrink-0">· </span>
+                    <span className="text-activity/50 whitespace-nowrap flex-shrink-0">
                       {wide ? `${dayLabel(run.checkIn)} – ${dayLabel(run.checkOut)} · ` : ""}{run.nights} {run.nights === 1 ? "night" : "nights"}
                     </span>
                   </button>
@@ -1141,6 +1144,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
           onCardCopied={handleCardCopied}
           days={days}
           tripDestination={trip.destination}
+          stayCheckOut={runs.find((r) => r.placeId === selectedCard.place_id)?.checkOut ?? null}
         />
       )}
       {showDocs && <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} />}

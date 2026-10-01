@@ -21,6 +21,14 @@ describe("check-out day on the hotel's sheet", () => {
     expect(save).toHaveBeenCalledWith("check_out", "2026-07-27");
   });
 
+  it("shows the day the week's band shows when none is written (Tuscany's villa)", () => {
+    render(<HotelDetail card={hotel({})} onSaveDetails={vi.fn()} stayCheckOut="2027-09-04" />);
+    expect((screen.getByLabelText("Check-out day") as HTMLInputElement).value).toBe("2027-09-04");
+    // Check-in reads first.
+    const labels = Array.from(document.querySelectorAll("p")).map((p) => p.textContent);
+    expect(labels.indexOf("Check-in")).toBeLessThan(labels.indexOf("Check-out day"));
+  });
+
   it("reads Santa Barbara's check_out_date", () => {
     render(<HotelDetail card={hotel({ check_out_date: "2026-10-12" })} onSaveDetails={vi.fn()} />);
     expect((screen.getByLabelText("Check-out day") as HTMLInputElement).value).toBe("2026-10-12");

@@ -7,6 +7,8 @@ interface Props {
   card: Card;
   onSaveDetails?: (field: string, value: unknown) => void;
   showEmpty?: boolean;
+  /** The check-out the journey implies (lib/stays/stayRuns) when none is written. */
+  stayCheckOut?: string | null;
 }
 
 function fmtTime(t: string | null): string | null {
@@ -16,8 +18,10 @@ function fmtTime(t: string | null): string | null {
   return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, "0")} ${p}`;
 }
 
-export default function HotelDetail({ card, onSaveDetails, showEmpty = false }: Props) {
-  const d = card.details as { confirmation?: string; notes?: string };
+const isIso = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
+
+export default function HotelDetail({ card, onSaveDetails, showEmpty = false, stayCheckOut = null }: Props) {
+  const d = card.details as { confirmation?: string; notes?: string; check_out?: unknown; check_out_date?: unknown };
   const save = (field: string) =>
     onSaveDetails ? (v: string) => onSaveDetails(field, v || null) : undefined;
   const hide = !showEmpty;
@@ -25,10 +29,9 @@ export default function HotelDetail({ card, onSaveDetails, showEmpty = false }: 
   const checkIn  = fmtTime(card.start_time);
   const checkOut = fmtTime(card.end_time);
   // The day you leave (1 Oct 2026): it is what makes the hotel cover every
-  // night between, on the week's band and the phone's map (lib/stays/stayRuns).
-  const raw = card.details as { check_out?: unknown; check_out_date?: unknown };
-  const isIso = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
-  const leaveDay = isIso(raw.check_out) ? raw.check_out : isIso(raw.check_out_date) ? raw.check_out_date : "";
+  // night between, on the week's band and the phone's map. Written on the card
+  // if set; otherwise the day the band already shows, so the two agree.
+  const leaveDay = isIso(d.check_out) ? d.check_out : isIso(d.check_out_date) ? d.check_out_date : isIso(stayCheckOut) ? stayCheckOut : "";
   const canSetLeave = !!onSaveDetails && !!card.day_id;
   const hasStayData = checkIn || checkOut || d.confirmation || leaveDay;
 
@@ -39,9 +42,18 @@ export default function HotelDetail({ card, onSaveDetails, showEmpty = false }: 
         <div>
           <SectionLabel>Stay</SectionLabel>
           <div className="space-y-4">
+            {checkIn && (
+              <div className="flex items-start gap-3">
+                <span className="flex-shrink-0 w-5 text-center text-base mt-0.5 leading-none">🔑</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Check-in</p>
+                  <p className="text-sm font-medium text-gray-800">{checkIn}</p>
+                </div>
+              </div>
+            )}
             {(canSetLeave || leaveDay) && (
               <div className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-5 text-center text-base mt-0.5 leading-none">🛏️</span>
+                <span className="flex-shrink-0 w-5 text-center text-base mt-0.5 leading-none">🧳</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Check-out day</p>
                   {canSetLeave ? (
@@ -58,20 +70,11 @@ export default function HotelDetail({ card, onSaveDetails, showEmpty = false }: 
                 </div>
               </div>
             )}
-            {checkIn && (
-              <div className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-5 text-center text-base mt-0.5 leading-none">🔑</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Check-in</p>
-                  <p className="text-sm font-medium text-gray-800">{checkIn}</p>
-                </div>
-              </div>
-            )}
             {checkOut && (
               <div className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-5 text-center text-base mt-0.5 leading-none">🧳</span>
+                <span className="flex-shrink-0 w-5 text-center text-base mt-0.5 leading-none">🕚</span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Check-out</p>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Check-out time</p>
                   <p className="text-sm font-medium text-gray-800">{checkOut}</p>
                 </div>
               </div>

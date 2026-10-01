@@ -43,7 +43,7 @@ describe("the week's top rows", () => {
     const stays = within(band).getAllByTestId("stay");
     expect(stays).toHaveLength(1);
     expect(stays[0].textContent).toContain("Villa Zambaldi");
-    expect(stays[0].textContent).toContain("11 nights");
+    expect(stays[0].textContent).toMatch(/Villa Zambaldi· 24 Aug – 4 Sept? · 11 nights$/);
     // It runs on into next week.
     expect(stays[0].style.borderRightStyle).toBe("dashed");
     expect(screen.queryByText("Anytime")).toBeNull();
