@@ -37,10 +37,26 @@ export function googleQuery(subType: string, base: string, ask: string | null): 
  * city during the journey's own dates, and skips Google.
  */
 export const DATED = new Set(["event", "challenge", "camp"]);
+
+/**
+ * What each category is, in words the search cannot misread (30 Sep 2026).
+ * Asked only for "tour", Tuscany's travellers' picks were the city walls, two
+ * towers, a trattoria and a bike shop; "wellness" brought an adventure park.
+ */
+const TRAVELLER_WORDS: Record<string, string> = {
+  self_directed: "sights and places to explore on your own: landmarks, museums, old towns, parks, viewpoints",
+  guided: "tours, classes and experiences you book with a guide or teacher: walking, bike and food tours, cooking classes, boat trips (never a sight on its own, a restaurant or a shop)",
+  restaurant: "restaurants for a proper lunch or dinner",
+  coffee: "cafés and coffee bars",
+  dessert: "gelato, pastry, bakery and dessert shops",
+  bar: "bars, wine bars and cocktail bars (not cafés or restaurants)",
+  wellness: "spas, massage, thermal baths and hot springs (not gyms or adventure parks)",
+  beach: "beaches and beach clubs",
+};
 const DATED_WORDS: Record<string, string> = {
   event: "festivals, concerts, shows, markets and other events",
   challenge: "running races and other organised races or rides",
-  camp: "kids' day camps and holiday programmes",
+  camp: "day camps and holiday programmes a visiting child can join by the day or the week, each a specific named camp (never a scheme, a directory, a school or a festival)",
 };
 
 export function travellersPrompt(opts: {
@@ -61,7 +77,7 @@ export function travellersPrompt(opts: {
     : opts.kids ? `a family of ${opts.party} with children`
     : `${opts.party} adult${opts.party === 1 ? "" : "s"}`;
   const whoAll = opts.seniors ? `${who}, including someone over 65 (favour easy access: little walking, few stairs)` : who;
-  const what = opts.ask && opts.ask.trim() ? opts.ask.trim() : `${label.toLowerCase()} (Roam's category "${label}")`;
+  const what = opts.ask && opts.ask.trim() ? opts.ask.trim() : `${TRAVELLER_WORDS[opts.subType] ?? label.toLowerCase()} (Roam's category "${label}")`;
   const where = `${opts.base}${opts.country ? `, ${opts.country}` : ""}`;
   if (DATED.has(opts.subType) && !(opts.ask && opts.ask.trim()) && opts.from && opts.to) {
     // Events reach a day trip away and lead with what is special to those
@@ -71,7 +87,8 @@ export function travellersPrompt(opts: {
     const lead = opts.subType === "event"
       ? `\nLead with what makes these dates special here: traditional festivals, palios and historic races, village food
 festivals, feast-day processions and re-enactments, the kind a visitor would plan a day around and could only see
-on these dates. Then the best concerts, shows and markets.`
+on these dates. The region's best-known ones first, even two hours away, then nearer ones. Then the best concerts,
+shows and markets.`
       : "";
     return `Find ${DATED_WORDS[opts.subType]} happening ${reach} between ${opts.from} and ${opts.to}, for ${whoAll}.${lead}
 Search event listings, official city, regional and tourism sites, race calendars and local news for that year. Only include
@@ -147,9 +164,14 @@ export function parseTravellers(text: string): TravellerPick[] {
 export function cacheKey(opts: { mode: "google" | "travellers"; lat: number; lng: number; subType: string; ask: string | null; kids: boolean; near?: { lat: number; lng: number }[]; when?: string | null }): string {
   const q = (opts.ask ?? "").trim().toLowerCase().replace(/\s+/g, " ");
   const near = (opts.near ?? []).map((p) => `${p.lat.toFixed(2)},${p.lng.toFixed(2)}`).join(";");
-  return [opts.mode, opts.lat.toFixed(2), opts.lng.toFixed(2), opts.subType, q, opts.kids ? "kids" : "adults", near, opts.when ?? ""].join("|");
+  // The travellers' answers carry the prompt's version: a better question must
+  // not be answered from last week's cache (FIND_PROMPT_V).
+  const mode = opts.mode === "travellers" ? `travellers${FIND_PROMPT_V}` : opts.mode;
+  return [mode, opts.lat.toFixed(2), opts.lng.toFixed(2), opts.subType, q, opts.kids ? "kids" : "adults", near, opts.when ?? ""].join("|");
 }
 export const CACHE_DAYS = 30;
+/** Bump when the travellers' prompt changes, so cached answers are asked again. */
+export const FIND_PROMPT_V = "v2";
 
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 /**

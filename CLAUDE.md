@@ -1915,3 +1915,8 @@ the component mounted and you are looking at throttling, not a broken map.
 - Google's beaches must be beaches (`isBeach`: name in his languages or natural_feature) — a racecourse,
   a store, a gym, Santa Croce came back. Google's tours must be tours (`isTour`; never a company listing)
   — Shimane had a TV station, a university, a consultancy. The travellers' halves were fine.
+- Travellers' picks misfiled (Tuscany Tours: walls, towers, a trattoria, a bike shop; Camps: a voucher scheme,
+  a church; Wellness: an adventure park): the prompt said only the category's name. TRAVELLER_WORDS now says
+  what each category is and isn't; camps must be named camps; events put the region's best-known first, even
+  2 h away (the Bravio dropped out once Lucca's own festivals filled the list). Cache key carries
+  FIND_PROMPT_V ("travellersv2") — bump it whenever the prompt changes, or old answers are served for 30 days.

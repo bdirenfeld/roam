@@ -34,7 +34,8 @@ describe("parseTravellers", () => {
 describe("cacheKey", () => {
   it("one answer per base, category, question and kind of party", () => {
     const k = (o: Partial<Parameters<typeof cacheKey>[0]>) => cacheKey({ mode: "travellers", lat: 41.9028, lng: 12.4964, subType: "restaurant", ask: null, kids: false, ...o });
-    expect(k({})).toBe("travellers|41.90|12.50|restaurant||adults||");
+    // The travellers' answers carry the prompt version (FIND_PROMPT_V): a better question is asked again.
+    expect(k({})).toBe("travellersv2|41.90|12.50|restaurant||adults||");
     expect(k({ near: [{ lat: 40.7795, lng: -73.9695 }] })).not.toBe(k({})); // coffee near the day is its own answer
     expect(k({ when: "2026-04-22|2026-04-28" })).not.toBe(k({}));
     expect(k({ lat: 41.9031 })).toBe(k({}));            // two journeys to Rome share
@@ -137,5 +138,15 @@ describe("seniors on the trip", () => {
     const p = travellersPrompt({ base: "Sydney", country: "Australia", subType: "self_directed", ask: null, party: 3, childAges: [8], seniors: true, month: "January 2026" });
     expect(p).toMatch(/including someone over 65 \(favour easy access: little walking, few stairs\)/);
     expect(travellersPrompt({ base: "Sydney", country: "Australia", subType: "self_directed", ask: null, party: 3, childAges: [8], month: "January 2026" })).not.toMatch(/over 65/);
+  });
+});
+
+describe("the travellers' search is told what each category is", () => {
+  it("Tours are booked tours and classes, never a sight or a trattoria; camps are named camps", () => {
+    const tour = travellersPrompt({ base: "Lucca", country: "Italy", subType: "guided", ask: null, party: 5, childAges: [10, 8, 5], month: "August 2027" });
+    expect(tour).toMatch(/tours, classes and experiences you book/);
+    expect(tour).toMatch(/never a sight on its own, a restaurant or a shop/);
+    const camp = travellersPrompt({ base: "Lucca", country: "Italy", subType: "camp", ask: null, party: 5, childAges: [10, 8, 5], month: "August 2027", from: "2027-08-24", to: "2027-09-04" });
+    expect(camp).toMatch(/each a specific named camp/);
   });
 });
