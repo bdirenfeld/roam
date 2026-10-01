@@ -53,3 +53,14 @@ export function partyLine(p: Party): string {
 export function hasSeniors(ages: number[] | null): boolean {
   return (ages ?? []).some((a) => a >= SENIOR_FROM);
 }
+
+/**
+ * Ages carried from one trip to a later one: everyone is older by the whole
+ * years between them. New journeys start from the last journey's party
+ * (30 Sep 2026) — a year on, Sai is 11, not 10.
+ */
+export function ageForward(ages: number[] | null, fromDate: string | null, toDate: string | null): number[] | null {
+  if (!ages || !fromDate || !toDate) return ages;
+  const years = Math.floor((Date.parse(toDate + "T00:00:00Z") - Date.parse(fromDate + "T00:00:00Z")) / (365.25 * 86_400_000));
+  return years ? ages.map((a) => Math.max(0, a + years)) : ages;
+}

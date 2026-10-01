@@ -32,7 +32,7 @@ import {
 import type { OpenWindow, TravelWindowRow } from "@/lib/yearView/openWindows";
 import { isHouseholdOwner } from "@/lib/household";
 import PartyPicker from "@/components/trip/PartyPicker";
-import { partyFrom, agesFrom, partySize as sizeOf, type Party } from "@/lib/party";
+import { partyFrom, agesFrom, ageForward, partySize as sizeOf, type Party } from "@/lib/party";
 
 const UNSPLASH_KEY = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY;
 
@@ -207,16 +207,23 @@ export default function NewJourneyForm({
       const supabase = createClient();
       const { data } = await supabase
         .from("trips")
-        .select("party_size, party_ages")
+        .select("party_size, party_ages, start_date")
         .not("party_size", "is", null)
         .order("start_date", { ascending: false })
         .limit(1)
         .maybeSingle();
-      const last = data as { party_size?: number | null; party_ages?: number[] | null } | null;
-      if (!cancelled && !partyTouched.current && last?.party_size && last.party_size > 0) setParty(partyFrom(last.party_size, last.party_ages ?? null));
+      const last = data as { party_size?: number | null; party_ages?: number[] | null; start_date?: string | null } | null;
+      if (!cancelled && last?.party_size && last.party_size > 0) setLastParty({ size: last.party_size, ages: last.party_ages ?? null, start: last.start_date ?? null });
     })();
     return () => { cancelled = true; };
   }, []);
+  // The last journey's travellers, aged to this journey's dates once they are
+  // picked (lib/party ageForward): a year later, the kids are a year older.
+  const [lastParty, setLastParty] = useState<{ size: number; ages: number[] | null; start: string | null } | null>(null);
+  useEffect(() => {
+    if (!lastParty || partyTouched.current) return;
+    setParty(partyFrom(lastParty.size, ageForward(lastParty.ages, lastParty.start, startDate || new Date().toISOString().slice(0, 10))));
+  }, [lastParty, startDate]);
   const [saving,        setSaving]        = useState(false);
   const [saveError,     setSaveError]     = useState<string | null>(null);
 

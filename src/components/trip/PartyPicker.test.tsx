@@ -6,8 +6,11 @@ import PartyPicker from "./PartyPicker";
 afterEach(cleanup);
 
 describe("PartyPicker", () => {
-  it("shows adults, each kid's age and seniors (Japan: two adults, kids 10, 8 and 5)", () => {
+  it("one line until tapped, then adults, each kid's age and seniors (Japan: two adults, kids 10, 8 and 5)", () => {
     render(<PartyPicker party={{ adults: 2, seniors: 0, kids: [10, 8, 5] }} onChange={vi.fn()} labelClass="" />);
+    expect(screen.getByText("2 adults · 3 kids (10, 8, 5)")).toBeTruthy();
+    expect(screen.queryByText("Adults")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Travellers/ }));
     expect(screen.getByText("Adults")).toBeTruthy();
     expect(screen.getByText("Seniors")).toBeTruthy();
     expect((screen.getByLabelText("Kid 1's age") as HTMLSelectElement).value).toBe("10");
@@ -17,6 +20,7 @@ describe("PartyPicker", () => {
   it("adds a kid with an age to set, changes an age, adds a senior", () => {
     const onChange = vi.fn();
     render(<PartyPicker party={{ adults: 2, seniors: 0, kids: [10] }} onChange={onChange} labelClass="" />);
+    fireEvent.click(screen.getByRole("button", { name: /Travellers/ }));
     fireEvent.click(screen.getByLabelText("More kids"));
     expect(onChange).toHaveBeenLastCalledWith({ adults: 2, seniors: 0, kids: [10, 8] });
     fireEvent.change(screen.getByLabelText("Kid 1's age"), { target: { value: "11" } });
@@ -27,6 +31,8 @@ describe("PartyPicker", () => {
 
   it("never lets the trip have nobody on it", () => {
     render(<PartyPicker party={{ adults: 1, seniors: 0, kids: [] }} onChange={vi.fn()} labelClass="" />);
+    expect(screen.getByText("1 adult")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Travellers/ }));
     expect((screen.getByLabelText("Fewer adults") as HTMLButtonElement).disabled).toBe(true);
     expect(screen.queryByLabelText("Kid 1's age")).toBeNull();
   });

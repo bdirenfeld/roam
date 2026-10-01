@@ -23,3 +23,13 @@ describe("who is travelling", () => {
     expect(hasSeniors([43, 41])).toBe(false);
   });
 });
+
+import { ageForward } from "./party";
+describe("ages carried to a later trip", () => {
+  it("Japan (Apr 2028) after Tuscany (Aug 2027): everyone is the same age; a year later, a year older", () => {
+    expect(ageForward([43, 40, 10, 8, 5], "2027-08-24", "2028-04-02")).toEqual([43, 40, 10, 8, 5]);
+    expect(ageForward([43, 41, 10, 8, 5], "2028-04-02", "2029-04-10")).toEqual([44, 42, 11, 9, 6]);
+    expect(ageForward(null, "2028-04-02", "2029-04-10")).toBeNull();
+    expect(ageForward([10], "2028-04-02", null)).toEqual([10]);
+  });
+});

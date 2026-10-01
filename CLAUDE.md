@@ -1894,3 +1894,6 @@ the component mounted and you are looking at throttling, not a broken map.
   party_size + party_ages via lib/party (`partyFrom` / `agesFrom`): real ages kept, new adults 40, seniors
   70; kid = under 18, senior = 65+. Plan my trip plans gently for seniors as for young kids; Find tells the
   search "over 65: easy access". Names/birthdays (TravellersSection) stay hidden: a family profile is later.
+- Travellers is one line ("2 adults · 3 kids (10, 8, 5)") until tapped — his "is this the best design"; a
+  saved family profile was rejected ("won't work for all users"). New journeys start from the last journey's
+  party aged to the new dates (`ageForward`).

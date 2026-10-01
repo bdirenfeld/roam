@@ -1,12 +1,17 @@
 "use client";
 
-import { partySize, type Party } from "@/lib/party";
+import { useState } from "react";
+import { partySize, partyLine, type Party } from "@/lib/party";
 
 /**
  * Who is travelling: adults, kids with their ages, seniors (30 Sep 2026,
  * Brennan: "put in kids, their ages, and if people are seniors"). One control
  * for New journey and Trip settings, in the row style both already use. The
  * ages feed Plan my trip's pace and Find (lib/party).
+ *
+ * One line until tapped ("2 adults · 3 kids (10, 8, 5)"): set once a trip,
+ * so the counters and age pickers are not on the screen the rest of the time
+ * (his "is this the best design", same day).
  */
 
 const KID_DEFAULT = 8;
@@ -38,13 +43,24 @@ function Stepper({ label, value, min, onChange }: { label: string; value: number
 }
 
 export default function PartyPicker({ party, onChange, labelClass }: { party: Party; onChange: (p: Party) => void; labelClass: string }) {
+  const [open, setOpen] = useState(false);
   const total = partySize(party);
   // Never fewer than one traveller.
   const min = (n: number) => (total - n >= 1 ? 0 : n);
   return (
-    <div className="flex items-start px-5 py-[14px] border-b border-black/5">
-      <span className={`text-[10px] uppercase tracking-widest w-20 flex-shrink-0 pt-1 ${labelClass}`}>Travellers</span>
-      <div className="flex flex-col gap-2.5">
+    <div className="border-b border-black/5">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="w-full flex items-center px-5 py-[14px] text-left"
+      >
+        <span className={`text-[10px] uppercase tracking-widest w-20 flex-shrink-0 ${labelClass}`}>Travellers</span>
+        <span className="flex-1 text-[14px] text-[#1A1A2E]">{partyLine(party)}</span>
+        <span className="text-[12px] text-gray-400 flex-shrink-0">{open ? "Done" : "Change"}</span>
+      </button>
+      {open && (
+      <div className="flex flex-col gap-2.5 pl-[100px] pr-5 pb-[14px]">
         <Stepper label="Adults" value={party.adults} min={min(party.adults)} onChange={(n) => onChange({ ...party, adults: n })} />
         <Stepper
           label="Kids"
@@ -71,6 +87,7 @@ export default function PartyPicker({ party, onChange, labelClass }: { party: Pa
         )}
         <Stepper label="Seniors" value={party.seniors} min={min(party.seniors)} onChange={(n) => onChange({ ...party, seniors: n })} />
       </div>
+      )}
     </div>
   );
 }
