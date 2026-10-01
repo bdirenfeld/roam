@@ -58,6 +58,10 @@ export async function POST(req: NextRequest) {
     ...((people ?? []).map((p) => (p.birthdate ? Math.floor((start - Date.parse(p.birthdate + "T12:00:00Z")) / (365.25 * 86_400_000)) : null)).filter((a): a is number => a != null)),
   ];
   const childAges = ages.filter((a) => a < 13);
+  // Children with no ages saved: a party of three or more might have them, as
+  // Plan my trip assumes (lib/plan/draftRows hasChildren). Japan has no ages,
+  // and its events came back with the Kanamara Matsuri (30 Sep 2026).
+  const kids = childAges.length > 0 || (ages.length === 0 && (trip.party_size ?? 0) >= 3);
   const tripPlaces = ((onTrip ?? []) as unknown as { place: { google_place_id: string | null; title: string; lat: number | null; lng: number | null } | null }[]).map((c) => c.place).filter((p): p is NonNullable<typeof p> => !!p);
   const already = new Set(tripPlaces.map((p) => p.google_place_id).filter((x): x is string => !!x));
   const known = tripPlaces.filter((p) => p.lat != null && p.lng != null).map((p) => ({ name: p.title, lat: p.lat!, lng: p.lng! }));
@@ -75,7 +79,7 @@ export async function POST(req: NextRequest) {
     ? (body?.near ?? []).filter((p): p is { lat: number; lng: number } => typeof p?.lat === "number" && typeof p?.lng === "number").slice(0, 4)
     : [];
   const nearNames = near.length ? (body?.nearNames ?? []).filter((n) => typeof n === "string").slice(0, 6).map((n) => n.slice(0, 60)) : [];
-  const key = cacheKey({ mode, lat: base.lat, lng: base.lng, subType, ask, kids: childAges.length > 0, near, when: dated ? `${trip.start_date}|${trip.end_date}|region2` : null });
+  const key = cacheKey({ mode, lat: base.lat, lng: base.lng, subType, ask, kids, near, when: dated ? `${trip.start_date}|${trip.end_date}|region2` : null });
   const answer = (found: FindResult[]) => NextResponse.json({
     results: withinWalk(mode === "travellers" ? mergeFind({ lat: base.lat!, lng: base.lng! }, found, [], already, known, farKm) : mergeFind({ lat: base.lat!, lng: base.lng! }, [], found, already, known, farKm), near),
     mode,
@@ -116,7 +120,7 @@ export async function POST(req: NextRequest) {
         model: "claude-sonnet-4-6",
         // Room for the answer after up to five searches: 1500 cut Tuscany's events off mid-reply (30 Sep 2026).
         max_tokens: 4000,
-        messages: [{ role: "user", content: travellersPrompt({ base: base.label!, country, subType, ask, party: trip.party_size ?? ages.length ?? 2, childAges, month, from: trip.start_date, to: trip.end_date, near: nearNames }) }],
+        messages: [{ role: "user", content: travellersPrompt({ base: base.label!, country, subType, ask, party: trip.party_size ?? ages.length ?? 2, childAges, kids, month, from: trip.start_date, to: trip.end_date, near: nearNames }) }],
         // Events search a region's calendars, not one town's: more reading.
         tools: [{ type: "web_search_20250305", name: "web_search", max_uses: subType === "event" ? 5 : 3 }],
       });
@@ -125,13 +129,13 @@ export async function POST(req: NextRequest) {
       const picks = parseTravellers(text)
         .filter((p) => !dated || onTripDates(p.why, trip.start_date as string, trip.end_date as string))
         // With children, an event the search itself says is not for them is left out (Kanamara Matsuri, Tokyo).
-        .filter((p) => !dated || !childAges.length || p.kids)
+        .filter((p) => !dated || !kids || p.kids)
         .map((p) => (dated ? { ...p, why: fixWeekdays(p.why, trip.start_date as string, trip.end_date as string) } : p));
       // What the search named, and what Google could place: an empty list is otherwise silent.
       console.log("[find] travellers", subType, base.label, "named", picks.length, picks.map((p) => p.name).join(" / ").slice(0, 400), picks.length ? "" : `stop=${res.stop_reason} text=${text.slice(-300)}`);
       const checked = await Promise.all(picks.map(async (p) => {
         const g = await findOnGoogle(`${p.name}, ${p.near ?? base.label}`);
-        return g ? toResult(g, "travellers", p.why, p.sourceUrl ? { name: p.sourceName ?? new URL(p.sourceUrl).hostname, url: p.sourceUrl } : null, childAges.length > 0 && p.kids) : null;
+        return g ? toResult(g, "travellers", p.why, p.sourceUrl ? { name: p.sourceName ?? new URL(p.sourceUrl).hostname, url: p.sourceUrl } : null, kids && p.kids) : null;
       }));
       return checked.filter((x): x is FindResult => x !== null);
     } catch (e) {
@@ -167,9 +171,9 @@ export async function POST(req: NextRequest) {
       raw = (j?.results ?? []).slice(0, 20);
     }
     return raw.map((g) => {
-      const kids = childAges.length > 0 && (g.types ?? []).some((t) => KIDS_TYPES.includes(t));
+      const forKids = kids && (g.types ?? []).some((t) => KIDS_TYPES.includes(t));
       const why = g.rating ? `Rated ${g.rating} on Google from ${(g.user_ratings_total ?? 0).toLocaleString("en-US")} reviews.` : "Well rated on Google.";
-      return toResult(g, "google", why, null, kids);
+      return toResult(g, "google", why, null, forKids);
     }).filter((x): x is FindResult => x !== null);
   };
 

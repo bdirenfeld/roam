@@ -1882,3 +1882,5 @@ the component mounted and you are looking at throttling, not a broken map.
   `fixWeekdays` corrects "Sun 13 Apr" on a 2028 trip (a rule like "2nd Sun of Apr" gives the real date;
   otherwise the weekday is fixed). With children, events the search marks kids:false are dropped and the
   prompt says no adult-themed festivals (Kanamara Matsuri came back for Japan). Cache key "region2".
+- Find treats a party of 3+ with no ages saved as having children (as hasChildren does): Japan has no
+  ages, so the adult-themed filter never ran and Kanamara Matsuri stayed.

@@ -46,6 +46,8 @@ const DATED_WORDS: Record<string, string> = {
 export function travellersPrompt(opts: {
   base: string; country: string | null; subType: string; ask: string | null;
   party: number; childAges: number[]; month: string;
+  /** Children on the trip whose ages are not saved (a party of three or more, as Plan my trip assumes). */
+  kids?: boolean;
   /** The journey's dates, for the dated kinds. */
   from?: string; to?: string;
   /** Sights the days are built around, for coffee and dessert near them. */
@@ -54,6 +56,7 @@ export function travellersPrompt(opts: {
   const label = FIND_CATEGORIES.find((c) => c.subType === opts.subType)?.label ?? "Places";
   const who = opts.childAges.length
     ? `a family of ${opts.party} with children aged ${opts.childAges.join(", ")}`
+    : opts.kids ? `a family of ${opts.party} with children`
     : `${opts.party} adult${opts.party === 1 ? "" : "s"}`;
   const what = opts.ask && opts.ask.trim() ? opts.ask.trim() : `${label.toLowerCase()} (Roam's category "${label}")`;
   const where = `${opts.base}${opts.country ? `, ${opts.country}` : ""}`;
@@ -73,7 +76,7 @@ things that take place on at least one of those dates; never a venue with nothin
 published yet, include events held every year on those dates (a fixed day, or a rule like "the last Sunday of August")
 and start "why" with "Usually" and the day.
 The journey's days, with their weekdays: ${tripCalendar(opts.from, opts.to)}. Give dates for that year, and work out a
-rule like "the second Sunday of April" from this calendar, not from another year's.${opts.childAges.length ? `
+rule like "the second Sunday of April" from this calendar, not from another year's.${opts.childAges.length || opts.kids ? `
 Children are on this trip: leave out adult-themed events (sexual themes, nightlife, drinking festivals).` : ""}
 Name up to 8. For each, "name" is the venue or starting point Google Maps would know, "near" is the neighbourhood.
 Reply with JSON only:

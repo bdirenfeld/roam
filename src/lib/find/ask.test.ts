@@ -114,3 +114,12 @@ describe("rule dates", () => {
     expect(fixWeekdays("Usually Sat 1 Apr (fourth Saturday of April): x", "2028-04-01", "2028-04-30")).toBe("Usually Sat 22 Apr (fourth Saturday of April): x");
   });
 });
+
+describe("children with no ages saved", () => {
+  it("Japan (party of five, no ages): the search is told there are children and to skip adult-themed events", () => {
+    const p = travellersPrompt({ base: "Tokyo", country: "Japan", subType: "event", ask: null, party: 5, childAges: [], kids: true, month: "April 2028", from: "2028-04-02", to: "2028-04-15" });
+    expect(p).toMatch(/a family of 5 with children/);
+    expect(p).toMatch(/leave out adult-themed events/);
+    expect(travellersPrompt({ base: "Rome", country: "Italy", subType: "event", ask: null, party: 2, childAges: [], month: "April 2026", from: "2026-04-22", to: "2026-04-28" })).not.toMatch(/adult-themed/);
+  });
+});
