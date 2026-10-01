@@ -1878,3 +1878,7 @@ the component mounted and you are looking at throttling, not a broken map.
   ran past 60 s on Tuscany's events (504).
 - Event results must fall on the trip's dates (`onTripDates`, lib/find/ask): the search returned the
   Luminara (13 Sep) for a trip ending 4 Sep. First good run: Bravio delle Botti, "Usually Sun 29 Aug".
+- Event dates in the trip's own year: the prompt carries the trip's calendar (`tripCalendar`), and
+  `fixWeekdays` corrects "Sun 13 Apr" on a 2028 trip (a rule like "2nd Sun of Apr" gives the real date;
+  otherwise the weekday is fixed). With children, events the search marks kids:false are dropped and the
+  prompt says no adult-themed festivals (Kanamara Matsuri came back for Japan). Cache key "region2".

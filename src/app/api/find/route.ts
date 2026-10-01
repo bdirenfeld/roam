@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
-import { googleQuery, travellersPrompt, parseTravellers, cacheKey, CACHE_DAYS, DATED, onTripDates } from "@/lib/find/ask";
+import { googleQuery, travellersPrompt, parseTravellers, cacheKey, CACHE_DAYS, DATED, onTripDates, fixWeekdays } from "@/lib/find/ask";
 import { NEAR_PLAN, withinWalk } from "@/lib/find/near";
 import { mergeFind, fitsCategory, FAR_KM, EVENT_FAR_KM, type FindResult } from "@/lib/find/merge";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
     ? (body?.near ?? []).filter((p): p is { lat: number; lng: number } => typeof p?.lat === "number" && typeof p?.lng === "number").slice(0, 4)
     : [];
   const nearNames = near.length ? (body?.nearNames ?? []).filter((n) => typeof n === "string").slice(0, 6).map((n) => n.slice(0, 60)) : [];
-  const key = cacheKey({ mode, lat: base.lat, lng: base.lng, subType, ask, kids: childAges.length > 0, near, when: dated ? `${trip.start_date}|${trip.end_date}|region` : null });
+  const key = cacheKey({ mode, lat: base.lat, lng: base.lng, subType, ask, kids: childAges.length > 0, near, when: dated ? `${trip.start_date}|${trip.end_date}|region2` : null });
   const answer = (found: FindResult[]) => NextResponse.json({
     results: withinWalk(mode === "travellers" ? mergeFind({ lat: base.lat!, lng: base.lng! }, found, [], already, known, farKm) : mergeFind({ lat: base.lat!, lng: base.lng! }, [], found, already, known, farKm), near),
     mode,
@@ -122,7 +122,11 @@ export async function POST(req: NextRequest) {
       });
       const text = res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("\n");
       // Dated kinds keep to the journey's dates (lib/find/ask onTripDates).
-      const picks = parseTravellers(text).filter((p) => !dated || onTripDates(p.why, trip.start_date as string, trip.end_date as string));
+      const picks = parseTravellers(text)
+        .filter((p) => !dated || onTripDates(p.why, trip.start_date as string, trip.end_date as string))
+        // With children, an event the search itself says is not for them is left out (Kanamara Matsuri, Tokyo).
+        .filter((p) => !dated || !childAges.length || p.kids)
+        .map((p) => (dated ? { ...p, why: fixWeekdays(p.why, trip.start_date as string, trip.end_date as string) } : p));
       // What the search named, and what Google could place: an empty list is otherwise silent.
       console.log("[find] travellers", subType, base.label, "named", picks.length, picks.map((p) => p.name).join(" / ").slice(0, 400), picks.length ? "" : `stop=${res.stop_reason} text=${text.slice(-300)}`);
       const checked = await Promise.all(picks.map(async (p) => {

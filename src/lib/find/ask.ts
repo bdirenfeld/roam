@@ -72,6 +72,9 @@ Search event listings, official city, regional and tourism sites, race calendars
 things that take place on at least one of those dates; never a venue with nothing on. If that year's programme is not
 published yet, include events held every year on those dates (a fixed day, or a rule like "the last Sunday of August")
 and start "why" with "Usually" and the day.
+The journey's days, with their weekdays: ${tripCalendar(opts.from, opts.to)}. Give dates for that year, and work out a
+rule like "the second Sunday of April" from this calendar, not from another year's.${opts.childAges.length ? `
+Children are on this trip: leave out adult-themed events (sexual themes, nightlife, drinking festivals).` : ""}
 Name up to 8. For each, "name" is the venue or starting point Google Maps would know, "near" is the neighbourhood.
 Reply with JSON only:
 {"places":[{"name":string,"near":string,"why":string,"source_name":string,"source_url":string,"kids":boolean}]}
@@ -149,4 +152,64 @@ export function onTripDates(why: string, from: string, to: string): boolean {
     const month = MONTHS.indexOf(m[2].toLowerCase().slice(0, 3));
     return Array.from(years).some((y) => { const t = Date.UTC(y, month, Number(m[1])); return t >= a && t <= b; });
   });
+}
+
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/**
+ * The journey's days with their weekdays, for the events search. Japan's
+ * answer said "Sun 13 Apr" for April 2028, when the 13th is a Thursday: the
+ * weekdays came from another year (30 Sep 2026).
+ */
+export function tripCalendar(from: string, to: string): string {
+  const a = Date.parse(from + "T00:00:00Z"), b = Date.parse(to + "T00:00:00Z");
+  const out: string[] = [];
+  for (let t = a; t <= b && out.length < 40; t += 86_400_000) {
+    const d = new Date(t);
+    out.push(`${DAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MON[d.getUTCMonth()]}`);
+  }
+  return `${out.join(", ")} (${new Date(a).getUTCFullYear()})`;
+}
+
+/**
+ * A weekday that does not match its date on the journey is corrected: "Sun 13
+ * Apr" on a 2028 trip reads "Thu 13 Apr". Dates outside the journey are left
+ * for onTripDates to judge.
+ */
+export function fixWeekdays(why: string, from: string, to: string): string {
+  const a = Date.parse(from + "T00:00:00Z"), b = Date.parse(to + "T00:00:00Z");
+  const years = Array.from(new Set([new Date(a).getUTCFullYear(), new Date(b).getUTCFullYear()]));
+  // A rule named in the text ("2nd Sun of Apr") gives the real date that year.
+  const rule = why.match(/\b(1st|first|2nd|second|3rd|third|4th|fourth|last)\s+(Sun|Mon|Tue|Wed|Thu|Fri|Sat)[a-z]*\s+(?:of|in)\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i);
+  if (rule) {
+    const ORD: Record<string, number> = { "1st": 0, first: 0, "2nd": 1, second: 1, "3rd": 2, third: 2, "4th": 3, fourth: 3, last: -1 };
+    const n = ORD[rule[1].toLowerCase()];
+    const wd = DAYS.findIndex((d) => d.toLowerCase() === rule[2].slice(0, 3).toLowerCase());
+    const m = MON.findIndex((x) => x.toLowerCase() === rule[3].slice(0, 3).toLowerCase());
+    for (const y of years) {
+      const t = nthWeekday(y, m, wd, n);
+      if (t >= a && t <= b) {
+        const d = new Date(t);
+        return why.replace(/\b(Sun|Mon|Tue|Wed|Thu|Fri|Sat)[a-z]*\.?\s+\d{1,2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*/, `${DAYS[wd]} ${d.getUTCDate()} ${MON[m]}`);
+      }
+    }
+  }
+  return why.replace(/\b(Sun|Mon|Tue|Wed|Thu|Fri|Sat)[a-z]*\.?\s+(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)([a-z]*)/g, (all, _wd, day, mon, rest) => {
+    const m = MON.indexOf(mon);
+    for (const y of years) {
+      const t = Date.UTC(y, m, Number(day));
+      if (t >= a && t <= b) return `${DAYS[new Date(t).getUTCDay()]} ${day} ${mon}${rest}`;
+    }
+    return all;
+  });
+}
+
+/** The nth weekday of a month (n = -1: the last), as a UTC time. */
+function nthWeekday(y: number, m: number, wd: number, n: number): number {
+  if (n < 0) {
+    const last = new Date(Date.UTC(y, m + 1, 0));
+    return Date.UTC(y, m, last.getUTCDate() - ((last.getUTCDay() - wd + 7) % 7));
+  }
+  const first = new Date(Date.UTC(y, m, 1)).getUTCDay();
+  return Date.UTC(y, m, 1 + ((wd - first + 7) % 7) + 7 * n);
 }
