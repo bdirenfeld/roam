@@ -1959,3 +1959,20 @@ the component mounted and you are looking at throttling, not a broken map.
   in find_cache "yearly|v1|lat|lng" (no expiry). Every trip there is answered free: `yearlyForTrip` gives the
   dates for that year as "Usually Sun 29 Aug: …" so eventDays/drop rules read it. Events have a "see what's on"
   link to Google's own listings (`whatsOnUrl`) for one-off concerts — free, no API. Races and camps still ask per trip.
+
+## Hotel stays: one card, check-in to check-out (1 Oct 2026)
+
+- Sandra (tester) put her hotel on four days one at a time; Brennan wanted a stay to read like an Outlook all-day
+  event. `lib/stays/stayRuns` is the ONE reader of which nights a hotel covers. Stays are stored four ways and it
+  reads all: details.check_out / check_out_date (ISO) / end_date (Rome's is a year off, mended) on the check-in
+  card; a later card of the same hotel ("Check out of the villa", Hocking's lodge 3 days later) = check-out day;
+  the same hotel on consecutive days (Sandra) = check out the morning after the last; else the next hotel's
+  check-in, else trip end. Only booked cards count (Japan's 3 "interested" ryokans on day 1 are not stays).
+- Desktop week: the Anytime lane is GONE (his call: "the anytime row is where you should put the hotel row").
+  A "Staying" band spans each hotel's nights; dashed end = carries into the next/previous week. Untimed cards
+  sit dashed in their own day's header, and the header row is the drop target for "no time" (laneRef/overLane).
+- Phone day: nothing added on screen (he: "I don't want to crowd the screen"; the day map already shows the
+  hotel pin each night). DayViewClient's hotel pin now comes from stayOn, so it stops at check-out.
+- Saving a hotel onto a day (AddToTripSheet) asks Check in + Check out and writes details.check_out; the hotel
+  sheet (HotelDetail) has a "Check-out day" date field. Next batch, agreed: distance in Find + in a stop's sheet
+  (never as lines between phone rows).

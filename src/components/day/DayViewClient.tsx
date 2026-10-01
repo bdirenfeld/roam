@@ -5,6 +5,7 @@ import { useCardNotes, withNotes } from "@/hooks/useCardNotes";
 import { searchCountries } from "@/lib/entry/countries";
 import { tripCountries } from "@/lib/entry/countries";
 import { startZoomFor } from "@/lib/places/regions";
+import { stayRuns, stayOn } from "@/lib/stays/stayRuns";
 import { dayArea } from "@/lib/places/dayArea";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -615,26 +616,21 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
     [dayWithCards, localCards]
   );
 
+  // Where you sleep tonight (1 Oct 2026, lib/stays/stayRuns): the hotel whose
+  // nights include today, and none once it is checked out. It used to carry
+  // the last hotel to the journey's end, so a tester's Fort Lauderdale hotel
+  // sat on every day of the cruise that followed it.
   const accommodationCard = useMemo(() => {
     if (!hotelCards.length) return null;
-    const currentDayNumber = dayWithCards.day_number;
-    const dayNumberById = new Map(days.map((d) => [d.id, d.day_number]));
-
-    const mappableHotels = hotelCards.filter(
-      (c) => c.place != null && c.place.lat != null && c.place.lng != null,
-    );
-
-    const sorted = [...mappableHotels].sort(
-      (a, b) => (dayNumberById.get(a.day_id) ?? 0) - (dayNumberById.get(b.day_id) ?? 0)
-    );
-
-    let active: Card | null = null;
-    for (const hotel of sorted) {
-      const checkInDay = dayNumberById.get(hotel.day_id) ?? Infinity;
-      if (checkInDay <= currentDayNumber) active = hotel;
-    }
-    return active;
-  }, [hotelCards, dayWithCards.day_number, days]);
+    const mappable = (c: Card) => c.place != null && c.place.lat != null && c.place.lng != null;
+    const runs = stayRuns(days.map((d) => ({ date: d.date, cards: hotelCards.filter((c) => c.day_id === d.id) })), trip.end_date);
+    const run = stayOn(runs, dayWithCards.date);
+    if (!run) return null;
+    const same = hotelCards.filter((c) => c.place_id === run.placeId && mappable(c));
+    // Today's own card of that hotel (check-in or check-out) when there is one,
+    // so its pin is the numbered stop, not a second pin beside it.
+    return same.find((c) => c.day_id === dayWithCards.id) ?? same.find((c) => c.id === run.cardId) ?? same[0] ?? null;
+  }, [hotelCards, dayWithCards.date, dayWithCards.id, days, trip.end_date]);
 
   // Is the hotel on THIS day's list, or carried forward from an earlier one?
   // localCards holds only this day, so finding it here means it has a row —

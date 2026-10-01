@@ -152,6 +152,12 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
   const [targetDayId,    setTargetDayId]    = useState<string | null>(null);
 
   const targetDay = days.find((d) => d.id === targetDayId) ?? null;
+  // A hotel is checked into on that day and out on another (1 Oct 2026):
+  // Sandra put hers on four days one at a time because nothing asked.
+  const isStay = subType === "hotel" && !!targetDay;
+  const leaveOptions = targetDay ? days.filter((d) => d.date > targetDay.date) : [];
+  const [leaveDayId, setLeaveDayId] = useState<string | null>(null);
+  const leaveDay = leaveOptions.find((d) => d.id === leaveDayId) ?? leaveOptions[leaveOptions.length - 1] ?? null;
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -288,6 +294,7 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
     // 1-based position = live max on that day + 1). The pin-popup door and the
     // plan board use the same helper, so the two paths cannot drift apart.
     if (targetDayId) {
+      if (finalSubType === "hotel" && leaveDay) details.check_out = leaveDay.date;
       const scheduled = await scheduleCardOnDay(supabase, {
         tripId,
         dayId:     targetDayId,
@@ -340,7 +347,7 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
     setSaving(false);
     if (error) { toast({ message: "Couldn't save that place. Try again." }); return; }
     onCardCreated(newCard);
-  }, [type, subType, place, targetDayId, tripId, supabase, onCardCreated, toast]);
+  }, [type, subType, place, targetDayId, leaveDay, tripId, supabase, onCardCreated, toast]);
 
   const handleSave = useCallback(async () => {
     if (!type || saving) return;
@@ -558,7 +565,7 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
               unscheduled pin; picking a day writes it onto the plan in one go. */}
           {days.length > 0 && (
             <div className="mb-4">
-              <p className="text-[11px] text-gray-400 mb-1.5 ml-0.5">Put on a day (optional)</p>
+              <p className="text-[11px] text-gray-400 mb-1.5 ml-0.5">{subType === "hotel" ? "Check in (optional)" : "Put on a day (optional)"}</p>
               {/* A select, not a chip strip: a 12-day journey doesn't fit in a
                   row, and nudge arrows over the chips were worse than the
                   problem. One tap opens the whole journey at any length. */}
@@ -581,6 +588,29 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
                   </option>
                 ))}
               </select>
+              {isStay && leaveOptions.length > 0 && (
+                <>
+                  <p className="text-[11px] text-gray-400 mb-1.5 mt-3 ml-0.5">Check out</p>
+                  <select
+                    value={leaveDay?.id ?? ""}
+                    onChange={(e) => setLeaveDayId(e.target.value || null)}
+                    aria-label="Check out"
+                    className="w-full text-[13px] text-[#1A1A2E] bg-[#EDECE8] border border-black/10 rounded-xl px-3 py-2.5 outline-none appearance-none"
+                    style={{
+                      backgroundImage:
+                        "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%231A1A2E' stroke-width='2.5' stroke-linecap='round'><polyline points='6 9 12 15 18 9'/></svg>\")",
+                      backgroundRepeat: "no-repeat",
+                      backgroundPosition: "right 12px center",
+                    }}
+                  >
+                    {leaveOptions.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        Day {d.day_number} · {dayChip(d.date, withMonth)}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
             </div>
           )}
 
@@ -602,6 +632,8 @@ export default function AddToTripSheet({ place, tripId, days, onClose, onCardCre
           >
             {saving
               ? "Checking…"
+              : targetDay && isStay && leaveDay
+              ? `Stay ${dayChip(targetDay.date, withMonth)} – ${dayChip(leaveDay.date, withMonth)}`
               : targetDay
               ? `Put on ${dayChip(targetDay.date, withMonth)}`
               : "Save to the map only"}
