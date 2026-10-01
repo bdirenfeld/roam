@@ -183,3 +183,10 @@ describe("Google's tours are tours", () => {
     expect(isTour("しゅんたそ", ["point_of_interest"])).toBe(false);
   });
 });
+
+describe("never a cinema", () => {
+  it("Montecatini's Terme Excelsior matched the Excelsior multiplex: not wellness; a film night is still an event", () => {
+    expect(fitsCategory("wellness", ["movie_theater", "point_of_interest"])).toBe(false);
+    expect(fitsCategory("event", ["movie_theater"])).toBe(true);
+  });
+});

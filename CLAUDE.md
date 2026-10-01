@@ -1920,3 +1920,7 @@ the component mounted and you are looking at throttling, not a broken map.
   what each category is and isn't; camps must be named camps; events put the region's best-known first, even
   2 h away (the Bravio dropped out once Lucca's own festivals filled the list). Cache key carries
   FIND_PROMPT_V ("travellersv2") — bump it whenever the prompt changes, or old answers are served for 30 days.
+- Audit round 2: cinemas never a place outside Events (Terme Excelsior matched the Excelsior multiplex);
+  food not inside a theme park (Osaka desserts were Universal Studios stands); races are ones you enter
+  (Osaka gave a horse race); month-only dates must fall in the trip's months (Tokyo "usually mid-June").
+  Month words are whole and capitalised — "market" read as March, "may" as May. FIND_PROMPT_V v3.

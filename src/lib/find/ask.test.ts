@@ -35,7 +35,7 @@ describe("cacheKey", () => {
   it("one answer per base, category, question and kind of party", () => {
     const k = (o: Partial<Parameters<typeof cacheKey>[0]>) => cacheKey({ mode: "travellers", lat: 41.9028, lng: 12.4964, subType: "restaurant", ask: null, kids: false, ...o });
     // The travellers' answers carry the prompt version (FIND_PROMPT_V): a better question is asked again.
-    expect(k({})).toBe("travellersv2|41.90|12.50|restaurant||adults||");
+    expect(k({})).toBe("travellersv3|41.90|12.50|restaurant||adults||");
     expect(k({ near: [{ lat: 40.7795, lng: -73.9695 }] })).not.toBe(k({})); // coffee near the day is its own answer
     expect(k({ when: "2026-04-22|2026-04-28" })).not.toBe(k({}));
     expect(k({ lat: 41.9031 })).toBe(k({}));            // two journeys to Rome share
@@ -59,7 +59,7 @@ describe("travellersPrompt, dated kinds and near the day", () => {
     const p = travellersPrompt({ ...base, subType: "event", from: "2026-04-22", to: "2026-04-28" });
     expect(p).toMatch(/between 2026-04-22 and 2026-04-28/);
     expect(p).toMatch(/never a venue with nothing on/);
-    expect(travellersPrompt({ ...base, subType: "challenge", from: "2026-04-22", to: "2026-04-28" })).toMatch(/running races/);
+    expect(travellersPrompt({ ...base, subType: "challenge", from: "2026-04-22", to: "2026-04-28" })).toMatch(/races you can enter yourself/);
   });
   it("keeps coffee to a short walk from the day's sights", () => {
     expect(travellersPrompt({ ...base, subType: "coffee", near: ["Colosseum", "Pantheon"] })).toMatch(/around Colosseum, Pantheon/);
@@ -148,5 +148,22 @@ describe("the travellers' search is told what each category is", () => {
     expect(tour).toMatch(/never a sight on its own, a restaurant or a shop/);
     const camp = travellersPrompt({ base: "Lucca", country: "Italy", subType: "camp", ask: null, party: 5, childAges: [10, 8, 5], month: "August 2027", from: "2027-08-24", to: "2027-09-04" });
     expect(camp).toMatch(/each a specific named camp/);
+  });
+});
+
+describe("month-only dates", () => {
+  it("Tokyo in April: 'usually mid-June' goes, 'early April' stays, no month at all stays", () => {
+    expect(onTripDates("Usually mid-Jun, but Sanno Matsuri grand procession next", "2028-04-02", "2028-04-15")).toBe(false);
+    expect(onTripDates("Usually early Apr (Japan spring break week): day camp", "2028-04-02", "2028-04-15")).toBe(true);
+    expect(onTripDates("Usually Apr–June: clam digging", "2028-04-02", "2028-04-15")).toBe(true);
+    expect(onTripDates("Every weekend: flea market", "2028-04-02", "2028-04-15")).toBe(true);
+    // "market", "marine", "junior" are not months.
+    expect(onTripDates("Sat: marine festival and junior market", "2028-04-02", "2028-04-15")).toBe(true);
+    expect(onTripDates("Usually mid-April: kids may join the parade", "2028-04-02", "2028-04-15")).toBe(true);
+  });
+  it("races are ones you enter, and food is not inside a theme park", () => {
+    const race = travellersPrompt({ base: "Osaka", country: "Japan", subType: "challenge", ask: null, party: 5, childAges: [10], month: "April 2028", from: "2028-04-02", to: "2028-04-15" });
+    expect(race).toMatch(/races you can enter yourself/);
+    expect(travellersPrompt({ base: "Osaka", country: "Japan", subType: "dessert", ask: null, party: 5, childAges: [10], month: "April 2028" })).toMatch(/not inside a theme park/);
   });
 });

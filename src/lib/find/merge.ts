@@ -83,7 +83,8 @@ const SHOP = ["clothing_store", "shoe_store", "jewelry_store", "department_store
 
 // Never a place to visit, in any category: a traveller's "Colosseo" came back
 // as the metro station and was planned as a 2.5-hour sight (Rome test 2).
-const NOT_A_PLACE = ["transit_station", "subway_station", "train_station", "bus_station", "light_rail_station", "parking", "route", "neighborhood", "sublocality", "postal_code", "country"];
+// A cinema too: Montecatini's Terme Excelsior came back as the Excelsior multiplex (30 Sep 2026).
+const NOT_A_PLACE = ["transit_station", "subway_station", "train_station", "bus_station", "light_rail_station", "parking", "route", "neighborhood", "sublocality", "postal_code", "country", "movie_theater"];
 
 export function fitsCategory(subType: string, types: string[] | undefined): boolean {
   if (!types || types.length === 0) return true;

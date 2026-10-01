@@ -46,16 +46,16 @@ export const DATED = new Set(["event", "challenge", "camp"]);
 const TRAVELLER_WORDS: Record<string, string> = {
   self_directed: "sights and places to explore on your own: landmarks, museums, old towns, parks, viewpoints",
   guided: "tours, classes and experiences you book with a guide or teacher: walking, bike and food tours, cooking classes, boat trips (never a sight on its own, a restaurant or a shop)",
-  restaurant: "restaurants for a proper lunch or dinner",
-  coffee: "cafés and coffee bars",
-  dessert: "gelato, pastry, bakery and dessert shops",
+  restaurant: "restaurants for a proper lunch or dinner (not inside a theme park)",
+  coffee: "cafés and coffee bars (not inside a theme park)",
+  dessert: "gelato, pastry, bakery and dessert shops (not inside a theme park)",
   bar: "bars, wine bars and cocktail bars (not cafés or restaurants)",
   wellness: "spas, massage, thermal baths and hot springs (not gyms or adventure parks)",
   beach: "beaches and beach clubs",
 };
 const DATED_WORDS: Record<string, string> = {
   event: "festivals, concerts, shows, markets and other events",
-  challenge: "running races and other organised races or rides",
+  challenge: "races you can enter yourself: running, cycling, swimming or obstacle races and organised rides (not races to watch, such as horse racing)",
   camp: "day camps and holiday programmes a visiting child can join by the day or the week, each a specific named camp (never a scheme, a directory, a school or a festival)",
 };
 
@@ -171,7 +171,7 @@ export function cacheKey(opts: { mode: "google" | "travellers"; lat: number; lng
 }
 export const CACHE_DAYS = 30;
 /** Bump when the travellers' prompt changes, so cached answers are asked again. */
-export const FIND_PROMPT_V = "v2";
+export const FIND_PROMPT_V = "v3";
 
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 /**
@@ -182,9 +182,18 @@ const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "
  * trip's year(s); one inside keeps it, all outside drop it, none found keeps it.
  */
 export function onTripDates(why: string, from: string, to: string): boolean {
-  const found = Array.from(why.matchAll(/\b(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b/gi));
-  if (!found.length) return true;
+  const found = Array.from(why.matchAll(/\b(\d{1,2})\s+(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\b/g));
   const a = Date.parse(from + "T00:00:00Z"), b = Date.parse(to + "T00:00:00Z");
+  if (!found.length) {
+    // Months alone ("Usually mid-Jun"): one of them must be a month of the trip.
+    // A Tokyo event for an April trip said mid-June (30 Sep 2026).
+    // Whole, capitalised month words only: "market" is not March, "you may" not May.
+    const months = Array.from(why.matchAll(/\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\b/g)).map((m) => MONTHS.indexOf(m[1].toLowerCase().slice(0, 3)));
+    if (!months.length) return true;
+    const on = new Set<number>();
+    for (let t = a; t <= b; t += 86_400_000) on.add(new Date(t).getUTCMonth());
+    return months.some((m) => on.has(m));
+  }
   const years = new Set([new Date(a).getUTCFullYear(), new Date(b).getUTCFullYear()]);
   return found.some((m) => {
     const month = MONTHS.indexOf(m[2].toLowerCase().slice(0, 3));
