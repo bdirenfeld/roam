@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
+import { overBudget, addSpend } from "@/lib/api/spend";
 import { googleQuery, travellersPrompt, parseTravellers, cacheKey, CACHE_DAYS, DATED, onTripDates, fixWeekdays } from "@/lib/find/ask";
 import { NEAR_PLAN, withinWalk } from "@/lib/find/near";
 import { mergeFind, fitsCategory, isBeach, isTour, FAR_KM, EVENT_FAR_KM, type FindResult } from "@/lib/find/merge";
@@ -119,6 +120,8 @@ export async function POST(req: NextRequest) {
 
   const travellers = async (): Promise<FindResult[]> => {
     if (!apiKey) return [];
+    // The app's daily Claude budget (lib/api/spend): over it, travellers' picks wait for tomorrow.
+    if (await overBudget(admin)) throw new Error("budget");
     try {
       const client = new Anthropic({ apiKey });
       const res = await client.messages.create({
@@ -126,9 +129,11 @@ export async function POST(req: NextRequest) {
         // Room for the answer after up to five searches: 1500 cut Tuscany's events off mid-reply (30 Sep 2026).
         max_tokens: 8000,
         messages: [{ role: "user", content: travellersPrompt({ base: base.label!, country, subType, ask, party: trip.party_size ?? ages.length ?? 2, childAges, kids, seniors: ages.some((a) => a >= 65), month, from: trip.start_date, to: trip.end_date, near: nearNames }) }],
-        // Events search a region's calendars, not one town's: more reading.
-        tools: [{ type: "web_search_20250305", name: "web_search", max_uses: subType === "event" ? 5 : 3 }],
+        // Two web searches (events three): each search's pages are most of a
+        // search's cost; five and three cost him $20 in a morning (1 Oct 2026).
+        tools: [{ type: "web_search_20250305", name: "web_search", max_uses: subType === "event" ? 3 : 2 }],
       });
+      await addSpend(admin, `find ${subType} ${base.label}`, res.usage as Parameters<typeof addSpend>[2]);
       const text = res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("\n");
       // Dated kinds keep to the journey's dates (lib/find/ask onTripDates).
       const picks = parseTravellers(text)
@@ -186,7 +191,8 @@ export async function POST(req: NextRequest) {
   let found: FindResult[];
   try {
     found = mode === "travellers" ? await travellers() : await google();
-  } catch {
+  } catch (e) {
+    if (e instanceof Error && e.message === "budget") return NextResponse.json({ error: "Travellers' picks are paused until tomorrow" }, { status: 503 });
     return NextResponse.json({ error: "Travellers' picks are unavailable just now" }, { status: 502 });
   }
   // Thumbnails (29 Sep 2026: "shouldn't the little squares have pictures?").

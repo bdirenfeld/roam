@@ -171,7 +171,8 @@ export function cacheKey(opts: { mode: "google" | "travellers"; lat: number; lng
   const mode = opts.mode === "travellers" ? `travellers${FIND_PROMPT_V}` : opts.mode;
   return [mode, opts.lat.toFixed(2), opts.lng.toFixed(2), opts.subType, q, opts.kids ? "kids" : "adults", near, opts.when ?? ""].join("|");
 }
-export const CACHE_DAYS = 30;
+// 90 days, not 30 (1 Oct 2026): a place's travellers' picks change slowly, and every miss is a paid search.
+export const CACHE_DAYS = 90;
 /** Bump when the travellers' prompt changes, so cached answers are asked again. */
 export const FIND_PROMPT_V = "v4";
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
+import { overBudget, addSpend } from "@/lib/api/spend";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notesPrompt, parseNotes, dayHoursLine, composeNote, batchesOf, NOTES_BATCH, type NotePlace, type WrittenNote } from "@/lib/plan/notes";
 
@@ -68,6 +69,8 @@ export async function POST(req: NextRequest) {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) return NextResponse.json({ written: 0, error: "Notes are unavailable just now" }, { status: 502 });
     if (!(await underQuota(gate.supabase, "planNotes", QUOTA.planNotes))) return quotaExceeded("trip notes");
+    // The app's daily Claude budget (lib/api/spend).
+    if (await overBudget(admin)) return NextResponse.json({ written: 0, error: "Notes are paused until tomorrow" }, { status: 503 });
     const places: NotePlace[] = missing.map((g) => {
       const p = cards.find((c) => c.place!.google_place_id === g)!.place!;
       return { key: g, title: p.title, subType: p.sub_type, address: p.address, types: p.details?.types ?? [] };
@@ -82,6 +85,7 @@ export async function POST(req: NextRequest) {
         max_tokens: 2500,
         messages: [{ role: "user", content: notesPrompt(batch, who) }],
       });
+      await addSpend(admin, `notes ${batch.length}`, res.usage as Parameters<typeof addSpend>[2]);
       const text = res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("\n");
       return parseNotes(text);
     }));

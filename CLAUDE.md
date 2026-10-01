@@ -1941,3 +1941,12 @@ the component mounted and you are looking at throttling, not a broken map.
   Montepulciano" (its venue) and he missed it. The events prompt asks for "event" (its name) beside "name" (the
   venue Google can place); FindResult.title; the sheet shows the event, "At {venue}" under it; Save renames a
   NEW place after the event so its pin and card say Bravio (an existing place keeps its name). FIND_PROMPT_V v4.
+
+## Claude spending, capped (1 Oct 2026)
+
+- One morning cost him $20 (mostly my test re-runs of every Find category, three times, plus useWarmFind's 22
+  paid searches per trip opened). "This isn't sustainable." Now: lib/api/spend adds each Find/notes call's cost
+  (from res.usage: Sonnet $3/$15 per M, 1¢ a web search) to find_cache "spend|YYYY-MM-DD"; over DAILY_CAP_CENTS
+  (300) Find's travellers' half returns 503 "paused until tomorrow" and notes pause; Google's half keeps working.
+  Each call logs "[spend] …¢". Web searches 2 (events 3), was 3/5. CACHE_DAYS 90. Warm-up: 4 categories
+  (WARM_CATEGORIES), main base only. NEVER test by re-running whole trips — one category, and read the cache.

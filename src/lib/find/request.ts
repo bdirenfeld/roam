@@ -17,14 +17,17 @@ export function findRequest(tripId: string, base: FindBase, subType: string, mod
 }
 
 /**
- * What to search ahead for a journey: every category, both halves, for its
- * main bases (two at most), and only while the trip is still to come.
+ * Only the categories people open most, for the main base: 22 paid searches
+ * a trip came to about $3 each time one was opened fresh (1 Oct 2026). The
+ * rest are searched when tapped.
  */
+export const WARM_CATEGORIES = ["self_directed", "restaurant", "coffee", "dessert"];
+
 export function warmPlan(bases: FindBase[], categories: string[], endDate: string | null, today: string): { base: FindBase; subType: string; mode: FindMode }[] {
   if (endDate && endDate < today) return [];
   const out: { base: FindBase; subType: string; mode: FindMode }[] = [];
-  for (const base of bases.slice(0, 2)) {
-    for (const subType of categories) {
+  for (const base of bases.slice(0, 1)) {
+    for (const subType of categories.filter((c) => WARM_CATEGORIES.includes(c))) {
       out.push({ base, subType, mode: "google" });
       out.push({ base, subType, mode: "travellers" });
     }

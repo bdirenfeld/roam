@@ -11,10 +11,10 @@ describe("one Find request for the sheet and the warm-up alike", () => {
     expect(findRequest("t", lucca, "coffee", "travellers")).toMatchObject({ tripId: "t", subType: "coffee", mode: "travellers", ask: null, nearNames: ["Guinigi Tower"] });
     expect(findRequest("t", lucca, "beach", "google")).not.toHaveProperty("near");
   });
-  it("warms every category, both halves, for the first two bases, and nothing for a trip that is over", () => {
-    const jobs = warmPlan([lucca, pisa, florence], ["beach", "coffee"], "2027-09-04", "2026-09-30");
-    expect(jobs).toHaveLength(8);
-    expect(new Set(jobs.map((j) => j.base.label))).toEqual(new Set(["Lucca", "Pisa"]));
+  it("warms only the four most-used categories, for the main base, and nothing for a trip that is over", () => {
+    const jobs = warmPlan([lucca, pisa, florence], ["self_directed", "beach", "coffee", "event"], "2027-09-04", "2026-09-30");
+    // $20 in a morning (1 Oct 2026): beach and events wait to be tapped; Pisa and Florence too.
+    expect(jobs.map((j) => `${j.base.label} ${j.subType} ${j.mode}`)).toEqual(["Lucca self_directed google", "Lucca self_directed travellers", "Lucca coffee google", "Lucca coffee travellers"]);
     expect(warmPlan([lucca], ["beach"], "2026-03-12", "2026-09-30")).toEqual([]);
   });
 });
