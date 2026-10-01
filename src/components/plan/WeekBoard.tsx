@@ -35,6 +35,7 @@ import { weekColumns, weekMinWidth } from "@/lib/week/focus";
 import { planBatch, planExisting, plannedOtherDays, stayAnchor } from "@/lib/week/dayPlan";
 import { durationFor } from "@/lib/week/arrange";
 import { placeShare, isMuseum } from "@/lib/plan/dayGroups";
+import { dayForCard, onlyOnLine } from "@/lib/plan/eventDays";
 import { shortAddress, firstSentence } from "@/lib/week/cardText";
 import { weekStarts, pageOf } from "@/lib/week/pages";
 import {
@@ -404,7 +405,9 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
         return;
       }
       if (d.kind === "move" && g) {
-        const target = dayList[g.day];
+        // An event on set days stays on them (lib/plan/eventDays).
+        const { day: target, moved } = eventTarget(d.card, dayList[g.day]);
+        if (moved && target.id === d.card.day_id) { toast({ message: onlyOn(d.card, target.date) }); return; }
         if (g.min === null) {
           if (d.card.start_time === null && d.card.day_id === target.id) return;
           void write(d.card, { day_id: target.id, start_time: null, end_time: null }, `Put on ${dow(target.date)}, anytime`);
@@ -417,7 +420,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
         const block: Block = { id: d.card.id, startMin: t.start ? toMin(t.start) : g.min, endMin: t.end ? toMin(t.end) : fromAnytime ? g.min + durationFor(d.card.place?.type ?? "activity", d.card.place?.sub_type ?? null, g.min, placeShare(d.card.place), isMuseum(d.card.place)) : null };
         const times = movedTimes(block, g.min);
         if (target.id === d.card.day_id && times.start === d.card.start_time) return;
-        void write(d.card, { day_id: target.id, start_time: times.start, end_time: times.end }, `Moved to ${dow(target.date)} ${fmt12(toMin(times.start))}`);
+        void write(d.card, { day_id: target.id, start_time: times.start, end_time: times.end }, moved ? onlyOn(d.card, target.date) : `Moved to ${dow(target.date)} ${fmt12(toMin(times.start))}`);
       } else if (d.kind === "resizeStart" && g && g.min !== null) {
         const start = toTime(g.min);
         if (start === d.card.start_time) return;
@@ -437,20 +440,29 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ghost, write, nDays, overMap]);
 
+  // ── events on set days ─────────────────────────────────────────
+  // Brennan, 1 Oct 2026: the Bravio delle Botti is on one Sunday; dropping it
+  // on Thursday must not plan it for Thursday. Its own day (the nearest, when
+  // it runs on several) takes it, and the toast says why.
+  const eventTarget = (card: Card, target: DayWithCards) => dayForCard(card, daysRef.current, target);
+  const onlyOn = (card: Card, date: string) => onlyOnLine(cardTitle(card), date);
+
   // ── the map drops ──────────────────────────────────────────────
   // Pin → week: a new scheduled card at the drop time, as long as that kind
   // of place takes (lib/week/arrange durationFor: dinner two hours, coffee
   // half an hour), or no time in the Anytime lane; the saved pin stays, as on
   // the Map tab. Undo deletes the new card.
-  const putFromMap = useCallback(async (card: Card, target: DayWithCards, min: number | null) => {
+  const putFromMap = useCallback(async (card: Card, dropped: DayWithCards, min: number | null) => {
     if (!card.place_id) return;
+    // An event on set days goes to its own day (lib/plan/eventDays).
+    const { day: target, moved } = eventTarget(card, dropped);
     const startTime = min === null ? null : toTime(min);
     const endTime = min === null ? null : toTime(Math.min(min + durationFor(card.place?.type ?? "activity", card.place?.sub_type ?? null, min, placeShare(card.place), isMuseum(card.place)), HOUR_END * 60 + 45));
     const created = await scheduleCardOnDay(supabase, { tripId: trip.id, dayId: target.id, placeId: card.place_id, place: card.place, startTime, endTime, details: card.details, sourceUrl: card.source_url });
     if (!created) { toast({ message: "Couldn't put it on that day. Try again." }); return; }
     setDays((prev) => prev.map((d) => (d.id === target.id ? { ...d, cards: [...d.cards, created] } : d)));
     toast({
-      message: min === null ? `Put on ${dow(target.date)}, anytime` : `Put on ${dow(target.date)} ${fmt12(min)}`,
+      message: moved ? onlyOn(card, target.date) : min === null ? `Put on ${dow(target.date)}, anytime` : `Put on ${dow(target.date)} ${fmt12(min)}`,
       undo: async () => {
         const { error } = await queuedDelete("cards", { id: created.id });
         if (error) { toast({ message: "Couldn't undo. Try again." }); return; }
@@ -518,8 +530,13 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
 
   // Door 1: several pins → a day. New scheduled cards at arranged times; the
   // saved pins stay. Undo deletes the new cards.
-  const putMany = useCallback(async (picked: Card[], day: Day) => {
+  const putMany = useCallback(async (dropped: Card[], day: Day) => {
     const target = daysRef.current.find((d) => d.id === day.id); if (!target) return;
+    // Events on other days go to their own (lib/plan/eventDays); the rest are planned here.
+    const onOtherDays = dropped.filter((c) => eventTarget(c, target).moved);
+    for (const c of onOtherDays) void putFromMap(c, target, null);
+    const picked = dropped.filter((c) => !onOtherDays.includes(c));
+    if (!picked.length) return;
     // A place already on that day is not added again (the tray and the drag
     // both write; a second go must not double the day — 25 Sep 2026).
     // Shared with the phone (lib/week/dayPlan): skips places already on this

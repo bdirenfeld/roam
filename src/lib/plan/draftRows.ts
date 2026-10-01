@@ -23,6 +23,7 @@ import { dayShare, isMuseum, MUSEUM_MIN } from "./dayGroups";
 import { hoursWindow, assumedWindow, retimeDay, sightMinutes, type RetimeItem } from "./retime";
 import { isAirport, dayBounds, freeWithin, boundBlocks } from "./airports";
 import { paceDays, firstNightDinner, DINNER_AT } from "./pace";
+import { cardEventDates } from "./eventDays";
 
 /** Where Plan my trip put a card; absent on everything else. */
 export interface PlanMark { day: string; start: string | null }
@@ -68,12 +69,39 @@ export function draftDays(days: Pick<Day, "id" | "date" | "day_number">[], sched
 }
 
 /** The saved places not yet on any day, as pins (id = the saved card's id). */
-export function pinsToPlan(cards: Card[]): Pin[] {
+/** The journey's first and last dates, from its days. */
+function rangeOf(days: Pick<Day, "date">[]): { from: string; to: string } | null {
+  const ds = days.map((d) => d.date).filter(Boolean).sort();
+  return ds.length ? { from: ds[0], to: ds[ds.length - 1] } : null;
+}
+
+/**
+ * Saved events on set days (lib/plan/eventDays): they go on their own day,
+ * not into a day group, which could put the Bravio on a Thursday (1 Oct 2026).
+ */
+export function datedEvents(cards: Card[], days: Pick<Day, "id" | "date">[]): { card: Card; dayId: string }[] {
+  const r = rangeOf(days);
+  if (!r) return [];
+  const onADay = new Set(cards.filter((c) => c.status === "in_itinerary" && c.place_id).map((c) => c.place_id as string));
+  const out: { card: Card; dayId: string }[] = [];
+  const seen = new Set<string>();
+  for (const c of cards) {
+    if (c.status !== "interested" || !c.place_id || onADay.has(c.place_id) || seen.has(c.place_id)) continue;
+    const dates = cardEventDates(c, r.from, r.to);
+    const day = dates && days.find((d) => dates.includes(d.date));
+    if (day) { out.push({ card: c, dayId: day.id }); seen.add(c.place_id); }
+  }
+  return out;
+}
+
+export function pinsToPlan(cards: Card[], days?: Pick<Day, "id" | "date">[]): Pin[] {
+  // Events on set days are placed on their days, not grouped (datedEvents).
+  const dated = new Set(days ? datedEvents(cards, days).map((x) => x.card.id) : []);
   const onADay = new Set(cards.filter((c) => c.status === "in_itinerary" && c.place_id).map((c) => c.place_id as string));
   const seen = new Set<string>();
   const out: Pin[] = [];
   for (const c of cards) {
-    if (c.status !== "interested" || !c.place || !c.place_id || onADay.has(c.place_id) || seen.has(c.place_id)) continue;
+    if (c.status !== "interested" || !c.place || !c.place_id || onADay.has(c.place_id) || seen.has(c.place_id) || dated.has(c.id)) continue;
     seen.add(c.place_id);
     const pl = c.place as unknown as { types?: unknown; details?: { types?: unknown } };
     const types = pl.types ?? pl.details?.types;
@@ -126,7 +154,7 @@ export function spreadGroups(pins: Pin[], kids: boolean, free: number): Grouping
 }
 
 export function previewDraft(cards: Card[], days: Pick<Day, "id" | "date" | "day_number">[], kids: boolean): DraftPreview {
-  const pins = pinsToPlan(cards);
+  const pins = pinsToPlan(cards, days);
   const scheduled = cards.filter((c) => c.status === "in_itinerary" && c.day_id);
   const paced = paceDays(draftDays(days, scheduled), kids);
   const free = freeDays(paced.days) - paced.breaksNeeded;
@@ -265,6 +293,15 @@ export function buildDraft(
         details: { plan: { day: firstId, start: toTime(dinner.start) } }, ai_generated: true, confirmed: false,
       });
     }
+  }
+  // Events on set days: on their own day, untimed (the event's own hours are on its card).
+  for (const { card, dayId } of datedEvents(cards, days)) {
+    const pos = Math.max(0, ...rows.filter((r) => r.day_id === dayId).map((r) => r.position), ...scheduled.filter((c) => c.day_id === dayId).map((c) => c.position ?? 0)) + 1;
+    rows.push({
+      day_id: dayId, trip_id: tripId, place_id: card.place_id as string, status: "in_itinerary", position: pos,
+      start_time: null, end_time: null, source_url: null,
+      details: { plan: { day: dayId, start: null } }, ai_generated: true, confirmed: false,
+    });
   }
   // Tour companies: the lightest planned day in their region, untimed, to book.
   const count = new Map<string, number>();

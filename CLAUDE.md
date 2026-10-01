@@ -1926,3 +1926,12 @@ the component mounted and you are looking at throttling, not a broken map.
   Month words are whole and capitalised — "market" read as March, "may" as May. FIND_PROMPT_V v3.
 - Weekday ranges ("Mon 2 – Wed 12 Apr") are corrected too, and dated answers are corrected as served, so
   cached ones are right without asking again. Audit verdict after three rounds: Tuscany and Japan read well.
+
+## Events on set days stay on them (1 Oct 2026)
+
+- His ask: dragging the Bravio (one Sunday) onto another day must not plan it there. lib/plan/eventDays reads
+  Find's saved date line (details.find.why) against the trip: `eventDates` (singles, pairs, ranges; null when
+  unknown or every day), `dayForCard` (its own day, the nearest of several). Every door uses it: the week's drop,
+  move and multi-drop, the pin's Put on a day, the phone's pick-and-place; the toast says "X is on Sun 29 Aug,
+  so it's there". Plan my trip puts dated events on their day untimed (`datedEvents`), out of the day groups.
+  The pin popup now copies details to the scheduled card, as the week's drop does, so a later move still knows.

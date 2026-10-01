@@ -38,6 +38,7 @@ import { tapFilter } from "@/lib/map/tapFilter";
 import dynamic from "next/dynamic";
 import { reloadOnStale } from "@/lib/chunkReload";
 import { useWarmFind } from "@/hooks/useWarmFind";
+import { dayForCard, onlyOnLine } from "@/lib/plan/eventDays";
 // Loaded when first opened, not with the map (29 Sep 2026).
 const PlanMyTripSheet = dynamic(reloadOnStale(() => import("@/components/plan/PlanMyTripSheet")), { ssr: false });
 const FindSheet = dynamic(reloadOnStale(() => import("@/components/plan/FindSheet")), { ssr: false });
@@ -566,7 +567,15 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
   // narrows back to the week; the phone goes to the Agenda). Undo deletes
   // the new cards from wherever the toast is tapped.
   const putPickedOnDay = useCallback(async (day: Day) => {
-    const picked = localCards.filter((c) => pickedIds.has(c.id));
+    // Events on set days go to their own day, untimed (lib/plan/eventDays); the rest are arranged here.
+    const chosen = localCards.filter((c) => pickedIds.has(c.id));
+    const ownDay = chosen.map((c) => ({ c, to: dayForCard(c, days, day) })).filter((x) => x.to.moved);
+    for (const { c, to } of ownDay) {
+      const made = await scheduleCardOnDay(supabaseRef.current, { tripId: trip.id, dayId: to.day.id, placeId: c.place_id, place: c.place, details: c.details, sourceUrl: c.source_url });
+      if (made) { registerNewCardRef.current(made); toast({ message: onlyOnLine(c.place?.title ?? "It", to.day.date) }); }
+    }
+    const picked = chosen.filter((c) => !ownDay.some((x) => x.c.id === c.id));
+    if (!picked.length) { leavePick(); return; }
     const dayCards = localCards.filter((c) => c.day_id === day.id);
     const fallback = stayAnchor(days.map((d) => d.id), localCards, day.id)
       ?? (trip.destination_lat != null && trip.destination_lng != null ? { lat: trip.destination_lat, lng: trip.destination_lng } : null);

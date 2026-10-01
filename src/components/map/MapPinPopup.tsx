@@ -10,6 +10,7 @@ import { queuedDelete } from "@/lib/offline/queuedWrite";
 import { useToast } from "@/components/ui/Toast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { scheduleCardOnDay, unscheduleCard } from "@/lib/scheduleCard";
+import { dayForCard, onlyOnLine } from "@/lib/plan/eventDays";
 import { PIN_COLORS } from "@/lib/mapPins";
 import { readRecommendedBy, recommendedByLine } from "@/lib/recommendedBy";
 import PlacePhotoGallery from "@/components/cards/PlacePhotoGallery";
@@ -421,11 +422,14 @@ function CardBody({
   // helper. The interested card behind the pin is untouched.
   const canAddToDay = !!(days && days.length > 0 && tripId && card.place_id);
 
-  const handleAddToDay = useCallback(async (day: Day) => {
+  const handleAddToDay = useCallback(async (chosen: Day) => {
     if (!tripId || !card.place_id || scheduling) return;
+    // An event on set days goes to its own day (lib/plan/eventDays).
+    const { day, moved } = dayForCard(card, days ?? [], chosen);
     setScheduling(true);
+    // Its details go with it, as the week's drop does: an event keeps the date line that holds it to its day.
     const newCard = await scheduleCardOnDay(supabase, {
-      tripId, dayId: day.id, placeId: card.place_id, place: card.place,
+      tripId, dayId: day.id, placeId: card.place_id, place: card.place, details: card.details,
     });
     setScheduling(false);
     if (newCard) {
@@ -434,11 +438,11 @@ function CardBody({
       onCardCreated?.(newCard);
       onClose();
       // The popup closed and the pin changed colour; nothing said which day.
-      toast({ message: `Put on ${dayChip(day.date, spansMonths((days ?? []).map((d) => d.date)))}` });
+      toast({ message: moved ? onlyOnLine(card.place?.title ?? "It", day.date) : `Put on ${dayChip(day.date, spansMonths((days ?? []).map((d) => d.date)))}` });
     } else {
       toast({ message: "Couldn't put it on that day. Try again." });
     }
-  }, [tripId, card.place_id, card.place, scheduling, supabase, onCardCreated, onClose, toast]);
+  }, [tripId, card, days, scheduling, supabase, onCardCreated, onClose, toast]);
 
   // A scheduled pin used to refuse ("remove it from your day plan first")
   // and offer nothing to do it with. It now offers the action itself.
