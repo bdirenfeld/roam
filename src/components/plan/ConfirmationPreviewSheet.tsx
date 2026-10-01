@@ -1,22 +1,37 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import type { Card, CardStatus, DayWithCards } from "@/types/database";
+import type { Card, CardStatus, DayWithCards, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { queuedInsert } from "@/lib/offline/queuedWrite";
+import { confirmationDetails, placeQuery, placeSubType, checkOutTime, type ParsedConfirmation } from "@/lib/confirmations/toCards";
 
-// ── ParsedConfirmation — matches API response ─────────────────
-export interface ParsedConfirmation {
-  type:                "flight_arrival" | "flight_departure" | "hotel" | "restaurant" | "activity";
-  title:               string;
-  confirmation_number: string | null;
-  date:                string | null;
-  time:                string | null;
-  end_time:            string | null;
-  address:             string | null;
-  phone:               string | null;
-  website:             string | null;
-  notes:               string | null;
+// ── ParsedConfirmation — matches API response (lib/confirmations/toCards) ──
+export type { ParsedConfirmation };
+
+/**
+ * The real place behind a booking (1 Oct 2026): looked up on Google by the
+ * hotel's name and address or the flight's airport, and saved the way the
+ * map saves one, so the card has a pin, photos and an address, and a hotel
+ * counts as where you sleep. Any failure leaves the card as a plain note,
+ * as before — the booking is never lost to a lookup.
+ */
+async function resolvePlace(p: ParsedConfirmation): Promise<Place | null> {
+  const q = placeQuery(p);
+  if (!q) return null;
+  try {
+    const ac = await fetch(`/api/places/autocomplete?input=${encodeURIComponent(q)}`).then((r) => r.json()) as { predictions?: { place_id: string }[] };
+    const gid = ac.predictions?.[0]?.place_id;
+    if (!gid) return null;
+    const imp = await fetch("/api/places/bulk-import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ google_place_ids: [gid], defaults: placeSubType(p.type) }) })
+      .then((r) => r.json()) as { imported?: { place_id: string }[] };
+    const id = imp.imported?.[0]?.place_id;
+    if (!id) return null;
+    const { data } = await createClient().from("places").select("id, title, type, sub_type, lat, lng, address, google_place_id, cover_image_url, rating, price_level").eq("id", id).maybeSingle();
+    return (data as Place | null) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 interface Props {
@@ -57,6 +72,8 @@ interface ItemDraft {
   endTime: string;
   address: string;
   notes:   string;
+  /** Hotels: the day you leave ("" = none). */
+  outDayId: string;
 }
 
 export default function ConfirmationPreviewSheet({
@@ -79,6 +96,7 @@ export default function ConfirmationPreviewSheet({
       endTime: p.end_time ?? "",
       address: p.address ?? "",
       notes:   p.notes ?? "",
+      outDayId: p.type === "hotel" ? (findMatchingDay(days, p.check_out_date ?? null) ?? "") : "",
     }))
   );
 
@@ -150,42 +168,51 @@ export default function ConfirmationPreviewSheet({
     const user = session?.user;
     if (!user) { setSaving(false); setSaveError("You're signed out. Sign in and try again."); return; }
 
+    // Each booking's real place, looked up together; a miss stays a note.
+    const places = await Promise.all(items.map((p) => resolvePlace(p)));
+
     const nextPos = new Map<string, number>();
-    const createdCards: Card[] = drafts.map((draft, i) => {
+    const posOn = (dayId: string) => {
+      const dayCards = days.find((d) => d.id === dayId)?.cards ?? [];
+      const pos = nextPos.get(dayId) ?? dayCards.reduce((m, c) => Math.max(m, c.position), 0) + 1;
+      nextPos.set(dayId, pos + 1);
+      return pos;
+    };
+    const card = (dayId: string, start: string | null, end: string | null, details: Record<string, unknown>, place: Place | null): Card => ({
+      id:           crypto.randomUUID(),
+      day_id:       dayId,
+      list_id:      null,
+      trip_id:      tripId,
+      start_time:   start,
+      end_time:     end,
+      position:     posOn(dayId),
+      status:       "in_itinerary" as CardStatus,
+      source_url:   null,
+      details:      details as Card["details"],
+      ai_generated: false,
+      confirmed:    false,
+      created_at:   new Date().toISOString(),
+      place_id:     place?.id ?? null,
+      place,
+    });
+    const hhmm = (t: string) => (t.trim() ? `${t.trim().slice(0, 5)}:00` : null);
+    const createdCards: Card[] = drafts.flatMap((draft, i) => {
       const parsed = items[i];
-      const dayCards = days.find((d) => d.id === draft.dayId)?.cards ?? [];
-      const pos = nextPos.get(draft.dayId) ?? dayCards.reduce((m, c) => Math.max(m, c.position), 0) + 1;
-      nextPos.set(draft.dayId, pos + 1);
-
-      const details: Record<string, unknown> = { title: draft.title.trim() };
-      if (confNo.trim())       details.confirmation = confNo.trim();
-      if (parsed.phone)        details.phone        = parsed.phone;
-      if (parsed.website)      details.website      = parsed.website;
-      if (draft.notes.trim())  details.notes        = draft.notes.trim();
-
-      return {
-        id:           crypto.randomUUID(),
-        day_id:       draft.dayId,
-        list_id:      null,
-        trip_id:      tripId,
-        start_time:   draft.time.trim()    ? `${draft.time.trim().slice(0, 5)}:00`    : null,
-        end_time:     draft.endTime.trim() ? `${draft.endTime.trim().slice(0, 5)}:00` : null,
-        position:     pos,
-        status:       "in_itinerary" as CardStatus,
-        source_url:   null,
-        details:      details as Card["details"],
-        ai_generated: false,
-        confirmed:    false,
-        created_at:   new Date().toISOString(),
-        place_id:     null,
-        place:        null,
-      };
+      const place = places[i];
+      const details = confirmationDetails(parsed, { title: draft.title, notes: draft.notes, confirmation: confNo });
+      const outDay = parsed.type === "hotel" ? days.find((d) => d.id === draft.outDayId) : undefined;
+      if (outDay?.date) details.check_out = outDay.date;
+      const main = card(draft.dayId, hhmm(draft.time), parsed.type === "hotel" ? null : hhmm(draft.endTime), details, place);
+      // A stay is two events, check-in and check-out, as one added by hand.
+      if (!outDay) return [main];
+      const name = place?.title ?? draft.title.trim();
+      return [main, card(outDay.id, checkOutTime(parsed), null, { ...details, title: `Check out of ${name}` }, place)];
     });
 
     // The columns the insert has always written — not the display-only fields.
     const rows = createdCards.map((c) => ({
       id: c.id, day_id: c.day_id, trip_id: c.trip_id, start_time: c.start_time, end_time: c.end_time,
-      position: c.position, status: c.status, source_url: null, details: c.details, ai_generated: false, place_id: null,
+      position: c.position, status: c.status, source_url: null, details: c.details, ai_generated: false, place_id: c.place_id,
     }));
     const { error } = await queuedInsert("cards", rows);
     if (error) {
@@ -300,7 +327,7 @@ export default function ConfirmationPreviewSheet({
                   {/* Day assignment */}
                   <div>
                     <label htmlFor={`conf-${idx}-day`} className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
-                      Day
+                      {parsed.type === "hotel" ? "Check in" : "Day"}
                       {parsed.date && (
                         <span className="ml-1 font-normal normal-case text-gray-400">
                           ({parsed.date})
@@ -322,11 +349,36 @@ export default function ConfirmationPreviewSheet({
                     </select>
                   </div>
 
+                  {/* Hotels: the day you leave, read from the booking */}
+                  {parsed.type === "hotel" && (
+                    <div>
+                      <label htmlFor={`conf-${idx}-out`} className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                        Check out
+                        {parsed.check_out_date && (
+                          <span className="ml-1 font-normal normal-case text-gray-400">({parsed.check_out_date})</span>
+                        )}
+                      </label>
+                      <select
+                        id={`conf-${idx}-out`}
+                        value={draft.outDayId}
+                        onChange={(e) => patchDraft(idx, { outDayId: e.target.value })}
+                        className="w-full mt-1 px-3 py-2 text-[14px] text-gray-900 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-300 appearance-none"
+                      >
+                        <option value="">After the trip&apos;s last day</option>
+                        {days.filter((d) => d.date > (days.find((x) => x.id === draft.dayId)?.date ?? "")).map((d) => (
+                          <option key={d.id} value={d.id}>
+                            Day {d.day_number}{d.date ? ` — ${fmtDate(d.date)}` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
                   {/* Times */}
                   <div className="flex gap-3">
                     <div className="flex-1">
                       <label htmlFor={`conf-${idx}-start`} className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
-                        {parsed.type.startsWith("flight") ? "Departs" : "Start time"}
+                        {parsed.type.startsWith("flight") ? "Departs" : parsed.type === "hotel" ? "Check-in time" : "Start time"}
                       </label>
                       <input
                         type="time"
@@ -336,7 +388,7 @@ export default function ConfirmationPreviewSheet({
                         className="w-full mt-1 px-3 py-2 text-[14px] text-gray-900 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-300"
                       />
                     </div>
-                    <div className="flex-1">
+                    {parsed.type !== "hotel" && <div className="flex-1">
                       <label htmlFor={`conf-${idx}-end`} className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
                         {parsed.type.startsWith("flight") ? "Arrives" : "End time"}
                       </label>
@@ -347,7 +399,7 @@ export default function ConfirmationPreviewSheet({
                         onChange={(e) => patchDraft(idx, { endTime: e.target.value })}
                         className="w-full mt-1 px-3 py-2 text-[14px] text-gray-900 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-300"
                       />
-                    </div>
+                    </div>}
                   </div>
 
                   {/* Address */}

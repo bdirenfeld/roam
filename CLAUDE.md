@@ -1983,3 +1983,8 @@ the component mounted and you are looking at throttling, not a broken map.
   (FindBase.stayName), else from the base's middle; in the list's grey line and in the opened place.
   Straight-line, free: <=1.5 km as minutes on foot, further as km. His ruling: distance shows in Find's list
   (deciding), NOT on the day's rows (already decided; the map shows it). A stop's sheet is optional, not built.
+- Booking uploads (1 Oct 2026, lib/confirmations/toCards): the reader now returns airline, flight_number,
+  origin_airport, arriving_at, seat (the fields FlightArrivalDetail shows) and a hotel's check_out_date/time.
+  ConfirmationPreviewSheet looks each booking's place up (autocomplete → bulk-import, as Find saves), so the
+  card has a pin/photos and a hotel counts in stayRuns; a failed lookup leaves the old note card. A hotel gets
+  a Check out select (prefilled) and a "Check out of X" card at the booking's time (11:00 if none).

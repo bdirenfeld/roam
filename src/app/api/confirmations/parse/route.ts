@@ -16,10 +16,17 @@ Each object must have exactly these fields (no extra keys):
   "date": "YYYY-MM-DD or null — departure date for flights, check-in/reservation date for others",
   "time": "HH:MM or null — departure time for flights, reservation time for restaurants/hotels",
   "end_time": "HH:MM or null — arrival time for flights",
-  "address": "string or null — airport name + city for flights, full address for others",
+  "address": "string or null — for flight_arrival the airport you LAND at, for flight_departure the airport you LEAVE from (name + city); full address for others",
   "phone": "string or null",
   "website": "string or null — airline website or booking URL",
-  "notes": "string or null — flight number, seat number, duration, passenger name, cabin class"
+  "notes": "string or null — duration, passenger names, cabin class, anything else worth keeping",
+  "airline": "string or null — flights only, e.g. 'Air Canada'",
+  "flight_number": "string or null — flights only, e.g. 'AC890'",
+  "origin_airport": "string or null — flights only, where it departs, e.g. 'Toronto Pearson (YYZ)'",
+  "arriving_at": "string or null — flights only, where it lands, e.g. 'Rome Fiumicino (FCO)'",
+  "seat": "string or null — flights only",
+  "check_out_date": "YYYY-MM-DD or null — hotels only, the day you check out",
+  "check_out_time": "HH:MM or null — hotels only, the check-out time"
 }
 
 Round-trip flight rules:
@@ -109,7 +116,7 @@ export async function POST(req: NextRequest) {
   try {
     const response = await client.messages.create({
       model:      "claude-sonnet-4-6",
-      max_tokens: 1024,
+      max_tokens: 1600,
       system:     SYSTEM_PROMPT,
       messages:   [{ role: "user", content: contentBlocks }],
     });
