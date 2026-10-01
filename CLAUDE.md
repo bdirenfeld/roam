@@ -1950,3 +1950,12 @@ the component mounted and you are looking at throttling, not a broken map.
   (300) Find's travellers' half returns 503 "paused until tomorrow" and notes pause; Google's half keeps working.
   Each call logs "[spend] …¢". Web searches 2 (events 3), was 3/5. CACHE_DAYS 90. Warm-up: 4 categories
   (WARM_CATEGORIES), main base only. NEVER test by re-running whole trips — one category, and read the cache.
+
+## Events: the area's yearly list, asked once (1 Oct 2026)
+
+- He wanted events without paying Claude per search. No free source lists yearly events (Wikidata: 28 Tuscan,
+  mostly undated, no Bravio); SerpAPI's free plan has no Google Events. So lib/find/yearly: Claude is asked ONCE
+  per ~10 km area for the year's recurring events with date rules (month/day or weekday+nth, days), kept for good
+  in find_cache "yearly|v1|lat|lng" (no expiry). Every trip there is answered free: `yearlyForTrip` gives the
+  dates for that year as "Usually Sun 29 Aug: …" so eventDays/drop rules read it. Events have a "see what's on"
+  link to Google's own listings (`whatsOnUrl`) for one-off concerts — free, no API. Races and camps still ask per trip.

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import { overBudget, addSpend } from "@/lib/api/spend";
+import { yearlyKey, yearlyPrompt, parseYearly, yearlyForTrip, type YearlyItem } from "@/lib/find/yearly";
 import { googleQuery, travellersPrompt, parseTravellers, cacheKey, CACHE_DAYS, DATED, onTripDates, fixWeekdays } from "@/lib/find/ask";
 import { NEAR_PLAN, withinWalk } from "@/lib/find/near";
 import { mergeFind, fitsCategory, isBeach, isTour, FAR_KM, EVENT_FAR_KM, type FindResult } from "@/lib/find/merge";
@@ -72,6 +73,9 @@ export async function POST(req: NextRequest) {
   // Events, races and camps happen on dates: no Google (it can only name
   // venues), and the travellers' search is for what is on while you are there.
   const dated = DATED.has(subType) && !ask;
+  // Events come from the area's yearly list, asked of Claude once and kept for
+  // good (lib/find/yearly): not a paid search per trip (1 Oct 2026).
+  const yearly = subType === "event" && !ask && mode === "travellers";
   if (dated && mode === "google") return NextResponse.json({ results: [], mode });
   // Events reach a day trip away (lib/find/merge EVENT_FAR_KM).
   const farKm = dated && subType === "event" ? EVENT_FAR_KM : FAR_KM;
@@ -89,12 +93,12 @@ export async function POST(req: NextRequest) {
 
   let admin: ReturnType<typeof createAdminClient> | null = null;
   try { admin = createAdminClient(); } catch { admin = null; }
-  if (admin) {
+  if (admin && !yearly) {
     const since = new Date(Date.now() - CACHE_DAYS * 86_400_000).toISOString();
     const { data: hit } = await admin.from("find_cache").select("results").eq("key", key).gte("created_at", since).maybeSingle();
     if (hit) return answer(hit.results as FindResult[]);
   }
-  if (mode === "travellers" && !(await underQuota(gate.supabase, "find", QUOTA.find))) return quotaExceeded("finds");
+  if (mode === "travellers" && !yearly && !(await underQuota(gate.supabase, "find", QUOTA.find))) return quotaExceeded("finds");
   if (mode === "google" && !(await underQuota(gate.supabase, "findGoogle", QUOTA.findGoogle))) return quotaExceeded("finds");
 
   const findOnGoogle = async (input: string): Promise<GPlace | null> => {
@@ -187,6 +191,46 @@ export async function POST(req: NextRequest) {
       return toResult(g, "google", why, null, forKids);
     }).filter((x): x is FindResult => x !== null);
   };
+
+  if (yearly) {
+    const ykey = yearlyKey(base.lat!, base.lng!);
+    let items: YearlyItem[] | null = null;
+    if (admin) {
+      const { data } = await admin.from("find_cache").select("results").eq("key", ykey).maybeSingle();
+      if (data && Array.isArray(data.results)) items = data.results as YearlyItem[];
+    }
+    if (!items) {
+      if (!apiKey) return NextResponse.json({ error: "Travellers' picks are unavailable just now" }, { status: 502 });
+      if (!(await underQuota(gate.supabase, "find", QUOTA.find))) return quotaExceeded("finds");
+      if (await overBudget(admin)) return NextResponse.json({ error: "Travellers' picks are paused until tomorrow" }, { status: 503 });
+      try {
+        // Once per area: five searches and room for thirty events.
+        const res = await new Anthropic({ apiKey }).messages.create({
+          model: "claude-sonnet-4-6",
+          max_tokens: 8000,
+          messages: [{ role: "user", content: yearlyPrompt(`${base.label}${country ? `, ${country}` : ""}`) }],
+          tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
+        });
+        await addSpend(admin, `yearly events ${base.label}`, res.usage as Parameters<typeof addSpend>[2]);
+        const text = res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("\n");
+        const picks = parseYearly(text);
+        const placed = await Promise.all(picks.map(async (p): Promise<YearlyItem | null> => {
+          const g = await findOnGoogle(`${p.name}, ${p.near ?? base.label}`);
+          const r = g ? toResult(g, "travellers", p.why, p.sourceUrl ? { name: p.sourceName ?? new URL(p.sourceUrl).hostname, url: p.sourceUrl } : null, p.kids) : null;
+          return r ? { result: { ...r, title: p.event }, rule: { month: p.month, day: p.day, weekday: p.weekday, nth: p.nth, days: p.days } } : null;
+        }));
+        const kept = placed.filter((x): x is YearlyItem => x !== null);
+        items = kept;
+        console.log("[find] yearly events", base.label, "named", picks.length, "placed", kept.length);
+        if (admin && kept.length) await admin.from("find_cache").upsert({ key: ykey, results: kept, created_at: new Date().toISOString() });
+      } catch (e) {
+        console.error("[find] yearly:", e);
+        return NextResponse.json({ error: "Travellers' picks are unavailable just now" }, { status: 502 });
+      }
+    }
+    // The trip's own dates; with children, only what suits them.
+    return answer(yearlyForTrip(items ?? [], trip.start_date as string, trip.end_date as string).filter((r) => !kids || r.kids));
+  }
 
   let found: FindResult[];
   try {

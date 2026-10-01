@@ -13,6 +13,7 @@ import { combineFind, type FindResult } from "@/lib/find/merge";
 import { closedOnTrip, priceSigns } from "@/lib/find/detail";
 import { DATED } from "@/lib/find/ask";
 import { findRequest } from "@/lib/find/request";
+import { whatsOnUrl } from "@/lib/find/yearly";
 
 /**
  * Find (29 Sep 2026): places for what a base is short of, in Roam's own
@@ -208,6 +209,13 @@ export default function FindSheet({
         )}
         <div className={`flex-1 overflow-y-auto px-5 py-2 ${open ? "hidden" : ""}`}>
           {!base && <p className="py-6 text-[14px] text-activity/60">Set where the journey is going in Settings, and Find will start there.</p>}
+          {/* Events are the area's yearly ones (lib/find/yearly); one-off shows are Google's, a tap away. */}
+          {base && sub === "event" && (
+            <p className="pt-1 pb-2 text-[12.5px] text-activity/60 leading-snug">
+              Events held every year near {base.label}, on your dates. For concerts and one-off shows,{" "}
+              <a href={whatsOnUrl(base.label, trip.start_date)} target="_blank" rel="noreferrer" className="underline underline-offset-2">see what&apos;s on</a>.
+            </p>
+          )}
           {base && loading && <p className="py-6 text-[14px] text-activity/60">{DATED.has(sub) ? "Checking what's on while you're there…" : "Looking…"}</p>}
           {failed && <p className="py-6 text-[14px] text-[#B0541F]">{failed}</p>}
           {!failed && base && bothIn && list.length === 0 && (
