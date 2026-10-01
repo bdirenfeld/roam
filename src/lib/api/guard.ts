@@ -65,7 +65,7 @@ export const QUOTA = {
                        // never hits a wall; still a backstop against a runaway loop.
   stayWrite:     100,  // choose / save / not-for-us
   shareSuggest:   60,  // a TikTok shared in: caption → Claude Haiku → Google
-  find:           40,  // Find: Claude with web search + Google checks; cache misses only (29 Sep 2026)
+  find:          150,  // Find: Claude with web search + Google checks; cache misses only (29 Sep 2026)
   planNotes:     100,  // Card notes: one Claude call per screenful of cards without notes. 30 -> 100 on 30 Sep 2026:
                        // while the Anthropic credit was out every page load asked, failed and still counted (43).
   gettingThere:   30,  // Plan my trip travel cards: one call per plan, two Google routes per day trip (cached)

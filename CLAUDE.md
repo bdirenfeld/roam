@@ -1897,3 +1897,11 @@ the component mounted and you are looking at throttling, not a broken map.
 - Travellers is one line ("2 adults · 3 kids (10, 8, 5)") until tapped — his "is this the best design"; a
   saved family profile was rejected ("won't work for all users"). New journeys start from the last journey's
   party aged to the new dates (`ageForward`).
+
+## Find searched ahead (30 Sep 2026)
+
+- His ask: "make find places faster". Measured: Google half ~1.4 s, travellers' half 28–35 s (events 60–90 s).
+  Opening a journey (week map, phone map; not guests, not past trips) now runs every category, both halves,
+  for its first two bases in the background, three at a time, once a day per browser (`useWarmFind`, lib/find/
+  request `findRequest` shared with the sheet so the cache keys match). He agreed ~50¢ an area a month.
+  `find` quota 40 -> 150 (cache hits don't count). Kept Sonnet: Haiku would weaken the travellers' picks.

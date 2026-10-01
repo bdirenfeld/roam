@@ -37,6 +37,7 @@ import { planBatch, plannedOtherDays, stayAnchor } from "@/lib/week/dayPlan";
 import { tapFilter } from "@/lib/map/tapFilter";
 import dynamic from "next/dynamic";
 import { reloadOnStale } from "@/lib/chunkReload";
+import { useWarmFind } from "@/hooks/useWarmFind";
 // Loaded when first opened, not with the map (29 Sep 2026).
 const PlanMyTripSheet = dynamic(reloadOnStale(() => import("@/components/plan/PlanMyTripSheet")), { ssr: false });
 const FindSheet = dynamic(reloadOnStale(() => import("@/components/plan/FindSheet")), { ssr: false });
@@ -101,6 +102,8 @@ const MARKERS = new Map<string, MarkerEntry>();
 export default function FullMapClient({ trip, days, cards, readOnly = false }: Props) {
   const [planOpen, setPlanOpen] = useState(false);
   const [findOpen, setFindOpen] = useState(false);
+  // Find, searched ahead in the background so it opens with its answers (hooks/useWarmFind).
+  useWarmFind(trip, cards, !readOnly);
   // Also shown while Plan my trip's cards are still where it put them: the sheet can take them off.
   const toPlan = useMemo(() => (readOnly ? 0 : Math.max(pinsToPlan(cards).length, cards.some(untouchedPlan) ? 2 : 0)), [cards, readOnly]);
   const mapContainerRef  = useRef<HTMLDivElement>(null);

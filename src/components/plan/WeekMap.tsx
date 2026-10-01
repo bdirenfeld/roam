@@ -17,6 +17,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { reloadOnStale } from "@/lib/chunkReload";
+import { useWarmFind } from "@/hooks/useWarmFind";
 // Loaded when first opened: they were in every week page's download (29 Sep 2026).
 const PlanMyTripSheet = dynamic(reloadOnStale(() => import("./PlanMyTripSheet")), { ssr: false });
 import { stackOrder, restack } from "@/lib/map/pinStack";
@@ -103,6 +104,8 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
   const [planOpen, setPlanOpen] = useState(false);
   // Find (29 Sep 2026): places for what a base is short of.
   const [findOpen, setFindOpen] = useState(false);
+  // Find, searched ahead in the background so it opens with its answers (hooks/useWarmFind).
+  useWarmFind(trip, cards);
   // Also shown while Plan my trip's cards are still where it put them: the sheet can take them off.
   const toPlan = useMemo(() => (onDraftCreated ? Math.max(pinsToPlan(cards).length, cards.some(untouchedPlan) ? 2 : 0) : 0), [cards, onDraftCreated]);
   const containerRef = useRef<HTMLDivElement | null>(null);
