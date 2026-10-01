@@ -1905,3 +1905,13 @@ the component mounted and you are looking at throttling, not a broken map.
   for its first two bases in the background, three at a time, once a day per browser (`useWarmFind`, lib/find/
   request `findRequest` shared with the sheet so the cache keys match). He agreed ~50¢ an area a month.
   `find` quota 40 -> 150 (cache hits don't count). Kept Sonnet: Haiku would weaken the travellers' picks.
+
+## Find's recommendations audit (30 Sep 2026)
+
+- His ask: go through every recommendation for Tuscany and Japan; "beaches under Tuscany: weird stuff".
+- Tuscany's base was "Florence" at the pins' middle (most pins are in Florence), so Google's half was
+  Florence's bars, spas and sights for a villa near Lucca. findBases now uses a stay with nights in the
+  region (most nights; STAY_KM 100) as the base and its town as the label. Saved-only hotels don't count.
+- Google's beaches must be beaches (`isBeach`: name in his languages or natural_feature) — a racecourse,
+  a store, a gym, Santa Croce came back. Google's tours must be tours (`isTour`; never a company listing)
+  — Shimane had a TV station, a university, a consultancy. The travellers' halves were fine.

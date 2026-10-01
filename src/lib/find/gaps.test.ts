@@ -52,3 +52,21 @@ describe("gapsFor", () => {
     expect(by("beach").have).toBe(0);
   });
 });
+
+describe("the stay is the base", () => {
+  const c = (id: string, title: string, lat: number, lng: number, o: Record<string, unknown> = {}) =>
+    ({ id, place_id: "p" + id, status: "interested", day_id: null, place: { title, type: "activity", sub_type: "self_directed", lat, lng, address: "Via X, 50122 Firenze FI, Italy" }, ...o }) as unknown as import("@/types/database").Card;
+  const trip = { destination: "Tuscany, Italy", destination_lat: 43.8, destination_lng: 11, start_date: "2027-08-24", end_date: "2027-09-04" };
+  const florence = [c("1", "Uffizi", 43.768, 11.255), c("2", "Duomo", 43.773, 11.256), c("3", "Pitti", 43.765, 11.25), c("4", "Lucca walls", 43.843, 10.507, { place: { title: "Lucca walls", type: "activity", sub_type: "self_directed", lat: 43.843, lng: 10.507, address: "55100 Lucca LU, Italy" } })];
+  const villa = (n: number) => Array.from({ length: n }, (_, i) => c("v" + i, "Villa Zambaldi", 43.8299, 10.4497, { place_id: "pvilla", status: "in_itinerary", day_id: "d" + i, place: { title: "Villa Zambaldi", type: "logistics", sub_type: "hotel", lat: 43.8299, lng: 10.4497, address: "Via Fonda, 403, 55100 Lucca LU, Italy" } }));
+
+  it("Tuscany: most pins in Florence, the villa near Lucca — Find searches Lucca, around the villa", () => {
+    const b = findBases([...florence, ...villa(11)], trip);
+    expect(b[0].label).toBe("Lucca");
+    expect(b[0].lat).toBeCloseTo(43.8299, 3);
+  });
+  it("no stay booked (a hotel only saved): the pins' town and middle, as before", () => {
+    const saved = villa(1).map((x) => ({ ...x, status: "interested", day_id: null })) as unknown as typeof florence;
+    expect(findBases([...florence, ...saved], trip)[0].label).not.toBe("Lucca");
+  });
+});

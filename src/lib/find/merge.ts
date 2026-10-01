@@ -158,3 +158,27 @@ export function combineFind(travellers: FindResult[] | undefined, google: FindRe
   }
   return out.slice(0, MAX_SHOWN);
 }
+
+/**
+ * A beach, by its name in the languages his journeys use, or Google's
+ * natural-feature type. Google's half for "best beaches near" a Tuscan base
+ * returned a racecourse, a department store, a gym, a hotel, Vespa tours and
+ * Santa Croce (30 Sep 2026); the travellers' half was right, so only Google's
+ * listings must pass.
+ */
+const BEACH_NAME = /\b(beach|beaches|spiagg\w*|playa\w*|plage\w*|praia\w*|strand\w*|lido|bagn[oi]|cal[ae]|caletta|baia|bay|cove|shore|seaside|marina|kaigan|hama)\b|海岸|浜|ビーチ/i;
+export function isBeach(name: string, types: string[] | undefined): boolean {
+  return BEACH_NAME.test(name) || (types ?? []).includes("natural_feature");
+}
+
+/**
+ * A tour, class or experience: by name (English, Italian, Japanese) or
+ * Google's type, and never a company listing. Shimane's Google half for Tours
+ * held a TV station, a university, a consultancy and bus companies (30 Sep 2026).
+ */
+const TOUR_NAME = /\b(tours?|class(es)?|experiences?|cooking|workshop|making|cruise|boat|sightseeing|walk(ing)?|guide[sd]?|tasting|safari|excursions?|tour guide|corso|corsi|lezion\w*|degustazion\w*|visita|escursion\w*)\b|ツアー|体験|教室|クルーズ|遊覧|めぐり|乗船/i;
+const COMPANY_NAME = /\b(co\.,? ?ltd|inc\.|corporation|broadcasting|university|consult\w*)\b|株式会社|（株）|\(株\)|大学/i;
+export function isTour(name: string, types: string[] | undefined): boolean {
+  if (COMPANY_NAME.test(name)) return false;
+  return TOUR_NAME.test(name) || (types ?? []).some((t) => ["travel_agency", "tourist_attraction", "museum", "amusement_park", "aquarium", "zoo"].includes(t));
+}

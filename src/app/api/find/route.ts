@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import { googleQuery, travellersPrompt, parseTravellers, cacheKey, CACHE_DAYS, DATED, onTripDates, fixWeekdays } from "@/lib/find/ask";
 import { NEAR_PLAN, withinWalk } from "@/lib/find/near";
-import { mergeFind, fitsCategory, FAR_KM, EVENT_FAR_KM, type FindResult } from "@/lib/find/merge";
+import { mergeFind, fitsCategory, isBeach, isTour, FAR_KM, EVENT_FAR_KM, type FindResult } from "@/lib/find/merge";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // ── Find: places for one of a journey's gaps (29 Sep 2026) ────────────────
@@ -109,6 +109,10 @@ export async function POST(req: NextRequest) {
     const loc = g.geometry?.location;
     if (!loc) return null;
     if (!fitsCategory(subType, g.types)) return null;
+    // Google's beaches must be beaches (lib/find/merge isBeach).
+    if (from === "google" && subType === "beach" && !isBeach(g.name, g.types)) return null;
+    // and its tours are tours, not a TV station or a bus company (isTour).
+    if (from === "google" && subType === "guided" && !isTour(g.name, g.types)) return null;
     return { placeId: g.place_id, name: g.name, address: g.formatted_address ?? g.vicinity ?? "", lat: loc.lat, lng: loc.lng, rating: g.rating ?? null, reviews: g.user_ratings_total ?? null, why, source, from, kids, photoRef: g.photos?.[0]?.photo_reference ?? null };
   };
 

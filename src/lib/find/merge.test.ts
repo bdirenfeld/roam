@@ -159,3 +159,27 @@ describe("an event's place can be a square or a town", () => {
     expect(fitsCategory("self_directed", ["route"])).toBe(false);
   });
 });
+
+import { isBeach } from "./merge";
+describe("Google's beaches are beaches", () => {
+  it("Tuscany's Google half: the coves and lidos stay; the racecourse, the store, the gym and the basilica go", () => {
+    for (const n of ["Quercetano Bay", "Cala Violina Scarlino", "Spiaggia Caletta", "Spiaggia libera delle rocchette", "Spiagge bianche", "Bagno Vittoria", "Balena Beach Club"]) expect(isBeach(n, ["tourist_attraction"])).toBe(true);
+    expect(isBeach("Buca delle fate", ["natural_feature", "establishment"])).toBe(true);
+    for (const n of ["Visarno Hippodrome", "Rinascente Firenze", "Palestra Olympus", "The Social Hub Florence Lavagnini", "Tuscany Vespa Tours", "Basilica of Santa Croce in Florence", "Giardini di Bellariva"]) expect(isBeach(n, ["tourist_attraction", "point_of_interest"])).toBe(false);
+  });
+});
+
+import { isTour } from "./merge";
+describe("Google's tours are tours", () => {
+  it("Shimane: the boat ride and the wagashi class stay; the TV station, the university and the consultancy go", () => {
+    expect(isTour("Lake Shinji Sightseeing Boat, First Boarding Point", ["point_of_interest"])).toBe(true);
+    expect(isTour("Wagashi Making Experience Class Karakoro Kobo Osewasan", ["point_of_interest"])).toBe(true);
+    expect(isTour("ぐるっと松江堀川めぐり大手前広場乗船場(殿町)", ["point_of_interest"])).toBe(true);
+    expect(isTour("Florence Cooking Classes", ["point_of_interest"])).toBe(true);
+    expect(isTour("Osaka Duck Tour", ["travel_agency"])).toBe(true);
+    expect(isTour("San-in Chuo Television Broadcasting Co., Ltd.", ["point_of_interest"])).toBe(false);
+    expect(isTour("Shimane University (Matsue campus)", ["university"])).toBe(false);
+    expect(isTour("研修とコンサル アタエ株式会社", ["point_of_interest"])).toBe(false);
+    expect(isTour("しゅんたそ", ["point_of_interest"])).toBe(false);
+  });
+});

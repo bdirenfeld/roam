@@ -11,7 +11,8 @@
  */
 
 import type { Card } from "@/types/database";
-import { groupPins, type Pin } from "@/lib/plan/dayGroups";
+import { groupPins, km, type Pin } from "@/lib/plan/dayGroups";
+import { townFromAddress } from "@/lib/stays/brief";
 import { regionLabel } from "@/lib/plan/draftTrip";
 import { subTypeLabel } from "@/lib/subTypeLabel";
 
@@ -36,6 +37,9 @@ const KINDS: [string, FindCategory["type"]][] = [
   ["guided", "activity"], ["beach", "activity"], ["wellness", "activity"], ["event", "activity"], ["challenge", "activity"], ["camp", "activity"],
 ];
 export const FIND_CATEGORIES: FindCategory[] = KINDS.map(([subType, type]) => ({ subType, type, label: subTypeLabel(subType)! }));
+
+/** A stay this close to a region's middle is that region's base. */
+export const STAY_KM = 100;
 
 export interface FindBase {
   label: string;
@@ -100,12 +104,26 @@ export function findBases(cards: Card[], trip: TripLike): FindBase[] {
   let left = total - alloc.reduce((a, b) => a + b, 0);
   raw.map((x, i) => ({ i, r: x - Math.floor(x) })).sort((a, b) => b.r - a.r).forEach(({ i }) => { if (left > 0) { alloc[i]++; left--; } });
 
+  // Where you stay is the base (30 Sep 2026): Tuscany's pins are mostly in
+  // Florence, so the base was "Florence" at the pins' middle, and Find searched
+  // Florence's bars and spas for a villa near Lucca. A stay in the region (the
+  // one with the most nights) gives the base its place and its town's name.
+  const stays = cards.filter((c) => (c.place?.sub_type === "hotel" || c.place?.sub_type === "accommodation") && c.place.lat != null && c.place.lng != null);
+  const nights = (c: Card) => cards.filter((x) => x.place_id && x.place_id === c.place_id && x.day_id).length;
   return regions.map((r, i) => {
     const mine = pins.filter((p) => regionOf.get(p.id) === r.id);
     const counts: Record<string, number> = {};
     for (const p of mine) if (p.subType) counts[p.subType] = (counts[p.subType] ?? 0) + 1;
     const days = byPlan ? Math.max(1, planned.get(r.id)!.size) : alloc[i];
     const sights = mine.filter((p) => p.type === "activity").map((p) => ({ title: p.title, lat: p.lat!, lng: p.lng! }));
+    const stay = stays
+      // Only a stay with nights on the journey: a hotel merely saved is an idea, not the base.
+      .filter((s) => nights(s) > 0 && km({ lat: s.place!.lat!, lng: s.place!.lng! }, r.centre) <= STAY_KM)
+      .sort((a, b) => nights(b) - nights(a))[0];
+    if (stay) {
+      const town = townFromAddress(stay.place!.address ?? null);
+      return { label: town ?? regionLabel(mine) ?? mine[0].title, lat: stay.place!.lat!, lng: stay.place!.lng!, days, counts, sights };
+    }
     return { label: regionLabel(mine) ?? mine[0].title, lat: r.centre.lat, lng: r.centre.lng, days, counts, sights };
   }).sort((a, b) => b.days - a.days);
 }
