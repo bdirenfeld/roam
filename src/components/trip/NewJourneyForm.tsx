@@ -31,6 +31,8 @@ import {
 } from "@/lib/yearView/openWindows";
 import type { OpenWindow, TravelWindowRow } from "@/lib/yearView/openWindows";
 import { isHouseholdOwner } from "@/lib/household";
+import PartyPicker from "@/components/trip/PartyPicker";
+import { partyFrom, agesFrom, partySize as sizeOf, type Party } from "@/lib/party";
 
 const UNSPLASH_KEY = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY;
 
@@ -188,7 +190,8 @@ export default function NewJourneyForm({
   const [tripNameDirty, setTripNameDirty] = useState(false);
   const [startDate,     setStartDate]     = useState(seededDates?.start ?? "");
   const [endDate,       setEndDate]       = useState(seededDates?.end ?? "");
-  const [partySize,     setPartySize]     = useState(1);
+  // Adults, kids with ages, seniors (lib/party). Starts from the last journey.
+  const [party,         setParty]         = useState<Party>({ adults: 1, seniors: 0, kids: [] });
   // A cruise is decided when the journey is planned (Brennan, 27 Sep 2026),
   // so it is asked here; Settings changes it later. It follows the name
   // ("… cruise") until the row itself is tapped.
@@ -204,13 +207,13 @@ export default function NewJourneyForm({
       const supabase = createClient();
       const { data } = await supabase
         .from("trips")
-        .select("party_size")
+        .select("party_size, party_ages")
         .not("party_size", "is", null)
         .order("start_date", { ascending: false })
         .limit(1)
         .maybeSingle();
-      const n = (data as { party_size?: number | null } | null)?.party_size;
-      if (!cancelled && !partyTouched.current && n && n > 0) setPartySize(n);
+      const last = data as { party_size?: number | null; party_ages?: number[] | null } | null;
+      if (!cancelled && !partyTouched.current && last?.party_size && last.party_size > 0) setParty(partyFrom(last.party_size, last.party_ages ?? null));
     })();
     return () => { cancelled = true; };
   }, []);
@@ -574,7 +577,8 @@ export default function NewJourneyForm({
       destination_lng: destination.lng,
       start_date:      startDate,
       end_date:        endDate,
-      party_size:      partySize,
+      party_size:      sizeOf(party),
+      party_ages:      agesFrom(party, null),
       cruise,
       status:          "planning",
       // Persist manually chosen cover immediately so it's visible on the trip
@@ -649,7 +653,7 @@ export default function NewJourneyForm({
     const landing = tripHref(tripId, { phone: isPhone(navigator.userAgent, null), owner: true, openDayId: days[0]?.id });
     if (onCreated) onCreated(tripId, landing);
     else router.push(landing);
-  }, [isValid, saving, destination, tripName, startDate, endDate, partySize, cruise, coverUrl, inviteEmails, router, onCreated, toast]);
+  }, [isValid, saving, destination, tripName, startDate, endDate, party, cruise, coverUrl, inviteEmails, router, onCreated, toast]);
 
   return (
     <div className={overlay ? "flex-1 min-h-0 flex flex-col bg-white" : "flex flex-col min-h-dvh bg-white"}>
@@ -836,32 +840,7 @@ export default function NewJourneyForm({
             )}
           </button>
 
-          {/* Travellers */}
-          <div className="flex items-center px-5 py-[14px] border-b border-black/5">
-            <span className="text-[10px] uppercase tracking-widest text-[#1A1A2E] w-20 flex-shrink-0">
-              Travellers
-            </span>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => { partyTouched.current = true; setPartySize((v) => Math.max(1, v - 1)); }}
-                disabled={partySize <= 1}
-                className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 text-[14px] leading-none disabled:opacity-30 active:scale-90 transition-transform"
-                aria-label="Decrease"
-              >
-                −
-              </button>
-              <span className="text-[14px] text-[#1A1A2E] tabular-nums w-4 text-center">
-                {partySize}
-              </span>
-              <button
-                onClick={() => { partyTouched.current = true; setPartySize((v) => v + 1); }}
-                className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 text-[14px] leading-none active:scale-90 transition-transform"
-                aria-label="Increase"
-              >
-                +
-              </button>
-            </div>
-          </div>
+          <PartyPicker party={party} onChange={(p) => { partyTouched.current = true; setParty(p); }} labelClass="text-[#1A1A2E]" />
 
           {/* Cruise — the ship is the stay: the Budget prices a fare, and
               Where to stay goes away. */}

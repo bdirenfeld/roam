@@ -48,6 +48,8 @@ export function travellersPrompt(opts: {
   party: number; childAges: number[]; month: string;
   /** Children on the trip whose ages are not saved (a party of three or more, as Plan my trip assumes). */
   kids?: boolean;
+  /** Anyone 65 or over on the trip (lib/party). */
+  seniors?: boolean;
   /** The journey's dates, for the dated kinds. */
   from?: string; to?: string;
   /** Sights the days are built around, for coffee and dessert near them. */
@@ -58,6 +60,7 @@ export function travellersPrompt(opts: {
     ? `a family of ${opts.party} with children aged ${opts.childAges.join(", ")}`
     : opts.kids ? `a family of ${opts.party} with children`
     : `${opts.party} adult${opts.party === 1 ? "" : "s"}`;
+  const whoAll = opts.seniors ? `${who}, including someone over 65 (favour easy access: little walking, few stairs)` : who;
   const what = opts.ask && opts.ask.trim() ? opts.ask.trim() : `${label.toLowerCase()} (Roam's category "${label}")`;
   const where = `${opts.base}${opts.country ? `, ${opts.country}` : ""}`;
   if (DATED.has(opts.subType) && !(opts.ask && opts.ask.trim()) && opts.from && opts.to) {
@@ -70,7 +73,7 @@ export function travellersPrompt(opts: {
 festivals, feast-day processions and re-enactments, the kind a visitor would plan a day around and could only see
 on these dates. Then the best concerts, shows and markets.`
       : "";
-    return `Find ${DATED_WORDS[opts.subType]} happening ${reach} between ${opts.from} and ${opts.to}, for ${who}.${lead}
+    return `Find ${DATED_WORDS[opts.subType]} happening ${reach} between ${opts.from} and ${opts.to}, for ${whoAll}.${lead}
 Search event listings, official city, regional and tourism sites, race calendars and local news for that year. Only include
 things that take place on at least one of those dates; never a venue with nothing on. If that year's programme is not
 published yet, include events held every year on those dates (a fixed day, or a rule like "the last Sunday of August")
@@ -87,7 +90,7 @@ Reply with JSON only:
   const nearLine = opts.near && opts.near.length && NEAR_KINDS.has(opts.subType)
     ? `\nThe days are spent around ${opts.near.join(", ")}: only recommend places a short walk from one of those.`
     : "";
-  return `Find ${what} in ${opts.base}${opts.country ? `, ${opts.country}` : ""} for ${who}, visiting in ${opts.month}.
+  return `Find ${what} in ${opts.base}${opts.country ? `, ${opts.country}` : ""} for ${whoAll}, visiting in ${opts.month}.
 Search Reddit threads and travel blogs for what travellers who went recommend.${nearLine}
 ${opts.subType === "self_directed" && !(opts.ask && opts.ask.trim())
     ? `Start with the places a first visit should not miss, then add ones travellers loved that first-timers usually skip.`

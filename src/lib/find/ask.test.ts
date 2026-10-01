@@ -131,3 +131,11 @@ describe("an answer cut off mid-list", () => {
     expect(parseCut(cut).map((p) => p.name)).toEqual(["Tsurugaoka Hachiman-gu", "Nezu Shrine"]);
   });
 });
+
+describe("seniors on the trip", () => {
+  it("the search is told to favour easy access", () => {
+    const p = travellersPrompt({ base: "Sydney", country: "Australia", subType: "self_directed", ask: null, party: 3, childAges: [8], seniors: true, month: "January 2026" });
+    expect(p).toMatch(/including someone over 65 \(favour easy access: little walking, few stairs\)/);
+    expect(travellersPrompt({ base: "Sydney", country: "Australia", subType: "self_directed", ask: null, party: 3, childAges: [8], month: "January 2026" })).not.toMatch(/over 65/);
+  });
+});

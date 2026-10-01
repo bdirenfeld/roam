@@ -1886,3 +1886,11 @@ the component mounted and you are looking at throttling, not a broken map.
   ages, so the adult-themed filter never ran and Kanamara Matsuri stayed.
 - Find's travellers answer: max_tokens 8000, and a reply cut off mid-list keeps every place that came
   through whole (parseTravellers) — Tokyo's events stopped at max_tokens with 4000 and returned nothing.
+
+## Who is travelling: adults, kids with ages, seniors (30 Sep 2026)
+
+- His ask: "put in kids, their ages, and if people are seniors". The app only had a head count; party_ages
+  existed but no screen set it (imports did). `PartyPicker` (New journey + Trip settings) writes
+  party_size + party_ages via lib/party (`partyFrom` / `agesFrom`): real ages kept, new adults 40, seniors
+  70; kid = under 18, senior = 65+. Plan my trip plans gently for seniors as for young kids; Find tells the
+  search "over 65: easy access". Names/birthdays (TravellersSection) stay hidden: a family profile is later.

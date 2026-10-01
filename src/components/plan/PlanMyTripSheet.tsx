@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useRouter } from "next/navigation";
 import { previewDraft, buildDraft, hasChildren, untouchedPlan } from "@/lib/plan/draftRows";
+import { hasSeniors } from "@/lib/party";
 
 /**
  * "Plan my trip" (28 Sep 2026): the journey's saved places become the plan
@@ -43,7 +44,8 @@ export default function PlanMyTripSheet({
       .then(({ data }) => { if (!off && data) setBirthdates(data.map((r) => r.birthdate as string | null)); });
     return () => { off = true; };
   }, [trip.id]);
-  const kids = hasChildren(trip.party_ages, birthdates, trip.party_size, trip.start_date);
+  // Young children or anyone 65+: the gentle pace (three places a day, breaks; lib/plan/pace).
+  const kids = hasChildren(trip.party_ages, birthdates, trip.party_size, trip.start_date) || hasSeniors(trip.party_ages);
   const preview = useMemo(() => previewDraft(cards, days, kids), [cards, days, kids]);
   const [chosen, setChosen] = useState<Set<number>>(() => new Set(preview.suggested));
   const [busy, setBusy] = useState(false);

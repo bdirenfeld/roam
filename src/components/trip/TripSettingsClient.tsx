@@ -9,6 +9,8 @@ import { deleteJourney } from "@/lib/deleteJourney";
 import { useToast } from "@/components/ui/Toast";
 import { setTripArchived } from "@/lib/tripArchive";
 import TravellersSection, { type Person } from "@/components/trip/TravellersSection";
+import PartyPicker from "@/components/trip/PartyPicker";
+import { partyFrom, agesFrom, partySize as sizeOf } from "@/lib/party";
 import EntrySection from "./EntrySection";
 import { createShareLink, revokeShareLink, removeGuest, loadShareState } from "@/lib/share-actions";
 
@@ -164,7 +166,8 @@ export default function TripSettingsClient({
   const [destination, setDestination] = useState(trip.destination);
   const [startDate, setStartDate] = useState(trip.start_date);
   const [endDate, setEndDate] = useState(trip.end_date);
-  const [partySize, setPartySize] = useState(trip.party_size);
+  // Adults, kids with ages, seniors (lib/party), saved as party_size + party_ages.
+  const [party, setParty] = useState(() => partyFrom(trip.party_size, trip.party_ages));
   const [cruise, setCruise] = useState(trip.cruise === true);
 
   // Cover image — tracked locally so hero updates immediately after save
@@ -279,7 +282,7 @@ export default function TripSettingsClient({
         }
       }
 
-      // Update trips table — title, destination, dates, party_size only
+      // Update trips table — title, destination, dates, who is travelling
       const { error: tripError } = await supabase
         .from("trips")
         .update({
@@ -287,7 +290,8 @@ export default function TripSettingsClient({
           destination: destination.trim(),
           start_date: startDate,
           end_date: endDate,
-          party_size: partySize,
+          party_size: sizeOf(party),
+          party_ages: agesFrom(party, trip.party_ages),
           cruise,
         })
         .eq("id", trip.id);
@@ -371,7 +375,7 @@ export default function TripSettingsClient({
       pending.current = false;
       if (await persistRef.current()) setSavedOnce(true);
     }, 700);
-  }, [title, destination, partySize, startDate, endDate, cruise]);
+  }, [title, destination, party, startDate, endDate, cruise]);
   // The overlay can also close from outside — a swipe down, Escape, the
   // backdrop — without going through dismiss. Whatever is still waiting is
   // sent on the way out rather than dropped.
@@ -737,32 +741,7 @@ export default function TripSettingsClient({
             </span>
           </button>
 
-          {/* Travellers */}
-          <div className="flex items-center px-5 py-[14px] border-b border-black/5">
-            <span className="text-[10px] uppercase tracking-widest text-gray-400 w-20 flex-shrink-0">
-              Travellers
-            </span>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setPartySize((v) => Math.max(1, v - 1))}
-                disabled={partySize <= 1}
-                className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 text-[14px] leading-none disabled:opacity-30 active:scale-90 transition-transform"
-                aria-label="Decrease"
-              >
-                −
-              </button>
-              <span className="text-[14px] text-[#1A1A2E] tabular-nums w-4 text-center">
-                {partySize}
-              </span>
-              <button
-                onClick={() => setPartySize((v) => v + 1)}
-                className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 text-[14px] leading-none active:scale-90 transition-transform"
-                aria-label="Increase"
-              >
-                +
-              </button>
-            </div>
-          </div>
+          <PartyPicker party={party} onChange={setParty} labelClass="text-gray-400" />
 
           {/* Cruise (27 Sep 2026): the ship is the hotel and most meals, so the
               Budget prices a fare instead, and Where to stay goes away. */}
