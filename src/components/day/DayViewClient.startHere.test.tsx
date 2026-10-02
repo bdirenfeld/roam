@@ -10,6 +10,8 @@ import type { Trip, Day, DayWithCards, Card } from "@/types/database";
  * other ones." Find places still shows on any day until something is saved.
  */
 
+// How-to videos are their own tests (components/videos); nothing is switched on here.
+vi.mock("@/hooks/useHowToVideos", () => ({ SUPABASE_BASE: "", useHowToVideos: () => ({ ready: true, available: {}, seen: {}, markSeen: () => {} }), useVisitorVideo: () => ({ ready: true, available: {}, gone: true, dismiss: () => {} }) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), back: vi.fn(), refresh: vi.fn(), prefetch: vi.fn(), replace: vi.fn() }) }));
 vi.mock("@/components/ui/Toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
 // The journey's cards: whatever the test puts here (nothing booked by default).

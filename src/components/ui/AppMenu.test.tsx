@@ -26,8 +26,14 @@ vi.mock("@/components/overlays/AppOverlays", () => {
 // run for minutes. The rows are what is being tested, not the glyphs.
 vi.mock("@phosphor-icons/react", () => {
   const Glyph = () => null;
-  return { Coins: Glyph, DotsThree: Glyph, Gear: Glyph, NotePencil: Glyph, ShareNetwork: Glyph, Lightbulb: Glyph, Bed: Glyph };
+  return { Coins: Glyph, DotsThree: Glyph, Gear: Glyph, NotePencil: Glyph, ShareNetwork: Glyph, Lightbulb: Glyph, Bed: Glyph, PlayCircle: Glyph };
 });
+
+const vids = vi.hoisted(() => ({ available: {} as Record<string, number>, markSeen: () => {} }));
+vi.mock("@/hooks/useHowToVideos", () => ({
+  SUPABASE_BASE: "https://x.supabase.co",
+  useHowToVideos: () => ({ ready: true, available: vids.available, seen: {}, markSeen: vids.markSeen }),
+}));
 
 import AppMenu from "./AppMenu";
 
@@ -53,5 +59,36 @@ describe("the journey menu", () => {
 
   it("has no Stay on a cruise: the ship is the stay (27 Sep 2026)", () => {
     expect(rows(false, true)).toEqual(["Budget", "Notes", "Bookings", "Settings"]);
+  });
+});
+
+describe("Videos in the journey menu (2 Oct 2026, video-placement-mock §5)", () => {
+  afterEach(() => { vids.available = {}; });
+
+  it("no video switched on yet: no tile", () => {
+    expect(rows(false)).not.toContain("Videos");
+  });
+
+  it("a sixth tile for the owner, and a third for a guest", () => {
+    vids.available = { "first-journey": 1 };
+    expect(rows(false)).toEqual(["Budget", "Notes", "Bookings", "Stay", "Settings", "Videos"]);
+    cleanup();
+    expect(rows(true)).toEqual(["Notes", "Bookings", "Videos"]);
+  });
+
+  it("opens a white sheet listing only what is switched on; a row plays full screen", () => {
+    vids.available = { "first-journey": 1, "on-the-trip": 3 };
+    rows(false);
+    fireEvent.click(screen.getByRole("menuitem", { name: "How-to videos" }));
+    const sheet = screen.getByRole("dialog", { name: "How-to videos" });
+    const listed = Array.from(sheet.querySelectorAll("button")).map((b) => b.textContent).filter((t) => t);
+    expect(listed).toEqual(["Your first journey1 min", "On the trip45 s"]);
+    expect(screen.queryByRole("menu")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /On the trip/ }));
+    const video = screen.getByTestId("video-player").querySelector("video")!;
+    expect(video.getAttribute("src")).toContain("/how-to-videos/on-the-trip.mp4?v=3");
+    fireEvent.click(screen.getByRole("button", { name: "Close video" }));
+    expect(screen.queryByTestId("video-player")).toBeNull();
+    expect(screen.getByRole("dialog", { name: "How-to videos" })).toBeTruthy();
   });
 });

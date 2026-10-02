@@ -47,7 +47,7 @@ export const SCHEMA: Record<string, string[]> = {
   trip_lists: ["id", "trip_id", "title", "position", "created_at"],
   trip_members: ["id", "trip_id", "user_id", "role", "created_at"],
   trips: ["id", "user_id", "title", "destination", "destination_lat", "destination_lng", "start_date", "end_date", "trip_purpose", "trip_type", "party_size", "party_ages", "accommodation_name", "accommodation_address", "status", "created_at", "archived", "archived_at", "cover_image_url", "share_token", "notes", "stay_nights", "cruise"],
-  users: ["id", "name", "email", "home_airport", "home_country", "passport_country", "avatar_url", "created_at", "has_paid"],
+  users: ["id", "name", "email", "home_airport", "home_country", "passport_country", "avatar_url", "created_at", "has_paid", "videos_seen"],
   wishlist_destinations: ["id", "user_id", "name", "location", "lat", "lng", "drive_hours", "budget", "best_time", "why", "source", "created_at", "climate"],
 };
 
@@ -57,7 +57,7 @@ export const SCHEMA: Record<string, string[]> = {
  * accepts them — and rejects anything else, which is how a bucket that was
  * never created gets noticed.
  */
-export const BUCKETS = new Set(["card-attachments", "place-photos", "trip-covers"]);
+export const BUCKETS = new Set(["card-attachments", "how-to-videos", "place-photos", "trip-covers"]);
 
 /**
  * Everything that points at a `trips` row, and what the database does when

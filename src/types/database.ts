@@ -16,6 +16,8 @@ export interface User {
   passport_country: string | null
   avatar_url: string | null
   created_at: string
+  /** How-to videos played or closed: id → when (lib/videos/howTo, migration 014). */
+  videos_seen?: Record<string, string>
 }
 
 export interface Trip {

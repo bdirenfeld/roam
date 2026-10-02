@@ -8,7 +8,11 @@ import {
   NotePencil,
   ShareNetwork,
   Bed,
+  PlayCircle,
 } from "@phosphor-icons/react";
+import VideosSheet from "@/components/videos/VideosSheet";
+import { useHowToVideos } from "@/hooks/useHowToVideos";
+import { listed } from "@/lib/videos/howTo";
 import {
   EstimateLink,
   TripSettingsLink,
@@ -69,6 +73,12 @@ export default function AppMenu({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const notes = useJourneyNotes();
+  // How-to videos (2 Oct 2026, video-placement-mock §5, his yes): a sixth tile
+  // for anyone signed in, filling the second row. Shown once at least one
+  // video is switched on (videos.json in the how-to-videos bucket).
+  const [videosOpen, setVideosOpen] = useState(false);
+  const { available } = useHowToVideos();
+  const hasVideos = !!tripId && listed(available).length > 0;
 
   useEffect(() => {
     if (!open) return;
@@ -89,7 +99,7 @@ export default function AppMenu({
   // 64px each, under the disc where the thumb already is — half the height
   // of six rows. A bottom sheet was mocked and rejected: the trigger is
   // top-right, so the menu must open there, not make the thumb travel.
-  const ownerItems = tripId ? (guest ? 1 : 5) + (extra?.length ?? 0) : 1;
+  const ownerItems = tripId ? (guest ? 1 : 5) + (extra?.length ?? 0) + (hasVideos ? 1 : 0) : 1;
   const tileCols = Math.min(3, Math.max(1, ownerItems));
 
   // Tiles on the desktop too (Brennan, 25 Sep 2026): the same two rows.
@@ -271,12 +281,27 @@ export default function AppMenu({
                   <Label title="Settings" />
                 </TripSettingsLink>
               )}
+
+              {hasVideos && (
+                <button
+                  role="menuitem"
+                  aria-label="How-to videos"
+                  onClick={() => { setOpen(false); setVideosOpen(true); }}
+                  style={itemStyle}
+                >
+                  <span style={glyphStyle}>
+                    <PlayCircle size={15} weight="light" />
+                  </span>
+                  <Label title="Videos" />
+                </button>
+              )}
             </>
           )}
 
         </div>
       )}
 
+      {videosOpen && <VideosSheet onClose={() => setVideosOpen(false)} />}
     </div>
   );
 }

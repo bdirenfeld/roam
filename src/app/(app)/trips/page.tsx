@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import AppHeader from "@/components/ui/AppHeader";
 import { NewJourneyLink } from "@/components/overlays/AppOverlays";
 import TripCard from "@/components/ui/TripCard";
+import FirstJourneyVideo from "@/components/videos/FirstJourneyVideo";
 import PastJourneysList from "@/components/trip/PastJourneysList";
 import type { Trip } from "@/types/database";
 import { fetchAndStoreCover } from "@/lib/unsplash";
@@ -185,12 +186,8 @@ export default async function TripsPage() {
 function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="w-16 h-16 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center mb-4">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="1.5" strokeLinecap="round">
-          <circle cx="12" cy="10" r="3" />
-          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-        </svg>
-      </div>
+      {/* Video 1 takes the pin tile's place once it is switched on (2 Oct 2026). */}
+      <FirstJourneyVideo />
       <p className="text-sm font-semibold text-gray-700">No journeys yet</p>
       <p className="text-xs text-gray-400 mt-1 mb-5 max-w-[220px]">
         Plan your first journey, or wait for one to be shared with you.

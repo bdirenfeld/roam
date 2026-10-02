@@ -36,6 +36,18 @@ vi.mock("next/link", () => ({ default: ({ href, children, ...rest }: { href: str
 vi.mock("@phosphor-icons/react", () => ({ Funnel: () => null, Heart: () => null, Files: () => null }));
 vi.mock("@/components/ui/Toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
 vi.mock("@/components/search/GlobalSearch", () => ({ useGlobalSearch: () => ({ open: vi.fn() }) }));
+// jsdom has no WebGL: with a token set, the real Map rejects after the test
+// ends ("Failed to initialize WebGL") and npm test exits 1. An inert stand-in:
+// every property, call and `new` returns itself.
+vi.mock("mapbox-gl", () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const inert: any = new Proxy(function () {}, {
+    get: (t, k) => (k === "then" ? undefined : k === Symbol.toPrimitive ? () => 0 : k in t ? (t as unknown as Record<string | symbol, unknown>)[k] : inert),
+    apply: () => inert,
+    construct: () => inert,
+  });
+  return { default: inert };
+});
 vi.mock("@/hooks/useWarmFind", () => ({ useWarmFind: () => undefined }));
 vi.mock("@/lib/supabase/client", () => ({ createClient: () => ({ from: () => ({}) }) }));
 vi.mock("./MapSidebar", () => ({ default: () => null, GROUPS: [], SIDEBAR_SUB_TYPES: [] }));
@@ -108,6 +120,19 @@ describe("the phone Map", { timeout: 20000 }, () => {
     expect(screen.queryByRole("dialog", { name: "Find places" })).toBeNull();
     expect(bottomRow().style.bottom).toMatch(/^calc\(16px/);
     expect(screen.getByRole("button", { name: "Find places" })).toBeTruthy();
+  });
+
+  it("a place saved in Find lands on the map at once, without a reload (Hanoi, 2 Oct 2026)", async () => {
+    vi.stubEnv("NEXT_PUBLIC_MAPBOX_TOKEN", "pk.test");
+    await act(async () => { render(<FullMapClient trip={trip} days={days} cards={[]} />); });
+    expect(screen.getByText(/^(Nothing on the map yet|Start your map)$/)).toBeTruthy();
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Find places" })); });
+    await act(async () => { sheets.find.onSaved(cards[0]); });
+    expect(screen.queryByText(/^(Nothing on the map yet|Start your map)$/)).toBeNull();
+    // Saving the same place again (or the refresh bringing it back) doesn't double it.
+    await act(async () => { sheets.find.onSaved(cards[0]); });
+    expect(screen.queryByText(/^(Nothing on the map yet|Start your map)$/)).toBeNull();
+    vi.unstubAllEnvs();
   });
 
   it("Plan my trip from above Find closes Find, so the two sheets never stack", async () => {

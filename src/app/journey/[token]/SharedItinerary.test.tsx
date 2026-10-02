@@ -9,6 +9,8 @@ import { render, screen, cleanup } from "@testing-library/react";
  * today's day instead of leaving it folded.
  */
 
+// How-to videos are their own tests (components/videos); nothing is switched on here.
+vi.mock("@/hooks/useHowToVideos", () => ({ SUPABASE_BASE: "", useHowToVideos: () => ({ ready: true, available: {}, seen: {}, markSeen: () => {} }), useVisitorVideo: () => ({ ready: true, available: {}, gone: true, dismiss: () => {} }) }));
 vi.mock("@/lib/auth-actions", () => ({ signInWithGoogle: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 

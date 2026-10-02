@@ -18,6 +18,7 @@
 // not here.
 
 import { subTypeLabel } from "@/lib/subTypeLabel";
+import SharedVideoStrip from "@/components/videos/SharedVideoStrip";
 import { formatTimeRange } from "@/lib/formatTime";
 import { cleanNote, foldNote } from "@/lib/sharedNote";
 import DayHeading from "./DayHeading";
@@ -131,6 +132,9 @@ export default function SharedItinerary({
           </a>
         </div>
       )}
+
+      {/* Video 3, a visitor's first open only (2 Oct 2026). */}
+      <SharedVideoStrip />
 
       {journey.cover && (
         // eslint-disable-next-line @next/next/no-img-element

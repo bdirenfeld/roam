@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
+import { readBookingError, NO_BOOKING } from "@/lib/confirmations/readError";
 import Anthropic from "@anthropic-ai/sdk";
 import { CONFIRMATION_PROMPT, extractBookings } from "@/lib/confirmations/prompt";
 import { overBudget, addSpend } from "@/lib/api/spend";
@@ -82,11 +83,12 @@ export async function POST(req: NextRequest) {
 
     const parsed = extractBookings(raw.text);
 
-    if (parsed.length === 0) throw new Error("No bookings found in document");
+    if (parsed.length === 0) throw new Error(NO_BOOKING);
 
     return NextResponse.json({ parsed });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Parse failed";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    // The real reason goes to the log; the person gets one plain line (lib/confirmations/readError).
+    console.error("[confirmations/parse]", err instanceof Error ? err.message : err);
+    return NextResponse.json({ error: readBookingError(err) }, { status: 500 });
   }
 }

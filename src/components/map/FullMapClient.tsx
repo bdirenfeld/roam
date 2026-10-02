@@ -1172,6 +1172,10 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
             }}
             onSaved={(c) => {
               findPinRef.current?.remove(); findPinRef.current = null;
+              // The pin lands now: localCards is seeded once from the server and
+              // ignores router.refresh, so a Find save only showed after a reload
+              // (his Hanoi trip, 2 Oct 2026). Same path as the map's own search.
+              if (!localCards.some((x) => x.id === c.id)) registerNewCard(c);
               router.refresh();
               // The half sheet leaves the top of the map showing; the new pin is ringed there (lib/map/pulse).
               if (c.place?.lng != null && c.place?.lat != null) pulseAt(mbRef.current, mapInstRef.current, c.place.lng, c.place.lat, document.querySelector('[role="dialog"][aria-label="Find places"]'));

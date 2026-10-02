@@ -1,0 +1,141 @@
+/**
+ * Roam's how-to videos (2 Oct 2026). Mock approved: video-placement-mock.html,
+ * both of its calls answered yes — a Videos tile in the journey menu, and one
+ * video at a time on the computer's Start here card.
+ *
+ * The one rule: the right video at the right moment, shown once, where it
+ * helps. "Gone" = played or closed with ✕. After that every video stays in the
+ * journey menu under Videos.
+ *
+ * The files live in the public Supabase bucket `how-to-videos`, never in the
+ * repo (every byte in public/ rides along in every Vercel deployment). Which
+ * videos are switched on is read from `videos.json` in the same bucket —
+ * `{ "<id>": <version> }`, version > 0 = on — so a video is switched on, or
+ * replaced by a new cut, with `node scripts/upload-video.mjs`, no deploy.
+ * No videos.json, or a fetch that fails: nothing shows anywhere.
+ */
+
+export type VideoId = "first-journey" | "planning-computer" | "on-the-trip";
+
+/** The places a video is offered before it is gone. The menu lists every switched-on video, always. */
+export type Surface = "journeys-empty" | "start-here" | "start-here-computer" | "shared-link";
+
+export interface HowToVideo {
+  id: VideoId;
+  title: string;
+  /** What the prompt says: "Watch: Your first journey · 1 min". */
+  length: string;
+  /** In the bucket. The version from videos.json rides on the URL. */
+  file: string;
+  poster: string;
+  surfaces: Surface[];
+}
+
+export const BUCKET = "how-to-videos";
+export const MANIFEST = "videos.json";
+
+export const VIDEOS: HowToVideo[] = [
+  {
+    id: "first-journey",
+    title: "Your first journey",
+    length: "1 min",
+    file: "first-journey.mp4",
+    poster: "first-journey.jpg",
+    surfaces: ["journeys-empty", "start-here", "start-here-computer"],
+  },
+  {
+    id: "planning-computer",
+    title: "Planning on a computer",
+    length: "1 min",
+    file: "planning-computer.mp4",
+    poster: "planning-computer.jpg",
+    surfaces: ["start-here-computer"],
+  },
+  {
+    id: "on-the-trip",
+    title: "On the trip",
+    length: "45 s",
+    file: "on-the-trip.mp4",
+    poster: "on-the-trip.jpg",
+    surfaces: ["shared-link"],
+  },
+];
+
+/** Switched-on videos and their versions. */
+export type Available = Partial<Record<VideoId, number>>;
+/** What a person has played or closed: id → when. */
+export type Seen = Partial<Record<VideoId, string>>;
+
+/** Reads videos.json. Anything malformed switches that entry (or everything) off. */
+export function parseManifest(raw: unknown): Available {
+  const out: Available = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  for (const v of VIDEOS) {
+    const n = (raw as Record<string, unknown>)[v.id];
+    if (typeof n === "number" && Number.isFinite(n) && n > 0) out[v.id] = Math.floor(n);
+  }
+  return out;
+}
+
+/** Reads users.videos_seen. Only known ids survive. */
+export function parseSeen(raw: unknown): Seen {
+  const out: Seen = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  for (const v of VIDEOS) {
+    const t = (raw as Record<string, unknown>)[v.id];
+    if (typeof t === "string" && t) out[v.id] = t;
+  }
+  return out;
+}
+
+export function videoById(id: VideoId): HowToVideo {
+  return VIDEOS.find((v) => v.id === id)!;
+}
+
+function publicUrl(base: string, name: string, version: number): string {
+  return `${base.replace(/\/$/, "")}/storage/v1/object/public/${BUCKET}/${name}?v=${version}`;
+}
+export function manifestUrl(base: string): string {
+  return `${base.replace(/\/$/, "")}/storage/v1/object/public/${BUCKET}/${MANIFEST}`;
+}
+export function fileUrl(base: string, v: HowToVideo, available: Available): string {
+  return publicUrl(base, v.file, available[v.id] ?? 0);
+}
+export function posterUrl(base: string, v: HowToVideo, available: Available): string {
+  return publicUrl(base, v.poster, available[v.id] ?? 0);
+}
+
+/** The menu's list: every switched-on video, in order, whether seen or not. */
+export function listed(available: Available): HowToVideo[] {
+  return VIDEOS.filter((v) => (available[v.id] ?? 0) > 0);
+}
+
+/** The first switched-on, not-yet-gone video for a surface, or null. */
+export function forSurface(surface: Surface, available: Available, gone: Seen): VideoId | null {
+  const v = VIDEOS.find((x) => x.surfaces.includes(surface) && (available[x.id] ?? 0) > 0 && !gone[x.id]);
+  return v ? v.id : null;
+}
+
+/**
+ * Which video the Start here card carries, decided ONCE per visit from what
+ * was gone when the card first had an answer (`seenAtLoad`), so the computer
+ * shows one at a time: video 1, and only on a later visit, video 2. What goes
+ * during the visit (`goneNow`) just takes its row away; nothing slides in.
+ * The phone's card offers video 1 only. `style` is the mock's: video 1 is a
+ * row with its poster at the top of the card; video 2 is one quiet line.
+ */
+export function startHereVideo(opts: {
+  computer: boolean;
+  available: Available;
+  seenAtLoad: Seen;
+  goneNow: Seen;
+}): { id: VideoId; style: "row" | "line" } | null {
+  const id = forSurface(opts.computer ? "start-here-computer" : "start-here", opts.available, opts.seenAtLoad);
+  if (!id || opts.goneNow[id]) return null;
+  return { id, style: id === "first-journey" ? "row" : "line" };
+}
+
+/** localStorage key for a visitor with no account (the shared link). */
+export function localSeenKey(id: VideoId): string {
+  return `roam:video-seen:${id}`;
+}
