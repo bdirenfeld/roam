@@ -380,7 +380,8 @@ function FindPlace({ r, dates, away, saved, onSave, onBack }: { r: FindResult; d
         {blurb && <p className="text-[14px] text-[#1A1A2E] leading-snug" data-testid="find-blurb">{blurb}</p>}
         {away && (
           <div className="text-[13px] font-semibold text-[#1A1A2E] flex items-center gap-1.5">
-            <span aria-hidden className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: "#7C3AED" }} />
+            {/* The map pin's own look (pulse.ts showAt): navy, orange ring. */}
+            <span aria-hidden data-testid="find-away-dot" className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: "#1A1A2E", boxShadow: "0 0 0 2px #B0541F" }} />
             <span>{away}</span>
           </div>
         )}

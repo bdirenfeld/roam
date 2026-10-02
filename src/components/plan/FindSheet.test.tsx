@@ -76,6 +76,10 @@ describe("Find sheet", { timeout: 20000 }, () => {
     expect(screen.getByText(/min walk from Banco 19 B&B ·/)).toBeTruthy();
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "More about Trattoria Da Enzo" })); });
     expect(within(screen.getByRole("region", { name: "Trattoria Da Enzo" })).getByText(/min walk from Banco 19 B&B$/)).toBeTruthy();
+    // Its dot is the map pin's look, navy with an orange ring, not food purple (2 Oct 2026).
+    const dot = screen.getByTestId("find-away-dot");
+    expect(dot.style.background).toBe("rgb(26, 26, 46)");
+    expect(dot.style.boxShadow).toMatch(/176, 84, 31|#B0541F/i);
   });
 
   it("never covers the map: docked beside it on a computer, a half sheet on the phone, nothing dimmed (1 Oct 2026)", async () => {
