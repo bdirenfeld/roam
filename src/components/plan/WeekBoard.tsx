@@ -714,6 +714,14 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   // deletes those cards. Taking them off later is in the sheet ("Remove what
   // Plan my trip added").
   const [recentPlan, setRecentPlan] = useState<Card[] | null>(null);
+  const planDays = new Set((recentPlan ?? []).map((c) => c.day_id)).size;
+  // Find open on the map (WeekMap says so): Start here steps aside.
+  const [findShowing, setFindShowing] = useState(false);
+  useEffect(() => {
+    const on = (e: Event) => setFindShowing(Boolean((e as CustomEvent<boolean>).detail));
+    window.addEventListener("roam:find-open", on);
+    return () => window.removeEventListener("roam:find-open", on);
+  }, []);
   // The Getting there cards the plan added (PlanMyTripSheet sends them once
   // made): the tray's Undo takes them too, since it is the only Undo here.
   const planTravel = useRef<string[]>([]);
@@ -845,7 +853,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
           {/* Start here (1 Oct 2026): a new journey's two ways to start, held
               in view over the empty grid (sticky both ways, no height of its
               own); each button goes once done (lib/plan/startHere). */}
-          <div className="sticky left-0 top-[150px] z-[12] h-0 pointer-events-none" style={{ width: weekW || "100%" }}>
+          <div className={`sticky left-0 top-[150px] z-[12] h-0 pointer-events-none ${findShowing ? "hidden" : ""}`} style={{ width: weekW || "100%" }}>
             <div className="flex justify-center px-4">
               <div className="pointer-events-auto w-full max-w-[360px]">
                 <StartHere floating cards={pinCards} place={trip.destination ?? ""} reading={upload.reading} onUpload={upload.pick}
@@ -1112,7 +1120,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
 
       {recentPlan && recentPlan.length > 0 && pickedBlocks.size === 0 && !mapWide && (
         <div data-plan-tray className="absolute left-1/2 -translate-x-1/2 z-[40] bg-white rounded-full flex items-center gap-1.5 pl-4 pr-1.5 py-1.5" style={{ bottom: 20, boxShadow: "0 8px 24px rgba(26,26,46,0.18)", marginLeft: -(mapWidth / 2) }}>
-          <span className="text-[13px] font-semibold whitespace-nowrap mr-1">Planned {recentPlan.length} {recentPlan.length === 1 ? "place" : "places"} on {new Set(recentPlan.map((c) => c.day_id)).size} days</span>
+          <span className="text-[13px] font-semibold whitespace-nowrap mr-1">Planned {recentPlan.length} {recentPlan.length === 1 ? "place" : "places"} on {planDays} {planDays === 1 ? "day" : "days"}</span>
           {/* The plan's bases are Where to stay's bases (same 100 km rule, nights from the planned days). */}
           <button onClick={() => { setShowStays(true); setMapWide(true); }} className="h-8 px-3 rounded-full text-[12.5px] font-medium whitespace-nowrap" style={{ background: "rgba(26,26,46,0.06)" }}>Where to stay</button>
           <button onClick={() => void undoPlan()} className="h-8 px-3 rounded-full text-[12.5px] font-medium whitespace-nowrap text-[#B0541F]" style={{ background: "rgba(176,84,31,0.08)" }}>Undo</button>

@@ -111,6 +111,12 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
     window.addEventListener("roam:open-find", open);
     return () => window.removeEventListener("roam:open-find", open);
   }, []);
+  // ...and the week hides Start here while Find is open, so "Find places" is
+  // not on screen twice (2 Oct 2026).
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("roam:find-open", { detail: findOpen }));
+  }, [findOpen]);
+  useEffect(() => () => { window.dispatchEvent(new CustomEvent("roam:find-open", { detail: false })); }, []);
   // Find, searched ahead in the background so it opens with its answers (hooks/useWarmFind).
   useWarmFind(trip, cards);
   // Also shown while Plan my trip's cards are still where it put them: the sheet can take them off.

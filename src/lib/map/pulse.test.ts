@@ -102,7 +102,9 @@ describe("the place you are reading about", () => {
     // Already in view and close enough, and still centred: opening a place says where it is.
     expect(m.easeTo).toHaveBeenCalledWith({ center: [10.5, 43.8], zoom: 13, offset: [0, 0], duration: 700 });
     expect(added[0].dataset.preview).toBe("1");
-    expect(added[0].innerHTML).toContain("#7C3AED");
+    // Navy with an orange ring, not purple: purple is every food pin (2 Oct 2026).
+    expect(added[0].innerHTML).toContain('fill="#1A1A2E" stroke="#B0541F"');
+    expect(added[0].innerHTML).not.toContain("#7C3AED");
     // Its name beside it: food pins are purple too (live check on the Europe trip, 1 Oct 2026).
     expect(added[0].textContent).toBe("Devil's Bridge");
     pin!.remove();

@@ -13,7 +13,9 @@ import type { Card, DayWithCards, Trip } from "@/types/database";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), push: vi.fn(), refresh: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
 vi.mock("@/hooks/useCardNotes", () => ({ useCardNotes: () => {}, withNotes: (c: Card) => c, warmNotes: () => {} }));
 vi.mock("@/components/day/EntryLine", () => ({ default: () => null }));
-vi.mock("./WeekMap", () => ({ default: () => null }));
+// The map, with its onDraftCreated kept so a test can play Plan my trip's part.
+let mapDraftCreated: ((created: Card[]) => void) | null = null;
+vi.mock("./WeekMap", () => ({ default: (p: { onDraftCreated: (c: Card[]) => void }) => { mapDraftCreated = p.onDraftCreated; return null; } }));
 vi.mock("./DocumentsSheet", () => ({ default: () => null }));
 vi.mock("@/components/cards/CardBottomSheet", () => ({ default: ({ card }: { card: Card }) => <div data-testid="sheet">{card.place?.title}</div> }));
 vi.mock("@/components/ui/Toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
@@ -80,6 +82,25 @@ describe("the week's top rows", () => {
     render(<WeekBoard trip={trip} initialDays={booked} initialSaved={[]} />);
     expect(screen.queryByRole("button", { name: /Upload a booking/ })).toBeNull();
     expect(screen.getByRole("button", { name: /Find places/ })).toBeTruthy();
+  });
+
+  it("Start here steps aside while Find is open, and comes back when it closes (2 Oct 2026)", () => {
+    const empty = dates.map((date, i) => ({ id: `f${i + 1}`, trip_id: "t", day_number: i + 1, date, theme: null, cards: [] as Card[] })) as unknown as DayWithCards[];
+    render(<WeekBoard trip={trip} initialDays={empty} initialSaved={[]} />);
+    const holder = () => screen.getByTestId("start-here").parentElement!.parentElement!.parentElement!;
+    expect(holder().className).not.toMatch(/\bhidden\b/);
+    act(() => { window.dispatchEvent(new CustomEvent("roam:find-open", { detail: true })); });
+    expect(holder().className).toMatch(/\bhidden\b/);
+    act(() => { window.dispatchEvent(new CustomEvent("roam:find-open", { detail: false })); });
+    expect(holder().className).not.toMatch(/\bhidden\b/);
+  });
+
+  it("the plan's bar counts days in plain English: one day, two days", () => {
+    const { container } = render(<WeekBoard trip={trip} initialDays={days} initialSaved={[]} />);
+    act(() => { mapDraftCreated!([card("p1", "d2", cathedral, { start_time: "10:00:00" })]); });
+    expect(container.querySelector("[data-plan-tray]")!.textContent).toMatch(/Planned 1 place on 1 day(?!s)/);
+    act(() => { mapDraftCreated!([card("p2", "d2", cathedral, { start_time: "10:00:00" }), card("p3", "d3", cathedral, { start_time: "11:00:00" })]); });
+    expect(container.querySelector("[data-plan-tray]")!.textContent).toMatch(/Planned 2 places on 2 days/);
   });
 
   it("an uploaded booking lands on its day without Plan my trip's tray (2 Oct 2026)", () => {

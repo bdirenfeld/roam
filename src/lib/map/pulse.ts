@@ -64,22 +64,26 @@ function glideTo(map: any, lng: number, lat: number, panel: Element | null, alwa
 }
 
 /**
- * The place you are reading about in Find: a purple pin (a searched place's,
- * lookupPlace's TEMP_PIN_SVG) with its name beside it, as in the mock, so it
- * is not lost among the food pins, which are purple too. The map centres on
- * it. Returns it, to remove on Back, another place, Save, or closing Find.
+ * The place you are reading about in Find: a dark navy pin with an orange
+ * ring and its name beside it. It was purple until 2 Oct 2026, but purple is
+ * every food pin's colour, so a castle looked like one more restaurant
+ * (Brennan's yes to the navy-and-orange mock). The map centres on it. Returns
+ * it, to remove on Back, another place, Save, or closing Find.
  */
+export const LOOK_FILL = "#1A1A2E";
+export const LOOK_RING = "#B0541F";
+
 export function showAt(mb: any, map: any, lng: number, lat: number, panel: Element | null, name?: string): { remove: () => void } | null {
   if (!mb || !map) return null;
   glideTo(map, lng, lat, panel, true);
   const el = document.createElement("div");
   el.dataset.preview = "1";
-  el.style.cssText = "width:28px;height:28px;position:relative;pointer-events:none;";
-  el.innerHTML = `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg"><circle cx="14" cy="14" r="12" fill="#7C3AED" stroke="#fff" stroke-width="2"/><circle cx="14" cy="14" r="4" fill="white"/></svg>`;
+  el.style.cssText = "width:32px;height:32px;position:relative;pointer-events:none;";
+  el.innerHTML = `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="15" fill="#fff"/><circle cx="16" cy="16" r="12" fill="${LOOK_FILL}" stroke="${LOOK_RING}" stroke-width="3.5"/><circle cx="16" cy="16" r="4" fill="white"/></svg>`;
   if (name) {
     const tag = document.createElement("span");
     tag.textContent = name;
-    tag.style.cssText = "position:absolute;left:34px;top:3px;background:#1A1A2E;color:#fff;font:600 12px/1 'DM Sans',sans-serif;padding:5px 8px;border-radius:6px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.25);";
+    tag.style.cssText = "position:absolute;left:38px;top:5px;background:#1A1A2E;color:#fff;font:600 12px/1 'DM Sans',sans-serif;padding:5px 8px;border-radius:6px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.25);";
     el.appendChild(tag);
   }
   return new mb.Marker({ element: el, anchor: "center" }).setLngLat([lng, lat]).addTo(map);

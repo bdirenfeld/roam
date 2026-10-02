@@ -57,6 +57,8 @@ describe("the shared page", () => {
   it("shows the card note — the one place for anything that matters", () => {
     render(<SharedItinerary token="t" journey={journey(today)} />);
     expect(screen.getByText("Sign the waiver before you leave the hotel")).toBeTruthy();
+    // Short enough to show whole: no fold, no "more".
+    expect(screen.getByTestId("stop-note").tagName).toBe("P");
   });
 
   it("says where everyone sleeps, tappable into maps, and nothing on the leaving day", () => {
@@ -80,6 +82,17 @@ describe("the shared page", () => {
     expect(folds[0].tagName).toBe("DETAILS");
     expect(folds[0].textContent).toContain("Wi-Fi: HowardGuest");
     expect(folds[0].querySelector("summary")!.textContent).toMatch(/^Tonight: 11 Howard/);
+  });
+
+  it("folds a long stop note to its first sentence and more, without Intent or the planner's hedging (2 Oct 2026)", () => {
+    const j = journey(today);
+    j.cards = [{ ...j.cards[0], note: "**Intent**\nA small café and biscuit shop on Piazza San Frediano selling traditional Lucchese biscuits and coffee in a quiet square.\n\n**Know before you go**\n- Seating may be limited inside.\n- I have limited verified operational detail for this specific place beyond its name and location; confirm opening days locally on arrival." }];
+    const { container } = render(<SharedItinerary token="t" journey={j} />);
+    const note = screen.getByTestId("stop-note");
+    expect(note.tagName).toBe("DETAILS");
+    expect(note.querySelector("summary")!.textContent).toBe("A small café and biscuit shop on Piazza San Frediano selling traditional Lucchese biscuits and coffee in a quiet square. more");
+    expect(note.textContent).toContain("• Seating may be limited inside.");
+    expect(container.textContent).not.toMatch(/Intent|I have limited/);
   });
 
   it("stays simple: a start time, no end time and no meeting-point lines", () => {

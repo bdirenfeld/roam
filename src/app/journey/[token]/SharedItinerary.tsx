@@ -19,7 +19,7 @@
 
 import { subTypeLabel } from "@/lib/subTypeLabel";
 import { formatTimeRange } from "@/lib/formatTime";
-import { plainNote } from "@/lib/plainNote";
+import { cleanNote, foldNote } from "@/lib/sharedNote";
 import DayHeading from "./DayHeading";
 import RefreshOnFocus from "./RefreshOnFocus";
 import JoinButton from "./JoinButton";
@@ -282,7 +282,7 @@ export default function SharedItinerary({
                             <span aria-hidden="true" className="transition-transform group-open/tonight:rotate-90" style={{ color: "rgba(26,26,46,0.45)" }}>›</span>
                           </summary>
                           <p className="text-[13px] mt-1 mb-2 leading-[1.55] pl-2.5" style={{ color: "rgba(26,26,46,0.72)", borderLeft: `2px solid ${RULE}`, whiteSpace: "pre-line" }}>
-                            {plainNote(day.tonight.note)}
+                            {cleanNote(day.tonight.note)}
                           </p>
                         </details>
                       ) : (
@@ -332,18 +332,28 @@ export default function SharedItinerary({
                                 <p className="text-[12.5px] mt-[3px] leading-[1.45]" style={{ color: CAPTION }}>{detail}</p>
                               )
                             )}
-                            {c.note && (
+                            {c.note && (() => {
                               // Subordinate on purpose: the times are what you
                               // scan, the note is what you read when you want to
-                              // know why. Line breaks are kept because the notes
-                              // are written in short blocks, not prose.
-                              <p
-                                className="text-[12.5px] mt-2 leading-[1.55] pl-2.5"
-                                style={{ color: "rgba(26,26,46,0.72)", borderLeft: `2px solid ${RULE}`, whiteSpace: "pre-line" }}
-                              >
-                                {plainNote(c.note)}
-                              </p>
-                            )}
+                              // know why. Folded to its first sentence with
+                              // "more" (2 Oct 2026, lib/sharedNote), so a day
+                              // reads as a list on one screen. Line breaks are
+                              // kept because the notes are written in short blocks.
+                              const { lead, rest } = foldNote(c.note);
+                              if (!lead) return null;
+                              const box = { color: "rgba(26,26,46,0.72)", borderLeft: `2px solid ${RULE}`, whiteSpace: "pre-line" as const };
+                              return rest ? (
+                                <details className="mt-2 pl-2.5 group/note" style={box} data-testid="stop-note">
+                                  <summary className="text-[12.5px] leading-[1.55] cursor-pointer list-none marker:content-none">
+                                    {lead}{" "}
+                                    <span className="font-semibold group-open/note:hidden" style={{ color: "#B0541F" }}>more</span>
+                                  </summary>
+                                  <p className="text-[12.5px] mt-1.5 leading-[1.55]">{rest}</p>
+                                </details>
+                              ) : (
+                                <p className="text-[12.5px] mt-2 leading-[1.55] pl-2.5" style={box} data-testid="stop-note">{lead}</p>
+                              );
+                            })()}
                           </div>
                           {c.place?.photo && (
                             // Only a photo already cached in our own bucket: the
