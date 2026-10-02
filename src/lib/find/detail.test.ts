@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { closedOnTrip, priceSigns } from "./detail";
+import { closedOnTrip, priceSigns, placeBlurb } from "./detail";
 
 // As Google returns it for a Roman trattoria closed Mondays.
 const MONDAYS_OFF = [
@@ -29,5 +29,21 @@ describe("priceSigns", () => {
     expect(priceSigns(2)).toBe("$$");
     expect(priceSigns(0)).toBeNull();
     expect(priceSigns(null)).toBeNull();
+  });
+});
+
+describe("what a place is, in a line", () => {
+  it("the travellers' reason first", () => {
+    expect(placeBlurb("Reddit's favourite in Trastevere.", "Roman trattoria.")).toBe("Reddit's favourite in Trastevere.");
+  });
+  it("a Google result's rating is not a description: Google's summary stands in", () => {
+    expect(placeBlurb("Rated 4.7 on Google from 12,520 reviews.", "Medieval stone bridge over the Serchio.")).toBe("Medieval stone bridge over the Serchio.");
+    expect(placeBlurb("Well rated on Google.", "Medieval stone bridge.")).toBe("Medieval stone bridge.");
+  });
+  it("an event's line is its own description", () => {
+    expect(placeBlurb("Sun 14 Mar: Rock, 8:00 PM.", null)).toBe("Sun 14 Mar: Rock, 8:00 PM.");
+  });
+  it("neither: nothing, not the rating twice", () => {
+    expect(placeBlurb("Rated 4.6 on Google from 900 reviews.", undefined)).toBeNull();
   });
 });

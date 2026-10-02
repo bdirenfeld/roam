@@ -59,6 +59,9 @@ export default function PlanMyTripSheet({
   // the trip" (Brennan: "it needs to say something to the effect of the trip
   // is fully planned").
   const full = preview.free < 0.5;
+  // The button now shows on every trip (1 Oct 2026, Brennan: "always visible
+  // ... but a warning"), so the sheet says why there is nothing to do.
+  const nothing = !full && places === 0;
 
   const make = async () => {
     setBusy(true);
@@ -136,6 +139,11 @@ export default function PlanMyTripSheet({
                 <span className="block text-[14px] font-semibold text-[#1A1A2E] mb-0.5">Every day is planned.</span>
                 To plan more, take some places off a day and they go back to your saved places. Then run Plan my trip again.
               </p>
+            ) : nothing ? (
+              <p className="text-[13px] mt-1" style={{ color: "rgba(26,26,46,0.62)" }} data-testid="plan-nothing">
+                <span className="block text-[14px] font-semibold text-[#1A1A2E] mb-0.5">Nothing saved to plan yet.</span>
+                Save places on the map or with Find, then run Plan my trip.
+              </p>
             ) : (
             <p className="text-[13px] mt-1" style={{ color: over ? "#9A5B00" : "rgba(26,26,46,0.62)" }}>
               {/* "5 of 3 free days" read as nonsense (New York test, 29 Sep 2026). */}
@@ -150,7 +158,7 @@ export default function PlanMyTripSheet({
           </button>
         </div>
 
-        {many && !full && (
+        {many && !full && !nothing && (
           <ul className="flex flex-col">
             {preview.regions.map((r) => {
               const on = chosen.has(r.id);
@@ -178,7 +186,7 @@ export default function PlanMyTripSheet({
           </ul>
         )}
 
-        {!full && <button
+        {!full && !nothing && <button
           type="button"
           onClick={() => void make()}
           disabled={busy || chosen.size === 0 || places === 0}

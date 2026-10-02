@@ -38,15 +38,46 @@ export function centreOffset(cover: Cover): [number, number] {
 
 export const PULSE_MS = 2000;
 
+/**
+ * Town level (1 Oct 2026, Brennan: "like a trip like Europe it's way too
+ * zoomed out"). Zoomed out past a region, a place Find shows is zoomed in
+ * to about a town; closer than that, your zoom is kept.
+ */
+export const TOWN_ZOOM = 11;
+export function focusZoom(zoom: number): number {
+  return zoom < TOWN_ZOOM - 1 ? TOWN_ZOOM : zoom;
+}
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/** Glide to the place if it is hidden, then ring it for two seconds. `panel` is the Find sheet. */
-export function pulseAt(mb: any, map: any, lng: number, lat: number, panel: Element | null): void {
-  if (!mb || !map) return;
+/** Bring a place into the part of the map you can see: move only if it is hidden or the map is zoomed far out. */
+function glideTo(map: any, lng: number, lat: number, panel: Element | null): void {
   const r = map.getContainer().getBoundingClientRect();
   const cover = coverFrom(r, panel?.getBoundingClientRect() ?? null);
-  if (!inView(map.project([lng, lat]), r.width, r.height, cover)) {
-    map.easeTo({ center: [lng, lat], offset: centreOffset(cover), duration: 600 });
+  const zoom = map.getZoom(), to = focusZoom(zoom);
+  if (to !== zoom || !inView(map.project([lng, lat]), r.width, r.height, cover)) {
+    map.easeTo({ center: [lng, lat], zoom: to, offset: centreOffset(cover), duration: 700 });
   }
+}
+
+/**
+ * The place you are reading about in Find, as a purple pin (the colour of a
+ * searched place's pin, lookupPlace's TEMP_PIN_SVG). Returns it, to remove
+ * when you go back, open another, save it, or close Find.
+ */
+export function showAt(mb: any, map: any, lng: number, lat: number, panel: Element | null): { remove: () => void } | null {
+  if (!mb || !map) return null;
+  glideTo(map, lng, lat, panel);
+  const el = document.createElement("div");
+  el.dataset.preview = "1";
+  el.style.cssText = "width:28px;height:28px;pointer-events:none;";
+  el.innerHTML = `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg"><circle cx="14" cy="14" r="12" fill="#7C3AED"/><circle cx="14" cy="14" r="4" fill="white"/></svg>`;
+  return new mb.Marker({ element: el, anchor: "center" }).setLngLat([lng, lat]).addTo(map);
+}
+
+/** Bring the place into view (as showAt), then ring it for two seconds. `panel` is the Find sheet. */
+export function pulseAt(mb: any, map: any, lng: number, lat: number, panel: Element | null): void {
+  if (!mb || !map) return;
+  glideTo(map, lng, lat, panel);
   const el = document.createElement("div");
   el.dataset.pulse = "1";
   el.style.cssText = "width:60px;height:60px;position:relative;pointer-events:none;";

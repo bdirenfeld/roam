@@ -97,6 +97,36 @@ describe("Find sheet", { timeout: 20000 }, () => {
     expect(sheet.style.height).toBe("50dvh");
   });
 
+  it("an opened place says what it is before the photos, and the map is told where it is (1 Oct 2026)", async () => {
+    const google: FindResult = { ...result, placeId: "g7", name: "Ponte del Diavolo", from: "google", source: null, why: "Rated 4.7 on Google from 12,520 reviews." };
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: { body: string }) => {
+      calls.push({ url, body: init?.body ? JSON.parse(init.body) : {} });
+      if (url === "/api/find") return { ok: true, json: async () => ({ results: [google] }) };
+      if (url.startsWith("/api/places/details")) return { ok: true, json: async () => ({ result: { editorial_summary: { overview: "Medieval stone bridge over the Serchio." }, photos: [{ photo_reference: "r1" }] } }) };
+      if (url.startsWith("/api/places/photo/by-reference")) return { ok: true, json: async () => ({ url: "https://photos.example/b.jpg" }) };
+      return { ok: true, json: async () => ({}) };
+    }));
+    const onFocus = vi.fn();
+    let r!: ReturnType<typeof render>;
+    await act(async () => { r = render(<FindSheet trip={trip} days={[]} cards={[] as Card[]} onClose={vi.fn()} onSaved={vi.fn()} onFocus={onFocus} />); });
+    expect(onFocus).toHaveBeenLastCalledWith(null);
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "More about Ponte del Diavolo" })); });
+    expect(onFocus).toHaveBeenLastCalledWith(expect.objectContaining({ placeId: "g7", lat: 41.888, lng: 12.476 }));
+    const view = screen.getByRole("region", { name: "Ponte del Diavolo" });
+    // Google's own summary stands in for a rating-only "why"; it comes before the photos.
+    const blurb = await within(view).findByTestId("find-blurb");
+    expect(blurb.textContent).toBe("Medieval stone bridge over the Serchio.");
+    await waitFor(() => expect(view.querySelector("img")).toBeTruthy());
+    expect(blurb.compareDocumentPosition(view.querySelector("img")!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(view.querySelector("img")!.className).toMatch(/h-16 w-24/);
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "‹ Back to results" })); });
+    expect(onFocus).toHaveBeenLastCalledWith(null);
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "More about Ponte del Diavolo" })); });
+    onFocus.mockClear();
+    r.unmount();
+    expect(onFocus).toHaveBeenCalledWith(null); // closing Find takes the pin away
+  });
+
   it("warms every category on open, so tapping across the chips never waits", async () => {
     await act(async () => { render(<FindSheet trip={trip} days={[]} cards={[] as Card[]} onClose={vi.fn()} onSaved={vi.fn()} />); });
     const google = new Set(finds().filter((c) => c.body.mode === "google").map((c) => c.body.subType));
@@ -220,7 +250,7 @@ describe("Find sheet", { timeout: 20000 }, () => {
       const next = await screen.findByRole("button", { name: "Next photo" });
       expect(screen.queryByRole("button", { name: "Previous photo" })).toBeNull(); // at the start
       await act(async () => { fireEvent.click(next); });
-      expect(scrolled).toEqual([248]);
+      expect(scrolled).toEqual([104]); // one small photo at a time
     } finally {
       if (saved.sw) Object.defineProperty(HTMLElement.prototype, "scrollWidth", saved.sw); else delete (proto as Record<string, unknown>).scrollWidth;
       if (saved.cw) Object.defineProperty(HTMLElement.prototype, "clientWidth", saved.cw); else delete (proto as Record<string, unknown>).clientWidth;

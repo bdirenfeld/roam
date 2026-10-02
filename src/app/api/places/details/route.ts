@@ -27,8 +27,10 @@ export async function GET(request: NextRequest) {
   url.searchParams.set(
     "fields",
     // `types` feeds the save sheet's category pre-pick (inferType). It is a
-    // Basic-tier field, so it adds nothing to the bill.
-    "name,formatted_address,geometry,website,formatted_phone_number,url,photos,rating,user_ratings_total,opening_hours,price_level,types",
+    // Basic-tier field, so it adds nothing to the bill. `editorial_summary`
+    // is Find's one-line description (lib/find/detail placeBlurb); it is an
+    // Atmosphere field, a tier rating and opening_hours already bill.
+    "name,formatted_address,geometry,website,formatted_phone_number,url,photos,rating,user_ratings_total,opening_hours,price_level,types,editorial_summary",
   );
   url.searchParams.set("key", key);
   if (sessiontoken) url.searchParams.set("sessiontoken", sessiontoken);

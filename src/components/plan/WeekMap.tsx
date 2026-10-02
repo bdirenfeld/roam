@@ -14,16 +14,15 @@
  * Mock: https://claude.ai/artifact/Wtio2jYAqHFkA5Kmcq9CDq
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { reloadOnStale } from "@/lib/chunkReload";
 import { useWarmFind } from "@/hooks/useWarmFind";
 // Loaded when first opened: they were in every week page's download (29 Sep 2026).
 const PlanMyTripSheet = dynamic(reloadOnStale(() => import("./PlanMyTripSheet")), { ssr: false });
 import { stackOrder, restack } from "@/lib/map/pinStack";
-import { pulseAt } from "@/lib/map/pulse";
+import { pulseAt, showAt } from "@/lib/map/pulse";
 const FindSheet = dynamic(reloadOnStale(() => import("./FindSheet")), { ssr: false });
-import { pinsToPlan, untouchedPlan } from "@/lib/plan/draftRows";
 import { searchCountries } from "@/lib/entry/countries";
 import { dayChip, spansMonths } from "@/lib/dayChip";
 import { startZoomFor } from "@/lib/places/regions";
@@ -105,10 +104,10 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
   const [planOpen, setPlanOpen] = useState(false);
   // Find (29 Sep 2026): places for what a base is short of.
   const [findOpen, setFindOpen] = useState(false);
+  const findPinRef = useRef<{ remove: () => void } | null>(null);
   // Find, searched ahead in the background so it opens with its answers (hooks/useWarmFind).
   useWarmFind(trip, cards);
   // Also shown while Plan my trip's cards are still where it put them: the sheet can take them off.
-  const toPlan = useMemo(() => (onDraftCreated ? Math.max(pinsToPlan(cards).length, cards.some(untouchedPlan) ? 2 : 0) : 0), [cards, onDraftCreated]);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
   const mbRef = useRef<any>(null);  // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -563,7 +562,9 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
           {filterOpen ? "Done" : "Filter"}
           {!filterOpen && narrowed > 0 && <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold" style={{ background: "#B0541F", color: "#FFFFFF" }}>{narrowed}</span>}
         </button>
-        {!filterOpen && toPlan >= 2 && (
+        {/* On every trip (1 Oct 2026): a fully planned or empty one opens the
+            sheet, which says why there is nothing to plan. */}
+        {!filterOpen && onDraftCreated && (
           <button onClick={() => setPlanOpen(true)} className={`flex items-center gap-1.5 ${PILL}`} style={{ backdropFilter: "blur(8px)", background: "rgba(255,255,255,0.9)", color: "#1A1A2E", boxShadow: "0 1px 4px rgba(0,0,0,0.15)" }}>
             Plan my trip
           </button>
@@ -580,7 +581,13 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
       )}
       {findOpen && (
         <FindSheet trip={trip} days={days} cards={cards} dock={wide ? "inside" : "beside"} onClose={() => setFindOpen(false)}
+          // The place open in Find, as a purple pin; gone on Back, another place, Save or close (lib/map/pulse).
+          onFocus={(r) => {
+            findPinRef.current?.remove(); findPinRef.current = null;
+            if (r && Number.isFinite(r.lat) && Number.isFinite(r.lng)) findPinRef.current = showAt(mbRef.current, mapRef.current, r.lng, r.lat, document.querySelector('[role="dialog"][aria-label="Find places"]'));
+          }}
           onSaved={(c) => {
+            findPinRef.current?.remove(); findPinRef.current = null;
             onCardCreated(c);
             // The new pin, ringed where it landed (lib/map/pulse).
             if (c.place?.lng != null && c.place?.lat != null) pulseAt(mbRef.current, mapRef.current, c.place.lng, c.place.lat, document.querySelector('[role="dialog"][aria-label="Find places"]'));

@@ -10,10 +10,14 @@ import { readFileSync } from "fs";
 const read = (p: string) => readFileSync(p, "utf8");
 
 describe("the doors to Plan my trip", () => {
-  it("sits beside Filter on the week's map and on the phone Map, owners only", () => {
-    expect(read("src/components/plan/WeekMap.tsx")).toMatch(/<PlanMyTripSheet /);
+  it("sits beside Filter on the week's map and on the phone Map, owners only, on every trip (1 Oct 2026)", () => {
+    const week = read("src/components/plan/WeekMap.tsx");
+    expect(week).toMatch(/<PlanMyTripSheet /);
+    // Not only when two places are saved: a full or empty trip opens the sheet, which says why.
+    expect(week).toMatch(/\{!filterOpen && onDraftCreated && \(\s*<button onClick=\{\(\) => setPlanOpen\(true\)\}/);
     const map = read("src/components/map/FullMapClient.tsx");
-    expect(map).toMatch(/!readOnly && !filterOpen && toPlan >= 2/);
+    expect(map).toMatch(/\{!readOnly && !filterOpen && \(\s*<button\s+onClick=\{\(\) => setPlanOpen\(true\)\}/);
+    expect(map).not.toMatch(/toPlan >= 2/);
     expect(map).toMatch(/<PlanMyTripSheet/);
   });
   it("the week shows what was planned, with Where to stay and Undo", () => {

@@ -10,7 +10,7 @@ import { findBases, gapsFor, FIND_CATEGORIES, type FindBase } from "@/lib/find/g
 /** The kinds whose travellers' picks are fetched before they are asked for. */
 const WARM_TRAVELLERS = new Set(["self_directed", "restaurant", "coffee", "dessert", "bar"]);
 import { combineFind, type FindResult } from "@/lib/find/merge";
-import { closedOnTrip, priceSigns } from "@/lib/find/detail";
+import { closedOnTrip, priceSigns, placeBlurb } from "@/lib/find/detail";
 import { DATED } from "@/lib/find/ask";
 import { findRequest } from "@/lib/find/request";
 import { whatsOnUrl } from "@/lib/find/yearly";
@@ -26,7 +26,7 @@ import { inferTypeOrSight } from "@/lib/places/inferType";
  * Map. Mock: https://claude.ai/artifact/Y7jvE2BRLyzFgropo5bqSG
  */
 export default function FindSheet({
-  trip, days, cards, onClose, onSaved, dock,
+  trip, days, cards, onClose, onSaved, dock, onFocus,
 }: {
   trip: Trip;
   days: Day[];
@@ -35,9 +35,16 @@ export default function FindSheet({
   onSaved: (card: Card) => void;
   /** On a computer: "beside" the week's map (over the week), or "inside" a widened map. Unset: the phone's half sheet. */
   dock?: "beside" | "inside";
+  /** The place opened, or null: the map shows it as a purple pin (lib/map/pulse showAt). */
+  onFocus?: (r: FindResult | null) => void;
 }) {
   // Escape steps back from a place to the list, then closes.
   const [open, setOpen] = useState<FindResult | null>(null);
+  // Where it is (1 Oct 2026: "it's hard to know where on the map it is"):
+  // the map is told which place is open, and that none is when Find closes.
+  const focusRef = useRef(onFocus); focusRef.current = onFocus;
+  useEffect(() => { focusRef.current?.(open); }, [open]);
+  useEffect(() => () => focusRef.current?.(null), []);
   useEscapeKey(() => (open ? setOpen(null) : onClose()));
   const dates = useMemo(() => days.map((d) => d.date).filter((d): d is string => !!d), [days]);
   const { toast } = useToast();
@@ -307,6 +314,7 @@ type Details = {
   website?: string;
   url?: string;
   price_level?: number;
+  editorial_summary?: { overview?: string };
 };
 
 /**
@@ -328,8 +336,8 @@ function FindPlace({ r, dates, away, saved, onSave, onBack }: { r: FindResult; d
     setCanNext(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
   };
   useEffect(edges, [photos]);
-  // One photo (240 px and the gap) at a time.
-  const step = (dir: number) => strip.current?.scrollBy({ left: dir * 248 });
+  // One photo (96 px and the gap) at a time.
+  const step = (dir: number) => strip.current?.scrollBy({ left: dir * 104 });
   useEffect(() => {
     let live = true;
     void (async () => {
@@ -348,42 +356,54 @@ function FindPlace({ r, dates, away, saved, onSave, onBack }: { r: FindResult; d
 
   const closed = closedOnTrip(d?.opening_hours?.weekday_text, dates);
   const price = priceSigns(d?.price_level);
+  const blurb = placeBlurb(r.why, d?.editorial_summary?.overview);
   const facts = [r.rating != null ? `★ ${r.rating}` : null, r.reviews ? `${r.reviews.toLocaleString("en-US")} reviews` : null, price].filter(Boolean).join(" · ");
   return (
     <div className="flex-1 overflow-y-auto flex flex-col" role="region" aria-label={r.name}>
       <div className="px-5 pt-3">
         <button type="button" onClick={onBack} className="min-h-[36px] text-[13px] font-medium text-[#B0541F]">‹ Back to results</button>
       </div>
-      {/* Arrows as well as a swipe: with a mouse the strip could not be moved (29 Sep 2026). */}
-      <div className="relative flex-shrink-0">
-        <div ref={strip} onScroll={edges} className="flex gap-2 overflow-x-auto scrollbar-none px-5 py-2 scroll-smooth">
-          {photos.length > 0
-            // eslint-disable-next-line @next/next/no-img-element
-            ? photos.map((u) => <img key={u} src={u} alt="" onLoad={edges} className="h-40 w-60 flex-shrink-0 rounded-xl object-cover bg-gray-100" />)
-            : <div className="h-40 w-full rounded-xl bg-gray-100" aria-hidden />}
-        </div>
-        {canBack && (
-          <button type="button" aria-label="Previous photo" onClick={() => step(-1)}
-            className="absolute left-7 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center text-[18px] leading-none text-[#1A1A2E]"
-            style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.2)" }}>‹</button>
+      {/* What it is first, then how far, then the photos as a small strip
+          (1 Oct 2026, Brennan: "you just end up seeing pictures which don't
+          tell you much re what's the gist of it"). Mock: find-where.png. */}
+      <div className="px-5 pb-2 flex flex-col gap-1.5">
+        <h3 className="text-[19px] font-semibold text-[#1A1A2E] leading-snug">{r.title ?? r.name}</h3>
+        {r.title && <div className="text-[13px] text-activity/60 -mt-1">At {r.name}</div>}
+        {blurb && <p className="text-[14px] text-[#1A1A2E] leading-snug" data-testid="find-blurb">{blurb}</p>}
+        {away && (
+          <div className="text-[13px] font-semibold text-[#1A1A2E] flex items-center gap-1.5">
+            <span aria-hidden className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: "#7C3AED" }} />
+            <span>{away}</span>
+          </div>
         )}
-        {canNext && (
-          <button type="button" aria-label="Next photo" onClick={() => step(1)}
-            className="absolute right-7 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center text-[18px] leading-none text-[#1A1A2E]"
-            style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.2)" }}>›</button>
-        )}
-      </div>
-      <div className="px-5 pb-4 flex flex-col gap-2">
-        <h3 className="text-[18px] font-semibold text-[#1A1A2E] leading-snug">{r.title ?? r.name}</h3>
-        {r.title && <div className="text-[13px] text-activity/60 -mt-1.5">At {r.name}</div>}
         {facts && <div className="text-[13px] text-activity/70">{facts}</div>}
-        <p className="text-[14px] text-[#1A1A2E] leading-snug">{r.why}</p>
-        {r.source && <a href={r.source.url} target="_blank" rel="noreferrer" className="text-[12.5px] text-activity/60 underline underline-offset-2">From {r.source.name}</a>}
-        {r.kids && <span className="self-start px-1.5 rounded text-[11px] font-semibold" style={{ background: "#E7F3EC", color: "#1D7A55" }}>Good with kids</span>}
         {d && (closed.length > 0
           ? <div className="text-[13px] font-medium text-[#B0541F]">Closed {closed.join(", ")}</div>
           : d.opening_hours?.weekday_text?.length ? <div className="text-[13px] text-activity/70">Open every day you&apos;re there</div> : null)}
-        <div className="text-[13px] text-activity/70">{r.address}{away ? <><br /><span className="font-medium">{away}</span></> : null}</div>
+        {r.kids && <span className="self-start px-1.5 rounded text-[11px] font-semibold" style={{ background: "#E7F3EC", color: "#1D7A55" }}>Good with kids</span>}
+        {r.source && <a href={r.source.url} target="_blank" rel="noreferrer" className="text-[12.5px] text-activity/60 underline underline-offset-2">From {r.source.name}</a>}
+      </div>
+      {/* Arrows as well as a swipe: with a mouse the strip could not be moved (29 Sep 2026). */}
+      {photos.length > 0 && (
+        <div className="relative flex-shrink-0">
+          <div ref={strip} onScroll={edges} className="flex gap-2 overflow-x-auto scrollbar-none px-5 py-1 scroll-smooth">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {photos.map((u) => <img key={u} src={u} alt="" onLoad={edges} className="h-16 w-24 flex-shrink-0 rounded-lg object-cover bg-gray-100" />)}
+          </div>
+          {canBack && (
+            <button type="button" aria-label="Previous photo" onClick={() => step(-1)}
+              className="absolute left-6 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white/90 flex items-center justify-center text-[16px] leading-none text-[#1A1A2E]"
+              style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.2)" }}>‹</button>
+          )}
+          {canNext && (
+            <button type="button" aria-label="Next photo" onClick={() => step(1)}
+              className="absolute right-6 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white/90 flex items-center justify-center text-[16px] leading-none text-[#1A1A2E]"
+              style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.2)" }}>›</button>
+          )}
+        </div>
+      )}
+      <div className="px-5 pt-2 pb-4 flex flex-col gap-2">
+        <div className="text-[13px] text-activity/70">{r.address}</div>
         <div className="flex gap-4 text-[13px] font-medium">
           {d?.url && <a href={d.url} target="_blank" rel="noreferrer" className="text-[#1A1A2E] underline underline-offset-2">Google Maps</a>}
           {d?.website && <a href={d.website} target="_blank" rel="noreferrer" className="text-[#1A1A2E] underline underline-offset-2">Website</a>}

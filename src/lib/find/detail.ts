@@ -28,3 +28,16 @@ export function priceSigns(level: number | null | undefined): string | null {
   if (level == null || level < 1) return null;
   return "$".repeat(Math.min(4, level));
 }
+
+/**
+ * What a place is, in a line (1 Oct 2026, Brennan: "you just end up seeing
+ * pictures which don't tell you much re what's the gist of it"). The
+ * travellers' reason when there is one; a Google result's "why" is only its
+ * rating, which the facts line already shows, so Google's own short summary
+ * of the place stands in. Neither: nothing.
+ */
+export function placeBlurb(why: string | null | undefined, editorial: string | null | undefined): string | null {
+  const own = why?.trim();
+  if (own && !/^(Rated [\d.]+ on Google|Well rated on Google)/.test(own)) return own;
+  return editorial?.trim() || null;
+}

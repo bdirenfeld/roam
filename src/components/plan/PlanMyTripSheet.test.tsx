@@ -60,6 +60,15 @@ describe("Plan my trip sheet", () => {
     expect(screen.queryByRole("button", { name: "Plan the trip" })).toBeNull();
   });
 
+  it("a trip with free days but nothing saved says what to do, with no Plan button (1 Oct 2026)", () => {
+    // The button now shows on every trip; the Europe test trip had every place on a day but its free days.
+    const onTwoDays = days.slice(0, 2).map((d, i) => ({ ...cards[i], id: `p${i}`, day_id: d.id, status: "in_itinerary", start_time: "10:00:00", end_time: "17:00:00", place: { ...cards[i].place!, type: "activity" } })) as unknown as Card[];
+    render(<PlanMyTripSheet trip={trip} days={days} cards={onTwoDays} onClose={vi.fn()} onDrafted={vi.fn()} />);
+    expect(screen.getByTestId("plan-nothing").textContent).toBe("Nothing saved to plan yet.Save places on the map or with Find, then run Plan my trip.");
+    expect(screen.queryByRole("button", { name: "Plan the trip" })).toBeNull();
+    expect(screen.queryByTestId("plan-full")).toBeNull();
+  });
+
   it("plans the trip in one insert and hands the cards back", async () => {
     const onDrafted = vi.fn(), onClose = vi.fn();
     const asked: { url: string; body: { tripId: string; cardIds: string[] } }[] = [];

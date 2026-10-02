@@ -4,7 +4,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { stackOrder, restack } from "@/lib/map/pinStack";
 import { dayChip, spansMonths } from "@/lib/dayChip";
 import { startZoomFor } from "@/lib/places/regions";
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import MapPinPopup from "./MapPinPopup";
 import MapSidebar, { SIDEBAR_SUB_TYPES, GROUPS } from "./MapSidebar";
@@ -35,7 +35,7 @@ import { createClient } from "@/lib/supabase/client";
 import { scheduleCardOnDay } from "@/lib/scheduleCard";
 import { planBatch, plannedOtherDays, stayAnchor } from "@/lib/week/dayPlan";
 import { tapFilter } from "@/lib/map/tapFilter";
-import { pulseAt } from "@/lib/map/pulse";
+import { pulseAt, showAt } from "@/lib/map/pulse";
 import dynamic from "next/dynamic";
 import { reloadOnStale } from "@/lib/chunkReload";
 import { useWarmFind } from "@/hooks/useWarmFind";
@@ -43,7 +43,6 @@ import { dayForCard, onlyOnLine } from "@/lib/plan/eventDays";
 // Loaded when first opened, not with the map (29 Sep 2026).
 const PlanMyTripSheet = dynamic(reloadOnStale(() => import("@/components/plan/PlanMyTripSheet")), { ssr: false });
 const FindSheet = dynamic(reloadOnStale(() => import("@/components/plan/FindSheet")), { ssr: false });
-import { pinsToPlan, untouchedPlan } from "@/lib/plan/draftRows";
 
 // Purple circular pin for search result previews
 
@@ -104,10 +103,10 @@ const MARKERS = new Map<string, MarkerEntry>();
 export default function FullMapClient({ trip, days, cards, readOnly = false }: Props) {
   const [planOpen, setPlanOpen] = useState(false);
   const [findOpen, setFindOpen] = useState(false);
+  const findPinRef = useRef<{ remove: () => void } | null>(null);
   // Find, searched ahead in the background so it opens with its answers (hooks/useWarmFind).
   useWarmFind(trip, cards, !readOnly);
   // Also shown while Plan my trip's cards are still where it put them: the sheet can take them off.
-  const toPlan = useMemo(() => (readOnly ? 0 : Math.max(pinsToPlan(cards).length, cards.some(untouchedPlan) ? 2 : 0)), [cards, readOnly]);
   const mapContainerRef  = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapInstRef       = useRef<any>(null);
@@ -1124,7 +1123,8 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
               </span>
             )}
           </button>
-          {!readOnly && !filterOpen && toPlan >= 2 && (
+          {/* On every trip (1 Oct 2026); the sheet explains a full or empty one. */}
+          {!readOnly && !filterOpen && (
             <button
               onClick={() => setPlanOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium"
@@ -1146,7 +1146,13 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
         </div>
         {findOpen && (
           <FindSheet trip={trip} days={days} cards={cards} onClose={() => setFindOpen(false)}
+            // The place open in Find, as a purple pin above the sheet (lib/map/pulse).
+            onFocus={(r) => {
+              findPinRef.current?.remove(); findPinRef.current = null;
+              if (r && Number.isFinite(r.lat) && Number.isFinite(r.lng)) findPinRef.current = showAt(mbRef.current, mapInstRef.current, r.lng, r.lat, document.querySelector('[role="dialog"][aria-label="Find places"]'));
+            }}
             onSaved={(c) => {
+              findPinRef.current?.remove(); findPinRef.current = null;
               router.refresh();
               // The half sheet leaves the top of the map showing; the new pin is ringed there (lib/map/pulse).
               if (c.place?.lng != null && c.place?.lat != null) pulseAt(mbRef.current, mapInstRef.current, c.place.lng, c.place.lat, document.querySelector('[role="dialog"][aria-label="Find places"]'));

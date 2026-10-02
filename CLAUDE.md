@@ -2032,3 +2032,12 @@ the component mounted and you are looking at throttling, not a broken map.
 - `FindSheet` `dock` prop: WeekMap passes "beside" (absolute, `right: calc(100% + 10px)`, 400 px, over the week) or "inside" when the map is widened. FullMapClient (phone) passes nothing: a 50dvh sheet, handle toggles 88dvh, wrapper `pointer-events-none` so the map above still pans. No dimming backdrop anywhere; Escape or ✕ closes.
 - `lib/map/pulse.ts`: `coverFrom(mapBox, sheetBox)` works out what the sheet hides; `pulseAt` glides only if the place is outside the uncovered part (easeTo `offset`, never `padding`, which sticks to the map), then adds a 2 s two-ring marker (pointer-events none) and removes it.
 - Saving does not pick a day: the pin goes on the map; drag it onto a day or let Plan my trip place it.
+
+### Find shows where a place is; Plan my trip on every trip (1 Oct 2026)
+- Brennan: "even when you click on an item, it's hard to know where on the map it is ... you just end up seeing pictures", and "like a trip like Europe it's way too zoomed out". Approved mock: find-where.png.
+- `FindSheet` `onFocus(r | null)`: called when a place opens, on Back, and when Find closes (unmount). WeekMap and FullMapClient draw it with `lib/map/pulse` `showAt` (a purple pin, the searched-place colour) and remove it on the next focus, on Save, or on close.
+- Zoom rule, `focusZoom`: zoomed out past ~10, glide in to town level (11); closer, keep the zoom. Used by both `showAt` and `pulseAt`, so a save from the list zooms in on a Europe-sized view too.
+- The place page reads: name, `placeBlurb` (the travellers' reason, else Google's `editorial_summary.overview`, never the "Rated 4.7 on Google" line twice), distance from the hotel with a purple dot, facts, open/closed, then a small photo strip (96x64, arrows step 104). `editorial_summary` was added to `/api/places/details` (Atmosphere tier, already billed by rating/opening_hours).
+- Plan my trip's button now shows on every owner's trip (the `toPlan >= 2` gate is gone). The sheet says "Every day is planned..." (no free day) or "Nothing saved to plan yet..." (free days, nothing saved), with no Plan button in either. The Europe test trip had looked like it was missing features because every place was already on a day.
+- Test trip for Plan my trip: "Tuscany (test)" (40ba0edf-1033-4494-a52f-9a5d6ec6b012), a copy of Tuscany with only the hotel (and transit) on days and 47 saved pins.
+

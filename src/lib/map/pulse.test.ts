@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
-import { coverFrom, inView, centreOffset, pulseAt, PULSE_MS } from "./pulse";
+import { coverFrom, inView, centreOffset, pulseAt, showAt, focusZoom, PULSE_MS } from "./pulse";
 
 /** Where a Find save lands (1 Oct 2026): the map glides only when the place is hidden, then rings it. */
 
@@ -36,11 +36,11 @@ describe("in view", () => {
 });
 
 describe("pulseAt", () => {
-  function fakes(projected: { x: number; y: number }) {
+  function fakes(projected: { x: number; y: number }, zoom = 12) {
     const added: HTMLElement[] = [], removed: HTMLElement[] = [];
     const container = document.createElement("div");
     container.getBoundingClientRect = () => ({ ...phone, x: 0, y: 0, width: 390, height: 844, toJSON: () => ({}) });
-    const m = { getContainer: () => container, project: () => projected, easeTo: vi.fn() };
+    const m = { getContainer: () => container, project: () => projected, getZoom: () => zoom, easeTo: vi.fn() };
     class Marker {
       el: HTMLElement;
       constructor(o: { element: HTMLElement }) { this.el = o.element; }
@@ -57,7 +57,7 @@ describe("pulseAt", () => {
     vi.useFakeTimers();
     const f = fakes({ x: 200, y: 700 });
     pulseAt(f.mb, f.m, 10.5, 43.8, f.sheet);
-    expect(f.m.easeTo).toHaveBeenCalledWith({ center: [10.5, 43.8], offset: [0, -211], duration: 600 });
+    expect(f.m.easeTo).toHaveBeenCalledWith({ center: [10.5, 43.8], zoom: 12, offset: [0, -211], duration: 700 });
     expect(f.added).toHaveLength(1);
     expect(f.added[0].dataset.pulse).toBe("1");
     vi.advanceTimersByTime(PULSE_MS + 500);
@@ -70,5 +70,39 @@ describe("pulseAt", () => {
     pulseAt(f.mb, f.m, 10.5, 43.8, f.sheet);
     expect(f.m.easeTo).not.toHaveBeenCalled();
     expect(f.added).toHaveLength(1);
+  });
+  it("a Europe-sized view zooms in to town level, even when the place is in view (Brennan, 1 Oct 2026)", () => {
+    const f = fakes({ x: 200, y: 200 }, 4.5);
+    pulseAt(f.mb, f.m, 10.5, 43.8, f.sheet);
+    expect(f.m.easeTo).toHaveBeenCalledWith(expect.objectContaining({ center: [10.5, 43.8], zoom: 11 }));
+  });
+});
+
+describe("the place you are reading about", () => {
+  it("town level only when zoomed out past a region; closer, your zoom is kept", () => {
+    expect(focusZoom(4.5)).toBe(11);
+    expect(focusZoom(9.9)).toBe(11);
+    expect(focusZoom(10)).toBe(10);
+    expect(focusZoom(14)).toBe(14);
+  });
+
+  it("drops a purple pin where it is and hands it back, to take away later", () => {
+    const added: HTMLElement[] = [], removed: HTMLElement[] = [];
+    const container = document.createElement("div");
+    container.getBoundingClientRect = () => ({ left: 0, top: 0, right: 390, bottom: 844, x: 0, y: 0, width: 390, height: 844, toJSON: () => ({}) });
+    const m = { getContainer: () => container, project: () => ({ x: 200, y: 200 }), getZoom: () => 13, easeTo: vi.fn() };
+    class Marker {
+      el: HTMLElement;
+      constructor(o: { element: HTMLElement }) { this.el = o.element; }
+      setLngLat() { return this; }
+      addTo() { added.push(this.el); return this; }
+      remove() { removed.push(this.el); }
+    }
+    const pin = showAt({ Marker }, m, 10.5, 43.8, null);
+    expect(m.easeTo).not.toHaveBeenCalled(); // in view and close enough: the map stays put
+    expect(added[0].dataset.preview).toBe("1");
+    expect(added[0].innerHTML).toContain("#7C3AED");
+    pin!.remove();
+    expect(removed).toEqual(added);
   });
 });
