@@ -30,6 +30,8 @@ import { useToast } from "@/components/ui/Toast";
 import { cardTimes } from "@/lib/cardTime";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import DocumentsSheet from "./DocumentsSheet";
+import StartHere from "./StartHere";
+import { useBookingUpload } from "@/components/trip/useBookingUpload";
 import WeekMap from "./WeekMap";
 import { weekColumns, weekMinWidth } from "@/lib/week/focus";
 import { planBatch, planExisting, plannedOtherDays, stayAnchor } from "@/lib/week/dayPlan";
@@ -97,6 +99,25 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     const onOpen = () => setShowDocs(true);
     window.addEventListener("roam:open-bookings", onOpen);
     return () => window.removeEventListener("roam:open-bookings", onOpen);
+  }, []);
+  // Upload a booking from the week (1 Oct 2026): a new journey's Start here,
+  // and Bookings' Upload, which did nothing here. The cards land on their days.
+  const upload = useBookingUpload({
+    tripId: trip.id,
+    days,
+    onAdded: (created, deletedIds) => {
+      if (deletedIds.length) setDays((prev) => prev.map((d) => ({ ...d, cards: d.cards.filter((c) => !deletedIds.includes(c.id)) })));
+      draftCreated(created);
+    },
+  });
+  // The visible width of the week, to centre Start here in it while the grid scrolls sideways.
+  const [weekW, setWeekW] = useState(0);
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => setWeekW(el.clientWidth));
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
   // Plan first (25 Sep 2026): click an empty hour, name it, a timeless-place
   // block lands there; a place can be linked from its sheet later.
@@ -802,6 +823,17 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
           <div className="sticky left-0 pb-2 empty:hidden" style={{ maxWidth: "min(100%, 100vw)" }}>
             <EntryLine trip={trip} days={days} dayDate={days[0]?.date ?? ""} countries={weekCountries} />
           </div>
+          {/* Start here (1 Oct 2026): a new journey's two ways to start, held
+              in view over the empty grid (sticky both ways, no height of its
+              own); each button goes once done (lib/plan/startHere). */}
+          <div className="sticky left-0 top-[150px] z-[12] h-0 pointer-events-none" style={{ width: weekW || "100%" }}>
+            <div className="flex justify-center px-4">
+              <div className="pointer-events-auto w-full max-w-[360px]">
+                <StartHere floating cards={pinCards} place={trip.destination ?? ""} reading={upload.reading} onUpload={upload.pick}
+                  onFind={() => window.dispatchEvent(new Event("roam:open-find"))} />
+              </div>
+            </div>
+          </div>
           <div className="sticky top-0 z-[9]">
           {/* day headers */}
           {/* The headers are also where a card goes to lose its time: drop it
@@ -1111,7 +1143,8 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
           stayCheckOut={runs.find((r) => r.placeId === selectedCard.place_id)?.checkOut ?? null}
         />
       )}
-      {showDocs && <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} />}
+      {showDocs && <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} onImport={() => { setShowDocs(false); upload.pick(); }} />}
+      {upload.element}
     </div>
   );
 }

@@ -25,6 +25,8 @@ interface Props {
   readOnly?: boolean;
   /** Tap on a card's time chip: open the quick time sheet for it. */
   onTimeTap?: (card: Card) => void;
+  /** A new journey's Start here is above (components/plan/StartHere): no "Nothing planned yet" under it. */
+  quietEmpty?: boolean;
 }
 
 function minutesBetween(end: string | null, start: string | null): number {
@@ -81,6 +83,7 @@ export default function CardTimeline({
   cardNumberById,
   readOnly = false,
   onTimeTap,
+  quietEmpty = false,
 }: Props) {
   const { cards } = dayWithCards;
 
@@ -122,7 +125,9 @@ export default function CardTimeline({
   return (
     <div className="pb-8">
       {cards.length === 0 ? (
-        <div className="flex flex-col items-center py-14 text-center">
+        quietEmpty ? (
+          <div className="w-full max-w-[320px] mx-auto">{renderAddControls(false)}</div>
+        ) : <div className="flex flex-col items-center py-14 text-center">
           <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center mb-3">
             <svg
               width="20"

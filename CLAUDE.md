@@ -2042,3 +2042,10 @@ the component mounted and you are looking at throttling, not a broken map.
 - Test trip for Plan my trip: "Tuscany (test)" (40ba0edf-1033-4494-a52f-9a5d6ec6b012), a copy of Tuscany with only the hotel (and transit) on days and 47 saved pins.
 
 - Live check on the Europe trip (1 Oct 2026): the first cut only moved the map when the place was hidden, so an opened place sat near the map's edge as a bare purple dot among purple food pins. `showAt` now always centres (glideTo `always`) and puts the place's name beside the pin, as the mock had. `pulseAt` (save) still moves only when needed.
+
+### Start here on a new journey (1 Oct 2026)
+- From the how-to storyboards: uploading a booking was three steps deep (⋯, Share & settings, Upload) and a new journey had no "start here". Approved mock start-here.png, with his two changes: each button goes on its own, and the upload names cars.
+- `lib/plan/startHere` `startSteps(cards)`: Upload until a hotel, flight or rental car is on a day; Find until an activity or food place is on the journey (saved or planned). Notes, cut cards and an only-saved hotel don't count.
+- `components/plan/StartHere`: the card. On the week it floats over the empty grid in a sticky, zero-height wrapper (top 150, width = the scroller's measured width, so it stays centred while the grid scrolls). Find dispatches `roam:open-find`, which WeekMap listens for. On the phone's day it sits above the stops (DayViewClient reads the journey's cards itself, again when the day's count changes); Find goes to `/map?find=1`, which FullMapClient opens; Upload uses the day page's own import input. CardTimeline `quietEmpty` drops "Nothing planned yet" under it.
+- `components/trip/useBookingUpload`: the upload (file input, parse, the check-and-add sheet), shared by Settings' Bookings row and the week. The week's Bookings sheet Upload had done nothing; it now uploads too.
+

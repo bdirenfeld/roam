@@ -52,6 +52,29 @@ describe("the week's top rows", () => {
     expect(untimed[0].closest("[data-testid='day-header']")?.textContent).toContain("Fri");
   });
 
+  it("Tuscany has its villa and a place: no Start here", () => {
+    render(<WeekBoard trip={trip} initialDays={days} initialSaved={[]} />);
+    expect(screen.queryByTestId("start-here")).toBeNull();
+  });
+
+  it("a new journey: Start here over the week, and Find places opens Find on the map (1 Oct 2026)", () => {
+    const empty = dates.map((date, i) => ({ id: `n${i + 1}`, trip_id: "t", day_number: i + 1, date, theme: null, cards: [] as Card[] })) as unknown as DayWithCards[];
+    const opened = vi.fn();
+    window.addEventListener("roam:open-find", opened);
+    render(<WeekBoard trip={trip} initialDays={empty} initialSaved={[]} />);
+    const start = screen.getByTestId("start-here");
+    expect(start.textContent).toContain("Upload a booking");
+    fireEvent.click(screen.getByRole("button", { name: /Find places/ }));
+    expect(opened).toHaveBeenCalledTimes(1);
+    window.removeEventListener("roam:open-find", opened);
+    // Only the hotel booked: Find places is all that is left.
+    cleanup();
+    const booked = empty.map((d, i) => (i === 0 ? { ...d, cards: [card("in2", d.id, villa, { start_time: "14:00:00" })] } : d)) as DayWithCards[];
+    render(<WeekBoard trip={trip} initialDays={booked} initialSaved={[]} />);
+    expect(screen.queryByRole("button", { name: /Upload a booking/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /Find places/ })).toBeTruthy();
+  });
+
   it("next week, the last morning's villa card reads as the check-out", () => {
     render(<WeekBoard trip={trip} initialDays={days} initialSaved={[]} />);
     fireEvent.click(screen.getByRole("button", { name: "Next week" }));

@@ -18,6 +18,8 @@ import PhoneDayCalendar from "@/components/day/PhoneDayCalendar";
 import { autoDayTitle } from "@/lib/autoDayTitle";
 import DayMap from "@/components/day/DayMap";
 import CardTimeline from "@/components/day/CardTimeline";
+import StartHere from "@/components/plan/StartHere";
+import { startSteps, type StartCard } from "@/lib/plan/startHere";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import AppMenu from "@/components/ui/AppMenu";
 import { useToast } from "@/components/ui/Toast";
@@ -333,6 +335,22 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   const [importingConf, setImportingConf] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [showDocs, setShowDocs] = useState(false);
+
+  // Start here (1 Oct 2026): a new journey's two ways to start sit above the
+  // day's stops. They are about the whole journey, so its cards are read here
+  // (the page carries only this day's); again whenever this day's change.
+  const [startCards, setStartCards] = useState<StartCard[] | null>(null);
+  useEffect(() => {
+    if (readOnly) return;
+    let live = true;
+    (async () => {
+      const { data } = await supabase.from("cards").select("day_id, status, details, place:places(type, sub_type)").eq("trip_id", trip.id);
+      if (live) setStartCards((data ?? []) as unknown as StartCard[]);
+    })();
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trip.id, readOnly, localCards.length]);
+  const startShown = startCards !== null && (() => { const s = startSteps(startCards); return s.upload || s.find; })();
 
   // The desktop masthead's menu lives in the layout, so its Bookings row asks
   // whichever screen is open to show the sheet (Brennan, Sep 2026: "I thought
@@ -1055,7 +1073,15 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
             }`}
             {...swipeHandlers}
           >
+            {startShown && (
+              <div className="mb-4 flex justify-center">
+                <StartHere cards={startCards!} place={trip.destination ?? ""} reading={importingConf}
+                  onUpload={() => importInputRef.current?.click()}
+                  onFind={() => router.push(`/trips/${trip.id}/map?find=1`)} />
+              </div>
+            )}
             <CardTimeline
+              quietEmpty={startShown}
               dayWithCards={localDayWithCards}
               onCardTap={handleCardTap}
               highlightedCardId={highlightedCardId}

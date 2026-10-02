@@ -173,6 +173,8 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
   const stayMarkersRef = useRef<{ remove: () => void }[]>([]);
   useEffect(() => {
     if (searchParams.get("stays") === "1" && !readOnly) setShowStays(true);
+    // A new journey's "Find places" on the phone's day (StartHere) lands here with Find open.
+    if (searchParams.get("find") === "1" && !readOnly) setFindOpen(true);
   }, [searchParams, readOnly]);
   // ?pin=<card id> — a place just shared in from TikTok or Instagram. Fly to
   // it and open its card, which carries Put on a day. Once per id, and after

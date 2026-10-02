@@ -105,6 +105,12 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
   // Find (29 Sep 2026): places for what a base is short of.
   const [findOpen, setFindOpen] = useState(false);
   const findPinRef = useRef<{ remove: () => void } | null>(null);
+  // A new journey's "Find places" (StartHere, on the week) opens Find here.
+  useEffect(() => {
+    const open = () => setFindOpen(true);
+    window.addEventListener("roam:open-find", open);
+    return () => window.removeEventListener("roam:open-find", open);
+  }, []);
   // Find, searched ahead in the background so it opens with its answers (hooks/useWarmFind).
   useWarmFind(trip, cards);
   // Also shown while Plan my trip's cards are still where it put them: the sheet can take them off.
