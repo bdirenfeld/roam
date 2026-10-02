@@ -26,6 +26,7 @@ vi.mock("@/lib/share-actions", () => ({
   loadShareState: vi.fn(() => Promise.resolve({ shareAvailable: true, shareToken: null, guests: [], invites: [] })),
 }));
 vi.mock("./EntrySection", () => ({ default: () => null }));
+vi.mock("./BookingsSection", () => ({ default: () => null }));
 vi.mock("@/components/trip/TravellersSection", () => ({ default: () => null }));
 
 import TripSettingsClient from "./TripSettingsClient";

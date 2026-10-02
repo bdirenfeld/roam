@@ -49,7 +49,7 @@ function clock(t: string | undefined): string | null {
 }
 
 /** Ticketmaster's answer as Find results: one per show, dated, at its venue, linking to buy. */
-export function parseTicketmaster(json: unknown, max = 12): FindResult[] {
+export function parseTicketmaster(json: unknown, max = 12, from?: string, to?: string): FindResult[] {
   const events = ((json as { _embedded?: { events?: TmEvent[] } } | null)?._embedded?.events ?? []);
   const seen = new Set<string>();
   const out: FindResult[] = [];
@@ -58,6 +58,9 @@ export function parseTicketmaster(json: unknown, max = 12): FindResult[] {
     const lat = Number(v?.location?.latitude), lng = Number(v?.location?.longitude);
     const date = e.dates?.start?.localDate;
     if (!e.id || !e.name || !v?.name || !date || !Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+    // The query's window is UTC; a show is kept by its own local date (Santa Barbara's
+    // Thursday-evening shows came back for a trip starting Friday, 1 Oct 2026).
+    if ((from && date < from) || (to && date > to)) continue;
     // A run of nights is one show: the first night stands for it.
     const k = e.name.toLowerCase();
     if (seen.has(k)) continue;

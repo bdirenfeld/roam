@@ -110,8 +110,15 @@ export default function EntrySection({ tripId, destination, startDate, defaultOp
   const status = entryStatus(entry?.data);
   const passports = entry?.passports ?? ["Canadian"];
 
-  const rowValue =
-    entry === undefined ? "" : !entry?.data ? "Not checked yet" : status === "action" ? "Action needed" : "Nothing to do";
+  // "Travel requirements", and its state on the right (Brennan, 1 Oct 2026:
+  // "none pending if you're all good or action required if you haven't
+  // checked it off").
+  const pending = entry?.data ? entry.data.lines.filter((l) => l.action && !l.done).length : 0;
+  const pill: { text: string; fg: string; bg: string } | null =
+    entry === undefined ? null
+    : !entry?.data ? { text: "Not checked yet", fg: CAPTION, bg: "rgba(26,26,46,0.06)" }
+    : status === "action" ? { text: pending ? `Action required · ${pending}` : "Action required", fg: SIENNA, bg: "#FCEEE2" }
+    : { text: "✓ None pending", fg: GREEN, bg: "#E7F3EC" };
 
   return (
     <div id="entry" style={{ scrollMarginTop: 24 }}>
@@ -124,7 +131,10 @@ export default function EntrySection({ tripId, destination, startDate, defaultOp
         <span className="text-[10px] uppercase tracking-widest text-gray-400 w-20 flex-shrink-0">
           Entry
         </span>
-        <span className="flex-1 text-[14px]" style={{ color: status === "action" ? SIENNA : INK }}>{rowValue}</span>
+        <span className="flex-1 text-[14px]" style={{ color: INK }}>Travel requirements</span>
+        {pill && (
+          <span data-testid="entry-status" className="text-[12px] font-semibold rounded-full px-2.5 py-[3px] mr-2 flex-shrink-0" style={{ color: pill.fg, background: pill.bg }}>{pill.text}</span>
+        )}
         <span aria-hidden="true" className="text-[14px] flex-shrink-0" style={{ color: FAINT, display: "inline-block", transform: open ? "rotate(90deg)" : "none" }}>›</span>
       </button>
       {open && (

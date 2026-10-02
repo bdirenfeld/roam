@@ -248,7 +248,7 @@ export async function POST(req: NextRequest) {
       : tm ? await (async () => {
         const res = await fetch(ticketmasterUrl(tmKey!, { lat: base.lat!, lng: base.lng! }, trip.start_date as string, trip.end_date as string)).catch(() => null);
         const j = res ? await res.json().catch(() => null) : null;
-        const shows = parseTicketmaster(j);
+        const shows = parseTicketmaster(j, 12, trip.start_date as string, trip.end_date as string);
         // Said, not swallowed: a refused key read as "nothing on" (1 Oct 2026).
         console.log("[find] ticketmaster", base.label, res?.status ?? "no answer", "total", (j as { page?: { totalElements?: number } } | null)?.page?.totalElements ?? "-", "kept", shows.length, (j as { fault?: { faultstring?: string } } | null)?.fault?.faultstring ?? "");
         return shows;

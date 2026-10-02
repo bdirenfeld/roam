@@ -2019,3 +2019,10 @@ the component mounted and you are looking at throttling, not a broken map.
   model (Haiku 1/5, Sonnet 3/15, Opus 5/25 $ per M). Not done (his "later"): area-level travellers' cache, paid tier.
 - Ticketmaster shows have no Google rating: mergeFind keeps "tm:" results without wellRated and dedupes them by
   title, not venue (all 12 Santa Barbara shows were dropped as unrated).
+- Settings rows (1 Oct 2026, mocked and approved): BOOKINGS (components/trip/BookingsSection, lib/bookings/summary) —
+  empty: "No flight or hotel yet · Upload a confirmation and Roam puts them on your days" + Upload (Bookings' reader,
+  ConfirmationPreviewSheet); booked: one line per kind — Flight(s) by date+city (≤2) or "N, range"; Hotel(s) by name
+  and nights (≤2, via stayRuns) or "N: towns"; Car. Tapping a booked row opens DocumentsSheet. No "Upload another"
+  link (one door). ENTRY row reads "Travel requirements" with a pill: "✓ None pending" / "Action required · N" /
+  "Not checked yet". His rulings: no multi-stop switch (hotels show it); nothing about hotels at trip creation.
+- Ticketmaster shows are kept by their local date within the trip (the UTC query window let in the evening before).

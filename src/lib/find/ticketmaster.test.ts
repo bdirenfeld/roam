@@ -41,3 +41,10 @@ describe("Ticketmaster's shows as Find results", () => {
     expect(parseTicketmaster(null)).toEqual([]);
   });
 });
+
+describe("a show is on the trip by its own local date (1 Oct 2026)", () => {
+  it("drops the evening before the trip that the UTC window let in", () => {
+    const rs = parseTicketmaster({ _embedded: { events: [event("x", "The Used", "2027-03-12"), event("y", "Jungle", "2027-03-13")] } }, 12, "2027-03-13", "2027-03-20");
+    expect(rs.map((r) => r.title)).toEqual(["Jungle"]);
+  });
+});

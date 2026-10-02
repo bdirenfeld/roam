@@ -12,6 +12,7 @@ import TravellersSection, { type Person } from "@/components/trip/TravellersSect
 import PartyPicker from "@/components/trip/PartyPicker";
 import { partyFrom, agesFrom, partySize as sizeOf } from "@/lib/party";
 import EntrySection from "./EntrySection";
+import BookingsSection from "./BookingsSection";
 import { createShareLink, revokeShareLink, removeGuest, loadShareState } from "@/lib/share-actions";
 
 /** A guest on a shared journey, as the Settings page loads it server-side. */
@@ -764,6 +765,9 @@ export default function TripSettingsClient({
         {TRAVELLERS_ENABLED && (
           <TravellersSection tripId={trip.id} initialPeople={initialPeople} />
         )}
+
+        {/* ── Bookings — flights, hotels, a car; or Upload (1 Oct 2026). ── */}
+        <BookingsSection tripId={trip.id} days={days} endDate={trip.end_date} />
 
         {/* ── Entry requirements — what the passports need to get in. One row
             under the people it applies to; opens in place. Arriving from the
