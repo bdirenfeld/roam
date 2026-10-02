@@ -21,8 +21,22 @@ const GOOGLE_WORDS: Record<string, string> = {
   camp: "kids day camps",
 };
 
+/**
+ * The place a typed search names, if any (1 Oct 2026): "gelato in Pisa",
+ * "beach near Forte dei Marmi". Find added the base to whatever was typed, so
+ * that went to Google as "beach near Forte dei Marmi in Lucca". A search that
+ * names somewhere is searched there; "pizza near the station" names nowhere.
+ */
+export function namedPlace(ask: string | null | undefined): string | null {
+  const m = (ask ?? "").trim().match(/\b(?:in|near|around|at|by)\s+([^,]+?)\s*$/i);
+  if (!m) return null;
+  const place = m[1].trim();
+  if (place.length < 3 || /^(the|my|our|a|an|this|here|there)\b/i.test(place)) return null;
+  return place;
+}
+
 export function googleQuery(subType: string, base: string, ask: string | null): string {
-  if (ask && ask.trim()) return `${ask.trim()} in ${base}`;
+  if (ask && ask.trim()) return namedPlace(ask) ? ask.trim() : `${ask.trim()} in ${base}`;
   // "beaches in Tamarindo" gives Google's one Tamarindo Beach and nothing else,
   // for any town with a beach of its name; "best beaches near" gives twenty
   // (Costa Rica test, 29 Sep 2026).
@@ -108,7 +122,8 @@ Reply with JSON only:
   const nearLine = opts.near && opts.near.length && NEAR_KINDS.has(opts.subType)
     ? `\nThe days are spent around ${opts.near.join(", ")}: only recommend places a short walk from one of those.`
     : "";
-  return `Find ${what} in ${opts.base}${opts.country ? `, ${opts.country}` : ""} for ${whoAll}, visiting in ${opts.month}.
+  // A search that names its own place is asked there, not at the base.
+  return `Find ${what}${namedPlace(opts.ask) ? "" : ` in ${opts.base}`}${opts.country ? `, ${opts.country}` : ""} for ${whoAll}, visiting in ${opts.month}.
 Search Reddit threads and travel blogs for what travellers who went recommend.${nearLine}
 ${opts.subType === "self_directed" && !(opts.ask && opts.ask.trim())
     ? `Start with the places a first visit should not miss, then add ones travellers loved that first-timers usually skip.`

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { googleQuery, travellersPrompt, parseTravellers, cacheKey } from "./ask";
+import { googleQuery, namedPlace, travellersPrompt, parseTravellers, cacheKey } from "./ask";
 
 describe("googleQuery", () => {
   it("names the category in plain words, or uses what the person asked", () => {
@@ -7,6 +7,33 @@ describe("googleQuery", () => {
     expect(googleQuery("restaurant", "Kyoto", "ramen open late")).toBe("ramen open late in Kyoto");
     // Google answers "beaches in Tamarindo" with one beach; "best beaches near" with twenty.
     expect(googleQuery("beach", "Tamarindo", null)).toBe("best beaches near Tamarindo");
+  });
+
+  // Brennan, 1 Oct 2026: "beach near Forte dei Marmi" went to Google as
+  // "beach near Forte dei Marmi in Lucca".
+  it("a search that names its own place is searched there, not at the base", () => {
+    expect(googleQuery("beach", "Lucca", "beach near Forte dei Marmi")).toBe("beach near Forte dei Marmi");
+    expect(googleQuery("self_directed", "Lucca", "gelato in pisa")).toBe("gelato in pisa");
+    expect(googleQuery("restaurant", "Lucca", "pizza near the station")).toBe("pizza near the station in Lucca");
+  });
+});
+
+describe("namedPlace", () => {
+  it("reads the place off the end of what was typed", () => {
+    expect(namedPlace("beach near Forte dei Marmi")).toBe("Forte dei Marmi");
+    expect(namedPlace("gelato in Pisa")).toBe("Pisa");
+    expect(namedPlace("lunch around Piazza Napoleone")).toBe("Piazza Napoleone");
+  });
+  it("names nowhere when there is no place, or only 'the station'", () => {
+    expect(namedPlace("ramen open late")).toBeNull();
+    expect(namedPlace("pizza near the station")).toBeNull();
+    expect(namedPlace("coffee near here")).toBeNull();
+    expect(namedPlace(null)).toBeNull();
+  });
+  it("the travellers are asked about the named place, not the base", () => {
+    const p = (ask: string) => travellersPrompt({ base: "Lucca", country: "Italy", subType: "self_directed", ask, party: 7, childAges: [10, 8, 5], month: "August" });
+    expect(p("gelato in Pisa")).toMatch(/^Find gelato in Pisa, Italy for/);
+    expect(p("ramen open late")).toMatch(/^Find ramen open late in Lucca, Italy for/);
   });
 });
 

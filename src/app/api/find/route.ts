@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import { overBudget, addSpend } from "@/lib/api/spend";
 import { yearlyKey, yearlyPrompt, parseYearly, yearlyForTrip, type YearlyItem } from "@/lib/find/yearly";
-import { googleQuery, travellersPrompt, parseTravellers, cacheKey, CACHE_DAYS, DATED, onTripDates, fixWeekdays } from "@/lib/find/ask";
+import { googleQuery, namedPlace, travellersPrompt, parseTravellers, cacheKey, CACHE_DAYS, DATED, onTripDates, fixWeekdays } from "@/lib/find/ask";
 import { NEAR_PLAN, withinWalk } from "@/lib/find/near";
 import { mergeFind, fitsCategory, isBeach, isTour, FAR_KM, EVENT_FAR_KM, type FindResult } from "@/lib/find/merge";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -78,7 +78,10 @@ export async function POST(req: NextRequest) {
   const yearly = subType === "event" && !ask && mode === "travellers";
   if (dated && mode === "google") return NextResponse.json({ results: [], mode });
   // Events reach a day trip away (lib/find/merge EVENT_FAR_KM).
-  const farKm = dated && subType === "event" ? EVENT_FAR_KM : FAR_KM;
+  // A typed search that names a place (lib/find/ask namedPlace) reaches it:
+  // Florence is 70 km from a villa near Lucca, past FAR_KM.
+  const named = !!ask && !!namedPlace(ask);
+  const farKm = (dated && subType === "event") || named ? EVENT_FAR_KM : FAR_KM;
   // Coffee and dessert near the day's sights, when the base has some (lib/find/near).
   const near = NEAR_PLAN.has(subType) && !ask
     ? (body?.near ?? []).filter((p): p is { lat: number; lng: number } => typeof p?.lat === "number" && typeof p?.lng === "number").slice(0, 4)
@@ -114,12 +117,13 @@ export async function POST(req: NextRequest) {
   const toResult = (g: GPlace, from: FindResult["from"], why: string, source: FindResult["source"], kids: boolean): FindResult | null => {
     const loc = g.geometry?.location;
     if (!loc) return null;
-    if (!fitsCategory(subType, g.types)) return null;
+    // A typed search is its own category: "gelato in Pisa" under Explore kept no gelato.
+    if (!ask && !fitsCategory(subType, g.types)) return null;
     // Google's beaches must be beaches (lib/find/merge isBeach).
     if (from === "google" && subType === "beach" && !isBeach(g.name, g.types)) return null;
     // and its tours are tours, not a TV station or a bus company (isTour).
     if (from === "google" && subType === "guided" && !isTour(g.name, g.types)) return null;
-    return { placeId: g.place_id, name: g.name, address: g.formatted_address ?? g.vicinity ?? "", lat: loc.lat, lng: loc.lng, rating: g.rating ?? null, reviews: g.user_ratings_total ?? null, why, source, from, kids, photoRef: g.photos?.[0]?.photo_reference ?? null };
+    return { placeId: g.place_id, name: g.name, address: g.formatted_address ?? g.vicinity ?? "", lat: loc.lat, lng: loc.lng, rating: g.rating ?? null, reviews: g.user_ratings_total ?? null, why, source, from, kids, photoRef: g.photos?.[0]?.photo_reference ?? null, types: g.types };
   };
 
   const travellers = async (): Promise<FindResult[]> => {
@@ -180,7 +184,7 @@ export async function POST(req: NextRequest) {
       const u = new URL("https://maps.googleapis.com/maps/api/place/textsearch/json");
       u.searchParams.set("query", googleQuery(subType, base.label!, ask));
       u.searchParams.set("location", `${base.lat},${base.lng}`);
-      u.searchParams.set("radius", "15000");
+      u.searchParams.set("radius", named ? "50000" : "15000");
       u.searchParams.set("key", googleKey);
       const j = await fetch(u.toString()).then((r) => r.json()).catch(() => null) as { results?: GPlace[] } | null;
       raw = (j?.results ?? []).slice(0, 20);

@@ -15,6 +15,7 @@ import { DATED } from "@/lib/find/ask";
 import { findRequest } from "@/lib/find/request";
 import { whatsOnUrl } from "@/lib/find/yearly";
 import { distanceLine } from "@/lib/find/distance";
+import { inferTypeOrSight } from "@/lib/places/inferType";
 
 /**
  * Find (29 Sep 2026): places for what a base is short of, in Roam's own
@@ -121,7 +122,11 @@ export default function FindSheet({
     if (!category || saved.has(r.placeId)) return;
     setSaved((prev) => new Set(prev).add(r.placeId));
     try {
-      const imp = await fetch("/api/places/bulk-import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ google_place_ids: [r.placeId], defaults: { type: category.type, sub_type: category.subType } }) });
+      // A typed search's place is saved as what Google says it is, not as the
+      // chip that happened to be on (a gelato shop found under Explore).
+      const typed = (asked.current ?? "").split("|")[2] !== "";
+      const kind = typed ? inferTypeOrSight(r.types, r.name) : { type: category.type, sub_type: category.subType };
+      const imp = await fetch("/api/places/bulk-import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ google_place_ids: [r.placeId], defaults: kind }) });
       const j = await imp.json() as { imported?: { place_id: string; title: string; created?: boolean }[] };
       const placeId = j.imported?.[0]?.place_id;
       if (!placeId) throw new Error("import");
@@ -140,7 +145,7 @@ export default function FindSheet({
       };
       const { error } = await createClient().from("cards").insert(card);
       if (error) throw error;
-      onSaved({ ...card, created_at: new Date().toISOString(), place: { id: placeId, title, type: category.type, sub_type: category.subType, lat: r.lat, lng: r.lng, address: r.address } } as unknown as Card);
+      onSaved({ ...card, created_at: new Date().toISOString(), place: { id: placeId, title, type: kind.type, sub_type: kind.sub_type, lat: r.lat, lng: r.lng, address: r.address } } as unknown as Card);
       toast({ message: `Saved ${r.title ?? r.name} to your map` });
     } catch {
       setSaved((prev) => { const n = new Set(prev); n.delete(r.placeId); return n; });
@@ -203,7 +208,7 @@ export default function FindSheet({
             })}
           </div>
           <form onSubmit={(e) => { e.preventDefault(); if (ask.trim()) void run(base, sub, ask.trim()); }}>
-            <input id="find-ask" value={ask} onChange={(e) => setAsk(e.target.value)} placeholder={`Or ask: "ramen open late"`}
+            <input id="find-ask" value={ask} onChange={(e) => setAsk(e.target.value)} placeholder={`Search for something specific, e.g. "gelato in Pisa"`}
               className="w-full h-10 rounded-xl px-3 text-[14px] outline-none" style={{ background: "#F6F5F2" }} />
           </form>
         </div>

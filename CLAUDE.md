@@ -1996,3 +1996,9 @@ the component mounted and you are looking at throttling, not a broken map.
   closing event (hotel check-out / car drop-off, toCards.closingEvent) on that day, and opens ConfirmationPreviewSheet
   headed "We also found these in your confirmation" for the rest. Rental cars = logistics/transit, "Pick up rental car"
   + "Return the rental car". resolvePlace lives in lib/confirmations for both sheets.
+- Find's typed search (1 Oct 2026): the box reads "Search for something specific, e.g. 'gelato in Pisa'" (he
+  didn't know "Or ask" took a place). A search that names a place (lib/find/ask namedPlace: "... in/near/around X")
+  is searched THERE: Google gets the text as typed (not "+ in Lucca"), bias radius 50 km, reach EVENT_FAR_KM; the
+  travellers' prompt drops the base. A typed search skips the chip's category filter and saves as Google's type
+  (inferTypeOrSight). FIND_PROMPT_V not bumped on purpose: only named asks changed, and a bump re-pays every cache.
+  His ruling: no area chips or distance slider for one-base trips like Tuscany — "an edge case"; anchor on the villa.
