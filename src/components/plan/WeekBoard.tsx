@@ -115,6 +115,8 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   useEffect(() => {
     const el = gridRef.current;
     if (!el || typeof ResizeObserver === "undefined") return;
+    // Measured at once as well: the observer's first report waits for a paint.
+    setWeekW(el.clientWidth);
     const ro = new ResizeObserver(() => setWeekW(el.clientWidth));
     ro.observe(el);
     return () => ro.disconnect();
