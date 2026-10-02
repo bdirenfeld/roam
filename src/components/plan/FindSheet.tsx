@@ -129,9 +129,14 @@ export default function FindSheet({
     : null;
   const category = gaps.find((g) => g.category.subType === sub)?.category;
 
+  const [tall, setTall] = useState(false);
   const save = async (r: FindResult) => {
     if (!category || saved.has(r.placeId)) return;
     setSaved((prev) => new Set(prev).add(r.placeId));
+    // On the phone a save drops it to half height, so the map above shows
+    // the pin land (Brennan, 2 Oct 2026: after Save the sheet "is all the
+    // way up" and covers the map). The host's bottom row follows via onTall.
+    if (!dock) setTall(false);
     try {
       // A typed search's place is saved as what Google says it is, not as the
       // chip that happened to be on (a gelato shop found under Explore).
@@ -176,7 +181,6 @@ export default function FindSheet({
   // week (inside the map when it is widened); on the phone a half sheet with
   // the map above. Nothing dims the map, so a saved pin is seen landing
   // (lib/map/pulse). Escape or ✕ closes; the map stays usable while it is open.
-  const [tall, setTall] = useState(false);
   // The phone's half sheet (2 Oct 2026, Brennan: "when you scroll through it you
   // can barely see what's up there"): the controls took about 280 of its 450 px.
   // Now they scroll away with the results, scrolling raises the sheet, and

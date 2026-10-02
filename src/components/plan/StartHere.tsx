@@ -11,8 +11,10 @@ import { startSteps, type StartCard } from "@/lib/plan/startHere";
 const INK = "#1A1A2E";
 const CAPTION = "rgba(26,26,46,0.62)";
 
-export default function StartHere({ cards, place, reading, onUpload, onFind, floating }: {
+export default function StartHere({ cards, place, reading, onUpload, onFind, floating, firstDay }: {
   cards: StartCard[];
+  /** The phone's day: is this the journey's first day? Upload shows only there. The week omits it. */
+  firstDay?: boolean;
   /** Where the journey is going, for "places to eat in Tuscany". */
   place: string;
   reading?: boolean;
@@ -21,7 +23,7 @@ export default function StartHere({ cards, place, reading, onUpload, onFind, flo
   /** The week's floating card (a shadow) rather than the phone's inline one (a hairline). */
   floating?: boolean;
 }) {
-  const { upload, find } = startSteps(cards);
+  const { upload, find } = startSteps(cards, { firstDay });
   if (!upload && !find) return null;
   const town = place.split(",")[0].trim() || "the area";
   return (

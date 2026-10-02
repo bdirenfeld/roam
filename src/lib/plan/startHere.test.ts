@@ -32,6 +32,12 @@ describe("a new journey's two ways to start", () => {
     expect(startSteps([{ ...hotel, day_id: null, status: "interested" }]).upload).toBe(true);
     expect(startSteps([{ ...savedSight, status: "cut" }]).find).toBe(true);
   });
+  it("the phone's other days: no Upload a booking, Find places still (Brennan, 2 Oct 2026)", () => {
+    expect(startSteps([], { firstDay: false })).toEqual({ upload: false, find: true });
+    expect(startSteps([], { firstDay: true })).toEqual({ upload: true, find: true });
+    expect(startSteps([hotel], { firstDay: true }).upload).toBe(false);
+    expect(startSteps([savedSight], { firstDay: false })).toEqual({ upload: false, find: false });
+  });
   it("both done: the card is gone", () => {
     expect(startSteps([hotel, savedSight])).toEqual({ upload: false, find: false });
   });

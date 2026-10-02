@@ -12,7 +12,8 @@
 // every text input, with deep bottom padding so a phone keyboard can never
 // bottom out a field behind itself.
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
+import { dropdownPlacement, DROPDOWN_GAP, type Placement } from "@/lib/ui/dropdownPlacement";
 import { tripHref } from "@/lib/tripHref";
 import { isPhone } from "@/lib/device";
 import { matchRegions, REGIONS } from "@/lib/places/regions";
@@ -162,6 +163,10 @@ export default function NewJourneyForm({
   const [destInput,       setDestInput]       = useState(seededDest?.display ?? "");
   const [suggestions,     setSuggestions]     = useState<DestinationPrediction[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  // Where the list goes so it can be seen over a phone's keyboard
+  // (lib/ui/dropdownPlacement): measured against what is actually visible.
+  const destRowRef = useRef<HTMLDivElement>(null);
+  const [destPlace, setDestPlace] = useState<(Placement & { left: number; width: number; y: number }) | null>(null);
   // Who to invite, typed while planning; the invites go out the moment the
   // journey exists (Brennan, Sep 2026: share right off the bat).
   const [inviteEmails, setInviteEmails] = useState("");
@@ -413,6 +418,35 @@ export default function NewJourneyForm({
     }, 300);
   }, [destInput, destination]);
 
+  // Brennan, 2 Oct 2026: "the keyboard is so high that you can't see that it's
+  // giving you a suggestion of the place below it unless you scroll down."
+  // The list is fixed to the field's measured box and goes above it when the
+  // keyboard leaves no room below; it follows the keyboard and any scroll.
+  useLayoutEffect(() => {
+    if (!showSuggestions) { setDestPlace(null); return; }
+    const measure = () => {
+      const row = destRowRef.current;
+      if (!row) return;
+      const r = row.getBoundingClientRect();
+      const vv = window.visualViewport;
+      const view = vv ? { offsetTop: vv.offsetTop, height: vv.height } : { offsetTop: 0, height: window.innerHeight };
+      const p = dropdownPlacement({ top: r.top, bottom: r.bottom }, view);
+      setDestPlace({ ...p, left: r.left, width: r.width, y: p.side === "below" ? r.bottom + DROPDOWN_GAP : r.top - DROPDOWN_GAP });
+    };
+    measure();
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", measure);
+    vv?.addEventListener("scroll", measure);
+    window.addEventListener("resize", measure);
+    document.addEventListener("scroll", measure, true);
+    return () => {
+      vv?.removeEventListener("resize", measure);
+      vv?.removeEventListener("scroll", measure);
+      window.removeEventListener("resize", measure);
+      document.removeEventListener("scroll", measure, true);
+    };
+  }, [showSuggestions, suggestions.length]);
+
   const handleSelectSuggestion = useCallback(async (p: DestinationPrediction) => {
     lastPicked.current = p.description;
     setDestInput(p.description);
@@ -517,14 +551,10 @@ export default function NewJourneyForm({
       } else {
         setPickEnd(dateStr);
         setPickPhase("start");
-        // The second tap finishes the range, so it also closes the picker.
-        // "Done" confirmed what the traveller had just done (click audit,
-        // Sep 2026); it stays for the single-day case and for re-opening.
-        if (pickStart) {
-          setStartDate(pickStart);
-          setEndDate(dateStr);
-          setShowDatePicker(false);
-        }
+        // The second tap finishes the range but picking both does not close
+        // the sheet: Done does (Brennan, 2 Oct 2026: "people need to do their
+        // start and end date and then press Done"). The Sep 2026 click audit
+        // had made the second tap close it, which also hid the overlap line.
       }
     }
   };
@@ -761,7 +791,7 @@ export default function NewJourneyForm({
           </div>
 
           {/* Destination */}
-          <div className="flex items-center px-5 py-[14px] border-b border-black/5 relative">
+          <div ref={destRowRef} data-testid="dest-row" className="flex items-center px-5 py-[14px] border-b border-black/5 relative">
             <span className="text-[10px] uppercase tracking-widest text-[#1A1A2E] w-20 flex-shrink-0">
               Destination
             </span>
@@ -808,7 +838,17 @@ export default function NewJourneyForm({
             {showSuggestions && suggestions.length > 0 && (
               <>
                 <div className="fixed inset-0 z-10" onPointerDown={() => setShowSuggestions(false)} />
-                <div className="absolute left-0 right-0 top-full mt-1 z-20 bg-white rounded-xl shadow-sheet border border-gray-100 overflow-hidden">
+                <div
+                  data-testid="dest-suggestions"
+                  data-side={destPlace?.side ?? "below"}
+                  className={destPlace
+                    ? "fixed z-20 bg-white rounded-xl shadow-sheet border border-gray-100 overflow-y-auto overscroll-contain"
+                    : "absolute left-0 right-0 top-full mt-1 z-20 bg-white rounded-xl shadow-sheet border border-gray-100 overflow-hidden"}
+                  style={destPlace ? {
+                    left: destPlace.left, width: destPlace.width, top: destPlace.y, maxHeight: destPlace.maxHeight,
+                    transform: destPlace.side === "above" ? "translateY(-100%)" : undefined,
+                  } : undefined}
+                >
                   {suggestions.map((s) => (
                     <button
                       key={s.place_id}

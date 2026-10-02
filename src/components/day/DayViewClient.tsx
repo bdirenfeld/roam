@@ -350,7 +350,12 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trip.id, readOnly, localCards.length]);
-  const startShown = startCards !== null && (() => { const s = startSteps(startCards); return s.upload || s.find; })();
+  // Upload a booking only on the journey's first day (2 Oct 2026); Find places on every day until used.
+  const firstDay = useMemo(() => {
+    const first = [...days].sort((a, b) => (a.date ?? "").localeCompare(b.date ?? "") || a.day_number - b.day_number)[0];
+    return !first || first.id === dayWithCards.id;
+  }, [days, dayWithCards.id]);
+  const startShown = startCards !== null && (() => { const s = startSteps(startCards, { firstDay }); return s.upload || s.find; })();
 
   // The desktop masthead's menu lives in the layout, so its Bookings row asks
   // whichever screen is open to show the sheet (Brennan, Sep 2026: "I thought
@@ -1075,7 +1080,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           >
             {startShown && (
               <div className="mb-4 flex justify-center">
-                <StartHere cards={startCards!} place={trip.destination ?? ""} reading={importingConf}
+                <StartHere cards={startCards!} firstDay={firstDay} place={trip.destination ?? ""} reading={importingConf}
                   onUpload={() => importInputRef.current?.click()}
                   onFind={() => router.push(`/trips/${trip.id}/map?find=1`)} />
               </div>

@@ -34,6 +34,12 @@ describe("Start here", () => {
     expect(b.disabled).toBe(true);
   });
 
+  it("not the journey's first day: Find places only (2 Oct 2026)", () => {
+    render(<StartHere cards={[]} firstDay={false} place="Lisbon, Portugal" onUpload={vi.fn()} onFind={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: /Upload a booking/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /Find places/ })).toBeTruthy();
+  });
+
   it("both done: nothing at all, nothing to dismiss", () => {
     const { container } = render(<StartHere cards={[hotel, sight]} place="Tuscany, Italy" onUpload={vi.fn()} onFind={vi.fn()} />);
     expect(container.innerHTML).toBe("");

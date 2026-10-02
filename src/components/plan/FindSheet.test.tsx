@@ -158,6 +158,20 @@ describe("Find sheet", { timeout: 20000 }, () => {
     expect(onTall).toHaveBeenLastCalledWith(false);
   });
 
+  it("on the phone a save drops the raised sheet to half, so the pin is seen landing; the bottom row follows (2 Oct 2026)", async () => {
+    const onTall = vi.fn(), onSaved = vi.fn();
+    await act(async () => { render(<FindSheet trip={trip} days={[]} cards={[] as Card[]} onClose={vi.fn()} onSaved={onSaved} onTall={onTall} />); });
+    const sheet = screen.getByRole("dialog", { name: "Find places" });
+    const scroller = screen.getByTestId("find-scroll");
+    await act(async () => { scroller.scrollTop = 40; fireEvent.scroll(scroller); });
+    expect(sheet.style.height).toBe("88dvh");
+    expect(onTall).toHaveBeenLastCalledWith(true);
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Save" })); });
+    expect(onSaved).toHaveBeenCalledTimes(1);
+    expect(sheet.style.height).toBe("50dvh");
+    expect(onTall).toHaveBeenLastCalledWith(false);
+  });
+
   it("never reports a height when docked on a computer", async () => {
     const onTall = vi.fn();
     await act(async () => { render(<FindSheet trip={trip} days={[]} cards={[] as Card[]} dock="beside" onClose={vi.fn()} onSaved={vi.fn()} onTall={onTall} />); });

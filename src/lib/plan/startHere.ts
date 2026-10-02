@@ -5,7 +5,11 @@
  * on its own (a booking uploaded must not take "Find places" with it), and the
  * upload names cars too.
  *
- * Upload a booking: until a hotel, flight or rental car is on a day.
+ * Upload a booking: until a hotel, flight or rental car is on a day, and on
+ * the phone's day only on the journey's first day (Brennan, 2 Oct 2026: "it
+ * makes sense to have it on the first day if you haven't uploaded anything,
+ * but I don't want it on the other ones"). The week shows one over the whole
+ * week, so it passes nothing.
  * Find places: until something to do or eat is on the journey, saved or planned.
  */
 
@@ -30,6 +34,7 @@ function isPlace(c: StartCard): boolean {
   return c.status !== "cut" && (c.place?.type === "activity" || c.place?.type === "food");
 }
 
-export function startSteps(cards: StartCard[]): { upload: boolean; find: boolean } {
-  return { upload: !cards.some(isBooking), find: !cards.some(isPlace) };
+export function startSteps(cards: StartCard[], opts: { firstDay?: boolean } = {}): { upload: boolean; find: boolean } {
+  const firstDay = opts.firstDay ?? true;
+  return { upload: firstDay && !cards.some(isBooking), find: !cards.some(isPlace) };
 }
