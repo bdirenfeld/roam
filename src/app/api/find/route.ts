@@ -245,7 +245,14 @@ export async function POST(req: NextRequest) {
   let found: FindResult[];
   try {
     found = mode === "travellers" ? await travellers()
-      : tm ? parseTicketmaster(await fetch(ticketmasterUrl(tmKey!, { lat: base.lat!, lng: base.lng! }, trip.start_date as string, trip.end_date as string)).then((r) => r.json()).catch(() => null))
+      : tm ? await (async () => {
+        const res = await fetch(ticketmasterUrl(tmKey!, { lat: base.lat!, lng: base.lng! }, trip.start_date as string, trip.end_date as string)).catch(() => null);
+        const j = res ? await res.json().catch(() => null) : null;
+        const shows = parseTicketmaster(j);
+        // Said, not swallowed: a refused key read as "nothing on" (1 Oct 2026).
+        console.log("[find] ticketmaster", base.label, res?.status ?? "no answer", "total", (j as { page?: { totalElements?: number } } | null)?.page?.totalElements ?? "-", "kept", shows.length, (j as { fault?: { faultstring?: string } } | null)?.fault?.faultstring ?? "");
+        return shows;
+      })()
       : await google();
   } catch (e) {
     if (e instanceof Error && e.message === "budget") return NextResponse.json({ error: "Travellers' picks are paused until tomorrow" }, { status: 503 });
