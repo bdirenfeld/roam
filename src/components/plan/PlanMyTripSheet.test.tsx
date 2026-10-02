@@ -51,6 +51,15 @@ describe("Plan my trip sheet", () => {
     expect(screen.getByText(/of 10.5 free days/)).toBeTruthy();
   });
 
+  it("a trip with every day planned says so on open, with no Plan button (1 Oct 2026)", () => {
+    // A planned place on every one of the 14 days, the saved ones still waiting.
+    // A day is taken once an activity is on it (lib/plan/draftRows draftDays).
+    const onEveryDay = days.map((d, i) => ({ ...cards[i], id: `p${i}`, day_id: d.id, status: "in_itinerary", start_time: "10:00:00", end_time: "17:00:00", place: { ...cards[i].place!, type: "activity" } })) as unknown as Card[];
+    render(<PlanMyTripSheet trip={trip} days={days} cards={[...onEveryDay, ...cards.slice(14)]} onClose={vi.fn()} onDrafted={vi.fn()} />);
+    expect(screen.getByTestId("plan-full").textContent).toMatch(/^Every day is planned\.To plan more, take some places off a day/);
+    expect(screen.queryByRole("button", { name: "Plan the trip" })).toBeNull();
+  });
+
   it("plans the trip in one insert and hands the cards back", async () => {
     const onDrafted = vi.fn(), onClose = vi.fn();
     const asked: { url: string; body: { tripId: string; cardIds: string[] } }[] = [];

@@ -2008,3 +2008,7 @@ the component mounted and you are looking at throttling, not a broken map.
   link "Ticketmaster" to buy (FindSheet shows any result's source link now), placeId "tm:<id>" — Save looks the venue
   up via autocomplete and names the pin after the show. Thin in Italy (TicketOne). Trap: reloading his Vercel tab
   to "check" wiped his unsaved paste — never touch a tab he is typing in.
+- Plan my trip on a full trip (1 Oct 2026): when preview.free < 0.5 the sheet opens with "Every day is planned. To plan
+  more, take some places off a day and they go back to your saved places. Then run Plan my trip again." — no region
+  list, no Plan button; "Remove what Plan my trip added" stays. (Was a toast after pressing Plan.) His call: no
+  arrival/hotel-to-hotel travel cards — uploaded bookings already put the landing and the check-in on the day.

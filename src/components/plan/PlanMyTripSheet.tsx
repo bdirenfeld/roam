@@ -55,6 +55,10 @@ export default function PlanMyTripSheet({
   const needText = Number.isInteger(need) ? String(need) : need.toFixed(1);
   const over = need > preview.free;
   const places = preview.grouping.groups.reduce((s, g) => s + g.items.length + g.meals.length, 0);
+  // Every day taken (1 Oct 2026): say so on open, not in a toast after "Plan
+  // the trip" (Brennan: "it needs to say something to the effect of the trip
+  // is fully planned").
+  const full = preview.free < 0.5;
 
   const make = async () => {
     setBusy(true);
@@ -127,19 +131,26 @@ export default function PlanMyTripSheet({
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-[18px] font-semibold text-[#1A1A2E] leading-tight">Plan my trip</h2>
+            {full ? (
+              <p className="text-[13px] mt-1" style={{ color: "rgba(26,26,46,0.62)" }} data-testid="plan-full">
+                <span className="block text-[14px] font-semibold text-[#1A1A2E] mb-0.5">Every day is planned.</span>
+                To plan more, take some places off a day and they go back to your saved places. Then run Plan my trip again.
+              </p>
+            ) : (
             <p className="text-[13px] mt-1" style={{ color: over ? "#9A5B00" : "rgba(26,26,46,0.62)" }}>
               {/* "5 of 3 free days" read as nonsense (New York test, 29 Sep 2026). */}
               {places} saved {places === 1 ? "place" : "places"} · {over
                 ? `about ${needText} days of places for ${preview.free} free, so some stay saved`
                 : `${needText} of ${preview.free} free days`}
             </p>
+            )}
           </div>
           <button type="button" onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
           </button>
         </div>
 
-        {many && (
+        {many && !full && (
           <ul className="flex flex-col">
             {preview.regions.map((r) => {
               const on = chosen.has(r.id);
@@ -167,7 +178,7 @@ export default function PlanMyTripSheet({
           </ul>
         )}
 
-        <button
+        {!full && <button
           type="button"
           onClick={() => void make()}
           disabled={busy || chosen.size === 0 || places === 0}
@@ -175,7 +186,7 @@ export default function PlanMyTripSheet({
           style={{ background: "#1A1A2E" }}
         >
           {busy ? "Planning…" : "Plan the trip"}
-        </button>
+        </button>}
         {planMade.length > 0 && (
           <button
             type="button"
