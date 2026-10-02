@@ -20,7 +20,14 @@ vi.mock("@/components/ui/Toast", () => ({ useToast: () => ({ toast: vi.fn() }) }
 vi.mock("@/lib/supabase/client", () => ({ createClient: () => ({}) }));
 vi.mock("@/lib/offline/queuedWrite", () => ({ queuedUpdate: vi.fn(), queuedInsert: vi.fn(), queuedDelete: vi.fn() }));
 
+// The booking upload, with its onAdded handed back so a test can play the sheet's part.
+let uploadAdded: ((cards: Card[], deletedIds: string[]) => void) | null = null;
+vi.mock("@/components/trip/useBookingUpload", () => ({
+  useBookingUpload: (o: { onAdded: (cards: Card[], deletedIds: string[]) => void }) => { uploadAdded = o.onAdded; return { pick: vi.fn(), reading: false, element: null }; },
+}));
+
 import WeekBoard from "./WeekBoard";
+import { act } from "@testing-library/react";
 
 const villa = { id: "villa", title: "Villa Zambaldi", type: "logistics", sub_type: "hotel", lat: 43.87, lng: 10.45, address: "Via Fonda" };
 const cathedral = { id: "cat", title: "Cathedral of Santa Maria", type: "activity", sub_type: "sight", lat: 43.77, lng: 11.25, address: "Piazza del Duomo" };
@@ -73,6 +80,14 @@ describe("the week's top rows", () => {
     render(<WeekBoard trip={trip} initialDays={booked} initialSaved={[]} />);
     expect(screen.queryByRole("button", { name: /Upload a booking/ })).toBeNull();
     expect(screen.getByRole("button", { name: /Find places/ })).toBeTruthy();
+  });
+
+  it("an uploaded booking lands on its day without Plan my trip's tray (2 Oct 2026)", () => {
+    const empty = dates.map((date, i) => ({ id: `u${i + 1}`, trip_id: "t", day_number: i + 1, date, theme: null, cards: [] as Card[] })) as unknown as DayWithCards[];
+    const { container } = render(<WeekBoard trip={trip} initialDays={empty} initialSaved={[]} />);
+    act(() => { uploadAdded!([card("bk", "u1", villa, { start_time: "15:00:00" })], []); });
+    expect(screen.getByText("Check in · Villa Zambaldi")).toBeTruthy();
+    expect(container.querySelector("[data-plan-tray]")).toBeNull();
   });
 
   it("next week, the last morning's villa card reads as the check-out", () => {

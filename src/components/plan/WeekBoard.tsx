@@ -105,9 +105,14 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const upload = useBookingUpload({
     tripId: trip.id,
     days,
+    // The cards go onto their days, but not as a plan: draftCreated would also
+    // open Plan my trip's "Planned N places · Undo" tray (caught 2 Oct 2026).
     onAdded: (created, deletedIds) => {
-      if (deletedIds.length) setDays((prev) => prev.map((d) => ({ ...d, cards: d.cards.filter((c) => !deletedIds.includes(c.id)) })));
-      draftCreated(created);
+      setDays((prev) => prev.map((d) => {
+        const kept = deletedIds.length ? d.cards.filter((c) => !deletedIds.includes(c.id)) : d.cards;
+        const mine = created.filter((c) => c.day_id === d.id);
+        return mine.length || kept !== d.cards ? { ...d, cards: [...kept, ...mine] } : d;
+      }));
     },
   });
   // The visible width of the week, to centre Start here in it while the grid scrolls sideways.
