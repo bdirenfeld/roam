@@ -16,7 +16,8 @@ describe("the doors to Plan my trip", () => {
     // Not only when two places are saved: a full or empty trip opens the sheet, which says why.
     expect(week).toMatch(/\{!filterOpen && onDraftCreated && \(\s*<button onClick=\{\(\) => setPlanOpen\(true\)\}/);
     const map = read("src/components/map/FullMapClient.tsx");
-    expect(map).toMatch(/\{!readOnly && !filterOpen && \(\s*<button\s+onClick=\{\(\) => setPlanOpen\(true\)\}/);
+    // Its tap also closes Find when Find is open (2 Oct 2026), so the handler opens with that.
+    expect(map).toMatch(/\{!readOnly && !filterOpen && \(\s*<button\s+(\/\/[^\n]*\n\s*)?onClick=\{\(\) => \{ setFindOpen\(false\); setFindTall\(false\); setPlanOpen\(true\); \}\}/);
     expect(map).not.toMatch(/toPlan >= 2/);
     expect(map).toMatch(/<PlanMyTripSheet/);
   });

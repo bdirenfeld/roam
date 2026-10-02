@@ -147,6 +147,23 @@ describe("Find sheet", { timeout: 20000 }, () => {
     expect(screen.getByRole("region", { name: "Trattoria Da Enzo" })).toBeTruthy();
   });
 
+  it("tells the phone Map when the half sheet rises and falls, so its bottom row can ride above it (2 Oct 2026)", async () => {
+    const onTall = vi.fn();
+    await act(async () => { render(<FindSheet trip={trip} days={[]} cards={[] as Card[]} onClose={vi.fn()} onSaved={vi.fn()} onTall={onTall} />); });
+    expect(onTall).toHaveBeenLastCalledWith(false);
+    const scroller = screen.getByTestId("find-scroll");
+    await act(async () => { scroller.scrollTop = 40; fireEvent.scroll(scroller); });
+    expect(onTall).toHaveBeenLastCalledWith(true);
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "More about Trattoria Da Enzo" })); });
+    expect(onTall).toHaveBeenLastCalledWith(false);
+  });
+
+  it("never reports a height when docked on a computer", async () => {
+    const onTall = vi.fn();
+    await act(async () => { render(<FindSheet trip={trip} days={[]} cards={[] as Card[]} dock="beside" onClose={vi.fn()} onSaved={vi.fn()} onTall={onTall} />); });
+    expect(onTall).not.toHaveBeenCalled();
+  });
+
   it("on a computer the controls stay put and only the results scroll", async () => {
     await act(async () => { render(<FindSheet trip={trip} days={[]} cards={[] as Card[]} dock="beside" onClose={vi.fn()} onSaved={vi.fn()} />); });
     expect(screen.getByTestId("find-scroll").className).toBe("contents");

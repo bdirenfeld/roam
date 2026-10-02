@@ -229,3 +229,5 @@ body {
 
 /* With the Where-to-stay sheet up on a phone, the map's own controls sit above it, not under it. */
 .stays-open .mapboxgl-ctrl-bottom-right { bottom: 48dvh; }
+/* Find's half sheet (50dvh) on a phone: the same, so zoom and locate stay in reach (2 Oct 2026). */
+.find-open .mapboxgl-ctrl-bottom-right { bottom: 50dvh; }

@@ -26,7 +26,7 @@ import { inferTypeOrSight } from "@/lib/places/inferType";
  * Map. Mock: https://claude.ai/artifact/Y7jvE2BRLyzFgropo5bqSG
  */
 export default function FindSheet({
-  trip, days, cards, onClose, onSaved, dock, onFocus,
+  trip, days, cards, onClose, onSaved, dock, onFocus, onTall,
 }: {
   trip: Trip;
   days: Day[];
@@ -37,6 +37,8 @@ export default function FindSheet({
   dock?: "beside" | "inside";
   /** The place opened, or null: the map shows it as a purple pin (lib/map/pulse showAt). */
   onFocus?: (r: FindResult | null) => void;
+  /** The phone's half sheet raised to 88dvh (true) or back at half (false): the map's bottom row rides above it. */
+  onTall?: (tall: boolean) => void;
 }) {
   // Escape steps back from a place to the list, then closes.
   const [open, setOpen] = useState<FindResult | null>(null);
@@ -181,6 +183,10 @@ export default function FindSheet({
   // opening a place drops it back to half so the map above shows its pin.
   const onListScroll = (e: { currentTarget: HTMLDivElement }) => { if (!dock && !tall && e.currentTarget.scrollTop > 12) setTall(true); };
   useEffect(() => { if (open && !dock) setTall(false); }, [open, dock]);
+  // The host lifts its Filter / Plan my trip row above the half sheet and steps
+  // it aside at 88dvh (2 Oct 2026, Brennan: "I can't see buttons ... at the bottom").
+  const tallRef = useRef(onTall); tallRef.current = onTall;
+  useEffect(() => { if (!dock) tallRef.current?.(tall); }, [tall, dock]);
   const dragY = useRef<number | null>(null);
   const touchedAt = useRef(0);
   return (

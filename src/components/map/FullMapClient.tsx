@@ -39,6 +39,7 @@ import { pulseAt, showAt } from "@/lib/map/pulse";
 import dynamic from "next/dynamic";
 import { reloadOnStale } from "@/lib/chunkReload";
 import { useWarmFind } from "@/hooks/useWarmFind";
+import { useFreshPush } from "@/hooks/useFreshPush";
 import { dayForCard, onlyOnLine } from "@/lib/plan/eventDays";
 // Loaded when first opened, not with the map (29 Sep 2026).
 const PlanMyTripSheet = dynamic(reloadOnStale(() => import("@/components/plan/PlanMyTripSheet")), { ssr: false });
@@ -103,6 +104,8 @@ const MARKERS = new Map<string, MarkerEntry>();
 export default function FullMapClient({ trip, days, cards, readOnly = false }: Props) {
   const [planOpen, setPlanOpen] = useState(false);
   const [findOpen, setFindOpen] = useState(false);
+  // Find's phone half sheet raised to 88dvh (FindSheet onTall): the bottom row steps aside.
+  const [findTall, setFindTall] = useState(false);
   const findPinRef = useRef<{ remove: () => void } | null>(null);
   // Find, searched ahead in the background so it opens with its answers (hooks/useWarmFind).
   useWarmFind(trip, cards, !readOnly);
@@ -142,6 +145,9 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
   // drawn beside the journey's own; the sheet below lists them. Tap a pin
   // and the row scrolls to it; tap a row and the map flies to the pin.
   const router = useRouter();
+  // Onto a day after a write: refresh first, open the day once this page's
+  // cards are back, so the router cannot serve the day from before (hooks/useFreshPush).
+  const freshPush = useFreshPush(cards);
   const searchParams = useSearchParams();
   const [showStays, setShowStays] = useState(false);
   const [stayCands, setStayCands] = useState<StayCandidate[]>([]);
@@ -600,8 +606,8 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
         setLocalCards((prev) => prev.filter((c) => !ids.has(c.id)));
       },
     });
-    router.push("/trips/" + trip.id + "/days/" + day.id);
-  }, [localCards, pickedIds, trip, days, leavePick, toast, router]);
+    freshPush("/trips/" + trip.id + "/days/" + day.id, (now) => created.every((c) => now.some((x) => x.id === c.id)));
+  }, [localCards, pickedIds, trip, days, leavePick, toast, freshPush]);
 
   function handleAddToTripClose() {
     if (tempPinRef.current) { tempPinRef.current.remove(); tempPinRef.current = null; }
@@ -884,7 +890,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
 
         {/* Map canvas */}
         {hasToken ? (
-          <div ref={mapContainerRef} className={showStays && !readOnly && !isDesktop ? "stays-open" : undefined} style={{ position: "absolute", inset: 0, right: panelOpen ? 400 : 0 }} />
+          <div ref={mapContainerRef} className={showStays && !readOnly && !isDesktop ? "stays-open" : findOpen && !findTall ? "find-open" : undefined} style={{ position: "absolute", inset: 0, right: panelOpen ? 400 : 0 }} />
         ) : (
           <div style={{ position: "absolute", inset: 0 }} className="bg-gray-50 flex flex-col items-center justify-center gap-1">
             <p className="text-sm font-medium text-gray-500">Map unavailable</p>
@@ -973,8 +979,16 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
         <div
           className={`${readOnly ? "" : "md:hidden"} absolute left-3 flex flex-col gap-2`}
           // The bar that used to sit under this is gone (24 Sep 2026); clear the
-          // phone's home indicator instead.
-          style={{ zIndex: 10, bottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }}
+          // phone's home indicator instead. With Find's half sheet up (50dvh,
+          // z-70) the row rides just above it; it sat underneath for as long as
+          // Find was open, and its ✕ scrolls away (2 Oct 2026, Brennan: "I can't
+          // see buttons ... at the bottom. They just basically disappeared").
+          // Raised to 88dvh the sheet is for reading, and the row steps aside.
+          style={{
+            zIndex: 10,
+            bottom: findOpen ? "calc(50dvh + 12px)" : "calc(16px + env(safe-area-inset-bottom, 0px))",
+            ...(findOpen && findTall ? { display: "none" } : null),
+          }}
         >
           {/* Pill rows — rendered above the button (flex-col, first child = top) */}
           {filterOpen && (
@@ -1128,14 +1142,16 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
           {/* On every trip (1 Oct 2026); the sheet explains a full or empty one. */}
           {!readOnly && !filterOpen && (
             <button
-              onClick={() => setPlanOpen(true)}
+              // From above Find's half sheet too: Find closes, so the two sheets never stack.
+              onClick={() => { setFindOpen(false); setFindTall(false); setPlanOpen(true); }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium"
               style={{ backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", background: "rgba(255,255,255,0.9)", color: "#1A1A2E" }}
             >
               Plan my trip
             </button>
           )}
-          {!readOnly && !filterOpen && (
+          {/* Not while Find is the open sheet: one door, not two. */}
+          {!readOnly && !filterOpen && !findOpen && (
             <button
               onClick={() => setFindOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium"
@@ -1147,7 +1163,8 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
           </div>
         </div>
         {findOpen && (
-          <FindSheet trip={trip} days={days} cards={cards} onClose={() => setFindOpen(false)}
+          <FindSheet trip={trip} days={days} cards={cards} onClose={() => { setFindOpen(false); setFindTall(false); }}
+            onTall={setFindTall}
             // The place open in Find, as a purple pin above the sheet (lib/map/pulse).
             onFocus={(r) => {
               findPinRef.current?.remove(); findPinRef.current = null;
@@ -1170,7 +1187,9 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
               // The draft is read on the day: go to its first day.
               const order = new Map(days.map((d) => [d.id, d.day_number]));
               const first = [...created].sort((a, b) => (order.get(a.day_id) ?? 0) - (order.get(b.day_id) ?? 0))[0];
-              if (first) router.push(`/trips/${trip.id}/days/${first.day_id}`);
+              // Not a bare push: the day may be in the router's cache from a few
+              // seconds ago, without these cards (2 Oct 2026, Romania day 1).
+              if (first) freshPush(`/trips/${trip.id}/days/${first.day_id}`, (now) => created.every((c) => now.some((x) => x.id === c.id)));
             }}
           />
         )}
