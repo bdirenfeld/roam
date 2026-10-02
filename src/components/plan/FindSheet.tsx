@@ -126,7 +126,14 @@ export default function FindSheet({
       // chip that happened to be on (a gelato shop found under Explore).
       const typed = (asked.current ?? "").split("|")[2] !== "";
       const kind = typed ? inferTypeOrSight(r.types, r.name) : { type: category.type, sub_type: category.subType };
-      const imp = await fetch("/api/places/bulk-import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ google_place_ids: [r.placeId], defaults: kind }) });
+      // A Ticketmaster show's venue is looked up on Google only when saved (lib/find/ticketmaster).
+      let gid = r.placeId;
+      if (gid.startsWith("tm:")) {
+        const ac = await fetch(`/api/places/autocomplete?input=${encodeURIComponent([r.name, r.address].filter(Boolean).join(", "))}`).then((x) => x.json()) as { predictions?: { place_id: string }[] };
+        gid = ac.predictions?.[0]?.place_id ?? "";
+        if (!gid) throw new Error("venue");
+      }
+      const imp = await fetch("/api/places/bulk-import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ google_place_ids: [gid], defaults: kind }) });
       const j = await imp.json() as { imported?: { place_id: string; title: string; created?: boolean }[] };
       const placeId = j.imported?.[0]?.place_id;
       if (!placeId) throw new Error("import");
@@ -245,7 +252,7 @@ export default function FindSheet({
                 </button>
                 <div className="text-[11px] text-activity/45 mt-0.5 flex items-center gap-1.5 flex-wrap">
                   {awayOf(r) && <span className="text-activity/70 font-medium">{awayOf(r)} ·</span>}
-                  {r.from === "travellers" && r.source ? <a href={r.source.url} target="_blank" rel="noreferrer" className="underline underline-offset-2">{r.source.name}</a> : <span>{r.from === "travellers" ? "Travellers" : "Google"}</span>}
+                  {r.source ? <a href={r.source.url} target="_blank" rel="noreferrer" className="underline underline-offset-2">{r.source.name}</a> : <span>{r.from === "travellers" ? "Travellers" : "Google"}</span>}
                   {r.kids && <span className="px-1.5 rounded text-[10px] font-semibold" style={{ background: "#E7F3EC", color: "#1D7A55" }}>Good with kids</span>}
                 </div>
               </div>

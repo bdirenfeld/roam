@@ -7,6 +7,7 @@ import { googleQuery, namedPlace, travellersPrompt, parseTravellers, cacheKey, C
 import { NEAR_PLAN, withinWalk } from "@/lib/find/near";
 import { mergeFind, fitsCategory, isBeach, isTour, FAR_KM, EVENT_FAR_KM, type FindResult } from "@/lib/find/merge";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { ticketmasterUrl, parseTicketmaster } from "@/lib/find/ticketmaster";
 
 // ── Find: places for one of a journey's gaps (29 Sep 2026) ────────────────
 //
@@ -76,7 +77,11 @@ export async function POST(req: NextRequest) {
   // Events come from the area's yearly list, asked of Claude once and kept for
   // good (lib/find/yearly): not a paid search per trip (1 Oct 2026).
   const yearly = subType === "event" && !ask && mode === "travellers";
-  if (dated && mode === "google") return NextResponse.json({ results: [], mode });
+  // Concerts and shows from Ticketmaster are Event's Google half (lib/find/ticketmaster,
+  // 1 Oct 2026); without the key, and for races and camps, that half stays empty.
+  const tmKey = process.env.TICKETMASTER_API_KEY;
+  const tm = dated && mode === "google" && subType === "event" && !!tmKey;
+  if (dated && mode === "google" && !tm) return NextResponse.json({ results: [], mode });
   // Events reach a day trip away (lib/find/merge EVENT_FAR_KM).
   // A typed search that names a place (lib/find/ask namedPlace) reaches it:
   // Florence is 70 km from a villa near Lucca, past FAR_KM.
@@ -96,7 +101,8 @@ export async function POST(req: NextRequest) {
 
   let admin: ReturnType<typeof createAdminClient> | null = null;
   try { admin = createAdminClient(); } catch { admin = null; }
-  if (admin && !yearly) {
+  // Ticketmaster's listings change week to week and cost nothing: never cached.
+  if (admin && !yearly && !tm) {
     const since = new Date(Date.now() - CACHE_DAYS * 86_400_000).toISOString();
     const { data: hit } = await admin.from("find_cache").select("results").eq("key", key).gte("created_at", since).maybeSingle();
     if (hit) return answer(hit.results as FindResult[]);
@@ -238,7 +244,9 @@ export async function POST(req: NextRequest) {
 
   let found: FindResult[];
   try {
-    found = mode === "travellers" ? await travellers() : await google();
+    found = mode === "travellers" ? await travellers()
+      : tm ? parseTicketmaster(await fetch(ticketmasterUrl(tmKey!, { lat: base.lat!, lng: base.lng! }, trip.start_date as string, trip.end_date as string)).then((r) => r.json()).catch(() => null))
+      : await google();
   } catch (e) {
     if (e instanceof Error && e.message === "budget") return NextResponse.json({ error: "Travellers' picks are paused until tomorrow" }, { status: 503 });
     return NextResponse.json({ error: "Travellers' picks are unavailable just now" }, { status: 502 });
@@ -257,6 +265,6 @@ export async function POST(req: NextRequest) {
     r.photo = await fetch(u.toString(), { redirect: "manual" }).then((x) => x.headers.get("location")).catch(() => null);
   }));
   // An empty answer is not kept: it is more likely a hiccup than the truth.
-  if (admin && found.length > 0) await admin.from("find_cache").upsert({ key, results: found, created_at: new Date().toISOString() });
+  if (admin && found.length > 0 && !tm) await admin.from("find_cache").upsert({ key, results: found, created_at: new Date().toISOString() });
   return answer(found);
 }

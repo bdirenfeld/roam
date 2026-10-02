@@ -105,6 +105,24 @@ describe("Find sheet", { timeout: 20000 }, () => {
     expect(screen.getByRole("button", { name: "Saved ✓" })).toBeTruthy();
   });
 
+  it("a Ticketmaster show links to buy, and Save looks its venue up on Google first (1 Oct 2026)", async () => {
+    const show: FindResult = { placeId: "tm:e1", title: "Foo Fighters", name: "Acrisure Arena", address: "75-702 Ritz Cove Dr, Palm Desert", lat: 41.9, lng: 12.5, rating: null, reviews: null,
+      why: "Sun 14 Mar: Rock, 8:00 PM.", source: { name: "Ticketmaster", url: "https://www.ticketmaster.com/event/e1" }, from: "google", kids: false, photo: null };
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: { body: string }) => {
+      calls.push({ url, body: init?.body ? JSON.parse(init.body) : {} });
+      if (url === "/api/find") return { ok: true, json: async () => ({ results: [show] }) };
+      if (url.startsWith("/api/places/autocomplete")) return { ok: true, json: async () => ({ predictions: [{ place_id: "gArena" }] }) };
+      return { ok: true, json: async () => ({ imported: [{ place_id: "p9", google_place_id: "gArena", title: "Acrisure Arena", created: true }] }) };
+    }));
+    await act(async () => { render(<FindSheet trip={trip} days={[]} cards={[] as Card[]} onClose={vi.fn()} onSaved={vi.fn()} />); });
+    expect(screen.getByRole("link", { name: "Ticketmaster" }).getAttribute("href")).toBe("https://www.ticketmaster.com/event/e1");
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Save" })); });
+    expect(calls.find((c) => c.url.startsWith("/api/places/autocomplete"))?.url).toContain(encodeURIComponent("Acrisure Arena, 75-702 Ritz Cove Dr, Palm Desert"));
+    expect(calls.find((c) => c.url === "/api/places/bulk-import")?.body).toMatchObject({ google_place_ids: ["gArena"] });
+    // The new pin carries the show's name, not the arena's.
+    expect(updated[0]).toMatchObject({ row: { title: "Foo Fighters" }, id: "p9" });
+  });
+
   it("shows Google's places at once and puts the travellers' on top when they land", async () => {
     const waiting: ((v: unknown) => void)[] = [];
     const google: FindResult = { ...result, placeId: "g2", name: "Colosseum", from: "google", source: null, why: "Rated 4.8 on Google." };

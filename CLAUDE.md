@@ -2002,3 +2002,9 @@ the component mounted and you are looking at throttling, not a broken map.
   travellers' prompt drops the base. A typed search skips the chip's category filter and saves as Google's type
   (inferTypeOrSight). FIND_PROMPT_V not bumped on purpose: only named asks changed, and a bump re-pays every cache.
   His ruling: no area chips or distance slider for one-base trips like Tuscany — "an edge case"; anchor on the villa.
+- Ticketmaster (1 Oct 2026, lib/find/ticketmaster): TICKETMASTER_API_KEY is in Vercel (Prod/Preview/Dev; he pasted it —
+  never handle keys). It is Event's Google half in /api/find: Discovery API, 80 km around the base, the trip's dates,
+  one per show, never cached (listings change; free 5,000/day). Results are dated "Sun 14 Mar: Rock, 8:00 PM.",
+  link "Ticketmaster" to buy (FindSheet shows any result's source link now), placeId "tm:<id>" — Save looks the venue
+  up via autocomplete and names the pin after the show. Thin in Italy (TicketOne). Trap: reloading his Vercel tab
+  to "check" wiped his unsaved paste — never touch a tab he is typing in.
