@@ -1149,7 +1149,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
             // The place open in Find, as a purple pin above the sheet (lib/map/pulse).
             onFocus={(r) => {
               findPinRef.current?.remove(); findPinRef.current = null;
-              if (r && Number.isFinite(r.lat) && Number.isFinite(r.lng)) findPinRef.current = showAt(mbRef.current, mapInstRef.current, r.lng, r.lat, document.querySelector('[role="dialog"][aria-label="Find places"]'));
+              if (r && Number.isFinite(r.lat) && Number.isFinite(r.lng)) findPinRef.current = showAt(mbRef.current, mapInstRef.current, r.lng, r.lat, document.querySelector('[role="dialog"][aria-label="Find places"]'), r.title ?? r.name);
             }}
             onSaved={(c) => {
               findPinRef.current?.remove(); findPinRef.current = null;

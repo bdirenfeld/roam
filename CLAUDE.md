@@ -2041,3 +2041,4 @@ the component mounted and you are looking at throttling, not a broken map.
 - Plan my trip's button now shows on every owner's trip (the `toPlan >= 2` gate is gone). The sheet says "Every day is planned..." (no free day) or "Nothing saved to plan yet..." (free days, nothing saved), with no Plan button in either. The Europe test trip had looked like it was missing features because every place was already on a day.
 - Test trip for Plan my trip: "Tuscany (test)" (40ba0edf-1033-4494-a52f-9a5d6ec6b012), a copy of Tuscany with only the hotel (and transit) on days and 47 saved pins.
 
+- Live check on the Europe trip (1 Oct 2026): the first cut only moved the map when the place was hidden, so an opened place sat near the map's edge as a bare purple dot among purple food pins. `showAt` now always centres (glideTo `always`) and puts the place's name beside the pin, as the mock had. `pulseAt` (save) still moves only when needed.

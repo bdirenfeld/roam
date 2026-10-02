@@ -86,7 +86,7 @@ describe("the place you are reading about", () => {
     expect(focusZoom(14)).toBe(14);
   });
 
-  it("drops a purple pin where it is and hands it back, to take away later", () => {
+  it("drops a purple pin with the place's name, centres the map on it, and hands it back to take away", () => {
     const added: HTMLElement[] = [], removed: HTMLElement[] = [];
     const container = document.createElement("div");
     container.getBoundingClientRect = () => ({ left: 0, top: 0, right: 390, bottom: 844, x: 0, y: 0, width: 390, height: 844, toJSON: () => ({}) });
@@ -98,10 +98,13 @@ describe("the place you are reading about", () => {
       addTo() { added.push(this.el); return this; }
       remove() { removed.push(this.el); }
     }
-    const pin = showAt({ Marker }, m, 10.5, 43.8, null);
-    expect(m.easeTo).not.toHaveBeenCalled(); // in view and close enough: the map stays put
+    const pin = showAt({ Marker }, m, 10.5, 43.8, null, "Devil's Bridge");
+    // Already in view and close enough, and still centred: opening a place says where it is.
+    expect(m.easeTo).toHaveBeenCalledWith({ center: [10.5, 43.8], zoom: 13, offset: [0, 0], duration: 700 });
     expect(added[0].dataset.preview).toBe("1");
     expect(added[0].innerHTML).toContain("#7C3AED");
+    // Its name beside it: food pins are purple too (live check on the Europe trip, 1 Oct 2026).
+    expect(added[0].textContent).toBe("Devil's Bridge");
     pin!.remove();
     expect(removed).toEqual(added);
   });

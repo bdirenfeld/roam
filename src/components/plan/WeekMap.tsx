@@ -584,7 +584,7 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
           // The place open in Find, as a purple pin; gone on Back, another place, Save or close (lib/map/pulse).
           onFocus={(r) => {
             findPinRef.current?.remove(); findPinRef.current = null;
-            if (r && Number.isFinite(r.lat) && Number.isFinite(r.lng)) findPinRef.current = showAt(mbRef.current, mapRef.current, r.lng, r.lat, document.querySelector('[role="dialog"][aria-label="Find places"]'));
+            if (r && Number.isFinite(r.lat) && Number.isFinite(r.lng)) findPinRef.current = showAt(mbRef.current, mapRef.current, r.lng, r.lat, document.querySelector('[role="dialog"][aria-label="Find places"]'), r.title ?? r.name);
           }}
           onSaved={(c) => {
             findPinRef.current?.remove(); findPinRef.current = null;

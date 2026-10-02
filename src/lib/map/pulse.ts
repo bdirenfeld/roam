@@ -49,28 +49,39 @@ export function focusZoom(zoom: number): number {
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/** Bring a place into the part of the map you can see: move only if it is hidden or the map is zoomed far out. */
-function glideTo(map: any, lng: number, lat: number, panel: Element | null): void {
+/**
+ * Bring a place into the part of the map you can see. `always`: centre it
+ * there (a place opened in Find); otherwise move only if it is hidden or the
+ * map is zoomed far out (a save, whose place is usually on screen already).
+ */
+function glideTo(map: any, lng: number, lat: number, panel: Element | null, always = false): void {
   const r = map.getContainer().getBoundingClientRect();
   const cover = coverFrom(r, panel?.getBoundingClientRect() ?? null);
   const zoom = map.getZoom(), to = focusZoom(zoom);
-  if (to !== zoom || !inView(map.project([lng, lat]), r.width, r.height, cover)) {
+  if (always || to !== zoom || !inView(map.project([lng, lat]), r.width, r.height, cover)) {
     map.easeTo({ center: [lng, lat], zoom: to, offset: centreOffset(cover), duration: 700 });
   }
 }
 
 /**
- * The place you are reading about in Find, as a purple pin (the colour of a
- * searched place's pin, lookupPlace's TEMP_PIN_SVG). Returns it, to remove
- * when you go back, open another, save it, or close Find.
+ * The place you are reading about in Find: a purple pin (a searched place's,
+ * lookupPlace's TEMP_PIN_SVG) with its name beside it, as in the mock, so it
+ * is not lost among the food pins, which are purple too. The map centres on
+ * it. Returns it, to remove on Back, another place, Save, or closing Find.
  */
-export function showAt(mb: any, map: any, lng: number, lat: number, panel: Element | null): { remove: () => void } | null {
+export function showAt(mb: any, map: any, lng: number, lat: number, panel: Element | null, name?: string): { remove: () => void } | null {
   if (!mb || !map) return null;
-  glideTo(map, lng, lat, panel);
+  glideTo(map, lng, lat, panel, true);
   const el = document.createElement("div");
   el.dataset.preview = "1";
-  el.style.cssText = "width:28px;height:28px;pointer-events:none;";
-  el.innerHTML = `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg"><circle cx="14" cy="14" r="12" fill="#7C3AED"/><circle cx="14" cy="14" r="4" fill="white"/></svg>`;
+  el.style.cssText = "width:28px;height:28px;position:relative;pointer-events:none;";
+  el.innerHTML = `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg"><circle cx="14" cy="14" r="12" fill="#7C3AED" stroke="#fff" stroke-width="2"/><circle cx="14" cy="14" r="4" fill="white"/></svg>`;
+  if (name) {
+    const tag = document.createElement("span");
+    tag.textContent = name;
+    tag.style.cssText = "position:absolute;left:34px;top:3px;background:#1A1A2E;color:#fff;font:600 12px/1 'DM Sans',sans-serif;padding:5px 8px;border-radius:6px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.25);";
+    el.appendChild(tag);
+  }
   return new mb.Marker({ element: el, anchor: "center" }).setLngLat([lng, lat]).addTo(map);
 }
 
