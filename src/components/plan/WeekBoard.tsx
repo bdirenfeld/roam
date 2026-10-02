@@ -714,12 +714,21 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   // deletes those cards. Taking them off later is in the sheet ("Remove what
   // Plan my trip added").
   const [recentPlan, setRecentPlan] = useState<Card[] | null>(null);
+  // The Getting there cards the plan added (PlanMyTripSheet sends them once
+  // made): the tray's Undo takes them too, since it is the only Undo here.
+  const planTravel = useRef<string[]>([]);
   const draftCreated = useCallback((created: Card[]) => {
     setDays((prev) => prev.map((d) => {
       const mine = created.filter((c) => c.day_id === d.id);
       return mine.length ? { ...d, cards: [...d.cards, ...mine] } : d;
     }));
+    planTravel.current = [];
     setRecentPlan(created);
+  }, []);
+  useEffect(() => {
+    const onTravel = (e: Event) => { planTravel.current = [...planTravel.current, ...((e as CustomEvent<string[]>).detail ?? [])]; };
+    window.addEventListener("roam:plan-travel", onTravel);
+    return () => window.removeEventListener("roam:plan-travel", onTravel);
   }, []);
   useEffect(() => {
     const onGone = (e: Event) => {
@@ -734,12 +743,15 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     const cards = recentPlan ?? [];
     setRecentPlan(null);
     if (!cards.length) return;
-    const ids = new Set(cards.map((c) => c.id));
+    const travel = planTravel.current;
+    const ids = new Set([...cards.map((c) => c.id), ...travel]);
+    planTravel.current = [];
     setDays((prev) => prev.map((d) => ({ ...d, cards: d.cards.filter((c) => !ids.has(c.id)) })));
     const { error } = await createClient().from("cards").delete().in("id", Array.from(ids));
     if (error) { draftCreated(cards); toast({ message: "Couldn't undo it. Try again." }); return; }
+    if (travel.length) router.refresh();
     toast({ message: `Took off ${cards.length} ${cards.length === 1 ? "place" : "places"}` });
-  }, [recentPlan, draftCreated, toast]);
+  }, [recentPlan, draftCreated, toast, router]);
 
   // ── the map's callbacks ────────────────────────────────────────
   // A pin's card is either on a day (patch it there) or in the saved pile.

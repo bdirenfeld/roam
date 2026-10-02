@@ -95,6 +95,22 @@ describe("Plan my trip sheet", () => {
     for (const r of barRows) if (r.start_time) expect((r.start_time as string) >= "21:00").toBe(true);
   });
 
+  it("on a computer the week's tray has the one Undo: no toast, and the travel cards go to the tray (2 Oct 2026)", async () => {
+    const travelSent: string[][] = [];
+    const onTravel = (e: Event) => travelSent.push((e as CustomEvent<string[]>).detail);
+    window.addEventListener("roam:plan-travel", onTravel);
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => ({ ok: true, json: async () => (url === "/api/plan/getting-there" ? { created: ["travel-1"] } : { written: 0 }) })));
+    const onClose = vi.fn();
+    render(<PlanMyTripSheet trip={trip} days={days} cards={cards} onClose={onClose} onDrafted={vi.fn()} trayUndo />);
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Plan the trip" })); });
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    vi.unstubAllGlobals();
+    window.removeEventListener("roam:plan-travel", onTravel);
+    expect(toasts).toHaveLength(0);
+    expect(onClose).toHaveBeenCalled();
+    expect(travelSent).toEqual([["travel-1"]]);
+  });
+
   it("unticking a region leaves its places out", async () => {
     render(<PlanMyTripSheet trip={trip} days={days} cards={cards} onClose={vi.fn()} onDrafted={vi.fn()} />);
     const ticked = screen.getAllByRole("button", { pressed: true });

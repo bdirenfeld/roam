@@ -577,13 +577,14 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
         )}
         {!filterOpen && onDraftCreated && (
           <button onClick={() => setFindOpen(true)} className={`flex items-center gap-1.5 ${PILL}`} style={{ backdropFilter: "blur(8px)", background: "rgba(255,255,255,0.9)", color: "#1A1A2E", boxShadow: "0 1px 4px rgba(0,0,0,0.15)" }}>
-            Find
+            Find places
           </button>
         )}
         </div>
       </div>
       {planOpen && onDraftCreated && (
-        <PlanMyTripSheet trip={trip} days={days} cards={cards} onClose={() => setPlanOpen(false)} onDrafted={onDraftCreated} />
+        // The week's tray has the one Undo; with the map widened the tray is hidden, so the toast keeps it.
+        <PlanMyTripSheet trip={trip} days={days} cards={cards} onClose={() => setPlanOpen(false)} onDrafted={onDraftCreated} trayUndo={!wide} />
       )}
       {findOpen && (
         <FindSheet trip={trip} days={days} cards={cards} dock={wide ? "inside" : "beside"} onClose={() => setFindOpen(false)}

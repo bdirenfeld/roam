@@ -1141,7 +1141,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium"
               style={{ backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", background: "rgba(255,255,255,0.9)", color: "#1A1A2E" }}
             >
-              Find
+              Find places
             </button>
           )}
           </div>

@@ -70,6 +70,18 @@ describe("the shared page", () => {
     expect(day4.textContent).not.toMatch(/Tonight/);
   });
 
+  it("folds the hotel's note (check-in, Wi-Fi) under Tonight, once per night, not printed out (2 Oct 2026)", () => {
+    const j = journey(today);
+    const note = "Check in from 4pm.\nWi-Fi: HowardGuest";
+    j.days = j.days.map((d) => (d.tonight ? { ...d, tonight: { ...d.tonight, note } } : d));
+    render(<SharedItinerary token="t" journey={j} />);
+    const folds = screen.getAllByTestId("tonight-note");
+    expect(folds).toHaveLength(3);
+    expect(folds[0].tagName).toBe("DETAILS");
+    expect(folds[0].textContent).toContain("Wi-Fi: HowardGuest");
+    expect(folds[0].querySelector("summary")!.textContent).toMatch(/^Tonight: 11 Howard/);
+  });
+
   it("stays simple: a start time, no end time and no meeting-point lines", () => {
     const { container } = render(<SharedItinerary token="t" journey={journey(today)} />);
     expect(screen.getByText("10:00 AM")).toBeTruthy();

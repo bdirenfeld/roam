@@ -185,7 +185,7 @@ export default async function ClaimPage({ params, searchParams }: Props) {
     // say that Rome moves hotels on day 3.
     const hotels = rows
       .filter((c) => c.place?.sub_type === "hotel")
-      .map((c) => ({ dayId: c.day_id, name: c.place?.title ?? null, address: c.place?.address ?? null }));
+      .map((c) => ({ dayId: c.day_id, name: c.place?.title ?? null, address: c.place?.address ?? null, note: typeof c.details?.notes === "string" ? (c.details.notes as string) : null }));
     const baseDays = (dayRows ?? []).map((d) => ({ id: d.id as string, dayNumber: d.day_number as number }));
     const tonight = tonightByDay(baseDays, hotels, staying);
 

@@ -91,6 +91,14 @@ export default function HotelDetail({ card, onSaveDetails, showEmpty = false, st
           <SectionLabel>Notes</SectionLabel>
           <FieldRow value={d.notes} placeholder="Add a note…"
             onSave={save("notes")} multiline hideWhenEmpty={hide} />
+          {/* The note shows under "Tonight" on the shared link, which can be
+              forwarded (2 Oct 2026): fine for check-in time and Wi-Fi, not a
+              door code. Journey notes never reach that page. */}
+          {onSaveDetails && card.day_id && (
+            <p className="mt-1.5 text-[11.5px] leading-snug" style={{ color: "rgba(26,26,46,0.55)" }} data-testid="hotel-note-shared">
+              Shows on the shared link. Keep door codes in Journey notes.
+            </p>
+          )}
         </div>
       )}
     </div>

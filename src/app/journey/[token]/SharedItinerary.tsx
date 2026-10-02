@@ -255,22 +255,40 @@ export default function SharedItinerary({
                     </span>
                   </summary>
                   <div className="mt-3 mb-6">
-                    {day.tonight && (day.tonight.name || day.tonight.address) && (
+                    {day.tonight && (day.tonight.name || day.tonight.address) && (() => {
                       // Where everyone sleeps tonight — the question asked most
                       // on any family trip. Tappable into the reader's maps app.
-                      <p className="text-[13px] mb-1 leading-[1.45]" style={{ color: CAPTION }}>
-                        Tonight:{" "}
-                        <a
-                          href={mapsHref(day.tonight.name, day.tonight.address ?? journey.destination ?? "")}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="underline underline-offset-2"
-                          style={{ color: INK, textDecorationColor: "rgba(26,26,46,0.25)" }}
-                        >
-                          {day.tonight.name ?? day.tonight.address}
-                        </a>
-                      </p>
-                    )}
+                      const line = (
+                        <>
+                          Tonight:{" "}
+                          <a
+                            href={mapsHref(day.tonight.name, day.tonight.address ?? journey.destination ?? "")}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline underline-offset-2"
+                            style={{ color: INK, textDecorationColor: "rgba(26,26,46,0.25)" }}
+                          >
+                            {day.tonight.name ?? day.tonight.address}
+                          </a>
+                        </>
+                      );
+                      // The hotel's own note (check-in time, Wi-Fi), folded so the
+                      // same note isn't printed under every night of the stay
+                      // (2 Oct 2026; lib/sharedItinerary Stay.note).
+                      return day.tonight.note ? (
+                        <details className="mb-1 group/tonight" data-testid="tonight-note">
+                          <summary className="text-[13px] leading-[1.45] cursor-pointer list-none marker:content-none flex items-center gap-1.5 min-h-[32px]" style={{ color: CAPTION }}>
+                            <span>{line}</span>
+                            <span aria-hidden="true" className="transition-transform group-open/tonight:rotate-90" style={{ color: "rgba(26,26,46,0.45)" }}>›</span>
+                          </summary>
+                          <p className="text-[13px] mt-1 mb-2 leading-[1.55] pl-2.5" style={{ color: "rgba(26,26,46,0.72)", borderLeft: `2px solid ${RULE}`, whiteSpace: "pre-line" }}>
+                            {plainNote(day.tonight.note)}
+                          </p>
+                        </details>
+                      ) : (
+                        <p className="text-[13px] mb-1 leading-[1.45]" style={{ color: CAPTION }}>{line}</p>
+                      );
+                    })()}
                     {cards.length === 0 && (
                       <p className="text-[13.5px] py-3" style={{ color: CAPTION }}>
                         Nothing planned — a free day.

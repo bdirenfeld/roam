@@ -21,7 +21,7 @@ import { hasSeniors } from "@/lib/party";
  * Proposal: https://claude.ai/artifact/VTGr4dT3GhmhXFTaXmdT56
  */
 export default function PlanMyTripSheet({
-  trip, days, cards, onClose, onDrafted,
+  trip, days, cards, onClose, onDrafted, trayUndo = false,
 }: {
   trip: Trip;
   days: Day[];
@@ -30,6 +30,8 @@ export default function PlanMyTripSheet({
   onClose: () => void;
   /** The draft cards, as inserted, with their places. */
   onDrafted: (created: Card[]) => void;
+  /** The host shows its own "Planned … · Undo" tray (the computer's week), so no toast. */
+  trayUndo?: boolean;
 }) {
   useEscapeKey(onClose);
   const { toast } = useToast();
@@ -84,10 +86,18 @@ export default function PlanMyTripSheet({
     void fetch("/api/plan/getting-there", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId: trip.id, cardIds: withIds.map((w) => w.id) }) })
       .then((r) => (r.ok ? r.json() : null))
       .then((j: { created?: string[]; moved?: unknown[] } | null) => {
-        if (j?.created?.length || j?.moved?.length) { travel.push(...(j.created ?? [])); router.refresh(); }
+        if (j?.created?.length || j?.moved?.length) {
+          travel.push(...(j.created ?? []));
+          // The week's tray owns Undo there, so it needs these too (lib: WeekBoard undoPlan).
+          if (trayUndo && j.created?.length) window.dispatchEvent(new CustomEvent("roam:plan-travel", { detail: j.created }));
+          router.refresh();
+        }
       })
       .catch(() => undefined);
     const dayCount = new Set(rows.map((r) => r.day_id)).size;
+    // One Undo (2 Oct 2026, Brennan): on a computer the week's tray says what
+    // was planned and has Undo and Where to stay, so no toast saying it again.
+    if (trayUndo) { onClose(); return; }
     toast({
       message: `Planned ${rows.length} ${rows.length === 1 ? "place" : "places"} on ${dayCount} ${dayCount === 1 ? "day" : "days"}`,
       undo: async () => {

@@ -677,7 +677,9 @@ export default function JourneyNotes({
       >
         {readOnly
           ? "Notes from the traveller who shared this journey."
-          : "Guests can see these."}
+          // Only people who sign in see Journey notes; the shared link never
+          // shows them (it can be forwarded). Was "Guests can see these." (2 Oct 2026).
+          : "People who sign in can see these. The shared link doesn't show them."}
       </p>
     </div>
   );

@@ -34,6 +34,14 @@ describe("check-out day on the hotel's sheet", () => {
     expect((screen.getByLabelText("Check-out day") as HTMLInputElement).value).toBe("2026-10-12");
   });
 
+  it("says the note shows on the shared link, to the owner only (2 Oct 2026)", () => {
+    render(<HotelDetail card={hotel({ notes: "Check in from 4pm. Wi-Fi: ZambaldiGuest" })} onSaveDetails={vi.fn()} />);
+    expect(screen.getByTestId("hotel-note-shared").textContent).toBe("Shows on the shared link. Keep door codes in Journey notes.");
+    cleanup();
+    render(<HotelDetail card={hotel({ notes: "Check in from 4pm." })} />);
+    expect(screen.queryByTestId("hotel-note-shared")).toBeNull();
+  });
+
   it("offers an empty field on a booked hotel, nothing on a saved idea, and text for a guest", () => {
     render(<HotelDetail card={hotel({})} onSaveDetails={vi.fn()} />);
     expect((screen.getByLabelText("Check-out day") as HTMLInputElement).value).toBe("");

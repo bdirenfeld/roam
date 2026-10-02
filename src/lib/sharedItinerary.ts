@@ -10,6 +10,11 @@
 export interface Stay {
   name: string | null;
   address: string | null;
+  /** The hotel card's own note (check-in time, Wi-Fi, parking), folded under
+   *  "Tonight" (2 Oct 2026, Brennan: travellers "should see the wifi and check
+   *  in time"). The link can be forwarded, so the note box says to keep door
+   *  codes in Journey notes, which this page never shows. */
+  note?: string;
 }
 
 /**
@@ -20,14 +25,25 @@ export interface Stay {
  */
 export function tonightByDay(
   days: { id: string; dayNumber: number }[],
-  hotels: { dayId: string | null; name: string | null; address: string | null }[],
+  hotels: { dayId: string | null; name: string | null; address: string | null; note?: string | null }[],
   fallback: Stay | null,
 ): Map<string, Stay | null> {
   const numberOf = new Map(days.map((d) => [d.id, d.dayNumber]));
-  const placed = hotels
+  const sorted = hotels
     .filter((h) => h.dayId && numberOf.has(h.dayId) && (h.name || h.address))
-    .map((h) => ({ n: numberOf.get(h.dayId!)!, stay: { name: h.name, address: h.address } }))
+    .map((h) => ({ n: numberOf.get(h.dayId!)!, h }))
     .sort((a, b) => a.n - b.n);
+  // A stay's note is its first card's (the check-in): a later card of the same
+  // hotel is usually the check-out ("Load the car, keys as the host asks").
+  const noteOf = new Map<string, string>();
+  for (const { h } of sorted) {
+    const key = h.name ?? h.address ?? "", note = h.note?.trim();
+    if (note && !noteOf.has(key)) noteOf.set(key, note);
+  }
+  const placed = sorted.map(({ n, h }) => {
+    const note = noteOf.get(h.name ?? h.address ?? "");
+    return { n, stay: note ? { name: h.name, address: h.address, note } : { name: h.name, address: h.address } };
+  });
   const last = days.reduce((m, d) => Math.max(m, d.dayNumber), -Infinity);
 
   const out = new Map<string, Stay | null>();
