@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import fixture from "./fixtures/trips.json";
 import type { Card } from "@/types/database";
-import { buildDraft, previewDraft, draftDays, pinsToPlan, openFromHours, untouchedPlan, spreadGroups } from "./draftRows";
+import { buildDraft, previewDraft, draftDays, pinsToPlan, openFromHours, untouchedPlan, spreadGroups, planRoom, dayWords, hasChildren } from "./draftRows";
+import hanoi from "./fixtures/hanoi.json";
 import { groupPins, type Pin } from "./dayGroups";
 
 // Japan's saved pins as the app holds them: one saved card per place, 2–15 April 2028.
@@ -243,5 +244,42 @@ describe("the last day ends at the airport", () => {
     const p = previewDraft([...saved, airport], days, true);
     const { rows } = buildDraft("t1", [...saved, airport], days, { kids: true, regions: p.suggested });
     expect(rows.filter((r) => r.day_id === lastDay)).toEqual([]);
+  });
+});
+
+// The Hanoi test trip as it sits in the database (2 Oct 2026): four days, an
+// earlier Plan my trip already on days 1-3, six places still saved. The last
+// day is half free and every group left needs three quarters of a day.
+describe("planRoom: one answer for the sheet and the planner", () => {
+  const cards = hanoi.cards as unknown as Card[];
+  const kids = hasChildren(hanoi.trip.party_ages, [], hanoi.trip.party_size, hanoi.trip.start_date);
+
+  it("Hanoi: half a day free, six saved, nothing fits, and the planner agrees", () => {
+    const p = previewDraft(cards, hanoi.days, kids);
+    const room = planRoom(hanoi.trip.id, cards, hanoi.days, { kids, regions: p.suggested });
+    expect(room.free).toBe(0.5);
+    expect(room.saved).toBe(6);
+    expect(room.fits).toBe(0);
+    expect(buildDraft(hanoi.trip.id, cards, hanoi.days, { kids, regions: p.suggested }).rows).toHaveLength(room.fits);
+  });
+
+  it("Hanoi with day 3 taken off: a whole day comes free and the planner fits what it says", () => {
+    // Take the two places off day 3: a whole day comes free.
+    const freed = cards.filter((c) => !(c.status === "in_itinerary" && c.day_id === hanoi.days[2].id));
+    const p = previewDraft(freed, hanoi.days, kids);
+    const room = planRoom(hanoi.trip.id, freed, hanoi.days, { kids, regions: p.suggested });
+    expect(room.fits).toBeGreaterThan(0);
+    expect(room.fits).toBe(buildDraft(hanoi.trip.id, freed, hanoi.days, { kids, regions: p.suggested }).rows.length);
+    expect(room.fits).toBeLessThanOrEqual(room.saved);
+  });
+
+  it("says days the way a person does, never as a decimal", () => {
+    expect(dayWords(0)).toBe("no time");
+    expect(dayWords(0.5)).toBe("half a day");
+    expect(dayWords(1)).toBe("1 day");
+    expect(dayWords(1.5)).toBe("a day and a half");
+    expect(dayWords(3)).toBe("3 days");
+    expect(dayWords(10.5)).toBe("10 and a half days");
+    for (const n of [0, 0.5, 1, 1.5, 2, 2.5, 7, 10.5]) expect(dayWords(n)).not.toMatch(/d.d/);
   });
 });

@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup, act } from "@testing-library/react";
 import fixture from "@/lib/plan/fixtures/trips.json";
+import hanoi from "@/lib/plan/fixtures/hanoi.json";
 import type { Card, Day, Trip } from "@/types/database";
 
 /**
@@ -47,8 +48,10 @@ describe("Plan my trip sheet", () => {
     const regions = screen.getAllByRole("button", { pressed: true });
     expect(regions.length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByRole("button", { pressed: false }).length).toBeGreaterThanOrEqual(1);
-    // 14 days less settling in, the last half day and two days off (lib/plan/pace).
-    expect(screen.getByText(/of 10.5 free days/)).toBeTruthy();
+    // More places than days: a count of places, never a fraction of a day (2 Oct 2026).
+    const line = screen.getByText(/saved places ·/).textContent!;
+    expect(line).toMatch(/^\d+ saved places · \d+ fit, so \d+ stay saved$/);
+    expect(line).not.toMatch(/\d\.\d/);
   });
 
   it("a trip with every day planned says so on open, with no Plan button (1 Oct 2026)", () => {
@@ -136,7 +139,36 @@ describe("Plan my trip sheet", () => {
     // Tokyo alone: one area, many days of places, a two-day journey.
     const tokyo = cards.filter((c) => c.place && Math.abs(c.place.lat! - 35.68) < 0.3 && Math.abs(c.place.lng! - 139.7) < 0.4);
     render(<PlanMyTripSheet trip={trip} days={days.slice(0, 2)} cards={tokyo} onClose={vi.fn()} onDrafted={vi.fn()} />);
-    expect(screen.getByText(/so some stay saved/)).toBeTruthy();
-    expect(screen.queryByText(/of 1 free days/)).toBeNull();
+    // Places that fit and places that stay saved, counted (2 Oct 2026).
+    expect(screen.getByText(/saved places ·/).textContent).toMatch(/^\d+ saved places · \d+ fit, so \d+ stay saved$/);
+    expect(screen.getByRole("button", { name: "Plan the trip" })).toBeTruthy();
+  });
+
+  it("Hanoi, as in the database: half a day free and nothing fits, so it says so and offers no Plan button (2 Oct 2026)", () => {
+    // Brennan: the sheet said "6 saved places · about 3 days of places for 0.5 free"
+    // and showed Plan the trip; pressing it said "Nothing to plan". "It shouldn't offer both."
+    const t = { ...hanoi.trip, title: "Hanoi", destination: "Hanoi" } as unknown as Trip;
+    render(<PlanMyTripSheet trip={t} days={hanoi.days as unknown as Day[]} cards={hanoi.cards as unknown as Card[]} onClose={vi.fn()} onDrafted={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: "Plan the trip" })).toBeNull();
+    const msg = screen.getByTestId("plan-full").textContent!;
+    expect(msg).toBe("No room for what\u2019s left.Only half a day is free, and each place left needs more than that. To plan more, take some places off a day and they go back to your saved places. Then run Plan my trip again.");
+    expect(msg).not.toMatch(/0\.5/);
+    // Still the way back: the four places the earlier run put on days.
+    expect(screen.getByRole("button", { name: "Remove what Plan my trip added (4 places)" })).toBeTruthy();
+  });
+
+  it("Hanoi with day 3 taken off: the button shows, and pressing it plans what the line said (2 Oct 2026)", async () => {
+    const t = { ...hanoi.trip, title: "Hanoi" } as unknown as Trip;
+    const freed = (hanoi.cards as unknown as Card[]).filter((c) => !(c.status === "in_itinerary" && c.day_id === hanoi.days[2].id));
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({}) })));
+    render(<PlanMyTripSheet trip={t} days={hanoi.days as unknown as Day[]} cards={freed} onClose={vi.fn()} onDrafted={vi.fn()} />);
+    const line = screen.getByText(/saved places ·/).textContent!;
+    const m = /· (\d+) fit, so/.exec(line);
+    const said = Number(m ? m[1] : /^(\d+) saved/.exec(line)![1]);
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Plan the trip" })); });
+    vi.unstubAllGlobals();
+    expect(inserted).toHaveLength(1);
+    expect(inserted[0].length).toBe(said);
+    expect(toasts.some((x) => /Nothing to plan/.test(x.message))).toBe(false);
   });
 });

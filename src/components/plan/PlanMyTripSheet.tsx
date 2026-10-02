@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useRouter } from "next/navigation";
-import { previewDraft, buildDraft, hasChildren, untouchedPlan } from "@/lib/plan/draftRows";
+import { previewDraft, planRoom, dayWords, hasChildren, untouchedPlan } from "@/lib/plan/draftRows";
 import { hasSeniors } from "@/lib/party";
 
 /**
@@ -53,22 +53,29 @@ export default function PlanMyTripSheet({
   const [busy, setBusy] = useState(false);
 
   const many = preview.regions.length > 1;
-  const need = preview.regions.filter((r) => chosen.has(r.id)).reduce((s, r) => s + r.days, 0) + 0.5 * Math.max(0, chosen.size - 1);
-  const needText = Number.isInteger(need) ? String(need) : need.toFixed(1);
-  const over = need > preview.free;
-  const places = preview.grouping.groups.reduce((s, g) => s + g.items.length + g.meals.length, 0);
-  // Every day taken (1 Oct 2026): say so on open, not in a toast after "Plan
-  // the trip" (Brennan: "it needs to say something to the effect of the trip
-  // is fully planned").
-  const full = preview.free < 0.5;
+  // What the planner would do (lib/plan/draftRows planRoom): with the areas
+  // it suggests, for whether there is anything to plan at all, and with the
+  // ticked ones, for the line and the button. The sheet never counts free
+  // days on its own: Hanoi said "0.5 free" and offered Plan the trip, and
+  // pressing it planned nothing (2 Oct 2026, Brennan: "It shouldn't offer both").
+  const room = useMemo(() => planRoom(trip.id, cards, days, { kids, regions: preview.suggested }), [trip.id, cards, days, kids, preview.suggested]);
+  const picked = useMemo(() => planRoom(trip.id, cards, days, { kids, regions: Array.from(chosen) }), [trip.id, cards, days, kids, chosen]);
   // The button now shows on every trip (1 Oct 2026, Brennan: "always visible
-  // ... but a warning"), so the sheet says why there is nothing to do.
-  const nothing = !full && places === 0;
+  // ... but a warning"), so the sheet says why there is nothing to do:
+  // nothing saved, or no room for what is.
+  const nothing = room.fits === 0 && room.saved === 0 && room.free >= 0.5;
+  // No room (1 Oct 2026): say so on open, not in a toast after "Plan the
+  // trip" (Brennan: "it needs to say something to the effect of the trip is
+  // fully planned").
+  const full = room.fits === 0 && !nothing;
+  const places = room.saved;
+  const over = picked.fits < places;
 
   const make = async () => {
     setBusy(true);
-    const { rows } = buildDraft(trip.id, cards, days, { kids, regions: Array.from(chosen) });
-    if (rows.length === 0) { setBusy(false); toast({ message: "Nothing to plan: every free day is taken." }); return; }
+    // Exactly what the sheet described (planRoom), so the two cannot disagree.
+    const { rows } = picked;
+    if (rows.length === 0) { setBusy(false); return; }
     const withIds = rows.map((r) => ({ ...r, id: crypto.randomUUID() }));
     const supabase = createClient();
     const { error } = await supabase.from("cards").insert(withIds);
@@ -146,7 +153,16 @@ export default function PlanMyTripSheet({
             <h2 className="text-[18px] font-semibold text-[#1A1A2E] leading-tight">Plan my trip</h2>
             {full ? (
               <p className="text-[13px] mt-1" style={{ color: "rgba(26,26,46,0.62)" }} data-testid="plan-full">
-                <span className="block text-[14px] font-semibold text-[#1A1A2E] mb-0.5">Every day is planned.</span>
+                {room.free < 0.5 ? (
+                  <span className="block text-[14px] font-semibold text-[#1A1A2E] mb-0.5">Every day is planned.</span>
+                ) : (
+                  <>
+                    <span className="block text-[14px] font-semibold text-[#1A1A2E] mb-0.5">No room for what&rsquo;s left.</span>
+                    {room.free < 1
+                      ? "Only half a day is free, and each place left needs more than that. "
+                      : `${dayWords(room.free)[0].toUpperCase()}${dayWords(room.free).slice(1)} ${room.free < 2 ? "is" : "are"} free, but none of the places left fit. `}
+                  </>
+                )}
                 To plan more, take some places off a day and they go back to your saved places. Then run Plan my trip again.
               </p>
             ) : nothing ? (
@@ -157,9 +173,12 @@ export default function PlanMyTripSheet({
             ) : (
             <p className="text-[13px] mt-1" style={{ color: over ? "#9A5B00" : "rgba(26,26,46,0.62)" }}>
               {/* "5 of 3 free days" read as nonsense (New York test, 29 Sep 2026). */}
-              {places} saved {places === 1 ? "place" : "places"} · {over
-                ? `about ${needText} days of places for ${preview.free} free, so some stay saved`
-                : `${needText} of ${preview.free} free days`}
+              {/* Counts of places, never fractions of days ("0.5 free", 2 Oct 2026). */}
+              {places} saved {places === 1 ? "place" : "places"} · {picked.fits === 0
+                ? "none of the ticked areas fit"
+                : over
+                  ? `${picked.fits} fit, so ${places - picked.fits} stay saved`
+                  : `all fit, on ${picked.days} ${picked.days === 1 ? "day" : "days"}`}
             </p>
             )}
           </div>
@@ -199,7 +218,7 @@ export default function PlanMyTripSheet({
         {!full && !nothing && <button
           type="button"
           onClick={() => void make()}
-          disabled={busy || chosen.size === 0 || places === 0}
+          disabled={busy || picked.fits === 0}
           className="h-11 rounded-full text-[14px] font-semibold text-white disabled:opacity-40"
           style={{ background: "#1A1A2E" }}
         >

@@ -324,6 +324,49 @@ export function buildDraft(
   return { rows, dayIds: Array.from(new Set(rows.map((r) => r.day_id))), leftOut };
 }
 
+/** What Plan my trip would do right now: the sheet's words and its button come from this. */
+export interface PlanRoom {
+  /** Free time on the journey, in days (halves count): for words only, never for deciding. */
+  free: number;
+  /** Saved places not on a day yet. */
+  saved: number;
+  /** Cards the planner would add. */
+  fits: number;
+  /** Days those cards would go on. */
+  days: number;
+  /** The draft itself, so pressing the button writes exactly what was described. */
+  rows: DraftRow[];
+}
+
+/**
+ * The one answer to "how much can be planned" (2 Oct 2026). The sheet used to
+ * add up free days (Hanoi: the departure day's half) while the planner fits a
+ * day's places only into a day with room for all of them (0.75 of a day), so
+ * it said "0.5 free" and offered the button, and pressing it planned nothing.
+ * Both now ask buildDraft.
+ */
+export function planRoom(
+  tripId: string,
+  cards: Card[],
+  days: Pick<Day, "id" | "date" | "day_number">[],
+  opts: { kids: boolean; regions?: number[] },
+): PlanRoom {
+  const { free } = previewDraft(cards, days, opts.kids);
+  const saved = pinsToPlan(cards, days).length + datedEvents(cards, days).length;
+  const { rows, dayIds } = buildDraft(tripId, cards, days, opts);
+  return { free, saved, fits: rows.length, days: dayIds.length, rows };
+}
+
+/** Days as a person says them: "half a day", "1 day", "2 and a half days". Never "0.5". */
+export function dayWords(n: number): string {
+  const halves = Math.round(n * 2);
+  const whole = Math.floor(halves / 2), half = halves % 2 === 1;
+  if (halves <= 0) return "no time";
+  if (whole === 0) return "half a day";
+  if (!half) return `${whole} ${whole === 1 ? "day" : "days"}`;
+  return whole === 1 ? "a day and a half" : `${whole} and a half days`;
+}
+
 /**
  * Whether children are on the journey, for day loads and bars (28 Sep 2026).
  * Ages first, then the travellers' birthdates at the start of the trip; with

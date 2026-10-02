@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  VIDEOS, parseManifest, parseSeen, listed, forSurface, startHereVideo, fileUrl, posterUrl, manifestUrl, localSeenKey,
+  VIDEOS, parseManifest, parseSeen, listed, forSurface, startHereVideo, fileUrl, posterUrl, manifestUrl, localSeenKey, widePlayerSize,
   type Available,
 } from "./howTo";
 
@@ -90,4 +90,22 @@ describe("Start here carries one video at a time", () => {
 
 it("a visitor's key is per video", () => {
   expect(localSeenKey("on-the-trip")).toBe("roam:video-seen:on-the-trip");
+});
+
+describe("the computer's centred player (2 Oct 2026)", () => {
+  it("is two-thirds of a laptop's width at 16:9", () => {
+    expect(widePlayerSize(16 / 9, 1440, 900)).toEqual({ width: 960, height: 540 });
+    expect(widePlayerSize(16 / 9, 1200, 900)).toEqual({ width: 800, height: 450 });
+  });
+  it("never wider than 960 px on a big monitor", () => {
+    expect(widePlayerSize(16 / 9, 2560, 1440).width).toBe(960);
+  });
+  it("a 4:5 video is held to the window's height, not stretched to its width", () => {
+    const s = widePlayerSize(4 / 5, 1440, 900);
+    expect(s.height).toBeLessThanOrEqual(900 * 0.8);
+    expect(s.width / s.height).toBeCloseTo(0.8, 2);
+  });
+  it("an unknown shape plays as 16:9", () => {
+    expect(widePlayerSize(NaN, 1200, 900)).toEqual({ width: 800, height: 450 });
+  });
 });

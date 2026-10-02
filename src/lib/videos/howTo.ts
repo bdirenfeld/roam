@@ -139,3 +139,18 @@ export function startHereVideo(opts: {
 export function localSeenKey(id: VideoId): string {
   return `roam:video-seen:${id}`;
 }
+
+/** Widest a video plays on a computer; wider than this and a 1-minute how-to is a cinema. */
+export const WIDE_PLAYER_MAX = 960;
+
+/**
+ * The centred player's size on a computer (2 Oct 2026, Brennan: full screen
+ * everywhere was too much on a wide screen): about two-thirds of the window's
+ * width, never over 960 px, never taller than 80% of the window (room for the ✕ above it), at the
+ * video's own shape (16:9 or 4:5; 16:9 until the file says otherwise).
+ */
+export function widePlayerSize(aspect: number, vw: number, vh: number): { width: number; height: number } {
+  const a = aspect > 0 && Number.isFinite(aspect) ? aspect : 16 / 9;
+  const width = Math.floor(Math.min(vw * (2 / 3), WIDE_PLAYER_MAX, vh * 0.8 * a));
+  return { width, height: Math.floor(width / a) };
+}

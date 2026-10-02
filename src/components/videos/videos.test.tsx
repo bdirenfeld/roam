@@ -105,6 +105,74 @@ describe("the player", () => {
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(3));
   });
 
+  it("on a phone it is full screen: no centred frame, no dim page behind it (2 Oct 2026)", () => {
+    // jsdom has no matchMedia: the phone path, as on a phone.
+    render(<VideoPlayer title="x" src="https://x/v.mp4" onClose={vi.fn()} />);
+    const dialog = screen.getByRole("dialog");
+    expect(dialog.getAttribute("data-layout")).toBe("full");
+    expect(dialog.className).toContain("inset-0");
+    expect(screen.queryByTestId("video-frame")).toBeNull();
+    expect(dialog.querySelector("video")!.className).toContain("w-full h-full");
+  });
+
+  describe("on a computer: a centred player over the dimmed page (2 Oct 2026)", () => {
+    const realMM = window.matchMedia;
+    const realW = window.innerWidth, realH = window.innerHeight;
+    const wideScreen = (w: number, h: number) => {
+      window.matchMedia = ((q: string) => ({
+        matches: q === "(min-width: 768px)", media: q, onchange: null,
+        addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+      })) as unknown as typeof window.matchMedia;
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: w });
+      Object.defineProperty(window, "innerHeight", { configurable: true, value: h });
+    };
+    afterEach(() => {
+      window.matchMedia = realMM;
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: realW });
+      Object.defineProperty(window, "innerHeight", { configurable: true, value: realH });
+    });
+
+    it("two-thirds of a 1200 px window at 16:9, the page dimmed, not blacked out", () => {
+      wideScreen(1200, 900);
+      render(<VideoPlayer title="Planning on a computer" src="https://x/v.mp4" onClose={vi.fn()} />);
+      const dialog = screen.getByRole("dialog", { name: "Planning on a computer" });
+      expect(dialog.getAttribute("data-layout")).toBe("centred");
+      const frame = screen.getByTestId("video-frame");
+      expect(frame.style.width).toBe("800px");
+      expect(frame.style.height).toBe("450px");
+      expect(dialog.style.background).toMatch(/rgba\(14, 14, 22, 0\.72\)/);
+      expect(frame.querySelector("video")!.hasAttribute("controls")).toBe(true);
+      expect(dialog.parentElement).toBe(document.body);
+    });
+
+    it("never wider than 960 px, and a 4:5 video keeps its shape once the file says so", () => {
+      wideScreen(2560, 1440);
+      render(<VideoPlayer title="x" src="https://x/v.mp4" onClose={vi.fn()} />);
+      const frame = screen.getByTestId("video-frame");
+      expect(frame.style.width).toBe("960px");
+      const video = frame.querySelector("video")!;
+      Object.defineProperty(video, "videoWidth", { configurable: true, value: 1080 });
+      Object.defineProperty(video, "videoHeight", { configurable: true, value: 1350 });
+      fireEvent(video, new Event("loadedmetadata"));
+      const w = parseFloat(frame.style.width), h = parseFloat(frame.style.height);
+      expect(w / h).toBeCloseTo(0.8, 2);
+      expect(h).toBeLessThanOrEqual(1440 * 0.8);
+    });
+
+    it("✕, Escape and a click on the dim close it; a click on the video does not", async () => {
+      wideScreen(1440, 900);
+      const onClose = vi.fn();
+      render(<VideoPlayer title="x" src="https://x/v.mp4" onClose={onClose} />);
+      const dialog = screen.getByRole("dialog");
+      fireEvent.click(screen.getByTestId("video-frame").querySelector("video")!);
+      expect(onClose).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole("button", { name: "Close video" }));
+      fireEvent.keyDown(document, { key: "Escape" });
+      fireEvent.click(dialog);
+      await waitFor(() => expect(onClose).toHaveBeenCalledTimes(3));
+    });
+  });
+
   it("a sideways swipe (scrubbing) does not close it", () => {
     const onClose = vi.fn();
     render(<VideoPlayer title="x" src="https://x/v.mp4" onClose={onClose} />);

@@ -1,0 +1,616 @@
+{
+ "_source": "Roam database, Hanoi test trip (b35e1cb6), 2 Oct 2026: days and every card, place fields trimmed to what Plan my trip reads.",
+ "trip": {
+  "id": "b35e1cb6-1597-461e-84be-627308a54afe",
+  "start_date": "2026-10-17",
+  "end_date": "2026-10-20",
+  "party_size": 5,
+  "party_ages": [
+   40,
+   40,
+   8,
+   6,
+   3
+  ]
+ },
+ "people": null,
+ "days": [
+  {
+   "id": "45657d61-6522-4238-a5b2-27ba7b11976f",
+   "date": "2026-10-17",
+   "day_number": 1
+  },
+  {
+   "id": "8af432c6-80da-436c-aafb-4354fb6bcfa9",
+   "date": "2026-10-18",
+   "day_number": 2
+  },
+  {
+   "id": "97945f65-fc3e-4963-9a72-bceaa446a896",
+   "date": "2026-10-19",
+   "day_number": 3
+  },
+  {
+   "id": "fc2126fc-9e7c-422b-8e9c-ec9031eb1d60",
+   "date": "2026-10-20",
+   "day_number": 4
+  }
+ ],
+ "cards": [
+  {
+   "id": "d0148885-f584-49f2-933e-da9687e2389e",
+   "day_id": null,
+   "trip_id": "b35e1cb6-1597-461e-84be-627308a54afe",
+   "status": "interested",
+   "place_id": "dc4e7cd4-d8ff-4d1e-a790-0e3cafe278ad",
+   "start_time": null,
+   "end_time": null,
+   "position": 0,
+   "details": null,
+   "ai_generated": false,
+   "confirmed": false,
+   "source_url": null,
+   "place": {
+    "id": "dc4e7cd4-d8ff-4d1e-a790-0e3cafe278ad",
+    "title": "Ho Chi Minh's Mausoleum",
+    "type": "activity",
+    "sub_type": "self_directed",
+    "lat": 21.0368973,
+    "lng": 105.8346667,
+    "address": "1 Hùng Vương, Điện Biên, Ba Đình, Hà Nội, Vietnam",
+    "rating": 4.5,
+    "hours": {
+     "weekday_text": [
+      "Monday: Closed",
+      "Tuesday: 7:30 – 10:30 AM",
+      "Wednesday: 7:30 – 10:30 AM",
+      "Thursday: 7:30 – 10:30 AM",
+      "Friday: Closed",
+      "Saturday: 7:30 – 10:30 AM",
+      "Sunday: 7:30 – 10:30 AM"
+     ]
+    },
+    "types": [
+     "cemetery",
+     "establishment",
+     "point_of_interest",
+     "tourist_attraction"
+    ]
+   }
+  },
+  {
+   "id": "4f6dfd97-d8f6-4f30-9c86-cf3ea2cd2842",
+   "day_id": null,
+   "trip_id": "b35e1cb6-1597-461e-84be-627308a54afe",
+   "status": "interested",
+   "place_id": "ad7c6e36-3d79-43b2-81cd-0df87a20a2dc",
+   "start_time": null,
+   "end_time": null,
+   "position": 0,
+   "details": null,
+   "ai_generated": false,
+   "confirmed": false,
+   "source_url": null,
+   "place": {
+    "id": "ad7c6e36-3d79-43b2-81cd-0df87a20a2dc",
+    "title": "Vietnam Treasures Travel",
+    "type": "activity",
+    "sub_type": "self_directed",
+    "lat": 21.0326501,
+    "lng": 105.856476,
+    "address": "Ng. 613 Đ. Hồng Hà, Hồng Hà, Hà Nội, Vietnam",
+    "rating": 5,
+    "hours": {
+     "weekday_text": [
+      "Monday: 8:00 AM – 10:00 PM",
+      "Tuesday: 8:00 AM – 10:00 PM",
+      "Wednesday: 8:00 AM – 10:00 PM",
+      "Thursday: 8:00 AM – 10:00 PM",
+      "Friday: 8:00 AM – 10:00 PM",
+      "Saturday: 8:00 AM – 10:00 PM",
+      "Sunday: 8:00 AM – 10:00 PM"
+     ]
+    },
+    "types": [
+     "establishment",
+     "point_of_interest",
+     "tourist_attraction"
+    ]
+   }
+  },
+  {
+   "id": "e4eb8696-0ff1-425a-a143-a35a67b44218",
+   "day_id": null,
+   "trip_id": "b35e1cb6-1597-461e-84be-627308a54afe",
+   "status": "interested",
+   "place_id": "748b44a3-0bd7-47c6-b7ac-ff4d7ba9365c",
+   "start_time": null,
+   "end_time": null,
+   "position": 0,
+   "details": null,
+   "ai_generated": false,
+   "confirmed": false,
+   "source_url": null,
+   "place": {
+    "id": "748b44a3-0bd7-47c6-b7ac-ff4d7ba9365c",
+    "title": "Hanoi Old Quarter",
+    "type": "activity",
+    "sub_type": "self_directed",
+    "lat": 21.034059,
+    "lng": 105.8506368,
+    "address": "P. Hàng Ngang, Hàng Đào, Hoàn Kiếm, Hà Nội 100000, Vietnam",
+    "rating": 4.6,
+    "hours": {
+     "weekday_text": [
+      "Monday: Open 24 hours",
+      "Tuesday: Open 24 hours",
+      "Wednesday: Open 24 hours",
+      "Thursday: Open 24 hours",
+      "Friday: Open 24 hours",
+      "Saturday: Open 24 hours",
+      "Sunday: Open 24 hours"
+     ]
+    },
+    "types": [
+     "establishment",
+     "point_of_interest",
+     "tourist_attraction"
+    ]
+   }
+  },
+  {
+   "id": "b721accf-8205-47af-8087-c22c6bd6d1eb",
+   "day_id": null,
+   "trip_id": "b35e1cb6-1597-461e-84be-627308a54afe",
+   "status": "interested",
+   "place_id": "39d1e4ee-8ebf-4f26-960f-422b7f4d8b60",
+   "start_time": null,
+   "end_time": null,
+   "position": 0,
+   "details": null,
+   "ai_generated": false,
+   "confirmed": false,
+   "source_url": null,
+   "place": {
+    "id": "39d1e4ee-8ebf-4f26-960f-422b7f4d8b60",
+    "title": "Vietnam Weapon Museum",
+    "type": "activity",
+    "sub_type": "self_directed",
+    "lat": 21.0677575,
+    "lng": 105.8811934,
+    "address": "22 Ngõ 157 Đức Giang, Việt Hưng, Hà Nội, Vietnam",
+    "rating": 4.5,
+    "hours": {
+     "weekday_text": [
+      "Monday: Closed",
+      "Tuesday: 8:00 – 11:30 AM, 1:00 – 4:30 PM",
+      "Wednesday: 8:00 – 11:30 AM, 1:00 – 4:30 PM",
+      "Thursday: 8:00 – 11:30 AM, 1:00 – 4:30 PM",
+      "Friday: Closed",
+      "Saturday: 8:00 – 11:30 AM, 1:00 – 4:30 PM",
+      "Sunday: 8:00 – 11:30 AM, 1:00 – 4:30 PM"
+     ]
+    },
+    "types": [
+     "establishment",
+     "museum",
+     "point_of_interest",
+     "tourist_attraction"
+    ]
+   }
+  },
+  {
+   "id": "a3a98511-b629-455b-800d-1f003f92c3b5",
+   "day_id": "45657d61-6522-4238-a5b2-27ba7b11976f",
+   "trip_id": "b35e1cb6-1597-461e-84be-627308a54afe",
+   "status": "in_itinerary",
+   "place_id": "dc4e7cd4-d8ff-4d1e-a790-0e3cafe278ad",
+   "start_time": null,
+   "end_time": null,
+   "position": 1,
+   "details": {
+    "plan": {
+     "day": "45657d61-6522-4238-a5b2-27ba7b11976f",
+     "start": null
+    }
+   },
+   "ai_generated": true,
+   "confirmed": false,
+   "source_url": null,
+   "place": {
+    "id": "dc4e7cd4-d8ff-4d1e-a790-0e3cafe278ad",
+    "title": "Ho Chi Minh's Mausoleum",
+    "type": "activity",
+    "sub_type": "self_directed",
+    "lat": 21.0368973,
+    "lng": 105.8346667,
+    "address": "1 Hùng Vương, Điện Biên, Ba Đình, Hà Nội, Vietnam",
+    "rating": 4.5,
+    "hours": {
+     "weekday_text": [
+      "Monday: Closed",
+      "Tuesday: 7:30 – 10:30 AM",
+      "Wednesday: 7:30 – 10:30 AM",
+      "Thursday: 7:30 – 10:30 AM",
+      "Friday: Closed",
+      "Saturday: 7:30 – 10:30 AM",
+      "Sunday: 7:30 – 10:30 AM"
+     ]
+    },
+    "types": [
+     "cemetery",
+     "establishment",
+     "point_of_interest",
+     "tourist_attraction"
+    ]
+   }
+  },
+  {
+   "id": "2e27afe1-71b4-4577-8369-4068515b098d",
+   "day_id": "8af432c6-80da-436c-aafb-4354fb6bcfa9",
+   "trip_id": "b35e1cb6-1597-461e-84be-627308a54afe",
+   "status": "in_itinerary",
+   "place_id": "39d1e4ee-8ebf-4f26-960f-422b7f4d8b60",
+   "start_time": "09:45:00",
+   "end_time": "12:45:00",
+   "position": 1,
+   "details": {
+    "plan": {
+     "day": "8af432c6-80da-436c-aafb-4354fb6bcfa9",
+     "start": "09:45:00"
+    }
+   },
+   "ai_generated": true,
+   "confirmed": false,
+   "source_url": null,
+   "place": {
+    "id": "39d1e4ee-8ebf-4f26-960f-422b7f4d8b60",
+    "title": "Vietnam Weapon Museum",
+    "type": "activity",
+    "sub_type": "self_directed",
+    "lat": 21.0677575,
+    "lng": 105.8811934,
+    "address": "22 Ngõ 157 Đức Giang, Việt Hưng, Hà Nội, Vietnam",
+    "rating": 4.5,
+    "hours": {
+     "weekday_text": [
+      "Monday: Closed",
+      "Tuesday: 8:00 – 11:30 AM, 1:00 – 4:30 PM",
+      "Wednesday: 8:00 – 11:30 AM, 1:00 – 4:30 PM",
+      "Thursday: 8:00 – 11:30 AM, 1:00 – 4:30 PM",
+      "Friday: Closed",
+      "Saturday: 8:00 – 11:30 AM, 1:00 – 4:30 PM",
+      "Sunday: 8:00 – 11:30 AM, 1:00 – 4:30 PM"
+     ]
+    },
+    "types": [
+     "establishment",
+     "museum",
+     "point_of_interest",
+     "tourist_attraction"
+    ]
+   }
+  },
+  {
+   "id": "e8186fa1-09fa-4539-99d8-f2eb287d22c6",
+   "day_id": "97945f65-fc3e-4963-9a72-bceaa446a896",
+   "trip_id": "b35e1cb6-1597-461e-84be-627308a54afe",
+   "status": "in_itinerary",
+   "place_id": "ad7c6e36-3d79-43b2-81cd-0df87a20a2dc",
+   "start_time": "09:45:00",
+   "end_time": "12:15:00",
+   "position": 1,
+   "details": {
+    "plan": {
+     "day": "97945f65-fc3e-4963-9a72-bceaa446a896",
+     "start": "09:45:00"
+    }
+   },
+   "ai_generated": true,
+   "confirmed": false,
+   "source_url": null,
+   "place": {
+    "id": "ad7c6e36-3d79-43b2-81cd-0df87a20a2dc",
+    "title": "Vietnam Treasures Travel",
+    "type": "activity",
+    "sub_type": "self_directed",
+    "lat": 21.0326501,
+    "lng": 105.856476,
+    "address": "Ng. 613 Đ. Hồng Hà, Hồng Hà, Hà Nội, Vietnam",
+    "rating": 5,
+    "hours": {
+     "weekday_text": [
+      "Monday: 8:00 AM – 10:00 PM",
+      "Tuesday: 8:00 AM – 10:00 PM",
+      "Wednesday: 8:00 AM – 10:00 PM",
+      "Thursday: 8:00 AM – 10:00 PM",
+      "Friday: 8:00 AM – 10:00 PM",
+      "Saturday: 8:00 AM – 10:00 PM",
+      "Sunday: 8:00 AM – 10:00 PM"
+     ]
+    },
+    "types": [
+     "establishment",
+     "point_of_interest",
+     "tourist_attraction"
+    ]
+   }
+  },
+  {
+   "id": "83cc3cc8-7b69-44dc-95e0-4d4bd5c8243a",
+   "day_id": "97945f65-fc3e-4963-9a72-bceaa446a896",
+   "trip_id": "b35e1cb6-1597-461e-84be-627308a54afe",
+   "status": "in_itinerary",
+   "place_id": "748b44a3-0bd7-47c6-b7ac-ff4d7ba9365c",
+   "start_time": "12:30:00",
+   "end_time": "15:00:00",
+   "position": 2,
+   "details": {
+    "plan": {
+     "day": "97945f65-fc3e-4963-9a72-bceaa446a896",
+     "start": "12:30:00"
+    }
+   },
+   "ai_generated": true,
+   "confirmed": false,
+   "source_url": null,
+   "place": {
+    "id": "748b44a3-0bd7-47c6-b7ac-ff4d7ba9365c",
+    "title": "Hanoi Old Quarter",
+    "type": "activity",
+    "sub_type": "self_directed",
+    "lat": 21.034059,
+    "lng": 105.8506368,
+    "address": "P. Hàng Ngang, Hàng Đào, Hoàn Kiếm, Hà Nội 100000, Vietnam",
+    "rating": 4.6,
+    "hours": {
+     "weekday_text": [
+      "Monday: Open 24 hours",
+      "Tuesday: Open 24 hours",
+      "Wednesday: Open 24 hours",
+      "Thursday: Open 24 hours",
+      "Friday: Open 24 hours",
+      "Saturday: Open 24 hours",
+      "Sunday: Open 24 hours"
+     ]
+    },
+    "types": [
+     "establishment",
+     "point_of_interest",
+     "tourist_attraction"
+    ]
+   }
+  },
+  {
+   "id": "dc6c959e-256f-4a6c-a833-d51dc92fb7c2",
+   "day_id": null,
+   "trip_id": "b35e1cb6-1597-461e-84be-627308a54afe",
+   "status": "interested",
+   "place_id": "3289e42b-0d73-41ea-bb4e-736dbbbaf052",
+   "start_time": null,
+   "end_time": null,
+   "position": 0,
+   "details": null,
+   "ai_generated": false,
+   "confirmed": false,
+   "source_url": null,
+   "place": {
+    "id": "3289e42b-0d73-41ea-bb4e-736dbbbaf052",
+    "title": "Vietnamese Women's Museum",
+    "type": "activity",
+    "sub_type": "self_directed",
+    "lat": 21.0233734,
+    "lng": 105.8515539,
+    "address": "36 Lý Thường Kiệt, Cửa Nam, Hà Nội, Vietnam",
+    "rating": 4.5,
+    "hours": {
+     "weekday_text": [
+      "Monday: 8:00 AM – 5:00 PM",
+      "Tuesday: 8:00 AM – 5:00 PM",
+      "Wednesday: 8:00 AM – 5:00 PM",
+      "Thursday: 8:00 AM – 5:00 PM",
+      "Friday: 8:00 AM – 5:00 PM",
+      "Saturday: 8:00 AM – 5:00 PM",
+      "Sunday: 8:00 AM – 5:00 PM"
+     ]
+    },
+    "types": [
+     "establishment",
+     "museum",
+     "point_of_interest"
+    ]
+   }
+  },
+  {
+   "id": "93774a1e-5f18-460e-80d9-9d1287bae37f",
+   "day_id": null,
+   "trip_id": "b35e1cb6-1597-461e-84be-627308a54afe",
+   "status": "interested",
+   "place_id": "b14ebeb2-5397-4fc4-ae0f-727eaba94baa",
+   "start_time": null,
+   "end_time": null,
+   "position": 0,
+   "details": null,
+   "ai_generated": false,
+   "confirmed": false,
+   "source_url": null,
+   "place": {
+    "id": "b14ebeb2-5397-4fc4-ae0f-727eaba94baa",
+    "title": "Imperial Citadel of Thang Long",
+    "type": "activity",
+    "sub_type": "self_directed",
+    "lat": 21.0352231,
+    "lng": 105.8402594,
+    "address": "19c Hoàng Diệu, Điện Biên, Ba Đình, Hà Nội 100000, Vietnam",
+    "rating": 4.4,
+    "hours": {
+     "weekday_text": [
+      "Monday: 8:00 AM – 5:00 PM",
+      "Tuesday: 8:00 AM – 5:00 PM",
+      "Wednesday: 8:00 AM – 5:00 PM",
+      "Thursday: 8:00 AM – 5:00 PM",
+      "Friday: 8:00 AM – 5:00 PM",
+      "Saturday: 8:00 AM – 5:00 PM",
+      "Sunday: 8:00 AM – 5:00 PM"
+     ]
+    },
+    "types": [
+     "establishment",
+     "point_of_interest",
+     "tourist_attraction"
+    ]
+   }
+  },
+  {
+   "id": "22e720f8-8903-4d41-8568-f3e4eb1fdf82",
+   "day_id": null,
+   "trip_id": "b35e1cb6-1597-461e-84be-627308a54afe",
+   "status": "interested",
+   "place_id": "8f90b955-c6ec-4b42-9907-3b8cd852da1b",
+   "start_time": null,
+   "end_time": null,
+   "position": 0,
+   "details": null,
+   "ai_generated": false,
+   "confirmed": false,
+   "source_url": null,
+   "place": {
+    "id": "8f90b955-c6ec-4b42-9907-3b8cd852da1b",
+    "title": "Temple Of Literature",
+    "type": "activity",
+    "sub_type": "self_directed",
+    "lat": 21.0281175,
+    "lng": 105.8356692,
+    "address": "58 Quốc Tử Giám, Văn Miếu, Đống Đa, Hà Nội, Vietnam",
+    "rating": 4.6,
+    "hours": {
+     "weekday_text": [
+      "Monday: 8:00 AM – 5:00 PM",
+      "Tuesday: 8:00 AM – 5:00 PM",
+      "Wednesday: 8:00 AM – 5:00 PM",
+      "Thursday: 8:00 AM – 5:00 PM",
+      "Friday: 8:00 AM – 5:00 PM",
+      "Saturday: 8:00 AM – 5:00 PM",
+      "Sunday: 8:00 AM – 5:00 PM"
+     ]
+    },
+    "types": [
+     "establishment",
+     "place_of_worship",
+     "point_of_interest"
+    ]
+   }
+  },
+  {
+   "id": "a5d41875-d1ac-45cf-8610-db9dcfe95fa2",
+   "day_id": null,
+   "trip_id": "b35e1cb6-1597-461e-84be-627308a54afe",
+   "status": "interested",
+   "place_id": "18bc5abc-9ba6-4004-a481-5235da2f36c6",
+   "start_time": null,
+   "end_time": null,
+   "position": 0,
+   "details": null,
+   "ai_generated": false,
+   "confirmed": false,
+   "source_url": null,
+   "place": {
+    "id": "18bc5abc-9ba6-4004-a481-5235da2f36c6",
+    "title": "Hoa Lo Prison Relic",
+    "type": "activity",
+    "sub_type": "self_directed",
+    "lat": 21.0253297,
+    "lng": 105.8464781,
+    "address": "1 P. Hoả Lò, Trần Hưng Đạo, Hoàn Kiếm, Hà Nội, Vietnam",
+    "rating": 4.5,
+    "hours": {
+     "weekday_text": [
+      "Monday: 8:00 AM – 5:00 PM",
+      "Tuesday: 8:00 AM – 5:00 PM",
+      "Wednesday: 8:00 AM – 5:00 PM",
+      "Thursday: 8:00 AM – 5:00 PM",
+      "Friday: 8:00 AM – 5:00 PM",
+      "Saturday: 8:00 AM – 5:00 PM",
+      "Sunday: 8:00 AM – 5:00 PM"
+     ]
+    },
+    "types": [
+     "establishment",
+     "museum",
+     "point_of_interest",
+     "tourist_attraction"
+    ]
+   }
+  },
+  {
+   "id": "597b03be-34e9-4ede-be2a-d3b8f1aeb242",
+   "day_id": null,
+   "trip_id": "b35e1cb6-1597-461e-84be-627308a54afe",
+   "status": "interested",
+   "place_id": "94a36d42-0b43-47d0-84ba-e55a3d8d70b5",
+   "start_time": null,
+   "end_time": null,
+   "position": 0,
+   "details": null,
+   "ai_generated": false,
+   "confirmed": false,
+   "source_url": null,
+   "place": {
+    "id": "94a36d42-0b43-47d0-84ba-e55a3d8d70b5",
+    "title": "Hanoi Loopers Hostel & Rooftop Bar",
+    "type": "activity",
+    "sub_type": "self_directed",
+    "lat": 21.0341278,
+    "lng": 105.8514947,
+    "address": "96 P. Hàng Bạc, Street, Hoàn Kiếm, Hà Nội 100000, Vietnam",
+    "rating": 4.7,
+    "hours": null,
+    "types": [
+     "establishment",
+     "lodging",
+     "point_of_interest"
+    ]
+   }
+  },
+  {
+   "id": "1211f734-a2a7-4111-bb75-29e1f1444657",
+   "day_id": null,
+   "trip_id": "b35e1cb6-1597-461e-84be-627308a54afe",
+   "status": "interested",
+   "place_id": "02782aa3-741c-43c5-b53b-81f3ee81eb6b",
+   "start_time": null,
+   "end_time": null,
+   "position": 0,
+   "details": null,
+   "ai_generated": false,
+   "confirmed": false,
+   "source_url": null,
+   "place": {
+    "id": "02782aa3-741c-43c5-b53b-81f3ee81eb6b",
+    "title": "Weekend Walking Street",
+    "type": "activity",
+    "sub_type": "self_directed",
+    "lat": 21.0315956,
+    "lng": 105.8530717,
+    "address": "5 Đinh Tiên Hoàng, Hoàn Kiếm, Hà Nội, Vietnam",
+    "rating": 4.5,
+    "hours": {
+     "weekday_text": [
+      "Monday: Closed",
+      "Tuesday: Closed",
+      "Wednesday: Closed",
+      "Thursday: Closed",
+      "Friday: 7:00 – 11:59 PM",
+      "Saturday: Open 24 hours",
+      "Sunday: Open 24 hours"
+     ]
+    },
+    "types": [
+     "establishment",
+     "point_of_interest",
+     "tourist_attraction"
+    ]
+   }
+  }
+ ]
+}
