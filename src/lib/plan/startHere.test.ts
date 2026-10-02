@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { startSteps, type StartCard } from "./startHere";
+import japan from "./fixtures/japan-start.json";
 
 /** A new journey's two ways to start: each goes on its own (1 Oct 2026). */
 
@@ -24,9 +25,8 @@ describe("a new journey's two ways to start", () => {
     expect(startSteps([flight]).upload).toBe(false);
     expect(startSteps([car]).upload).toBe(false);
   });
-  it("a place saved: Upload stays until a booking is on a day", () => {
+  it("a place only saved: Upload stays until a booking is on a day", () => {
     expect(startSteps([savedSight])).toEqual({ upload: true, find: false });
-    expect(startSteps([plannedDinner]).find).toBe(false);
   });
   it("a hotel only saved as an idea is not a booking; a cut place is not a start", () => {
     expect(startSteps([{ ...hotel, day_id: null, status: "interested" }]).upload).toBe(true);
@@ -37,6 +37,22 @@ describe("a new journey's two ways to start", () => {
     expect(startSteps([], { firstDay: true })).toEqual({ upload: true, find: true });
     expect(startSteps([hotel], { firstDay: true }).upload).toBe(false);
     expect(startSteps([savedSight], { firstDay: false })).toEqual({ upload: false, find: false });
+  });
+  it("a stop planned on a day: the whole card is gone, booking or not (Brennan, 2 Oct 2026)", () => {
+    expect(startSteps([plannedDinner])).toEqual({ upload: false, find: false });
+    expect(startSteps([plannedDinner], { firstDay: true })).toEqual({ upload: false, find: false });
+    // A place on a day but still only "interested", or cut, is not a planned stop.
+    expect(startSteps([{ ...plannedDinner, status: "interested" }]).upload).toBe(true);
+    expect(startSteps([{ ...plannedDinner, status: "cut" }]).upload).toBe(true);
+    // A note on a day is not a stop either.
+    expect(startSteps([note]).upload).toBe(true);
+  });
+  it("his Japan journey as stored: 94 cards, 46 planned, hotels only 'interested': no Start here on day 1 or the week", () => {
+    const cards = japan.cards as StartCard[];
+    expect(cards).toHaveLength(94);
+    expect(cards.filter((c) => c.day_id && c.status === "in_itinerary")).toHaveLength(46);
+    expect(startSteps(cards, { firstDay: true })).toEqual({ upload: false, find: false });
+    expect(startSteps(cards)).toEqual({ upload: false, find: false });
   });
   it("both done: the card is gone", () => {
     expect(startSteps([hotel, savedSight])).toEqual({ upload: false, find: false });

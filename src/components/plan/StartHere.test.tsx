@@ -12,6 +12,7 @@ vi.mock("@/hooks/useHowToVideos", () => ({
   useHowToVideos: () => ({ ...vids.state, markSeen: vids.markSeen }),
 }));
 import StartHere from "./StartHere";
+import japan from "@/lib/plan/fixtures/japan-start.json";
 
 /** A new journey's two ways to start (1 Oct 2026, mock start-here.png). */
 
@@ -48,6 +49,16 @@ describe("Start here", () => {
     render(<StartHere cards={[]} firstDay={false} place="Lisbon, Portugal" onUpload={vi.fn()} onFind={vi.fn()} />);
     expect(screen.queryByRole("button", { name: /Upload a booking/ })).toBeNull();
     expect(screen.getByRole("button", { name: /Find places/ })).toBeTruthy();
+  });
+
+  it("Japan as stored (46 stops planned, no booking): nothing on day 1, and no video row either (2 Oct 2026)", () => {
+    vids.state = { ready: true, available: { "first-journey": 1, "planning-computer": 1, "on-the-trip": 1 }, seen: {} };
+    const day = render(<StartHere cards={japan.cards} firstDay place="Japan" onUpload={vi.fn()} onFind={vi.fn()} />);
+    expect(day.container.innerHTML).toBe("");
+    cleanup();
+    const week = render(<StartHere cards={japan.cards} floating place="Japan" onUpload={vi.fn()} onFind={vi.fn()} />);
+    expect(week.container.innerHTML).toBe("");
+    vids.state = { ready: true, available: {}, seen: {} };
   });
 
   it("both done: nothing at all, nothing to dismiss", () => {

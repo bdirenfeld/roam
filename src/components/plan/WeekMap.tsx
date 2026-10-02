@@ -22,6 +22,7 @@ import { useWarmFind } from "@/hooks/useWarmFind";
 const PlanMyTripSheet = dynamic(reloadOnStale(() => import("./PlanMyTripSheet")), { ssr: false });
 import { stackOrder, restack } from "@/lib/map/pinStack";
 import { pulseAt, showAt } from "@/lib/map/pulse";
+import { boxCentre, stayGlide } from "@/lib/map/glide";
 const FindSheet = dynamic(reloadOnStale(() => import("./FindSheet")), { ssr: false });
 import { searchCountries } from "@/lib/entry/countries";
 import { dayChip, spansMonths } from "@/lib/dayChip";
@@ -255,13 +256,17 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
     if (coords.length > 1 && !focusedStay && fittedRef.current !== key) {
       fittedRef.current = key;
       const b = coords.reduce((acc: any, pt) => acc.extend(pt), new mb.LngLatBounds(coords[0], coords[0])); // eslint-disable-line @typescript-eslint/no-explicit-any
-      map.fitBounds(b, { padding: { top: 80, bottom: 80, left: 40, right: 440 }, maxZoom: 13 });
+      map.fitBounds(b, { padding: { top: 80, bottom: 80, left: 40, right: 440 }, maxZoom: 13, ...stayGlide(map.getCenter(), boxCentre(coords)) });
     }
   }, [showStays, stayCands, focusedStay, ready]);
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !focusedStay || focusedStay.lat == null || focusedStay.lng == null) return;
-    map.flyTo({ center: [focusedStay.lng, focusedStay.lat], zoom: Math.max(map.getZoom(), 12) });
+    // A capped, eased glide however far (lib/map/glide): Osaka to Tokyo took ~5 s.
+    const to = { lng: focusedStay.lng, lat: focusedStay.lat };
+    const g = stayGlide(map.getCenter(), to);
+    const move = { center: [to.lng, to.lat] as [number, number], zoom: Math.max(map.getZoom(), 12), duration: g.duration };
+    if (g.linear) map.easeTo(move); else map.flyTo(move);
   }, [focusedStay]);
 
   const clearTemp = () => { if (tempPinRef.current) { tempPinRef.current.remove(); tempPinRef.current = null; } };

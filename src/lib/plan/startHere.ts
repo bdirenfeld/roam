@@ -11,6 +11,12 @@
  * but I don't want it on the other ones"). The week shows one over the whole
  * week, so it passes nothing.
  * Find places: until something to do or eat is on the journey, saved or planned.
+ *
+ * And once a stop is planned — something to do or eat on a day, not just
+ * saved — the whole card goes, both buttons and its video row (Brennan, 2 Oct
+ * 2026: his Japan journey, 46 stops on its days and its ryokans only saved,
+ * still showed "Upload a booking" on day 1, wrong for a journey well past its
+ * start). Bookings stays in the menu.
  */
 
 export interface StartCard {
@@ -34,7 +40,13 @@ function isPlace(c: StartCard): boolean {
   return c.status !== "cut" && (c.place?.type === "activity" || c.place?.type === "food");
 }
 
+/** Something to do or eat placed on a day (not only saved there, not cut). */
+function isPlannedStop(c: StartCard): boolean {
+  return !!c.day_id && c.status === "in_itinerary" && isPlace(c);
+}
+
 export function startSteps(cards: StartCard[], opts: { firstDay?: boolean } = {}): { upload: boolean; find: boolean } {
   const firstDay = opts.firstDay ?? true;
+  if (cards.some(isPlannedStop)) return { upload: false, find: false };
   return { upload: firstDay && !cards.some(isBooking), find: !cards.some(isPlace) };
 }

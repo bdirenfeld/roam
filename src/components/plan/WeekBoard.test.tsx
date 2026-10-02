@@ -84,6 +84,12 @@ describe("the week's top rows", () => {
     expect(screen.getByRole("button", { name: /Find places/ })).toBeTruthy();
   });
 
+  it("a stop planned but nothing booked: no Start here over the week (2 Oct 2026)", () => {
+    const planned = dates.map((date, i) => ({ id: `p${i + 1}`, trip_id: "t", day_number: i + 1, date, theme: null, cards: i === 2 ? [card("cat2", `p${i + 1}`, cathedral, { start_time: "10:00:00" })] : [] })) as unknown as DayWithCards[];
+    render(<WeekBoard trip={trip} initialDays={planned} initialSaved={[]} />);
+    expect(screen.queryByTestId("start-here")).toBeNull();
+  });
+
   it("Start here steps aside while Find is open, and comes back when it closes (2 Oct 2026)", () => {
     const empty = dates.map((date, i) => ({ id: `f${i + 1}`, trip_id: "t", day_number: i + 1, date, theme: null, cards: [] as Card[] })) as unknown as DayWithCards[];
     render(<WeekBoard trip={trip} initialDays={empty} initialSaved={[]} />);

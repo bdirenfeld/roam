@@ -36,6 +36,7 @@ import { scheduleCardOnDay } from "@/lib/scheduleCard";
 import { planBatch, plannedOtherDays, stayAnchor } from "@/lib/week/dayPlan";
 import { tapFilter } from "@/lib/map/tapFilter";
 import { pulseAt, showAt } from "@/lib/map/pulse";
+import { boxCentre, stayGlide } from "@/lib/map/glide";
 import dynamic from "next/dynamic";
 import { reloadOnStale } from "@/lib/chunkReload";
 import { useWarmFind } from "@/hooks/useWarmFind";
@@ -226,13 +227,17 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
         (b: unknown, coord) => (b as { extend: (c: [number, number]) => unknown }).extend(coord),
         new mb.LngLatBounds(coords[0], coords[0]),
       );
-      map.fitBounds(bounds, { padding: { top: 80, bottom: 80, left: 40, right: 40 }, maxZoom: 13 });
+      map.fitBounds(bounds, { padding: { top: 80, bottom: 80, left: 40, right: 40 }, maxZoom: 13, ...stayGlide(map.getCenter(), boxCentre(coords)) });
     }
   }, [showStays, stayCands, focusedStay, mapReady]);
   useEffect(() => {
     const map = mapInstRef.current;
     if (!map || !focusedStay || focusedStay.lat == null || focusedStay.lng == null) return;
-    map.flyTo({ center: [focusedStay.lng, focusedStay.lat], zoom: Math.max(map.getZoom(), 12) });
+    // A capped, eased glide however far (lib/map/glide): Osaka to Tokyo took ~5 s.
+    const to = { lng: focusedStay.lng, lat: focusedStay.lat };
+    const g = stayGlide(map.getCenter(), to);
+    const move = { center: [to.lng, to.lat] as [number, number], zoom: Math.max(map.getZoom(), 12), duration: g.duration };
+    if (g.linear) map.easeTo(move); else map.flyTo(move);
   }, [focusedStay]);
   const closeStays = useCallback(() => {
     setShowStays(false);

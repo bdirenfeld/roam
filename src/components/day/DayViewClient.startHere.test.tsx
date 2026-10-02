@@ -49,6 +49,7 @@ vi.mock("@/components/search/GlobalSearch", () => ({ useGlobalSearch: () => ({ o
 vi.mock("@/hooks/useCardNotes", () => ({ useCardNotes: () => ({}), withNotes: (c: unknown) => c }));
 
 import DayViewClient from "./DayViewClient";
+import japan from "@/lib/plan/fixtures/japan-start.json";
 
 const trip = { id: "t1", title: "Lisbon", destination: "Lisbon, Portugal", destination_lat: 38.72, destination_lng: -9.14, start_date: "2027-05-10", end_date: "2027-05-12", user_id: "u1" } as unknown as Trip;
 // Out of order on purpose: the first day is the earliest date, not the first row.
@@ -84,6 +85,17 @@ describe("Start here on the phone's day", { timeout: 30000 }, () => {
     await open("d2");
     expect(screen.queryByRole("button", { name: /Upload a booking/ })).toBeNull();
     expect(screen.getByRole("button", { name: /Find places/ })).toBeTruthy();
+  });
+
+  it("Japan as stored: stops planned, nothing booked: no Start here on its first day (2 Oct 2026)", async () => {
+    journeyCards = japan.cards.map((c) => ({ ...c, day_id: c.day_id === japan.first_day ? "d1" : c.day_id }));
+    await act(async () => {
+      render(<DayViewClient trip={trip} days={days} dayWithCards={dayOf("d1")} hotelCards={[]} initialNotes={null} />);
+    });
+    // The journey's cards are read after mount; give the read its turn, then look.
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+    expect(screen.queryByTestId("start-here")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Upload a booking/ })).toBeNull();
   });
 
   it("the first day once a booking is on the journey: no Upload a booking there either", async () => {
