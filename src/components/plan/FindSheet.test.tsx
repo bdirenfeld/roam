@@ -127,6 +127,29 @@ describe("Find sheet", { timeout: 20000 }, () => {
     expect(onFocus).toHaveBeenCalledWith(null); // closing Find takes the pin away
   });
 
+  it("on the phone the controls scroll away with the results, scrolling raises the sheet, opening a place drops it back (2 Oct 2026)", async () => {
+    await act(async () => { render(<FindSheet trip={trip} days={[]} cards={[] as Card[]} onClose={vi.fn()} onSaved={vi.fn()} />); });
+    const sheet = screen.getByRole("dialog", { name: "Find places" });
+    const scroller = screen.getByTestId("find-scroll");
+    // The Activity/Food switch and the search box are inside the one scroller, above the results.
+    expect(scroller.contains(screen.getByRole("tablist", { name: "Activity or food" }))).toBe(true);
+    expect(scroller.contains(screen.getByText("Trattoria Da Enzo"))).toBe(true);
+    expect(sheet.style.height).toBe("50dvh");
+    await act(async () => { scroller.scrollTop = 40; fireEvent.scroll(scroller); });
+    expect(sheet.style.height).toBe("88dvh");
+    // A place opened: half height again, so the map above shows its pin.
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "More about Trattoria Da Enzo" })); });
+    expect(sheet.style.height).toBe("50dvh");
+    expect(screen.getByRole("region", { name: "Trattoria Da Enzo" })).toBeTruthy();
+  });
+
+  it("on a computer the controls stay put and only the results scroll", async () => {
+    await act(async () => { render(<FindSheet trip={trip} days={[]} cards={[] as Card[]} dock="beside" onClose={vi.fn()} onSaved={vi.fn()} />); });
+    expect(screen.getByTestId("find-scroll").className).toBe("contents");
+    const list = screen.getByText("Trattoria Da Enzo").closest(".overflow-y-auto")!;
+    expect(list.contains(screen.getByRole("tablist", { name: "Activity or food" }))).toBe(false);
+  });
+
   it("warms every category on open, so tapping across the chips never waits", async () => {
     await act(async () => { render(<FindSheet trip={trip} days={[]} cards={[] as Card[]} onClose={vi.fn()} onSaved={vi.fn()} />); });
     const google = new Set(finds().filter((c) => c.body.mode === "google").map((c) => c.body.subType));

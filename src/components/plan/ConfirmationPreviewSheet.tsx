@@ -454,11 +454,13 @@ export default function ConfirmationPreviewSheet({
                 : "bg-gray-100 text-gray-300 cursor-not-allowed"
             }`}
           >
+            {/* "Add to my days" (2 Oct 2026, the video review): plainer than
+                "Add to plan", and the toast after it says "Added to your days". */}
             {saving
-              ? "Adding to plan…"
+              ? "Adding to your days…"
               : items.length > 1
-                ? `Add ${items.length} cards to plan`
-                : "Add to plan"}
+                ? `Add ${items.length} to my days`
+                : "Add to my days"}
           </button>
         </div>
       </div>

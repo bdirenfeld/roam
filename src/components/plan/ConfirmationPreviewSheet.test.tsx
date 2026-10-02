@@ -40,7 +40,7 @@ function open(onCardsCreated = vi.fn()) {
       onClose={vi.fn()} onCardsCreated={onCardsCreated}
     />,
   );
-  fireEvent.click(screen.getByText("Add 2 cards to plan"));
+  fireEvent.click(screen.getByText("Add 2 to my days"));
   return onCardsCreated;
 }
 
@@ -88,7 +88,7 @@ describe("importing a hotel booking (1 Oct 2026)", () => {
     const done = vi.fn();
     render(<ConfirmationPreviewSheet items={[villa]} fileName="villa.pdf" fileType="application/pdf" days={days} tripId="t1" onClose={vi.fn()} onCardsCreated={done} />);
     expect((screen.getByLabelText(/Check out/) as HTMLSelectElement).value).toBe("d12");
-    fireEvent.click(screen.getByText("Add to plan"));
+    fireEvent.click(screen.getByText("Add to my days"));
     await waitFor(() => expect(done).toHaveBeenCalled());
     expect(asked[0]).toContain(encodeURIComponent("Villa Zambaldi, Via Fonda 403, Lucca"));
     const rows = queued.mock.calls[0][1] as { day_id: string; place_id: string; start_time: string; details: Record<string, unknown> }[];

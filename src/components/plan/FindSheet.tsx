@@ -175,6 +175,12 @@ export default function FindSheet({
   // the map above. Nothing dims the map, so a saved pin is seen landing
   // (lib/map/pulse). Escape or ✕ closes; the map stays usable while it is open.
   const [tall, setTall] = useState(false);
+  // The phone's half sheet (2 Oct 2026, Brennan: "when you scroll through it you
+  // can barely see what's up there"): the controls took about 280 of its 450 px.
+  // Now they scroll away with the results, scrolling raises the sheet, and
+  // opening a place drops it back to half so the map above shows its pin.
+  const onListScroll = (e: { currentTarget: HTMLDivElement }) => { if (!dock && !tall && e.currentTarget.scrollTop > 12) setTall(true); };
+  useEffect(() => { if (open && !dock) setTall(false); }, [open, dock]);
   const dragY = useRef<number | null>(null);
   const touchedAt = useRef(0);
   return (
@@ -208,6 +214,7 @@ export default function FindSheet({
             <span className="w-12 h-[4px] rounded-full bg-gray-300" />
           </button>
         )}
+        <div data-testid="find-scroll" onScroll={onListScroll} className={dock ? "contents" : `flex-1 min-h-0 overflow-y-auto ${open ? "hidden" : ""}`}>
         <div className={`px-5 ${dock ? "pt-4" : "pt-1"} pb-3 flex flex-col gap-3 border-b`} style={{ borderColor: "rgba(26,26,46,0.08)" }}>
           <div className="flex items-center justify-between">
             <h2 className="text-[18px] font-semibold text-[#1A1A2E]">Find places</h2>
@@ -259,10 +266,7 @@ export default function FindSheet({
           </form>
         </div>
 
-        {open && (
-          <FindPlace r={open} dates={dates} away={awayOf(open)} saved={saved.has(open.placeId)} onSave={() => void save(open)} onBack={() => setOpen(null)} />
-        )}
-        <div className={`flex-1 overflow-y-auto px-5 py-2 ${open ? "hidden" : ""}`}>
+        <div className={`${dock ? "flex-1 overflow-y-auto" : ""} px-5 py-2 ${open ? "hidden" : ""}`}>
           {!base && <p className="py-6 text-[14px] text-activity/60">Set where the journey is going in Settings, and Find will start there.</p>}
           {/* Events are the area's yearly ones (lib/find/yearly); one-off shows are Google's, a tap away. */}
           {base && sub === "event" && (
@@ -303,6 +307,10 @@ export default function FindSheet({
             </div>
           ))}
         </div>
+        </div>
+        {open && (
+          <FindPlace r={open} dates={dates} away={awayOf(open)} saved={saved.has(open.placeId)} onSave={() => void save(open)} onBack={() => setOpen(null)} />
+        )}
       </div>
     </div>
   );
