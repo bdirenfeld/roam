@@ -147,7 +147,7 @@ export async function POST(req: NextRequest) {
         // search's cost; five and three cost him $20 in a morning (1 Oct 2026).
         tools: [{ type: "web_search_20250305", name: "web_search", max_uses: subType === "event" ? 3 : 2 }],
       });
-      await addSpend(admin, `find ${subType} ${base.label}`, res.usage as Parameters<typeof addSpend>[2]);
+      await addSpend(admin, `find ${subType} ${base.label}`, res.usage as Parameters<typeof addSpend>[2], res.model);
       const text = res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("\n");
       // Dated kinds keep to the journey's dates (lib/find/ask onTripDates).
       const picks = parseTravellers(text)
@@ -221,7 +221,7 @@ export async function POST(req: NextRequest) {
           messages: [{ role: "user", content: yearlyPrompt(`${base.label}${country ? `, ${country}` : ""}`) }],
           tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
         });
-        await addSpend(admin, `yearly events ${base.label}`, res.usage as Parameters<typeof addSpend>[2]);
+        await addSpend(admin, `yearly events ${base.label}`, res.usage as Parameters<typeof addSpend>[2], res.model);
         const text = res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("\n");
         const picks = parseYearly(text);
         const placed = await Promise.all(picks.map(async (p): Promise<YearlyItem | null> => {

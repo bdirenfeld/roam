@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import Anthropic from "@anthropic-ai/sdk";
 import { CONFIRMATION_PROMPT, extractBookings } from "@/lib/confirmations/prompt";
+import { overBudget, addSpend } from "@/lib/api/spend";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const maxDuration = 30;
 
@@ -36,6 +38,9 @@ export async function POST(req: NextRequest) {
   const bytes  = await file.arrayBuffer();
   const base64 = Buffer.from(bytes).toString("base64");
 
+  let spendDb: ReturnType<typeof createAdminClient> | null = null;
+  try { spendDb = createAdminClient(); } catch { spendDb = null; }
+  if (await overBudget(spendDb)) return NextResponse.json({ error: "Reading bookings is paused until tomorrow" }, { status: 503 });
   const client = new Anthropic({ apiKey });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -64,12 +69,14 @@ export async function POST(req: NextRequest) {
 
   try {
     const response = await client.messages.create({
-      model:      "claude-sonnet-4-6",
+      // Haiku (1 Oct 2026): reading a confirmation is extraction; a tenth of the cost.
+      model:      "claude-haiku-4-5-20251001",
       max_tokens: 1600,
       system:     CONFIRMATION_PROMPT,
       messages:   [{ role: "user", content: contentBlocks }],
     });
 
+    await addSpend(spendDb, "read booking", response.usage, response.model);
     const raw = response.content.find((b) => b.type === "text");
     if (!raw || raw.type !== "text") throw new Error("No text in response");
 

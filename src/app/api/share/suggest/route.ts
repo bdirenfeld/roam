@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { overBudget, addSpend } from "@/lib/api/spend";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import { isTikTok, trimCaption, parseGuess } from "@/lib/share/caption";
 import { fullTikTokUrl, tiktokOembed, withTimeout } from "../_tiktok";
@@ -35,6 +37,9 @@ export async function GET(request: NextRequest) {
   const text = (await tiktokOembed(await fullTikTokUrl(link!)))?.caption ?? null;
   if (!text) return none();
 
+  let spendDb: ReturnType<typeof createAdminClient> | null = null;
+  try { spendDb = createAdminClient(); } catch { spendDb = null; }
+  if (await overBudget(spendDb)) return none();
   let guess: ReturnType<typeof parseGuess> = null;
   try {
     const client = new Anthropic({ apiKey });
@@ -48,6 +53,7 @@ export async function GET(request: NextRequest) {
       8000,
     );
     if (!res) return none();
+    await addSpend(spendDb, "share suggest", res.usage, res.model);
     guess = parseGuess(res.content.map((b) => (b.type === "text" ? b.text : "")).join(""));
   } catch {
     return none();

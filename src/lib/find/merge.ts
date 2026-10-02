@@ -66,10 +66,14 @@ export function mergeFind(
   for (const r of [...travellers, ...ranked]) {
     if (out.length >= MAX_RESULTS) break;
     // One branch of a chain: 787 Coffee came back four times near New York's sights.
-    const name = "name:" + r.name.toLowerCase().replace(/[^a-z0-9]/g, "");
-    if (seen.has(r.placeId) || seen.has(name) || onJourney(r)) continue;
+    // A Ticketmaster show (lib/find/ticketmaster) has no rating and is told
+    // apart by its own name: two concerts at one arena are two results
+    // (1 Oct 2026: all twelve Santa Barbara shows were dropped as unrated).
+    const show = r.placeId.startsWith("tm:");
+    const name = "name:" + (show ? r.title ?? r.name : r.name).toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (seen.has(r.placeId) || seen.has(name) || (!show && onJourney(r))) continue;
     if (km(base, r) > farKm) continue;
-    if (r.from === "google" && !wellRated(r.rating, r.reviews)) continue;
+    if (r.from === "google" && !show && !wellRated(r.rating, r.reviews)) continue;
     seen.add(r.placeId);
     seen.add(name);
     out.push(r);

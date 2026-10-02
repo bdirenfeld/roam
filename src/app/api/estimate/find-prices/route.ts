@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/supabase/authUser";
 import { underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import Anthropic from "@anthropic-ai/sdk";
+import { overBudget, addSpend } from "@/lib/api/spend";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { currencyForDestination, HOME_CURRENCY } from "@/lib/budget/currency";
 import { ticketCost } from "@/lib/budget/load";
@@ -41,6 +43,7 @@ function extractJson(text: string): Record<string, unknown> | null {
 
 async function lookup(
   client: Anthropic,
+  spendDb: ReturnType<typeof createAdminClient> | null,
   card: { id: string; title: string; subType: string | null; notes: string | null },
   destination: string,
   currency: string,
@@ -65,6 +68,7 @@ Other stops on this journey, in order: ${siblings}`;
       // Server-side web search: Anthropic runs the searches; nothing to host.
       tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }],
     });
+    await addSpend(spendDb, `price ${card.title}`, res.usage, res.model);
     const text = res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("\n");
     const j = extractJson(text);
     const amount = typeof j?.amount_per_person === "number" && j.amount_per_person >= 0 ? Math.round(j.amount_per_person * 100) / 100 : null;
@@ -146,6 +150,9 @@ export async function POST(req: NextRequest) {
 
   if (blanks.length === 0) return NextResponse.json({ items: [], currency });
 
+  let spendDb: ReturnType<typeof createAdminClient> | null = null;
+  try { spendDb = createAdminClient(); } catch { spendDb = null; }
+  if (await overBudget(spendDb)) return NextResponse.json({ error: "Price lookups are paused until tomorrow" }, { status: 503 });
   const client = new Anthropic({ apiKey });
 
   // Each answer is written to its card the moment it lands, so a slow
@@ -173,7 +180,7 @@ export async function POST(req: NextRequest) {
     if (i > 0 && Date.now() - started > 35_000) break;
     const batch = blanks.slice(i, i + 8);
     const found = await Promise.all(
-      batch.map(async (b) => { const r = await lookup(client, b, destination, currency, when, siblings); await write(r); return r; }),
+      batch.map(async (b) => { const r = await lookup(client, spendDb, b, destination, currency, when, siblings); await write(r); return r; }),
     );
     results.push(...found);
   }

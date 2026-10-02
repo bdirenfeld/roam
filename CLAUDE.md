@@ -2012,3 +2012,10 @@ the component mounted and you are looking at throttling, not a broken map.
   more, take some places off a day and they go back to your saved places. Then run Plan my trip again." — no region
   list, no Plan button; "Remove what Plan my trip added" stays. (Was a toast after pressing Plan.) His call: no
   arrival/hotel-to-hotel travel cards — uploaded bookings already put the landing and the check-in on the day.
+- Claude cost (1 Oct 2026, his call "do 1 and 3"): trip notes and both booking readers run on Haiku 4.5
+  (claude-haiku-4-5-20251001); Find's travellers' picks, yearly events, entry check and prices stay Sonnet; the
+  assistant is Opus. EVERY Claude route now checks overBudget and calls addSpend(…, res.model) — bookings,
+  attachments, entry check, prices, share suggest and the assistant ran uncapped before. lib/api/spend prices by
+  model (Haiku 1/5, Sonnet 3/15, Opus 5/25 $ per M). Not done (his "later"): area-level travellers' cache, paid tier.
+- Ticketmaster shows have no Google rating: mergeFind keeps "tm:" results without wellRated and dedupes them by
+  title, not venue (all 12 Santa Barbara shows were dropped as unrated).

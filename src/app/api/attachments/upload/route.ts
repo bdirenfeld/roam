@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import Anthropic from "@anthropic-ai/sdk";
 import { CONFIRMATION_PROMPT, extractBookings } from "@/lib/confirmations/prompt";
+import { overBudget, addSpend } from "@/lib/api/spend";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const maxDuration = 30;
 
@@ -89,6 +91,13 @@ export async function POST(req: NextRequest) {
   }
 
   const base64 = Buffer.from(bytes).toString("base64");
+  let spendDb: ReturnType<typeof createAdminClient> | null = null;
+  try { spendDb = createAdminClient(); } catch { spendDb = null; }
+  // Over the day's Claude budget the file is kept, unread.
+  if (await overBudget(spendDb)) {
+    await supabase.from("card_attachments").update({ parse_status: "failed" }).eq("id", attachment.id);
+    return NextResponse.json({ attachment: { ...attachment, parse_status: "failed" } });
+  }
   const client  = new Anthropic({ apiKey });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -125,12 +134,14 @@ export async function POST(req: NextRequest) {
 
   try {
     const response = await client.messages.create({
-      model:      "claude-sonnet-4-6",
+      // Haiku (1 Oct 2026): reading a document is extraction; a tenth of the cost.
+      model:      "claude-haiku-4-5-20251001",
       max_tokens: asBooking ? 1600 : 1024,
       system:     asBooking ? CONFIRMATION_PROMPT : PARSE_SYSTEM_PROMPT,
       messages:   [{ role: "user", content: contentBlocks }],
     });
 
+    await addSpend(spendDb, "read attachment", response.usage, response.model);
     const raw = response.content.find((b) => b.type === "text");
     if (!raw || raw.type !== "text") throw new Error("No text in response");
     const parsedData: Record<string, unknown> = asBooking ? { bookings: extractBookings(raw.text) } : extractJson(raw.text);

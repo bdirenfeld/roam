@@ -190,3 +190,11 @@ describe("never a cinema", () => {
     expect(fitsCategory("event", ["movie_theater"])).toBe(true);
   });
 });
+
+describe("Ticketmaster's shows (1 Oct 2026)", () => {
+  const show = (id: string, title: string): FindResult => ({ placeId: `tm:${id}`, title, name: "Santa Barbara Bowl", address: "1122 N Milpas St", lat: 34.4335, lng: -119.6869, rating: null, reviews: null, why: "Fri 9 Oct: Rock, 7:00 PM.", source: { name: "Ticketmaster", url: "https://ticketmaster.com/e" }, from: "google", kids: false });
+  it("are kept without a Google rating, two at one venue as two", () => {
+    const out = mergeFind({ lat: 34.4208, lng: -119.6566 }, [], [show("a", "Band A"), show("b", "Band B"), show("c", "Band A")], new Set());
+    expect(out.map((r) => r.title)).toEqual(["Band A", "Band B"]);
+  });
+});

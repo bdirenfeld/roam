@@ -81,11 +81,12 @@ export async function POST(req: NextRequest) {
     const batches = batchesOf(places, NOTES_BATCH);
     const results = await Promise.allSettled(batches.map(async (batch) => {
       const res = await client.messages.create({
-        model: "claude-sonnet-4-6",
+        // Haiku (1 Oct 2026): notes are short, structured writing; a tenth of the cost.
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 2500,
         messages: [{ role: "user", content: notesPrompt(batch, who) }],
       });
-      await addSpend(admin, `notes ${batch.length}`, res.usage as Parameters<typeof addSpend>[2]);
+      await addSpend(admin, `notes ${batch.length}`, res.usage as Parameters<typeof addSpend>[2], res.model);
       const text = res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("\n");
       return parseNotes(text);
     }));

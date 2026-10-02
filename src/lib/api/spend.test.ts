@@ -14,3 +14,13 @@ describe("what a Claude call costs", () => {
     expect(DAILY_CAP_CENTS).toBe(300);
   });
 });
+
+describe("priced by the model that answered (1 Oct 2026)", () => {
+  const u = { input_tokens: 1_000_000, output_tokens: 1_000_000 };
+  it("Haiku, Sonnet and Opus at their own rates; an unknown model as Sonnet", () => {
+    expect(costCents(u, "claude-haiku-4-5-20251001")).toBe(600);
+    expect(costCents(u, "claude-sonnet-4-6")).toBe(1800);
+    expect(costCents(u, "claude-opus-4-7")).toBe(3000);
+    expect(costCents(u)).toBe(1800);
+  });
+});

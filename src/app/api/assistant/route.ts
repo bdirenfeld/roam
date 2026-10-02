@@ -8,6 +8,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import Anthropic from "@anthropic-ai/sdk";
+import { overBudget, addSpend } from "@/lib/api/spend";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/authUser";
 import { getTripAccess } from "@/lib/trip-access";
@@ -1156,6 +1158,9 @@ async function handleTurn(
     content: h.content,
   }));
 
+  let spendDb: ReturnType<typeof createAdminClient> | null = null;
+  try { spendDb = createAdminClient(); } catch { spendDb = null; }
+  if (await overBudget(spendDb)) return NextResponse.json({ error: "The assistant is paused until tomorrow" }, { status: 503 });
   const client = new Anthropic({ apiKey });
   const system: Anthropic.TextBlockParam[] = [
     {
@@ -1190,6 +1195,7 @@ async function handleTurn(
             send({ type: "text", delta });
           });
           const final = await ms.finalMessage();
+          await addSpend(spendDb, "assistant", final.usage, final.model);
 
           if (final.stop_reason === "tool_use") {
             const toolUses = final.content.filter(

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import { tripCountries, needsEntryCheck } from "@/lib/entry/countries";
 import Anthropic from "@anthropic-ai/sdk";
+import { overBudget, addSpend } from "@/lib/api/spend";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { EntryAdvisory, EntryData, EntryLine } from "@/lib/entry/types";
 import { getAuthUser } from "@/lib/supabase/authUser";
@@ -99,6 +101,9 @@ Party: ${trip.party_size ?? "unknown"} people, including children
 Travel dates: ${trip.start_date} to ${trip.end_date}${nights != null ? ` (${nights} nights)` : ""}
 Today: ${new Date().toISOString().slice(0, 10)}`;
 
+  let spendDb: ReturnType<typeof createAdminClient> | null = null;
+  try { spendDb = createAdminClient(); } catch { spendDb = null; }
+  if (await overBudget(spendDb)) return NextResponse.json({ error: "The entry check is paused until tomorrow" }, { status: 503 });
   let parsed: Record<string, unknown> | null = null;
   try {
     const client = new Anthropic({ apiKey });
@@ -109,6 +114,7 @@ Today: ${new Date().toISOString().slice(0, 10)}`;
       messages: [{ role: "user", content: userMsg }],
       tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }],
     });
+    await addSpend(spendDb, "entry check", res.usage, res.model);
     const text = res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("\n");
     parsed = extractJson(text);
   } catch {
