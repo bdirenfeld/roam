@@ -2026,3 +2026,9 @@ the component mounted and you are looking at throttling, not a broken map.
   link (one door). ENTRY row reads "Travel requirements" with a pill: "✓ None pending" / "Action required · N" /
   "Not checked yet". His rulings: no multi-stop switch (hotels show it); nothing about hotels at trip creation.
 - Ticketmaster shows are kept by their local date within the trip (the UTC query window let in the evening before).
+
+### Find never covers the map; a save rings its pin (1 Oct 2026)
+- Brennan: "if you click Saved you can't really tell where it's saved on the map." Approved mock: Find docked beside the map on a computer, a half sheet on the phone, the new pin pulsing.
+- `FindSheet` `dock` prop: WeekMap passes "beside" (absolute, `right: calc(100% + 10px)`, 400 px, over the week) or "inside" when the map is widened. FullMapClient (phone) passes nothing: a 50dvh sheet, handle toggles 88dvh, wrapper `pointer-events-none` so the map above still pans. No dimming backdrop anywhere; Escape or ✕ closes.
+- `lib/map/pulse.ts`: `coverFrom(mapBox, sheetBox)` works out what the sheet hides; `pulseAt` glides only if the place is outside the uncovered part (easeTo `offset`, never `padding`, which sticks to the map), then adds a 2 s two-ring marker (pointer-events none) and removes it.
+- Saving does not pick a day: the pin goes on the map; drag it onto a day or let Plan my trip place it.

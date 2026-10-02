@@ -35,6 +35,7 @@ import { createClient } from "@/lib/supabase/client";
 import { scheduleCardOnDay } from "@/lib/scheduleCard";
 import { planBatch, plannedOtherDays, stayAnchor } from "@/lib/week/dayPlan";
 import { tapFilter } from "@/lib/map/tapFilter";
+import { pulseAt } from "@/lib/map/pulse";
 import dynamic from "next/dynamic";
 import { reloadOnStale } from "@/lib/chunkReload";
 import { useWarmFind } from "@/hooks/useWarmFind";
@@ -1144,7 +1145,12 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
           </div>
         </div>
         {findOpen && (
-          <FindSheet trip={trip} days={days} cards={cards} onClose={() => setFindOpen(false)} onSaved={() => router.refresh()} />
+          <FindSheet trip={trip} days={days} cards={cards} onClose={() => setFindOpen(false)}
+            onSaved={(c) => {
+              router.refresh();
+              // The half sheet leaves the top of the map showing; the new pin is ringed there (lib/map/pulse).
+              if (c.place?.lng != null && c.place?.lat != null) pulseAt(mbRef.current, mapInstRef.current, c.place.lng, c.place.lat, document.querySelector('[role="dialog"][aria-label="Find places"]'));
+            }} />
         )}
         {planOpen && (
           <PlanMyTripSheet

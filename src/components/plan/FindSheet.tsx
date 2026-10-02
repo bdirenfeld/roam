@@ -26,13 +26,15 @@ import { inferTypeOrSight } from "@/lib/places/inferType";
  * Map. Mock: https://claude.ai/artifact/Y7jvE2BRLyzFgropo5bqSG
  */
 export default function FindSheet({
-  trip, days, cards, onClose, onSaved,
+  trip, days, cards, onClose, onSaved, dock,
 }: {
   trip: Trip;
   days: Day[];
   cards: Card[];
   onClose: () => void;
   onSaved: (card: Card) => void;
+  /** On a computer: "beside" the week's map (over the week), or "inside" a widened map. Unset: the phone's half sheet. */
+  dock?: "beside" | "inside";
 }) {
   // Escape steps back from a place to the list, then closes.
   const [open, setOpen] = useState<FindResult | null>(null);
@@ -160,16 +162,46 @@ export default function FindSheet({
     }
   };
 
+  // Never over the map (1 Oct 2026: "if you click Saved you can't really tell
+  // where it's saved"): on a computer a panel docked against the map, over the
+  // week (inside the map when it is widened); on the phone a half sheet with
+  // the map above. Nothing dims the map, so a saved pin is seen landing
+  // (lib/map/pulse). Escape or ✕ closes; the map stays usable while it is open.
+  const [tall, setTall] = useState(false);
+  const dragY = useRef<number | null>(null);
+  const touchedAt = useRef(0);
   return (
-    <div className="fixed inset-0 z-[70] flex items-end md:items-center justify-center" onClick={onClose} style={{ background: "rgba(26,26,46,0.28)" }}>
+    <div
+      className={dock ? "absolute top-3 bottom-3 z-[60] flex" : "fixed inset-x-0 bottom-0 z-[70] flex items-end pointer-events-none"}
+      style={dock === "beside" ? { right: "calc(100% + 10px)", width: 400 } : dock === "inside" ? { left: 12, width: 400, maxWidth: "calc(100% - 24px)" } : undefined}
+    >
       <div
         role="dialog"
         aria-label="Find places"
-        onClick={(e) => e.stopPropagation()}
-        className="w-full md:w-[460px] bg-white rounded-t-2xl md:rounded-2xl flex flex-col max-h-[88vh]"
-        style={{ boxShadow: "0 16px 40px rgba(26,26,46,0.22)" }}
+        className={dock ? "w-full h-full bg-white rounded-2xl flex flex-col overflow-hidden" : "w-full max-w-mobile mx-auto bg-white rounded-t-2xl flex flex-col pointer-events-auto"}
+        style={dock ? { boxShadow: "0 12px 32px rgba(26,26,46,0.22)" } : { height: tall ? "88dvh" : "50dvh", transition: "height 220ms ease", boxShadow: "0 -8px 24px rgba(26,26,46,0.18)" }}
       >
-        <div className="px-5 pt-4 pb-3 flex flex-col gap-3 border-b" style={{ borderColor: "rgba(26,26,46,0.08)" }}>
+        {!dock && (
+          // The handle, as Where to stay's: drag up for more results, down for more map; a tap toggles.
+          <button
+            type="button"
+            aria-label={tall ? "Show more map" : "Show more results"}
+            className="flex-shrink-0 flex justify-center pt-3 pb-1"
+            style={{ touchAction: "none" }}
+            onTouchStart={(e) => { dragY.current = e.touches[0].clientY; }}
+            onTouchEnd={(e) => {
+              const from = dragY.current; dragY.current = null;
+              if (from == null) return;
+              const dy = e.changedTouches[0].clientY - from;
+              touchedAt.current = Date.now();
+              if (dy < -40) setTall(true); else if (dy > 40) setTall(false); else if (Math.abs(dy) < 12) setTall((t) => !t);
+            }}
+            onClick={() => { if (Date.now() - touchedAt.current > 700) setTall((t) => !t); }}
+          >
+            <span className="w-12 h-[4px] rounded-full bg-gray-300" />
+          </button>
+        )}
+        <div className={`px-5 ${dock ? "pt-4" : "pt-1"} pb-3 flex flex-col gap-3 border-b`} style={{ borderColor: "rgba(26,26,46,0.08)" }}>
           <div className="flex items-center justify-between">
             <h2 className="text-[18px] font-semibold text-[#1A1A2E]">Find places</h2>
             <button type="button" onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">

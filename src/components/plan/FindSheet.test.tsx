@@ -78,6 +78,25 @@ describe("Find sheet", { timeout: 20000 }, () => {
     expect(within(screen.getByRole("region", { name: "Trattoria Da Enzo" })).getByText(/min walk from Banco 19 B&B$/)).toBeTruthy();
   });
 
+  it("never covers the map: docked beside it on a computer, a half sheet on the phone, nothing dimmed (1 Oct 2026)", async () => {
+    let r!: ReturnType<typeof render>;
+    await act(async () => { r = render(<FindSheet trip={trip} days={[]} cards={[] as Card[]} dock="beside" onClose={vi.fn()} onSaved={vi.fn()} />); });
+    const { container, unmount } = r;
+    const panel = screen.getByRole("dialog", { name: "Find places" }).parentElement!;
+    expect(panel.className).toMatch(/absolute/);
+    expect(panel.style.right).toBe("calc(100% + 10px)"); // against the map's edge, over the week
+    expect(container.innerHTML).not.toContain("rgba(26, 26, 46, 0.28)"); // the old dimming backdrop
+    unmount();
+    await act(async () => { render(<FindSheet trip={trip} days={[]} cards={[] as Card[]} onClose={vi.fn()} onSaved={vi.fn()} />); });
+    const sheet = screen.getByRole("dialog", { name: "Find places" });
+    expect(sheet.style.height).toBe("50dvh");
+    expect(sheet.parentElement!.className).toMatch(/pointer-events-none/); // the map above takes taps
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Show more results" })); });
+    expect(sheet.style.height).toBe("88dvh");
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Show more map" })); });
+    expect(sheet.style.height).toBe("50dvh");
+  });
+
   it("warms every category on open, so tapping across the chips never waits", async () => {
     await act(async () => { render(<FindSheet trip={trip} days={[]} cards={[] as Card[]} onClose={vi.fn()} onSaved={vi.fn()} />); });
     const google = new Set(finds().filter((c) => c.body.mode === "google").map((c) => c.body.subType));

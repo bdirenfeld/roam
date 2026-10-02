@@ -21,6 +21,7 @@ import { useWarmFind } from "@/hooks/useWarmFind";
 // Loaded when first opened: they were in every week page's download (29 Sep 2026).
 const PlanMyTripSheet = dynamic(reloadOnStale(() => import("./PlanMyTripSheet")), { ssr: false });
 import { stackOrder, restack } from "@/lib/map/pinStack";
+import { pulseAt } from "@/lib/map/pulse";
 const FindSheet = dynamic(reloadOnStale(() => import("./FindSheet")), { ssr: false });
 import { pinsToPlan, untouchedPlan } from "@/lib/plan/draftRows";
 import { searchCountries } from "@/lib/entry/countries";
@@ -578,7 +579,12 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
         <PlanMyTripSheet trip={trip} days={days} cards={cards} onClose={() => setPlanOpen(false)} onDrafted={onDraftCreated} />
       )}
       {findOpen && (
-        <FindSheet trip={trip} days={days} cards={cards} onClose={() => setFindOpen(false)} onSaved={onCardCreated} />
+        <FindSheet trip={trip} days={days} cards={cards} dock={wide ? "inside" : "beside"} onClose={() => setFindOpen(false)}
+          onSaved={(c) => {
+            onCardCreated(c);
+            // The new pin, ringed where it landed (lib/map/pulse).
+            if (c.place?.lng != null && c.place?.lat != null) pulseAt(mbRef.current, mapRef.current, c.place.lng, c.place.lat, document.querySelector('[role="dialog"][aria-label="Find places"]'));
+          }} />
       )}
       {showStays && onCloseStays && (
         <WhereToStaySheet
