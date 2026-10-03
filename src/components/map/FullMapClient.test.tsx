@@ -142,6 +142,17 @@ describe("the phone Map", { timeout: 20000 }, () => {
     vi.unstubAllEnvs();
   });
 
+  it("closing Find puts a page the keyboard scrolled back at the top, so the header shows (3 Oct 2026)", async () => {
+    await act(async () => { render(<FullMapClient trip={trip} days={days} cards={cards} />); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Find places" })); });
+    const scrollTo = vi.fn();
+    window.scrollTo = scrollTo as unknown as typeof window.scrollTo;
+    Object.defineProperty(window, "scrollY", { value: 140, configurable: true });
+    await act(async () => { sheets.find.onClose(); });
+    expect(scrollTo).toHaveBeenCalledWith(0, 0);
+    Object.defineProperty(window, "scrollY", { value: 0, configurable: true });
+  });
+
   it("Plan my trip from above Find closes Find, so the two sheets never stack", async () => {
     await act(async () => { render(<FullMapClient trip={trip} days={days} cards={cards} />); });
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Find places" })); });

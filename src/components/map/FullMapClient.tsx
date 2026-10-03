@@ -1168,7 +1168,14 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
           </div>
         </div>
         {findOpen && (
-          <FindSheet trip={trip} days={days} cards={cards} onClose={() => { setFindOpen(false); setFindTall(false); }}
+          <FindSheet trip={trip} days={days} cards={cards} onClose={() => {
+              setFindOpen(false); setFindTall(false);
+              // Android Chrome scrolls the page to make room for the keyboard
+              // when Find's search is typed in, and leaves it there: the header
+              // (back, search, ⋯) sat off the top with a white band below the
+              // map (3 Oct 2026). The map is a full-screen page; put it back.
+              if (typeof window !== "undefined" && window.scrollY !== 0) window.scrollTo(0, 0);
+            }}
             onTall={setFindTall}
             // The place open in Find, as a purple pin above the sheet (lib/map/pulse).
             onFocus={(r) => {
