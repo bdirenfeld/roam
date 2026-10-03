@@ -97,6 +97,14 @@ describe("the shared page", () => {
     expect(container.textContent).not.toMatch(/Intent|I have limited/);
   });
 
+  it("stop photos load only as they come into view, not all 45 at once (speed, 3 Oct 2026)", () => {
+    const j = journey(today);
+    j.cards = [{ ...j.cards[0], place: { ...j.cards[0].place!, photo: "https://x/p.jpg" } }];
+    const { container } = render(<SharedItinerary token="t" journey={j} />);
+    const img = container.querySelector('img[src="https://x/p.jpg"]')!;
+    expect(img.getAttribute("loading")).toBe("lazy");
+  });
+
   it("stays simple: a start time, no end time and no meeting-point lines", () => {
     const { container } = render(<SharedItinerary token="t" journey={journey(today)} />);
     expect(screen.getByText("10:00 AM")).toBeTruthy();

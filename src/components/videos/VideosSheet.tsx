@@ -61,7 +61,7 @@ export default function VideosSheet({ onClose }: { onClose: () => void }) {
               >
                 <span className="relative w-[104px] h-[58px] rounded-lg overflow-hidden flex-shrink-0" style={{ background: "#FAF9F6" }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={posterUrl(SUPABASE_BASE, v, available)} alt="" className="w-full h-full object-cover" />
+                  <img src={posterUrl(SUPABASE_BASE, v, available)} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                   <PlayDisc size={24} />
                 </span>
                 <span className="min-w-0">

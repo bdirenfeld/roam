@@ -407,7 +407,7 @@ function FindPlace({ r, dates, away, saved, onSave, onBack }: { r: FindResult; d
         <div className="relative flex-shrink-0">
           <div ref={strip} onScroll={edges} className="flex gap-2 overflow-x-auto scrollbar-none px-5 py-1 scroll-smooth">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            {photos.map((u) => <img key={u} src={u} alt="" onLoad={edges} className="h-16 w-24 flex-shrink-0 rounded-lg object-cover bg-gray-100" />)}
+            {photos.map((u) => <img key={u} src={u} alt="" loading="lazy" decoding="async" onLoad={edges} className="h-16 w-24 flex-shrink-0 rounded-lg object-cover bg-gray-100" />)}
           </div>
           {canBack && (
             <button type="button" aria-label="Previous photo" onClick={() => step(-1)}

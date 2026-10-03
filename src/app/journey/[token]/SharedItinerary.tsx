@@ -363,7 +363,7 @@ export default function SharedItinerary({
                             // Only a photo already cached in our own bucket: the
                             // live photo route needs a session, and this page has none.
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={c.place.photo} alt="" className="w-[52px] h-[52px] rounded-lg object-cover shrink-0" style={{ background: "rgba(26,26,46,0.04)" }} />
+                            <img src={c.place.photo} alt="" loading="lazy" decoding="async" className="w-[52px] h-[52px] rounded-lg object-cover shrink-0" style={{ background: "rgba(26,26,46,0.04)" }} />
                           )}
                         </div>
                       );
