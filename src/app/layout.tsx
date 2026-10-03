@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import ServiceWorkerRegistrar from "@/components/ui/ServiceWorkerRegistrar";
+import { materialFontUrl } from "@/lib/mapPins";
 
 export const metadata: Metadata = {
   title: "Roam",
@@ -37,11 +38,9 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap"
           rel="stylesheet"
         />
-        {/* Material Symbols — variable font, all axes available */}
-        <link
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
-          rel="stylesheet"
-        />
+        {/* Material Symbols — only Roam's glyphs and axis values (lib/mapPins
+            materialFontUrl): ~20 KB instead of 4 MB (3 Oct 2026). */}
+        <link href={materialFontUrl()} rel="stylesheet" />
       </head>
       <body className="antialiased bg-parchment text-gray-900">
         <ServiceWorkerRegistrar />

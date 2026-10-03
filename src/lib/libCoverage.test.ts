@@ -39,7 +39,6 @@ const GRANDFATHERED = new Set([
   "countries.ts",
   "entry/types.ts",
   "formatTime.ts",
-  "mapPins.ts",
   "newJourneySeed.ts",
   "offline/queuedWrite.ts",
   "offline/writeQueue.ts",

@@ -174,6 +174,21 @@ const MATERIAL_ICONS: Record<string, string> = {
   medical:          "medical_services",
 };
 
+/** Glyphs used outside MATERIAL_ICONS: the fallback, a note card, the day map's hotel. */
+const OTHER_GLYPHS = ["place", "edit_note", "hotel"];
+
+/**
+ * The Material Symbols stylesheet with ONLY Roam's glyphs and ONLY the axis
+ * values Roam sets (opsz 20, wght 400, GRAD 0; FILL 0 and 1). The whole family
+ * was a 4.0 MB font on every first visit, about 4 s on 4G (speed baseline,
+ * 3 Oct 2026). Google wants icon_names sorted and comma-separated. Any glyph
+ * added to the app must be in MATERIAL_ICONS or OTHER_GLYPHS, or it shows as a word.
+ */
+export function materialFontUrl(): string {
+  const names = Array.from(new Set([...Object.values(MATERIAL_ICONS), ...OTHER_GLYPHS])).sort();
+  return `https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0..1,0&icon_names=${names.join(",")}&display=block`;
+}
+
 /**
  * Creates a DOM-based map pin using Material Symbols icons (Google Maps style).
  * A 28px circle with a centered 16px icon, white border, drop shadow.
