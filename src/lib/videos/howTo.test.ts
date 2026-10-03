@@ -14,7 +14,17 @@ describe("the video list", () => {
       ["first-journey", "Your first journey", "1 min"],
       ["planning-computer", "Planning on a computer", "1 min"],
       ["on-the-trip", "On the trip", "45 s"],
+      ["in-the-app", "Using Roam on your trip", "1 min"],
     ]);
+  });
+
+  it("video 4 is in the menu only: never offered on a screen (2 Oct 2026)", () => {
+    expect(VIDEOS.find((v) => v.id === "in-the-app")!.surfaces).toEqual([]);
+    const four: Available = { ...all, "in-the-app": 1 };
+    expect(listed(four).map((v) => v.id)).toContain("in-the-app");
+    for (const s of ["journeys-empty", "start-here", "start-here-computer", "shared-link"] as const) {
+      expect(forSurface(s, { "in-the-app": 1 }, {})).toBeNull();
+    }
   });
 
   it("each video shows in at most two places before it is gone (the mock's table)", () => {

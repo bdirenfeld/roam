@@ -15,7 +15,7 @@
  * No videos.json, or a fetch that fails: nothing shows anywhere.
  */
 
-export type VideoId = "first-journey" | "planning-computer" | "on-the-trip";
+export type VideoId = "first-journey" | "planning-computer" | "on-the-trip" | "in-the-app";
 
 /** The places a video is offered before it is gone. The menu lists every switched-on video, always. */
 export type Surface = "journeys-empty" | "start-here" | "start-here-computer" | "shared-link";
@@ -58,6 +58,16 @@ export const VIDEOS: HowToVideo[] = [
     file: "on-the-trip.mp4",
     poster: "on-the-trip.jpg",
     surfaces: ["shared-link"],
+  },
+  {
+    // Video 4 (2 Oct 2026): the organiser on their phone, mid-trip. Menu only:
+    // there is no single moment on a screen where it belongs.
+    id: "in-the-app",
+    title: "Using Roam on your trip",
+    length: "1 min",
+    file: "in-the-app.mp4",
+    poster: "in-the-app.jpg",
+    surfaces: [],
   },
 ];
 
