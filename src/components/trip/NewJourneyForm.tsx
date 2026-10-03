@@ -19,7 +19,6 @@ import { isPhone } from "@/lib/device";
 import { matchRegions, REGIONS } from "@/lib/places/regions";
 import { getAuthUser } from "@/lib/supabase/authUser";
 import { useRouter } from "next/navigation";
-import { Camera } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import { isCruiseName } from "@/lib/places/inferType";
 import { useToast } from "@/components/ui/Toast";
@@ -184,8 +183,8 @@ export default function NewJourneyForm({
 
   // Cover state
   const [coverUrl,         setCoverUrl]         = useState<string | null>(null);
-  const [coverError,       setCoverError]       = useState(false);
-  const [fetchingCover,    setFetchingCover]    = useState(false);
+  const [,                 setCoverError]       = useState(false);
+  const [,                 setFetchingCover]    = useState(false);
   const [showCoverSheet,   setShowCoverSheet]   = useState(false);
   const [coverUrlInput,    setCoverUrlInput]    = useState("");
   const [coverPreviewError, setCoverPreviewError] = useState(false);
@@ -492,10 +491,6 @@ export default function NewJourneyForm({
     }
   }, []);
 
-  // Cover source — Unsplash auto-fetch or manually pasted URL only; no satellite fallback
-  const coverSrc = coverUrl && !coverError ? coverUrl : null;
-
-  const hasCover = !!coverSrc;
 
   // Dates display
   const dateRangeDisplay = startDate && endDate
@@ -734,45 +729,8 @@ export default function NewJourneyForm({
         ].join(" ")}
       >
 
-        {/* Cover hero */}
-        <button
-          onClick={() => { setCoverUrlInput(coverUrl ?? ""); setCoverPreviewError(false); setShowCoverSheet(true); }}
-          className="relative w-full h-[100px] block overflow-hidden flex-shrink-0"
-          aria-label={hasCover ? "Change cover photo" : "Add cover photo"}
-        >
-          {coverSrc ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={coverSrc}
-              alt="Destination"
-              className="absolute inset-0 w-full h-full object-cover"
-              onError={() => setCoverError(true)}
-            />
-          ) : (
-            <div className="absolute inset-0 bg-gradient-to-b from-stone-200 to-stone-100" />
-          )}
-
-          {/* Scrim + label — dark scrim when there's a cover, transparent otherwise */}
-          <div
-            className="absolute inset-0 flex flex-col items-center justify-center gap-1"
-            style={{ background: hasCover ? "rgba(0,0,0,0.25)" : "transparent" }}
-          >
-            <Camera size={14} weight="light" color={hasCover ? "white" : "#9CA3AF"} />
-            <span className={`text-[11px] font-medium tracking-wide ${hasCover ? "text-white" : "text-gray-400"}`}>
-              {hasCover ? "Change cover" : "Add cover"}
-            </span>
-          </div>
-
-          {/* Fetching indicator */}
-          {fetchingCover && (
-            <div className="absolute top-2 right-2">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" className="animate-spin">
-                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-              </svg>
-            </div>
-          )}
-        </button>
-
+        {/* No cover step (3 Oct 2026, Brennan): one is fetched for the destination
+            automatically, and it can be changed in the journey's settings. */}
         {/* Inline field rows */}
         <div className="mt-2">
 

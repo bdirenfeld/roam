@@ -84,6 +84,12 @@ describe("Plan a journey", { timeout: 20000 }, () => {
     expect(list.style.transform).toBe("");
   });
 
+  it("doesn't ask for a cover photo: one is fetched for the destination (3 Oct 2026)", async () => {
+    await act(async () => { render(<NewJourneyForm variant="overlay" onDismiss={vi.fn()} />); });
+    expect(screen.queryByRole("button", { name: /cover photo/i })).toBeNull();
+    expect(screen.queryByText(/^(Add|Change) cover$/)).toBeNull();
+  });
+
   it("picking the start and end dates does not close the calendar; Done does", async () => {
     await act(async () => { render(<NewJourneyForm variant="overlay" onDismiss={vi.fn()} />); });
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: /Dates/ })); });
