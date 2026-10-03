@@ -40,6 +40,9 @@ function mapboxFallbackUrl(lat: number | null, lng: number | null): string | nul
  * a card never fires all ten Google photo requests at once.
  * Zero or one photo → a single static cover, exactly as before.
  */
+/** How many photos past the one in view are already loading. */
+export const LOOKAHEAD = 2;
+
 export default function PlacePhotoGallery({
   placeId,
   hasGooglePhotos,
@@ -52,9 +55,12 @@ export default function PlacePhotoGallery({
     () => (hasGooglePhotos ? photosCache.get(placeId) ?? null : [])
   );
   const [activeIndex, setActiveIndex] = useState(0);
-  // Highest index allowed to render a real <img>: active slide + one ahead.
-  // Monotonic — already-loaded slides stay loaded.
-  const [eagerUpTo, setEagerUpTo] = useState(1);
+  // Highest index allowed to render a real <img>: the active slide + LOOKAHEAD.
+  // Monotonic — already-loaded slides stay loaded. Two ahead, not one (3 Oct 2026,
+  // speed): a swipe comes about a second after the last, and a photo Roam hasn't
+  // stored yet takes about that long, so one ahead was still loading when it came
+  // into view. Not more: each uncached photo is a paid Google request.
+  const [eagerUpTo, setEagerUpTo] = useState(LOOKAHEAD);
   const [coverFailed, setCoverFailed] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -124,7 +130,7 @@ export default function PlacePhotoGallery({
     if (!el || el.clientWidth === 0) return;
     const next = Math.max(0, Math.min(count - 1, target));
     el.scrollTo({ left: next * el.clientWidth, behavior: "smooth" });
-    setEagerUpTo((n) => Math.max(n, next + 1));
+    setEagerUpTo((n) => Math.max(n, next + LOOKAHEAD));
   };
 
   // Controls must paint above CardBottomSheet's gradient overlay (z 20) and
@@ -145,7 +151,7 @@ export default function PlacePhotoGallery({
           if (!el || el.clientWidth === 0) return;
           const idx = Math.min(count - 1, Math.round(el.scrollLeft / el.clientWidth));
           setActiveIndex(idx);
-          setEagerUpTo((n) => Math.max(n, idx + 1));
+          setEagerUpTo((n) => Math.max(n, idx + LOOKAHEAD));
         }}
         onKeyDown={(e) => {
           if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;

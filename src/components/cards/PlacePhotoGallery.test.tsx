@@ -38,6 +38,13 @@ describe("PlacePhotoGallery", () => {
     expect(screen.getByText("1/10")).toBeInTheDocument();
   });
 
+  it("loads the photo in view and the next two, not all ten (speed, 3 Oct 2026)", async () => {
+    const { container } = show("place-ten-c", 10);
+    await waitFor(() => expect(container.querySelectorAll(".snap-start").length).toBe(10));
+    const srcs = Array.from(container.querySelectorAll(".snap-start img")).map((i) => i.getAttribute("src"));
+    expect(srcs).toEqual([0, 1, 2].map((i) => `/api/places/photo?place_id=place-ten-c&index=${i}`));
+  });
+
   it("shows dots for a handful and only the counter past five", async () => {
     const three = show("place-three", 3);
     await waitFor(() => expect(three.container.querySelectorAll(".snap-start").length).toBe(3));
