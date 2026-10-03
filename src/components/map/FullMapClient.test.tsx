@@ -127,10 +127,17 @@ describe("the phone Map", { timeout: 20000 }, () => {
     await act(async () => { render(<FullMapClient trip={trip} days={days} cards={[]} />); });
     expect(screen.getByText(/^(Nothing on the map yet|Start your map)$/)).toBeTruthy();
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Find places" })); });
+    // Find open: its sheet says what to do, so the empty-map card steps aside.
+    expect(screen.queryByText(/^(Nothing on the map yet|Start your map)$/)).toBeNull();
+    await act(async () => { sheets.find.onClose(); });
+    expect(screen.getByText(/^(Nothing on the map yet|Start your map)$/)).toBeTruthy();
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Find places" })); });
     await act(async () => { sheets.find.onSaved(cards[0]); });
     expect(screen.queryByText(/^(Nothing on the map yet|Start your map)$/)).toBeNull();
     // Saving the same place again (or the refresh bringing it back) doesn't double it.
     await act(async () => { sheets.find.onSaved(cards[0]); });
+    // Closed again: the pin is on the map, so the empty-map card stays gone.
+    await act(async () => { sheets.find.onClose(); });
     expect(screen.queryByText(/^(Nothing on the map yet|Start your map)$/)).toBeNull();
     vi.unstubAllEnvs();
   });

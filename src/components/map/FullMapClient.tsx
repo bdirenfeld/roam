@@ -1210,7 +1210,9 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
         {/* An empty map always has a door, not only on the first visit: a
             journey with nothing on it yet showed "Filter" and no words
             (new-journey audit, Sep 2026). The long intro is first-visit only. */}
-        {!hasRealPins && !readOnly && hasToken && (
+        {/* Not while Find is open: its sheet already says what to do, and the
+            card covered the map the pin is meant to land on (2 Oct 2026). */}
+        {!hasRealPins && !readOnly && hasToken && !findOpen && (
           <div
             className="absolute top-16 left-1/2 -translate-x-1/2 z-30 w-[min(340px,calc(100%-32px))] bg-white rounded-2xl shadow-sheet border border-gray-100 px-5 py-4"
           >
@@ -1224,7 +1226,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
                   leave it on the map and sort it into a day later.
                 </>
               ) : (
-                <>Search above for a place and save it — it lands here as a pin.</>
+                <>Tap Find places below, or search above. Whatever you save lands here as a pin.</>
               )}
             </p>
             {showHint && (
