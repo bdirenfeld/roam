@@ -17,6 +17,7 @@ const PAGE_CACHE = `${VERSION}-pages`;
 const STATIC_CACHE = `${VERSION}-static`;
 const PHOTO_CACHE = `${VERSION}-photos`;
 const KNOWN = [PAGE_CACHE, STATIC_CACHE, PHOTO_CACHE];
+const LAUNCH_WAIT_MS = 1200;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -93,6 +94,32 @@ self.addEventListener("fetch", (event) => {
           return hit || refresh;
         })
       )
+    );
+    return;
+  }
+
+  // Opening the app (3 Oct 2026, launch speed): the splash waited on a cold
+  // server for Journeys. For that one page, if the network hasn't answered in
+  // LAUNCH_WAIT_MS and a copy is cached, show the copy; the network answer
+  // still lands in the cache for next time. Every other page stays network-first.
+  if (request.mode === "navigate" && url.pathname === "/trips") {
+    const network = fetch(request).then((res) => {
+      if (res.ok && !res.redirected) {
+        const copy = res.clone();
+        caches.open(PAGE_CACHE).then((c) => c.put(request, copy));
+      }
+      return res;
+    });
+    event.respondWith(
+      new Promise((resolve) => {
+        let done = false;
+        const settle = (r) => { if (!done && r) { done = true; resolve(r); } };
+        network.then(settle).catch(async () => {
+          const hit = await caches.match(request);
+          settle(hit || (await caches.match("/offline.html")) || Response.error());
+        });
+        setTimeout(async () => { const hit = await caches.match(request); if (hit) settle(hit); }, LAUNCH_WAIT_MS);
+      })
     );
     return;
   }

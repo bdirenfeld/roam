@@ -18,6 +18,8 @@ import { isHouseholdOwner } from "@/lib/household";
 import CollapsibleSection from "@/components/trip/CollapsibleSection";
 import { getAuthUser } from "@/lib/supabase/authUser";
 
+const COVER_WAIT_MS = 400;
+
 export default async function TripsPage() {
   const supabase = await createClient();
   const user = await getAuthUser(supabase);
@@ -41,11 +43,13 @@ export default async function TripsPage() {
     (t: Trip) => t.destination && !t.cover_image_url,
   );
   if (tripsNeedingCover.length > 0) {
-    await Promise.all(
-      tripsNeedingCover.map((t: Trip) =>
-        fetchAndStoreCover(supabase, t.id, t.destination!),
-      ),
-    );
+    // Never hold Journeys for a cover (3 Oct 2026, launch speed): a trip whose
+    // Unsplash search keeps failing made every open wait on it. Give the
+    // fetch 400 ms; if it isn't back, render now and it lands on a later visit.
+    await Promise.race([
+      Promise.all(tripsNeedingCover.map((t: Trip) => fetchAndStoreCover(supabase, t.id, t.destination!))),
+      new Promise((r) => setTimeout(r, COVER_WAIT_MS)),
+    ]);
     // Re-fetch so the newly stored URLs are available for rendering
     const { data: refreshed } = await supabase
       .from("trips")
