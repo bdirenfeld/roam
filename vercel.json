@@ -8,5 +8,8 @@
       "path": "/api/assistant?keepalive=1",
       "schedule": "0 9 * * *"
     }
+  ],
+  "regions": [
+    "yul1"
   ]
 }
