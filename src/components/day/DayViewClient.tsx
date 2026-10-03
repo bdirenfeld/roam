@@ -365,7 +365,9 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   // One card at a time: it waits while Start here shows, and until we know.
   const [underway, setUnderway] = useState(false);
   useEffect(() => { setUnderway(isUnderwayLocal(trip.start_date, trip.end_date)); }, [trip.start_date, trip.end_date]);
-  const underwayShown = phone && underway && (readOnly || startCards !== null) && !startShown;
+  // Organiser only (Brennan, 2 Oct 2026): video 4 shows moving lunch and other
+  // owner-only moves, so a signed-in guest would watch things they can't do.
+  const underwayShown = phone && underway && !readOnly && startCards !== null && !startShown;
 
   // The desktop masthead's menu lives in the layout, so its Bookings row asks
   // whichever screen is open to show the sheet (Brennan, Sep 2026: "I thought

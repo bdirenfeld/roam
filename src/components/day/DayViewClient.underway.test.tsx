@@ -69,11 +69,11 @@ beforeEach(() => {
 });
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
 
-async function openOn(now: Date, phone = true) {
+async function openOn(now: Date, phone = true, readOnly = false) {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(now);
   await act(async () => {
-    render(<DayViewClient trip={trip} days={days} dayWithCards={dayOf("d2")} hotelCards={[]} initialNotes={null} phone={phone} />);
+    render(<DayViewClient trip={trip} days={days} dayWithCards={dayOf("d2")} hotelCards={[]} initialNotes={null} phone={phone} readOnly={readOnly} />);
   });
   await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
 }
@@ -112,6 +112,11 @@ describe("Your trip's started, on the phone's day", { timeout: 30000 }, () => {
 
   it("not on a computer", async () => {
     await openOn(new Date(2027, 4, 11, 9, 0), false);
+    expect(screen.queryByTestId("trip-underway-video")).toBeNull();
+  });
+
+  it("a signed-in guest: no card, it's the organiser's video (2 Oct 2026)", async () => {
+    await openOn(new Date(2027, 4, 11, 9, 0), true, true);
     expect(screen.queryByTestId("trip-underway-video")).toBeNull();
   });
 
