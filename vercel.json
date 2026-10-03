@@ -11,5 +11,6 @@
   ],
   "regions": [
     "yul1"
-  ]
+  ],
+  "fluid": true
 }
