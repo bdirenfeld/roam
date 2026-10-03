@@ -3,6 +3,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup, act } from "@testing-library/react";
 import fixture from "@/lib/plan/fixtures/trips.json";
 import hanoi from "@/lib/plan/fixtures/hanoi.json";
+import muskoka from "@/lib/plan/fixtures/muskoka.json";
 import type { Card, Day, Trip } from "@/types/database";
 
 /**
@@ -58,7 +59,8 @@ describe("Plan my trip sheet", () => {
     // A planned place on every one of the 14 days, the saved ones still waiting.
     // A day is taken once an activity is on it (lib/plan/draftRows draftDays).
     const onEveryDay = days.map((d, i) => ({ ...cards[i], id: `p${i}`, day_id: d.id, status: "in_itinerary", start_time: "10:00:00", end_time: "17:00:00", place: { ...cards[i].place!, type: "activity" } })) as unknown as Card[];
-    render(<PlanMyTripSheet trip={trip} days={days} cards={[...onEveryDay, ...cards.slice(14)]} onClose={vi.fn()} onDrafted={vi.fn()} />);
+    // Saved food would now go on those days as meals (lib/plan/mealsOnDays), so only sights are left saved here.
+    render(<PlanMyTripSheet trip={trip} days={days} cards={[...onEveryDay, ...cards.slice(14).filter((c) => c.place?.type !== "food")]} onClose={vi.fn()} onDrafted={vi.fn()} />);
     expect(screen.getByTestId("plan-full").textContent).toMatch(/^Every day is planned\.To plan more, take some places off a day/);
     expect(screen.queryByRole("button", { name: "Plan the trip" })).toBeNull();
   });
@@ -155,6 +157,20 @@ describe("Plan my trip sheet", () => {
     expect(msg).not.toMatch(/0\.5/);
     // Still the way back: the four places the earlier run put on days.
     expect(screen.getByRole("button", { name: "Remove what Plan my trip added (4 places)" })).toBeTruthy();
+  });
+
+  it("Muskoka, every day with a sight: offers the saved food as meals and says why one stays saved (3 Oct 2026)", () => {
+    // It said "No room for what's left" for two cafés and a restaurant.
+    const t = { ...muskoka.trip, title: "Muskoka" } as unknown as Trip;
+    render(<PlanMyTripSheet trip={t} days={muskoka.days as unknown as Day[]} cards={muskoka.cards as unknown as Card[]} onClose={vi.fn()} onDrafted={vi.fn()} />);
+    expect(screen.queryByTestId("plan-full")).toBeNull();
+    expect(screen.getByRole("button", { name: "Plan the trip" })).toBeTruthy();
+    const lines = Array.from(screen.getByTestId("plan-meals").querySelectorAll("li")).map((li) => li.textContent);
+    expect(lines).toEqual([
+      "Dinner at The Old Station Restaurant, Sat 10 Oct, near Santa's Village: Muskoka's Theme Park.",
+      "Coffee at Threshold Café & Collective, Sun 11 Oct, before Treetop Trekking Huntsville.",
+      "Henrietta’s Pine Bakery - Huntsville stays saved. It's closed on Sun 11 Oct, the only day near it.",
+    ]);
   });
 
   it("Hanoi with day 3 taken off: the button shows, and pressing it plans what the line said (2 Oct 2026)", async () => {

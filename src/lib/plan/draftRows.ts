@@ -24,6 +24,7 @@ import { hoursWindow, assumedWindow, retimeDay, sightMinutes, type RetimeItem } 
 import { isAirport, dayBounds, freeWithin, boundBlocks } from "./airports";
 import { paceDays, firstNightDinner, DINNER_AT } from "./pace";
 import { cardEventDates } from "./eventDays";
+import { mealsOnPlannedDays, slotOfTime, type MealPlaced, type MealLeft, type PlannedDay } from "./mealsOnDays";
 
 /** Where Plan my trip put a card; absent on everything else. */
 export interface PlanMark { day: string; start: string | null }
@@ -197,7 +198,7 @@ export function buildDraft(
   cards: Card[],
   days: Pick<Day, "id" | "date" | "day_number">[],
   opts: { kids: boolean; regions?: number[] },
-): { rows: DraftRow[]; dayIds: string[]; leftOut: number } {
+): { rows: DraftRow[]; dayIds: string[]; leftOut: number; meals: { placed: MealPlaced[]; left: MealLeft[] } } {
   const { grouping } = previewDraft(cards, days, opts.kids);
   const scheduled = cards.filter((c) => c.status === "in_itinerary" && c.day_id);
   const paced = paceDays(draftDays(days, scheduled), opts.kids);
@@ -320,8 +321,44 @@ export function buildDraft(
     });
     count.set(day, (count.get(day) ?? 0) + 1);
   }
+  // Saved food the day groups did not take: as meals on days already
+  // planned, near their sights (./mealsOnDays; Muskoka, 3 Oct 2026).
+  const placeOf = new Map(cards.filter((c) => c.place_id && c.place).map((c) => [c.place_id as string, c.place!]));
+  const taken = new Set([...rows.map((r) => r.place_id), ...scheduled.map((c) => c.place_id).filter(Boolean)]);
+  const mealPins = pinsToPlan(cards, days).filter((p) => p.type === "food" && p.subType !== "bar" && p.lat != null && p.lng != null && !taken.has(byId.get(p.id)?.place_id ?? ""));
+  const plannedDays: PlannedDay[] = dd.map((d, i) => {
+    const on = scheduled.filter((c) => c.day_id === d.id);
+    const mine = rows.filter((r) => r.day_id === d.id);
+    const sights = [
+      ...on.filter((c) => c.place?.type === "activity" && c.place.lat != null && c.place.lng != null).map((c) => ({ lat: c.place!.lat!, lng: c.place!.lng!, title: c.place!.title })),
+      ...mine.map((r) => placeOf.get(r.place_id)).filter((p): p is NonNullable<typeof p> => !!p && p.type === "activity" && p.lat != null && p.lng != null).map((p) => ({ lat: p.lat!, lng: p.lng!, title: p.title })),
+    ];
+    const busy = [
+      ...on.flatMap((c) => { const t = cardTimes(c); return t.start ? [{ start: toMin(t.start), end: t.end ? toMin(t.end) : toMin(t.start) + 60 }] : []; }),
+      ...mine.flatMap((r) => (r.start_time ? [{ start: toMin(r.start_time), end: r.end_time ? toMin(r.end_time) : toMin(r.start_time) + 60 }] : [])),
+      ...boundBlocks(dayBounds(on, { first: i === 0, last: i === dd.length - 1 })),
+    ];
+    const food = [
+      ...on.filter((c) => c.place?.type === "food").map((c) => slotOfTime(c.start_time ? toMin(c.start_time) : null, c.place!.sub_type)),
+      ...mine.filter((r) => placeOf.get(r.place_id)?.type === "food").map((r) => slotOfTime(r.start_time ? toMin(r.start_time) : null, placeOf.get(r.place_id)!.sub_type)),
+    ];
+    return { id: d.id, date: d.date, sights, busy, taken: food };
+  });
+  const meals = mealsOnPlannedDays(mealPins.map((p) => ({
+    id: p.id, title: p.title, subType: p.subType, lat: p.lat!, lng: p.lng!,
+    windowOn: (date: string) => hoursWindow((byId.get(p.id)?.place as unknown as { hours?: unknown } | undefined)?.hours, date),
+  })), plannedDays);
+  for (const m of meals.placed) {
+    const card = byId.get(m.id)!;
+    const pos = Math.max(0, ...rows.filter((r) => r.day_id === m.dayId).map((r) => r.position), ...scheduled.filter((c) => c.day_id === m.dayId).map((c) => c.position ?? 0)) + 1;
+    rows.push({
+      day_id: m.dayId, trip_id: tripId, place_id: card.place_id as string, status: "in_itinerary", position: pos,
+      start_time: toTime(m.start), end_time: toTime(m.end), source_url: null,
+      details: { plan: { day: m.dayId, start: toTime(m.start) } }, ai_generated: true, confirmed: false,
+    });
+  }
   const leftOut = unplaced.reduce((s, g) => s + g.items.length, 0) + grouping.left.length + toursLeft + airportLeft;
-  return { rows, dayIds: Array.from(new Set(rows.map((r) => r.day_id))), leftOut };
+  return { rows, dayIds: Array.from(new Set(rows.map((r) => r.day_id))), leftOut, meals };
 }
 
 /** What Plan my trip would do right now: the sheet's words and its button come from this. */
@@ -336,6 +373,8 @@ export interface PlanRoom {
   days: number;
   /** The draft itself, so pressing the button writes exactly what was described. */
   rows: DraftRow[];
+  /** Saved food it adds as meals to days already planned, and what it cannot, with why (./mealsOnDays). */
+  meals: { placed: MealPlaced[]; left: MealLeft[] };
 }
 
 /**
@@ -353,8 +392,8 @@ export function planRoom(
 ): PlanRoom {
   const { free } = previewDraft(cards, days, opts.kids);
   const saved = pinsToPlan(cards, days).length + datedEvents(cards, days).length;
-  const { rows, dayIds } = buildDraft(tripId, cards, days, opts);
-  return { free, saved, fits: rows.length, days: dayIds.length, rows };
+  const { rows, dayIds, meals } = buildDraft(tripId, cards, days, opts);
+  return { free, saved, fits: rows.length, days: dayIds.length, rows, meals };
 }
 
 /** Days as a person says them: "half a day", "1 day", "2 and a half days". Never "0.5". */

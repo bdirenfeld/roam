@@ -8,6 +8,8 @@ import { useToast } from "@/components/ui/Toast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useRouter } from "next/navigation";
 import { previewDraft, planRoom, dayWords, hasChildren, untouchedPlan } from "@/lib/plan/draftRows";
+import { slotWord } from "@/lib/plan/mealsOnDays";
+import { shortDay } from "@/lib/confirmations/outsideDates";
 import { hasSeniors } from "@/lib/party";
 
 /**
@@ -70,6 +72,7 @@ export default function PlanMyTripSheet({
   const full = room.fits === 0 && !nothing;
   const places = room.saved;
   const over = picked.fits < places;
+  const titleOf = (cardId: string) => cards.find((c) => c.id === cardId)?.place?.title ?? "a saved place";
 
   const make = async () => {
     setBusy(true);
@@ -180,6 +183,17 @@ export default function PlanMyTripSheet({
                   ? `${picked.fits} fit, so ${places - picked.fits} stay saved`
                   : `all fit, on ${picked.days} ${picked.days === 1 ? "day" : "days"}`}
             </p>
+            )}
+            {!nothing && (picked.meals.placed.length > 0 || picked.meals.left.length > 0) && (
+              // Saved food goes on days already planned, as meals (lib/plan/mealsOnDays):
+              // say which, and why any cannot (Muskoka, 3 Oct 2026).
+              <ul className="text-[13px] mt-2 flex flex-col gap-1" style={{ color: "rgba(26,26,46,0.62)" }} data-testid="plan-meals">
+                {[...picked.meals.placed].sort((a, b) => days.findIndex((x) => x.id === a.dayId) - days.findIndex((x) => x.id === b.dayId) || a.start - b.start).map((m) => {
+                  const d = days.find((x) => x.id === m.dayId);
+                  return <li key={m.id}>{slotWord(m.slot)} at {titleOf(m.id)}, {d ? shortDay(d.date) : ""}, {m.slot === "coffee" ? "before" : "near"} {m.near}.</li>;
+                })}
+                {picked.meals.left.map((m) => <li key={m.id}>{m.title} stays saved. {m.reason}</li>)}
+              </ul>
             )}
           </div>
           <button type="button" onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">

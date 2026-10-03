@@ -221,7 +221,9 @@ describe("a journey shorter than any one area", () => {
     const row = rows.find((r) => r.place_id === "qt")!;
     expect(row).toBeTruthy();
     expect(row.start_time).toBeNull();
-    const perDay = (d: string) => rows.filter((r) => r.day_id === d && r.place_id !== "qt").length;
+    // The tour picks its day before saved food is added as meals (lib/plan/mealsOnDays), so meals do not count here.
+    const food = new Set(all.filter((c) => c.place?.type === "food").map((c) => c.place_id));
+    const perDay = (d: string) => rows.filter((r) => r.day_id === d && r.place_id !== "qt" && !food.has(r.place_id)).length;
     const planned = Array.from(new Set(rows.map((r) => r.day_id)));
     expect(perDay(row.day_id)).toBe(Math.min(...planned.map(perDay)));
   });

@@ -1,0 +1,1129 @@
+{
+ "_source": "Roam database, Muskoka journey (8bd1f3c0), 3 Oct 2026, after his Plan my trip run: days and every card, place fields trimmed to what Plan my trip reads.",
+ "trip": {
+  "id": "8bd1f3c0-8252-46b0-95d9-303b2be081e3",
+  "end_date": "2026-10-12",
+  "party_ages": [
+   40,
+   40,
+   8,
+   6,
+   3
+  ],
+  "party_size": 5,
+  "start_date": "2026-10-09"
+ },
+ "days": [
+  {
+   "id": "65ed717a-c80d-4794-a74b-1499c761b6fc",
+   "date": "2026-10-09",
+   "day_number": 1
+  },
+  {
+   "id": "3fef6bf7-ff1b-416f-b6b9-101b3ff21f41",
+   "date": "2026-10-10",
+   "day_number": 2
+  },
+  {
+   "id": "05b2a1d9-7817-4a36-a473-be90c7a564be",
+   "date": "2026-10-11",
+   "day_number": 3
+  },
+  {
+   "id": "75f9aa4d-2ecd-4b42-8fa0-373313d63de4",
+   "date": "2026-10-12",
+   "day_number": 4
+  }
+ ],
+ "cards": [
+  {
+   "id": "b0c80425-2d2d-4958-8beb-0362631f477a",
+   "place": {
+    "id": "62fa3ff2-6a34-4e7f-bcaf-d93e2091e568",
+    "lat": 45.351979,
+    "lng": -79.150904,
+    "type": "activity",
+    "hours": {
+     "periods": [
+      {
+       "open": {
+        "day": 0,
+        "time": "0900"
+       },
+       "close": {
+        "day": 0,
+        "time": "1700"
+       }
+      },
+      {
+       "open": {
+        "day": 1,
+        "time": "1000"
+       },
+       "close": {
+        "day": 1,
+        "time": "1700"
+       }
+      },
+      {
+       "open": {
+        "day": 2,
+        "time": "1000"
+       },
+       "close": {
+        "day": 2,
+        "time": "1700"
+       }
+      },
+      {
+       "open": {
+        "day": 3,
+        "time": "1000"
+       },
+       "close": {
+        "day": 3,
+        "time": "1700"
+       }
+      },
+      {
+       "open": {
+        "day": 4,
+        "time": "1000"
+       },
+       "close": {
+        "day": 4,
+        "time": "1700"
+       }
+      },
+      {
+       "open": {
+        "day": 5,
+        "time": "1000"
+       },
+       "close": {
+        "day": 5,
+        "time": "1700"
+       }
+      },
+      {
+       "open": {
+        "day": 6,
+        "time": "0900"
+       },
+       "close": {
+        "day": 6,
+        "time": "1700"
+       }
+      }
+     ],
+     "open_now": true,
+     "weekday_text": [
+      "Monday: 10:00 AM – 5:00 PM",
+      "Tuesday: 10:00 AM – 5:00 PM",
+      "Wednesday: 10:00 AM – 5:00 PM",
+      "Thursday: 10:00 AM – 5:00 PM",
+      "Friday: 10:00 AM – 5:00 PM",
+      "Saturday: 9:00 AM – 5:00 PM",
+      "Sunday: 9:00 AM – 5:00 PM"
+     ]
+    },
+    "title": "Treetop Trekking Huntsville",
+    "types": [
+     "amusement_park",
+     "establishment",
+     "gym",
+     "health",
+     "point_of_interest",
+     "tourist_attraction"
+    ],
+    "rating": 4.6,
+    "address": "1180 Ontario Highway 60, Huntsville, ON P1H 1A9, Canada",
+    "sub_type": "self_directed"
+   },
+   "day_id": "05b2a1d9-7817-4a36-a473-be90c7a564be",
+   "status": "in_itinerary",
+   "details": {
+    "plan": {
+     "day": "05b2a1d9-7817-4a36-a473-be90c7a564be",
+     "start": "10:00:00"
+    }
+   },
+   "trip_id": "8bd1f3c0-8252-46b0-95d9-303b2be081e3",
+   "end_time": "17:00:00",
+   "place_id": "62fa3ff2-6a34-4e7f-bcaf-d93e2091e568",
+   "position": 1,
+   "confirmed": false,
+   "source_url": null,
+   "start_time": "10:00:00",
+   "ai_generated": true
+  },
+  {
+   "id": "a6ca6f9a-ede2-4a02-8e39-7f279655cf2d",
+   "place": {
+    "id": "31fb6386-eb10-4f17-b4cf-f8984b53815b",
+    "lat": 45.0243699,
+    "lng": -79.3633353,
+    "type": "activity",
+    "hours": {
+     "periods": [
+      {
+       "open": {
+        "day": 0,
+        "time": "1000"
+       },
+       "close": {
+        "day": 0,
+        "time": "1800"
+       }
+      },
+      {
+       "open": {
+        "day": 1,
+        "time": "1000"
+       },
+       "close": {
+        "day": 1,
+        "time": "1800"
+       }
+      },
+      {
+       "open": {
+        "day": 6,
+        "time": "1000"
+       },
+       "close": {
+        "day": 6,
+        "time": "1700"
+       }
+      }
+     ],
+     "open_now": true,
+     "weekday_text": [
+      "Monday: 10:00 AM – 6:00 PM",
+      "Tuesday: Closed",
+      "Wednesday: Closed",
+      "Thursday: Closed",
+      "Friday: Closed",
+      "Saturday: 10:00 AM – 5:00 PM",
+      "Sunday: 10:00 AM – 6:00 PM"
+     ]
+    },
+    "title": "Santa's Village: Muskoka's Theme Park",
+    "types": [
+     "amusement_park",
+     "establishment",
+     "point_of_interest",
+     "tourist_attraction"
+    ],
+    "rating": 4.4,
+    "address": "1624 Golden Beach Rd, Bracebridge, ON P1L 1W8, Canada",
+    "sub_type": "self_directed"
+   },
+   "day_id": "3fef6bf7-ff1b-416f-b6b9-101b3ff21f41",
+   "status": "in_itinerary",
+   "details": {
+    "plan": {
+     "day": "3fef6bf7-ff1b-416f-b6b9-101b3ff21f41",
+     "start": "10:00:00"
+    }
+   },
+   "trip_id": "8bd1f3c0-8252-46b0-95d9-303b2be081e3",
+   "end_time": "17:00:00",
+   "place_id": "31fb6386-eb10-4f17-b4cf-f8984b53815b",
+   "position": 1,
+   "confirmed": false,
+   "source_url": null,
+   "start_time": "10:00:00",
+   "ai_generated": true
+  },
+  {
+   "id": "40db7a2f-ca53-41ed-84de-11837c4cd46d",
+   "place": null,
+   "day_id": "3fef6bf7-ff1b-416f-b6b9-101b3ff21f41",
+   "status": "in_itinerary",
+   "details": {
+    "plan": {
+     "day": "3fef6bf7-ff1b-416f-b6b9-101b3ff21f41",
+     "start": "08:55:00"
+    }
+   },
+   "trip_id": "8bd1f3c0-8252-46b0-95d9-303b2be081e3",
+   "end_time": "09:50:00",
+   "place_id": null,
+   "position": 2,
+   "confirmed": false,
+   "source_url": null,
+   "start_time": "08:55:00",
+   "ai_generated": true
+  },
+  {
+   "id": "011f4849-fdc8-437b-9a22-36c72ce456f4",
+   "place": {
+    "id": "7d51dae3-511c-416a-90e2-edac280b0ec9",
+    "lat": 45.3177909851074,
+    "lng": -79.0389862060547,
+    "type": "logistics",
+    "hours": null,
+    "title": "Lake of Bays 4bdrm Water Front Family…",
+    "types": null,
+    "rating": 4.9,
+    "address": null,
+    "sub_type": "hotel"
+   },
+   "day_id": "65ed717a-c80d-4794-a74b-1499c761b6fc",
+   "status": "in_itinerary",
+   "details": null,
+   "trip_id": "8bd1f3c0-8252-46b0-95d9-303b2be081e3",
+   "end_time": null,
+   "place_id": "7d51dae3-511c-416a-90e2-edac280b0ec9",
+   "position": 1,
+   "confirmed": false,
+   "source_url": null,
+   "start_time": "15:00:00",
+   "ai_generated": false
+  },
+  {
+   "id": "93dc89b8-e9fa-49f5-95fb-cca524457efe",
+   "place": {
+    "id": "69745975-ad8a-4497-9193-e0b2d345cfb5",
+    "lat": 45.3292577,
+    "lng": -79.0123737,
+    "type": "activity",
+    "hours": null,
+    "title": "Dwight Beach",
+    "types": [
+     "establishment",
+     "natural_feature"
+    ],
+    "rating": 4.7,
+    "address": "Dwight Beach, 1158 Dwight Beach Rd, Lake of Bays, ON P0A 1H0, Canada",
+    "sub_type": "beach"
+   },
+   "day_id": "65ed717a-c80d-4794-a74b-1499c761b6fc",
+   "status": "in_itinerary",
+   "details": {
+    "plan": {
+     "day": "65ed717a-c80d-4794-a74b-1499c761b6fc",
+     "start": "10:00:00"
+    }
+   },
+   "trip_id": "8bd1f3c0-8252-46b0-95d9-303b2be081e3",
+   "end_time": "12:30:00",
+   "place_id": "69745975-ad8a-4497-9193-e0b2d345cfb5",
+   "position": 2,
+   "confirmed": false,
+   "source_url": null,
+   "start_time": "10:00:00",
+   "ai_generated": true
+  },
+  {
+   "id": "1d9a4aa6-4ca8-43a3-a4d8-fefaa8311ab0",
+   "place": {
+    "id": "7d51dae3-511c-416a-90e2-edac280b0ec9",
+    "lat": 45.3177909851074,
+    "lng": -79.0389862060547,
+    "type": "logistics",
+    "hours": null,
+    "title": "Lake of Bays 4bdrm Water Front Family…",
+    "types": null,
+    "rating": 4.9,
+    "address": null,
+    "sub_type": "hotel"
+   },
+   "day_id": "75f9aa4d-2ecd-4b42-8fa0-373313d63de4",
+   "status": "in_itinerary",
+   "details": null,
+   "trip_id": "8bd1f3c0-8252-46b0-95d9-303b2be081e3",
+   "end_time": null,
+   "place_id": "7d51dae3-511c-416a-90e2-edac280b0ec9",
+   "position": 1,
+   "confirmed": false,
+   "source_url": null,
+   "start_time": "10:00:00",
+   "ai_generated": false
+  },
+  {
+   "id": "052dcc9c-76cc-49ad-8274-295afd9d9bac",
+   "place": {
+    "id": "69745975-ad8a-4497-9193-e0b2d345cfb5",
+    "lat": 45.3292577,
+    "lng": -79.0123737,
+    "type": "activity",
+    "hours": null,
+    "title": "Dwight Beach",
+    "types": [
+     "establishment",
+     "natural_feature"
+    ],
+    "rating": 4.7,
+    "address": "Dwight Beach, 1158 Dwight Beach Rd, Lake of Bays, ON P0A 1H0, Canada",
+    "sub_type": "beach"
+   },
+   "day_id": null,
+   "status": "interested",
+   "details": null,
+   "trip_id": "8bd1f3c0-8252-46b0-95d9-303b2be081e3",
+   "end_time": null,
+   "place_id": "69745975-ad8a-4497-9193-e0b2d345cfb5",
+   "position": 0,
+   "confirmed": false,
+   "source_url": null,
+   "start_time": null,
+   "ai_generated": false
+  },
+  {
+   "id": "bddff0aa-6a7b-403f-a600-4f72d7771cd8",
+   "place": {
+    "id": "dc8f5ab8-07ab-4875-9606-b019e54c6bf1",
+    "lat": 45.0418428,
+    "lng": -79.311977,
+    "type": "food",
+    "hours": {
+     "periods": [
+      {
+       "open": {
+        "day": 0,
+        "time": "1130"
+       },
+       "close": {
+        "day": 0,
+        "time": "2000"
+       }
+      },
+      {
+       "open": {
+        "day": 1,
+        "time": "1130"
+       },
+       "close": {
+        "day": 1,
+        "time": "2000"
+       }
+      },
+      {
+       "open": {
+        "day": 2,
+        "time": "1130"
+       },
+       "close": {
+        "day": 2,
+        "time": "2000"
+       }
+      },
+      {
+       "open": {
+        "day": 3,
+        "time": "1130"
+       },
+       "close": {
+        "day": 3,
+        "time": "2000"
+       }
+      },
+      {
+       "open": {
+        "day": 4,
+        "time": "1130"
+       },
+       "close": {
+        "day": 4,
+        "time": "2000"
+       }
+      },
+      {
+       "open": {
+        "day": 5,
+        "time": "1130"
+       },
+       "close": {
+        "day": 5,
+        "time": "2100"
+       }
+      },
+      {
+       "open": {
+        "day": 6,
+        "time": "1130"
+       },
+       "close": {
+        "day": 6,
+        "time": "2100"
+       }
+      }
+     ],
+     "open_now": true,
+     "weekday_text": [
+      "Monday: 11:30 AM – 8:00 PM",
+      "Tuesday: 11:30 AM – 8:00 PM",
+      "Wednesday: 11:30 AM – 8:00 PM",
+      "Thursday: 11:30 AM – 8:00 PM",
+      "Friday: 11:30 AM – 9:00 PM",
+      "Saturday: 11:30 AM – 9:00 PM",
+      "Sunday: 11:30 AM – 8:00 PM"
+     ]
+    },
+    "title": "The Old Station Restaurant",
+    "types": [
+     "establishment",
+     "food",
+     "point_of_interest",
+     "restaurant"
+    ],
+    "rating": 4.5,
+    "address": "88 Manitoba St, Bracebridge, ON P1L 2B5, Canada",
+    "sub_type": "restaurant"
+   },
+   "day_id": null,
+   "status": "interested",
+   "details": null,
+   "trip_id": "8bd1f3c0-8252-46b0-95d9-303b2be081e3",
+   "end_time": null,
+   "place_id": "dc8f5ab8-07ab-4875-9606-b019e54c6bf1",
+   "position": 0,
+   "confirmed": false,
+   "source_url": null,
+   "start_time": null,
+   "ai_generated": false
+  },
+  {
+   "id": "42b8e1b0-413a-481c-8ca5-084b6f19df90",
+   "place": {
+    "id": "31fb6386-eb10-4f17-b4cf-f8984b53815b",
+    "lat": 45.0243699,
+    "lng": -79.3633353,
+    "type": "activity",
+    "hours": {
+     "periods": [
+      {
+       "open": {
+        "day": 0,
+        "time": "1000"
+       },
+       "close": {
+        "day": 0,
+        "time": "1800"
+       }
+      },
+      {
+       "open": {
+        "day": 1,
+        "time": "1000"
+       },
+       "close": {
+        "day": 1,
+        "time": "1800"
+       }
+      },
+      {
+       "open": {
+        "day": 6,
+        "time": "1000"
+       },
+       "close": {
+        "day": 6,
+        "time": "1700"
+       }
+      }
+     ],
+     "open_now": true,
+     "weekday_text": [
+      "Monday: 10:00 AM – 6:00 PM",
+      "Tuesday: Closed",
+      "Wednesday: Closed",
+      "Thursday: Closed",
+      "Friday: Closed",
+      "Saturday: 10:00 AM – 5:00 PM",
+      "Sunday: 10:00 AM – 6:00 PM"
+     ]
+    },
+    "title": "Santa's Village: Muskoka's Theme Park",
+    "types": [
+     "amusement_park",
+     "establishment",
+     "point_of_interest",
+     "tourist_attraction"
+    ],
+    "rating": 4.4,
+    "address": "1624 Golden Beach Rd, Bracebridge, ON P1L 1W8, Canada",
+    "sub_type": "self_directed"
+   },
+   "day_id": null,
+   "status": "interested",
+   "details": null,
+   "trip_id": "8bd1f3c0-8252-46b0-95d9-303b2be081e3",
+   "end_time": null,
+   "place_id": "31fb6386-eb10-4f17-b4cf-f8984b53815b",
+   "position": 0,
+   "confirmed": false,
+   "source_url": null,
+   "start_time": null,
+   "ai_generated": false
+  },
+  {
+   "id": "3e825c07-11cb-4ee5-b886-44c4841a49e8",
+   "place": {
+    "id": "40afccea-e197-4a03-bf57-8783e52f7071",
+    "lat": 45.3359798,
+    "lng": -79.2048701,
+    "type": "food",
+    "hours": {
+     "periods": [
+      {
+       "open": {
+        "day": 2,
+        "time": "0930"
+       },
+       "close": {
+        "day": 2,
+        "time": "1600"
+       }
+      },
+      {
+       "open": {
+        "day": 3,
+        "time": "0930"
+       },
+       "close": {
+        "day": 3,
+        "time": "1600"
+       }
+      },
+      {
+       "open": {
+        "day": 4,
+        "time": "0930"
+       },
+       "close": {
+        "day": 4,
+        "time": "1600"
+       }
+      },
+      {
+       "open": {
+        "day": 5,
+        "time": "0930"
+       },
+       "close": {
+        "day": 5,
+        "time": "1600"
+       }
+      },
+      {
+       "open": {
+        "day": 6,
+        "time": "0930"
+       },
+       "close": {
+        "day": 6,
+        "time": "1600"
+       }
+      }
+     ],
+     "open_now": true,
+     "weekday_text": [
+      "Monday: Closed",
+      "Tuesday: 9:30 AM – 4:00 PM",
+      "Wednesday: 9:30 AM – 4:00 PM",
+      "Thursday: 9:30 AM – 4:00 PM",
+      "Friday: 9:30 AM – 4:00 PM",
+      "Saturday: 9:30 AM – 4:00 PM",
+      "Sunday: Closed"
+     ]
+    },
+    "title": "Henrietta’s Pine Bakery - Huntsville",
+    "types": [
+     "bakery",
+     "cafe",
+     "establishment",
+     "food",
+     "point_of_interest",
+     "store"
+    ],
+    "rating": 4.7,
+    "address": "92 King William St, Huntsville, ON P1H 1E4, Canada",
+    "sub_type": "coffee"
+   },
+   "day_id": null,
+   "status": "interested",
+   "details": null,
+   "trip_id": "8bd1f3c0-8252-46b0-95d9-303b2be081e3",
+   "end_time": null,
+   "place_id": "40afccea-e197-4a03-bf57-8783e52f7071",
+   "position": 0,
+   "confirmed": false,
+   "source_url": null,
+   "start_time": null,
+   "ai_generated": false
+  },
+  {
+   "id": "c40e0c23-b6c1-41ef-a96e-fdfcb4e6b446",
+   "place": {
+    "id": "82682721-d6e6-4377-bbe7-2702bd822e8d",
+    "lat": 45.2226505,
+    "lng": -79.2817218,
+    "type": "activity",
+    "hours": {
+     "periods": [
+      {
+       "open": {
+        "day": 0,
+        "time": "0000"
+       }
+      }
+     ],
+     "open_now": true,
+     "weekday_text": [
+      "Monday: Open 24 hours",
+      "Tuesday: Open 24 hours",
+      "Wednesday: Open 24 hours",
+      "Thursday: Open 24 hours",
+      "Friday: Open 24 hours",
+      "Saturday: Open 24 hours",
+      "Sunday: Open 24 hours"
+     ]
+    },
+    "title": "Port Sydney Beach",
+    "types": [
+     "establishment",
+     "park",
+     "point_of_interest",
+     "tourist_attraction"
+    ],
+    "rating": 4.6,
+    "address": "546-570 Muskoka District Road 10, Port Sydney, ON P0B 1L0, Canada",
+    "sub_type": "beach"
+   },
+   "day_id": null,
+   "status": "interested",
+   "details": null,
+   "trip_id": "8bd1f3c0-8252-46b0-95d9-303b2be081e3",
+   "end_time": null,
+   "place_id": "82682721-d6e6-4377-bbe7-2702bd822e8d",
+   "position": 0,
+   "confirmed": false,
+   "source_url": null,
+   "start_time": null,
+   "ai_generated": false
+  },
+  {
+   "id": "99ea89ee-95aa-4986-910c-4f155a6c376b",
+   "place": {
+    "id": "43f4f76e-ecba-4462-af9f-c6baac8d8375",
+    "lat": 45.3268926,
+    "lng": -79.2075199,
+    "type": "activity",
+    "hours": {
+     "periods": [
+      {
+       "open": {
+        "day": 0,
+        "time": "0000"
+       }
+      }
+     ],
+     "open_now": true,
+     "weekday_text": [
+      "Monday: Open 24 hours",
+      "Tuesday: Open 24 hours",
+      "Wednesday: Open 24 hours",
+      "Thursday: Open 24 hours",
+      "Friday: Open 24 hours",
+      "Saturday: Open 24 hours",
+      "Sunday: Open 24 hours"
+     ]
+    },
+    "title": "Lions Lookout",
+    "types": [
+     "establishment",
+     "point_of_interest",
+     "tourist_attraction"
+    ],
+    "rating": 4.7,
+    "address": "Lookout Rd, Huntsville, ON P1H 1G8, Canada",
+    "sub_type": "self_directed"
+   },
+   "day_id": null,
+   "status": "interested",
+   "details": null,
+   "trip_id": "8bd1f3c0-8252-46b0-95d9-303b2be081e3",
+   "end_time": null,
+   "place_id": "43f4f76e-ecba-4462-af9f-c6baac8d8375",
+   "position": 0,
+   "confirmed": false,
+   "source_url": null,
+   "start_time": null,
+   "ai_generated": false
+  },
+  {
+   "id": "528d3f09-854e-471b-8cb0-0dac22e91e80",
+   "place": {
+    "id": "62fa3ff2-6a34-4e7f-bcaf-d93e2091e568",
+    "lat": 45.351979,
+    "lng": -79.150904,
+    "type": "activity",
+    "hours": {
+     "periods": [
+      {
+       "open": {
+        "day": 0,
+        "time": "0900"
+       },
+       "close": {
+        "day": 0,
+        "time": "1700"
+       }
+      },
+      {
+       "open": {
+        "day": 1,
+        "time": "1000"
+       },
+       "close": {
+        "day": 1,
+        "time": "1700"
+       }
+      },
+      {
+       "open": {
+        "day": 2,
+        "time": "1000"
+       },
+       "close": {
+        "day": 2,
+        "time": "1700"
+       }
+      },
+      {
+       "open": {
+        "day": 3,
+        "time": "1000"
+       },
+       "close": {
+        "day": 3,
+        "time": "1700"
+       }
+      },
+      {
+       "open": {
+        "day": 4,
+        "time": "1000"
+       },
+       "close": {
+        "day": 4,
+        "time": "1700"
+       }
+      },
+      {
+       "open": {
+        "day": 5,
+        "time": "1000"
+       },
+       "close": {
+        "day": 5,
+        "time": "1700"
+       }
+      },
+      {
+       "open": {
+        "day": 6,
+        "time": "0900"
+       },
+       "close": {
+        "day": 6,
+        "time": "1700"
+       }
+      }
+     ],
+     "open_now": true,
+     "weekday_text": [
+      "Monday: 10:00 AM – 5:00 PM",
+      "Tuesday: 10:00 AM – 5:00 PM",
+      "Wednesday: 10:00 AM – 5:00 PM",
+      "Thursday: 10:00 AM – 5:00 PM",
+      "Friday: 10:00 AM – 5:00 PM",
+      "Saturday: 9:00 AM – 5:00 PM",
+      "Sunday: 9:00 AM – 5:00 PM"
+     ]
+    },
+    "title": "Treetop Trekking Huntsville",
+    "types": [
+     "amusement_park",
+     "establishment",
+     "gym",
+     "health",
+     "point_of_interest",
+     "tourist_attraction"
+    ],
+    "rating": 4.6,
+    "address": "1180 Ontario Highway 60, Huntsville, ON P1H 1A9, Canada",
+    "sub_type": "self_directed"
+   },
+   "day_id": null,
+   "status": "interested",
+   "details": null,
+   "trip_id": "8bd1f3c0-8252-46b0-95d9-303b2be081e3",
+   "end_time": null,
+   "place_id": "62fa3ff2-6a34-4e7f-bcaf-d93e2091e568",
+   "position": 0,
+   "confirmed": false,
+   "source_url": null,
+   "start_time": null,
+   "ai_generated": false
+  },
+  {
+   "id": "faf51b85-d3bd-41e9-8ac6-8d66ab00a01c",
+   "place": {
+    "id": "847e2f1a-00b7-420d-af87-a80f05c81106",
+    "lat": 45.3267609,
+    "lng": -79.2178891,
+    "type": "food",
+    "hours": {
+     "periods": [
+      {
+       "open": {
+        "day": 0,
+        "time": "0830"
+       },
+       "close": {
+        "day": 0,
+        "time": "1630"
+       }
+      },
+      {
+       "open": {
+        "day": 1,
+        "time": "0830"
+       },
+       "close": {
+        "day": 1,
+        "time": "1630"
+       }
+      },
+      {
+       "open": {
+        "day": 2,
+        "time": "0830"
+       },
+       "close": {
+        "day": 2,
+        "time": "1630"
+       }
+      },
+      {
+       "open": {
+        "day": 3,
+        "time": "0830"
+       },
+       "close": {
+        "day": 3,
+        "time": "1630"
+       }
+      },
+      {
+       "open": {
+        "day": 4,
+        "time": "0830"
+       },
+       "close": {
+        "day": 4,
+        "time": "1630"
+       }
+      },
+      {
+       "open": {
+        "day": 5,
+        "time": "0830"
+       },
+       "close": {
+        "day": 5,
+        "time": "1630"
+       }
+      },
+      {
+       "open": {
+        "day": 6,
+        "time": "0830"
+       },
+       "close": {
+        "day": 6,
+        "time": "1630"
+       }
+      }
+     ],
+     "open_now": true,
+     "weekday_text": [
+      "Monday: 8:30 AM – 4:30 PM",
+      "Tuesday: 8:30 AM – 4:30 PM",
+      "Wednesday: 8:30 AM – 4:30 PM",
+      "Thursday: 8:30 AM – 4:30 PM",
+      "Friday: 8:30 AM – 4:30 PM",
+      "Saturday: 8:30 AM – 4:30 PM",
+      "Sunday: 8:30 AM – 4:30 PM"
+     ]
+    },
+    "title": "Threshold Café & Collective",
+    "types": [
+     "cafe",
+     "establishment",
+     "food",
+     "point_of_interest"
+    ],
+    "rating": 4.6,
+    "address": "38 Main St E, Huntsville, ON P1H 2C8, Canada",
+    "sub_type": "coffee"
+   },
+   "day_id": null,
+   "status": "interested",
+   "details": null,
+   "trip_id": "8bd1f3c0-8252-46b0-95d9-303b2be081e3",
+   "end_time": null,
+   "place_id": "847e2f1a-00b7-420d-af87-a80f05c81106",
+   "position": 0,
+   "confirmed": false,
+   "source_url": null,
+   "start_time": null,
+   "ai_generated": false
+  },
+  {
+   "id": "9e479c61-5e5d-48ec-8576-ea809a82dcd9",
+   "place": {
+    "id": "0f3a0fd1-6302-4486-b1bf-23a1715e4091",
+    "lat": 45.0865541,
+    "lng": -79.2996919,
+    "type": "activity",
+    "hours": {
+     "periods": [
+      {
+       "open": {
+        "day": 0,
+        "time": "0500"
+       },
+       "close": {
+        "day": 0,
+        "time": "2100"
+       }
+      },
+      {
+       "open": {
+        "day": 1,
+        "time": "0500"
+       },
+       "close": {
+        "day": 1,
+        "time": "2100"
+       }
+      },
+      {
+       "open": {
+        "day": 2,
+        "time": "0500"
+       },
+       "close": {
+        "day": 2,
+        "time": "2100"
+       }
+      },
+      {
+       "open": {
+        "day": 3,
+        "time": "0500"
+       },
+       "close": {
+        "day": 3,
+        "time": "2100"
+       }
+      },
+      {
+       "open": {
+        "day": 4,
+        "time": "0500"
+       },
+       "close": {
+        "day": 4,
+        "time": "2100"
+       }
+      },
+      {
+       "open": {
+        "day": 5,
+        "time": "0500"
+       },
+       "close": {
+        "day": 5,
+        "time": "2100"
+       }
+      },
+      {
+       "open": {
+        "day": 6,
+        "time": "0500"
+       },
+       "close": {
+        "day": 6,
+        "time": "2100"
+       }
+      }
+     ],
+     "open_now": true,
+     "weekday_text": [
+      "Monday: 5:00 AM – 9:00 PM",
+      "Tuesday: 5:00 AM – 9:00 PM",
+      "Wednesday: 5:00 AM – 9:00 PM",
+      "Thursday: 5:00 AM – 9:00 PM",
+      "Friday: 5:00 AM – 9:00 PM",
+      "Saturday: 5:00 AM – 9:00 PM",
+      "Sunday: 5:00 AM – 9:00 PM"
+     ]
+    },
+    "title": "High Falls Picnic Area",
+    "types": [
+     "establishment",
+     "point_of_interest"
+    ],
+    "rating": 4.5,
+    "address": "High Falls,, Bracebridge, ON P1L 1W9, Canada",
+    "sub_type": "self_directed"
+   },
+   "day_id": null,
+   "status": "interested",
+   "details": null,
+   "trip_id": "8bd1f3c0-8252-46b0-95d9-303b2be081e3",
+   "end_time": null,
+   "place_id": "0f3a0fd1-6302-4486-b1bf-23a1715e4091",
+   "position": 0,
+   "confirmed": false,
+   "source_url": null,
+   "start_time": null,
+   "ai_generated": false
+  },
+  {
+   "id": "9b5faad2-adf7-464e-af5b-1b68a3450f6a",
+   "place": {
+    "id": "77209c14-64c9-455b-822c-f344ccb1d27b",
+    "lat": 45.0159642,
+    "lng": -79.3749332,
+    "type": "activity",
+    "hours": null,
+    "title": "Kirby's Beach",
+    "types": [
+     "establishment",
+     "natural_feature"
+    ],
+    "rating": 4.5,
+    "address": "Kirby's Beach, 1010 Kirbys Beach Rd, Bracebridge, ON P1L 1X2, Canada",
+    "sub_type": "beach"
+   },
+   "day_id": null,
+   "status": "interested",
+   "details": null,
+   "trip_id": "8bd1f3c0-8252-46b0-95d9-303b2be081e3",
+   "end_time": null,
+   "place_id": "77209c14-64c9-455b-822c-f344ccb1d27b",
+   "position": 0,
+   "confirmed": false,
+   "source_url": null,
+   "start_time": null,
+   "ai_generated": false
+  }
+ ]
+}
