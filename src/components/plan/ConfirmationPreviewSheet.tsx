@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 import { queuedInsert } from "@/lib/offline/queuedWrite";
 import { confirmationDetails, closingEvent, openingTitle, type ParsedConfirmation } from "@/lib/confirmations/toCards";
 import { resolvePlace } from "@/lib/confirmations/resolvePlace";
+import { bookingOutside, dayFor, shortDay } from "@/lib/confirmations/outsideDates";
+import { extendJourney } from "@/lib/confirmations/extendJourney";
 
 // ── ParsedConfirmation — matches API response (lib/confirmations/toCards) ──
 export type { ParsedConfirmation };
@@ -21,6 +23,8 @@ interface Props {
   onCardsCreated:  (cards: Card[], deletedIds: string[]) => void;
   /** Replaces "Confirmation parsed" — e.g. the rest of an attached package. */
   heading?:        string;
+  /** After "Extend the trip": the host's days are stale. Default reloads the page once the sheet is done. */
+  onDaysChanged?:  () => void;
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -32,9 +36,11 @@ const TYPE_LABEL: Record<string, string> = {
   activity:         "Activity",
 };
 
-function findMatchingDay(days: DayWithCards[], date: string | null): string | null {
-  if (!date) return null;
-  return days.find((d) => d.date === date)?.id ?? null;
+// A booking's day: its own date, else the nearest first or last day (3 Oct
+// 2026). It used to fall back to Day 1 for anything it could not find, so a
+// flight home the day after the end landed on the first morning.
+function findMatchingDay(days: DayWithCards[], date: string | null | undefined): string | null {
+  return dayFor(days, date)?.id ?? null;
 }
 
 function fmtDate(dateStr: string): string {
@@ -57,8 +63,23 @@ interface ItemDraft {
 }
 
 export default function ConfirmationPreviewSheet({
-  items, fileName, fileType, days, tripId, onClose, onCardsCreated, heading,
+  items, fileName, fileType, days: hostDays, tripId, onClose: hostClose, onCardsCreated: hostCreated, heading, onDaysChanged,
 }: Props) {
+  // The journey's days, widened in place when "Extend the trip" is tapped.
+  const [days, setDays] = useState<DayWithCards[]>(hostDays);
+  const extended = useRef(false);
+  const daysChanged = useCallback(() => {
+    if (!extended.current) return;
+    if (onDaysChanged) onDaysChanged(); else window.location.reload();
+  }, [onDaysChanged]);
+  const onClose = useCallback(() => { hostClose(); daysChanged(); }, [hostClose, daysChanged]);
+  const onCardsCreated = useCallback((cards: Card[], deletedIds: string[]) => { hostCreated(cards, deletedIds); daysChanged(); }, [hostCreated, daysChanged]);
+  const sorted = [...days].filter((d) => d.date).sort((a, b) => a.date.localeCompare(b.date));
+  const tripStart = sorted[0]?.date ?? null;
+  const tripEnd = sorted[sorted.length - 1]?.date ?? null;
+  const [extending, setExtending] = useState<number | null>(null);
+  const [extendError, setExtendError] = useState<{ idx: number; text: string } | null>(null);
+  const [extendedTo, setExtendedTo] = useState<string | null>(null);
   const supabase = createClient();
   const sheetRef = useRef<HTMLDivElement>(null);
   const dragY    = useRef(0);
@@ -82,6 +103,26 @@ export default function ConfirmationPreviewSheet({
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  const extend = async (idx: number, start: string, end: string) => {
+    if (extending !== null) return;
+    setExtending(idx);
+    setExtendError(null);
+    const out = await extendJourney(supabase, tripId, start, end);
+    setExtending(null);
+    if ("error" in out) { setExtendError({ idx, text: out.error }); return; }
+    extended.current = true;
+    const next = out.days.map((d) => ({ ...(days.find((x) => x.id === d.id) ?? { cards: [] as Card[] }), ...d })) as DayWithCards[];
+    setDays(next);
+    setDrafts((prev) => prev.map((dr, i) => {
+      const p = items[i];
+      const own = next.find((d) => d.date === p.date)?.id;
+      const outDate = p.type === "hotel" ? p.check_out_date : p.type === "car_rental" ? p.drop_off_date : null;
+      const out = outDate ? next.find((d) => d.date === outDate)?.id : undefined;
+      return { ...dr, ...(own ? { dayId: own } : {}), ...(out ? { outDayId: out } : {}) };
+    }));
+    setExtendedTo(`${shortDay(start)} – ${shortDay(end)}`);
+  };
 
   const patchDraft = (idx: number, patch: Partial<ItemDraft>) =>
     setDrafts((prev) => prev.map((d, i) => i === idx ? { ...d, ...patch } : d));
@@ -291,6 +332,29 @@ export default function ConfirmationPreviewSheet({
                 )}
 
                 <div className="px-5 py-4 space-y-4">
+                  {/* Dated outside the journey (3 Oct 2026): kept, on the nearest day, one plain line. */}
+                  {(() => {
+                    const note = bookingOutside(parsed, tripStart, tripEnd);
+                    if (!note) return null;
+                    return (
+                      <div data-testid="outside-note">
+                        <p className="text-[13px] leading-snug text-[#B0541F]">{note.line}</p>
+                        <button
+                          type="button"
+                          onClick={() => void extend(idx, note.start, note.end)}
+                          disabled={extending !== null}
+                          className="mt-1 min-h-[36px] text-[13px] font-medium text-[#B0541F] underline underline-offset-2 disabled:opacity-50"
+                        >
+                          {extending === idx ? "Extending the trip…" : note.button}
+                        </button>
+                        {extendError?.idx === idx && <p className="text-[13px] text-gray-500">{extendError.text}</p>}
+                      </div>
+                    );
+                  })()}
+                  {extendedTo && idx === 0 && (
+                    <p data-testid="extended-note" className="text-[13px] text-gray-500">The trip now runs {extendedTo}.</p>
+                  )}
+
                   {/* Title */}
                   <div>
                     <label htmlFor={`conf-${idx}-title`} className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
@@ -346,7 +410,7 @@ export default function ConfirmationPreviewSheet({
                         className="w-full mt-1 px-3 py-2 text-[14px] text-gray-900 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-300 appearance-none"
                       >
                         <option value="">After the trip&apos;s last day</option>
-                        {days.filter((d) => d.date > (days.find((x) => x.id === draft.dayId)?.date ?? "")).map((d) => (
+                        {days.filter((d) => d.date >= (days.find((x) => x.id === draft.dayId)?.date ?? "")).map((d) => (
                           <option key={d.id} value={d.id}>
                             Day {d.day_number}{d.date ? ` — ${fmtDate(d.date)}` : ""}
                           </option>

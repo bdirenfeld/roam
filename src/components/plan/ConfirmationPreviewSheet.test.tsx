@@ -17,6 +17,9 @@ vi.mock("@/lib/supabase/client", () => ({
   }),
 }));
 
+const extendJourney = vi.fn();
+vi.mock("@/lib/confirmations/extendJourney", () => ({ extendJourney: (...a: unknown[]) => extendJourney(...a) }));
+
 import ConfirmationPreviewSheet, { type ParsedConfirmation } from "./ConfirmationPreviewSheet";
 import type { DayWithCards } from "@/types/database";
 
@@ -96,5 +99,81 @@ describe("importing a hotel booking (1 Oct 2026)", () => {
     expect(rows[0].details.check_out).toBe("2027-09-04");
     expect(rows[1].details.title).toBe("Check out of Villa Zambaldi");
     vi.unstubAllGlobals();
+  });
+});
+
+describe("a booking dated outside the journey (3 Oct 2026)", () => {
+  const noPlace = () => vi.stubGlobal("fetch", vi.fn(async () => ({ json: async () => ({ predictions: [] }) })));
+  const sheet = (items: ParsedConfirmation[], extra: { onCardsCreated?: () => void; onDaysChanged?: () => void } = {}) =>
+    render(<ConfirmationPreviewSheet items={items} fileName="ac.pdf" fileType="application/pdf" days={days} tripId="t1"
+      onClose={vi.fn()} onCardsCreated={extra.onCardsCreated ?? vi.fn()} onDaysChanged={extra.onDaysChanged ?? vi.fn()} />);
+  const ac = (type: ParsedConfirmation["type"], date: string) => ({ ...flight(type, date, "Air Canada · YYZ → PSA"), flight_number: "AC890" });
+
+  it("a flight the day before goes on the first day, with one plain line and no error", () => {
+    sheet([ac("flight_arrival", "2027-08-23")]);
+    expect(screen.getByTestId("outside-note").textContent).toContain("AC 890 flies Mon 23 Aug, a day before the trip starts. It'll go on Tue 24 Aug.");
+    expect(screen.getByRole("button", { name: "Extend the trip to Mon 23 Aug" })).toBeTruthy();
+    expect((screen.getByLabelText(/^Day/) as HTMLSelectElement).value).toBe("d1");
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("a flight home after the end goes on the LAST day, not Day 1", () => {
+    sheet([ac("flight_departure", "2027-09-05")]);
+    expect((screen.getByLabelText(/^Day/) as HTMLSelectElement).value).toBe("d12");
+    expect(screen.getByTestId("outside-note").textContent).toContain("a day after the trip ends. It'll go on Sat 4 Sep.");
+  });
+
+  it("nothing is said for bookings on the first and last day", () => {
+    sheet([ac("flight_arrival", "2027-08-24"), ac("flight_departure", "2027-09-04")]);
+    expect(screen.queryByTestId("outside-note")).toBeNull();
+  });
+
+  it("a stay that checks out after the end keeps its check-out, on the last day", async () => {
+    queued.mockResolvedValue({ queued: false, error: null });
+    noPlace();
+    const done = vi.fn();
+    const stay: ParsedConfirmation = { type: "hotel", title: "Villa Zambaldi", date: "2027-09-04", time: "16:00", end_time: null, confirmation_number: "SV-88",
+      address: "Via Fonda 403, Lucca", phone: null, website: null, notes: null, check_out_date: "2027-09-05", check_out_time: "10:00" };
+    sheet([stay], { onCardsCreated: done });
+    expect(screen.getByTestId("outside-note").textContent).toContain("Check-out from Villa Zambaldi is Sun 5 Sep, a day after the trip ends.");
+    expect((screen.getByLabelText(/Check out/) as HTMLSelectElement).value).toBe("d12");
+    fireEvent.click(screen.getByText("Add to my days"));
+    await waitFor(() => expect(done).toHaveBeenCalled());
+    const rows = queued.mock.calls[0][1] as { day_id: string; details: Record<string, unknown> }[];
+    expect(rows.map((r) => r.day_id)).toEqual(["d12", "d12"]);
+    expect(rows[1].details.title).toBe("Check out of Villa Zambaldi");
+    vi.unstubAllGlobals();
+  });
+
+  it("Extend the trip widens the journey and puts the flight on its real day", async () => {
+    queued.mockResolvedValue({ queued: false, error: null });
+    noPlace();
+    extendJourney.mockResolvedValue({ days: [
+      { id: "d0", date: "2027-08-23", day_number: 1, day_name: "Day 1" },
+      { id: "d1", date: "2027-08-24", day_number: 2, day_name: "Day 1" },
+      { id: "d12", date: "2027-09-04", day_number: 13, day_name: null },
+    ] });
+    const done = vi.fn(), changed = vi.fn();
+    sheet([ac("flight_arrival", "2027-08-23")], { onCardsCreated: done, onDaysChanged: changed });
+    fireEvent.click(screen.getByRole("button", { name: "Extend the trip to Mon 23 Aug" }));
+    await waitFor(() => expect(screen.queryByTestId("outside-note")).toBeNull());
+    expect(extendJourney.mock.calls[0].slice(1)).toEqual(["t1", "2027-08-23", "2027-09-04"]);
+    expect((screen.getByLabelText(/^Day/) as HTMLSelectElement).value).toBe("d0");
+    expect(screen.getByTestId("extended-note").textContent).toBe("The trip now runs Mon 23 Aug – Sat 4 Sep.");
+    fireEvent.click(screen.getByText("Add to my days"));
+    await waitFor(() => expect(done).toHaveBeenCalled());
+    expect((queued.mock.calls[0][1] as { day_id: string }[])[0].day_id).toBe("d0");
+    expect(changed).toHaveBeenCalledTimes(1);
+    vi.unstubAllGlobals();
+  });
+
+  it("a refused extension says so plainly and keeps the booking on the nearest day", async () => {
+    extendJourney.mockResolvedValue({ error: "Couldn't change the trip's dates. Try again." });
+    const changed = vi.fn();
+    sheet([ac("flight_arrival", "2027-08-23")], { onDaysChanged: changed });
+    fireEvent.click(screen.getByRole("button", { name: "Extend the trip to Mon 23 Aug" }));
+    expect(await screen.findByText("Couldn't change the trip's dates. Try again.")).toBeTruthy();
+    expect((screen.getByLabelText(/^Day/) as HTMLSelectElement).value).toBe("d1");
+    expect(changed).not.toHaveBeenCalled();
   });
 });

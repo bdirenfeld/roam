@@ -2121,3 +2121,10 @@ mount because the server is UTC; it waits for Start here's card read so the two
 never show together. Faking "today" in a render test:
 `vi.useFakeTimers({ toFake: ["Date"] })` + `vi.setSystemTime` — faking all
 timers stalls the async reads the day view does after mount.
+
+### A booking dated outside the journey is kept, on the nearest day (3 Oct 2026)
+- Before: ConfirmationPreviewSheet's `findMatchingDay` fell back to `days[0]` for any date it could not find, so a flight home the day after the end went on Day 1 without a word, and a check-out after the last day defaulted to "After the trip's last day" (no check-out card). Now `lib/confirmations/outsideDates` decides: `dayFor` = own day, else the nearest edge (a gap INSIDE the journey still returns null → Day 1 as before); `bookingOutside` = one plain sienna (#B0541F) line per booking ("AC 890 flies Mon 23 Aug, a day before the trip starts. It'll go on Tue 24 Aug.") plus "Extend the trip to …" covering every date it has (a stay wider than the journey extends both edges).
+- The reader's flight `date` is the DEPARTURE day, so the line says "flies", never "lands" — there is no arrival date field.
+- Extend = `lib/confirmations/extendJourney`: Settings' write (planDayChanges over fresh days → trips row → day updates → inserts with `Day N` names), growing only — it refuses any range that would remove a day. The sheet holds its own days after that; on close/save it calls `onDaysChanged`, default `window.location.reload()` because WeekBoard/DayView keep days in useState and a router.refresh would not show the new day.
+- `shortDay` spells months by hand: Node's ICU writes "Sept" in en-GB and browsers differ.
+- The check-out select now allows the check-in day itself (`>=`), so a stay clipped to the last day can still check out on it.
