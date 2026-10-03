@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { Card } from "@/types/database";
 import { makeMaterialPinElement } from "@/lib/mapPins";
+import { stackGroups, STACK_FACTOR } from "@/lib/map/stackGroups";
 import Link from "next/link";
 import { MapTrifold } from "@phosphor-icons/react";
 
@@ -302,17 +303,9 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
           const items = pinsRef.current;
           items.forEach((it) => { it.wrapper.style.display = ""; it.badge.textContent = it.index < 0 ? "★" : String(it.index + 1); it.group = null; });
           const pinPx = (items.find((it) => it.index >= 0) ?? items[0])?.wrapper.getBoundingClientRect().width || PIN_FALLBACK_PX;
-          const STACK_PX = pinPx * 0.95;
           const pts = items.map((it) => ({ it, p: map.project([it.lng, it.lat]) as { x: number; y: number } }));
-          const used = new Set<number>();
-          for (let a = 0; a < pts.length; a++) {
-            if (used.has(a)) continue;
-            const g = [a];
-            used.add(a);
-            for (let b = a + 1; b < pts.length; b++) {
-              if (used.has(b)) continue;
-              if (Math.hypot(pts[a].p.x - pts[b].p.x, pts[a].p.y - pts[b].p.y) < STACK_PX) { g.push(b); used.add(b); }
-            }
+          // Any overlap, chained (lib/map/stackGroups), so a tap on a pile always zooms.
+          for (const g of stackGroups(pts.map((x) => x.p), pinPx * STACK_FACTOR)) {
             if (g.length < 2) continue;
             const members = g.map((k) => pts[k].it).sort((x, y) => (x.index < 0 ? 1e9 : x.index) - (y.index < 0 ? 1e9 : y.index));
             const nums = members.filter((m) => m.index >= 0).map((m) => m.index + 1);
