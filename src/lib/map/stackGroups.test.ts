@@ -1,5 +1,23 @@
 import { describe, it, expect } from "vitest";
-import { stackGroups, STACK_FACTOR } from "./stackGroups";
+import { stackGroups, STACK_FACTOR, pileZoom } from "./stackGroups";
+
+describe("pileZoom: a tap on a pile always zooms in", () => {
+  it("never out, even when fitting into the padding would (his '1 – 4' tap, 3 Oct 2026)", () => {
+    expect(pileZoom(13, 12.2)).toBe(14.5);
+    expect(pileZoom(13, null)).toBe(14.5);
+  });
+  it("the day map's pile taps (stops and hotel) both go through it, not a bare fitBounds", async () => {
+    const { readFileSync } = await import("fs");
+    const { join } = await import("path");
+    const src = readFileSync(join(__dirname, "..", "..", "components", "day", "DayMap.tsx"), "utf8");
+    expect(src.match(/zoomToPile\(b\)/g)?.length).toBe(2);
+    expect(src).toContain("pileZoom(map.getZoom()");
+  });
+  it("further in when the fit needs it, capped at street level", () => {
+    expect(pileZoom(13, 16)).toBe(16);
+    expect(pileZoom(16.5, 18)).toBe(17);
+  });
+});
 
 const PIN = 44;
 const near = PIN * STACK_FACTOR;

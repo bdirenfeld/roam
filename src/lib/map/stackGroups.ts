@@ -21,5 +21,17 @@ export function stackGroups(pts: { x: number; y: number }[], near: number): numb
   return Array.from(by.values());
 }
 
+/**
+ * How far a tap on a pile zooms (3 Oct 2026). Fitting the pile into the map's
+ * padding can give a LOWER zoom than now (a big sheet leaves little room), and
+ * Brennan's tap on "1 – 4" zoomed out. A pile's pins overlap, so the answer is
+ * always closer: at least `step` levels in, more if the fit needs it, never past `max`.
+ */
+export function pileZoom(current: number, fit: number | null | undefined, step = 1.5, max = 17): number {
+  const floor = current + step;
+  const want = fit != null && Number.isFinite(fit) ? Math.max(fit, floor) : floor;
+  return Math.min(want, max);
+}
+
 /** Two pins count as stacked once their discs overlap at all, with a little slack for the number badge. */
 export const STACK_FACTOR = 1.1;

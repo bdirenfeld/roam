@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { Card } from "@/types/database";
 import { makeMaterialPinElement } from "@/lib/mapPins";
-import { stackGroups, STACK_FACTOR } from "@/lib/map/stackGroups";
+import { stackGroups, STACK_FACTOR, pileZoom } from "@/lib/map/stackGroups";
 import Link from "next/link";
 import { MapTrifold } from "@phosphor-icons/react";
 
@@ -228,6 +228,14 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
           await document.fonts.load('16px "Material Symbols Outlined"');
         } catch { /* best-effort */ }
 
+        // A tap on a pile: always in, centred on it (lib/map/stackGroups
+        // pileZoom). Fitting it into the padding alone could zoom OUT (3 Oct 2026).
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const zoomToPile = (b: any) => {
+          const cam = map.cameraForBounds(b, { padding: fitPadding(), maxZoom: 17 }) as { zoom?: number } | undefined;
+          map.easeTo({ center: b.getCenter(), zoom: pileZoom(map.getZoom(), cam?.zoom), duration: 600 });
+        };
+
         mappable.forEach(({ card, lat, lng }, i) => {
           const cardDetails = card.details as Record<string, unknown> | null;
           const { wrapper, inner } = makeMaterialPinElement(
@@ -282,7 +290,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
               if (!expandedRef.current && window.innerWidth < 768) onToggleExpandRef.current?.();
               // 60ms lets the expand commit first, so the dock is the height
               // fitPadding is about to assume.
-              setTimeout(() => map.fitBounds(b, { padding: fitPadding(), maxZoom: 17, duration: 500 }), 60);
+              setTimeout(() => zoomToPile(b), 60);
               return;
             }
             onPinTapRef.current?.(card.id);
@@ -377,7 +385,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
                 if (!expandedRef.current && window.innerWidth < 768) onToggleExpandRef.current?.();
                 // 60ms lets the expand commit first, so the dock is the height
               // fitPadding is about to assume.
-              setTimeout(() => map.fitBounds(b, { padding: fitPadding(), maxZoom: 17, duration: 500 }), 60);
+              setTimeout(() => zoomToPile(b), 60);
                 return;
               }
               onPinTapRef.current?.(ac.id);
