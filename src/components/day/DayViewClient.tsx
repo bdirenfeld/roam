@@ -610,10 +610,14 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   const prevDay = currentIndex > 0 ? days[currentIndex - 1] : null;
   const nextDay = currentIndex < days.length - 1 ? days[currentIndex + 1] : null;
 
-  // Warm adjacent day routes so tab-switches skip the skeleton flash
+  // Warm the days either side, in FULL (3 Oct 2026, speed). A plain prefetch
+  // of a route with loading.tsx only fetches the skeleton, so every day switch
+  // on the phone still waited on the server. "full" fetches the day's data
+  // too; next.config's staleTimes keeps it usable for a minute.
   useEffect(() => {
-    if (prevDay) router.prefetch(`/trips/${trip.id}/days/${prevDay.id}`);
-    if (nextDay) router.prefetch(`/trips/${trip.id}/days/${nextDay.id}`);
+    const full = { kind: "full" } as unknown as Parameters<typeof router.prefetch>[1];
+    if (prevDay) router.prefetch(`/trips/${trip.id}/days/${prevDay.id}`, full);
+    if (nextDay) router.prefetch(`/trips/${trip.id}/days/${nextDay.id}`, full);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dayWithCards.id]);
 
