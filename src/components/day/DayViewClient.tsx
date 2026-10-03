@@ -19,6 +19,8 @@ import { autoDayTitle } from "@/lib/autoDayTitle";
 import DayMap from "@/components/day/DayMap";
 import CardTimeline from "@/components/day/CardTimeline";
 import StartHere from "@/components/plan/StartHere";
+import TripUnderwayVideo from "@/components/videos/TripUnderwayVideo";
+import { isUnderwayLocal } from "@/lib/isSameLocalDay";
 import { startSteps, type StartCard } from "@/lib/plan/startHere";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import AppMenu from "@/components/ui/AppMenu";
@@ -229,6 +231,8 @@ interface Props {
   initialNotes: string | null;
   /** Guest view — every plan-edit affordance is suppressed; the companion stays. */
   readOnly?: boolean;
+  /** A phone, by the server's user-agent read (lib/device). Video 4's card shows only there. */
+  phone?: boolean;
 }
 
 // ── ··· menu ──────────────────────────────────────────────────────────────
@@ -243,7 +247,7 @@ function formatDayTitle(dateStr: string): string {
   return `${dayName}, ${dayNum} ${monthName}`;
 }
 
-export default function DayViewClient({ trip, days, dayWithCards, hotelCards, initialNotes, readOnly = false }: Props) {
+export default function DayViewClient({ trip, days, dayWithCards, hotelCards, initialNotes, readOnly = false, phone = false }: Props) {
   const router = useRouter();
   const supabase = createClient();
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
@@ -356,6 +360,12 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
     return !first || first.id === dayWithCards.id;
   }, [days, dayWithCards.id]);
   const startShown = startCards !== null && (() => { const s = startSteps(startCards, { firstDay }); return s.upload || s.find; })();
+  // Video 4 (2 Oct 2026): "Your trip's started" on the phone's day while the
+  // journey is under way, by the PHONE's date (after mount: the server is UTC).
+  // One card at a time: it waits while Start here shows, and until we know.
+  const [underway, setUnderway] = useState(false);
+  useEffect(() => { setUnderway(isUnderwayLocal(trip.start_date, trip.end_date)); }, [trip.start_date, trip.end_date]);
+  const underwayShown = phone && underway && (readOnly || startCards !== null) && !startShown;
 
   // The desktop masthead's menu lives in the layout, so its Bookings row asks
   // whichever screen is open to show the sheet (Brennan, Sep 2026: "I thought
@@ -1078,6 +1088,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
             }`}
             {...swipeHandlers}
           >
+            {underwayShown && <TripUnderwayVideo />}
             {startShown && (
               <div className="mb-4 flex justify-center">
                 <StartHere cards={startCards!} firstDay={firstDay} place={trip.destination ?? ""} reading={importingConf}

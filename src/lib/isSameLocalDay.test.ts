@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isSameLocalDay, isBeforeLocalDay, localDate } from "./isSameLocalDay";
+import { isSameLocalDay, isBeforeLocalDay, localDate, isUnderwayLocal } from "./isSameLocalDay";
 
 /**
  * Runs at TZ=America/Toronto (vitest.config.ts). That is not incidental: on a
@@ -65,5 +65,38 @@ describe("isBeforeLocalDay", () => {
     expect(isBeforeLocalDay("2026-09-24", now)).toBe(true);
     expect(isBeforeLocalDay("2026-09-23", now)).toBe(false);
     expect(isBeforeLocalDay("2026-09-22", now)).toBe(false);
+  });
+});
+
+describe("isUnderwayLocal", () => {
+  const S = "2027-05-10", E = "2027-05-12";
+  it("the first day, from just after local midnight", () => {
+    expect(isUnderwayLocal(S, E, new Date(2027, 4, 10, 0, 1))).toBe(true);
+  });
+  it("the last day, until just before local midnight", () => {
+    expect(isUnderwayLocal(S, E, new Date(2027, 4, 12, 23, 59))).toBe(true);
+  });
+  it("a day in the middle", () => {
+    expect(isUnderwayLocal(S, E, new Date(2027, 4, 11, 12, 0))).toBe(true);
+  });
+  it("the evening before it starts: not yet (UTC would already say the 10th)", () => {
+    expect(isUnderwayLocal(S, E, new Date(2027, 4, 9, 21, 0))).toBe(false);
+  });
+  it("the morning after it ends: over", () => {
+    expect(isUnderwayLocal(S, E, new Date(2027, 4, 13, 0, 1))).toBe(false);
+  });
+  it("the last day's evening in Toronto is still the last day (UTC would say the 13th)", () => {
+    expect(isUnderwayLocal(S, E, new Date(2027, 4, 12, 21, 0))).toBe(true);
+  });
+  it("a one-day journey, on its day", () => {
+    expect(isUnderwayLocal(S, S, new Date(2027, 4, 10, 9, 0))).toBe(true);
+  });
+  it("missing dates or an end before the start: never", () => {
+    expect(isUnderwayLocal(null, E, new Date(2027, 4, 11, 12, 0))).toBe(false);
+    expect(isUnderwayLocal(S, undefined, new Date(2027, 4, 11, 12, 0))).toBe(false);
+    expect(isUnderwayLocal(E, S, new Date(2027, 4, 11, 12, 0))).toBe(false);
+  });
+  it("a timestamp-shaped date is read as its date", () => {
+    expect(isUnderwayLocal("2027-05-10T00:00:00", "2027-05-12T00:00:00", new Date(2027, 4, 12, 18, 0))).toBe(true);
   });
 });

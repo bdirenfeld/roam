@@ -22,10 +22,9 @@ export default async function DayPage({ params }: Props) {
   // On a computer the owner's day lives inside the week (27 Sep 2026): Back,
   // search results and a new journey kept landing here, on the old agenda
   // page. The week opens with this day in place. Guests and phones stay.
-  if (access === "owner") {
-    const h = await headers();
-    if (!isPhone(h.get("user-agent"), h.get("sec-ch-ua-mobile"))) redirect(`/trips/${tripId}/plan?day=${dayId}`);
-  }
+  const h = await headers();
+  const phone = isPhone(h.get("user-agent"), h.get("sec-ch-ua-mobile"));
+  if (access === "owner" && !phone) redirect(`/trips/${tripId}/plan?day=${dayId}`);
   // Parallel fetch — trip, all days, cards for today, hotel cards for all days
   const [
     { data: trip },
@@ -91,6 +90,7 @@ export default async function DayPage({ params }: Props) {
       // work offline.
       initialNotes={(trip as Trip).notes ?? null}
       readOnly={readOnly}
+      phone={phone}
     />
   );
 }

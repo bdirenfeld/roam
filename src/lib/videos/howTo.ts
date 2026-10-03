@@ -18,7 +18,7 @@
 export type VideoId = "first-journey" | "planning-computer" | "on-the-trip" | "in-the-app";
 
 /** The places a video is offered before it is gone. The menu lists every switched-on video, always. */
-export type Surface = "journeys-empty" | "start-here" | "start-here-computer" | "shared-link";
+export type Surface = "journeys-empty" | "start-here" | "start-here-computer" | "shared-link" | "trip-underway";
 
 export interface HowToVideo {
   id: VideoId;
@@ -60,14 +60,14 @@ export const VIDEOS: HowToVideo[] = [
     surfaces: ["shared-link"],
   },
   {
-    // Video 4 (2 Oct 2026): the organiser on their phone, mid-trip. Menu only:
-    // there is no single moment on a screen where it belongs.
+    // Video 4 (2 Oct 2026): the organiser on their phone, mid-trip. Offered on
+    // the phone's day once the journey is under way ("Your trip's started").
     id: "in-the-app",
     title: "Using Roam on your trip",
     length: "1 min",
     file: "in-the-app.mp4",
     poster: "in-the-app.jpg",
-    surfaces: [],
+    surfaces: ["trip-underway"],
   },
 ];
 

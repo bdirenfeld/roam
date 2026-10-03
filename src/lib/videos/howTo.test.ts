@@ -18,8 +18,12 @@ describe("the video list", () => {
     ]);
   });
 
-  it("video 4 is in the menu only: never offered on a screen (2 Oct 2026)", () => {
-    expect(VIDEOS.find((v) => v.id === "in-the-app")!.surfaces).toEqual([]);
+  it("video 4 is offered on one screen only: the phone's day once the trip is under way (2 Oct 2026)", () => {
+    expect(VIDEOS.find((v) => v.id === "in-the-app")!.surfaces).toEqual(["trip-underway"]);
+    expect(VIDEOS.filter((v) => v.surfaces.includes("trip-underway")).map((v) => v.id)).toEqual(["in-the-app"]);
+    expect(forSurface("trip-underway", { ...all, "in-the-app": 1 }, {})).toBe("in-the-app");
+    expect(forSurface("trip-underway", { ...all, "in-the-app": 1 }, { "in-the-app": T })).toBeNull();
+    expect(forSurface("trip-underway", all, {})).toBeNull();
     const four: Available = { ...all, "in-the-app": 1 };
     expect(listed(four).map((v) => v.id)).toContain("in-the-app");
     for (const s of ["journeys-empty", "start-here", "start-here-computer", "shared-link"] as const) {

@@ -2110,3 +2110,14 @@ the component mounted and you are looking at throttling, not a broken map.
 - **Start here hides, whole card, once a stop is planned** (`lib/plan/startHere` `isPlannedStop`: an activity or food place on a day with status `in_itinerary`). Brennan: his Japan journey (46 stops on its days, its 6 ryokans all only `interested`) still showed "Upload a booking" on day 1, wrong for a journey well past its start. Both buttons and the video 1 row go with it (the video row lives on the card); Bookings stays in the menu, the Videos tile still lists the video. A place only saved, or on a day but `interested`/`cut`, does not count. Fixture: `lib/plan/fixtures/japan-start.json` (that journey's 94 cards, place type/sub_type only), used by startHere.test, StartHere.test and DayViewClient.startHere.test. Over all journeys on 2 Oct, only empty ones and Italy 2027 / London / Sandra (0 stops planned) still show it.
 - **Where to stay's map moves are timed by `lib/map/glide` `stayGlide`**, not Mapbox's distance-based flyTo: Osaka ↔ Tokyo (~400 km) took ~4.3 s on a computer and ~5.7 s on a phone at zoom 12–13 (computed from Mapbox's own flyTo formula). Now 0.9 s (next door) rising on a log scale to 1.4 s (≥300 km). Under 25 km it eases straight across (fitBounds `linear: true` / easeTo); further it keeps flyTo's arc, because an easeTo across 400 km at street zoom pans over every tile between. His ruling on feel: "don't make it aggressive and jerky… it just needs to not lag or look jumpy." Both FullMapClient (phone) and WeekMap (computer) use it for the stays' fitBounds and the focused stay; `glide.test.ts` reads both files.
 - **Trap: Mapbox `maxDuration` is not a cap.** A move longer than it gets `duration = 0`, i.e. a jump-cut. Always pass `duration`. `glide.test.ts` fails if either map file uses `maxDuration`.
+
+**Video 4's "Your trip's started" card (2 Oct 2026):** surface `trip-underway`
+in `lib/videos/howTo`, rendered by `components/videos/TripUnderwayVideo` at the
+top of the phone's day. The day page now passes `phone` (lib/device, server UA)
+to `DayViewClient` for everyone, not just to redirect owners — a guest on a
+computer still gets the day view, so "phone only" cannot be read from the page
+existing. "Under way" is `isUnderwayLocal` (lib/isSameLocalDay), computed after
+mount because the server is UTC; it waits for Start here's card read so the two
+never show together. Faking "today" in a render test:
+`vi.useFakeTimers({ toFake: ["Date"] })` + `vi.setSystemTime` — faking all
+timers stalls the async reads the day view does after mount.
