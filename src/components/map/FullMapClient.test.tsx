@@ -142,6 +142,17 @@ describe("the phone Map", { timeout: 20000 }, () => {
     vi.unstubAllEnvs();
   });
 
+  it("a card the server sends after a refresh (a stay picked in Where to stay) lands on the map without a reload (Muskoka, 3 Oct 2026)", async () => {
+    vi.stubEnv("NEXT_PUBLIC_MAPBOX_TOKEN", "pk.test");
+    let r!: ReturnType<typeof render>;
+    await act(async () => { r = render(<FullMapClient trip={trip} days={days} cards={[]} />); });
+    expect(screen.getByText(/^(Nothing on the map yet|Start your map)$/)).toBeTruthy();
+    const stay = { ...saved("h1", "Lake of Bays cottage", 45.32, -79.04), status: "in_itinerary", day_id: "d1", place: { ...saved("h1", "x", 45.32, -79.04).place, type: "logistics", sub_type: "hotel" } } as unknown as Card;
+    await act(async () => { r.rerender(<FullMapClient trip={trip} days={days} cards={[stay]} />); });
+    expect(screen.queryByText(/^(Nothing on the map yet|Start your map)$/)).toBeNull();
+    vi.unstubAllEnvs();
+  });
+
   it("closing Find puts a page the keyboard scrolled back at the top, so the header shows (3 Oct 2026)", async () => {
     await act(async () => { render(<FullMapClient trip={trip} days={days} cards={cards} />); });
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Find places" })); });

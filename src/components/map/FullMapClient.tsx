@@ -634,6 +634,19 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
     setLocalCards((prev) => [...prev, card]);
   }
 
+  // Fresh cards from the server (router.refresh) land as pins too. localCards
+  // is seeded once, so anything written elsewhere — a stay picked in Where to
+  // stay, a Find save — stayed off the map until a reload (Muskoka, 3 Oct 2026).
+  // Additions only: removals here already go through the map's own handlers.
+  const localIdsRef = useRef<Set<string>>(new Set(cards.map((c) => c.id)));
+  useEffect(() => { localIdsRef.current = new Set(localCards.map((c) => c.id)); }, [localCards]);
+  useEffect(() => {
+    const fresh = cards.filter((c) => !localIdsRef.current.has(c.id));
+    if (!fresh.length) return;
+    fresh.forEach((c) => addPinToMap(c));
+    setLocalCards((prev) => [...prev, ...fresh.filter((c) => !prev.some((p) => p.id === c.id))]);
+  }, [cards, addPinToMap]);
+
   function handlePlaceCardCreated(card: Card) {
     if (tempPinRef.current) { tempPinRef.current.remove(); tempPinRef.current = null; }
     setPendingPlace(null);
