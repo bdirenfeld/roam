@@ -7,6 +7,7 @@ import { subTypeLabel } from "@/lib/subTypeLabel";
 import { getOpeningHoursConflict, openingHoursCaption, openingHoursTone } from "@/lib/openingHours";
 import LovedHeart from "@/components/ui/LovedHeart";
 import CardBadges from "./CardBadges";
+import { streetAndTown } from "@/lib/week/cardText";
 
 interface Props {
   card: Card;
@@ -43,17 +44,7 @@ function flightRoute(det: Record<string, unknown> | null, timeRange: string | nu
  * "Piazza Franco Anelli, 70013 Castellana Grotte BA, Italy" → "Piazza Franco
  * Anelli, Castellana Grotte".
  */
-function shortAddress(a?: string | null): string | null {
-  if (!a) return null;
-  const parts = a.split(",").map((s) => s.trim()).filter(Boolean);
-  if (!parts.length) return null;
-  const street = parts[0];
-  const city = parts[1]
-    ?.replace(/^\d[\d\s-]*/, "")        // leading postcode
-    .replace(/\s+[A-Z]{2}$/, "")        // trailing province code
-    .trim();
-  return city ? `${street}, ${city}` : street;
-}
+const shortAddress = streetAndTown;
 
 /** "6:00 pm" for the rail. The range still shows in the line beneath. */
 function railTime(start: string | null): string | null {
@@ -143,7 +134,7 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
   const surfRating = place?.type === "food" ? place.rating : null;
   const isLoved    = place?.loved === true;
   const priceRange = place?.type === "food"
-    ? getPriceRange(place.price_level ?? undefined, det?.currency_code as string | undefined)
+    ? getPriceRange(place.price_level ?? undefined, det?.currency_code as string | undefined, place.address)
     : null;
 
   // Through cardTimes, like everything else on this card: an arriving flight

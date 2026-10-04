@@ -500,7 +500,9 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
         </button>
       )}
       {hot && (
-        <div className="absolute inset-2 rounded-xl pointer-events-none flex items-end justify-center pb-4" style={{ background: "rgba(26,26,46,0.08)", border: "2px dashed rgba(26,26,46,0.35)" }}>
+        // Centred and above the map's buttons (4 Oct 2026): at the bottom, the
+        // Filter / Plan my trip / Find places row covered most of the pill.
+        <div data-testid="drop-off-day" className="absolute inset-2 z-[40] rounded-xl pointer-events-none flex items-center justify-center" style={{ background: "rgba(26,26,46,0.08)", border: "2px dashed rgba(26,26,46,0.35)" }}>
           <span className="text-[12px] font-medium px-3 py-1.5 rounded-full bg-white" style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.2)" }}>Drop to take it off the day</span>
         </div>
       )}

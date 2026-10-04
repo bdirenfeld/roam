@@ -13,7 +13,7 @@
 // underneath. A card with no time opens with a suggested start — the end of
 // the card above — so the common case is chip, Done.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSheetDrag } from "@/hooks/useSheetDrag";
 import { formatTimeValue } from "@/lib/formatTime";
 import type { Card } from "@/types/database";
@@ -109,19 +109,28 @@ export default function TimeSheet({
   const preset = PRESETS.find((p) => p.start === start && p.end === end)?.label ?? (startText.trim() ? null : "none");
   const suggested = !card.start_time && !!suggestedStart && start === hhmm(suggestedStart);
 
-  const setBoth = (s: string, e: string) => { setStartText(formatTimeValue(s)); setEndText(formatTimeValue(e)); };
+  const setBoth = (s: string, e: string) => { setStartText(formatTimeValue(s)); setEndText(formatTimeValue(e)); keptLen.current = toMin(e) > toMin(s) ? toMin(e) - toMin(s) : 0; };
 
+  // The length the person last set (or the card had), kept while the start is
+  // retyped. Measured from the live fields it shrank as the start moved:
+  // lunch 12:30–1:45 moved to 1:00 became 1:00–1:45 (4 Oct 2026).
+  const keptLen = useRef<number>(initialStart && initialEnd && toMin(hhmm(initialEnd)) > toMin(hhmm(initialStart)) ? toMin(hhmm(initialEnd)) - toMin(hhmm(initialStart)) : 0);
   const onStartChange = (v: string) => {
     setStartText(v);
     const s = parseTypedTime(v);
-    // Keep the length when the start moves; an end that fell before the
-    // start is a typo, so it follows.
-    if (s && endParsed && toMin(endParsed) <= toMin(s)) setEndText(formatTimeValue(fromMin(toMin(s) + (length || 60))));
+    if (s && keptLen.current > 0) setEndText(formatTimeValue(fromMin(Math.min(toMin(s) + keptLen.current, 23 * 60 + 59))));
+    else if (s && endParsed && toMin(endParsed) <= toMin(s)) setEndText(formatTimeValue(fromMin(toMin(s) + 60)));
+  };
+  const onEndChange = (v: string) => {
+    setEndText(v);
+    const e = parseTypedTime(v);
+    if (start && e && toMin(e) > toMin(start)) keptLen.current = toMin(e) - toMin(start);
   };
   const tidy = (v: string, set: (t: string) => void) => { const p = parseTypedTime(v); if (p) set(formatTimeValue(p)); };
 
   const setLength = (mins: number) => {
     if (!start) return;
+    keptLen.current = Math.max(STEP, mins);
     setEndText(formatTimeValue(fromMin(toMin(start) + Math.max(STEP, mins))));
   };
 
@@ -181,7 +190,7 @@ export default function TimeSheet({
         <div className="grid grid-cols-3 gap-2 px-5 pt-3">
           {[
             { label: "Start", value: startText, parsed: start, set: onStartChange, blur: () => tidy(startText, setStartText), disabled: false },
-            { label: "End", value: endText, parsed: end, set: (v: string) => setEndText(v), blur: () => tidy(endText, setEndText), disabled: !start },
+            { label: "End", value: endText, parsed: end, set: onEndChange, blur: () => tidy(endText, setEndText), disabled: !start },
           ].map((f) => (
             <label key={f.label} className="flex flex-col gap-1">
               <span className="text-[10px] uppercase" style={{ letterSpacing: "0.12em", color: "rgba(26,26,46,0.45)" }}>{f.label}</span>

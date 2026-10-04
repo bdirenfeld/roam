@@ -35,6 +35,7 @@ import Overlay from "@/components/ui/Overlay";
 import { JourneyNotesSheet } from "@/components/trip/JourneyNotes";
 import type { Person } from "@/components/trip/TravellersSection";
 import { createClient } from "@/lib/supabase/client";
+import { rememberNotes, recallNotes } from "@/lib/offline/notesCache";
 import { isTripGuest } from "@/lib/trip-access-client";
 import { buildNewJourneyHref } from "@/lib/newJourneySeed";
 import type { NewJourneySeed } from "@/lib/newJourneySeed";
@@ -333,6 +334,10 @@ function JourneyNotesProvider({ children }: { children: ReactNode }) {
   const [loaded, setLoaded] = useState<string | null>(null);
 
   const open = useCallback((tripId: string, initialNotes?: string | null) => {
+    if (initialNotes != null) rememberNotes(tripId, initialNotes);
+    // No signal: the copy kept on the phone, straight away (lib/offline/notesCache).
+    const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+    initialNotes = initialNotes ?? (offline ? recallNotes(tripId) ?? "" : null);
     setLoaded(initialNotes ?? null);
     setRequest((prev) => ({
       tripId,
@@ -354,9 +359,13 @@ function JourneyNotesProvider({ children }: { children: ReactNode }) {
       .select("notes")
       .eq("id", request.tripId)
       .single()
-      .then(({ data }) => {
-        if (!cancelled) setLoaded((data as { notes: string | null } | null)?.notes ?? "");
-      });
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error || !data) { setLoaded(recallNotes(request.tripId) ?? ""); return; }
+        const notes = (data as { notes: string | null }).notes ?? "";
+        rememberNotes(request.tripId, notes);
+        setLoaded(notes);
+      }, () => { if (!cancelled) setLoaded(recallNotes(request.tripId) ?? ""); });
     return () => { cancelled = true; };
   }, [request]);
 

@@ -43,6 +43,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { createClient } from "@/lib/supabase/client";
+import { rememberNotes } from "@/lib/offline/notesCache";
 import {
   insertItem,
   makeItem,
@@ -236,6 +237,7 @@ export default function JourneyNotes({
     setSaveState("saving");
     while (latest.current !== saved.current) {
       const attempt = latest.current;
+      rememberNotes(tripId, attempt); // the phone's copy, for no signal (lib/offline/notesCache)
       const { error } = await supabase
         .from("trips")
         .update({ notes: attempt.trim() === "" ? null : attempt })
