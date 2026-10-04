@@ -1,6 +1,10 @@
 import type { Card } from "@/types/database";
 
-interface Props { card: Card }
+import FieldRow from "./FieldRow";
+
+// Notes are editable here too (3 Oct 2026): this fallback layout printed them
+// read-only, with raw **asterisks** and no line breaks (ActivityDetail had the same).
+interface Props { card: Card; onSaveDetails?: (field: string, value: unknown) => void; showEmpty?: boolean }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.08em] mb-2">{children}</p>;
@@ -18,7 +22,7 @@ function Row({ icon, label, value }: { icon: string; label: string; value: strin
   );
 }
 
-export default function LogisticsDetail({ card }: Props) {
+export default function LogisticsDetail({ card, onSaveDetails, showEmpty = false }: Props) {
   const d = card.details as {
     airline?: string;
     arrival_airport?: string;
@@ -92,10 +96,11 @@ export default function LogisticsDetail({ card }: Props) {
         </div>
       )}
       {/* Notes */}
-      {d.notes && (
+      {(showEmpty || d.notes) && (
         <div>
           <SectionLabel>Notes</SectionLabel>
-          <p className="text-sm text-gray-700 mt-1.5 leading-relaxed">{d.notes as string}</p>
+          <FieldRow value={d.notes as string | undefined} placeholder="Add a note…"
+            onSave={onSaveDetails ? (v: string) => onSaveDetails("notes", v || null) : undefined} multiline hideWhenEmpty={!showEmpty} />
         </div>
       )}
     </div>

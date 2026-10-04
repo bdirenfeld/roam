@@ -1,8 +1,13 @@
 import type { Card } from "@/types/database";
 
-interface Props { card: Card }
+import FieldRow from "./FieldRow";
 
-export default function ActivityDetail({ card }: Props) {
+// Notes are editable here too (3 Oct 2026): this fallback layout printed them
+// read-only, so a Shopping card's Plan my trip note couldn't be changed on the
+// phone, and it showed raw **asterisks** with no line breaks.
+interface Props { card: Card; onSaveDetails?: (field: string, value: unknown) => void; showEmpty?: boolean }
+
+export default function ActivityDetail({ card, onSaveDetails, showEmpty = false }: Props) {
   const d = card.details as {
     supplier?: string;
     meeting_point?: string;
@@ -112,10 +117,11 @@ export default function ActivityDetail({ card }: Props) {
       )}
 
       {/* Notes */}
-      {d.notes && (
+      {(showEmpty || d.notes) && (
         <div>
           <SectionLabel>Notes</SectionLabel>
-          <p className="text-sm text-gray-700 mt-1.5 leading-relaxed">{d.notes as string}</p>
+          <FieldRow value={d.notes as string | undefined} placeholder="Add a note…"
+            onSave={onSaveDetails ? (v: string) => onSaveDetails("notes", v || null) : undefined} multiline hideWhenEmpty={!showEmpty} />
         </div>
       )}
 

@@ -933,8 +933,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       case "activity/wellness":
         return <WellnessDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
       default:
-        if (place?.type === "logistics") return <LogisticsDetail card={dCard} />;
-        if (place?.type === "activity")  return <ActivityDetail  card={dCard} />;
+        if (place?.type === "logistics") return <LogisticsDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
+        if (place?.type === "activity")  return <ActivityDetail  card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
         return <RestaurantDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
     }
   }
