@@ -7,6 +7,7 @@ import { startZoomFor } from "@/lib/places/regions";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import MapPinPopup from "./MapPinPopup";
+import { popupPanY } from "@/lib/map/popupRoom";
 import MapSidebar, { SIDEBAR_SUB_TYPES, GROUPS } from "./MapSidebar";
 import PlaceSearch from "./PlaceSearch";
 import { lookupPlace, TEMP_PIN_SVG } from "./lookupPlace";
@@ -1268,6 +1269,13 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
           <MapPinPopup
             card={selectedCard}
             anchorPos={anchorPos}
+            onPlaced={(top) => {
+              const map = mapInstRef.current, el = mapContainerRef.current;
+              if (!map || !el || !anchorPos) return;
+              const r = el.getBoundingClientRect();
+              const dy = popupPanY(top, Math.max(r.top, 0), anchorPos.y, r.bottom);
+              if (dy > 0) map.panBy([0, -dy], { duration: 300 });
+            }}
             onClose={() => { deselectPin(); setSelectedCard(null); }}
             onCardUpdate={readOnly ? undefined : handleCardUpdate}
             onCardDelete={readOnly ? undefined : (cardId) => { deselectPin(); handleCardDelete(cardId); }}

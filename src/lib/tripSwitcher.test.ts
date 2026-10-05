@@ -28,6 +28,20 @@ describe("groupTrips", () => {
   });
 
   it("handles no journeys", () => {
-    expect(groupTrips([], "2026-09-26")).toEqual({ upcoming: [], past: [] });
+    expect(groupTrips([], "2026-09-26")).toEqual({ upcoming: [], past: [], hidden: 0 });
+  });
+
+  it("caps the menu: upcoming keep their places, the oldest past ones drop off", () => {
+    const { upcoming, past, hidden } = groupTrips(TRIPS, "2026-09-26", 3);
+    expect(upcoming.map((t) => t.id)).toEqual(["tu"]);
+    expect(past.map((t) => t.id)).toEqual(["lw", "ny"]);
+    expect(hidden).toBe(3); // ro, cr, au — archived ones are not counted
+  });
+
+  it("never lists more upcoming than the cap", () => {
+    const { upcoming, past, hidden } = groupTrips(TRIPS, "2026-01-01", 2);
+    expect(upcoming.map((t) => t.id)).toEqual(["au", "cr"]);
+    expect(past).toEqual([]);
+    expect(hidden).toBe(4);
   });
 });

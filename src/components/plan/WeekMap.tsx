@@ -31,6 +31,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import type { Card, Day, Trip } from "@/types/database";
 import { makeMaterialPinElement } from "@/lib/mapPins";
 import MapPinPopup from "@/components/map/MapPinPopup";
+import { popupPanY } from "@/lib/map/popupRoom";
 import PlaceSearch from "@/components/map/PlaceSearch";
 import AddToTripSheet, { type PlaceResult } from "@/components/map/AddToTripSheet";
 import { lookupPlace } from "@/components/map/lookupPlace";
@@ -629,6 +630,13 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
         <MapPinPopup
           card={selected}
           anchorPos={anchor}
+          onPlaced={(top) => {
+            const map = mapRef.current, el = containerRef.current;
+            if (!map || !el || !anchor) return;
+            const r = el.getBoundingClientRect();
+            const dy = popupPanY(top, Math.max(r.top, 0), anchor.y, r.bottom);
+            if (dy > 0) map.panBy([0, -dy], { duration: 300 });
+          }}
           onClose={close}
           onCardUpdate={(u) => { setSelected(u); onCardUpdate(u); }}
           onCardDelete={(id) => { close(); onCardDelete(id); }}

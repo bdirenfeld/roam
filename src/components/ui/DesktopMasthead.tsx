@@ -607,6 +607,9 @@ function TripSwitcher({ currentTripId, title }: { currentTripId: string; title: 
           {groups && groups.past.length > 0 && heading("PAST")}
           {groups?.past.map(row)}
           <div style={{ height: 1, background: RULE, margin: "6px 4px" }} />
+          <Link href="/trips" onClick={() => setOpen(false)} role="menuitem" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[#F3EFE4]" style={{ textDecoration: "none", color: INK, fontSize: 14, fontWeight: 500 }}>
+            All journeys{groups && groups.hidden > 0 ? <span style={{ color: CAPTION, fontSize: 12 }}>· {groups.hidden} more</span> : null}
+          </Link>
           <Link href="/trips/new" onClick={() => setOpen(false)} role="menuitem" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[#F3EFE4]" style={{ textDecoration: "none", color: INK, fontSize: 14, fontWeight: 600 }}>
             <Plus size={14} weight="bold" /> Plan a journey
           </Link>

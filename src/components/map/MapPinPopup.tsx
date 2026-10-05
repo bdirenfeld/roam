@@ -864,10 +864,25 @@ interface Props {
   onPickMore?: () => void;
   days?: Day[];
   tripId?: string;
+  /** Anchored popups: the popup's top edge (viewport px) once it has laid out, so the host can slide the map if it is cut off. */
+  onPlaced?: (popupTop: number, anchorY: number) => void;
 }
 
-export default function MapPinPopup({ card, anchorPos, onClose, onCardUpdate, onCardDelete, onCardCreated, onPickMore, days, tripId }: Props) {
+export default function MapPinPopup({ card, anchorPos, onClose, onCardUpdate, onCardDelete, onCardCreated, onPickMore, days, tripId, onPlaced }: Props) {
   useEscapeKey(onClose);
+  const placedRef = useRef<HTMLDivElement>(null);
+  const onPlacedRef = useRef(onPlaced); onPlacedRef.current = onPlaced;
+  const anchored = !!anchorPos;
+  useEffect(() => {
+    if (!anchored) return;
+    const id = requestAnimationFrame(() => {
+      const el = placedRef.current;
+      if (!el || !onPlacedRef.current) return;
+      const r = el.getBoundingClientRect();
+      onPlacedRef.current(r.top, r.bottom);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [card.id, anchored]);
   if (anchorPos) {
     const vw        = typeof window !== "undefined" ? window.innerWidth : 800;
     const rawLeft   = anchorPos.x - POPUP_W / 2;
@@ -877,6 +892,8 @@ export default function MapPinPopup({ card, anchorPos, onClose, onCardUpdate, on
 
     return (
       <div
+        ref={placedRef}
+        data-pin-popup
         style={{
           position: "fixed",
           left,
