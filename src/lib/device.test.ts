@@ -7,9 +7,14 @@ const WINDOWS = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (K
 const IPAD = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15";
 
 describe("isPhone", () => {
-  it("trusts the client hint first", () => {
+  it("a phone user agent wins over the hint (emulators send ?0)", () => {
+    expect(isPhone(ANDROID, "?0")).toBe(true);
+    expect(isPhone(IPHONE, "?0")).toBe(true);
+  });
+  it("otherwise takes the client hint", () => {
     expect(isPhone(WINDOWS, "?1")).toBe(true);
-    expect(isPhone(ANDROID, "?0")).toBe(false);
+    expect(isPhone(WINDOWS, "?0")).toBe(false);
+    expect(isPhone(IPAD, "?0")).toBe(false);
   });
   it("reads the user agent otherwise", () => {
     expect(isPhone(IPHONE, null)).toBe(true);
