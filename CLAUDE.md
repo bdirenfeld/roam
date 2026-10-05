@@ -2138,7 +2138,10 @@ timers stalls the async reads the day view does after mount.
 - The `window.open(..., "popup=yes,width=430")` trick is 430px wide but still sends a DESKTOP user agent.
   The day route picks phone vs computer from the server UA (`lib/device` `isPhone`), so in that popup
   `/trips/{id}/days/{dayId}` redirects to `/plan` and you never see DayViewClient/DayMap. Use the
-  built-in browser pane's `mobile` preset (real Android UA; he signs in there himself) or his phone.
+  built-in browser pane's `mobile` preset: it sends an Android UA with sec-ch-ua-mobile ?0, and since
+  7034cfe `isPhone` lets the phone UA win, so the pane gets the real phone day page (verified 5 Oct:
+  Tuscany Day 1, map + 7 pins). Navigate with the pane's navigate tool after setting the preset.
+- The desktop Map tab sidebar is retired (7034cfe); owners get the Filter pill on every screen.
 - The same popup on `/plan` downloads mapbox-gl (1.6 MB) because PlanSwitch server-renders the week
   (WeekMap) before swapping to PlanBoard. Real phones never reach /plan, so that cost is not a phone cost.
 - Desktop pin popups (WeekMap, FullMapClient) slide the map down when the popup would overhang the top:
