@@ -8,7 +8,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import MapPinPopup from "./MapPinPopup";
 import { popupPanY } from "@/lib/map/popupRoom";
-import MapSidebar, { SIDEBAR_SUB_TYPES, GROUPS } from "./MapSidebar";
+import { SIDEBAR_SUB_TYPES, GROUPS } from "./MapSidebar";
 import PlaceSearch from "./PlaceSearch";
 import { lookupPlace, TEMP_PIN_SVG } from "./lookupPlace";
 import AddToTripSheet from "./AddToTripSheet";
@@ -886,23 +886,9 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
   return (
     <div className="flex w-full overflow-hidden h-dvh md:h-[calc(100dvh-64px)]">
 
-      {/* ── Desktop sidebar ── (owner only — it carries per-card delete and the
-          enrich utility; a guest gets the bare map) */}
-      {!readOnly && (
-        <aside className="hidden md:flex md:w-[232px] flex-shrink-0 border-r overflow-y-auto z-20 flex-col" style={{ borderRightColor: "rgba(26,26,46,0.10)", background: "#F5F4F1" }}>
-          <MapSidebar
-            cards={localCards}
-            activeSubTypes={activeSubTypes}            activeTypes={activeTypes}
-            setActiveTypes={handleActiveTypesChange}
-            activeStatuses={activeStatuses}
-            setActiveStatuses={handleActiveStatusesChange}
-            lovedOnly={lovedOnly}
-            setLovedOnly={handleLovedOnlyChange}
-            onCardSelect={handleSidebarCardSelect}
-            onCardDelete={handleCardDelete}
-          />
-        </aside>
-      )}
+      {/* Desktop sidebar retired (5 Oct 2026, Brennan: "why is the old legend
+          there?"). The Filter below is the one control on every screen, as on
+          the week's map; delete lives on the pin popup. */}
 
       {/* ── Map area ── */}
       <div style={{ position: "relative", flex: 1, overflow: "hidden" }}>
@@ -996,7 +982,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
             (desktop owners use the sidebar); shown on desktop too for guests,
             since their sidebar is suppressed. */}
         <div
-          className={`${readOnly ? "" : "md:hidden"} absolute left-3 flex flex-col gap-2`}
+          className="absolute left-3 flex flex-col gap-2"
           // The bar that used to sit under this is gone (24 Sep 2026); clear the
           // phone's home indicator instead. With Find's half sheet up (50dvh,
           // z-70) the row rides just above it; it sat underneath for as long as
