@@ -2133,3 +2133,16 @@ timers stalls the async reads the day view does after mount.
 - Muskoka (8bd1f3c0): Santa's Village, Treetop Trekking and Dwight Beach on days, two Huntsville cafés and the Old Station (Bracebridge) still saved, and the sheet said "No room for what's left". Cause: meals only ever joined a NEW day's group (dayGroups, MEAL_KM 3), and a day with a sight is free 0, so once every day had a sight no meal could be planned. Not planRoom's fault (98add14 only made the sheet tell the truth about it).
 - `lib/plan/mealsOnDays` `mealsOnPlannedDays`, run at the end of buildDraft over the food the groups did not take: nearest day with a sight within NEAR_KM (8 km; planned days are driving days, Treetop is 5 km from the cafés); coffee (any food but restaurant; bars excluded) = 45 min ending 15 min before the day's first timed card, not before 8; restaurant = lunch 12:00 if nothing is booked over it, else dinner from 18:00 or after the last card, by 8 pm; one coffee / lunch / dinner a day counting food already there; inside that day's opening hours; never over a timed card or airport bound. What cannot go returns a plain reason ("It's closed on Sun 11 Oct, the only day near it.").
 - `planRoom.meals` = { placed, left }; the sheet lists them under the count line (`data-testid="plan-meals"`): "Coffee at X, Sun 11 Oct, before Y." / "Z stays saved. <reason>". Fixture `lib/plan/fixtures/muskoka.json` (live DB after his run); mealsOnDays.test + PlanMyTripSheet.test. Henrietta's is closed Sundays, so only Threshold and the Old Station plan.
+
+## Verifying phone-only pages (5 Oct 2026)
+- The `window.open(..., "popup=yes,width=430")` trick is 430px wide but still sends a DESKTOP user agent.
+  The day route picks phone vs computer from the server UA (`lib/device` `isPhone`), so in that popup
+  `/trips/{id}/days/{dayId}` redirects to `/plan` and you never see DayViewClient/DayMap. Use the
+  built-in browser pane's `mobile` preset (real Android UA; he signs in there himself) or his phone.
+- The same popup on `/plan` downloads mapbox-gl (1.6 MB) because PlanSwitch server-renders the week
+  (WeekMap) before swapping to PlanBoard. Real phones never reach /plan, so that cost is not a phone cost.
+- Desktop pin popups (WeekMap, FullMapClient) slide the map down when the popup would overhang the top:
+  MapPinPopup reports its HEIGHT via ResizeObserver and the host computes the top from its current pin
+  position (`lib/map/popupRoom`). Measuring the popup's top directly was a render stale and only
+  panned part way (live: top -104 px on Tuscany).
+- DayMap waits for idle on a phone before starting Mapbox (`lib/map/mapGoNow`); desktop starts at once.
