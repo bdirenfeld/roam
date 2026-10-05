@@ -517,7 +517,7 @@ export default function AttachmentsPanel({ card, onClose, onCardUpdate, onCardsA
 
   // ── Render ──────────────────────────────────────────────────
   return (
-    <div className="absolute inset-0 z-10 bg-white rounded-t-2xl flex flex-col">
+    <div className="absolute inset-0 z-30 bg-white rounded-t-2xl flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-gray-100 flex-shrink-0">
         <h3 className="text-[16px] font-bold text-gray-900">Attachments</h3>

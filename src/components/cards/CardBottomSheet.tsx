@@ -1519,7 +1519,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         {/* Link place sheet — a card with no linked place has no type, so the
             picker shows every saved place (null = no filter). */}
         {showLinkSheet && (
-          <div className="absolute inset-0 z-10">
+          <div className="absolute inset-0 z-30">
             <LinkPlaceSheet
               mode="link"
               tripId={localCard.trip_id}

@@ -18,3 +18,17 @@ describe("booking sheets load on demand", () => {
     expect(src).toContain(`const ${name} = dynamic(`);
   });
 });
+
+// 5 Oct 2026: the photo gallery's arrows sit at z 22 (above the sheet's
+// gradient 20 and handle 21); a full-sheet panel at z 10 showed "Next photo"
+// through the Attachments panel. Full-sheet panels must sit above the arrows.
+describe("full-sheet panels cover the photo arrows", () => {
+  const galleryZ = Number(/const controlZ = \{ zIndex: (\d+) \}/.exec(read("cards/PlacePhotoGallery.tsx"))![1]);
+  it.each([
+    ["cards/AttachmentsPanel.tsx", /absolute inset-0 z-(\d+) bg-white rounded-t-2xl/],
+    ["cards/CardBottomSheet.tsx", /showLinkSheet && \(\s*<div className="absolute inset-0 z-(\d+)">/],
+  ])("%s", (file, re) => {
+    const z = Number(re.exec(read(file))![1]);
+    expect(z, `raise the panel in ${file} above ${galleryZ}`).toBeGreaterThan(galleryZ);
+  });
+});
