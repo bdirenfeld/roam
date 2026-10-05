@@ -27,8 +27,12 @@ import AppMenu from "@/components/ui/AppMenu";
 import { useToast } from "@/components/ui/Toast";
 import { formatTimeRange } from "@/lib/formatTime";
 import { agendaOrder } from "@/lib/agendaOrder";
-import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/plan/ConfirmationPreviewSheet";
-import DocumentsSheet from "@/components/plan/DocumentsSheet";
+import dynamic from "next/dynamic";
+import { reloadOnStale } from "@/lib/chunkReload";
+import type { ParsedConfirmation } from "@/components/plan/ConfirmationPreviewSheet";
+// Phone speed (5 Oct 2026): booking sheets load when opened, not with the day.
+const ConfirmationPreviewSheet = dynamic(reloadOnStale(() => import("@/components/plan/ConfirmationPreviewSheet")), { ssr: false });
+const DocumentsSheet = dynamic(reloadOnStale(() => import("@/components/plan/DocumentsSheet")), { ssr: false });
 import { Files, MagnifyingGlass } from "@phosphor-icons/react";
 import { useGlobalSearch } from "@/components/search/GlobalSearch";
 import CreateCardSheet from "@/components/plan/CreateCardSheet";

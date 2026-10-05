@@ -16,7 +16,10 @@ import LovedHeart from "@/components/ui/LovedHeart";
 import { readRecommendedBy } from "@/lib/recommendedBy";
 import FieldRow, { SectionLabel } from "./detail/FieldRow";
 import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
-import AttachmentsPanel from "./AttachmentsPanel";
+import dynamic from "next/dynamic";
+import { reloadOnStale } from "@/lib/chunkReload";
+// Phone speed (5 Oct 2026): booking sheets load when opened, not with the day.
+const AttachmentsPanel = dynamic(reloadOnStale(() => import("./AttachmentsPanel")), { ssr: false });
 import CardChecklist from "./CardChecklist";
 import { readChecklist } from "./cardChecklistModel";
 import DayPickerOverlay from "./DayPickerOverlay";
