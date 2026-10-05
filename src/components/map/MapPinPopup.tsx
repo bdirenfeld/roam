@@ -864,8 +864,8 @@ interface Props {
   onPickMore?: () => void;
   days?: Day[];
   tripId?: string;
-  /** Anchored popups: the popup's top edge (viewport px) once it has laid out, so the host can slide the map if it is cut off. */
-  onPlaced?: (popupTop: number, anchorY: number) => void;
+  /** Anchored popups: the popup's height (px, arrow included) on first layout and on every resize, so the host can slide the map if it is cut off (lib/map/popupRoom). */
+  onPlaced?: (popupHeight: number) => void;
 }
 
 export default function MapPinPopup({ card, anchorPos, onClose, onCardUpdate, onCardDelete, onCardCreated, onPickMore, days, tripId, onPlaced }: Props) {
@@ -873,15 +873,14 @@ export default function MapPinPopup({ card, anchorPos, onClose, onCardUpdate, on
   const placedRef = useRef<HTMLDivElement>(null);
   const onPlacedRef = useRef(onPlaced); onPlacedRef.current = onPlaced;
   const anchored = !!anchorPos;
+  // Report the popup's height whenever it changes (first layout included);
+  // the host works out the top from its own, current pin position.
   useEffect(() => {
-    if (!anchored) return;
-    const id = requestAnimationFrame(() => {
-      const el = placedRef.current;
-      if (!el || !onPlacedRef.current) return;
-      const r = el.getBoundingClientRect();
-      onPlacedRef.current(r.top, r.bottom);
-    });
-    return () => cancelAnimationFrame(id);
+    const el = placedRef.current;
+    if (!anchored || !el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => onPlacedRef.current?.(el.offsetHeight));
+    ro.observe(el);
+    return () => ro.disconnect();
   }, [card.id, anchored]);
   if (anchorPos) {
     const vw        = typeof window !== "undefined" ? window.innerWidth : 800;

@@ -630,11 +630,11 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
         <MapPinPopup
           card={selected}
           anchorPos={anchor}
-          onPlaced={(top) => {
+          onPlaced={(h) => {
             const map = mapRef.current, el = containerRef.current;
             if (!map || !el || !anchor) return;
             const r = el.getBoundingClientRect();
-            const dy = popupPanY(top, Math.max(r.top, 0), anchor.y, r.bottom);
+            const dy = popupPanY(h, anchor.y, Math.max(r.top, 0), r.bottom);
             if (dy > 0) map.panBy([0, -dy], { duration: 300 });
           }}
           onClose={close}

@@ -2,6 +2,7 @@
 
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { mapGoNow } from "@/lib/map/mapGoNow";
 import type { ReactNode } from "react";
 import type { Card } from "@/types/database";
 import { makeMaterialPinElement } from "@/lib/mapPins";
@@ -73,6 +74,23 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
   onPinTapRef.current = onPinTap;
 
   const hasToken = !!process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+
+  // Phone speed (5 Oct 2026): on a phone the day's stops come first, so the
+  // map waits until the list has painted and the main thread is idle. Mapbox's
+  // download and WebGL start otherwise compete with the first tap on a new day.
+  // Desktop starts at once, because the map sits beside the list there.
+  const [mapGo, setMapGo] = useState(false);
+  useEffect(() => {
+    const go = () => setMapGo(true);
+    if (mapGoNow(typeof window === "undefined" ? undefined : window)) { go(); return; }
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void };
+    if (w.requestIdleCallback) {
+      const id = w.requestIdleCallback(go, { timeout: 700 });
+      return () => w.cancelIdleCallback?.(id);
+    }
+    const t = setTimeout(go, 250);
+    return () => clearTimeout(t);
+  }, []);
 
   // ── Pulse animation ────────────────────────────────────────────
   useEffect(() => {
@@ -174,7 +192,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
 
   // ── Map init ───────────────────────────────────────────────────
   useEffect(() => {
-    if (!hasToken || !mapRef.current || mapInstanceRef.current) return;
+    if (!mapGo || !hasToken || !mapRef.current || mapInstanceRef.current) return;
 
     // Resolve lat/lng from the linked place
     type Resolved = { card: Card; lat: number; lng: number };
@@ -449,7 +467,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cards, accommodationCard]);
+  }, [cards, accommodationCard, mapGo]);
 
   if (!hasToken) {
     return (

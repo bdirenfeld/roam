@@ -1269,11 +1269,11 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
           <MapPinPopup
             card={selectedCard}
             anchorPos={anchorPos}
-            onPlaced={(top) => {
+            onPlaced={(h) => {
               const map = mapInstRef.current, el = mapContainerRef.current;
               if (!map || !el || !anchorPos) return;
               const r = el.getBoundingClientRect();
-              const dy = popupPanY(top, Math.max(r.top, 0), anchorPos.y, r.bottom);
+              const dy = popupPanY(h, anchorPos.y, Math.max(r.top, 0), r.bottom);
               if (dy > 0) map.panBy([0, -dy], { duration: 300 });
             }}
             onClose={() => { deselectPin(); setSelectedCard(null); }}
