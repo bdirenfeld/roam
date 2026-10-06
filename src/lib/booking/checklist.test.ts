@@ -29,7 +29,7 @@ describe("Tuscany (seven people, villa booked, no flights yet)", () => {
     const s = rowsOf(noVilla).stays;
     expect(s.state).toBe("open");
     expect(s.line).toBe("Lucca · 24 Aug – 4 Sep · 7 guests, 2 rooms");
-    expect(s.url).toBe("https://www.kayak.com/hotels/Lucca-Italy/2027-08-24/2027-09-04/4adults/3children-10-8-5/2rooms");
+    expect(s.url).toBe("https://www.kayak.com/hotels/Lucca/2027-08-24/2027-09-04/4adults/3children-10-8-5/2rooms");
   });
   it("some nights covered: counts them and searches the first open run where that night's plans are (Florence, as in the approved mock)", () => {
     const short = get("Tuscany", {
@@ -39,8 +39,8 @@ describe("Tuscany (seven people, villa booked, no flights yet)", () => {
     });
     const s = rowsOf(short).stays;
     expect(s.state).toBe("open");
-    expect(s.line).toBe("7 of 11 nights booked · next: Firenze, 31 Aug – 4 Sep");
-    expect(s.url).toBe("https://www.kayak.com/hotels/Firenze-Italy/2027-08-31/2027-09-04/4adults/3children-10-8-5/2rooms");
+    expect(s.line).toBe("7 of 11 nights booked · next: Florence, 31 Aug – 4 Sep");
+    expect(s.url).toBe("https://www.kayak.com/hotels/Florence/2027-08-31/2027-09-04/4adults/3children-10-8-5/2rooms");
   });
   it("Car is open: from the first airport at 2 pm, back at 10 am on the last day", () => {
     expect(r.car.line).toBe("PSA · 24 Aug – 4 Sep");
@@ -67,7 +67,7 @@ describe("Japan (archived; six saved hotels, none booked)", () => {
   it("the ryokans holding day one as 'interested' do not tick Stays", () => {
     expect(r.stays.state).toBe("open");
     expect(r.stays.line).toBe("Tokyo · 2–15 Apr · 5 guests, 2 rooms");
-    expect(r.stays.url).toBe("https://www.kayak.com/hotels/Tokyo-Japan/2028-04-02/2028-04-15/2adults/3children-10-8-5/2rooms");
+    expect(r.stays.url).toBe("https://www.kayak.com/hotels/Tokyo/2028-04-02/2028-04-15/2adults/3children-10-8-5/2rooms");
   });
   it("flights leave the night before", () => {
     expect(r.flights.url).toBe("https://www.kayak.com/flights/YYZ-NRT,HND/2028-04-01/2028-04-15/2adults/children-10-8-5?sort=bestflight_a");

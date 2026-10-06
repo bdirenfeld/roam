@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { carsUrl, flightsUrl, kayakParty, kayakPlace, roomsFor, staysUrl, travellers } from "./kayak";
+import { carsUrl, flightsUrl, kayakParty, kayakPlace, roomsFor, staysUrl, travellers, englishTown } from "./kayak";
 
 // The URL shapes Brennan checked live on kayak.com, 6 Oct 2026. Tuscany's party:
 // seven people, [43, 40, 70, 70, 10, 8, 5].
@@ -67,5 +67,18 @@ describe("carsUrl", () => {
   });
   it("is always kayak.com — kayak.ca does not resolve on his network", () => {
     expect(carsUrl({ at: "PSA", pickUp: "2027-08-24", pickUpHour: 9, dropOff: "2027-09-04", dropOffHour: 10 })).toMatch(/^https:\/\/www\.kayak\.com\/cars\/PSA\/2027-08-24-09h\//);
+  });
+});
+
+describe("englishTown (6 Oct 2026, tested live on Kayak)", () => {
+  it("turns local spellings into the English Kayak resolves", () => {
+    expect(englishTown("Firenze")).toBe("Florence");
+    expect(englishTown("Roma")).toBe("Rome"); // bare "Roma" opened Roma, Queensland
+    expect(englishTown("Lisboa")).toBe("Lisbon");
+    expect(englishTown(" München ")).toBe("Munich");
+  });
+  it("leaves names it does not know alone", () => {
+    expect(englishTown("Lucca")).toBe("Lucca");
+    expect(englishTown("Positano")).toBe("Positano");
   });
 });

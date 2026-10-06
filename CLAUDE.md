@@ -2186,8 +2186,10 @@ timers stalls the async reads the day view does after mount.
 - **Kayak URL rules (lib/booking/kayak, shapes verified live by Brennan 6 Oct 2026):** always
   `https://www.kayak.com` — **kayak.ca does not resolve on his network (DNS)**. Flights need IATA codes; **a town in
   the route is silently dropped**, so no codes = the plain /flights page. Several arrival airports comma-join
-  (`YYZ-FLR,PSA`). Stays: `/hotels/Town-Country/in/out/Nadults/Kchildren-a-b/Rrooms` — **a comma in the place
-  falls back to Kayak's generic stays page**, so `kayakPlace` turns commas and spaces into hyphens. Rooms =
+  (`YYZ-FLR,PSA`). Stays: `/hotels/Town/in/out/Nadults/Kchildren-a-b/Rrooms` with the **plain English town, no country**
+  (tested live: "Florence-Italy" and "Lisboa-Portugal" opened the AIRPORT, "Roma" opened Roma, Queensland, "Firenze"
+  a hamlet; "Florence", "Lisbon", "Rome" the city) — `englishTown` maps local spellings; a comma falls back to the
+  generic stays page; a region ("Tuscany") is not a Kayak place. Rooms =
   ceil(people/4); 1 room and no children are left out. Cars: `/cars/PSA/2027-08-24-14h/2027-09-04-10h`, pick-up
   two hours after a known landing else 14h, return 10h. Outbound is the day before the start when there are no
   flight cards and home and destination are different countries outside one region (`overnightOutbound`).

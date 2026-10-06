@@ -16,7 +16,7 @@ import { stayRuns } from "@/lib/stays/stayRuns";
 import { townFromAddress, countryFromAddress } from "@/lib/stays/brief";
 import { isRentalCar, range } from "@/lib/bookings/summary";
 import { cardTimes } from "@/lib/cardTime";
-import { carsUrl, flightsUrl, isIata, kayakParty, kayakPlace, roomsFor, staysUrl, travellers, KAYAK, type KayakParty } from "./kayak";
+import { carsUrl, englishTown, flightsUrl, isIata, kayakParty, kayakPlace, roomsFor, staysUrl, travellers, KAYAK, type KayakParty } from "./kayak";
 
 export type RowKey = "flights" | "stays" | "car";
 export type Choice = "booked" | "skip";
@@ -228,9 +228,13 @@ export function checklistRows(input: CheckInput): CheckRow[] {
       const before = runs.filter((r) => r.checkOut <= checkIn).pop();
       const after = runs.find((r) => r.checkIn >= checkOut);
       const near = there ?? townOf([before ? addressOf(before.placeId) : null]) ?? townOf([after ? addressOf(after.placeId) : null]);
-      const town = near?.town ?? destName;
+      const town = englishTown(near?.town ?? destName);
       const country = (near ? countryFromAddress(near.address) : null) ?? destCountry;
-      const url = staysUrl({ place: kayakPlace(town, country), checkIn, checkOut, party });
+      // The plain English town, no country: "Florence-Italy" and "Lisboa-Portugal" opened the AIRPORT
+      // on Kayak, "Florence" and "Lisbon" the city (tested live 6 Oct 2026). A region ("Tuscany") is
+      // not a Kayak place and falls back to the stays page with dates and guests kept.
+      void country;
+      const url = staysUrl({ place: kayakPlace(englishTown(town)), checkIn, checkOut, party });
       const rooms = roomsFor(party);
       openRow = covered.size
         ? { line: `${covered.size} of ${nights.length} nights booked · next: ${town}, ${range(checkIn, checkOut)}`, url }
@@ -253,7 +257,7 @@ export function checklistRows(input: CheckInput): CheckRow[] {
     // No airport yet: the town the first day's plans are in ("Toronto & the GTA" is no place to Kayak).
     const firstDay = input.days.find((d) => d.date === pickUp)?.id;
     const town = townOf(mine.filter((c) => c.day_id === firstDay && !AWAY.has(c.place?.sub_type ?? "")).map((c) => c.place?.address))?.town ?? destName;
-    const at = code ?? kayakPlace(town);
+    const at = code ?? kayakPlace(englishTown(town));
     rows.push(row("car", auto, {
       line: `${code ?? town} · ${range(pickUp, trip.end_date)}`,
       url: carsUrl({ at, pickUp, pickUpHour, dropOff: trip.end_date, dropOffHour: 10 }),
