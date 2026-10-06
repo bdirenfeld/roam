@@ -241,6 +241,9 @@ export function flushQueue(): Promise<void> {
  * check matters most — an iOS PWA resumed from the background often has
  * working connectivity without ever firing `online`.
  */
+/** How often a queued write is retried while the app is open. */
+export const RETRY_MS = 30_000;
+
 export function startAutoSync(): () => void {
   if (typeof window === "undefined") return () => {};
 
@@ -254,8 +257,14 @@ export function startAutoSync(): () => void {
   document.addEventListener("visibilitychange", onVisible);
   // One attempt at mount clears anything left over from the last session.
   void flushQueue();
+  // And every 30 s while the app is open and visible (6 Oct 2026): a write that
+  // timed out on a flaky connection no longer waits for the next focus event.
+  const timer = window.setInterval(() => {
+    if (document.visibilityState === "visible") void flushQueue();
+  }, RETRY_MS);
 
   return () => {
+    window.clearInterval(timer);
     window.removeEventListener("online", onOnline);
     window.removeEventListener("focus", onOnline);
     document.removeEventListener("visibilitychange", onVisible);

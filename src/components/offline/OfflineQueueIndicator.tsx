@@ -5,9 +5,12 @@
 // The honest bit of the offline story. Mounted once in the app layout, not per
 // screen, so it is the same pill wherever you are in the journey.
 //
-// It appears only when there is something to say:
-//   - queue non-empty              → "3 changes will sync" (or "Syncing…")
+// It appears only when there is something to say (6 Oct 2026, Brennan: "I don't
+// want that sync message there unless it has to be"):
+//   - offline                      → "Offline · changes will sync"
+//   - online, a change still waiting after STUCK_MS → "A change hasn't saved yet · Try again"
 //   - a queued write was refused   → what was lost, once, plainly
+// Online with a queue that is simply draining: nothing — it retries quietly.
 // and disappears the moment the queue drains. No badge, no spinner, no
 // permanent "offline mode" chrome.
 
@@ -21,7 +24,8 @@ import {
   type QueueFailure,
   type QueueState,
 } from "@/lib/offline/writeQueue";
-import { startAutoSync } from "@/lib/offline/queuedWrite";
+import { flushQueue, startAutoSync } from "@/lib/offline/queuedWrite";
+import { stuckCount } from "@/lib/offline/stuck";
 
 const EMPTY: QueueState = { pending: [], failures: [], syncing: false };
 
@@ -49,6 +53,9 @@ export default function OfflineQueueIndicator() {
   const [state, setState] = useState<QueueState>(EMPTY);
   const [online, setOnline] = useState(true);
   const hadPending = useRef(false);
+  const [now, setNow] = useState(() => Date.now());
+  // Re-check age once a minute, so "hasn't saved yet" can appear without another event.
+  useEffect(() => { const t = window.setInterval(() => setNow(Date.now()), 60_000); return () => window.clearInterval(t); }, []);
 
   // Queue state lives in localStorage, which does not exist on the server —
   // read it after mount, then follow it.
@@ -88,7 +95,8 @@ export default function OfflineQueueIndicator() {
 
   const count = state.pending.length;
   const failures = state.failures;
-  if (count === 0 && failures.length === 0 && online) return null;
+  const stuck = online ? stuckCount(state.pending, now) : 0;
+  if (failures.length === 0 && online && stuck === 0) return null;
 
   return (
     <div
@@ -132,40 +140,30 @@ export default function OfflineQueueIndicator() {
         </div>
       )}
 
-      {!online && count === 0 && (
+      {!online && (
         <div
           className="pointer-events-none inline-flex items-center gap-1.5 rounded-full bg-white pl-2.5 pr-3 py-1.5 animate-in fade-in"
-          style={{
-            border: "1px solid rgba(26,26,46,0.12)",
-            boxShadow: "0 4px 16px rgba(26,26,46,0.10)",
-          }}
+          style={{ border: "1px solid rgba(26,26,46,0.12)", boxShadow: "0 4px 16px rgba(26,26,46,0.10)" }}
         >
           <CloudSlash size={13} weight="light" color="#1A1A2E" />
           <span className="text-[11px] font-medium leading-none text-activity/70">
-            You&rsquo;re offline. Changes will sync when you&rsquo;re back.
+            {count > 0 ? "Offline · changes will sync" : "Offline"}
           </span>
         </div>
       )}
 
-      {count > 0 && (
-        <div
-          className="pointer-events-none inline-flex items-center gap-1.5 rounded-full bg-white pl-2.5 pr-3 py-1.5 animate-in fade-in"
-          style={{
-            border: "1px solid rgba(26,26,46,0.12)",
-            boxShadow: "0 4px 16px rgba(26,26,46,0.10)",
-          }}
+      {stuck > 0 && (
+        <button
+          type="button"
+          onClick={() => { setNow(Date.now()); void flushQueue(); }}
+          className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full bg-white pl-2.5 pr-3 py-1.5 animate-in fade-in"
+          style={{ border: "1px solid rgba(26,26,46,0.12)", boxShadow: "0 4px 16px rgba(26,26,46,0.10)" }}
         >
-          {state.syncing && online ? (
-            <ArrowsClockwise size={13} weight="light" className="animate-spin" color="#1A1A2E" />
-          ) : (
-            <CloudSlash size={13} weight="light" color="#1A1A2E" />
-          )}
-          <span className="text-[11px] font-medium leading-none text-activity/70 tabular-nums">
-            {state.syncing && online
-              ? `Syncing ${count} ${count === 1 ? "change" : "changes"}…`
-              : `${count} ${count === 1 ? "change" : "changes"} will sync`}
+          <ArrowsClockwise size={13} weight="light" className={state.syncing ? "animate-spin" : undefined} color="#1A1A2E" />
+          <span className="text-[11px] font-medium leading-none text-activity/70">
+            {stuck === 1 ? "A change hasn’t saved yet" : `${stuck} changes haven’t saved yet`}{" · "}<span className="underline underline-offset-2">Try again</span>
           </span>
-        </div>
+        </button>
       )}
     </div>
   );
