@@ -77,7 +77,6 @@ describe("Plan my trip, end to end on Japan", () => {
   });
 });
 
-import { hasChildren } from "./draftRows";
 describe("hasChildren", () => {
   it("reads ages, then birthdates, then assumes a party of three or more might", () => {
     expect(hasChildren([43, 40, 10, 8, 5], [], 7, "2027-08-24")).toBe(true);
