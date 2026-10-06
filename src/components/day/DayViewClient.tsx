@@ -37,7 +37,8 @@ import { Files, MagnifyingGlass } from "@phosphor-icons/react";
 import { useGlobalSearch } from "@/components/search/GlobalSearch";
 import CreateCardSheet from "@/components/plan/CreateCardSheet";
 import Companion from "@/components/companion/Companion";
-import { JourneyNotesSheet } from "@/components/trip/JourneyNotes";
+// Loads when opened: it carries @dnd-kit. AppOverlays preloads it on idle.
+const JourneyNotesSheet = dynamic(reloadOnStale(() => import("@/components/trip/JourneyNotes").then((m) => m.JourneyNotesSheet)), { ssr: false });
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 import { createClient } from "@/lib/supabase/client";
 import { queuedUpdate, queuedInsert } from "@/lib/offline/queuedWrite";

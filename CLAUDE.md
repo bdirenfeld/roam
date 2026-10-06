@@ -1842,6 +1842,12 @@ the component mounted and you are looking at throttling, not a broken map.
   the app now goes through `reloadOnStale` (lib/chunkReload): a missing chunk reloads the page once
   (never twice inside a minute). `chunkReload.test` fails if a new `dynamic(` skips it.
 - Frequent pushes make this likelier; a reload also fixes it by hand.
+- **Journey notes load when opened (5 Oct 2026).** @dnd-kit reached every (app) route at first
+  load through `JourneyNotesSheet`, imported statically by `AppOverlays` (in the layout) and
+  `DayViewClient` — not through CardTimeline, which has no drag. Both now `dynamic()` it;
+  `AppOverlays` preloads the chunk on idle so it is cached for offline. Day page 299 -> 277 kB.
+  `day/lazySheets.test.ts` walks the static import graph from the layout and the day page and
+  names the chain if dnd-kit comes back; `overlays/JourneyNotesLazy.test.tsx` drags a note.
 - Same push: a card dragged out of Anytime onto a time gets its kind's length (durationFor, whole-day
   places the day), like a map drop — it used to land with no end.
 

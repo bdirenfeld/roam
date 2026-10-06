@@ -32,7 +32,6 @@ import dynamic from "next/dynamic";
 import { reloadOnStale } from "@/lib/chunkReload";
 import { useRouter } from "next/navigation";
 import Overlay from "@/components/ui/Overlay";
-import { JourneyNotesSheet } from "@/components/trip/JourneyNotes";
 import type { Person } from "@/components/trip/TravellersSection";
 import { createClient } from "@/lib/supabase/client";
 import { rememberNotes, recallNotes } from "@/lib/offline/notesCache";
@@ -61,6 +60,26 @@ const ProfileForm = dynamic(reloadOnStale(() => import("@/components/profile/Pro
 const TripSettingsClient = dynamic(reloadOnStale(() => import("@/components/trip/TripSettingsClient")), {
   ssr: false,
 });
+// Journey notes carry @dnd-kit (the reorder), ~76 KB that every route paid for
+// at first load though the sheet only exists once opened (5 Oct 2026). It loads
+// on idle instead (preloadJourneyNotes below), so it is cached — and on hand
+// offline, where notes matter most — before anyone taps Notes.
+const JourneyNotesSheet = dynamic(reloadOnStale(() => import("@/components/trip/JourneyNotes").then((m) => m.JourneyNotesSheet)), {
+  ssr: false,
+});
+
+/** Fetch the notes sheet once the page is idle. A failure is ignored: the
+ *  sheet's own import (with reloadOnStale) is the one that has to succeed. */
+export function preloadJourneyNotes(): () => void {
+  const go = () => { import("@/components/trip/JourneyNotes").catch(() => {}); };
+  const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void };
+  if (w.requestIdleCallback) {
+    const id = w.requestIdleCallback(go, { timeout: 4000 });
+    return () => w.cancelIdleCallback?.(id);
+  }
+  const t = setTimeout(go, 1500);
+  return () => clearTimeout(t);
+}
 const EstimateClient = dynamic(reloadOnStale(() => import("@/components/trip/EstimateClient")), {
   ssr: false,
 });
@@ -332,6 +351,8 @@ function JourneyNotesProvider({ children }: { children: ReactNode }) {
     { tripId: string; initialNotes: string | null; nonce: number } | null
   >(null);
   const [loaded, setLoaded] = useState<string | null>(null);
+
+  useEffect(() => preloadJourneyNotes(), []);
 
   const open = useCallback((tripId: string, initialNotes?: string | null) => {
     if (initialNotes != null) rememberNotes(tripId, initialNotes);
