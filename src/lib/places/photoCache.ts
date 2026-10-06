@@ -8,50 +8,45 @@
 // caching of their content for performance, and place IDs indefinitely, but
 // not permanent copies of photos. `until` is checked on every read and the
 // image is refetched when it lapses.
+//
+// The pure rules (keys, expiry, merge) live in photoWarm.ts so the gallery
+// can read the same column in the browser.
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  CACHE_DAYS,
+  liveCachedUrl,
+  mergePhotoCache,
+  photoCacheKey,
+  type CachedPhoto,
+  type PhotoCache,
+  type PhotoSize,
+} from "./photoWarm";
+
+export type { CachedPhoto, PhotoCache, PhotoSize };
 
 const BUCKET = "place-photos";
-const DAYS = 30;
 const MAX_BYTES = 5 * 1024 * 1024;
-
-export interface CachedPhoto {
-  url: string;
-  until: string;
-}
-
-export type PhotoCache = Record<string, CachedPhoto | undefined>;
-
-/** "thumb" is what a card row draws (52–76 px); "full" is the gallery. */
-export type PhotoSize = "full" | "thumb";
 
 /** Google's maxwidth for each size. A thumb is ~8 KB against ~190 KB. */
 export const PHOTO_WIDTH: Record<PhotoSize, string> = { full: "800", thumb: "320" };
 
-/** Cache key: the bare index for the full image, "t0" for its thumbnail. */
-function cacheKey(index: number, size: PhotoSize): string {
-  return size === "thumb" ? `t${index}` : String(index);
-}
-
 /** The cached URL for this index and size, if stored and inside its 30 days. */
 export function cachedPhotoUrl(cache: unknown, index: number, size: PhotoSize = "full"): string | null {
-  if (!cache || typeof cache !== "object") return null;
-  const entry = (cache as PhotoCache)[cacheKey(index, size)];
-  if (!entry?.url || !entry.until) return null;
-  return Date.parse(entry.until) > Date.now() ? entry.url : null;
+  return liveCachedUrl(cache, photoCacheKey(index, size));
 }
 
 /**
- * Copy the image at `sourceUrl` into the bucket and record it on the place.
- * Returns the public URL, or null if anything went wrong — the caller then
- * redirects to Google as before, so a failure here is slow, never broken.
+ * Copy the image at `sourceUrl` into the bucket. Returns the cache entry to
+ * record, or null if anything went wrong. Does not touch `photo_cache`: the
+ * warm route uploads a whole gallery and records it in one write.
  */
-export async function storePhoto(
+export async function uploadPhoto(
   placeId: string,
   index: number,
   sourceUrl: string,
   size: PhotoSize = "full",
-): Promise<string | null> {
+): Promise<{ key: string; entry: CachedPhoto } | null> {
   try {
     const res = await fetch(sourceUrl);
     if (!res.ok) return null;
@@ -78,20 +73,69 @@ export async function storePhoto(
     const url = pub?.publicUrl;
     if (!url) return null;
 
-    const until = new Date(Date.now() + DAYS * 86400_000).toISOString();
-    // Merge into the column rather than replacing it: other indexes of the
-    // same gallery may be cached already.
-    const { data: row } = await admin.from("places").select("photo_cache").eq("id", placeId).maybeSingle();
-    const existing = (row?.photo_cache ?? {}) as PhotoCache;
-    const { error: setErr } = await admin
-      .from("places")
-      .update({ photo_cache: { ...existing, [cacheKey(index, size)]: { url, until } } })
-      .eq("id", placeId);
-    if (setErr) console.error("[Roam] photo cache write failed:", setErr.message);
-
-    return url;
+    const until = new Date(Date.now() + CACHE_DAYS * 86400_000).toISOString();
+    return { key: photoCacheKey(index, size), entry: { url, until } };
   } catch (e) {
     console.error("[Roam] photo cache failed:", (e as Error).message);
     return null;
   }
+}
+
+/**
+ * Merge `entries` into the place's `photo_cache`, as a compare-and-swap.
+ *
+ * This used to be read, merge, write. A gallery opening asks for three photos
+ * at once, each request read the same old column and the last write won: on
+ * 5 Oct 2026 the bucket held 35 copies (32 places) that `photo_cache` had
+ * forgotten, and every one of them was paid for again on the next open. The
+ * update now only lands if the column still holds what was read; otherwise it
+ * re-reads and tries again. PostgREST compares jsonb by value, not text.
+ * Returns the merged column, or null if it could not be written.
+ */
+export async function recordPhotos(placeId: string, entries: PhotoCache): Promise<PhotoCache | null> {
+  const admin = createAdminClient();
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data: row, error: readErr } = await admin
+      .from("places")
+      .select("photo_cache")
+      .eq("id", placeId)
+      .maybeSingle();
+    if (readErr || !row) {
+      if (readErr) console.error("[Roam] photo cache read failed:", readErr.message);
+      return null;
+    }
+    const merged = mergePhotoCache(row.photo_cache, entries);
+    const update = admin.from("places").update({ photo_cache: merged }).eq("id", placeId);
+    const guarded =
+      row.photo_cache == null
+        ? update.is("photo_cache", null)
+        : update.eq("photo_cache", JSON.stringify(row.photo_cache));
+    const { data: written, error: setErr } = await guarded.select("id");
+    if (setErr) {
+      console.error("[Roam] photo cache write failed:", setErr.message);
+      return null;
+    }
+    if (written && written.length > 0) return merged;
+    // Someone else wrote between our read and write — go round again.
+  }
+  console.error("[Roam] photo cache write kept colliding:", placeId);
+  return null;
+}
+
+/**
+ * Copy one image into the bucket and record it on the place. Returns the
+ * public URL, or null if anything went wrong — the caller then redirects to
+ * Google as before, so a failure here is slow, never broken.
+ */
+export async function storePhoto(
+  placeId: string,
+  index: number,
+  sourceUrl: string,
+  size: PhotoSize = "full",
+): Promise<string | null> {
+  const up = await uploadPhoto(placeId, index, sourceUrl, size);
+  if (!up) return null;
+  // A failed record still serves this request from the copy just uploaded.
+  await recordPhotos(placeId, { [up.key]: up.entry });
+  return up.entry.url;
 }

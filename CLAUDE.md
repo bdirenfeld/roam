@@ -456,6 +456,19 @@ open on a DB error and logs. Five routes had no sign-in check before this.
 - Photos come in two sizes: `&size=thumb` (320px, cache key `t{index}`) for card
   rows and plan tiles, full 800px for the gallery and card sheet. A row drawing
   52px used to pull the 800px original.
+- **A gallery is copied in on its first open (5 Oct 2026, speed).** `PlacePhotoGallery`
+  reads `photo_cache` with the photo list and points each `<img>` straight at our
+  storage copy (no `/api/places/photo` hop). If slides 1..n lack a copy it POSTs
+  `/api/places/photo/warm` once: the server copies them all in parallel, writes them
+  plus a `warmed` marker in ONE write, and returns the URLs. The marker makes it at
+  most once per place per 30 days; the cover (index 0) is never warmed, the card's
+  own request stores it. Rules in `lib/places/photoWarm.ts` (tested). While a warm is
+  out, uncopied slides wait unless in view, so Google is not paid twice.
+- **`photo_cache` writes are compare-and-swap** (`recordPhotos`): update only where
+  the column still equals what was read, else re-read. It was read-merge-write, and
+  three gallery requests at once lost each other's entries: 35 copies in the bucket
+  (32 places) that the column had forgotten and that were paid for again. PostgREST
+  compares jsonb by value, so `.eq("photo_cache", JSON.stringify(old))` works.
 - `/api/embed` follows short links outbound, so it is signed-in + quota'd.
 - THERE IS NO PAYWALL. `has_paid` is written by the Stripe webhook and read only
   by `/checkout`; the middleware gates on sign-in alone. Older comments claimed
