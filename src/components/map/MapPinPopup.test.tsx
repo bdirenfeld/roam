@@ -5,8 +5,11 @@ import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/re
 /**
  * Removing a pin from the map card. Brennan could not find a way to on his
  * phone (26 Sep 2026): "remove from map" only appeared after tapping "more".
- * It is now a bin beside the close — always there when removing is allowed,
- * behind the same confirm, and the only door.
+ * It became a bin beside the close; on 6 Oct 2026 (designer audit) the bin
+ * left the ✕'s corner and became a quiet "Remove from map" link at the bottom
+ * of the card — still always there when removing is allowed, behind the same
+ * confirm, and the only door. The host's toast + Undo arrive through
+ * onCardDelete, which is what these tests hold on to.
  */
 
 vi.mock("@phosphor-icons/react", () => {
@@ -44,24 +47,73 @@ window.matchMedia = ((q: string) => ({
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
 describe("MapPinPopup — removing a pin", () => {
-  it("shows a bin on the card without opening anything first", () => {
+  it("shows Remove from map on the card without opening anything first", () => {
     render(<MapPinPopup card={card} onClose={() => {}} onCardDelete={() => {}} onCardUpdate={() => {}} />);
-    expect(screen.getByLabelText("Remove from map")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Remove from map" })).toBeTruthy();
     expect(screen.queryByText("remove from map")).toBeNull(); // the old hidden link is gone
   });
 
   it("asks once, then removes", async () => {
     const onCardDelete = vi.fn();
     render(<MapPinPopup card={card} onClose={() => {}} onCardDelete={onCardDelete} onCardUpdate={() => {}} />);
-    fireEvent.click(screen.getByLabelText("Remove from map"));
+    fireEvent.click(screen.getByRole("button", { name: "Remove from map" }));
     expect(screen.getByText("Remove this place from your map?")).toBeTruthy();
     expect(del).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: /^Remove$/ }));
     await waitFor(() => expect(onCardDelete).toHaveBeenCalledWith("c1"));
   });
 
-  it("offers no bin where removing is not allowed (a guest's map)", () => {
+  it("offers no Remove where removing is not allowed (a guest's map)", () => {
     render(<MapPinPopup card={card} onClose={() => {}} />);
-    expect(screen.queryByLabelText("Remove from map")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Remove from map" })).toBeNull();
+  });
+
+  it("Remove is a text link at the bottom, not an icon beside the close", () => {
+    render(<MapPinPopup card={card} onClose={() => {}} onCardDelete={() => {}} onCardUpdate={() => {}} />);
+    const remove = screen.getByRole("button", { name: "Remove from map" });
+    expect(remove.textContent).toBe("Remove from map");
+    expect(remove.className).not.toMatch(/absolute/);
+    // It comes after the action row's doors in reading order.
+    const put = screen.getByLabelText("Directions");
+    expect(put.compareDocumentPosition(remove) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("a scheduled pin's Remove still offers to take it off its day", () => {
+    const onDay = { ...card, status: "in_itinerary", day_id: "d1" } as unknown as Card;
+    render(<MapPinPopup card={onDay} onClose={() => {}} onCardDelete={() => {}} onCardUpdate={() => {}} days={[{ id: "d1", day_number: 3, date: "2027-08-26" }] as never} tripId="t1" />);
+    fireEvent.click(screen.getByRole("button", { name: "Remove from map" }));
+    expect(screen.getByText(/This place is on Day 3/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Take it off the day" })).toBeTruthy();
+  });
+});
+
+describe("MapPinPopup — the face (6 Oct 2026, designer audit)", () => {
+  const mafalda = {
+    ...card, id: "c2", source_url: null,
+    details: { notes: "**Intent**\nA specialist shop and eating spot in Colonnata, home of the famous cured lard.\n\n**Know before you go**\n- Cash is handy." },
+    place: { id: "p2", title: "Mafalda Lardo di Colonnata IGP", type: "food", sub_type: "restaurant", lat: 44.08, lng: 10.15, google_place_id: "g2", rating: 4.7 },
+  } as unknown as Card;
+
+  it("one star and 4.7, not five stars", () => {
+    render(<MapPinPopup card={mafalda} onClose={() => {}} onCardDelete={() => {}} onCardUpdate={() => {}} />);
+    expect(screen.getAllByTestId("rating-star")).toHaveLength(1);
+    expect(screen.getByText("4.7")).toBeTruthy();
+  });
+
+  it("the name wraps to two lines instead of truncating", () => {
+    render(<MapPinPopup card={mafalda} onClose={() => {}} />);
+    const h = screen.getByRole("heading", { name: "Mafalda Lardo di Colonnata IGP" });
+    expect(h.className).toMatch(/line-clamp-2/);
+    expect(h.className).not.toMatch(/\btruncate\b/);
+  });
+
+  it("the folded note shows its first sentence, never a raw **Intent**", () => {
+    const { container } = render(<MapPinPopup card={mafalda} onClose={() => {}} onCardUpdate={() => {}} />);
+    expect(container.textContent).not.toMatch(/\*\*/);
+    expect(screen.getByText(/^A specialist shop and eating spot in Colonnata/)).toBeTruthy();
+    // Opened, the headings render bold, as on the card sheet.
+    fireEvent.click(screen.getByRole("button", { name: "more" }));
+    expect(container.textContent).not.toMatch(/\*\*/);
+    expect(screen.getByText("Intent").tagName).toBe("STRONG");
   });
 });

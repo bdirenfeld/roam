@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { Card } from "@/types/database";
 import muskoka from "./fixtures/muskoka.json";
 import { previewDraft, planRoom, hasChildren } from "./draftRows";
-import { mealsOnPlannedDays, slotOfTime, type MealCandidate, type PlannedDay } from "./mealsOnDays";
+import { mealsOnPlannedDays, slotOfTime, leftLine, type MealCandidate, type MealLeft, type PlannedDay } from "./mealsOnDays";
 
 // Muskoka, 3 Oct 2026, after his Plan my trip run: Dwight Beach (Fri),
 // Santa's Village (Sat) and Treetop Trekking (Sun) on days; two Huntsville
@@ -45,7 +45,7 @@ describe("mealsOnPlannedDays", () => {
   it("one coffee a morning: the closer café gets it, the other is told why", () => {
     const r = mealsOnPlannedDays([cafe("far", 45.05), cafe("near", 45.012)], [day("d")]);
     expect(r.placed).toEqual([expect.objectContaining({ id: "near", slot: "coffee", start: 540, end: 585 })]);
-    expect(r.left).toEqual([{ id: "far", title: "far", reason: "Sat 10 Oct already has a coffee, or no time before the day starts." }]);
+    expect(r.left).toEqual([{ id: "far", title: "far", reason: "Sat 10 Oct already has a coffee, or no time before the day starts.", why: "full" }]);
   });
 
   it("a restaurant is lunch when the middle of the day is free, dinner when a sight fills it", () => {
@@ -64,5 +64,20 @@ describe("mealsOnPlannedDays", () => {
     expect(slotOfTime(540, "coffee")).toBe("coffee");
     expect(slotOfTime(1110, "restaurant")).toBe("dinner");
     expect(mealsOnPlannedDays([cafe("a")], [day("d", { taken: ["coffee"] })]).placed).toEqual([]);
+  });
+});
+
+describe("leftLine (6 Oct 2026): the food that stays saved, as one line", () => {
+  const full = (t: string): MealLeft => ({ id: t, title: t, reason: "Sat 28 Aug already has a lunch and a dinner, or no time for them.", why: "full" });
+  it("six on a planned Tuscany: one line that gives the reason", () => {
+    const six = ["Sottosotto", "Bottega Visconti 1973", "Pippo a Vernazza", "Alberto Gelateria", "Il Casello", "Il Piccolo Diavolo"].map(full);
+    expect(leftLine(six)).toEqual({ line: "6 food places stay saved: those days already have their meals.", allFull: true });
+  });
+  it("claims no reason when one of them is shut or far", () => {
+    expect(leftLine([full("a"), { id: "b", title: "b", reason: "No planned day goes near it.", why: "far" }])).toEqual({ line: "2 food places stay saved.", allFull: false });
+  });
+  it("one place keeps its own sentence", () => {
+    expect(leftLine([full("a")])).toBeNull();
+    expect(leftLine([])).toBeNull();
   });
 });

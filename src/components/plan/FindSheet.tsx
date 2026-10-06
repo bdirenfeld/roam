@@ -313,10 +313,18 @@ export default function FindSheet({
                 </div>
                 {r.kids && <div className="mt-1"><span className="px-1.5 rounded text-[10px] font-semibold" style={{ background: "#E7F3EC", color: "#1D7A55" }}>Good with kids</span></div>}
               </div>
-              <button type="button" onClick={() => void save(r)} disabled={saved.has(r.placeId)}
-                className="self-center h-8 px-3 rounded-full text-[12.5px] font-semibold whitespace-nowrap"
-                style={{ background: saved.has(r.placeId) ? "#E7F3EC" : "#1A1A2E", color: saved.has(r.placeId) ? "#1D7A55" : "#fff" }}>
-                {saved.has(r.placeId) ? "Saved ✓" : "Save"}
+              {/* A quiet outlined "+ Save" that turns into a green "✓ Saved" (6 Oct
+                  2026, designer audit): seven black buttons down the list were the
+                  loudest thing on the sheet. The marks are aria-hidden, so the
+                  button is still named "Save" / "Saved". */}
+              <button type="button" onClick={() => void save(r)} disabled={saved.has(r.placeId)} data-testid="find-save"
+                className={`self-center h-8 px-3 rounded-full text-[12.5px] font-medium whitespace-nowrap ${saved.has(r.placeId) ? "" : "hover:bg-[rgba(26,26,46,0.04)]"}`}
+                style={saved.has(r.placeId)
+                  ? { color: "#1D7A55" }
+                  : { color: "#1A1A2E", background: "#fff", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.18)" }}>
+                {saved.has(r.placeId)
+                  ? <><span aria-hidden>✓ </span>Saved</>
+                  : <><span aria-hidden>+ </span>Save</>}
               </button>
             </div>
           ))}

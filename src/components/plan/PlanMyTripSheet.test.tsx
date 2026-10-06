@@ -61,7 +61,7 @@ describe("Plan my trip sheet", () => {
     const onEveryDay = days.map((d, i) => ({ ...cards[i], id: `p${i}`, day_id: d.id, status: "in_itinerary", start_time: "10:00:00", end_time: "17:00:00", place: { ...cards[i].place!, type: "activity" } })) as unknown as Card[];
     // Saved food would now go on those days as meals (lib/plan/mealsOnDays), so only sights are left saved here.
     render(<PlanMyTripSheet trip={trip} days={days} cards={[...onEveryDay, ...cards.slice(14).filter((c) => c.place?.type !== "food")]} onClose={vi.fn()} onDrafted={vi.fn()} />);
-    expect(screen.getByTestId("plan-full").textContent).toMatch(/^Every day is planned\.To plan more, take some places off a day/);
+    expect(screen.getByTestId("plan-full").textContent).toBe("Every day is planned."); // the how-to line went (6 Oct 2026)
     expect(screen.queryByRole("button", { name: "Plan the trip" })).toBeNull();
   });
 
@@ -153,7 +153,7 @@ describe("Plan my trip sheet", () => {
     render(<PlanMyTripSheet trip={t} days={hanoi.days as unknown as Day[]} cards={hanoi.cards as unknown as Card[]} onClose={vi.fn()} onDrafted={vi.fn()} />);
     expect(screen.queryByRole("button", { name: "Plan the trip" })).toBeNull();
     const msg = screen.getByTestId("plan-full").textContent!;
-    expect(msg).toBe("No room for what\u2019s left.Only half a day is free, and each place left needs more than that. To plan more, take some places off a day and they go back to your saved places. Then run Plan my trip again.");
+    expect(msg).toBe("No room for what\u2019s left.Only half a day is free, and each place left needs more than that. ");
     expect(msg).not.toMatch(/0\.5/);
     // Still the way back: the four places the earlier run put on days.
     expect(screen.getByRole("button", { name: "Remove what Plan my trip added (4 places)" })).toBeTruthy();
@@ -186,5 +186,49 @@ describe("Plan my trip sheet", () => {
     expect(inserted).toHaveLength(1);
     expect(inserted[0].length).toBe(said);
     expect(toasts.some((x) => /Nothing to plan/.test(x.message))).toBe(false);
+  });
+
+  describe("food that stays saved, as one line (6 Oct 2026, designer audit)", () => {
+    // Muskoka as stored, plus four more restaurants beside The Old Station: Sat
+    // 10 Oct can take one dinner, so the rest stay saved with the same reason,
+    // and Henrietta's stays saved because it is shut on the one day near it.
+    const t = { ...muskoka.trip, title: "Muskoka" } as unknown as Trip;
+    const base = muskoka.cards as unknown as Card[];
+    const station = base.find((c) => c.place?.title === "The Old Station Restaurant")!;
+    const copies = [1, 2, 3, 4].map((i) => ({ ...station, id: `x${i}`, place_id: `px${i}`, place: { ...station.place!, id: `px${i}`, title: `Station copy ${i}` } })) as unknown as Card[];
+    const mDays = muskoka.days as unknown as Day[];
+
+    it("only food that cannot fit: one line with the reason, names behind See which; Remove stays, quiet", () => {
+      const allFull = [...base.filter((c) => !/Henrietta/.test(c.place?.title ?? "")), ...copies];
+      render(<PlanMyTripSheet trip={t} days={mDays} cards={allFull} onClose={vi.fn()} onDrafted={vi.fn()} />);
+      const line = screen.getByTestId("plan-meals-left");
+      expect(line.textContent).toBe("4 food places stay saved: those days already have their meals. See which");
+      expect(screen.queryByText(/stays saved\. Sat 10 Oct already has/)).toBeNull();
+      expect(screen.queryByTestId("plan-meals-left-names")).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "See which" }));
+      const names = Array.from(screen.getByTestId("plan-meals-left-names").querySelectorAll("li")).map((li) => li.textContent);
+      expect(names).toHaveLength(4);
+      expect(names.every((n) => !/already has/.test(n!))).toBe(true);
+      // The way back is still there — a quiet grey link now, not sienna.
+      const remove = screen.getByRole("button", { name: /^Remove what Plan my trip added \(\d+ places?\)$/ });
+      expect(remove.style.color).toBe("rgba(26, 26, 46, 0.55)");
+      expect(remove.className).not.toMatch(/B0541F/);
+    });
+
+    it("mixed reasons: the line claims no reason, and each name keeps its own", () => {
+      render(<PlanMyTripSheet trip={t} days={mDays} cards={[...base, ...copies]} onClose={vi.fn()} onDrafted={vi.fn()} />);
+      expect(screen.getByTestId("plan-meals-left").textContent).toBe("5 food places stay saved. See which");
+      fireEvent.click(screen.getByRole("button", { name: "See which" }));
+      const names = Array.from(screen.getByTestId("plan-meals-left-names").querySelectorAll("li")).map((li) => li.textContent);
+      expect(names).toContain("Henrietta’s Pine Bakery - Huntsville — It's closed on Sun 11 Oct, the only day near it.");
+    });
+
+    it("See which does not hide Remove, and Remove still takes the plan off with Undo", async () => {
+      render(<PlanMyTripSheet trip={t} days={mDays} cards={[...base, ...copies]} onClose={vi.fn()} onDrafted={vi.fn()} />);
+      fireEvent.click(screen.getByRole("button", { name: "See which" }));
+      const remove = screen.getByRole("button", { name: /^Remove what Plan my trip added/ });
+      await act(async () => { fireEvent.click(remove); });
+      expect(toasts.some((x) => /^Removed \d+ places? Plan my trip added$/.test(x.message))).toBe(true);
+    });
   });
 });

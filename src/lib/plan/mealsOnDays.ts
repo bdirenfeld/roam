@@ -57,7 +57,8 @@ export interface PlannedDay {
 }
 
 export interface MealPlaced { id: string; dayId: string; slot: Slot; start: number; end: number; near: string }
-export interface MealLeft { id: string; title: string; reason: string }
+/** `why`: "full" = every near day already has that meal (or no time for it); "closed" / "far" otherwise. */
+export interface MealLeft { id: string; title: string; reason: string; why: "full" | "closed" | "far" }
 
 const overlaps = (s: number, e: number, busy: { start: number; end: number }[]) => busy.some((b) => s < b.end + GAP_MIN && e + GAP_MIN > b.start);
 const inside = (s: number, e: number, w: Window | null) => !w || (s >= w.open && e <= w.close);
@@ -103,7 +104,7 @@ export function mealsOnPlannedDays(meals: MealCandidate[], days: PlannedDay[]): 
   const left: MealLeft[] = [];
   for (const m of order) {
     const options = near(m);
-    if (!options.length) { left.push({ id: m.id, title: m.title, reason: "No planned day goes near it." }); continue; }
+    if (!options.length) { left.push({ id: m.id, title: m.title, reason: "No planned day goes near it.", why: "far" }); continue; }
     let done = false;
     const closed: string[] = [], full: string[] = [];
     for (const { d, by } of options) {
@@ -124,7 +125,7 @@ export function mealsOnPlannedDays(meals: MealCandidate[], days: PlannedDay[]): 
       : closed.length
         ? `It's closed on ${list(closed)}, and ${list(full)} already ${full.length === 1 ? "has" : "have"} ${what}.`
         : `${list(full)} already ${full.length === 1 ? "has" : "have"} ${what}.`;
-    left.push({ id: m.id, title: m.title, reason });
+    left.push({ id: m.id, title: m.title, reason, why: closed.length ? "closed" : "full" });
   }
   return { placed, left };
 }
@@ -137,3 +138,21 @@ export function slotOfTime(start: number | null, subType: string | null): Slot {
 
 /** "Coffee", "Lunch", "Dinner". */
 export const slotWord = (s: Slot) => (s === "coffee" ? "Coffee" : s === "lunch" ? "Lunch" : "Dinner");
+
+/**
+ * The food that stays saved, as ONE line (6 Oct 2026, designer audit). On a
+ * planned journey the sheet printed a sentence per place — six near-identical
+ * "X stays saved. Sat 28 Aug already has a lunch and a dinner…" lines. Now:
+ * "6 food places stay saved: those days already have their meals." with the
+ * names behind "See which". The reason is only claimed when it is true of every
+ * place; otherwise the line stops at "stay saved." and each name keeps its own
+ * reason when opened. One place keeps its full sentence (it is one line already).
+ */
+export function leftLine(left: MealLeft[]): { line: string; allFull: boolean } | null {
+  if (left.length < 2) return null;
+  const allFull = left.every((m) => m.why === "full");
+  return {
+    line: `${left.length} food places stay saved${allFull ? ": those days already have their meals." : "."}`,
+    allFull,
+  };
+}

@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useRef, type ReactNode } from "react"
 import { thumbSrc } from "@/lib/places/photoWarm";
 import { SUB_TYPE_LABEL } from "@/lib/subTypeLabel";
 import { dayChip, spansMonths } from "@/lib/dayChip";
-import { BookmarkSimple, Heart, PencilSimple, Trash } from "@phosphor-icons/react";
+import { BookmarkSimple, Heart, PencilSimple } from "@phosphor-icons/react";
 import type { Card, CardType, Day } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { queuedDelete } from "@/lib/offline/queuedWrite";
@@ -15,6 +15,8 @@ import { dayForCard, onlyOnLine } from "@/lib/plan/eventDays";
 import { PIN_COLORS } from "@/lib/mapPins";
 import { readRecommendedBy, recommendedByLine } from "@/lib/recommendedBy";
 import PlacePhotoGallery from "@/components/cards/PlacePhotoGallery";
+import { renderEmphasis } from "@/components/cards/detail/FieldRow";
+import { noteLead } from "@/lib/noteLead";
 
 /**
  * "https://vt.tiktok.com/ZSVWDnuF8/" → "TikTok".
@@ -86,19 +88,13 @@ const PIN_R   = 14;
 const ARROW_H = 8;
 const GAP     = 4;
 
-// ── StarRating ───────────────────────────────────────────────
-function StarRating({ rating }: { rating: number }) {
+// ── The rating: one star and the number (6 Oct 2026, designer audit — five
+// stars beside "4.7" said it twice). The card sheet's star.
+function OneStar() {
   return (
-    <div className="flex items-center gap-0.5">
-      {[1, 2, 3, 4, 5].map((i) => (
-        <svg key={i} width="12" height="12" viewBox="0 0 24 24"
-          fill={rating >= i - 0.25 ? "#F59E0B" : "none"}
-          stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
-        >
-          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-        </svg>
-      ))}
-    </div>
+    <svg aria-hidden width="12" height="12" viewBox="0 0 24 24" fill="#B45309" stroke="none" data-testid="rating-star">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
   );
 }
 
@@ -514,23 +510,11 @@ function CardBody({
         </svg>
       </button>
 
-      {/* Remove — a bin beside the close, always showing. It lived behind
-          "more" as "remove from map", where Brennan could not find it on his
-          phone (26 Sep 2026) — and a place saved from TikTok by mistake has
-          to come off in one obvious tap. The bottom row has no room: a
-          restaurant already fills it with four discs. The confirm below
-          makes a slip harmless. */}
-      {onCardDelete && !(photosOpen && !desktop) && (
-        <button
-          onClick={handleTrashClick}
-          className={`absolute top-2 right-9 w-6 h-6 rounded-full flex items-center justify-center transition-colors z-10 ${hero ? "bg-black/40 hover:bg-black/60" : "bg-gray-100 hover:bg-gray-200"}`}
-          style={{ backdropFilter: "blur(8px)" }}
-          aria-label="Remove from map"
-          title="Remove from map"
-        >
-          <Trash size={12} weight="regular" color={hero ? "white" : "#1A1A2E"} />
-        </button>
-      )}
+      {/* Remove: once hidden behind "more" (he could not find it, 26 Sep 2026),
+          then a bin beside this ✕. On 6 Oct 2026 (designer audit) the bin left
+          the corner — a close and a delete side by side, one slip apart — and
+          became the quiet "Remove from map" link at the bottom of the card,
+          always showing, behind the same confirm. */}
 
       {/* Content */}
       <div className="p-2.5 md:p-3 overflow-y-auto flex-1">
@@ -565,9 +549,10 @@ function CardBody({
             />
           </button>
           )}
-          <div className={`flex-1 min-w-0 ${onCardDelete ? "pr-14" : "pr-6"}`}>
-            <div className="flex items-center gap-1.5 min-w-0">
-              <h2 className="min-w-0 truncate text-[15px] font-bold text-gray-900 leading-snug">{place.title}</h2>
+          <div className="flex-1 min-w-0 pr-6">
+            <div className="flex items-start gap-1.5 min-w-0">
+              {/* Two lines, not cut off at "Colonn…" (6 Oct 2026). */}
+              <h2 className="min-w-0 line-clamp-2 break-words text-[15px] font-bold text-gray-900 leading-snug">{place.title}</h2>
   {onCardUpdate && card.place_id && (
               <button
                 onClick={toggleLoved}
@@ -587,7 +572,7 @@ function CardBody({
             <div className="flex items-center gap-1.5 mt-0.5 whitespace-nowrap overflow-hidden">
               {rating !== undefined && (
                 <>
-                  <StarRating rating={rating} />
+                  <OneStar />
                   <span className="text-[12px] font-semibold text-gray-700">{rating.toFixed(1)}</span>
                 </>
               )}
@@ -626,7 +611,7 @@ function CardBody({
               emptyLabel="Add a note"
               placeholder="What you wanted to remember about this place…"
               render={(v) => (
-                <p className="text-[12px] text-gray-600 mt-1.5 leading-snug whitespace-pre-line">{v}</p>
+                <p className="text-[12px] text-gray-600 mt-1.5 leading-snug whitespace-pre-line">{renderEmphasis(v)}</p>
               )}
             />
             <DetailsField
@@ -658,7 +643,8 @@ function CardBody({
           <>
             {notes ? (
               <button onClick={() => setNotesOpen(true)} className="block w-full text-left" aria-label="Read the note">
-                <p className="text-[12px] text-gray-600 mt-1.5 leading-snug truncate">{notes}</p>
+                {/* The note's first real sentence, past "**Intent**" — the card face's rule (lib/noteLead). */}
+                <p className="text-[12px] text-gray-600 mt-1.5 leading-snug truncate">{noteLead(notes) ?? notes}</p>
               </button>
             ) : desktop ? (
               <DetailsField
@@ -797,6 +783,22 @@ function CardBody({
             </div>
             </div>
           </>
+        )}
+
+        {/* Remove — a quiet link at the bottom (6 Oct 2026). Same doors as the
+            old bin: a saved pin asks "Remove this place from your map?", a
+            scheduled one offers to take it off its day; the host's toast and
+            Undo follow through onCardDelete. */}
+        {onCardDelete && !showDeleteConfirm && !showItineraryMsg && !showDayList && (
+          <div className="mt-2 text-center">
+            <button
+              type="button"
+              onClick={handleTrashClick}
+              className="text-[11.5px] text-gray-400 hover:text-gray-600 underline decoration-dotted underline-offset-2"
+            >
+              Remove from map
+            </button>
+          </div>
         )}
 
         {/* Delete confirmation */}

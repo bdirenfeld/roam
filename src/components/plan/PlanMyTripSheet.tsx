@@ -8,7 +8,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useRouter } from "next/navigation";
 import { previewDraft, planRoom, dayWords, hasChildren, untouchedPlan } from "@/lib/plan/draftRows";
-import { slotWord } from "@/lib/plan/mealsOnDays";
+import { slotWord, leftLine } from "@/lib/plan/mealsOnDays";
 import { shortDay } from "@/lib/confirmations/outsideDates";
 import { hasSeniors } from "@/lib/party";
 
@@ -53,6 +53,8 @@ export default function PlanMyTripSheet({
   const preview = useMemo(() => previewDraft(cards, days, kids), [cards, days, kids]);
   const [chosen, setChosen] = useState<Set<number>>(() => new Set(preview.suggested));
   const [busy, setBusy] = useState(false);
+  // "See which": the names of the food that stays saved, folded (6 Oct 2026).
+  const [leftOpen, setLeftOpen] = useState(false);
 
   const many = preview.regions.length > 1;
   // What the planner would do (lib/plan/draftRows planRoom): with the areas
@@ -166,7 +168,9 @@ export default function PlanMyTripSheet({
                       : `${dayWords(room.free)[0].toUpperCase()}${dayWords(room.free).slice(1)} ${room.free < 2 ? "is" : "are"} free, but none of the places left fit. `}
                   </>
                 )}
-                To plan more, take some places off a day and they go back to your saved places. Then run Plan my trip again.
+                {/* The how-to line ("To plan more, take some places off a day…")
+                    went on 6 Oct 2026 (designer audit): Remove below is the way
+                    back, and the line only introduced it. */}
               </p>
             ) : nothing ? (
               <p className="text-[13px] mt-1" style={{ color: "rgba(26,26,46,0.62)" }} data-testid="plan-nothing">
@@ -192,7 +196,27 @@ export default function PlanMyTripSheet({
                   const d = days.find((x) => x.id === m.dayId);
                   return <li key={m.id}>{slotWord(m.slot)} at {titleOf(m.id)}, {d ? shortDay(d.date) : ""}, {m.slot === "coffee" ? "before" : "near"} {m.near}.</li>;
                 })}
-                {picked.meals.left.map((m) => <li key={m.id}>{m.title} stays saved. {m.reason}</li>)}
+                {(() => {
+                  // One line for the food that stays saved, the names behind
+                  // "See which" (lib/plan/mealsOnDays leftLine). A single place
+                  // keeps its own sentence.
+                  const sum = leftLine(picked.meals.left);
+                  if (!sum) return picked.meals.left.map((m) => <li key={m.id}>{m.title} stays saved. {m.reason}</li>);
+                  return (
+                    <li key="left" data-testid="plan-meals-left">
+                      {sum.line}{" "}
+                      <button type="button" onClick={() => setLeftOpen((v) => !v)} aria-expanded={leftOpen}
+                        className="underline underline-offset-2 text-[#1A1A2E]">
+                        {leftOpen ? "Hide" : "See which"}
+                      </button>
+                      {leftOpen && (
+                        <ul className="mt-1 flex flex-col gap-0.5 pl-3" data-testid="plan-meals-left-names">
+                          {picked.meals.left.map((m) => <li key={m.id}>{m.title}{sum.allFull ? "" : ` — ${m.reason}`}</li>)}
+                        </ul>
+                      )}
+                    </li>
+                  );
+                })()}
               </ul>
             )}
           </div>
@@ -243,7 +267,8 @@ export default function PlanMyTripSheet({
             type="button"
             onClick={() => void removePlan()}
             disabled={busy}
-            className="min-h-[44px] text-[13px] font-medium text-[#B0541F] disabled:opacity-40"
+            className="min-h-[44px] text-[13px] underline underline-offset-2 disabled:opacity-40"
+            style={{ color: "rgba(26,26,46,0.55)" /* a quiet grey link, not sienna (6 Oct 2026): it is the way back, rarely used */ }}
           >
             Remove what Plan my trip added ({planMade.length} {planMade.length === 1 ? "place" : "places"})
           </button>

@@ -141,7 +141,7 @@ The benchmark: someone opens Roam in a Centurion Lounge and the person next to t
   swipeable gallery above the card (`photosOpen`); ✕ folds it. Heart at the end of the name.
   "Put on a day" is a quiet 36px chip on the action row with the three 36px discs to its
   right. The empty state is one line ("Add a note"); "more" only when there is something to
-  unfold. ~150px closed. **Remove (26 Sep 2026):** a 24px bin beside the ✕, always visible when
+  unfold. ~150px closed. **Remove (26 Sep 2026; superseded 6 Oct — now a "Remove from map" link at the bottom, see batch B below):** a 24px bin beside the ✕, always visible when
   `onCardDelete` is passed; the old "remove from map" link in the open note state is gone (he could not
   find it). Not on the action row: a restaurant already fills that 280px row with four discs.
 - **Condensed on the phone, hero on desktop (24 Sep 2026, latest):** `desktop` is a
@@ -2269,3 +2269,24 @@ stay (Select is the lasso's only door).
 - `md:italic` escapes globals.css's `.font-display.italic` neutraliser (a breakpoint class is a different
   class). It put his Profile name in italics on the computer; `houseRules.test.ts` now forbids `sm|md|lg|xl:italic`.
 - Find's meta line is text, not flex items: the "·" sits between distance and source with `\u00a0` either side.
+
+## Designer audit, batch B (6 Oct 2026): map pin card, Find's Save, Plan my trip's planned state
+Approved scope only. Find KEEPS its two-level filters (Activity / Food, then kinds — one long row was rejected
+29 Sep); only its Save buttons changed.
+- **Map pin card (MapPinPopup, both WeekMap and FullMapClient, phone and desktop):** the bin beside the ✕ is
+  gone; "Remove from map" is a quiet dotted text link at the bottom of the card, always there when
+  `onCardDelete` is passed, hidden while a confirm or the day list is open. Same doors as the bin
+  (`handleTrashClick`): saved pin → "Remove this place from your map?"; scheduled → "Take it off the day";
+  the host's toast + Undo arrive through `onCardDelete`, unchanged. One star + "4.7" (`OneStar`, the sheet's
+  #B45309 star) instead of five. The name wraps to two lines (`line-clamp-2`), heart top-aligned. No name or
+  counter on the photo (PlacePhotoGallery, batch A). The folded note uses `lib/noteLead`; opened, `renderEmphasis`.
+- **Find's row Save:** a white outlined "+ Save" (inset 1px ink at 18%), then green (#1D7A55) "✓ Saved",
+  disabled. The marks are `aria-hidden`, so the button's name stays "Save" / "Saved". The opened place's
+  full-width "Save to your map" is unchanged (it is that screen's one primary action).
+- **Plan my trip:** the how-to line ("To plan more, take some places off a day…") is gone from both full states.
+  Two or more saved food places that cannot go on a day collapse to one line — `lib/plan/mealsOnDays`
+  `leftLine`: "N food places stay saved: those days already have their meals." only when every one is
+  `why: "full"`; a mix (one shut, one far) says just "N food places stay saved." and each name keeps its reason
+  under "See which". One place keeps its own sentence. `MealLeft` carries `why` ("full" | "closed" | "far").
+  "Remove what Plan my trip added (N places)" stays (the only way back) as a quiet grey underlined link, not
+  sienna; "See which" never hides it.

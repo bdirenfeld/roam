@@ -209,13 +209,23 @@ describe("Find sheet", { timeout: 20000 }, () => {
   it("Save imports the place with the category's type and adds one saved pin", async () => {
     const onSaved = vi.fn();
     await act(async () => { render(<FindSheet trip={trip} days={[]} cards={[] as Card[]} onClose={vi.fn()} onSaved={onSaved} />); });
+    // A quiet outlined "+ Save", not a black button (6 Oct 2026, designer audit).
+    const before = screen.getByTestId("find-save");
+    expect(before.textContent).toBe("+ Save");
+    expect(before.style.background).not.toMatch(/26, 26, 46|#1A1A2E/i);
+    expect(before.style.boxShadow).toMatch(/inset/);
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Save" })); });
+    // ...that turns into a green "✓ Saved".
+    const after = screen.getByTestId("find-save");
+    expect(after.textContent).toBe("✓ Saved");
+    expect(after.style.color).toBe("rgb(29, 122, 85)");
+    expect((after as HTMLButtonElement).disabled).toBe(true);
     expect(calls.find((c) => c.url === "/api/places/bulk-import")).toMatchObject({ body: { google_place_ids: ["g1"], defaults: { type: "activity", sub_type: "self_directed" } } });
     expect(inserted).toHaveLength(1);
     expect(inserted[0]).toMatchObject({ trip_id: "t1", day_id: null, place_id: "p1", status: "interested", position: 0 });
     expect(onSaved).toHaveBeenCalledTimes(1);
     expect(toasts[0].message).toBe("Saved Trattoria Da Enzo to your map");
-    expect(screen.getByRole("button", { name: "Saved ✓" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Saved" })).toBeTruthy();
   });
 
   it("a Ticketmaster show links to buy, and Save looks its venue up on Google first (1 Oct 2026)", async () => {
@@ -270,7 +280,7 @@ describe("Find sheet", { timeout: 20000 }, () => {
     expect(screen.getByRole("button", { name: "Saved to your map ✓" })).toBeTruthy();
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "‹ Back to results" })); });
     expect(screen.queryByRole("region", { name: "Trattoria Da Enzo" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Saved ✓" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Saved" })).toBeTruthy();
   });
 
   it("coffee and dessert are looked for near the sights already on the journey; events by date", async () => {
