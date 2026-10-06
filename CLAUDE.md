@@ -2168,3 +2168,6 @@ timers stalls the async reads the day view does after mount.
   position (`lib/map/popupRoom`). Measuring the popup's top directly was a render stale and only
   panned part way (live: top -104 px on Tuscany).
 - DayMap waits for idle on a phone before starting Mapbox (`lib/map/mapGoNow`); desktop starts at once.
+- **Never `git worktree remove --force` a worktree whose node_modules is a junction** (5 Oct 2026): the
+  delete follows the junction and empties C:\Users\brenn\roam\node_modules. Remove the junction first
+  (`cmd /c rmdir <wt>\node_modules`), then the worktree. Recovery: `npm ci`.

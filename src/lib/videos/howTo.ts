@@ -15,7 +15,7 @@
  * No videos.json, or a fetch that fails: nothing shows anywhere.
  */
 
-export type VideoId = "first-journey" | "planning-computer" | "on-the-trip" | "in-the-app";
+export type VideoId = "first-journey" | "planning-computer" | "more-tricks" | "before-the-trip" | "on-the-trip" | "in-the-app";
 
 /** The places a video is offered before it is gone. The menu lists every switched-on video, always. */
 export type Surface = "journeys-empty" | "start-here" | "start-here-computer" | "shared-link" | "trip-underway";
@@ -50,6 +50,27 @@ export const VIDEOS: HowToVideo[] = [
     file: "planning-computer.mp4",
     poster: "planning-computer.jpg",
     surfaces: ["start-here-computer"],
+  },
+  {
+    // The short follow-on to video 2 (5 Oct 2026): taking a card off its day,
+    // and one day at a time on the map. In the Videos list only.
+    id: "more-tricks",
+    title: "Two more tricks",
+    length: "20 s",
+    file: "more-tricks.mp4",
+    poster: "more-tricks.jpg",
+    surfaces: [],
+  },
+  {
+    // Video 3 for someone who opens the shared link before the trip starts
+    // (5 Oct 2026). The strip picks this or "On the trip" by date
+    // (sharedLinkVideo); both stay in the Videos list.
+    id: "before-the-trip",
+    title: "Before the trip",
+    length: "45 s",
+    file: "before-the-trip.mp4",
+    poster: "before-the-trip.jpg",
+    surfaces: ["shared-link"],
   },
   {
     id: "on-the-trip",
@@ -143,6 +164,17 @@ export function startHereVideo(opts: {
   const id = forSurface(opts.computer ? "start-here-computer" : "start-here", opts.available, opts.seenAtLoad);
   if (!id || opts.goneNow[id]) return null;
   return { id, style: id === "first-journey" ? "row" : "line" };
+}
+
+/**
+ * Which video 3 the shared link offers (5 Oct 2026): "Before the trip" until
+ * the first day, "On the trip" from then on. If the one that fits is not
+ * switched on, the other is offered; neither on, nothing. No dates: before.
+ */
+export function sharedLinkVideo(startDate: string | null, today: string, available: Available): VideoId | null {
+  const before = !startDate || today < startDate;
+  const order: VideoId[] = before ? ["before-the-trip", "on-the-trip"] : ["on-the-trip", "before-the-trip"];
+  return order.find((id) => (available[id] ?? 0) > 0) ?? null;
 }
 
 /** localStorage key for a visitor with no account (the shared link). */

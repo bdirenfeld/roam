@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   galleryUrls,
+  thumbSrc,
   indexesToWarm,
   liveCachedUrl,
   mergePhotoCache,
@@ -85,5 +86,17 @@ describe("mergePhotoCache", () => {
   });
   it("starts from nothing when the column is empty", () => {
     expect(mergePhotoCache(null, { "1": { url: "u", until: "x" } })).toEqual({ "1": { url: "u", until: "x" } });
+  });
+});
+
+describe("thumbSrc (5 Oct 2026)", () => {
+  const now = Date.parse("2026-10-05T12:00:00Z");
+  it("uses the storage copy while it is live", () => {
+    expect(thumbSrc({ id: "p1", photo_t0: { url: "https://s/t0.jpg", until: "2026-11-01T00:00:00Z" } }, now)).toBe("https://s/t0.jpg");
+  });
+  it("falls back to the app route when there is no copy, or it has expired", () => {
+    expect(thumbSrc({ id: "p1" }, now)).toBe("/api/places/photo?place_id=p1&index=0&size=thumb");
+    expect(thumbSrc({ id: "p1", photo_t0: null }, now)).toBe("/api/places/photo?place_id=p1&index=0&size=thumb");
+    expect(thumbSrc({ id: "p1", photo_t0: { url: "https://s/t0.jpg", until: "2026-10-01T00:00:00Z" } }, now)).toBe("/api/places/photo?place_id=p1&index=0&size=thumb");
   });
 });

@@ -1,4 +1,5 @@
 import type { Card } from "@/types/database";
+import { thumbSrc } from "@/lib/places/photoWarm";
 import { getMaterialIconHTML } from "@/lib/mapPins";
 import { getPriceRange } from "@/lib/priceRange";
 import { formatTimeRange } from "@/lib/formatTime";
@@ -249,7 +250,7 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
         {place?.id ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={`/api/places/photo?place_id=${place.id}&index=0&size=thumb`}
+            src={thumbSrc(place)}
             alt=""
             loading="lazy"
             className="w-full h-full object-cover"

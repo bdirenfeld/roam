@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  VIDEOS, parseManifest, parseSeen, listed, forSurface, startHereVideo, fileUrl, posterUrl, manifestUrl, localSeenKey, widePlayerSize,
+  VIDEOS, sharedLinkVideo, parseManifest, parseSeen, listed, forSurface, startHereVideo, fileUrl, posterUrl, manifestUrl, localSeenKey, widePlayerSize,
   type Available,
 } from "./howTo";
 
@@ -13,6 +13,8 @@ describe("the video list", () => {
     expect(VIDEOS.map((v) => [v.id, v.title, v.length])).toEqual([
       ["first-journey", "Your first journey", "1 min"],
       ["planning-computer", "Planning on a computer", "1 min"],
+      ["more-tricks", "Two more tricks", "20 s"],
+      ["before-the-trip", "Before the trip", "45 s"],
       ["on-the-trip", "On the trip", "45 s"],
       ["in-the-app", "Using Roam on your trip", "1 min"],
     ]);
@@ -121,5 +123,27 @@ describe("the computer's centred player (2 Oct 2026)", () => {
   });
   it("an unknown shape plays as 16:9", () => {
     expect(widePlayerSize(NaN, 1200, 900)).toEqual({ width: 800, height: 450 });
+  });
+});
+
+describe("the shared link's video 3 (5 Oct 2026)", () => {
+  const both: Available = { "before-the-trip": 1, "on-the-trip": 2 };
+  it("before the first day: Before the trip; from the first day: On the trip", () => {
+    expect(sharedLinkVideo("2027-08-24", "2026-10-05", both)).toBe("before-the-trip");
+    expect(sharedLinkVideo("2027-08-24", "2027-08-24", both)).toBe("on-the-trip");
+    expect(sharedLinkVideo("2026-07-23", "2026-10-05", both)).toBe("on-the-trip");
+  });
+  it("offers the other one when the fitting one is off; neither, nothing", () => {
+    expect(sharedLinkVideo("2027-08-24", "2026-10-05", { "on-the-trip": 2 })).toBe("on-the-trip");
+    expect(sharedLinkVideo("2026-07-23", "2026-10-05", { "before-the-trip": 1 })).toBe("before-the-trip");
+    expect(sharedLinkVideo("2027-08-24", "2026-10-05", { "first-journey": 1 })).toBeNull();
+  });
+  it("no dates yet counts as before", () => {
+    expect(sharedLinkVideo(null, "2026-10-05", both)).toBe("before-the-trip");
+  });
+  it("the two new videos are in the Videos list, in order, when switched on", () => {
+    const six: Available = { "first-journey": 2, "planning-computer": 2, "more-tricks": 1, "before-the-trip": 1, "on-the-trip": 2, "in-the-app": 1 };
+    expect(listed(six).map((v) => v.id)).toEqual(["first-journey", "planning-computer", "more-tricks", "before-the-trip", "on-the-trip", "in-the-app"]);
+    expect(VIDEOS.find((v) => v.id === "more-tricks")!.surfaces).toEqual([]);
   });
 });

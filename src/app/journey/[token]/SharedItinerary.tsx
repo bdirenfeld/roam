@@ -134,7 +134,7 @@ export default function SharedItinerary({
       )}
 
       {/* Video 3, a visitor's first open only (2 Oct 2026). */}
-      <SharedVideoStrip />
+      <SharedVideoStrip startDate={journey.startDate} />
 
       {journey.cover && (
         // eslint-disable-next-line @next/next/no-img-element

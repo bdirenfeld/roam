@@ -9,14 +9,23 @@
 
 import { useState } from "react";
 import { SUPABASE_BASE, useVisitorVideo } from "@/hooks/useHowToVideos";
-import { fileUrl, forSurface, posterUrl, videoById } from "@/lib/videos/howTo";
+import { fileUrl, posterUrl, sharedLinkVideo, videoById, type VideoId } from "@/lib/videos/howTo";
 import VideoPlayer from "./VideoPlayer";
 
-export default function SharedVideoStrip() {
-  const v = videoById("on-the-trip");
+// "Before the trip" until the first day, "On the trip" after (5 Oct 2026).
+export default function SharedVideoStrip({ startDate }: { startDate: string | null }) {
+  // Only to read videos.json; each strip keeps its own "gone" on this device.
+  const { ready, available } = useVisitorVideo("on-the-trip");
+  if (!ready) return null;
+  const id = sharedLinkVideo(startDate, new Date().toLocaleDateString("en-CA"), available);
+  return id ? <Strip key={id} id={id} /> : null;
+}
+
+function Strip({ id }: { id: VideoId }) {
+  const v = videoById(id);
   const { ready, available, gone, dismiss } = useVisitorVideo(v.id);
   const [playing, setPlaying] = useState(false);
-  const show = ready && !gone && forSurface("shared-link", available, {}) === v.id;
+  const show = ready && !gone && (available[v.id] ?? 0) > 0;
 
   return (
     <>

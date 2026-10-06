@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef, type ReactNode } from "react";
+import { thumbSrc } from "@/lib/places/photoWarm";
 import { SUB_TYPE_LABEL } from "@/lib/subTypeLabel";
 import { dayChip, spansMonths } from "@/lib/dayChip";
 import { BookmarkSimple, Heart, PencilSimple, Trash } from "@phosphor-icons/react";
@@ -556,7 +557,7 @@ function CardBody({
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={`/api/places/photo?place_id=${place.id}&index=0&size=thumb`}
+              src={thumbSrc(place)}
               alt=""
               loading="lazy"
               className="w-full h-full object-cover"

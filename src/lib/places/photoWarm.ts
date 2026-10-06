@@ -49,6 +49,16 @@ export function liveCachedUrl(cache: unknown, key: string, now: number = Date.no
   return Date.parse(entry.until) > now ? entry.url : null;
 }
 
+/**
+ * A card row's small photo (5 Oct 2026, speed): straight from our storage copy
+ * when the place carries a live one (`photo_t0`, selected as
+ * `photo_t0:photo_cache->t0` so a page ships one entry, not the whole cache),
+ * else through /api/places/photo, which stores it for next time.
+ */
+export function thumbSrc(place: { id: string; photo_t0?: unknown }, now: number = Date.now()): string {
+  return liveCachedUrl({ t0: place.photo_t0 }, "t0", now) ?? `/api/places/photo?place_id=${place.id}&index=0&size=thumb`;
+}
+
 /** Full-size URL for every gallery slide: our copy, or null where there isn't one. */
 export function galleryUrls(cache: unknown, count: number, now: number = Date.now()): (string | null)[] {
   const n = Math.max(0, Math.min(count, MAX_GALLERY));

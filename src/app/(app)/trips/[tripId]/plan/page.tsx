@@ -28,7 +28,7 @@ export default async function PlanPage({ params }: Props) {
   const CARD_SELECT = `
     *,
     place:places (
-      id, title, type, sub_type, lat, lng, address, google_place_id, cover_image_url, rating, price_level, website, phone, hours, loved, loved_at, photo_count, types:details->types
+      id, title, type, sub_type, lat, lng, address, google_place_id, cover_image_url, rating, price_level, website, phone, hours, loved, loved_at, photo_count, photo_t0:photo_cache->t0, types:details->types
     ),
     card_attachments ( id )
   `;

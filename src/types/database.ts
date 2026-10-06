@@ -179,6 +179,8 @@ export interface Place {
   /** Generated column: how many photos details.photos holds. Four bytes, so
    *  the board can know a card has a second photo without shipping the refs. */
   photo_count?: number | null
+  /** photo_cache->t0 only: the small photo's storage copy, when there is one (5 Oct 2026). */
+  photo_t0?: { url?: string; until?: string } | null
 }
 
 // ── Board lists ─────────────────────────────────────────────

@@ -39,7 +39,7 @@ export default async function DayPage({ params }: Props) {
       .select(`
         *,
         place:places (
-          id, title, type, sub_type, lat, lng, address, google_place_id, cover_image_url, rating, price_level, website, phone, hours, loved, loved_at
+          id, title, type, sub_type, lat, lng, address, google_place_id, cover_image_url, rating, price_level, website, phone, hours, loved, loved_at, photo_t0:photo_cache->t0
         ),
         card_attachments ( id )
       `)
@@ -59,7 +59,7 @@ export default async function DayPage({ params }: Props) {
       .select(`
         *,
         place:places!inner (
-          id, title, type, sub_type, lat, lng, address, google_place_id, cover_image_url, rating, price_level, website, phone, hours, loved, loved_at
+          id, title, type, sub_type, lat, lng, address, google_place_id, cover_image_url, rating, price_level, website, phone, hours, loved, loved_at, photo_t0:photo_cache->t0
         )
       `)
       .eq("trip_id", tripId)

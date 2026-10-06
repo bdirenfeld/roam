@@ -20,7 +20,7 @@ vi.mock("@/lib/supabase/client", () => ({
   }),
 }));
 
-const manifest = { "first-journey": 1, "planning-computer": 1, "on-the-trip": 2 };
+const manifest = { "first-journey": 1, "planning-computer": 1, "before-the-trip": 1, "on-the-trip": 2 };
 beforeAll(() => {
   vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve(manifest) })));
 });
@@ -53,7 +53,7 @@ describe("the Journeys page, no journeys yet", () => {
 describe("the shared link, a visitor with no account", () => {
   it("first open: one strip above the cover; playing it hides it on this device", async () => {
     window.localStorage.removeItem("roam:video-seen:on-the-trip");
-    render(<SharedVideoStrip />);
+    render(<SharedVideoStrip startDate="2020-01-01" />);
     const strip = await screen.findByTestId("shared-video-strip");
     expect(strip.textContent).toBe("New here? Watch how this works · 45 s");
     fireEvent.click(screen.getByRole("button", { name: /Watch how this works/ }));
@@ -62,7 +62,7 @@ describe("the shared link, a visitor with no account", () => {
     expect(video.getAttribute("src")).toContain("/how-to-videos/on-the-trip.mp4?v=2");
     expect(window.localStorage.getItem("roam:video-seen:on-the-trip")).toBeTruthy();
     cleanup();
-    render(<SharedVideoStrip />);
+    render(<SharedVideoStrip startDate="2020-01-01" />);
     await new Promise((r) => setTimeout(r, 0));
     expect(screen.queryByTestId("shared-video-strip")).toBeNull();
   });
@@ -70,17 +70,31 @@ describe("the shared link, a visitor with no account", () => {
   it("✕ on a fresh device: gone, and no account write (there is no account)", async () => {
     window.localStorage.removeItem("roam:video-seen:on-the-trip");
     rpc.mockClear();
-    render(<SharedVideoStrip />);
+    render(<SharedVideoStrip startDate="2020-01-01" />);
     await screen.findByTestId("shared-video-strip");
     fireEvent.click(screen.getByRole("button", { name: "Close video" }));
     expect(screen.queryByTestId("shared-video-strip")).toBeNull();
     expect(rpc).not.toHaveBeenCalled();
   });
 
+  it("before the trip, with Before the trip switched on: that one; from the first day: On the trip", async () => {
+    window.localStorage.removeItem("roam:video-seen:before-the-trip");
+    window.localStorage.removeItem("roam:video-seen:on-the-trip");
+    render(<SharedVideoStrip startDate="2999-01-01" />);
+    await screen.findByTestId("shared-video-strip");
+    fireEvent.click(screen.getByRole("button", { name: /Watch how this works/ }));
+    expect(screen.getByTestId("video-player").querySelector("video")!.getAttribute("src")).toContain("/how-to-videos/before-the-trip.mp4?v=1");
+    cleanup();
+    render(<SharedVideoStrip startDate="2020-01-01" />);
+    await screen.findByTestId("shared-video-strip");
+    fireEvent.click(screen.getByRole("button", { name: /Watch how this works/ }));
+    expect(screen.getByTestId("video-player").querySelector("video")!.getAttribute("src")).toContain("/how-to-videos/on-the-trip.mp4?v=2");
+  });
+
   it("storage that throws (private mode) still renders, and ✕ still works", async () => {
     const get = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => { throw new Error("blocked"); });
     const set = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("blocked"); });
-    render(<SharedVideoStrip />);
+    render(<SharedVideoStrip startDate="2020-01-01" />);
     await screen.findByTestId("shared-video-strip");
     fireEvent.click(screen.getByRole("button", { name: "Close video" }));
     expect(screen.queryByTestId("shared-video-strip")).toBeNull();
