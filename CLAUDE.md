@@ -2245,3 +2245,27 @@ seats, Where to stay, costs/budget, blocked-tab "Next", owner only, toast + Undo
   but cannot open; only card attachments (signed URLs) open in FileViewer.
 - Not the owner: `ToBookSection` calls `onOwner(false)` and DocumentsSheet shows the plain file list (plus the
   upload link if the host passes `onImport`, i.e. a cohost); nothing at all → "Nothing has been added yet."
+
+## Designer audit, batch A (6 Oct 2026): card sheet, week day names, three bugs
+Mock: https://claude.ai/artifact/4r2r4qi1gCUearqXiKnCrB. Approved scope only — the map's Select disc and + / −
+stay (Select is the lasso's only door).
+- **Card sheet:** no "1/10" counter on the gallery (arrows + swipe page it; dots still for ≤5); the Google
+  credit is hidden only when it is the place's own name (`lib/places/photoCredit` `isOwnCredit` — the business
+  uploaded the photo); a photographer's credit stays (Google attribution). No duration beside the times. No
+  "Notes" label while reading (each detail component shows it only with Add details on). The generated note's
+  "Open … that day" point is hidden when the sheet shows an Hours row: `FieldRow`'s `NoteDisplay` context, set
+  to `lib/plan/notes` `withoutHoursLine` by the sheet — display only, the stored note is untouched.
+- **Booked lives in the ⋯** (a `menuitemcheckbox` with the switch; the menu stays open). Same write as the old
+  row (`saveTopLevel("confirmed")` → `onCardUpdate`), so CardBadges' Booked, the Estimate and Re-plan read it
+  as before. The ⋯ now shows for any bookable card (guided / logistics / restaurant), not only scheduled ones —
+  a saved restaurant's ⋯ holds Booked alone. The To book checklist does NOT read `cards.confirmed`.
+- **Week day names:** the header prints `days.theme` (what he typed) and nothing else; `autoDayTitle` is only
+  the rename box's placeholder there. Typed vs automatic IS distinguishable: automatic names are computed,
+  never stored (Tuscany/Japan/Rome have no themes; Palm Springs, Santa Barbara, Last Week of Summer do).
+  PlanBoard, DayViewClient, the shared page and the rest keep their own rules.
+- **`lib/noteLead`** (moved out of CardSurface): the note's first real sentence, past `**Intent**`. The week's
+  opened day (`noteLine`) and the map pin's folded line use it; the pin's open note renders `renderEmphasis`
+  (bold headings, as the sheet). Never print a note's first line raw.
+- `md:italic` escapes globals.css's `.font-display.italic` neutraliser (a breakpoint class is a different
+  class). It put his Profile name in italics on the computer; `houseRules.test.ts` now forbids `sm|md|lg|xl:italic`.
+- Find's meta line is text, not flex items: the "·" sits between distance and source with `\u00a0` either side.

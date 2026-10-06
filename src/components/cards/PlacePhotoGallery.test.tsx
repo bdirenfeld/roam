@@ -35,7 +35,34 @@ describe("PlacePhotoGallery", () => {
   it("renders a slide for every photo — ten photos, ten slides", async () => {
     const { container } = show("place-ten", 10);
     await waitFor(() => expect(container.querySelectorAll(".snap-start").length).toBe(10));
-    expect(screen.getByText("1/10")).toBeInTheDocument();
+    // No "1/10" on the photo (6 Oct 2026); the next arrow is the other door.
+    expect(screen.queryByText("1/10")).toBeNull();
+    expect(screen.getByLabelText("Next photo")).toBeInTheDocument();
+  });
+
+  it("prints no counter and drops a credit that is only the place's own name", async () => {
+    PHOTOS = [
+      { html_attributions: ['<a href="x">Villa Bottino</a>'] },
+      { html_attributions: ['<a href="y">Francisco Pardo</a>'] },
+    ];
+    const { container } = render(
+      <PlacePhotoGallery placeId="place-credit" hasGooglePhotos={true} fallbackLat={null} fallbackLng={null} title="Villa Bottino" height={220} />,
+    );
+    await waitFor(() => expect(container.querySelectorAll(".snap-start").length).toBe(2));
+    expect(screen.queryByText("1/2")).toBeNull();
+    expect(container.querySelector('a[href="x"]')).toBeNull();
+  });
+
+  it("keeps a photographer's credit", async () => {
+    PHOTOS = [
+      { html_attributions: ['<a href="y">Francisco Pardo</a>'] },
+      { html_attributions: ['<a href="x">Villa Bottino</a>'] },
+    ];
+    const { container } = render(
+      <PlacePhotoGallery placeId="place-credit-b" hasGooglePhotos={true} fallbackLat={null} fallbackLng={null} title="Villa Bottino" height={220} />,
+    );
+    await waitFor(() => expect(container.querySelectorAll(".snap-start").length).toBe(2));
+    expect(container.querySelector('a[href="y"]')?.textContent).toBe("Francisco Pardo");
   });
 
   it("loads the photo in view and the next two, not all ten (speed, 3 Oct 2026)", async () => {
@@ -45,7 +72,7 @@ describe("PlacePhotoGallery", () => {
     expect(srcs).toEqual([0, 1, 2].map((i) => `/api/places/photo?place_id=place-ten-c&index=${i}`));
   });
 
-  it("shows dots for a handful and only the counter past five", async () => {
+  it("shows dots for a handful and none past five", async () => {
     const three = show("place-three", 3);
     await waitFor(() => expect(three.container.querySelectorAll(".snap-start").length).toBe(3));
     expect(three.container.querySelectorAll('[aria-label^="Photo "]').length).toBe(3);

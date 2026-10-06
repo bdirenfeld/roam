@@ -139,7 +139,7 @@ export default function ProfileForm({ initial = null, variant = "page", onDismis
                 className={
                   overlay
                     ? "font-display italic text-[24px] text-[#1A1A2E] leading-tight tracking-[-0.01em] truncate"
-                    : "text-base font-bold text-gray-900 md:font-display md:italic md:font-medium md:text-[30px] md:font-normal md:text-[#1A1A2E] md:leading-tight md:tracking-[-0.01em]"
+                    : "text-base font-bold text-gray-900 md:font-display md:font-medium md:text-[30px] md:font-normal md:text-[#1A1A2E] md:leading-tight md:tracking-[-0.01em]"
                 }
               >
                 {data.displayName}

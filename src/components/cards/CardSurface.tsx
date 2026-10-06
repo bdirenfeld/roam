@@ -1,5 +1,6 @@
 import type { Card } from "@/types/database";
 import { thumbSrc } from "@/lib/places/photoWarm";
+import { noteLead } from "@/lib/noteLead";
 import { getMaterialIconHTML } from "@/lib/mapPins";
 import { getPriceRange } from "@/lib/priceRange";
 import { formatTimeRange } from "@/lib/formatTime";
@@ -57,37 +58,9 @@ function railTime(start: string | null): string | null {
   return `${hour12}:${String(m ?? 0).padStart(2, "0")} ${suffix}`;
 }
 
-/**
- * The first thing the notes actually SAY about the place.
- *
- * Not simply the first line: notes are written with headings — `**Intent**`,
- * `KNOW BEFORE YOU GO`, `BRING`, `COST` — and taking line one literally put
- * "**Intent**" on the face of the card. Walk past the headings and the
- * bullet marks to the first real sentence.
- */
-function noteLead(det: Record<string, unknown> | null): string | null {
-  const notes = typeof det?.notes === "string" ? det.notes : null;
-  if (!notes) return null;
-
-  for (const raw of notes.split("\n")) {
-    const line = raw.trim();
-    if (!line) continue;
-    // A whole line wrapped in ** ** is a heading, not a sentence.
-    if (/^\*{1,2}.+\*{1,2}$/.test(line)) continue;
-    // Markdown headings and horizontal rules.
-    if (/^(#{1,6}\s|[-=_]{3,}$)/.test(line)) continue;
-
-    const clean = line
-      .replace(/^[•·\-*>\s]+/, "")
-      .replace(/\*\*/g, "")
-      .trim();
-    if (!clean) continue;
-    // Caps-only labels: COST, BRING, THE LIST, BE REALISTIC.
-    if (clean.length < 44 && clean === clean.toUpperCase() && /[A-Z]/.test(clean)) continue;
-
-    return clean.length > 150 ? clean.slice(0, 148).trimEnd() + "…" : clean;
-  }
-  return null;
+/** The first real sentence of a note: lib/noteLead (shared with the week and the map pin, 6 Oct 2026). */
+function noteLeadOf(det: Record<string, unknown> | null): string | null {
+  return noteLead(typeof det?.notes === "string" ? det.notes : null);
 }
 
 /**
@@ -127,7 +100,7 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
     ? flightRoute(det, timeRange)
     : place
       ? (shortAddress(place.address) || subLabel || null)
-      : noteLead(det);
+      : noteLeadOf(det);
   // The category glyph leads the subtitle in place of the category word —
   // "🍴 Via Rosina" says what "Restaurant · Via Rosina" said, in one shape.
   const detailIcon = place ? getMaterialIconHTML(place.sub_type ?? null, 14) : null;

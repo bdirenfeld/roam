@@ -287,3 +287,20 @@ describe("every workflow's shell parses", () => {
     ).toEqual([]);
   });
 });
+
+describe("no italic display text behind a breakpoint (6 Oct 2026)", () => {
+  // globals.css neutralises `.font-display.italic`, but a breakpoint pair —
+  // `md:font-display md:italic` — is a different class and escapes it. That is
+  // how his name on the Profile page came out italic on the computer.
+  it("no file uses md:italic / lg:italic / sm:italic", () => {
+    const hits: string[] = [];
+    const files = sourceFiles(SRC);
+    for (let i = 0; i < files.length; i++) {
+      const text = readFileSync(files[i], "utf8");
+      const re = /\b(?:sm|md|lg|xl):italic\b/g;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(text))) hits.push(`${rel(files[i])}:${lineOf(text, m.index)}`);
+    }
+    expect(hits, "Drop the breakpoint italic: display text is never italic (CLAUDE.md, Visual system).").toEqual([]);
+  });
+});

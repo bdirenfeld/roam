@@ -113,3 +113,31 @@ export function batchesOf<T>(items: T[], size: number): T[][] {
   for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
   return out;
 }
+
+/**
+ * The note as shown on a card that already has an Hours row (6 Oct 2026, his
+ * designer-audit ruling): composeNote appends "Open … that day" / "Closed that
+ * day" / "Open 24 hours" as the last "Know before you go" point, and the sheet's
+ * Hours row says the same thing a few lines lower. Display only — the stored
+ * note is never rewritten. A heading left with nothing under it goes too.
+ */
+export function withoutHoursLine(note: string): string {
+  const HOURS = /^\s*[-*•]\s+(Open .+ that day|Closed that day|Open 24 hours)\s*$/;
+  const lines = note.split("\n");
+  const kept = lines.filter((l) => !HOURS.test(l));
+  if (kept.length === lines.length) return note;
+  // "**Know before you go**" with no bullet left under it.
+  const out: string[] = [];
+  for (let i = 0; i < kept.length; i++) {
+    const l = kept[i];
+    const isHeading = /^\s*(\*\*[^*\n]+\*\*|#{1,6}\s+.+)\s*$/.test(l);
+    if (isHeading) {
+      let j = i + 1;
+      while (j < kept.length && kept[j].trim() === "") j++;
+      const next = kept[j];
+      if (next === undefined || /^\s*(\*\*[^*\n]+\*\*|#{1,6}\s+.+)\s*$/.test(next)) continue;
+    }
+    out.push(l);
+  }
+  return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}

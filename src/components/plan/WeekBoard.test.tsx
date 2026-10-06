@@ -124,3 +124,45 @@ describe("the week's top rows", () => {
     expect(screen.queryByText("Check in · Villa Zambaldi")).toBeNull();
   });
 });
+describe("day names on the week (6 Oct 2026, designer audit)", () => {
+  // Tuscany as stored: no day has a typed name (days.theme is null on all 12),
+  // and the old header printed the automatic one — "Piazza San Michele" over
+  // the Piazza San Michele card in the same column.
+  const piazza = { id: "psm", title: "Piazza San Michele", type: "activity", sub_type: "self_directed", lat: 43.84, lng: 10.5, address: "Piazza San Michele, Lucca" };
+  const named = dates.map((date, i) => ({
+    id: `n${i + 1}`, trip_id: "t", day_number: i + 1, date,
+    theme: i === 1 ? "Rest, Lucca evening" : null,
+    cards: i === 0 ? [card("p1", "n1", piazza as unknown as typeof villa, { start_time: "10:00:00", end_time: "12:30:00" })] : [] as Card[],
+  })) as unknown as DayWithCards[];
+
+  it("prints a name he typed, and no automatic one", () => {
+    render(<WeekBoard trip={trip} initialDays={named} initialSaved={[]} />);
+    const names = screen.getAllByTestId("day-name").map((n) => n.textContent?.trim());
+    expect(names[0]).toBe("");                  // automatic "Piazza San Michele": hidden
+    expect(names[1]).toBe("Rest, Lucca evening"); // typed: shown
+    // The card itself is still on the board.
+    expect(screen.getAllByText("Piazza San Michele").length).toBeGreaterThan(0);
+  });
+
+  it("Rename this day still opens with the automatic name as the hint", () => {
+    render(<WeekBoard trip={trip} initialDays={named} initialSaved={[]} />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Day actions" })[0]);
+    fireEvent.click(screen.getByText("Rename this day"));
+    expect((screen.getByLabelText("Name this day") as HTMLInputElement).placeholder).toBe("Piazza San Michele");
+  });
+});
+
+describe("the opened day's note line (6 Oct 2026 bug: a raw **Intent**)", () => {
+  it("shows the note's first sentence, not its heading", () => {
+    const piazza = { id: "psm2", title: "Piazza San Michele", type: "activity", sub_type: "self_directed", lat: 43.84, lng: 10.5, address: null };
+    const withNote = dates.map((date, i) => ({
+      id: `w${i + 1}`, trip_id: "t", day_number: i + 1, date, theme: null,
+      cards: i === 0 ? [card("pn", "w1", piazza as unknown as typeof villa, { start_time: "10:00:00", end_time: "12:30:00", details: { notes: "**Intent**\nThe heart of Lucca, a Romanesque church in a wide square.\n\n**Know before you go**\n- Free." } })] : [] as Card[],
+    })) as unknown as DayWithCards[];
+    const { container } = render(<WeekBoard trip={trip} initialDays={withNote} initialSaved={[]} />);
+    fireEvent.click(screen.getAllByTestId("day-header")[0]);
+    expect(screen.getByTestId("day-focused")).toBeTruthy();
+    expect(container.textContent).not.toMatch(/\*\*Intent\*\*/);
+    expect(screen.getAllByText("The heart of Lucca, a Romanesque church in a wide square.").length).toBeGreaterThan(0);
+  });
+});

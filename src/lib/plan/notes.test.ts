@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { notesPrompt, parseNotes, dayHoursLine, composeNote, cardsNeedingNotes } from "./notes";
+import { notesPrompt, parseNotes, dayHoursLine, composeNote, cardsNeedingNotes, withoutHoursLine } from "./notes";
 import { plainNote } from "@/lib/plainNote";
 
 describe("notesPrompt", () => {
@@ -71,5 +71,33 @@ describe("notes are written six places a call", () => {
     expect(b.map((x) => x.length)).toEqual([6, 6, 6, 5]);
     expect(b.flat()).toHaveLength(23);
     expect(batchesOf([], 6)).toEqual([]);
+  });
+});
+
+describe("withoutHoursLine (6 Oct 2026: the Hours row already says it)", () => {
+  // Buca di Sant'Antonio's generated note, as stored.
+  const buca = "**Intent**\nOne of Lucca's oldest trattorias.\n\n**Know before you go**\n- Booking ahead is strongly advised.\n- Prices are mid-to-high for Lucca.\n- Open 12:30 – 2:30 PM, 7:30 – 10:00 PM that day";
+
+  it("drops the Open … that day point and keeps the rest", () => {
+    const out = withoutHoursLine(buca);
+    expect(out).not.toMatch(/that day/);
+    expect(out).toMatch(/Booking ahead is strongly advised/);
+    expect(out).toMatch(/Prices are mid-to-high/);
+    expect(out).toMatch(/\*\*Know before you go\*\*/);
+  });
+
+  it("drops Closed that day and Open 24 hours too", () => {
+    expect(withoutHoursLine(composeNote({ intent: "A park.", know: ["Bring water"] }, "Closed that day"))).not.toMatch(/Closed/);
+    expect(withoutHoursLine(composeNote({ intent: "A park.", know: ["Bring water"] }, "Open 24 hours"))).not.toMatch(/24 hours/);
+  });
+
+  it("drops a heading left empty", () => {
+    const note = composeNote({ intent: "A park.", know: [] }, "Open 9:00 AM – 6:00 PM that day");
+    expect(withoutHoursLine(note)).toBe("**Intent**\nA park.");
+  });
+
+  it("leaves a note without the line exactly as typed", () => {
+    const typed = "**Intent**\nLunch.\n\n- the door is open that evening";
+    expect(withoutHoursLine(typed)).toBe(typed);
   });
 });

@@ -303,11 +303,15 @@ export default function FindSheet({
                   {r.title && <div className="text-[11.5px] text-activity/55 truncate">At {r.name}</div>}
                   <div className="text-[12.5px] text-activity/70 leading-snug">{r.why}</div>
                 </button>
-                <div className="text-[11px] text-activity/45 mt-0.5 flex items-center gap-1.5 flex-wrap">
-                  {awayOf(r) && <span className="text-activity/70 font-medium">{awayOf(r)} ·</span>}
+                {/* One line of text, not flex items (6 Oct 2026): as flex items the
+                    "·" rode on the distance and was left dangling at the end of
+                    the line whenever the source wrapped. Non-breaking spaces
+                    hold the dot between its two neighbours. */}
+                <div className="text-[11px] text-activity/45 mt-0.5 leading-snug" data-testid="find-meta">
+                  {awayOf(r) && <><span className="text-activity/70 font-medium">{awayOf(r)}</span>{"\u00a0·\u00a0"}</>}
                   {r.source ? <a href={r.source.url} target="_blank" rel="noreferrer" className="underline underline-offset-2">{r.source.name}</a> : <span>{r.from === "travellers" ? "Travellers" : "Google"}</span>}
-                  {r.kids && <span className="px-1.5 rounded text-[10px] font-semibold" style={{ background: "#E7F3EC", color: "#1D7A55" }}>Good with kids</span>}
                 </div>
+                {r.kids && <div className="mt-1"><span className="px-1.5 rounded text-[10px] font-semibold" style={{ background: "#E7F3EC", color: "#1D7A55" }}>Good with kids</span></div>}
               </div>
               <button type="button" onClick={() => void save(r)} disabled={saved.has(r.placeId)}
                 className="self-center h-8 px-3 rounded-full text-[12.5px] font-semibold whitespace-nowrap"

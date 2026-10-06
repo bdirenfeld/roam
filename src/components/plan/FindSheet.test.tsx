@@ -73,7 +73,13 @@ describe("Find sheet", { timeout: 20000 }, () => {
       place: { id: "ps", title: "Pantheon", type: "activity", sub_type: "self_directed", lat: 41.8986, lng: 12.4769, address: null } } as unknown as Card;
     await act(async () => { render(<FindSheet trip={trip} days={[]} cards={[hotel, sight]} onClose={vi.fn()} onSaved={vi.fn()} />); });
     // Da Enzo in Trastevere, about 1.4 km from the B&B: walkable.
-    expect(screen.getByText(/min walk from Banco 19 B&B ·/)).toBeTruthy();
+    expect(screen.getByText(/min walk from Banco 19 B&B$/)).toBeTruthy();
+    // The dot sits BETWEEN the distance and the source, glued to both by
+    // non-breaking spaces, so it can never dangle at a line end (6 Oct 2026).
+    const meta = screen.getByTestId("find-meta");
+    expect(meta.textContent).toMatch(/min walk from Banco 19 B&B · r\/rome$/);
+    expect(meta.textContent!.trim().endsWith("·")).toBe(false);
+    expect(meta.querySelector("span")!.textContent).not.toMatch(/·/);
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "More about Trattoria Da Enzo" })); });
     expect(within(screen.getByRole("region", { name: "Trattoria Da Enzo" })).getByText(/min walk from Banco 19 B&B$/)).toBeTruthy();
     // Its dot is the map pin's look, navy with an orange ring, not food purple (2 Oct 2026).

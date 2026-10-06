@@ -1,6 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, createContext, useContext } from "react";
+
+/**
+ * A display-only transform for multiline values (the notes), set by the card
+ * sheet. The sheet passes `withoutHoursLine` when it shows an Hours row, so the
+ * generated "Open … that day" point is not said twice (6 Oct 2026). The edit
+ * view always shows the raw text.
+ */
+export const NoteDisplay = createContext<(s: string) => string>((s) => s);
 
 // ── Shared section heading ─────────────────────────────────────
 export function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -36,7 +44,7 @@ interface FieldRowProps {
  * everything else exactly as typed; the edit view still shows the raw text, so
  * what you wrote is what you get back.
  */
-function renderEmphasis(text: string) {
+export function renderEmphasis(text: string) {
   const parts = text.split(/(\*\*[^*\n]+\*\*)/g);
   return parts.map((part, i) =>
     /^\*\*[^*\n]+\*\*$/.test(part) ? (
@@ -58,6 +66,7 @@ export default function FieldRow({
   multiline = false,
   hideWhenEmpty = false,
 }: FieldRowProps) {
+  const shown = useContext(NoteDisplay);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value ?? "");
 
@@ -135,7 +144,7 @@ export default function FieldRow({
               canEdit ? "cursor-pointer hover:bg-gray-50 -mx-1 px-1 py-0.5" : "",
             ].join(" ")}
           >
-            {isEmpty ? placeholder : multiline ? renderEmphasis(value ?? "") : value}
+            {isEmpty ? placeholder : multiline ? renderEmphasis(shown(value ?? "")) : value}
           </p>
         )}
       </div>

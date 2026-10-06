@@ -14,7 +14,8 @@ import { formatTimeValue } from "@/lib/formatTime";
 import { scheduleCardOnDay, unscheduleCard } from "@/lib/scheduleCard";
 import LovedHeart from "@/components/ui/LovedHeart";
 import { readRecommendedBy } from "@/lib/recommendedBy";
-import FieldRow, { SectionLabel } from "./detail/FieldRow";
+import FieldRow, { SectionLabel, NoteDisplay } from "./detail/FieldRow";
+import { withoutHoursLine } from "@/lib/plan/notes";
 import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
 import dynamic from "next/dynamic";
 import { reloadOnStale } from "@/lib/chunkReload";
@@ -221,17 +222,8 @@ function formatTime(t: string | null): string {
   return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, "0")} ${p}`;
 }
 
-function durationLabel(start: string | null, end: string | null): string | null {
-  if (!start || !end) return null;
-  const [sh, sm] = start.split(":").map(Number);
-  const [eh, em] = end.split(":").map(Number);
-  const mins = eh * 60 + em - (sh * 60 + sm);
-  if (mins <= 0) return null;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  if (h === 0) return `${m}m`;
-  return m === 0 ? `${h}h` : `${h}h ${m}m`;
-}
+/** Notes as stored, for a card with no Hours row. */
+const identityNote = (s: string) => s;
 
 // ── Country dial code helpers ──────────────────────────────────
 const COUNTRY_DIAL: Record<string, string> = {
@@ -872,8 +864,16 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     ? (["Free", "€", "€€", "€€€", "€€€€"] as const)[priceLevel] ?? null
     : null;
 
-  const duration = durationLabel(localCard.start_time, localCard.end_time);
   const badge = bookingBadge(localCard.details);
+  // Booked lives in the ⋯ (6 Oct 2026, designer audit): set once per
+  // reservation, so it does not earn a row on the surface. Same write as the
+  // old switch — cards.confirmed through saveTopLevel — so the row's Booked
+  // badge, the Estimate and Re-plan (which leaves booked cards alone) read it
+  // exactly as before.
+  const canBook = !readOnly && ((place?.type === "activity" && place.sub_type === "guided") ||
+    place?.type === "logistics" ||
+    (place?.type === "food" && place.sub_type === "restaurant"));
+  const canMove = !readOnly && localCard.status === "in_itinerary" && !!days && days.length > 0;
 
   // A note has no place to love and nobody recommended it — both signals are
   // place-linked cards only. A guest sees the heart only once it is set.
@@ -1139,7 +1139,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   Move and Take-off as header buttons (Sep 2026) and found the
                   row cluttered, so the header keeps its glyphs and the verbs
                   live here. The sheet still closes itself after a move. */}
-              {!readOnly && localCard.status === "in_itinerary" && days && days.length > 0 && (
+              {(canMove || canBook) && (
                 <div className={place ? "relative" : "relative mr-10" /* a note card has the ✕ in this corner: keep the ⋯ clear of it (Brennan, 25 Sep 2026) */}>
                   <button
                     onClick={() => setShowCardMenu((v) => !v)}
@@ -1158,7 +1158,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                         role="menu"
                         className="absolute right-0 top-9 z-50 w-44 bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden"
                       >
-                        {days.length > 1 && (
+                        {canMove && days && days.length > 1 && (
                           <button
                             role="menuitem"
                             onClick={() => { setShowCardMenu(false); setShowMovePicker(true); }}
@@ -1167,7 +1167,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                             Move to day
                           </button>
                         )}
-                        {days.length > 1 && (
+                        {canMove && days && days.length > 1 && (
                           <button
                             role="menuitem"
                             disabled={isCopying}
@@ -1177,7 +1177,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                             {isCopying ? "Copying…" : "Repeat on other days"}
                           </button>
                         )}
-                        {onCardDelete && (
+                        {canMove && onCardDelete && (
                           <button
                             role="menuitem"
                             disabled={isDeleting}
@@ -1185,6 +1185,34 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                             className="w-full text-left px-3.5 py-2.5 text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors border-t border-gray-100 disabled:opacity-50"
                           >
                             Take off this day
+                          </button>
+                        )}
+                        {canBook && (
+                          /* "Booked", not "Confirmed": it names what you did.
+                             The column stays `confirmed`. The menu stays open
+                             so the switch is seen to move. */
+                          <button
+                            role="menuitemcheckbox"
+                            aria-checked={!!localCard.confirmed}
+                            onClick={() => saveTopLevel("confirmed", !localCard.confirmed)}
+                            className={`w-full flex items-center justify-between px-3.5 py-2.5 text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors${canMove ? " border-t border-gray-100" : ""}`}
+                          >
+                            Booked
+                            <span aria-hidden style={{
+                              width: 34, height: 19, borderRadius: 10,
+                              backgroundColor: localCard.confirmed ? "#1A1A2E" : "#E5E7EB",
+                              transition: "background-color 200ms",
+                              position: "relative", flexShrink: 0, display: "inline-block",
+                            }}>
+                              <span style={{
+                                position: "absolute", top: 2,
+                                left: localCard.confirmed ? 17 : 2,
+                                width: 15, height: 15, borderRadius: "50%",
+                                backgroundColor: "white",
+                                boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                                transition: "left 200ms",
+                              }} />
+                            </span>
                           </button>
                         )}
                       </div>
@@ -1265,13 +1293,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               </button>
             )}
 
-            {/* Duration */}
-            {duration && (
-              <>
-                <span className="text-gray-300 text-sm select-none">·</span>
-                <span className="text-sm text-gray-400">{duration}</span>
-              </>
-            )}
+            {/* No duration beside the times (6 Oct 2026, designer audit): the
+                range already says it. */}
 
             {/* Overnight warning */}
             {localCard.start_time && localCard.end_time &&
@@ -1312,7 +1335,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         {/* Scrollable detail content */}
         <div className="relative flex-1 min-h-0">
           <div ref={scrollRef} className="absolute inset-0 overflow-y-auto px-5 py-5">
-            {renderDetail()}
+            <NoteDisplay.Provider value={weekdayText ? withoutHoursLine : identityNote}>
+              {renderDetail()}
+            </NoteDisplay.Provider>
 
             {/* Notes, always reachable. The detail components render notes
                 when there are any and hide the empty row until "Add details"
@@ -1321,7 +1346,6 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 empty row is showing, so the field never appears twice. */}
             {place && !readOnly && !showEmptyFields && !(localCard.details as { notes?: string } | null)?.notes && (
               <div className="mt-5 pt-4 border-t border-gray-100">
-                <SectionLabel>Notes</SectionLabel>
                 <FieldRow
                   value=""
                   placeholder="Add a note…"
@@ -1407,36 +1431,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               </div>
             )}
 
-            {/* Confirmation toggle — guided activities, all logistics, restaurants */}
-            {!readOnly && ((place?.type === "activity" && place.sub_type === "guided") ||
-              place?.type === "logistics" ||
-              (place?.type === "food" && place.sub_type === "restaurant")) && (
-              <button
-                onClick={() => saveTopLevel("confirmed", !localCard.confirmed)}
-                className="w-full flex items-center justify-between mt-5 pt-4 border-t border-gray-100"
-              >
-                {/* "Booked", not "Confirmed": it names what you did, and what
-                    the board is really tracking is what is still to book.
-                    "Confirmed" also begs the question — by you, or by them?
-                    The column stays `confirmed`; only the word changes. */}
-                <span className="text-[13px] font-medium text-gray-700">Booked</span>
-                <div style={{
-                  width: 40, height: 22, borderRadius: 11,
-                  backgroundColor: localCard.confirmed ? "#1A1A2E" : "#E5E7EB",
-                  transition: "background-color 200ms",
-                  position: "relative", flexShrink: 0,
-                }}>
-                  <div style={{
-                    position: "absolute", top: 2,
-                    left: localCard.confirmed ? 20 : 2,
-                    width: 18, height: 18, borderRadius: "50%",
-                    backgroundColor: "white",
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-                    transition: "left 200ms",
-                  }} />
-                </div>
-              </button>
-            )}
+            {/* The Booked switch moved into the ⋯ menu at the top (6 Oct 2026). */}
 
             {/* Add details / collapse toggle — owner only, not shown for notes */}
             {!readOnly && place && place.sub_type !== "note" && (

@@ -39,6 +39,7 @@ import { durationFor } from "@/lib/week/arrange";
 import { placeShare, isMuseum } from "@/lib/plan/dayGroups";
 import { dayForCard, onlyOnLine } from "@/lib/plan/eventDays";
 import { shortAddress, firstSentence } from "@/lib/week/cardText";
+import { noteLead } from "@/lib/noteLead";
 import { weekStarts, pageOf } from "@/lib/week/pages";
 import { stayRuns } from "@/lib/stays/stayRuns";
 import {
@@ -70,8 +71,9 @@ function cardTitle(c: Card): string {
   return c.place?.title ?? det?.title ?? (det?.notes ? det.notes.slice(0, 60) : "(untitled)");
 }
 function isNote(c: Card): boolean { return !c.place_id; }
-/** The first sentence of a card's notes, for the widened day. */
-function noteLine(c: Card): string { return firstSentence((c.details as { notes?: string } | null)?.notes); }
+/** The first sentence of a card's notes, for the widened day — past the
+ *  "**Intent**" heading (6 Oct 2026: the heading itself was printed). */
+function noteLine(c: Card): string { return firstSentence(noteLead((c.details as { notes?: string } | null)?.notes)); }
 
 type Drag =
   | { kind: "move"; card: Card; fromDay: string; x0: number; y0: number; offY: number; moved: boolean }
@@ -167,9 +169,12 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const [overMap, setOverMap] = useState(false);
   // The header's "…" menu, by day id.
   const [headerMenu, setHeaderMenu] = useState<string | null>(null);
-  // Day names (25 Sep 2026): automatic from the cards (`autoDayTitle`), or the
-  // name you typed (`days.theme`), which wins. Rename from the "…" menu; an
-  // empty name goes back to automatic.
+  // Day names (25 Sep 2026): the name you typed (`days.theme`). Rename from
+  // the "…" menu. Since 6 Oct 2026 (designer audit) the automatic name
+  // (`autoDayTitle`) is NOT printed in the header — it only repeated a card
+  // already in the column ("Piazza San Michele" over Piazza San Michele). It
+  // stays as the rename box's placeholder. Only this header changed: the
+  // phone's day, the shared page and the rest still read their own rules.
   const [renamingDay, setRenamingDay] = useState<string | null>(null);
   const [nameDraft, setNameDraft] = useState("");
   const commitRename = useCallback(async () => {
@@ -953,7 +958,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                     className="w-full text-[10.5px] mt-0.5 bg-white rounded px-1 outline-none ring-1 ring-[#1A1A2E]"
                   />
                 ) : (
-                  <div className="text-[10.5px] text-activity/60 truncate mt-0.5">{d.theme ?? autoDayTitle(d, i === 0, i === shown.length - 1) ?? " "}</div>
+                  <div className="text-[10.5px] text-activity/60 truncate mt-0.5" data-testid="day-name">{d.theme ?? " "}</div>
                 )}
                 {/* Untimed: on its own day, dashed until it has a time. */}
                 {(laidOut[i]?.untimed.length ?? 0) > 0 && (

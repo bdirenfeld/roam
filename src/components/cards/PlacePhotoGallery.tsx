@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { galleryUrls, indexesToWarm } from "@/lib/places/photoWarm";
+import { isOwnCredit } from "@/lib/places/photoCredit";
 
 /** Shape of one entry in places.details.photos (raw Google place_details). */
 interface PlacePhoto {
@@ -149,7 +150,11 @@ export default function PlacePhotoGallery({
   }
 
   // ── Swipeable gallery ──
-  const attribution = photos?.[activeIndex]?.html_attributions?.[0] ?? null;
+  // The credit is dropped when it is only the place's own name — the business
+  // uploaded the photo and the title says it again right below (6 Oct 2026).
+  // A photographer's credit stays.
+  const credit = photos?.[activeIndex]?.html_attributions?.[0] ?? null;
+  const attribution = credit && !isOwnCredit(credit, title) ? credit : null;
 
   // Buttons and arrow keys drive the *existing* scroll-snap container rather
   // than a transform carousel, so pointer, keyboard and native swipe all move
@@ -223,15 +228,9 @@ export default function PlacePhotoGallery({
         />
       )}
 
-      {/* Position indicator — "2/10" */}
-      <div
-        aria-live="polite"
-        aria-atomic="true"
-        className="absolute bottom-2 right-2 z-10 rounded-full bg-black/35 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm"
-        style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}
-      >
-        {activeIndex + 1}/{count}
-      </div>
+      {/* No "2/10" counter (6 Oct 2026, designer audit): the arrows and the
+          swipe page the photos, and a number on the picture was one more thing
+          standing between him and the place. Dots stay for a handful. */}
 
       {/* Dot indicators — the wrapper is click-through so it never eats a swipe */}
       <div
@@ -239,7 +238,8 @@ export default function PlacePhotoGallery({
         style={controlZ}
       >
         {/* Ten dots and a "1/10" counter said the same thing twice (Essential
-            audit, 15 Sept 2026). Dots for a handful; past that the counter alone. */}
+            audit, 15 Sept 2026). Dots for a handful; past that the arrows alone
+            (the counter went 6 Oct 2026). */}
         {Array.from({ length: count > 5 ? 0 : count }, (_, i) => (
           <button
             key={i}

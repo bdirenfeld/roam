@@ -88,7 +88,8 @@ export default function HotelDetail({ card, onSaveDetails, showEmpty = false, st
       {/* NOTES */}
       {(showEmpty || d.notes) && (
         <div>
-          <SectionLabel>Notes</SectionLabel>
+          {/* No "Notes" label while reading (6 Oct 2026): the note is plainly the note. Kept in the Add details form beside the other labelled fields. */}
+          {showEmpty && <SectionLabel>Notes</SectionLabel>}
           <FieldRow value={d.notes} placeholder="Add a note…"
             onSave={save("notes")} multiline hideWhenEmpty={hide} />
           {/* The note shows under "Tonight" on the shared link, which can be
