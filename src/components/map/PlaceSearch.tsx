@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { pastedSocialLink, shareHref, wantsPasteRow } from "@/lib/share/pasted";
 
 interface Prediction {
   place_id: string;
@@ -32,6 +34,29 @@ export default function PlaceSearch({ onPlaceSelect, destination, lat, lng, posi
   const [query, setQuery]             = useState("");
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading]         = useState(false);
+  // iPhone share by paste (5 Oct 2026): a row under the empty, focused search.
+  const router = useRouter();
+  const [focused, setFocused]         = useState(false);
+  const [pasteRow, setPasteRow]       = useState(false);
+  const [pasteMiss, setPasteMiss]     = useState(false);
+  useEffect(() => { setPasteRow(wantsPasteRow(navigator.userAgent)); }, []);
+  const goShare = useCallback((text: string | null | undefined) => {
+    const link = pastedSocialLink(text);
+    if (!link) return false;
+    router.push(shareHref(link.url));
+    return true;
+  }, [router]);
+  const pasteFromClipboard = async () => {
+    setPasteMiss(false);
+    try {
+      // On iPhone this shows the system Paste button first.
+      const text = await navigator.clipboard.readText();
+      if (!goShare(text)) setPasteMiss(true);
+    } catch {
+      setPasteMiss(true);
+    }
+  };
+  const showPasteRow = pasteRow && focused && !query;
 
   const inputRef     = useRef<HTMLInputElement>(null);
   const debounceRef  = useRef<ReturnType<typeof setTimeout>>();
@@ -128,6 +153,9 @@ export default function PlaceSearch({ onPlaceSelect, destination, lat, lng, posi
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onFocus={() => { setFocused(true); setPasteMiss(false); }}
+            onBlur={() => setTimeout(() => setFocused(false), 200)}
+            onPaste={(e) => { if (goShare(e.clipboardData.getData("text"))) e.preventDefault(); }}
             placeholder={placeholder}
             className="flex-1 bg-transparent text-[13px] text-gray-900 placeholder:text-gray-400 outline-none"
           />
@@ -150,6 +178,26 @@ export default function PlaceSearch({ onPlaceSelect, destination, lat, lng, posi
             </button>
           )}
         </div>
+
+        {showPasteRow && (
+          <div className="mt-1.5 bg-white rounded-xl border border-gray-100 overflow-hidden" style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.10)" }}>
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={pasteFromClipboard}
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 active:bg-gray-100 text-left"
+              data-testid="paste-link-row"
+            >
+              <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" /><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" /></svg>
+              </div>
+              <span className="block text-[13px] font-medium text-gray-900 leading-snug">Paste a TikTok or Instagram link</span>
+            </button>
+            {pasteMiss && (
+              <p className="px-4 pb-3 -mt-1 text-[12px] text-gray-500">In TikTok or Instagram, tap Share, then Copy link, and try again.</p>
+            )}
+          </div>
+        )}
 
         {/* Autocomplete dropdown */}
         {predictions.length > 0 && (
