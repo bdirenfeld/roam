@@ -55,7 +55,7 @@ export const VIDEOS: HowToVideo[] = [
     // The short follow-on to video 2 (5 Oct 2026): taking a card off its day,
     // and one day at a time on the map. In the Videos list only.
     id: "more-tricks",
-    title: "Two more planning tricks",
+    title: "Planning shortcuts",
     length: "20 s",
     file: "more-tricks.mp4",
     poster: "more-tricks.jpg",
@@ -78,7 +78,7 @@ export const VIDEOS: HowToVideo[] = [
     // (5 Oct 2026). The strip picks this or "on the trip" by date
     // (sharedLinkVideo); both stay in the Videos list.
     id: "before-the-trip",
-    title: "Your shared link: before the trip",
+    title: "Following along: before the trip",
     length: "45 s",
     file: "before-the-trip.mp4",
     poster: "before-the-trip.jpg",
@@ -86,7 +86,7 @@ export const VIDEOS: HowToVideo[] = [
   },
   {
     id: "on-the-trip",
-    title: "Your shared link: on the trip",
+    title: "Following along: during the trip",
     length: "45 s",
     file: "on-the-trip.mp4",
     poster: "on-the-trip.jpg",

@@ -13,10 +13,10 @@ describe("the video list", () => {
     expect(VIDEOS.map((v) => [v.id, v.title, v.length])).toEqual([
       ["first-journey", "Your first journey", "1 min"],
       ["planning-computer", "Planning on a computer", "1 min"],
-      ["more-tricks", "Two more planning tricks", "20 s"],
+      ["more-tricks", "Planning shortcuts", "20 s"],
       ["in-the-app", "Using Roam on your trip", "1 min"],
-      ["before-the-trip", "Your shared link: before the trip", "45 s"],
-      ["on-the-trip", "Your shared link: on the trip", "45 s"],
+      ["before-the-trip", "Following along: before the trip", "45 s"],
+      ["on-the-trip", "Following along: during the trip", "45 s"],
     ]);
   });
 

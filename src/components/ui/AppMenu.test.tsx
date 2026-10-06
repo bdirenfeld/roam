@@ -82,9 +82,9 @@ describe("Videos in the journey menu (2 Oct 2026, video-placement-mock §5)", ()
     fireEvent.click(screen.getByRole("menuitem", { name: "How-to videos" }));
     const sheet = screen.getByRole("dialog", { name: "How-to videos" });
     const listed = Array.from(sheet.querySelectorAll("button")).map((b) => b.textContent).filter((t) => t);
-    expect(listed).toEqual(["Your first journey1 min", "Your shared link: on the trip45 s"]);
+    expect(listed).toEqual(["Your first journey1 min", "Following along: during the trip45 s"]);
     expect(screen.queryByRole("menu")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /on the trip/ }));
+    fireEvent.click(screen.getByRole("button", { name: /during the trip/ }));
     const video = screen.getByTestId("video-player").querySelector("video")!;
     expect(video.getAttribute("src")).toContain("/how-to-videos/on-the-trip.mp4?v=3");
     fireEvent.click(screen.getByRole("button", { name: "Close video" }));
