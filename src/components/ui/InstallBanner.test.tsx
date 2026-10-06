@@ -29,6 +29,14 @@ describe("the install banner", () => {
     expect(screen.getByRole("dialog", { name: "Put Roam on your phone" })).toBeTruthy();
   });
 
+  it("gives iOS 26's steps: ⋯, then Share, then Add to Home Screen (6 Oct 2026)", () => {
+    localStorage.setItem("roam_first_seen", String(Date.now() - 24 * 60 * 60 * 1000));
+    render(<InstallBanner />);
+    const text = screen.getByRole("dialog").textContent!.replace(/\s+/g, " ");
+    expect(text).toContain("In Safari, tap ⋯, then Share, then Add to Home Screen.");
+    expect(text).not.toContain("bottom of the screen");
+  });
+
   it("never after Not now", () => {
     localStorage.setItem("roam_first_seen", "1");
     localStorage.setItem("roam_install_banner_v2", "1");

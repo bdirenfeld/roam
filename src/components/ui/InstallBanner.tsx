@@ -114,13 +114,14 @@ export default function InstallBanner() {
       ) : (
         <>
           <p className="text-[13px] leading-[1.55] mt-1" style={{ color: "rgba(26,26,46,0.62)" }}>
-            Tap the Share button
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="inline-block mx-1 -mt-0.5">
+            {/* iOS 26 (6 Oct 2026): Share sits under the ⋯ beside the address bar. Matches the install video. */}
+            In Safari, tap <span className="font-semibold" style={{ color: "#1A1A2E" }}>⋯</span>, then Share
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="inline-block ml-1 -mt-0.5">
               <path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7" />
               <polyline points="16 6 12 2 8 6" />
               <line x1="12" y1="2" x2="12" y2="15" />
             </svg>
-            at the bottom of the screen, then <span className="font-semibold" style={{ color: "#1A1A2E" }}>Add to Home Screen</span>. Roam becomes an app icon.
+            , then <span className="font-semibold" style={{ color: "#1A1A2E" }}>Add to Home Screen</span>. Roam becomes an app icon.
           </p>
           <button type="button" onClick={dismiss} className="mt-2.5 text-[13px] font-semibold" style={{ color: "#B0541F" }}>
             Got it
