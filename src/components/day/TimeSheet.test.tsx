@@ -45,16 +45,23 @@ describe("one tap where one choice is enough (6 Oct 2026, taps audit)", () => {
     for (const name of ["Morning", "Lunch", "Afternoon", "Evening", "No time"]) expect(screen.queryByRole("button", { name })).toBeNull();
   });
 
-  it("Clear time takes the time off and saves; it is not offered on a card with no time", async () => {
+  it("Clear time empties the boxes and waits for Done; Undo brings the old time back (6 Oct 2026)", () => {
     const onSave = vi.fn(); const onClose = vi.fn();
-    render(<TimeSheet card={lunch} onClose={onClose} onSave={onSave} />);
-    expect(screen.queryByRole("button", { name: "No time" })).toBeNull();
+    const { container } = render(<TimeSheet card={lunch} onClose={onClose} onSave={onSave} />);
+    const [start, end] = Array.from(container.querySelectorAll("input")) as HTMLInputElement[];
     fireEvent.click(screen.getByRole("button", { name: "Clear time" }));
+    expect(onSave).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(start.value).toBe("");
+    fireEvent.click(screen.getByRole("button", { name: "Undo · 12:30 PM" }));
+    expect(start.value).toBe("12:30 PM");
+    expect(end.value).toBe("1:45 PM");
+    fireEvent.click(screen.getByRole("button", { name: "Clear time" }));
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
     expect(onSave).toHaveBeenCalledWith(null, null);
-    await Promise.resolve();
-    expect(onClose).toHaveBeenCalled();
     cleanup();
     render(<TimeSheet card={{ ...lunch, start_time: null, end_time: null } as unknown as Card} onClose={vi.fn()} onSave={vi.fn()} />);
     expect(screen.queryByRole("button", { name: "Clear time" })).toBeNull();
   });
+
 });

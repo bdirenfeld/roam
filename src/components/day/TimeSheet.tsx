@@ -2,7 +2,7 @@
 
 // ── The quick time sheet ───────────────────────────────────────────────────
 // Tap the time chip on an agenda card and this opens: a start, an end, how
-// long, or Clear time. Done saves; the day
+// long, or Clear time (empties the boxes). Done saves; the day
 // re-sorts itself. Morning / Lunch / Afternoon / Evening came off on 6 Oct 2026:
 // 3 of 306 timed cards had ever used them (taps audit; Brennan: "do we even need
 // them?").
@@ -130,10 +130,16 @@ export default function TimeSheet({
     await onSave(start, end);
     onClose();
   };
-  const clear = async () => {
-    await onSave(null, null);
-    onClose();
+  // Clear time only empties the boxes; Done saves (6 Oct 2026, Brennan: it
+  // "cleared the whole time then closed the card and I forgot what time it
+  // was ... you need to be able to press Done to acknowledge your changes").
+  // Until then the old time is one tap away.
+  const clear = () => { setStartText(""); setEndText(""); };
+  const restore = () => {
+    setStartText(initialStart ? formatTimeValue(initialStart) : "");
+    setEndText(initialEnd ? formatTimeValue(initialEnd) : "");
   };
+  const cleared = !!card.start_time && !startText.trim() && !endText.trim();
 
   // What the field understood, under it — or that it didn't. Only when it adds
   // something: "230p" → "2:30 PM" helps; "9:45 AM" under "9:45 AM" is the
@@ -226,10 +232,11 @@ export default function TimeSheet({
 
         <div className="px-5 pt-5 flex items-center gap-5">
           {/* Taking the time off is rare: a quiet link, away from Done, only when
-              there is a time to take off. One tap clears and saves. */}
+              the card has a time. It empties the boxes; Done saves. Once cleared
+              it offers the old time back. */}
           {card.start_time && (
-            <button type="button" onClick={() => void clear()} className="text-[13px] underline underline-offset-[3px] whitespace-nowrap" style={{ color: "rgba(26,26,46,0.6)" }}>
-              Clear time
+            <button type="button" onClick={cleared ? restore : clear} className="text-[13px] underline underline-offset-[3px] whitespace-nowrap" style={{ color: "rgba(26,26,46,0.6)" }}>
+              {cleared ? "Undo · " + formatTimeValue(hhmm(card.start_time)) : "Clear time"}
             </button>
           )}
           <button
