@@ -140,9 +140,12 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
             onClick={(e) => { e.stopPropagation(); onTimeTap(); }}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onTimeTap(); } }}
             aria-label={rail ? `Change the time, now ${rail}` : "Set a time"}
-            className="inline-flex items-center rounded-full bg-white px-1.5 py-[3px] text-[10px] md:text-[10.5px] uppercase whitespace-nowrap cursor-pointer"
+            className="relative inline-flex items-center rounded-full bg-white px-1.5 py-[3px] text-[10px] md:text-[10.5px] uppercase whitespace-nowrap cursor-pointer"
             style={{ letterSpacing: "0.05em", color: rail ? "rgba(26,26,46,0.62)" : "rgba(26,26,46,0.4)", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.14)" }}
           >
+            {/* A finger-sized target (44px) around a small label: a near-miss on
+                Android opened the card instead (6 Oct 2026, taps audit). */}
+            <span aria-hidden="true" data-testid="time-chip-target" className="absolute -inset-x-1.5 -inset-y-[13px]" />
             {rail ?? "No time"}
           </span>
         ) : rail && (

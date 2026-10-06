@@ -66,3 +66,15 @@ describe("CardSurface — Row E", () => {
     expect(img?.getAttribute("src")).toContain("place_id=p1");
   });
 });
+
+describe("the time chip is finger-sized (6 Oct 2026, taps audit)", () => {
+  it("a tap on the wider target around the label opens the time sheet, not the card", async () => {
+    const { fireEvent } = await import("@testing-library/react");
+    const calls: string[] = [];
+    const { getByTestId } = render(<CardSurface card={placeCard} onTap={() => calls.push("card")} onTimeTap={() => calls.push("time")} />);
+    const target = getByTestId("time-chip-target");
+    expect(target.className).toContain("-inset-y-[13px]");
+    fireEvent.click(target);
+    expect(calls).toEqual(["time"]);
+  });
+});

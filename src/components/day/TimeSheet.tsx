@@ -2,8 +2,11 @@
 
 // ── The quick time sheet ───────────────────────────────────────────────────
 // Tap the time chip on an agenda card and this opens: a start, an end, how
-// long, four parts of the day, or no time at all. Done saves; the day
-// re-sorts itself. It exists because moving a card by dragging carried its
+// long, or Clear time. Done saves; the day
+// re-sorts itself. Morning / Lunch / Afternoon / Evening came off on 6 Oct 2026:
+// 3 of 306 timed cards had ever used them (taps audit; Brennan: "do we even need
+// them?").
+// It exists because moving a card by dragging carried its
 // old time with it and put it back where it was (Brennan, Sep 2026: "it's
 // going to carry the old time and screw things up"). Times are typed here,
 // the way Outlook does it, and the order follows.
@@ -68,15 +71,6 @@ export function parseTypedTime(raw: string): string | null {
   return fromMin(h * 60 + min);
 }
 
-// The four parts of a day. A card in one of them has a time the day can
-// sort by, without anyone deciding whether lunch is 12:15 or 12:30.
-const PRESETS: { label: string; start: string; end: string }[] = [
-  { label: "Morning",   start: "09:00", end: "12:00" },
-  { label: "Lunch",     start: "12:00", end: "13:30" },
-  { label: "Afternoon", start: "14:00", end: "17:00" },
-  { label: "Evening",   start: "18:00", end: "21:00" },
-];
-
 export default function TimeSheet({
   card,
   suggestedStart,
@@ -106,10 +100,8 @@ export default function TimeSheet({
   const endParsed = parseTypedTime(endText);
   const end = start && endParsed && toMin(endParsed) > toMin(start) ? endParsed : null;
   const length = start && end ? toMin(end) - toMin(start) : 0;
-  const preset = PRESETS.find((p) => p.start === start && p.end === end)?.label ?? (startText.trim() ? null : "none");
   const suggested = !card.start_time && !!suggestedStart && start === hhmm(suggestedStart);
 
-  const setBoth = (s: string, e: string) => { setStartText(formatTimeValue(s)); setEndText(formatTimeValue(e)); keptLen.current = toMin(e) > toMin(s) ? toMin(e) - toMin(s) : 0; };
 
   // The length the person last set (or the card had), kept while the start is
   // retyped. Measured from the live fields it shrank as the start moved:
@@ -138,12 +130,10 @@ export default function TimeSheet({
     await onSave(start, end);
     onClose();
   };
-
-  const chip = (active: boolean) => ({
-    background: active ? INK : "#fff",
-    color: active ? "#fff" : INK,
-    boxShadow: active ? "none" : "inset 0 0 0 1px rgba(26,26,46,0.14)",
-  });
+  const clear = async () => {
+    await onSave(null, null);
+    onClose();
+  };
 
   // What the field understood, under it — or that it didn't. Only when it adds
   // something: "230p" → "2:30 PM" helps; "9:45 AM" under "9:45 AM" is the
@@ -234,36 +224,19 @@ export default function TimeSheet({
           </div>
         </div>
 
-        {/* Parts of the day, then no time at all. White is what you touch;
-            ink is what is chosen. */}
-        <div className="flex flex-wrap gap-2 px-5 pt-3">
-          {PRESETS.map((p) => (
-            <button
-              key={p.label}
-              type="button"
-              onClick={() => setBoth(p.start, p.end)}
-              className="rounded-full px-3.5 h-9 text-[13px] font-medium active:opacity-70"
-              style={chip(preset === p.label)}
-            >
-              {p.label}
+        <div className="px-5 pt-5 flex items-center gap-5">
+          {/* Taking the time off is rare: a quiet link, away from Done, only when
+              there is a time to take off. One tap clears and saves. */}
+          {card.start_time && (
+            <button type="button" onClick={() => void clear()} className="text-[13px] underline underline-offset-[3px] whitespace-nowrap" style={{ color: "rgba(26,26,46,0.6)" }}>
+              Clear time
             </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => { setStartText(""); setEndText(""); }}
-            className="rounded-full px-3.5 h-9 text-[13px] font-medium active:opacity-70"
-            style={chip(preset === "none")}
-          >
-            No time
-          </button>
-        </div>
-
-        <div className="px-5 pt-5">
+          )}
           <button
             type="button"
             onClick={() => void done()}
             disabled={!!startText.trim() && !start}
-            className="w-full h-12 rounded-full text-[15px] font-semibold active:opacity-80 disabled:opacity-40"
+            className="flex-1 h-12 rounded-full text-[15px] font-semibold active:opacity-80 disabled:opacity-40"
             style={{ background: INK, color: "#fff" }}
           >
             Done

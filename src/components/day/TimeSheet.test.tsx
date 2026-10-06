@@ -38,3 +38,23 @@ describe("the time sheet says each thing once (6 Oct 2026, designer review)", ()
     expect(screen.getByText(/1h/).className).toContain("whitespace-nowrap");
   });
 });
+
+describe("one tap where one choice is enough (6 Oct 2026, taps audit)", () => {
+  it("no parts of the day: the sheet is the times, Clear time and Done", () => {
+    render(<TimeSheet card={lunch} onClose={vi.fn()} onSave={vi.fn()} />);
+    for (const name of ["Morning", "Lunch", "Afternoon", "Evening", "No time"]) expect(screen.queryByRole("button", { name })).toBeNull();
+  });
+
+  it("Clear time takes the time off and saves; it is not offered on a card with no time", async () => {
+    const onSave = vi.fn(); const onClose = vi.fn();
+    render(<TimeSheet card={lunch} onClose={onClose} onSave={onSave} />);
+    expect(screen.queryByRole("button", { name: "No time" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Clear time" }));
+    expect(onSave).toHaveBeenCalledWith(null, null);
+    await Promise.resolve();
+    expect(onClose).toHaveBeenCalled();
+    cleanup();
+    render(<TimeSheet card={{ ...lunch, start_time: null, end_time: null } as unknown as Card} onClose={vi.fn()} onSave={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: "Clear time" })).toBeNull();
+  });
+});
