@@ -18,17 +18,19 @@ describe("Tuscany (seven people, villa booked, no flights yet)", () => {
 
   it("Flights is open: YYZ to Pisa and Florence, leaving the night before (an overnight from Canada)", () => {
     expect(r.flights.state).toBe("open");
-    expect(r.flights.line).toBe("YYZ → PSA, FLR · 23 Aug – 4 Sep · 7 travellers");
+    // One short line, city names (6 Oct 2026 redesign): the airports stay in the link.
+    expect(r.flights.line).toBe("Toronto → Pisa · 7 people");
     expect(r.flights.url).toBe("https://www.kayak.com/flights/YYZ-PSA,FLR/2027-08-23/2027-09-04/4adults/children-10-8-5?sort=bestflight_a");
   });
   it("Stays ticks itself: Villa Zambaldi covers every night (its check-out card is on the last day)", () => {
-    expect(r.stays).toMatchObject({ state: "booked", line: "Booked", url: null, manual: null });
+    expect(r.stays).toMatchObject({ state: "booked", line: "Villa Zambaldi · all 11 nights", url: null, manual: null, name: "Villa Zambaldi" });
+    expect(r.stays.dayId).toBe(t.days.find((d) => d.date === "2027-08-24")!.id); // the check-in day
   });
   it("the four saved villas (interested, no day) never count — take the booked one away and it is open", () => {
     const noVilla = get("Tuscany", { cards: t.cards.filter((c) => c.place?.title !== "Villa Zambaldi") });
     const s = rowsOf(noVilla).stays;
     expect(s.state).toBe("open");
-    expect(s.line).toBe("Lucca · 24 Aug – 4 Sep · 7 guests, 2 rooms");
+    expect(s.line).toBe("Lucca · 11 nights");
     expect(s.url).toBe("https://www.kayak.com/hotels/Lucca/2027-08-24/2027-09-04/4adults/3children-10-8-5/2rooms");
   });
   it("some nights covered: counts them and searches the first open run where that night's plans are (Florence, as in the approved mock)", () => {
@@ -39,11 +41,11 @@ describe("Tuscany (seven people, villa booked, no flights yet)", () => {
     });
     const s = rowsOf(short).stays;
     expect(s.state).toBe("open");
-    expect(s.line).toBe("7 of 11 nights booked · next: Florence, 31 Aug – 4 Sep");
+    expect(s.line).toBe("7 of 11 nights booked");
     expect(s.url).toBe("https://www.kayak.com/hotels/Florence/2027-08-31/2027-09-04/4adults/3children-10-8-5/2rooms");
   });
   it("Car is open: from the first airport at 2 pm, back at 10 am on the last day, 7+ seats for the seven", () => {
-    expect(r.car.line).toBe("PSA · 24 Aug – 4 Sep");
+    expect(r.car.line).toBe("Pisa airport · 7 seats");
     expect(r.car.url).toBe("https://www.kayak.com/cars/PSA/2027-08-24-14h/2027-09-04-10h?sort=rank_a&fs=carcapacity=pas_7_X");
   });
   it("before the airports arrive, Car searches the villa's town, never a code-less route", () => {
@@ -55,7 +57,7 @@ describe("Tuscany (seven people, villa booked, no flights yet)", () => {
   it("a manual choice wins: Not needed on the car, Booked on flights", () => {
     const m = rowsOf({ ...t, trip: { ...t.trip, booking_checklist: { car: "skip", flights: "booked" } } });
     expect(m.car).toMatchObject({ state: "skip", line: "Not needed", manual: "skip", url: null });
-    expect(m.flights).toMatchObject({ state: "booked", line: "Booked", manual: "booked", url: null });
+    expect(m.flights).toMatchObject({ state: "booked", line: "Marked booked", manual: "booked", url: null });
   });
   it("a manual Not needed even overrides an automatic Booked", () => {
     expect(rowsOf({ ...t, trip: { ...t.trip, booking_checklist: { stays: "skip" } } }).stays.state).toBe("skip");
@@ -66,7 +68,7 @@ describe("Japan (archived; six saved hotels, none booked)", () => {
   const r = rowsOf(get("Japan", { airports: ["NRT", "HND"] }));
   it("the ryokans holding day one as 'interested' do not tick Stays", () => {
     expect(r.stays.state).toBe("open");
-    expect(r.stays.line).toBe("Tokyo · 2–15 Apr · 5 guests, 2 rooms");
+    expect(r.stays.line).toBe("Tokyo · 13 nights");
     expect(r.stays.url).toBe("https://www.kayak.com/hotels/Tokyo/2028-04-02/2028-04-15/2adults/3children-10-8-5/2rooms");
   });
   it("flights leave the night before", () => {
@@ -78,8 +80,9 @@ describe("New York (Mia & Daddy): everything but a car is on the days", () => {
   const input = get("New York (Mia & Daddy)");
   const r = rowsOf(input);
   it("Flights and Stays tick themselves", () => {
-    expect(r.flights).toMatchObject({ state: "booked", line: "Booked · 23 Jul and 26 Jul" });
-    expect(r.stays).toMatchObject({ state: "booked", line: "Booked" });
+    expect(r.flights).toMatchObject({ state: "booked", line: "23 Jul and 26 Jul", name: null });
+    expect(r.flights.dayId).toBe(input.days.find((d) => d.date === "2026-07-23")!.id);
+    expect(r.stays).toMatchObject({ state: "booked", line: "11 Howard · all 3 nights", name: "11 Howard" });
   });
   it("the airport comes from the flight card, so no Claude call", () => {
     expect(ownAirports(input)).toEqual(["LGA"]);
@@ -90,7 +93,7 @@ describe("New York (Mia & Daddy): everything but a car is on the days", () => {
   });
   it("a rental car on a day ticks Car", () => {
     const pick = { id: "car1", day_id: input.days[0].id, place_id: null, status: "in_itinerary", details: { title: "Pick up rental car · Hertz", drop_off: "2026-07-26" }, place: { sub_type: "transit", title: "Hertz", address: null } };
-    expect(rowsOf({ ...input, cards: [...input.cards, pick] }).car).toMatchObject({ state: "booked", line: "Booked" });
+    expect(rowsOf({ ...input, cards: [...input.cards, pick] }).car).toMatchObject({ state: "booked", line: "Hertz · 23–26 Jul", name: "Hertz", dayId: input.days[0].id });
   });
 });
 
@@ -119,7 +122,7 @@ describe("Last Week of Summer (at home in Toronto)", () => {
 describe("Australia (flights on the days, no hotel)", () => {
   const r = rowsOf(get("Australia", { airports: ["SYD"] }));
   it("Flights ticks itself; Stays and Car stay open", () => {
-    expect(r.flights).toMatchObject({ state: "booked", line: "Booked · 15 Feb and 20 Feb" });
+    expect(r.flights).toMatchObject({ state: "booked", line: "15 Feb and 20 Feb" });
     expect(r.stays.state).toBe("open");
     expect(r.car.state).toBe("open");
   });
@@ -158,7 +161,7 @@ describe("cars that fit the party (6 Oct 2026)", () => {
     const t = get("Tuscany", { airports: ["PSA"] });
     const ten = rowsOf({ ...t, trip: { ...t.trip, party_size: 10, party_ages: [43, 40, 70, 70, 10, 8, 5, 45, 44, 12] } }).car;
     expect(ten.url).toBe("https://www.kayak.com/cars/PSA/2027-08-24-14h/2027-09-04-10h?sort=rank_a&fs=carcapacity=pas_7_X");
-    expect(ten.line).toBe("PSA · 24 Aug – 4 Sep · you'll need two cars");
+    expect(ten.line).toBe("Pisa airport · 10 seats, two cars");
     expect(rowsOf(t).car.line).not.toContain("two cars");
   });
 });
@@ -181,7 +184,7 @@ describe("what a hand-booked row cost (6 Oct 2026)", () => {
   it("a hand-booked row with a cost says what it cost; the budget reads the same object", () => {
     const t = get("Tuscany", { airports: ["PSA"] });
     const r = rowsOf({ ...t, trip: { ...t.trip, booking_checklist: { car: "booked", costs: { car: { amount: 1450, currency: "EUR" } } } } });
-    expect(r.car).toMatchObject({ state: "booked", line: "Booked · €1,450", cost: { amount: 1450, currency: "EUR" } });
+    expect(r.car).toMatchObject({ state: "booked", line: "Paid €1,450", cost: { amount: 1450, currency: "EUR" } });
     expect(costLabel({ amount: 850.4, currency: "CAD" })).toBe("$850");
   });
 });

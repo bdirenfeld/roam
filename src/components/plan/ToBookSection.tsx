@@ -1,21 +1,23 @@
 "use client";
 
-// ── To book, at the top of Bookings (6 Oct 2026, mock approved) ────────────
-// Three rows — Flights, Stays, Car. A booked row shows a ✓ and a struck title.
-// An open row has a checkbox, ticked, meaning "include in my search"; the one
-// button under the rows opens every ticked row (lib/booking/search): Flights
-// and Car on Kayak in new tabs, then Stays in Roam's own Where to stay. A tab
-// the browser blocked (an iPhone may allow only the first) stays as a
-// "Next: Car ↗" button. Tapping one open row opens just that one. Booked /
-// Not needed / Clear live behind the ⋯ at the row's end; a hand-marked Booked
-// asks what it cost, and the budget counts that (lib/budget/booked).
+// ── Bookings, the owner's view (6 Oct 2026 redesign, mock approved) ─────────
+// One job: get Flights, Stays and Car booked. Three rows, each ONE mark on the
+// left — ○ still to book, filled green ✓ booked (by itself or by hand), dashed
+// – not needed — a title, one short line and a faint ›.
+//   - The whole row is the tap (lib/booking/files rowTap): still to book opens
+//     its Kayak search (Stays: Roam's Where to stay); booked opens its
+//     confirmation file, else Where to stay for Stays, else the day its card
+//     is on.
+//   - The MARK opens the small menu: Booked / Not needed / Clear, "What did it
+//     cost?" after a hand Booked (the budget counts it, lib/budget/booked).
+//   - One primary button, "Book N on Kayak": every row still to book, Kayak
+//     tabs first, then Where to stay (lib/booking/search). A tab the browser
+//     blocked (an iPhone may allow only the first) waits as "Next: Car ↗".
+//   - "Upload a confirmation" is a quiet link under it; uploaded files sit in
+//     their row, and anything matching no row is "Other files (n)".
 // The owner's choices live in trips.booking_checklist.
-// Owner only: a guest opening Bookings sees the uploads and nothing else, and
-// the shared link never shows Bookings at all.
-//
-// Reads its own rows, so every host of DocumentsSheet gets it with no new
-// plumbing. Arrival airports are asked for lazily, only when this renders for
-// the owner with Flights or Car open and no codes on the journey's own flights.
+// Owner only: anyone else gets DocumentsSheet's plain file list (onOwner tells
+// it which), and the shared link never shows Bookings at all.
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -25,13 +27,17 @@ import { queuedUpdate } from "@/lib/offline/queuedWrite";
 import { currencyForDestination, HOME_CURRENCY } from "@/lib/budget/currency";
 import {
   checklistRows, costLabel, needsAirports, readChecklist, readCosts, storeChecklist, withChoice,
-  type CheckCard, type CheckInput, type Choice, type Cost, type RowKey,
+  type CheckCard, type CheckInput, type CheckRow, type Choice, type Cost, type RowKey,
 } from "@/lib/booking/checklist";
-import { runSteps, searchLabel, searchSteps, whereToStayHref, type Step } from "@/lib/booking/search";
+import { bookLabel, runSteps, searchSteps, whereToStayHref, type Step } from "@/lib/booking/search";
+import { filesFor, openable, otherFiles, rowLine, rowTap, type BookingFile } from "@/lib/booking/files";
 
 const INK = "#1A1A2E";
 const CAPTION = "rgba(26,26,46,0.62)";
+const FAINT = "rgba(26,26,46,0.40)";
 const RULE = "rgba(26,26,46,0.10)";
+/** The app's done green (FindSheet's Saved, StartHere's ticks). */
+const GREEN = "#1D7A55";
 
 /** One answer per journey per page load: the server caches for good anyway. */
 const airportsAsked = new Map<string, string[]>();
@@ -42,29 +48,25 @@ type Loaded = Omit<CheckInput, "airports" | "trip"> & {
   currency: string;
 };
 
-/** A booked row's ✓, a Not needed row's dash. Not a control. */
-function Mark({ state }: { state: "booked" | "skip" }) {
+const STATE_WORDS: Record<CheckRow["state"], string> = { open: "still to book", booked: "booked", skip: "not needed" };
+
+/** The row's one status mark: ○ to book, green ✓ booked, dashed – not needed. */
+function Mark({ state }: { state: CheckRow["state"] }) {
   if (state === "booked") {
     return (
-      <span aria-hidden="true" className="w-[22px] h-[22px] rounded-[6px] grid place-items-center flex-shrink-0" style={{ background: INK, border: `2px solid ${INK}` }}>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 12.5 10 17 19 7" /></svg>
+      <span aria-hidden="true" className="w-6 h-6 rounded-full grid place-items-center" style={{ background: GREEN }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 12.5 10 17 19 7" /></svg>
       </span>
     );
   }
-  return (
-    <span aria-hidden="true" className="w-[22px] h-[22px] rounded-[6px] grid place-items-center flex-shrink-0" style={{ border: `2px dashed ${CAPTION}` }}>
-      <span className="block w-[10px] h-[2px]" style={{ background: CAPTION }} />
-    </span>
-  );
-}
-
-/** "Include in my search": an outlined box with an ink tick, so it never reads as Booked. */
-function Tick({ on }: { on: boolean }) {
-  return (
-    <span className="w-[22px] h-[22px] rounded-[6px] grid place-items-center" style={{ border: `2px solid ${on ? INK : CAPTION}`, background: "#FFFFFF" }}>
-      {on && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={INK} strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 12.5 10 17 19 7" /></svg>}
-    </span>
-  );
+  if (state === "skip") {
+    return (
+      <span aria-hidden="true" className="w-6 h-6 rounded-full grid place-items-center" style={{ border: `2px dashed ${FAINT}` }}>
+        <span className="block w-[9px] h-[2px]" style={{ background: FAINT }} />
+      </span>
+    );
+  }
+  return <span aria-hidden="true" className="block w-6 h-6 rounded-full" style={{ border: `2px solid ${INK}` }} />;
 }
 
 /** Opens a Kayak tab. No "noopener" feature: with it window.open returns null
@@ -75,14 +77,31 @@ function openTab(url: string): Window | null {
   return w;
 }
 
-export default function ToBookSection({ tripId, onLeave }: { tripId: string; onLeave?: () => void }) {
+interface Props {
+  tripId: string;
+  /** Closes Bookings before going to another screen (Where to stay, a day). */
+  onLeave?: () => void;
+  /** Every upload, each already placed in its row or in Other files. */
+  files?: BookingFile[];
+  /** Opens a file in the viewer (DocumentsSheet owns it). */
+  onOpenFile?: (f: BookingFile) => void;
+  /** The upload; absent on a read-only host. */
+  onImport?: () => void;
+  /** Takes an upload record off the list (the file and its cards stay). */
+  onRemoveDocument?: (id: string) => void;
+  /** Tells the host whether this is the owner, once known. */
+  onOwner?: (owner: boolean) => void;
+}
+
+export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile, onImport, onRemoveDocument, onOwner }: Props) {
   const { toast } = useToast();
   const router = useRouter();
   const [data, setData] = useState<Loaded | null>(null);
   const [airports, setAirports] = useState<string[] | null>(airportsAsked.get(tripId) ?? null);
   const [menu, setMenu] = useState<RowKey | null>(null);
-  // Open rows are in the search unless unticked (this visit only).
-  const [unticked, setUnticked] = useState<Set<RowKey>>(new Set());
+  // A row with several files unfolds them under it.
+  const [unfolded, setUnfolded] = useState<RowKey | null>(null);
+  const [showOther, setShowOther] = useState(false);
   // Tabs a browser blocked, one "Next" tap each.
   const [queue, setQueue] = useState<Step[]>([]);
   const [costFor, setCostFor] = useState<RowKey | null>(null);
@@ -103,8 +122,9 @@ export default function ToBookSection({ tripId, onLeave }: { tripId: string; onL
       ]);
       const uid = session?.session?.user?.id ?? null;
       const t = trip.data as (Loaded["trip"] & { user_id: string }) | null;
+      if (cancelled) return;
       // Owner only: guests (and cohosts) never see the checklist.
-      if (cancelled || !t || !uid || t.user_id !== uid) return;
+      if (!t || !uid || t.user_id !== uid) { onOwner?.(false); return; }
       const { data: me } = await supabase.from("users").select("home_airport, home_country").eq("id", uid).maybeSingle();
       if (cancelled) return;
       const budgetCurrency = (budget?.data as { currency?: string | null } | null)?.currency ?? null;
@@ -116,8 +136,11 @@ export default function ToBookSection({ tripId, onLeave }: { tripId: string; onL
         birthdates: ((people.data ?? []) as { birthdate: string | null }[]).map((p) => p.birthdate),
         currency: budgetCurrency ?? currencyForDestination(t.destination) ?? HOME_CURRENCY,
       });
-    })().catch((e) => console.error("[to book]", e));
+      onOwner?.(true);
+    })().catch((e) => { console.error("[to book]", e); if (!cancelled) onOwner?.(false); });
     return () => { cancelled = true; };
+    // onOwner is the host's setter; the load runs once per journey.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tripId]);
 
   // Arrival airports, lazily and at most once per journey per page load.
@@ -194,84 +217,99 @@ export default function ToBookSection({ tripId, onLeave }: { tripId: string; onL
   if (!data) return null;
   const rows = checklistRows({ ...data, airports });
   const stayInApp = data.trip.cruise !== true;
-  const steps = searchSteps(rows, (k) => !unticked.has(k), stayInApp);
-  const anyOpen = rows.some((r) => r.state === "open");
+  const steps = searchSteps(rows, stayInApp);
+  const label = bookLabel(steps);
+  const others = otherFiles(files);
   const currencies = Array.from(new Set([data.currency, HOME_CURRENCY, "USD", "EUR", "GBP"]));
 
+  const tap = (r: CheckRow) => {
+    const t = rowTap(r, files, stayInApp);
+    if (t.kind === "stays") { goStays(); return; }
+    if (t.kind === "file") { onOpenFile?.(t.file); return; }
+    if (t.kind === "files") { setUnfolded((u) => (u === r.key ? null : r.key)); return; }
+    if (t.kind === "day") { onLeave?.(); router.push(`/trips/${tripId}/days/${t.dayId}`); return; }
+    setMenu(r.key);
+  };
+
+  const item = "text-left px-4 py-[11px]";
   return (
-    <div className="px-5 pt-3" data-testid="to-book">
-      <p className="text-[10.5px] uppercase tracking-[0.1em] pb-1" style={{ color: CAPTION }}>To book</p>
+    <div className="px-5" data-testid="to-book">
       {menu && <div className="fixed inset-0 z-10" onClick={() => setMenu(null)} aria-hidden="true" />}
       {rows.map((r) => {
-        const inApp = r.key === "stays" && stayInApp && r.state === "open";
+        const mine = filesFor(r.key, files);
+        const canOpen = openable(mine);
+        const tapped = rowTap(r, files, stayInApp);
+        const tapsTo = tapped.kind;
+        const rowClass = "flex-1 min-w-0 flex items-center gap-2 py-[13px] pl-1.5 text-left active:opacity-70";
         const body = (
           <>
-            <span className="flex-1 min-w-0 text-left">
-              <span className={`block text-[14px] font-semibold ${r.state === "booked" ? "line-through" : ""}`} style={{ color: r.state === "open" ? INK : CAPTION }}>{r.title}</span>
-              <span className="block text-[12px] mt-0.5 truncate" style={{ color: CAPTION }}>{r.line}</span>
+            <span className="flex-1 min-w-0">
+              <span className="block text-[15px] font-semibold" style={{ color: r.state === "skip" ? CAPTION : INK }}>{r.title}</span>
+              <span className="block text-[12.5px] mt-0.5 leading-snug" style={{ color: CAPTION }}>{rowLine(r, files)}</span>
             </span>
-            {r.state === "open" && <span aria-hidden="true" className="ml-2 text-[16px] flex-shrink-0" style={{ color: CAPTION }}>{inApp ? "›" : "↗"}</span>}
+            <span aria-hidden="true" className="text-[17px] flex-shrink-0" style={{ color: FAINT }}>›</span>
           </>
         );
-        const on = !unticked.has(r.key);
+        const docs = mine.filter((f) => f.source === "document");
         return (
           <div key={r.key} style={{ borderTop: `1px solid ${RULE}` }}>
             <div className="relative flex items-center" data-testid={`to-book-${r.key}`} data-state={r.state}>
-              {r.state === "open" ? (
-                <button
-                  type="button"
-                  role="checkbox"
-                  aria-checked={on}
-                  aria-label={`Include ${r.title} in the search`}
-                  onClick={() => setUnticked((s) => { const n = new Set(s); if (n.has(r.key)) n.delete(r.key); else n.add(r.key); return n; })}
-                  className="-ml-[11px] p-[11px] flex-shrink-0"
-                >
-                  <Tick on={on} />
-                </button>
-              ) : (
-                <span className="py-[11px] pr-[11px] flex-shrink-0"><Mark state={r.state} /></span>
-              )}
-              {inApp ? (
-                <button type="button" onClick={goStays} aria-label={`Stays: ${r.line}. Opens Where to stay`} className="flex-1 min-w-0 flex items-center py-3 pl-1">{body}</button>
-              ) : r.state === "open" && r.url ? (
-                <a href={r.url} target="_blank" rel="noopener noreferrer" className="flex-1 min-w-0 flex items-center py-3 pl-1">{body}</a>
-              ) : (
-                <div className="flex-1 min-w-0 flex items-center py-3 pl-1">{body}</div>
-              )}
               <button
                 type="button"
                 onClick={() => setMenu(menu === r.key ? null : r.key)}
-                aria-label={`${r.title} options`}
+                aria-label={`${r.title}: ${STATE_WORDS[r.state]}. Change`}
                 aria-haspopup="menu"
                 aria-expanded={menu === r.key}
-                className="-mr-[10px] w-[44px] h-[44px] grid place-items-center flex-shrink-0 text-[18px] leading-none"
-                style={{ color: CAPTION }}
+                className="-ml-[10px] w-11 h-11 grid place-items-center flex-shrink-0"
               >
-                ⋯
+                <Mark state={r.state} />
               </button>
+              {/* A Kayak search is a real link (an iPhone always lets a link
+                  open a tab); everything else is a button. */}
+              {tapped.kind === "kayak" ? (
+                <a href={tapped.url} target="_blank" rel="noopener noreferrer" data-testid={`to-book-${r.key}-row`} className={rowClass}>{body}</a>
+              ) : (
+                <button type="button" onClick={() => tap(r)} data-testid={`to-book-${r.key}-row`} className={rowClass}>{body}</button>
+              )}
               {menu === r.key && (
-                <div role="menu" className="absolute right-0 top-[44px] z-20 bg-white rounded-xl overflow-hidden grid text-[13px] min-w-[170px]"
+                <div role="menu" className="absolute left-0 top-[46px] z-20 bg-white rounded-xl overflow-hidden grid text-[13px] min-w-[180px]"
                   style={{ border: `1px solid ${RULE}`, boxShadow: "0 8px 24px rgba(0,0,0,.18)" }}>
-                  <button type="button" role="menuitem" onClick={() => choose(r.key, "booked", r.title)} className="text-left px-4 py-[10px] font-semibold" style={{ color: INK }}>Booked</button>
-                  <button type="button" role="menuitem" onClick={() => choose(r.key, "skip", r.title)} className="text-left px-4 py-[10px]" style={{ color: CAPTION, borderTop: `1px solid ${RULE}` }}>Not needed</button>
+                  <button type="button" role="menuitem" onClick={() => choose(r.key, "booked", r.title)} className={`${item} font-semibold`} style={{ color: INK }}>Booked</button>
+                  <button type="button" role="menuitem" onClick={() => choose(r.key, "skip", r.title)} className={item} style={{ color: CAPTION, borderTop: `1px solid ${RULE}` }}>Not needed</button>
                   {r.manual === "booked" && (
-                    <button type="button" role="menuitem" onClick={() => { setMenu(null); setCostFor(r.key); setAmount(r.cost ? String(r.cost.amount) : ""); setCurrency(r.cost?.currency ?? data.currency); }} className="text-left px-4 py-[10px]" style={{ color: CAPTION, borderTop: `1px solid ${RULE}` }}>What did it cost?</button>
+                    <button type="button" role="menuitem" onClick={() => { setMenu(null); setCostFor(r.key); setAmount(r.cost ? String(r.cost.amount) : ""); setCurrency(r.cost?.currency ?? data.currency); }} className={item} style={{ color: CAPTION, borderTop: `1px solid ${RULE}` }}>What did it cost?</button>
                   )}
-                  {/* Booked stays still reach Where to stay: the journey menu's
-                      Stay tile is gone, so this is its door once the row ticks. */}
-                  {r.key === "stays" && r.state !== "open" && stayInApp && (
-                    <button type="button" role="menuitem" onClick={() => { setMenu(null); goStays(); }} className="text-left px-4 py-[10px]" style={{ color: CAPTION, borderTop: `1px solid ${RULE}` }}>Where to stay</button>
+                  {/* The row's tap goes elsewhere: these keep their door. */}
+                  {canOpen.length > 0 && tapsTo !== "file" && tapsTo !== "files" && (
+                    <button type="button" role="menuitem" onClick={() => { setMenu(null); if (canOpen.length === 1) onOpenFile?.(canOpen[0]); else setUnfolded(r.key); }} className={item} style={{ color: CAPTION, borderTop: `1px solid ${RULE}` }}>Open the confirmation</button>
                   )}
+                  {r.key === "stays" && stayInApp && tapsTo !== "stays" && (
+                    <button type="button" role="menuitem" onClick={() => { setMenu(null); goStays(); }} className={item} style={{ color: CAPTION, borderTop: `1px solid ${RULE}` }}>Where to stay</button>
+                  )}
+                  {onRemoveDocument && docs.map((d) => (
+                    <button key={d.id} type="button" role="menuitem" onClick={() => { setMenu(null); onRemoveDocument(d.id); }} className={item} style={{ color: CAPTION, borderTop: `1px solid ${RULE}` }}>
+                      Remove {docs.length > 1 ? d.fileName : "the upload"}
+                    </button>
+                  ))}
                   {r.manual && (
-                    <button type="button" role="menuitem" onClick={() => choose(r.key, null, r.title)} className="text-left px-4 py-[10px]" style={{ color: CAPTION, borderTop: `1px solid ${RULE}` }}>Clear</button>
+                    <button type="button" role="menuitem" onClick={() => choose(r.key, null, r.title)} className={item} style={{ color: CAPTION, borderTop: `1px solid ${RULE}` }}>Clear</button>
                   )}
                 </div>
               )}
             </div>
+            {unfolded === r.key && canOpen.length > 0 && (
+              <div className="pl-[38px] pb-2 grid" data-testid={`to-book-${r.key}-files`}>
+                {canOpen.map((f) => (
+                  <button key={f.id} type="button" onClick={() => onOpenFile?.(f)} className="text-left text-[13px] py-2 underline underline-offset-[3px] truncate" style={{ color: INK }}>
+                    {f.fileName}
+                  </button>
+                ))}
+              </div>
+            )}
             {costFor === r.key && (
               <form
                 data-testid="to-book-cost"
-                className="pb-3"
+                className="pb-3 pl-[38px]"
                 onSubmit={(e) => { e.preventDefault(); void saveCost(r.key, r.title); }}
               >
                 <label htmlFor={`cost-${r.key}`} className="block text-[12px] pb-1.5" style={{ color: CAPTION }}>What did it cost?</label>
@@ -308,21 +346,56 @@ export default function ToBookSection({ tripId, onLeave }: { tripId: string; onL
         <button
           type="button"
           onClick={() => run(queue)}
-          className="w-full mt-2 py-3 rounded-xl text-[14px] font-semibold"
+          className="w-full mt-3 py-3 rounded-xl text-[14px] font-semibold"
           style={{ background: "#FFFFFF", color: INK, boxShadow: `inset 0 0 0 1.5px ${INK}` }}
         >
           Next: {queue[0].title}{queue[0].url ? " ↗" : ""}
         </button>
-      ) : anyOpen && (
+      ) : label && (
         <button
           type="button"
           onClick={() => run(steps)}
-          disabled={!steps.length}
-          className="w-full mt-2 py-3 rounded-xl text-[14px] font-semibold disabled:opacity-40"
+          className="w-full mt-3 py-3 rounded-xl text-[14px] font-semibold"
           style={{ background: INK, color: "#F5F4F1" }}
         >
-          {searchLabel(steps)}
+          {label}
         </button>
+      )}
+      {onImport && (
+        <div className="text-center pt-3">
+          <button type="button" onClick={onImport} className="text-[13px] underline underline-offset-[3px] py-1.5" style={{ color: CAPTION }}>
+            Upload a confirmation
+          </button>
+        </div>
+      )}
+      {others.length > 0 && (
+        <div className="text-center pt-1">
+          <button type="button" onClick={() => setShowOther((s) => !s)} aria-expanded={showOther} className="text-[12.5px] py-1.5" style={{ color: CAPTION }}>
+            Other files ({others.length})
+          </button>
+          {showOther && (
+            <div className="grid text-left pt-1" data-testid="to-book-other">
+              {others.map((f) => (
+                <div key={f.id} className="flex items-center gap-2" style={{ borderTop: `1px solid ${RULE}` }}>
+                  <button
+                    type="button"
+                    disabled={!f.url}
+                    onClick={() => onOpenFile?.(f)}
+                    className="flex-1 min-w-0 text-left py-2.5"
+                  >
+                    <span className="block text-[13px] font-medium truncate" style={{ color: INK }}>{f.fileName}</span>
+                    <span className="block text-[11.5px] truncate" style={{ color: CAPTION }}>{f.detail}</span>
+                  </button>
+                  {f.source === "document" && onRemoveDocument && (
+                    <button type="button" onClick={() => onRemoveDocument(f.id)} aria-label={`Remove ${f.fileName}`} className="w-11 h-11 grid place-items-center flex-shrink-0 text-[15px]" style={{ color: FAINT }}>
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

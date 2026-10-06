@@ -3,12 +3,15 @@ import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { render, screen, cleanup, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import journeys from "@/lib/booking/fixtures/journeys.json";
+import type { BookingFile } from "@/lib/booking/files";
 
 /**
- * To book, at the top of Bookings (6 Oct 2026): three rows, each ticked from
- * the days or open with a Kayak link; an open row's checkbox puts it in
- * "Search …"; the ⋯ opens Booked / Not needed; Stays opens Roam's Where to
- * stay; owner only. Driven with real journeys from the live database.
+ * Bookings, the owner's view (6 Oct 2026 redesign, mock approved): three rows,
+ * ONE mark each (○ to book, green ✓ booked, dashed – not needed), one short
+ * line, the whole row is the tap; the mark opens Booked / Not needed / Clear;
+ * one "Book N on Kayak" button; a quiet "Upload a confirmation" link; uploads
+ * inside their row; "Other files (n)" only when there are any. Owner only.
+ * Driven with real journeys from the live database.
  */
 
 type J = { id: string; title: string; trip: Record<string, unknown>; home: { airport: string | null; country: string | null }; days: unknown[]; cards: unknown[]; birthdates: unknown[] };
@@ -18,6 +21,7 @@ const tuscanyOpen = (): J => {
   const t = J_("Tuscany");
   return { ...t, cards: t.cards.filter((c) => (c as { place?: { title?: string } }).place?.title !== "Villa Zambaldi") };
 };
+const NY_OUT_DAY = "3566d88c-51ad-4211-aa2e-3b9af0117087"; // New York (Mia & Daddy), 23 Jul
 
 let journey: J;
 let signedIn: string | null;
@@ -51,58 +55,75 @@ const fetchMock = vi.fn((...args: unknown[]) => args && Promise.resolve({ ok: tr
 beforeEach(() => { signedIn = OWNER; vi.stubGlobal("fetch", fetchMock); });
 afterEach(() => { cleanup(); vi.clearAllMocks(); vi.unstubAllGlobals(); });
 
-const flightsReady = () => waitFor(() => expect(screen.getByTestId("to-book-flights").querySelector("a")?.getAttribute("href")).toContain("YYZ-PSA,FLR"));
+const rowOf = (key: string) => screen.getByTestId(`to-book-${key}-row`);
+const flightsReady = () => waitFor(() => expect(rowOf("flights").getAttribute("href")).toContain("YYZ-PSA,FLR"));
+const file = (over: Partial<BookingFile>): BookingFile => ({
+  id: "f1", source: "attachment", fileName: "AC890.pdf", url: "https://signed/AC890.pdf", type: "application/pdf",
+  row: "flights", label: "Air Canada", detail: "on LaGuardia Airport", createdAt: "2026-07-01T00:00:00Z", ...over,
+});
 
-describe("To book", () => {
-  it("Tuscany: Flights and Car open with Kayak links; Stays ticked by the villa", async () => {
+describe("Bookings: three rows, one mark each", () => {
+  it("Tuscany, as the mock: Flights and Car to book, Stays booked by the villa, one button", async () => {
     journey = J_("Tuscany");
-    render(<ToBookSection tripId="tuscany-a" />);
+    const onOwner = vi.fn();
+    render(<ToBookSection tripId="tuscany-a" onImport={() => {}} onOwner={onOwner} />);
     await flightsReady();
-    expect(screen.getByText("To book")).toBeTruthy();
+    expect(onOwner).toHaveBeenCalledWith(true);
+
     const flights = screen.getByTestId("to-book-flights");
     expect(flights.dataset.state).toBe("open");
-    expect(flights.textContent).toContain("YYZ → PSA, FLR · 23 Aug – 4 Sep · 7 travellers");
-    const link = flights.querySelector("a")!;
-    expect(link.getAttribute("href")).toBe("https://www.kayak.com/flights/YYZ-PSA,FLR/2027-08-23/2027-09-04/4adults/children-10-8-5?sort=bestflight_a");
-    expect(link.getAttribute("target")).toBe("_blank");
-    expect(flights.textContent).toContain("↗");
+    expect(rowOf("flights").textContent).toBe("FlightsToronto → Pisa · 7 people›");
+    // The row IS the tap: a real link to the filled-in Kayak search.
+    expect(rowOf("flights").getAttribute("href")).toBe("https://www.kayak.com/flights/YYZ-PSA,FLR/2027-08-23/2027-09-04/4adults/children-10-8-5?sort=bestflight_a");
+    expect(rowOf("flights").getAttribute("target")).toBe("_blank");
 
-    const stays = screen.getByTestId("to-book-stays");
-    expect(stays.dataset.state).toBe("booked");
-    expect(stays.textContent).toContain("Booked");
-    expect(stays.querySelector("a")).toBeNull();
-    expect(stays.textContent).not.toContain("↗");
-    // A booked row is a ✓, not a checkbox; an open row's box is ticked.
-    expect(within(stays).queryByRole("checkbox")).toBeNull();
-    expect(within(flights).getByRole("checkbox", { name: "Include Flights in the search" }).getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByTestId("to-book-stays").dataset.state).toBe("booked");
+    expect(rowOf("stays").textContent).toBe("StaysVilla Zambaldi · all 11 nights›");
+    expect(rowOf("stays").tagName).toBe("BUTTON");
 
-    expect(screen.getByTestId("to-book-car").querySelector("a")!.getAttribute("href")).toBe("https://www.kayak.com/cars/PSA/2027-08-24-14h/2027-09-04-10h?sort=rank_a&fs=carcapacity=pas_7_X");
-    expect(screen.getByRole("button", { name: "Search flights & car" })).toBeTruthy();
-    // Airports asked once, for this journey.
+    expect(rowOf("car").textContent).toBe("CarPisa airport · 7 seats›");
+    expect(rowOf("car").getAttribute("href")).toBe("https://www.kayak.com/cars/PSA/2027-08-24-14h/2027-09-04-10h?sort=rank_a&fs=carcapacity=pas_7_X");
+
+    // One mark per row, a 44px target; no checkbox, no ⋯, no ↗, no section labels.
+    const mark = within(flights).getByRole("button", { name: "Flights: still to book. Change" });
+    expect(mark.className).toContain("w-11 h-11");
+    expect(within(screen.getByTestId("to-book-stays")).getByRole("button", { name: "Stays: booked. Change" })).toBeTruthy();
+    expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: /options/ })).toBeNull();
+    const all = screen.getByTestId("to-book").textContent!;
+    for (const gone of ["↗", "⋯", "To book", "Uploaded", "No documents yet"]) expect(all).not.toContain(gone);
+
+    // ONE primary button, and the quiet upload link under it.
+    expect(screen.getByRole("button", { name: "Book 2 on Kayak" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Upload a confirmation" })).toBeTruthy();
+    // No Other files when there are none.
+    expect(screen.queryByText(/Other files/)).toBeNull();
+    // The count: three rows, the button, the link — and nothing else to tap.
+    expect(within(screen.getByTestId("to-book")).getAllByRole("button").length + within(screen.getByTestId("to-book")).getAllByRole("link").length).toBe(3 + 3 + 1 + 1);
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock.mock.calls[0][0]).toBe("/api/booking/airports");
   });
 
-  it("the ⋯ opens Booked / Not needed; Not needed saves, marks the row, and offers Undo", async () => {
+  it("the mark opens Booked / Not needed; Not needed saves, dashes the row, and offers Undo", async () => {
     journey = J_("Tuscany");
     render(<ToBookSection tripId="tuscany-b" />);
     const car = await screen.findByTestId("to-book-car");
-    await userEvent.click(within(car).getByRole("button", { name: "Car options" }));
+    await userEvent.click(within(car).getByRole("button", { name: "Car: still to book. Change" }));
     const menu = within(car).getByRole("menu");
     expect(within(menu).getAllByRole("menuitem").map((b) => b.textContent)).toEqual(["Booked", "Not needed"]);
     await userEvent.click(within(menu).getByRole("menuitem", { name: "Not needed" }));
 
     expect(queuedUpdate).toHaveBeenCalledWith("trips", { id: journey.id }, { booking_checklist: { car: "skip" } });
     await waitFor(() => expect(screen.getByTestId("to-book-car").dataset.state).toBe("skip"));
-    expect(screen.getByTestId("to-book-car").textContent).toContain("Not needed");
-    expect(screen.getByTestId("to-book-car").querySelector("a")).toBeNull();
+    expect(rowOf("car").textContent).toContain("Not needed");
+    expect(rowOf("car").tagName).toBe("BUTTON");
     expect(toast).toHaveBeenCalledWith(expect.objectContaining({ message: "Car: not needed", undo: expect.any(Function) }));
+    // Not needed is out of the button's count.
+    expect(screen.getByRole("button", { name: "Book 1 on Kayak" })).toBeTruthy();
 
-    // A choice is set, so the menu now offers Clear.
-    await userEvent.click(within(screen.getByTestId("to-book-car")).getByRole("button", { name: "Car options" }));
+    // A choice is set, so the menu now offers Clear; a tap on the dashed row opens it too.
+    await userEvent.click(rowOf("car"));
     expect(within(screen.getByRole("menu")).getAllByRole("menuitem").map((b) => b.textContent)).toEqual(["Booked", "Not needed", "Clear"]);
 
-    // Undo writes the old checklist back.
     const undo = (toast.mock.calls[0][0] as { undo: () => Promise<void> }).undo;
     await undo();
     expect(queuedUpdate).toHaveBeenLastCalledWith("trips", { id: journey.id }, { booking_checklist: {} });
@@ -114,32 +135,20 @@ describe("To book", () => {
     queuedUpdate.mockResolvedValueOnce({ queued: false, error: { message: "no" } });
     render(<ToBookSection tripId="tuscany-c" />);
     const flights = await screen.findByTestId("to-book-flights");
-    await userEvent.click(within(flights).getByRole("button", { name: "Flights options" }));
+    await userEvent.click(within(flights).getByRole("button", { name: /^Flights: / }));
     await userEvent.click(within(flights).getByRole("menuitem", { name: "Booked" }));
     await waitFor(() => expect(toast).toHaveBeenCalledWith({ message: "Couldn't save that. Try again." }));
     expect(screen.getByTestId("to-book-flights").dataset.state).toBe("open");
     expect(screen.queryByTestId("to-book-cost")).toBeNull();
   });
 
-  it("New York (Mia & Daddy): flights and hotel on the days tick themselves, and no airport call is made", async () => {
-    journey = J_("New York (Mia & Daddy)");
-    render(<ToBookSection tripId="nyc" />);
-    await waitFor(() => expect(screen.getByTestId("to-book-flights").dataset.state).toBe("booked"));
-    expect(screen.getByTestId("to-book-flights").textContent).toContain("Booked · 23 Jul and 26 Jul");
-    expect(screen.getByTestId("to-book-stays").dataset.state).toBe("booked");
-    expect(screen.getByTestId("to-book-car").querySelector("a")!.getAttribute("href")).toBe("https://www.kayak.com/cars/LGA/2026-07-23-13h/2026-07-26-10h");
-    // One open row: the button names just it.
-    expect(screen.getByRole("button", { name: "Search car" })).toBeTruthy();
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("a guest sees nothing, and nothing is asked", async () => {
+  it("a guest sees nothing, is told apart, and nothing is asked", async () => {
     journey = J_("Tuscany");
     signedIn = "guest-9";
-    const { container } = render(<ToBookSection tripId="tuscany-d" />);
-    await new Promise((r) => setTimeout(r, 50));
+    const onOwner = vi.fn();
+    const { container } = render(<ToBookSection tripId="tuscany-d" onOwner={onOwner} />);
+    await waitFor(() => expect(onOwner).toHaveBeenCalledWith(false));
     expect(container.innerHTML).toBe("");
-    expect(screen.queryByText("To book")).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -152,7 +161,80 @@ describe("To book", () => {
   });
 });
 
-describe("Search, and Stays opening Where to stay", () => {
+describe("uploads inside their row", () => {
+  it("New York: the flights' confirmation names the booking and opens from the row", async () => {
+    journey = J_("New York (Mia & Daddy)");
+    const onOpenFile = vi.fn();
+    const f = file({});
+    render(<ToBookSection tripId="nyc-a" files={[f]} onOpenFile={onOpenFile} />);
+    await waitFor(() => expect(screen.getByTestId("to-book-flights").dataset.state).toBe("booked"));
+    expect(rowOf("flights").textContent).toBe("FlightsAir Canada · confirmation›");
+    await userEvent.click(rowOf("flights"));
+    expect(onOpenFile).toHaveBeenCalledWith(f);
+    expect(push).not.toHaveBeenCalled();
+    // One row still to book (the car): the button counts it. No airport call.
+    expect(screen.getByRole("button", { name: "Book 1 on Kayak" })).toBeTruthy();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("booked with no file: the row opens the day its flight is on", async () => {
+    journey = J_("New York (Mia & Daddy)");
+    const leave = vi.fn();
+    render(<ToBookSection tripId="nyc-b" onLeave={leave} />);
+    await waitFor(() => expect(screen.getByTestId("to-book-flights").dataset.state).toBe("booked"));
+    expect(rowOf("flights").textContent).toBe("Flights23 Jul and 26 Jul›");
+    await userEvent.click(rowOf("flights"));
+    expect(leave).toHaveBeenCalledTimes(1);
+    expect(push).toHaveBeenCalledWith(`/trips/nyc-b/days/${NY_OUT_DAY}`);
+  });
+
+  it("two files on a row unfold under it, each opening on its own", async () => {
+    journey = J_("New York (Mia & Daddy)");
+    const onOpenFile = vi.fn();
+    const back = file({ id: "f2", fileName: "AC891.pdf" });
+    render(<ToBookSection tripId="nyc-c" files={[file({}), back]} onOpenFile={onOpenFile} />);
+    await waitFor(() => expect(screen.getByTestId("to-book-flights").dataset.state).toBe("booked"));
+    expect(screen.queryByTestId("to-book-flights-files")).toBeNull();
+    await userEvent.click(rowOf("flights"));
+    const list = screen.getByTestId("to-book-flights-files");
+    await userEvent.click(within(list).getByRole("button", { name: "AC891.pdf" }));
+    expect(onOpenFile).toHaveBeenCalledWith(back);
+  });
+
+  it("an upload record in a row can be removed from the mark's menu", async () => {
+    journey = J_("New York (Mia & Daddy)");
+    const remove = vi.fn();
+    render(<ToBookSection tripId="nyc-d" files={[file({ id: "doc-1", source: "document", url: null })]} onRemoveDocument={remove} />);
+    const flights = await screen.findByTestId("to-book-flights");
+    await waitFor(() => expect(flights.dataset.state).toBe("booked"));
+    expect(rowOf("flights").textContent).toBe("FlightsAir Canada · confirmation›");
+    await userEvent.click(within(flights).getByRole("button", { name: "Flights: booked. Change" }));
+    await userEvent.click(within(flights).getByRole("menuitem", { name: "Remove the upload" }));
+    expect(remove).toHaveBeenCalledWith("doc-1");
+  });
+
+  it("files that match no row are a quiet Other files (n) link that unfolds", async () => {
+    journey = J_("Tuscany");
+    const onOpenFile = vi.fn();
+    const ticket = file({ id: "t1", row: null, fileName: "Uffizi tickets.pdf", label: null, detail: "on Uffizi Gallery" });
+    render(<ToBookSection tripId="tuscany-o" files={[ticket]} onOpenFile={onOpenFile} />);
+    const other = await screen.findByRole("button", { name: "Other files (1)" });
+    expect(screen.queryByTestId("to-book-other")).toBeNull();
+    await userEvent.click(other);
+    await userEvent.click(within(screen.getByTestId("to-book-other")).getByRole("button", { name: /Uffizi tickets\.pdf/ }));
+    expect(onOpenFile).toHaveBeenCalledWith(ticket);
+  });
+
+  it("the upload link runs the host's upload", async () => {
+    journey = J_("Tuscany");
+    const onImport = vi.fn();
+    render(<ToBookSection tripId="tuscany-u" onImport={onImport} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Upload a confirmation" }));
+    expect(onImport).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Book N on Kayak, and Stays opening Where to stay", () => {
   it("every Kayak tab in one click, then Where to stay (phone: the Map screen)", async () => {
     journey = tuscanyOpen();
     const opened: string[] = [];
@@ -161,7 +243,7 @@ describe("Search, and Stays opening Where to stay", () => {
     const leave = vi.fn();
     render(<ToBookSection tripId="tuscany-f" onLeave={leave} />);
     await flightsReady();
-    await userEvent.click(screen.getByRole("button", { name: "Search flights, car & stays" }));
+    await userEvent.click(screen.getByRole("button", { name: "Book 3 on Kayak" }));
     expect(opened).toEqual([
       "https://www.kayak.com/flights/YYZ-PSA,FLR/2027-08-23/2027-09-04/4adults/children-10-8-5?sort=bestflight_a",
       "https://www.kayak.com/cars/PSA/2027-08-24-14h/2027-09-04-10h?sort=rank_a&fs=carcapacity=pas_7_X",
@@ -171,50 +253,50 @@ describe("Search, and Stays opening Where to stay", () => {
     expect(push).toHaveBeenCalledWith("/trips/tuscany-f/map?stays=1");
   });
 
-  it("a computer goes to the Plan's Where to stay, as the journey menu did", async () => {
+  it("a computer goes to the Plan's Where to stay", async () => {
     journey = tuscanyOpen();
     vi.stubGlobal("matchMedia", (q: string) => ({ matches: q === "(min-width: 768px)" }));
     render(<ToBookSection tripId="tuscany-g" />);
-    await userEvent.click(within(await screen.findByTestId("to-book-stays")).getByRole("button", { name: /Opens Where to stay/ }));
+    await screen.findByTestId("to-book-stays");
+    expect(rowOf("stays").textContent).toBe("StaysLucca · 11 nights›");
+    await userEvent.click(rowOf("stays"));
     expect(push).toHaveBeenCalledWith("/trips/tuscany-g/plan?stays=1");
   });
 
-  it("tapping the Stays row opens Where to stay alone; no Kayak tab", async () => {
-    journey = tuscanyOpen();
+  it("Stays booked (the villa) and no file: the row still opens Where to stay", async () => {
+    journey = J_("Tuscany");
     const open = vi.fn(() => ({}) as Window);
     vi.stubGlobal("open", open);
     render(<ToBookSection tripId="tuscany-h" />);
-    const stays = await screen.findByTestId("to-book-stays");
-    expect(stays.querySelector("a")).toBeNull();
-    await userEvent.click(within(stays).getByRole("button", { name: /Opens Where to stay/ }));
+    await screen.findByTestId("to-book-stays");
+    await userEvent.click(rowOf("stays"));
     expect(open).not.toHaveBeenCalled();
     expect(push).toHaveBeenCalledWith("/trips/tuscany-h/map?stays=1");
   });
 
-  it("stays booked (Tuscany's villa): Where to stay is still one tap away, in the row's ⋯", async () => {
+  it("Stays booked WITH its hotel's file: the row opens the file, Where to stay moves to the mark's menu", async () => {
     journey = J_("Tuscany");
-    render(<ToBookSection tripId="tuscany-m" />);
+    const onOpenFile = vi.fn();
+    const villa = file({ id: "v", row: "stays", fileName: "Villa Zambaldi.pdf", label: "Villa Zambaldi" });
+    render(<ToBookSection tripId="tuscany-m" files={[villa]} onOpenFile={onOpenFile} />);
     const stays = await screen.findByTestId("to-book-stays");
-    await userEvent.click(within(stays).getByRole("button", { name: "Stays options" }));
+    await userEvent.click(rowOf("stays"));
+    expect(onOpenFile).toHaveBeenCalledWith(villa);
+    await userEvent.click(within(stays).getByRole("button", { name: "Stays: booked. Change" }));
     expect(within(stays).getAllByRole("menuitem").map((b) => b.textContent)).toEqual(["Booked", "Not needed", "Where to stay"]);
     await userEvent.click(within(stays).getByRole("menuitem", { name: "Where to stay" }));
     expect(push).toHaveBeenCalledWith("/trips/tuscany-m/map?stays=1");
   });
 
-  it("an unticked row stays out of the search", async () => {
-    journey = tuscanyOpen();
-    const opened: string[] = [];
-    vi.stubGlobal("open", vi.fn((url: string) => { opened.push(url); return {} as Window; }));
-    render(<ToBookSection tripId="tuscany-i" />);
-    await flightsReady();
-    const carBox = within(screen.getByTestId("to-book-car")).getByRole("checkbox");
-    await userEvent.click(carBox);
-    expect(carBox.getAttribute("aria-checked")).toBe("false");
-    await userEvent.click(within(screen.getByTestId("to-book-stays")).getByRole("checkbox"));
-    await userEvent.click(screen.getByRole("button", { name: "Search flights" }));
-    expect(opened).toHaveLength(1);
-    expect(opened[0]).toContain("/flights/");
-    expect(push).not.toHaveBeenCalled();
+  it("nothing left to book: no button, the upload link stays", async () => {
+    journey = J_("Tuscany");
+    const t = J_("Tuscany");
+    journey = { ...t, trip: { ...t.trip, booking_checklist: { flights: "booked", car: "skip" } } };
+    render(<ToBookSection tripId="tuscany-n" onImport={() => {}} />);
+    await waitFor(() => expect(screen.getByTestId("to-book-car").dataset.state).toBe("skip"));
+    expect(screen.queryByRole("button", { name: /on Kayak/ })).toBeNull();
+    expect(screen.getByRole("button", { name: "Upload a confirmation" })).toBeTruthy();
+    expect(rowOf("flights").textContent).toBe("FlightsMarked booked›");
   });
 
   it("an iPhone that blocks the second tab: the rest wait as a Next button, one tap each", async () => {
@@ -223,7 +305,7 @@ describe("Search, and Stays opening Where to stay", () => {
     vi.stubGlobal("open", vi.fn(() => (n++ === 0 ? ({} as Window) : null)));
     render(<ToBookSection tripId="tuscany-j" />);
     await flightsReady();
-    await userEvent.click(screen.getByRole("button", { name: "Search flights, car & stays" }));
+    await userEvent.click(screen.getByRole("button", { name: "Book 3 on Kayak" }));
     expect(push).not.toHaveBeenCalled();
     const next = screen.getByRole("button", { name: "Next: Car ↗" });
     vi.stubGlobal("open", vi.fn(() => ({}) as Window));
@@ -238,7 +320,7 @@ describe("What did it cost?", () => {
     journey = J_("Tuscany");
     render(<ToBookSection tripId="tuscany-k" />);
     const car = await screen.findByTestId("to-book-car");
-    await userEvent.click(within(car).getByRole("button", { name: "Car options" }));
+    await userEvent.click(within(car).getByRole("button", { name: /^Car: / }));
     await userEvent.click(within(car).getByRole("menuitem", { name: "Booked" }));
     expect(queuedUpdate).toHaveBeenLastCalledWith("trips", { id: journey.id }, { booking_checklist: { car: "booked" } });
     const form = await screen.findByTestId("to-book-cost");
@@ -247,20 +329,22 @@ describe("What did it cost?", () => {
     await userEvent.type(within(form).getByLabelText("What did it cost?"), "1450");
     await userEvent.click(within(form).getByRole("button", { name: "Save" }));
     expect(queuedUpdate).toHaveBeenLastCalledWith("trips", { id: journey.id }, { booking_checklist: { car: "booked", costs: { car: { amount: 1450, currency: "EUR" } } } });
-    await waitFor(() => expect(screen.getByTestId("to-book-car").textContent).toContain("Booked · €1,450"));
+    await waitFor(() => expect(rowOf("car").textContent).toBe("CarPaid €1,450›"));
     expect(toast).toHaveBeenLastCalledWith(expect.objectContaining({ message: "Car: €1,450", undo: expect.any(Function) }));
-    expect(within(screen.getByTestId("to-book-car")).queryByRole("checkbox")).toBeNull();
+    // The mark is now the green ✓, and the menu offers the cost again.
+    await userEvent.click(within(screen.getByTestId("to-book-car")).getByRole("button", { name: "Car: booked. Change" }));
+    expect(within(screen.getByRole("menu")).getAllByRole("menuitem").map((b) => b.textContent)).toEqual(["Booked", "Not needed", "What did it cost?", "Clear"]);
   });
 
   it("Not now leaves it Booked with no cost", async () => {
     journey = J_("Tuscany");
     render(<ToBookSection tripId="tuscany-l" />);
     const car = await screen.findByTestId("to-book-car");
-    await userEvent.click(within(car).getByRole("button", { name: "Car options" }));
+    await userEvent.click(within(car).getByRole("button", { name: /^Car: / }));
     await userEvent.click(within(car).getByRole("menuitem", { name: "Booked" }));
     await userEvent.click(within(await screen.findByTestId("to-book-cost")).getByRole("button", { name: "Not now" }));
     expect(screen.queryByTestId("to-book-cost")).toBeNull();
     expect(queuedUpdate).toHaveBeenCalledTimes(1);
-    expect(screen.getByTestId("to-book-car").textContent).toContain("Booked");
+    expect(rowOf("car").textContent).toBe("CarMarked booked›");
   });
 });

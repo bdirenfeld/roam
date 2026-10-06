@@ -111,3 +111,25 @@ export function carsUrl(o: { at: string; pickUp: string; pickUpHour: number; dro
   const seats = carCapacity(o.people ?? 0);
   return `${KAYAK}/cars/${o.at}/${o.pickUp}-${hour(o.pickUpHour)}/${o.dropOff}-${hour(o.dropOffHour)}${seats ? `?sort=rank_a&fs=carcapacity=${seats}` : ""}`;
 }
+
+/**
+ * The city an airport serves, for the Bookings row's one line (6 Oct 2026):
+ * "Toronto → Pisa", not "YYZ → PSA, FLR". The codes stay in the Kayak link.
+ * The airports his journeys use and the big ones around them; anything else
+ * shows its code, which is still right, only less friendly.
+ */
+const AIRPORT_CITY: Record<string, string> = {
+  YYZ: "Toronto", YTZ: "Toronto", YHM: "Hamilton", YUL: "Montreal", YOW: "Ottawa", YVR: "Vancouver", YYC: "Calgary", YEG: "Edmonton", YHZ: "Halifax", YWG: "Winnipeg", YQB: "Quebec City",
+  LGA: "New York", JFK: "New York", EWR: "Newark", BOS: "Boston", ORD: "Chicago", MDW: "Chicago", IAD: "Washington", DCA: "Washington", MIA: "Miami", FLL: "Fort Lauderdale", MCO: "Orlando", TPA: "Tampa",
+  LAX: "Los Angeles", SFO: "San Francisco", SBA: "Santa Barbara", SAN: "San Diego", LAS: "Las Vegas", PSP: "Palm Springs", SEA: "Seattle", DEN: "Denver", PHX: "Phoenix", HNL: "Honolulu", OGG: "Maui", ATL: "Atlanta", DFW: "Dallas", IAH: "Houston",
+  CUN: "Cancún", SJD: "Los Cabos", PVR: "Puerto Vallarta", MEX: "Mexico City", SJO: "San José", LIR: "Liberia", NAS: "Nassau", MBJ: "Montego Bay", PUJ: "Punta Cana", AUA: "Aruba", BGI: "Barbados",
+  PSA: "Pisa", FLR: "Florence", FCO: "Rome", CIA: "Rome", MXP: "Milan", LIN: "Milan", VCE: "Venice", NAP: "Naples", BLQ: "Bologna", CTA: "Catania", PMO: "Palermo",
+  LHR: "London", LGW: "London", STN: "London", LCY: "London", CDG: "Paris", ORY: "Paris", NCE: "Nice", MRS: "Marseille", BCN: "Barcelona", MAD: "Madrid", AGP: "Málaga", PMI: "Palma", LIS: "Lisbon", OPO: "Porto", FAO: "Faro",
+  AMS: "Amsterdam", BRU: "Brussels", FRA: "Frankfurt", MUC: "Munich", BER: "Berlin", ZRH: "Zurich", GVA: "Geneva", VIE: "Vienna", PRG: "Prague", BUD: "Budapest", CPH: "Copenhagen", ARN: "Stockholm", OSL: "Oslo", KEF: "Reykjavík", DUB: "Dublin", EDI: "Edinburgh",
+  ATH: "Athens", JTR: "Santorini", JMK: "Mykonos", DBV: "Dubrovnik", SPU: "Split", IST: "Istanbul", DXB: "Dubai", TLV: "Tel Aviv",
+  NRT: "Tokyo", HND: "Tokyo", KIX: "Osaka", ITM: "Osaka", NGO: "Nagoya", FUK: "Fukuoka", CTS: "Sapporo", OKA: "Okinawa", KOJ: "Kagoshima", ICN: "Seoul", HKG: "Hong Kong", SIN: "Singapore", BKK: "Bangkok", DPS: "Bali",
+  SYD: "Sydney", MEL: "Melbourne", BNE: "Brisbane", OOL: "Gold Coast", CNS: "Cairns", PER: "Perth", ADL: "Adelaide", AKL: "Auckland", ZQN: "Queenstown",
+};
+export function airportCity(code: string | null | undefined): string | null {
+  return code && isIata(code) ? AIRPORT_CITY[code] ?? null : null;
+}

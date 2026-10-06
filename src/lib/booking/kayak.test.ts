@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { carCapacity, twoCars, carsUrl, flightsUrl, kayakParty, kayakPlace, roomsFor, staysUrl, travellers, englishTown } from "./kayak";
+import { airportCity, carCapacity, twoCars, carsUrl, flightsUrl, kayakParty, kayakPlace, roomsFor, staysUrl, travellers, englishTown } from "./kayak";
 
 // The URL shapes Brennan checked live on kayak.com, 6 Oct 2026. Tuscany's party:
 // seven people, [43, 40, 70, 70, 10, 8, 5].
@@ -102,5 +102,19 @@ describe("englishTown (6 Oct 2026, tested live on Kayak)", () => {
   it("leaves names it does not know alone", () => {
     expect(englishTown("Lucca")).toBe("Lucca");
     expect(englishTown("Positano")).toBe("Positano");
+  });
+});
+
+describe("airportCity: the row's line says cities, the link keeps codes", () => {
+  it("names the airports his journeys use", () => {
+    expect(airportCity("YYZ")).toBe("Toronto");
+    expect(airportCity("PSA")).toBe("Pisa");
+    expect(airportCity("LGA")).toBe("New York");
+    expect(airportCity("SYD")).toBe("Sydney");
+  });
+  it("an unknown or malformed code is null (the line falls back to the code)", () => {
+    expect(airportCity("ZZZ")).toBeNull();
+    expect(airportCity("Pisa")).toBeNull();
+    expect(airportCity(null)).toBeNull();
   });
 });

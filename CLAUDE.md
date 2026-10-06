@@ -2222,3 +2222,26 @@ timers stalls the async reads the day view does after mount.
   the screen at its own rate (home 1, the journey currency at fx, else REFERENCE_RATES; no rate = left out).
   Lines show "Booked" / "Booked · 4 of 6 nights" and no inputs when all paid; the header reads "booked $X ·
   still estimated $Y". **Contingency is on the estimated part only** (paid money needs none). Both sources add.
+
+## Bookings rebuilt to one job (6 Oct 2026, later; mock v4 approved, same artifact)
+**Supersedes the "To book" layout above** (the checkbox, the ⋯, "Search flights, car & stays", the "Uploaded"
+label, the dark "Upload a booking" button, the empty-state block). Logic is unchanged: auto-ticks, Kayak URLs,
+seats, Where to stay, costs/budget, blocked-tab "Next", owner only, toast + Undo.
+- Owner: title "Bookings", three rows (`ToBookSection`), ONE mark each — ○ ink outline to book, filled green
+  (#1D7A55) ✓ booked, dashed – not needed — title, one short line (no truncate), faint ›. The **mark** (44px)
+  opens Booked / Not needed / Clear (+ What did it cost?, + Where to stay / Open the confirmation when the row's
+  tap goes elsewhere, + Remove the upload for a `documents` record). The **row** is the tap: `lib/booking/files`
+  `rowTap` — open → Kayak (a real `<a target=_blank>`) or Where to stay; booked → its file (several unfold under
+  the row), else Where to stay for Stays, else `/trips/:id/days/:dayId` of its card; Not needed → the menu.
+- Lines (`checklistRows`): "Toronto → Pisa · 7 people" (`airportCity` in kayak.ts; unknown code shows the
+  code), "Villa Zambaldi · all 11 nights" / "4 of 6 nights booked" / "Lucca · 11 nights", "Pisa airport · 7
+  seats" (", two cars" at 10+), "Marked booked" / "Paid €1,450". `rowLine` swaps a booked Flights/Car line for
+  "Air Canada · confirmation" when an upload sits in the row.
+- One primary button "Book N on Kayak" (`bookLabel`; N = rows still to book, Stays included; hidden at 0).
+  Not needed rows are out — that replaced the include-in-search checkboxes. Under it the quiet link "Upload a
+  confirmation" (the host's same `onImport`), then "Other files (n)" only when an upload matches no row.
+- Uploads → rows: attachments by their card (`rowForCard`: flight sub_types, `isRentalCar`, hotel); `documents`
+  by `document_type` (`rowForDocument`). A `documents` row holds NO file (just parsed_data) — it names the row
+  but cannot open; only card attachments (signed URLs) open in FileViewer.
+- Not the owner: `ToBookSection` calls `onOwner(false)` and DocumentsSheet shows the plain file list (plus the
+  upload link if the host passes `onImport`, i.e. a cohost); nothing at all → "Nothing has been added yet."

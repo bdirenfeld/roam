@@ -1,7 +1,8 @@
 /**
  * "Search all" on the To book checklist (6 Oct 2026, Brennan's yes).
  *
- * The ticked open rows become steps: the Kayak tabs first, then Roam's own
+ * Every row still to book becomes a step (a Not needed row is out — that
+ * replaced the old "include in my search" boxes, 6 Oct 2026 redesign): the Kayak tabs first, then Roam's own
  * Where to stay (Stays leaves the sheet for the map, so it has to come last or
  * the remaining tabs would never open). One click opens them all on a computer
  * (verified 6 Oct: desktop Chrome opened three tabs from one click). An iPhone
@@ -19,12 +20,12 @@ export interface Step {
 }
 
 /**
- * The ticked open rows as steps, Kayak first, Where to stay last. Stays opens
+ * The rows still to book as steps, Kayak first, Where to stay last. Stays opens
  * Where to stay unless `stayInApp` is false (a cruise has no Where to stay, so
  * its Stays row keeps the Kayak link).
  */
-export function searchSteps(rows: CheckRow[], ticked: (key: RowKey) => boolean, stayInApp: boolean): Step[] {
-  const open = rows.filter((r) => r.state === "open" && ticked(r.key));
+export function searchSteps(rows: CheckRow[], stayInApp: boolean): Step[] {
+  const open = rows.filter((r) => r.state === "open");
   const kayak: Step[] = [];
   let stay: Step | null = null;
   for (const r of open) {
@@ -62,10 +63,11 @@ export function whereToStayHref(tripId: string, desktop: boolean): string {
   return `/trips/${tripId}${desktop ? "/plan" : "/map"}?stays=1`;
 }
 
-/** The button's words: "Search flights, stays & car". */
-export function searchLabel(steps: Step[]): string {
-  const names = steps.map((s) => s.title.toLowerCase());
-  if (!names.length) return "Search";
-  if (names.length === 1) return `Search ${names[0]}`;
-  return `Search ${names.slice(0, -1).join(", ")} & ${names[names.length - 1]}`;
+/**
+ * The one primary button's words: "Book 2 on Kayak", N = the rows still to
+ * book (Stays counts, though it opens Where to stay after the tabs). Null when
+ * nothing is left — the button hides.
+ */
+export function bookLabel(steps: Step[]): string | null {
+  return steps.length ? `Book ${steps.length} on Kayak` : null;
 }

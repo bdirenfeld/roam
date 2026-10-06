@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import journeys from "./fixtures/journeys.json";
-import { checklistRows, type CheckInput, type RowKey } from "./checklist";
-import { runSteps, searchLabel, searchSteps, whereToStayHref } from "./search";
+import { checklistRows, type CheckInput } from "./checklist";
+import { bookLabel, runSteps, searchSteps, whereToStayHref } from "./search";
 
 // Real journeys from the live database (6 Oct 2026).
 type J = CheckInput & { title: string };
@@ -9,7 +9,6 @@ const get = (title: string, over: Partial<CheckInput> = {}): CheckInput => {
   const j = (journeys as unknown as J[]).find((x) => x.title === title)!;
   return { ...j, cards: j.cards ?? [], days: j.days ?? [], birthdates: j.birthdates ?? [], ...over };
 };
-const all = () => true;
 
 describe("Search all: the steps", () => {
   // Australia: flights on the days, Stays and Car open.
@@ -19,31 +18,31 @@ describe("Search all: the steps", () => {
   const tus = checklistRows({ ...t, cards: t.cards.filter((c) => c.place?.title !== "Villa Zambaldi") });
 
   it("Kayak tabs first, Roam's Where to stay last, booked rows never", () => {
-    const steps = searchSteps(tus, all, true);
+    const steps = searchSteps(tus, true);
     expect(steps.map((s) => s.key)).toEqual(["flights", "car", "stays"]);
     expect(steps[0].url).toMatch(/^https:\/\/www\.kayak\.com\/flights\/YYZ-PSA,FLR\//);
     expect(steps[2].url).toBeNull();
-    expect(searchSteps(aus, all, true).map((s) => s.key)).toEqual(["car", "stays"]);
+    expect(searchSteps(aus, true).map((s) => s.key)).toEqual(["car", "stays"]);
   });
-  it("an unticked row stays out", () => {
-    const skipCar = (k: RowKey) => k !== "car";
-    expect(searchSteps(tus, skipCar, true).map((s) => s.key)).toEqual(["flights", "stays"]);
+  it("a Not needed row stays out (it replaced the old include-in-search boxes)", () => {
+    const skipCar = tus.map((r) => (r.key === "car" ? { ...r, state: "skip" as const, url: null } : r));
+    expect(searchSteps(skipCar, true).map((s) => s.key)).toEqual(["flights", "stays"]);
   });
   it("a cruise has no Where to stay: Stays keeps its Kayak link, in row order", () => {
-    const steps = searchSteps(tus, all, false);
+    const steps = searchSteps(tus, false);
     expect(steps.map((s) => s.key)).toEqual(["flights", "stays", "car"]);
     expect(steps[1].url).toMatch(/kayak\.com\/hotels\//);
   });
-  it("the button names what it opens", () => {
-    expect(searchLabel(searchSteps(tus, all, true))).toBe("Search flights, car & stays");
-    expect(searchLabel(searchSteps(aus, all, true))).toBe("Search car & stays");
-    expect(searchLabel(searchSteps(tus, (k) => k === "flights", true))).toBe("Search flights");
+  it("the one button counts what is still to book, and hides when nothing is", () => {
+    expect(bookLabel(searchSteps(tus, true))).toBe("Book 3 on Kayak");
+    expect(bookLabel(searchSteps(aus, true))).toBe("Book 2 on Kayak");
+    expect(bookLabel([])).toBeNull();
   });
 });
 
 describe("Search all: one click", () => {
   const t = get("Tuscany", { airports: ["PSA", "FLR"] });
-  const steps = searchSteps(checklistRows({ ...t, cards: t.cards.filter((c) => c.place?.title !== "Villa Zambaldi") }), all, true);
+  const steps = searchSteps(checklistRows({ ...t, cards: t.cards.filter((c) => c.place?.title !== "Villa Zambaldi") }), true);
 
   it("a computer opens every tab, then goes to Where to stay", () => {
     const urls: string[] = [];
