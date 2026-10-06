@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Card, CardAttachment, DayWithCards } from "@/types/database";
 import ConfirmationPreviewSheet from "@/components/plan/ConfirmationPreviewSheet";
 import { scheduleCardOnDay } from "@/lib/scheduleCard";
-import { confirmationDetails, closingEvent, openingTitle, isFlight, type ParsedConfirmation } from "@/lib/confirmations/toCards";
+import { confirmationDetails, closingDetails, closingEvent, openingTitle, isFlight, type ParsedConfirmation } from "@/lib/confirmations/toCards";
 import { matchBooking, otherBookings } from "@/lib/confirmations/match";
 
 // A flight's or hotel's attachment is read as bookings (1 Oct 2026, the
@@ -504,7 +504,7 @@ export default function AttachmentsPanel({ card, onClose, onCardUpdate, onCardsA
       if (!there?.length) {
         const c = await scheduleCardOnDay(supabase, {
           tripId: card.trip_id, dayId: closeDay.id, placeId: card.place_id, place: card.place ?? null,
-          details: { ...(card.details ?? {}), title: close.title }, startTime: close.time.slice(0, 5),
+          details: closingDetails(card.details as Record<string, unknown> | null, close.title), startTime: close.time.slice(0, 5),
         });
         if (c) added.push(c);
       }

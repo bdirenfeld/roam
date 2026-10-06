@@ -22,6 +22,8 @@
  * tick on one row would force a false choice.
  */
 
+import type { BookedHome } from "./booked";
+
 export type Confidence = "quoted" | "estimated" | "placeholder";
 
 /** The shape written onto `cards.details.budget` by the trip-planning skill. */
@@ -111,6 +113,14 @@ export interface EstimateLine {
    * `ours`   — never the guests' (the dog, the gifts you are buying).
    */
   share: ShareBasis;
+  /**
+   * Real money in this line (6 Oct 2026, lib/budget/booked): the part of
+   * `amount` that was paid. Equal to `amount` when the line is all booked;
+   * less for stays partly booked (the open nights are still estimated).
+   */
+  booked?: number;
+  /** "Booked", or "Booked · 4 of 6 nights". */
+  bookedNote?: string;
 }
 
 export type ShareBasis = "person" | "shared" | "ours";
@@ -136,6 +146,10 @@ export interface Estimate {
   rolledExcursionCount: number;
   /** Present only while someone is travelling with you. */
   split?: Split;
+  /** Real money in the total (flights, stays, car paid); 0 when none. */
+  booked: number;
+  /** The rest of the total: still an estimate. */
+  estimated: number;
 }
 
 const money = (n: number) => Math.round(n);
@@ -266,6 +280,36 @@ export function splitTotals(
 }
 
 /**
+ * Real amounts over the estimate (6 Oct 2026). Flights and the car become what
+ * was paid; accommodation becomes what was paid plus the nightly rate for the
+ * nights still open (the journey's nights less the paid ones). A booked car is
+ * counted even if the line was switched off. A cruise's fare line is left alone.
+ */
+export function withBooked(lines: EstimateLine[], a: Assumptions, booked: BookedHome | undefined): EstimateLine[] {
+  if (!booked) return lines;
+  return lines.map((l) => {
+    if (l.key === "flights" && booked.flights != null) {
+      return { ...l, amount: booked.flights, booked: booked.flights, bookedNote: "Booked" };
+    }
+    if (l.key === "car" && booked.car != null) {
+      return { ...l, amount: booked.car, enabled: true, booked: booked.car, bookedNote: "Booked" };
+    }
+    if (l.key === "accommodation" && l.unitKey === "nightlyRate" && booked.accommodation) {
+      const { paid, nightsPaid, nights } = booked.accommodation;
+      const open = Math.max(0, nights - nightsPaid);
+      return {
+        ...l,
+        amount: money(paid + a.nightlyRate * open),
+        count: open,
+        booked: paid,
+        bookedNote: open === 0 ? "Booked" : `Booked · ${nightsPaid} of ${nights} nights`,
+      };
+    }
+    return l;
+  });
+}
+
+/**
  * A cruise's budget (27 Sep 2026): the ship is the hotel and most of the
  * meals, and the port taxes are in the fare. Accommodation becomes the fare
  * per person; groceries, car hire and tourist tax go. The hotel rate is left
@@ -284,7 +328,7 @@ export function cruiseLines(lines: EstimateLine[], a: Assumptions): EstimateLine
 
 export function compute(
   a: Assumptions,
-  opts: { uncostedExcursions: number; rolledExcursionCount: number; cruise?: boolean },
+  opts: { uncostedExcursions: number; rolledExcursionCount: number; cruise?: boolean; booked?: BookedHome },
 ): Estimate {
   // Counts multiply as typed — 0 travellers means $0 of flights (Brennan,
   // Sep 2026: "when you put flights to zero it still drives a cost"). The
@@ -423,10 +467,12 @@ export function compute(
       enabledKey: "touristTaxEnabled",
     },
   ];
-  const lines = opts.cruise ? cruiseLines(base, a) : base;
+  const lines = withBooked(opts.cruise ? cruiseLines(base, a) : base, a, opts.booked);
 
   const subtotal = lines.reduce((s, l) => s + (l.enabled ? l.amount : 0), 0);
-  const contingency = money((subtotal * a.contingencyPct) / 100);
+  const bookedSum = lines.reduce((s, l) => s + (l.enabled && l.booked != null ? l.booked : 0), 0);
+  // Contingency covers what is still an estimate; money already paid needs none.
+  const contingency = money(((subtotal - bookedSum) * a.contingencyPct) / 100);
   // Points can't take the journey below zero, however good the redemption.
   const pointsCredit = Math.min(Math.max(a.pointsCredit, 0), subtotal + contingency);
   const total = subtotal + contingency - pointsCredit;
@@ -446,6 +492,8 @@ export function compute(
     split: a.guestPeople > 0
       ? splitTotals(lines, a, contingency, pointsCredit)
       : undefined,
+    booked: bookedSum,
+    estimated: Math.max(0, total - bookedSum),
   };
 }
 

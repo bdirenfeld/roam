@@ -16,12 +16,20 @@ import { stayRuns } from "@/lib/stays/stayRuns";
 import { townFromAddress, countryFromAddress } from "@/lib/stays/brief";
 import { isRentalCar, range } from "@/lib/bookings/summary";
 import { cardTimes } from "@/lib/cardTime";
-import { carsUrl, englishTown, flightsUrl, isIata, kayakParty, kayakPlace, roomsFor, staysUrl, travellers, KAYAK, type KayakParty } from "./kayak";
+import { SYMBOL } from "@/lib/budget/currency";
+import { carsUrl, englishTown, flightsUrl, isIata, kayakParty, kayakPlace, roomsFor, staysUrl, travellers, twoCars, KAYAK, type KayakParty } from "./kayak";
 
 export type RowKey = "flights" | "stays" | "car";
 export type Choice = "booked" | "skip";
 export type Checklist = Partial<Record<RowKey, Choice>>;
 export const ROW_KEYS: RowKey[] = ["flights", "stays", "car"];
+/**
+ * What a row cost, typed when it was marked Booked by hand (6 Oct 2026). Stored
+ * beside the choices: { stays: "booked", costs: { stays: { amount, currency } } }.
+ * The budget counts it as real money (lib/budget/booked).
+ */
+export interface Cost { amount: number; currency: string }
+export type Costs = Partial<Record<RowKey, Cost>>;
 
 export interface CheckCard {
   id: string;
@@ -61,6 +69,8 @@ export interface CheckRow {
   manual: Choice | null;
   /** Kayak, when the row is open. */
   url: string | null;
+  /** What a hand-marked Booked row cost, when it was typed. */
+  cost: Cost | null;
 }
 
 const TITLES: Record<RowKey, string> = { flights: "Flights", stays: "Stays", car: "Car" };
@@ -82,6 +92,38 @@ export function readChecklist(raw: Record<string, unknown> | null | undefined): 
     if (v === "booked" || v === "skip") out[k] = v;
   }
   return out;
+}
+
+/** The typed costs, cleaned: a positive amount and a three-letter currency. */
+export function readCosts(raw: Record<string, unknown> | null | undefined): Costs {
+  const out: Costs = {};
+  const costs = raw?.costs as Record<string, unknown> | undefined;
+  if (!costs || typeof costs !== "object") return out;
+  for (const k of ROW_KEYS) {
+    const c = costs[k] as { amount?: unknown; currency?: unknown } | undefined;
+    const amount = typeof c?.amount === "number" ? c.amount : Number.NaN;
+    const currency = typeof c?.currency === "string" ? c.currency.trim().toUpperCase() : "";
+    if (Number.isFinite(amount) && amount > 0 && /^[A-Z]{3}$/.test(currency)) out[k] = { amount, currency };
+  }
+  return out;
+}
+
+/**
+ * What goes in trips.booking_checklist: the choices, and a cost only for a row
+ * still marked Booked (Not needed or Clear drops it). No "costs" key when empty.
+ */
+export function storeChecklist(choices: Checklist, costs: Costs): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...choices };
+  const kept: Costs = {};
+  for (const k of ROW_KEYS) if (choices[k] === "booked" && costs[k]) kept[k] = costs[k];
+  if (Object.keys(kept).length) out.costs = kept;
+  return out;
+}
+
+/** "€1,200", "$850", "US$90". */
+export function costLabel(c: Cost): string {
+  const sym = SYMBOL[c.currency] ?? `${c.currency} `;
+  return `${sym}${Math.round(c.amount).toLocaleString("en-CA")}`;
 }
 
 /** The checklist with one row set (or cleared with null). */
@@ -158,6 +200,7 @@ function townOf(addresses: (string | null | undefined)[]): { town: string; addre
 export function checklistRows(input: CheckInput): CheckRow[] {
   const { trip, home } = input;
   const manual = readChecklist(trip.booking_checklist);
+  const costs = readCosts(trip.booking_checklist);
   const dayIds = new Set(input.days.map((d) => d.id));
   const dateOf = new Map(input.days.map((d) => [d.id, d.date]));
   const mine = input.cards.filter((c) => onDays(c, dayIds));
@@ -179,9 +222,10 @@ export function checklistRows(input: CheckInput): CheckRow[] {
   const rows: CheckRow[] = [];
   const row = (key: RowKey, auto: { state: "booked" | "skip"; line: string } | null, open: { line: string; url: string }): CheckRow => {
     const m = manual[key] ?? null;
-    if (m) return { key, title: TITLES[key], line: m === "booked" ? "Booked" : "Not needed", state: m, manual: m, url: null };
-    if (auto) return { key, title: TITLES[key], line: auto.line, state: auto.state, manual: null, url: null };
-    return { key, title: TITLES[key], line: open.line, state: "open", manual: null, url: open.url };
+    const cost = m === "booked" ? costs[key] ?? null : null;
+    if (m) return { key, title: TITLES[key], line: m === "booked" ? (cost ? `Booked · ${costLabel(cost)}` : "Booked") : "Not needed", state: m, manual: m, url: null, cost };
+    if (auto) return { key, title: TITLES[key], line: auto.line, state: auto.state, manual: null, url: null, cost: null };
+    return { key, title: TITLES[key], line: open.line, state: "open", manual: null, url: open.url, cost: null };
   };
 
   // ── Flights ──────────────────────────────────────────────────────────────
@@ -258,9 +302,10 @@ export function checklistRows(input: CheckInput): CheckRow[] {
     const firstDay = input.days.find((d) => d.date === pickUp)?.id;
     const town = townOf(mine.filter((c) => c.day_id === firstDay && !AWAY.has(c.place?.sub_type ?? "")).map((c) => c.place?.address))?.town ?? destName;
     const at = code ?? kayakPlace(englishTown(town));
+    // Seats for the whole party (Kayak's filter); ten or more need two cars.
     rows.push(row("car", auto, {
-      line: `${code ?? town} · ${range(pickUp, trip.end_date)}`,
-      url: carsUrl({ at, pickUp, pickUpHour, dropOff: trip.end_date, dropOffHour: 10 }),
+      line: `${code ?? town} · ${range(pickUp, trip.end_date)}${twoCars(people) ? " · you'll need two cars" : ""}`,
+      url: carsUrl({ at, pickUp, pickUpHour, dropOff: trip.end_date, dropOffHour: 10, people }),
     }));
   }
   return rows;

@@ -38,6 +38,7 @@ export default async function EstimatePage({ params }: Props) {
       excursionItems={data.excursionItems}
       excursionFree={data.excursionFree}
       cruise={data.cruise}
+      bookedSpend={data.bookedSpend}
       dateRange={data.dateRange}
       distanceKm={data.distanceKm}
       peak={data.peak}

@@ -1,13 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import {
   Coins,
   DotsThree,
   NotePencil,
   ShareNetwork,
-  Bed,
   PlayCircle,
 } from "@phosphor-icons/react";
 import VideosSheet from "@/components/videos/VideosSheet";
@@ -47,7 +45,6 @@ export default function AppMenu({
   trip,
   days,
   guest = false,
-  noStay = false,
   triggerClassName,
   wrapperClassName,
   extra,
@@ -58,8 +55,6 @@ export default function AppMenu({
   trip?: Trip;
   days?: Day[];
   guest?: boolean;
-  /** A cruise has no Where to stay: the ship is the stay (27 Sep 2026). */
-  noStay?: boolean;
   triggerClassName: string;
   /** Positions the whole control (trigger + menu); the map floats it. */
   wrapperClassName?: string;
@@ -99,7 +94,7 @@ export default function AppMenu({
   // 64px each, under the disc where the thumb already is — half the height
   // of six rows. A bottom sheet was mocked and rejected: the trigger is
   // top-right, so the menu must open there, not make the thumb travel.
-  const ownerItems = tripId ? (guest ? 1 : 5) + (extra?.length ?? 0) + (hasVideos ? 1 : 0) : 1;
+  const ownerItems = tripId ? (guest ? 1 : 3) + (extra?.length ?? 0) + (hasVideos ? 1 : 0) : 1;
   const tileCols = Math.min(3, Math.max(1, ownerItems));
 
   // Tiles on the desktop too (Brennan, 25 Sep 2026): the same two rows.
@@ -226,7 +221,7 @@ export default function AppMenu({
                   the number you keep coming back to while a journey is being
                   planned, and it sat fifth until Brennan said so (19 Sep 2026).
                   Then notes and bookings daily,
-                  Where to stay until the stay is booked, Share now and then,
+                  Share now and then,
                   Settings last. No dividers — plain rows. */}
               {extra?.map((item) => (
                 <button
@@ -240,25 +235,11 @@ export default function AppMenu({
                 </button>
               ))}
 
-              {/* Where to stay lives over the Map: the candidates are pins
-                  against the pins the person chose. The row is a plain link
-                  so it works from every tab and opens the sheet on arrival. */}
-              {owner && !noStay && !trip?.cruise && (
-                <Link
-                  // Desktop owners have no Map tab: the stay panel opens over the
-                  // Plan's map (25 Sep 2026). The phone keeps the Map screen.
-                  href={"/trips/" + tripId + (mobile ? "/map?stays=1" : "/plan?stays=1")}
-                  role="menuitem"
-                  aria-label="Where to stay"
-                  onClick={() => setOpen(false)}
-                  style={itemStyle}
-                >
-                  <span style={glyphStyle}>
-                    <Bed size={15} weight="light" />
-                  </span>
-                  <Label title="Stay" />
-                </Link>
-              )}
+              {/* No Stay tile (6 Oct 2026, Brennan's yes): Where to stay's door
+                  is the Stays row of To book in Bookings (ToBookSection, same
+                  path: /map?stays=1 on the phone, /plan?stays=1 on a computer,
+                  lib/booking/search whereToStayHref). Plan my trip's "Planned
+                  N places" bar on the week is the other. */}
 
               {/* Share and Settings were two rows opening the same screen —
                   sharing lives in one block inside Settings. One row now, opened

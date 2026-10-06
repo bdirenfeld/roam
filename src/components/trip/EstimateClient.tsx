@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { CaretLeft, CaretDown, Check, X } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import type { ExcursionItem } from "@/lib/budget/load";
+import { bookedInHome, type BookedSpend } from "@/lib/budget/booked";
 import { queuedUpdate } from "@/lib/offline/queuedWrite";
 import { SYMBOL } from "@/lib/budget/currency";
 import { useToast } from "@/components/ui/Toast";
@@ -117,18 +118,21 @@ function Row({
   const off = !line.enabled;
   // 0 means "not priced yet", not "free". An unpriced row shows a dash rather
   // than $0, so an empty budget reads as empty instead of as costless.
-  const unset = line.unit === 0;
+  // Real money (lib/budget/booked): the amount shows whatever the rate says.
+  const paid = line.booked != null;
+  const allPaid = paid && line.booked === line.amount;
+  const unset = line.unit === 0 && !paid;
   const dim = off ? SOFT : INK;
   return (
     <Shell
       labelColor={dim}
       amountColor={off || unset ? SOFT : dim}
       label={
-        line.lump && line.hint ? (
+        (line.lump && line.hint) || line.bookedNote ? (
           <>
             <span className="block truncate">{line.label}</span>
             <span className="block text-[10.5px] leading-tight" style={{ color: SIENNA }}>
-              {line.hint}
+              {line.bookedNote ?? line.hint}
             </span>
           </>
         ) : (
@@ -154,7 +158,10 @@ function Row({
           </button>
         )
       }
-      middle={
+      middle={allPaid ? (
+        // All paid: nothing to type. Keeps the amount column aligned.
+        <div className="shrink-0 w-[102px] sm:w-[150px]" aria-hidden />
+      ) : (
         <>
           <div className="w-[58px] shrink-0">
             <input
@@ -167,7 +174,7 @@ function Row({
               style={box(dim)}
             />
           </div>
-          {line.lump ? (
+          {line.lump || paid ? (
             // Spacer only: keeps the amount column aligned with the × rows.
             // The hint sits under the row name, where it has room.
             <div className="shrink-0 w-[44px] sm:w-[92px]" aria-hidden />
@@ -201,7 +208,7 @@ function Row({
             </>
           )}
         </>
-      }
+      )}
     />
   );
 }
@@ -282,6 +289,8 @@ interface Props {
   peak: boolean;
   /** A cruise: the fare replaces the hotel, no groceries, car or tourist tax. */
   cruise?: boolean;
+  /** What was paid for flights, stays and the car, in its own currencies. */
+  bookedSpend?: BookedSpend;
   /** "page" is the standalone route; "overlay" hands the frame to the host. */
   variant?: "page" | "overlay";
   /** Close, when hosted in an overlay. Defaults to router.back(). */
@@ -302,6 +311,7 @@ export default function EstimateClient({
   excursionFree: _excursionFree,
   dateRange,
   cruise = false,
+  bookedSpend,
   distanceKm,
   peak,
   variant = "page",
@@ -404,8 +414,10 @@ export default function EstimateClient({
         uncostedExcursions: items.filter((x) => x.amount == null).length,
         rolledExcursionCount: items.filter((x) => x.amount != null).length,
         cruise,
+        // Converted at the screen's own rate, so typing a rate moves it too.
+        booked: bookedInHome(bookedSpend, cardCurrency, fx),
       }),
-    [a, items, cruise],
+    [a, items, cruise, bookedSpend, cardCurrency, fx],
   );
 
   const setNum = useCallback((key: keyof Assumptions, raw: string) => {
@@ -661,6 +673,11 @@ export default function EstimateClient({
             <div className="text-[12.5px]" style={{ color: CAPTION }}>
               {a.people > 0 && <>{cad(est.perPerson)} per person &nbsp;·&nbsp; </>}{cad(est.perDay)} per day
             </div>
+            {est.booked > 0 && (
+              <div className="text-[12.5px] mt-0.5" style={{ color: CAPTION }} data-testid="estimate-booked">
+                booked {cad(est.booked)} · still estimated {cad(est.estimated)}
+              </div>
+            )}
           </div>
 
           <GroupBar

@@ -1,4 +1,4 @@
-import type { ParsedConfirmation } from "./toCards";
+import { onePricePerBooking, type ParsedConfirmation } from "./toCards";
 
 /**
  * The one reader for a booking confirmation (1 Oct 2026). Bookings' upload
@@ -32,8 +32,15 @@ Each object must have exactly these fields (no extra keys):
   "check_out_time": "HH:MM or null — hotels only, the check-out time",
   "drop_off_date": "YYYY-MM-DD or null — cars only, the day you return it",
   "drop_off_time": "HH:MM or null — cars only, the return time",
-  "drop_off_location": "string or null — cars only, where you return it, when not the pick-up location"
+  "drop_off_location": "string or null — cars only, where you return it, when not the pick-up location",
+  "total_paid": "number or null — flights, hotels and cars: the total charged for this booking, taxes and fees included, as a plain number (1234.56, no symbol)",
+  "paid_currency": "string or null — the ISO 4217 code of total_paid, e.g. 'CAD', 'EUR', 'USD'"
 }
+
+Price rules:
+- A price is for the whole booking, so it goes on ONE object only. A round-trip flight: on the first (outbound) leg, null on the return. A hotel: on the hotel object. A car: on the car_rental object.
+- A package priced as one sum (flight + hotel + car for one amount): the sum on the first object, null on the rest. Itemised prices go on their own objects.
+- No price shown: null. Never estimate one.
 
 Flight rules:
 - The leg ARRIVING at the trip's destination is "flight_arrival"
@@ -55,7 +62,7 @@ export function extractBookings(text: string): ParsedConfirmation[] {
     try {
       const v = go();
       const arr = Array.isArray(v) ? v : [v];
-      return arr.filter((x): x is ParsedConfirmation => !!x && typeof x === "object" && typeof (x as { type?: unknown }).type === "string");
+      return onePricePerBooking(arr.filter((x): x is ParsedConfirmation => !!x && typeof x === "object" && typeof (x as { type?: unknown }).type === "string"));
     } catch { /* next */ }
   }
   throw new Error("No valid JSON in response");

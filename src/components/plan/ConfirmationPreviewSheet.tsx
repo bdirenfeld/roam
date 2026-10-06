@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import type { Card, CardStatus, DayWithCards, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { queuedInsert } from "@/lib/offline/queuedWrite";
-import { confirmationDetails, closingEvent, openingTitle, type ParsedConfirmation } from "@/lib/confirmations/toCards";
+import { confirmationDetails, closingDetails, closingEvent, openingTitle, type ParsedConfirmation } from "@/lib/confirmations/toCards";
 import { resolvePlace } from "@/lib/confirmations/resolvePlace";
 import { bookingOutside, dayFor, shortDay } from "@/lib/confirmations/outsideDates";
 import { extendJourney } from "@/lib/confirmations/extendJourney";
@@ -228,7 +228,7 @@ export default function ConfirmationPreviewSheet({
       // A stay is two events, check-in and check-out; a car, pick-up and drop-off.
       const close = outDay ? closingEvent({ ...parsed, check_out_date: outDay.date, drop_off_date: outDay.date }, place?.title ?? draft.title.trim()) : null;
       if (!outDay || !close) return [main];
-      return [main, card(outDay.id, close.time, null, { ...details, title: close.title }, place)];
+      return [main, card(outDay.id, close.time, null, closingDetails(details, close.title), place)];
     });
 
     // The columns the insert has always written — not the display-only fields.

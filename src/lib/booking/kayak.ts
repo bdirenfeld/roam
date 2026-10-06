@@ -5,7 +5,7 @@
  *   flights  /flights/YYZ-PSA/2027-08-24/2027-09-04/4adults/children-10-8-5?sort=bestflight_a
  *            several arrival airports comma-joined: /flights/YYZ-FLR,PSA/…
  *   stays    /hotels/Lucca/2027-08-24/2027-09-04/4adults/3children-10-8-5/2rooms   (plain English town, no country)
- *   cars     /cars/PSA/2027-08-24-14h/2027-09-04-10h
+ *   cars     /cars/PSA/2027-08-24-14h/2027-09-04-10h   (+ ?sort=rank_a&fs=carcapacity=pas_7_X for 7–9 seats)
  *
  * Three traps, all found live:
  *   - kayak.ca does not resolve on his network, so it is kayak.com for everyone.
@@ -91,8 +91,23 @@ export function staysUrl(o: { place: string; checkIn: string; checkOut: string; 
 
 const hour = (h: number) => `${String(Math.min(23, Math.max(0, Math.round(h)))).padStart(2, "0")}h`;
 
-/** A car from an airport (or a town) to the last morning. */
-export function carsUrl(o: { at: string; pickUp: string; pickUpHour: number; dropOff: string; dropOffHour: number }): string {
+/**
+ * Kayak's seats filter (verified live 6 Oct 2026): `fs=carcapacity=pas_5_6` is
+ * 5–6 passengers, `pas_7_X` is 7–9. Four or fewer: no filter (every car fits).
+ * Ten or more still searches 7+ — the row says two cars are needed.
+ */
+export function carCapacity(people: number): "pas_5_6" | "pas_7_X" | null {
+  if (people >= 7) return "pas_7_X";
+  if (people >= 5) return "pas_5_6";
+  return null;
+}
+
+/** More than nine people do not fit one hire car. */
+export const twoCars = (people: number) => people >= 10;
+
+/** A car from an airport (or a town) to the last morning, big enough for the party. */
+export function carsUrl(o: { at: string; pickUp: string; pickUpHour: number; dropOff: string; dropOffHour: number; people?: number }): string {
   if (!o.at) return `${KAYAK}/cars`;
-  return `${KAYAK}/cars/${o.at}/${o.pickUp}-${hour(o.pickUpHour)}/${o.dropOff}-${hour(o.dropOffHour)}`;
+  const seats = carCapacity(o.people ?? 0);
+  return `${KAYAK}/cars/${o.at}/${o.pickUp}-${hour(o.pickUpHour)}/${o.dropOff}-${hour(o.dropOffHour)}${seats ? `?sort=rank_a&fs=carcapacity=${seats}` : ""}`;
 }

@@ -96,3 +96,40 @@ describe("Budget saves as you go", () => {
     expect(done).toHaveBeenCalled();
   });
 });
+
+describe("Budget uses real numbers (6 Oct 2026)", () => {
+  const villa = { flights: [], stays: [{ amount: 9800, currency: "EUR" }], car: [], nightsPaid: 11, nights: 11 };
+  const show = (bookedSpend?: typeof villa, a = defaultAssumptions(7, 11)) => render(
+    <EstimateClient
+      tripId="t1" tripTitle="Tuscany" initialAssumptions={a} initialBasis={{}}
+      uncostedExcursions={0} rolledExcursionCount={0} fxToCad={1.5} fxSource="live" cardCurrency="EUR"
+      excursionItems={[]} excursionFree={0} dateRange="Aug 24 – Sep 4" distanceKm={6800} peak={false}
+      bookedSpend={bookedSpend} variant="overlay" onDismiss={vi.fn()}
+    />,
+  );
+
+  it("the villa paid in euros is the Accommodation line, marked Booked, with nothing to type", () => {
+    show(villa, { ...defaultAssumptions(7, 11), flightPerPerson: 1200 });
+    // 9,800 € × 1.5 = $14,700 paid; flights 7 × $1,200 = $8,400 + 10% contingency still estimated.
+    expect(screen.getByTestId("estimate-booked").textContent).toBe("booked $14,700 · still estimated $9,240");
+    fireEvent.click(screen.getByText("Standard"));
+    expect(screen.getByText("Booked")).toBeTruthy();
+    expect(screen.queryByLabelText("Accommodation unit cost")).toBeNull();
+    expect(screen.getByLabelText("Flights unit cost")).toBeTruthy();
+  });
+
+  it("partly booked stays keep the nightly rate for the open nights", () => {
+    show({ ...villa, nightsPaid: 7 }, { ...defaultAssumptions(7, 11), nightlyRate: 500 });
+    fireEvent.click(screen.getByText("Standard"));
+    expect(screen.getByText("Booked · 7 of 11 nights")).toBeTruthy();
+    expect(screen.getByLabelText("Accommodation unit cost")).toBeTruthy();
+    expect(screen.queryByLabelText("Accommodation nights")).toBeNull();
+    // $14,700 paid; 4 open nights × $500 = $2,000 + $200 contingency.
+    expect(screen.getByTestId("estimate-booked").textContent).toBe("booked $14,700 · still estimated $2,200");
+  });
+
+  it("nothing paid: no booked line at all", () => {
+    show();
+    expect(screen.queryByTestId("estimate-booked")).toBeNull();
+  });
+});

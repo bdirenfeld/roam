@@ -6,6 +6,8 @@ import {
   type Assumptions,
   type CardBudget,
 } from "./model";
+import { bookedSpend, type BookedSpend } from "./booked";
+import type { CheckCard } from "@/lib/booking/checklist";
 import { currencyForDestination, fetchRateToHome, referenceRateToHome, REFERENCE_MONTH, HOME_CURRENCY, isMetroCity } from "./currency";
 
 export interface ExcursionItem {
@@ -107,6 +109,12 @@ export interface EstimateData {
   peak: boolean;
   /** A cruise: the fare replaces the hotel (lib/budget/model cruiseLines). */
   cruise: boolean;
+  /**
+   * What was actually paid for flights, stays and the car (lib/budget/booked),
+   * in the currencies it was paid in. The screen converts it at its own rate,
+   * so a typed rate moves it as it moves the excursions.
+   */
+  bookedSpend: BookedSpend;
 }
 
 const fmt = (iso: string | null) =>
@@ -151,16 +159,16 @@ export async function loadEstimate(
   supabase: any,
   tripId: string,
 ): Promise<EstimateData | null> {
-  const [{ data: trip }, { data: days }, { data: cards }, { data: saved }] =
+  const [{ data: trip }, { data: days }, { data: cards }, { data: saved }, { data: dayCards }] =
     await Promise.all([
       supabase
         .from("trips")
         .select(
-          "id, title, destination, start_date, end_date, party_size, destination_lat, destination_lng, cruise",
+          "id, title, destination, start_date, end_date, party_size, destination_lat, destination_lng, cruise, booking_checklist",
         )
         .eq("id", tripId)
         .single(),
-      supabase.from("days").select("id").eq("trip_id", tripId),
+      supabase.from("days").select("id, date").eq("trip_id", tripId),
       supabase
         .from("cards")
         .select("id, details, status, confirmed, places(type, title), card_attachments(parsed_data, parse_status)")
@@ -173,6 +181,13 @@ export async function loadEstimate(
         // null on older rows, so test for "not true" rather than false.
         .not("archived", "is", true),
       supabase.from("trip_budgets").select("*").eq("trip_id", tripId).maybeSingle(),
+      // Every card on a day, for the prices uploads recorded (flights, hotels, cars).
+      supabase
+        .from("cards")
+        .select("id, day_id, place_id, status, start_time, end_time, details, place:places(sub_type, title, address)")
+        .eq("trip_id", tripId)
+        .not("day_id", "is", null)
+        .not("archived", "is", true),
     ]);
   // Your last other budget says whether you board a dog and buy gifts.
   const { data: last } = saved ? { data: null } : await supabase
@@ -331,5 +346,12 @@ export async function loadEstimate(
       ? [7, 8, 12].includes(Number(trip.start_date.slice(5, 7)))
       : false,
     cruise: (trip as { cruise?: boolean }).cruise === true,
+    bookedSpend: trip.start_date && trip.end_date
+      ? bookedSpend({
+          trip: { start_date: trip.start_date, end_date: trip.end_date, booking_checklist: (trip as { booking_checklist?: Record<string, unknown> | null }).booking_checklist ?? null },
+          days: ((days ?? []) as { id: string; date: string }[]),
+          cards: ((dayCards ?? []) as unknown as CheckCard[]),
+        })
+      : { flights: [], stays: [], car: [], nightsPaid: 0, nights: 0 },
   };
 }

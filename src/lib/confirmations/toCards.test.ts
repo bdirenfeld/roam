@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { confirmationDetails, placeQuery, placeSubType, checkOutTime, closingEvent, openingTitle, type ParsedConfirmation } from "./toCards";
+import { confirmationDetails, closingDetails, onePricePerBooking, paidAmount, placeQuery, placeSubType, checkOutTime, closingEvent, openingTitle, type ParsedConfirmation } from "./toCards";
+import { CONFIRMATION_PROMPT, extractBookings } from "./prompt";
 
 // Shaped like the reader's answers for his Rome bookings (Air Canada AC890, Banco 19).
 const flight: ParsedConfirmation = {
@@ -65,5 +66,41 @@ describe("an uploaded confirmation fills the card as a hand-made one", () => {
     expect(placeSubType("hotel")).toEqual({ type: "logistics", sub_type: "hotel" });
     expect(placeSubType("flight_departure")).toEqual({ type: "logistics", sub_type: "flight_departure" });
     expect(placeSubType("restaurant")).toEqual({ type: "food", sub_type: "restaurant" });
+  });
+});
+
+describe("what a booking cost (6 Oct 2026): once per booking, on the opening card", () => {
+  // Rome's real AC890 round trip: two legs under one reference, B24EDV.
+  const back: ParsedConfirmation = { ...flight, type: "flight_departure", title: "Air Canada · FCO → YYZ", date: "2026-04-28", time: "12:25", end_time: "16:00", origin_airport: "Rome Fiumicino (FCO)", arriving_at: "Toronto Pearson (YYZ)" };
+
+  it("a flight, hotel or car keeps its price and currency on the card", () => {
+    expect(confirmationDetails({ ...flight, total_paid: 2140.6, paid_currency: "cad" }, edits(flight))).toMatchObject({ paid_total: 2140.6, paid_currency: "CAD" });
+    expect(confirmationDetails({ ...hotel, total_paid: "1,180.00", paid_currency: "EUR" }, edits(hotel))).toMatchObject({ paid_total: 1180, paid_currency: "EUR" });
+  });
+  it("no price, no currency, or a restaurant: nothing is written", () => {
+    expect(confirmationDetails({ ...hotel, total_paid: null, paid_currency: "EUR" }, edits(hotel)).paid_total).toBeUndefined();
+    expect(confirmationDetails({ ...hotel, total_paid: 500, paid_currency: null }, edits(hotel)).paid_total).toBeUndefined();
+    expect(confirmationDetails({ ...hotel, type: "restaurant", total_paid: 90, paid_currency: "EUR" }, edits(hotel)).paid_total).toBeUndefined();
+    expect(paidAmount("TBD")).toBeNull();
+    expect(paidAmount(0)).toBeNull();
+  });
+  it("a round trip read with the price on both legs is counted once, on the outbound", () => {
+    const out = onePricePerBooking([{ ...flight, total_paid: 2140.6, paid_currency: "CAD" }, { ...back, total_paid: 2140.6, paid_currency: "CAD" }, { ...hotel, total_paid: 1180, paid_currency: "EUR" }]);
+    expect(out.map((b) => b.total_paid)).toEqual([2140.6, null, 1180]);
+  });
+  it("two bookings that happen to cost the same, under different references, keep both", () => {
+    const out = onePricePerBooking([{ ...hotel, total_paid: 400, paid_currency: "EUR" }, { ...hotel, confirmation_number: "OTHER", total_paid: 400, paid_currency: "EUR" }]);
+    expect(out.map((b) => b.total_paid)).toEqual([400, 400]);
+  });
+  it("the check-out and drop-off cards never carry the price", () => {
+    const d = confirmationDetails({ ...hotel, total_paid: 1180, paid_currency: "EUR" }, edits(hotel));
+    expect(closingDetails(d, "Check out of Banco 19")).toEqual({ ...d, title: "Check out of Banco 19", paid_total: undefined, paid_currency: undefined });
+    expect(Object.keys(closingDetails(d, "x"))).not.toContain("paid_total");
+    expect(closingDetails(null, "x")).toEqual({ title: "x" });
+  });
+  it("the reader is asked for it, once per booking", () => {
+    expect(CONFIRMATION_PROMPT).toMatch(/"total_paid"/);
+    expect(CONFIRMATION_PROMPT).toMatch(/ONE object only/);
+    expect(extractBookings(JSON.stringify([{ ...flight, total_paid: 900, paid_currency: "CAD" }, { ...back, total_paid: 900, paid_currency: "CAD" }])).map((b) => b.total_paid)).toEqual([900, null]);
   });
 });

@@ -356,7 +356,6 @@ export default function DesktopMasthead() {
         variant="desktop"
         tripId={currentTripId}
         guest={guest}
-        noStay={tripCtx?.cruise === true}
         // Bookings, as on the phone. The sheet belongs to the open screen
         // (Agenda, Plan, Map); this row only asks for it.
         extra={showTripStrip && !guest ? [

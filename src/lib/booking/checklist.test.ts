@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import journeys from "./fixtures/journeys.json";
-import { checklistRows, destinationCountry, needsAirports, overnightOutbound, ownAirports, partyOf, readChecklist, withChoice, type CheckInput, type CheckRow } from "./checklist";
+import { checklistRows, costLabel, readCosts, storeChecklist, destinationCountry, needsAirports, overnightOutbound, ownAirports, partyOf, readChecklist, withChoice, type CheckInput, type CheckRow } from "./checklist";
 
 // Real journeys, pulled from the live database on 6 Oct 2026 (cards on days,
 // plus saved hotels): Tuscany, Japan, both New Yorks, Last Week of Summer, Australia.
@@ -42,13 +42,13 @@ describe("Tuscany (seven people, villa booked, no flights yet)", () => {
     expect(s.line).toBe("7 of 11 nights booked · next: Florence, 31 Aug – 4 Sep");
     expect(s.url).toBe("https://www.kayak.com/hotels/Florence/2027-08-31/2027-09-04/4adults/3children-10-8-5/2rooms");
   });
-  it("Car is open: from the first airport at 2 pm, back at 10 am on the last day", () => {
+  it("Car is open: from the first airport at 2 pm, back at 10 am on the last day, 7+ seats for the seven", () => {
     expect(r.car.line).toBe("PSA · 24 Aug – 4 Sep");
-    expect(r.car.url).toBe("https://www.kayak.com/cars/PSA/2027-08-24-14h/2027-09-04-10h");
+    expect(r.car.url).toBe("https://www.kayak.com/cars/PSA/2027-08-24-14h/2027-09-04-10h?sort=rank_a&fs=carcapacity=pas_7_X");
   });
   it("before the airports arrive, Car searches the villa's town, never a code-less route", () => {
     const before = rowsOf(get("Tuscany", { airports: null }));
-    expect(before.car.url).toBe("https://www.kayak.com/cars/Lucca/2027-08-24-14h/2027-09-04-10h");
+    expect(before.car.url).toBe("https://www.kayak.com/cars/Lucca/2027-08-24-14h/2027-09-04-10h?sort=rank_a&fs=carcapacity=pas_7_X");
     expect(before.flights.url).toBe("https://www.kayak.com/flights");
     expect(needsAirports(get("Tuscany"))).toBe(true);
   });
@@ -111,7 +111,8 @@ describe("Last Week of Summer (at home in Toronto)", () => {
   it("Car never searches 'Toronto & the GTA' — it uses the town of the first day's plans", () => {
     const car = rowsOf(get("Last Week of Summer")).car;
     expect(car.url).not.toContain("GTA");
-    expect(car.url).toMatch(/^https:\/\/www\.kayak\.com\/cars\/[^/]+\/2026-08-31-14h\/2026-09-04-10h$/);
+    // Five people: the 5–6 seats filter.
+    expect(car.url).toMatch(/^https:\/\/www\.kayak\.com\/cars\/[^/]+\/2026-08-31-14h\/2026-09-04-10h\?sort=rank_a&fs=carcapacity=pas_5_6$/);
   });
 });
 
@@ -144,6 +145,45 @@ describe("every journey reads like sense", () => {
       if (stays.url?.includes("/hotels/")) expect(stays.url.split("/hotels/")[1].split("/")[0]).not.toMatch(/,|%2C/i);
     });
   }
+});
+
+describe("cars that fit the party (6 Oct 2026)", () => {
+  it("New York (two people): no seats filter", () => {
+    expect(rowsOf(get("New York (Mia & Daddy)")).car.url).toBe("https://www.kayak.com/cars/LGA/2026-07-23-13h/2026-07-26-10h");
+  });
+  it("Japan (five): 5–6 seats", () => {
+    expect(rowsOf(get("Japan", { airports: ["NRT"] })).car.url).toMatch(/fs=carcapacity=pas_5_6$/);
+  });
+  it("Tuscany with three more (ten): 7+ seats and the line says two cars", () => {
+    const t = get("Tuscany", { airports: ["PSA"] });
+    const ten = rowsOf({ ...t, trip: { ...t.trip, party_size: 10, party_ages: [43, 40, 70, 70, 10, 8, 5, 45, 44, 12] } }).car;
+    expect(ten.url).toBe("https://www.kayak.com/cars/PSA/2027-08-24-14h/2027-09-04-10h?sort=rank_a&fs=carcapacity=pas_7_X");
+    expect(ten.line).toBe("PSA · 24 Aug – 4 Sep · you'll need two cars");
+    expect(rowsOf(t).car.line).not.toContain("two cars");
+  });
+});
+
+describe("what a hand-booked row cost (6 Oct 2026)", () => {
+  it("readCosts keeps a positive amount with a three-letter currency, nothing else", () => {
+    expect(readCosts({ stays: "booked", costs: { stays: { amount: 1200, currency: "eur" }, car: { amount: 0, currency: "CAD" }, flights: { amount: 900, currency: "dollars" } } }))
+      .toEqual({ stays: { amount: 1200, currency: "EUR" } });
+    expect(readCosts({})).toEqual({});
+    expect(readCosts(null)).toEqual({});
+  });
+  it("storeChecklist keeps a cost only on a row still Booked, and no costs key when there are none", () => {
+    expect(storeChecklist({ stays: "booked" }, { stays: { amount: 1200, currency: "EUR" } })).toEqual({ stays: "booked", costs: { stays: { amount: 1200, currency: "EUR" } } });
+    expect(storeChecklist({ stays: "skip" }, { stays: { amount: 1200, currency: "EUR" } })).toEqual({ stays: "skip" });
+    expect(storeChecklist({ car: "skip" }, {})).toEqual({ car: "skip" });
+  });
+  it("readChecklist ignores the costs key", () => {
+    expect(readChecklist({ stays: "booked", costs: { stays: { amount: 1, currency: "EUR" } } })).toEqual({ stays: "booked" });
+  });
+  it("a hand-booked row with a cost says what it cost; the budget reads the same object", () => {
+    const t = get("Tuscany", { airports: ["PSA"] });
+    const r = rowsOf({ ...t, trip: { ...t.trip, booking_checklist: { car: "booked", costs: { car: { amount: 1450, currency: "EUR" } } } } });
+    expect(r.car).toMatchObject({ state: "booked", line: "Booked · €1,450", cost: { amount: 1450, currency: "EUR" } });
+    expect(costLabel({ amount: 850.4, currency: "CAD" })).toBe("$850");
+  });
 });
 
 describe("the small rules", () => {

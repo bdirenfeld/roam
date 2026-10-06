@@ -1,0 +1,32 @@
+{
+  "_note": "Rome April 2026 (338bdff4), pulled from the live database 6 Oct 2026: its days and the flight / hotel cards on them (notes and Google fields left out). No card carries paid_total yet; tests add it.",
+  "title": "Rome April 2026",
+  "trip": { "destination": "Rome, Italy", "start_date": "2026-04-22", "end_date": "2026-04-28", "party_size": 2, "party_ages": null, "booking_checklist": {} },
+  "budget": { "currency": "EUR", "fx_to_cad": 1.603, "nightlyRate": 260, "flightPerPerson": 1050, "carDayRate": 110, "nights": 2 },
+  "days": [
+    { "id": "8d4a8f87-b5fa-4895-ba30-3e3219acfe16", "date": "2026-04-22" },
+    { "id": "c50db895-55d0-4414-be95-5103e7d7117a", "date": "2026-04-23" },
+    { "id": "6e793928-094b-42ac-bd8e-95d96a36ba64", "date": "2026-04-24" },
+    { "id": "4905940f-359a-4b51-8fd6-c661349d613e", "date": "2026-04-25" },
+    { "id": "6ed15459-2719-4036-bdd3-77d52c1fa894", "date": "2026-04-26" },
+    { "id": "ad600414-a504-4907-9680-0a3bb1662a0c", "date": "2026-04-27" },
+    { "id": "cbaafe4b-f3b7-4642-a4f3-e142a892f965", "date": "2026-04-28" }
+  ],
+  "cards": [
+    { "id": "bbb63af1-d00e-421b-ba81-71abf9800cc7", "day_id": "8d4a8f87-b5fa-4895-ba30-3e3219acfe16", "place_id": "aecfbdf4-0697-4d33-bf45-f479b152c35d", "status": "in_itinerary", "start_time": "12:00:00", "end_time": null,
+      "details": { "place_id": "ChIJHaDeGKRhLxMRleqtldzTYOQ" },
+      "place": { "sub_type": "hotel", "title": "Hotel NH Collection Roma Palazzo Cinquecento", "address": "Piazza dei Cinquecento, 90, 00185 Roma RM, Italy" } },
+    { "id": "f5943aea-5d92-49f8-a0b5-b102f75708a6", "day_id": "cbaafe4b-f3b7-4642-a4f3-e142a892f965", "place_id": "1a413031-335e-47fc-97e8-bcc03ccca70d", "status": "in_itinerary", "start_time": "12:25:00", "end_time": "16:00:00",
+      "details": { "seat": "39C", "airline": "Air Canada", "aircraft": "777-300ER", "duration": "8hr35", "terminal": "Terminal 1", "arriving_at": "Toronto-Pearson Int. (YYZ)", "arrival_time": "4:00", "confirmation": "B24EDV", "flight_number": "AC890", "departure_time": "12:25", "origin_airport": "Roma Fiumicino Airport (FCO)" },
+      "place": { "sub_type": "flight_departure", "title": "Flight to Toronto — Air Canada", "address": "6301 Silver Dart Dr, Mississauga, ON L5P 1B2, Canada" } },
+    { "id": "ca49a153-e1b7-448e-b3e6-68eb86830070", "day_id": "6e793928-094b-42ac-bd8e-95d96a36ba64", "place_id": "5d797308-ebcd-49bd-b836-8dc463884267", "status": "in_itinerary", "start_time": "15:00:00", "end_time": null,
+      "details": { "date": "2025-04-24", "time": "14:00", "address": "Via dei Banchi Nuovi 19, Rome, RM, 00186 Italy", "end_date": "2025-04-28", "end_time": "10:30", "place_id": "ChIJM2MMsURgLxMRNEXRONlmXyU", "supplier": "Banco 19 b&b", "confirmation": "73354827426245", "check_in_date": "Fri, Apr 24", "check_in_time": "2:00 PM", "check_out_date": "Tue, Apr 28", "check_out_time": "10:30 AM" },
+      "place": { "sub_type": "hotel", "title": "Banco 19 B&B", "address": "Via dei Banchi Nuovi, 19, 00186 Roma RM, Italy" } },
+    { "id": "284ddc65-4e18-44ce-8124-32d96fb69e5b", "day_id": "8d4a8f87-b5fa-4895-ba30-3e3219acfe16", "place_id": "33d56331-916e-4cf5-bbc2-0753ad5b9e03", "status": "in_itinerary", "start_time": "19:45:00", "end_time": "10:20:00",
+      "details": { "seat": "39C", "airline": "Air Canada", "aircraft": "777-300ER", "duration": "8hr35", "terminal": "Terminal 1", "arriving_at": "Roma Fiumicino Airport (FCO)", "arrival_time": "10:20+1day", "confirmation": "B24EDV", "flight_number": "AC890", "departure_time": "19:45", "origin_airport": "Toronto-Pearson Int. (YYZ)" },
+      "place": { "sub_type": "flight_arrival", "title": "Flight to Rome — Air Canada", "address": "Air Canada" } },
+    { "id": "e34071ea-ae5d-444b-82a9-070626cab80b", "day_id": "8d4a8f87-b5fa-4895-ba30-3e3219acfe16", "place_id": "aecfbdf4-0697-4d33-bf45-f479b152c35d", "status": "interested", "start_time": null, "end_time": null,
+      "details": { "place_id": "ChIJHaDeGKRhLxMRleqtldzTYOQ" },
+      "place": { "sub_type": "hotel", "title": "Hotel NH Collection Roma Palazzo Cinquecento", "address": "Piazza dei Cinquecento, 90, 00185 Roma RM, Italy" } }
+  ]
+}

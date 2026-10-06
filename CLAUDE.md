@@ -2197,3 +2197,28 @@ timers stalls the async reads the day view does after mount.
   `POST /api/booking/airports` asks Haiku once per destination EVER (find_cache `airports|<destination>`, no
   expiry, even an empty answer), owner only, quota `bookingAirports`, spend-capped. The sheet asks lazily
   (`needsAirports`) — only when Flights or Car is open.
+- **Search all, seats, Where to stay, real prices (6 Oct 2026, his yes to all four):** an OPEN row has a checkbox
+  ("include in my search", ticked by default, this visit only); booked/skip rows show the ✓/dash, not a control.
+  Booked / Not needed / Clear (and "What did it cost?" on a hand-booked row, "Where to stay" on a booked Stays row)
+  sit behind the row's ⋯. One button under the rows ("Search flights, car & stays") runs `lib/booking/search`:
+  Kayak tabs first via `window.open(url, "_blank")` in the same click (NO "noopener" feature — with it
+  window.open returns null even when it opened), then Where to stay. A null return = blocked (iPhones may allow
+  only the first): the rest stay as a "Next: Car ↗" button, one tap each, and the sheet does not leave until the
+  Kayak steps are done. Stays (row or search) opens Roam's Where to stay by the old menu tile's exact path
+  (`whereToStayHref`: <768px `/map?stays=1`, else `/plan?stays=1`) and closes Bookings (`onLeave`). A cruise
+  keeps Kayak for Stays. **The journey menu has no Stay tile any more** — the Stays row is the door (plus Plan
+  my trip's bar on the week). Not added: "Search hotels on Kayak" inside Where to stay (not a one-liner there).
+- Cars carry Kayak's seats filter (verified live 6 Oct): ≤4 none; 5–6 `?sort=rank_a&fs=carcapacity=pas_5_6`;
+  7+ `pas_7_X`; 10+ also says "you'll need two cars" on the row (`carCapacity`, `twoCars` in kayak.ts).
+- Prices: the booking reader (CONFIRMATION_PROMPT) returns `total_paid` + `paid_currency` for flights, hotels
+  and cars, ONCE per booking; `onePricePerBooking` drops a repeat under the same reference (Rome's AC890 legs
+  share B24EDV). Stored as `details.paid_total`/`paid_currency` on the OPENING card only — the outbound leg,
+  the hotel's check-in card, the car's pick-up card; `closingDetails` strips it from check-out/drop-off cards.
+  Uploads before 6 Oct have no price and are NOT re-read (Claude money). A hand "Booked" may carry a cost:
+  `booking_checklist = { stays: "booked", costs: { stays: { amount, currency } } }` (`storeChecklist` keeps a
+  cost only while the row is Booked; default currency = trip_budgets.currency, else the destination's).
+- Budget (`lib/budget/booked`): flights / car = sum of paid; accommodation = paid + nightly rate × nights not
+  covered by a PRICED hotel run (stayRuns) — a hand-booked Stays with a cost counts every night. Converted on
+  the screen at its own rate (home 1, the journey currency at fx, else REFERENCE_RATES; no rate = left out).
+  Lines show "Booked" / "Booked · 4 of 6 nights" and no inputs when all paid; the header reads "booked $X ·
+  still estimated $Y". **Contingency is on the estimated part only** (paid money needs none). Both sources add.

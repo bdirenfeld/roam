@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { carsUrl, flightsUrl, kayakParty, kayakPlace, roomsFor, staysUrl, travellers, englishTown } from "./kayak";
+import { carCapacity, twoCars, carsUrl, flightsUrl, kayakParty, kayakPlace, roomsFor, staysUrl, travellers, englishTown } from "./kayak";
 
 // The URL shapes Brennan checked live on kayak.com, 6 Oct 2026. Tuscany's party:
 // seven people, [43, 40, 70, 70, 10, 8, 5].
@@ -67,6 +67,28 @@ describe("carsUrl", () => {
   });
   it("is always kayak.com — kayak.ca does not resolve on his network", () => {
     expect(carsUrl({ at: "PSA", pickUp: "2027-08-24", pickUpHour: 9, dropOff: "2027-09-04", dropOffHour: 10 })).toMatch(/^https:\/\/www\.kayak\.com\/cars\/PSA\/2027-08-24-09h\//);
+  });
+});
+
+describe("cars that fit the party (seats filter verified live 6 Oct 2026)", () => {
+  const at = { at: "PSA", pickUp: "2027-08-24", pickUpHour: 14, dropOff: "2027-09-04", dropOffHour: 10 };
+  it("four or fewer: no filter, the URL Brennan checked", () => {
+    expect(carCapacity(4)).toBeNull();
+    expect(carsUrl({ ...at, people: 4 })).toBe("https://www.kayak.com/cars/PSA/2027-08-24-14h/2027-09-04-10h");
+    expect(carsUrl({ ...at, people: 2 })).toBe("https://www.kayak.com/cars/PSA/2027-08-24-14h/2027-09-04-10h");
+  });
+  it("five or six: 5–6 seats", () => {
+    expect(carsUrl({ ...at, people: 5 })).toBe("https://www.kayak.com/cars/PSA/2027-08-24-14h/2027-09-04-10h?sort=rank_a&fs=carcapacity=pas_5_6");
+    expect(carCapacity(6)).toBe("pas_5_6");
+  });
+  it("seven to nine: 7+ seats (Tuscany's seven)", () => {
+    expect(carsUrl({ ...at, people: 7 })).toBe("https://www.kayak.com/cars/PSA/2027-08-24-14h/2027-09-04-10h?sort=rank_a&fs=carcapacity=pas_7_X");
+    expect(carCapacity(9)).toBe("pas_7_X");
+  });
+  it("ten or more: still 7+, and two cars", () => {
+    expect(carsUrl({ ...at, people: 11 })).toBe("https://www.kayak.com/cars/PSA/2027-08-24-14h/2027-09-04-10h?sort=rank_a&fs=carcapacity=pas_7_X");
+    expect(twoCars(10)).toBe(true);
+    expect(twoCars(9)).toBe(false);
   });
 });
 

@@ -216,7 +216,7 @@ export default function DocumentsSheet({ tripId, onClose, onImport }: Props) {
         <div ref={listRef} className="flex-1 overflow-y-auto pb-6">
           {/* To book (6 Oct 2026): the owner's Flights / Stays / Car checklist.
               Renders nothing for anyone else. */}
-          <ToBookSection tripId={tripId} />
+          <ToBookSection tripId={tripId} onLeave={onClose} />
           <p className="px-5 pt-4 text-[10.5px] uppercase tracking-[0.1em]" style={{ color: "rgba(26,26,46,0.62)" }}>Uploaded</p>
           {/* Upload — it used to be a separate menu row; the empty state below
               said "Upload…" while this sheet had no way to (UX audit, Sep 2026). */}

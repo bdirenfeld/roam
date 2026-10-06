@@ -41,24 +41,25 @@ afterEach(cleanup);
 
 const bookings = [{ key: "bookings", title: "Bookings", sub: "", icon: null, onClick: () => {} }];
 
-function rows(guest: boolean, noStay = false) {
-  render(<AppMenu variant="mobile" tripId="t1" guest={guest} noStay={noStay} extra={bookings} triggerClassName="" />);
+function rows(guest: boolean) {
+  render(<AppMenu variant="mobile" tripId="t1" guest={guest} extra={bookings} triggerClassName="" />);
   fireEvent.click(screen.getByLabelText("More options"));
   return screen.getAllByRole("menuitem").map((el) => el.textContent?.trim());
 }
 
 describe("the journey menu", () => {
-  it("is six tiles for the owner, Share and Settings as one, phone-short words", () => {
+  it("is four tiles for the owner, Share and Settings as one, phone-short words", () => {
     const r = rows(false);
-    expect(r).toEqual(["Budget", "Notes", "Bookings", "Stay", "Settings"]);
+    expect(r).toEqual(["Budget", "Notes", "Bookings", "Settings"]);
   });
 
   it("is Notes and Bookings for a guest — no planner's Ideas", () => {
     expect(rows(true)).toEqual(["Notes", "Bookings"]);
   });
 
-  it("has no Stay on a cruise: the ship is the stay (27 Sep 2026)", () => {
-    expect(rows(false, true)).toEqual(["Budget", "Notes", "Bookings", "Settings"]);
+  it("has no Stay tile: Where to stay opens from the Stays row of To book in Bookings (6 Oct 2026)", () => {
+    expect(rows(false)).not.toContain("Stay");
+    expect(screen.queryByRole("menuitem", { name: "Where to stay" })).toBeNull();
   });
 });
 
@@ -71,7 +72,7 @@ describe("Videos in the journey menu (2 Oct 2026, video-placement-mock §5)", ()
 
   it("a sixth tile for the owner, and a third for a guest", () => {
     vids.available = { "first-journey": 1 };
-    expect(rows(false)).toEqual(["Budget", "Notes", "Bookings", "Stay", "Settings", "Videos"]);
+    expect(rows(false)).toEqual(["Budget", "Notes", "Bookings", "Settings", "Videos"]);
     cleanup();
     expect(rows(true)).toEqual(["Notes", "Bookings", "Videos"]);
   });

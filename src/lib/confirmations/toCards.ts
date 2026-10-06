@@ -32,6 +32,45 @@ export interface ParsedConfirmation {
   drop_off_date?: string | null;
   drop_off_time?: string | null;
   drop_off_location?: string | null;
+  /**
+   * What the booking cost, as charged (6 Oct 2026): flights, hotels and cars.
+   * Once per booking — a round trip carries it on the outbound leg only.
+   */
+  total_paid?: number | string | null;
+  paid_currency?: string | null;
+}
+
+/** The kinds whose price the budget reads (lib/budget/booked). */
+const PRICED = new Set<ConfirmationType>(["flight_arrival", "flight_departure", "hotel", "car_rental"]);
+
+/** A price as a number: 1234.5 and "1,234.50" are read (the prompt asks for a plain number); anything else is null. */
+export function paidAmount(v: unknown): number | null {
+  if (typeof v === "number") return Number.isFinite(v) && v > 0 ? Math.round(v * 100) / 100 : null;
+  if (typeof v !== "string") return null;
+  const m = v.replace(/,/g, "").match(/\d+(?:\.\d+)?/);
+  const n = m ? Number(m[0]) : NaN;
+  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : null;
+}
+
+const currencyCode = (v: unknown) => (typeof v === "string" && /^[A-Za-z]{3}$/.test(v.trim()) ? v.trim().toUpperCase() : null);
+
+/**
+ * One price per booking, whatever the reader did: when two objects share a
+ * confirmation number and carry the same amount, only the first keeps it.
+ * Rome's AC890 round trip is two legs under B24EDV; a total on both would be
+ * counted twice in the budget.
+ */
+export function onePricePerBooking(items: ParsedConfirmation[]): ParsedConfirmation[] {
+  const seen = new Set<string>();
+  return items.map((p) => {
+    const amount = paidAmount(p.total_paid);
+    const ref = typeof p.confirmation_number === "string" ? p.confirmation_number.trim() : "";
+    if (amount == null || !ref) return p;
+    const key = `${ref}|${amount}|${currencyCode(p.paid_currency) ?? ""}`;
+    if (seen.has(key)) return { ...p, total_paid: null };
+    seen.add(key);
+    return p;
+  });
 }
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -59,7 +98,19 @@ export function confirmationDetails(p: ParsedConfirmation, edits: { title: strin
     set("drop_off_location", p.drop_off_location);
     if (clean(p.drop_off_date) && ISO.test(p.drop_off_date!.trim())) d.drop_off = p.drop_off_date!.trim();
   }
+  // The price rides on the OPENING card only — the outbound leg, the check-in,
+  // the pick-up — never on the check-out or drop-off (closingDetails strips it).
+  const paid = PRICED.has(p.type) ? paidAmount(p.total_paid) : null;
+  const cur = currencyCode(p.paid_currency);
+  if (paid != null && cur) { d.paid_total = paid; d.paid_currency = cur; }
   return d;
+}
+
+/** A closing card (check-out, drop-off) copies its booking's details, without the price. */
+export function closingDetails(details: Record<string, unknown> | null | undefined, title: string): Record<string, unknown> {
+  const { paid_total: _t, paid_currency: _c, ...rest } = details ?? {};
+  void _t; void _c;
+  return { ...rest, title };
 }
 
 /**
