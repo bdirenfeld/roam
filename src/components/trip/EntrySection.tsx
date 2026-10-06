@@ -131,10 +131,13 @@ export default function EntrySection({ tripId, destination, startDate, defaultOp
         <span className="text-[10px] uppercase tracking-widest text-gray-400 w-20 flex-shrink-0">
           Entry
         </span>
-        <span className="flex-1 text-[14px] whitespace-nowrap" style={{ color: INK }}>Travel requirements</span>
-        {pill && (
-          <span data-testid="entry-status" className="text-[12px] font-semibold rounded-full px-2.5 py-[3px] mr-2 flex-shrink-0" style={{ color: pill.fg, background: pill.bg }}>{pill.text}</span>
-        )}
+        {/* Label and pill are two pieces: on a narrow phone the pill drops to its own line whole (6 Oct 2026). */}
+        <span className="flex-1 min-w-0 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 mr-2">
+          <span className="text-[14px] whitespace-nowrap" style={{ color: INK }}>Travel requirements</span>
+          {pill && (
+            <span data-testid="entry-status" className="text-[12px] font-semibold rounded-full px-2.5 py-[3px] flex-shrink-0 whitespace-nowrap" style={{ color: pill.fg, background: pill.bg }}>{pill.text}</span>
+          )}
+        </span>
         <span aria-hidden="true" className="text-[14px] flex-shrink-0" style={{ color: FAINT, display: "inline-block", transform: open ? "rotate(90deg)" : "none" }}>›</span>
       </button>
       {open && (
