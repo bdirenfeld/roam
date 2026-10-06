@@ -145,9 +145,15 @@ export default function TimeSheet({
     boxShadow: active ? "none" : "inset 0 0 0 1px rgba(26,26,46,0.14)",
   });
 
-  // What the field understood, under it — or that it didn't.
-  const readback = (text: string, parsed: string | null) =>
-    !text.trim() ? "" : parsed ? formatTimeValue(parsed) : "Try 2:30pm";
+  // What the field understood, under it — or that it didn't. Only when it adds
+  // something: "230p" → "2:30 PM" helps; "9:45 AM" under "9:45 AM" is the
+  // same thing twice (6 Oct 2026, designer review).
+  const readback = (text: string, parsed: string | null) => {
+    if (!text.trim()) return "";
+    if (!parsed) return "Try 2:30pm";
+    const read = formatTimeValue(parsed);
+    return text.trim().toUpperCase() === read.toUpperCase() ? "" : read;
+  };
 
   return (
     <div
@@ -220,9 +226,9 @@ export default function TimeSheet({
               className="h-11 rounded-xl bg-white flex items-center justify-between px-1"
               style={{ boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.14)", opacity: start ? 1 : 0.4 }}
             >
-              <button type="button" aria-label="Shorter" disabled={!start || length <= STEP} onClick={() => setLength(length - STEP)} className="w-9 h-9 rounded-full text-[18px] leading-none disabled:opacity-30" style={{ color: INK }}>−</button>
-              <span className="text-[14px] tabular-nums" style={{ color: INK }}>{lengthLabel(length)}</span>
-              <button type="button" aria-label="Longer" disabled={!start} onClick={() => setLength(length + STEP)} className="w-9 h-9 rounded-full text-[18px] leading-none disabled:opacity-30" style={{ color: INK }}>+</button>
+              <button type="button" aria-label="Shorter" disabled={!start || length <= STEP} onClick={() => setLength(length - STEP)} className="w-7 h-9 flex-shrink-0 rounded-full text-[18px] leading-none disabled:opacity-30" style={{ color: INK }}>−</button>
+              <span className="text-[14px] tabular-nums whitespace-nowrap" style={{ color: INK }}>{lengthLabel(length)}</span>
+              <button type="button" aria-label="Longer" disabled={!start} onClick={() => setLength(length + STEP)} className="w-7 h-9 flex-shrink-0 rounded-full text-[18px] leading-none disabled:opacity-30" style={{ color: INK }}>+</button>
             </div>
             <span className="h-[14px]" />
           </div>
@@ -260,7 +266,7 @@ export default function TimeSheet({
             className="w-full h-12 rounded-full text-[15px] font-semibold active:opacity-80 disabled:opacity-40"
             style={{ background: INK, color: "#fff" }}
           >
-            {start ? `Done · ${formatTimeValue(start)}${end ? ` – ${formatTimeValue(end)}` : ""}` : "Done · no time"}
+            Done
           </button>
         </div>
       </div>

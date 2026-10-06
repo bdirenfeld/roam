@@ -15,7 +15,7 @@ describe("the time sheet keeps a stop's length when its start moves (4 Oct 2026)
     const [start, end] = Array.from(container.querySelectorAll("input")) as HTMLInputElement[];
     fireEvent.change(start, { target: { value: "1pm" } });
     expect(end.value).toBe("2:15 PM");
-    expect(screen.getByText(/Done · 1:00 PM – 2:15 PM/)).toBeTruthy();
+    expect(start.value).toBe("1pm");
   });
 
   it("a length the person types becomes the one kept", () => {
@@ -24,5 +24,17 @@ describe("the time sheet keeps a stop's length when its start moves (4 Oct 2026)
     fireEvent.change(end, { target: { value: "1pm" } });
     fireEvent.change(start, { target: { value: "2pm" } });
     expect(end.value).toBe("2:30 PM");
+  });
+});
+
+describe("the time sheet says each thing once (6 Oct 2026, designer review)", () => {
+  it("no reading under a box that already shows it; a reading under a shorthand; the button is just Done", () => {
+    const { container } = render(<TimeSheet card={lunch} onClose={vi.fn()} onSave={vi.fn()} />);
+    const [start] = Array.from(container.querySelectorAll("input")) as HTMLInputElement[];
+    expect(screen.queryAllByText("12:30 PM")).toHaveLength(0);
+    expect(screen.getByRole("button", { name: "Done" })).toBeTruthy();
+    fireEvent.change(start, { target: { value: "230p" } });
+    expect(screen.getByText("2:30 PM")).toBeTruthy();
+    expect(screen.getByText(/1h/).className).toContain("whitespace-nowrap");
   });
 });
