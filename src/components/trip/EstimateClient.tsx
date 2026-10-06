@@ -838,26 +838,10 @@ export default function EstimateClient({
             </>
           )}
 
-          {/* Deliberately NOT a Shell. The amount column is a fixed 62px, which
-              the Playfair numerals overran — that was the clipping on the
-              right. Here the figure sizes to its own content. */}
-          <div
-            className="flex items-baseline justify-between gap-3"
-            style={{ borderTop: `1px solid ${RULE}`, padding: `14px ${PAD}px` }}
-          >
-            <span className="text-[14px] shrink-0" style={{ color: INK }}>
-              Total
-            </span>
-            <span
-              className="font-display italic text-[21px] text-right"
-              style={{ color: INK }}
-            >
-              {cad(est.total)}
-            </span>
-          </div>
+          {/* The Total row is gone (6 Oct 2026, designer audit): the same figure
+              is the headline at the top. */}
 
-          {/* The two halves sit under the Total, not instead of it — the whole
-              journey is still the number you came for. They always sum to it. */}
+          {/* The two halves always sum to the headline total. */}
           {est.split && (
             <div
               className="flex items-baseline justify-between gap-3"
@@ -1109,7 +1093,6 @@ export default function EstimateClient({
               <button type="button" className="underline underline-offset-2" onClick={() => void persistRef.current()}>Try again</button>
             </>
           )}
-          {status === "idle" && "Changes save as you type."}
         </p>
       </div>
     </div>

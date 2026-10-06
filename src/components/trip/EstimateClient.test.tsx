@@ -63,10 +63,11 @@ describe("Budget saves as you go", () => {
     expect(screen.getByText("Other travellers")).toBeTruthy();
   });
 
-  it("has no Save button, and says changes save themselves", () => {
+  it("has no Save button and no explainer line (6 Oct 2026); the total shows once", () => {
     open();
     expect(screen.queryByRole("button", { name: /^Save$/ })).toBeNull();
-    expect(screen.getByText("Changes save as you type.")).toBeTruthy();
+    expect(screen.queryByText("Changes save as you type.")).toBeNull();
+    expect(screen.queryByText("Total", { exact: true })).toBeNull();
   });
 
   it("writes a change a moment after typing stops", async () => {
