@@ -55,30 +55,11 @@ export const VIDEOS: HowToVideo[] = [
     // The short follow-on to video 2 (5 Oct 2026): taking a card off its day,
     // and one day at a time on the map. In the Videos list only.
     id: "more-tricks",
-    title: "Two more tricks",
+    title: "Two more planning tricks",
     length: "20 s",
     file: "more-tricks.mp4",
     poster: "more-tricks.jpg",
     surfaces: [],
-  },
-  {
-    // Video 3 for someone who opens the shared link before the trip starts
-    // (5 Oct 2026). The strip picks this or "On the trip" by date
-    // (sharedLinkVideo); both stay in the Videos list.
-    id: "before-the-trip",
-    title: "Before the trip",
-    length: "45 s",
-    file: "before-the-trip.mp4",
-    poster: "before-the-trip.jpg",
-    surfaces: ["shared-link"],
-  },
-  {
-    id: "on-the-trip",
-    title: "On the trip",
-    length: "45 s",
-    file: "on-the-trip.mp4",
-    poster: "on-the-trip.jpg",
-    surfaces: ["shared-link"],
   },
   {
     // Video 4 (2 Oct 2026): the organiser on their phone, mid-trip. Offered on
@@ -89,6 +70,27 @@ export const VIDEOS: HowToVideo[] = [
     file: "in-the-app.mp4",
     poster: "in-the-app.jpg",
     surfaces: ["trip-underway"],
+  },
+  // The order above (5 Oct 2026, Brennan): the organiser's four in the order
+  // they use Roam. Below: the two for people who open the shared link.
+  {
+    // Video 3 for someone who opens the shared link before the trip starts
+    // (5 Oct 2026). The strip picks this or "on the trip" by date
+    // (sharedLinkVideo); both stay in the Videos list.
+    id: "before-the-trip",
+    title: "Your shared link: before the trip",
+    length: "45 s",
+    file: "before-the-trip.mp4",
+    poster: "before-the-trip.jpg",
+    surfaces: ["shared-link"],
+  },
+  {
+    id: "on-the-trip",
+    title: "Your shared link: on the trip",
+    length: "45 s",
+    file: "on-the-trip.mp4",
+    poster: "on-the-trip.jpg",
+    surfaces: ["shared-link"],
   },
 ];
 
