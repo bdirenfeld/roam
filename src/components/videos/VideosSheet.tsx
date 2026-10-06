@@ -12,7 +12,7 @@ import { createPortal } from "react-dom";
 import { useSheetDrag } from "@/hooks/useSheetDrag";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { SUPABASE_BASE, useHowToVideos } from "@/hooks/useHowToVideos";
-import { fileUrl, listed, posterUrl, type HowToVideo } from "@/lib/videos/howTo";
+import { fileUrl, listed, deviceOf, posterUrl, type HowToVideo } from "@/lib/videos/howTo";
 import VideoPlayer from "./VideoPlayer";
 
 const INK = "#1A1A2E";
@@ -23,7 +23,7 @@ export default function VideosSheet({ onClose }: { onClose: () => void }) {
   const [playing, setPlaying] = useState<HowToVideo | null>(null);
   const drag = useSheetDrag(onClose, undefined, { mobileOnly: true });
   useEscapeKey(onClose, !playing);
-  const rows = listed(available);
+  const rows = listed(available, typeof navigator === "undefined" ? "computer" : deviceOf(navigator.userAgent));
 
   if (typeof document === "undefined") return null;
   return createPortal(

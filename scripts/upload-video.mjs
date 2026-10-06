@@ -19,7 +19,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 const BUCKET = "how-to-videos";
-const IDS = ["first-journey", "planning-computer", "more-tricks", "before-the-trip", "on-the-trip", "in-the-app"];
+const IDS = ["first-journey", "install-iphone", "install-android", "planning-computer", "more-tricks", "before-the-trip", "on-the-trip", "in-the-app"];
 
 function env(name) {
   if (process.env[name]) return process.env[name];

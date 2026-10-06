@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  VIDEOS, sharedLinkVideo, parseManifest, parseSeen, listed, forSurface, startHereVideo, fileUrl, posterUrl, manifestUrl, localSeenKey, widePlayerSize,
+  VIDEOS, sharedLinkVideo, deviceOf, parseManifest, parseSeen, listed, forSurface, startHereVideo, fileUrl, posterUrl, manifestUrl, localSeenKey, widePlayerSize,
   type Available,
 } from "./howTo";
 
@@ -12,6 +12,8 @@ describe("the video list", () => {
   it("the organiser's four in the order they use Roam, then the shared link's two (5 Oct 2026)", () => {
     expect(VIDEOS.map((v) => [v.id, v.title, v.length])).toEqual([
       ["first-journey", "Your first journey", "1 min"],
+      ["install-iphone", "Put Roam on your phone", "20 s"],
+      ["install-android", "Put Roam on your phone", "15 s"],
       ["planning-computer", "Planning on a computer", "1 min"],
       ["more-tricks", "Planning shortcuts", "20 s"],
       ["in-the-app", "Using Roam on your trip", "1 min"],
@@ -145,5 +147,20 @@ describe("the shared link's video 3 (5 Oct 2026)", () => {
     const six: Available = { "first-journey": 2, "planning-computer": 2, "more-tricks": 1, "before-the-trip": 1, "on-the-trip": 2, "in-the-app": 1 };
     expect(listed(six).map((v) => v.id)).toEqual(["first-journey", "planning-computer", "more-tricks", "in-the-app", "before-the-trip", "on-the-trip"]);
     expect(VIDEOS.find((v) => v.id === "more-tricks")!.surfaces).toEqual([]);
+  });
+});
+
+describe("the install clip, one version per phone (6 Oct 2026)", () => {
+  const on: Available = { "first-journey": 2, "install-iphone": 1, "install-android": 1 };
+  it("an iPhone lists the iPhone version, an Android the Android one, a computer neither", () => {
+    expect(listed(on, "iphone").map((v) => v.id)).toEqual(["first-journey", "install-iphone"]);
+    expect(listed(on, "android").map((v) => v.id)).toEqual(["first-journey", "install-android"]);
+    expect(listed(on, "computer").map((v) => v.id)).toEqual(["first-journey"]);
+    expect(listed(on).map((v) => v.id)).toEqual(["first-journey"]);
+  });
+  it("reads the device from the user agent", () => {
+    expect(deviceOf("Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X)")).toBe("iphone");
+    expect(deviceOf("Mozilla/5.0 (Linux; Android 14; Pixel 8) Mobile")).toBe("android");
+    expect(deviceOf("Mozilla/5.0 (Windows NT 10.0; Win64; x64)")).toBe("computer");
   });
 });

@@ -15,7 +15,7 @@
  * No videos.json, or a fetch that fails: nothing shows anywhere.
  */
 
-export type VideoId = "first-journey" | "planning-computer" | "more-tricks" | "before-the-trip" | "on-the-trip" | "in-the-app";
+export type VideoId = "first-journey" | "install-iphone" | "install-android" | "planning-computer" | "more-tricks" | "before-the-trip" | "on-the-trip" | "in-the-app";
 
 /** The places a video is offered before it is gone. The menu lists every switched-on video, always. */
 export type Surface = "journeys-empty" | "start-here" | "start-here-computer" | "shared-link" | "trip-underway";
@@ -29,6 +29,16 @@ export interface HowToVideo {
   file: string;
   poster: string;
   surfaces: Surface[];
+  /** Only listed on this kind of phone (the install clip has a version for each). */
+  device?: "iphone" | "android";
+}
+
+/** What the person is holding, for device-only videos. */
+export type Device = "iphone" | "android" | "computer";
+export function deviceOf(userAgent: string): Device {
+  if (/iPhone|iPad|iPod/i.test(userAgent)) return "iphone";
+  if (/Android/i.test(userAgent)) return "android";
+  return "computer";
 }
 
 export const BUCKET = "how-to-videos";
@@ -42,6 +52,26 @@ export const VIDEOS: HowToVideo[] = [
     file: "first-journey.mp4",
     poster: "first-journey.jpg",
     surfaces: ["journeys-empty", "start-here", "start-here-computer"],
+  },
+  {
+    // The install clip (6 Oct 2026): one version per phone, each listed only
+    // there; a computer lists neither. iPhone steps follow iOS 26 Safari.
+    id: "install-iphone",
+    title: "Put Roam on your phone",
+    length: "20 s",
+    file: "install-iphone.mp4",
+    poster: "install-iphone.jpg",
+    surfaces: [],
+    device: "iphone",
+  },
+  {
+    id: "install-android",
+    title: "Put Roam on your phone",
+    length: "15 s",
+    file: "install-android.mp4",
+    poster: "install-android.jpg",
+    surfaces: [],
+    device: "android",
   },
   {
     id: "planning-computer",
@@ -139,8 +169,8 @@ export function posterUrl(base: string, v: HowToVideo, available: Available): st
 }
 
 /** The menu's list: every switched-on video, in order, whether seen or not. */
-export function listed(available: Available): HowToVideo[] {
-  return VIDEOS.filter((v) => (available[v.id] ?? 0) > 0);
+export function listed(available: Available, device: Device = "computer"): HowToVideo[] {
+  return VIDEOS.filter((v) => (available[v.id] ?? 0) > 0 && (!v.device || v.device === device));
 }
 
 /** The first switched-on, not-yet-gone video for a surface, or null. */

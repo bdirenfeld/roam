@@ -12,7 +12,7 @@ import {
 } from "@phosphor-icons/react";
 import VideosSheet from "@/components/videos/VideosSheet";
 import { useHowToVideos } from "@/hooks/useHowToVideos";
-import { listed } from "@/lib/videos/howTo";
+import { listed, deviceOf } from "@/lib/videos/howTo";
 import {
   EstimateLink,
   TripSettingsLink,
@@ -78,7 +78,7 @@ export default function AppMenu({
   // video is switched on (videos.json in the how-to-videos bucket).
   const [videosOpen, setVideosOpen] = useState(false);
   const { available } = useHowToVideos();
-  const hasVideos = !!tripId && listed(available).length > 0;
+  const hasVideos = !!tripId && listed(available, typeof navigator === "undefined" ? "computer" : deviceOf(navigator.userAgent)).length > 0;
 
   useEffect(() => {
     if (!open) return;
