@@ -8,7 +8,7 @@ afterEach(cleanup);
 describe("PartyPicker", () => {
   it("one line until tapped, then adults, each kid's age and seniors (Japan: two adults, kids 10, 8 and 5)", () => {
     render(<PartyPicker party={{ adults: 2, seniors: 0, kids: [10, 8, 5] }} onChange={vi.fn()} labelClass="" />);
-    expect(screen.getByText("2 adults · 3 kids (10, 8, 5)")).toBeTruthy();
+    expect(document.body.textContent).toContain("2 adults · 3 kids (10, 8, 5)");
     expect(screen.queryByText("Adults")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /Travellers/ }));
     expect(screen.getByText("Adults")).toBeTruthy();

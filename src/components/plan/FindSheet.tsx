@@ -16,6 +16,7 @@ import { findRequest } from "@/lib/find/request";
 import { whatsOnUrl } from "@/lib/find/yearly";
 import { distanceLine } from "@/lib/find/distance";
 import { inferTypeOrSight } from "@/lib/places/inferType";
+import Pieces from "@/components/ui/Pieces";
 
 /**
  * Find (29 Sep 2026): places for what a base is short of, in Roam's own
@@ -407,7 +408,7 @@ function FindPlace({ r, dates, away, saved, onSave, onBack }: { r: FindResult; d
             <span>{away}</span>
           </div>
         )}
-        {facts && <div className="text-[13px] text-activity/70">{facts}</div>}
+        {facts && <div className="text-[13px] text-activity/70"><Pieces text={facts} /></div>}
         {d && (closed.length > 0
           ? <div className="text-[13px] font-medium text-[#B0541F]">Closed {closed.join(", ")}</div>
           : d.opening_hours?.weekday_text?.length ? <div className="text-[13px] text-activity/70">Open every day you&apos;re there</div> : null)}

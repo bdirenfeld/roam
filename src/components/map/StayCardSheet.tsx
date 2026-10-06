@@ -13,6 +13,7 @@ import { scoreLabel, siteName } from "@/lib/stays/price";
 import { bookingUrl, canPrefill, priceSearchUrl, noPriceReason, type StayDates } from "@/lib/stays/bookingUrl";
 import type { StayBrief } from "@/lib/stays/brief";
 import type { StayCandidate } from "@/types/database";
+import Pieces from "@/components/ui/Pieces";
 
 const INK = "#1A1A2E";
 const SIENNA = "#B0541F";
@@ -234,7 +235,7 @@ export default function StayCardSheet({ inPanel = false, backLabel = "Back", can
             {c.name}{chosen && <span className="ml-2 text-[10px] font-semibold uppercase tracking-wide align-middle" style={{ color: SIENNA }}>Your stay</span>}
           </h2>
           {c.address && <p className="text-[13px] mt-1" style={{ color: CAPTION }}>{c.address}</p>}
-          {c.flags?.length > 0 && <p className="text-[12px] font-medium mt-2" style={{ color: SIENNA }}>{c.flags.join(" · ")}</p>}
+          {c.flags?.length > 0 && <p className="text-[12px] font-medium mt-2" style={{ color: SIENNA }}><Pieces text={c.flags.join(" · ")} /></p>}
 
           <div className="mt-5 space-y-4">
             {/* A hotel publishes room types, not bedrooms, so this row used to

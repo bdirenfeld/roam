@@ -271,7 +271,7 @@ describe("Find sheet", { timeout: 20000 }, () => {
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "More about Trattoria Da Enzo" })); });
     const view = screen.getByRole("region", { name: "Trattoria Da Enzo" });
     await waitFor(() => expect(view.querySelector("img")?.getAttribute("src")).toBe("https://photos.example/1.jpg"));
-    expect(screen.getByText("★ 4.6 · 9,000 reviews · $$")).toBeTruthy();
+    expect(document.body.textContent).toContain("★ 4.6 · 9,000 reviews · $$");
     expect(screen.getByText("Closed Mon 27 Apr")).toBeTruthy();
     expect(screen.getByRole("link", { name: "From r/rome" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Google Maps" })).toBeTruthy();

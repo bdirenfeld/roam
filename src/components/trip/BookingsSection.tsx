@@ -11,6 +11,7 @@
 // its own cards, so the page needs no new plumbing.
 
 import { useCallback, useEffect, useState } from "react";
+import Pieces from "@/components/ui/Pieces";
 import type { Day } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { bookingLines, type BookingCard, type BookingLine } from "@/lib/bookings/summary";
@@ -58,7 +59,7 @@ export default function BookingsSection({ tripId, days, endDate }: { tripId: str
               </>
             ) : lines.map((l) => (
               <span key={l.kind} className="block text-[14px] leading-snug" style={{ color: INK }}>
-                <span className="font-semibold">{l.kind}</span> · {l.text}
+                <Pieces text={`${l.kind} · ${l.text}`} />
               </span>
             ))}
         </span>

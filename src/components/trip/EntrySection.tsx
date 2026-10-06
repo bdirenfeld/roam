@@ -131,7 +131,7 @@ export default function EntrySection({ tripId, destination, startDate, defaultOp
         <span className="text-[10px] uppercase tracking-widest text-gray-400 w-20 flex-shrink-0">
           Entry
         </span>
-        <span className="flex-1 text-[14px]" style={{ color: INK }}>Travel requirements</span>
+        <span className="flex-1 text-[14px] whitespace-nowrap" style={{ color: INK }}>Travel requirements</span>
         {pill && (
           <span data-testid="entry-status" className="text-[12px] font-semibold rounded-full px-2.5 py-[3px] mr-2 flex-shrink-0" style={{ color: pill.fg, background: pill.bg }}>{pill.text}</span>
         )}

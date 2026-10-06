@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { partySize, partyLine, type Party } from "@/lib/party";
+import Pieces from "@/components/ui/Pieces";
 
 /**
  * Who is travelling: adults, kids with their ages, seniors (30 Sep 2026,
@@ -56,7 +57,7 @@ export default function PartyPicker({ party, onChange, labelClass }: { party: Pa
         className="w-full flex items-center px-5 py-[14px] text-left"
       >
         <span className={`text-[10px] uppercase tracking-widest w-20 flex-shrink-0 ${labelClass}`}>Travellers</span>
-        <span className="flex-1 text-[14px] text-[#1A1A2E]">{partyLine(party)}</span>
+        <span className="flex-1 text-[14px] text-[#1A1A2E]"><Pieces text={partyLine(party)} /></span>
         <span className="text-[12px] text-gray-400 flex-shrink-0">{open ? "Done" : "Change"}</span>
       </button>
       {open && (
