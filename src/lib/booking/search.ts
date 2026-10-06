@@ -41,13 +41,16 @@ export function searchSteps(rows: CheckRow[], stayInApp: boolean): Step[] {
  * back everything not done yet; reaching the Where to stay step means every
  * tab before it opened, so the caller may leave for the map.
  */
-export function runSteps(steps: Step[], open: (url: string) => unknown): { opened: RowKey[]; stay: boolean; rest: Step[] } {
+export function runSteps(steps: Step[], open: (url: string) => unknown, oneAtATime = false): { opened: RowKey[]; stay: boolean; rest: Step[] } {
   const opened: RowKey[] = [];
   for (let i = 0; i < steps.length; i++) {
     const s = steps[i];
     if (!s.url) return { opened, stay: true, rest: [] };
     if (!open(s.url)) return { opened, stay: false, rest: steps.slice(i) };
     opened.push(s.key);
+    // A phone (6 Oct 2026): Kayak opens over Roam, a second tab hides behind it and
+    // nothing says so — one search per tap, the rest wait as "Next".
+    if (oneAtATime && i + 1 < steps.length) return { opened, stay: false, rest: steps.slice(i + 1) };
   }
   return { opened, stay: false, rest: [] };
 }

@@ -185,7 +185,7 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
     const raw = data.trip.booking_checklist ?? {};
     const ok = await write(
       storeChecklist(withChoice(readChecklist(raw), key, choice), readCosts(raw)),
-      choice === "booked" ? `${title}: booked` : choice === "skip" ? `${title}: not needed` : `${title}: cleared`,
+      choice === "booked" ? `${title}: booked` : choice === "skip" ? `${title}: not needed` : choice === "open" ? `${title}: not booked yet` : `${title}: cleared`,
     );
     // Booked by hand: what did it cost? Optional — the budget counts it if given.
     if (ok && choice === "booked") { setCostFor(key); setAmount(""); setCurrency(data.currency); }
@@ -209,7 +209,8 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
   }, [onLeave, router, tripId]);
 
   const run = useCallback((steps: Step[]) => {
-    const r = runSteps(steps, openTab);
+    const phone = typeof window !== "undefined" && window.matchMedia?.("(min-width: 768px)").matches !== true;
+    const r = runSteps(steps, openTab, phone);
     setQueue(r.rest);
     if (r.stay) goStays();
   }, [goStays]);
@@ -276,6 +277,10 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
                   style={{ border: `1px solid ${RULE}`, boxShadow: "0 8px 24px rgba(0,0,0,.18)" }}>
                   <button type="button" role="menuitem" onClick={() => choose(r.key, "booked", r.title)} className={`${item} font-semibold`} style={{ color: INK }}>Booked</button>
                   <button type="button" role="menuitem" onClick={() => choose(r.key, "skip", r.title)} className={item} style={{ color: CAPTION, borderTop: `1px solid ${RULE}` }}>Not needed</button>
+                  {/* An automatic tick (a stay already on the days) can be set back to ○ (6 Oct 2026: "it doesn't let me clear my stays"). */}
+                  {!r.manual && r.state !== "open" && (
+                    <button type="button" role="menuitem" onClick={() => choose(r.key, "open", r.title)} className={item} style={{ color: CAPTION, borderTop: `1px solid ${RULE}` }}>Not booked yet</button>
+                  )}
                   {r.manual === "booked" && (
                     <button type="button" role="menuitem" onClick={() => { setMenu(null); setCostFor(r.key); setAmount(r.cost ? String(r.cost.amount) : ""); setCurrency(r.cost?.currency ?? data.currency); }} className={item} style={{ color: CAPTION, borderTop: `1px solid ${RULE}` }}>What did it cost?</button>
                   )}
@@ -347,9 +352,10 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
           type="button"
           onClick={() => run(queue)}
           className="w-full mt-3 py-3 rounded-xl text-[14px] font-semibold"
-          style={{ background: "#FFFFFF", color: INK, boxShadow: `inset 0 0 0 1.5px ${INK}` }}
+          style={{ background: INK, color: "#F5F4F1" }}
+          data-testid="to-book-next"
         >
-          Next: {queue[0].title}{queue[0].url ? " ↗" : ""}
+          {queue[0].url ? `Next: book ${queue[0].title.toLowerCase()} on Kayak` : "Next: Where to stay"}
         </button>
       ) : label && (
         <button

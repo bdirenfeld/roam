@@ -20,7 +20,8 @@ import { SYMBOL } from "@/lib/budget/currency";
 import { airportCity, carsUrl, englishTown, flightsUrl, isIata, kayakParty, kayakPlace, staysUrl, travellers, twoCars, KAYAK, type KayakParty } from "./kayak";
 
 export type RowKey = "flights" | "stays" | "car";
-export type Choice = "booked" | "skip";
+/** "open" (6 Oct 2026): "Not booked yet" — overrides an automatic tick back to ○. */
+export type Choice = "booked" | "skip" | "open";
 export type Checklist = Partial<Record<RowKey, Choice>>;
 export const ROW_KEYS: RowKey[] = ["flights", "stays", "car"];
 /**
@@ -89,12 +90,12 @@ const peopleLine = (n: number) => plural(n, "person", "people");
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const short = (iso: string) => `${new Date(ms(iso)).getUTCDate()} ${MON[new Date(ms(iso)).getUTCMonth()]}`;
 
-/** The owner's saved choices, cleaned: anything but "booked" / "skip" is ignored. */
+/** The owner's saved choices, cleaned: anything but "booked" / "skip" / "open" is ignored. */
 export function readChecklist(raw: Record<string, unknown> | null | undefined): Checklist {
   const out: Checklist = {};
   for (const k of ROW_KEYS) {
     const v = raw?.[k];
-    if (v === "booked" || v === "skip") out[k] = v;
+    if (v === "booked" || v === "skip" || v === "open") out[k] = v;
   }
   return out;
 }
@@ -231,6 +232,7 @@ export function checklistRows(input: CheckInput): CheckRow[] {
     const m = manual[key] ?? null;
     const cost = m === "booked" ? costs[key] ?? null : null;
     const base = { key, title: TITLES[key], dayId: at.dayId, name: at.name };
+    if (m === "open") return { ...base, line: open.line, state: "open", manual: m, url: open.url, cost: null };
     if (m) return { ...base, line: m === "booked" ? (cost ? `Paid ${costLabel(cost)}` : "Marked booked") : "Not needed", state: m, manual: m, url: null, cost };
     if (auto) return { ...base, line: auto.line, state: auto.state, manual: null, url: null, cost: null };
     return { ...base, line: open.line, state: "open", manual: null, url: open.url, cost: null };

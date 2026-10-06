@@ -70,3 +70,16 @@ describe("Where to stay, by the journey menu's own path", () => {
     expect(whereToStayHref("fa33c1cc", true)).toBe("/trips/fa33c1cc/plan?stays=1");
   });
 });
+
+describe("runSteps on a phone (6 Oct 2026)", () => {
+  it("opens one search per tap and keeps the rest as Next", () => {
+    const opened: string[] = [];
+    const steps = [{ key: "flights" as const, title: "Flights", url: "https://k/f" }, { key: "car" as const, title: "Car", url: "https://k/c" }];
+    const r = runSteps(steps as never, (u) => { opened.push(u); return {}; }, true);
+    expect(opened).toEqual(["https://k/f"]);
+    expect(r.rest.map((s) => s.key)).toEqual(["car"]);
+    const r2 = runSteps(r.rest, (u) => { opened.push(u); return {}; }, true);
+    expect(r2.rest).toEqual([]);
+    expect(opened).toEqual(["https://k/f", "https://k/c"]);
+  });
+});

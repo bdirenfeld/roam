@@ -235,8 +235,9 @@ describe("uploads inside their row", () => {
 });
 
 describe("Book N on Kayak, and Stays opening Where to stay", () => {
-  it("every Kayak tab in one click, then Where to stay (phone: the Map screen)", async () => {
+  it("a computer: every Kayak tab in one click, then Where to stay", async () => {
     journey = tuscanyOpen();
+    vi.stubGlobal("matchMedia", (q: string) => ({ matches: q === "(min-width: 768px)" }));
     const opened: string[] = [];
     const open = vi.fn((url: string) => { opened.push(url); return {} as Window; });
     vi.stubGlobal("open", open);
@@ -250,7 +251,24 @@ describe("Book N on Kayak, and Stays opening Where to stay", () => {
     ]);
     expect((open.mock.calls[0] as unknown[])[1]).toBe("_blank");
     expect(leave).toHaveBeenCalledTimes(1);
-    expect(push).toHaveBeenCalledWith("/trips/tuscany-f/map?stays=1");
+    expect(push).toHaveBeenCalledWith("/trips/tuscany-f/plan?stays=1");
+  });
+
+  it("a phone: one search per tap, the rest wait as a dark Next button (6 Oct 2026)", async () => {
+    journey = tuscanyOpen();
+    const opened: string[] = [];
+    vi.stubGlobal("open", vi.fn((url: string) => { opened.push(url); return {} as Window; }));
+    render(<ToBookSection tripId="tuscany-p" />);
+    await flightsReady();
+    await userEvent.click(screen.getByRole("button", { name: "Book 3 on Kayak" }));
+    expect(opened.length).toBe(1);
+    expect(opened[0]).toContain("/flights/");
+    await userEvent.click(screen.getByRole("button", { name: "Next: book car on Kayak" }));
+    expect(opened.length).toBe(2);
+    expect(opened[1]).toContain("/cars/");
+    expect(push).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Next: Where to stay" }));
+    expect(push).toHaveBeenCalledWith("/trips/tuscany-p/map?stays=1");
   });
 
   it("a computer goes to the Plan's Where to stay", async () => {
@@ -283,7 +301,7 @@ describe("Book N on Kayak, and Stays opening Where to stay", () => {
     await userEvent.click(rowOf("stays"));
     expect(onOpenFile).toHaveBeenCalledWith(villa);
     await userEvent.click(within(stays).getByRole("button", { name: "Stays: booked. Change" }));
-    expect(within(stays).getAllByRole("menuitem").map((b) => b.textContent)).toEqual(["Booked", "Not needed", "Where to stay"]);
+    expect(within(stays).getAllByRole("menuitem").map((b) => b.textContent)).toEqual(["Booked", "Not needed", "Not booked yet", "Where to stay"]);
     await userEvent.click(within(stays).getByRole("menuitem", { name: "Where to stay" }));
     expect(push).toHaveBeenCalledWith("/trips/tuscany-m/map?stays=1");
   });
@@ -299,18 +317,19 @@ describe("Book N on Kayak, and Stays opening Where to stay", () => {
     expect(rowOf("flights").textContent).toBe("FlightsMarked booked›");
   });
 
-  it("an iPhone that blocks the second tab: the rest wait as a Next button, one tap each", async () => {
+  it("a computer that blocks the second tab: the rest wait as a Next button, one tap each", async () => {
     journey = tuscanyOpen();
+    vi.stubGlobal("matchMedia", (q: string) => ({ matches: q === "(min-width: 768px)" }));
     let n = 0;
     vi.stubGlobal("open", vi.fn(() => (n++ === 0 ? ({} as Window) : null)));
     render(<ToBookSection tripId="tuscany-j" />);
     await flightsReady();
     await userEvent.click(screen.getByRole("button", { name: "Book 3 on Kayak" }));
     expect(push).not.toHaveBeenCalled();
-    const next = screen.getByRole("button", { name: "Next: Car ↗" });
+    const next = screen.getByRole("button", { name: "Next: book car on Kayak" });
     vi.stubGlobal("open", vi.fn(() => ({}) as Window));
     await userEvent.click(next);
-    expect(push).toHaveBeenCalledWith("/trips/tuscany-j/map?stays=1");
+    expect(push).toHaveBeenCalledWith("/trips/tuscany-j/plan?stays=1");
     expect(screen.queryByRole("button", { name: /^Next/ })).toBeNull();
   });
 });
@@ -346,5 +365,17 @@ describe("What did it cost?", () => {
     expect(screen.queryByTestId("to-book-cost")).toBeNull();
     expect(queuedUpdate).toHaveBeenCalledTimes(1);
     expect(rowOf("car").textContent).toBe("CarMarked booked›");
+  });
+});
+
+describe("Not booked yet (6 Oct 2026: it didn't let me clear my stays)", () => {
+  it("an automatic tick can be set back to ○, and Clear returns it to automatic", async () => {
+    journey = J_("Tuscany");
+    render(<ToBookSection tripId="tuscany-q" />);
+    const stays = await screen.findByTestId("to-book-stays");
+    expect(stays.dataset.state).toBe("booked");
+    await userEvent.click(within(stays).getByRole("button", { name: /^Stays: booked/ }));
+    await userEvent.click(within(stays).getByRole("menuitem", { name: "Not booked yet" }));
+    await waitFor(() => expect(screen.getByTestId("to-book-stays").dataset.state).toBe("open"));
   });
 });
