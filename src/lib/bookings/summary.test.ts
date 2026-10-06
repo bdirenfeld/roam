@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { bookingLines, range, type BookingCard } from "./summary";
+import { bookingLines, isRentalCar, range, type BookingCard } from "./summary";
 
 // Days and cards shaped as the database holds them (1 Oct 2026).
 const daysFrom = (start: string, n: number) => Array.from({ length: n }, (_, i) => ({ id: `d${i}`, date: new Date(Date.parse(start + "T12:00:00Z") + i * 86_400_000).toISOString().slice(0, 10) }));
@@ -59,5 +59,14 @@ describe("the Bookings row's lines", () => {
   it("ranges read in one month or across two", () => {
     expect(range("2026-04-22", "2026-04-24")).toBe("22–24 Apr");
     expect(range("2027-08-24", "2027-09-04")).toBe("24 Aug – 4 Sep");
+  });
+});
+
+describe("isRentalCar (shared with the To book checklist)", () => {
+  it("is the reader's pick-up card: a drop-off date, or the 'Pick up rental car' title", () => {
+    expect(isRentalCar({ details: { drop_off: "2027-09-04" } })).toBe(true);
+    expect(isRentalCar({ details: { title: "Pick up rental car · Hertz" } })).toBe(true);
+    expect(isRentalCar({ details: { title: "Return the rental car" } })).toBe(false);
+    expect(isRentalCar({ details: null })).toBe(false);
   });
 });

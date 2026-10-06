@@ -1,0 +1,3002 @@
+[
+ {
+  "id": "a057a11a-0000-4000-a000-000000000002",
+  "title": "Australia",
+  "trip": {
+   "destination": "Sydney, NSW, Australia",
+   "start_date": "2026-02-15",
+   "end_date": "2026-02-20",
+   "party_size": 3,
+   "party_ages": [
+    41,
+    71,
+    8
+   ],
+   "booking_checklist": {}
+  },
+  "home": {
+   "airport": "YYZ",
+   "country": "Canada"
+  },
+  "days": [
+   {
+    "id": "c36cc28d-b1d4-4e66-9ebd-2e1dba004c49",
+    "date": "2026-02-15"
+   },
+   {
+    "id": "2775ae25-6de0-4ae4-848a-aac22024370e",
+    "date": "2026-02-16"
+   },
+   {
+    "id": "4f7e3ed4-5260-4ccc-aa37-65cc6ca0200e",
+    "date": "2026-02-17"
+   },
+   {
+    "id": "aef0cd38-c5be-43d7-a6fc-d802f95b60a2",
+    "date": "2026-02-18"
+   },
+   {
+    "id": "41b25634-ed6c-4bf6-9ccc-849e41815273",
+    "date": "2026-02-19"
+   },
+   {
+    "id": "1869e039-e7af-43d6-b0be-a416fc09cc49",
+    "date": "2026-02-20"
+   }
+  ],
+  "birthdates": [],
+  "cards": [
+   {
+    "id": "06132d65-bb20-40bc-ade9-049f4956107d",
+    "day_id": "aef0cd38-c5be-43d7-a6fc-d802f95b60a2",
+    "place_id": "51e4a6c3-8bc2-490c-a91f-a429fe7dd310",
+    "status": "in_itinerary",
+    "start_time": "09:30:00",
+    "end_time": "15:00:00",
+    "details": {
+     "title": "Manly Beach and the ferry"
+    },
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Manly Beach",
+     "address": "Manly Beach, New South Wales, Australia"
+    }
+   },
+   {
+    "id": "176c3f1b-22f2-4df1-bbba-e6d9f33ee236",
+    "day_id": "2775ae25-6de0-4ae4-848a-aac22024370e",
+    "place_id": null,
+    "status": "in_itinerary",
+    "start_time": "16:15:00",
+    "end_time": "16:45:00",
+    "details": {
+     "title": "Hotel reset (non-negotiable)"
+    },
+    "place": null
+   },
+   {
+    "id": "2a11303d-6c9d-4e3f-8e66-336adffeb29a",
+    "day_id": "aef0cd38-c5be-43d7-a6fc-d802f95b60a2",
+    "place_id": "49a078c2-42ac-4140-a79c-f9ae0dae66fe",
+    "status": "in_itinerary",
+    "start_time": "17:30:00",
+    "end_time": null,
+    "details": {
+     "title": "Dinner at Pellegrino 2000"
+    },
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Pellegrino 2000",
+     "address": "80 Campbell St, Surry Hills NSW 2010, Australia"
+    }
+   },
+   {
+    "id": "310da88a-8977-44a7-a170-3eba4a30cf92",
+    "day_id": "2775ae25-6de0-4ae4-848a-aac22024370e",
+    "place_id": "59d37422-a3b1-46c6-ab09-4ec541a22f41",
+    "status": "in_itinerary",
+    "start_time": "15:00:00",
+    "end_time": "16:15:00",
+    "details": {
+     "title": "Darling Harbour playground"
+    },
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Darling Quarter Playground",
+     "address": "1/25 Harbour St, Sydney NSW 2000, Australia"
+    }
+   },
+   {
+    "id": "312b2e17-6847-44c8-bb4f-62740138d0d9",
+    "day_id": "4f7e3ed4-5260-4ccc-aa37-65cc6ca0200e",
+    "place_id": "9b061bdc-87ce-4408-8402-256185be1e16",
+    "status": "in_itinerary",
+    "start_time": "08:30:00",
+    "end_time": "13:30:00",
+    "details": {
+     "title": "Luna Park"
+    },
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Luna Park Sydney",
+     "address": "1 Olympic Dr, Milsons Point NSW 2061, Australia"
+    }
+   },
+   {
+    "id": "39c80b2e-d74d-4ae4-a1b6-425bdf5a9a05",
+    "day_id": "41b25634-ed6c-4bf6-9ccc-849e41815273",
+    "place_id": "c892d9f9-828b-4e7a-bf98-f3f4e231a54d",
+    "status": "in_itinerary",
+    "start_time": "13:00:00",
+    "end_time": "17:00:00",
+    "details": {
+     "title": "Featherdale Wildlife Park"
+    },
+    "place": {
+     "sub_type": "guided",
+     "title": "Featherdale Sydney Wildlife Park",
+     "address": "217 Kildare Rd, Doonside NSW 2767, Australia"
+    }
+   },
+   {
+    "id": "3e48b2c5-955e-4f29-a98d-23a92b8bf7b9",
+    "day_id": "c36cc28d-b1d4-4e66-9ebd-2e1dba004c49",
+    "place_id": "b0000000-0000-4000-a000-000000000004",
+    "status": "in_itinerary",
+    "start_time": "09:30:00",
+    "end_time": "10:15:00",
+    "details": {
+     "title": "Bondi Beach look-around"
+    },
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Bondi Beach",
+     "address": "Bondi Beach NSW, Australia"
+    }
+   },
+   {
+    "id": "427a58f7-bc8b-4b6b-a93a-96e1855dfb28",
+    "day_id": "1869e039-e7af-43d6-b0be-a416fc09cc49",
+    "place_id": "4646c4bd-2bb1-4805-a424-60a53a827793",
+    "status": "in_itinerary",
+    "start_time": "14:00:00",
+    "end_time": null,
+    "details": {
+     "title": "Fly home to Toronto"
+    },
+    "place": {
+     "sub_type": "flight_arrival",
+     "title": "Sydney Kingsford Smith Airport",
+     "address": "Mascot NSW 2020, Australia"
+    }
+   },
+   {
+    "id": "5e83667d-2697-495d-bc68-7b0eb911fff7",
+    "day_id": "2775ae25-6de0-4ae4-848a-aac22024370e",
+    "place_id": "b0000000-0000-4000-a000-000000000005",
+    "status": "in_itinerary",
+    "start_time": "13:30:00",
+    "end_time": "14:45:00",
+    "details": {
+     "title": "The Rocks"
+    },
+    "place": {
+     "sub_type": "self_directed",
+     "title": "The Rocks",
+     "address": "The Rocks, Sydney NSW, Australia"
+    }
+   },
+   {
+    "id": "6e03479f-0034-4edd-8bdd-ded706410ec3",
+    "day_id": "41b25634-ed6c-4bf6-9ccc-849e41815273",
+    "place_id": "88904db9-4548-404a-b393-24af8c2521d4",
+    "status": "in_itinerary",
+    "start_time": "19:15:00",
+    "end_time": null,
+    "details": {
+     "title": "Dinner at Fred's"
+    },
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Fred's",
+     "address": "380 Oxford St, Paddington NSW 2021, Australia"
+    }
+   },
+   {
+    "id": "6e11882d-e095-48a7-8c34-54f57a814bec",
+    "day_id": "c36cc28d-b1d4-4e66-9ebd-2e1dba004c49",
+    "place_id": "e5a11733-638a-41b3-ae66-e9715b7fbecb",
+    "status": "in_itinerary",
+    "start_time": "17:30:00",
+    "end_time": null,
+    "details": {
+     "title": "Dinner at Ho Jiak Town Hall"
+    },
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Ho Jiak Town Hall",
+     "address": "125 York St, Sydney NSW 2000, Australia"
+    }
+   },
+   {
+    "id": "7293e442-41e6-4a05-b8c4-bfc26d655d62",
+    "day_id": "2775ae25-6de0-4ae4-848a-aac22024370e",
+    "place_id": "8c42abd1-751b-42f0-b5f6-de7dfa491077",
+    "status": "in_itinerary",
+    "start_time": "19:00:00",
+    "end_time": null,
+    "details": {
+     "title": "Opera House lit up"
+    },
+    "place": {
+     "sub_type": "guided",
+     "title": "Sydney Opera House",
+     "address": "Bennelong Point, Sydney NSW 2000, Australia"
+    }
+   },
+   {
+    "id": "75c03841-ef5e-4653-ba74-09bc3921910b",
+    "day_id": "4f7e3ed4-5260-4ccc-aa37-65cc6ca0200e",
+    "place_id": "7c4b8374-bfb0-4a1f-a0bd-91493a581f71",
+    "status": "in_itinerary",
+    "start_time": "17:30:00",
+    "end_time": null,
+    "details": {
+     "title": "Dinner at Mr. Wong"
+    },
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Mr. Wong",
+     "address": "3 Bridge Ln, Sydney NSW 2000, Australia"
+    }
+   },
+   {
+    "id": "8e7ee9eb-a7d5-41f0-85ea-4883fb12a032",
+    "day_id": "c36cc28d-b1d4-4e66-9ebd-2e1dba004c49",
+    "place_id": null,
+    "status": "in_itinerary",
+    "start_time": null,
+    "end_time": null,
+    "details": {
+     "title": "Down time at the hotel"
+    },
+    "place": null
+   },
+   {
+    "id": "92d070ae-ba6c-42b1-a8f1-a16780be3d39",
+    "day_id": "c36cc28d-b1d4-4e66-9ebd-2e1dba004c49",
+    "place_id": "4646c4bd-2bb1-4805-a424-60a53a827793",
+    "status": "in_itinerary",
+    "start_time": "07:00:00",
+    "end_time": "09:30:00",
+    "details": {
+     "title": "Land in Sydney"
+    },
+    "place": {
+     "sub_type": "flight_arrival",
+     "title": "Sydney Kingsford Smith Airport",
+     "address": "Mascot NSW 2020, Australia"
+    }
+   },
+   {
+    "id": "aa9796cc-4dec-4cf2-9f69-7bdb953861c7",
+    "day_id": "2775ae25-6de0-4ae4-848a-aac22024370e",
+    "place_id": "307f0242-fb4e-4cbb-8a84-04fe8331366f",
+    "status": "in_itinerary",
+    "start_time": "09:30:00",
+    "end_time": "12:30:00",
+    "details": {
+     "title": "Barangaroo Reserve and Observatory Hill"
+    },
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Barangaroo Reserve",
+     "address": "Hickson Rd, Barangaroo NSW 2000, Australia"
+    }
+   },
+   {
+    "id": "af2e7875-6aa8-4c4e-8132-155644898bdd",
+    "day_id": "c36cc28d-b1d4-4e66-9ebd-2e1dba004c49",
+    "place_id": "d3f155cd-ae37-407a-be31-74623e886d57",
+    "status": "in_itinerary",
+    "start_time": "10:30:00",
+    "end_time": "13:30:00",
+    "details": {
+     "title": "Swim at Bronte Baths"
+    },
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Bronte Baths",
+     "address": "Bronte Rd, Bronte NSW 2024, Australia"
+    }
+   },
+   {
+    "id": "bd8b2792-d60c-4070-b4f3-11f99ee5cc57",
+    "day_id": "2775ae25-6de0-4ae4-848a-aac22024370e",
+    "place_id": "ce21e3f1-2dc4-4eaa-83f9-9f9283930d3b",
+    "status": "in_itinerary",
+    "start_time": "17:30:00",
+    "end_time": null,
+    "details": {
+     "title": "Dinner at Lotus Dumpling Bar"
+    },
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Lotus Dumpling Bar Circular Quay",
+     "address": "Access on Young St, 50 Bridge St, Sydney NSW 2000, Australia"
+    }
+   },
+   {
+    "id": "cb0596cf-0fad-4d99-9a49-11291e927777",
+    "day_id": "41b25634-ed6c-4bf6-9ccc-849e41815273",
+    "place_id": "9b205478-a850-46d9-bbd5-c9f8f4b0b749",
+    "status": "in_itinerary",
+    "start_time": "11:00:00",
+    "end_time": "12:30:00",
+    "details": {
+     "title": "Royal Botanic Garden walk"
+    },
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Royal Botanic Garden Sydney",
+     "address": "Mrs Macquaries Rd, Sydney NSW 2000, Australia"
+    }
+   },
+   {
+    "id": "e862827e-0ab3-4d7a-9f1c-ba32f4e234eb",
+    "day_id": "41b25634-ed6c-4bf6-9ccc-849e41815273",
+    "place_id": "8c42abd1-751b-42f0-b5f6-de7dfa491077",
+    "status": "in_itinerary",
+    "start_time": "09:30:00",
+    "end_time": "11:00:00",
+    "details": {
+     "title": "Sydney Opera House tour"
+    },
+    "place": {
+     "sub_type": "guided",
+     "title": "Sydney Opera House",
+     "address": "Bennelong Point, Sydney NSW 2000, Australia"
+    }
+   },
+   {
+    "id": "e953523f-d30d-4d01-a4a4-fefa8f847b9d",
+    "day_id": "4f7e3ed4-5260-4ccc-aa37-65cc6ca0200e",
+    "place_id": null,
+    "status": "in_itinerary",
+    "start_time": null,
+    "end_time": null,
+    "details": {
+     "title": "Rest and relax"
+    },
+    "place": null
+   },
+   {
+    "id": "f8a0df41-753b-47ba-a442-800988486986",
+    "day_id": "2775ae25-6de0-4ae4-848a-aac22024370e",
+    "place_id": "b17698e9-d647-46ca-a970-6e7b384cf923",
+    "status": "in_itinerary",
+    "start_time": "12:30:00",
+    "end_time": "13:15:00",
+    "details": {
+     "title": "Lunch at Bourke Street Bakery"
+    },
+    "place": {
+     "sub_type": "coffee",
+     "title": "Bourke Street Bakery Barangaroo",
+     "address": "Unit 4/23 Barangaroo Ave, Barangaroo NSW 2000, Australia"
+    }
+   }
+  ]
+ },
+ {
+  "id": "34579915-0214-463e-86b4-50d7a2850580",
+  "title": "Japan",
+  "trip": {
+   "destination": "Tokyo, Japan",
+   "start_date": "2028-04-02",
+   "end_date": "2028-04-15",
+   "party_size": 5,
+   "party_ages": [
+    43,
+    41,
+    10,
+    8,
+    5
+   ],
+   "booking_checklist": {}
+  },
+  "home": {
+   "airport": "YYZ",
+   "country": "Canada"
+  },
+  "days": [
+   {
+    "id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "date": "2028-04-02"
+   },
+   {
+    "id": "f695eb72-93a7-46a3-9a16-fe7f825c41ba",
+    "date": "2028-04-03"
+   },
+   {
+    "id": "6f063281-457d-4b78-8830-2352fa4a90d8",
+    "date": "2028-04-04"
+   },
+   {
+    "id": "5c30dbdf-3753-4186-b313-de8893895c88",
+    "date": "2028-04-05"
+   },
+   {
+    "id": "014416e6-8f66-4113-9638-0338b5f601d7",
+    "date": "2028-04-06"
+   },
+   {
+    "id": "94146558-8ec8-4bd3-95ba-4ad7a4261f9f",
+    "date": "2028-04-07"
+   },
+   {
+    "id": "96ecf273-3651-4cf8-86ec-dd151e180331",
+    "date": "2028-04-08"
+   },
+   {
+    "id": "0a995bf7-b314-4ee5-b96b-84d961097cec",
+    "date": "2028-04-09"
+   },
+   {
+    "id": "0d0ad170-c3a0-4b7d-b717-e6f03a5bfd92",
+    "date": "2028-04-10"
+   },
+   {
+    "id": "c727b656-377a-4d56-bedb-429285a99718",
+    "date": "2028-04-11"
+   },
+   {
+    "id": "5a01e6f4-7bf3-490f-a85b-ca21450b933f",
+    "date": "2028-04-12"
+   },
+   {
+    "id": "6c09528e-bba5-4323-b587-af2d997439a3",
+    "date": "2028-04-13"
+   },
+   {
+    "id": "f2089ceb-d906-4401-916d-506f183738c9",
+    "date": "2028-04-14"
+   },
+   {
+    "id": "b8636fd7-8267-4f87-ab13-ced3f790cd36",
+    "date": "2028-04-15"
+   }
+  ],
+  "birthdates": [],
+  "cards": [
+   {
+    "id": "03650daf-2b16-45b9-9aee-da31db654b0e",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "2226bcb0-1147-4e0a-9e0b-5c70acd1f4f2",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "hotel",
+     "title": "Asaba Ryokan",
+     "address": "3450-1 Shuzenji, Izu, Shizuoka 410-2416, Japan"
+    }
+   },
+   {
+    "id": "066d2b26-028e-4d09-a1d1-5ff70541486b",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "26795f15-3e67-4202-9df4-b751a8ecca98",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Super Nintendo World",
+     "address": "2-chōme-1-33 Sakurajima, Konohana Ward, Osaka, 554-0031, Japan"
+    }
+   },
+   {
+    "id": "0cf7aef0-5a64-4d16-8140-cc21a0644af7",
+    "day_id": "f695eb72-93a7-46a3-9a16-fe7f825c41ba",
+    "place_id": "75625df1-2c42-459a-b5f5-8fb1e042cb4d",
+    "status": "in_itinerary",
+    "start_time": "19:30:00",
+    "end_time": "20:45:00",
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Shodai",
+     "address": "Japan, 〒150-0022 Tokyo, Shibuya, Ebisuminami, 1-chōme−1−１０ South Column Kobayashi, 1F"
+    }
+   },
+   {
+    "id": "13cbbb72-13cb-4752-8e3b-580fd926d71f",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "af4796b0-a9f4-48cf-81f2-3f18c734d2cb",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "bar",
+     "title": "A10",
+     "address": "Japan, 〒150-0021 Tokyo, Shibuya, Ebisunishi, 1-chōme−12−１１ Biosビル 地下1階"
+    }
+   },
+   {
+    "id": "26c091d1-36b0-4f96-86ca-5332614fe391",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "7a05ff13-7587-4d21-9070-34fdc5185e59",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Takachiho Gorge",
+     "address": "Mukoyama, Takachiho, Nishiusuki District, Miyazaki 882-1103, Japan"
+    }
+   },
+   {
+    "id": "27c90f6a-3ef7-431f-a456-b31468814d2a",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "465be922-1f93-4e54-84bc-e4a86e6e3939",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Kitan Hibiki",
+     "address": "1-chōme-1-7 Namba, Chuo Ward, Osaka, 542-0076, Japan"
+    }
+   },
+   {
+    "id": "33a7caf9-0e8d-4fa6-ada2-833dcfcbeb8e",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "2bba884e-3341-4b7a-a8ce-d418f03d74a6",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "coffee",
+     "title": "”Kyoshu” Traditional Coffee Shop",
+     "address": "107 Ogimachi, Shirakawa, Ono District, Gifu 501-5627, Japan"
+    }
+   },
+   {
+    "id": "39ad5326-162d-4043-99c9-8c683f715f58",
+    "day_id": "0d0ad170-c3a0-4b7d-b717-e6f03a5bfd92",
+    "place_id": "26795f15-3e67-4202-9df4-b751a8ecca98",
+    "status": "in_itinerary",
+    "start_time": "09:45:00",
+    "end_time": "16:45:00",
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Super Nintendo World",
+     "address": "2-chōme-1-33 Sakurajima, Konohana Ward, Osaka, 554-0031, Japan"
+    }
+   },
+   {
+    "id": "3ff27183-4b0e-49d6-aa96-3aa7c4ce7dde",
+    "day_id": "f695eb72-93a7-46a3-9a16-fe7f825c41ba",
+    "place_id": "fc122625-896a-4c1e-a902-a6921e08fd8f",
+    "status": "in_itinerary",
+    "start_time": "14:00:00",
+    "end_time": "15:00:00",
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Kyukyodo",
+     "address": "Japan, 〒104-0061 Tokyo, Chuo City, Ginza, 5-chōme−7−４ 鳩居堂ビル"
+    }
+   },
+   {
+    "id": "403a0987-8204-48ec-ac44-cef445cf60d7",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "ee8d04cf-9c21-48ec-89dd-2b7dbcba4993",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Osaka Tonkatsu (formerly Chiyomatsu)",
+     "address": "1-chōme-1-10 Sennichimae, Chuo Ward, Osaka, 542-0074, Japan"
+    }
+   },
+   {
+    "id": "44262d7e-245d-4a8d-a21a-bc258df942c2",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "1525e66a-56f3-417d-8d7a-35476b3fda6d",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "hotel",
+     "title": "HOSHINOYA Tokyo",
+     "address": "1-chōme-9-1 Ōtemachi, Chiyoda City, Tokyo 100-0004, Japan"
+    }
+   },
+   {
+    "id": "4565a1b4-0619-48f6-8615-185c73305e01",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "8d14ccd8-6fd2-48f5-8760-1e6970b5e296",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "event",
+     "title": "Tokyo DisneySea",
+     "address": "1-13 Maihama, Urayasu, Chiba 279-8511, Japan"
+    }
+   },
+   {
+    "id": "457bb715-d310-4d23-9417-0cc3b9d0f911",
+    "day_id": "6c09528e-bba5-4323-b587-af2d997439a3",
+    "place_id": "8f2303f1-64a5-4b0d-acf8-f4161b601b08",
+    "status": "in_itinerary",
+    "start_time": "09:45:00",
+    "end_time": "16:45:00",
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Takayama",
+     "address": "Takayama, Gifu, Japan"
+    }
+   },
+   {
+    "id": "4612dce7-0a15-4ef0-943b-7d0b644c8784",
+    "day_id": "5c30dbdf-3753-4186-b313-de8893895c88",
+    "place_id": "c2fd3b1e-9856-45f3-8387-047e05a4f16c",
+    "status": "in_itinerary",
+    "start_time": "11:00:00",
+    "end_time": "11:45:00",
+    "details": {},
+    "place": {
+     "sub_type": "coffee",
+     "title": "Capy Neko Cafe Kichijoji",
+     "address": "Japan, 〒180-0003 Tokyo, Musashino, Kichijōji Minamichō, 1-chōme−5−１０ PLATANO 2階"
+    }
+   },
+   {
+    "id": "49e88dd6-c009-4b90-a329-b7367f6ee758",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "651a9f98-ec59-43fc-b2ff-42bffac86178",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "guided",
+     "title": "Shichirigahama",
+     "address": "Shichirigahama, 2 Chome-1 Shichirigahamahigashi, Kamakura, Kanagawa 248-0025, Japan"
+    }
+   },
+   {
+    "id": "4a5cf893-13f9-4d2d-8546-398f52fcd3eb",
+    "day_id": "f695eb72-93a7-46a3-9a16-fe7f825c41ba",
+    "place_id": "af4796b0-a9f4-48cf-81f2-3f18c734d2cb",
+    "status": "in_itinerary",
+    "start_time": "21:00:00",
+    "end_time": "22:30:00",
+    "details": {},
+    "place": {
+     "sub_type": "bar",
+     "title": "A10",
+     "address": "Japan, 〒150-0021 Tokyo, Shibuya, Ebisunishi, 1-chōme−12−１１ Biosビル 地下1階"
+    }
+   },
+   {
+    "id": "4bee56ff-3213-4eb1-b951-19831dd05ec0",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "c5125070-5d4b-400f-b43b-556cfc92fb2b",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Murou Art Forest",
+     "address": "181 Murou, Uda, Nara 633-0421, Japan"
+    }
+   },
+   {
+    "id": "4cb1e3be-4d14-4547-9ffb-aba4e251305c",
+    "day_id": "0d0ad170-c3a0-4b7d-b717-e6f03a5bfd92",
+    "place_id": "b4079c9f-39b3-40b1-ac4c-3a8f11979acd",
+    "status": "in_itinerary",
+    "start_time": "09:45:00",
+    "end_time": "16:45:00",
+    "details": {},
+    "place": {
+     "sub_type": "event",
+     "title": "Universal Studios Japan",
+     "address": "2-chōme-1-33 Sakurajima, Konohana Ward, Osaka, 554-0031, Japan"
+    }
+   },
+   {
+    "id": "53480897-17d0-424f-b357-4edfb5b5d2e5",
+    "day_id": "c727b656-377a-4d56-bedb-429285a99718",
+    "place_id": "6f993f81-da99-4c3e-8428-3992e470db0a",
+    "status": "in_itinerary",
+    "start_time": "09:45:00",
+    "end_time": "12:15:00",
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Kiyomizu-dera",
+     "address": "1-chōme-294 Kiyomizu, Higashiyama Ward, Kyoto, 605-0862, Japan"
+    }
+   },
+   {
+    "id": "5a314245-1336-4e2d-9d75-d54d33b9e88f",
+    "day_id": "f695eb72-93a7-46a3-9a16-fe7f825c41ba",
+    "place_id": "a2817dfb-ad9e-4ea4-8056-bd55f81272d4",
+    "status": "in_itinerary",
+    "start_time": "12:30:00",
+    "end_time": "13:45:00",
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Gonpachi Nishi-Azabu",
+     "address": "1-chōme-13-11 Nishiazabu, Minato City, Tokyo 106-0031, Japan"
+    }
+   },
+   {
+    "id": "5b1e4f33-28f0-4572-a0d8-2e6389d2505d",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "771a85c5-4a57-42e7-8931-9eb97ef6e084",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "coffee",
+     "title": "Kayaba Coffee",
+     "address": "6-chōme-1-29 Yanaka, Taito City, Tokyo 110-0001, Japan"
+    }
+   },
+   {
+    "id": "5ba10114-561f-4b97-9bfe-a4000754e239",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "42123ec6-0506-42d2-bd23-9476bc453ae8",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "bar",
+     "title": "Bar Centifolia",
+     "address": "Japan, 〒106-0045 Tokyo, Minato City, Azabujūban, 1-chōme−6−５ ラミューズ麻布十番ビル 6F"
+    }
+   },
+   {
+    "id": "5bed6774-8955-42b1-b35f-2d5530f89ee3",
+    "day_id": "f2089ceb-d906-4401-916d-506f183738c9",
+    "place_id": "4b1efd61-46e6-4de9-9263-6c734b852cbf",
+    "status": "in_itinerary",
+    "start_time": "09:45:00",
+    "end_time": "11:15:00",
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Kenroku-en",
+     "address": "1 Kenrokumachi, Kanazawa, Ishikawa 920-0936, Japan"
+    }
+   },
+   {
+    "id": "63442d0c-f5d1-4434-ae1c-048d1aea4cb3",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "6fa5c55c-1558-4e57-b20e-7594e57fa3c0",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Shiratani Unsuikyo Gorge",
+     "address": "Miyanoura, Yakushima, Kumage District, Kagoshima 891-4200, Japan"
+    }
+   },
+   {
+    "id": "65300419-1249-40e3-a5f7-1f8cd52840da",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "59b75963-2738-4809-be32-63a870eba9c1",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "coffee",
+     "title": "The Münch",
+     "address": "2-chōme-386 Osakabe, Yao, Osaka 581-0015, Japan"
+    }
+   },
+   {
+    "id": "6885ca1e-6735-493f-bf50-30c411709d98",
+    "day_id": "6f063281-457d-4b78-8830-2352fa4a90d8",
+    "place_id": "8d14ccd8-6fd2-48f5-8760-1e6970b5e296",
+    "status": "in_itinerary",
+    "start_time": "09:45:00",
+    "end_time": "16:45:00",
+    "details": {},
+    "place": {
+     "sub_type": "event",
+     "title": "Tokyo DisneySea",
+     "address": "1-13 Maihama, Urayasu, Chiba 279-8511, Japan"
+    }
+   },
+   {
+    "id": "68b59b07-269c-46c4-a4fb-e2e3fe600647",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "f8690172-dff0-42a2-a840-9c68361e70ee",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Gion Unagi Kawato",
+     "address": "572-27 Gionmachi Minamigawa, Higashiyama Ward, Kyoto, 605-0074, Japan"
+    }
+   },
+   {
+    "id": "6b22685e-f60a-4eb6-a146-8fd4f25ef85c",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "4b1efd61-46e6-4de9-9263-6c734b852cbf",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Kenroku-en",
+     "address": "1 Kenrokumachi, Kanazawa, Ishikawa 920-0936, Japan"
+    }
+   },
+   {
+    "id": "70925c3f-2dcb-4418-bef2-f3a18cf50c32",
+    "day_id": "c727b656-377a-4d56-bedb-429285a99718",
+    "place_id": "f8690172-dff0-42a2-a840-9c68361e70ee",
+    "status": "in_itinerary",
+    "start_time": "12:30:00",
+    "end_time": "13:45:00",
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Gion Unagi Kawato",
+     "address": "572-27 Gionmachi Minamigawa, Higashiyama Ward, Kyoto, 605-0074, Japan"
+    }
+   },
+   {
+    "id": "72168fb1-6c7a-4d5d-9c8f-ab5c5b044620",
+    "day_id": null,
+    "place_id": "f1b7b34a-f493-4352-adfb-598690522845",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "hotel",
+     "title": "Gora Kadan Fuji",
+     "address": "110番地1 Subashiri, Oyama, Sunto District, Shizuoka 410-1431, Japan"
+    }
+   },
+   {
+    "id": "74292d3d-ae5f-460f-a644-8ed40c5d5fe5",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "d32fa092-0aaa-4f05-9c12-077dc15d5cd8",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Uoi Tengo",
+     "address": "5-chōme-5-5 Tenjinbashi, Kita Ward, Osaka, 530-0041, Japan"
+    }
+   },
+   {
+    "id": "75973dae-de66-4697-bddd-ef91ed7ee39f",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "98103e15-ad1c-44ad-9f70-57fa82107cac",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "guided",
+     "title": "KUOE KYOTO Omotesando",
+     "address": "4-chōme-3-17 Jingūmae, Shibuya, Tokyo 150-0001, Japan"
+    }
+   },
+   {
+    "id": "784ca69f-54f8-49c7-bdea-0c32f3d519de",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "b3315d44-e30a-468b-ba23-693032a82910",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Kamakura",
+     "address": "Kamakura, Kanagawa, Japan"
+    }
+   },
+   {
+    "id": "7e1d6489-fc4e-4bf0-8c9b-2688e060b4e4",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "d3a8d1ee-8a3f-4c70-a171-0e9fd4ddc6d2",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Toyo",
+     "address": "3-chōme-2-26 Higashinodamachi, Miyakojima Ward, Osaka, 534-0024, Japan"
+    }
+   },
+   {
+    "id": "8abcbb67-cbc1-41a6-8d74-589931ca92ca",
+    "day_id": "014416e6-8f66-4113-9638-0338b5f601d7",
+    "place_id": "e8bc0f7a-8251-4778-a2c9-6c672230af38",
+    "status": "in_itinerary",
+    "start_time": "10:00:00",
+    "end_time": "17:00:00",
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "PokéPark Kanto",
+     "address": "よみうりランド遊園, 地内-1-4015-1 Yanokuchi, Tama Ward, Inagi, Tokyo 206-8725, Japan"
+    }
+   },
+   {
+    "id": "8f7abfc4-277f-4289-8603-97edf2c7d35d",
+    "day_id": "f695eb72-93a7-46a3-9a16-fe7f825c41ba",
+    "place_id": "98103e15-ad1c-44ad-9f70-57fa82107cac",
+    "status": "in_itinerary",
+    "start_time": "11:00:00",
+    "end_time": "12:00:00",
+    "details": {},
+    "place": {
+     "sub_type": "guided",
+     "title": "KUOE KYOTO Omotesando",
+     "address": "4-chōme-3-17 Jingūmae, Shibuya, Tokyo 150-0001, Japan"
+    }
+   },
+   {
+    "id": "95c28f99-4498-4a71-b04b-b6b7ae4dc7b1",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "bf92dcce-24ec-482e-8977-7cc6435712c0",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Ghibli Museum",
+     "address": "1-chōme-1-83 Shimorenjaku, Mitaka, Tokyo 181-0013, Japan"
+    }
+   },
+   {
+    "id": "962ae7e1-aa67-4599-87db-16a1fe1aa8c2",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "234a5e6e-3662-4377-98c3-87477207c9af",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Yakushima Island",
+     "address": "Yakushima Island, Yakushima, Kumage District, Kagoshima, Japan"
+    }
+   },
+   {
+    "id": "9a50c5c0-97dd-4dc1-bdc0-4d91d767cf68",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "771a85c5-4a57-42e7-8931-9eb97ef6e084",
+    "status": "in_itinerary",
+    "start_time": "09:00:00",
+    "end_time": "09:45:00",
+    "details": {},
+    "place": {
+     "sub_type": "coffee",
+     "title": "Kayaba Coffee",
+     "address": "6-chōme-1-29 Yanaka, Taito City, Tokyo 110-0001, Japan"
+    }
+   },
+   {
+    "id": "a03a81a8-7d29-4712-b1f6-62d167ab28ee",
+    "day_id": "94146558-8ec8-4bd3-95ba-4ad7a4261f9f",
+    "place_id": "651a9f98-ec59-43fc-b2ff-42bffac86178",
+    "status": "in_itinerary",
+    "start_time": "09:45:00",
+    "end_time": "11:15:00",
+    "details": {},
+    "place": {
+     "sub_type": "guided",
+     "title": "Shichirigahama",
+     "address": "Shichirigahama, 2 Chome-1 Shichirigahamahigashi, Kamakura, Kanagawa 248-0025, Japan"
+    }
+   },
+   {
+    "id": "a22f2b2b-9a35-4de9-a77b-9c58f6bc17e7",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "8eef2a31-7c93-47bd-a1f5-46f460ff1763",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Wagyu IDATEN",
+     "address": "Japan, 〒542-0076 Osaka, Chuo Ward, Namba, 1-chōme−8−２０ 嘉光ビル 2階"
+    }
+   },
+   {
+    "id": "b32f2e9b-ce0c-4e74-a742-224af3aa8783",
+    "day_id": null,
+    "place_id": "2226bcb0-1147-4e0a-9e0b-5c70acd1f4f2",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "hotel",
+     "title": "Asaba Ryokan",
+     "address": "3450-1 Shuzenji, Izu, Shizuoka 410-2416, Japan"
+    }
+   },
+   {
+    "id": "b9b4725a-9211-476d-83d0-4a6ea3b43930",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "71254cfb-80bf-4283-8f48-ca63a5e30f42",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Adachi Museum of Art",
+     "address": "320 Furukawachō, Yasugi, Shimane 692-0064, Japan"
+    }
+   },
+   {
+    "id": "c2942740-825c-41f9-8f83-d8a54caf780f",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "c2fd3b1e-9856-45f3-8387-047e05a4f16c",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "coffee",
+     "title": "Capy Neko Cafe Kichijoji",
+     "address": "Japan, 〒180-0003 Tokyo, Musashino, Kichijōji Minamichō, 1-chōme−5−１０ PLATANO 2階"
+    }
+   },
+   {
+    "id": "c5c62fd9-6c12-4790-97a6-673fdd14ec6a",
+    "day_id": "94146558-8ec8-4bd3-95ba-4ad7a4261f9f",
+    "place_id": "b3315d44-e30a-468b-ba23-693032a82910",
+    "status": "in_itinerary",
+    "start_time": "12:15:00",
+    "end_time": "17:30:00",
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Kamakura",
+     "address": "Kamakura, Kanagawa, Japan"
+    }
+   },
+   {
+    "id": "cc9799f3-1ff6-4e73-a026-e3e26bf9302e",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "ba41fe04-4da6-47f6-802c-5c29996a4d63",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Jigokudani Monkey Park",
+     "address": "6845 Hirao, Yamanouchi, Shimotakai District, Nagano 381-0401, Japan"
+    }
+   },
+   {
+    "id": "cdcfaacf-6219-4dd0-9cac-92adb7fc2670",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "a5d691e7-69d0-414f-89b4-66165fdcdf6b",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "bar",
+     "title": "Bar Benfiddich",
+     "address": "Japan, 〒160-0023 Tokyo, Shinjuku City, Nishishinjuku, 1-chōme−13−７ 9F"
+    }
+   },
+   {
+    "id": "d39d2131-1c9f-490b-b52e-2859cbb9f70a",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "22dac266-75c2-40cc-bb3c-1013d7d82ff8",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Kanazawa",
+     "address": "Kanazawa, Ishikawa, Japan"
+    }
+   },
+   {
+    "id": "d45435a5-30bd-4394-ab3c-c10af4c9c32e",
+    "day_id": "5c30dbdf-3753-4186-b313-de8893895c88",
+    "place_id": "bf92dcce-24ec-482e-8977-7cc6435712c0",
+    "status": "in_itinerary",
+    "start_time": "12:00:00",
+    "end_time": "14:30:00",
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Ghibli Museum",
+     "address": "1-chōme-1-83 Shimorenjaku, Mitaka, Tokyo 181-0013, Japan"
+    }
+   },
+   {
+    "id": "d859582a-74ff-472d-bfb3-d1f6c3485add",
+    "day_id": "f2089ceb-d906-4401-916d-506f183738c9",
+    "place_id": "22dac266-75c2-40cc-bb3c-1013d7d82ff8",
+    "status": "in_itinerary",
+    "start_time": "11:30:00",
+    "end_time": "16:45:00",
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Kanazawa",
+     "address": "Kanazawa, Ishikawa, Japan"
+    }
+   },
+   {
+    "id": "d9503988-903a-48aa-81ad-de71a5879c72",
+    "day_id": "0a995bf7-b314-4ee5-b96b-84d961097cec",
+    "place_id": "c5125070-5d4b-400f-b43b-556cfc92fb2b",
+    "status": "in_itinerary",
+    "start_time": "10:00:00",
+    "end_time": "12:30:00",
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Murou Art Forest",
+     "address": "181 Murou, Uda, Nara 633-0421, Japan"
+    }
+   },
+   {
+    "id": "da2ba392-c0a4-40ad-a8ce-d7c220e65d6e",
+    "day_id": null,
+    "place_id": "cf5ab239-0a26-4d3d-9d85-7dbfd7ede1e5",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "hotel",
+     "title": "Hamacho Hotel",
+     "address": "3-chōme-20-2 Nihonbashihamachō, Chuo City, Tokyo 103-0007, Japan"
+    }
+   },
+   {
+    "id": "daaa1838-e2c6-46e8-9ed3-ee62e89f4dc5",
+    "day_id": "96ecf273-3651-4cf8-86ec-dd151e180331",
+    "place_id": "316308ee-83f0-4ee1-898c-f17303664b74",
+    "status": "in_itinerary",
+    "start_time": "09:45:00",
+    "end_time": "16:45:00",
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Itō",
+     "address": "Itō, Shizuoka, Japan"
+    }
+   },
+   {
+    "id": "e62aa51a-d30f-4db1-b2a8-606d40d89720",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "47abfd5b-d844-4c21-88fd-8c53b8c28fd4",
+    "status": "in_itinerary",
+    "start_time": "12:00:00",
+    "end_time": "14:30:00",
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Shinimonogurui / personalized stamps",
+     "address": "3-chōme-11-15 Yanaka, Taito City, Tokyo 110-0001, Japan"
+    }
+   },
+   {
+    "id": "ea0e7f9f-1233-4792-99f7-31e763ec1d1c",
+    "day_id": "f695eb72-93a7-46a3-9a16-fe7f825c41ba",
+    "place_id": "be9ca316-4034-4962-8039-055fbdc6c077",
+    "status": "in_itinerary",
+    "start_time": "15:30:00",
+    "end_time": "16:30:00",
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Ginza Itoya",
+     "address": "2-chōme-7-15 Ginza, Chuo City, Tokyo 104-0061, Japan"
+    }
+   },
+   {
+    "id": "f32f202e-8b00-4fb3-8c2a-a524ad0248fc",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "84c51439-b48e-49a3-9237-fb0ceef8f983",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "bar",
+     "title": "The Bellwood",
+     "address": "41-31 Udagawachō, Shibuya, Tokyo 150-0042, Japan"
+    }
+   },
+   {
+    "id": "f8ef1c11-4144-4df2-9ebe-f3e0316e3315",
+    "day_id": "e5959e9c-4de0-4241-8010-2c01ce877d36",
+    "place_id": "da76b720-e6e2-4a81-8e8b-d09cb52a8e31",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "hotel",
+     "title": "Takefue",
+     "address": "5725ｰ1 Manganji, Minamioguni, Aso District, Kumamoto 869-2402, Japan"
+    }
+   }
+  ]
+ },
+ {
+  "id": "f2b8c41e-7d33-4a96-b0e5-3c9d81a7e604",
+  "title": "Last Week of Summer",
+  "trip": {
+   "destination": "Toronto & the GTA",
+   "start_date": "2026-08-31",
+   "end_date": "2026-09-04",
+   "party_size": 5,
+   "party_ages": [
+    42,
+    39,
+    9,
+    7,
+    4
+   ],
+   "booking_checklist": {}
+  },
+  "home": {
+   "airport": "YYZ",
+   "country": "Canada"
+  },
+  "days": [
+   {
+    "id": "2b18e02f-adf8-4887-8a65-70b0d223bfaf",
+    "date": "2026-08-31"
+   },
+   {
+    "id": "026df8ac-1a1c-4cae-b39b-58a9e3a5065f",
+    "date": "2026-09-01"
+   },
+   {
+    "id": "03125393-74f4-4b50-83cc-add400169541",
+    "date": "2026-09-02"
+   },
+   {
+    "id": "1e771f04-b909-44c1-8bb1-b1c1fc8824f9",
+    "date": "2026-09-03"
+   },
+   {
+    "id": "f12a2566-1a3c-4636-92df-ef0aa168073b",
+    "date": "2026-09-04"
+   }
+  ],
+  "birthdates": [],
+  "cards": [
+   {
+    "id": "24339cd2-a7b9-4151-9b6f-a90dfcf5401d",
+    "day_id": "03125393-74f4-4b50-83cc-add400169541",
+    "place_id": "0f15c6ea-c11d-43bd-958e-633c864990ae",
+    "status": "in_itinerary",
+    "start_time": "16:00:00",
+    "end_time": "19:00:00",
+    "details": {
+     "title": "Block party shop — Costco run"
+    },
+    "place": {
+     "sub_type": "grocery",
+     "title": "Costco Wholesale",
+     "address": "100 Billy Bishop Wy, North York, ON M3K 2C8, Canada"
+    }
+   },
+   {
+    "id": "316f6ae0-a774-4fa3-ae4d-46a090cb5735",
+    "day_id": "03125393-74f4-4b50-83cc-add400169541",
+    "place_id": null,
+    "status": "in_itinerary",
+    "start_time": "18:00:00",
+    "end_time": null,
+    "details": {
+     "title": "Nanny here — cut and prep for tomorrow"
+    },
+    "place": null
+   },
+   {
+    "id": "3c95ba69-5738-42df-8982-d14d580bfdc8",
+    "day_id": "1e771f04-b909-44c1-8bb1-b1c1fc8824f9",
+    "place_id": null,
+    "status": "in_itinerary",
+    "start_time": "13:00:00",
+    "end_time": null,
+    "details": {
+     "title": "Finn with the nanny"
+    },
+    "place": null
+   },
+   {
+    "id": "455a8b09-b84a-4e64-b87e-5e1a97cd2a07",
+    "day_id": "2b18e02f-adf8-4887-8a65-70b0d223bfaf",
+    "place_id": "a44e5f59-a38c-4d49-a934-008f30210cec",
+    "status": "in_itinerary",
+    "start_time": "09:15:00",
+    "end_time": "15:15:00",
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Centreville Amusement Park",
+     "address": "9 Queens Quay W, Toronto, ON M5J 2H3, Canada"
+    }
+   },
+   {
+    "id": "6976d9b3-f6fd-48cd-8d7b-fd6bf81791c5",
+    "day_id": "1e771f04-b909-44c1-8bb1-b1c1fc8824f9",
+    "place_id": "c703a349-888a-4863-bfd6-40527b28dfbd",
+    "status": "in_itinerary",
+    "start_time": "09:30:00",
+    "end_time": "11:00:00",
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "G Ross Lord Park",
+     "address": "4801 Dufferin St, North York, ON M3H 5T3, Canada"
+    }
+   },
+   {
+    "id": "7673d472-5090-42fc-94ed-9536748551ef",
+    "day_id": "03125393-74f4-4b50-83cc-add400169541",
+    "place_id": "f810a0e7-fd4d-4bcc-a03b-fa126eb72cee",
+    "status": "in_itinerary",
+    "start_time": "11:00:00",
+    "end_time": "16:00:00",
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Splash Works",
+     "address": "1 Canada's Wonderland Drive, Vaughan, ON L4H 2E8, Canada"
+    }
+   },
+   {
+    "id": "8a29bf0c-0b72-4f2e-8dfa-cabb870df27d",
+    "day_id": null,
+    "place_id": "4c6ebbda-167a-4bf6-86a2-c58322d3e2ec",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "hotel",
+     "title": "Holiday Pet Care",
+     "address": "8234 Yonge St, Thornhill, ON L4J 1W6, Canada"
+    }
+   },
+   {
+    "id": "a02c24c6-d5da-4a09-9408-910af2e2de97",
+    "day_id": "f12a2566-1a3c-4636-92df-ef0aa168073b",
+    "place_id": "20ccfe1e-1009-47d9-b563-fd92ea77da8a",
+    "status": "in_itinerary",
+    "start_time": "11:00:00",
+    "end_time": "13:00:00",
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Earl Bales Park",
+     "address": "4169 Bathurst St, North York, ON M3H 3P7, Canada"
+    }
+   },
+   {
+    "id": "b3d74f53-d586-41a3-8410-e5532bdbe3ad",
+    "day_id": "2b18e02f-adf8-4887-8a65-70b0d223bfaf",
+    "place_id": "c0ffee00-0000-4000-8000-000000000019",
+    "status": "in_itinerary",
+    "start_time": "17:30:00",
+    "end_time": null,
+    "details": {
+     "title": "Bodhi's birthday dinner — his pick"
+    },
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Home — 19 Cedar Springs Grove",
+     "address": "19 Cedar Springs Grove, North York, ON M3H 5L3"
+    }
+   },
+   {
+    "id": "b43dbac3-6cc3-4af7-bd7d-7fc8bd8464c7",
+    "day_id": "1e771f04-b909-44c1-8bb1-b1c1fc8824f9",
+    "place_id": "39d63fc8-9a67-453f-8419-8558d1b2b2b8",
+    "status": "in_itinerary",
+    "start_time": "12:00:00",
+    "end_time": "22:00:00",
+    "details": {},
+    "place": {
+     "sub_type": "event",
+     "title": "Block Party",
+     "address": "7 Bayhampton Ct, North York, ON M3H 5L5, Canada"
+    }
+   },
+   {
+    "id": "ce71d81d-35ba-4ea9-bbc7-f3478c1b2f15",
+    "day_id": "f12a2566-1a3c-4636-92df-ef0aa168073b",
+    "place_id": null,
+    "status": "in_itinerary",
+    "start_time": "10:00:00",
+    "end_time": null,
+    "details": {
+     "title": "Parents visiting — send the grocery list"
+    },
+    "place": null
+   },
+   {
+    "id": "ebf31cfd-3304-4c29-a8c4-b6aa636221d9",
+    "day_id": "026df8ac-1a1c-4cae-b39b-58a9e3a5065f",
+    "place_id": "352dff18-a539-4e45-92d5-253bbebac066",
+    "status": "in_itinerary",
+    "start_time": "10:30:00",
+    "end_time": "15:00:00",
+    "details": {},
+    "place": {
+     "sub_type": "event",
+     "title": "Exhibition Place",
+     "address": "100 Princes' Blvd, Toronto, ON M6K 3C3, Canada"
+    }
+   },
+   {
+    "id": "edde59de-5648-4e91-8e22-6448de31c501",
+    "day_id": "2b18e02f-adf8-4887-8a65-70b0d223bfaf",
+    "place_id": "ee0d93b2-51f9-4593-8752-83ae1a354ed5",
+    "status": "in_itinerary",
+    "start_time": "08:30:00",
+    "end_time": "15:45:00",
+    "details": {
+     "title": "Finn — day at Dog Sense"
+    },
+    "place": {
+     "sub_type": "pet_care",
+     "title": "Dog Sense Day Care & Grooming",
+     "address": "535 Wilson Heights Blvd, North York, ON M3H 2V7, Canada"
+    }
+   },
+   {
+    "id": "f4b225df-da7d-4292-9527-42f262056899",
+    "day_id": "026df8ac-1a1c-4cae-b39b-58a9e3a5065f",
+    "place_id": "ee0d93b2-51f9-4593-8752-83ae1a354ed5",
+    "status": "in_itinerary",
+    "start_time": "09:30:00",
+    "end_time": "15:45:00",
+    "details": {
+     "title": "Finn — day two at Dog Sense"
+    },
+    "place": {
+     "sub_type": "pet_care",
+     "title": "Dog Sense Day Care & Grooming",
+     "address": "535 Wilson Heights Blvd, North York, ON M3H 2V7, Canada"
+    }
+   },
+   {
+    "id": "fa18ea7e-85cb-4f0e-8a8f-b734728e5480",
+    "day_id": "03125393-74f4-4b50-83cc-add400169541",
+    "place_id": "ee0d93b2-51f9-4593-8752-83ae1a354ed5",
+    "status": "in_itinerary",
+    "start_time": "10:30:00",
+    "end_time": "16:15:00",
+    "details": {
+     "title": "Finn — day three at Dog Sense"
+    },
+    "place": {
+     "sub_type": "pet_care",
+     "title": "Dog Sense Day Care & Grooming",
+     "address": "535 Wilson Heights Blvd, North York, ON M3H 2V7, Canada"
+    }
+   }
+  ]
+ },
+ {
+  "id": "95d42aad-1bf2-480b-8e96-987bfacb865a",
+  "title": "New York",
+  "trip": {
+   "destination": "New York City, NY, USA",
+   "start_date": "2026-10-30",
+   "end_date": "2026-11-01",
+   "party_size": 2,
+   "party_ages": [
+    40,
+    40
+   ],
+   "booking_checklist": {}
+  },
+  "home": {
+   "airport": null,
+   "country": null
+  },
+  "days": [
+   {
+    "id": "b48afd62-35b9-4e47-8c37-04755cda39b5",
+    "date": "2026-10-30"
+   },
+   {
+    "id": "853898d8-0759-4de3-9534-c4cf0e72b9a5",
+    "date": "2026-10-31"
+   },
+   {
+    "id": "28385471-8553-4448-be8c-6cf8dc5b9399",
+    "date": "2026-11-01"
+   }
+  ],
+  "birthdates": [],
+  "cards": [
+   {
+    "id": "047ab4be-2414-4506-ad3b-1b187501ec94",
+    "day_id": null,
+    "place_id": "00e1d4f3-aaac-4b99-be4b-b2c0d3e1d849",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "hotel",
+     "title": "Tribeca Hotel FiDi",
+     "address": "102 Greenwich St, New York, NY 10006, USA"
+    }
+   },
+   {
+    "id": "60b0f82e-8514-4096-8a12-a078fa365fc8",
+    "day_id": "28385471-8553-4448-be8c-6cf8dc5b9399",
+    "place_id": "bd327d70-b54f-4bc9-8413-1a0694d66b89",
+    "status": "in_itinerary",
+    "start_time": "12:00:00",
+    "end_time": "13:30:00",
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Marathon",
+     "address": "Marathon, NY 13803, USA"
+    }
+   },
+   {
+    "id": "649a37a2-d29b-42fa-9997-2e48ec7ce136",
+    "day_id": "853898d8-0759-4de3-9534-c4cf0e72b9a5",
+    "place_id": "6ee77df6-19ca-4035-a815-467cb0452600",
+    "status": "in_itinerary",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "guided",
+     "title": "The Museum of Modern Art",
+     "address": "11 W 53rd St, New York, NY 10019, USA"
+    }
+   },
+   {
+    "id": "8b9b2619-b213-4d6c-9a96-11f50c3dcbe1",
+    "day_id": "b48afd62-35b9-4e47-8c37-04755cda39b5",
+    "place_id": "4cb3c11c-6206-414f-9092-66759cd79238",
+    "status": "in_itinerary",
+    "start_time": "19:00:00",
+    "end_time": "20:30:00",
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Brooklyn Academy of Music",
+     "address": "30 Lafayette Ave, Brooklyn, NY 11217, USA"
+    }
+   }
+  ]
+ },
+ {
+  "id": "d1e7efa9-ef70-490a-ba34-1dc74a3e6055",
+  "title": "New York (Mia & Daddy)",
+  "trip": {
+   "destination": "New York, NY, USA",
+   "start_date": "2026-07-23",
+   "end_date": "2026-07-26",
+   "party_size": 2,
+   "party_ages": null,
+   "booking_checklist": {}
+  },
+  "home": {
+   "airport": "YYZ",
+   "country": "Canada"
+  },
+  "days": [
+   {
+    "id": "3566d88c-51ad-4211-aa2e-3b9af0117087",
+    "date": "2026-07-23"
+   },
+   {
+    "id": "0e3682a0-29d6-437e-8c83-fb225fa34246",
+    "date": "2026-07-24"
+   },
+   {
+    "id": "9a249caf-a80b-41d1-bd21-331ef06edb0c",
+    "date": "2026-07-25"
+   },
+   {
+    "id": "d72722e8-ef33-46af-af24-1f2692c45f7a",
+    "date": "2026-07-26"
+   }
+  ],
+  "birthdates": [
+   "1984-04-03",
+   "2019-08-07"
+  ],
+  "cards": [
+   {
+    "id": "07aa5687-a318-4cc6-ab9f-be0a262ad200",
+    "day_id": "3566d88c-51ad-4211-aa2e-3b9af0117087",
+    "place_id": "2381ce8c-f11a-440c-9ff0-18aa79c07bfd",
+    "status": "in_itinerary",
+    "start_time": "19:30:00",
+    "end_time": "20:00:00",
+    "details": {},
+    "place": {
+     "sub_type": "dessert",
+     "title": "Figo il Gelato Italiano",
+     "address": "178 Mulberry St, New York, NY 10012, USA"
+    }
+   },
+   {
+    "id": "0fcf3440-ea6c-4d9a-862e-30e071837385",
+    "day_id": "3566d88c-51ad-4211-aa2e-3b9af0117087",
+    "place_id": "69ef4646-9d96-43c8-99b6-87875669ca7c",
+    "status": "cut",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "coffee",
+     "title": "Sadelle's New York",
+     "address": "463 W Broadway, New York, NY 10012, USA"
+    }
+   },
+   {
+    "id": "2760a9ba-4f8e-4274-aa69-b519b997abcc",
+    "day_id": "3566d88c-51ad-4211-aa2e-3b9af0117087",
+    "place_id": "1d87d74c-9e75-49c6-b98c-ea413c452c27",
+    "status": "in_itinerary",
+    "start_time": "09:20:00",
+    "end_time": "10:55:00",
+    "details": {
+     "arriving_at": "LGA",
+     "arrival_time": "10:55",
+     "departure_time": "09:20",
+     "origin_airport": "YYZ"
+    },
+    "place": {
+     "sub_type": "flight_arrival",
+     "title": "LaGuardia Airport",
+     "address": "East Elmhurst, NY 11371, USA"
+    }
+   },
+   {
+    "id": "3184da38-54b4-4e09-a128-b70eb8684c44",
+    "day_id": "9a249caf-a80b-41d1-bd21-331ef06edb0c",
+    "place_id": "be13030b-5100-4050-8e15-74e1a072b28f",
+    "status": "in_itinerary",
+    "start_time": "14:00:00",
+    "end_time": "16:30:00",
+    "details": {},
+    "place": {
+     "sub_type": "guided",
+     "title": "Milk Bar",
+     "address": "1196 Broadway, New York, NY 10001"
+    }
+   },
+   {
+    "id": "3a010cbd-8eb6-42eb-866c-326db72e6a9c",
+    "day_id": "3566d88c-51ad-4211-aa2e-3b9af0117087",
+    "place_id": "309dc8e3-fe9b-478c-8641-9e2eb64c1637",
+    "status": "cut",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "hotel",
+     "title": "11 Howard",
+     "address": "11 Howard St, New York, NY 10013, USA"
+    }
+   },
+   {
+    "id": "3a4d111c-024e-4918-ba9d-fc442b5eb743",
+    "day_id": "d72722e8-ef33-46af-af24-1f2692c45f7a",
+    "place_id": "50f8a0e8-e527-4960-b6af-232654bed8e6",
+    "status": "in_itinerary",
+    "start_time": "08:30:00",
+    "end_time": "09:30:00",
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Russ & Daughters Cafe",
+     "address": "127 Orchard St, New York, NY 10002, USA"
+    }
+   },
+   {
+    "id": "40d77fc6-d06f-47ae-8413-5ebaa350d9d4",
+    "day_id": "3566d88c-51ad-4211-aa2e-3b9af0117087",
+    "place_id": "e551578d-e688-492f-aafe-058736e2b461",
+    "status": "in_itinerary",
+    "start_time": "15:30:00",
+    "end_time": "17:00:00",
+    "details": {},
+    "place": {
+     "sub_type": "guided",
+     "title": "Sloomoo Institute",
+     "address": "475 Broadway, New York, NY 10013, USA"
+    }
+   },
+   {
+    "id": "4291410c-a3ed-42bc-b972-25c89d454193",
+    "day_id": "9a249caf-a80b-41d1-bd21-331ef06edb0c",
+    "place_id": "be2a2da0-28a9-4f71-a5e3-e183526572db",
+    "status": "in_itinerary",
+    "start_time": "09:30:00",
+    "end_time": "12:30:00",
+    "details": {},
+    "place": {
+     "sub_type": "guided",
+     "title": "Museum of Natural History",
+     "address": "81st Street between Central Park West and Columbus Avenue, New York, NY"
+    }
+   },
+   {
+    "id": "4fc6e234-6bba-436a-8d68-2dfbb7524a36",
+    "day_id": "0e3682a0-29d6-437e-8c83-fb225fa34246",
+    "place_id": "fd4883c7-0c3a-49a8-a511-74d9213cdd4f",
+    "status": "in_itinerary",
+    "start_time": "13:30:00",
+    "end_time": "15:30:00",
+    "details": {},
+    "place": {
+     "sub_type": "guided",
+     "title": "Pearl & The Beast",
+     "address": "22 Howard St basement, New York, NY 10013, USA"
+    }
+   },
+   {
+    "id": "56cd9eaf-3d12-4db9-b076-066cfc4a6398",
+    "day_id": "3566d88c-51ad-4211-aa2e-3b9af0117087",
+    "place_id": "309dc8e3-fe9b-478c-8641-9e2eb64c1637",
+    "status": "in_itinerary",
+    "start_time": "14:00:00",
+    "end_time": "14:30:00",
+    "details": {
+     "check_out": "2026-07-26"
+    },
+    "place": {
+     "sub_type": "hotel",
+     "title": "11 Howard",
+     "address": "11 Howard St, New York, NY 10013, USA"
+    }
+   },
+   {
+    "id": "5fec69ab-1e57-4117-b44f-8e243fac94f8",
+    "day_id": "3566d88c-51ad-4211-aa2e-3b9af0117087",
+    "place_id": "2c83d276-6f4e-497c-9c20-5ba2688511ab",
+    "status": "in_itinerary",
+    "start_time": "18:00:00",
+    "end_time": "19:30:00",
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Rubirosa",
+     "address": "235 Mulberry St, New York, NY 10012, USA"
+    }
+   },
+   {
+    "id": "6759c96a-b96f-4aff-94c3-c4ffd9f966e0",
+    "day_id": "0e3682a0-29d6-437e-8c83-fb225fa34246",
+    "place_id": "031c984a-8ed8-44fd-94f6-89179c297e1d",
+    "status": "in_itinerary",
+    "start_time": "10:30:00",
+    "end_time": "12:30:00",
+    "details": {},
+    "place": {
+     "sub_type": "guided",
+     "title": "Museum of Ice Cream",
+     "address": "558 Broadway, New York, NY 10012, USA"
+    }
+   },
+   {
+    "id": "70966ef8-d520-4f60-b480-37986e62aea5",
+    "day_id": "d72722e8-ef33-46af-af24-1f2692c45f7a",
+    "place_id": "bf8cceb2-08fe-43ec-9d47-bfb7dcfef0f9",
+    "status": "cut",
+    "start_time": "11:40:00",
+    "end_time": "12:10:00",
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Joe's Pizza",
+     "address": "7 Carmine St, New York, NY 10014, USA"
+    }
+   },
+   {
+    "id": "72b62517-d0f3-4006-b5ec-d494f142cfaf",
+    "day_id": "3566d88c-51ad-4211-aa2e-3b9af0117087",
+    "place_id": "3e401271-6883-449a-b2f0-120eb391b5da",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "coffee",
+     "title": "Leon's Bagels",
+     "address": "169 Thompson St suite b, New York, NY 10012, USA"
+    }
+   },
+   {
+    "id": "7e272006-32b9-485d-a4a5-7068e8505102",
+    "day_id": "9a249caf-a80b-41d1-bd21-331ef06edb0c",
+    "place_id": "1edc0f8d-1c0a-4693-96d8-447d2bac9363",
+    "status": "in_itinerary",
+    "start_time": "08:00:00",
+    "end_time": "08:30:00",
+    "details": {},
+    "place": {
+     "sub_type": "coffee",
+     "title": "Leon’s Bagels",
+     "address": "181 Mulberry St, New York, NY 10012, USA"
+    }
+   },
+   {
+    "id": "836cf573-8e3d-4391-be2e-230103c38d7b",
+    "day_id": "3566d88c-51ad-4211-aa2e-3b9af0117087",
+    "place_id": "031c984a-8ed8-44fd-94f6-89179c297e1d",
+    "status": "cut",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "guided",
+     "title": "Museum of Ice Cream",
+     "address": "558 Broadway, New York, NY 10012, USA"
+    }
+   },
+   {
+    "id": "854b38c5-3842-4981-a151-67f21f3d0215",
+    "day_id": "d72722e8-ef33-46af-af24-1f2692c45f7a",
+    "place_id": "fdbf6555-f7a0-49a2-9bdf-7d67a80e5f1d",
+    "status": "cut",
+    "start_time": "10:00:00",
+    "end_time": "11:00:00",
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Fishs Eddy",
+     "address": "889 Broadway, New York, NY 10003, USA"
+    }
+   },
+   {
+    "id": "93500925-f8e6-4684-b75a-2cfc897da8c1",
+    "day_id": "d72722e8-ef33-46af-af24-1f2692c45f7a",
+    "place_id": "315774d8-1947-4e70-96c0-d054c1e7954a",
+    "status": "in_itinerary",
+    "start_time": "10:00:00",
+    "end_time": "10:45:00",
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Strand Bookstore",
+     "address": "828 Broadway, New York, NY 10003, USA"
+    }
+   },
+   {
+    "id": "a284381b-18fa-47d3-a205-cff55caa0ef1",
+    "day_id": "d72722e8-ef33-46af-af24-1f2692c45f7a",
+    "place_id": "2e189fe1-d764-40d9-8f5c-fee8dfd3ed4e",
+    "status": "in_itinerary",
+    "start_time": "10:50:00",
+    "end_time": "11:20:00",
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Washington Square Park",
+     "address": "Washington Square Park, New York, NY 10012, USA"
+    }
+   },
+   {
+    "id": "a4b83be4-86d1-4e2f-aec9-72e491733a8c",
+    "day_id": "3566d88c-51ad-4211-aa2e-3b9af0117087",
+    "place_id": "b182a27c-6c4d-4f6b-bebb-b7908351adba",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "dessert",
+     "title": "Mimi's Frozen Yogurt",
+     "address": "231 Lafayette St, New York, NY 10012, USA"
+    }
+   },
+   {
+    "id": "a9f63e96-2126-47de-9ea9-ff22afa85e03",
+    "day_id": "d72722e8-ef33-46af-af24-1f2692c45f7a",
+    "place_id": "1a16b527-a234-47d0-a212-b053df79417a",
+    "status": "in_itinerary",
+    "start_time": "11:30:00",
+    "end_time": "12:30:00",
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "John's of Bleecker Street",
+     "address": "278 Bleecker St, New York, NY 10014, USA"
+    }
+   },
+   {
+    "id": "aa831b5a-7af5-4e11-906d-b385a1520e5f",
+    "day_id": null,
+    "place_id": "309dc8e3-fe9b-478c-8641-9e2eb64c1637",
+    "status": "cut",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "hotel",
+     "title": "11 Howard",
+     "address": "11 Howard St, New York, NY 10013, USA"
+    }
+   },
+   {
+    "id": "b9a9e2d9-1255-4078-9d99-f592c80953e5",
+    "day_id": "3566d88c-51ad-4211-aa2e-3b9af0117087",
+    "place_id": "72246a6e-9a21-499e-8b6b-d6c7196ac9b7",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "guided",
+     "title": "Books of Wonder",
+     "address": "42 W 17th St, New York, NY 10011, USA"
+    }
+   },
+   {
+    "id": "bf461797-c60d-4933-a9f6-ba72a4ab905a",
+    "day_id": "3566d88c-51ad-4211-aa2e-3b9af0117087",
+    "place_id": "2e7223bb-99bc-43a6-b32b-a47446297ac5",
+    "status": "cut",
+    "start_time": "19:30:00",
+    "end_time": "20:00:00",
+    "details": {},
+    "place": {
+     "sub_type": "dessert",
+     "title": "Morgenstern's Finest Ice Cream",
+     "address": "2 Rivington St, New York, NY 10002, USA"
+    }
+   },
+   {
+    "id": "c39b9d7a-d19e-4417-8e8d-f7e370887e8a",
+    "day_id": "3566d88c-51ad-4211-aa2e-3b9af0117087",
+    "place_id": "de6d1338-72a0-4f3d-a112-f4e2f3c33a52",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "coffee",
+     "title": "Black Seed Bagels | Nolita",
+     "address": "170 Elizabeth St, New York, NY 10012, USA"
+    }
+   },
+   {
+    "id": "d15dcd45-3ed1-450c-a8c3-86aa7c85d210",
+    "day_id": "3566d88c-51ad-4211-aa2e-3b9af0117087",
+    "place_id": "2c83d276-6f4e-497c-9c20-5ba2688511ab",
+    "status": "cut",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Rubirosa",
+     "address": "235 Mulberry St, New York, NY 10012, USA"
+    }
+   },
+   {
+    "id": "d425927a-60a9-41df-a813-366df327f7a8",
+    "day_id": "3566d88c-51ad-4211-aa2e-3b9af0117087",
+    "place_id": "5e351449-cc98-4ece-9f2c-99308c31b846",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "event",
+     "title": "Wicked",
+     "address": "222 W 51st St, New York, NY 10019, USA"
+    }
+   },
+   {
+    "id": "d8140139-c147-42f5-b00c-47d266d497ce",
+    "day_id": "3566d88c-51ad-4211-aa2e-3b9af0117087",
+    "place_id": "5b4a9231-568b-46d9-ba2f-26ede8f8ad41",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Rockefeller Center",
+     "address": "45 Rockefeller Plaza, New York, NY 10111, USA"
+    }
+   },
+   {
+    "id": "d8b20a15-c41e-4b07-8a25-a1e1f2fdf3ce",
+    "day_id": "0e3682a0-29d6-437e-8c83-fb225fa34246",
+    "place_id": "a0e7f113-2f90-4b05-907f-189d7b990116",
+    "status": "in_itinerary",
+    "start_time": "18:00:00",
+    "end_time": "19:15:00",
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Parm Mulberry Street",
+     "address": "248 Mulberry St, New York, NY 10012, USA"
+    }
+   },
+   {
+    "id": "ded2f343-5f8a-48dd-8e08-61a1eec709ab",
+    "day_id": "9a249caf-a80b-41d1-bd21-331ef06edb0c",
+    "place_id": "f73eb299-1022-4f29-a710-2e61316419ec",
+    "status": "in_itinerary",
+    "start_time": "17:30:00",
+    "end_time": "19:00:00",
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Minetta Tavern",
+     "address": "113 MacDougal St, New York, NY 10012, USA"
+    }
+   },
+   {
+    "id": "eb8e5f2f-1d70-4e29-9e3f-c6b80683fe8b",
+    "day_id": "3566d88c-51ad-4211-aa2e-3b9af0117087",
+    "place_id": "a8a57351-a0a2-4e1d-ba44-35527ae2ed32",
+    "status": "cut",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "flight_arrival",
+     "title": "Pearson Airport Terminal 1 Parking",
+     "address": "Pearson Airport Terminal 1 Parking, Mississauga, ON L5P, Canada"
+    }
+   },
+   {
+    "id": "f1eb5d77-bae4-4998-b0f4-1672683397e6",
+    "day_id": "d72722e8-ef33-46af-af24-1f2692c45f7a",
+    "place_id": "1d87d74c-9e75-49c6-b98c-ea413c452c27",
+    "status": "in_itinerary",
+    "start_time": "16:00:00",
+    "end_time": "17:47:00",
+    "details": {
+     "arriving_at": "YYZ",
+     "arrival_time": "5:47",
+     "departure_time": "4:00",
+     "origin_airport": "LGA"
+    },
+    "place": {
+     "sub_type": "flight_arrival",
+     "title": "LaGuardia Airport",
+     "address": "East Elmhurst, NY 11371, USA"
+    }
+   },
+   {
+    "id": "f91a6e61-22c8-4f80-a6b3-01b123838c09",
+    "day_id": "0e3682a0-29d6-437e-8c83-fb225fa34246",
+    "place_id": "470043fe-c16e-4232-a399-594882d098de",
+    "status": "in_itinerary",
+    "start_time": "16:00:00",
+    "end_time": "17:00:00",
+    "details": {
+     "title": "McNally Jackson Books"
+    },
+    "place": {
+     "sub_type": "self_directed",
+     "title": "McNally Jackson Books SoHo",
+     "address": "134 Prince St, New York, NY 10012, USA"
+    }
+   },
+   {
+    "id": "fbf623b4-35be-4830-b509-f804ea9bcc09",
+    "day_id": "0e3682a0-29d6-437e-8c83-fb225fa34246",
+    "place_id": "baf7c4bf-cb29-4c31-a2a9-74a55f3da93f",
+    "status": "in_itinerary",
+    "start_time": "08:30:00",
+    "end_time": "09:30:00",
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Jack's Wife Freda",
+     "address": "226 Lafayette St, New York, NY 10012, USA"
+    }
+   }
+  ]
+ },
+ {
+  "id": "fa33c1cc-e939-4935-af66-b88b3cbb1b74",
+  "title": "Tuscany",
+  "trip": {
+   "destination": "Tuscany, Italy",
+   "start_date": "2027-08-24",
+   "end_date": "2027-09-04",
+   "party_size": 7,
+   "party_ages": [
+    43,
+    40,
+    70,
+    70,
+    10,
+    8,
+    5
+   ],
+   "booking_checklist": {}
+  },
+  "home": {
+   "airport": "YYZ",
+   "country": "Canada"
+  },
+  "days": [
+   {
+    "id": "9bf3ce0f-3e66-4856-baec-231fc594b244",
+    "date": "2027-08-24"
+   },
+   {
+    "id": "32669afe-caaa-46ce-abd1-d79bcb6d1e85",
+    "date": "2027-08-25"
+   },
+   {
+    "id": "9120e343-3662-4a0d-b224-79fad38d190a",
+    "date": "2027-08-26"
+   },
+   {
+    "id": "1a35b025-7efe-4706-becc-38457d790396",
+    "date": "2027-08-27"
+   },
+   {
+    "id": "bc5dcd46-a244-4703-84a9-8735375cf17e",
+    "date": "2027-08-28"
+   },
+   {
+    "id": "ae8feac5-8758-4d40-9b57-ca1d2649a257",
+    "date": "2027-08-29"
+   },
+   {
+    "id": "bcfa8428-2695-47f6-b9b6-18079e418426",
+    "date": "2027-08-30"
+   },
+   {
+    "id": "2bb4794b-606f-421b-8db6-afefbbdaad0b",
+    "date": "2027-08-31"
+   },
+   {
+    "id": "c6d2cba9-05ea-49e0-88dc-70d9c8cf27bc",
+    "date": "2027-09-01"
+   },
+   {
+    "id": "be91e6ad-5969-411b-93ed-7eef8fb3e9d9",
+    "date": "2027-09-02"
+   },
+   {
+    "id": "3d7262b7-a030-4e88-8fe8-d420fa3e9957",
+    "date": "2027-09-03"
+   },
+   {
+    "id": "069ff8e9-7097-40ec-827a-2326c5078cc6",
+    "date": "2027-09-04"
+   }
+  ],
+  "birthdates": [],
+  "cards": [
+   {
+    "id": "02ef30d1-22f7-4906-8e65-fa9dd821949b",
+    "day_id": "9bf3ce0f-3e66-4856-baec-231fc594b244",
+    "place_id": "99ad3757-2110-48d0-b4cc-1d729aaed778",
+    "status": "in_itinerary",
+    "start_time": "16:00:00",
+    "end_time": "17:00:00",
+    "details": {},
+    "place": {
+     "sub_type": "shopping",
+     "title": "Via Fillungo",
+     "address": "Via Fillungo, 55100 Lucca LU, Italy"
+    }
+   },
+   {
+    "id": "084b63cd-ac6f-462e-ab6f-ba7f21c63eff",
+    "day_id": "1a35b025-7efe-4706-becc-38457d790396",
+    "place_id": "f3c5c1e8-e6e4-4cf7-95e3-c76291d11405",
+    "status": "in_itinerary",
+    "start_time": "15:00:00",
+    "end_time": "16:00:00",
+    "details": {},
+    "place": {
+     "sub_type": "shopping",
+     "title": "Mercato Centrale & San Lorenzo market",
+     "address": "Piazza del Mercato Centrale, 50123 Firenze FI, Italy"
+    }
+   },
+   {
+    "id": "0e83b898-47b3-40a6-8a31-c43fdd0ac6c2",
+    "day_id": "bc5dcd46-a244-4703-84a9-8735375cf17e",
+    "place_id": "b8c29b19-4560-44c0-bd7a-c21680f145db",
+    "status": "in_itinerary",
+    "start_time": "14:00:00",
+    "end_time": "14:20:00",
+    "details": {},
+    "place": {
+     "sub_type": "dessert",
+     "title": "Gelateria Vernazza",
+     "address": "Via Roma, 13, 19018 Vernazza SP, Italy"
+    }
+   },
+   {
+    "id": "17524535-f0ab-4374-8c72-3eebc60be73d",
+    "day_id": "9bf3ce0f-3e66-4856-baec-231fc594b244",
+    "place_id": "349cd4ec-4bef-440b-b3bf-ce7d2459e77e",
+    "status": "in_itinerary",
+    "start_time": "09:00:00",
+    "end_time": "09:45:00",
+    "details": {},
+    "place": {
+     "sub_type": "coffee",
+     "title": "Pinelli Bakery",
+     "address": "Via Beccheria, 28, 55100 Lucca LU, Italy"
+    }
+   },
+   {
+    "id": "1799ac39-b9b9-4318-abb2-f85cbc8970dd",
+    "day_id": "ae8feac5-8758-4d40-9b57-ca1d2649a257",
+    "place_id": null,
+    "status": "in_itinerary",
+    "start_time": "09:00:00",
+    "end_time": "10:00:00",
+    "details": {
+     "title": "Drive to the Carrara quarries (~1 h)"
+    },
+    "place": null
+   },
+   {
+    "id": "199c4b2e-7b25-43b3-aaa0-8ba12074a6ec",
+    "day_id": "9bf3ce0f-3e66-4856-baec-231fc594b244",
+    "place_id": "7503f695-c228-4780-87eb-2575ae0c8817",
+    "status": "in_itinerary",
+    "start_time": "14:00:00",
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "hotel",
+     "title": "Villa Zambaldi",
+     "address": "Via Fonda, 403, 55100 Lucca LU, Italy"
+    }
+   },
+   {
+    "id": "1ddcf053-c32b-44e6-a866-1db6b175e0cb",
+    "day_id": "069ff8e9-7097-40ec-827a-2326c5078cc6",
+    "place_id": "e5402bc5-d1d9-4712-8061-81ab5436c679",
+    "status": "in_itinerary",
+    "start_time": "10:00:00",
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "transit",
+     "title": "Pisa International Airport",
+     "address": "Piazzale Corradino D'Ascanio, 1, 56121 Pisa PI, Italy"
+    }
+   },
+   {
+    "id": "1fc8b14d-f698-4197-bcfe-d5ba8d7f7906",
+    "day_id": "9bf3ce0f-3e66-4856-baec-231fc594b244",
+    "place_id": "92be5364-5468-47fa-a457-f5e4c98d18f3",
+    "status": "in_itinerary",
+    "start_time": "10:00:00",
+    "end_time": "12:30:00",
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Piazza San Michele",
+     "address": "P.za San Michele, 55100 Lucca LU, Italy"
+    }
+   },
+   {
+    "id": "21a5770c-e299-4209-8298-99020bea63d2",
+    "day_id": "3d7262b7-a030-4e88-8fe8-d420fa3e9957",
+    "place_id": "b3f42577-12f3-42c4-b096-dcc692243f09",
+    "status": "in_itinerary",
+    "start_time": "12:30:00",
+    "end_time": "13:45:00",
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Trattoria da Giulio",
+     "address": "Via delle Conce, 45, 55100 Lucca LU, Italy"
+    }
+   },
+   {
+    "id": "2beab170-1f22-45a0-8955-9a62bf45ccb3",
+    "day_id": "32669afe-caaa-46ce-abd1-d79bcb6d1e85",
+    "place_id": "a556d1cf-7fb7-486c-963e-65c664c91f1e",
+    "status": "in_itinerary",
+    "start_time": "09:45:00",
+    "end_time": "11:15:00",
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "I' Girone De' Ghiotti",
+     "address": "Via dei Cimatori, 23, 50122 Firenze FI, Italy"
+    }
+   },
+   {
+    "id": "2bebc46d-c1f6-4a67-8b52-3cb4ce0863da",
+    "day_id": "ae8feac5-8758-4d40-9b57-ca1d2649a257",
+    "place_id": null,
+    "status": "in_itinerary",
+    "start_time": "14:30:00",
+    "end_time": null,
+    "details": {
+     "title": "Back to the villa — pool afternoon"
+    },
+    "place": null
+   },
+   {
+    "id": "3c990659-3db9-4475-ba6c-45039a76e971",
+    "day_id": "2bb4794b-606f-421b-8db6-afefbbdaad0b",
+    "place_id": "78e4265f-1058-4b8d-ac04-f8abee49dac7",
+    "status": "in_itinerary",
+    "start_time": "14:00:00",
+    "end_time": "16:30:00",
+    "details": {},
+    "place": {
+     "sub_type": "guided",
+     "title": "Museo Leonardo Da Vinci",
+     "address": "Via del Castellaccio, 1r, 50121 Firenze FI, Italy"
+    }
+   },
+   {
+    "id": "44d80d7c-b3f4-4d2e-ab24-ac83cda7f613",
+    "day_id": "bc5dcd46-a244-4703-84a9-8735375cf17e",
+    "place_id": null,
+    "status": "in_itinerary",
+    "start_time": "19:30:00",
+    "end_time": null,
+    "details": {
+     "title": "Drive back to the villa (~1¾ h)"
+    },
+    "place": null
+   },
+   {
+    "id": "50f169fd-9b16-40e2-b0c7-eda54498e43c",
+    "day_id": "32669afe-caaa-46ce-abd1-d79bcb6d1e85",
+    "place_id": "301cdac7-ddb6-462b-9f50-ac5bd29b17b3",
+    "status": "in_itinerary",
+    "start_time": "19:00:00",
+    "end_time": "20:15:00",
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Buca dell'Orafo",
+     "address": "Via dei Girolami, 28/R, 50122 Firenze FI, Italy"
+    }
+   },
+   {
+    "id": "53825bd9-3322-49c1-a843-02bf354c86be",
+    "day_id": "bc5dcd46-a244-4703-84a9-8735375cf17e",
+    "place_id": "20a79aaa-d0a2-44c6-b271-f8a92fb9a09e",
+    "status": "in_itinerary",
+    "start_time": "10:45:00",
+    "end_time": "12:15:00",
+    "details": {},
+    "place": {
+     "sub_type": "beach",
+     "title": "Vernazza Beach",
+     "address": "Vernazza Beach, Via M. Carattino, 66, 19018 Vernazza SP, Italy"
+    }
+   },
+   {
+    "id": "538cd6d9-0daf-496e-aaad-fe04d0cc2cc4",
+    "day_id": "3d7262b7-a030-4e88-8fe8-d420fa3e9957",
+    "place_id": "1b40efbe-8a41-4885-8550-1b334e1e8c22",
+    "status": "in_itinerary",
+    "start_time": "14:00:00",
+    "end_time": "14:30:00",
+    "details": {},
+    "place": {
+     "sub_type": "dessert",
+     "title": "Gelateria Veneta",
+     "address": "Via V. Veneto, 74, 55100 Lucca LU, Italy"
+    }
+   },
+   {
+    "id": "60aa5783-4bcf-4f55-9896-37d350b0f1ad",
+    "day_id": "1a35b025-7efe-4706-becc-38457d790396",
+    "place_id": "bd780ded-2a76-4209-a358-ace44703748b",
+    "status": "in_itinerary",
+    "start_time": "19:30:00",
+    "end_time": "20:45:00",
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Trattoria Mario",
+     "address": "Via Rosina, 2r, 50123 Firenze FI, Italy"
+    }
+   },
+   {
+    "id": "664eed98-93f9-4bea-b194-7cc774778ab6",
+    "day_id": "ae8feac5-8758-4d40-9b57-ca1d2649a257",
+    "place_id": "59388bb3-c48a-492c-bc08-1b7c19dffe17",
+    "status": "in_itinerary",
+    "start_time": "12:30:00",
+    "end_time": "13:45:00",
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Mafalda Lardo di Colonnata IGP",
+     "address": "Piazza Palestro, 2, 54030 Carrara MS, Italy"
+    }
+   },
+   {
+    "id": "671fa60c-ef90-475a-9690-3cf42c474251",
+    "day_id": "9bf3ce0f-3e66-4856-baec-231fc594b244",
+    "place_id": "876d99da-af7c-4f40-9988-d46b7434c7c3",
+    "status": "in_itinerary",
+    "start_time": "19:30:00",
+    "end_time": "20:45:00",
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Ciacco",
+     "address": "P.za Napoleone, 10, 55100 Lucca LU, Italy"
+    }
+   },
+   {
+    "id": "694d25b6-c6af-4516-b4cd-bd8be6b59f0e",
+    "day_id": "9bf3ce0f-3e66-4856-baec-231fc594b244",
+    "place_id": "9aafd7ad-06f5-49d2-921b-e404ef02857e",
+    "status": "in_itinerary",
+    "start_time": "12:45:00",
+    "end_time": "14:00:00",
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Buca di Sant'Antonio",
+     "address": "Via della Cervia, 3, 55100 Lucca LU, Italy"
+    }
+   },
+   {
+    "id": "6bf1303d-6281-4114-b185-afa3690f1012",
+    "day_id": "bc5dcd46-a244-4703-84a9-8735375cf17e",
+    "place_id": "ab014ac4-7cc9-4007-b63d-1220f2cbdea8",
+    "status": "in_itinerary",
+    "start_time": "12:30:00",
+    "end_time": "13:30:00",
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Il Gattaccio - Acciugheria & Street Food",
+     "address": "Via Visconti, 17, 19018 Vernazza SP, Italy"
+    }
+   },
+   {
+    "id": "6d307f75-08a2-4444-973c-c366c68d391c",
+    "day_id": null,
+    "place_id": "a9f59752-123b-42a3-8bcc-82fe1700e0d4",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "hotel",
+     "title": "Villa Bottino",
+     "address": "Località Scilivano, 7, 55064 San Martino in Freddana - Monsagrati LU, Italy"
+    }
+   },
+   {
+    "id": "710f7f9f-1f04-4b80-b8f9-daece4e10b99",
+    "day_id": "bcfa8428-2695-47f6-b9b6-18079e418426",
+    "place_id": "3ec42c03-50c0-428a-837d-ebc22b5c23ca",
+    "status": "in_itinerary",
+    "start_time": "12:30:00",
+    "end_time": "13:45:00",
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "BABAE",
+     "address": "Via Santo Spirito, 21R, 50125 Firenze FI, Italy"
+    }
+   },
+   {
+    "id": "72b56db3-50c1-412b-9d56-5f3c75a2d3ba",
+    "day_id": "9120e343-3662-4a0d-b224-79fad38d190a",
+    "place_id": "12b4a780-e255-4e3f-908f-06ce27add0fd",
+    "status": "in_itinerary",
+    "start_time": "10:00:00",
+    "end_time": "17:00:00",
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Lucca",
+     "address": "55100 Lucca, Province of Lucca, Italy"
+    }
+   },
+   {
+    "id": "73f373fc-9024-4e77-b6d8-bbcb5f3444bc",
+    "day_id": "c6d2cba9-05ea-49e0-88dc-70d9c8cf27bc",
+    "place_id": null,
+    "status": "in_itinerary",
+    "start_time": "08:00:00",
+    "end_time": "09:00:00",
+    "details": {
+     "title": "Drive to Savini in Palaia (~50 min)"
+    },
+    "place": null
+   },
+   {
+    "id": "7862739a-a52b-429f-85f4-096edf62c9b0",
+    "day_id": "32669afe-caaa-46ce-abd1-d79bcb6d1e85",
+    "place_id": "7e8b9179-5887-44f9-b43e-bfe95b1095ba",
+    "status": "in_itinerary",
+    "start_time": "20:30:00",
+    "end_time": "21:00:00",
+    "details": {},
+    "place": {
+     "sub_type": "dessert",
+     "title": "Gelateria dei Neri",
+     "address": "Via dei Neri, 9/11R, 50122 Firenze FI, Italy"
+    }
+   },
+   {
+    "id": "7d6eb7ff-6c14-490a-a70f-ac63870bd2d9",
+    "day_id": null,
+    "place_id": "7af6f92a-1a68-42bd-a269-35eb9fa496d8",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "hotel",
+     "title": "VILLA GUINIGI EXCLUSIVE RESIDENCE & POOL",
+     "address": "Via di Matraia, 22, 55018 Matraia LU, Italy"
+    }
+   },
+   {
+    "id": "80e1ba25-2b11-4235-b4c9-218273e9fa97",
+    "day_id": "9bf3ce0f-3e66-4856-baec-231fc594b244",
+    "place_id": "2868e151-a0ce-4af7-bbd2-c498d0bf99ad",
+    "status": "in_itinerary",
+    "start_time": "15:15:00",
+    "end_time": "15:45:00",
+    "details": {},
+    "place": {
+     "sub_type": "dessert",
+     "title": "Buccellato Taddeucci",
+     "address": "P.za San Michele, 34, 55100 Lucca LU, Italy"
+    }
+   },
+   {
+    "id": "852c8cba-049a-40f6-abaa-7feb19943d5b",
+    "day_id": null,
+    "place_id": "c50b0166-43fe-4701-8c38-f51a41dfe8df",
+    "status": "interested",
+    "start_time": null,
+    "end_time": null,
+    "details": {},
+    "place": {
+     "sub_type": "hotel",
+     "title": "Hotel Il Pellicano",
+     "address": "Località Sbarcatello, 58019 Porto Ercole GR, Italy"
+    }
+   },
+   {
+    "id": "860f5d2a-cb51-4ea0-a8bf-fd89d5e71192",
+    "day_id": "2bb4794b-606f-421b-8db6-afefbbdaad0b",
+    "place_id": "daa67cee-6904-4c85-ab4e-f42e442ce763",
+    "status": "in_itinerary",
+    "start_time": "12:30:00",
+    "end_time": "13:45:00",
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Pino's Sandwiches - Salumeria Verdi",
+     "address": "Via Giuseppe Verdi, 36R, 50122 Firenze FI, Italy"
+    }
+   },
+   {
+    "id": "8ae64236-67fe-4bf2-8376-fa29659fcc80",
+    "day_id": "9120e343-3662-4a0d-b224-79fad38d190a",
+    "place_id": "904426a7-2da4-4ea8-9031-e1bde3766b3b",
+    "status": "in_itinerary",
+    "start_time": "12:30:00",
+    "end_time": "13:45:00",
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Forno a Vapore Amedeo Giusti",
+     "address": "Via Santa Lucia, 20, 55100 Lucca LU, Italy"
+    }
+   },
+   {
+    "id": "8dbdcf2a-7718-471a-969e-c7c73fbfc5da",
+    "day_id": "32669afe-caaa-46ce-abd1-d79bcb6d1e85",
+    "place_id": "02074b4f-3859-479a-ab1e-b00adcddc73a",
+    "status": "in_itinerary",
+    "start_time": "12:30:00",
+    "end_time": "13:45:00",
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Panetteria e Stuzzicheria De Neri",
+     "address": "Via dei Neri, 18/r, 50122 Firenze FI, Italy"
+    }
+   },
+   {
+    "id": "916bf80d-bdc9-47ed-a3a2-6028aa59d7c3",
+    "day_id": "bcfa8428-2695-47f6-b9b6-18079e418426",
+    "place_id": "7e0851a4-348e-43bc-8afc-7aeffffbf49a",
+    "status": "in_itinerary",
+    "start_time": "19:30:00",
+    "end_time": "20:45:00",
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Ristorante Buca Mario",
+     "address": "Piazza degli Ottaviani, 16r, 50123 Firenze FI, Italy"
+    }
+   },
+   {
+    "id": "93e761ed-a104-45ac-afff-7fb7274647fc",
+    "day_id": "069ff8e9-7097-40ec-827a-2326c5078cc6",
+    "place_id": "765a5a80-e76b-4e33-9c35-9c16b4d55631",
+    "status": "in_itinerary",
+    "start_time": "12:30:00",
+    "end_time": "13:45:00",
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Vini e Vecchi Sapori",
+     "address": "Via dei Magazzini, 3/r, 50122 Firenze FI, Italy"
+    }
+   },
+   {
+    "id": "952847f2-77aa-47eb-84c5-a4b7067d3934",
+    "day_id": "bc5dcd46-a244-4703-84a9-8735375cf17e",
+    "place_id": null,
+    "status": "in_itinerary",
+    "start_time": "14:30:00",
+    "end_time": "16:15:00",
+    "details": {
+     "title": "Train to Monterosso, beach time"
+    },
+    "place": null
+   },
+   {
+    "id": "9b6a5303-6fb4-4c57-9783-6762b32be864",
+    "day_id": "bc5dcd46-a244-4703-84a9-8735375cf17e",
+    "place_id": null,
+    "status": "in_itinerary",
+    "start_time": "07:30:00",
+    "end_time": "09:30:00",
+    "details": {
+     "title": "Drive to Levanto, train into Vernazza (~2 h)"
+    },
+    "place": null
+   },
+   {
+    "id": "9cab56b4-c9c0-4db7-aa33-ecf6dfe2578f",
+    "day_id": "1a35b025-7efe-4706-becc-38457d790396",
+    "place_id": "416679af-fc1b-4198-9994-e4fa039a2aee",
+    "status": "in_itinerary",
+    "start_time": "08:30:00",
+    "end_time": "10:00:00",
+    "details": {},
+    "place": {
+     "sub_type": "guided",
+     "title": "Cathedral of Santa Maria del Fiore",
+     "address": "Piazza del Duomo, 50122 Firenze FI, Italy"
+    }
+   },
+   {
+    "id": "9ce53313-d8a2-473c-a48e-0a3e38243470",
+    "day_id": "bc5dcd46-a244-4703-84a9-8735375cf17e",
+    "place_id": "5e484f36-1522-4784-94c7-43c685a7b06f",
+    "status": "in_itinerary",
+    "start_time": "10:00:00",
+    "end_time": "10:30:00",
+    "details": {},
+    "place": {
+     "sub_type": "dessert",
+     "title": "Il Pirata delle 5 Terre",
+     "address": "Via Gavino, 36/38, 19018 Vernazza SP, Italy"
+    }
+   },
+   {
+    "id": "a222f3fd-5e08-4eee-8967-ea6158bf089f",
+    "day_id": "bc5dcd46-a244-4703-84a9-8735375cf17e",
+    "place_id": "cf47e200-9c17-4431-bf47-155be87c83ca",
+    "status": "in_itinerary",
+    "start_time": "16:30:00",
+    "end_time": "17:00:00",
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Il Frantoio",
+     "address": "Via Vincenzo Gioberti, 1, 19016 Monterosso al Mare SP, Italy"
+    }
+   },
+   {
+    "id": "abc6ddcf-2159-489b-b34a-0b8d8f2a2bc7",
+    "day_id": "bcfa8428-2695-47f6-b9b6-18079e418426",
+    "place_id": "5645328b-ba57-4f5d-9ae2-0a5b0da68dc1",
+    "status": "in_itinerary",
+    "start_time": "14:00:00",
+    "end_time": "16:30:00",
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Piazza della Repùbblica",
+     "address": "Piazza della Repùbblica, 50123 Firenze FI, Italy"
+    }
+   },
+   {
+    "id": "ac84c9a0-8cec-4ba1-8bfe-8352d1196395",
+    "day_id": "bcfa8428-2695-47f6-b9b6-18079e418426",
+    "place_id": "c5e49ade-c904-45ac-aec3-cee88b313ed3",
+    "status": "in_itinerary",
+    "start_time": "09:00:00",
+    "end_time": "09:45:00",
+    "details": {},
+    "place": {
+     "sub_type": "coffee",
+     "title": "Caffè Gilli",
+     "address": "Via Roma, 1r, 50123 Firenze FI, Italy"
+    }
+   },
+   {
+    "id": "ae9582a1-3d02-4898-b841-fdaccbfb1652",
+    "day_id": "9120e343-3662-4a0d-b224-79fad38d190a",
+    "place_id": "25b40486-5606-4a33-826a-2411c6311ee2",
+    "status": "in_itinerary",
+    "start_time": "19:15:00",
+    "end_time": "20:30:00",
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Pizzeria da Felice",
+     "address": "Via Buia, 12, 55100 Lucca LU, Italy"
+    }
+   },
+   {
+    "id": "b2ddd4f6-8593-4196-a5e1-32972cd6bd41",
+    "day_id": "1a35b025-7efe-4706-becc-38457d790396",
+    "place_id": "9f0ef6e6-5243-46c0-ba69-5b2488a8f48b",
+    "status": "in_itinerary",
+    "start_time": "12:30:00",
+    "end_time": "13:45:00",
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Da Nerbone",
+     "address": "Piazza del Mercato Centrale, 50123 Firenze FI, Italy"
+    }
+   },
+   {
+    "id": "b30bb741-d2df-4fa4-b647-ac94348ac577",
+    "day_id": "be91e6ad-5969-411b-93ed-7eef8fb3e9d9",
+    "place_id": "3a17d451-4705-4c0f-ae67-f0e0495cdc21",
+    "status": "in_itinerary",
+    "start_time": "10:45:00",
+    "end_time": "13:15:00",
+    "details": {},
+    "place": {
+     "sub_type": "guided",
+     "title": "My Tuscan Kitchen",
+     "address": "Località Torricchio, N° 75, 56036 Montefoscoli PI, Italy"
+    }
+   },
+   {
+    "id": "b7907332-8fa9-403d-95cd-67dee6225500",
+    "day_id": "9120e343-3662-4a0d-b224-79fad38d190a",
+    "place_id": "6cfaf92e-fd4b-4e33-a6d7-f07fb6c1aa29",
+    "status": "in_itinerary",
+    "start_time": "14:15:00",
+    "end_time": "14:45:00",
+    "details": {},
+    "place": {
+     "sub_type": "dessert",
+     "title": "Caffè Santa Zita - Biscotteria In Lucca",
+     "address": "Piazza S. Frediano, 16, 55100 Lucca LU, Italy"
+    }
+   },
+   {
+    "id": "be21e2c7-545a-4201-912f-112842bfe6ec",
+    "day_id": "2bb4794b-606f-421b-8db6-afefbbdaad0b",
+    "place_id": "3f7a38b1-0b5d-4d4e-811c-6617d8d93f2b",
+    "status": "in_itinerary",
+    "start_time": "10:00:00",
+    "end_time": "12:00:00",
+    "details": {},
+    "place": {
+     "sub_type": "guided",
+     "title": "David",
+     "address": "Via Ricasoli, 58/60, 50129 Firenze FI, Italy"
+    }
+   },
+   {
+    "id": "bef6a42c-de53-4381-89b4-c7ac9d83ff93",
+    "day_id": "bc5dcd46-a244-4703-84a9-8735375cf17e",
+    "place_id": "98158450-615e-4bdf-9440-b6a104f1582a",
+    "status": "in_itinerary",
+    "start_time": "18:00:00",
+    "end_time": "19:15:00",
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Da Eraldo",
+     "address": "Via Buranco, 14, 19016 Monterosso al Mare SP, Italy"
+    }
+   },
+   {
+    "id": "c1dd3e42-cdb2-4680-a9f2-d9f044532381",
+    "day_id": "2bb4794b-606f-421b-8db6-afefbbdaad0b",
+    "place_id": "47c1a902-5d74-4d51-a230-04c19a9827c2",
+    "status": "in_itinerary",
+    "start_time": "19:30:00",
+    "end_time": "20:45:00",
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Trattoria Sostanza",
+     "address": "Via del Porcellana, 25/R, 50123 Firenze FI, Italy"
+    }
+   },
+   {
+    "id": "c3509807-025f-446b-bbc4-ea67f1c74ccd",
+    "day_id": "ae8feac5-8758-4d40-9b57-ca1d2649a257",
+    "place_id": "bfc2bbe1-41d9-4aca-8e19-97019984ee0b",
+    "status": "in_itinerary",
+    "start_time": "10:00:00",
+    "end_time": "11:30:00",
+    "details": {},
+    "place": {
+     "sub_type": "guided",
+     "title": "Cave di Marmo Tours",
+     "address": "Strada Comunale per Colonnata, 1, 54033 Colonnata MS, Italy"
+    }
+   },
+   {
+    "id": "c5617a95-84cf-44e6-805a-fc5d402d7421",
+    "day_id": "c6d2cba9-05ea-49e0-88dc-70d9c8cf27bc",
+    "place_id": "64f4e7b8-cd26-4aa2-af18-2a1b6fe08b03",
+    "status": "in_itinerary",
+    "start_time": "09:00:00",
+    "end_time": "12:00:00",
+    "details": {},
+    "place": {
+     "sub_type": "guided",
+     "title": "Savini Tartufi truffle hunt",
+     "address": "Piazza Corradino D'ascanio, 56036 Montanelli PI, Italy"
+    }
+   },
+   {
+    "id": "cb6e1e6a-e4ab-4601-b06e-8ab1f2d09546",
+    "day_id": "069ff8e9-7097-40ec-827a-2326c5078cc6",
+    "place_id": "7503f695-c228-4780-87eb-2575ae0c8817",
+    "status": "in_itinerary",
+    "start_time": "08:00:00",
+    "end_time": "08:45:00",
+    "details": {
+     "title": "Check out of the villa"
+    },
+    "place": {
+     "sub_type": "hotel",
+     "title": "Villa Zambaldi",
+     "address": "Via Fonda, 403, 55100 Lucca LU, Italy"
+    }
+   },
+   {
+    "id": "cef09d8d-8c4d-498e-b658-ce62b4789d6a",
+    "day_id": "3d7262b7-a030-4e88-8fe8-d420fa3e9957",
+    "place_id": null,
+    "status": "in_itinerary",
+    "start_time": "09:30:00",
+    "end_time": null,
+    "details": {
+     "title": "Slow morning at the villa"
+    },
+    "place": null
+   },
+   {
+    "id": "d40742a9-0c66-41ad-b858-3bcf087867c9",
+    "day_id": "069ff8e9-7097-40ec-827a-2326c5078cc6",
+    "place_id": "027addc5-bce5-4d07-9603-f03e0cc01130",
+    "status": "in_itinerary",
+    "start_time": "14:00:00",
+    "end_time": "16:30:00",
+    "details": {},
+    "place": {
+     "sub_type": "self_directed",
+     "title": "Giardino Bardini",
+     "address": "Costa S. Giorgio, 2, 50125 Firenze FI, Italy"
+    }
+   },
+   {
+    "id": "dcedc2c3-d21e-4e22-8254-1440e4dc4228",
+    "day_id": "c6d2cba9-05ea-49e0-88dc-70d9c8cf27bc",
+    "place_id": "7cee6e0b-3dfc-4162-9fb9-a221381ff1a4",
+    "status": "in_itinerary",
+    "start_time": "20:00:00",
+    "end_time": "21:30:00",
+    "details": {},
+    "place": {
+     "sub_type": "restaurant",
+     "title": "Antica Locanda di Sesto",
+     "address": "Via Ludovica, 1660, 55100 Lucca LU, Italy"
+    }
+   },
+   {
+    "id": "e82ebc2c-cd92-4dc8-8b49-6984c91a792c",
+    "day_id": "1a35b025-7efe-4706-becc-38457d790396",
+    "place_id": "a7ddf330-f7e3-4f9d-b39d-45e14970015f",
+    "status": "in_itinerary",
+    "start_time": "14:15:00",
+    "end_time": "14:45:00",
+    "details": {},
+    "place": {
+     "sub_type": "dessert",
+     "title": "Vivoli",
+     "address": "Via Isola delle Stinche, 7r, 50122 Firenze FI, Italy"
+    }
+   },
+   {
+    "id": "edb083c5-e6cb-4156-ab78-b6b8f286ee0d",
+    "day_id": "c6d2cba9-05ea-49e0-88dc-70d9c8cf27bc",
+    "place_id": null,
+    "status": "in_itinerary",
+    "start_time": "13:00:00",
+    "end_time": null,
+    "details": {
+     "title": "Back to the villa — pool afternoon"
+    },
+    "place": null
+   }
+  ]
+ }
+]

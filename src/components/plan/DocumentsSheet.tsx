@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
 import { useSheetDrag } from "@/hooks/useSheetDrag";
 import FileViewer, { type ViewableFile } from "@/components/ui/FileViewer";
+import ToBookSection from "./ToBookSection";
 
 interface Props {
   tripId:  string;
@@ -199,10 +200,7 @@ export default function DocumentsSheet({ tripId, onClose, onImport }: Props) {
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-3 pb-3 border-b border-gray-100 flex-shrink-0">
-          <div>
-            <h3 className="text-[15px] font-bold text-gray-900">Bookings</h3>
-            <p className="text-[11px] text-gray-400 mt-0.5">Confirmations you’ve uploaded</p>
-          </div>
+          <h3 className="text-[15px] font-bold text-gray-900">Bookings</h3>
           <button
             onClick={onClose}
             className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
@@ -214,24 +212,28 @@ export default function DocumentsSheet({ tripId, onClose, onImport }: Props) {
           </button>
         </div>
 
-        {/* Upload — it used to be a separate menu row; the empty state below
-            said "Upload…" while this sheet had no way to (UX audit, Sep 2026). */}
-        {onImport && (
-          <div className="px-5 pt-3 flex-shrink-0">
-            <button
-              type="button"
-              onClick={onImport}
-              className="w-full py-3 rounded-xl text-[14px] font-semibold"
-              style={{ background: "#1A1A2E", color: "#F5F4F1" }}
-            >
-              Upload a booking
-            </button>
-            <p className="text-[11px] text-gray-400 mt-1.5 text-center">A flight or hotel confirmation becomes cards on the right day.</p>
-          </div>
-        )}
-
         {/* List */}
         <div ref={listRef} className="flex-1 overflow-y-auto pb-6">
+          {/* To book (6 Oct 2026): the owner's Flights / Stays / Car checklist.
+              Renders nothing for anyone else. */}
+          <ToBookSection tripId={tripId} />
+          <p className="px-5 pt-4 text-[10.5px] uppercase tracking-[0.1em]" style={{ color: "rgba(26,26,46,0.62)" }}>Uploaded</p>
+          {/* Upload — it used to be a separate menu row; the empty state below
+              said "Upload…" while this sheet had no way to (UX audit, Sep 2026). */}
+          {onImport && (
+            <div className="px-5 pt-3 flex-shrink-0">
+              <button
+                type="button"
+                onClick={onImport}
+                className="w-full py-3 rounded-xl text-[14px] font-semibold"
+                style={{ background: "#1A1A2E", color: "#F5F4F1" }}
+              >
+                Upload a booking
+              </button>
+              <p className="text-[11px] text-gray-400 mt-1.5 text-center">A flight or hotel confirmation becomes cards on the right day.</p>
+            </div>
+          )}
+
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <p className="text-[13px] text-gray-400">Loading…</p>

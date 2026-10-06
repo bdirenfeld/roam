@@ -39,6 +39,8 @@ export interface Trip {
   accommodation_address: string | null
   /** Nights per base, set by the owner, keyed by the base's label. Null = the brief's own split. */
   stay_nights: Record<string, number> | null
+  /** To book ticks (Bookings sheet, 6 Oct 2026): flights / stays / car → "booked" | "skip". Migration 016. */
+  booking_checklist?: Record<string, string> | null
   status: TripStatus
   archived: boolean
   archived_at: string | null

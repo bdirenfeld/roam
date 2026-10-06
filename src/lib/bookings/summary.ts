@@ -40,6 +40,16 @@ function flightTo(c: BookingCard): string | null {
   return null;
 }
 
+/**
+ * A rental car's pick-up card: the booking reader writes it as a transit stop
+ * (Roam has no car category) titled "Pick up rental car · …" with the drop-off
+ * day in details.drop_off (lib/confirmations/toCards). Also read by the To book
+ * checklist (lib/booking/checklist), so the two can never disagree.
+ */
+export function isRentalCar(c: { details?: Record<string, unknown> | null }): boolean {
+  return !!str(c.details?.drop_off) || /^pick up rental car/i.test(str(c.details?.title) ?? "");
+}
+
 export function bookingLines(days: { id: string; date: string }[], cards: BookingCard[], tripEnd: string): BookingLine[] {
   const dateOf = new Map(days.map((d) => [d.id, d.date]));
   const mine = cards.filter(booked).filter((c) => dateOf.has(c.day_id!));
@@ -66,7 +76,7 @@ export function bookingLines(days: { id: string; date: string }[], cards: Bookin
   }
 
   // A rental car: its pick-up card carries the drop-off day (lib/confirmations/toCards).
-  const cars = mine.filter((c) => str(c.details?.drop_off) || /^pick up rental car/i.test(str(c.details?.title) ?? ""));
+  const cars = mine.filter(isRentalCar);
   if (cars.length) {
     const c = cars[0], from = dateOf.get(c.day_id!)!, to = str(c.details?.drop_off);
     const name = (str(c.details?.title) ?? c.place?.title ?? "Rental car").replace(/^pick up rental car\s*·\s*/i, "");

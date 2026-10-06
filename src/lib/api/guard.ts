@@ -70,4 +70,5 @@ export const QUOTA = {
                        // while the Anthropic credit was out every page load asked, failed and still counted (43).
   gettingThere:   30,  // Plan my trip travel cards: one call per plan, two Google routes per day trip (cached)
   findGoogle:    200,  // Find: the fast Google half; cache misses only
+  bookingAirports: 20, // To book: Claude Haiku names a destination's airports, once per destination ever (cached)
 } as const;

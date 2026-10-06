@@ -46,7 +46,7 @@ export const SCHEMA: Record<string, string[]> = {
   trip_invites: ["id", "trip_id", "email", "invited_by", "created_at", "accepted_at", "accepted_user_id"],
   trip_lists: ["id", "trip_id", "title", "position", "created_at"],
   trip_members: ["id", "trip_id", "user_id", "role", "created_at"],
-  trips: ["id", "user_id", "title", "destination", "destination_lat", "destination_lng", "start_date", "end_date", "trip_purpose", "trip_type", "party_size", "party_ages", "accommodation_name", "accommodation_address", "status", "created_at", "archived", "archived_at", "cover_image_url", "share_token", "notes", "stay_nights", "cruise"],
+  trips: ["id", "user_id", "title", "destination", "destination_lat", "destination_lng", "start_date", "end_date", "trip_purpose", "trip_type", "party_size", "party_ages", "accommodation_name", "accommodation_address", "status", "created_at", "archived", "archived_at", "cover_image_url", "share_token", "notes", "stay_nights", "cruise", "booking_checklist"],
   users: ["id", "name", "email", "home_airport", "home_country", "passport_country", "avatar_url", "created_at", "has_paid", "videos_seen"],
   wishlist_destinations: ["id", "user_id", "name", "location", "lat", "lng", "drive_hours", "budget", "best_time", "why", "source", "created_at", "climate"],
 };

@@ -2171,3 +2171,27 @@ timers stalls the async reads the day view does after mount.
 - **Never `git worktree remove --force` a worktree whose node_modules is a junction** (5 Oct 2026): the
   delete follows the junction and empties C:\Users\brenn\roam\node_modules. Remove the junction first
   (`cmd /c rmdir <wt>\node_modules`), then the worktree. Recovery: `npm ci`.
+
+## To book: Flights / Stays / Car at the top of Bookings (6 Oct 2026)
+- Mock approved: https://claude.ai/artifact/DToVaxpZebi7wdQSzr56GB. `components/plan/ToBookSection` sits at the top of
+  DocumentsSheet (every host gets it: phone + computer menu "Bookings", Settings' Bookings row); the uploads follow
+  under an "Uploaded" label, unchanged. **Owner only** — it loads its own rows and renders nothing unless
+  `trips.user_id` is the session's user (guests and cohosts never see it; the shared link has no Bookings).
+- Rows come from `lib/booking/checklist` `checklistRows`: ticked automatically from cards ON THE DAYS (not
+  interested/cut): flight_arrival/departure cards; hotels covering every night via `stayRuns` (the one reader);
+  a rental car = `isRentalCar` in lib/bookings/summary (sub_type is `transit`, there is no car type). A manual
+  "Booked"/"Not needed" in `trips.booking_checklist` (jsonb, migration 016) wins over everything. Writes go through
+  `queuedUpdate("trips", …)` with a toast + Undo. Stays' open run is searched in the town of that night's plans
+  (Tuscany's 31 Aug gap → Firenze, as the mock shows), else the stay beside the gap, else the destination.
+- **Kayak URL rules (lib/booking/kayak, shapes verified live by Brennan 6 Oct 2026):** always
+  `https://www.kayak.com` — **kayak.ca does not resolve on his network (DNS)**. Flights need IATA codes; **a town in
+  the route is silently dropped**, so no codes = the plain /flights page. Several arrival airports comma-join
+  (`YYZ-FLR,PSA`). Stays: `/hotels/Town-Country/in/out/Nadults/Kchildren-a-b/Rrooms` — **a comma in the place
+  falls back to Kayak's generic stays page**, so `kayakPlace` turns commas and spaces into hyphens. Rooms =
+  ceil(people/4); 1 room and no children are left out. Cars: `/cars/PSA/2027-08-24-14h/2027-09-04-10h`, pick-up
+  two hours after a known landing else 14h, return 10h. Outbound is the day before the start when there are no
+  flight cards and home and destination are different countries outside one region (`overnightOutbound`).
+- Arrival airports: the journey's own flight cards (`arriving_at`/`origin_airport` codes) first; otherwise
+  `POST /api/booking/airports` asks Haiku once per destination EVER (find_cache `airports|<destination>`, no
+  expiry, even an empty answer), owner only, quota `bookingAirports`, spend-capped. The sheet asks lazily
+  (`needsAirports`) — only when Flights or Car is open.
