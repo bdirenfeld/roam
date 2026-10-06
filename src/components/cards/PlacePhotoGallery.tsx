@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { galleryUrls, indexesToWarm } from "@/lib/places/photoWarm";
 
 /** Shape of one entry in places.details.photos (raw Google place_details). */
 interface PlacePhoto {
@@ -12,6 +13,13 @@ interface PlacePhoto {
 // and router.push() navigations without a provider (same pattern as trip weather).
 // Fails silently: the gallery degrades to the single cover it renders today.
 const photosCache = new Map<string, PlacePhoto[]>();
+// Our own copies of each slide (places.photo_cache), null where there is none
+// yet. With a URL the <img> goes straight to storage: no hop through
+// /api/places/photo, no redirect (5 Oct 2026, speed).
+const urlsCache = new Map<string, (string | null)[]>();
+// Places this session has already asked the server to copy in. The server
+// also refuses a second warm for 30 days; this just saves the round trip.
+const warmAsked = new Set<string>();
 
 interface Props {
   /** places.id (uuid) — the only identifier the client ever sends for photos. */
@@ -62,6 +70,11 @@ export default function PlacePhotoGallery({
   // into view. Not more: each uncached photo is a paid Google request.
   const [eagerUpTo, setEagerUpTo] = useState(LOOKAHEAD);
   const [coverFailed, setCoverFailed] = useState(false);
+  const [urls, setUrls] = useState<(string | null)[] | null>(() => urlsCache.get(placeId) ?? null);
+  // True while the server copies this gallery in. Slides with no copy yet
+  // wait for it rather than each paying Google through /api/places/photo
+  // alongside — except the cover and the slide actually in view.
+  const [warming, setWarming] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -70,7 +83,7 @@ export default function PlacePhotoGallery({
     const supabase = createClient();
     supabase
       .from("places")
-      .select("photos:details->photos")
+      .select("photos:details->photos, photo_cache")
       .eq("id", placeId)
       .maybeSingle()
       .then(
@@ -80,8 +93,30 @@ export default function PlacePhotoGallery({
             return; // stay on the single cover
           }
           const list = Array.isArray(data?.photos) ? (data.photos as PlacePhoto[]) : [];
+          const cached = galleryUrls(data?.photo_cache, list.length);
           photosCache.set(placeId, list);
-          if (!cancelled) setPhotos(list);
+          urlsCache.set(placeId, cached);
+          if (!cancelled) { setPhotos(list); setUrls(cached); }
+          // First open of this gallery: have the server copy every photo
+          // still missing, in one go, so the first swipe is already ours.
+          if (indexesToWarm(data?.photo_cache, list.length).length === 0 || warmAsked.has(placeId)) return;
+          warmAsked.add(placeId);
+          if (!cancelled) setWarming(true);
+          fetch("/api/places/photo/warm", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ place_id: placeId }),
+          })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((j: { urls?: (string | null)[] } | null) => {
+              if (!Array.isArray(j?.urls)) return;
+              // Keep any copy we already had if the answer lacks it.
+              const next = j.urls.map((u, i) => u ?? cached[i] ?? null);
+              urlsCache.set(placeId, next);
+              if (!cancelled) setUrls(next);
+            })
+            .catch(() => {}) // slides fall back to /api/places/photo
+            .finally(() => { if (!cancelled) setWarming(false); });
         },
         (err: unknown) => console.error("Failed to load place photos", err),
       );
@@ -89,7 +124,10 @@ export default function PlacePhotoGallery({
   }, [placeId, hasGooglePhotos]);
 
   const count = photos?.length ?? null;
-  const srcFor = (i: number) => `/api/places/photo?place_id=${placeId}&index=${i}`;
+  const srcFor = (i: number) => urls?.[i] ?? `/api/places/photo?place_id=${placeId}&index=${i}`;
+  // While the warm is out, a slide with no copy waits (grey) unless it is the
+  // cover or the one being looked at.
+  const mayLoad = (i: number) => i === 0 || i === activeIndex || !warming || Boolean(urls?.[i]);
 
   // ── Single cover — photo-less, un-enriched, or count still unknown ──
   if (count === null || count <= 1) {
@@ -163,7 +201,7 @@ export default function PlacePhotoGallery({
       >
         {Array.from({ length: count }, (_, i) => (
           <div key={i} className="w-full h-full flex-shrink-0 snap-start bg-gray-100">
-            {i <= eagerUpTo && (
+            {i <= eagerUpTo && mayLoad(i) && (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={srcFor(i)}

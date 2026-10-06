@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/supabase/authUser";
 import { createClient } from "@/lib/supabase/server";
 import { fetchPlaceDetails } from "@/lib/places/fetchDetails";
-import { cachedPhotoUrl, storePhoto, PHOTO_WIDTH, type PhotoSize } from "@/lib/places/photoCache";
+import { cachedPhotoUrl, storePhoto, type PhotoSize } from "@/lib/places/photoCache";
+import { refWentStale, refreshStoredPhotos, resolvePhotoLocation, type StoredPhoto } from "./google";
 import { underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -10,10 +11,6 @@ const CACHE_HEADER = "public, max-age=86400, s-maxage=86400";
 // A copy in our own bucket is stable for its whole life, so the browser may
 // keep it far longer than a Google CDN link.
 const CACHED_HEADER = "public, max-age=2592000, s-maxage=2592000, immutable";
-
-interface StoredPhoto {
-  photo_reference?: string;
-}
 
 function notFound() {
   return new NextResponse(null, { status: 404 });
@@ -24,63 +21,6 @@ function redirectTo(location: string, header = CACHE_HEADER) {
     status: 302,
     headers: { Location: location, "Cache-Control": header },
   });
-}
-
-// Google answers a valid photo_reference with a 302 to its image CDN; an
-// expired or invalid ref gets a 400/403 with no Location. The status lets the
-// caller tell "ref went stale" apart from network failure.
-async function resolvePhotoLocation(photoRef: string, apiKey: string, size: PhotoSize = "full") {
-  const photoUrl = new URL("https://maps.googleapis.com/maps/api/place/photo");
-  photoUrl.searchParams.set("photoreference", photoRef);
-  photoUrl.searchParams.set("maxwidth", PHOTO_WIDTH[size]);
-  photoUrl.searchParams.set("key", apiKey);
-  try {
-    const res = await fetch(photoUrl.toString(), { redirect: "manual" });
-    return { location: res.headers.get("location"), status: res.status };
-  } catch {
-    return { location: null, status: 0 };
-  }
-}
-
-// Stored refs expire in bulk — every ref on a place was minted by the same
-// enrichment call — so one opened gallery discovers expiry on several photo
-// requests at once. Dedupe the refresh per place so a ten-photo gallery costs
-// one Place Details call, not ten. Per-instance state, same trade-off as the
-// client's photosCache.
-const refreshInFlight = new Map<string, Promise<StoredPhoto[] | null>>();
-
-function refreshStoredPhotos(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  place: { id: string; google_place_id: string; details: unknown },
-  apiKey: string,
-): Promise<StoredPhoto[] | null> {
-  const inFlight = refreshInFlight.get(place.id);
-  if (inFlight) return inFlight;
-
-  const refresh = (async () => {
-    const details = await fetchPlaceDetails(place.google_place_id, apiKey);
-    if (!details.ok) return null;
-    const photos = Array.isArray(details.result.photos)
-      ? (details.result.photos as StoredPhoto[])
-      : [];
-    // Merge rather than replace: enrichment may have persisted fields this
-    // route's details fetch doesn't request. Persisting an empty array is
-    // deliberate — it stops a photo-less place from re-fetching on every load.
-    const existing =
-      typeof place.details === "object" && place.details !== null ? place.details : {};
-    const { error } = await supabase
-      .from("places")
-      .update({ details: { ...existing, photos } })
-      .eq("id", place.id);
-    // A failed write still serves this request from the fresh refs; the row
-    // just stays stale and the next session pays the refresh again.
-    if (error) console.error("Failed to persist refreshed place photos", error.message);
-    return photos;
-  })();
-
-  refreshInFlight.set(place.id, refresh);
-  refresh.finally(() => refreshInFlight.delete(place.id));
-  return refresh;
 }
 
 export async function GET(req: NextRequest) {
@@ -152,7 +92,7 @@ export async function GET(req: NextRequest) {
     if (
       !resolved.location &&
       refFromStore &&
-      (resolved.status === 400 || resolved.status === 403)
+      refWentStale(resolved.status)
     ) {
       const fresh = await refreshStoredPhotos(supabase, place, apiKey);
       const freshRef = fresh?.[index]?.photo_reference;
