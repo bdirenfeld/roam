@@ -28,12 +28,15 @@ export interface WrittenNote { intent: string; know: string[] }
 export function notesPrompt(places: NotePlace[], who: string): string {
   const list = places.map((p) => `- ${p.key} | ${p.title} | ${p.subType ?? "place"} | ${p.address ?? ""}`).join("\n");
   return `You are writing short notes for a travel itinerary, for ${who}.
+The traveller has already chosen these places; your job is to help the visit go well, not to judge it.
 For each place below write:
-- "intent": one plain sentence, under 25 words, saying what it is and why it is worth the time.
-- "know": 2 to 4 short practical points a traveller must know before going: booking or timed-entry
-  tickets, dress codes, closed days, cash only, queues and when to beat them, what to order, what suits
-  children when there are any. Only what is true of this place; never generic filler like "check the website".
-Write plainly, no marketing words. If you do not know a place, say what it is from its name and kind, and
+- "intent": one warm, plain sentence, under 25 words, saying what it is and what is good about going.
+  No verdicts or put-downs ("overpriced", "touristy", "not worth it", "best for older children").
+- "know": 2 to 4 short practical points that make the visit easier, each phrased as what to do:
+  booking or timed-entry tickets, dress codes, closed days, cash only, when to go to beat queues, what to
+  order, how to make it work with children when there are any ("leave the stroller at the door", not
+  "difficult with a 3-year-old"). Only what is true of this place; never generic filler like "check the website".
+Write plainly and kindly, no marketing words. If you do not know a place, say what it is from its name and kind, and
 give no points you cannot stand behind.
 Places (id | name | kind | address):
 ${list}

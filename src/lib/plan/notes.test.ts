@@ -9,6 +9,13 @@ describe("notesPrompt", () => {
     expect(p).toMatch(/children aged 9, 7, 4/);
     expect(p).toMatch(/"intent"/);
   });
+
+  it("asks for warm notes that help the visit, not verdicts (6 Oct 2026)", () => {
+    const p = notesPrompt([], "a family of 5");
+    expect(p).toMatch(/help the visit go well, not to judge it/);
+    expect(p).toMatch(/No verdicts or put-downs/);
+    expect(p).toMatch(/phrased as what to do/);
+  });
 });
 
 describe("parseNotes", () => {

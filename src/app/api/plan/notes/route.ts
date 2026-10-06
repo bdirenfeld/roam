@@ -9,7 +9,7 @@ import { notesPrompt, parseNotes, dayHoursLine, composeNote, batchesOf, NOTES_BA
 //
 // Each planned card gets his house note: **Intent** and **Know before you
 // go** (lib/plan/notes). Claude writes a place's text once, in one call for
-// the whole plan, and it is kept in public.find_cache under "note|" keys for
+// the whole plan, and it is kept in public.find_cache under "note2|" keys (the warmer wording, 6 Oct 2026) for
 // everyone (service role only, as Find's answers). The day's hours are added
 // from the place's own saved hours. A card that already has notes is never
 // touched. If Claude is unavailable the cards simply stay as they were.
@@ -52,7 +52,8 @@ export async function POST(req: NextRequest) {
   const kids = ages.filter((a) => a < 13);
   const party = trip.party_size ?? (ages.length || 2);
   const who = kids.length ? `a family of ${party} with children aged ${kids.join(", ")}` : `${party} adult${party === 1 ? "" : "s"}`;
-  const keyOf = (gpid: string) => `note|${gpid}|${kids.length ? "kids" : "adults"}`;
+  // "note2" (6 Oct 2026): the warmer wording; older "note|" text is left unused.
+  const keyOf = (gpid: string) => `note2|${gpid}|${kids.length ? "kids" : "adults"}`;
 
   // What is already written, for anyone.
   let admin: ReturnType<typeof createAdminClient> | null = null;
