@@ -319,12 +319,12 @@ describe("one pin put on a day gets a time, like the lasso (7 Oct 2026, taps aud
     expect(lastToast().message).toMatch(/^Put on Tue 6 · /);
   });
 
-  it("already on this day: says Already on Day N and writes nothing", async () => {
+  it("already on this day: says 'Already on Tue 6' (the day's name, 7 Oct 2026 re-audit) and writes nothing", async () => {
     await act(async () => { render(<FullMapClient trip={trip} days={days} cards={[...cards, onDay(cards[0], "d2", "10:00:00", "12:00:00")]} />); });
     await openPin("gc1");
     await putOn(days[1]);
     expect(schedule).not.toHaveBeenCalled();
-    expect(lastToast().message).toBe("Already on Day 2");
+    expect(lastToast().message).toBe("Already on Tue 6");
   });
 
   it("an event on set days goes to its own day, untimed, with the only-on line", async () => {

@@ -592,7 +592,9 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
     if (!stay) leavePick();
     if (chosen.length === ownDay.length) return;
     const { toAdd, times, skipped, elsewhere, unplaced } = batch;
-    if (toAdd.length === 0) { toast({ message: alreadyLine(day.day_number, elsewhere > 0) }); return; }
+    // One way to name a day in every toast: "Tue 25" (7 Oct 2026, re-audit).
+    const dayName = dayChip(day.date, spansMonths(days.map((d) => d.date)));
+    if (toAdd.length === 0) { toast({ message: alreadyLine(dayName, elsewhere > 0) }); return; }
     const created: Card[] = [];
     for (const c of toAdd) {
       const t = times.get(c.id);
@@ -603,8 +605,8 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
     const n = created.length;
     toast({
       message: stay
-        ? singlePutLine(dayChip(day.date, spansMonths(days.map((d) => d.date))), times.get(toAdd[0].id)?.start)
-        : batchPutLine(n, day.day_number, unplaced.length, skipped, elsewhere),
+        ? singlePutLine(dayName, times.get(toAdd[0].id)?.start)
+        : batchPutLine(n, dayName, unplaced.length, skipped, elsewhere),
       undo: async () => {
         for (const c of created) { await queuedDelete("cards", { id: c.id }); const m = MARKERS.get(c.id); if (m) { m.marker.remove(); MARKERS.delete(c.id); } }
         const ids = new Set(created.map((c) => c.id));
@@ -698,7 +700,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
       if (gone) {
         const offDay = takenOff ? days.find((d) => d.id === gone.day_id) : undefined;
         toast({
-          message: takenOff ? takenOffMapToast(offDay?.day_number) : "Removed from the map",
+          message: takenOff ? takenOffMapToast(offDay?.date, spansMonths(days.map((d) => d.date))) : "Removed from the map",
           undo: async () => {
             if (takenOff?.savedId) {
               const savedId = takenOff.savedId;

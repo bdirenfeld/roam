@@ -87,12 +87,13 @@ describe("the lines", () => {
     expect(singlePutLine("Tue 6", null)).toBe("Put on Tue 6 · no free time");
   });
   it("already there", () => {
-    expect(alreadyLine(2, false)).toBe("Already on Day 2");
-    expect(alreadyLine(2, true)).toBe("Already planned on other days");
+    // The day as the rest of the app names it, never "Day 2" (7 Oct 2026, re-audit).
+    expect(alreadyLine("Tue 25", false)).toBe("Already on Tue 25");
+    expect(alreadyLine("Tue 25", true)).toBe("Already planned on other days");
   });
   it("the lasso's count", () => {
-    expect(batchPutLine(3, 2, 0, 1, 0)).toBe("3 places on Day 2, in walking order · 1 already there");
-    expect(batchPutLine(1, 2, 0, 0, 2)).toBe("1 place on Day 2, in walking order · 2 already on other days");
-    expect(batchPutLine(3, 2, 1, 0, 0)).toBe("3 on Day 2; 1 without a time");
+    expect(batchPutLine(3, "Tue 25", 0, 1, 0)).toBe("3 places on Tue 25, in walking order · 1 already there");
+    expect(batchPutLine(1, "Tue 25 Aug", 0, 0, 2)).toBe("1 place on Tue 25 Aug, in walking order · 2 already on other days");
+    expect(batchPutLine(3, "Tue 25", 1, 0, 0)).toBe("3 on Tue 25; 1 without a time");
   });
 });

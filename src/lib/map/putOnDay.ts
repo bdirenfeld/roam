@@ -57,15 +57,18 @@ export function singlePutLine(dayLabel: string, start: string | null | undefined
   return `Put on ${dayLabel} · ${start ? formatTimeValue(start) : "no free time"}`;
 }
 
+// Days are named as lib/dayChip names them: "Tue 25", the month only when the
+// journey spans months, never "Day 2" (7 Oct 2026, re-audit).
+
 /** Nothing new went on: every place was already on this day (or, for the lasso, on others). */
-export function alreadyLine(dayNumber: number, elsewhere: boolean): string {
-  return elsewhere ? "Already planned on other days" : `Already on Day ${dayNumber}`;
+export function alreadyLine(dayLabel: string, elsewhere: boolean): string {
+  return elsewhere ? "Already planned on other days" : `Already on ${dayLabel}`;
 }
 
-/** The lasso's line: "3 places on Day 2, in walking order · 1 already there". */
-export function batchPutLine(n: number, dayNumber: number, unplaced: number, skipped: number, elsewhere: number): string {
+/** The lasso's line: "3 places on Tue 25, in walking order · 1 already there". */
+export function batchPutLine(n: number, dayLabel: string, unplaced: number, skipped: number, elsewhere: number): string {
   return [
-    unplaced ? `${n} on Day ${dayNumber}; ${unplaced} without a time` : `${n} ${n === 1 ? "place" : "places"} on Day ${dayNumber}, in walking order`,
+    unplaced ? `${n} on ${dayLabel}; ${unplaced} without a time` : `${n} ${n === 1 ? "place" : "places"} on ${dayLabel}, in walking order`,
     skipped ? `${skipped} already there` : "",
     elsewhere ? `${elsewhere} already on other days` : "",
   ].filter(Boolean).join(" · ");

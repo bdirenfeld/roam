@@ -16,7 +16,8 @@ import TimeSheet from "./TimeSheet";
 import DayPicker from "@/components/day/DayPicker";
 import PhoneDayCalendar from "@/components/day/PhoneDayCalendar";
 import { autoDayTitle } from "@/lib/autoDayTitle";
-import { dayChip } from "@/lib/dayChip";
+import { dayChip, spansMonths } from "@/lib/dayChip";
+import { givenTimesLine } from "@/lib/plan/givenTimes";
 import DayMap from "@/components/day/DayMap";
 import CardTimeline from "@/components/day/CardTimeline";
 import StartHere from "@/components/plan/StartHere";
@@ -326,9 +327,9 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
     };
     apply(updates);
     for (const u of updates) await queuedUpdate("cards", { id: u.id }, { start_time: u.start_time, end_time: u.end_time });
-    const dow = new Date(day.date + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short" });
+    // "3 places given a time", not "Tue arranged" (7 Oct 2026, re-audit).
     toast({
-      message: unplaced.length ? `${dow} arranged; ${unplaced.length} left without a time` : `${dow} arranged`,
+      message: givenTimesLine(updates.length, unplaced.length),
       undo: async () => { apply(before); for (const b of before) await queuedUpdate("cards", { id: b.id }, { start_time: b.start_time, end_time: b.end_time }); router.refresh(); },
     });
     router.refresh();
@@ -469,7 +470,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
       const gone = prev.find((c) => c.id === cardId) ?? null;
       if (gone) {
         toast({
-          message: takenOff ? takenOffDayToast(dayWithCards.date) : deletedToast(gone), // "Deleted Uffizi Gallery" (6 Oct 2026, delight audit)
+          message: takenOff ? takenOffDayToast(dayWithCards.date, spansMonths(days.map((d) => d.date))) : deletedToast(gone), // "Deleted Uffizi Gallery" (6 Oct 2026, delight audit)
           undo: async () => {
             if (takenOff?.savedId) await queuedDelete("cards", { id: takenOff.savedId });
             const { error } = await queuedInsert("cards", {
@@ -490,7 +491,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
     });
     setSelectedCard((prev) => (prev?.id === cardId ? null : prev));
     setIsCardOpen(false);
-  }, [supabase, toast, dayWithCards.date]);
+  }, [supabase, toast, dayWithCards.date, days]);
 
   // A copy lands on ANOTHER day by definition, so this day's timeline is
   // unchanged — but if the target happens to be this day (a future

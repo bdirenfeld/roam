@@ -50,6 +50,9 @@ import {
 } from "@/lib/week/layout";
 // The same name the day view and card use: an event keeps its own over the venue (7 Oct 2026).
 import { cardTitle } from "@/lib/cardTitle";
+import { dayChip, spansMonths } from "@/lib/dayChip";
+import { takenOffDayToast } from "@/lib/takenOff";
+import { givenTimesLine } from "@/lib/plan/givenTimes";
 
 interface Props {
   trip: Trip;
@@ -66,6 +69,11 @@ const MAP_WIDTH_KEY = "roam.week.mapWidth";
 
 function dow(date: string): string {
   return new Date(date + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short" });
+}
+/** A day named in a toast: "Tue 25", the month only when the journey spans
+ *  months, as everywhere else (7 Oct 2026, re-audit). */
+function toastDay(date: string, all: { date: string }[]): string {
+  return dayChip(date, spansMonths(all.map((d) => d.date)));
 }
 function dayLabel(date: string): string {
   return new Date(date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" });
@@ -466,7 +474,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
         if (moved && target.id === d.card.day_id) { toast({ message: onlyOn(d.card, target.date) }); return; }
         if (g.min === null) {
           if (d.card.start_time === null && d.card.day_id === target.id) return;
-          void write(d.card, { day_id: target.id, start_time: null, end_time: null }, `Put on ${dow(target.date)}, anytime`);
+          void write(d.card, { day_id: target.id, start_time: null, end_time: null }, `Put on ${toastDay(target.date, daysRef.current)}, anytime`);
           return;
         }
         const t = cardTimes(d.card);
@@ -476,7 +484,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
         const block: Block = { id: d.card.id, startMin: t.start ? toMin(t.start) : g.min, endMin: t.end ? toMin(t.end) : fromAnytime ? g.min + durationFor(d.card.place?.type ?? "activity", d.card.place?.sub_type ?? null, g.min, placeShare(d.card.place), isMuseum(d.card.place)) : null };
         const times = movedTimes(block, g.min);
         if (target.id === d.card.day_id && times.start === d.card.start_time) return;
-        void write(d.card, { day_id: target.id, start_time: times.start, end_time: times.end }, moved ? onlyOn(d.card, target.date) : `Moved to ${dow(target.date)} ${fmt12(toMin(times.start))}`);
+        void write(d.card, { day_id: target.id, start_time: times.start, end_time: times.end }, moved ? onlyOn(d.card, target.date) : `Moved to ${toastDay(target.date, daysRef.current)} ${fmt12(toMin(times.start))}`);
       } else if (d.kind === "resizeStart" && g && g.min !== null) {
         const start = toTime(g.min);
         if (start === d.card.start_time) return;
@@ -518,7 +526,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     if (!created) { toast({ message: "Couldn't put it on that day. Try again." }); return; }
     setDays((prev) => prev.map((d) => (d.id === target.id ? { ...d, cards: [...d.cards, created] } : d)));
     toast({
-      message: moved ? onlyOn(card, target.date) : min === null ? `Put on ${dow(target.date)}, anytime` : `Put on ${dow(target.date)} ${fmt12(min)}`,
+      message: moved ? onlyOn(card, target.date) : min === null ? `Put on ${toastDay(target.date, daysRef.current)}, anytime` : `Put on ${toastDay(target.date, daysRef.current)} ${fmt12(min)}`,
       undo: async () => {
         const { error } = await queuedDelete("cards", { id: created.id });
         if (error) { toast({ message: "Couldn't undo. Try again." }); return; }
@@ -535,7 +543,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     if (created) setSaved((prev) => [...prev, created]);
     const day = daysRef.current.find((d) => d.id === card.day_id);
     toast({
-      message: `Taken off ${day ? dow(day.date) : "the day"}, still on the map`,
+      message: day ? takenOffDayToast(day.date, spansMonths(daysRef.current.map((x) => x.date))) : "Taken off the day · still on your map",
       undo: async () => {
         const { error } = await queuedInsert("cards", {
           id: card.id, day_id: card.day_id, trip_id: card.trip_id,
@@ -605,7 +613,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
       plannedElsewhere: plannedOtherDays(all.flatMap((d) => d.cards), day.id),
       edge: edgeOf(day.id),
     });
-    if (withPlace.length === 0) { toast({ message: elsewhere ? `Already planned: ${elsewhere} on other days${skipped ? `, ${skipped} on ${dow(target.date)}` : ""}.` : `Already on ${dow(target.date)}.` }); return; }
+    if (withPlace.length === 0) { toast({ message: elsewhere ? `Already planned: ${elsewhere} on other days${skipped ? `, ${skipped} on ${toastDay(target.date, daysRef.current)}` : ""}.` : `Already on ${toastDay(target.date, daysRef.current)}.` }); return; }
     const created: Card[] = [];
     for (const c of withPlace) {
       const t = times.get(c.id);
@@ -619,7 +627,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     toast({
       duration: 12000,
       message: [
-        unplaced.length ? `${n} on ${dow(target.date)}; ${unplaced.length} didn't fit, left anytime` : `${n} ${n === 1 ? "place" : "places"} on ${dow(target.date)}, in walking order`,
+        unplaced.length ? `${n} on ${toastDay(target.date, daysRef.current)}; ${unplaced.length} didn't fit, left anytime` : `${n} ${n === 1 ? "place" : "places"} on ${toastDay(target.date, daysRef.current)}, in walking order`,
         skipped ? `${skipped} already there` : "",
         elsewhere ? `${elsewhere} already on other days` : "",
       ].filter(Boolean).join(" · "),
@@ -656,7 +664,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     await applyPlan(dayId, updates);
     tintDay(dayId);
     toast({
-      message: unplaced.length ? `${dow(day.date)} arranged; ${unplaced.length} didn't fit` : `${dow(day.date)} arranged`,
+      message: givenTimesLine(updates.length, unplaced.length), // not "Tue arranged" (7 Oct 2026, re-audit)
       undo: () => applyPlan(dayId, before),
     });
   }, [applyPlan, toast]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -711,7 +719,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     tintDay(dayId);
     toast({
       duration: 12000,
-      message: unplaced.length ? `${dow(day.date)} rearranged; ${unplaced.length} left anytime` : `${dow(day.date)} rearranged`,
+      message: givenTimesLine(updates.length, unplaced.length), // not "Tue arranged" (7 Oct 2026, re-audit)
       undo: () => applyPlan(dayId, before),
     });
   }, [applyPlan, toast]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -723,7 +731,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     const before = cards.map((c) => ({ id: c.id, day_id: c.day_id }));
     for (const c of cards) { patchCard(c.id, { day_id: day.id }, day.id); await queuedUpdate("cards", { id: c.id }, { day_id: day.id }); }
     toast({
-      message: `${cards.length} moved to ${dow(day.date)}`,
+      message: `${cards.length} moved to ${toastDay(day.date, daysRef.current)}`,
       undo: async () => { for (const b of before) { patchCard(b.id, { day_id: b.day_id }, b.day_id ?? undefined); await queuedUpdate("cards", { id: b.id }, { day_id: b.day_id }); } },
     });
   }, [pickedCards, patchCard, toast]);
