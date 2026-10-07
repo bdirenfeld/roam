@@ -317,7 +317,7 @@ export default function TripSettingsClient({
       }
       if (plan.insert.length) {
         const { error: insErr } = await supabase.from("days").insert(plan.insert.map((n) => ({
-          id: crypto.randomUUID(), trip_id: trip.id, date: n.date, day_number: n.day_number, day_name: `Day ${n.day_number}`,
+          id: crypto.randomUUID(), trip_id: trip.id, date: n.date, day_number: n.day_number, day_name: null, // no placeholder "Day N" name: it showed as a label (7 Oct 2026)
         })));
         if (failed(insErr)) return false;
       }

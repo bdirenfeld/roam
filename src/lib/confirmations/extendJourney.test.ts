@@ -45,7 +45,7 @@ describe("extendJourney", () => {
     expect(writes.filter((w) => w.table === "days" && w.op === "update").map((w) => [w.id, (w.row as { day_number: number }).day_number])).toEqual([["d1", 2], ["d2", 3]]);
     if (!("days" in out)) throw new Error("expected days");
     expect(out.days.map((d) => [d.date, d.day_number])).toEqual([["2027-08-23", 1], ["2027-08-24", 2], ["2027-08-25", 3]]);
-    expect(out.days[0].day_name).toBe("Day 1");
+    expect(out.days[0].day_name).toBeNull(); // no placeholder "Day N" label (7 Oct 2026)
     // Existing days keep their ids, so their plans stay put.
     expect(out.days.slice(1).map((d) => d.id)).toEqual(["d1", "d2"]);
   });
