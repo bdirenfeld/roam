@@ -11,6 +11,7 @@ import LovedHeart from "@/components/ui/LovedHeart";
 import CardBadges from "./CardBadges";
 import { streetAndTown } from "@/lib/week/cardText";
 import { UNTITLED_NOTE, cardTitle } from "@/lib/cardTitle";
+import { isTravelLeg, legTitle, legSubtitle, readMode, LEG_MODE_GLYPH } from "@/lib/travel/leg";
 
 interface Props {
   card: Card;
@@ -58,6 +59,11 @@ function railTime(start: string | null): string | null {
   return `${hour12}:${String(m ?? 0).padStart(2, "0")} ${suffix}`;
 }
 
+/** The leg's mode glyph, drawn the way getMaterialIconHTML draws a sub_type's (7 Oct 2026). */
+function legGlyph(mode: keyof typeof LEG_MODE_GLYPH): string {
+  return `<span class="material-symbols-outlined" style="font-size:14px;line-height:1;display:block;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20;">${LEG_MODE_GLYPH[mode]}</span>`;
+}
+
 /** The first real sentence of a note: lib/noteLead (shared with the week and the map pin, 6 Oct 2026). */
 function noteLeadOf(det: Record<string, unknown> | null): string | null {
   return noteLead(typeof det?.notes === "string" ? det.notes : null);
@@ -84,7 +90,10 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTim
   const timeRange = formatTimeRange(shown.start, shown.end);
   const hoursSignal = place ? getOpeningHoursConflict(place.hours, dayDate ?? null, card.start_time, place.sub_type) : null;
   const noteSnippet = !place ? (det?.notes as string | undefined) : undefined;
-  const title     = cardTitle(card) === UNTITLED_NOTE && noteSnippet ? noteSnippet.slice(0, 60) : cardTitle(card); // "A note", was "(untitled note)" (6 Oct 2026, delight audit)
+  // A travel leg (7 Oct 2026, mock d13): "Lusaka → Mfuwe" in full, and
+  // "Overland truck · 13h" under it — the route reads like a flight's.
+  const isLeg     = isTravelLeg(card);
+  const title     = isLeg ? legTitle(card) : cardTitle(card) === UNTITLED_NOTE && noteSnippet ? noteSnippet.slice(0, 60) : cardTitle(card); // "A note", was "(untitled note)" (6 Oct 2026, delight audit)
 
   const isFlight = place?.sub_type === "flight_arrival" || place?.sub_type === "flight_departure";
 
@@ -96,14 +105,16 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTim
   // gives instructions, and either can truncate mid-word. The row shows facts
   // instead: what kind of thing it is and where it is. The writing is still
   // there, in the card, when you open it.
-  const detail = isFlight
+  const detail = isLeg
+    ? legSubtitle(card)
+    : isFlight
     ? flightRoute(det, timeRange)
     : place
       ? (shortAddress(place.address) || subLabel || null)
       : noteLeadOf(det);
   // The category glyph leads the subtitle in place of the category word —
   // "🍴 Via Rosina" says what "Restaurant · Via Rosina" said, in one shape.
-  const detailIcon = place ? getMaterialIconHTML(place.sub_type ?? null, 14) : null;
+  const detailIcon = isLeg ? legGlyph(readMode(det) ?? "drive") : place ? getMaterialIconHTML(place.sub_type ?? null, 14) : null;
 
   const surfRating = place?.type === "food" ? place.rating : null;
   const isLoved    = place?.loved === true;
@@ -114,6 +125,9 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTim
   // Through cardTimes, like everything else on this card: an arriving flight
   // is chipped at its landing time, not at when it pushed back in Toronto.
   const rail = railTime(shown.start);
+  // A leg's chip shows the range, start over end: a 13-hour day on the truck
+  // looks like one (7 Oct 2026, mock d13).
+  const railEnd = isLeg ? railTime(shown.end) : null;
 
   const interactive = !!onTap;
   const Wrapper = (interactive ? "button" : "div") as "button";
@@ -140,20 +154,22 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTim
             onClick={(e) => { e.stopPropagation(); onTimeTap(); }}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onTimeTap(); } }}
             aria-label={rail ? `Change the time, now ${rail}` : "Set a time"}
-            className="relative inline-flex items-center rounded-full bg-white px-1.5 py-[3px] text-[10px] md:text-[10.5px] uppercase whitespace-nowrap cursor-pointer"
+            className={`relative inline-flex ${railEnd ? "flex-col items-start rounded-[9px]" : "items-center rounded-full"} bg-white px-1.5 py-[3px] text-[10px] md:text-[10.5px] uppercase whitespace-nowrap cursor-pointer`}
             style={{ letterSpacing: "0.05em", color: rail ? "rgba(26,26,46,0.62)" : "rgba(26,26,46,0.4)", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.14)" }}
           >
             {/* A finger-sized target (44px) around a small label: a near-miss on
                 Android opened the card instead (6 Oct 2026, taps audit). */}
             <span aria-hidden="true" data-testid="time-chip-target" className="absolute -inset-x-1.5 -inset-y-[13px]" />
             {rail ?? "No time"}
+            {rail && railEnd && <span data-testid="time-chip-end">{railEnd}</span>}
           </span>
         ) : rail && (
           <span
-            className="text-[10px] md:text-[10.5px] uppercase"
+            className="text-[10px] md:text-[10.5px] uppercase flex flex-col"
             style={{ letterSpacing: "0.1em", color: "rgba(26,26,46,0.35)" }}
           >
             {rail}
+            {railEnd && <span data-testid="time-chip-end">{railEnd}</span>}
           </span>
         )}
       </div>

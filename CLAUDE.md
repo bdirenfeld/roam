@@ -2353,3 +2353,25 @@ Approved scope only. Find KEEPS its two-level filters (Activity / Food, then kin
   to the sheet (row reads "Added ✓"). Without the prop, "Put on a day" is unchanged.
 - **A Google add from the day's add sheet toasts** "Added <place> to <dayLabel>" with Undo (needs `dayLabel` +
   `onCardRemoved`; the Plan board's composer passes neither, so it stays silent). A failed place save toasts.
+
+## The travel leg (7 Oct 2026, mock d13)
+
+- A card is a **leg** when its place is logistics/transit (ferry/train if those sub_types ever exist) AND
+  `details.from = { title, lat, lng, google_place_id?, place_id? }` is a real point. The place stays the END
+  (pin, photo, directions); `details.mode` is drive|bus|train|ferry, `details.mode_label` optional words
+  ("Overland truck", "Border crossing, Malaba") read before the mode's word. No schema change.
+  `lib/travel/leg` is the one reader: isTravelLeg, legTitle, legSubtitle, legDurationMins, shouldDrawLine,
+  legLines, withFrom, defaultFromForDay.
+- Row: title "From → To" in full (a named "A → B" title wins: imported tour legs name the town, the pin sits on
+  a gate), subtitle "{mode word} · {duration}" with the mode glyph, time chip stacked start/end.
+- Sheet: `components/cards/TravelLegPanel` (From editable via autocomplete → details, no places row written;
+  To; mode pills). Shown on every transit card, so a plain transit stop can be given a start. A leg's title is
+  not editable (it would rename the end place). Changing From retitles a named leg's A (withFrom).
+- Day map: dashed line only for legs >= 60 min (untimed: >= 60 km straight-line; never < 0.5 km), 1.5px,
+  opacity 0.4, PIN_COLORS.logistics; a dot at the start, the mode glyph at the middle, fit includes the start.
+  The journey Map (FullMapClient) does NOT draw legs yet.
+- Hand-add: CreateCardSheet holds a station/port pick (no auto-add) to show From, defaulted to the hotel
+  covering the night before (stayRuns via defaultFromForDay; useDefaultFrom fetches days + cards once).
+- The G Adventures test journey's 63 "<Mode>: A → B" transit cards were converted 7 Oct 2026 (from = the
+  previous card's place when it names A, else last night's hotel when it names A, else the previous leg's end).
+  The four "around …" loops and "Tour ends in Nairobi" were left as stops.

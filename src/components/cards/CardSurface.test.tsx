@@ -112,3 +112,51 @@ describe("CardSurface — the Booked pill", () => {
     expect(pill.querySelector("svg")).toBeTruthy();
   });
 });
+
+/**
+ * The travel leg row (7 Oct 2026, mock d13). The G Adventures journey's Day 23
+ * as converted: the truck from Lusaka to Mfuwe, 6 AM to 7 PM. The title reads
+ * the route in full, the line under it the mode and the length, and the chip
+ * shows the range.
+ */
+const legCard = {
+  id: "b7580610", trip_id: "t", day_id: "d23", place_id: "p-mfuwe", status: "in_itinerary", position: 0,
+  start_time: "06:00:00", end_time: "19:00:00", confirmed: false, archived: false,
+  details: {
+    title: "Lusaka → Mfuwe", named: true, mode: "drive", mode_label: "Overland truck",
+    from: { title: "Lusaka", lat: -15.4154677, lng: 28.2773267 },
+  },
+  place: {
+    id: "p-mfuwe", title: "Mfuwe", type: "logistics", sub_type: "transit", lat: -13.2549974, lng: 31.9326952,
+    address: "Mfuwe, Zambia", google_place_id: "g", cover_image_url: null,
+    rating: null, price_level: null, website: null, phone: null, hours: null, loved: false, loved_at: null,
+  },
+} as unknown as Card;
+
+describe("CardSurface — a travel leg (7 Oct 2026)", () => {
+  it("titles the row 'Lusaka → Mfuwe' and says 'Overland truck · 13h' under it, not the address", () => {
+    const { container } = render(<CardSurface card={legCard} dayDate="2027-02-22" onTimeTap={() => {}} />);
+    expect(container.textContent).toContain("Lusaka → Mfuwe");
+    expect(container.textContent).toContain("Overland truck · 13h");
+    expect(container.textContent).not.toContain("Mfuwe, Zambia");
+  });
+
+  it("the time chip shows the range, start and end", () => {
+    const { getByRole, getByTestId } = render(<CardSurface card={legCard} dayDate="2027-02-22" onTimeTap={() => {}} />);
+    expect(getByRole("button", { name: /Change the time/ }).textContent).toMatch(/6:00 am/);
+    expect(getByTestId("time-chip-end").textContent).toBe("7:00 pm");
+  });
+
+  it("the subtitle leads with the mode glyph (a car), not the transit sign", () => {
+    const { container } = render(<CardSurface card={legCard} dayDate="2027-02-22" />);
+    expect(container.innerHTML).toContain("directions_car");
+    expect(container.innerHTML).not.toContain("directions_transit");
+  });
+
+  it("a transit stop with no start still reads as a stop: one time, its address", () => {
+    const stop = { ...legCard, details: { title: "Pick up rental car" } } as unknown as Card;
+    const { container, queryByTestId } = render(<CardSurface card={stop} dayDate="2027-02-22" onTimeTap={() => {}} />);
+    expect(container.textContent).toContain("Mfuwe, Zambia");
+    expect(queryByTestId("time-chip-end")).toBeNull();
+  });
+});

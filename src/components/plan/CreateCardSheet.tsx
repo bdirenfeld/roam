@@ -10,6 +10,8 @@ import { useToast } from "@/components/ui/Toast";
 import { scheduleCardOnDay } from "@/lib/scheduleCard";
 import { useSheetDrag } from "@/hooks/useSheetDrag";
 import type { PlaceResult } from "@/components/map/AddToTripSheet";
+import { LegFromField, LegModePicker, useDefaultFrom } from "@/components/cards/TravelLegPanel";
+import type { LegFrom, LegMode } from "@/lib/travel/leg";
 
 const SUB_TYPES: Record<CardType, { value: string; label: string }[]> = {
   activity: [
@@ -149,6 +151,16 @@ export default function CreateCardSheet({
   const [selected,     setSelected]     = useState<PlaceResult | null>(null);
   const debounceRef  = useRef<ReturnType<typeof setTimeout>>();
   const sessionToken = useRef(crypto.randomUUID());
+
+  // ── A travel leg added by hand (7 Oct 2026, mock d13) ──
+  // A picked station or port is a transit card; it waits for Add so the start
+  // can be set, and the start defaults to last night's stay (his tweak 2), so
+  // it is rarely typed. Nothing else about the sheet changes.
+  const isTransitPick = !!selected && type === "logistics" && subType === "transit";
+  const [legFrom, setLegFrom] = useState<LegFrom | null>(null);
+  const [legMode, setLegMode] = useState<LegMode>("drive");
+  const defaultFrom = useDefaultFrom(tripId, dayId, isTransitPick && !!dayId);
+  const effectiveFrom = legFrom ?? defaultFrom;
 
   // ── Saved places — the traveller's own pile, offered before Google ──
   const [saved, setSaved] = useState<Card[]>([]);
@@ -326,7 +338,9 @@ export default function CreateCardSheet({
       // One tap adds it — the same as a saved place (Brennan, from his
       // phone, Sep 2026: "does it make sense that you only have the ability
       // to add it as a note?"). Type and time are fixed on the card after.
-      setAutoAdd(true);
+      // A station or port waits for Add: it is the end of a leg whose start
+      // shows above the button (7 Oct 2026).
+      if (!(guess.type === "logistics" && guess.subType === "transit")) setAutoAdd(true);
     } catch {
       // network error — stay in plain-text mode
     } finally {
@@ -335,6 +349,8 @@ export default function CreateCardSheet({
   }, []);
 
   const clearSelected = useCallback(() => {
+    setLegFrom(null);
+    setLegMode("drive");
     setSelected(null);
     setType(null);
     setSubType(null);
@@ -347,6 +363,8 @@ export default function CreateCardSheet({
   // added place, its "Add <name>" button added the same place again
   // (found 26 Sep 2026 walking a new journey as a first-time user).
   const resetForNext = useCallback(() => {
+    setLegFrom(null);
+    setLegMode("drive");
     setSelected(null);
     setType(null);
     setSubType(null);
@@ -370,6 +388,10 @@ export default function CreateCardSheet({
     //    upsert the enriched places row, then a card referencing it ──
     if (selected && type) {
       const details: Record<string, unknown> = { ...extraDetails, place_id: selected.placeId };
+      if (type === "logistics" && subType === "transit" && effectiveFrom) {
+        details.from = effectiveFrom;
+        details.mode = legMode;
+      }
       if (selected.website) details.website = selected.website;
       if (selected.phone)   details.phone   = selected.phone;
       if (selected.rating)  details.rating  = selected.rating;
@@ -498,7 +520,7 @@ export default function CreateCardSheet({
   }, [
     title, startTime, endTime, saving, selected, type, subType,
     dayId, listId, tripId, endPosition, initialStatus, extraDetails, supabase, onCardCreated, toast, resetForNext,
-    dayLabel, onCardRemoved,
+    dayLabel, onCardRemoved, effectiveFrom, legMode,
   ]);
 
   const canCreate = title.trim().length > 0 && !loadingPlace;
@@ -785,6 +807,20 @@ export default function CreateCardSheet({
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* The leg's start and how you travel, for a station or port. */}
+          {isTransitPick && dayId && (
+            <div className="mb-3" data-testid="new-leg">
+              <LegFromField
+                value={effectiveFrom}
+                suggestion={defaultFrom}
+                onChange={setLegFrom}
+                biasLat={selected?.lat}
+                biasLng={selected?.lng}
+              />
+              <LegModePicker value={legMode} onChange={setLegMode} />
             </div>
           )}
 

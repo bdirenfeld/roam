@@ -44,6 +44,8 @@ import ActivityDetail from "./detail/ActivityDetail";
 import HotelDetail from "./detail/HotelDetail";
 import { withDetails } from "@/lib/cardDetails";
 import { UNTITLED_NOTE, cardTitle, deletedToast } from "@/lib/cardTitle";
+import TravelLegPanel, { useDefaultFrom } from "./TravelLegPanel";
+import { canBeLeg, isTravelLeg, legTitle, legDurationMins, legModeWord, readFrom, readMode, withFrom, type LegFrom, type LegMode } from "@/lib/travel/leg";
 
 /** Read Google's `weekday_text` (seven "Monday: 9:00 AM – 5:00 PM" lines) off
  *  the raw place hours. The bottom sheet is the deliberate lookup surface, so it
@@ -543,6 +545,30 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     },
     [localCard, onCardUpdate, saveTopLevel, toast]
   );
+
+  // ── Travel leg (7 Oct 2026, mock d13) ─────────────────────────
+  // Several details keys in one write (from + mode + a named title), which
+  // saveDetails' one-field-at-a-time closure would lose to itself.
+  const saveDetailsPatch = useCallback(
+    async (next: Record<string, unknown>) => {
+      const prev = localCard;
+      const updated = { ...localCard, details: next as Card["details"] };
+      setLocalCard(updated);
+      onCardUpdate?.(updated);
+      const { error } = await queuedUpdate("cards", { id: localCard.id }, { details: next });
+      if (error) {
+        console.error("Failed to save the leg.", error.message);
+        toast({ message: "Couldn't save that. Try again." });
+        setLocalCard(prev);
+        onCardUpdate?.(prev);
+      }
+    },
+    [localCard, onCardUpdate, toast]
+  );
+  const legCapable = canBeLeg(localCard.place);
+  const legFrom = readFrom(localCard.details);
+  // Last night's stay, offered as the start of a transit card that has none.
+  const legSuggestion = useDefaultFrom(localCard.trip_id, localCard.day_id, legCapable && !readOnly);
 
 
   // ── "We loved this" ──────────────────────────────────────────
@@ -1261,7 +1287,11 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
 
           {/* Title — editable when linked to a place (owner); static otherwise */}
           <div className="mt-2.5">
-            {place && !readOnly ? (
+            {isTravelLeg(localCard) ? (
+              // A leg's title is its route, "Lusaka → Mfuwe"; renaming it would
+              // rename the place it ends at. Change the start below instead.
+              <h2 className="text-[19px] font-bold text-gray-900 leading-snug">{legTitle(localCard)}</h2>
+            ) : place && !readOnly ? (
               <TitleEditor
                 value={place.title}
                 onSave={(v) => saveTitle(v)}
@@ -1397,6 +1427,28 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         <div className="relative flex-1 min-h-0">
           <div ref={scrollRef} className="absolute inset-0 overflow-y-auto px-5 py-5">
             <NoteDisplay.Provider value={weekdayText ? withoutHoursLine : identityNote}>
+              {legCapable && place && (!readOnly || legFrom) && (
+                <TravelLegPanel
+                  from={legFrom}
+                  to={(() => { const t = legTitle(localCard); return legFrom && t.includes("→") ? t.slice(t.indexOf("→") + 1).trim() : place.title; })()}
+                  mode={readMode(localCard.details)}
+                  modeLabel={legFrom ? legModeWord(localCard.details) : null}
+                  durationMins={legFrom ? legDurationMins(localCard) : null}
+                  suggestion={legSuggestion}
+                  readOnly={readOnly}
+                  biasLat={place.lat}
+                  biasLng={place.lng}
+                  onFromChange={(f: LegFrom) => void saveDetailsPatch(withFrom(localCard.details, f))}
+                  onModeChange={(m: LegMode) => {
+                    // A mode chosen by hand replaces the tour's words for it;
+                    // a tap on the one already chosen changes nothing.
+                    if (m === (readMode(localCard.details) ?? "drive")) return;
+                    const next: Record<string, unknown> = { ...(localCard.details as Record<string, unknown>), mode: m };
+                    delete next.mode_label;
+                    void saveDetailsPatch(next);
+                  }}
+                />
+              )}
               {renderDetail()}
             </NoteDisplay.Provider>
 

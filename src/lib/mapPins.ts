@@ -175,7 +175,8 @@ const MATERIAL_ICONS: Record<string, string> = {
 };
 
 /** Glyphs used outside MATERIAL_ICONS: the fallback, a note card, the day map's hotel. */
-const OTHER_GLYPHS = ["place", "edit_note", "hotel"];
+// The travel leg's mode glyphs (7 Oct 2026, lib/travel/leg LEG_MODE_GLYPH).
+const OTHER_GLYPHS = ["place", "edit_note", "hotel", "directions_car", "directions_bus", "train", "directions_boat"];
 
 /**
  * The Material Symbols stylesheet with ONLY Roam's glyphs and ONLY the axis
