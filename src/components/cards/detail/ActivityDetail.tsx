@@ -32,16 +32,19 @@ export default function ActivityDetail({ card, onSaveDetails, showEmpty = false 
   return (
     <div className="space-y-6">
       {/* Booking info */}
-      {(d.supplier || d.meeting_point || d.cost_per_person != null) && (
+      {/* Cost is editable here too (7 Oct 2026, taps audit): this fallback layout
+          (no kind picked, Shopping, Camp) only printed it, and Add details offered
+          no cost field, so the Estimate never counted it. Same "Cost per person"
+          row as Tour / Explore / Event / Race / Wellness. */}
+      {(showEmpty || d.supplier || d.meeting_point || d.cost_per_person != null) && (
         <Section label="Booking">
           {d.supplier && <Row icon="🏢" label="With" value={d.supplier as string} />}
-          {d.cost_per_person != null && (
-            <Row
-              icon="💳"
-              label="Cost"
-              value={`${d.currency ?? ""} ${d.cost_per_person as number}${d.card_used ? ` · ${d.card_used as string}` : ""}`}
-            />
-          )}
+          <FieldRow icon="💳" label="Cost per person"
+            value={d.cost_per_person != null ? String(d.cost_per_person) : undefined}
+            placeholder="Add cost…"
+            onSave={onSaveDetails ? (v) => onSaveDetails("cost_per_person", v ? parseFloat(v) : null) : undefined}
+            hideWhenEmpty={!showEmpty} />
+          {d.card_used && <Row icon="🏦" label="Paid with" value={d.card_used as string} />}
           {d.meeting_point && <Row icon="📍" label="Meet at" value={d.meeting_point as string} />}
           {d.meeting_time && <Row icon="⏰" label="Meet by" value={d.meeting_time as string} />}
           {d.refundable != null && (
