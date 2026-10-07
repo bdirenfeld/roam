@@ -23,6 +23,8 @@ import StartHere from "@/components/plan/StartHere";
 import TripUnderwayVideo from "@/components/videos/TripUnderwayVideo";
 import { isUnderwayLocal, localDate } from "@/lib/isSameLocalDay";
 import { dayMoment } from "@/lib/trips/dayMoment";
+import { welcomeHomeLine, welcomeHomeOpen, type WelcomeCard } from "@/lib/trips/welcomeHome";
+import WelcomeHomeCard from "@/components/day/WelcomeHomeCard";
 import { startSteps, type StartCard } from "@/lib/plan/startHere";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import AppMenu from "@/components/ui/AppMenu";
@@ -396,6 +398,22 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   // Organiser only (Brennan, 2 Oct 2026): video 4 shows moving lunch and other
   // owner-only moves, so a signed-in guest would watch things they can't do.
   const underwayShown = phone && underway && !readOnly && startCards !== null && !startShown;
+  // Welcome home (7 Oct 2026, delight audit): in the 14 days after the journey
+  // ends (phone's local date), the organiser's phone adds the trip up in the
+  // same spot — days, places on the days, places loved. Read only inside that
+  // window; the card itself remembers its ✕ (localStorage, per journey).
+  const [welcomeLine, setWelcomeLine] = useState<string | null>(null);
+  useEffect(() => {
+    if (readOnly || !phone || !welcomeHomeOpen(trip.end_date, localDate(new Date()))) return;
+    let live = true;
+    (async () => {
+      const { data } = await supabase.from("cards").select("day_id, place:places(id, loved)").eq("trip_id", trip.id).not("archived", "is", true);
+      if (live) setWelcomeLine(welcomeHomeLine(trip.start_date, trip.end_date, (data ?? []) as unknown as WelcomeCard[]));
+    })();
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trip.id, trip.start_date, trip.end_date, readOnly, phone]);
+  const welcomeShown = phone && !readOnly && welcomeLine !== null && startCards !== null && !startShown && !underwayShown;
 
   // The desktop masthead's menu lives in the layout, so its Bookings row asks
   // whichever screen is open to show the sheet (Brennan, Sep 2026: "I thought
@@ -1108,6 +1126,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
             {...swipeHandlers}
           >
             {underwayShown && <TripUnderwayVideo moment={moment} />}
+            {welcomeShown && <WelcomeHomeCard tripId={trip.id} line={welcomeLine!} />}
             {startShown && (
               <div className="mb-4 flex justify-center">
                 <StartHere cards={startCards!} firstDay={firstDay} place={trip.destination ?? ""} reading={upload.reading} readingLabel={upload.readingLabel} several
