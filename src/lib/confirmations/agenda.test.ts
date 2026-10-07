@@ -17,8 +17,8 @@ describe("a conference's agenda", () => {
     const days = expandAgenda(summit);
     expect(days).toHaveLength(2);
     expect(days.map((d) => [d.date, d.time, d.end_time])).toEqual([["2027-03-15", "07:30", "17:00"], ["2027-03-16", "07:30", "16:00"]]);
-    expect(days[0].notes).toBe("**Day 1 schedule**\n- 7:30 Breakfast and registration\n- 1:00 Group exercise\n\nBring badge");
-    expect(days[1].notes).toBe("**Day 2 schedule**\n- 8:30 Session: Bargaining with anchors\n\nBring badge");
+    expect(days[0].notes).toBe("**Schedule**\n- 7:30 Breakfast and registration\n- 1:00 Group exercise\n\nBring badge");
+    expect(days[1].notes).toBe("**Schedule**\n- 8:30 Session: Bargaining with anchors\n\nBring badge");
     expect(days.map((d) => d.address)).toEqual([summit.address, summit.address]);
     expect(days.map((d) => d.title)).toEqual([summit.title, summit.title]);
     expect(days[0].total_paid).toBe(900);
@@ -50,7 +50,7 @@ describe("a conference's agenda", () => {
   });
 
   it("notes with no times and no extra note", () => {
-    expect(agendaNotes(3, [{ time: null, title: "Close" }], null)).toBe("**Day 3 schedule**\n- Close");
+    expect(agendaNotes(3, [{ time: null, title: "Close" }], null)).toBe("**Schedule**\n- Close");
   });
 
   it("the sheet's line reads like the mock", () => {

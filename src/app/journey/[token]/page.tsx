@@ -220,7 +220,10 @@ export default async function ClaimPage({ params, searchParams }: Props) {
         note: typeof c.details?.notes === "string" ? (c.details.notes as string) : null,
         place: c.place
           ? {
-              title: c.place.title,
+              // A named card (an event from a confirmation, a travel leg) keeps
+              // its own name here too, not the venue's (7 Oct 2026: the summit
+              // read "Irving Convention Center" on the shared page).
+              title: c.details?.named === true && typeof c.details?.title === "string" ? (c.details.title as string) : c.place.title,
               sub_type: c.place.sub_type,
               address: c.place.address,
               // Only an already-cached copy: /api/places/photo needs a session.

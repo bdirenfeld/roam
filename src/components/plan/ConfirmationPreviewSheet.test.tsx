@@ -210,7 +210,7 @@ describe("read from a confirmation = booked, and agendas (6 Oct 2026)", () => {
     await waitFor(() => expect(queued).toHaveBeenCalled());
     const rows = queued.mock.calls[0][1] as { day_id: string; start_time: string; end_time: string; confirmed: boolean; details: { notes?: string } }[];
     expect(rows.map((r) => [r.day_id, r.start_time, r.end_time, r.confirmed])).toEqual([["d1", "07:30:00", "17:00:00", true], ["d12", "07:30:00", "16:00:00", true]]);
-    expect(rows[0].details.notes).toContain(["**Day 1 schedule**", "- 7:30 Breakfast", "- 8:30 Opening keynote"].join(String.fromCharCode(10)));
+    expect(rows[0].details.notes).toContain(["**Schedule**", "- 7:30 Breakfast", "- 8:30 Opening keynote"].join(String.fromCharCode(10)));
     vi.unstubAllGlobals();
   });
 

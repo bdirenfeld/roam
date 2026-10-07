@@ -52,12 +52,14 @@ function shortClock(t: string): string {
 }
 
 /**
- * The card's notes in the house markdown: "**Day 1 schedule**", then one
+ * The card's notes in the house markdown: "**Schedule**" (not "Day 1 schedule":
+ * the event's Day 1 is the trip's Day 2, 7 Oct 2026), then one
  * "- 7:30 Breakfast and registration" line per session, then any short note
  * the booking already carried.
  */
 export function agendaNotes(dayNumber: number, items: AgendaItem[], note: string | null | undefined): string {
-  const lines = [`**Day ${dayNumber} schedule**`, ...items.map((it) => `- ${it.time ? `${shortClock(it.time)} ` : ""}${it.title}`)];
+  void dayNumber;
+  const lines = ["**Schedule**", ...items.map((it) => `- ${it.time ? `${shortClock(it.time)} ` : ""}${it.title}`)];
   const extra = str(note);
   return extra ? `${lines.join("\n")}\n\n${extra}` : lines.join("\n");
 }
