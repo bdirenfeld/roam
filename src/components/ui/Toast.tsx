@@ -79,8 +79,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             <button
               type="button"
               onClick={handleUndo}
-              className="px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 font-semibold transition-colors flex-shrink-0"
+              className="relative px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 font-semibold transition-colors flex-shrink-0"
             >
+              {/* Out to the toast's own edges (its 6px padding) and 8px toward
+                  the message: ~44px tall, never past the toast onto the page
+                  under it (6 Oct 2026, taps audit). */}
+              <span aria-hidden="true" data-testid="undo-target" className="absolute -inset-y-1.5 -right-1.5 -left-2" />
               Undo
             </button>
           )}

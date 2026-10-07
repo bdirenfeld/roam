@@ -760,10 +760,13 @@ export function SearchButton({
   size = 17,
   strokeWidth = 1.4,
   label,
+  target,
 }: {
   className?: string;
   size?: number;
   strokeWidth?: number;
+  /** Classes for an invisible, larger tap area around the glyph (the button needs `relative`). */
+  target?: string;
   /** Renders the button as a labelled control with its keyboard shortcut,
    *  for places with room for words. A lens alone is a memory test. */
   label?: string;
@@ -786,6 +789,7 @@ export function SearchButton({
           : { background: "transparent", border: "none", cursor: "pointer" }
       }
     >
+      {target && <span aria-hidden="true" data-testid="search-target" className={target} />}
       <SearchGlyph size={size} strokeWidth={strokeWidth} />
       {label && (
         <>

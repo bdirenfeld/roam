@@ -21,6 +21,9 @@ vi.mock("@/components/ui/Toast", () => ({ useToast: () => ({ toast: vi.fn(), dis
 vi.mock("@/lib/supabase/client", () => ({ createClient: () => ({}) }));
 const del = vi.fn(async () => ({ error: null }));
 vi.mock("@/lib/offline/queuedWrite", () => ({ queuedDelete: (...a: unknown[]) => del(...(a as [])) }));
+// Taking a pin off its day: the saved copy it makes comes back as "s9".
+const unschedule = vi.fn(async () => ({ ok: true, created: { id: "s9" } }));
+vi.mock("@/lib/scheduleCard", async (orig) => ({ ...(await orig<object>()), unscheduleCard: () => unschedule() }));
 
 import MapPinPopup from "./MapPinPopup";
 import type { Card } from "@/types/database";
@@ -84,6 +87,15 @@ describe("MapPinPopup — removing a pin", () => {
     fireEvent.click(screen.getByRole("button", { name: "Remove from map" }));
     expect(screen.getByText(/This place is on Day 3/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Take it off the day" })).toBeTruthy();
+  });
+
+  it("taking it off the day tells the host it was a take-off, with the saved copy, so its toast says so (6 Oct 2026, taps audit)", async () => {
+    const onDay = { ...card, status: "in_itinerary", day_id: "d1" } as unknown as Card;
+    const onCardDelete = vi.fn();
+    render(<MapPinPopup card={onDay} onClose={() => {}} onCardDelete={onCardDelete} onCardUpdate={() => {}} onCardCreated={() => {}} days={[{ id: "d1", day_number: 3, date: "2027-08-26" }] as never} tripId="t1" />);
+    fireEvent.click(screen.getByRole("button", { name: "Remove from map" }));
+    fireEvent.click(screen.getByRole("button", { name: "Take it off the day" }));
+    await waitFor(() => expect(onCardDelete).toHaveBeenCalledWith("c1", { savedId: "s9" }));
   });
 });
 

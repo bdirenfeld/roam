@@ -880,8 +880,13 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                     disabled={page === 0}
                     aria-label="Previous week"
                     title={`Week ${page} of ${weeks}`}
-                    className="w-5 h-5 rounded-full flex items-center justify-center disabled:opacity-25 hover:bg-[rgba(26,26,46,0.06)]"
+                    className="relative w-5 h-5 rounded-full flex items-center justify-center disabled:opacity-25 hover:bg-[rgba(26,26,46,0.06)]"
                   >
+                    {/* 44 tall in the ~50px header row, and wider only to the
+                        52px gutter's edge outside and 1px toward each other,
+                        so the arrows never take each other's tap or the first
+                        day header's (6 Oct 2026, taps audit). */}
+                    <span aria-hidden="true" data-testid="week-prev-target" className="absolute -inset-y-3 -left-[5px] -right-px" />
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
                   </button>
                   <button
@@ -890,8 +895,9 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                     disabled={page === weeks - 1}
                     aria-label="Next week"
                     title={`Week ${page + 2} of ${weeks}`}
-                    className="w-5 h-5 rounded-full flex items-center justify-center disabled:opacity-25 hover:bg-[rgba(26,26,46,0.06)]"
+                    className="relative w-5 h-5 rounded-full flex items-center justify-center disabled:opacity-25 hover:bg-[rgba(26,26,46,0.06)]"
                   >
+                    <span aria-hidden="true" data-testid="week-next-target" className="absolute -inset-y-3 -left-px -right-[5px]" />
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
                   </button>
                 </>

@@ -32,6 +32,7 @@ const MAP_DISC_STYLE = { boxShadow: "0 1px 4px rgba(0,0,0,0.2)" } as const;
 import { useGlobalSearch } from "@/components/search/GlobalSearch";
 import { useToast } from "@/components/ui/Toast";
 import { queuedInsert, queuedDelete } from "@/lib/offline/queuedWrite";
+import { takenOffMapToast } from "@/lib/takenOff";
 import { createClient } from "@/lib/supabase/client";
 import { scheduleCardOnDay } from "@/lib/scheduleCard";
 import { planBatch, plannedOtherDays, stayAnchor } from "@/lib/week/dayPlan";
@@ -100,6 +101,12 @@ function makeInitialSubTypes(): Set<string> {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type MarkerEntry = { marker: any; type: CardType; cardRef: { current: Card } };
 const MARKERS = new Map<string, MarkerEntry>();
+
+/** The map's bottom chips (Filter, Plan my trip, Find places), 28px drawn and
+ *  44 to the finger (6 Oct 2026, taps audit): 4px each side (half the 8px
+ *  gap), only 4px up (Filter's open pill rows sit 8px above), 12px down into
+ *  the space under the row — which is also the gap above Find's half sheet. */
+const CHIP_TARGET = "absolute -inset-x-1 -top-1 -bottom-3";
 
 // userAvatarUrl stays in Props for the page that passes it; the avatar disc
 // it fed left with the one header (consistency sweep, Sep 2026).
@@ -670,15 +677,25 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
   // finding 2): the pin vanished and that was that. Same six seconds as the
   // Plan and the Agenda now — Undo re-inserts under the original id and puts
   // the pin back.
-  const handleCardDelete = useCallback((cardId: string) => {
+  // Taken off a day, the place stays saved, so the toast says what really
+  // happened ("Removed from the map" was wrong) and Undo also takes back the
+  // saved card the take-off made (6 Oct 2026, taps audit).
+  const handleCardDelete = useCallback((cardId: string, takenOff?: { savedId: string | null }) => {
     const entry = MARKERS.get(cardId);
     if (entry) { entry.marker.remove(); MARKERS.delete(cardId); }
     setLocalCards((prev) => {
       const gone = prev.find((c) => c.id === cardId) ?? null;
       if (gone) {
+        const offDay = takenOff ? days.find((d) => d.id === gone.day_id) : undefined;
         toast({
-          message: "Removed from the map",
+          message: takenOff ? takenOffMapToast(offDay?.day_number) : "Removed from the map",
           undo: async () => {
+            if (takenOff?.savedId) {
+              const savedId = takenOff.savedId;
+              await queuedDelete("cards", { id: savedId });
+              const m = MARKERS.get(savedId); if (m) { m.marker.remove(); MARKERS.delete(savedId); }
+              setLocalCards((p) => p.filter((c) => c.id !== savedId));
+            }
             const { error } = await queuedInsert("cards", {
               id: gone.id, day_id: gone.day_id, trip_id: gone.trip_id,
               start_time: gone.start_time, end_time: gone.end_time,
@@ -694,7 +711,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
       return prev.filter((c) => c.id !== cardId);
     });
     setSelectedCard((prev) => (prev?.id === cardId ? null : prev));
-  }, [toast]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [toast, days]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Handle card type/sub-type update from popup editor ───────
   const handleCardUpdate = useCallback((updatedCard: Card) => {
@@ -950,12 +967,16 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
           </>
         )}
 
-        {/* The pick tray — phone, above the Filter */}
+        {/* The pick tray, above the Filter. At every width: it was phone-only,
+            but "Pick more" and a long press start picking on a computer too,
+            which left chosen pins with nowhere to put them (6 Oct 2026, taps audit). */}
         {pickMode && pickedIds.size > 0 && !readOnly && (
-          <div className="md:hidden absolute left-3 right-3 z-[66] bg-white rounded-2xl p-3" style={{ bottom: "calc(64px + env(safe-area-inset-bottom, 0px))", boxShadow: "0 8px 24px rgba(26,26,46,0.18)" }}>
+          <div data-testid="pick-tray" className="absolute left-3 right-3 z-[66] bg-white rounded-2xl p-3" style={{ bottom: "calc(64px + env(safe-area-inset-bottom, 0px))", boxShadow: "0 8px 24px rgba(26,26,46,0.18)" }}>
             <div className="flex items-center justify-between mb-2">
               <span className="text-[13px] font-semibold">{pickedIds.size} {pickedIds.size === 1 ? "place" : "places"} on</span>
-              <button onClick={leavePick} aria-label="Stop picking" className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center">
+              <button onClick={leavePick} aria-label="Stop picking" className="relative w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center">
+                {/* 44 wide into the tray's padding, only 4px down: the day chips are 8px below (6 Oct 2026, taps audit). */}
+                <span aria-hidden="true" data-testid="pick-close-target" className="absolute -inset-x-2 -top-2 -bottom-1" />
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
               </button>
             </div>
@@ -1125,7 +1146,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
           <div className="flex items-center gap-2">
           <button
             onClick={() => setFilterOpen((v) => !v)}
-            className="self-start flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors duration-200"
+            className="relative self-start flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors duration-200"
             style={{
               backdropFilter: "blur(8px)",
               WebkitBackdropFilter: "blur(8px)",
@@ -1133,6 +1154,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
               color: filterOpen ? "#FFFFFF" : "#374151",
             }}
           >
+            <span aria-hidden="true" data-testid="filter-target" className={CHIP_TARGET} />
             <Funnel size={13} weight="light" color={filterOpen ? "#FFFFFF" : "#374151"} />
             {filterOpen ? "Done" : "Filter"}
             {!filterOpen && filterNarrowed > 0 && (
@@ -1149,9 +1171,10 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
             <button
               // From above Find's half sheet too: Find closes, so the two sheets never stack.
               onClick={() => { setFindOpen(false); setFindTall(false); setPlanOpen(true); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium"
+              className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium"
               style={{ backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", background: "rgba(255,255,255,0.9)", color: "#1A1A2E" }}
             >
+              <span aria-hidden="true" className={CHIP_TARGET} />
               Plan my trip
             </button>
           )}
@@ -1159,9 +1182,10 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
           {!readOnly && !filterOpen && !findOpen && (
             <button
               onClick={() => setFindOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium"
+              className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium"
               style={{ backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", background: "rgba(255,255,255,0.9)", color: "#1A1A2E" }}
             >
+              <span aria-hidden="true" className={CHIP_TARGET} />
               Find places
             </button>
           )}
@@ -1264,7 +1288,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
             }}
             onClose={() => { deselectPin(); setSelectedCard(null); }}
             onCardUpdate={readOnly ? undefined : handleCardUpdate}
-            onCardDelete={readOnly ? undefined : (cardId) => { deselectPin(); handleCardDelete(cardId); }}
+            onCardDelete={readOnly ? undefined : (cardId, takenOff) => { deselectPin(); handleCardDelete(cardId, takenOff); }}
             onCardCreated={readOnly ? undefined : (created) => { deselectPin(); registerNewCard(created); }}
             onPickMore={readOnly ? undefined : () => { const id = selectedCard!.id; deselectPin(); setSelectedCard(null); enterPick(id); }}
             days={readOnly ? undefined : days}

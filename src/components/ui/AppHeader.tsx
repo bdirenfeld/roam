@@ -30,8 +30,12 @@ export default function AppHeader({ avatarUrl, subtitle, showNewTrip }: AppHeade
       <div className="flex items-center gap-2">
         {/* Search — opens the full-height search sheet. Bare glyph, same
             weight as the masthead's, so the two headers read as one app. */}
+        {/* Finger-sized targets, drawn the same size (6 Oct 2026, taps audit):
+            each 32px control reaches 44 tall into the header's padding and
+            40 wide — half the 8px gap, so neighbours never overlap. */}
         <SearchButton
-          className="w-8 h-8 flex items-center justify-center text-[rgba(26,26,46,0.62)]"
+          className="relative w-8 h-8 flex items-center justify-center text-[rgba(26,26,46,0.62)]"
+          target="absolute -inset-x-1 -inset-y-1.5"
           size={18}
           strokeWidth={1.5}
         />
@@ -40,7 +44,8 @@ export default function AppHeader({ avatarUrl, subtitle, showNewTrip }: AppHeade
             links to /trips/new and /profile, so ctrl/cmd-click still opens
             the page — see components/overlays/AppOverlays.tsx. */}
         {showNewTrip && (
-          <NewJourneyLink title="Plan a journey" ariaLabel="Plan a journey">
+          <NewJourneyLink title="Plan a journey" ariaLabel="Plan a journey" className="relative">
+            <span aria-hidden="true" data-testid="new-journey-target" className="absolute -inset-x-1 -inset-y-1.5" />
             <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "#1A1A2E" }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round">
                 <line x1="12" y1="5" x2="12" y2="19" />
@@ -51,7 +56,9 @@ export default function AppHeader({ avatarUrl, subtitle, showNewTrip }: AppHeade
         )}
 
         {/* Profile avatar */}
-        <ProfileLink title="Profile" ariaLabel="Profile">
+        <ProfileLink title="Profile" ariaLabel="Profile" className="relative">
+          {/* Outside the avatar's circle: it clips (overflow-hidden). */}
+          <span aria-hidden="true" data-testid="profile-target" className="absolute -inset-x-1 -inset-y-1.5" />
           <div className="w-8 h-8 rounded-full bg-gray-100 overflow-hidden flex items-center justify-center border border-gray-200">
             {avatarUrl ? (
               <Image src={avatarUrl} alt="Profile" width={32} height={32} className="object-cover" />

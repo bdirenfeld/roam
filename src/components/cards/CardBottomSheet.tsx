@@ -60,7 +60,8 @@ interface Props {
   /** Called after every successful (or optimistically applied) edit. */
   onCardUpdate?: (card: Card) => void;
   /** Called after the card is permanently deleted. */
-  onCardDelete?: (cardId: string) => void;
+  /** `takenOff` when the card came off its day (the place stays saved; `savedId` is the saved copy made for it, if one was). */
+  onCardDelete?: (cardId: string, takenOff?: { savedId: string | null }) => void;
   /** Called with the NEW card written by "Copy to another day". The card this
    *  sheet is showing is unchanged — the caller splices the new one into the
    *  target day so the board/agenda updates without a refetch. */
@@ -390,6 +391,11 @@ function TitleEditor({
 }
 
 // ── Main component ─────────────────────────────────────────────
+/** The top row's 28px discs, finger-sized without looking it (6 Oct 2026,
+ *  taps audit): 44 tall into the header's 12px padding, and only 3px each
+ *  side — half the 6px gap — so no disc's target reaches its neighbour. */
+const DISC_TARGET = "absolute -inset-x-[3px] -inset-y-2";
+
 export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDelete, onCardCopied, days, tripDestination, readOnly = false, stayCheckOut = null }: Props) {
   // Every field save reverts on refusal; it also says so now (UX audit,
   // Sep 2026, finding 1). Before, eight sites logged to the console only.
@@ -660,14 +666,15 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   // phone was deleting the card outright (click audit, batch 5).
   const handleUnschedule = useCallback(async () => {
     setIsDeleting(true);
-    const { ok } = await unscheduleCard(supabase, localCard);
+    const { ok, created } = await unscheduleCard(supabase, localCard);
     setIsDeleting(false);
     if (!ok) {
       setDeleteError("Couldn't take it off the day — please try again.");
       setTimeout(() => setDeleteError(null), 3000);
       return;
     }
-    onCardDelete?.(localCard.id);
+    // Said as a take-off, so the host's toast doesn't call it a delete (6 Oct 2026, taps audit).
+    onCardDelete?.(localCard.id, { savedId: created?.id ?? null });
     onClose();
   }, [localCard, onCardDelete, onClose, supabase]);
 
@@ -976,6 +983,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             ? { zIndex: 30, color: "#fff", filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.55))" }
             : { zIndex: 30, color: "rgba(26,26,46,0.45)" }}
         >
+          {/* 44px to the finger, 36 to the eye (6 Oct 2026, taps audit). A note
+              card's ⋯ keeps 40px clear of this corner, so it never overlaps. */}
+          <span aria-hidden="true" data-testid="sheet-close-target" className="absolute -inset-1" />
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
           </svg>
@@ -1082,8 +1092,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                     aria-pressed={isLoved}
                     aria-label={isLoved ? "We loved this — tap to unset" : "We loved this"}
                     title="We loved this"
-                    className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                    className="relative w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
                   >
+                    <span aria-hidden="true" data-testid="sheet-disc-target" className={DISC_TARGET} />
                     {isLoved ? <LovedHeart size={15} /> : <Heart size={14} weight="light" color="#6B7280" />}
                   </button>
                 )
@@ -1095,8 +1106,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   rel="noopener noreferrer"
                   aria-label="Website"
                   title="Website"
-                  className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                  className="relative w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
                 >
+                  <span aria-hidden="true" className={DISC_TARGET} />
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="10" />
                     <line x1="2" y1="12" x2="22" y2="12" />
@@ -1105,7 +1117,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 </a>
               )}
               {phone && (
-                <a href={phone.href} aria-label="Call" title={phone.display} className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors">
+                <a href={phone.href} aria-label="Call" title={phone.display} className="relative w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors">
+                  <span aria-hidden="true" className={DISC_TARGET} />
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.77a16 16 0 0 0 6.29 6.29l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
                   </svg>
@@ -1115,9 +1128,10 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               {!readOnly && (place?.type === "logistics" || place?.type === "activity") && (
                 <button
                   onClick={() => setShowAttachments(true)}
-                  className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                  className="relative w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
                   aria-label="Attachments"
                 >
+                  <span aria-hidden="true" className={DISC_TARGET} />
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
                   </svg>
@@ -1126,9 +1140,10 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               {!readOnly && localCard.status === "in_itinerary" && (
                 <button
                   onClick={() => setShowLinkSheet(true)}
-                  className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                  className="relative w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
                   aria-label="Link place from map"
                 >
+                  <span aria-hidden="true" className={DISC_TARGET} />
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
                     <circle cx="12" cy="9" r="2.5" />
@@ -1145,8 +1160,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                     onClick={() => setShowCardMenu((v) => !v)}
                     aria-expanded={showCardMenu}
                     aria-label="More options"
-                    className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                    className="relative w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
                   >
+                    <span aria-hidden="true" className={DISC_TARGET} />
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="#6B7280">
                       <circle cx="5" cy="12" r="1.9" /><circle cx="12" cy="12" r="1.9" /><circle cx="19" cy="12" r="1.9" />
                     </svg>

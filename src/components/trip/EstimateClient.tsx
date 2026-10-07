@@ -145,7 +145,7 @@ function Row({
           <button
             onClick={() => toggle(line.enabledKey as keyof Assumptions)}
             aria-label={`${line.enabled ? "Exclude" : "Include"} ${line.label}`}
-            className="w-[16px] h-[16px] rounded-full flex items-center justify-center"
+            className="relative w-[16px] h-[16px] rounded-full flex items-center justify-center"
             style={{
               background: line.enabled ? INK : "#FFFFFF",
               border: `1px solid ${line.enabled ? INK : "rgba(26,26,46,0.22)"}`,
@@ -154,6 +154,11 @@ function Row({
               lineHeight: 1,
             }}
           >
+            {/* 40px to the finger, 16 to the eye (6 Oct 2026, taps audit): 12px
+                each way stays inside the row's 10px padding plus the centring
+                on the shortest (text-only) row, so it never reaches the next
+                row's tick. Leftward it stays in the 14px side padding. */}
+            <span aria-hidden="true" data-testid="include-target" className="absolute -inset-3" />
             {line.enabled ? "✓" : ""}
           </button>
         )

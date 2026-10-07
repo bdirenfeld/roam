@@ -41,7 +41,8 @@ import Companion from "@/components/companion/Companion";
 const JourneyNotesSheet = dynamic(reloadOnStale(() => import("@/components/trip/JourneyNotes").then((m) => m.JourneyNotesSheet)), { ssr: false });
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 import { createClient } from "@/lib/supabase/client";
-import { queuedUpdate, queuedInsert } from "@/lib/offline/queuedWrite";
+import { queuedUpdate, queuedInsert, queuedDelete } from "@/lib/offline/queuedWrite";
+import { takenOffDayToast } from "@/lib/takenOff";
 import { planExisting, stayAnchor } from "@/lib/week/dayPlan";
 import { applyOverlayAll } from "@/lib/offline/writeQueue";
 import { COMPANION_ENABLED } from "@/lib/featureFlags";
@@ -177,11 +178,14 @@ function WeatherSubtitle({
   expanded,
   onToggle,
   controlsId,
+  target,
 }: {
   weather: DayWeather | null;
   expanded: boolean;
   onToggle: () => void;
   controlsId: string;
+  /** Classes for an invisible, larger tap area (the phone header's). */
+  target?: string;
 }) {
   if (!weather) {
     // Reserve height so the header never resizes on data arrival
@@ -197,12 +201,13 @@ function WeatherSubtitle({
       aria-expanded={expanded}
       aria-controls={controlsId}
       aria-label="Toggle weather forecast"
-      className="pointer-events-auto flex items-center gap-1 rounded-[4px] transition-colors"
+      className="relative pointer-events-auto flex items-center gap-1 rounded-[4px] transition-colors"
       style={{
         padding: "2px 6px",
         background: expanded ? "rgba(196,98,45,0.08)" : "transparent",
       }}
     >
+      {target && <span aria-hidden="true" data-testid="weather-target" className={target} />}
       <WeatherIcon category={category} />
       <span className="text-[11px] font-medium leading-none text-activity/50 tabular-nums">
         {weather.high_c}° / {weather.low_c}°
@@ -429,14 +434,18 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
 
   // Delete is instant (the sheet asks nothing); the six-second Undo in the
   // app toast is the safety net. Re-insert keeps the original id so
-  // attachments and links keep working.
-  const handleCardDelete = useCallback((cardId: string) => {
+  // attachments and links keep working. "Take off this day" comes through
+  // here too, and said "Card deleted" though the place stays saved: it now
+  // says so, and its Undo also takes back the saved copy it made (6 Oct 2026,
+  // taps audit).
+  const handleCardDelete = useCallback((cardId: string, takenOff?: { savedId: string | null }) => {
     setLocalCards((prev) => {
       const gone = prev.find((c) => c.id === cardId) ?? null;
       if (gone) {
         toast({
-          message: "Card deleted",
+          message: takenOff ? takenOffDayToast(dayWithCards.date) : "Card deleted",
           undo: async () => {
+            if (takenOff?.savedId) await queuedDelete("cards", { id: takenOff.savedId });
             const { error } = await queuedInsert("cards", {
               id: gone.id, day_id: gone.day_id, trip_id: gone.trip_id,
               start_time: gone.start_time, end_time: gone.end_time,
@@ -455,7 +464,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
     });
     setSelectedCard((prev) => (prev?.id === cardId ? null : prev));
     setIsCardOpen(false);
-  }, [supabase, toast]);
+  }, [supabase, toast, dayWithCards.date]);
 
   // A copy lands on ANOTHER day by definition, so this day's timeline is
   // unchanged — but if the target happens to be this day (a future
@@ -470,21 +479,9 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
     [dayWithCards.id]
   );
 
-  const handleToggleConfirmed = useCallback(async (cardId: string) => {
-    const card = localCards.find((c) => c.id === cardId);
-    if (!card) return;
-    const newValue = !card.confirmed;
-    setLocalCards((prev) => prev.map((c) => c.id === cardId ? { ...c, confirmed: newValue } : c));
-    setSelectedCard((prev) => prev?.id === cardId ? { ...prev, confirmed: newValue } : prev);
-    // Queued when the write can't reach Supabase — the optimistic tick then
-    // stands, survives a reload, and replays on reconnect. Only a genuine
-    // refusal rolls back.
-    const { error } = await queuedUpdate("cards", { id: cardId }, { confirmed: newValue });
-    if (error) {
-      setLocalCards((prev) => prev.map((c) => c.id === cardId ? { ...c, confirmed: !newValue } : c));
-      setSelectedCard((prev) => prev?.id === cardId ? { ...prev, confirmed: !newValue } : prev);
-    }
-  }, [localCards]);
+  // The face's Booked pill used to un-book here on one tap, with no toast or
+  // Undo; it is status only now, and the Booked switch lives in the card's ⋯
+  // menu (6 Oct 2026, taps audit).
 
   const [isCardOpen, setIsCardOpen] = useState(false);
   const [swipeDir, setSwipeDir] = useState<"left" | "right" | null>(null);
@@ -803,11 +800,16 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
             aria-expanded={phoneCal !== null}
             aria-haspopup="dialog"
             aria-label={`${formatDayTitle(dayWithCards.date)}. Open the calendar`}
-            className={`pointer-events-auto flex items-center gap-[5px] px-2 py-px rounded-md font-display text-gray-900 ${
+            className={`relative pointer-events-auto flex items-center gap-[5px] px-2 py-px rounded-md font-display text-gray-900 ${
               weatherReachable ? "text-[16px]" : "text-[18px]"
             }`}
             style={{ background: phoneCal !== null ? "rgba(26,26,46,0.06)" : "transparent" }}
           >
+            {/* Taller targets for the date and the weather, drawn the same (6 Oct
+                2026, taps audit): each reaches the header's edge on its own
+                side, and they split the 2px between them, so neither takes
+                the other's tap. With no weather line the date grows both ways. */}
+            <span aria-hidden="true" data-testid="date-target" className={`absolute -inset-x-2 -top-2 ${weatherReachable ? "-bottom-px" : "-bottom-2"}`} />
             {formatDayTitle(dayWithCards.date)}
             <span
               aria-hidden
@@ -825,6 +827,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
               expanded={weatherExpanded}
               onToggle={() => { setPhoneCal(null); setWeatherExpanded((v) => !v); }}
               controlsId="weather-expansion"
+              target="absolute -inset-x-2 -top-px -bottom-2"
             />
           )}
         </div>
@@ -1113,7 +1116,6 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
               onCardTap={handleCardTap}
               highlightedCardId={highlightedCardId}
               onGapTap={readOnly ? undefined : handleGapTap}
-              onToggleConfirmed={readOnly ? undefined : handleToggleConfirmed}
               cardNumberById={cardNumberById}
               readOnly={readOnly}
               onTimeTap={readOnly ? undefined : (card) => setTimeCard(card)}

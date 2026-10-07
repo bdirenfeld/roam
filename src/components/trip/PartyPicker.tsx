@@ -17,7 +17,12 @@ import Pieces from "@/components/ui/Pieces";
 
 const KID_DEFAULT = 8;
 
-function Stepper({ label, value, min, onChange }: { label: string; value: number; min: number; onChange: (n: number) => void }) {
+function Stepper({ label, value, min, onChange, first = false }: { label: string; value: number; min: number; onChange: (n: number) => void; first?: boolean }) {
+  // Wider targets on the 24px discs, drawn the same (6 Oct 2026, taps audit):
+  // 8px sideways (the 40px between − and + leaves 24 clear), but only 5px up
+  // and down — the rows are 10px apart and the kids' ages sit 6px below. The
+  // first row grows nothing upward: the Travellers row's own button is there.
+  const target = `absolute -inset-x-2 ${first ? "top-0" : "-top-[5px]"} -bottom-[5px]`;
   return (
     <div className="flex items-center gap-3">
       <span className="text-[13px] text-[#1A1A2E] w-16">{label}</span>
@@ -25,18 +30,20 @@ function Stepper({ label, value, min, onChange }: { label: string; value: number
         type="button"
         onClick={() => onChange(Math.max(min, value - 1))}
         disabled={value <= min}
-        className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 text-[14px] leading-none disabled:opacity-30 active:scale-90 transition-transform"
+        className="relative w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 text-[14px] leading-none disabled:opacity-30 active:scale-90 transition-transform"
         aria-label={`Fewer ${label.toLowerCase()}`}
       >
+        <span aria-hidden="true" data-testid="stepper-target" className={target} />
         −
       </button>
       <span className="text-[14px] text-[#1A1A2E] tabular-nums w-4 text-center">{value}</span>
       <button
         type="button"
         onClick={() => onChange(value + 1)}
-        className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 text-[14px] leading-none active:scale-90 transition-transform"
+        className="relative w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 text-[14px] leading-none active:scale-90 transition-transform"
         aria-label={`More ${label.toLowerCase()}`}
       >
+        <span aria-hidden="true" className={target} />
         +
       </button>
     </div>
@@ -62,7 +69,7 @@ export default function PartyPicker({ party, onChange, labelClass }: { party: Pa
       </button>
       {open && (
       <div className="flex flex-col gap-2.5 pl-[100px] pr-5 pb-[14px]">
-        <Stepper label="Adults" value={party.adults} min={min(party.adults)} onChange={(n) => onChange({ ...party, adults: n })} />
+        <Stepper first label="Adults" value={party.adults} min={min(party.adults)} onChange={(n) => onChange({ ...party, adults: n })} />
         <Stepper
           label="Kids"
           value={party.kids.length}

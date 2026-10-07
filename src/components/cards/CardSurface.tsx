@@ -18,7 +18,6 @@ interface Props {
   /** Omit (guest read-only) to render the card as a non-interactive surface. */
   onTap?: () => void;
   isHighlighted?: boolean;
-  onToggleConfirmed?: () => void;
   /** Tap on the time chip (or "No time"): opens the quick time sheet. */
   onTimeTap?: () => void;
   /** The number on this card's pin in the day map. Drawn as a small ring
@@ -76,7 +75,7 @@ function noteLeadOf(det: Record<string, unknown> | null): string | null {
 // Row E (Brennan, 24 Sep 2026): the rail is the time and nothing else. The
 // pin number is not drawn on the row any more — the map pins keep it, and a
 // pin tap lifts its row. `pinIndex` stays in Props so callers need not change.
-export default function CardSurface({ card, dayDate, onTap, isHighlighted, onToggleConfirmed, onTimeTap }: Props) {
+export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTimeTap }: Props) {
   const place     = card.place;
   const det       = card.details as Record<string, unknown> | null;
   const subLabel  = subTypeLabel(place?.sub_type);
@@ -210,7 +209,7 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTog
               {surfRating !== null ? `★ ${surfRating.toFixed(1)} · ` : ""}{priceRange}
             </span>
           )}
-          <CardBadges card={card} className="shrink-0" onToggleBooked={onToggleConfirmed} />
+          <CardBadges card={card} className="shrink-0" />
         </div>
       </div>
 

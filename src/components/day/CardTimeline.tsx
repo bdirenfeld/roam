@@ -18,7 +18,6 @@ interface Props {
   onGapTap?: (gapStartTime: string, gapEndTime: string) => void;
   /** Opens the "Add from saved" picker for this day (owner only). */
   onAddFromSaved?: () => void;
-  onToggleConfirmed?: (cardId: string) => void;
   /** Numbered-pin index per card, keyed by card id. */
   cardNumberById?: Map<string, number>;
   /** Guest read-only — suppress the tappable gap connector's add affordance. */
@@ -79,7 +78,6 @@ export default function CardTimeline({
   highlightedCardId,
   onGapTap,
   onAddFromSaved,
-  onToggleConfirmed,
   cardNumberById,
   readOnly = false,
   onTimeTap,
@@ -98,7 +96,6 @@ export default function CardTimeline({
       dayDate={dayWithCards.date}
       onTap={onCardTap ? () => onCardTap(card) : undefined}
       isHighlighted={highlightedCardId === card.id}
-      onToggleConfirmed={onToggleConfirmed ? () => onToggleConfirmed(card.id) : undefined}
       pinIndex={cardNumberById?.get(card.id)}
       onTimeTap={onTimeTap ? () => onTimeTap(card) : undefined}
     />

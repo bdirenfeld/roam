@@ -2290,3 +2290,19 @@ Approved scope only. Find KEEPS its two-level filters (Activity / Food, then kin
   under "See which". One place keeps its own sentence. `MealLeft` carries `why` ("full" | "closed" | "far").
   "Remove what Plan my trip added (N places)" stays (the only way back) as a quiet grey underlined link, not
   sienna; "See which" never hides it.
+
+## Taps audit batch (6 Oct 2026)
+- **Finger-sized targets, no visual change:** an `aria-hidden` absolute span with a negative inset inside a
+  `relative` control (the time chip in CardSurface was first). Never let the span reach a neighbouring
+  control: between two controls use at most half the gap; never past an `overflow-hidden` edge (it clips the
+  hit area too) or a toast's own box. A clipped circle (the Journeys avatar) gets its span on the link, outside
+  the circle. `src/components/ui/tapTargets.test.tsx` holds the insets; change both together.
+- **`onCardDelete(id, takenOff?)`:** CardBottomSheet and MapPinPopup pass `{ savedId }` when "Take off this
+  day" / "Take it off the day" ran (the place stays saved; `savedId` is the saved copy unscheduleCard made, or
+  null). Day view toasts `lib/takenOff` "Taken off Fri · still on your map", the Map tab "Taken off Day 3";
+  both Undos delete that saved copy and re-insert the card. Other hosts ignore the second argument.
+- **Booked pill is status only** (CardBadges, no `onToggleBooked`): its one-tap un-book had no toast or Undo.
+  The Booked switch in the card sheet's ⋯ menu is the one door.
+- **Plan board Find below lg:** the map panel is `hidden lg:block`, so WeekMap opens Find undocked, portalled
+  to `document.body` (the phone's half sheet) unless lg or the map is widened.
+- **Map pick tray** shows at every width (was `md:hidden` while Pick more / long press worked on a computer).

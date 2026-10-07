@@ -338,7 +338,8 @@ function CardBody({
   card: Card;
   onClose: () => void;
   onCardUpdate?: (updated: Card) => void;
-  onCardDelete?: (cardId: string) => void;
+  /** `takenOff` when a scheduled card came off its day (the place stays saved; `savedId` is the saved card made for it, if one was). */
+  onCardDelete?: (cardId: string, takenOff?: { savedId: string | null }) => void;
   onCardCreated?: (created: Card) => void;
   /** The discoverable door into picking several pins (phone, 25 Sep 2026). */
   onPickMore?: () => void;
@@ -461,7 +462,7 @@ function CardBody({
       return;
     }
     if (created) onCardCreated?.(created);
-    onCardDelete?.(card.id);
+    onCardDelete?.(card.id, { savedId: created?.id ?? null });
     onClose();
   }, [card, onCardCreated, onCardDelete, onClose, supabase]);
 
@@ -504,6 +505,10 @@ function CardBody({
         style={{ backdropFilter: "blur(8px)" }}
         aria-label={photosOpen && !desktop ? "Hide photos" : "Close"}
       >
+        {/* A bigger target, the same 24px disc (6 Oct 2026, taps audit): 8px
+            out to the card's edge above and right, only 4px toward the heart,
+            which ends at the title's pr-6, so the two never overlap. */}
+        <span aria-hidden="true" data-testid="pin-close-target" className="absolute -top-2 -right-2 -bottom-2 -left-1" />
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={hero ? "white" : "#1A1A2E"} strokeWidth="2.5" strokeLinecap="round">
           <line x1="18" y1="6" x2="6" y2="18" />
           <line x1="6" y1="6" x2="18" y2="18" />
@@ -559,8 +564,10 @@ function CardBody({
                 aria-pressed={place.loved === true}
                 aria-label={place.loved ? "We loved this — tap to unset" : "We loved this"}
                 title="We loved this"
-                className="flex-shrink-0 p-0.5"
+                className="relative flex-shrink-0 p-0.5"
               >
+                {/* Grows over the title and down, barely toward the ✕ (6 Oct 2026, taps audit). */}
+                <span aria-hidden="true" data-testid="pin-heart-target" className="absolute -left-2 -right-px -inset-y-2.5" />
                 <Heart
                   size={15}
                   weight={place.loved ? "fill" : "light"}
@@ -860,7 +867,8 @@ interface Props {
   anchorPos?: { x: number; y: number } | null;
   onClose: () => void;
   onCardUpdate?: (updated: Card) => void;
-  onCardDelete?: (cardId: string) => void;
+  /** `takenOff` when a scheduled card came off its day (the place stays saved; `savedId` is the saved card made for it, if one was). */
+  onCardDelete?: (cardId: string, takenOff?: { savedId: string | null }) => void;
   /** Fired with the new in_itinerary card when this pin is added to a day. */
   onCardCreated?: (created: Card) => void;
   /** The discoverable door into picking several pins (phone, 25 Sep 2026). */

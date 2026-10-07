@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within, act } from "@testing-library/react";
+import { render, screen, within, act, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Card, Day } from "@/types/database";
 
@@ -111,6 +111,15 @@ describe("CardBottomSheet — the designer-audit surface (6 Oct 2026)", () => {
     expect(onCardUpdate).toHaveBeenCalledWith(expect.objectContaining({ id: "c1", confirmed: true }));
     // The menu stays open and the switch shows the new state.
     expect(within(screen.getByRole("menu")).getByRole("menuitemcheckbox", { name: "Booked" }).getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("Take off this day reports itself to the host as a take-off, not a delete, so the toast can say so (6 Oct 2026, taps audit)", async () => {
+    const onCardDelete = vi.fn();
+    await open(buca(), { onCardDelete });
+    await userEvent.click(screen.getByLabelText("More options"));
+    await userEvent.click(within(screen.getByRole("menu")).getByText("Take off this day"));
+    // No saved copy came back from this stub, so savedId is null; the flag is what matters.
+    await waitFor(() => expect(onCardDelete).toHaveBeenCalledWith("c1", { savedId: null }));
   });
 
   it("a saved (not scheduled) restaurant still reaches Booked — the ⋯ shows for it alone", async () => {

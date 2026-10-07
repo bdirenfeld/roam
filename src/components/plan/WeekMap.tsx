@@ -15,6 +15,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import { reloadOnStale } from "@/lib/chunkReload";
 import { useWarmFind } from "@/hooks/useWarmFind";
@@ -119,6 +120,19 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
     window.dispatchEvent(new CustomEvent("roam:find-open", { detail: findOpen }));
   }, [findOpen]);
   useEffect(() => () => { window.dispatchEvent(new CustomEvent("roam:find-open", { detail: false })); }, []);
+  // Below lg this map's panel is hidden (the week stands alone), so a Find
+  // docked against it opened inside a hidden box and "Find places" did
+  // nothing at 768–1023px. There it opens as the phone's half sheet, on the
+  // page itself (6 Oct 2026, taps audit).
+  const [lg, setLg] = useState(true);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const apply = () => setLg(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+  const findDocked = wide || lg;
   // Find, searched ahead in the background so it opens with its answers (hooks/useWarmFind).
   useWarmFind(trip, cards);
   // Also shown while Plan my trip's cards are still where it put them: the sheet can take them off.
@@ -434,6 +448,21 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
 
   const close = useCallback(() => { setSelected(null); setAnchor(null); }, []);
 
+  const findSheet = (
+    <FindSheet trip={trip} days={days} cards={cards} dock={findDocked ? (wide ? "inside" : "beside") : undefined} onClose={() => setFindOpen(false)}
+      // The place open in Find, as a purple pin; gone on Back, another place, Save or close (lib/map/pulse).
+      onFocus={(r) => {
+        findPinRef.current?.remove(); findPinRef.current = null;
+        if (r && Number.isFinite(r.lat) && Number.isFinite(r.lng)) findPinRef.current = showAt(mbRef.current, mapRef.current, r.lng, r.lat, document.querySelector('[role="dialog"][aria-label="Find places"]'), r.title ?? r.name);
+      }}
+      onSaved={(c) => {
+        findPinRef.current?.remove(); findPinRef.current = null;
+        onCardCreated(c);
+        // The new pin, ringed where it landed (lib/map/pulse).
+        if (c.place?.lng != null && c.place?.lat != null) pulseAt(mbRef.current, mapRef.current, c.place.lng, c.place.lat, document.querySelector('[role="dialog"][aria-label="Find places"]'));
+      }} />
+  );
+
   return (
     <div className="relative h-full min-h-0 border-l" style={{ borderColor: "rgba(26,26,46,0.10)" }}>
       <div ref={containerRef} className="absolute inset-0" onClick={close} />
@@ -600,20 +629,7 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
         // The week's tray has the one Undo; with the map widened the tray is hidden, so the toast keeps it.
         <PlanMyTripSheet trip={trip} days={days} cards={cards} onClose={() => setPlanOpen(false)} onDrafted={onDraftCreated} trayUndo={!wide} />
       )}
-      {findOpen && (
-        <FindSheet trip={trip} days={days} cards={cards} dock={wide ? "inside" : "beside"} onClose={() => setFindOpen(false)}
-          // The place open in Find, as a purple pin; gone on Back, another place, Save or close (lib/map/pulse).
-          onFocus={(r) => {
-            findPinRef.current?.remove(); findPinRef.current = null;
-            if (r && Number.isFinite(r.lat) && Number.isFinite(r.lng)) findPinRef.current = showAt(mbRef.current, mapRef.current, r.lng, r.lat, document.querySelector('[role="dialog"][aria-label="Find places"]'), r.title ?? r.name);
-          }}
-          onSaved={(c) => {
-            findPinRef.current?.remove(); findPinRef.current = null;
-            onCardCreated(c);
-            // The new pin, ringed where it landed (lib/map/pulse).
-            if (c.place?.lng != null && c.place?.lat != null) pulseAt(mbRef.current, mapRef.current, c.place.lng, c.place.lat, document.querySelector('[role="dialog"][aria-label="Find places"]'));
-          }} />
-      )}
+      {findOpen && (findDocked ? findSheet : createPortal(findSheet, document.body))}
       {showStays && onCloseStays && (
         <WhereToStaySheet
           panel

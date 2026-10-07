@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from "vitest";
-import { render } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import { render, fireEvent } from "@testing-library/react";
 import CardSurface from "./CardSurface";
 import type { Card } from "@/types/database";
 
@@ -76,5 +76,39 @@ describe("the time chip is finger-sized (6 Oct 2026, taps audit)", () => {
     expect(target.className).toContain("-inset-y-[13px]");
     fireEvent.click(target);
     expect(calls).toEqual(["time"]);
+  });
+});
+
+/**
+ * The Booked pill on the card's face is status, not a control (6 Oct 2026,
+ * taps audit): one tap on it un-booked the card with no toast and no Undo.
+ * Booking and un-booking is the Booked switch in the card's ⋯ menu; a tap on
+ * the pill opens the card like the rest of the row.
+ */
+describe("CardSurface — the Booked pill", () => {
+  const booked = { ...placeCard, confirmed: true } as unknown as Card;
+
+  it("is not a button, and a tap on it opens the card instead of un-booking", () => {
+    const onTap = vi.fn();
+    const unbook = vi.fn();
+    // Even a host that still hands over the old handler cannot un-book from the face.
+    const legacy = { onToggleConfirmed: unbook } as object;
+    const { getByText, getAllByRole } = render(<CardSurface card={booked} dayDate="2027-08-31" onTap={onTap} {...legacy} />);
+    const pill = getByText("Booked").closest("span") as HTMLElement;
+    expect(pill.getAttribute("role")).toBeNull();
+    expect(pill.getAttribute("tabindex")).toBeNull();
+    // The only button is the card itself.
+    expect(getAllByRole("button")).toHaveLength(1);
+    fireEvent.click(pill);
+    expect(unbook).not.toHaveBeenCalled();
+    expect(onTap).toHaveBeenCalledTimes(1);
+  });
+
+  it("looks the same: still the tick and the word, in the green tint", () => {
+    const { getByText } = render(<CardSurface card={booked} dayDate="2027-08-31" />);
+    const pill = getByText("Booked").closest("span") as HTMLElement;
+    expect(pill.getAttribute("aria-label")).toBe("Booked");
+    expect(pill.className).toContain("rounded-[5px]");
+    expect(pill.querySelector("svg")).toBeTruthy();
   });
 });

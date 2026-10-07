@@ -229,7 +229,12 @@ export default function FindSheet({
         <div className={`px-5 ${dock ? "pt-4" : "pt-1"} pb-3 flex flex-col gap-3 border-b`} style={{ borderColor: "rgba(26,26,46,0.08)" }}>
           <div className="flex items-center justify-between">
             <h2 className="text-[18px] font-semibold text-[#1A1A2E]">Find places</h2>
-            <button type="button" onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+            <button type="button" onClick={onClose} aria-label="Close" className="relative w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+              {/* Finger-sized targets on this sheet, drawn the same size (6 Oct
+                  2026, taps audit): the ✕ grows to 44 wide, less above, where
+                  the handle sits. Chips grow by half their 6px gap only, so no
+                  two targets overlap. Save has its row's 12px padding to use. */}
+              <span aria-hidden="true" data-testid="find-close-target" className="absolute -inset-x-1.5 -top-1 -bottom-1.5" />
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
             </button>
           </div>
@@ -238,8 +243,9 @@ export default function FindSheet({
             <div className="flex flex-wrap gap-1.5">
               {bases.map((b, i) => (
                 <button key={b.label + i} type="button" onClick={() => { setBaseIdx(i); run(b, sub, null); warm(b); }}
-                  className="h-8 px-3 rounded-full text-[12.5px] font-medium whitespace-nowrap"
+                  className="relative h-8 px-3 rounded-full text-[12.5px] font-medium whitespace-nowrap"
                   style={{ background: i === baseIdx ? "#1A1A2E" : "rgba(26,26,46,0.06)", color: i === baseIdx ? "#fff" : "#1A1A2E" }}>
+                  <span aria-hidden="true" className="absolute -inset-[3px]" />
                   {b.label}
                 </button>
               ))}
@@ -263,8 +269,9 @@ export default function FindSheet({
               return (
                 <button key={g.category.subType} type="button" onClick={() => { setSub(g.category.subType); void run(base, g.category.subType, null); }}
                   aria-pressed={on}
-                  className="h-8 px-2.5 rounded-lg text-[12px] font-medium whitespace-nowrap flex-shrink-0"
+                  className="relative h-8 px-2.5 rounded-lg text-[12px] font-medium whitespace-nowrap flex-shrink-0"
                   style={{ background: on ? "#B0541F" : "rgba(26,26,46,0.04)", color: on ? "#fff" : "rgba(26,26,46,0.7)", border: on ? "1px solid #B0541F" : "1px solid rgba(26,26,46,0.10)" }}>
+                  <span aria-hidden="true" data-testid="find-chip-target" className="absolute -inset-[3px]" />
                   {/* No count: "Explore · 7" read as a recommended number (Brennan, 29 Sep 2026). */}
                   {g.category.label}
                 </button>
@@ -319,10 +326,11 @@ export default function FindSheet({
                   loudest thing on the sheet. The marks are aria-hidden, so the
                   button is still named "Save" / "Saved". */}
               <button type="button" onClick={() => void save(r)} disabled={saved.has(r.placeId)} data-testid="find-save"
-                className={`self-center h-8 px-3 rounded-full text-[12.5px] font-medium whitespace-nowrap ${saved.has(r.placeId) ? "" : "hover:bg-[rgba(26,26,46,0.04)]"}`}
+                className={`relative self-center h-8 px-3 rounded-full text-[12.5px] font-medium whitespace-nowrap ${saved.has(r.placeId) ? "" : "hover:bg-[rgba(26,26,46,0.04)]"}`}
                 style={saved.has(r.placeId)
                   ? { color: "#1D7A55" }
                   : { color: "#1A1A2E", background: "#fff", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.18)" }}>
+                <span aria-hidden="true" data-testid="find-save-target" className="absolute -inset-1.5" />
                 {saved.has(r.placeId)
                   ? <><span aria-hidden>✓ </span>Saved</>
                   : <><span aria-hidden>+ </span>Save</>}

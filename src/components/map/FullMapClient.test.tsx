@@ -184,4 +184,14 @@ describe("the phone Map", { timeout: 20000 }, () => {
     expect(readFileSync("src/components/map/FullMapClient.tsx", "utf8")).toMatch(/findOpen && !findTall \? "find-open"/);
     expect(readFileSync("src/app/globals.css", "utf8")).toMatch(/\.find-open \.mapboxgl-ctrl-bottom-right \{ bottom: 50dvh; \}/);
   });
+
+  it("the pick tray shows at every width: Pick more and a long press start picking on a computer too (6 Oct 2026, taps audit)", () => {
+    // Picking needs a pin tapped on a drawn map (no token in tests), so the tray's own markup is read.
+    const src = readFileSync("src/components/map/FullMapClient.tsx", "utf8").replace(/\r\n/g, "\n");
+    const at = src.indexOf("{pickMode && pickedIds.size > 0 && !readOnly && (");
+    expect(at).toBeGreaterThan(-1);
+    const tray = src.slice(at, src.indexOf("\n", src.indexOf("<div", at)));
+    expect(tray).toMatch(/className="absolute left-3 right-3/);
+    expect(tray).not.toMatch(/md:hidden/);
+  });
 });
