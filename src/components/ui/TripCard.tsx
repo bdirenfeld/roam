@@ -49,15 +49,29 @@ export default function TripCard({ trip, href }: Props) {
   const [deleting,      setDeleting]      = useState(false);
   useEscapeKey(() => setConfirmDelete(false), confirmDelete && !deleting);
 
+  const { toast } = useToast();
+  // Said and undoable (6 Oct 2026, taps audit): Archive used to fold the card
+  // away with no word, so a slip of the thumb looked like the journey vanished.
+  // Same toast and Undo as Settings' Archive (TripSettingsClient).
   const handleArchive = async () => {
     setMenuOpen(false);
-    const supabase = createClient();
-    const failure = await setTripArchived(supabase, trip.id, true);
-    if (failure) { console.error("Failed to archive journey:", failure); return; }
+    const failure = await setTripArchived(createClient(), trip.id, true);
+    if (failure) {
+      console.error("Failed to archive journey:", failure);
+      toast({ message: "Couldn't archive this journey. Try again." });
+      return;
+    }
     router.refresh();
+    toast({
+      message: `${trip.title} archived`,
+      undo: async () => {
+        const undoFailure = await setTripArchived(createClient(), trip.id, false);
+        if (undoFailure) { toast({ message: "Couldn't bring it back. Try again." }); return; }
+        router.refresh();
+      },
+    });
   };
 
-  const { toast } = useToast();
   const handleDelete = async () => {
     if (deleting) return;
     setDeleting(true);

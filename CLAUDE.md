@@ -2306,3 +2306,15 @@ Approved scope only. Find KEEPS its two-level filters (Activity / Food, then kin
 - **Plan board Find below lg:** the map panel is `hidden lg:block`, so WeekMap opens Find undocked, portalled
   to `document.body` (the phone's half sheet) unless lg or the map is widened.
 - **Map pick tray** shows at every width (was `md:hidden` while Pick more / long press worked on a computer).
+
+### Taps audit, second batch (6 Oct 2026)
+- **Several bookings in one pick:** `useBookingUpload` takes `multiple` files, reads each through the unchanged
+  `/api/confirmations/parse` three at a time (`lib/confirmations/batch`, max 10 per pick — each is a paid read
+  under QUOTA.parseBooking), and opens ONE ConfirmationPreviewSheet. More than one booking = compact rows
+  (eyebrow, title, `whenLine`, Edit); one booking = the full form as before. One `documents` row per file;
+  `onCardsCreated` passes `docIds` third so Undo removes cards and records. Toast: `addedMessage`.
+  Still single-file: DayViewClient's, FullMapClient's and PlanBoard's own upload paths (not on the hook).
+- **The week's empty hour suggests places** (`plan/HourSuggest`): saved first (`lib/plan/hourSuggest`),
+  then Google via /api/places/autocomplete with the trip's bias; a Google pick goes through bulk-import.
+  Enter with nothing highlighted is still a plain note.
+- **Journeys ⋯ Archive and Past journeys' restore** show the one toast with Undo, and say so on failure.

@@ -31,13 +31,17 @@ function CloseX({ size, onClick }: { size: number; onClick: () => void }) {
   );
 }
 
-export default function StartHere({ cards, place, reading, onUpload, onFind, floating, firstDay }: {
+export default function StartHere({ cards, place, reading, onUpload, onFind, floating, firstDay, several, readingLabel }: {
   cards: StartCard[];
   /** The phone's day: is this the journey's first day? Upload shows only there. The week omits it. */
   firstDay?: boolean;
   /** Where the journey is going, for "places to eat in Tuscany". */
   place: string;
   reading?: boolean;
+  /** The host's picker takes several files at once (6 Oct 2026, taps audit): the row says so. */
+  several?: boolean;
+  /** "Reading 5 bookings…" while several are read. */
+  readingLabel?: string;
   onUpload: () => void;
   onFind: () => void;
   /** The week's floating card (a shadow) rather than the phone's inline one (a hairline). */
@@ -101,8 +105,8 @@ export default function StartHere({ cards, place, reading, onUpload, onFind, flo
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={INK} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 16V4" /><path d="M7 9l5-5 5 5" /><path d="M5 20h14" /></svg>
           </span>
           <span className="flex-1 min-w-0">
-            <span className="block text-[14.5px] font-semibold" style={{ color: INK }}>{reading ? "Reading your booking…" : "Upload a booking"}</span>
-            <span className="block text-[12.5px] leading-snug mt-px" style={{ color: CAPTION }}>A hotel, flight or car confirmation. Roam puts it on your days.</span>
+            <span className="block text-[14.5px] font-semibold" style={{ color: INK }}>{reading ? (readingLabel ?? "Reading your booking…") : several ? "Upload bookings" : "Upload a booking"}</span>
+            <span className="block text-[12.5px] leading-snug mt-px" style={{ color: CAPTION }}>{several ? "Pick all your confirmations at once. Roam puts them on your days." : "A hotel, flight or car confirmation. Roam puts it on your days."}</span>
           </span>
           <span aria-hidden className="text-[18px]" style={{ color: "rgba(26,26,46,0.4)" }}>›</span>
         </button>

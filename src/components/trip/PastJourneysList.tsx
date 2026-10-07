@@ -81,6 +81,7 @@ export default function PastJourneysList({ trips, hrefByTrip }: Props) {
 
   const hrefFor = (trip: Trip) => hrefByTrip[trip.id] ?? `/trips/${trip.id}`;
 
+  const { toast } = useToast();
   const handleRestore = async (trip: Trip) => {
     const supabase = createClient();
     const failure = await setTripArchived(supabase, trip.id, false);
@@ -88,12 +89,22 @@ export default function PastJourneysList({ trips, hrefByTrip }: Props) {
       // Keep the row — hiding it on a failed write reads as success until
       // the next refresh puts it back.
       console.error("Failed to restore journey:", failure);
+      toast({ message: "Couldn't restore this journey. Try again." });
       return;
     }
     router.refresh();
+    // The restore was silent (6 Oct 2026, taps audit): the row just left the
+    // list. Now it says so, and Undo puts it back on the shelf.
+    toast({
+      message: `${trip.title} restored`,
+      undo: async () => {
+        const undoFailure = await setTripArchived(createClient(), trip.id, true);
+        if (undoFailure) { toast({ message: "Couldn't archive it again. Try again." }); return; }
+        router.refresh();
+      },
+    });
   };
 
-  const { toast } = useToast();
   const handleDelete = async () => {
     if (!deleteTarget || deleting) return;
     setDeleting(true);

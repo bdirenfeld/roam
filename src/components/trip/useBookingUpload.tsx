@@ -5,54 +5,99 @@
 // thing: pick a confirmation, read it (/api/confirmations/parse), and show
 // Bookings' own check-and-add sheet. One copy, so the two never drift.
 // `element` holds the hidden file input and the sheet; render it once.
+//
+// Several at once (6 Oct 2026, taps audit): the picker takes many files. Each
+// is read through the same route, three at a time (lib/confirmations/batch),
+// and ONE sheet lists every booking found; a file that can't be read is listed
+// with its reason. The toast after says how many and which days, with Undo.
 
 import { useRef, useState, type ReactNode } from "react";
 import type { Card, Day, DayWithCards } from "@/types/database";
 import { useToast } from "@/components/ui/Toast";
+import { queuedDelete } from "@/lib/offline/queuedWrite";
 import type { ParsedConfirmation } from "@/lib/confirmations/toCards";
+import { inBatches, combineReads, addedMessage, PARSE_AT_ONCE, MAX_FILES, type Combined, type FileRead } from "@/lib/confirmations/batch";
 import ConfirmationPreviewSheet from "@/components/plan/ConfirmationPreviewSheet";
+
+async function readOne(file: File): Promise<FileRead> {
+  const ref = { name: file.name, type: file.type };
+  try {
+    const fd = new FormData(); fd.append("file", file);
+    const res = await fetch("/api/confirmations/parse", { method: "POST", body: fd });
+    const j = await res.json() as { parsed?: ParsedConfirmation[]; error?: string };
+    if (!res.ok || !j.parsed?.length) return { file: ref, reason: j.error || "Couldn't read that file." };
+    return { file: ref, items: j.parsed };
+  } catch {
+    return { file: ref, reason: "Couldn't read that file." };
+  }
+}
 
 export function useBookingUpload({ tripId, days, onAdded }: {
   tripId: string;
   days: (Day | DayWithCards)[];
   onAdded: (cards: Card[], deletedIds: string[]) => void;
-}): { pick: () => void; reading: boolean; element: ReactNode } {
+}): { pick: () => void; reading: boolean; readingLabel: string; element: ReactNode } {
   const { toast } = useToast();
-  const [reading, setReading] = useState(false);
-  const [parsed, setParsed] = useState<{ items: ParsedConfirmation[]; fileName: string; fileType: string } | null>(null);
+  const [reading, setReading] = useState(0);
+  const [parsed, setParsed] = useState<Combined | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const read = async (file: File) => {
-    setReading(true);
+  const read = async (picked: File[]) => {
+    const files = picked.slice(0, MAX_FILES);
+    setReading(files.length);
     try {
-      const fd = new FormData(); fd.append("file", file);
-      const res = await fetch("/api/confirmations/parse", { method: "POST", body: fd });
-      const j = await res.json() as { parsed?: ParsedConfirmation[]; error?: string };
-      if (!res.ok || !j.parsed?.length) throw new Error(j.error || "Couldn't read that file.");
-      setParsed({ items: j.parsed, fileName: file.name, fileType: file.type });
-    } catch (e) {
-      toast({ message: e instanceof Error ? e.message : "Couldn't read that file." });
+      const reads = await inBatches(files, PARSE_AT_ONCE, readOne);
+      const over: FileRead[] = picked.slice(MAX_FILES).map((f) => ({ file: { name: f.name, type: f.type }, reason: `Only ${MAX_FILES} at a time. Upload it next.` }));
+      const all = combineReads([...reads, ...over]);
+      if (!all.items.length) {
+        toast({ message: picked.length === 1 ? all.failures[0]?.reason ?? "Couldn't read that file." : `Couldn't read any of those ${picked.length} files.` });
+        return;
+      }
+      setParsed(all);
     } finally {
-      setReading(false);
+      setReading(0);
     }
+  };
+
+  const added = (cards: Card[], deletedIds: string[], docIds: string[] = []) => {
+    const bookings = parsed?.items.length ?? 1;
+    setParsed(null);
+    onAdded(cards, deletedIds);
+    const dateOf = new Map(days.map((d) => [d.id, d.date]));
+    toast({
+      message: addedMessage(bookings, cards.map((c) => (c.day_id ? dateOf.get(c.day_id) : null))),
+      // Undo takes back every card the sheet added and the files' records with them.
+      undo: async () => {
+        const results = await Promise.all([
+          ...cards.map((c) => queuedDelete("cards", { id: c.id })),
+          ...docIds.map((id) => queuedDelete("documents", { id })),
+        ]);
+        if (results.some((r) => r.error)) { toast({ message: "Couldn't undo all of it. Try again." }); }
+        onAdded([], cards.map((c) => c.id));
+      },
+    });
   };
 
   const element = (
     <>
-      <input ref={fileRef} type="file" accept="application/pdf,image/*" className="hidden" aria-label="Booking confirmation"
-        onChange={(e) => { const f = e.target.files?.[0]; if (f) void read(f); e.currentTarget.value = ""; }} />
+      <input ref={fileRef} type="file" multiple accept="application/pdf,image/*" className="hidden" aria-label="Booking confirmation"
+        onChange={(e) => { const fs = Array.from(e.target.files ?? []); if (fs.length) void read(fs); e.currentTarget.value = ""; }} />
       {parsed && (
         <ConfirmationPreviewSheet
           items={parsed.items}
-          fileName={parsed.fileName}
-          fileType={parsed.fileType}
+          fileName={parsed.files[0]?.name ?? ""}
+          fileType={parsed.files[0]?.type ?? ""}
+          files={parsed.files}
+          fileOf={parsed.fileOf}
+          failures={parsed.failures}
           days={days.map((d) => ({ ...d, cards: "cards" in d ? d.cards : ([] as Card[]) })) as DayWithCards[]}
           tripId={tripId}
           onClose={() => setParsed(null)}
-          onCardsCreated={(cards, deletedIds) => { setParsed(null); onAdded(cards, deletedIds); toast({ message: "Added to your days" }); }}
+          onCardsCreated={added}
         />
       )}
     </>
   );
-  return { pick: () => fileRef.current?.click(), reading, element };
+  const readingLabel = reading > 1 ? `Reading ${reading} bookings…` : "Reading your booking…";
+  return { pick: () => fileRef.current?.click(), reading: reading > 0, readingLabel, element };
 }

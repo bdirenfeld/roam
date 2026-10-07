@@ -72,7 +72,8 @@ describe("the week's top rows", () => {
     window.addEventListener("roam:open-find", opened);
     render(<WeekBoard trip={trip} initialDays={empty} initialSaved={[]} />);
     const start = screen.getByTestId("start-here");
-    expect(start.textContent).toContain("Upload a booking");
+    // The week's picker takes several files (6 Oct 2026, taps audit).
+    expect(start.textContent).toContain("Upload bookings");
     fireEvent.click(screen.getByRole("button", { name: /Find places/ }));
     expect(opened).toHaveBeenCalledTimes(1);
     window.removeEventListener("roam:open-find", opened);
@@ -80,7 +81,7 @@ describe("the week's top rows", () => {
     cleanup();
     const booked = empty.map((d, i) => (i === 0 ? { ...d, cards: [card("in2", d.id, villa, { start_time: "14:00:00" })] } : d)) as DayWithCards[];
     render(<WeekBoard trip={trip} initialDays={booked} initialSaved={[]} />);
-    expect(screen.queryByRole("button", { name: /Upload a booking/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Upload (a )?booking/ })).toBeNull();
     expect(screen.getByRole("button", { name: /Find places/ })).toBeTruthy();
   });
 

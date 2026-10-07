@@ -8,6 +8,7 @@ import { confirmationDetails, closingDetails, closingEvent, openingTitle, type P
 import { resolvePlace } from "@/lib/confirmations/resolvePlace";
 import { bookingOutside, dayFor, shortDay } from "@/lib/confirmations/outsideDates";
 import { extendJourney } from "@/lib/confirmations/extendJourney";
+import { whenLine, type FileRef } from "@/lib/confirmations/batch";
 
 // ── ParsedConfirmation — matches API response (lib/confirmations/toCards) ──
 export type { ParsedConfirmation };
@@ -20,7 +21,13 @@ interface Props {
   days:            DayWithCards[];
   tripId:          string;
   onClose:         () => void;
-  onCardsCreated:  (cards: Card[], deletedIds: string[]) => void;
+  /** docIds: the documents rows written with them, so an Undo can take those back too. */
+  onCardsCreated:  (cards: Card[], deletedIds: string[], docIds?: string[]) => void;
+  /** Several files read at once (6 Oct 2026, taps audit): each booking's file, by index into `files`. */
+  files?:          FileRef[];
+  fileOf?:         number[];
+  /** Files that could not be read, each listed with a short reason. */
+  failures?:       { name: string; reason: string }[];
   /** Replaces "Confirmation parsed" — e.g. the rest of an attached package. */
   heading?:        string;
   /** After "Extend the trip": the host's days are stale. Default reloads the page once the sheet is done. */
@@ -64,7 +71,14 @@ interface ItemDraft {
 
 export default function ConfirmationPreviewSheet({
   items, fileName, fileType, days: hostDays, tripId, onClose: hostClose, onCardsCreated: hostCreated, heading, onDaysChanged,
+  files, fileOf, failures = [],
 }: Props) {
+  // Several bookings (6 Oct 2026, taps audit): one compact row each, its own
+  // fields behind Edit, so five bookings read as a list rather than a form.
+  const compact = items.length > 1;
+  const manyFiles = (files?.length ?? 1) > 1;
+  const [openRows, setOpenRows] = useState<Set<number>>(() => new Set());
+  const toggleRow = (idx: number) => setOpenRows((prev) => { const n = new Set(prev); if (n.has(idx)) n.delete(idx); else n.add(idx); return n; });
   // The journey's days, widened in place when "Extend the trip" is tapped.
   const [days, setDays] = useState<DayWithCards[]>(hostDays);
   const extended = useRef(false);
@@ -73,7 +87,7 @@ export default function ConfirmationPreviewSheet({
     if (onDaysChanged) onDaysChanged(); else window.location.reload();
   }, [onDaysChanged]);
   const onClose = useCallback(() => { hostClose(); daysChanged(); }, [hostClose, daysChanged]);
-  const onCardsCreated = useCallback((cards: Card[], deletedIds: string[]) => { hostCreated(cards, deletedIds); daysChanged(); }, [hostCreated, daysChanged]);
+  const onCardsCreated = useCallback((cards: Card[], deletedIds: string[], docIds?: string[]) => { hostCreated(cards, deletedIds, docIds); daysChanged(); }, [hostCreated, daysChanged]);
   const sorted = [...days].filter((d) => d.date).sort((a, b) => a.date.localeCompare(b.date));
   const tripStart = sorted[0]?.date ?? null;
   const tripEnd = sorted[sorted.length - 1]?.date ?? null;
@@ -217,17 +231,21 @@ export default function ConfirmationPreviewSheet({
       place,
     });
     const hhmm = (t: string) => (t.trim() ? `${t.trim().slice(0, 5)}:00` : null);
+    // Which booking each card came from, so each file's documents row names its own cards.
+    const cardItem: number[] = [];
     const createdCards: Card[] = drafts.flatMap((draft, i) => {
       const parsed = items[i];
       const place = places[i];
-      const details = confirmationDetails(parsed, { title: openingTitle(parsed, draft.title.trim()), notes: draft.notes, confirmation: confNo });
+      // Several files: each booking keeps its own confirmation number; one shared box would stamp the first on all.
+      const details = confirmationDetails(parsed, { title: openingTitle(parsed, draft.title.trim()), notes: draft.notes, confirmation: manyFiles ? (parsed.confirmation_number ?? "") : confNo });
       const twoPart = parsed.type === "hotel" || parsed.type === "car_rental";
       const outDay = twoPart ? days.find((d) => d.id === draft.outDayId) : undefined;
       if (outDay?.date) details[parsed.type === "hotel" ? "check_out" : "drop_off"] = outDay.date;
       const main = card(draft.dayId, hhmm(draft.time), twoPart ? null : hhmm(draft.endTime), details, place);
       // A stay is two events, check-in and check-out; a car, pick-up and drop-off.
       const close = outDay ? closingEvent({ ...parsed, check_out_date: outDay.date, drop_off_date: outDay.date }, place?.title ?? draft.title.trim()) : null;
-      if (!outDay || !close) return [main];
+      if (!outDay || !close) { cardItem.push(i); return [main]; }
+      cardItem.push(i, i);
       return [main, card(outDay.id, close.time, null, closingDetails(details, close.title), place)];
     });
 
@@ -245,32 +263,45 @@ export default function ConfirmationPreviewSheet({
     }
     const deletedIds: string[] = [];
 
-    // Save document record — best-effort, never blocks card creation
-    const documentType = items[0]?.type.startsWith("flight") ? "flight"
-                       : items[0]?.type ?? "activity";
-    const { error: docError } = await queuedInsert("documents", {
-      id:            crypto.randomUUID(),
-      trip_id:       tripId,
-      user_id:       user.id,
-      file_name:     fileName,
-      file_type:     fileType,
-      document_type: documentType,
-      parsed_data:   items,
-      card_ids:      createdCards.map((c) => c.id),
-    });
-    if (docError) console.error("[ConfirmationPreviewSheet] Failed to save document record:", docError);
+    // Save document record — best-effort, never blocks card creation.
+    // One per file read (6 Oct 2026, taps audit): each names its own bookings and cards.
+    const sources: FileRef[] = files?.length ? files : [{ name: fileName, type: fileType }];
+    const docIds: string[] = [];
+    for (let f = 0; f < sources.length; f++) {
+      const mine = items.map((_, i) => i).filter((i) => (fileOf?.[i] ?? 0) === f);
+      if (!mine.length) continue;
+      const first = items[mine[0]];
+      const documentType = first?.type.startsWith("flight") ? "flight" : first?.type ?? "activity";
+      const id = crypto.randomUUID();
+      const { error: docError } = await queuedInsert("documents", {
+        id,
+        trip_id:       tripId,
+        user_id:       user.id,
+        file_name:     sources[f].name,
+        file_type:     sources[f].type,
+        document_type: documentType,
+        parsed_data:   mine.map((i) => items[i]),
+        card_ids:      createdCards.filter((_, k) => mine.includes(cardItem[k])).map((c) => c.id),
+      });
+      if (docError) console.error("[ConfirmationPreviewSheet] Failed to save document record:", docError);
+      else docIds.push(id);
+    }
 
     setSaving(false);
-    onCardsCreated(createdCards, deletedIds);
-  }, [drafts, items, confNo, days, tripId, fileName, fileType, saving, supabase, onCardsCreated]);
+    onCardsCreated(createdCards, deletedIds, docIds);
+  }, [drafts, items, confNo, days, tripId, fileName, fileType, files, fileOf, manyFiles, saving, supabase, onCardsCreated]);
 
   // ── Derived ──────────────────────────────────────────────────
   const isRoundTrip = items.length === 2 &&
     items[0].type === "flight_arrival" && items[1].type === "flight_departure";
 
-  const sheetTitle = isRoundTrip
+  const sheetTitle = isRoundTrip && !manyFiles
     ? "Round-trip flight · 2 cards"
-    : (TYPE_LABEL[items[0]?.type ?? "activity"] ?? "Confirmation");
+    : compact
+      ? `${items.length} bookings`
+      : (TYPE_LABEL[items[0]?.type ?? "activity"] ?? "Confirmation");
+  const readCount = (files?.length ?? 1) + failures.length;
+  const eyebrow = heading ?? (readCount > 1 ? `${readCount} files read` : "Confirmation parsed");
 
   const canSave = drafts.every((d) => d.title.trim() && d.dayId) && !saving;
 
@@ -298,7 +329,7 @@ export default function ConfirmationPreviewSheet({
         <div className="flex items-center justify-between px-5 pt-3 pb-3 border-b border-gray-100 flex-shrink-0">
           <div>
             <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">
-              {heading ?? "Confirmation parsed"}
+              {eyebrow}
             </p>
             <h3 className="text-[16px] font-bold text-gray-900">{sheetTitle}</h3>
           </div>
@@ -316,22 +347,38 @@ export default function ConfirmationPreviewSheet({
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto pb-28">
 
-          {/* One section per parsed item */}
+          {/* One section per parsed item; several are compact rows (6 Oct 2026, taps audit). */}
           {items.map((parsed, idx) => {
             const draft = drafts[idx];
             const label = TYPE_LABEL[parsed.type] ?? "Booking";
+            // A row that can't be saved as it stands opens itself.
+            const open = !compact || openRows.has(idx) || !draft.title.trim() || !draft.dayId;
+            const inDay = days.find((d) => d.id === draft.dayId);
+            const outDay = days.find((d) => d.id === draft.outDayId);
             return (
-              <div key={idx} className={idx > 0 ? "border-t border-gray-100" : ""}>
-                {/* Section label (only if multiple items) */}
-                {items.length > 1 && (
-                  <div className="px-5 pt-4 pb-1">
-                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">
-                      {label}
-                    </p>
+              <div key={idx} data-testid="booking-row" className={idx > 0 ? "border-t border-gray-100" : ""}>
+                {compact && (
+                  <div className="flex items-start gap-3 px-5 pt-3.5 pb-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10.5px] font-semibold text-gray-400 uppercase tracking-wide">{label}</p>
+                      <p className="text-[14.5px] font-semibold text-gray-900 truncate">{draft.title.trim() || "Untitled booking"}</p>
+                      <p className="text-[12.5px] text-gray-500 truncate">
+                        {whenLine(parsed.type, { dayNumber: inDay?.day_number ?? null, date: inDay?.date ?? null, time: draft.time, endTime: draft.endTime, outDate: outDay?.date ?? null })}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleRow(idx)}
+                      aria-expanded={open}
+                      aria-label={`${open ? "Done editing" : "Edit"} ${draft.title.trim() || label}`}
+                      className="min-h-[44px] min-w-[44px] -my-2 -mr-2 px-2 text-[13px] text-gray-500 underline underline-offset-2"
+                    >
+                      {open ? "Done" : "Edit"}
+                    </button>
                   </div>
                 )}
 
-                <div className="px-5 py-4 space-y-4">
+                <div className={compact ? (open ? "px-5 pb-4 space-y-4" : "px-5") : "px-5 py-4 space-y-4"}>
                   {/* Dated outside the journey (3 Oct 2026): kept, on the nearest day, one plain line. */}
                   {(() => {
                     const note = bookingOutside(parsed, tripStart, tripEnd);
@@ -354,6 +401,8 @@ export default function ConfirmationPreviewSheet({
                   {extendedTo && idx === 0 && (
                     <p data-testid="extended-note" className="text-[13px] text-gray-500">The trip now runs {extendedTo}.</p>
                   )}
+
+                  {open && (<>
 
                   {/* Title */}
                   <div>
@@ -479,13 +528,25 @@ export default function ConfirmationPreviewSheet({
                       />
                     </div>
                   )}
+                  </>)}
                 </div>
               </div>
             );
           })}
 
-          {/* Shared confirmation number */}
-          <div className="px-5 pb-4 border-t border-gray-100 pt-4 space-y-4">
+          {/* A file that could not be read: named, with why. The rest still go on. */}
+          {failures.length > 0 && (
+            <div className="px-5 py-3 border-t border-gray-100 space-y-1.5" data-testid="read-failures">
+              {failures.map((f, i) => (
+                <p key={i} className="text-[13px] leading-snug text-[#B0541F]">
+                  <span className="font-medium">{f.name}</span> · {f.reason}
+                </p>
+              ))}
+            </div>
+          )}
+
+          {/* Shared confirmation number: one file only; several keep their own. */}
+          {!manyFiles && <div className="px-5 pb-4 border-t border-gray-100 pt-4 space-y-4">
             <div>
               <label htmlFor="conf-number" className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
                 Confirmation #
@@ -499,7 +560,7 @@ export default function ConfirmationPreviewSheet({
                 className="w-full mt-1 px-3 py-2 text-[14px] text-gray-900 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-gray-300 focus:bg-white transition-colors placeholder-gray-300"
               />
             </div>
-          </div>
+          </div>}
         </div>
 
         {/* Save — sticky bottom */}

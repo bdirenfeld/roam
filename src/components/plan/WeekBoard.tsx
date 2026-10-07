@@ -20,7 +20,7 @@ import { useCardNotes, withNotes, warmNotes } from "@/hooks/useCardNotes";
 import { tripCountries } from "@/lib/entry/countries";
 import EntryLine from "@/components/day/EntryLine";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { Trip, DayWithCards, Card, Day } from "@/types/database";
+import type { Trip, DayWithCards, Card, Day, Place } from "@/types/database";
 import { queuedUpdate, queuedInsert, queuedDelete } from "@/lib/offline/queuedWrite";
 import { createClient } from "@/lib/supabase/client";
 import { scheduleCardOnDay, unscheduleCard } from "@/lib/scheduleCard";
@@ -42,6 +42,8 @@ import { shortAddress, firstSentence } from "@/lib/week/cardText";
 import { noteLead } from "@/lib/noteLead";
 import { weekStarts, pageOf } from "@/lib/week/pages";
 import { stayRuns } from "@/lib/stays/stayRuns";
+import { searchCountries } from "@/lib/entry/countries";
+import { useHourSuggest, HourSuggestList, hourPickName, importPrediction, type HourPick } from "./HourSuggest";
 import {
   placeBlocks, movedTimes, resizedEnd, resizedStart, minutesAtY, toMin, toTime, fmt12, gridHeight,
   HOUR_START, HOUR_END, PX_PER_HOUR, NO_END_MIN, type Block,
@@ -145,6 +147,14 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const justDraggedRef = useRef(false);
   const daysRef = useRef(days); daysRef.current = days;
   const [saved, setSaved] = useState<Card[]>(initialSaved);
+  // The empty hour's list (6 Oct 2026, taps audit): saved places, then Google.
+  const tripCards = useMemo(() => [...days.flatMap((d) => d.cards), ...saved], [days, saved]);
+  const suggest = useHourSuggest({
+    query: draftBlock ? draftText : "",
+    cards: tripCards,
+    bias: trip.destination_lat != null && trip.destination_lng != null ? { lat: trip.destination_lat, lng: trip.destination_lng } : null,
+    countries: searchCountries(trip.destination, tripCards.map((c) => c.place?.address)),
+  });
   // Every card that lands on a day gets its Intent and Know before you go (hooks/useCardNotes).
   useCardNotes(trip.id, days.flatMap((d) => d.cards), true, (notes) => setDays((prev) => prev.map((d) => ({ ...d, cards: d.cards.map((c) => withNotes(c, notes)) }))));
   // The saved places' notes, written ahead so a drop shows its note at once.
@@ -646,15 +656,22 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     const min = minAtY(e.clientY); if (min === null) return;
     setDraftText(""); setDraftBlock({ dayId, dayIdx, min });
   };
-  const commitDraft = useCallback(async () => {
-    const d = draftBlock; const title = draftText.trim();
+  // A pick from the box's list (6 Oct 2026, taps audit) makes the block
+  // already linked to that place, as LinkPlaceSheet would: place_id set, so
+  // the pin, address and hours show. A Google row is saved first; if that
+  // fails the name still lands, as a plain note, so nothing typed is lost.
+  const commitDraft = useCallback(async (pick?: HourPick) => {
+    const d = draftBlock; const title = pick ? hourPickName(pick) : draftText.trim();
     setDraftBlock(null);
     if (!d || !title) return;
-    const created = await scheduleCardOnDay(supabase, { tripId: trip.id, dayId: d.dayId, placeId: null, details: { title }, startTime: toTime(d.min), endTime: toTime(Math.min(d.min + 60, HOUR_END * 60 + 45)) });
+    let place: Place | null = null;
+    if (pick?.kind === "saved") place = pick.place;
+    else if (pick?.kind === "google") place = await importPrediction(pick.prediction);
+    const created = await scheduleCardOnDay(supabase, { tripId: trip.id, dayId: d.dayId, placeId: place?.id ?? null, place, details: place ? {} : { title }, startTime: toTime(d.min), endTime: toTime(Math.min(d.min + 60, HOUR_END * 60 + 45)) });
     if (!created) { toast({ message: "Couldn't add it. Try again." }); return; }
     setDays((prev) => prev.map((x) => (x.id === d.dayId ? { ...x, cards: [...x.cards, created] } : x)));
     toast({
-      message: `"${title}" at ${fmt12(d.min)}. Open it to link a place.`,
+      message: place ? `${place.title} at ${fmt12(d.min)}` : `"${title}" at ${fmt12(d.min)}. Open it to link a place.`,
       undo: async () => {
         const { error } = await queuedDelete("cards", { id: created.id });
         if (error) { toast({ message: "Couldn't undo. Try again." }); return; }
@@ -861,7 +878,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
           <div className={`sticky left-0 top-[150px] z-[12] h-0 pointer-events-none ${findShowing ? "hidden" : ""}`} style={{ width: weekW || "100%" }}>
             <div className="flex justify-center px-4">
               <div className="pointer-events-auto w-full max-w-[360px]">
-                <StartHere floating cards={pinCards} place={trip.destination ?? ""} reading={upload.reading} onUpload={upload.pick}
+                <StartHere floating cards={pinCards} place={trip.destination ?? ""} reading={upload.reading} readingLabel={upload.readingLabel} several onUpload={upload.pick}
                   onFind={() => window.dispatchEvent(new Event("roam:open-find"))} />
               </div>
             </div>
@@ -1012,13 +1029,18 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                           autoFocus
                           value={draftText}
                           onChange={(e) => setDraftText(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === "Enter") void commitDraft(); if (e.key === "Escape") setDraftBlock(null); }}
+                          onKeyDown={(e) => {
+                            const picked = suggest.onKey(e);
+                            if (e.key === "Enter") void commitDraft(picked ?? undefined);
+                            if (e.key === "Escape") setDraftBlock(null);
+                          }}
                           onBlur={() => void commitDraft()}
                           placeholder="What's the plan?"
                           aria-label="Name the plan"
                           className="w-full bg-transparent text-[11px] font-medium outline-none placeholder:text-activity/40"
                         />
                         <div className="text-[9.5px] text-activity/60 tabular-nums">{fmt12(draftBlock.min)} – {fmt12(Math.min(draftBlock.min + 60, HOUR_END * 60 + 45))}</div>
+                        <HourSuggestList items={suggest.items} savedCount={suggest.savedCount} active={suggest.active} onPick={(p) => void commitDraft(p)} />
                       </div>
                     )}
                     {placed.map((b) => {
