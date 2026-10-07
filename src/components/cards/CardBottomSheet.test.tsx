@@ -85,15 +85,38 @@ describe("CardBottomSheet — the designer-audit surface (6 Oct 2026)", () => {
   it("drops the note's 'Open … that day' point when the Hours row is there, and keeps it when not", async () => {
     const { unmount } = render(<CardBottomSheet card={buca()} onClose={() => {}} days={days} />);
     await act(async () => {});
-    expect(screen.getByText("Hours")).toBeTruthy();
+    expect(screen.getByLabelText("Opening hours")).toBeTruthy();
     expect(screen.queryByText(/that day/)).toBeNull();
     expect(screen.getByText(/Booking ahead is strongly advised/)).toBeTruthy();
     unmount();
     // No hours on the place → no Hours row → the note's line is the only place it is said.
     render(<CardBottomSheet card={buca({}, null)} onClose={() => {}} days={days} />);
     await act(async () => {});
-    expect(screen.queryByText("Hours")).toBeNull();
+    expect(screen.queryByLabelText("Opening hours")).toBeNull();
     expect(screen.getByText(/Open 12:30 – 2:30 PM, 7:30 – 10:00 PM that day/)).toBeTruthy();
+  });
+
+  it("hours sit right under the time as one line, and a tap opens the week (7 Oct 2026, taps audit)", async () => {
+    await open(buca());
+    const row = screen.getByLabelText("Opening hours");
+    // Tue 24 Aug 2027 is not today, so the line names the day rather than saying "today".
+    expect(row.textContent).toBe("Open 12:30 – 2:30 PM, 7:30 – 10:00 PM on Tuesday");
+    const time = screen.getByLabelText("Change the time");
+    const note = screen.getByText(/Booking ahead is strongly advised/);
+    expect(time.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(row.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(row.getAttribute("aria-expanded")).toBe("false");
+    const week = screen.getByText("Monday").closest("ul")!;
+    expect(week.hidden).toBe(true);
+    await userEvent.click(row);
+    expect(row.getAttribute("aria-expanded")).toBe("true");
+    expect(week.hidden).toBe(false);
+    expect(within(week).getAllByText("Closed")).toHaveLength(2);
+  });
+
+  it("a closed day is phrased the same way", async () => {
+    await open(buca({ day_id: "d0" } as Partial<Card>), { days: [...days, { id: "d0", trip_id: "t1", date: "2027-08-23", day_number: 0 }] });
+    expect(screen.getByLabelText("Opening hours").textContent).toBe("Closed on Monday");
   });
 
   it("has no Booked switch on the surface; Booked is in the ⋯ and writes cards.confirmed", async () => {

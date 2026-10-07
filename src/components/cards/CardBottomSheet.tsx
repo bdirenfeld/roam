@@ -17,6 +17,7 @@ import LovedHeart from "@/components/ui/LovedHeart";
 import { readRecommendedBy } from "@/lib/recommendedBy";
 import FieldRow, { SectionLabel, NoteDisplay } from "./detail/FieldRow";
 import { withoutHoursLine } from "@/lib/plan/notes";
+import { hoursSummary, isLocalToday } from "@/lib/places/hoursLine";
 import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
 import dynamic from "next/dynamic";
 import { reloadOnStale } from "@/lib/chunkReload";
@@ -921,7 +922,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     const weekday = new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "long" });
     const line = weekdayText.find((l) => l.startsWith(weekday + ":"));
     if (!line) return null;
-    return { weekday, value: line.slice(weekday.length + 2).trim() };
+    return { weekday, value: line.slice(weekday.length + 2).trim(), isToday: isLocalToday(date) };
   })();
 
   const priceLevel = place?.price_level ?? null;
@@ -1429,6 +1430,58 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             )}
           </div>
 
+          {/* Opening hours, one line under the address and time (7 Oct 2026,
+              taps audit): it sat last, under the note, the checklist and the
+              recommender, usually below the bottom of a phone screen. Folded to
+              the card's day ("Open 8:15 AM – 6:30 PM today"); a tap opens the
+              week, as before. */}
+          {weekdayText && (
+            <div className="mt-1.5 -ml-2">
+              <button
+                type="button"
+                onClick={() => setHoursOpen((v) => !v)}
+                aria-expanded={hoursOpen}
+                aria-label="Opening hours"
+                className="w-full flex items-center gap-1.5 rounded-md px-2 py-1 text-left transition-colors hover:bg-black/[0.02]"
+                style={{ background: "#F7F7F9", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)" }}
+              >
+                <Clock size={13} weight="light" color="#1A1A2E" className="flex-shrink-0" />
+                {cardDayLine ? (() => {
+                  const line = hoursSummary(cardDayLine.value, cardDayLine.weekday, cardDayLine.isToday);
+                  const sp = line.indexOf(" ");
+                  return (
+                    <span className="text-[13px] text-[#1A1A2E] truncate">
+                      <span className="font-medium">{line.slice(0, sp)}</span>
+                      <span style={{ color: "rgba(26,26,46,0.62)" }}>{line.slice(sp)}</span>
+                    </span>
+                  );
+                })() : (
+                  <span className="text-[13px] font-medium text-[#1A1A2E]">Hours</span>
+                )}
+                <CaretDown
+                  size={12}
+                  weight="bold"
+                  className="ml-auto flex-shrink-0"
+                  color="rgba(26,26,46,0.40)"
+                  style={{ transform: hoursOpen ? "rotate(180deg)" : "none", transition: "transform 150ms" }}
+                />
+              </button>
+              <ul className="space-y-1 px-2 pt-2 pb-1" hidden={!hoursOpen}>
+                {weekdayText.map((line, i) => {
+                  const idx = line.indexOf(": ");
+                  const day = idx >= 0 ? line.slice(0, idx) : line;
+                  const value = idx >= 0 ? line.slice(idx + 2) : "";
+                  return (
+                    <li key={i} className="flex justify-between gap-4 text-[12.5px] leading-snug">
+                      <span className="text-activity/50">{day}</span>
+                      <span className="text-activity/80 text-right">{value}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+
           {/* The address used to sit here in grey, truncated mid-street. It
               cost a line of a phone screen to half-say what Maps says properly
               one tap away. */}
@@ -1513,47 +1566,6 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   placeholder="Who recommended this…"
                   onSave={readOnly ? undefined : saveRecommendedBy}
                 />
-              </div>
-            )}
-
-            {/* Weekly hours, folded. Six of the seven lines are about days you
-                are not there, so the row opens showing only the day this card
-                sits on and expands to the week on a tap. */}
-            {weekdayText && (
-              <div className="mt-5 pt-4 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={() => setHoursOpen((v) => !v)}
-                  aria-expanded={hoursOpen}
-                  className="w-full flex items-center gap-1.5 mb-2 text-left"
-                >
-                  <Clock size={14} weight="light" className="text-activity/50" />
-                  <span className="text-[12px] font-medium text-activity">Hours</span>
-                  {!hoursOpen && cardDayLine && (
-                    <span className="text-[12.5px] text-activity/60 truncate ml-1">
-                      {cardDayLine.value}
-                    </span>
-                  )}
-                  <CaretDown
-                    size={12}
-                    weight="bold"
-                    className="ml-auto text-activity/40 flex-shrink-0"
-                    style={{ transform: hoursOpen ? "rotate(180deg)" : "none", transition: "transform 150ms" }}
-                  />
-                </button>
-                <ul className="space-y-1" hidden={!hoursOpen}>
-                  {weekdayText.map((line, i) => {
-                    const idx = line.indexOf(": ");
-                    const day = idx >= 0 ? line.slice(0, idx) : line;
-                    const value = idx >= 0 ? line.slice(idx + 2) : "";
-                    return (
-                      <li key={i} className="flex justify-between gap-4 text-[12.5px] leading-snug">
-                        <span className="text-activity/50">{day}</span>
-                        <span className="text-activity/80 text-right">{value}</span>
-                      </li>
-                    );
-                  })}
-                </ul>
               </div>
             )}
 
