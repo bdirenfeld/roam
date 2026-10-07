@@ -8,6 +8,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import MapPinPopup from "./MapPinPopup";
 import { popupPanY } from "@/lib/map/popupRoom";
+import { savedCardForPlace, savedPlaceIds } from "@/lib/map/savedPlace";
 import { SIDEBAR_SUB_TYPES, GROUPS } from "./MapSidebar";
 import PlaceSearch from "./PlaceSearch";
 import { lookupPlace, TEMP_PIN_SVG } from "./lookupPlace";
@@ -564,6 +565,13 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
 
   // ── Place search: fetch details, drop temp pin, open sheet ───
   async function handlePlaceSelect(placeId: string, sessionToken: string) {
+    // Already on the map (6 Oct 2026, taps audit): fly to that pin and open
+    // its card — no add sheet, no "save it again?" question.
+    const saved = savedCardForPlace(localCards.filter(isRealPlace), placeId);
+    if (saved) {
+      handleSidebarCardSelect(saved);
+      return;
+    }
     const pending = await lookupPlace(placeId, sessionToken);
     if (!pending) return;
     const { lat, lng } = pending;
@@ -998,7 +1006,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
 
         {/* Place search — the add-a-place entry; owner only */}
         {!readOnly && (
-          <PlaceSearch onPlaceSelect={handlePlaceSelect} destination={trip.destination} lat={trip.destination_lat} lng={trip.destination_lng} />
+          <PlaceSearch onPlaceSelect={handlePlaceSelect} destination={trip.destination} lat={trip.destination_lat} lng={trip.destination_lng} savedPlaceIds={savedPlaceIds(localCards.filter(isRealPlace))} />
         )}
 
         {/* Filter button + pill bar — bottom-left, expands upward. View-only

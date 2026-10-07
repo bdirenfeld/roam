@@ -136,3 +136,70 @@ describe("CardBottomSheet — the designer-audit surface (6 Oct 2026)", () => {
     expect(screen.queryByText("Booked")).toBeNull();
   });
 });
+
+describe("CardBottomSheet — directions remember the app (6 Oct 2026, taps audit)", () => {
+  const ADDR = "Directions to Via della Cervia, 3, 55100 Lucca LU, Italy";
+  beforeEach(() => { window.localStorage.clear(); window.open = vi.fn() as unknown as typeof window.open; });
+
+  it("first time: the chooser, Google opens the route, and Remember (on by default) skips the chooser next time", async () => {
+    await open(buca());
+    await userEvent.click(screen.getByLabelText(ADDR));
+    expect(screen.getByText("Get directions to")).toBeTruthy();
+    expect(screen.getByRole("switch", { name: "Remember my choice" }).getAttribute("aria-checked")).toBe("true");
+    await userEvent.click(screen.getByText("Google Maps"));
+    expect(window.open).toHaveBeenCalledWith("https://www.google.com/maps/dir/?api=1&destination=43.84,10.5&destination_place_id=g1", "_blank");
+    expect(window.localStorage.getItem("roam:directions-app")).toBe("google");
+    // Remembered: the address goes straight to Google, and offers the other app once.
+    (window.open as unknown as ReturnType<typeof vi.fn>).mockClear();
+    await userEvent.click(screen.getByLabelText(ADDR));
+    expect(screen.queryByText("Get directions to")).toBeNull();
+    expect(window.open).toHaveBeenCalledWith(expect.stringMatching(/^https:\/\/www\.google\.com\/maps\/dir\//), "_blank");
+    await userEvent.click(screen.getByRole("button", { name: "Use Waze instead" }));
+    expect(window.open).toHaveBeenLastCalledWith("https://waze.com/ul?ll=43.84,10.5&navigate=yes", "_blank");
+    expect(window.localStorage.getItem("roam:directions-app")).toBe("waze");
+    expect(screen.getByRole("button", { name: "Use Google Maps instead" })).toBeTruthy();
+  });
+
+  it("with Remember turned off, the chooser keeps asking", async () => {
+    await open(buca());
+    await userEvent.click(screen.getByLabelText(ADDR));
+    await userEvent.click(screen.getByRole("switch", { name: "Remember my choice" }));
+    await userEvent.click(screen.getByText("Waze"));
+    expect(window.localStorage.getItem("roam:directions-app")).toBeNull();
+    await userEvent.click(screen.getByLabelText(ADDR));
+    expect(screen.getByText("Get directions to")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /instead$/ })).toBeNull();
+  });
+});
+
+describe("CardBottomSheet — previewed from the add sheet (6 Oct 2026, taps audit)", () => {
+  const saved = () => buca({ status: "interested", day_id: null as unknown as string, start_time: null, end_time: null });
+
+  it("the button names the day, runs the row's Add, and closes back to the sheet", async () => {
+    const onAdd = vi.fn(async () => true);
+    const onClose = vi.fn();
+    await act(async () => {
+      render(<CardBottomSheet card={saved()} onClose={onClose} days={days} addToDay={{ label: "Tue 25 Aug", onAdd }} />);
+    });
+    expect(screen.queryByText("Put on a day")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Add to Tue 25 Aug" }));
+    expect(onAdd).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(screen.queryByText("Put on a day")).toBeNull(); // no second day list
+  });
+
+  it("a failed add keeps the card open", async () => {
+    const onClose = vi.fn();
+    await act(async () => {
+      render(<CardBottomSheet card={saved()} onClose={onClose} days={days} addToDay={{ label: "Tue 25 Aug", onAdd: async () => false }} />);
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Add to Tue 25 Aug" }));
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("anywhere else, Put on a day is unchanged", async () => {
+    await open(saved());
+    expect(screen.getByRole("button", { name: "Put on a day" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Add to / })).toBeNull();
+  });
+});

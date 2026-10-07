@@ -45,3 +45,25 @@ describe("map search: iPhone share by paste (5 Oct 2026)", () => {
     expect(push).toHaveBeenCalledWith("/share?url=https%3A%2F%2Fwww.instagram.com%2Freel%2FC9xYz_1%2F");
   });
 });
+
+describe("map search: places already on your map (6 Oct 2026, taps audit)", () => {
+  afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+
+  it("a result already pinned says On your map with a filled pin; the others are unchanged", async () => {
+    setUA(ANDROID);
+    vi.stubGlobal("fetch", vi.fn(async () => ({ json: async () => ({ predictions: [
+      { place_id: "gPiazza", description: "Piazza San Michele", structured_formatting: { main_text: "Piazza San Michele", secondary_text: "Lucca, Province of Lucca, Italy" } },
+      { place_id: "gForo", description: "San Michele in Foro", structured_formatting: { main_text: "San Michele in Foro", secondary_text: "Piazza San Michele, Lucca, Italy" } },
+    ] }) })));
+    const onPlaceSelect = vi.fn();
+    render(<PlaceSearch onPlaceSelect={onPlaceSelect} destination="Lucca" savedPlaceIds={new Set(["gPiazza"])} />);
+    fireEvent.change(screen.getByPlaceholderText("Search places in Lucca…"), { target: { value: "piazza san mich" } });
+    const saved = (await screen.findByText("Piazza San Michele")).closest("button")!;
+    expect(saved.textContent).toContain("On your map");
+    expect(saved.querySelector("[data-testid=on-map-pin]")).toBeTruthy();
+    const other = screen.getByText("San Michele in Foro").closest("button")!;
+    expect(other.textContent).not.toContain("On your map");
+    fireEvent.click(saved);
+    expect(onPlaceSelect).toHaveBeenCalledWith("gPiazza", expect.any(String));
+  });
+});

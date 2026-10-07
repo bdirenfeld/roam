@@ -16,6 +16,7 @@ import TimeSheet from "./TimeSheet";
 import DayPicker from "@/components/day/DayPicker";
 import PhoneDayCalendar from "@/components/day/PhoneDayCalendar";
 import { autoDayTitle } from "@/lib/autoDayTitle";
+import { dayChip } from "@/lib/dayChip";
 import DayMap from "@/components/day/DayMap";
 import CardTimeline from "@/components/day/CardTimeline";
 import StartHere from "@/components/plan/StartHere";
@@ -589,6 +590,9 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   // the card brings the sheet back (Brennan, Sep 2026: "when you close this
   // you're out of the add menu entirely").
   const returnToAddRef = useRef<{ start: string; end: string } | null>(null);
+  // The previewed row's own Add (6 Oct 2026, taps audit): the card's button
+  // reads "Add to Tue 25 Aug" and runs it, instead of asking for the day again.
+  const [previewAdd, setPreviewAdd] = useState<(() => Promise<boolean>) | null>(null);
   // While a card is previewed from the sheet, the sheet stays mounted but
   // hidden — unmounting it made it slide in again on return ("bounces up").
   const [addHidden, setAddHidden] = useState(false);
@@ -1143,11 +1147,13 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
             setSelectedCard(null);
             setIsCardOpen(false);
             if (returnToAddRef.current) { setAddHidden(false); returnToAddRef.current = null; }
+            setPreviewAdd(null);
           }}
           onCardUpdate={handleCardUpdate}
           onCardDelete={handleCardDelete}
           onCardCopied={handleCardCopied}
           days={days}
+          addToDay={previewAdd ? { label: dayChip(dayWithCards.date, true), onAdd: previewAdd } : undefined}
           tripDestination={trip.destination}
           stayCheckOut={stays.find((r) => r.placeId === selectedCard.place_id)?.checkOut ?? null}
           readOnly={readOnly}
@@ -1176,7 +1182,8 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           onClose={handleCreateClose}
           onCardCreated={handleCardCreated}
           hidden={addHidden}
-          onPreviewCard={(card) => { returnToAddRef.current = gapTimes; setAddHidden(true); setSelectedCard(card); setIsCardOpen(true); }}
+          dayLabel={dayChip(dayWithCards.date, true)}
+          onPreviewCard={(card, add) => { returnToAddRef.current = gapTimes; setAddHidden(true); setPreviewAdd(() => add); setSelectedCard(card); setIsCardOpen(true); }}
           onCardRemoved={(id) => { setLocalCards((prev) => prev.filter((c) => c.id !== id)); if (lastAddedRef.current === id) lastAddedRef.current = null; }}
         />
       )}

@@ -14,7 +14,7 @@ import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/re
 
 vi.mock("@phosphor-icons/react", () => {
   const Glyph = () => null;
-  return { BookmarkSimple: Glyph, Heart: Glyph, PencilSimple: Glyph, Trash: Glyph };
+  return { BookmarkSimple: Glyph, CalendarBlank: Glyph, CaretRight: Glyph, Heart: Glyph, PencilSimple: Glyph, Trash: Glyph };
 });
 vi.mock("@/components/cards/PlacePhotoGallery", () => ({ default: () => null }));
 vi.mock("@/components/ui/Toast", () => ({ useToast: () => ({ toast: vi.fn(), dismiss: vi.fn() }) }));
@@ -127,5 +127,24 @@ describe("MapPinPopup — the face (6 Oct 2026, designer audit)", () => {
     fireEvent.click(screen.getByRole("button", { name: "more" }));
     expect(container.textContent).not.toMatch(/\*\*/);
     expect(screen.getByText("Intent").tagName).toBe("STRONG");
+  });
+});
+
+describe("MapPinPopup — a pin on a day says which (6 Oct 2026, taps audit)", () => {
+  const days = [{ id: "d1", day_number: 3, date: "2026-08-25" }] as never;
+
+  it("a scheduled pin shows Day 3 · Tue 25 Aug, linking to that day, and no Put on a day", () => {
+    const onDay = { ...card, status: "in_itinerary", day_id: "d1" } as unknown as Card;
+    render(<MapPinPopup card={onDay} onClose={() => {}} onCardUpdate={() => {}} days={days} tripId="t1" />);
+    const pill = screen.getByRole("link", { name: /Day 3/ });
+    expect(pill.textContent).toContain("Tue 25 Aug");
+    expect(pill.getAttribute("href")).toBe("/trips/t1/days/d1");
+    expect(screen.queryByText("Put on a day")).toBeNull();
+  });
+
+  it("a saved pin with no day keeps Put on a day", () => {
+    render(<MapPinPopup card={card} onClose={() => {}} onCardUpdate={() => {}} days={days} tripId="t1" />);
+    expect(screen.getByText("Put on a day")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: /Day 3/ })).toBeNull();
   });
 });

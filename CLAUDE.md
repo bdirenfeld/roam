@@ -837,9 +837,14 @@ it permanent) and `trip-covers` (public, 10 MB, images incl. HEIC/HEIF because
 iPhones hand those over unconverted).
 
 Write policies on `trip-covers` are **owner or cohost**, matching the two
-`trips` UPDATE policies exactly. The journeys list offers "Change cover" on
-every card without checking who owns it, so an owner-only rule would silently
-fail for a cohost — the same class of bug the missing bucket caused.
+`trips` UPDATE policies exactly. Nothing in the app writes to it any more:
+**changing a journey's cover was removed on 6 Oct 2026** (Brennan: "changing the
+cover isn't needed; covers are picked from the destination" — 16 of 20 journeys
+used the automatic photo and nobody had ever uploaded one). The card ⋯ menu,
+the Settings hero (now a plain picture) and the dead paste-a-URL sheet in
+NewJourneyForm went with `TripCoverEditModal`. Covers come only from
+`/api/trips/fetch-cover` (Unsplash, lib/coverQueries); existing
+`cover_image_url` values are untouched. Do not bring an editor back unless he asks.
 
 **Deleting a journey does not delete its files.** `card_attachments` rows go by
 CASCADE, but the objects stay in the bucket, and the same now applies to a
@@ -2318,3 +2323,19 @@ Approved scope only. Find KEEPS its two-level filters (Activity / Food, then kin
   then Google via /api/places/autocomplete with the trip's bias; a Google pick goes through bulk-import.
   Enter with nothing highlighted is still a plain note.
 - **Journeys ⋯ Archive and Past journeys' restore** show the one toast with Undo, and say so on failure.
+
+### Taps audit, batch A (6 Oct 2026)
+- **Directions remember the app** (`lib/directions`, `ui/NavigationSheet`): Google opens `/maps/dir/` with
+  `destination` (lat,lng or address) + `destination_place_id`, no forced travelmode. "Remember my choice" is ON
+  by default; the app lives in localStorage `roam:directions-app`, read in an effect. Remembered: the card
+  sheet's address opens the app directly, with a quiet "Use Waze instead" / "Use Google Maps instead" under it
+  that opens the other once and switches. The map popup's directions disc is NOT on this yet.
+- **Map search knows what is pinned** (`lib/map/savedPlace`): a result whose Google id is a pin on this journey
+  shows a teal filled pin + "On your map"; tapping it goes through `handleSidebarCardSelect`, not the add sheet.
+- **A pin on a day says which** (MapPinPopup): "Day N · Tue 25 Aug ›" links to `/trips/<id>/days/<dayId>`
+  instead of "Put on a day". Unscheduled pins unchanged.
+- **Preview from the add sheet adds to that day**: CreateCardSheet's `onPreviewCard(card, add)` hands over the
+  row's own Add; CardBottomSheet `addToDay={{ label, onAdd }}` makes the button "Add to Tue 25 Aug", closes back
+  to the sheet (row reads "Added ✓"). Without the prop, "Put on a day" is unchanged.
+- **A Google add from the day's add sheet toasts** "Added <place> to <dayLabel>" with Undo (needs `dayLabel` +
+  `onCardRemoved`; the Plan board's composer passes neither, so it stays silent). A failed place save toasts.

@@ -4,7 +4,8 @@ import { useState, useCallback, useEffect, useRef, type ReactNode } from "react"
 import { thumbSrc } from "@/lib/places/photoWarm";
 import { SUB_TYPE_LABEL } from "@/lib/subTypeLabel";
 import { dayChip, spansMonths } from "@/lib/dayChip";
-import { BookmarkSimple, Heart, PencilSimple } from "@phosphor-icons/react";
+import { BookmarkSimple, CalendarBlank, CaretRight, Heart, PencilSimple } from "@phosphor-icons/react";
+import Link from "next/link";
 import type { Card, CardType, Day } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { queuedDelete } from "@/lib/offline/queuedWrite";
@@ -419,6 +420,11 @@ function CardBody({
   // Door 2: place this pin onto a day as a new in_itinerary card via the shared
   // helper. The interested card behind the pin is untouched.
   const canAddToDay = !!(days && days.length > 0 && tripId && card.place_id);
+  // Already on a day (6 Oct 2026, taps audit): the chip says which and opens
+  // it, instead of offering "Put on a day" again.
+  const onDay = card.status === "in_itinerary" && card.day_id
+    ? days?.find((d) => d.id === card.day_id) ?? null
+    : null;
 
   const handleAddToDay = useCallback(async (chosen: Day) => {
     if (!tripId || !card.place_id || scheduling) return;
@@ -731,7 +737,18 @@ function CardBody({
                 doors as 36px discs on the right — directions, website, call.
                 One family, one height; ink is for a true primary. */}
             <div className="mt-2 md:mt-2.5 flex items-center justify-between gap-2">
-            {canAddToDay ? (
+            {onDay && tripId ? (
+              <Link
+                href={`/trips/${tripId}/days/${onDay.id}`}
+                className="flex items-center gap-1.5 rounded-full h-9 px-3.5 min-w-0 active:opacity-70 transition-opacity"
+                style={{ background: "rgba(26,26,46,0.06)", fontSize: "12.5px", color: "#1A1A2E" }}
+              >
+                <CalendarBlank size={14} weight="light" color="#1A1A2E" className="flex-shrink-0" />
+                <span style={{ fontWeight: 600 }}>Day {onDay.day_number}</span>
+                <span className="truncate" style={{ color: "rgba(26,26,46,0.62)" }}>· {dayChip(onDay.date, true)}</span>
+                <CaretRight size={11} weight="light" color="rgba(26,26,46,0.62)" className="flex-shrink-0" />
+              </Link>
+            ) : canAddToDay ? (
               <button
                 onClick={() => setShowDayList(true)}
                 className="flex items-center gap-1.5 rounded-full h-9 px-3.5 active:opacity-70 transition-opacity"

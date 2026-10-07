@@ -95,8 +95,12 @@ interface Props {
   endPosition: number;
   onClose: () => void;
   onCardCreated: (card: Card) => void;
-  /** Tap on a saved row's name: show the card (photos, hours, notes) before adding. */
-  onPreviewCard?: (card: Card) => void;
+  /** Tap on a saved row's name: show the card (photos, hours, notes) before adding.
+   *  `add` is the row's own Add (6 Oct 2026, taps audit): the preview's button
+   *  calls it, so the row reads "Added ✓" when the sheet comes back. */
+  onPreviewCard?: (card: Card, add: () => Promise<boolean>) => void;
+  /** The day as a short label ("Tue 25 Aug"): a Google add says where it went (6 Oct 2026, taps audit). */
+  dayLabel?: string;
   /** "Added ✓" tapped again: the card came back off the day. */
   onCardRemoved?: (cardId: string) => void;
   /** Kept mounted but out of sight while the host shows a previewed card. */
@@ -120,6 +124,7 @@ export default function CreateCardSheet({
   dayId, listId = null, tripId, endPosition, onClose, onCardCreated,
   initialStatus, extraDetails, initialStartTime, initialEndTime,
   scheduledPlaceIds, destination, destinationLat, destinationLng, countries, onPreviewCard, onCardRemoved, hidden = false,
+  dayLabel,
 }: Props) {
   const { toast } = useToast();
   const supabase  = createClient();
@@ -209,8 +214,8 @@ export default function CreateCardSheet({
   // Which groups have anything saved at all — a chip for an empty group is a dead tap.
   const availableGroups = useMemo(() => new Set(saved.map((c) => c.place!.type)), [saved]);
 
-  const handleQuickAdd = useCallback(async (card: Card) => {
-    if (!dayId || !card.place_id || saving) return;
+  const handleQuickAdd = useCallback(async (card: Card): Promise<boolean> => {
+    if (!dayId || !card.place_id || saving) return false;
     setSaving(true);
     const newCard = await scheduleCardOnDay(supabase, {
       tripId,
@@ -223,11 +228,12 @@ export default function CreateCardSheet({
       sourceUrl: card.source_url,
     });
     setSaving(false);
-    if (!newCard) { toast({ message: "Couldn't add that. Try again." }); return; }
+    if (!newCard) { toast({ message: "Couldn't add that. Try again." }); return false; }
     addedIdsRef.current.add(card.id);
     addedMap.current.set(card.id, newCard.id);
     setAddedIds((prev) => new Set(prev).add(card.id));
     onCardCreated(newCard);
+    return true;
   }, [dayId, tripId, supabase, startTime, endTime, saving, onCardCreated, toast]);
 
   // No focus on open: the saved list is what a phone wants first, and a
@@ -388,7 +394,9 @@ export default function CreateCardSheet({
 
       const finalSubType = subType ?? SUB_TYPES[type][0].value;
       const user = await getAuthUser(supabase);
-      if (!user) { setSaving(false); return; }
+      // A failed save says so (6 Oct 2026, taps audit): it used to return
+      // silently and the sheet just went quiet.
+      if (!user) { setSaving(false); toast({ message: "Couldn't save that place. Try again." }); return; }
 
       const { data: placeRow, error: placeErr } = await supabase
         .from("places")
@@ -414,7 +422,7 @@ export default function CreateCardSheet({
         .select("id")
         .single();
 
-      if (placeErr || !placeRow) { setSaving(false); return; }
+      if (placeErr || !placeRow) { setSaving(false); toast({ message: "Couldn't save that place. Try again." }); return; }
 
       const { error } = await supabase.from("cards").insert({
         id: cardId, day_id: cardDayId, list_id: listId, trip_id: tripId,
@@ -449,6 +457,20 @@ export default function CreateCardSheet({
         place_id: placeRow.id, place: joinedPlace,
       });
       resetForNext();
+      // Say what went where (6 Oct 2026, taps audit): the sheet used to snap
+      // back to empty with nothing to show it worked. Undo takes it off.
+      if (dayLabel) {
+        toast({
+          message: `Added ${selected.name} to ${dayLabel}`,
+          undo: onCardRemoved
+            ? async () => {
+                const { error: delErr } = await queuedDelete("cards", { id: cardId });
+                if (delErr) { toast({ message: "Couldn't take that off. Try again." }); return; }
+                onCardRemoved(cardId);
+              }
+            : undefined,
+        });
+      }
       return;
     }
 
@@ -476,6 +498,7 @@ export default function CreateCardSheet({
   }, [
     title, startTime, endTime, saving, selected, type, subType,
     dayId, listId, tripId, endPosition, initialStatus, extraDetails, supabase, onCardCreated, toast, resetForNext,
+    dayLabel, onCardRemoved,
   ]);
 
   const canCreate = title.trim().length > 0 && !loadingPlace;
@@ -618,7 +641,7 @@ export default function CreateCardSheet({
                         {/* The name: see the card first. Without a host to show it, it adds. */}
                         <button
                           type="button"
-                          onClick={() => (onPreviewCard ? onPreviewCard(c) : handleQuickAdd(c))}
+                          onClick={() => (onPreviewCard ? onPreviewCard(c, () => handleQuickAdd(c)) : handleQuickAdd(c))}
                           disabled={saving}
                           className="flex items-center gap-3 min-w-0 flex-1 text-left active:opacity-70 transition-opacity disabled:opacity-50"
                         >

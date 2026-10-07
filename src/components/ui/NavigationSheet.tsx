@@ -1,6 +1,8 @@
 'use client'
 
+import { useState } from "react"
 import { useEscapeKey } from "@/hooks/useEscapeKey"
+import { type DirectionsApp, googleDirectionsUrl, wazeDirectionsUrl, writeDirectionsApp } from "@/lib/directions"
 
 interface NavigationSheetProps {
   isOpen: boolean
@@ -9,26 +11,28 @@ interface NavigationSheetProps {
   placeId?: string | null
   lat?: number | null
   lng?: number | null
+  address?: string | null
+  /** Called when the traveller picks an app with "Remember my choice" on. */
+  onRemember?: (app: DirectionsApp) => void
 }
 
-export function NavigationSheet({ isOpen, onClose, placeName, placeId, lat, lng }: NavigationSheetProps) {
+export function NavigationSheet({ isOpen, onClose, placeName, placeId, lat, lng, address, onRemember }: NavigationSheetProps) {
   useEscapeKey(onClose, isOpen)
+  // "Remember my choice" is on by default (6 Oct 2026, taps audit): the
+  // chooser asked every time, five taps to a route. Off = keep being asked.
+  const [remember, setRemember] = useState(true)
   if (!isOpen) return null
 
-  const googleMapsUrl = placeId
-    ? `https://www.google.com/maps/place/?q=place_id:${placeId}`
-    : lat && lng
-    ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=walking`
-    : null
+  const target = { placeName, placeId, lat, lng, address }
+  const googleMapsUrl = googleDirectionsUrl(target)
+  const wazeUrl = wazeDirectionsUrl(target)
 
-  const wazeUrl = lat && lng
-    ? `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
-    : placeId
-    ? `https://waze.com/ul?q=${encodeURIComponent(placeName)}&navigate=yes`
-    : null
-
-  const handleOption = (url: string | null) => {
+  const handleOption = (app: DirectionsApp, url: string | null) => {
     if (url) window.open(url, '_blank')
+    if (url && remember) {
+      writeDirectionsApp(app)
+      onRemember?.(app)
+    }
     onClose()
   }
 
@@ -44,7 +48,7 @@ export function NavigationSheet({ isOpen, onClose, placeName, placeId, lat, lng 
           <p className="text-sm font-medium text-[#1A1A2E]">{placeName}</p>
         </div>
         <button
-          onClick={() => handleOption(googleMapsUrl)}
+          onClick={() => handleOption("google", googleMapsUrl)}
           disabled={!googleMapsUrl}
           className="w-full flex items-center gap-4 px-4 py-4 border-b border-gray-50 active:bg-gray-50 disabled:opacity-40"
         >
@@ -55,12 +59,12 @@ export function NavigationSheet({ isOpen, onClose, placeName, placeId, lat, lng 
           </div>
           <div className="flex-1 text-left">
             <p className="text-sm font-medium text-[#1A1A2E]">Google Maps</p>
-            <p className="text-xs text-gray-400 mt-0.5">Walking directions</p>
+            <p className="text-xs text-gray-400 mt-0.5">Opens straight to directions</p>
           </div>
           <svg width="14" height="14" viewBox="0 0 256 256" fill="#D1D5DB"><path d="M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z"/></svg>
         </button>
         <button
-          onClick={() => handleOption(wazeUrl)}
+          onClick={() => handleOption("waze", wazeUrl)}
           disabled={!wazeUrl}
           className="w-full flex items-center gap-4 px-4 py-4 active:bg-gray-50 disabled:opacity-40"
         >
@@ -75,6 +79,25 @@ export function NavigationSheet({ isOpen, onClose, placeName, placeId, lat, lng 
             <p className="text-xs text-gray-400 mt-0.5">Driving directions</p>
           </div>
           <svg width="14" height="14" viewBox="0 0 256 256" fill="#D1D5DB"><path d="M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z"/></svg>
+        </button>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={remember}
+          onClick={() => setRemember((r) => !r)}
+          className="w-full flex items-center justify-between px-4 py-3.5 border-t border-gray-100 active:bg-gray-50"
+        >
+          <span className="text-sm text-[#1A1A2E]/75">Remember my choice</span>
+          <span
+            aria-hidden
+            className="relative inline-block w-[38px] h-[22px] rounded-full transition-colors"
+            style={{ backgroundColor: remember ? "#1A1A2E" : "#D1D5DB" }}
+          >
+            <span
+              className="absolute top-[3px] w-4 h-4 rounded-full bg-white shadow transition-all"
+              style={{ left: remember ? 19 : 3 }}
+            />
+          </span>
         </button>
         <button onClick={onClose} className="w-full py-4 text-sm text-gray-400 border-t border-gray-100 active:bg-gray-50">
           Cancel

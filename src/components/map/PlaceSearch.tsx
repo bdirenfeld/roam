@@ -28,9 +28,12 @@ interface Props {
   getBias?: () => { lat: number; lng: number } | null;
   /** The journey's countries: their results lead (27 Sep 2026). */
   countries?: string[];
+  /** Google ids already pinned on this journey: their rows say "On your map"
+   *  (6 Oct 2026, taps audit). The host decides what a tap on one does. */
+  savedPlaceIds?: Set<string>;
 }
 
-export default function PlaceSearch({ onPlaceSelect, destination, lat, lng, positionClassName, getBias, countries }: Props) {
+export default function PlaceSearch({ onPlaceSelect, destination, lat, lng, positionClassName, getBias, countries, savedPlaceIds }: Props) {
   const [query, setQuery]             = useState("");
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading]         = useState(false);
@@ -206,7 +209,9 @@ export default function PlaceSearch({ onPlaceSelect, destination, lat, lng, posi
             className="mt-1.5 bg-white rounded-xl border border-gray-100 overflow-hidden"
             style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.10)" }}
           >
-            {predictions.map((p, i) => (
+            {predictions.map((p, i) => {
+              const onMap = savedPlaceIds?.has(p.place_id) ?? false;
+              return (
               <li key={p.place_id} role="option" aria-selected="false">
                 <button
                   onClick={() => handleSelect(p)}
@@ -214,12 +219,22 @@ export default function PlaceSearch({ onPlaceSelect, destination, lat, lng, posi
                     i < predictions.length - 1 ? "border-b border-gray-50" : ""
                   }`}
                 >
+                  {onMap ? (
+                    /* Already pinned (6 Oct 2026, taps audit): a filled teal
+                       pin, the same mark the map draws. */
+                    <div data-testid="on-map-pin" className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: "#0D9488" }}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                      </svg>
+                    </div>
+                  ) : (
                   <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
                       <circle cx="12" cy="10" r="3" />
                     </svg>
                   </div>
+                  )}
                   <div className="min-w-0 flex-1">
                     <span className="block text-[13px] font-medium text-gray-900 leading-snug truncate">
                       {p.structured_formatting.main_text}
@@ -229,10 +244,16 @@ export default function PlaceSearch({ onPlaceSelect, destination, lat, lng, posi
                         {p.structured_formatting.secondary_text}
                       </span>
                     )}
+                    {onMap && (
+                      <span className="block text-[12px] font-medium leading-snug mt-0.5" style={{ color: "#0F766E" }}>
+                        On your map
+                      </span>
+                    )}
                   </div>
                 </button>
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
       </div>

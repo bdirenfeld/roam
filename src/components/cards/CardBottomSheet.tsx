@@ -27,6 +27,7 @@ import DayPickerOverlay from "./DayPickerOverlay";
 import RepeatDaysOverlay from "./RepeatDaysOverlay";
 import PlacePhotoGallery from "./PlacePhotoGallery";
 import { NavigationSheet } from "@/components/ui/NavigationSheet";
+import { type DirectionsApp, directionsUrl, otherApp, readDirectionsApp, writeDirectionsApp } from "@/lib/directions";
 
 // ── Type-specific detail components ───────────────────────────
 import FlightArrivalDetail from "./detail/FlightArrivalDetail";
@@ -76,6 +77,10 @@ interface Props {
   /** A hotel's check-out as the host worked it out (lib/stays/stayRuns), so
    *  the sheet says the same day the week's band does when none is written. */
   stayCheckOut?: string | null;
+  /** Opened from the Add-a-place sheet (6 Oct 2026, taps audit): the button
+   *  reads "Add to <label>" and runs the row's own Add, then closes back to
+   *  the sheet. Without it, "Put on a day" asks for the day as before. */
+  addToDay?: { label: string; onAdd: () => Promise<boolean> };
 }
 
 /** Drop the booking/flight confirmation reference so it never renders for a
@@ -396,7 +401,7 @@ function TitleEditor({
  *  side — half the 6px gap — so no disc's target reaches its neighbour. */
 const DISC_TARGET = "absolute -inset-x-[3px] -inset-y-2";
 
-export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDelete, onCardCopied, days, tripDestination, readOnly = false, stayCheckOut = null }: Props) {
+export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDelete, onCardCopied, days, tripDestination, readOnly = false, stayCheckOut = null, addToDay }: Props) {
   // Every field save reverts on refusal; it also says so now (UX audit,
   // Sep 2026, finding 1). Before, eight sites logged to the console only.
   const { toast } = useToast();
@@ -443,6 +448,11 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const [justDeleted, setJustDeleted] = useState(false);
   const [linkMergeMessage,  setLinkMergeMessage]  = useState<string | null>(null);
   const [navSheetOpen,      setNavSheetOpen]      = useState(false);
+  const [addingToDay,       setAddingToDay]       = useState(false);
+  // The remembered directions app (6 Oct 2026, taps audit). Read after mount:
+  // localStorage never decides the server render.
+  const [navApp,            setNavApp]            = useState<DirectionsApp | null>(null);
+  useEffect(() => { setNavApp(readDirectionsApp()); }, []);
 
   // ── Keyboard escape ────────────────────────────────────────
   useEffect(() => {
@@ -824,6 +834,15 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const det       = localCard.details as Record<string, unknown>;
   const noteSnippet = isNote ? (det?.notes as string | undefined) : undefined;
   const displayTitle = place?.title ?? (det?.title as string | undefined) ?? noteSnippet?.slice(0, 60) ?? "(untitled note)";
+  // Where the directions go. The place's own Google id first, so the route
+  // lands on the right door (6 Oct 2026, taps audit).
+  const navTarget = {
+    placeName: place?.title ?? displayTitle,
+    placeId: place?.google_place_id ?? (det?.place_id as string | undefined) ?? null,
+    lat: place?.lat ?? null,
+    lng: place?.lng ?? null,
+    address: place?.address ?? null,
+  };
   // Unlinked cards default to a muted note accent
   const accent    = isNote
     ? { dot: "bg-gray-300", bg: "bg-gray-50", text: "text-gray-500" }
@@ -1259,16 +1278,41 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                    here doing nothing, and the pill it replaces opened this same
                    chooser. Underlined on hover only: it should read as the
                    address first and a control second. */
+                <>
                 <button
                   type="button"
-                  onClick={() => setNavSheetOpen(true)}
+                  onClick={() => {
+                    // Remembered app: straight to the route, no chooser.
+                    const url = navApp ? directionsUrl(navApp, navTarget) : null;
+                    if (url) window.open(url, "_blank");
+                    else setNavSheetOpen(true);
+                  }}
                   aria-label={`Directions to ${place.address}`}
                   title="Directions"
-                  className="text-left text-[12.5px] leading-snug mt-1 hover:underline"
+                  className="block text-left text-[12.5px] leading-snug mt-1 hover:underline"
                   style={{ color: "rgba(26,26,46,0.62)" }}
                 >
                   {place.address.replace(/,\s*[^,]+$/, "")}
                 </button>
+                {navApp && directionsUrl(otherApp(navApp), navTarget) && (
+                  /* The way out of a remembered choice (6 Oct 2026, taps
+                     audit): opens the other app once and remembers it. */
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = otherApp(navApp);
+                      const url = directionsUrl(next, navTarget);
+                      if (url) window.open(url, "_blank");
+                      writeDirectionsApp(next);
+                      setNavApp(next);
+                    }}
+                    className="block text-left text-[11.5px] leading-snug mt-0.5 underline underline-offset-2"
+                    style={{ color: "rgba(26,26,46,0.5)" }}
+                  >
+                    {navApp === "google" ? "Use Waze instead" : "Use Google Maps instead"}
+                  </button>
+                )}
+                </>
               ) : (
                 <p className="text-[12.5px] leading-snug mt-1" style={{ color: "rgba(26,26,46,0.62)" }}>
                   {place.address.replace(/,\s*[^,]+$/, "")}
@@ -1497,12 +1541,30 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           {/* Assign to Day — only for unplaced cards */}
           {!readOnly && localCard.status === "interested" && days && days.length > 0 && (
             <div className="px-5 pt-4 pb-2">
+              {addToDay ? (
+                /* From the add sheet the day is already known (6 Oct 2026,
+                   taps audit): one tap adds, then back to the sheet. */
+                <button
+                  onClick={async () => {
+                    if (addingToDay) return;
+                    setAddingToDay(true);
+                    const ok = await addToDay.onAdd();
+                    setAddingToDay(false);
+                    if (ok) onClose();
+                  }}
+                  disabled={addingToDay}
+                  className="w-full py-3 rounded-xl bg-activity text-white text-[14px] font-bold active:scale-[0.98] transition-all disabled:opacity-60"
+                >
+                  Add to {addToDay.label}
+                </button>
+              ) : (
               <button
                 onClick={() => setShowDayPicker(true)}
                 className="w-full py-3 rounded-xl bg-activity text-white text-[14px] font-bold active:scale-[0.98] transition-all"
               >
                 Put on a day
               </button>
+              )}
             </div>
           )}
 
@@ -1577,10 +1639,12 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     <NavigationSheet
       isOpen={navSheetOpen}
       onClose={() => setNavSheetOpen(false)}
-      placeName={place?.title ?? displayTitle}
-      placeId={(localCard.details as Record<string, unknown>)?.place_id as string | undefined}
-      lat={place?.lat ?? null}
-      lng={place?.lng ?? null}
+      placeName={navTarget.placeName}
+      placeId={navTarget.placeId}
+      lat={navTarget.lat}
+      lng={navTarget.lng}
+      address={navTarget.address}
+      onRemember={setNavApp}
     />
       {timeOpen && (
         <TimeSheet card={localCard} onClose={() => setTimeOpen(false)} onSave={saveTimes} />

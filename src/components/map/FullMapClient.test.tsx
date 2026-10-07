@@ -51,8 +51,12 @@ vi.mock("mapbox-gl", () => {
 vi.mock("@/hooks/useWarmFind", () => ({ useWarmFind: () => undefined }));
 vi.mock("@/lib/supabase/client", () => ({ createClient: () => ({ from: () => ({}) }) }));
 vi.mock("./MapSidebar", () => ({ default: () => null, GROUPS: [], SIDEBAR_SUB_TYPES: [] }));
-vi.mock("./MapPinPopup", () => ({ default: () => null }));
-vi.mock("./PlaceSearch", () => ({ default: () => null }));
+// The popup and the search keep the props they were given (6 Oct 2026, taps audit).
+const seen = vi.hoisted(() => ({} as Record<string, Record<string, unknown>>));
+vi.mock("./MapPinPopup", () => ({ default: (p: Record<string, unknown>) => { seen.popup = p; return null; } }));
+const lookup = vi.hoisted(() => vi.fn(async () => null));
+vi.mock("./lookupPlace", () => ({ lookupPlace: lookup, TEMP_PIN_SVG: "" }));
+vi.mock("./PlaceSearch", () => ({ default: (p: Record<string, unknown>) => { seen.search = p; return null; } }));
 vi.mock("./AddToTripSheet", () => ({ default: () => null }));
 vi.mock("./WhereToStaySheet", () => ({ default: () => null }));
 vi.mock("@/components/plan/ConfirmationPreviewSheet", () => ({ default: () => null }));
@@ -193,5 +197,25 @@ describe("the phone Map", { timeout: 20000 }, () => {
     const tray = src.slice(at, src.indexOf("\n", src.indexOf("<div", at)));
     expect(tray).toMatch(/className="absolute left-3 right-3/);
     expect(tray).not.toMatch(/md:hidden/);
+  });
+});
+
+describe("map search: a place already on the map (6 Oct 2026, taps audit)", () => {
+  it("tells the search which results are pinned, and a tap on one opens its pin, not the add sheet", async () => {
+    await act(async () => { render(<FullMapClient trip={trip} days={days} cards={cards} />); });
+    const ids = seen.search.savedPlaceIds as Set<string>;
+    expect(ids.has("gc1")).toBe(true);
+    expect(ids.has("gnew")).toBe(false);
+    lookup.mockClear();
+    await act(async () => { await (seen.search.onPlaceSelect as (id: string, t: string) => Promise<void>)("gc1", "tok"); });
+    expect(lookup).not.toHaveBeenCalled();
+    expect((seen.popup?.card as Card | undefined)?.id).toBe("c1");
+  });
+
+  it("a result not on the map still goes to the add path", async () => {
+    await act(async () => { render(<FullMapClient trip={trip} days={days} cards={cards} />); });
+    lookup.mockClear();
+    await act(async () => { await (seen.search.onPlaceSelect as (id: string, t: string) => Promise<void>)("gnew", "tok"); });
+    expect(lookup).toHaveBeenCalledWith("gnew", "tok");
   });
 });
