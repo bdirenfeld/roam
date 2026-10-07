@@ -48,7 +48,7 @@ import ActivityDetail from "./detail/ActivityDetail";
 import HotelDetail from "./detail/HotelDetail";
 import { withDetails } from "@/lib/cardDetails";
 import { UNTITLED_NOTE, cardTitle, deletedToast } from "@/lib/cardTitle";
-import TravelLegPanel, { useDefaultFrom } from "./TravelLegPanel";
+import TravelLegPanel, { LegFromLine, useDefaultFrom } from "./TravelLegPanel";
 import { canBeLeg, isTravelLeg, legTitle, legDurationMins, legModeWord, readFrom, readMode, withFrom, type LegFrom, type LegMode } from "@/lib/travel/leg";
 
 /** Read Google's `weekday_text` (seven "Monday: 9:00 AM – 5:00 PM" lines) off
@@ -575,6 +575,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const legFrom = readFrom(localCard.details);
   // Last night's stay, offered as the start of a transit card that has none.
   const legSuggestion = useDefaultFrom(localCard.trip_id, localCard.day_id, legCapable && !readOnly);
+  // The header's "From Lusaka · change" opens the search at the top of the
+  // body (7 Oct 2026, mock t05); picking a start closes it.
+  const [legFromOpen, setLegFromOpen] = useState(false);
 
 
   // ── "We loved this" ──────────────────────────────────────────
@@ -1333,6 +1336,18 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             ) : (
               <h2 className="text-[19px] font-bold text-gray-900 leading-snug">{displayTitle}</h2>
             )}
+            {/* One quiet line under the route, "From Lusaka · change" (7 Oct
+                2026, mock t05): it replaced the From and To rows in the body,
+                which said the route twice more. The address below stays: it
+                is the sheet's only door to directions. */}
+            {legCapable && place && (
+              <LegFromLine
+                from={legFrom}
+                readOnly={readOnly}
+                open={legFromOpen}
+                onToggle={() => { setLegFromOpen((v) => !v); scrollRef.current?.scrollTo?.({ top: 0 }); }}
+              />
+            )}
             {/* The address, in words. The sheet had Maps, Website and Call
                 buttons but never said where the place was — on a journey
                 spanning eight towns that is the first thing you want. The
@@ -1490,19 +1505,19 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               {legCapable && place && (!readOnly || legFrom) && (
                 <TravelLegPanel
                   from={legFrom}
-                  to={(() => { const t = legTitle(localCard); return legFrom && t.includes("→") ? t.slice(t.indexOf("→") + 1).trim() : place.title; })()}
                   mode={readMode(localCard.details)}
                   modeLabel={legFrom ? legModeWord(localCard.details) : null}
                   durationMins={legFrom ? legDurationMins(localCard) : null}
                   suggestion={legSuggestion}
+                  fromOpen={legFromOpen}
                   readOnly={readOnly}
                   biasLat={place.lat}
                   biasLng={place.lng}
-                  onFromChange={(f: LegFrom) => void saveDetailsPatch(withFrom(localCard.details, f))}
+                  onFromChange={(f: LegFrom) => { setLegFromOpen(false); void saveDetailsPatch(withFrom(localCard.details, f)); }}
                   onModeChange={(m: LegMode) => {
                     // A mode chosen by hand replaces the tour's words for it;
                     // a tap on the one already chosen changes nothing.
-                    if (m === (readMode(localCard.details) ?? "drive")) return;
+                    if (m === readMode(localCard.details)) return;
                     const next: Record<string, unknown> = { ...(localCard.details as Record<string, unknown>), mode: m };
                     delete next.mode_label;
                     void saveDetailsPatch(next);

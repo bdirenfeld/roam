@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, fireEvent, cleanup, act, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, act, waitFor, within } from "@testing-library/react";
 
 /**
  * A travel leg added by hand (7 Oct 2026, mock d13, his tweak 2): picking a
@@ -63,10 +63,10 @@ function stubGoogle(types: string[]) {
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); db.inserted = []; });
 
-async function pickStation(types: string[], onCardCreated = vi.fn()) {
+async function pickStation(types: string[], onCardCreated = vi.fn(), dayId = "d23") {
   stubGoogle(types);
   await act(async () => {
-    render(<CreateCardSheet dayId="d23" tripId="c4e1a7b2" endPosition={2} onClose={() => {}} onCardCreated={onCardCreated} dayLabel="Mon 22 Feb" />);
+    render(<CreateCardSheet dayId={dayId} tripId="c4e1a7b2" endPosition={2} onClose={() => {}} onCardCreated={onCardCreated} dayLabel="Mon 22 Feb" />);
   });
   fireEvent.change(await screen.findByPlaceholderText("Search saved places, or anywhere"), { target: { value: "mfuwe bus" } });
   fireEvent.click((await screen.findByText("Mfuwe Bus Station", {}, { timeout: 2000 })).closest("button")!);
@@ -79,7 +79,35 @@ describe("CreateCardSheet — a leg added by hand starts at last night's stay (7
     const leg = await screen.findByTestId("new-leg");
     await waitFor(() => expect(leg.textContent).toContain("Eureka Camping Park"));
     expect(onCardCreated).not.toHaveBeenCalled();
-    expect(screen.getByRole("radio", { name: "Drive" }).getAttribute("aria-checked")).toBe("true");
+    // From is set, so the four pills show, and none is picked (mock t05).
+    const radios = screen.getAllByRole("radio");
+    expect(radios.map((r) => r.textContent)).toEqual(["Drive", "Bus", "Train", "Ferry"]);
+    for (const r of radios) expect(r.getAttribute("aria-checked")).toBe("false");
+  });
+
+  it("with no stay the night before, only From shows; the pills wait until From is set (mock t05)", async () => {
+    await pickStation(["bus_station"], vi.fn(), "d20");
+    const leg = await screen.findByTestId("new-leg");
+    expect(leg.textContent).toContain("Where you leave from");
+    expect(screen.queryByRole("radio")).toBeNull();
+    // Set it by search: the pills appear, still none picked.
+    fireEvent.click(screen.getByRole("button", { name: "Set where this starts" }));
+    fireEvent.change(screen.getByPlaceholderText("Search a town, station or port"), { target: { value: "mfuwe bus" } });
+    const hit = await within(screen.getByTestId("leg-from-search")).findByText("Mfuwe Bus Station", {}, { timeout: 2000 });
+    await act(async () => { fireEvent.click(hit.closest("button")!); });
+    await waitFor(() => expect(screen.getAllByRole("radio")).toHaveLength(4));
+    for (const r of screen.getAllByRole("radio")) expect(r.getAttribute("aria-checked")).toBe("false");
+  });
+
+  it("Add works with no mode picked: the start is written, no mode is", async () => {
+    const onCardCreated = await pickStation(["bus_station"]);
+    const leg = await screen.findByTestId("new-leg");
+    await waitFor(() => expect(leg.textContent).toContain("Eureka Camping Park"));
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Add Mfuwe Bus Station" })); });
+    await waitFor(() => expect(onCardCreated).toHaveBeenCalled());
+    const details = db.inserted[0].details as Record<string, unknown>;
+    expect(details.from).toEqual({ title: "Eureka Camping Park", lat: -15.5035103, lng: 28.2645026, place_id: "ee27ab67" });
+    expect("mode" in details).toBe(false);
   });
 
   it("Add writes the start and the mode into the card's details", async () => {
@@ -92,6 +120,21 @@ describe("CreateCardSheet — a leg added by hand starts at last night's stay (7
     const details = db.inserted[0].details as Record<string, unknown>;
     expect(details.from).toEqual({ title: "Eureka Camping Park", lat: -15.5035103, lng: 28.2645026, place_id: "ee27ab67" });
     expect(details.mode).toBe("bus");
+  });
+
+  it("the sheet's ✕ and the picked place's ✕ are 44px to the finger (7 Oct 2026, phone harness)", async () => {
+    await pickStation(["bus_station"]);
+    await screen.findByTestId("new-leg");
+    const close = screen.getByRole("button", { name: "Close" });
+    const closeT = screen.getByTestId("create-close-target");
+    expect(closeT.parentElement).toBe(close);
+    expect(close.className).toContain("relative ");
+    expect(closeT.className).toContain("-inset-1"); // 36 + 4 + 4
+    const clear = screen.getByRole("button", { name: "Clear selection" });
+    const clearT = screen.getByTestId("create-clear-target");
+    expect(clearT.parentElement).toBe(clear);
+    expect(clear.className).toContain("relative ");
+    expect(clearT.className).toContain("-inset-[10px]"); // 24 + 10 + 10
   });
 
   it("a restaurant still adds in one tap, with no start", async () => {

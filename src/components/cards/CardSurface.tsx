@@ -115,7 +115,9 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTim
       : noteLeadOf(det);
   // The category glyph leads the subtitle in place of the category word —
   // "🍴 Via Rosina" says what "Restaurant · Via Rosina" said, in one shape.
-  const detailIcon = isLeg ? legGlyph(readMode(det) ?? "drive") : place ? getMaterialIconHTML(place.sub_type ?? null, 14) : null;
+  // A leg with no mode shows the transit glyph, not a car (7 Oct 2026, mock t05: no guessed Drive).
+  const legMode    = isLeg ? readMode(det) : null;
+  const detailIcon = legMode ? legGlyph(legMode) : place ? getMaterialIconHTML(place.sub_type ?? null, 14) : null;
 
   const surfRating = place?.type === "food" ? place.rating : null;
   const isLoved    = place?.loved === true;

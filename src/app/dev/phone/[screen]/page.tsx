@@ -9,7 +9,9 @@
 //   /dev/phone/card-closed     card sheet: closed on the card's Monday
 //   /dev/phone/card-late       card sheet: finishing after it closes
 //   /dev/phone/card-fit        card sheet: a visit that fits (Hours row at the bottom)
-//   /dev/phone/card-leg        card sheet: Lusaka → Mfuwe
+//   /dev/phone/card-leg        card sheet: Lusaka → Mfuwe (the slim sheet, mock t05)
+//   /dev/phone/add-leg         Add to this day, a bus station picked, no stay the night before: From only
+//   /dev/phone/add-leg-from    the same with last night's stay: From set, four pills, none picked
 //   /dev/phone/time            time sheet
 //   /dev/phone/time-cleared    time sheet after Clear time
 //   /dev/phone/bookings-open | bookings-asking | bookings-booked

@@ -126,12 +126,14 @@ export function formatLegDuration(mins: number): string {
   return m ? `${h}h ${m}m` : `${h}h`;
 }
 
-/** The mode in words: mode_label first ("Overland truck"), else the mode's word. */
+/** The mode in words: mode_label first ("Overland truck"), else the mode's word.
+ *  No mode, no word (7 Oct 2026, mock t05): a leg added without one says only
+ *  how long it takes; the app does not guess Drive. */
 export function legModeWord(details: unknown): string {
   const label = (details as Record<string, unknown> | null)?.mode_label;
   if (typeof label === "string" && label.trim()) return label.trim();
   const mode = readMode(details);
-  return LEG_MODES.find((x) => x.value === mode)?.label ?? "Drive";
+  return LEG_MODES.find((x) => x.value === mode)?.label ?? "";
 }
 
 /** "Overland truck · 13h" — the mode word, then the duration when the leg is timed. */
@@ -190,12 +192,12 @@ export function legLines(cards: (LegCard & { id: string; status?: string | null 
 
 /**
  * New details for a leg whose start changed. A named "A → B" title keeps its
- * B and takes the new A; a mode is set to drive when there was none.
+ * B and takes the new A. The mode is left alone: until 7 Oct 2026 (mock t05)
+ * a leg with none was set to drive here; now nobody's mode is guessed.
  */
 export function withFrom(details: unknown, from: LegFrom): Record<string, unknown> {
   const d = { ...((details as Record<string, unknown> | null) ?? {}) };
   d.from = from;
-  if (!readMode(d)) d.mode = "drive";
   if (d.named === true && typeof d.title === "string" && d.title.includes("→")) {
     const to = d.title.slice(d.title.indexOf("→") + 1).trim();
     d.title = `${from.title} → ${to}`;

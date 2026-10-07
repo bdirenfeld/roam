@@ -156,9 +156,11 @@ export default function CreateCardSheet({
   // A picked station or port is a transit card; it waits for Add so the start
   // can be set, and the start defaults to last night's stay (his tweak 2), so
   // it is rarely typed. Nothing else about the sheet changes.
+  // Slimmed the same day (mock t05): only From shows at first; the four mode
+  // pills wait until From is set, with none picked, and Add works without one.
   const isTransitPick = !!selected && type === "logistics" && subType === "transit";
   const [legFrom, setLegFrom] = useState<LegFrom | null>(null);
-  const [legMode, setLegMode] = useState<LegMode>("drive");
+  const [legMode, setLegMode] = useState<LegMode | null>(null);
   const defaultFrom = useDefaultFrom(tripId, dayId, isTransitPick && !!dayId);
   const effectiveFrom = legFrom ?? defaultFrom;
 
@@ -350,7 +352,7 @@ export default function CreateCardSheet({
 
   const clearSelected = useCallback(() => {
     setLegFrom(null);
-    setLegMode("drive");
+    setLegMode(null);
     setSelected(null);
     setType(null);
     setSubType(null);
@@ -364,7 +366,7 @@ export default function CreateCardSheet({
   // (found 26 Sep 2026 walking a new journey as a first-time user).
   const resetForNext = useCallback(() => {
     setLegFrom(null);
-    setLegMode("drive");
+    setLegMode(null);
     setSelected(null);
     setType(null);
     setSubType(null);
@@ -390,7 +392,8 @@ export default function CreateCardSheet({
       const details: Record<string, unknown> = { ...extraDetails, place_id: selected.placeId };
       if (type === "logistics" && subType === "transit" && effectiveFrom) {
         details.from = effectiveFrom;
-        details.mode = legMode;
+        // No mode picked, none written: the caption then says only how long.
+        if (legMode) details.mode = legMode;
       }
       if (selected.website) details.website = selected.website;
       if (selected.phone)   details.phone   = selected.phone;
@@ -579,9 +582,11 @@ export default function CreateCardSheet({
           </h2>
           <button
             onClick={onClose}
-            className="w-9 h-9 rounded-full flex items-center justify-center transition-colors hover:bg-[rgba(26,26,46,0.06)]"
+            className="relative w-9 h-9 rounded-full flex items-center justify-center transition-colors hover:bg-[rgba(26,26,46,0.06)]"
             aria-label="Close"
           >
+            {/* 44px to the finger, same 36px disc (7 Oct 2026, phone harness). */}
+            <span aria-hidden="true" data-testid="create-close-target" className="absolute -inset-1" />
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
               stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18" />
@@ -767,9 +772,12 @@ export default function CreateCardSheet({
               </div>
               <button
                 onClick={clearSelected}
-                className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300 transition-colors flex-shrink-0"
+                className="relative w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300 transition-colors flex-shrink-0"
                 aria-label="Clear selection"
               >
+                {/* 44px to the finger (7 Oct 2026, phone harness): 10px round
+                    the 24px disc, inside the place card's own padding. */}
+                <span aria-hidden="true" data-testid="create-clear-target" className="absolute -inset-[10px]" />
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round">
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
@@ -820,7 +828,7 @@ export default function CreateCardSheet({
                 biasLat={selected?.lat}
                 biasLng={selected?.lng}
               />
-              <LegModePicker value={legMode} onChange={setLegMode} />
+              {effectiveFrom && <LegModePicker value={legMode} onChange={setLegMode} />}
             </div>
           )}
 

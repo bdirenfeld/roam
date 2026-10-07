@@ -6,6 +6,7 @@
 export const CLIENT_SCREENS = [
   "day", "day-welcome",
   "card-cost", "card-closed", "card-late", "card-fit", "card-leg",
+  "add-leg", "add-leg-from",
   "time", "time-cleared",
   "bookings-open", "bookings-asking", "bookings-booked",
   "toasts", "toasts-second",

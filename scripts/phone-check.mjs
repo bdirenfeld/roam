@@ -54,6 +54,7 @@ const HEIGHT = Number(flag("height", "812"));
 const ALL = [
   "day", "day-welcome",
   "card-cost", "card-closed", "card-late", "card-fit", "card-leg",
+  "add-leg", "add-leg-from",
   "time", "time-cleared",
   "bookings-open", "bookings-asking", "bookings-booked",
   "shared",
@@ -71,7 +72,19 @@ const EXPECT = {
   "card-closed": { has: ["Closed on Monday"] },
   "card-late": { has: ["Closes 11:00 PM — before you finish"] },
   "card-fit": { sel: ['[aria-label="Opening hours"]'], noSel: ['[aria-label="Opening hours clash"]'] },
-  "card-leg": { has: ["Lusaka → Mfuwe", "Overland truck · 13h"], sel: ['[data-testid="travel-leg-panel"]'] },
+  // The slim leg sheet (7 Oct 2026, mock t05): one "From … · change" line, the
+  // caption, the pills folded behind "Change how you travel"; no To row.
+  "card-leg": {
+    has: ["Lusaka → Mfuwe", "From Lusaka · change", "Overland truck · 13h", "Change how you travel"],
+    sel: ['[data-testid="travel-leg-panel"]', '[data-testid="leg-from-line"]'], noSel: ['[role="radio"]'],
+  },
+  // Adding a leg by hand: before From is set only From shows; after, the four
+  // pills with none picked.
+  "add-leg": { has: ["Mfuwe Bus Station", "Where you leave from"], sel: ['[data-testid="new-leg"]'], noSel: ['[role="radio"]'] },
+  "add-leg-from": {
+    has: ["Mfuwe Bus Station", "Eureka Camping Park", "Drive", "Ferry"],
+    sel: ['[data-testid="new-leg"] [role="radio"]'], noSel: ['[role="radio"][aria-checked="true"]'],
+  },
   time: { has: ["Clear time", "Done"] },
   "time-cleared": { has: ["Undo · 10:00 AM"] },
   "bookings-open": { has: ["Flights", "Stays", "Car", "Book 3 on Kayak"] },

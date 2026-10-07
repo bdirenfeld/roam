@@ -14,12 +14,13 @@ import DayViewClient from "@/components/day/DayViewClient";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import TimeSheet from "@/components/day/TimeSheet";
 import DocumentsSheet from "@/components/plan/DocumentsSheet";
+import CreateCardSheet from "@/components/plan/CreateCardSheet";
 import { openedKey } from "@/lib/booking/didYouBook";
 import { welcomeHomeKey } from "@/lib/trips/welcomeHome";
 import { installStub, type StubConfig } from "./stub";
 import type { ClientScreen } from "./screens";
 import {
-  OWNER, TRIP_ID, SHEET_DAYS, bookingTables, days, isoFromToday, journeyCards, sheetCards, timeCard, trip, tuscanyDay,
+  OWNER, TRIP_ID, SHEET_DAYS, ADD_LEG_API, ADD_LEG_DAY, addLegTables, bookingTables, days, isoFromToday, journeyCards, sheetCards, timeCard, trip, tuscanyDay,
 } from "./fixtures";
 
 
@@ -40,6 +41,34 @@ function useClickWhenReady(target: { scope: string; text: string } | null) {
   }, [scope, text]);
 }
 
+/**
+ * Types `text` into the input with `placeholder` (prefix), then clicks the
+ * first button that starts with `pick`: a search and its answer, the way a
+ * finger does it. React only hears a value set through the native setter.
+ */
+function useTypeAndPick(target: { placeholder: string; text: string; pick: string } | null) {
+  const placeholder = target?.placeholder, text = target?.text, pick = target?.pick;
+  useEffect(() => {
+    if (!placeholder || !text || !pick) return;
+    let tries = 0, typed = false;
+    const t = window.setInterval(() => {
+      if (!typed) {
+        const input = Array.from(document.querySelectorAll<HTMLInputElement>("input")).find((i) => i.placeholder.startsWith(placeholder));
+        if (input) {
+          Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, text);
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+          typed = true;
+        }
+      } else {
+        const b = Array.from(document.querySelectorAll<HTMLElement>("button")).find((x) => x.textContent?.trim().startsWith(pick));
+        if (b) { window.clearInterval(t); b.click(); return; }
+      }
+      if (++tries > 200) window.clearInterval(t);
+    }, 50);
+    return () => window.clearInterval(t);
+  }, [placeholder, text, pick]);
+}
+
 function Toasts({ second }: { second: boolean }) {
   const { toast } = useToast();
   useEffect(() => {
@@ -56,6 +85,9 @@ function stubFor(screen: ClientScreen): StubConfig {
     const ds = days(start, 5);
     return { userId: OWNER, tables: { cards: journeyCards(ds), trips: [trip(start, ds[4].date)], days: ds } };
   }
+  if (screen === "add-leg" || screen === "add-leg-from") {
+    return { userId: OWNER, tables: addLegTables(screen === "add-leg-from"), api: ADD_LEG_API };
+  }
   if (screen.startsWith("bookings")) {
     const checklist = screen === "bookings-booked" ? { flights: "booked", stays: "booked", car: "booked" } : null;
     return { userId: OWNER, tables: bookingTables(checklist), api: { "/api/booking/airports": { airports: ["FLR", "PSA"] } } };
@@ -70,6 +102,8 @@ function Screen({ screen }: { screen: ClientScreen }) {
       : screen === "bookings-asking" ? { scope: "[data-testid='to-book-car-ask']", text: "Booked" }
       : null,
   );
+  // The hand-add screens: search "mfuwe bus" and pick the station.
+  useTypeAndPick(screen === "add-leg" || screen === "add-leg-from" ? { placeholder: "Search", text: "mfuwe bus", pick: "Mfuwe Bus Station" } : null);
 
   if (screen === "day" || screen === "day-welcome") {
     const start = screen === "day" ? isoFromToday(0) : isoFromToday(-6);
@@ -84,6 +118,9 @@ function Screen({ screen }: { screen: ClientScreen }) {
   }
   if (screen === "time" || screen === "time-cleared") {
     return <div data-preview-time><TimeSheet card={timeCard} onClose={noop} onSave={noop} /></div>;
+  }
+  if (screen === "add-leg" || screen === "add-leg-from") {
+    return <CreateCardSheet dayId={ADD_LEG_DAY} tripId={TRIP_ID} endPosition={0} onClose={noop} onCardCreated={noop} dayLabel="Tue 24 Aug" />;
   }
   if (screen.startsWith("bookings")) {
     return <DocumentsSheet tripId={TRIP_ID} onClose={noop} onImport={noop} />;

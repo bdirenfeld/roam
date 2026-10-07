@@ -2401,3 +2401,10 @@ Approved scope only. Find KEEPS its two-level filters (Activity / Food, then kin
   address 17px (4px between the editable title and the time chip); the day header's date 35px when the weather line
   is there (two stacked controls in a 58px header); the shared page's "Tonight: <hotel>" inline link (inside the
   row's own summary, which takes the tap); Mapbox's logo (theirs). `scripts/phone-check.mjs` still lists these.
+  Not yet decided: the Add-to-this-day type pills (Activity … Medical) are 26px tall with 8px between rows, so a
+  44px target would land on the next row; it needs a spacing call, not an inset.
+- **The slim travel leg (7 Oct 2026, mock t05):** card sheet = route title, one quiet "From Lusaka · change" line
+  (LegFromLine; the search opens at the top of the body), the address line kept under it (it is the only Directions
+  door), the caption once, pills behind "Change how you travel". Hand-add = From only; pills once From is set, none
+  picked; no mode means no mode word (legModeWord returns "") and withFrom no longer sets drive. Harness screens:
+  card-leg, add-leg (no stay the night before), add-leg-from (last night's stay).

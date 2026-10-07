@@ -208,3 +208,24 @@ export function sharedRows() {
   ];
   return { days: ds, rows };
 }
+
+// ── Adding a leg by hand (7 Oct 2026, mock t05) ───────────────────────────
+// The Add-to-this-day sheet on Tue 24 Aug, a bus station picked. With a stay
+// on Mon 23 Aug, From starts at it (last night's stay) and the pills show;
+// without one, only From shows.
+export const ADD_LEG_DAY = "d-tue";
+export function addLegTables(withStay: boolean): Record<string, unknown[]> {
+  const camp = place("p-camp", { title: "Eureka Camping Park", type: "logistics", sub_type: "hotel", lat: -15.5035103, lng: 28.2645026 });
+  return {
+    days: SHEET_DAYS.map((d) => ({ id: d.id, date: d.date })),
+    cards: withStay ? [card("s-camp", "d-mon", camp, { start_time: "17:00:00" })] : [],
+  };
+}
+export const ADD_LEG_API = {
+  "/api/places/autocomplete": {
+    predictions: [{ place_id: "g-mfuwe-bus", description: "Mfuwe Bus Station, Mfuwe, Zambia", structured_formatting: { main_text: "Mfuwe Bus Station", secondary_text: "Mfuwe, Zambia" } }],
+  },
+  "/api/places/details": {
+    result: { name: "Mfuwe Bus Station", formatted_address: "Mfuwe, Zambia", geometry: { location: { lat: -13.2549974, lng: 31.9326952 } }, types: ["bus_station"] },
+  },
+};

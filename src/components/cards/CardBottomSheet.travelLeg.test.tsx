@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, act, fireEvent } from "@testing-library/react";
+import { render, screen, act, fireEvent, cleanup } from "@testing-library/react";
 import type { Card, Day } from "@/types/database";
 
 /**
  * The card sheet of a travel leg (7 Oct 2026, mock d13): the title is the
- * route, the sheet shows From and To, the mode and the length, the mode
+ * route with one quiet "From Lusaka · change" line under it (mock t05, same
+ * day: it replaced the From and To rows), the caption once, the mode
  * picker writes details.mode, and a transit card with no start offers one.
  * The leg is the G Adventures journey's Day 23 as converted.
  */
@@ -56,21 +57,51 @@ function truck(details: Record<string, unknown> = {}): Card {
 
 beforeEach(() => { writes.calls = []; });
 
+async function open(card: Card, readOnly = false) {
+  await act(async () => { render(<CardBottomSheet card={card} onClose={() => {}} days={days} readOnly={readOnly} />); });
+}
+const revealModes = async () => {
+  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Change how you travel" })); });
+};
+
 describe("CardBottomSheet — a travel leg (7 Oct 2026)", () => {
-  it("titles the sheet with the route and shows From, To, the mode and the length", async () => {
-    await act(async () => { render(<CardBottomSheet card={truck()} onClose={() => {}} days={days} />); });
-    expect(screen.getByRole("heading", { name: "Lusaka → Mfuwe" })).toBeTruthy();
+  it("the route is the title, one quiet 'From Lusaka · change' line sits under it, and there are no From / To rows (mock t05)", async () => {
+    await open(truck());
+    const h = screen.getByRole("heading", { name: "Lusaka → Mfuwe" });
+    const line = screen.getByTestId("leg-from-line");
+    expect(line.textContent).toBe("From Lusaka · change");
+    // Directly under the title: the next element after the heading.
+    expect(h.nextElementSibling).toBe(line);
     const panel = screen.getByTestId("travel-leg-panel");
-    expect(panel.textContent).toContain("From");
-    expect(panel.textContent).toContain("Lusaka");
-    expect(panel.textContent).toContain("To");
-    expect(panel.textContent).toContain("Mfuwe");
-    expect(panel.textContent).toContain("Overland truck · 13h");
+    expect(panel.textContent).not.toMatch(/\bTo\b/);
+    expect(panel.textContent).not.toContain("From");
+  });
+
+  it("says 'Overland truck · 13h' once, and keeps the pills behind 'Change how you travel'", async () => {
+    await open(truck());
+    expect(screen.getAllByText("Overland truck · 13h")).toHaveLength(1);
+    expect(screen.queryByRole("radio")).toBeNull();
+    await revealModes();
+    expect(screen.getAllByRole("radio")).toHaveLength(4);
     expect(screen.getByRole("radio", { name: "Drive" }).getAttribute("aria-checked")).toBe("true");
   });
 
+  it("'change' opens the From search; a guest gets no 'change' and no mode link", async () => {
+    await open(truck());
+    expect(screen.queryByPlaceholderText("Search a town, station or port")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Change where this starts, now Lusaka" }));
+    expect(screen.getByPlaceholderText("Search a town, station or port")).toBeTruthy();
+    cleanup();
+    await open(truck(), true);
+    expect(screen.getByTestId("leg-from-line").textContent).toBe("From Lusaka");
+    expect(screen.queryByRole("button", { name: /Change where this starts/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Change how you travel" })).toBeNull();
+    expect(screen.getByTestId("travel-leg-panel").textContent).toContain("Overland truck · 13h");
+  });
+
   it("the mode picker writes details.mode, and the tour's label gives way to it", async () => {
-    await act(async () => { render(<CardBottomSheet card={truck()} onClose={() => {}} days={days} />); });
+    await open(truck());
+    await revealModes();
     await act(async () => { fireEvent.click(screen.getByRole("radio", { name: "Ferry" })); });
     const w = writes.calls.find((c) => c.table === "cards")!;
     expect((w.patch.details as Record<string, unknown>).mode).toBe("ferry");
@@ -79,19 +110,25 @@ describe("CardBottomSheet — a travel leg (7 Oct 2026)", () => {
   });
 
   it("tapping the mode already chosen writes nothing (the tour's words stay)", async () => {
-    await act(async () => { render(<CardBottomSheet card={truck()} onClose={() => {}} days={days} />); });
+    await open(truck());
+    await revealModes();
     await act(async () => { fireEvent.click(screen.getByRole("radio", { name: "Drive" })); });
     expect(writes.calls).toHaveLength(0);
   });
 
-  it("a transit card with no start asks where you leave from", async () => {
-    await act(async () => { render(<CardBottomSheet card={truck({ from: undefined, title: "Pick up rental car", named: false })} onClose={() => {}} days={days} />); });
-    expect(screen.getByRole("button", { name: "Set where this starts" })).toBeTruthy();
+  it("a leg with no mode: the caption is only the length and no pill is lit", async () => {
+    await open(truck({ mode: undefined, mode_label: undefined }));
+    expect(screen.getByTestId("leg-caption").textContent).toBe("13h");
+    await revealModes();
+    for (const r of screen.getAllByRole("radio")) expect(r.getAttribute("aria-checked")).toBe("false");
   });
 
-  it("a guest sees the leg but cannot change it", async () => {
-    await act(async () => { render(<CardBottomSheet card={truck()} onClose={() => {}} days={days} readOnly />); });
-    expect(screen.getByTestId("travel-leg-panel").textContent).toContain("Lusaka");
-    expect(screen.queryByRole("button", { name: /Change where this starts/ })).toBeNull();
+  it("a transit card with no start asks where you leave from, and the tap opens the search", async () => {
+    await open(truck({ from: undefined, title: "Pick up rental car", named: false }));
+    const set = screen.getByRole("button", { name: "Set where this starts" });
+    expect(set.textContent).toBe("Add where you leave from");
+    expect(screen.queryByRole("radio")).toBeNull();
+    fireEvent.click(set);
+    expect(screen.getByPlaceholderText("Search a town, station or port")).toBeTruthy();
   });
 });

@@ -69,6 +69,12 @@ describe("legDurationMins / legSubtitle", () => {
     expect(legSubtitle(leg({ start_time: "08:30:00", end_time: "10:00:00" }, { mode: "ferry", mode_label: undefined }))).toBe("Ferry · 1h 30m");
     expect(legModeWord({ mode: "train" })).toBe("Train");
   });
+  it("no mode, no mode word: the caption is only the length (7 Oct 2026, mock t05)", () => {
+    expect(legModeWord({})).toBe("");
+    expect(legModeWord(null)).toBe("");
+    expect(legSubtitle(leg({}, { mode: undefined, mode_label: undefined }))).toBe("13h");
+    expect(legSubtitle(leg({ start_time: null, end_time: null }, { mode: undefined, mode_label: undefined }))).toBe("");
+  });
   it("an untimed leg says only its mode", () => {
     expect(legDurationMins(leg({ start_time: null, end_time: null }))).toBeNull();
     expect(legSubtitle(leg({ start_time: null, end_time: null }))).toBe("Overland truck");
@@ -124,11 +130,11 @@ describe("withFrom", () => {
     const d = withFrom(truck.details, eureka);
     expect(d.title).toBe("Eureka Camping Park → Mfuwe");
     expect(d.from).toEqual(eureka);
-    expect(d.mode).toBe("drive");
+    expect(d.mode).toBe("drive"); // the truck's own mode, kept
   });
-  it("sets drive when a transit card first gets a start", () => {
+  it("does not guess a mode when a transit card first gets a start (7 Oct 2026, mock t05; was drive)", () => {
     const d = withFrom({ notes: "x" }, LUSAKA);
-    expect(d).toEqual({ notes: "x", from: LUSAKA, mode: "drive" });
+    expect(d).toEqual({ notes: "x", from: LUSAKA });
   });
 });
 
