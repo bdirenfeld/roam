@@ -11,7 +11,7 @@ import { useSheetDrag } from "@/hooks/useSheetDrag";
 import { queuedUpdate, queuedDelete } from "@/lib/offline/queuedWrite";
 import { applyOverlay } from "@/lib/offline/writeQueue";
 import { formatTimeValue } from "@/lib/formatTime";
-import { dayChip } from "@/lib/dayChip";
+import { dayChip, spansMonths } from "@/lib/dayChip";
 import { scheduleCardOnDay, unscheduleCard } from "@/lib/scheduleCard";
 import LovedHeart from "@/components/ui/LovedHeart";
 import { readRecommendedBy } from "@/lib/recommendedBy";
@@ -770,7 +770,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       // Say where it went, with Undo back to the original day, time and
       // position — the move used to close the sheet in silence (7 Oct 2026, taps audit).
       toast({
-        message: `Moved to ${dayChip(day.date, true)}`,
+        // "Wed 25", the month only when the journey spans months (7 Oct 2026, re-audit).
+        message: `Moved to ${dayChip(day.date, spansMonths((days ?? []).map((d) => d.date)))}`,
         undo: async () => {
           const { error: undoError } = await queuedUpdate("cards", { id: prev.id }, {
             day_id: prev.day_id, start_time: prev.start_time, end_time: prev.end_time, position: prev.position,
@@ -784,7 +785,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       // left the column you were looking at.
       onClose();
     },
-    [localCard, onCardUpdate, onClose, supabase, toast],
+    [localCard, onCardUpdate, onClose, supabase, toast, days],
   );
 
   // ── Repeat on other days (27 Sep 2026) ─────────────────────

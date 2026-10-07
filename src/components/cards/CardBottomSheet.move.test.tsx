@@ -67,7 +67,8 @@ describe("CardBottomSheet — Move to day says where it went (7 Oct 2026, taps a
     expect(onCardUpdate).toHaveBeenLastCalledWith(expect.objectContaining({ id: "c1", day_id: "d2" }));
     expect(onClose).toHaveBeenCalled();
     const t = toasts.calls.find((c) => c.message.startsWith("Moved to"));
-    expect(t?.message).toBe("Moved to Wed 25 Aug");
+    // One way to name a day: no month inside a one-month journey (7 Oct 2026, re-audit).
+    expect(t?.message).toBe("Moved to Wed 25");
     expect(typeof t?.undo).toBe("function");
 
     await act(async () => { await t!.undo!(); });
