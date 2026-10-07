@@ -281,7 +281,7 @@ describe("Book N on Kayak, and Stays opening Where to stay", () => {
     expect(push).toHaveBeenCalledWith("/trips/tuscany-g/plan?stays=1");
   });
 
-  it("Stays booked (the villa) and no file: the row still opens Where to stay", async () => {
+  it("Stays booked (the villa) and no file: the row opens the day the villa is on, not Where to stay (6 Oct 2026)", async () => {
     journey = J_("Tuscany");
     const open = vi.fn(() => ({}) as Window);
     vi.stubGlobal("open", open);
@@ -289,7 +289,8 @@ describe("Book N on Kayak, and Stays opening Where to stay", () => {
     await screen.findByTestId("to-book-stays");
     await userEvent.click(rowOf("stays"));
     expect(open).not.toHaveBeenCalled();
-    expect(push).toHaveBeenCalledWith("/trips/tuscany-h/map?stays=1");
+    expect(push).not.toHaveBeenCalledWith("/trips/tuscany-h/map?stays=1");
+    expect(push).toHaveBeenCalledWith(expect.stringMatching(new RegExp("^/trips/tuscany-h/days/")));
   });
 
   it("Stays booked WITH its hotel's file: the row opens the file, Where to stay moves to the mark's menu", async () => {

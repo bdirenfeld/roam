@@ -6,8 +6,8 @@
 // – not needed — a title, one short line and a faint ›.
 //   - The whole row is the tap (lib/booking/files rowTap): still to book opens
 //     its Kayak search (Stays: Roam's Where to stay); booked opens its
-//     confirmation file, else Where to stay for Stays, else the day its card
-//     is on.
+//     confirmation file, else the day its card is on (Stays too: Where to
+//     stay read as "book another hotel", 6 Oct 2026).
 //   - The MARK opens the small menu: Booked / Not needed / Clear, "What did it
 //     cost?" after a hand Booked (the budget counts it, lib/budget/booked).
 //   - One primary button, "Book N on Kayak": every row still to book, Kayak

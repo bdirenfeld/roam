@@ -82,8 +82,9 @@ describe("what a tap on the row does", () => {
     expect(rowTap(ny.flights, [f, file({ id: "g" })], true)).toEqual({ kind: "files" });
     expect(rowTap(ny.flights, [file({ source: "document", url: null })], true)).toEqual({ kind: "day", dayId: ny.flights.dayId });
   });
-  it("booked with no file: Stays opens Where to stay, the rest open the day their card is on", () => {
-    expect(rowTap(tus.stays, [], true)).toEqual({ kind: "stays" });
+  it("booked with no file: every row, Stays too, opens the day its card is on (6 Oct 2026)", () => {
+    expect(tus.stays.dayId).toBeTruthy();
+    expect(rowTap(tus.stays, [], true)).toEqual({ kind: "day", dayId: tus.stays.dayId });
     expect(rowTap(ny.flights, [], true)).toEqual({ kind: "day", dayId: ny.flights.dayId });
     expect(ny.flights.dayId).toBeTruthy();
   });

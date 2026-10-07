@@ -101,6 +101,8 @@ export function rowTap(row: CheckRow, files: BookingFile[], stayInApp: boolean):
   const can = openable(filesFor(row.key, files));
   if (can.length === 1) return { kind: "file", file: can[0] };
   if (can.length > 1) return { kind: "files" };
-  if (row.key === "stays" && stayInApp) return { kind: "stays" };
+  // A booked stay opens the day its hotel is on, like every other row. It
+  // used to open Where to stay, which read as "book another hotel" (6 Oct
+  // 2026, Brennan). Where to stay stays in the mark's menu.
   return row.dayId ? { kind: "day", dayId: row.dayId } : { kind: "menu" };
 }
