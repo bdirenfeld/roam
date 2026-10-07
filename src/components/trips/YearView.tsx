@@ -15,6 +15,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getAuthUser } from "@/lib/supabase/authUser";
+import { useToast } from "@/components/ui/Toast";
 import type { CSSProperties } from "react";
 import { useSheetDrag as useSharedSheetDrag } from "@/hooks/useSheetDrag";
 import Link from "next/link";
@@ -306,6 +307,10 @@ export default function YearView({ trips, familyDates }: Props) {
   const [wishlist, setWishlist] = useState<WishlistDest[]>([]);
   // Undo window for the two instant deletes (wishlist place, ideal window)
   const [undo, setUndo] = useState<{ label: string; restore: () => Promise<void> } | null>(null);
+  // A refused save says so in the app toast, not only the console
+  // (6 Oct 2026, delight audit).
+  const { toast } = useToast();
+  const SAVE_FAILED = "Couldn't save that. Try again.";
   const rootRef = useRef<HTMLElement | null>(null);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showUndo = (label: string, restore: () => Promise<void>) => {
@@ -391,6 +396,7 @@ export default function YearView({ trips, familyDates }: Props) {
     setSaving(false);
     if (error || !data) {
       console.error("Failed to add travel window:", error);
+      toast({ message: SAVE_FAILED });
       return;
     }
     setTravelWindows((prev) =>
@@ -515,6 +521,7 @@ export default function YearView({ trips, familyDates }: Props) {
       .single();
     if (error || !data) {
       console.error("Failed to save wishlist place:", error);
+      toast({ message: SAVE_FAILED });
       return;
     }
     const saved = data as WishlistDest;
@@ -546,6 +553,7 @@ export default function YearView({ trips, familyDates }: Props) {
       .eq("id", id);
     if (error) {
       console.error("Failed to remove wishlist place:", error);
+      toast({ message: SAVE_FAILED });
       setWishlist(prev); // put it back rather than lie about the delete
       return;
     }
@@ -668,6 +676,7 @@ export default function YearView({ trips, familyDates }: Props) {
     const { error } = await supabase.from("travel_windows").delete().eq("id", id);
     if (error) {
       console.error("Failed to delete travel window:", error);
+      toast({ message: SAVE_FAILED });
       return;
     }
     setTravelWindows((prev) => prev.filter((w) => w.id !== id));

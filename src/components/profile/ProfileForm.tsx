@@ -98,7 +98,7 @@ export default function ProfileForm({ initial = null, variant = "page", onDismis
           <div className="w-16 h-16 rounded-full bg-gray-100 border border-gray-200 flex-shrink-0" />
           <div className="min-w-0">
             <p className="text-[13px] text-gray-400">
-              {loading ? "Loading…" : "Not signed in"}
+              {loading ? "Loading…" : "You're signed out. Sign in and try again."}
             </p>
           </div>
         </div>

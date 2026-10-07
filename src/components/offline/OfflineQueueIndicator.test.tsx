@@ -11,7 +11,7 @@ vi.mock("@/lib/offline/writeQueue", () => ({
 }));
 vi.mock("@/lib/offline/queuedWrite", () => ({ startAutoSync: () => () => {}, flushQueue: vi.fn(() => Promise.resolve()) }));
 
-import OfflineQueueIndicator from "./OfflineQueueIndicator";
+import OfflineQueueIndicator, { describeFailure } from "./OfflineQueueIndicator";
 
 const entry = (ageMs: number) => ({ id: "e" + ageMs, createdAt: Date.now() - ageMs, updatedAt: Date.now(), table: "trips", operation: "update", match: { id: "t" }, payload: { booking_checklist: {} } });
 function setOnline(v: boolean) { Object.defineProperty(window.navigator, "onLine", { value: v, configurable: true }); }
@@ -36,6 +36,18 @@ describe("the sync message only when it has to be (6 Oct 2026)", () => {
     setOnline(false);
     pending = [entry(5_000)];
     render(<OfflineQueueIndicator />);
-    expect(screen.getByText("Offline · changes will sync")).toBeTruthy();
+    expect(screen.getByText("Offline · saved on this phone")).toBeTruthy(); // was "changes will sync" (6 Oct 2026, delight audit)
+  });
+});
+
+describe("a refused change, in plain words (6 Oct 2026, delight audit)", () => {
+  it("names the field and says what to do", () => {
+    expect(describeFailure({ table: "cards", payload: { start_time: "09:00", end_time: "10:00" } }))
+      .toBe("Couldn't save a change to a place's time. Please set it again.");
+  });
+  it("never talks about the server or discarding", () => {
+    const line = describeFailure({ table: "trips", payload: { booking_checklist: {} } });
+    expect(line).toMatch(/^Couldn't save a change to a journey's/);
+    expect(line).not.toMatch(/server|discard|could not be saved/i);
   });
 });

@@ -10,6 +10,7 @@ import { getOpeningHoursConflict, openingHoursCaption, openingHoursTone } from "
 import LovedHeart from "@/components/ui/LovedHeart";
 import CardBadges from "./CardBadges";
 import { streetAndTown } from "@/lib/week/cardText";
+import { UNTITLED_NOTE } from "@/lib/cardTitle";
 
 interface Props {
   card: Card;
@@ -83,7 +84,7 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTim
   const timeRange = formatTimeRange(shown.start, shown.end);
   const hoursSignal = place ? getOpeningHoursConflict(place.hours, dayDate ?? null, card.start_time, place.sub_type) : null;
   const noteSnippet = !place ? (det?.notes as string | undefined) : undefined;
-  const title     = place?.title ?? (det?.title as string | undefined) ?? noteSnippet?.slice(0, 60) ?? "(untitled note)";
+  const title     = place?.title ?? (det?.title as string | undefined) ?? noteSnippet?.slice(0, 60) ?? UNTITLED_NOTE; // "A note", was "(untitled note)" (6 Oct 2026, delight audit)
 
   const isFlight = place?.sub_type === "flight_arrival" || place?.sub_type === "flight_departure";
 

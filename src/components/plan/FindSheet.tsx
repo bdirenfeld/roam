@@ -126,7 +126,7 @@ export default function FindSheet({
   const loading = list.length === 0 && !bothIn;
   const reading = list.length > 0 && now.travellers === undefined;
   const failed = bothIn && list.length === 0 && (now.failed?.google || now.failed?.travellers)
-    ? (now.quota ? "You've used today's finds. Try again tomorrow." : "Couldn't find places just now. Tap the category to try again.")
+    ? (now.quota ? "Find is resting until tomorrow. Everything you saved is on your map." /* 6 Oct 2026, delight audit */ : "Couldn't find places just now. Tap the category to try again.")
     : null;
   const category = gaps.find((g) => g.category.subType === sub)?.category;
 

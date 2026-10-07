@@ -280,7 +280,6 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
   // handler is memoised, so it reaches the current one through a ref.
   const registerNewCardRef = useRef<(card: Card) => void>(() => {});
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
-  const [showHint, setShowHint]         = useState(false);
   const [activeSubTypes, setActiveSubTypesState] = useState<Set<string>>(makeInitialSubTypes);
   const [activeTypes, setActiveTypesState] = useState<Set<CardType>>(
     () => new Set(["activity", "food", "logistics"] as CardType[]),
@@ -338,16 +337,6 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
 
   const hasToken = !!process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
-  // First-visit intro card — shown until dismissed or the first real pin is
-  // saved. Owner-only; the durable pin legend below replaces the old 3s toast.
-  useEffect(() => {
-    if (readOnly) return;
-    if (!localStorage.getItem("roam_map_intro_v1")) setShowHint(true);
-  }, [readOnly]);
-  const dismissIntro = useCallback(() => {
-    setShowHint(false);
-    localStorage.setItem("roam_map_intro_v1", "1");
-  }, []);
   const hasRealPins = localCards.some(isRealPlace);
 
   function computeAnchorPos(lat: number, lng: number): { x: number; y: number } | null {
@@ -1242,43 +1231,25 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
 
 
 
-        {/* First-visit intro — sits under the search bar until dismissed or
-            the first real pin lands. Owner-only. */}
-        {/* An empty map always has a door, not only on the first visit: a
-            journey with nothing on it yet showed "Filter" and no words
-            (new-journey audit, Sep 2026). The long intro is first-visit only. */}
+        {/* An empty map always has a door: a journey with nothing on it yet
+            showed "Filter" and no words (new-journey audit, Sep 2026). The
+            45-word first-visit "Start your map" intro and its "Got it" went
+            (6 Oct 2026, delight audit): the one line says it. */}
         {/* Not while Find is open: its sheet already says what to do, and the
             card covered the map the pin is meant to land on (2 Oct 2026). */}
         {!hasRealPins && !readOnly && hasToken && !findOpen && (
           <div
             className="absolute top-16 left-1/2 -translate-x-1/2 z-30 w-[min(340px,calc(100%-32px))] bg-white rounded-2xl shadow-sheet border border-gray-100 px-5 py-4"
           >
-            <p className="text-[14px] font-semibold text-gray-900">{showHint ? "Start your map" : "Nothing on the map yet"}</p>
+            <p className="text-[14px] font-semibold text-gray-900">Nothing on the map yet</p>
             <p className="text-[13px] text-gray-500 leading-[1.55] mt-1">
-              {showHint ? (
-                <>
-                  Search for any place you&rsquo;re curious about — a restaurant, a
-                  museum, your hotel. Save it and it becomes a pin. If you already
-                  know when you&rsquo;re going, pick a day in the same step — otherwise
-                  leave it on the map and sort it into a day later.
-                </>
-              ) : (
-                <>Tap Find places below, or search above. Whatever you save lands here as a pin.</>
-              )}
+              Tap Find places below, or search above. Whatever you save lands here as a pin.
             </p>
-            {showHint && (
-              <button
-                onClick={dismissIntro}
-                className="mt-3 text-[13px] font-semibold text-[#B0541F]"
-              >
-                Got it
-              </button>
-            )}
           </div>
         )}
 
         {/* Pin meanings (hollow = idea, filled = scheduled) are taught by the
-            intro card and the guide; no persistent legend on the map. */}
+            guide; no persistent legend on the map. */}
 
         {/* Pin-anchored popup */}
         {selectedCard && (

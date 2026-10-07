@@ -595,7 +595,7 @@ export default function NewJourneyForm({
     const user = await getAuthUser(supabase);
     if (!user) {
       setSaving(false);
-      setSaveError("Not signed in");
+      setSaveError("You're signed out. Sign in and try again."); // 6 Oct 2026, delight audit
       return;
     }
 

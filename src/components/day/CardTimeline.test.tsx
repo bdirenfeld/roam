@@ -21,3 +21,23 @@ describe("an empty day", () => {
     expect(screen.getByText(/Add a place/)).toBeTruthy();
   });
 });
+
+describe("the day's words (6 Oct 2026, delight audit)", () => {
+  it("while the journey is under way, an empty day is 'A free day'", () => {
+    render(<CardTimeline dayWithCards={day} onGapTap={vi.fn()} underway />);
+    expect(screen.getByText("A free day")).toBeTruthy();
+    expect(screen.queryByText("Nothing planned yet")).toBeNull();
+  });
+
+  it("untimed cards sit under 'Any time', not an instruction", () => {
+    const card = (id: string, start: string | null) => ({
+      id, day_id: "d1", trip_id: "t", start_time: start, end_time: null, position: 0,
+      status: null, source_url: null, ai_generated: false, confirmed: false,
+      place_id: null, place: null, details: { title: id },
+    });
+    const full = { ...day, cards: [card("Breakfast", "09:00"), card("Gelato", null)] } as unknown as DayWithCards;
+    render(<CardTimeline dayWithCards={full} onGapTap={vi.fn()} />);
+    expect(screen.getByText("Any time")).toBeTruthy();
+    expect(screen.queryByText(/tap the chip/)).toBeNull();
+  });
+});

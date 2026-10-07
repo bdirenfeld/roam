@@ -46,6 +46,7 @@ import { takenOffDayToast } from "@/lib/takenOff";
 import { planExisting, stayAnchor } from "@/lib/week/dayPlan";
 import { applyOverlayAll } from "@/lib/offline/writeQueue";
 import { COMPANION_ENABLED } from "@/lib/featureFlags";
+import { deletedToast } from "@/lib/cardTitle";
 import type { Trip, Day, DayWithCards, Card } from "@/types/database";
 
 // Weather types, fetch, cache and icons live in the shared module so the
@@ -435,7 +436,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
       const gone = prev.find((c) => c.id === cardId) ?? null;
       if (gone) {
         toast({
-          message: takenOff ? takenOffDayToast(dayWithCards.date) : "Card deleted",
+          message: takenOff ? takenOffDayToast(dayWithCards.date) : deletedToast(gone), // "Deleted Uffizi Gallery" (6 Oct 2026, delight audit)
           undo: async () => {
             if (takenOff?.savedId) await queuedDelete("cards", { id: takenOff.savedId });
             const { error } = await queuedInsert("cards", {
@@ -1107,6 +1108,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
             )}
             <CardTimeline
               quietEmpty={startShown}
+              underway={underway}
               dayWithCards={localDayWithCards}
               onCardTap={handleCardTap}
               highlightedCardId={highlightedCardId}

@@ -13,12 +13,12 @@ afterEach(cleanup);
 describe("the landing page sign-in", () => {
   it("says a sign-in failed when it did", () => {
     render(<LandingPage signInFailed />);
-    expect(screen.getAllByText(/That sign-in didn't work/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/That link expired or was already used/).length).toBeGreaterThan(0);
   });
 
   it("says nothing on an ordinary visit", () => {
     render(<LandingPage />);
-    expect(screen.queryByText(/That sign-in didn't work/)).toBeNull();
+    expect(screen.queryByText(/That link expired or was already used/)).toBeNull();
   });
 
   it("offers email sign-in on both the phone and the computer layouts", () => {

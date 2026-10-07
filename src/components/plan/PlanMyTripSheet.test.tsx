@@ -61,7 +61,7 @@ describe("Plan my trip sheet", () => {
     const onEveryDay = days.map((d, i) => ({ ...cards[i], id: `p${i}`, day_id: d.id, status: "in_itinerary", start_time: "10:00:00", end_time: "17:00:00", place: { ...cards[i].place!, type: "activity" } })) as unknown as Card[];
     // Saved food would now go on those days as meals (lib/plan/mealsOnDays), so only sights are left saved here.
     render(<PlanMyTripSheet trip={trip} days={days} cards={[...onEveryDay, ...cards.slice(14).filter((c) => c.place?.type !== "food")]} onClose={vi.fn()} onDrafted={vi.fn()} />);
-    expect(screen.getByTestId("plan-full").textContent).toBe("Every day is planned."); // the how-to line went (6 Oct 2026)
+    expect(screen.getByTestId("plan-full").textContent).toBe("Every day is planned. Enjoy it."); // the how-to line went; "Enjoy it." added (6 Oct 2026, delight audit)
     expect(screen.queryByRole("button", { name: "Plan the trip" })).toBeNull();
   });
 

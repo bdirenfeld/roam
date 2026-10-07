@@ -313,7 +313,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
     try {
       const res = await fetch("/api/stays/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tripId: trip.id, wants: wants.trim() || undefined, budget: budget.trim() || undefined, base }) });
       const json = await res.json();
-      if (!res.ok) { setError(json.error ?? "That didn't work."); return; }
+      if (!res.ok) { setError(json.error ?? "Couldn't find places just now. Try again."); return; } // 6 Oct 2026, delight audit
       const hadRows = base === baseIdx && shown.length > 0;
       setBrief(json.brief as StayBriefRow);
       mergeIn(json.candidates as StayCandidate[], true);
@@ -321,7 +321,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
       // which does not expire. The toast's Undo was the second door.
       if (hadRows) toast({ message: "Five new places" });
     } catch {
-      setError("That didn't work. Try again.");
+      setError("Couldn't find places just now. Try again.");
     } finally {
       setRunning(false);
     }
@@ -479,7 +479,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
   async function heart(c: StayCandidate) {
     const res = await fetch("/api/stays/mark", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ candidateId: c.id, action: "heart" }) });
     const json = await res.json();
-    if (!res.ok) { toast({ message: "Couldn't do that." }); return; }
+    if (!res.ok) { toast({ message: "Couldn't save that. Try again." }); return; }
     publish(everything.map((x) => x.id === c.id ? { ...x, feel: json.feel, status: (json.status as StayCandidate["status"]) ?? x.status, place_id: (json.placeId as string | null | undefined) ?? x.place_id } : x));
     if (json.feel === "up") { onChanged(); toast({ message: `${c.name} is on your map` }); }
   }
@@ -504,7 +504,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
     setBusyId(c.id);
     try {
       const res = await fetch("/api/stays/mark", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ candidateId: c.id, action: "reject", reason }) });
-      if (!res.ok) { toast({ message: "Couldn't do that." }); return; }
+      if (!res.ok) { toast({ message: "Couldn't save that. Try again." }); return; }
       publish(everything.map((x) => x.id === c.id ? { ...x, status: "rejected" } : x));
       if (focusedId === c.id) onFocus(null);
       toast({
@@ -783,7 +783,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                 {showEarlier && earlier.map((c) => {
                   const why = c.status === "rejected"
                     ? `Not for us${c.reject_reason ? ` · ${REASONS.find((r) => r.key === c.reject_reason)?.label ?? ""}` : ""}`
-                    : "Replaced by a later run";
+                    : "From an earlier search"; // was "Replaced by a later run" (6 Oct 2026, delight audit)
                   return (
                     <div key={c.id} className="flex gap-2.5 px-4 py-2.5 border-b" style={{ borderColor: "rgba(26,26,46,0.07)", background: "rgba(26,26,46,0.02)" }}>
                       <div className="flex-1 min-w-0">

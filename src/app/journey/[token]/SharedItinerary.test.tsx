@@ -126,3 +126,16 @@ describe("the shared page", () => {
     expect(open).toEqual([true, false, false, false]);
   });
 });
+
+describe("the shared page before anything is planned (6 Oct 2026, delight audit)", () => {
+  const today = localDate(new Date());
+  it("names who is planning", () => {
+    render(<SharedItinerary token="t" journey={{ ...journey(today), cards: [] }} />);
+    expect(screen.getByText("Brennan is still planning. This page fills in as the plan does.")).toBeTruthy();
+    expect(screen.queryByText(/Nothing is on the days yet/)).toBeNull();
+  });
+  it("without a host name, still says it warmly", () => {
+    render(<SharedItinerary token="t" journey={{ ...journey(today), cards: [], host: null }} />);
+    expect(screen.getByText("Still planning. This page fills in as the plan does.")).toBeTruthy();
+  });
+});

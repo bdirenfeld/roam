@@ -7,7 +7,7 @@
 //
 // It appears only when there is something to say (6 Oct 2026, Brennan: "I don't
 // want that sync message there unless it has to be"):
-//   - offline                      → "Offline · changes will sync"
+//   - offline                      → "Offline · saved on this phone"
 //   - online, a change still waiting after STUCK_MS → "A change hasn't saved yet · Try again"
 //   - a queued write was refused   → what was lost, once, plainly
 // Online with a queue that is simply draining: nothing — it retries quietly.
@@ -32,8 +32,8 @@ const EMPTY: QueueState = { pending: [], failures: [], syncing: false };
 /** Column names, in the words the app uses for them. */
 const FIELD_LABELS: Record<string, string> = {
   confirmed: "confirmed",
-  start_time: "start time",
-  end_time: "end time",
+  start_time: "time",
+  end_time: "time",
   position: "order",
   details: "details",
   day_id: "day",
@@ -41,11 +41,17 @@ const FIELD_LABELS: Record<string, string> = {
   place_id: "linked place",
 };
 
-function describe(failure: QueueFailure): string {
-  const fields = Object.keys(failure.payload).map((k) => FIELD_LABELS[k] ?? k.replace(/_/g, " "));
-  const what = fields.length ? fields.join(", ") : "a change";
-  const noun = failure.table === "cards" ? "card" : failure.table.replace(/s$/, "");
-  return `A ${noun}'s ${what} could not be saved.`;
+// "Couldn't save a change to a place's time. Please set it again." — one
+// sentence that says what to do, in the app's words: a card is a place to the
+// traveller (6 Oct 2026, delight audit; was "A card's start time could not be
+// saved." plus a line about the server refusing it).
+const NOUNS: Record<string, string> = { cards: "place", trips: "journey", days: "day" };
+
+export function describeFailure(failure: Pick<QueueFailure, "table" | "payload">): string {
+  const fields = Array.from(new Set(Object.keys(failure.payload ?? {}).map((k) => FIELD_LABELS[k] ?? k.replace(/_/g, " "))));
+  const noun = NOUNS[failure.table] ?? failure.table.replace(/s$/, "");
+  if (!fields.length) return `Couldn't save a change to a ${noun}. Please make it again.`;
+  return `Couldn't save a change to a ${noun}'s ${fields.join(", ")}. Please set it again.`;
 }
 
 export default function OfflineQueueIndicator() {
@@ -122,13 +128,10 @@ export default function OfflineQueueIndicator() {
             <ul className="mt-1 space-y-0.5">
               {failures.slice(-3).map((f) => (
                 <li key={f.id} className="text-[11px] leading-snug text-activity/60">
-                  {describe(f)}
+                  {describeFailure(f)}
                 </li>
               ))}
             </ul>
-            <p className="mt-1 text-[11px] leading-snug text-activity/45">
-              The server refused it, so it was discarded rather than retried. Make the edit again.
-            </p>
           </div>
           <button
             onClick={onDismiss}
@@ -147,7 +150,7 @@ export default function OfflineQueueIndicator() {
         >
           <CloudSlash size={13} weight="light" color="#1A1A2E" />
           <span className="text-[11px] font-medium leading-none text-activity/70">
-            {count > 0 ? "Offline · changes will sync" : "Offline"}
+            {count > 0 ? "Offline · saved on this phone" : "Offline"}{/* was "changes will sync" (6 Oct 2026, delight audit) */}
           </span>
         </div>
       )}

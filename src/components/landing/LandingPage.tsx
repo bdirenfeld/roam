@@ -65,7 +65,7 @@ export default function LandingPage({ signInFailed = false }: { signInFailed?: b
   // with ?signin=failed. It used to land here saying nothing at all.
   const [emailNote, setEmailNote] = useState<string | null>(
     signInFailed
-      ? "That sign-in didn't work. Email links only work once, in the browser you asked from. Send a new one, or use Google."
+      ? "That link expired or was already used. Send a fresh one, or use Google." /* 6 Oct 2026, delight audit */
       : null,
   );
   const [emailPending, setEmailPending] = useState(false);

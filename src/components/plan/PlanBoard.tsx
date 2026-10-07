@@ -71,6 +71,7 @@ import AddPlaceRow from "@/components/ui/AddPlaceRow";
 import { getMaterialIconHTML } from "@/lib/mapPins";
 import { timeFirst } from "@/lib/agendaOrder";
 import { type DayWeather, fetchTripWeather, dayStopsAnchor, getWeatherCategory, WeatherIcon, HourlyStrip } from "@/lib/weather";
+import { UNTITLED_NOTE, deletedToast } from "@/lib/cardTitle";
 
 // ── Constants ──────────────────────────────────────────────────
 const COL_PREFIX = "col-";
@@ -234,7 +235,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
     setUndoDelete(entry);
     undoTimerRef.current = setTimeout(() => setUndoDelete(null), 6000);
     toast({
-      message: entry.kind === "list" ? "List deleted" : "Card deleted",
+      message: entry.kind === "list" ? "List deleted" : deletedToast(entry.card), // names the card (6 Oct 2026, delight audit)
       undo: () => handleUndoRef.current(),
     });
   }, [toast]);
@@ -2346,7 +2347,7 @@ function CardTile({
   const borderClass = isNote ? "border-l-gray-200" : (TYPE_BORDER[placeType] ?? "border-l-gray-300");
   const subLabel    = subTypeLabel(place?.sub_type);
   const noteSnippet = isNote ? (det?.notes as string | undefined) : undefined;
-  const title       = place?.title ?? (det?.title as string | undefined) ?? noteSnippet?.slice(0, 60) ?? "(untitled note)";
+  const title       = place?.title ?? (det?.title as string | undefined) ?? noteSnippet?.slice(0, 60) ?? UNTITLED_NOTE; // "A note", was "(untitled note)" (6 Oct 2026, delight audit)
 
   // Which of the place's photos the cover is showing. Board-local and
    // deliberately not persisted: it is a look, not a preference.

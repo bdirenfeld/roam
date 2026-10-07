@@ -195,7 +195,7 @@ function TypeEditor({
           instead of four. The recommended-by field that used to sit here is
           now edited on the popup itself (DetailsField). */}
       <div className="flex items-center justify-between">
-        <span className="text-[10.5px] text-gray-400">{saving ? "Saving…" : "Tap a sub-type to save"}</span>
+        <span className="text-[10.5px] text-gray-400">{saving ? "Saving…" : "Tap one to change it"}</span>
         <button
           onClick={onCancel}
           className="px-3 py-1 rounded-lg text-[11px] font-medium text-gray-500 bg-white border border-gray-200 hover:bg-gray-50 transition-colors"

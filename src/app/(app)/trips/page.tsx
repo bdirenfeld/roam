@@ -194,7 +194,7 @@ function EmptyState() {
       <FirstJourneyVideo />
       <p className="text-sm font-semibold text-gray-700">No journeys yet</p>
       <p className="text-xs text-gray-400 mt-1 mb-5 max-w-[220px]">
-        Plan your first journey, or wait for one to be shared with you.
+        Plan one, or open the link someone sent you.
       </p>
       {/* Opens the form in place rather than routing away; still a link to
           /trips/new so ctrl/cmd-click opens the page. */}

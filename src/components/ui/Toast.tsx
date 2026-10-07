@@ -15,7 +15,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 export interface ToastOptions {
-  /** One sentence. "Card deleted", "Couldn't save. Try again." */
+  /** One sentence. "Deleted Uffizi Gallery", "Couldn't save that. Try again." */
   message: string;
   /** Present → the pill grows an Undo button and stays for 6 s. */
   undo?: () => void | Promise<void>;

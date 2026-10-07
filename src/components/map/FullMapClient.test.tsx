@@ -129,20 +129,23 @@ describe("the phone Map", { timeout: 20000 }, () => {
   it("a place saved in Find lands on the map at once, without a reload (Hanoi, 2 Oct 2026)", async () => {
     vi.stubEnv("NEXT_PUBLIC_MAPBOX_TOKEN", "pk.test");
     await act(async () => { render(<FullMapClient trip={trip} days={days} cards={[]} />); });
-    expect(screen.getByText(/^(Nothing on the map yet|Start your map)$/)).toBeTruthy();
+    expect(screen.getByText(/^Nothing on the map yet$/)).toBeTruthy();
+    // The 45-word first-visit intro and its Got it are gone (6 Oct 2026, delight audit).
+    expect(screen.queryByText("Start your map")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Got it" })).toBeNull();
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Find places" })); });
     // Find open: its sheet says what to do, so the empty-map card steps aside.
-    expect(screen.queryByText(/^(Nothing on the map yet|Start your map)$/)).toBeNull();
+    expect(screen.queryByText(/^Nothing on the map yet$/)).toBeNull();
     await act(async () => { sheets.find.onClose(); });
-    expect(screen.getByText(/^(Nothing on the map yet|Start your map)$/)).toBeTruthy();
+    expect(screen.getByText(/^Nothing on the map yet$/)).toBeTruthy();
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Find places" })); });
     await act(async () => { sheets.find.onSaved(cards[0]); });
-    expect(screen.queryByText(/^(Nothing on the map yet|Start your map)$/)).toBeNull();
+    expect(screen.queryByText(/^Nothing on the map yet$/)).toBeNull();
     // Saving the same place again (or the refresh bringing it back) doesn't double it.
     await act(async () => { sheets.find.onSaved(cards[0]); });
     // Closed again: the pin is on the map, so the empty-map card stays gone.
     await act(async () => { sheets.find.onClose(); });
-    expect(screen.queryByText(/^(Nothing on the map yet|Start your map)$/)).toBeNull();
+    expect(screen.queryByText(/^Nothing on the map yet$/)).toBeNull();
     vi.unstubAllEnvs();
   });
 
@@ -150,10 +153,10 @@ describe("the phone Map", { timeout: 20000 }, () => {
     vi.stubEnv("NEXT_PUBLIC_MAPBOX_TOKEN", "pk.test");
     let r!: ReturnType<typeof render>;
     await act(async () => { r = render(<FullMapClient trip={trip} days={days} cards={[]} />); });
-    expect(screen.getByText(/^(Nothing on the map yet|Start your map)$/)).toBeTruthy();
+    expect(screen.getByText(/^Nothing on the map yet$/)).toBeTruthy();
     const stay = { ...saved("h1", "Lake of Bays cottage", 45.32, -79.04), status: "in_itinerary", day_id: "d1", place: { ...saved("h1", "x", 45.32, -79.04).place, type: "logistics", sub_type: "hotel" } } as unknown as Card;
     await act(async () => { r.rerender(<FullMapClient trip={trip} days={days} cards={[stay]} />); });
-    expect(screen.queryByText(/^(Nothing on the map yet|Start your map)$/)).toBeNull();
+    expect(screen.queryByText(/^Nothing on the map yet$/)).toBeNull();
     vi.unstubAllEnvs();
   });
 

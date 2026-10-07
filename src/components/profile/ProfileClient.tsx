@@ -64,7 +64,7 @@ export default function ProfileClient({
       .eq("id", userId);
 
     if (updateError) {
-      setError("Failed to save. Please try again.");
+      setError("Couldn't save that. Try again.");
     } else {
       setSnapshot(null);
       setEditing(false);

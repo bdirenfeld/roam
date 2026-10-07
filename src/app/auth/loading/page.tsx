@@ -1,6 +1,10 @@
 /**
  * /auth/loading — shown briefly during OAuth redirect dance
  * The middleware will redirect away once the session is established.
+ *
+ * Still and quiet (6 Oct 2026, delight audit): the map pin in the brand ink
+ * and one line. The three bouncing dots under it went — motion that only says
+ * "busy" is decoration, and it made a sub-second wait feel like a slow one.
  */
 export default function AuthLoadingPage() {
   return (
@@ -12,23 +16,8 @@ export default function AuthLoadingPage() {
             <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
           </svg>
         </div>
-        <LoadingDots />
-        <p className="text-xs text-gray-400 mt-4 font-medium">Signing you in…</p>
+        <p className="text-xs text-gray-400 font-medium">Signing you in…</p>
       </div>
-    </div>
-  );
-}
-
-function LoadingDots() {
-  return (
-    <div className="flex items-center justify-center gap-1.5">
-      {[0, 1, 2].map((i) => (
-        <div
-          key={i}
-          className="w-2 h-2 rounded-full bg-activity animate-bounce"
-          style={{ animationDelay: `${i * 150}ms` }}
-        />
-      ))}
     </div>
   );
 }

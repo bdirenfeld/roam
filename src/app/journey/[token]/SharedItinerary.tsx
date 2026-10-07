@@ -223,7 +223,8 @@ export default function SharedItinerary({
 
         {planned === 0 ? (
           <p className="text-[14px] mt-8" style={{ color: CAPTION }}>
-            Nothing is on the days yet. Check back — this page always shows the latest plan.
+            {/* Who is planning, not a system notice (6 Oct 2026, delight audit). */}
+            {firstName ? `${firstName} is still planning.` : "Still planning."} This page fills in as the plan does.
           </p>
         ) : (
           <div className="mt-8">

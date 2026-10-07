@@ -26,6 +26,9 @@ interface Props {
   onTimeTap?: (card: Card) => void;
   /** A new journey's Start here is above (components/plan/StartHere): no "Nothing planned yet" under it. */
   quietEmpty?: boolean;
+  /** The journey is under way today (local date, set in an effect by the host): an
+   *  empty day reads "A free day", not "Nothing planned yet" (6 Oct 2026, delight audit). */
+  underway?: boolean;
 }
 
 function minutesBetween(end: string | null, start: string | null): number {
@@ -82,6 +85,7 @@ export default function CardTimeline({
   readOnly = false,
   onTimeTap,
   quietEmpty = false,
+  underway = false,
 }: Props) {
   const { cards } = dayWithCards;
 
@@ -141,7 +145,7 @@ export default function CardTimeline({
               <line x1="3" y1="10" x2="21" y2="10" />
             </svg>
           </div>
-          <p className="text-sm font-semibold text-gray-500">Nothing planned yet</p>
+          <p className="text-sm font-semibold text-gray-500">{underway ? "A free day" : "Nothing planned yet"}</p>
           {/* No saved count here or on the Add row (Brennan, 23 Sep 2026: "what
               does 20 saved actually give you? What if you have 50?"). A number
               says a pile exists, not what is in it; the answer is a list of the
@@ -176,7 +180,8 @@ export default function CardTimeline({
               className="mb-2 pl-[33px] text-[12.5px]"
               style={{ color: "rgba(26,26,46,0.45)" }}
             >
-              {readOnly ? "No time yet" : "No time yet · tap the chip to set one"}
+              {/* "Any time", was "No time yet · tap the chip to set one" (6 Oct 2026, delight audit) */}
+              Any time
             </p>
           )}
 

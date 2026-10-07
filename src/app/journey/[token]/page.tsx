@@ -73,8 +73,9 @@ function InvitationUnavailable() {
         className="mt-3 max-w-[34ch] text-[14px] leading-[1.6]"
         style={{ color: "rgba(26,26,46,0.62)" }}
       >
-        The link may have been withdrawn, or it was never quite right. Ask your
-        host to share it again.
+        {/* 6 Oct 2026, delight audit: no guessing at why, just what to do. */}
+        This link doesn&apos;t open a journey any more. Ask whoever sent it for a
+        new one.
       </p>
     </main>
   );

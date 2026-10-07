@@ -159,7 +159,7 @@ export default function PlanMyTripSheet({
             {full ? (
               <p className="text-[13px] mt-1" style={{ color: "rgba(26,26,46,0.62)" }} data-testid="plan-full">
                 {room.free < 0.5 ? (
-                  <span className="block text-[14px] font-semibold text-[#1A1A2E] mb-0.5">Every day is planned.</span>
+                  <span className="block text-[14px] font-semibold text-[#1A1A2E] mb-0.5">Every day is planned. Enjoy it.</span>
                 ) : (
                   <>
                     <span className="block text-[14px] font-semibold text-[#1A1A2E] mb-0.5">No room for what&rsquo;s left.</span>
