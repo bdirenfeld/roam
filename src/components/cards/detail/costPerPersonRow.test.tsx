@@ -45,4 +45,13 @@ describe("Cost per person row says what the Estimate counts", () => {
     const { container } = inTrip(<ActivityDetail card={card({ cost_per_person: 12.25, cost_people: 3 })} onSaveDetails={vi.fn()} />, "Tuscany, Italy", 2);
     expect(container.textContent).toContain("× 3 = €36.75");
   });
+
+  it("one person (or none): just the price, no '× 1 =' sum (7 Oct 2026, re-audit)", () => {
+    const solo = inTrip(<ActivityDetail card={card({ cost_per_person: 29 })} onSaveDetails={vi.fn()} />, "Tuscany, Italy", 1);
+    expect(solo.container.textContent).toContain("€29");
+    expect(solo.container.textContent).not.toContain("×");
+    cleanup();
+    const none = inTrip(<ActivityDetail card={card({ cost_per_person: 29, cost_people: 0 })} onSaveDetails={vi.fn()} />, "Tuscany, Italy", 4);
+    expect(none.container.textContent).not.toContain("×");
+  });
 });

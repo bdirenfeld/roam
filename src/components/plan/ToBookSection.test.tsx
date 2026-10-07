@@ -348,6 +348,8 @@ describe("What did it cost?", () => {
     await userEvent.click(within(car).getByRole("menuitem", { name: "Booked" }));
     expect(queuedUpdate).toHaveBeenLastCalledWith("trips", { id: journey.id }, { booking_checklist: { car: "booked" } });
     const form = await screen.findByTestId("to-book-cost");
+    // Amount, currency, Save and Not now wrap at a narrow width (7 Oct 2026, re-audit).
+    expect(within(form).getByTestId("to-book-cost-row").className).toContain("flex-wrap");
     // The cursor is already in the amount box (7 Oct 2026, taps audit).
     expect(document.activeElement).toBe(within(form).getByLabelText("What did it cost?"));
     // A Canadian home: CAD first (Kayak's Canadian site quoted it), Italy's EUR next (6 Oct 2026).
@@ -448,7 +450,17 @@ describe("Did you book it? (7 Oct 2026, delight audit, mock approved)", () => {
     await comeBack();
     const ask = screen.getByTestId("to-book-car-ask");
     expect(screen.queryByTestId("to-book-flights-ask")).toBeNull();
-    await userEvent.click(within(ask).getByRole("button", { name: "Booked" }));
+    // Each answer is 44px to the finger without changing its look (7 Oct 2026, re-audit).
+    for (const [name, id] of [["Booked", "ask-booked-target"], ["Not yet", "ask-not-yet-target"]] as const) {
+      const button = within(ask).getByRole("button", { name });
+      const target = within(ask).getByTestId(id);
+      expect(target.parentElement).toBe(button);
+      expect(target.getAttribute("aria-hidden")).toBe("true");
+      expect(target.className).toContain("-inset-y-[11px]");
+      expect(target.className).toContain("-inset-x-1");
+      expect(button.className).toContain("relative");
+    }
+    await userEvent.click(within(ask).getByTestId("ask-booked-target"));
     expect(queuedUpdate).toHaveBeenLastCalledWith("trips", { id: journey.id }, { booking_checklist: { car: "booked" } });
     expect(toast).toHaveBeenCalledWith(expect.objectContaining({ message: "Car: booked", undo: expect.any(Function) }));
     await waitFor(() => expect(screen.getByTestId("to-book-car").dataset.state).toBe("booked"));

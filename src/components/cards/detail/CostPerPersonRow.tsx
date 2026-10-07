@@ -40,7 +40,9 @@ export default function CostPerPersonRow({ card, onSaveDetails, hideWhenEmpty }:
   const symbol = costSymbol(destination);
   const people = typeof d.cost_people === "number" && d.cost_people >= 0 ? d.cost_people : partySize ?? null;
   const cost = typeof d.cost_per_person === "number" && Number.isFinite(d.cost_per_person) ? d.cost_per_person : null;
-  const aside = cost != null && people != null ? `× ${people} = ${symbol}${money(cost * people)}` : undefined;
+  // "× 1 = €29" only repeats the number; the sum shows from two people up
+  // (7 Oct 2026, re-audit).
+  const aside = cost != null && people != null && people >= 2 ? `× ${people} = ${symbol}${money(cost * people)}` : undefined;
 
   return (
     <FieldRow icon="💳" label="Cost per person"

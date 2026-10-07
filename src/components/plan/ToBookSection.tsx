@@ -299,8 +299,17 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
             <span className="block text-[15px] font-semibold" style={{ color: INK }}>{r.title}</span>
             <span className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-0.5 text-[12.5px] leading-snug" style={{ color: CAPTION }}>
               <span>Did you book it?</span>
-              <button type="button" onClick={() => void choose(r.key, "booked", r.title)} className="px-2.5 py-[3px] rounded-full font-semibold" style={{ color: GREEN, boxShadow: `inset 0 0 0 1.5px ${GREEN}` }}>Booked</button>
-              <button type="button" onClick={() => forget(r.key)} className="px-1.5 py-[3px]" style={{ color: CAPTION }}>Not yet</button>
+              {/* 44px tall to the finger, same look (7 Oct 2026, re-audit): the
+                  Toast's Undo technique; sideways only half the 8px gap, so
+                  Booked and Not yet never reach each other. */}
+              <button type="button" onClick={() => void choose(r.key, "booked", r.title)} className="relative px-2.5 py-[3px] rounded-full font-semibold" style={{ color: GREEN, boxShadow: `inset 0 0 0 1.5px ${GREEN}` }}>
+                <span aria-hidden="true" data-testid="ask-booked-target" className="absolute -inset-y-[11px] -inset-x-1" />
+                Booked
+              </button>
+              <button type="button" onClick={() => forget(r.key)} className="relative px-1.5 py-[3px]" style={{ color: CAPTION }}>
+                <span aria-hidden="true" data-testid="ask-not-yet-target" className="absolute -inset-y-[11px] -inset-x-1" />
+                Not yet
+              </button>
             </span>
           </span>
         ) : null;
@@ -371,7 +380,9 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
                 onSubmit={(e) => { e.preventDefault(); void saveCost(r.key, r.title); }}
               >
                 <label htmlFor={`cost-${r.key}`} className="block text-[12px] pb-1.5" style={{ color: CAPTION }}>What did it cost?</label>
-                <div className="flex items-center gap-2">
+                {/* Wraps at a narrow width rather than running off the sheet
+                    (7 Oct 2026, re-audit): Save and Not now drop to a second line. */}
+                <div data-testid="to-book-cost-row" className="flex flex-wrap items-center gap-x-2 gap-y-2">
                   <input
                     id={`cost-${r.key}`}
                     // The cursor is already in the box (7 Oct 2026, taps audit).
