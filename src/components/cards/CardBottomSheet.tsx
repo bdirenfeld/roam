@@ -43,7 +43,7 @@ import LogisticsDetail from "./detail/LogisticsDetail";
 import ActivityDetail from "./detail/ActivityDetail";
 import HotelDetail from "./detail/HotelDetail";
 import { withDetails } from "@/lib/cardDetails";
-import { UNTITLED_NOTE, deletedToast } from "@/lib/cardTitle";
+import { UNTITLED_NOTE, cardTitle, deletedToast } from "@/lib/cardTitle";
 
 /** Read Google's `weekday_text` (seven "Monday: 9:00 AM – 5:00 PM" lines) off
  *  the raw place hours. The bottom sheet is the deliberate lookup surface, so it
@@ -834,7 +834,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const isNote    = place == null;
   const det       = localCard.details as Record<string, unknown>;
   const noteSnippet = isNote ? (det?.notes as string | undefined) : undefined;
-  const displayTitle = place?.title ?? (det?.title as string | undefined) ?? noteSnippet?.slice(0, 60) ?? UNTITLED_NOTE; // "A note", was "(untitled note)" (6 Oct 2026, delight audit)
+  const displayTitle = cardTitle(localCard) === UNTITLED_NOTE && noteSnippet ? noteSnippet.slice(0, 60) : cardTitle(localCard); // "A note", was "(untitled note)" (6 Oct 2026, delight audit)
   // Where the directions go. The place's own Google id first, so the route
   // lands on the right door (6 Oct 2026, taps audit).
   const navTarget = {

@@ -30,3 +30,11 @@ describe("the delete toast names what went", () => {
     expect(t.length).toBeLessThanOrEqual("Deleted ".length + 40);
   });
 });
+
+describe("an event keeps its own name over its venue (7 Oct 2026)", () => {
+  it("named: the summit, not the convention centre; unnamed: the place as before", () => {
+    const venue = { title: "Irving Convention Center at Las Colinas" };
+    expect(cardTitle({ place: venue, details: { title: "Negotiation Mastery Summit 2027", named: true } })).toBe("Negotiation Mastery Summit 2027");
+    expect(cardTitle({ place: venue, details: { title: "Something else" } })).toBe("Irving Convention Center at Las Colinas");
+  });
+});

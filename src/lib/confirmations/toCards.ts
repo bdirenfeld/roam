@@ -94,6 +94,9 @@ export function confirmationDetails(p: ParsedConfirmation, edits: { title: strin
   set("phone", p.phone);
   set("website", p.website);
   set("notes", edits.notes);
+  // An event is named for itself, not its venue: "Negotiation Mastery Summit",
+  // not "Irving Convention Center" (7 Oct 2026, Brennan). cardTitle reads this.
+  if (p.type === "activity" && d.title) d.named = true;
   if (isFlight(p.type)) {
     set("airline", p.airline);
     set("flight_number", p.flight_number?.replace(/\s+/g, ""));

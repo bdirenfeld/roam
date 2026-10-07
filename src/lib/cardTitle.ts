@@ -16,6 +16,8 @@ export function cardTitle(card: TitledCard | null | undefined): string {
   const place = card?.place ?? null;
   const own = typeof det?.title === "string" && det.title.trim() ? det.title : null;
   const note = !place && typeof det?.notes === "string" && det.notes.trim() ? det.notes.slice(0, 60) : null;
+  // A named card (an event read from a confirmation) keeps its own name over the venue's.
+  if (own && det?.named === true) return own;
   return (place?.title && place.title.trim() ? place.title : null) ?? own ?? note ?? UNTITLED_NOTE;
 }
 
