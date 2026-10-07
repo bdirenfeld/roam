@@ -15,8 +15,9 @@
 import { useRef, useState, type ReactNode } from "react";
 import type { Card, Day, DayWithCards } from "@/types/database";
 import { useToast } from "@/components/ui/Toast";
-import { queuedDelete } from "@/lib/offline/queuedWrite";
+import { queuedDelete, queuedUpdate } from "@/lib/offline/queuedWrite";
 import type { ParsedConfirmation } from "@/lib/confirmations/toCards";
+import { friendlyReadError, READ_FAILED } from "@/lib/confirmations/readError";
 import { inBatches, combineReads, addedMessage, PARSE_AT_ONCE, MAX_FILES, type Combined, type FileRead } from "@/lib/confirmations/batch";
 import dynamic from "next/dynamic";
 import { reloadOnStale } from "@/lib/chunkReload";
@@ -32,10 +33,11 @@ async function readOne(file: File): Promise<FileRead> {
     const fd = new FormData(); fd.append("file", file);
     const res = await fetch("/api/confirmations/parse", { method: "POST", body: fd });
     const j = await res.json() as { parsed?: ParsedConfirmation[]; error?: string };
-    if (!res.ok || !j.parsed?.length) return { file: ref, reason: j.error || "Couldn't read that file." };
+    // Never the raw server text in a toast (6 Oct 2026): only the route's plain lines pass through.
+    if (!res.ok || !j.parsed?.length) return { file: ref, reason: friendlyReadError(j.error) };
     return { file: ref, items: j.parsed };
   } catch {
-    return { file: ref, reason: "Couldn't read that file." };
+    return { file: ref, reason: READ_FAILED };
   }
 }
 
@@ -57,7 +59,7 @@ export function useBookingUpload({ tripId, days, onAdded }: {
       const over: FileRead[] = picked.slice(MAX_FILES).map((f) => ({ file: { name: f.name, type: f.type }, reason: `Only ${MAX_FILES} at a time. Upload it next.` }));
       const all = combineReads([...reads, ...over]);
       if (!all.items.length) {
-        toast({ message: picked.length === 1 ? all.failures[0]?.reason ?? "Couldn't read that file." : `Couldn't read any of those ${picked.length} files.` });
+        toast({ message: picked.length === 1 ? all.failures[0]?.reason ?? READ_FAILED : `Couldn't read any of those ${picked.length} files.` });
         return;
       }
       setParsed(all);
@@ -66,7 +68,9 @@ export function useBookingUpload({ tripId, days, onAdded }: {
     }
   };
 
-  const added = (cards: Card[], deletedIds: string[], docIds: string[] = []) => {
+  // restored: cards that were already on the days and that the upload marked
+  // Booked (6 Oct 2026), as they were before. Undo puts them back, never deletes them.
+  const added = (cards: Card[], deletedIds: string[], docIds: string[] = [], restored: Card[] = []) => {
     const bookings = parsed?.items.length ?? 1;
     setParsed(null);
     onAdded(cards, deletedIds);
@@ -75,12 +79,14 @@ export function useBookingUpload({ tripId, days, onAdded }: {
       message: addedMessage(bookings, cards.map((c) => (c.day_id ? dateOf.get(c.day_id) : null))),
       // Undo takes back every card the sheet added and the files' records with them.
       undo: async () => {
+        const kept = new Set(restored.map((c) => c.id));
         const results = await Promise.all([
-          ...cards.map((c) => queuedDelete("cards", { id: c.id })),
+          ...cards.filter((c) => !kept.has(c.id)).map((c) => queuedDelete("cards", { id: c.id })),
+          ...restored.map((c) => queuedUpdate("cards", { id: c.id }, { confirmed: c.confirmed, start_time: c.start_time, end_time: c.end_time, details: c.details })),
           ...docIds.map((id) => queuedDelete("documents", { id })),
         ]);
         if (results.some((r) => r.error)) { toast({ message: "Couldn't undo all of it. Try again." }); }
-        onAdded([], cards.map((c) => c.id));
+        onAdded(restored, cards.map((c) => c.id));
       },
     });
   };

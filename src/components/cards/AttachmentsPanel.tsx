@@ -473,11 +473,12 @@ export default function AttachmentsPanel({ card, onClose, onCardUpdate, onCardsA
 
       const { error } = await supabase
         .from("cards")
-        .update({ details: merged, ...topLevelUpdate })
+        // A confirmation applied to a card marks it booked (6 Oct 2026, Brennan).
+        .update({ details: merged, ...topLevelUpdate, confirmed: true })
         .eq("id", card.id);
 
       if (!error) {
-        onCardUpdate?.({ ...card, details: merged as typeof card.details, ...topLevelUpdate } as typeof card);
+        onCardUpdate?.({ ...card, details: merged as typeof card.details, ...topLevelUpdate, confirmed: true } as typeof card);
         const follow = pendingBooking.current;
         if (follow) await finishBooking(follow.b, follow.others, follow.att);
         else { setApplySuccess("Applied to card ✓"); setTimeout(() => setApplySuccess(false), 2500); }
@@ -503,6 +504,7 @@ export default function AttachmentsPanel({ card, onClose, onCardUpdate, onCardsA
       const { data: there } = await supabase.from("cards").select("id").eq("day_id", closeDay.id).eq("place_id", card.place_id!).limit(1);
       if (!there?.length) {
         const c = await scheduleCardOnDay(supabase, {
+          confirmed: true,
           tripId: card.trip_id, dayId: closeDay.id, placeId: card.place_id, place: card.place ?? null,
           details: closingDetails(card.details as Record<string, unknown> | null, close.title), startTime: close.time.slice(0, 5),
         });

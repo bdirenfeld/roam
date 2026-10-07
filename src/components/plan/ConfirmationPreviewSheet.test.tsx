@@ -9,7 +9,8 @@ import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/re
  */
 
 const queued = vi.fn();
-vi.mock("@/lib/offline/queuedWrite", () => ({ queuedInsert: (...a: unknown[]) => queued(...a) }));
+const updated = vi.fn(async () => ({ queued: false, error: null }));
+vi.mock("@/lib/offline/queuedWrite", () => ({ queuedInsert: (...a: unknown[]) => queued(...a), queuedUpdate: (...a: unknown[]) => updated(...a) }));
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
     auth: { getSession: () => Promise.resolve({ data: { session: { user: { id: "u1" } } } }) },
@@ -175,5 +176,64 @@ describe("a booking dated outside the journey (3 Oct 2026)", () => {
     expect(await screen.findByText("Couldn't change the trip's dates. Try again.")).toBeTruthy();
     expect((screen.getByLabelText(/^Day/) as HTMLSelectElement).value).toBe("d1");
     expect(changed).not.toHaveBeenCalled();
+  });
+});
+
+describe("read from a confirmation = booked, and agendas (6 Oct 2026)", () => {
+  it("every card it adds is booked, and a round trip says out and back", async () => {
+    queued.mockResolvedValue({ queued: false, error: null });
+    render(
+      <ConfirmationPreviewSheet
+        items={[flight("flight_arrival", "2027-08-24", "YYZ → PSA"), flight("flight_departure", "2027-09-04", "PSA → YYZ")]}
+        fileName="aircanada.pdf" fileType="application/pdf" days={days} tripId="t1" onClose={vi.fn()} onCardsCreated={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Round-trip flight · out and back")).toBeTruthy();
+    fireEvent.click(screen.getByText("Add 2 to my days"));
+    await waitFor(() => expect(queued).toHaveBeenCalled());
+    expect((queued.mock.calls[0][1] as { confirmed: boolean }[]).map((r) => r.confirmed)).toEqual([true, true]);
+  });
+
+  it("a conference with an agenda becomes one card per day, with its times and schedule", async () => {
+    queued.mockResolvedValue({ queued: false, error: null });
+    vi.stubGlobal("fetch", vi.fn(async () => ({ json: async () => ({ predictions: [] }) })));
+    const summit = {
+      type: "activity", title: "Negotiation Mastery Summit 2027", date: "2027-08-24", time: "07:30", end_time: null,
+      confirmation_number: null, address: "500 W Las Colinas Blvd", phone: null, website: null, notes: null,
+      agenda: [
+        { date: "2027-08-24", start: "07:30", end: "17:00", items: [{ time: "07:30", title: "Breakfast" }, { time: "08:30", title: "Opening keynote" }] },
+        { date: "2027-09-04", start: "07:30", end: "16:00", items: [{ time: "08:30", title: "Bargaining" }] },
+      ],
+    } as unknown as ParsedConfirmation;
+    render(<ConfirmationPreviewSheet items={[summit]} fileName="summit.pdf" fileType="application/pdf" days={days} tripId="t1" onClose={vi.fn()} onCardsCreated={vi.fn()} />);
+    fireEvent.click(screen.getByText("Add 2 to my days"));
+    await waitFor(() => expect(queued).toHaveBeenCalled());
+    const rows = queued.mock.calls[0][1] as { day_id: string; start_time: string; end_time: string; confirmed: boolean; details: { notes?: string } }[];
+    expect(rows.map((r) => [r.day_id, r.start_time, r.end_time, r.confirmed])).toEqual([["d1", "07:30:00", "17:00:00", true], ["d12", "07:30:00", "16:00:00", true]]);
+    expect(rows[0].details.notes).toContain(["**Day 1 schedule**", "- 7:30 Breakfast", "- 8:30 Opening keynote"].join(String.fromCharCode(10)));
+    vi.unstubAllGlobals();
+  });
+
+  it("a booking already on that day (same place) is marked booked, not added twice", async () => {
+    queued.mockResolvedValue({ queued: false, error: null });
+    updated.mockClear();
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url.startsWith("/api/places/autocomplete")) return { json: async () => ({ predictions: [{ place_id: "gV" }] }) };
+      return { json: async () => ({ imported: [{ place_id: "pv" }] }) };
+    }));
+    const withVilla = [
+      { id: "d1", date: "2027-08-24", day_number: 1, cards: [{ id: "old", place_id: "pv", status: "in_itinerary", start_time: null, end_time: null, confirmed: false }] },
+      { id: "d12", date: "2027-09-04", day_number: 12, cards: [] },
+    ] as unknown as DayWithCards[];
+    const villa = { type: "hotel", title: "Villa Zambaldi", date: "2027-08-24", time: "16:00", end_time: null, confirmation_number: "SV-88",
+      address: "Via Fonda 403, Lucca", phone: null, website: null, notes: null, check_out_date: "2027-09-04", check_out_time: "10:00" } as ParsedConfirmation;
+    const done = vi.fn();
+    render(<ConfirmationPreviewSheet items={[villa]} fileName="villa.pdf" fileType="application/pdf" days={withVilla} tripId="t1" onClose={vi.fn()} onCardsCreated={done} onDaysChanged={vi.fn()} />);
+    fireEvent.click(screen.getByText("Add to my days"));
+    await waitFor(() => expect(done).toHaveBeenCalled());
+    expect(updated).toHaveBeenCalledWith("cards", { id: "old" }, expect.objectContaining({ confirmed: true, start_time: "16:00:00" }));
+    const rows = queued.mock.calls[0][1] as { day_id: string }[];
+    expect(rows.map((r) => r.day_id)).toEqual(["d12"]);
+    vi.unstubAllGlobals();
   });
 });

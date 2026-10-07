@@ -6,6 +6,8 @@
  * real place, so no pin, no photo and no stay.
  */
 
+import type { AgendaDay } from "./agenda";
+
 export type ConfirmationType = "flight_arrival" | "flight_departure" | "hotel" | "car_rental" | "restaurant" | "activity";
 
 export interface ParsedConfirmation {
@@ -38,6 +40,12 @@ export interface ParsedConfirmation {
    */
   total_paid?: number | string | null;
   paid_currency?: string | null;
+  /**
+   * A multi-session event (conference, summit, course, festival): one entry per
+   * event day with its start, end and schedule (lib/confirmations/agenda). The
+   * sheet turns each day into its own card. Absent for ordinary bookings.
+   */
+  agenda?: AgendaDay[] | null;
 }
 
 /** The kinds whose price the budget reads (lib/budget/booked). */

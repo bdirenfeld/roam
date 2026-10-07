@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import type { Card, CardStatus, DayWithCards, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
-import { queuedInsert } from "@/lib/offline/queuedWrite";
+import { queuedInsert, queuedUpdate } from "@/lib/offline/queuedWrite";
+import { expandAll } from "@/lib/confirmations/agenda";
 import { confirmationDetails, closingDetails, closingEvent, openingTitle, type ParsedConfirmation } from "@/lib/confirmations/toCards";
 import { resolvePlace } from "@/lib/confirmations/resolvePlace";
 import { bookingOutside, dayFor, shortDay } from "@/lib/confirmations/outsideDates";
@@ -70,9 +71,12 @@ interface ItemDraft {
 }
 
 export default function ConfirmationPreviewSheet({
-  items, fileName, fileType, days: hostDays, tripId, onClose: hostClose, onCardsCreated: hostCreated, heading, onDaysChanged,
-  files, fileOf, failures = [],
+  items: rawItems, fileName, fileType, days: hostDays, tripId, onClose: hostClose, onCardsCreated: hostCreated, heading, onDaysChanged,
+  files, fileOf: rawFileOf, failures = [],
 }: Props) {
+  // A conference with an agenda becomes one booking per event day, each with
+  // that day's times and schedule (6 Oct 2026, "conference agenda", approved).
+  const { items, fileOf } = useMemo(() => expandAll(rawItems, rawFileOf), [rawItems, rawFileOf]);
   // Several bookings (6 Oct 2026, taps audit): one compact row each, its own
   // fields behind Edit, so five bookings read as a list rather than a form.
   const compact = items.length > 1;
@@ -225,7 +229,9 @@ export default function ConfirmationPreviewSheet({
       source_url:   null,
       details:      details as Card["details"],
       ai_generated: false,
-      confirmed:    false,
+      // Anything read from a confirmation is booked (6 Oct 2026, Brennan): check-in
+      // AND check-out, both flights, pick-up and drop-off, every event day.
+      confirmed:    true,
       created_at:   new Date().toISOString(),
       place_id:     place?.id ?? null,
       place,
@@ -249,12 +255,30 @@ export default function ConfirmationPreviewSheet({
       return [main, card(outDay.id, close.time, null, closingDetails(details, close.title), place)];
     });
 
+    // Already on the days (same day, same place): mark that card booked and fill
+    // a missing time, instead of adding a second copy (6 Oct 2026).
+    const flipped: Card[] = [];
+    const finalId = new Map<string, string>();
+    const fresh = createdCards.filter((c) => {
+      if (!c.place_id) return true;
+      const there = days.find((d) => d.id === c.day_id)?.cards.find((x) => x.place_id === c.place_id && x.status === "in_itinerary");
+      if (!there) return true;
+      finalId.set(c.id, there.id);
+      flipped.push({ ...there, confirmed: true, start_time: there.start_time ?? c.start_time, end_time: there.end_time ?? c.end_time });
+      return false;
+    });
+    for (const c of flipped) {
+      const { error: flipError } = await queuedUpdate("cards", { id: c.id }, { confirmed: true, start_time: c.start_time, end_time: c.end_time });
+      if (flipError) console.error("[ConfirmationPreviewSheet] could not mark booked:", flipError);
+    }
+
     // The columns the insert has always written — not the display-only fields.
-    const rows = createdCards.map((c) => ({
+    const rows = fresh.map((c) => ({
       id: c.id, day_id: c.day_id, trip_id: c.trip_id, start_time: c.start_time, end_time: c.end_time,
       position: c.position, status: c.status, source_url: null, details: c.details, ai_generated: false, place_id: c.place_id,
+      confirmed: true,
     }));
-    const { error } = await queuedInsert("cards", rows);
+    const { error } = rows.length ? await queuedInsert("cards", rows) : { error: null };
     if (error) {
       console.error("[ConfirmationPreviewSheet] import refused:", error);
       setSaving(false);
@@ -281,14 +305,15 @@ export default function ConfirmationPreviewSheet({
         file_type:     sources[f].type,
         document_type: documentType,
         parsed_data:   mine.map((i) => items[i]),
-        card_ids:      createdCards.filter((_, k) => mine.includes(cardItem[k])).map((c) => c.id),
+        card_ids:      createdCards.filter((_, k) => mine.includes(cardItem[k])).map((c) => finalId.get(c.id) ?? c.id),
       });
       if (docError) console.error("[ConfirmationPreviewSheet] Failed to save document record:", docError);
       else docIds.push(id);
     }
 
     setSaving(false);
-    onCardsCreated(createdCards, deletedIds, docIds);
+    if (flipped.length) extended.current = true; // the host reloads its days, so the flipped cards show booked
+    onCardsCreated(fresh, deletedIds, docIds);
   }, [drafts, items, confNo, days, tripId, fileName, fileType, files, fileOf, manyFiles, saving, supabase, onCardsCreated]);
 
   // ── Derived ──────────────────────────────────────────────────
@@ -296,12 +321,12 @@ export default function ConfirmationPreviewSheet({
     items[0].type === "flight_arrival" && items[1].type === "flight_departure";
 
   const sheetTitle = isRoundTrip && !manyFiles
-    ? "Round-trip flight · 2 cards"
+    ? "Round-trip flight · out and back"
     : compact
       ? `${items.length} bookings`
       : (TYPE_LABEL[items[0]?.type ?? "activity"] ?? "Confirmation");
   const readCount = (files?.length ?? 1) + failures.length;
-  const eyebrow = heading ?? (readCount > 1 ? `${readCount} files read` : "Confirmation parsed");
+  const eyebrow = heading ?? (readCount > 1 ? `${readCount} files read` : "Here’s what we read");
 
   const canSave = drafts.every((d) => d.title.trim() && d.dayId) && !saving;
 

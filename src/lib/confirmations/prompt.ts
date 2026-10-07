@@ -1,4 +1,5 @@
 import { onePricePerBooking, type ParsedConfirmation } from "./toCards";
+import { cleanAgenda, MAX_AGENDA_ITEMS } from "./agenda";
 
 /**
  * The one reader for a booking confirmation (1 Oct 2026). Bookings' upload
@@ -34,7 +35,8 @@ Each object must have exactly these fields (no extra keys):
   "drop_off_time": "HH:MM or null — cars only, the return time",
   "drop_off_location": "string or null — cars only, where you return it, when not the pick-up location",
   "total_paid": "number or null — flights, hotels and cars: the total charged for this booking, taxes and fees included, as a plain number (1234.56, no symbol)",
-  "paid_currency": "string or null — the ISO 4217 code of total_paid, e.g. 'CAD', 'EUR', 'USD'"
+  "paid_currency": "string or null — the ISO 4217 code of total_paid, e.g. 'CAD', 'EUR', 'USD'",
+  "agenda": "array or null — ONLY for a multi-session event (conference, summit, course, festival) whose document gives a day-by-day schedule; null for every other booking. One entry per event day: { \"date\": \"YYYY-MM-DD\", \"start\": \"HH:MM\", \"end\": \"HH:MM\", \"items\": [{ \"time\": \"HH:MM\", \"title\": \"short title\" }] }"
 }
 
 Price rules:
@@ -46,6 +48,11 @@ Flight rules:
 - The leg ARRIVING at the trip's destination is "flight_arrival"
 - The leg DEPARTING from the destination (home, or onward) is "flight_departure"
 - Legs of one booking share the same confirmation_number
+
+Agenda rules:
+- A multi-session event is ONE "activity" object for the whole event, never one object per session. Its date and time are the first day's; its end_time is the first day's end.
+- agenda lists each event day in order: when that day starts and ends, and its schedule in order. At most ${MAX_AGENDA_ITEMS} items per day; keep each title short (under 8 words), e.g. "Breakfast and registration", "Session: Tactical empathy".
+- No day-by-day schedule in the document: agenda is null.
 
 Return ONLY the JSON array. No markdown, no code fences, no explanation.`;
 
@@ -62,7 +69,9 @@ export function extractBookings(text: string): ParsedConfirmation[] {
     try {
       const v = go();
       const arr = Array.isArray(v) ? v : [v];
-      return onePricePerBooking(arr.filter((x): x is ParsedConfirmation => !!x && typeof x === "object" && typeof (x as { type?: unknown }).type === "string"));
+      const bookings = arr.filter((x): x is ParsedConfirmation => !!x && typeof x === "object" && typeof (x as { type?: unknown }).type === "string");
+      // An agenda is kept only cleaned and bounded (lib/confirmations/agenda); an ordinary booking is untouched.
+      return onePricePerBooking(bookings.map((b) => (b.agenda === undefined ? b : { ...b, agenda: cleanAgenda(b.agenda) })));
     } catch { /* next */ }
   }
   throw new Error("No valid JSON in response");

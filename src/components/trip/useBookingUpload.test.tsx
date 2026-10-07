@@ -85,7 +85,7 @@ describe("uploading several bookings", () => {
     expect(screen.queryByLabelText("Title")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Edit Uffizi Gallery" }));
     expect((screen.getByLabelText("Title") as HTMLInputElement).value).toBe("Uffizi Gallery");
-    expect(screen.getByTestId("read-failures").textContent).toBe("blurry.png · We couldn't read that file.");
+    expect(screen.getByTestId("read-failures").textContent).toBe("blurry.png · Couldn't read that file. Try again.");
   });
 
   it("Add 3 to my days writes them all, one record per file, and the toast offers Undo", async () => {
@@ -116,7 +116,7 @@ describe("uploading several bookings", () => {
 
   it("one unreadable file says why, with no sheet", async () => {
     await pick(["blurry.png"]);
-    await waitFor(() => expect(toast).toHaveBeenCalledWith({ message: "We couldn't read that file." }));
+    await waitFor(() => expect(toast).toHaveBeenCalledWith({ message: "Couldn't read that file. Try again." }));
     expect(screen.queryByTestId("booking-row")).toBeNull();
   });
 });

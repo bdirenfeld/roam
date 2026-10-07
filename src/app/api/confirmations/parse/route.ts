@@ -72,7 +72,8 @@ export async function POST(req: NextRequest) {
     const response = await client.messages.create({
       // Haiku (1 Oct 2026): reading a confirmation is extraction; a tenth of the cost.
       model:      "claude-haiku-4-5-20251001",
-      max_tokens: 1600,
+      // 2400 (6 Oct 2026): room for a conference's agenda, capped at 15 sessions a day (lib/confirmations/agenda).
+      max_tokens: 2400,
       system:     CONFIRMATION_PROMPT,
       messages:   [{ role: "user", content: contentBlocks }],
     });

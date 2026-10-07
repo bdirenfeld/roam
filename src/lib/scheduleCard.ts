@@ -68,11 +68,13 @@ export async function scheduleCardOnDay(
     startTime?: string | null;
     endTime?: string | null;
     sourceUrl?: string | null;
+    /** True for a card that came from a confirmation: it is booked. */
+    confirmed?: boolean;
   },
 ): Promise<Card | null> {
   const {
     tripId, dayId, placeId, place = null,
-    details = {}, startTime = null, endTime = null, sourceUrl = null,
+    details = {}, startTime = null, endTime = null, sourceUrl = null, confirmed = false,
   } = args;
 
   // Live max position for this day → append to end.
@@ -94,7 +96,7 @@ export async function scheduleCardOnDay(
     source_url:   sourceUrl,
     details:      JSON.parse(JSON.stringify(details)) as Card["details"],
     ai_generated: false,
-    confirmed:    false,
+    confirmed,
   };
   const { error } = await queuedInsert("cards", row);
   const data = error ? null : { ...row, list_id: null, created_at: new Date().toISOString() };
