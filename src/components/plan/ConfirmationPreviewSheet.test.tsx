@@ -9,7 +9,7 @@ import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/re
  */
 
 const queued = vi.fn();
-const updated = vi.fn(async () => ({ queued: false, error: null }));
+const updated = vi.fn<(...a: unknown[]) => Promise<{ queued: boolean; error: null }>>(async () => ({ queued: false, error: null }));
 vi.mock("@/lib/offline/queuedWrite", () => ({ queuedInsert: (...a: unknown[]) => queued(...a), queuedUpdate: (...a: unknown[]) => updated(...a) }));
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
