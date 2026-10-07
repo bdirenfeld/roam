@@ -82,7 +82,9 @@ describe("every door onto a day keeps an event to its days", () => {
     const pop = readFileSync("src/components/map/MapPinPopup.tsx", "utf8");
     expect(pop).toMatch(/const \{ day, moved, dates \} = dayForCard\(card, days \?\? \[\], chosen\)/);
     expect(pop).toMatch(/placeId: card\.place_id, place: card\.place, details: card\.details/);
+    // The lasso and, since 7 Oct 2026, the pin card on the journey Map go through lib/map/putOnDay.
     const phone = readFileSync("src/components/map/FullMapClient.tsx", "utf8");
-    expect(phone).toMatch(/dayForCard\(c, days, day\)/);
+    expect(phone).toMatch(/planPutOnDay\(chosen, day, /);
+    expect(readFileSync("src/lib/map/putOnDay.ts", "utf8")).toMatch(/dayForCard\(card, days, day\)/);
   });
 });

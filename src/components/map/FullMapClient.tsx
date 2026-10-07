@@ -36,7 +36,9 @@ import { queuedInsert, queuedDelete } from "@/lib/offline/queuedWrite";
 import { takenOffMapToast } from "@/lib/takenOff";
 import { createClient } from "@/lib/supabase/client";
 import { scheduleCardOnDay } from "@/lib/scheduleCard";
-import { planBatch, plannedOtherDays, stayAnchor } from "@/lib/week/dayPlan";
+import { planPutOnDay, singlePutLine, alreadyLine, batchPutLine } from "@/lib/map/putOnDay";
+import { legLines } from "@/lib/travel/leg";
+import { drawLegs, legStarts } from "@/lib/map/legLayer";
 import { tapFilter } from "@/lib/map/tapFilter";
 import { pulseAt, showAt } from "@/lib/map/pulse";
 import { boxCentre, stayGlide } from "@/lib/map/glide";
@@ -45,7 +47,7 @@ import { reloadOnStale } from "@/lib/chunkReload";
 import { useWarmFind } from "@/hooks/useWarmFind";
 import { useFreshPush } from "@/hooks/useFreshPush";
 import { firstPlaceLine, PIN_TO_DAY } from "@/lib/map/firstPlace";
-import { dayForCard, onlyOnLine } from "@/lib/plan/eventDays";
+import { onlyOnLine } from "@/lib/plan/eventDays";
 // Loaded when first opened, not with the map (29 Sep 2026).
 const PlanMyTripSheet = dynamic(reloadOnStale(() => import("@/components/plan/PlanMyTripSheet")), { ssr: false });
 const FindSheet = dynamic(reloadOnStale(() => import("@/components/plan/FindSheet")), { ssr: false });
@@ -366,21 +368,24 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
     restack(stackOrder(all).map((m) => m.el));
   }, []);
 
+  /** Does the filter show this card's pin? Type, sub-type, status and "loved". Reads the refs,
+   *  so the memoised callers below see the current filters. A travel leg's line follows its pin. */
+  const cardShown = (card: Card): boolean => {
+    const place = card.place;
+    if (!place) return false;
+    const sub = place.sub_type;
+    const subTypeOk = !sub || !CONTROLLED_SUB_TYPES.has(sub) || activeSubTypesRef.current.has(sub);
+    const statusOk = activeStatusesRef.current.has(card.status ?? "");
+    const lovedOk  = !lovedOnlyRef.current || place.loved === true;
+    return activeTypesRef.current.has(place.type) && subTypeOk && statusOk && lovedOk;
+  };
+
   // ── Sync all marker visibility against type + sub-type + status toggles ─
   const syncVisibility = useCallback(() => {
     const map = mapInstRef.current;
     if (!map) return;
-    MARKERS.forEach(({ marker, type, cardRef }) => {
-      const card = cardRef.current;
-      const sub = card.place!.sub_type;
-      const subTypeOk =
-        !sub ||
-        !CONTROLLED_SUB_TYPES.has(sub) ||
-        activeSubTypesRef.current.has(sub);
-      const statusOk = activeStatusesRef.current.has(card.status ?? "");
-      const lovedOk  = !lovedOnlyRef.current || card.place!.loved === true;
-      const show = activeTypesRef.current.has(type) && subTypeOk && statusOk && lovedOk;
-      if (show) marker.addTo(map); else marker.remove();
+    MARKERS.forEach(({ marker, cardRef }) => {
+      if (cardShown(cardRef.current)) marker.addTo(map); else marker.remove();
     });
     restackAll();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -447,16 +452,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
     const mbMarker = new mb.Marker({ element: wrapper, anchor: "center" })
       .setLngLat([lng, lat]);
 
-    const subTypeOk =
-      !place.sub_type ||
-      !CONTROLLED_SUB_TYPES.has(place.sub_type) ||
-      activeSubTypesRef.current.has(place.sub_type);
-    const statusOk = activeStatusesRef.current.has(card.status ?? "");
-    const lovedOk  = !lovedOnlyRef.current || place.loved === true;
-
-    if (activeTypesRef.current.has(place.type) && subTypeOk && statusOk && lovedOk) {
-      mbMarker.addTo(map);
-    }
+    if (cardShown(card)) mbMarker.addTo(map);
     // Registered below; restack once it is in MARKERS.
     queueMicrotask(() => restackAll());
 
@@ -577,43 +573,61 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
     setPendingPlace(pending);
   }
 
-  // The picked pins go on a day, arranged; then the day opens (the desktop
-  // narrows back to the week; the phone goes to the Agenda). Undo deletes
-  // the new cards from wherever the toast is tapped.
-  const putPickedOnDay = useCallback(async (day: Day) => {
-    // Events on set days go to their own day, untimed (lib/plan/eventDays); the rest are arranged here.
-    const chosen = localCards.filter((c) => pickedIds.has(c.id));
-    const ownDay = chosen.map((c) => ({ c, to: dayForCard(c, days, day) })).filter((x) => x.to.moved);
-    for (const { c, to } of ownDay) {
-      const made = await scheduleCardOnDay(supabaseRef.current, { tripId: trip.id, dayId: to.day.id, placeId: c.place_id, place: c.place, details: c.details, sourceUrl: c.source_url });
-      if (made) { registerNewCardRef.current(made); toast({ message: onlyOnLine(c.place?.title ?? "It", to.day.date, to.dates) }); }
+  // Cards onto a day, timed (lib/map/putOnDay): the lasso's picked pins, and
+  // since 7 Oct 2026 (taps audit) a single pin's Put on a day too. Before,
+  // one pin landed with no time and a toast with no Undo. Events on set days
+  // go to their own day, untimed. The lasso then opens the day (the desktop
+  // narrows back to the week; the phone goes to the Agenda); "stay" (the
+  // pin's card) keeps you on the map, and lets a place planned on another
+  // day go on this one too. Undo deletes the new cards from wherever the
+  // toast is tapped.
+  const putCardsOnDay = useCallback(async (day: Day, chosen: Card[], opts: { stay?: boolean } = {}) => {
+    const stay = !!opts.stay;
+    const destination = trip.destination_lat != null && trip.destination_lng != null ? { lat: trip.destination_lat, lng: trip.destination_lng } : null;
+    const { ownDay, batch } = planPutOnDay(chosen, day, { days, allCards: localCards, destination, single: stay });
+    for (const { card: c, day: to, dates } of ownDay) {
+      const made = await scheduleCardOnDay(supabaseRef.current, { tripId: trip.id, dayId: to.id, placeId: c.place_id, place: c.place, details: c.details, sourceUrl: c.source_url });
+      if (made) { registerNewCardRef.current(made); toast({ message: onlyOnLine(c.place?.title ?? "It", to.date, dates) }); }
     }
-    const picked = chosen.filter((c) => !ownDay.some((x) => x.c.id === c.id));
-    if (!picked.length) { leavePick(); return; }
-    const dayCards = localCards.filter((c) => c.day_id === day.id);
-    const fallback = stayAnchor(days.map((d) => d.id), localCards, day.id)
-      ?? (trip.destination_lat != null && trip.destination_lng != null ? { lat: trip.destination_lat, lng: trip.destination_lng } : null);
-    const { toAdd, times, skipped, elsewhere, unplaced } = planBatch(picked, dayCards, fallback, { plannedElsewhere: plannedOtherDays(localCards, day.id), edge: { first: days[0]?.id === day.id, last: days[days.length - 1]?.id === day.id } });
-    leavePick();
-    if (toAdd.length === 0) { toast({ message: elsewhere ? `Already planned on other days.` : `Already on Day ${day.day_number}.` }); return; }
+    if (!stay) leavePick();
+    if (chosen.length === ownDay.length) return;
+    const { toAdd, times, skipped, elsewhere, unplaced } = batch;
+    if (toAdd.length === 0) { toast({ message: alreadyLine(day.day_number, elsewhere > 0) }); return; }
     const created: Card[] = [];
     for (const c of toAdd) {
       const t = times.get(c.id);
       const made = await scheduleCardOnDay(supabaseRef.current, { tripId: trip.id, dayId: day.id, placeId: c.place_id, place: c.place, startTime: t?.start ?? null, endTime: t?.end ?? null, details: c.details, sourceUrl: c.source_url });
       if (made) { created.push(made); registerNewCardRef.current(made); }
     }
-    if (created.length === 0) { toast({ message: "Couldn't put them on that day. Try again." }); return; }
+    if (created.length === 0) { toast({ message: stay ? "Couldn't put it on that day. Try again." : "Couldn't put them on that day. Try again." }); return; }
     const n = created.length;
     toast({
-      message: [unplaced.length ? `${n} on Day ${day.day_number}; ${unplaced.length} without a time` : `${n} ${n === 1 ? "place" : "places"} on Day ${day.day_number}, in walking order`, skipped ? `${skipped} already there` : "", elsewhere ? `${elsewhere} already on other days` : ""].filter(Boolean).join(" · "),
+      message: stay
+        ? singlePutLine(dayChip(day.date, spansMonths(days.map((d) => d.date))), times.get(toAdd[0].id)?.start)
+        : batchPutLine(n, day.day_number, unplaced.length, skipped, elsewhere),
       undo: async () => {
         for (const c of created) { await queuedDelete("cards", { id: c.id }); const m = MARKERS.get(c.id); if (m) { m.marker.remove(); MARKERS.delete(c.id); } }
         const ids = new Set(created.map((c) => c.id));
         setLocalCards((prev) => prev.filter((c) => !ids.has(c.id)));
       },
     });
-    freshPush("/trips/" + trip.id + "/days/" + day.id, (now) => created.every((c) => now.some((x) => x.id === c.id)));
-  }, [localCards, pickedIds, trip, days, leavePick, toast, freshPush]);
+    if (!stay) freshPush("/trips/" + trip.id + "/days/" + day.id, (now) => created.every((c) => now.some((x) => x.id === c.id)));
+  }, [localCards, trip, days, leavePick, toast, freshPush]);
+
+  // ── Travel legs (7 Oct 2026) ─────────────────────────────────
+  // The day map's quiet dashed line, here too (lib/map/legLayer): a scheduled
+  // leg over about an hour (lib/travel/leg shouldDrawLine), start to end, with
+  // the mode at the middle. It follows its end pin through the filters, so
+  // filtering transit out takes the lines off with the pins.
+  const legsDrawnRef = useRef<{ remove: () => void } | null>(null);
+  useEffect(() => {
+    legsDrawnRef.current?.remove();
+    legsDrawnRef.current = null;
+    const map = mapInstRef.current, mb = mbRef.current;
+    if (!map || !mb || !mapReady) return;
+    legsDrawnRef.current = drawLegs(map, mb, legLines(localCards.filter((c) => !!c.day_id && c.status === "in_itinerary" && isRealPlace(c) && cardShown(c))));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapReady, localCards, activeTypes, activeSubTypes, activeStatuses, lovedOnly]);
 
   function handleAddToTripClose() {
     if (tempPinRef.current) { tempPinRef.current.remove(); tempPinRef.current = null; }
@@ -855,9 +869,13 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
 
         setMapReady(true);
 
-        // Fit to all pins
-        if (mappable.length > 1) {
-          const coords = mappable.map(({ lng, lat }) => [lng, lat] as [number, number]);
+        // Fit to all pins, and to where each drawn travel leg starts, so its
+        // line is seen whole (7 Oct 2026; the day map does the same).
+        const coords: [number, number][] = [
+          ...mappable.map(({ lng, lat }) => [lng, lat] as [number, number]),
+          ...legStarts(legLines(cards.filter((c) => !!c.day_id && c.status === "in_itinerary" && isRealPlace(c)))),
+        ];
+        if (coords.length > 1) {
           const bounds = coords.reduce(
             (b: unknown, coord) => (b as { extend: (c: [number, number]) => unknown }).extend(coord),
             new mb.LngLatBounds(coords[0], coords[0]),
@@ -983,7 +1001,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
               {days.map((d) => {
                 const dt = new Date(d.date + "T00:00:00");
                 return (
-                  <button key={d.id} onClick={() => void putPickedOnDay(d)} className="h-8 px-3 rounded-full text-[12.5px] font-medium whitespace-nowrap active:bg-[#1A1A2E] active:text-white" style={{ background: "rgba(26,26,46,0.06)" }}>
+                  <button key={d.id} onClick={() => void putCardsOnDay(d, localCards.filter((c) => pickedIds.has(c.id)))} className="h-8 px-3 rounded-full text-[12.5px] font-medium whitespace-nowrap active:bg-[#1A1A2E] active:text-white" style={{ background: "rgba(26,26,46,0.06)" }}>
                     {dt.toLocaleDateString("en-GB", { weekday: "short" })} {dt.getDate()}
                   </button>
                 );
@@ -1272,6 +1290,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
             onCardDelete={readOnly ? undefined : (cardId, takenOff) => { deselectPin(); handleCardDelete(cardId, takenOff); }}
             onCardCreated={readOnly ? undefined : (created) => { deselectPin(); registerNewCard(created); }}
             onPickMore={readOnly ? undefined : () => { const id = selectedCard!.id; deselectPin(); setSelectedCard(null); enterPick(id); }}
+            onPutOnDay={readOnly ? undefined : (day) => { const c = selectedCard!; deselectPin(); setSelectedCard(null); return putCardsOnDay(day, [c], { stay: true }); }}
             days={readOnly ? undefined : days}
             tripId={readOnly ? undefined : trip.id}
           />

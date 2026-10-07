@@ -182,3 +182,17 @@ describe("MapPinPopup — directions remember the app (6 Oct 2026, taps audit)",
     expect(container.innerHTML).not.toMatch(/maps\/search/);
   });
 });
+
+describe("MapPinPopup — Put on a day goes through the host (7 Oct 2026, taps audit)", () => {
+  const days = [{ id: "d1", day_number: 1, date: "2026-08-24" }, { id: "d2", day_number: 2, date: "2026-08-25" }] as never;
+
+  it("with onPutOnDay, a tap on a day hands that day to the host (which times it, with Undo) and closes", async () => {
+    const onPutOnDay = vi.fn(async () => {});
+    const onClose = vi.fn();
+    render(<MapPinPopup card={card} onClose={onClose} onCardUpdate={() => {}} days={days} tripId="t1" onPutOnDay={onPutOnDay} />);
+    fireEvent.click(screen.getByRole("button", { name: /Put on a day/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Day 2/ }));
+    await waitFor(() => expect(onPutOnDay).toHaveBeenCalledWith(expect.objectContaining({ id: "d2" })));
+    expect(onClose).toHaveBeenCalled();
+  });
+});

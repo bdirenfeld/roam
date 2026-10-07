@@ -336,6 +336,7 @@ function CardBody({
   onCardDelete,
   onCardCreated,
   onPickMore,
+  onPutOnDay,
   days,
   tripId,
 }: {
@@ -347,6 +348,8 @@ function CardBody({
   onCardCreated?: (created: Card) => void;
   /** The discoverable door into picking several pins (phone, 25 Sep 2026). */
   onPickMore?: () => void;
+  /** The host puts this pin on the day, timed, with Undo (7 Oct 2026). */
+  onPutOnDay?: (day: Day) => Promise<void> | void;
   days?: Day[];
   tripId?: string;
 }) {
@@ -449,6 +452,11 @@ function CardBody({
 
   const handleAddToDay = useCallback(async (chosen: Day) => {
     if (!tripId || !card.place_id || scheduling) return;
+    // The journey Map hands this to the lasso's own code (7 Oct 2026, taps
+    // audit): the pin is timed from the hotel around the day's busy hours, and
+    // the toast says "Put on Tue 25 Aug · 3:00 PM" with Undo. Without the
+    // prop it goes on untimed, as before.
+    if (onPutOnDay) { onClose(); await onPutOnDay(chosen); return; }
     // An event on set days goes to its own day (lib/plan/eventDays).
     const { day, moved, dates } = dayForCard(card, days ?? [], chosen);
     setScheduling(true);
@@ -467,7 +475,7 @@ function CardBody({
     } else {
       toast({ message: "Couldn't put it on that day. Try again." });
     }
-  }, [tripId, card, days, scheduling, supabase, onCardCreated, onClose, toast]);
+  }, [tripId, card, days, scheduling, supabase, onCardCreated, onClose, toast, onPutOnDay]);
 
   // A scheduled pin used to refuse ("remove it from your day plan first")
   // and offer nothing to do it with. It now offers the action itself.
@@ -922,13 +930,15 @@ interface Props {
   onCardCreated?: (created: Card) => void;
   /** The discoverable door into picking several pins (phone, 25 Sep 2026). */
   onPickMore?: () => void;
+  /** Put this pin on a day through the host's timed path (FullMapClient putCardsOnDay, 7 Oct 2026). */
+  onPutOnDay?: (day: Day) => Promise<void> | void;
   days?: Day[];
   tripId?: string;
   /** Anchored popups: the popup's height (px, arrow included) on first layout and on every resize, so the host can slide the map if it is cut off (lib/map/popupRoom). */
   onPlaced?: (popupHeight: number) => void;
 }
 
-export default function MapPinPopup({ card, anchorPos, onClose, onCardUpdate, onCardDelete, onCardCreated, onPickMore, days, tripId, onPlaced }: Props) {
+export default function MapPinPopup({ card, anchorPos, onClose, onCardUpdate, onCardDelete, onCardCreated, onPickMore, onPutOnDay, days, tripId, onPlaced }: Props) {
   useEscapeKey(onClose);
   const placedRef = useRef<HTMLDivElement>(null);
   const onPlacedRef = useRef(onPlaced); onPlacedRef.current = onPlaced;
@@ -968,7 +978,7 @@ export default function MapPinPopup({ card, anchorPos, onClose, onCardUpdate, on
           className="bg-white rounded-2xl overflow-hidden flex flex-col"
           style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.20)", maxHeight: "65vh" }}
         >
-          <CardBody card={card} onClose={onClose} onCardUpdate={onCardUpdate} onCardDelete={onCardDelete} onCardCreated={onCardCreated} onPickMore={onPickMore} days={days} tripId={tripId} />
+          <CardBody card={card} onClose={onClose} onCardUpdate={onCardUpdate} onCardDelete={onCardDelete} onCardCreated={onCardCreated} onPickMore={onPickMore} onPutOnDay={onPutOnDay} days={days} tripId={tripId} />
         </div>
 
         {/* Downward triangle */}
@@ -1000,7 +1010,7 @@ export default function MapPinPopup({ card, anchorPos, onClose, onCardUpdate, on
         className="relative bg-white rounded-2xl overflow-hidden w-full max-w-sm animate-in zoom-in-95 duration-200 max-h-[85dvh] flex flex-col"
         style={{ boxShadow: "0 20px 60px rgba(0,0,0,0.25)" }}
       >
-        <CardBody card={card} onClose={onClose} onCardUpdate={onCardUpdate} onCardDelete={onCardDelete} onCardCreated={onCardCreated} onPickMore={onPickMore} days={days} tripId={tripId} />
+        <CardBody card={card} onClose={onClose} onCardUpdate={onCardUpdate} onCardDelete={onCardDelete} onCardCreated={onCardCreated} onPickMore={onPickMore} onPutOnDay={onPutOnDay} days={days} tripId={tripId} />
       </div>
     </div>
   );

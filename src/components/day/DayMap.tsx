@@ -5,8 +5,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { mapGoNow } from "@/lib/map/mapGoNow";
 import type { ReactNode } from "react";
 import type { Card } from "@/types/database";
-import { makeMaterialPinElement, PIN_COLORS } from "@/lib/mapPins";
-import { legLines, LEG_MODE_GLYPH } from "@/lib/travel/leg";
+import { makeMaterialPinElement } from "@/lib/mapPins";
+import { legLines } from "@/lib/travel/leg";
+import { drawLegs, legStarts } from "@/lib/map/legLayer";
 import { stackGroups, STACK_FACTOR, pileZoom } from "@/lib/map/stackGroups";
 import Link from "next/link";
 import { MapTrifold } from "@phosphor-icons/react";
@@ -443,55 +444,15 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
 
         // ── Travel legs ──────────────────────────────────────────────
         // Thin, low-opacity, dashed, in the transit pins' own colour (his
-        // tweak 3: "soft and quiet"). Nothing on it is tappable: the end pin
-        // already opens the card.
-        if (legs.length) {
-          try {
-            map.addSource("travel-legs", {
-              type: "geojson",
-              data: {
-                type: "FeatureCollection",
-                features: legs.map((l) => ({ type: "Feature", properties: { cardId: l.cardId }, geometry: { type: "LineString", coordinates: [l.from, l.to] } })),
-              },
-            });
-            map.addLayer({
-              id: "travel-legs",
-              type: "line",
-              source: "travel-legs",
-              layout: { "line-cap": "round", "line-join": "round" },
-              paint: { "line-color": PIN_COLORS.logistics, "line-width": 1.5, "line-opacity": 0.4, "line-dasharray": [2, 2.5] },
-            });
-          } catch { /* a style without sources: the pins still stand */ }
-          legs.forEach((l) => {
-            const dot = document.createElement("div");
-            dot.setAttribute("data-leg-start", l.cardId);
-            dot.style.cssText =
-              "width:8px;height:8px;border-radius:50%;background:" + PIN_COLORS.logistics + ";" +
-              "border:1.5px solid white;box-shadow:0 1px 2px rgba(0,0,0,0.25);pointer-events:none;";
-            new mb.Marker({ element: dot, anchor: "center" }).setLngLat(l.from).addTo(map);
-
-            const mid = document.createElement("div");
-            mid.setAttribute("data-leg-mode", l.mode);
-            mid.style.cssText =
-              "width:20px;height:20px;border-radius:50%;background:white;" +
-              "box-shadow:0 0 0 1px rgba(26,26,46,0.18),0 1px 2px rgba(0,0,0,0.15);" +
-              "display:flex;align-items:center;justify-content:center;pointer-events:none;";
-            const glyph = document.createElement("span");
-            glyph.className = "material-symbols-outlined";
-            glyph.style.cssText =
-              "font-size:12px;line-height:1;color:rgba(26,26,46,0.7);user-select:none;" +
-              "font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20;";
-            glyph.textContent = LEG_MODE_GLYPH[l.mode];
-            mid.appendChild(glyph);
-            new mb.Marker({ element: mid, anchor: "center" }).setLngLat(l.mid).addTo(map);
-          });
-        }
+        // tweak 3: "soft and quiet"). Drawn by lib/map/legLayer, shared with
+        // the journey Map (7 Oct 2026).
+        drawLegs(map, mb, legs);
 
         const allCoords: [number, number][] = [
           ...mappable.map(({ lng, lat }) => [lng, lat] as [number, number]),
           ...(accomCoord ? [accomCoord] : []),
           // The leg's start is in the frame too, so the line is seen whole.
-          ...legs.map((l) => l.from),
+          ...legStarts(legs),
         ];
 
         if (allCoords.length > 1) {

@@ -49,6 +49,14 @@ vi.mock("mapbox-gl", () => {
   });
   return { default: inert };
 });
+// The writes onto a day: a stand-in that hands back the card it was asked for (7 Oct 2026).
+const schedule = vi.hoisted(() => vi.fn(async (_s: unknown, a: { dayId: string; placeId: string; place: unknown; startTime?: string | null; endTime?: string | null }) => ({
+  id: "new-" + a.dayId, trip_id: "t1", day_id: a.dayId, place_id: a.placeId, place: a.place, status: "in_itinerary",
+  start_time: a.startTime ?? null, end_time: a.endTime ?? null, details: {}, position: 0,
+})));
+vi.mock("@/lib/scheduleCard", async (orig) => ({ ...(await orig<object>()), scheduleCardOnDay: schedule }));
+const qdel = vi.hoisted(() => vi.fn(async () => ({ error: null })));
+vi.mock("@/lib/offline/queuedWrite", async (orig) => ({ ...(await orig<object>()), queuedDelete: qdel }));
 vi.mock("@/hooks/useWarmFind", () => ({ useWarmFind: () => undefined }));
 vi.mock("@/lib/supabase/client", () => ({ createClient: () => ({ from: () => ({}) }) }));
 vi.mock("./MapSidebar", () => ({ default: () => null, GROUPS: [], SIDEBAR_SUB_TYPES: [] }));
@@ -260,5 +268,80 @@ describe("the journey's first place (7 Oct 2026, delight audit)", () => {
     expect((sheets.find as unknown as { hadPlaces: boolean }).hadPlaces).toBe(true);
     r.unmount();
     vi.unstubAllEnvs();
+  });
+});
+
+describe("one pin put on a day gets a time, like the lasso (7 Oct 2026, taps audit)", () => {
+  const openPin = async (gid: string) => { await act(async () => { await (seen.search.onPlaceSelect as (id: string, t: string) => Promise<void>)(gid, "tok"); }); };
+  const putOn = async (day: Day) => { await act(async () => { await (seen.popup.onPutOnDay as (d: Day) => Promise<void>)(day); }); };
+  const lastToast = () => toast.mock.calls.at(-1)![0] as { message: string; undo?: () => Promise<void> };
+  const onDay = (c: Card, day: string, start: string | null, end: string | null) => ({ ...c, id: c.id + "-" + day, status: "in_itinerary", day_id: day, start_time: start, end_time: end }) as unknown as Card;
+  beforeEach(() => { toast.mockClear(); schedule.mockClear(); qdel.mockClear(); });
+
+  it("is timed from the hotel, says the day and the time, stays on the map, and Undo takes it off", async () => {
+    const hotel = { ...saved("h1", "Hotel Bella Muzica", 45.64, 25.59), status: "in_itinerary", day_id: "d1", place: { ...saved("h1", "Hotel Bella Muzica", 45.64, 25.59).place, type: "logistics", sub_type: "hotel" } } as unknown as Card;
+    await act(async () => { render(<FullMapClient trip={trip} days={days} cards={[hotel, ...cards]} />); });
+    await openPin("gc1");
+    await putOn(days[1]);
+    expect(schedule).toHaveBeenCalledTimes(1);
+    expect(schedule.mock.calls[0][1]).toMatchObject({ dayId: "d2", placeId: "pc1" });
+    expect(schedule.mock.calls[0][1].startTime).toMatch(/^\d\d:\d\d:00$/);
+    expect(lastToast().message).toMatch(/^Put on Tue 6 · \d{1,2}:\d\d (AM|PM)$/);
+    expect(router.push).not.toHaveBeenCalled();
+    expect(router.refresh).not.toHaveBeenCalled();
+    await act(async () => { await lastToast().undo!(); });
+    expect(qdel).toHaveBeenCalledWith("cards", { id: "new-d2" });
+  });
+
+  it("no free time: saved without a time, and says so, with Undo", async () => {
+    const full = [onDay(saved("b1", "Brasov tour", 45.64, 25.59), "d2", "00:00:00", "12:00:00"), onDay(saved("b2", "Train", 45.66, 25.6), "d2", "12:00:00", "23:59:00")];
+    await act(async () => { render(<FullMapClient trip={trip} days={days} cards={[...cards, ...full]} />); });
+    await openPin("gc1");
+    await putOn(days[1]);
+    expect(schedule.mock.calls[0][1]).toMatchObject({ dayId: "d2", startTime: null });
+    expect(lastToast().message).toBe("Put on Tue 6 · no free time");
+    expect(lastToast().undo).toBeTypeOf("function");
+  });
+
+  it("a hotel goes on at its 3:00 PM check-in", async () => {
+    const stay = { ...saved("h2", "Casa Wagner", 45.64, 25.59), place: { ...saved("h2", "Casa Wagner", 45.64, 25.59).place, type: "logistics", sub_type: "hotel" } } as unknown as Card;
+    await act(async () => { render(<FullMapClient trip={trip} days={days} cards={[...cards, stay]} />); });
+    await openPin("gh2");
+    await putOn(days[1]);
+    expect(lastToast().message).toBe("Put on Tue 6 · 3:00 PM");
+  });
+
+  it("already planned on another day: it still goes on this one (a second visit)", async () => {
+    await act(async () => { render(<FullMapClient trip={trip} days={days} cards={[...cards, onDay(cards[0], "d1", "10:00:00", "12:00:00")]} />); });
+    await openPin("gc1");
+    await putOn(days[1]);
+    expect(schedule.mock.calls[0][1]).toMatchObject({ dayId: "d2", placeId: "pc1" });
+    expect(lastToast().message).toMatch(/^Put on Tue 6 · /);
+  });
+
+  it("already on this day: says Already on Day N and writes nothing", async () => {
+    await act(async () => { render(<FullMapClient trip={trip} days={days} cards={[...cards, onDay(cards[0], "d2", "10:00:00", "12:00:00")]} />); });
+    await openPin("gc1");
+    await putOn(days[1]);
+    expect(schedule).not.toHaveBeenCalled();
+    expect(lastToast().message).toBe("Already on Day 2");
+  });
+
+  it("an event on set days goes to its own day, untimed, with the only-on line", async () => {
+    const fest = { ...saved("e1", "Harvest festival", 45.64, 25.59), details: { find: { why: "Wed 7 Oct: in the old town" } }, place: { ...saved("e1", "Harvest festival", 45.64, 25.59).place, sub_type: "event" } } as unknown as Card;
+    await act(async () => { render(<FullMapClient trip={trip} days={days} cards={[...cards, fest]} />); });
+    await openPin("ge1");
+    await putOn(days[0]);
+    expect(schedule).toHaveBeenCalledTimes(1);
+    expect(schedule.mock.calls[0][1]).toMatchObject({ dayId: "d3" });
+    expect(schedule.mock.calls[0][1].startTime ?? null).toBeNull();
+    expect(lastToast().message).toBe("Harvest festival only happens on Wed 7 Oct, so I moved it there");
+  });
+
+  it("a guest's map offers no door onto a day", async () => {
+    await act(async () => { render(<FullMapClient trip={trip} days={days} cards={cards} readOnly />); });
+    // readOnly has no search; the popup props are read from the source instead.
+    const src = readFileSync("src/components/map/FullMapClient.tsx", "utf8");
+    expect(src).toMatch(/onPutOnDay=\{readOnly \? undefined :/);
   });
 });
