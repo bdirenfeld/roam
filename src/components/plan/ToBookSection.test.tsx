@@ -410,3 +410,78 @@ describe("Not booked yet (6 Oct 2026: it didn't let me clear my stays)", () => {
     await waitFor(() => expect(screen.getByTestId("to-book-stays").dataset.state).toBe("open"));
   });
 });
+
+describe("Did you book it? (7 Oct 2026, delight audit, mock approved)", () => {
+  /** The person comes back to Roam's tab. */
+  const comeBack = async () => {
+    const { act } = await import("@testing-library/react");
+    await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
+  };
+  beforeEach(() => { window.sessionStorage.clear(); });
+
+  it("Book 2 on Kayak, then back on Roam's tab: the rows that opened Kayak ask, in place of their line", async () => {
+    journey = J_("Tuscany");
+    vi.stubGlobal("matchMedia", (q: string) => ({ matches: q === "(min-width: 768px)" }));
+    vi.stubGlobal("open", vi.fn(() => ({}) as Window));
+    render(<ToBookSection tripId="tuscany-ask" />);
+    await flightsReady();
+    await userEvent.click(screen.getByRole("button", { name: "Book 2 on Kayak" }));
+    // Not before they come back.
+    expect(screen.queryByText("Did you book it?")).toBeNull();
+    await comeBack();
+    const ask = screen.getByTestId("to-book-flights-ask");
+    expect(ask.textContent).toBe("FlightsDid you book it?BookedNot yet");
+    expect(screen.getByTestId("to-book-car-ask")).toBeTruthy();
+    // Stays is booked (the villa): it never asks.
+    expect(screen.queryByTestId("to-book-stays-ask")).toBeNull();
+    // Kept for a reload of the tab.
+    expect(JSON.parse(window.sessionStorage.getItem("roam:bookings-opened:tuscany-ask")!)).toEqual(["flights", "car"]);
+  });
+
+  it("a row tapped on its own (a real Kayak link) asks too; Booked writes what the menu's Booked writes and opens the cost", async () => {
+    journey = J_("Tuscany");
+    render(<ToBookSection tripId="tuscany-ask2" />);
+    await flightsReady();
+    await userEvent.click(rowOf("car"));
+    await comeBack();
+    const ask = screen.getByTestId("to-book-car-ask");
+    expect(screen.queryByTestId("to-book-flights-ask")).toBeNull();
+    await userEvent.click(within(ask).getByRole("button", { name: "Booked" }));
+    expect(queuedUpdate).toHaveBeenLastCalledWith("trips", { id: journey.id }, { booking_checklist: { car: "booked" } });
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({ message: "Car: booked", undo: expect.any(Function) }));
+    await waitFor(() => expect(screen.getByTestId("to-book-car").dataset.state).toBe("booked"));
+    const form = await screen.findByTestId("to-book-cost");
+    expect(within(form).getByRole("button", { name: "Not now" })).toBeTruthy();
+    expect(screen.queryByTestId("to-book-car-ask")).toBeNull();
+    expect(window.sessionStorage.getItem("roam:bookings-opened:tuscany-ask2")).toBeNull();
+    // Answered: coming back again does not ask again.
+    await comeBack();
+    expect(screen.queryByText("Did you book it?")).toBeNull();
+  });
+
+  it("Not yet clears the question and leaves ○, with no write", async () => {
+    journey = J_("Tuscany");
+    render(<ToBookSection tripId="tuscany-ask3" />);
+    await flightsReady();
+    await userEvent.click(rowOf("flights"));
+    await comeBack();
+    await userEvent.click(within(screen.getByTestId("to-book-flights-ask")).getByRole("button", { name: "Not yet" }));
+    expect(screen.queryByTestId("to-book-flights-ask")).toBeNull();
+    expect(screen.getByTestId("to-book-flights").dataset.state).toBe("open");
+    expect(rowOf("flights").textContent).toBe("FlightsToronto → Pisa · 7 people›");
+    expect(queuedUpdate).not.toHaveBeenCalled();
+    await comeBack();
+    expect(screen.queryByText("Did you book it?")).toBeNull();
+  });
+
+  it("a reload keeps it; a row booked meanwhile never asks", async () => {
+    const t = J_("Tuscany");
+    journey = { ...t, trip: { ...t.trip, booking_checklist: { car: "booked" } } };
+    window.sessionStorage.setItem("roam:bookings-opened:tuscany-ask4", JSON.stringify(["flights", "car"]));
+    render(<ToBookSection tripId="tuscany-ask4" />);
+    await screen.findByTestId("to-book-flights-ask");
+    expect(screen.getByTestId("to-book-car").dataset.state).toBe("booked");
+    expect(screen.queryByTestId("to-book-car-ask")).toBeNull();
+    expect(rowOf("car").textContent).toBe("CarMarked booked›");
+  });
+});

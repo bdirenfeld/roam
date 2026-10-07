@@ -13,13 +13,17 @@
 //   - One primary button, "Book N on Kayak": every row still to book, Kayak
 //     tabs first, then Where to stay (lib/booking/search). A tab the browser
 //     blocked (an iPhone may allow only the first) waits as "Next: Car ↗".
+//   - Back from Kayak: each row that opened a Kayak tab and is still ○ asks
+//     "Did you book it?" in place of its line — Booked (the menu's Booked,
+//     then "What did it cost?") or Not yet (7 Oct 2026, delight audit, mock
+//     approved; lib/booking/didYouBook). Where to stay is in-app: never asks.
 //   - "Upload a confirmation" is a quiet link under it; uploaded files sit in
 //     their row, and anything matching no row is "Other files (n)".
 // The owner's choices live in trips.booking_checklist.
 // Owner only: anyone else gets DocumentsSheet's plain file list (onOwner tells
 // it which), and the shared link never shows Bookings at all.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
@@ -31,6 +35,7 @@ import {
 } from "@/lib/booking/checklist";
 import { bookLabel, runSteps, searchSteps, whereToStayHref, type Step } from "@/lib/booking/search";
 import { filesFor, openable, otherFiles, rowLine, rowTap, type BookingFile } from "@/lib/booking/files";
+import { asking, readOpened, sessionStore, withOpened, withoutOpened, writeOpened } from "@/lib/booking/didYouBook";
 
 const INK = "#1A1A2E";
 const CAPTION = "rgba(26,26,46,0.62)";
@@ -109,6 +114,36 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
   const [costFor, setCostFor] = useState<RowKey | null>(null);
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState("");
+  // "Did you book it?" (7 Oct 2026, delight audit): rows that opened a Kayak
+  // tab (kept in sessionStorage, so a reload keeps them), and the ones asking
+  // now that the person is back on Roam's tab.
+  const opened = useRef<RowKey[]>([]);
+  const [asked, setAsked] = useState<RowKey[]>([]);
+
+  useEffect(() => {
+    // A reload of Roam's tab means they are back: the remembered rows ask.
+    opened.current = readOpened(sessionStore(), tripId);
+    setAsked(opened.current);
+    const back = () => { if (document.visibilityState !== "hidden") setAsked(opened.current); };
+    document.addEventListener("visibilitychange", back);
+    window.addEventListener("focus", back);
+    return () => { document.removeEventListener("visibilitychange", back); window.removeEventListener("focus", back); };
+  }, [tripId]);
+
+  /** Rows whose Kayak tab just opened: they ask once the person is back. */
+  const remember = useCallback((keys: RowKey[]) => {
+    if (!keys.length) return;
+    opened.current = withOpened(opened.current, keys);
+    writeOpened(sessionStore(), tripId, opened.current);
+    setAsked((a) => a.filter((k) => !keys.includes(k)));
+  }, [tripId]);
+
+  /** Answered (or chosen from the menu): the row stops asking. */
+  const forget = useCallback((key: RowKey) => {
+    opened.current = withoutOpened(opened.current, key);
+    writeOpened(sessionStore(), tripId, opened.current);
+    setAsked((a) => withoutOpened(a, key));
+  }, [tripId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -184,6 +219,7 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
 
   const choose = useCallback(async (key: RowKey, choice: Choice | null, title: string) => {
     setMenu(null);
+    forget(key);
     if (!data) return;
     const raw = data.trip.booking_checklist ?? {};
     const ok = await write(
@@ -193,7 +229,7 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
     // Booked by hand: what did it cost? Optional — the budget counts it if given.
     if (ok && choice === "booked") { setCostFor(key); setAmount(""); setCurrency(data.currency); }
     else setCostFor(null);
-  }, [data, write]);
+  }, [data, write, forget]);
 
   const saveCost = useCallback(async (key: RowKey, title: string) => {
     if (!data) return;
@@ -214,9 +250,10 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
   const run = useCallback((steps: Step[]) => {
     const phone = typeof window !== "undefined" && window.matchMedia?.("(min-width: 768px)").matches !== true;
     const r = runSteps(steps, openTab, phone);
+    remember(r.opened);
     setQueue(r.rest);
     if (r.stay) goStays();
-  }, [goStays]);
+  }, [goStays, remember]);
 
   if (!data) return null;
   const rows = checklistRows({ ...data, airports });
@@ -225,6 +262,7 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
   const label = bookLabel(steps);
   const others = otherFiles(files);
   const currencies = costCurrencies(data.currency, data.local).options;
+  const asks = asking(rows, asked);
 
   const tap = (r: CheckRow) => {
     const t = rowTap(r, files, stayInApp);
@@ -254,6 +292,18 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
             <span aria-hidden="true" className="text-[17px] flex-shrink-0" style={{ color: FAINT }}>›</span>
           </>
         );
+        // Back from Kayak and still ○: the question sits where the line was.
+        // Not a link any more, so its two buttons are not inside one.
+        const question = asks.has(r.key) ? (
+          <span className="flex-1 min-w-0 py-[13px] pl-1.5" data-testid={`to-book-${r.key}-ask`}>
+            <span className="block text-[15px] font-semibold" style={{ color: INK }}>{r.title}</span>
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-0.5 text-[12.5px] leading-snug" style={{ color: CAPTION }}>
+              <span>Did you book it?</span>
+              <button type="button" onClick={() => void choose(r.key, "booked", r.title)} className="px-2.5 py-[3px] rounded-full font-semibold" style={{ color: GREEN, boxShadow: `inset 0 0 0 1.5px ${GREEN}` }}>Booked</button>
+              <button type="button" onClick={() => forget(r.key)} className="px-1.5 py-[3px]" style={{ color: CAPTION }}>Not yet</button>
+            </span>
+          </span>
+        ) : null;
         const docs = mine.filter((f) => f.source === "document");
         return (
           <div key={r.key} style={{ borderTop: `1px solid ${RULE}` }}>
@@ -270,11 +320,11 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
               </button>
               {/* A Kayak search is a real link (an iPhone always lets a link
                   open a tab); everything else is a button. */}
-              {tapped.kind === "kayak" ? (
-                <a href={tapped.url} target="_blank" rel="noopener noreferrer" data-testid={`to-book-${r.key}-row`} className={rowClass}>{body}</a>
+              {question ?? (tapped.kind === "kayak" ? (
+                <a href={tapped.url} target="_blank" rel="noopener noreferrer" onClick={() => remember([r.key])} data-testid={`to-book-${r.key}-row`} className={rowClass}>{body}</a>
               ) : (
                 <button type="button" onClick={() => tap(r)} data-testid={`to-book-${r.key}-row`} className={rowClass}>{body}</button>
-              )}
+              ))}
               {menu === r.key && (
                 <div role="menu" className="absolute left-0 top-[46px] z-20 bg-white rounded-xl overflow-hidden grid text-[13px] min-w-[180px]"
                   style={{ border: `1px solid ${RULE}`, boxShadow: "0 8px 24px rgba(0,0,0,.18)" }}>
