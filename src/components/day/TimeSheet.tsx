@@ -189,8 +189,12 @@ export default function TimeSheet({
         </div>
 
         {/* Start · End · Length: three cells on one line, the way a calendar
-            shows them. Typed, with the reading underneath. */}
-        <div className="grid grid-cols-3 gap-2 px-5 pt-3">
+            shows them. Typed, with the reading underneath.
+            Length gets the wider column (7 Oct 2026, re-audit): at 375px three
+            equal cells left "2h 30m" 34px between − and +, so it touched them.
+            Now ~126px − two 32px buttons = ~61px for the label; Start and End
+            keep ~97px, room for "12:30pm". */}
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.3fr)] gap-2 px-5 pt-3">
           {[
             { label: "Start", value: startText, parsed: start, set: onStartChange, blur: () => tidy(startText, setStartText), disabled: false },
             { label: "End", value: endText, parsed: end, set: onEndChange, blur: () => tidy(endText, setEndText), disabled: !start },
@@ -220,12 +224,12 @@ export default function TimeSheet({
           <div className="flex flex-col gap-1">
             <span className="text-[10px] uppercase" style={{ letterSpacing: "0.12em", color: "rgba(26,26,46,0.45)" }}>Length</span>
             <div
-              className="h-11 rounded-xl bg-white flex items-center justify-between px-1"
+              className="h-11 rounded-xl bg-white flex items-center justify-between"
               style={{ boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.14)", opacity: start ? 1 : 0.4 }}
             >
-              <button type="button" aria-label="Shorter" disabled={!start || length <= STEP} onClick={() => setLength(length - STEP)} className="w-7 h-9 flex-shrink-0 rounded-full text-[18px] leading-none disabled:opacity-30" style={{ color: INK }}>−</button>
-              <span className="text-[14px] tabular-nums whitespace-nowrap" style={{ color: INK }}>{lengthLabel(length)}</span>
-              <button type="button" aria-label="Longer" disabled={!start} onClick={() => setLength(length + STEP)} className="w-7 h-9 flex-shrink-0 rounded-full text-[18px] leading-none disabled:opacity-30" style={{ color: INK }}>+</button>
+              <button type="button" aria-label="Shorter" disabled={!start || length <= STEP} onClick={() => setLength(length - STEP)} data-testid="length-shorter" className="w-8 h-11 flex-shrink-0 rounded-full text-[18px] leading-none disabled:opacity-30" style={{ color: INK }}>−</button>
+              <span className="min-w-0 text-[14px] tabular-nums whitespace-nowrap" style={{ color: INK }}>{lengthLabel(length)}</span>
+              <button type="button" aria-label="Longer" disabled={!start} onClick={() => setLength(length + STEP)} data-testid="length-longer" className="w-8 h-11 flex-shrink-0 rounded-full text-[18px] leading-none disabled:opacity-30" style={{ color: INK }}>+</button>
             </div>
             <span className="h-[14px]" />
           </div>
@@ -234,9 +238,10 @@ export default function TimeSheet({
         <div className="px-5 pt-5 flex items-center gap-5">
           {/* Taking the time off is rare: a quiet link, away from Done, only when
               the card has a time. It empties the boxes; Done saves. Once cleared
-              it offers the old time back. */}
+              it offers the old time back. py-3 makes it 44px tall to the finger
+              (7 Oct 2026, re-audit). */}
           {card.start_time && (
-            <button type="button" onClick={cleared ? restore : clear} className="text-[13px] underline underline-offset-[3px] whitespace-nowrap" style={{ color: "rgba(26,26,46,0.6)" }}>
+            <button type="button" onClick={cleared ? restore : clear} className="py-3 text-[13px] underline underline-offset-[3px] whitespace-nowrap" style={{ color: "rgba(26,26,46,0.6)" }}>
               {cleared ? "Undo · " + formatTimeValue(hhmm(card.start_time)) : "Clear time"}
             </button>
           )}

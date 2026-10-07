@@ -64,4 +64,20 @@ describe("one tap where one choice is enough (6 Oct 2026, taps audit)", () => {
     expect(screen.queryByRole("button", { name: "Clear time" })).toBeNull();
   });
 
+  // Finger-sized (7 Oct 2026, re-audit).
+  it("Clear time is 44px tall; − and + are 32×44; Length has the wider column so '2h 30m' clears them at 375px", () => {
+    render(<TimeSheet card={lunch} onClose={vi.fn()} onSave={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Clear time" }).className).toContain("py-3");
+    for (const id of ["length-shorter", "length-longer"]) {
+      const b = screen.getByTestId(id);
+      expect(b.className).toContain("w-8");
+      expect(b.className).toContain("h-11");
+    }
+    const grid = screen.getByLabelText("Start").closest(".grid") as HTMLElement;
+    expect(grid.className).toContain("grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.3fr)]");
+    // 375 − 40 (px-5) − 16 (two 8px gaps) = 319; Length gets 1.3/3.3 of it,
+    // less two 32px buttons: the room "2h 30m" (~46px at 14px) has.
+    const room = (319 * 1.3) / 3.3 - 2 * 32;
+    expect(room).toBeGreaterThan(46 + 8);
+  });
 });
