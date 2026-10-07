@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import { isTikTok, trimCaption, parseGuess } from "@/lib/share/caption";
 import { fullTikTokUrl, tiktokOembed, withTimeout } from "../_tiktok";
+import { isGoogleMapsUrl, readMapsShare, resolveMapsLink, placeFromMapsUrl, mapsQuery, findPlaceUrl } from "@/lib/share/maps";
 
 // ── The place a shared TikTok is probably about ──────────────────────────
 //
@@ -12,6 +13,10 @@ import { fullTikTokUrl, tiktokOembed, withTimeout } from "../_tiktok";
 // place name (Claude Haiku) → Google place. The answer is a suggestion row
 // on the share screen, never a save. Every step fails quietly to
 // `{ suggestion: null }`: the search box is the fallback and it always works.
+//
+// Google Maps too (7 Oct 2026): a place shared from Maps already carries its
+// name (in the share text, or in the link once followed), so it goes straight
+// to the same Find Place call — no Claude, same daily allowance.
 
 export const maxDuration = 20;
 
@@ -27,6 +32,7 @@ export async function GET(request: NextRequest) {
   if ("response" in gate) return gate.response;
 
   const link = request.nextUrl.searchParams.get("url");
+  if (isGoogleMapsUrl(link)) return mapsSuggestion(gate.supabase, link!, request.nextUrl.searchParams.get("text"));
   if (!isTikTok(link)) return none();
   if (!(await underQuota(gate.supabase, "shareSuggest", QUOTA.shareSuggest))) return quotaExceeded("place suggestions");
 
@@ -60,13 +66,35 @@ export async function GET(request: NextRequest) {
   }
   if (!guess) return none();
 
+  return findPlace(guess.query, googleKey);
+}
+
+/** A place shared from Google Maps (7 Oct 2026): name + address from the
+ *  share text when it has them; otherwise follow the link for the name and
+ *  pin, and bias Find Place to that pin. */
+async function mapsSuggestion(supabase: Parameters<typeof underQuota>[0], link: string, text: string | null) {
+  if (!(await underQuota(supabase, "shareSuggest", QUOTA.shareSuggest))) return quotaExceeded("place suggestions");
+  const googleKey = process.env.GOOGLE_PLACES_API_KEY;
+  if (!googleKey) return none();
+
+  const shared = readMapsShare(null, text, link);
+  let input = mapsQuery(shared?.name, shared?.address);
+  let bias: { lat: number; lng: number } | null = null;
+  // The link is followed only when the words alone are thin: no name at all,
+  // or a name with no address to tell one "Trattoria Mario" from another.
+  if (!input || !shared?.address) {
+    const full = await resolveMapsLink(link);
+    const p = full ? placeFromMapsUrl(full) : null;
+    if (p?.lat != null && p.lng != null) bias = { lat: p.lat, lng: p.lng };
+    if (!input) input = p?.name ?? null;
+  }
+  if (!input) return none();
+  return findPlace(input, googleKey, bias);
+}
+
+async function findPlace(input: string, googleKey: string, bias?: { lat: number; lng: number } | null) {
   try {
-    const u = new URL("https://maps.googleapis.com/maps/api/place/findplacefromtext/json");
-    u.searchParams.set("input", guess.query);
-    u.searchParams.set("inputtype", "textquery");
-    u.searchParams.set("fields", "place_id,name,formatted_address");
-    u.searchParams.set("key", googleKey);
-    const res = await withTimeout(fetch(u.toString()), 5000);
+    const res = await withTimeout(fetch(findPlaceUrl(input, googleKey, bias)), 5000);
     const data = (await res?.json()) as { candidates?: { place_id: string; name: string; formatted_address?: string }[] } | undefined;
     const c = data?.candidates?.[0];
     if (!c) return none();

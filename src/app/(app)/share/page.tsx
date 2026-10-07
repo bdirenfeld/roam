@@ -4,6 +4,7 @@ import ShareCatchClient from "@/components/trip/ShareCatchClient";
 import { isHouseholdOwner } from "@/lib/household";
 import type { ShareJourney } from "@/lib/share/journeys";
 import { getAuthUser } from "@/lib/supabase/authUser";
+import { shareLinkAndCaption } from "@/lib/share/maps";
 
 interface Props {
   searchParams: Promise<{ title?: string; text?: string; url?: string; choose?: string }>;
@@ -28,9 +29,10 @@ export default async function SharePage({ searchParams }: Props) {
   const user = await getAuthUser(supabase);
   if (!user) redirect("/login");
 
-  // Some apps put the link in `text` rather than `url`.
-  const link = url || text?.match(/https?:\/\/\S+/)?.[0] || null;
-  const caption = title || (text && text !== link ? text : null) || null;
+  // Some apps put the link in `text` rather than `url`. Google Maps sends
+  // "Name\nAddress\nhttps://maps.app.goo.gl/…" (7 Oct 2026): its link is the
+  // link, and the caption is the name and address without the raw URL.
+  const { link, caption } = shareLinkAndCaption(title, text, url);
 
   // Journeys still ahead — archived included, because Brennan archives the
   // ones he is holding (Santa Barbara, three weeks out). A finished journey is

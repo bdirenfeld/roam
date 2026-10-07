@@ -30,6 +30,7 @@ import { nearbyJourney, rankJourneys } from "@/lib/share/journeys";
 import type { ShareJourney } from "@/lib/share/journeys";
 import { isTikTok } from "@/lib/share/caption";
 import { providerOf } from "@/lib/share/embed";
+import { isGoogleMapsUrl } from "@/lib/share/maps";
 
 interface Preview {
   provider: "tiktok" | "instagram";
@@ -127,19 +128,23 @@ export default function ShareCatchClient({
     return () => { cancelled = true; };
   }, [link, source]);
 
-  // TikTok only: read the caption for the place it is about. A suggestion,
-  // shown as the first row; typing replaces it.
+  // TikTok: read the caption for the place it is about. Google Maps (7 Oct
+  // 2026): the place it shared, from its name and address (the caption) or
+  // its link. A suggestion, shown as the first row; typing replaces it.
   useEffect(() => {
-    if (choose || !isTikTok(link)) return;
+    const maps = isGoogleMapsUrl(link);
+    if (choose || !(isTikTok(link) || maps)) return;
     let cancelled = false;
-    fetch(`/api/share/suggest?url=${encodeURIComponent(link!)}`)
+    const q = new URLSearchParams({ url: link! });
+    if (maps && caption) q.set("text", caption);
+    fetch(`/api/share/suggest?${q}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d: { suggestion?: Suggestion | null } | null) => {
         if (!cancelled && d?.suggestion) setSuggestion(d.suggestion);
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [link, choose]);
+  }, [link, choose, caption]);
 
   useEffect(() => {
     const q = query.trim();

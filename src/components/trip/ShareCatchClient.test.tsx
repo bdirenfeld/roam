@@ -122,6 +122,33 @@ describe("ShareCatchClient", () => {
     expect(await screen.findByText("BABAE")).toBeTruthy();
   });
 
+  it("a place shared from Google Maps is the first row, and one tap saves it (7 Oct 2026)", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ suggestion: { placeId: "g-babae", name: "BABAE", address: "Via Santo Spirito, 21r, Firenze" } }),
+    })));
+    pin.mockResolvedValue({ ok: true, duplicate: false, placeName: "BABAE", cardId: "card-9" });
+    render(
+      <ShareCatchClient
+        link="https://maps.app.goo.gl/AbC123xyz"
+        caption={"BABAE\nVia Santo Spirito, 21r, Firenze"}
+        journeys={journeys}
+        wishlist
+        choose={null}
+      />,
+    );
+    fireEvent.click(await screen.findByText("BABAE"));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/trips/tus/map?pin=card-9"));
+    const urls = (fetch as unknown as { mock: { calls: [string][] } }).mock.calls.map((c) => c[0]);
+    const ask = urls.find((u) => u.startsWith("/api/share/suggest"))!;
+    const q = new URLSearchParams(ask.split("?")[1]);
+    expect(q.get("url")).toBe("https://maps.app.goo.gl/AbC123xyz");
+    expect(q.get("text")).toBe("BABAE\nVia Santo Spirito, 21r, Firenze");
+    // No video preview to fetch, and the raw link is nowhere on the screen.
+    expect(urls.some((u) => u.startsWith("/api/share/preview"))).toBe(false);
+    expect(screen.queryByText(/maps\.app\.goo\.gl/)).toBeNull();
+  });
+
   it("does not ask for a place guess on an Instagram link, only its preview", async () => {
     render(<ShareCatchClient link="https://www.instagram.com/reel/abc/" caption={null} journeys={journeys} wishlist choose={null} />);
     await new Promise((r) => setTimeout(r, 20));
