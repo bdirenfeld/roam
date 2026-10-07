@@ -11,6 +11,7 @@ import { useSheetDrag } from "@/hooks/useSheetDrag";
 import { queuedUpdate, queuedDelete } from "@/lib/offline/queuedWrite";
 import { applyOverlay } from "@/lib/offline/writeQueue";
 import { formatTimeValue } from "@/lib/formatTime";
+import { dayChip } from "@/lib/dayChip";
 import { scheduleCardOnDay, unscheduleCard } from "@/lib/scheduleCard";
 import LovedHeart from "@/components/ui/LovedHeart";
 import { readRecommendedBy } from "@/lib/recommendedBy";
@@ -761,6 +762,18 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         onCardUpdate?.(prev);
         return;
       }
+      // Say where it went, with Undo back to the original day, time and
+      // position — the move used to close the sheet in silence (7 Oct 2026, taps audit).
+      toast({
+        message: `Moved to ${dayChip(day.date, true)}`,
+        undo: async () => {
+          const { error: undoError } = await queuedUpdate("cards", { id: prev.id }, {
+            day_id: prev.day_id, start_time: prev.start_time, end_time: prev.end_time, position: prev.position,
+          });
+          if (undoError) { toast({ message: "Couldn't move it back. Try again." }); return; }
+          onCardUpdate?.(prev);
+        },
+      });
       // The card is now on another day; the sheet closes the way the map
       // popup's "Add to day" does, instead of staying open on a card that has
       // left the column you were looking at.
