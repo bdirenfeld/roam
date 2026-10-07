@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { claimInvites, landingAfterSignIn } from "@/lib/invites/claim";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -60,7 +62,13 @@ export async function GET(request: Request) {
     console.error("[auth/callback] users upsert failed:", upsertError.message);
   }
 
-  // Validate `next` to prevent open-redirect abuse — must be a relative path
-  const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/trips";
-  return NextResponse.redirect(`${origin}${safeNext}`);
+  // Any journey this address was invited to is joined now, however they signed
+  // in; with nowhere else to go they land on it (7 Oct 2026, Isha). Best-effort:
+  // a failure here never blocks the sign-in.
+  let invited: string | null = null;
+  try { invited = await claimInvites(createAdminClient(), data.user.id, data.user.email); }
+  catch (e) { console.error("[auth/callback] claiming invites failed:", e); }
+
+  // landingAfterSignIn also refuses anything but a relative path (no open redirect).
+  return NextResponse.redirect(`${origin}${landingAfterSignIn(next, invited)}`);
 }

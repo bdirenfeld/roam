@@ -47,8 +47,13 @@ export async function signInWithGoogle(next?: string) {
  * /auth/callback as Google. For anyone without a Google account (scale
  * audit, Sept 2026). Returns a message for the form, never throws.
  */
-export async function signInWithEmail(email: string): Promise<{ sent: boolean; message: string }> {
+export async function signInWithEmail(email: string, next?: string): Promise<{ sent: boolean; message: string }> {
   const clean = email.trim().toLowerCase();
+  // Like Google: the page they were on comes back after the link (7 Oct 2026).
+  // An hour, because people open the email later than an OAuth round-trip.
+  if (next && next.startsWith("/") && !next.startsWith("//")) {
+    (await cookies()).set("auth_redirect_next", next, { path: "/", maxAge: 60 * 60, httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production" });
+  }
   if (!/^\S+@\S+\.\S+$/.test(clean)) return { sent: false, message: "That doesn't look like an email address." };
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({
