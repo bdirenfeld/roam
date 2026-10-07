@@ -87,11 +87,15 @@ export default function DayStrip({ days, activeDayId, onDaySelect, onDayLongPres
                 onPointerUp={clearPress}
                 onPointerCancel={clearPress}
                 onContextMenu={(e) => e.preventDefault()}
-                className="flex-shrink-0 min-w-[40px] text-center pb-2"
+                className="relative flex-shrink-0 min-w-[40px] text-center pb-2"
                 style={{
                   boxShadow: isActive ? "inset 0 -1.5px 0 #1A1A2E" : undefined,
                 }}
               >
+                {/* 44×44 (7 Oct 2026, phone harness): 2px each way, inside the
+                    8px gap and the strip's 6px / 12px padding (the strip scrolls
+                    sideways, so it clips anything past its padding). */}
+                <span aria-hidden="true" data-testid="strip-day-target" className="absolute -inset-[2px]" />
                 <span
                   className="block font-display text-[16px] leading-none"
                   style={{ color: isActive ? "#1A1A2E" : "rgba(26,26,46,0.35)" }}

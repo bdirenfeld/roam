@@ -14,9 +14,10 @@ export default function JoinButton({ token, label = "Sign in to add to this jour
     <button
       onClick={() => startTransition(() => signInWithGoogle(`/journey/${token}`))}
       disabled={pending}
-      className="inline-flex items-center gap-2.5 rounded-full bg-white px-5 py-2.5 text-[13.5px] font-medium disabled:opacity-50 active:scale-[0.99] transition-all"
+      className="relative inline-flex items-center gap-2.5 rounded-full bg-white px-5 py-2.5 text-[13.5px] font-medium disabled:opacity-50 active:scale-[0.99] transition-all"
       style={{ color: "#1A1A2E", boxShadow: "0 1px 2px rgba(26,26,46,0.06), 0 0 0 1px rgba(26,26,46,0.12)" }}
     >
+      <span aria-hidden="true" data-testid="join-target" className="absolute inset-x-0 -inset-y-0.5" />
       {pending ? "Taking you to Google…" : label}
     </button>
   );

@@ -182,9 +182,12 @@ export default function DocumentsSheet({ tripId, onClose, onImport }: Props) {
           <h3 className="text-[17px] font-semibold" style={{ color: INK }}>Bookings</h3>
           <button
             onClick={onClose}
-            className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+            className="relative w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
             aria-label="Close"
           >
+            {/* 44px to the finger (7 Oct 2026, phone harness): 8px out, inside
+                the header's side padding and its 8px above the list. */}
+            <span aria-hidden="true" data-testid="bookings-close-target" className="absolute -inset-2" />
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
             </svg>
@@ -223,7 +226,8 @@ export default function DocumentsSheet({ tripId, onClose, onImport }: Props) {
               ))}
               {onImport && (
                 <div className="text-center pt-3">
-                  <button type="button" onClick={onImport} className="text-[13px] underline underline-offset-[3px] py-1.5" style={{ color: CAPTION }}>
+                  <button type="button" onClick={onImport} className="relative text-[13px] underline underline-offset-[3px] py-1.5" style={{ color: CAPTION }}>
+                    <span aria-hidden="true" className="absolute -inset-y-1.5 inset-x-0" />
                     Upload a confirmation
                   </button>
                 </div>

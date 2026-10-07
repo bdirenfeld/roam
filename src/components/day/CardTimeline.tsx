@@ -205,9 +205,11 @@ export default function CardTimeline({
             <button
               type="button"
               onClick={onGiveTimes}
-              className="md:hidden mt-1 mb-1 ml-[33px] py-2 text-[13px] underline underline-offset-4 active:opacity-70"
+              className="relative md:hidden mt-1 mb-1 ml-[33px] py-2 text-[13px] underline underline-offset-4 active:opacity-70"
               style={{ color: "rgba(26,26,46,0.55)", textDecorationColor: "rgba(26,26,46,0.25)" }}
             >
+              {/* 44px tall (7 Oct 2026, phone harness): out to its own 4px margins only. */}
+              <span aria-hidden="true" data-testid="give-times-target" className="absolute -inset-y-1 -inset-x-2" />
               Give these times
             </button>
           )}

@@ -405,8 +405,10 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
                   >
                     {currencies.map((c) => <option key={c} value={c}>{c}</option>)}
                   </select>
-                  <button type="submit" className="px-3 py-1.5 rounded-full text-[13px] font-semibold" style={{ background: INK, color: "#F5F4F1" }}>Save</button>
-                  <button type="button" onClick={() => setCostFor(null)} className="px-2 py-1.5 text-[13px]" style={{ color: CAPTION }}>Not now</button>
+                  {/* 44px tall to the finger (7 Oct 2026, phone harness); sideways only half
+                      the row's 8px gap, so Save never takes the currency's tap or Not now's. */}
+                  <button type="submit" className="relative px-3 py-1.5 rounded-full text-[13px] font-semibold" style={{ background: INK, color: "#F5F4F1" }}><span aria-hidden="true" data-testid="cost-save-target" className="absolute -inset-y-1.5 -inset-x-1" />Save</button>
+                  <button type="button" onClick={() => setCostFor(null)} className="relative px-2 py-1.5 text-[13px]" style={{ color: CAPTION }}><span aria-hidden="true" data-testid="cost-later-target" className="absolute -inset-y-1.5 -inset-x-1" />Not now</button>
                 </div>
               </form>
             )}
@@ -441,7 +443,9 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
       ) : null}
       {onImport && (
         <div className="text-center pt-3">
-          <button type="button" onClick={onImport} className="text-[13px] underline underline-offset-[3px] py-1.5" style={{ color: CAPTION }}>
+          <button type="button" onClick={onImport} className="relative text-[13px] underline underline-offset-[3px] py-1.5" style={{ color: CAPTION }}>
+            {/* 6px up into the 12px under Book on Kayak (half of it), 6px down. */}
+            <span aria-hidden="true" data-testid="upload-target" className="absolute -inset-y-1.5 inset-x-0" />
             Upload a confirmation
           </button>
         </div>

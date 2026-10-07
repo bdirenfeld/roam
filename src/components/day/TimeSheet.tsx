@@ -179,9 +179,10 @@ export default function TimeSheet({
           <button
             type="button"
             onClick={onClose}
-            className="w-9 h-9 -mr-2 rounded-full flex items-center justify-center flex-shrink-0 hover:bg-[rgba(26,26,46,0.06)]"
+            className="relative w-9 h-9 -mr-2 rounded-full flex items-center justify-center flex-shrink-0 hover:bg-[rgba(26,26,46,0.06)]"
             aria-label="Close"
           >
+            <span aria-hidden="true" data-testid="time-close-target" className="absolute -inset-1" />
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
             </svg>
@@ -227,9 +228,11 @@ export default function TimeSheet({
               className="h-11 rounded-xl bg-white flex items-center justify-between"
               style={{ boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.14)", opacity: start ? 1 : 0.4 }}
             >
-              <button type="button" aria-label="Shorter" disabled={!start || length <= STEP} onClick={() => setLength(length - STEP)} data-testid="length-shorter" className="w-8 h-11 flex-shrink-0 rounded-full text-[18px] leading-none disabled:opacity-30" style={{ color: INK }}>−</button>
+              <button type="button" aria-label="Shorter" disabled={!start || length <= STEP} onClick={() => setLength(length - STEP)} data-testid="length-shorter" className="relative w-8 h-11 flex-shrink-0 rounded-full text-[18px] leading-none disabled:opacity-30" style={{ color: INK }}><span aria-hidden="true" data-testid="shorter-target" className="absolute inset-y-0 left-0 -right-3" />−</button>
+              {/* − and + reach 12px in over the label (text, not a control) to 44px wide;
+                  never out past the cell (7 Oct 2026, phone harness). */}
               <span className="min-w-0 text-[14px] tabular-nums whitespace-nowrap" style={{ color: INK }}>{lengthLabel(length)}</span>
-              <button type="button" aria-label="Longer" disabled={!start} onClick={() => setLength(length + STEP)} data-testid="length-longer" className="w-8 h-11 flex-shrink-0 rounded-full text-[18px] leading-none disabled:opacity-30" style={{ color: INK }}>+</button>
+              <button type="button" aria-label="Longer" disabled={!start} onClick={() => setLength(length + STEP)} data-testid="length-longer" className="relative w-8 h-11 flex-shrink-0 rounded-full text-[18px] leading-none disabled:opacity-30" style={{ color: INK }}><span aria-hidden="true" data-testid="longer-target" className="absolute inset-y-0 -left-3 right-0" />+</button>
             </div>
             <span className="h-[14px]" />
           </div>

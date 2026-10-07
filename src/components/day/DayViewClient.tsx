@@ -839,7 +839,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
                 2026, taps audit): each reaches the header's edge on its own
                 side, and they split the 2px between them, so neither takes
                 the other's tap. With no weather line the date grows both ways. */}
-            <span aria-hidden="true" data-testid="date-target" className={`absolute -inset-x-2 -top-2 ${weatherReachable ? "-bottom-px" : "-bottom-2"}`} />
+            <span aria-hidden="true" data-testid="date-target" className={`absolute -left-2 right-0 -top-2 ${weatherReachable && dayWeather ? "-bottom-px" : weatherReachable ? "-bottom-[22px]" : "-bottom-2"}`} />
             {formatDayTitle(dayWithCards.date)}
             <span
               aria-hidden

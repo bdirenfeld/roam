@@ -166,9 +166,10 @@ export default function SharedItinerary({
           Planned in{" "}
           <a
             href="/"
-            className="underline underline-offset-2"
+            className="relative underline underline-offset-2"
             style={{ color: INK, textDecorationColor: "rgba(26,26,46,0.3)" }}
           >
+            <span aria-hidden="true" data-testid="credit-target" className="absolute -inset-x-2 -inset-y-3.5" />
             Roam
           </a>
         </p>
@@ -330,9 +331,12 @@ export default function SharedItinerary({
                                   href={mapsHref(c.place.title, c.place.address)}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="block text-[12.5px] mt-[3px] leading-[1.45] underline underline-offset-2"
+                                  className="relative block text-[12.5px] mt-[3px] leading-[1.45] underline underline-offset-2"
                                   style={{ color: CAPTION, textDecorationColor: "rgba(26,26,46,0.25)" }}
                                 >
+                                  {/* 44px+ (7 Oct 2026, phone harness): up over the stop's
+                                      name (not a control), 4px down — half the 8px to the note. */}
+                                  <span aria-hidden="true" data-testid="stop-address-target" className="absolute inset-x-0 -top-6 -bottom-1" />
                                   {detail}
                                 </a>
                               ) : (

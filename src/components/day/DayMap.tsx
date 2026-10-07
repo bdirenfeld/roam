@@ -541,6 +541,8 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
           className="md:hidden absolute right-3 z-10 w-9 h-9 rounded-full bg-white flex items-center justify-center active:opacity-70"
           style={{ top: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.2)", color: "#1A1A2E" }}
         >
+          {/* 44px (7 Oct 2026, phone harness): 4px out, inside the 12px to the map's edges. */}
+          <span aria-hidden="true" data-testid="map-disc-target" className="absolute -inset-1" />
           <MapTrifold size={17} weight="light" color="#1A1A2E" />
         </Link>
       )}

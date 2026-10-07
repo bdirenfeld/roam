@@ -1106,8 +1106,11 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               <div className="relative">
                 <button
                   onClick={readOnly ? undefined : () => place && setShowSubTypePicker((v) => !v)}
-                  className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${accent.bg} ${place && !readOnly ? "hover:opacity-80 active:opacity-70 transition-opacity cursor-pointer" : "cursor-default"}`}
+                  className={`relative flex items-center gap-1.5 px-2 py-1 rounded-lg ${accent.bg} ${place && !readOnly ? "hover:opacity-80 active:opacity-70 transition-opacity cursor-pointer" : "cursor-default"}`}
                 >
+                  {/* 44px tall (7 Oct 2026, phone harness): the discs' reach (8px
+                      above, to 8px under the row), half the 8px gap sideways. */}
+                  {place && !readOnly && <span aria-hidden="true" data-testid="type-pill-target" className="absolute -inset-x-1 -top-2 -bottom-3" />}
                   <span className={`w-2 h-2 rounded-full ${accent.dot}`} />
                   <span className={`text-[11px] font-semibold ${accent.text}`}>{typeLabel}</span>
                   {place && !readOnly && (
@@ -1397,10 +1400,13 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               <button
                 type="button"
                 onClick={() => setTimeOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 cursor-pointer transition-colors hover:bg-black/[0.02]"
+                className="relative inline-flex items-center gap-1.5 rounded-md px-2 py-1 cursor-pointer transition-colors hover:bg-black/[0.02]"
                 style={{ background: "#F7F7F9", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)" }}
                 aria-label={localCard.start_time ? "Change the time" : "Set a time"}
               >
+                {/* 44px tall (7 Oct 2026, phone harness): 2px up (half the 4px to
+                    the address), 14px down over the hours line, which is not a control. */}
+                <span aria-hidden="true" data-testid="sheet-time-target" className="absolute inset-x-0 -top-0.5 -bottom-3.5" />
                 <Clock size={13} weight="light" color="#1A1A2E" />
                 {localCard.start_time ? (
                   <span className="text-[13px] font-medium text-[#1A1A2E]" style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}>
@@ -1570,8 +1576,11 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   onClick={() => setHoursOpen((v) => !v)}
                   aria-expanded={hoursOpen}
                   aria-label="Opening hours"
-                  className="w-full flex items-center gap-1.5 mb-2 text-left"
+                  className="relative w-full flex items-center gap-1.5 mb-2 text-left"
                 >
+                  {/* 44px tall (7 Oct 2026, phone harness): up over the rule into
+                      empty space, 4px down; Add details takes 12 of the 16px between. */}
+                  <span aria-hidden="true" data-testid="hours-target" className="absolute inset-x-0 -top-[21px] -bottom-1" />
                   <Clock size={14} weight="light" className="text-activity/50" />
                   <span className="text-[12px] font-medium text-activity">Hours</span>
                   {!hoursOpen && cardDayLine && (
@@ -1608,8 +1617,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             {!readOnly && place && place.sub_type !== "note" && (
               <button
                 onClick={() => setShowEmptyFields((v) => !v)}
-                className="mt-4 flex items-center gap-1.5 text-[12px] text-gray-400 hover:text-gray-600 transition-colors"
+                className="relative mt-4 flex items-center gap-1.5 text-[12px] text-gray-400 hover:text-gray-600 transition-colors"
               >
+                <span aria-hidden="true" data-testid="add-details-target" className="absolute -inset-x-1 -top-3 -bottom-[14px]" />
                 <span className="w-4 h-4 rounded-full border border-gray-300 flex items-center justify-center flex-shrink-0 text-[10px] font-bold leading-none">
                   {showEmptyFields ? "−" : "+"}
                 </span>

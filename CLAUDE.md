@@ -2387,3 +2387,17 @@ Approved scope only. Find KEEPS its two-level filters (Activity / Food, then kin
 - The G Adventures test journey's 63 "<Mode>: A → B" transit cards were converted 7 Oct 2026 (from = the
   previous card's place when it names A, else last night's hotel when it names A, else the previous leg's end).
   The four "around …" loops and "Tour ends in Nairobi" were left as stops.
+
+## Toast placement and the phone-harness tap batch (7 Oct 2026)
+- **The toast is a lane + pill:** `fixed inset-x-4` (full width minus 16px gutters, `pointer-events-none`) holding a
+  centred `max-w-[420px]` pill. Never `left-1/2 -translate-x-1/2` on a fixed box: it only gets the right half of the
+  screen to grow into ("Lisbon tomorrow · 2 still to book" wrapped to four lines).
+- **Toasts stand off an open sheet** (phone only): `openSheetTop` (Toast.tsx) asks `elementsFromPoint` at the screen's
+  bottom-centre for a `position: fixed` layer at z-60+ and takes the tallest non-full-screen box under it as the panel
+  (`offsetHeight`, so slide-in/drag transforms don't matter); `lib/ui/toastPlacement` puts the toast 8px above it, or at
+  `top: 8px` when the sheet leaves no room (card sheet 95dvh). Re-measured on a MutationObserver while a toast is up.
+  No sheet needs a marker; a new sheet only has to stay at z-60+ and bottom-pinned.
+- **Tap targets left under 44px on purpose:** card-sheet header discs 34×44 (28px discs 6px apart); the card sheet's
+  address 17px (4px between the editable title and the time chip); the day header's date 35px when the weather line
+  is there (two stacked controls in a 58px header); the shared page's "Tonight: <hotel>" inline link (inside the
+  row's own summary, which takes the tap); Mapbox's logo (theirs). `scripts/phone-check.mjs` still lists these.
