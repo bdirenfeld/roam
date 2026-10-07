@@ -318,6 +318,8 @@ describe("Book N on Kayak, and Stays opening Where to stay", () => {
     expect(screen.queryByRole("button", { name: /on Kayak/ })).toBeNull();
     expect(screen.getByRole("button", { name: "Upload a confirmation" })).toBeTruthy();
     expect(rowOf("flights").textContent).toBe("FlightsMarked booked›");
+    // 7 Oct 2026, delight audit: the button's spot says the job is done.
+    expect(screen.getByTestId("all-booked").textContent).toBe("✓ Everything’s booked.");
   });
 
   it("a computer that blocks the second tab: the rest wait as a Next button, one tap each", async () => {

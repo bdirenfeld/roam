@@ -360,7 +360,7 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
         >
           {queue[0].url ? `Next: book ${queue[0].title.toLowerCase()} on Kayak` : "Next: Where to stay"}
         </button>
-      ) : label && (
+      ) : label ? (
         <button
           type="button"
           onClick={() => run(steps)}
@@ -369,7 +369,13 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
         >
           {label}
         </button>
-      )}
+      ) : rows.length > 0 && rows.every((r) => r.state !== "open") ? (
+        // Nothing left to book: the button's spot says the job is done, in the
+        // done green, and nothing else (7 Oct 2026, delight audit, mock approved).
+        <p data-testid="all-booked" className="mt-3 py-3 text-center text-[14px] font-semibold" style={{ color: GREEN }}>
+          ✓ Everything’s booked.
+        </p>
+      ) : null}
       {onImport && (
         <div className="text-center pt-3">
           <button type="button" onClick={onImport} className="text-[13px] underline underline-offset-[3px] py-1.5" style={{ color: CAPTION }}>
