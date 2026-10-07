@@ -122,9 +122,12 @@ export function LegFromField({
             type="button"
             onClick={() => setEditing((v) => !v)}
             aria-label={value ? `Change where this starts, now ${value.title}` : "Set where this starts"}
-            className="text-left text-[14px] min-h-[28px] hover:underline"
+            className="relative text-left text-[14px] min-h-[28px] hover:underline"
             style={{ color: value ? INK : CAP }}
           >
+            {/* 44px to the finger, same look (7 Oct 2026, re-audit): 8px up and
+                down, inside the row's own padding. */}
+            <span aria-hidden="true" data-testid="leg-from-target" className="absolute -inset-y-2 inset-x-0" />
             {value?.title ?? "Where you leave from"}
           </button>
         )}
@@ -135,7 +138,8 @@ export function LegFromField({
             <button
               type="button"
               onClick={() => done(offer)}
-              className="w-full text-left py-2 text-[13px]"
+              // 44px tall (7 Oct 2026, re-audit).
+              className="w-full text-left py-2 min-h-[44px] text-[13px]"
               style={{ color: INK }}
             >
               Last night&rsquo;s stay · {offer.title}
@@ -184,9 +188,12 @@ export function LegModePicker({ value, onChange, readOnly = false }: { value: Le
             aria-checked={on}
             disabled={readOnly}
             onClick={() => onChange(m.value)}
-            className="rounded-full px-3 py-1.5 text-[12.5px] transition-colors disabled:cursor-default"
+            className="relative rounded-full px-3 py-1.5 text-[12.5px] transition-colors disabled:cursor-default"
             style={on ? { background: INK, color: "#fff" } : { color: INK, boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.14)" }}
           >
+            {/* 44px tall to the finger, same pill (7 Oct 2026, re-audit): 7px up
+                and down inside the row's 8px padding, half the 8px gap sideways. */}
+            <span aria-hidden="true" className="absolute -inset-y-[7px] -inset-x-1" />
             {m.label}
           </button>
         );
