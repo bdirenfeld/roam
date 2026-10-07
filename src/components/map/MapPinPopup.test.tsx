@@ -148,3 +148,37 @@ describe("MapPinPopup — a pin on a day says which (6 Oct 2026, taps audit)", (
     expect(screen.queryByRole("link", { name: /Day 3/ })).toBeNull();
   });
 });
+
+describe("MapPinPopup — directions remember the app (6 Oct 2026, taps audit)", () => {
+  // The disc was a Google place SEARCH (/maps/search/), two more taps to a
+  // route. Now it is the card sheet's directions (lib/directions).
+  afterEach(() => { window.localStorage.clear(); vi.unstubAllGlobals(); });
+
+  it("nothing remembered: the chooser opens with Remember my choice, and Google goes straight to the route", () => {
+    const open = vi.fn(() => null);
+    vi.stubGlobal("open", open);
+    render(<MapPinPopup card={card} onClose={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Directions" }));
+    expect(open).not.toHaveBeenCalled();
+    expect(screen.getByRole("switch", { name: /Remember my choice/ }).getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: /Google Maps/ }));
+    expect(open).toHaveBeenCalledWith("https://www.google.com/maps/dir/?api=1&destination=43.84,10.5&destination_place_id=g1", "_blank");
+    expect(window.localStorage.getItem("roam:directions-app")).toBe("google");
+    expect(screen.queryByRole("switch", { name: /Remember my choice/ })).toBeNull();
+  });
+
+  it("an app remembered: one tap opens it on the route, no chooser", () => {
+    window.localStorage.setItem("roam:directions-app", "waze");
+    const open = vi.fn(() => null);
+    vi.stubGlobal("open", open);
+    render(<MapPinPopup card={card} onClose={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Directions" }));
+    expect(open).toHaveBeenCalledWith("https://waze.com/ul?ll=43.84,10.5&navigate=yes", "_blank");
+    expect(screen.queryByRole("switch", { name: /Remember my choice/ })).toBeNull();
+  });
+
+  it("never a Google place search", () => {
+    const { container } = render(<MapPinPopup card={card} onClose={() => {}} />);
+    expect(container.innerHTML).not.toMatch(/maps\/search/);
+  });
+});

@@ -2318,7 +2318,14 @@ Approved scope only. Find KEEPS its two-level filters (Activity / Food, then kin
   under QUOTA.parseBooking), and opens ONE ConfirmationPreviewSheet. More than one booking = compact rows
   (eyebrow, title, `whenLine`, Edit); one booking = the full form as before. One `documents` row per file;
   `onCardsCreated` passes `docIds` third so Undo removes cards and records. Toast: `addedMessage`.
-  Still single-file: DayViewClient's, FullMapClient's and PlanBoard's own upload paths (not on the hook).
+  **Every upload door is the hook (6 Oct 2026, later):** the phone's day (Start here "Upload bookings" + ⋯ →
+  Bookings), the Map tab and the Plan board moved onto it; their own parse/input/sheet code is gone, and
+  `trip/uploadDoors.test.ts` fails if a host reads /api/confirmations/parse, renders `type="file"` or
+  `<ConfirmationPreviewSheet` itself. The hook loads the sheet with `dynamic(reloadOnStale(…))` so the day
+  page keeps it out of its bundle (lazySheets.test). Hosts render `upload.element` and their own
+  "Reading…" pill from `upload.readingLabel`; a read failure is the hook's toast (the old 4 s pill is gone).
+  The Map tab's `onAdded` also takes pins off for deleted ids, so Undo clears them. The picker accepts PDF +
+  images only — the old `.eml,.txt` accept was wrong (the parse route rejects them with a 400).
 - **The week's empty hour suggests places** (`plan/HourSuggest`): saved first (`lib/plan/hourSuggest`),
   then Google via /api/places/autocomplete with the trip's bias; a Google pick goes through bulk-import.
   Enter with nothing highlighted is still a plain note.
@@ -2329,7 +2336,9 @@ Approved scope only. Find KEEPS its two-level filters (Activity / Food, then kin
   `destination` (lat,lng or address) + `destination_place_id`, no forced travelmode. "Remember my choice" is ON
   by default; the app lives in localStorage `roam:directions-app`, read in an effect. Remembered: the card
   sheet's address opens the app directly, with a quiet "Use Waze instead" / "Use Google Maps instead" under it
-  that opens the other once and switches. The map popup's directions disc is NOT on this yet.
+  that opens the other once and switches. **The map pin card's directions disc uses it too** (MapPinPopup,
+  6 Oct 2026, later): remembered app → straight to the route; none → NavigationSheet, portalled to
+  `document.body` because the desktop popup's `transform` would otherwise pin the fixed sheet to the popup.
 - **Map search knows what is pinned** (`lib/map/savedPlace`): a result whose Google id is a pin on this journey
   shows a teal filled pin + "On your map"; tapping it goes through `handleSidebarCardSelect`, not the add sheet.
 - **A pin on a day says which** (MapPinPopup): "Day N · Tue 25 Aug ›" links to `/trips/<id>/days/<dayId>`

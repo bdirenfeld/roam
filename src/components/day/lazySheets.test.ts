@@ -9,7 +9,8 @@ const read = (p: string) => readFileSync(join(__dirname, "..", p), "utf8");
 
 describe("booking sheets load on demand", () => {
   it.each([
-    ["day/DayViewClient.tsx", "ConfirmationPreviewSheet"],
+    // The day view uploads through the shared hook (6 Oct 2026); the hook keeps the sheet lazy.
+    ["trip/useBookingUpload.tsx", "ConfirmationPreviewSheet"],
     ["day/DayViewClient.tsx", "DocumentsSheet"],
     ["cards/CardBottomSheet.tsx", "AttachmentsPanel"],
   ])("%s imports %s dynamically", (file, name) => {
@@ -22,6 +23,12 @@ describe("booking sheets load on demand", () => {
 // 5 Oct 2026: the photo gallery's arrows sit at z 22 (above the sheet's
 // gradient 20 and handle 21); a full-sheet panel at z 10 showed "Next photo"
 // through the Attachments panel. Full-sheet panels must sit above the arrows.
+it("day/DayViewClient.tsx never imports ConfirmationPreviewSheet statically (it goes through useBookingUpload)", () => {
+  const src = read("day/DayViewClient.tsx");
+  expect(src).not.toMatch(/^import ConfirmationPreviewSheet/m);
+  expect(src).toContain("useBookingUpload(");
+});
+
 describe("full-sheet panels cover the photo arrows", () => {
   const galleryZ = Number(/const controlZ = \{ zIndex: (\d+) \}/.exec(read("cards/PlacePhotoGallery.tsx"))![1]);
   it.each([

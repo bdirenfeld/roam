@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 import type { Day } from "@/types/database";
 
@@ -65,6 +65,8 @@ async function pick(names: string[]) {
   await act(async () => { fireEvent.change(input, { target: { files: names.map(file) } }); });
 }
 
+// The hook loads the sheet lazily (next/dynamic); warm the module so the first test is not timing a cold import.
+beforeAll(async () => { await import("@/components/plan/ConfirmationPreviewSheet"); });
 beforeEach(() => { inserted.length = 0; deleted.length = 0; toast.mockReset(); onAdded.mockReset(); peak = 0; vi.stubGlobal("fetch", fetchMock); });
 afterEach(() => vi.unstubAllGlobals());
 

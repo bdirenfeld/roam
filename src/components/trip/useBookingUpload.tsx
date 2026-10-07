@@ -1,7 +1,8 @@
 "use client";
 
 // ── Upload a booking, from anywhere (1 Oct 2026) ──────────────────────────
-// Settings' Bookings row and a new journey's "Upload a booking" do the same
+// Settings' Bookings row, a new journey's "Upload a booking", and since 6 Oct
+// 2026 the phone's day, the Map tab and the Plan board's Bookings door do the same
 // thing: pick a confirmation, read it (/api/confirmations/parse), and show
 // Bookings' own check-and-add sheet. One copy, so the two never drift.
 // `element` holds the hidden file input and the sheet; render it once.
@@ -17,7 +18,13 @@ import { useToast } from "@/components/ui/Toast";
 import { queuedDelete } from "@/lib/offline/queuedWrite";
 import type { ParsedConfirmation } from "@/lib/confirmations/toCards";
 import { inBatches, combineReads, addedMessage, PARSE_AT_ONCE, MAX_FILES, type Combined, type FileRead } from "@/lib/confirmations/batch";
-import ConfirmationPreviewSheet from "@/components/plan/ConfirmationPreviewSheet";
+import dynamic from "next/dynamic";
+import { reloadOnStale } from "@/lib/chunkReload";
+
+// Every upload door uses this hook now (6 Oct 2026), the phone's day among
+// them, so the sheet loads when a file has been read, not with the page
+// (lazySheets.test: the day page keeps its booking sheets out of its bundle).
+const ConfirmationPreviewSheet = dynamic(reloadOnStale(() => import("@/components/plan/ConfirmationPreviewSheet")), { ssr: false });
 
 async function readOne(file: File): Promise<FileRead> {
   const ref = { name: file.name, type: file.type };

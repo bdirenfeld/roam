@@ -30,9 +30,8 @@ import { formatTimeRange } from "@/lib/formatTime";
 import { agendaOrder } from "@/lib/agendaOrder";
 import dynamic from "next/dynamic";
 import { reloadOnStale } from "@/lib/chunkReload";
-import type { ParsedConfirmation } from "@/components/plan/ConfirmationPreviewSheet";
+import { useBookingUpload } from "@/components/trip/useBookingUpload";
 // Phone speed (5 Oct 2026): booking sheets load when opened, not with the day.
-const ConfirmationPreviewSheet = dynamic(reloadOnStale(() => import("@/components/plan/ConfirmationPreviewSheet")), { ssr: false });
 const DocumentsSheet = dynamic(reloadOnStale(() => import("@/components/plan/DocumentsSheet")), { ssr: false });
 import { Files, MagnifyingGlass } from "@phosphor-icons/react";
 import { useGlobalSearch } from "@/components/search/GlobalSearch";
@@ -341,14 +340,22 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
     router.refresh();
   }, [dayTitle, supabase, dayWithCards.id, toast, router]);
 
-  // ── Import a booking / Documents — the same flow the Plan board has, here
-  // because the Agenda is the tab you're on when a confirmation arrives
-  // (Brennan, Sep 2026). Parse → preview sheet → cards land on their days;
-  // only the ones for THIS day are spliced into the timeline.
-  const importInputRef = useRef<HTMLInputElement>(null);
-  const [pendingConf, setPendingConf] = useState<{ items: ParsedConfirmation[]; fileName: string; fileType: string } | null>(null);
-  const [importingConf, setImportingConf] = useState(false);
-  const [importError, setImportError] = useState<string | null>(null);
+  // ── Import a booking / Documents — here because the Agenda is the tab
+  // you're on when a confirmation arrives (Brennan, Sep 2026). The shared
+  // upload (useBookingUpload, 6 Oct 2026 taps audit): several files in one
+  // pick, one check-and-add sheet, the toast with Undo. Cards land on their
+  // days; only the ones for THIS day are spliced into the timeline.
+  const upload = useBookingUpload({
+    tripId: trip.id,
+    days: days.map((d) => (d.id === dayWithCards.id ? { ...d, cards: localCards } : d)),
+    onAdded: (cards, deletedIds) => {
+      setLocalCards((prev) => {
+        const kept = deletedIds.length ? prev.filter((c) => !deletedIds.includes(c.id)) : prev;
+        const mine = cards.filter((c) => c.day_id === dayWithCards.id && !kept.some((k) => k.id === c.id));
+        return [...kept, ...mine].sort(agendaOrder);
+      });
+    },
+  });
   const [showDocs, setShowDocs] = useState(false);
 
   // Start here (1 Oct 2026): a new journey's two ways to start sit above the
@@ -387,22 +394,6 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
     const onOpen = () => setShowDocs(true);
     window.addEventListener("roam:open-bookings", onOpen);
     return () => window.removeEventListener("roam:open-bookings", onOpen);
-  }, []);
-  const handleImportFile = useCallback(async (file: File) => {
-    setImportingConf(true);
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/confirmations/parse", { method: "POST", body: fd });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Couldn't read that file.");
-      setPendingConf({ items: json.parsed, fileName: file.name, fileType: file.type });
-    } catch (e) {
-      setImportError(e instanceof Error ? e.message : "Couldn't read that file.");
-      setTimeout(() => setImportError(null), 4000);
-    } finally {
-      setImportingConf(false);
-    }
   }, []);
   // Guests get Bookings too — the villa confirmation and the flight are
   // theirs to read; only the upload is the owner's.
@@ -1109,8 +1100,8 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
             {underwayShown && <TripUnderwayVideo />}
             {startShown && (
               <div className="mb-4 flex justify-center">
-                <StartHere cards={startCards!} firstDay={firstDay} place={trip.destination ?? ""} reading={importingConf}
-                  onUpload={() => importInputRef.current?.click()}
+                <StartHere cards={startCards!} firstDay={firstDay} place={trip.destination ?? ""} reading={upload.reading} readingLabel={upload.readingLabel} several
+                  onUpload={upload.pick}
                   onFind={() => router.push(`/trips/${trip.id}/map?find=1`)} />
               </div>
             )}
@@ -1189,39 +1180,8 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
       )}
 
       {/* Undo toast after a delete — matches the Plan board's */}
-      {/* Import a booking / Documents — hidden file input, parse preview and
-          the documents sheet, mirroring the Plan board. */}
-      {!readOnly && (
-        <input
-          ref={importInputRef}
-          type="file"
-          accept="application/pdf,image/*,.eml,.txt"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) void handleImportFile(f);
-            e.currentTarget.value = "";
-          }}
-        />
-      )}
-      {pendingConf && (
-        <ConfirmationPreviewSheet
-          items={pendingConf.items}
-          fileName={pendingConf.fileName}
-          fileType={pendingConf.fileType}
-          days={days.map((d) => (d.id === dayWithCards.id ? { ...d, cards: localCards } : { ...d, cards: [] }))}
-          tripId={trip.id}
-          onClose={() => setPendingConf(null)}
-          onCardsCreated={(cards, deletedIds) => {
-            setLocalCards((prev) => {
-              const kept = deletedIds.length ? prev.filter((c) => !deletedIds.includes(c.id)) : prev;
-              const mine = cards.filter((c) => c.day_id === dayWithCards.id);
-              return [...kept, ...mine].sort(agendaOrder);
-            });
-            setPendingConf(null);
-          }}
-        />
-      )}
+      {/* Import bookings: the shared hidden picker and check-and-add sheet. */}
+      {!readOnly && upload.element}
       {timeCard && (
         <TimeSheet
           card={timeCard}
@@ -1230,10 +1190,10 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           onSave={(start, end) => handleTimeSave(timeCard, start, end)}
         />
       )}
-      {showDocs && <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} onImport={readOnly ? undefined : () => { setShowDocs(false); importInputRef.current?.click(); }} />}
-      {(importingConf || importError) && (
+      {showDocs && <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} onImport={readOnly ? undefined : () => { setShowDocs(false); upload.pick(); }} />}
+      {upload.reading && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[70] px-4 py-2 rounded-full bg-[#1A1A2E] text-white text-[12.5px] shadow-lg">
-          {importError ?? "Reading your booking…"}
+          {upload.readingLabel}
         </div>
       )}
 

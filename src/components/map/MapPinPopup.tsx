@@ -18,6 +18,9 @@ import { readRecommendedBy, recommendedByLine } from "@/lib/recommendedBy";
 import PlacePhotoGallery from "@/components/cards/PlacePhotoGallery";
 import { renderEmphasis } from "@/components/cards/detail/FieldRow";
 import { noteLead } from "@/lib/noteLead";
+import { createPortal } from "react-dom";
+import { NavigationSheet } from "@/components/ui/NavigationSheet";
+import { directionsUrl, googleDirectionsUrl, readDirectionsApp } from "@/lib/directions";
 
 /**
  * "https://vt.tiktok.com/ZSVWDnuF8/" → "TikTok".
@@ -416,6 +419,24 @@ function CardBody({
   const [noteAuto, setNoteAuto]                   = useState(false);
   const source = card.source_url && card.source_url !== website ? card.source_url : null;
   const [scheduling, setScheduling]               = useState(false);
+  // Directions (6 Oct 2026, taps audit): the same as the card sheet's address
+  // (lib/directions). A remembered app opens straight on the route; none
+  // remembered opens the chooser with "Remember my choice". It was a Google
+  // place search, two more taps to a route.
+  const [navOpen, setNavOpen]                     = useState(false);
+  const navTarget = {
+    placeName: place.title,
+    placeId: place.google_place_id ?? (details?.place_id as string | undefined) ?? null,
+    lat: place.lat ?? null,
+    lng: place.lng ?? null,
+    address: place.address ?? null,
+  };
+  const openDirections = () => {
+    const app = readDirectionsApp();
+    const url = app ? directionsUrl(app, navTarget) : null;
+    if (url) window.open(url, "_blank");
+    else setNavOpen(true);
+  };
 
   // Door 2: place this pin onto a day as a new in_itinerary card via the shared
   // helper. The interested card behind the pin is untouched.
@@ -770,17 +791,16 @@ function CardBody({
                   <PencilSimple size={15} weight="light" color="#1A1A2E" />
                 </button>
               )}
-              {place.lat != null && place.lng != null && (
-                <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+              {googleDirectionsUrl(navTarget) && (
+                <button
+                  type="button"
+                  onClick={openDirections}
                   aria-label="Directions"
                   title="Directions"
                   className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
                 >
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11" /></svg>
-                </a>
+                </button>
               )}
               {website && (
                 <a
@@ -874,6 +894,18 @@ function CardBody({
           </div>
         )}
       </div>
+      {navOpen && typeof document !== "undefined" && createPortal(
+        <NavigationSheet
+          isOpen
+          onClose={() => setNavOpen(false)}
+          placeName={navTarget.placeName}
+          placeId={navTarget.placeId}
+          lat={navTarget.lat}
+          lng={navTarget.lng}
+          address={navTarget.address}
+        />,
+        document.body,
+      )}
     </>
   );
 }

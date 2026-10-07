@@ -18,7 +18,7 @@ import type { PlaceResult } from "./AddToTripSheet";
 import type { Trip, Day, Card, CardType, StayCandidate } from "@/types/database";
 import { makeMaterialPinElement, makePinElement } from "@/lib/mapPins";
 import { Funnel, Heart, Files } from "@phosphor-icons/react";
-import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/plan/ConfirmationPreviewSheet";
+import { useBookingUpload } from "@/components/trip/useBookingUpload";
 import DocumentsSheet from "@/components/plan/DocumentsSheet";
 import AppMenu from "@/components/ui/AppMenu";
 import JourneyHeader, { HEADER_GLYPH } from "@/components/ui/JourneyHeader";
@@ -143,11 +143,22 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
 
   // ── Bookings — the same row and flow the Agenda and the Plan have, so the
   // three menus match (Brennan, Sep 2026). Parse → preview → cards; a card
-  // that lands with a real place becomes a pin here at once.
-  const importInputRef = useRef<HTMLInputElement>(null);
-  const [pendingConf, setPendingConf] = useState<{ items: ParsedConfirmation[]; fileName: string; fileType: string } | null>(null);
-  const [importingConf, setImportingConf] = useState(false);
-  const [importError, setImportError] = useState<string | null>(null);
+  // that lands with a real place becomes a pin here at once. The shared
+  // upload (useBookingUpload, 6 Oct 2026 taps audit): several files in one
+  // pick, one check-and-add sheet, the toast with Undo — and Undo takes the
+  // pins off again.
+  const upload = useBookingUpload({
+    tripId: trip.id,
+    days,
+    onAdded: (created, deletedIds) => {
+      if (deletedIds.length) {
+        const gone = new Set(deletedIds);
+        for (const id of deletedIds) { const m = MARKERS.get(id); if (m) { m.marker.remove(); MARKERS.delete(id); } }
+        setLocalCards((prev) => prev.filter((c) => !gone.has(c.id)));
+      }
+      for (const c of created) registerNewCardRef.current(c);
+    },
+  });
   const [showDocs, setShowDocs] = useState(false);
 
   // ── Where to stay ──────────────────────────────────────────────────
@@ -261,22 +272,6 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
     const onOpen = () => setShowDocs(true);
     window.addEventListener("roam:open-bookings", onOpen);
     return () => window.removeEventListener("roam:open-bookings", onOpen);
-  }, []);
-  const handleImportFile = useCallback(async (file: File) => {
-    setImportingConf(true);
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/confirmations/parse", { method: "POST", body: fd });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Couldn't read that file.");
-      setPendingConf({ items: json.parsed, fileName: file.name, fileType: file.type });
-    } catch (e) {
-      setImportError(e instanceof Error ? e.message : "Couldn't read that file.");
-      setTimeout(() => setImportError(null), 4000);
-    } finally {
-      setImportingConf(false);
-    }
   }, []);
   const mapMenuExtra = [
     { key: "bookings", title: "Bookings", sub: "", icon: <Files size={15} weight="light" />, onClick: () => setShowDocs(true) },
@@ -1335,40 +1330,14 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
           />
         )}
 
-        {/* Bookings — hidden file input, parse preview, the documents sheet. */}
-        {!readOnly && (
-          <input
-            ref={importInputRef}
-            type="file"
-            accept="application/pdf,image/*,.eml,.txt"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void handleImportFile(f);
-              e.currentTarget.value = "";
-            }}
-          />
-        )}
-        {pendingConf && (
-          <ConfirmationPreviewSheet
-            items={pendingConf.items}
-            fileName={pendingConf.fileName}
-            fileType={pendingConf.fileType}
-            days={days.map((d) => ({ ...d, cards: [] }))}
-            tripId={trip.id}
-            onClose={() => setPendingConf(null)}
-            onCardsCreated={(created) => {
-              for (const c of created) registerNewCard(c);
-              setPendingConf(null);
-            }}
-          />
-        )}
+        {/* Bookings — the shared hidden picker and check-and-add sheet, the documents sheet. */}
+        {!readOnly && upload.element}
         {showDocs && (
-          <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} onImport={readOnly ? undefined : () => { setShowDocs(false); importInputRef.current?.click(); }} />
+          <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} onImport={readOnly ? undefined : () => { setShowDocs(false); upload.pick(); }} />
         )}
-        {(importingConf || importError) && (
+        {upload.reading && (
           <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[70] px-4 py-2 rounded-full bg-[#1A1A2E] text-white text-[12.5px] shadow-lg">
-            {importError ?? "Reading your booking…"}
+            {upload.readingLabel}
           </div>
         )}
 

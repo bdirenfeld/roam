@@ -37,7 +37,7 @@ import CardBadges from "@/components/cards/CardBadges";
 import LovedHeart from "@/components/ui/LovedHeart";
 import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
 import CreateCardSheet from "@/components/plan/CreateCardSheet";
-import ConfirmationPreviewSheet, { type ParsedConfirmation } from "@/components/plan/ConfirmationPreviewSheet";
+import { useBookingUpload } from "@/components/trip/useBookingUpload";
 import DocumentsSheet from "@/components/plan/DocumentsSheet";
 import { JourneyNotesSheet } from "@/components/trip/JourneyNotes";
 import DayPicker from "@/components/day/DayPicker";
@@ -162,8 +162,6 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   const supabase = createClient();
   const search = useGlobalSearch();
   const { toast } = useToast();
-  // Hidden file input behind the Bookings sheet's Upload button.
-  const importInputRef = useRef<HTMLInputElement>(null);
   // Every day kept in clock order (lib/agendaOrder timeFirst, 27 Sep 2026):
   // whatever writes the days — a load, an add, a drag — lands timed cards by
   // the clock, untimed after them in the order they were dragged to.
@@ -203,7 +201,6 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   const [composerDay, setComposerDay] = useState<DayWithCards | null>(null);
   // Same composer, aimed at one of the lists instead of a day.
   const [composerList, setComposerList] = useState<ListWithCards | null>(null);
-  const [pendingConf,  setPendingConf]  = useState<{ items: ParsedConfirmation[]; fileName: string; fileType: string } | null>(null);
   const [showDocs,     setShowDocs]     = useState(false);
 
   // The desktop masthead's menu lives in the layout, so its Bookings row asks
@@ -241,23 +238,29 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
       undo: () => handleUndoRef.current(),
     });
   }, [toast]);
-  // Booking import — file → /api/confirmations/parse → ConfirmationPreviewSheet
-  const [importingConf, setImportingConf] = useState(false);
-  const handleImportFile = useCallback(async (file: File) => {
-    setImportingConf(true);
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/confirmations/parse", { method: "POST", body: fd });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Couldn't read that file.");
-      setPendingConf({ items: json.parsed, fileName: file.name, fileType: file.type });
-    } catch (e) {
-      toast({ message: e instanceof Error ? e.message : "Couldn't read that file.", duration: 4000 });
-    } finally {
-      setImportingConf(false);
-    }
-  }, []);
+  // Booking import, behind the Bookings sheet's upload link — the shared
+  // upload (useBookingUpload, 6 Oct 2026 taps audit): several files in one
+  // pick, one check-and-add sheet, the toast with Undo.
+  const upload = useBookingUpload({
+    tripId: trip.id,
+    days,
+    onAdded: (cards, deletedIds) => {
+      setDays((prev) => {
+        // Remove deleted skeleton cards (and, on Undo, the added ones)
+        let next = prev.map((d) => ({
+          ...d,
+          cards: deletedIds.length ? d.cards.filter((c) => !deletedIds.includes(c.id)) : d.cards,
+        }));
+        // Add newly created cards
+        for (const card of cards) {
+          next = next.map((d) =>
+            d.id === card.day_id && !d.cards.some((c) => c.id === card.id) ? { ...d, cards: [...d.cards, card] } : d
+          );
+        }
+        return next;
+      });
+    },
+  });
   const [showBgPicker, setShowBgPicker] = useState(false);
   const [bgUrlInput, setBgUrlInput] = useState("");
 
@@ -1352,7 +1355,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
       {/* z-30: the ⋯ menu drops out of this bar and must paint over the sticky
           day picker below it (z-20). Without it the menu's first rows hid
           behind "Day 1 of 12" (Brennan, from his phone, Sep 2026). */}
-      <input ref={importInputRef} type="file" accept="application/pdf,image/*,.eml,.txt" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImportFile(f); e.currentTarget.value = ""; }} />
+      {upload.element}
       <JourneyHeader
         backHref="/"
         title={trip.title}
@@ -1656,38 +1659,8 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
         />
       )}
 
-      {pendingConf && (
-        <ConfirmationPreviewSheet
-          items={pendingConf.items}
-          fileName={pendingConf.fileName}
-          fileType={pendingConf.fileType}
-          days={days}
-          tripId={trip.id}
-          onClose={() => setPendingConf(null)}
-          onCardsCreated={(cards, deletedIds) => {
-            setDays((prev) => {
-              // Remove deleted skeleton cards
-              let next = prev.map((d) => ({
-                ...d,
-                cards: deletedIds.length
-                  ? d.cards.filter((c) => !deletedIds.includes(c.id))
-                  : d.cards,
-              }));
-              // Add newly created cards
-              for (const card of cards) {
-                next = next.map((d) =>
-                  d.id === card.day_id ? { ...d, cards: [...d.cards, card] } : d
-                );
-              }
-              return next;
-            });
-            setPendingConf(null);
-          }}
-        />
-      )}
-
       {showDocs && (
-        <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} onImport={() => { setShowDocs(false); importInputRef.current?.click(); }} />
+        <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} onImport={() => { setShowDocs(false); upload.pick(); }} />
       )}
 
       {/* Journey notes — bottom sheet on mobile, modal at md+ */}
@@ -1701,9 +1674,9 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
       )}
 
 
-      {importingConf && (
+      {upload.reading && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white text-[13px] font-medium px-4 py-2.5 rounded-full shadow-lg pointer-events-none animate-in fade-in">
-          Reading your booking…
+          {upload.readingLabel}
         </div>
       )}
 

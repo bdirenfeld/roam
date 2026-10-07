@@ -77,13 +77,13 @@ async function open(dayId: string) {
 describe("Start here on the phone's day", { timeout: 30000 }, () => {
   it("the journey's first day, nothing uploaded: Upload a booking and Find places", async () => {
     await open("d1");
-    expect(screen.getByRole("button", { name: /Upload a booking/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Upload (a )?bookings?/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /Find places/ })).toBeTruthy();
   });
 
   it("any other day: Find places only, no Upload a booking", async () => {
     await open("d2");
-    expect(screen.queryByRole("button", { name: /Upload a booking/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Upload (a )?bookings?/ })).toBeNull();
     expect(screen.getByRole("button", { name: /Find places/ })).toBeTruthy();
   });
 
@@ -95,12 +95,12 @@ describe("Start here on the phone's day", { timeout: 30000 }, () => {
     // The journey's cards are read after mount; give the read its turn, then look.
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
     expect(screen.queryByTestId("start-here")).toBeNull();
-    expect(screen.queryByRole("button", { name: /Upload a booking/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Upload (a )?bookings?/ })).toBeNull();
   });
 
   it("the first day once a booking is on the journey: no Upload a booking there either", async () => {
     journeyCards = [{ day_id: "d1", status: "in_itinerary", details: null, place: { type: "logistics", sub_type: "hotel" } }];
     await open("d1");
-    expect(screen.queryByRole("button", { name: /Upload a booking/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Upload (a )?bookings?/ })).toBeNull();
   });
 });
