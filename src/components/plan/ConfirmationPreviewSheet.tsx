@@ -208,7 +208,15 @@ export default function ConfirmationPreviewSheet({
     if (!user) { setSaving(false); setSaveError("You're signed out. Sign in and try again."); return; }
 
     // Each booking's real place, looked up together; a miss stays a note.
-    const places = await Promise.all(items.map((p) => resolvePlace(p)));
+    // Looked up once per distinct place: a conference split into days asked
+    // twice at once and the second came back empty, so Day 2 landed as a note
+    // with no place (7 Oct 2026, his Irving summit).
+    const lookups = new Map<string, Promise<Place | null>>();
+    const places = await Promise.all(items.map((p) => {
+      const key = `${(p.title ?? "").trim().toLowerCase()}|${(p.address ?? "").trim().toLowerCase()}`;
+      if (!lookups.has(key)) lookups.set(key, resolvePlace(p));
+      return lookups.get(key)!;
+    }));
 
     const nextPos = new Map<string, number>();
     const posOn = (dayId: string) => {

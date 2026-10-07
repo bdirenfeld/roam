@@ -237,3 +237,28 @@ describe("read from a confirmation = booked, and agendas (6 Oct 2026)", () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe("an agenda's days share one place (7 Oct 2026)", () => {
+  it("looks the place up once, so Day 2 isn't left as a note", async () => {
+    queued.mockResolvedValue({ queued: false, error: null });
+    let lookups = 0;
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url.startsWith("/api/places/autocomplete")) { lookups++; return { json: async () => ({ predictions: lookups === 1 ? [{ place_id: "gV" }] : [] }) }; }
+      return { json: async () => ({ imported: [{ place_id: "pv" }] }) };
+    }));
+    const summit = {
+      type: "activity", title: "Negotiation Mastery Summit 2027", date: "2027-08-24", time: "07:30", end_time: null,
+      confirmation_number: null, address: "500 W Las Colinas Blvd", phone: null, website: null, notes: null,
+      agenda: [
+        { date: "2027-08-24", start: "07:30", end: "17:00", items: [{ time: "07:30", title: "Breakfast" }] },
+        { date: "2027-09-04", start: "07:30", end: "16:00", items: [{ time: "08:30", title: "Review" }] },
+      ],
+    } as unknown as ParsedConfirmation;
+    render(<ConfirmationPreviewSheet items={[summit]} fileName="summit.pdf" fileType="application/pdf" days={days} tripId="t1" onClose={vi.fn()} onCardsCreated={vi.fn()} />);
+    fireEvent.click(screen.getByText("Add 2 to my days"));
+    await waitFor(() => expect(queued).toHaveBeenCalled());
+    expect(lookups).toBe(1);
+    expect((queued.mock.calls[0][1] as { place_id: string | null }[]).map((r) => r.place_id)).toEqual(["pv", "pv"]);
+    vi.unstubAllGlobals();
+  });
+});
