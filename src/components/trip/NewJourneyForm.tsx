@@ -34,6 +34,7 @@ import { isHouseholdOwner } from "@/lib/household";
 import PartyPicker from "@/components/trip/PartyPicker";
 import { partyFrom, agesFrom, ageForward, partySize as sizeOf, type Party } from "@/lib/party";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
+import { tripDates } from "@/lib/tripDates";
 
 const UNSPLASH_KEY = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY;
 
@@ -623,18 +624,14 @@ export default function NewJourneyForm({
       return;
     }
 
-    const days: { id: string; trip_id: string; date: string; day_number: number }[] = [];
-    const startMs = new Date(startDate + "T00:00:00").getTime();
-    const endMs   = new Date(endDate   + "T00:00:00").getTime();
-    const dayMs   = 86400000;
-    for (let ms = startMs, n = 1; ms <= endMs; ms += dayMs, n++) {
-      days.push({
-        id:         crypto.randomUUID(),
-        trip_id:    tripId,
-        date:       new Date(ms).toISOString().slice(0, 10),
-        day_number: n,
-      });
-    }
+    // tripDates counts in UTC: local midnights lost the last day across the
+    // spring clock change (6 Oct 2026).
+    const days = tripDates(startDate, endDate).map((date, i) => ({
+      id:         crypto.randomUUID(),
+      trip_id:    tripId,
+      date,
+      day_number: i + 1,
+    }));
     if (days.length > 0) {
       // Unchecked, this left a journey with no days and a screen that said
       // "No days in this trip yet." with nothing to do (UX audit, Sep 2026).
