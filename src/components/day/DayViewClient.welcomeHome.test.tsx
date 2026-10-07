@@ -99,6 +99,26 @@ describe("Welcome home, after the journey (7 Oct 2026, delight audit)", { timeou
     expect(screen.queryByTestId("welcome-home")).toBeNull();
   });
 
+  it("shows once: seen on its first show, gone next visit even with no ✕ (7 Oct 2026, re-audit)", async () => {
+    await openOn(new Date(2027, 4, 14, 19, 0));
+    expect(screen.getByTestId("welcome-home")).toBeTruthy();
+    cleanup();
+    await openOn(new Date(2027, 4, 15, 9, 0));
+    expect(screen.queryByTestId("welcome-home")).toBeNull();
+  });
+
+  it("the ✕ is 44px to the finger: a tap on its area closes", async () => {
+    await openOn(new Date(2027, 4, 14, 19, 0));
+    const x = screen.getByRole("button", { name: "Close welcome home" });
+    const target = screen.getByTestId("welcome-home-close-target");
+    expect(target.parentElement).toBe(x);
+    expect(target.getAttribute("aria-hidden")).toBe("true");
+    expect(target.className).toContain("-inset-1");
+    expect(x.className).toContain("relative");
+    await act(async () => { fireEvent.click(target); });
+    expect(screen.queryByTestId("welcome-home")).toBeNull();
+  });
+
   it("the 14th day after: still shown; the 15th: not", async () => {
     await openOn(new Date(2027, 4, 26, 9, 0));
     expect(screen.getByTestId("welcome-home")).toBeTruthy();
