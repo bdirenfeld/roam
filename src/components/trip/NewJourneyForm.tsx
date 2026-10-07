@@ -849,10 +849,10 @@ export default function NewJourneyForm({
             type="button"
             onClick={() => setCruiseTap(!cruise)}
             aria-pressed={cruise}
+            aria-label="Cruise"
             className="w-full flex items-center px-5 py-[14px] border-b border-black/5 text-left"
           >
             <span className="text-[10px] uppercase tracking-widest text-[#1A1A2E] w-20 flex-shrink-0">Cruise</span>
-            <span className="flex-1 text-[14px] text-[#1A1A2E]">{cruise ? "Yes, on a ship" : "No"}</span>
             <span className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 ${cruise ? "bg-activity" : "bg-gray-200"}`}>
               <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${cruise ? "left-[18px]" : "left-0.5"}`} />
             </span>

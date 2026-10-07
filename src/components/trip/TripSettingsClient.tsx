@@ -710,15 +710,17 @@ export default function TripSettingsClient({
           <PartyPicker party={party} onChange={setParty} labelClass="text-gray-400" />
 
           {/* Cruise (27 Sep 2026): the ship is the hotel and most meals, so the
-              Budget prices a fare instead, and Where to stay goes away. */}
+              Budget prices a fare instead, and Where to stay goes away.
+              The switch sits right after the word and says yes or no on its own
+              (6 Oct 2026, Brennan). */}
           <button
             type="button"
             onClick={() => setCruise((v) => !v)}
             aria-pressed={cruise}
+            aria-label="Cruise"
             className="w-full flex items-center px-5 py-[14px] text-left"
           >
             <span className="text-[10px] uppercase tracking-widest text-gray-400 w-20 flex-shrink-0">Cruise</span>
-            <span className="flex-1 text-[14px] text-[#1A1A2E]">{cruise ? "Yes, on a ship" : "No"}</span>
             <span className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 ${cruise ? "bg-activity" : "bg-gray-200"}`}>
               <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${cruise ? "left-[18px]" : "left-0.5"}`} />
             </span>
