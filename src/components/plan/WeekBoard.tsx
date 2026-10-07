@@ -563,7 +563,8 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     setSelectedCard((prev) => (prev?.id === cardId ? null : prev));
     if (!gone) return;
     toast({
-      message: "Card deleted",
+      // Names what went, so Undo feels safe (6 Oct 2026, delight audit).
+      message: `Deleted ${gone.place?.title ?? (gone.details as { title?: string } | null)?.title ?? "a note"}`,
       undo: async () => {
         const { error } = await queuedInsert("cards", {
           id: gone.id, day_id: gone.day_id, trip_id: gone.trip_id,
@@ -802,7 +803,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     const { error } = await createClient().from("cards").delete().in("id", Array.from(ids));
     if (error) { draftCreated(cards); toast({ message: "Couldn't undo it. Try again." }); return; }
     if (travel.length) router.refresh();
-    toast({ message: `Took off ${cards.length} ${cards.length === 1 ? "place" : "places"}` });
+    toast({ message: `Taken off ${cards.length} ${cards.length === 1 ? "place" : "places"}` });
   }, [recentPlan, draftCreated, toast, router]);
 
   // ── the map's callbacks ────────────────────────────────────────

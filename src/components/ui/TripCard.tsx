@@ -213,7 +213,7 @@ export default function TripCard({ trip, href }: Props) {
                 Delete &ldquo;{trip.title}&rdquo;?
               </h2>
               <p className="text-[14px] text-gray-500 leading-relaxed">
-                This will permanently remove the journey and all its cards. This cannot be undone.
+                {"Every day, place and note in it goes too. There’s no undo. Archive puts it away instead."}
               </p>
             </div>
             <div className="flex-shrink-0 px-5 pt-4 pb-10 space-y-2.5">
