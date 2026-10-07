@@ -88,7 +88,8 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTim
   const subLabel  = subTypeLabel(place?.sub_type);
   const shown    = cardTimes(card);
   const timeRange = formatTimeRange(shown.start, shown.end);
-  const hoursSignal = place ? getOpeningHoursConflict(place.hours, dayDate ?? null, card.start_time, place.sub_type) : null;
+  // The end time goes in too (7 Oct 2026): ending after closing reads "Closes 11:00 PM".
+  const hoursSignal = place ? getOpeningHoursConflict(place.hours, dayDate ?? null, card.start_time, place.sub_type, card.end_time) : null;
   const noteSnippet = !place ? (det?.notes as string | undefined) : undefined;
   // A travel leg (7 Oct 2026, mock d13): "Lusaka → Mfuwe" in full, and
   // "Overland truck · 13h" under it — the route reads like a flight's.

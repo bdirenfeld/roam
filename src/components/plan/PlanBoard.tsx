@@ -2382,7 +2382,8 @@ function CardTile({
   const timeRange = formatTimeRange(shownTimes.start, shownTimes.end);
 
   // Opening-hours conflict signal — silent unless the scheduled time clashes.
-  const hoursSignal = place ? getOpeningHoursConflict(place.hours, dayDate ?? null, card.start_time, place.sub_type) : null;
+  // With the end time (7 Oct 2026), ending after closing reads "Closes 11:00 PM".
+  const hoursSignal = place ? getOpeningHoursConflict(place.hours, dayDate ?? null, card.start_time, place.sub_type, card.end_time) : null;
 
   return (
     <div

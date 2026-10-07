@@ -96,16 +96,23 @@ describe("CardBottomSheet — the designer-audit surface (6 Oct 2026)", () => {
     expect(screen.getByText(/Open 12:30 – 2:30 PM, 7:30 – 10:00 PM that day/)).toBeTruthy();
   });
 
-  it("hours sit right under the time as one line, and a tap opens the week (7 Oct 2026, taps audit)", async () => {
-    await open(buca());
+  // Hours speak up top only when they change the plan (7 Oct 2026, mock t04).
+  // Buca's real hours as periods too: Tue–Sat 12:30–2:30 PM and 7:30–10:00 PM.
+  const PERIODS = [2, 3, 4, 5, 6].flatMap((d) => [
+    { open: { day: d, time: "1230" }, close: { day: d, time: "1430" } },
+    { open: { day: d, time: "1930" }, close: { day: d, time: "2200" } },
+  ]);
+  const withPeriods = { weekday_text: WEEK, periods: PERIODS };
+  const clash = () => screen.queryByLabelText("Opening hours clash");
+
+  it("a visit that fits says nothing up top; the week is a quiet Hours row at the bottom (7 Oct 2026)", async () => {
+    await open(buca({}, withPeriods));
+    expect(clash()).toBeNull();
     const row = screen.getByLabelText("Opening hours");
-    // Tue 24 Aug 2027 is not today, so the line names the day rather than saying "today".
-    expect(row.textContent).toBe("Open 12:30 – 2:30 PM, 7:30 – 10:00 PM on Tuesday");
-    const time = screen.getByLabelText("Change the time");
+    expect(row.textContent).toBe("Hours12:30 – 2:30 PM, 7:30 – 10:00 PM");
+    // Below the note, as it was before 73c7213.
     const note = screen.getByText(/Booking ahead is strongly advised/);
-    expect(time.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(row.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(row.getAttribute("aria-expanded")).toBe("false");
+    expect(note.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const week = screen.getByText("Monday").closest("ul")!;
     expect(week.hidden).toBe(true);
     await userEvent.click(row);
@@ -114,9 +121,48 @@ describe("CardBottomSheet — the designer-audit surface (6 Oct 2026)", () => {
     expect(within(week).getAllByText("Closed")).toHaveLength(2);
   });
 
-  it("a closed day is phrased the same way", async () => {
-    await open(buca({ day_id: "d0" } as Partial<Card>), { days: [...days, { id: "d0", trip_id: "t1", date: "2027-08-23", day_number: 0 }] });
-    expect(screen.getByLabelText("Opening hours").textContent).toBe("Closed on Monday");
+  it("closed on the card's day: 'Closed on Monday' under the time, in sienna", async () => {
+    await open(buca({ day_id: "d0" } as Partial<Card>, withPeriods), { days: [...days, { id: "d0", trip_id: "t1", date: "2027-08-23", day_number: 0 }] });
+    const line = clash()!;
+    expect(line.textContent).toBe("Closed on Monday");
+    expect((line as HTMLElement).style.color).toBe("rgb(176, 84, 31)");
+    expect(line.querySelector("svg")).toBeTruthy();
+    const time = screen.getByLabelText("Change the time");
+    const note = screen.getByText(/Booking ahead is strongly advised/);
+    expect(time.compareDocumentPosition(line) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(line.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The Hours row stays at the bottom.
+    expect(note.compareDocumentPosition(screen.getByLabelText("Opening hours")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("arriving before it opens: 'Opens 12:30 PM — after you arrive'", async () => {
+    await open(buca({ start_time: "11:30:00", end_time: "13:00:00" }, withPeriods));
+    expect(clash()!.textContent).toBe("Opens 12:30 PM — after you arrive");
+  });
+
+  it("finishing after it closes: 'Closes 10:00 PM — before you finish'", async () => {
+    await open(buca({ start_time: "20:30:00", end_time: "22:30:00" }, withPeriods));
+    expect(clash()!.textContent).toBe("Closes 10:00 PM — before you finish");
+  });
+
+  it("a place closing 2 AM next day does not clash with an 11 PM end, and its week says '(next day)'", async () => {
+    const late = {
+      weekday_text: ["Monday: 6:00 PM – 2:00 AM", "Tuesday: 6:00 PM – 2:00 AM", "Wednesday: 6:00 PM – 2:00 AM", "Thursday: 6:00 PM – 2:00 AM", "Friday: 6:00 PM – 2:00 AM", "Saturday: 6:00 PM – 2:00 AM", "Sunday: 6:00 PM – 2:00 AM"],
+      periods: [0, 1, 2, 3, 4, 5, 6].map((d) => ({ open: { day: d, time: "1800" }, close: { day: (d + 1) % 7, time: "0200" } })),
+    };
+    await open(buca({ start_time: "21:00:00", end_time: "23:00:00" }, late));
+    expect(clash()).toBeNull();
+    expect(screen.getByLabelText("Opening hours").textContent).toBe("Hours6:00 PM – 2:00 AM (next day)");
+  });
+
+  it("no time on the card, or no hours known: nothing up top", async () => {
+    const { unmount } = render(<CardBottomSheet card={buca({ start_time: null, end_time: null } as Partial<Card>, withPeriods)} onClose={() => {}} days={days} />);
+    await act(async () => {});
+    expect(clash()).toBeNull();
+    unmount();
+    render(<CardBottomSheet card={buca({ start_time: "08:00:00" }, null)} onClose={() => {}} days={days} />);
+    await act(async () => {});
+    expect(clash()).toBeNull();
   });
 
   it("has no Booked switch on the surface; Booked is in the ⋯ and writes cards.confirmed", async () => {

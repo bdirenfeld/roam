@@ -3,7 +3,7 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { SUB_TYPE_LABEL } from "@/lib/subTypeLabel";
 import TimeSheet from "@/components/day/TimeSheet";
-import { CaretDown, Clock, Heart } from "@phosphor-icons/react";
+import { CaretDown, Clock, Heart, WarningCircle } from "@phosphor-icons/react";
 import type { Card, ChecklistItem, Day, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
@@ -18,7 +18,8 @@ import { readRecommendedBy } from "@/lib/recommendedBy";
 import FieldRow, { SectionLabel, NoteDisplay } from "./detail/FieldRow";
 import { CostContext } from "./detail/CostPerPersonRow";
 import { withoutHoursLine } from "@/lib/plan/notes";
-import { hoursSummary, isLocalToday } from "@/lib/places/hoursLine";
+import { readableHours, hoursClash } from "@/lib/places/hoursLine";
+import { getOpeningHoursConflict } from "@/lib/openingHours";
 import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
 import dynamic from "next/dynamic";
 import { reloadOnStale } from "@/lib/chunkReload";
@@ -925,8 +926,20 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     const weekday = new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "long" });
     const line = weekdayText.find((l) => l.startsWith(weekday + ":"));
     if (!line) return null;
-    return { weekday, value: line.slice(weekday.length + 2).trim(), isToday: isLocalToday(date) };
+    return { weekday, value: line.slice(weekday.length + 2).trim() };
   })();
+
+  // Does the plan clash with the hours (7 Oct 2026, mock t04)? The same check
+  // the card row and the map card use; silent with no time, no day or no hours.
+  const hoursSignal = place
+    ? getOpeningHoursConflict(
+        place.hours,
+        days?.find((d) => d.id === localCard.day_id)?.date ?? null,
+        localCard.start_time,
+        place.sub_type,
+        localCard.end_time,
+      )
+    : null;
 
   const priceLevel = place?.price_level ?? null;
 
@@ -1433,57 +1446,28 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             )}
           </div>
 
-          {/* Opening hours, one line under the address and time (7 Oct 2026,
-              taps audit): it sat last, under the note, the checklist and the
-              recommender, usually below the bottom of a phone screen. Folded to
-              the card's day ("Open 8:15 AM – 6:30 PM today"); a tap opens the
-              week, as before. */}
-          {weekdayText && (
-            <div className="mt-1.5 -ml-2">
-              <button
-                type="button"
-                onClick={() => setHoursOpen((v) => !v)}
-                aria-expanded={hoursOpen}
-                aria-label="Opening hours"
-                className="w-full flex items-center gap-1.5 rounded-md px-2 py-1 text-left transition-colors hover:bg-black/[0.02]"
-                style={{ background: "#F7F7F9", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)" }}
+          {/* Hours speak up top only when they change the plan (7 Oct 2026,
+              delight audit, mock t04). The always-on "Open 8:15 AM – 6:30 PM
+              today" line that sat here (73c7213) was as heavy as the time on
+              every card, even when the visit fit easily; the week is back at
+              the bottom as a quiet Hours row. Closed that day, opening after
+              you arrive, or closing before you finish: one sienna line. */}
+          {hoursSignal && (() => {
+            const { lead, tail } = hoursClash(hoursSignal);
+            return (
+              <p
+                aria-label="Opening hours clash"
+                className="mt-1.5 flex items-center gap-1.5 text-[13px] leading-snug"
+                style={{ color: "#B0541F" }}
               >
-                <Clock size={13} weight="light" color="#1A1A2E" className="flex-shrink-0" />
-                {cardDayLine ? (() => {
-                  const line = hoursSummary(cardDayLine.value, cardDayLine.weekday, cardDayLine.isToday);
-                  const sp = line.indexOf(" ");
-                  return (
-                    <span className="text-[13px] text-[#1A1A2E] truncate">
-                      <span className="font-medium">{line.slice(0, sp)}</span>
-                      <span style={{ color: "rgba(26,26,46,0.62)" }}>{line.slice(sp)}</span>
-                    </span>
-                  );
-                })() : (
-                  <span className="text-[13px] font-medium text-[#1A1A2E]">Hours</span>
-                )}
-                <CaretDown
-                  size={12}
-                  weight="bold"
-                  className="ml-auto flex-shrink-0"
-                  color="rgba(26,26,46,0.40)"
-                  style={{ transform: hoursOpen ? "rotate(180deg)" : "none", transition: "transform 150ms" }}
-                />
-              </button>
-              <ul className="space-y-1 px-2 pt-2 pb-1" hidden={!hoursOpen}>
-                {weekdayText.map((line, i) => {
-                  const idx = line.indexOf(": ");
-                  const day = idx >= 0 ? line.slice(0, idx) : line;
-                  const value = idx >= 0 ? line.slice(idx + 2) : "";
-                  return (
-                    <li key={i} className="flex justify-between gap-4 text-[12.5px] leading-snug">
-                      <span className="text-activity/50">{day}</span>
-                      <span className="text-activity/80 text-right">{value}</span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          )}
+                <WarningCircle size={14} weight="light" className="flex-shrink-0" aria-hidden />
+                <span className="truncate">
+                  <span className="font-medium">{lead}</span>
+                  {tail && <span style={{ opacity: 0.8 }}>{tail}</span>}
+                </span>
+              </p>
+            );
+          })()}
 
           {/* The address used to sit here in grey, truncated mid-street. It
               cost a line of a phone screen to half-say what Maps says properly
@@ -1571,6 +1555,49 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   placeholder="Who recommended this…"
                   onSave={readOnly ? undefined : saveRecommendedBy}
                 />
+              </div>
+            )}
+
+            {/* Weekly hours, folded, back at the bottom where they sat before
+                73c7213 (7 Oct 2026, mock t04). The row shows the card's day;
+                a tap opens the week. Past-midnight closes read "(next day)"
+                or "midnight" (044d3b2). */}
+            {weekdayText && (
+              <div className="mt-5 pt-4 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setHoursOpen((v) => !v)}
+                  aria-expanded={hoursOpen}
+                  aria-label="Opening hours"
+                  className="w-full flex items-center gap-1.5 mb-2 text-left"
+                >
+                  <Clock size={14} weight="light" className="text-activity/50" />
+                  <span className="text-[12px] font-medium text-activity">Hours</span>
+                  {!hoursOpen && cardDayLine && (
+                    <span className="text-[12.5px] text-activity/60 truncate ml-1">
+                      {readableHours(cardDayLine.value)}
+                    </span>
+                  )}
+                  <CaretDown
+                    size={12}
+                    weight="bold"
+                    className="ml-auto text-activity/40 flex-shrink-0"
+                    style={{ transform: hoursOpen ? "rotate(180deg)" : "none", transition: "transform 150ms" }}
+                  />
+                </button>
+                <ul className="space-y-1" hidden={!hoursOpen}>
+                  {weekdayText.map((line, i) => {
+                    const idx = line.indexOf(": ");
+                    const day = idx >= 0 ? line.slice(0, idx) : line;
+                    const value = idx >= 0 ? readableHours(line.slice(idx + 2)) : "";
+                    return (
+                      <li key={i} className="flex justify-between gap-4 text-[12.5px] leading-snug">
+                        <span className="text-activity/50">{day}</span>
+                        <span className="text-activity/80 text-right">{value}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
             )}
 

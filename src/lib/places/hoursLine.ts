@@ -1,9 +1,15 @@
+import { formatTimeValue } from "@/lib/formatTime";
+import type { OpeningHoursSignal } from "@/lib/openingHours";
+
 /**
- * The card sheet's one-line opening hours, under the address and time
- * (7 Oct 2026, taps audit): "Open 8:15 AM – 6:30 PM today", "Closed today".
- * `value` is the part of Google's weekday line after "Tuesday: ". When the
- * card's day is not today the line names the day instead ("on Tuesday"), so it
- * never says "today" about a day you are not on.
+ * Opening-hours wording for the card sheet.
+ *
+ * The one-line "Open 8:15 AM – 6:30 PM today" under the address and time
+ * (73c7213) is gone (7 Oct 2026, delight audit, mock t04): it showed on every
+ * card with known hours, as heavy as the time itself, even when the visit fit
+ * easily. The week went back to a quiet "Hours" row at the bottom of the
+ * sheet, and the top only speaks when the hours change the plan — see
+ * `hoursClash`.
  *
  * Hours that run past midnight say so: Google writes Sesriem Canyon as
  * "6:30 AM – 6:00 AM", which read as a typo until "next day" was added, and a
@@ -27,16 +33,28 @@ function readable(range: string): string {
   return b <= a ? `${open} – ${close} (next day)` : range;
 }
 
-export function hoursSummary(value: string, weekday: string, isToday: boolean): string {
-  const when = isToday ? "today" : `on ${weekday}`;
+/**
+ * One day of Google's week text ("6:00 PM – 2:00 AM", "Closed", "Open 24
+ * hours", split ranges "12:30 – 2:30 PM, 7:30 – 10:00 PM") as the Hours row
+ * shows it: past-midnight closes say "(next day)" or "midnight".
+ */
+export function readableHours(value: string): string {
   const v = value.trim();
-  if (/^closed$/i.test(v)) return `Closed ${when}`;
-  if (/^open\b/i.test(v)) return `${v.charAt(0).toUpperCase()}${v.slice(1)} ${when}`;
-  return `Open ${v.split(/,\s*/).map(readable).join(", ")} ${when}`;
+  if (/^closed$/i.test(v) || /^open\b/i.test(v)) return v;
+  return v.split(/,\s*/).map(readable).join(", ");
 }
 
-/** Is `date` ("YYYY-MM-DD") the local calendar date of `now`? */
-export function isLocalToday(date: string, now: Date = new Date()): boolean {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return date === `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+/**
+ * The line under the time when the hours clash with this card's plan
+ * (7 Oct 2026, mock t04). `lead` is the fact, `tail` the consequence, drawn
+ * lighter:
+ *   closed → "Closed on Monday"
+ *   opens  → "Opens 10:00 AM" + " — after you arrive"
+ *   closes → "Closes 11:00 PM" + " — before you finish"
+ */
+export function hoursClash(signal: OpeningHoursSignal): { lead: string; tail: string } {
+  if (signal.kind === "closed") return { lead: `Closed on ${signal.weekday}`, tail: "" };
+  if (signal.kind === "opens") return { lead: `Opens ${formatTimeValue(signal.opensAt)}`, tail: " — after you arrive" };
+  const at = signal.closesAt === "00:00" ? "at midnight" : formatTimeValue(signal.closesAt);
+  return { lead: `Closes ${at}`, tail: " — before you finish" };
 }

@@ -27,7 +27,11 @@ export type OpeningHoursSignal =
   | { kind: "opens"; opensAt: string }
   // Place has hours, but is closed on the scheduled weekday. `weekday` is the
   // full name, e.g. "Saturday" (the caller pluralizes: "Closed Saturdays").
-  | { kind: "closed"; weekday: string };
+  | { kind: "closed"; weekday: string }
+  // Open when the card starts, but shut before its planned end (or already
+  // shut for the day when it starts). `closesAt` is "HH:MM" on the clock, so a
+  // 2 am close reads "02:00" (7 Oct 2026).
+  | { kind: "closes"; closesAt: string };
 
 const WEEKDAY_NAMES = [
   "Sunday",
@@ -106,6 +110,41 @@ function isAlwaysOpen(hours: unknown): boolean {
   );
 }
 
+const WEEK = 7 * 1440;
+
+/**
+ * Every period with a real close, as minutes on a Sunday-00:00 week line.
+ * A close at or before its open (Sat 6 pm → Sun 2 am) wraps to the next week,
+ * so the span is always open < close (7 Oct 2026).
+ */
+function readSpans(hours: unknown): { open: number; close: number }[] {
+  if (typeof hours !== "object" || hours === null) return [];
+  const periods = (hours as { periods?: unknown }).periods;
+  if (!Array.isArray(periods)) return [];
+  const spans: { open: number; close: number }[] = [];
+  const at = (x: unknown): number | null => {
+    if (typeof x !== "object" || x === null) return null;
+    const day = (x as { day?: unknown }).day;
+    const t = normalizeGoogleTime((x as { time?: unknown }).time);
+    if (typeof day !== "number" || day < 0 || day > 6 || t === null) return null;
+    return day * 1440 + Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+  };
+  for (const period of periods) {
+    if (typeof period !== "object" || period === null) continue;
+    const open = at((period as { open?: unknown }).open);
+    const close = at((period as { close?: unknown }).close);
+    if (open === null || close === null) continue;
+    spans.push({ open, close: close <= open ? close + WEEK : close });
+  }
+  return spans;
+}
+
+const clock = (m: number) => {
+  const d = ((m % 1440) + 1440) % 1440;
+  return `${String(Math.floor(d / 60)).padStart(2, "0")}:${String(d % 60).padStart(2, "0")}`;
+};
+const mins = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+
 /** Resolve a "YYYY-MM-DD" calendar date to a weekday index (0=Sun…6=Sat). */
 function weekdayIndex(dayDate: string): number | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dayDate);
@@ -134,6 +173,10 @@ export function getOpeningHoursConflict(
   dayDate: string | null,
   startTime: string | null,
   subType?: string | null,
+  // The planned end (7 Oct 2026). Optional, so a caller without one still
+  // gets the closed-day and opens-later checks; with it, ending after closing
+  // is caught too.
+  endTime?: string | null,
 ): OpeningHoursSignal | null {
   if (subType && SLEEP.has(subType)) return null;
   // No scheduled time → nothing to compare against; do not invent one.
@@ -163,7 +206,34 @@ export function getOpeningHoursConflict(
   const opensAt = todays.reduce((min, p) => (p.time < min ? p.time : min), todays[0].time);
   const start = startTime.slice(0, 5); // "HH:MM:SS" → "HH:MM"
 
-  return start < opensAt ? { kind: "opens", opensAt } : null;
+  if (start < opensAt) return { kind: "opens", opensAt };
+
+  // Past opening: is the place open at the start, and still open at the end?
+  // (7 Oct 2026.) Week-line minutes; the start is also tried one week on, so a
+  // span that wraps Saturday night into Sunday still contains it.
+  const spans = readSpans(hours);
+  if (spans.length === 0) return null;
+  const s0 = weekday * 1440 + mins(start);
+  const holds = (m: number) => spans.find((sp) => sp.open <= m && m < sp.close);
+  const holding = holds(s0) ?? holds(s0 + WEEK);
+  if (holding) {
+    if (!endTime) return null;
+    const startAt = holding.open <= s0 && s0 < holding.close ? s0 : s0 + WEEK;
+    let endAt = startAt - mins(start) + mins(endTime.slice(0, 5));
+    // An end at or before the start is the next morning (9:30 pm to 12:30 am).
+    if (endAt <= startAt) endAt += 1440;
+    // A place closing 2 am next day does not clash with an 11 pm end: its
+    // close is on the week line past midnight, not "02:00" compared as text.
+    return endAt > holding.close ? { kind: "closes", closesAt: clock(holding.close) } : null;
+  }
+  // Not open at the start. A later opening today means it opens after you
+  // arrive (a lunch-and-dinner place at 4 pm); otherwise it has shut for the day.
+  const later = todays.map((p) => p.time).filter((t) => t > start).sort()[0];
+  if (later) return { kind: "opens", opensAt: later };
+  const shut = spans
+    .filter((sp) => sp.open >= weekday * 1440 && sp.open < (weekday + 1) * 1440 && sp.close <= s0)
+    .reduce<number | null>((max, sp) => (max === null || sp.close > max ? sp.close : max), null);
+  return shut === null ? null : { kind: "closes", closesAt: clock(shut) };
 }
 
 /**
@@ -173,6 +243,7 @@ export function getOpeningHoursConflict(
  */
 export function openingHoursCaption(signal: OpeningHoursSignal): string {
   if (signal.kind === "opens") return `Opens ${formatTimeValue(signal.opensAt)}`;
+  if (signal.kind === "closes") return signal.closesAt === "00:00" ? "Closes at midnight" : `Closes ${formatTimeValue(signal.closesAt)}`;
   return `Closed ${signal.weekday}s`;
 }
 
