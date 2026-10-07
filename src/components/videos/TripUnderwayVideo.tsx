@@ -7,6 +7,12 @@
 // (lib/isSameLocalDay isUnderwayLocal) — the day view decides that and the
 // phone. Played or ✕'d, it is gone everywhere (users.videos_seen), and the
 // menu still lists it.
+//
+// First and last day (7 Oct 2026, delight audit): the day view passes
+// `moment` (lib/trips/dayMoment) — "Day 1 in Irving · have a great trip" or
+// "Last day in Irving". It replaces the card's top line, and once the card is
+// played or closed the line stays on its own at the same spot: same size, same
+// grey caption, no box, no button.
 
 import { useState } from "react";
 import { SUPABASE_BASE, useHowToVideos } from "@/hooks/useHowToVideos";
@@ -17,7 +23,7 @@ import { PlayDisc } from "./VideosSheet";
 const INK = "#1A1A2E";
 const CAPTION = "rgba(26,26,46,0.62)";
 
-export default function TripUnderwayVideo() {
+export default function TripUnderwayVideo({ moment = null }: { moment?: string | null } = {}) {
   const { ready, available, seen, markSeen } = useHowToVideos();
   const [playing, setPlaying] = useState(false);
   const id = ready ? forSurface("trip-underway", available, seen) : null;
@@ -38,7 +44,7 @@ export default function TripUnderwayVideo() {
                 <PlayDisc size={20} />
               </span>
               <span className="flex-1 min-w-0">
-                <span className="block text-[12.5px] leading-snug" style={{ color: CAPTION }}>Your trip&rsquo;s started</span>
+                <span className="block text-[12.5px] leading-snug" style={{ color: CAPTION }}>{moment ?? "Your trip’s started"}</span>
                 <span className="block text-[14.5px] font-semibold mt-px" style={{ color: INK }}>Watch: {v.title}</span>
                 <span className="block text-[12.5px] leading-snug mt-px" style={{ color: CAPTION }}>{v.length}</span>
               </span>
@@ -48,6 +54,11 @@ export default function TripUnderwayVideo() {
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(26,26,46,0.5)" strokeWidth="2.2" strokeLinecap="round" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>
             </button>
           </div>
+        </div>
+      )}
+      {ready && !id && moment && (
+        <div className="mb-4 flex justify-center">
+          <p className="w-full max-w-[360px] px-1 text-[12.5px] leading-snug" style={{ color: CAPTION }} data-testid="day-moment">{moment}</p>
         </div>
       )}
       {playing && (

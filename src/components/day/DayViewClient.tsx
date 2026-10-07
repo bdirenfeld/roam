@@ -21,7 +21,8 @@ import DayMap from "@/components/day/DayMap";
 import CardTimeline from "@/components/day/CardTimeline";
 import StartHere from "@/components/plan/StartHere";
 import TripUnderwayVideo from "@/components/videos/TripUnderwayVideo";
-import { isUnderwayLocal } from "@/lib/isSameLocalDay";
+import { isUnderwayLocal, localDate } from "@/lib/isSameLocalDay";
+import { dayMoment } from "@/lib/trips/dayMoment";
 import { startSteps, type StartCard } from "@/lib/plan/startHere";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import AppMenu from "@/components/ui/AppMenu";
@@ -384,6 +385,11 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   // One card at a time: it waits while Start here shows, and until we know.
   const [underway, setUnderway] = useState(false);
   useEffect(() => { setUnderway(isUnderwayLocal(trip.start_date, trip.end_date)); }, [trip.start_date, trip.end_date]);
+  // First and last day (7 Oct 2026, delight audit): "Day 1 in Irving · have a
+  // great trip" / "Last day in Irving", by the phone's local date after mount.
+  // Same audience as the card below (underwayShown); the card carries it.
+  const [moment, setMoment] = useState<string | null>(null);
+  useEffect(() => { setMoment(dayMoment(trip.start_date, trip.end_date, localDate(new Date()), trip.destination)); }, [trip.start_date, trip.end_date, trip.destination]);
   // Organiser only (Brennan, 2 Oct 2026): video 4 shows moving lunch and other
   // owner-only moves, so a signed-in guest would watch things they can't do.
   const underwayShown = phone && underway && !readOnly && startCards !== null && !startShown;
@@ -1098,7 +1104,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
             }`}
             {...swipeHandlers}
           >
-            {underwayShown && <TripUnderwayVideo />}
+            {underwayShown && <TripUnderwayVideo moment={moment} />}
             {startShown && (
               <div className="mb-4 flex justify-center">
                 <StartHere cards={startCards!} firstDay={firstDay} place={trip.destination ?? ""} reading={upload.reading} readingLabel={upload.readingLabel} several

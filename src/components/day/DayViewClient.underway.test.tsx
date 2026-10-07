@@ -126,3 +126,55 @@ describe("Your trip's started, on the phone's day", { timeout: 30000 }, () => {
     expect(screen.queryByTestId("trip-underway-video")).toBeNull();
   });
 });
+
+describe("First and last day: one quiet line (7 Oct 2026, delight audit)", { timeout: 30000 }, () => {
+  const seen = () => { vids.state = { ready: true, available: { "in-the-app": 1 }, seen: { "in-the-app": "2027-05-10T08:00:00Z" } }; };
+
+  it("Day 1, video not yet watched: the card's top line is the Day 1 line", async () => {
+    await openOn(new Date(2027, 4, 10, 9, 0));
+    const card = screen.getByTestId("trip-underway-video");
+    expect(card.textContent).toContain("Day 1 in Lisbon · have a great trip");
+    expect(card.textContent).not.toContain("Your trip’s started");
+    expect(screen.queryByTestId("day-moment")).toBeNull();
+  });
+
+  it("Day 1, video played or closed: the line stays on its own, no box, no button", async () => {
+    seen();
+    await openOn(new Date(2027, 4, 10, 23, 30));
+    expect(screen.queryByTestId("trip-underway-video")).toBeNull();
+    const line = screen.getByTestId("day-moment");
+    expect(line.textContent).toBe("Day 1 in Lisbon · have a great trip");
+    expect(line.querySelector("button")).toBeNull();
+    expect(line.className).toContain("text-[12.5px]");
+  });
+
+  it("the last day: 'Last day in Lisbon'", async () => {
+    seen();
+    await openOn(new Date(2027, 4, 12, 7, 0));
+    expect(screen.getByTestId("day-moment").textContent).toBe("Last day in Lisbon");
+  });
+
+  it("a day in between: nothing", async () => {
+    seen();
+    await openOn(new Date(2027, 4, 11, 9, 0));
+    expect(screen.queryByTestId("day-moment")).toBeNull();
+  });
+
+  it("the day after: nothing", async () => {
+    seen();
+    await openOn(new Date(2027, 4, 13, 0, 30));
+    expect(screen.queryByTestId("day-moment")).toBeNull();
+  });
+
+  it("not on a computer", async () => {
+    seen();
+    await openOn(new Date(2027, 4, 10, 9, 0), false);
+    expect(screen.queryByTestId("day-moment")).toBeNull();
+  });
+
+  it("not for a signed-in guest", async () => {
+    seen();
+    await openOn(new Date(2027, 4, 10, 9, 0), true, true);
+    expect(screen.queryByTestId("day-moment")).toBeNull();
+  });
+});
