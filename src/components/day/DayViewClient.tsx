@@ -31,6 +31,7 @@ import AppMenu from "@/components/ui/AppMenu";
 import { useToast } from "@/components/ui/Toast";
 import { useMemberJoinedToast } from "@/hooks/useMemberJoinedToast";
 import { useEveOfDepartureToast } from "@/hooks/useEveOfDepartureToast";
+import { useSaveDaysOffline } from "@/hooks/useSaveDaysOffline";
 import { formatTimeRange } from "@/lib/formatTime";
 import { agendaOrder } from "@/lib/agendaOrder";
 import dynamic from "next/dynamic";
@@ -295,6 +296,8 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   useMemberJoinedToast(trip.id, trip.title, !readOnly);
   // "Lisbon tomorrow · all booked ✓" the day before, once (7 Oct 2026, delight audit).
   useEveOfDepartureToast(trip.id, trip.destination, trip.start_date, !readOnly);
+  // Every day of an upcoming journey saved to the phone for airplane mode (7 Oct 2026).
+  useSaveDaysOffline(trip.id, trip.start_date, trip.end_date, days, phone);
 
   // The day's title — "Arrival", "Lucca morning". The Plan showed it and the
   // Agenda, the screen you read on the day, did not (UX audit, Sep 2026,
