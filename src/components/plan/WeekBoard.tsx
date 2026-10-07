@@ -1231,6 +1231,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
           onCardCopied={handleCardCopied}
           days={days}
           tripDestination={trip.destination}
+          partySize={trip.party_size}
           stayCheckOut={runs.find((r) => r.placeId === selectedCard.place_id)?.checkOut ?? null}
         />
       )}

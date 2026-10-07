@@ -1770,6 +1770,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
           onCardCopied={handleCardCopied}
           days={days}
           tripDestination={trip.destination}
+          partySize={trip.party_size}
         />
       )}
 

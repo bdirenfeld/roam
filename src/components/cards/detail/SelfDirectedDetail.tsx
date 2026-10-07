@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Card } from "@/types/database";
 import FieldRow, { SectionLabel } from "./FieldRow";
+import CostPerPersonRow from "./CostPerPersonRow";
 
 interface Props {
   card: Card;
@@ -91,11 +92,7 @@ export default function SelfDirectedDetail({ card, onSaveDetails, showEmpty = fa
       {(showEmpty || d.cost_per_person != null) && (
         <div>
           <SectionLabel>Cost</SectionLabel>
-          <FieldRow icon="💳" label="Cost per person"
-            value={d.cost_per_person != null ? String(d.cost_per_person) : undefined}
-            placeholder="Add cost…"
-            onSave={onSaveDetails ? (v) => onSaveDetails("cost_per_person", v ? parseFloat(v) : null) : undefined}
-            hideWhenEmpty={hide} />
+          <CostPerPersonRow card={card} onSaveDetails={onSaveDetails} hideWhenEmpty={hide} />
         </div>
       )}
     </div>

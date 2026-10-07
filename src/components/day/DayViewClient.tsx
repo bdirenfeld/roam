@@ -1183,6 +1183,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           days={days}
           addToDay={previewAdd ? { label: dayChip(dayWithCards.date, true), onAdd: previewAdd } : undefined}
           tripDestination={trip.destination}
+          partySize={trip.party_size}
           stayCheckOut={stays.find((r) => r.placeId === selectedCard.place_id)?.checkOut ?? null}
           readOnly={readOnly}
         />

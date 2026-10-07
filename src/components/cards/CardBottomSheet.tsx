@@ -16,6 +16,7 @@ import { scheduleCardOnDay, unscheduleCard } from "@/lib/scheduleCard";
 import LovedHeart from "@/components/ui/LovedHeart";
 import { readRecommendedBy } from "@/lib/recommendedBy";
 import FieldRow, { SectionLabel, NoteDisplay } from "./detail/FieldRow";
+import { CostContext } from "./detail/CostPerPersonRow";
 import { withoutHoursLine } from "@/lib/plan/notes";
 import { hoursSummary, isLocalToday } from "@/lib/places/hoursLine";
 import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
@@ -76,6 +77,8 @@ interface Props {
   days?: Day[];
   /** Trip destination string (e.g. "Rome, Italy") — used to derive country dial code */
   tripDestination?: string;
+  /** trips.party_size — the cost row's "× 2 = €58" (7 Oct 2026). */
+  partySize?: number | null;
   /** Guest view — render every section read-only; no edit/add/delete/move
    *  controls, no editable fields, and the confirmation reference is hidden. */
   readOnly?: boolean;
@@ -406,7 +409,7 @@ function TitleEditor({
  *  side — half the 6px gap — so no disc's target reaches its neighbour. */
 const DISC_TARGET = "absolute -inset-x-[3px] -inset-y-2";
 
-export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDelete, onCardCopied, days, tripDestination, readOnly = false, stayCheckOut = null, addToDay }: Props) {
+export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDelete, onCardCopied, days, tripDestination, partySize = null, readOnly = false, stayCheckOut = null, addToDay }: Props) {
   // Every field save reverts on refusal; it also says so now (UX audit,
   // Sep 2026, finding 1). Before, eight sites logged to the console only.
   const { toast } = useToast();
@@ -1515,7 +1518,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   }}
                 />
               )}
-              {renderDetail()}
+              <CostContext.Provider value={{ destination: tripDestination, partySize }}>
+                {renderDetail()}
+              </CostContext.Provider>
             </NoteDisplay.Provider>
 
             {/* Notes, always reachable. The detail components render notes

@@ -1,6 +1,7 @@
 import type { Card } from "@/types/database";
 
 import FieldRow from "./FieldRow";
+import CostPerPersonRow from "./CostPerPersonRow";
 
 // Notes are editable here too (3 Oct 2026): this fallback layout printed them
 // read-only, so a Shopping card's Plan my trip note couldn't be changed on the
@@ -39,11 +40,7 @@ export default function ActivityDetail({ card, onSaveDetails, showEmpty = false 
       {(showEmpty || d.supplier || d.meeting_point || d.cost_per_person != null) && (
         <Section label="Booking">
           {d.supplier && <Row icon="🏢" label="With" value={d.supplier as string} />}
-          <FieldRow icon="💳" label="Cost per person"
-            value={d.cost_per_person != null ? String(d.cost_per_person) : undefined}
-            placeholder="Add cost…"
-            onSave={onSaveDetails ? (v) => onSaveDetails("cost_per_person", v ? parseFloat(v) : null) : undefined}
-            hideWhenEmpty={!showEmpty} />
+          <CostPerPersonRow card={card} onSaveDetails={onSaveDetails} hideWhenEmpty={!showEmpty} />
           {d.card_used && <Row icon="🏦" label="Paid with" value={d.card_used as string} />}
           {d.meeting_point && <Row icon="📍" label="Meet at" value={d.meeting_point as string} />}
           {d.meeting_time && <Row icon="⏰" label="Meet by" value={d.meeting_time as string} />}

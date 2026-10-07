@@ -36,6 +36,10 @@ interface FieldRowProps {
   multiline?: boolean;
   /** When true, renders nothing if the value is empty. */
   hideWhenEmpty?: boolean;
+  /** Shown in front of the value and the edit box, e.g. "€" (7 Oct 2026). */
+  prefix?: string;
+  /** A quiet note beside the value while reading, e.g. "× 2 = €58". */
+  aside?: React.ReactNode;
 }
 
 /**
@@ -65,6 +69,8 @@ export default function FieldRow({
   onSave,
   multiline = false,
   hideWhenEmpty = false,
+  prefix,
+  aside,
 }: FieldRowProps) {
   const shown = useContext(NoteDisplay);
   const [editing, setEditing] = useState(false);
@@ -124,6 +130,8 @@ export default function FieldRow({
               className="w-full text-sm text-gray-800 leading-relaxed bg-gray-50 rounded-md px-2 py-1.5 resize-none outline-none border border-gray-200 focus:border-blue-300 focus:ring-0"
             />
           ) : (
+            <div className="flex items-center gap-1">
+            {prefix && <span className="text-sm text-gray-500">{prefix}</span>}
             <input
               autoFocus
               type="text"
@@ -133,8 +141,10 @@ export default function FieldRow({
               onKeyDown={handleKeyDown}
               className="w-full text-sm text-gray-800 bg-gray-50 rounded-md px-2 py-1 outline-none border border-gray-200 focus:border-blue-300 focus:ring-0"
             />
+            </div>
           )
         ) : (
+          <div className={aside != null && !isEmpty ? "flex items-baseline gap-2 flex-wrap" : undefined}>
           <p
             onClick={() => canEdit && setEditing(true)}
             className={[
@@ -144,8 +154,11 @@ export default function FieldRow({
               canEdit ? "cursor-pointer hover:bg-gray-50 -mx-1 px-1 py-0.5" : "",
             ].join(" ")}
           >
+            {!isEmpty && prefix && <span>{prefix}</span>}
             {isEmpty ? placeholder : multiline ? renderEmphasis(shown(value ?? "")) : value}
           </p>
+          {aside != null && !isEmpty && <span className="text-xs text-gray-400">{aside}</span>}
+          </div>
         )}
       </div>
     </div>

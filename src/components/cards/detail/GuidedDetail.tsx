@@ -2,6 +2,7 @@
 
 import type { Card } from "@/types/database";
 import FieldRow, { SectionLabel } from "./FieldRow";
+import CostPerPersonRow from "./CostPerPersonRow";
 import ArrayField from "./ArrayField";
 
 interface Props {
@@ -43,11 +44,7 @@ export default function GuidedDetail({ card, onSaveDetails, showEmpty = false }:
               placeholder="Add meeting point…" onSave={save("meeting_point")} hideWhenEmpty={hide} />
             <FieldRow icon="⏰" label="Meet by" value={d.meeting_time}
               placeholder="Add meeting time…" onSave={save("meeting_time")} hideWhenEmpty={hide} />
-            <FieldRow icon="💳" label="Cost per person"
-              value={d.cost_per_person != null ? String(d.cost_per_person) : undefined}
-              placeholder="Add cost…"
-              onSave={onSaveDetails ? (v) => onSaveDetails("cost_per_person", v ? parseFloat(v) : null) : undefined}
-              hideWhenEmpty={hide} />
+            <CostPerPersonRow card={card} onSaveDetails={onSaveDetails} hideWhenEmpty={hide} />
             {(showEmpty || d.paid) && (
               <div className="flex items-start gap-3">
                 <span className="flex-shrink-0 w-5 text-center text-base mt-0.5 leading-none">💰</span>
