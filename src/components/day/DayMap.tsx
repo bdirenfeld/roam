@@ -445,7 +445,9 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
             (b, coord) => b.extend(coord),
             new mb.LngLatBounds(allCoords[0], allCoords[0]),
           );
-          map.fitBounds(bounds, { padding: 50, maxZoom: 14 }); // 14 (30 Sep 2026): 15 read as "too close"
+          // Framed on the day's pins from the first frame, no glide: each day
+          // opens its own map, so the glide played on every day change (6 Oct 2026).
+          map.fitBounds(bounds, { padding: 50, maxZoom: 14, animate: false }); // 14 (30 Sep 2026): 15 read as "too close"
         } else if (allCoords.length === 1) {
           // A single stop still deserves the zoom — late-trip days often have
           // one pin and no accommodation span, which used to leave the map

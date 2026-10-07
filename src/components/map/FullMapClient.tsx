@@ -866,7 +866,10 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
             (b: unknown, coord) => (b as { extend: (c: [number, number]) => unknown }).extend(coord),
             new mb.LngLatBounds(coords[0], coords[0]),
           );
-          map.fitBounds(bounds, { padding: 80, maxZoom: 15 });
+          // Opens already framed on the pins: no glide from the destination to
+          // them (6 Oct 2026, Brennan + taps audit: "open on the pins"). Motion
+          // is kept for going somewhere you asked to go.
+          map.fitBounds(bounds, { padding: 80, maxZoom: 15, animate: false });
         }
       });
 
