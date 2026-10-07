@@ -29,6 +29,9 @@ interface Props {
   /** The journey is under way today (local date, set in an effect by the host): an
    *  empty day reads "A free day", not "Nothing planned yet" (6 Oct 2026, delight audit). */
   underway?: boolean;
+  /** Phone: "Give these times" under the untimed group runs the day-strip menu's
+   *  Fill in missing times (7 Oct 2026, taps audit). Shown at 2+ untimed places. */
+  onGiveTimes?: () => void;
 }
 
 function minutesBetween(end: string | null, start: string | null): number {
@@ -86,6 +89,7 @@ export default function CardTimeline({
   onTimeTap,
   quietEmpty = false,
   underway = false,
+  onGiveTimes,
 }: Props) {
   const { cards } = dayWithCards;
 
@@ -93,6 +97,9 @@ export default function CardTimeline({
   // one, so this split is contiguous.
   const timedCards = cards.filter((c) => c.start_time);
   const untimedCards = cards.filter((c) => !c.start_time);
+  // Only cards with a place can be given a time by the arranger.
+  const untimedPlaces = untimedCards.filter((c) => c.place_id || c.place).length;
+  const showGiveTimes = !!onGiveTimes && !readOnly && untimedPlaces >= 2;
 
   const surface = (card: Card) => (
     <CardSurface
@@ -190,6 +197,20 @@ export default function CardTimeline({
               {surface(card)}
             </div>
           ))}
+
+          {/* "Give these times" (7 Oct 2026, taps audit): the same Fill in missing
+              times as the day strip's long-press menu, where nobody found it.
+              Phone only; desktop has it in the day header's menu. */}
+          {showGiveTimes && (
+            <button
+              type="button"
+              onClick={onGiveTimes}
+              className="md:hidden mt-1 mb-1 ml-[33px] py-2 text-[13px] underline underline-offset-4 active:opacity-70"
+              style={{ color: "rgba(26,26,46,0.55)", textDecorationColor: "rgba(26,26,46,0.25)" }}
+            >
+              Give these times
+            </button>
+          )}
 
           {/* Always-available add — the gap connector only appears between
               timed cards ≥30 min apart, so untimed days need this. */}
