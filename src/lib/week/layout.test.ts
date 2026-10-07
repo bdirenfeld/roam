@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { placeBlocks, movedTimes, resizedEnd, resizedStart, minutesAtY, toMin, toTime, fmt12, PX_PER_HOUR, NO_END_MIN, HOUR_START } from "./layout";
+import { placeBlocks, movedTimes, resizedEnd, resizedStart, minutesAtY, toMin, toTime, fmt12, slotLabel, newBlockEnd, PX_PER_HOUR, NO_END_MIN, HOUR_START } from "./layout";
 
 /**
  * Times copied from Rome April 2026 (24 Sep 2026): Friday has Historic Center
@@ -72,5 +72,18 @@ describe("moves and resizes", () => {
     expect(toTime(toMin("18:45:00"))).toBe("18:45:00");
     expect(fmt12(toMin("18:45:00"))).toBe("6:45pm");
     expect(fmt12(toMin("12:00:00"))).toBe("12pm");
+  });
+});
+
+describe("the hover slot (6 Oct 2026, Brennan)", () => {
+  it("labels the hour a click would make, AM/PM once when both ends share it", () => {
+    expect(slotLabel(14 * 60 + 30, 15 * 60 + 30)).toBe("2:30 – 3:30 PM");
+    expect(slotLabel(9 * 60, 10 * 60)).toBe("9:00 – 10:00 AM");
+    expect(slotLabel(11 * 60 + 30, 12 * 60 + 30)).toBe("11:30 AM – 12:30 PM");
+  });
+  it("a new block is one hour, kept on the grid", () => {
+    expect(newBlockEnd(14 * 60 + 30)).toBe(15 * 60 + 30);
+    expect(newBlockEnd(23 * 60)).toBe(23 * 60 + 45);
+    expect(slotLabel(23 * 60, newBlockEnd(23 * 60))).toBe("11:00 – 11:45 PM");
   });
 });

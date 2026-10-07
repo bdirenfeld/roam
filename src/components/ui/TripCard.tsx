@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DotsThree, Archive, Trash } from "@phosphor-icons/react";
@@ -10,6 +10,9 @@ import { deleteJourney } from "@/lib/deleteJourney";
 import { useToast } from "@/components/ui/Toast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { setTripArchived } from "@/lib/tripArchive";
+import { tripCountdown } from "@/lib/trips/countdown";
+import { localDate } from "@/lib/isSameLocalDay";
+import Pieces from "./Pieces";
 import type { Trip } from "@/types/database";
 
 interface Props {
@@ -45,6 +48,17 @@ export default function TripCard({ trip, href }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting,      setDeleting]      = useState(false);
   useEscapeKey(() => setConfirmDelete(false), confirmDelete && !deleting);
+
+  // The countdown at the end of the caption (6 Oct 2026, Brennan): "IN 5
+  // MONTHS", "TOMORROW", "DAY 3 OF 4", "JUST BACK". Worked out in the BROWSER
+  // after mount, from the reader's local date: the server runs on UTC and
+  // would call it tomorrow from 8pm Eastern (see DayHeading). The server and
+  // the first client render both show no countdown, so hydration agrees.
+  const [countdown, setCountdown] = useState<string | null>(null);
+  useEffect(() => {
+    setCountdown(tripCountdown(trip.start_date, trip.end_date, localDate(new Date())));
+  }, [trip.start_date, trip.end_date]);
+  const caption = formatDateCompact(trip.start_date, trip.end_date);
 
   const { toast } = useToast();
   // Said and undoable (6 Oct 2026, taps audit): Archive used to fold the card
@@ -117,7 +131,10 @@ export default function TripCard({ trip, href }: Props) {
                   className="text-[10.5px] tracking-widest uppercase mt-0.5"
                   style={{ color: "rgba(255,255,255,0.72)" }}
                 >
-                  {formatDateCompact(trip.start_date, trip.end_date)}
+                  {/* Pieces wraps between pieces, never inside one: on a narrow
+                      phone a long caption puts the countdown on the next line
+                      whole (6 Oct 2026, Brennan). */}
+                  <Pieces text={countdown ? `${caption} · ${countdown}` : caption} />
                 </p>
               </div>
             </div>

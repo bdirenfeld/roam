@@ -4,6 +4,8 @@
  * and the rules can be tested against real rows.
  */
 
+import { formatTimeValue } from "@/lib/formatTime";
+
 export const HOUR_START = 7;      // 7 am
 export const HOUR_END   = 23;     // 11 pm — the last row starts here
 export const PX_PER_HOUR = 48;
@@ -118,4 +120,20 @@ export function resizedStart(b: Block, newStartMin: number): string {
 export function fmt12(m: number): string {
   const h = Math.floor(m / 60), mm = m % 60;
   return `${h % 12 || 12}${mm ? ":" + (mm < 10 ? "0" : "") + mm : ""}${h < 12 ? "am" : "pm"}`;
+}
+
+/** The end of a new block made by clicking at `startMin`: one hour, kept on
+ *  the grid (the draft block and the hover slot share it). */
+export function newBlockEnd(startMin: number): number {
+  return Math.min(startMin + 60, HOUR_END * 60 + 45);
+}
+
+/**
+ * The hover slot's label (6 Oct 2026, Brennan): "2:30 – 3:30 PM", the app's
+ * time format with the AM/PM said once when both ends share it, and on both
+ * ends when they don't ("11:30 AM – 12:30 PM").
+ */
+export function slotLabel(startMin: number, endMin: number): string {
+  const s = formatTimeValue(toTime(startMin)), e = formatTimeValue(toTime(endMin));
+  return s.slice(-2) === e.slice(-2) ? `${s.slice(0, -3)} – ${e}` : `${s} – ${e}`;
 }

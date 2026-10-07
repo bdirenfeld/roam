@@ -45,7 +45,7 @@ import { stayRuns } from "@/lib/stays/stayRuns";
 import { searchCountries } from "@/lib/entry/countries";
 import { useHourSuggest, HourSuggestList, hourPickName, importPrediction, type HourPick } from "./HourSuggest";
 import {
-  placeBlocks, movedTimes, resizedEnd, resizedStart, minutesAtY, toMin, toTime, fmt12, gridHeight,
+  placeBlocks, movedTimes, resizedEnd, resizedStart, minutesAtY, toMin, toTime, fmt12, slotLabel, newBlockEnd, gridHeight,
   HOUR_START, HOUR_END, PX_PER_HOUR, NO_END_MIN, type Block,
 } from "@/lib/week/layout";
 
@@ -234,6 +234,20 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const supabase = useMemo(() => createClient(), []);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [hover, setHover] = useState<{ day: number; min: number | null } | null>(null);
+  // The hover slot (6 Oct 2026, Brennan): a faint dashed hour exactly where a
+  // click would make a block. Mouse and trackpad only (a phone or tablet has
+  // no hover); one {dayIdx, min}, written only when the snapped half hour
+  // changes, so a mousemove that stays in the same slot renders nothing.
+  const [slot, setSlot] = useState<{ dayIdx: number; min: number } | null>(null);
+  const [canHover, setCanHover] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(hover: hover) and (pointer: fine)");
+    const on = () => setCanHover(mq.matches);
+    on();
+    mq.addEventListener?.("change", on);
+    return () => mq.removeEventListener?.("change", on);
+  }, []);
   const gridRef = useRef<HTMLDivElement | null>(null);
   const colsRef = useRef<HTMLDivElement | null>(null);
   const laneRef = useRef<HTMLDivElement | null>(null);
@@ -656,6 +670,14 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     const min = minAtY(e.clientY); if (min === null) return;
     setDraftText(""); setDraftBlock({ dayId, dayIdx, min });
   };
+  // Same target test and same snapped minute as onColumnClick, so the slot is
+  // where the click lands. Over a block, mid-drag, or on a folded day: none.
+  const onColumnMove = (e: React.MouseEvent<HTMLDivElement>, dayIdx: number) => {
+    const t = e.target as HTMLElement;
+    const onEmpty = t === e.currentTarget || !!t.dataset.hourline;
+    const min = canHover && onEmpty && !dragRef.current && !collapsed(dayIdx) ? minAtY(e.clientY) : null;
+    setSlot((s) => (min === null ? null : s && s.dayIdx === dayIdx && s.min === min ? s : { dayIdx, min }));
+  };
   // A pick from the box's list (6 Oct 2026, taps audit) makes the block
   // already linked to that place, as LinkPlaceSheet would: place_id set, so
   // the pin, address and hours show. A Google row is saved first; if that
@@ -667,7 +689,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     let place: Place | null = null;
     if (pick?.kind === "saved") place = pick.place;
     else if (pick?.kind === "google") place = await importPrediction(pick.prediction);
-    const created = await scheduleCardOnDay(supabase, { tripId: trip.id, dayId: d.dayId, placeId: place?.id ?? null, place, details: place ? {} : { title }, startTime: toTime(d.min), endTime: toTime(Math.min(d.min + 60, HOUR_END * 60 + 45)) });
+    const created = await scheduleCardOnDay(supabase, { tripId: trip.id, dayId: d.dayId, placeId: place?.id ?? null, place, details: place ? {} : { title }, startTime: toTime(d.min), endTime: toTime(newBlockEnd(d.min)) });
     if (!created) { toast({ message: "Couldn't add it. Try again." }); return; }
     setDays((prev) => prev.map((x) => (x.id === d.dayId ? { ...x, cards: [...x.cards, created] } : x)));
     toast({
@@ -1014,10 +1036,20 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
               </div>
               <div className="contents">
                 {laidOut.map(({ day, placed }, di) => (
-                  <div key={day.id} data-daycol={day.id} onClick={(e) => (collapsed(di) ? setFocusDayId(day.id) : onColumnClick(e, day.id, di))} className={`relative border-l min-w-0 transition-colors ${collapsed(di) ? "cursor-pointer hover:bg-[rgba(26,26,46,0.04)]" : "cursor-cell"}`} style={{ borderColor: "rgba(26,26,46,0.10)", background: collapsed(di) ? "rgba(26,26,46,0.02)" : hover && hover.day === di && hover.min !== null ? "rgba(26,26,46,0.04)" : undefined }}>
+                  <div key={day.id} data-daycol={day.id} onClick={(e) => (collapsed(di) ? setFocusDayId(day.id) : onColumnClick(e, day.id, di))} onMouseMove={(e) => onColumnMove(e, di)} onMouseLeave={() => setSlot(null)} className={`relative border-l min-w-0 transition-colors ${collapsed(di) ? "cursor-pointer hover:bg-[rgba(26,26,46,0.04)]" : "cursor-cell"}`} style={{ borderColor: "rgba(26,26,46,0.10)", background: collapsed(di) ? "rgba(26,26,46,0.02)" : hover && hover.day === di && hover.min !== null ? "rgba(26,26,46,0.04)" : undefined }}>
                     {hours.map((h) => (
                       <div key={h} data-hourline="1" className="absolute left-0 right-0" style={{ top: (h - HOUR_START) * PX_PER_HOUR, borderTop: "1px solid rgba(26,26,46,0.06)" }} />
                     ))}
+                    {canHover && slot && slot.dayIdx === di && !collapsed(di) && !draftBlock && !ghost && !dragChip && (
+                      <div
+                        data-testid="hover-slot"
+                        aria-hidden
+                        className="absolute left-[3px] right-[3px] rounded-[6px] pointer-events-none"
+                        style={{ top: ((slot.min - HOUR_START * 60) / 60) * PX_PER_HOUR, height: PX_PER_HOUR, background: "rgba(26,26,46,0.05)", border: "1px dashed rgba(26,26,46,0.18)", zIndex: 0, padding: "4px 6px" }}
+                      >
+                        <div className="text-[9.5px] text-activity/40 tabular-nums">{slotLabel(slot.min, newBlockEnd(slot.min))}</div>
+                      </div>
+                    )}
                     {draftBlock && draftBlock.dayId === day.id && (
                       <div
                         onPointerDown={(e) => e.stopPropagation()}
@@ -1039,7 +1071,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                           aria-label="Name the plan"
                           className="w-full bg-transparent text-[11px] font-medium outline-none placeholder:text-activity/40"
                         />
-                        <div className="text-[9.5px] text-activity/60 tabular-nums">{fmt12(draftBlock.min)} – {fmt12(Math.min(draftBlock.min + 60, HOUR_END * 60 + 45))}</div>
+                        <div className="text-[9.5px] text-activity/60 tabular-nums">{fmt12(draftBlock.min)} – {fmt12(newBlockEnd(draftBlock.min))}</div>
                         <HourSuggestList items={suggest.items} savedCount={suggest.savedCount} active={suggest.active} onPick={(p) => void commitDraft(p)} />
                       </div>
                     )}
