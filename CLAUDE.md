@@ -890,7 +890,13 @@ What it shows and why:
   read once; the plan is read daily.
 
 **Still withheld, deliberately:** attachments (flight confirmations carry
-passport and payment details), the budget, travellers' names and ages. Notes and
+passport and payment details), the budget, travellers' names and ages. **Booking
+numbers too (7 Oct 2026, re-audit):** a hotel note carried "Expedia For TD itinerary:
+7354…", which with a surname opens the booking. `lib/share/bookingNumbers`
+`guestCardText` is the only door from `details` to the page — title, notes, named,
+nothing else (never `details.confirmation`) — and strips confirmation / itinerary /
+booking / reservation / PNR / record-locator numbers and 8+ digit runs on the server.
+Its test fails if `page.tsx` reads `details` any other way. Notes and
 entry rules were withheld under the same blanket rule until Sept 2026 and should
 not have been — checked first: all 262 notes carry no secrets (the habit is
 already "code stored separately"), and `trip_entry` holds public government

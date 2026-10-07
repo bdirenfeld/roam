@@ -7,6 +7,7 @@ import { cachedPhotoUrl } from "@/lib/places/photoCache";
 import { agendaOrder } from "@/lib/agendaOrder";
 import { cardTimes } from "@/lib/cardTime";
 import { tonightByDay, guestSafeCover } from "@/lib/sharedItinerary";
+import { guestCardText } from "@/lib/share/bookingNumbers";
 import type { Metadata, Viewport } from "next";
 import { getAuthUser } from "@/lib/supabase/authUser";
 
@@ -186,7 +187,7 @@ export default async function ClaimPage({ params, searchParams }: Props) {
     // say that Rome moves hotels on day 3.
     const hotels = rows
       .filter((c) => c.place?.sub_type === "hotel")
-      .map((c) => ({ dayId: c.day_id, name: c.place?.title ?? null, address: c.place?.address ?? null, note: typeof c.details?.notes === "string" ? (c.details.notes as string) : null }));
+      .map((c) => ({ dayId: c.day_id, name: c.place?.title ?? null, address: c.place?.address ?? null, note: guestCardText(c.details).note }));
     const baseDays = (dayRows ?? []).map((d) => ({ id: d.id as string, dayNumber: d.day_number as number }));
     const tonight = tonightByDay(baseDays, hotels, staying);
 
@@ -203,7 +204,12 @@ export default async function ClaimPage({ params, searchParams }: Props) {
       // on raw start_time here put Rome's overnight flight at the bottom of the
       // day it lands on for every guest, while the owner saw it at the top.
       .sort(agendaOrder)
-      .map((c) => ({
+      // Everything read from details goes through guestCardText (7 Oct 2026,
+      // re-audit): title, notes and named only, booking numbers stripped here
+      // on the server so they are never in the HTML; the confirmation key and
+      // every other key stay behind.
+      .map((c) => ({ c, text: guestCardText(c.details) }))
+      .map(({ c, text }) => ({
         id: c.id,
         dayId: c.day_id,
         // Shown at the time it happens, for the same reason it is SORTED at
@@ -211,19 +217,19 @@ export default async function ClaimPage({ params, searchParams }: Props) {
         // cardTimes would put Rome's flight first and then label it 7:45 PM —
         // the takeoff — which reads worse than the bug it replaced.
         ...cardTimes(c),
-        noteTitle: typeof c.details?.title === "string" ? (c.details.title as string) : null,
+        noteTitle: text.title,
         // The whole reason this page exists. 262 cards carry a note saying what
         // the place is and why it was chosen; the query never asked for it, so
         // the people the journey was written for got a bare address where the
         // owner got the explanation (Brennan, Sept 2026 — the Costa Rica
         // problem: "everyone was asking me the same questions every day").
-        note: typeof c.details?.notes === "string" ? (c.details.notes as string) : null,
+        note: text.note,
         place: c.place
           ? {
               // A named card (an event from a confirmation, a travel leg) keeps
               // its own name here too, not the venue's (7 Oct 2026: the summit
               // read "Irving Convention Center" on the shared page).
-              title: c.details?.named === true && typeof c.details?.title === "string" ? (c.details.title as string) : c.place.title,
+              title: text.named && text.title ? text.title : c.place.title,
               sub_type: c.place.sub_type,
               address: c.place.address,
               // Only an already-cached copy: /api/places/photo needs a session.
