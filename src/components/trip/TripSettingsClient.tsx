@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { planDayChanges, rehomeDays } from "@/lib/tripDays";
 import { useRouter } from "next/navigation";
-import { Camera } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
 import { deleteJourney } from "@/lib/deleteJourney";
 import { useToast } from "@/components/ui/Toast";
@@ -171,15 +170,8 @@ export default function TripSettingsClient({
   const [party, setParty] = useState(() => partyFrom(trip.party_size, trip.party_ages));
   const [cruise, setCruise] = useState(trip.cruise === true);
 
-  // Cover image — tracked locally so hero updates immediately after save
-  const [currentCoverUrl, setCurrentCoverUrl] = useState<string | null>(trip.cover_image_url ?? null);
+  // Cover image — a broken URL falls back to the destination map.
   const [coverError, setCoverError] = useState(false);
-
-  // Cover URL sheet
-  const [showCoverSheet, setShowCoverSheet] = useState(false);
-  const [coverUrlInput, setCoverUrlInput] = useState("");
-  const [coverPreviewError, setCoverPreviewError] = useState(false);
-  const [savingCover, setSavingCover] = useState(false);
 
   // UI state
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -206,33 +198,15 @@ export default function TripSettingsClient({
   const nightCount = Math.max(0, countDays(startDate, endDate) - 1);
   const dateRangeDisplay = `${fmtDate(startDate)} → ${fmtDate(endDate)}`;
 
-  // Cover source — derived from local state so it updates immediately on save
+  // Cover source — the journey's own cover, else the destination map.
   const coverSrc =
-    currentCoverUrl && !coverError
-      ? currentCoverUrl
+    trip.cover_image_url && !coverError
+      ? trip.cover_image_url
       : MAPBOX_TOKEN && trip.destination_lat != null && trip.destination_lng != null
       ? `https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/static/${trip.destination_lng},${trip.destination_lat},12,0/800x200@2x?access_token=${MAPBOX_TOKEN}`
       : null;
 
   // ── Handlers ───────────────────────────────────────────────────────────────
-
-  const handleChangeCover = () => {
-    setCoverUrlInput(currentCoverUrl ?? "");
-    setCoverPreviewError(false);
-    setShowCoverSheet(true);
-  };
-
-  const handleSaveCover = async () => {
-    if (savingCover) return;
-    setSavingCover(true);
-    const supabase = createClient();
-    const url = coverUrlInput.trim() || null;
-    await supabase.from("trips").update({ cover_image_url: url }).eq("id", trip.id);
-    setCurrentCoverUrl(url);
-    setCoverError(false);
-    setSavingCover(false);
-    setShowCoverSheet(false);
-  };
 
   // ── Saves as you go ────────────────────────────────────────────
   // Every field writes itself a moment after you stop typing, the way Notes
@@ -577,16 +551,15 @@ export default function TripSettingsClient({
   // runs alongside the shell's, which skips Escape while a nested sheet is
   // marked open — so one keypress backs out of the picker, not the screen.
   useEffect(() => {
-    if (!showDatePicker && !showCoverSheet && !showDeleteConfirm) return;
+    if (!showDatePicker && !showDeleteConfirm) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       setShowDatePicker(false);
-      setShowCoverSheet(false);
       setShowDeleteConfirm(false);
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [showDatePicker, showCoverSheet, showDeleteConfirm]);
+  }, [showDatePicker, showDeleteConfirm]);
 
   const calCells = buildCalendarDays(calYear, calMonth);
 
@@ -647,11 +620,13 @@ export default function TripSettingsClient({
         }
       >
 
-        {/* ── Cover hero ── */}
-        <button
-          onClick={handleChangeCover}
+        {/* ── Cover hero ── a picture, not a control.
+            (6 Oct 2026, Brennan: changing the cover isn't needed; covers are
+            picked from the destination). 16 of 20 journeys use the automatic
+            photo and nobody had ever uploaded one. */}
+        <div
           className="relative w-full h-[100px] block overflow-hidden flex-shrink-0"
-          aria-label="Change cover photo"
+          data-testid="settings-cover"
         >
           {coverSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -664,17 +639,7 @@ export default function TripSettingsClient({
           ) : (
             <div className="absolute inset-0" style={{ background: "#E8E3DA" }} />
           )}
-          {/* Scrim + label */}
-          <div
-            className="absolute inset-0 flex flex-col items-center justify-center gap-1"
-            style={{ background: "rgba(0,0,0,0.25)" }}
-          >
-            <Camera size={14} weight="light" color="white" />
-            <span className="text-white text-[11px] font-medium tracking-wide">
-              Change cover
-            </span>
-          </div>
-        </button>
+        </div>
 
         {/* ── Alerts ── */}
         {warning && (
@@ -945,73 +910,6 @@ export default function TripSettingsClient({
         </div>
 
       </div>{/* end scrollable */}
-
-      {/* ── Cover photo URL sheet ──
-          z-[90] clears the overlay shell at z-[80]; on the page route nothing
-          sits above it either way. NESTED_SHEET_ATTR tells that shell to leave
-          Escape alone while this is up. */}
-      {showCoverSheet && (
-        <div {...NESTED_SHEET_ATTR}>
-          <div
-            className="fixed inset-0 bg-black/40 z-[90]"
-            onClick={() => setShowCoverSheet(false)}
-          />
-          <div
-            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl z-[90] max-w-mobile mx-auto flex flex-col"
-            style={{ maxHeight: "85%" }}
-          >
-            <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
-              <div className="w-9 h-1 bg-gray-200 rounded-full" />
-            </div>
-            <div className="flex-1 min-h-0 overflow-y-auto px-5 pt-3 pb-2">
-              <p className="text-center font-display italic text-base text-gray-900 mb-5">
-                Change cover
-              </p>
-              <input
-                type="url"
-                value={coverUrlInput}
-                onChange={(e) => {
-                  setCoverUrlInput(e.target.value);
-                  setCoverPreviewError(false);
-                }}
-                placeholder="Paste an image URL…"
-                autoFocus
-                className="w-full text-[14px] border-b border-black/10 py-3 outline-none bg-transparent placeholder:text-gray-300 text-[#1A1A2E]"
-              />
-              {/* Live preview */}
-              <div
-                className="mt-4 w-full h-[100px] rounded-xl overflow-hidden"
-                style={{ background: "#E8E3DA" }}
-              >
-                {coverUrlInput.trim() && !coverPreviewError && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={coverUrlInput.trim()}
-                    alt="Preview"
-                    className="w-full h-full object-cover"
-                    onError={() => setCoverPreviewError(true)}
-                  />
-                )}
-              </div>
-            </div>
-            <div className="flex-shrink-0 px-5 pt-4 pb-10 space-y-3">
-              <button
-                onClick={handleSaveCover}
-                disabled={savingCover || !coverUrlInput.trim()}
-                className="w-full py-3 bg-[#1A1A2E] text-white text-[14px] font-semibold rounded-full disabled:opacity-40 active:scale-[0.99] transition-all"
-              >
-                {savingCover ? "Saving…" : "Save"}
-              </button>
-              <button
-                onClick={() => setShowCoverSheet(false)}
-                className="w-full text-center text-[13px] text-gray-400 py-2"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ── Delete confirmation sheet ── */}
       {showDeleteConfirm && (

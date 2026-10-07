@@ -185,9 +185,6 @@ export default function NewJourneyForm({
   const [coverUrl,         setCoverUrl]         = useState<string | null>(null);
   const [,                 setCoverError]       = useState(false);
   const [,                 setFetchingCover]    = useState(false);
-  const [showCoverSheet,   setShowCoverSheet]   = useState(false);
-  const [coverUrlInput,    setCoverUrlInput]    = useState("");
-  const [coverPreviewError, setCoverPreviewError] = useState(false);
 
   // Form fields
   const [tripName,      setTripName]      = useState("");
@@ -565,15 +562,14 @@ export default function NewJourneyForm({
   // runs alongside the shell's, which skips Escape while a nested sheet is
   // marked open — so one keypress closes the picker, not the whole screen.
   useEffect(() => {
-    if (!showDatePicker && !showCoverSheet) return;
+    if (!showDatePicker) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       setShowDatePicker(false);
-      setShowCoverSheet(false);
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [showDatePicker, showCoverSheet]);
+  }, [showDatePicker]);
 
   const calCells = buildCalendarDays(calYear, calMonth);
   const calNights = pickStart && pickEnd ? Math.max(0, countDays(pickStart, pickEnd) - 1) : null;
@@ -899,73 +895,6 @@ export default function NewJourneyForm({
         </div>
 
       </div>
-
-      {/* Cover photo URL sheet. z-[90] clears the overlay shell at z-[80]; on
-          the page route nothing sits above it either way. */}
-      {showCoverSheet && (
-        <div {...NESTED_SHEET_ATTR}>
-          <div
-            className="fixed inset-0 bg-black/40 z-[90]"
-            onClick={() => setShowCoverSheet(false)}
-          />
-          <div
-            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl z-[90] max-w-mobile mx-auto flex flex-col"
-            style={{ maxHeight: "85%" }}
-          >
-            <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
-              <div className="w-9 h-1 bg-gray-200 rounded-full" />
-            </div>
-            <div className="flex-1 min-h-0 overflow-y-auto px-5 pt-3 pb-2">
-              <p className="text-center font-display italic text-base text-gray-900 mb-5">
-                Change cover
-              </p>
-              <input
-                type="url"
-                value={coverUrlInput}
-                onChange={(e) => { setCoverUrlInput(e.target.value); setCoverPreviewError(false); }}
-                placeholder="Paste an image URL…"
-                autoFocus
-                className="w-full text-[14px] border-b border-black/10 py-3 outline-none bg-transparent placeholder:text-gray-300 text-[#1A1A2E]"
-              />
-              {/* Live preview */}
-              <div
-                className="mt-4 w-full h-[100px] rounded-xl overflow-hidden"
-                style={{ background: "#E8E3DA" }}
-              >
-                {coverUrlInput.trim() && !coverPreviewError && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={coverUrlInput.trim()}
-                    alt="Preview"
-                    className="w-full h-full object-cover"
-                    onError={() => setCoverPreviewError(true)}
-                  />
-                )}
-              </div>
-            </div>
-            <div className="flex-shrink-0 px-5 pt-4 pb-10 space-y-3">
-              <button
-                onClick={() => {
-                  const url = coverUrlInput.trim() || null;
-                  setCoverUrl(url);
-                  setCoverError(false);
-                  setShowCoverSheet(false);
-                }}
-                disabled={!coverUrlInput.trim()}
-                className="w-full py-3 bg-[#1A1A2E] text-white text-[14px] font-semibold rounded-full disabled:opacity-40 active:scale-[0.99] transition-all"
-              >
-                Save
-              </button>
-              <button
-                onClick={() => setShowCoverSheet(false)}
-                className="w-full text-center text-[13px] text-gray-400 py-2"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Date range picker sheet */}
       {showDatePicker && (

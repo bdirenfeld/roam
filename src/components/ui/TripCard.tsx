@@ -3,9 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { DotsThree, PencilSimpleLine, Archive, Trash } from "@phosphor-icons/react";
+import { DotsThree, Archive, Trash } from "@phosphor-icons/react";
 import TripCover from "./TripCover";
-import TripCoverEditModal from "./TripCoverEditModal";
 import { createClient } from "@/lib/supabase/client";
 import { deleteJourney } from "@/lib/deleteJourney";
 import { useToast } from "@/components/ui/Toast";
@@ -42,8 +41,6 @@ function formatDateCompact(start: string, end: string): string {
 
 export default function TripCard({ trip, href }: Props) {
   const router = useRouter();
-  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(trip.cover_image_url ?? null);
-  const [showModal,     setShowModal]     = useState(false);
   const [menuOpen,      setMenuOpen]      = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting,      setDeleting]      = useState(false);
@@ -95,7 +92,7 @@ export default function TripCard({ trip, href }: Props) {
             <div className="relative">
               <TripCover
                 destination={trip.destination}
-                coverImageUrl={coverImageUrl}
+                coverImageUrl={trip.cover_image_url ?? null}
                 lat={trip.destination_lat}
                 lng={trip.destination_lng}
                 className="w-full h-[168px] md:h-[260px]"
@@ -157,18 +154,12 @@ export default function TripCard({ trip, href }: Props) {
                 boxShadow: "0 8px 30px rgba(26,26,46,0.18)",
               }}
             >
-              <button
-                role="menuitem"
-                onClick={() => { setMenuOpen(false); setShowModal(true); }}
-                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] text-gray-800 hover:bg-gray-50 transition-colors"
-              >
-                <PencilSimpleLine size={14} weight="light" className="text-gray-500" />
-                Change cover
-              </button>
+              {/* No "Change cover" here (6 Oct 2026, Brennan: changing the cover
+                  isn't needed; covers are picked from the destination). */}
               <button
                 role="menuitem"
                 onClick={handleArchive}
-                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] text-gray-800 hover:bg-gray-50 transition-colors border-t border-black/5"
+                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] text-gray-800 hover:bg-gray-50 transition-colors"
               >
                 <Archive size={14} weight="light" className="text-gray-500" />
                 Archive
@@ -227,14 +218,6 @@ export default function TripCard({ trip, href }: Props) {
             </div>
           </div>
         </>
-      )}
-
-      {showModal && (
-        <TripCoverEditModal
-          trip={trip}
-          onClose={() => setShowModal(false)}
-          onSuccess={(url) => { setCoverImageUrl(url); setShowModal(false); }}
-        />
       )}
     </>
   );

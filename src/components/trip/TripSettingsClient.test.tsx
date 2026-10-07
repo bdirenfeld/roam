@@ -81,3 +81,21 @@ describe("Settings saves as you go", () => {
     expect(onDismiss).toHaveBeenCalled();
   });
 });
+
+describe("Settings cover is a picture, not a control (6 Oct 2026)", () => {
+  it("has no Change cover control and still shows the cover", () => {
+    open({ trip: { ...trip, cover_image_url: "https://example.com/c.jpg" } });
+    expect(screen.queryByText(/Change cover/i)).toBeNull();
+    expect(screen.queryByRole("button", { name: /cover/i })).toBeNull();
+    const img = screen.getByAltText("Cover");
+    expect(img.getAttribute("src")).toBe("https://example.com/c.jpg");
+    expect(img.closest("button")).toBeNull();
+  });
+
+  it("a broken cover still falls back without becoming a button", () => {
+    open({ trip: { ...trip, cover_image_url: "https://example.com/broken.jpg" } });
+    fireEvent.error(screen.getByAltText("Cover"));
+    expect(screen.queryByAltText("Cover")?.getAttribute("src") ?? null).not.toBe("https://example.com/broken.jpg");
+    expect(screen.queryByText(/Change cover/i)).toBeNull();
+  });
+});

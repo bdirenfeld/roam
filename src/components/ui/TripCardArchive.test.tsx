@@ -26,7 +26,6 @@ const toast = vi.fn();
 vi.mock("@/components/ui/Toast", () => ({ useToast: () => ({ toast }) }));
 vi.mock("next/link", () => ({ default: ({ children }: { children: React.ReactNode }) => <a>{children}</a> }));
 vi.mock("./TripCover", () => ({ default: () => null }));
-vi.mock("./TripCoverEditModal", () => ({ default: () => null }));
 
 import TripCard from "./TripCard";
 import PastJourneysList from "@/components/trip/PastJourneysList";
@@ -62,6 +61,15 @@ describe("TripCard ⋯ → Archive", () => {
     expect(toast.mock.calls[0][0].message).toMatch(/Couldn't archive/);
     expect(toast.mock.calls[0][0].undo).toBeUndefined();
     expect(refresh).not.toHaveBeenCalled();
+  });
+});
+
+describe("TripCard ⋯ menu has no Change cover (6 Oct 2026)", () => {
+  it("offers Archive and Delete only", () => {
+    render(<TripCard trip={{ ...trip, archived: false } as Trip} />);
+    fireEvent.click(screen.getByLabelText("Options for Tuscany"));
+    expect(screen.queryByRole("menuitem", { name: /cover/i })).toBeNull();
+    expect(screen.getAllByRole("menuitem").map((b) => b.textContent?.trim())).toEqual(["Archive", "Delete…"]);
   });
 });
 
