@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 import type { Trip, DayWithCards, ListWithCards, Card } from "@/types/database";
 import WeekBoard from "./WeekBoard";
 import PlanBoard from "./PlanBoard";
+import { useMemberJoinedToast } from "@/hooks/useMemberJoinedToast";
 
 interface Props {
   trip: Trip;
@@ -25,6 +26,9 @@ interface Props {
 
 export default function PlanSwitch(props: Props) {
   const [phone, setPhone] = useState(false);
+  // The Plan route is owner-only (guests are redirected), so the owner's
+  // "Isha joined Tuscany" toast runs here for both boards (7 Oct 2026, delight audit).
+  useMemberJoinedToast(props.trip.id, props.trip.title, true);
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 767px)");
     const apply = () => setPhone(mq.matches);

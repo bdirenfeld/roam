@@ -27,6 +27,7 @@ import { startSteps, type StartCard } from "@/lib/plan/startHere";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import AppMenu from "@/components/ui/AppMenu";
 import { useToast } from "@/components/ui/Toast";
+import { useMemberJoinedToast } from "@/hooks/useMemberJoinedToast";
 import { formatTimeRange } from "@/lib/formatTime";
 import { agendaOrder } from "@/lib/agendaOrder";
 import dynamic from "next/dynamic";
@@ -287,6 +288,8 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   );
   // Undo window after a delete — holds the removed row for re-insert
   const { toast } = useToast();
+  // "Isha joined Tuscany" for the owner, once per new member (7 Oct 2026, delight audit).
+  useMemberJoinedToast(trip.id, trip.title, !readOnly);
 
   // The day's title — "Arrival", "Lucca morning". The Plan showed it and the
   // Agenda, the screen you read on the day, did not (UX audit, Sep 2026,
