@@ -20,6 +20,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSheetDrag } from "@/hooks/useSheetDrag";
 import { formatTimeValue } from "@/lib/formatTime";
 import type { Card } from "@/types/database";
+import { cardTitle } from "@/lib/cardTitle";
 
 const INK = "#1A1A2E";
 const STEP = 15;
@@ -95,7 +96,7 @@ export default function TimeSheet({
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  const title = card.place?.title ?? (card.details as { title?: string } | null)?.title ?? "This card";
+  const title = cardTitle(card);
   const start = parseTypedTime(startText);
   const endParsed = parseTypedTime(endText);
   const end = start && endParsed && toMin(endParsed) > toMin(start) ? endParsed : null;

@@ -48,6 +48,8 @@ import {
   placeBlocks, movedTimes, resizedEnd, resizedStart, minutesAtY, toMin, toTime, fmt12, slotLabel, newBlockEnd, gridHeight,
   HOUR_START, HOUR_END, PX_PER_HOUR, NO_END_MIN, type Block,
 } from "@/lib/week/layout";
+// The same name the day view and card use: an event keeps its own over the venue (7 Oct 2026).
+import { cardTitle } from "@/lib/cardTitle";
 
 interface Props {
   trip: Trip;
@@ -67,10 +69,6 @@ function dow(date: string): string {
 }
 function dayLabel(date: string): string {
   return new Date(date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-}
-function cardTitle(c: Card): string {
-  const det = c.details as { title?: string; notes?: string } | null;
-  return c.place?.title ?? det?.title ?? (det?.notes ? det.notes.slice(0, 60) : "(untitled)");
 }
 function isNote(c: Card): boolean { return !c.place_id; }
 /** The first sentence of a card's notes, for the widened day — past the
@@ -564,7 +562,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     if (!gone) return;
     toast({
       // Names what went, so Undo feels safe (6 Oct 2026, delight audit).
-      message: `Deleted ${gone.place?.title ?? (gone.details as { title?: string } | null)?.title ?? "a note"}`,
+      message: `Deleted ${cardTitle(gone)}`,
       undo: async () => {
         const { error } = await queuedInsert("cards", {
           id: gone.id, day_id: gone.day_id, trip_id: gone.trip_id,

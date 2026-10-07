@@ -46,7 +46,7 @@ import { takenOffDayToast } from "@/lib/takenOff";
 import { planExisting, stayAnchor } from "@/lib/week/dayPlan";
 import { applyOverlayAll } from "@/lib/offline/writeQueue";
 import { COMPANION_ENABLED } from "@/lib/featureFlags";
-import { deletedToast } from "@/lib/cardTitle";
+import { deletedToast, cardTitle } from "@/lib/cardTitle";
 import type { Trip, Day, DayWithCards, Card } from "@/types/database";
 
 // Weather types, fetch, cache and icons live in the shared module so the
@@ -554,7 +554,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   const handleTimeSave = useCallback(async (card: Card, start: string | null, end: string | null) => {
     const before = { start_time: card.start_time, end_time: card.end_time };
     const after = { start_time: start, end_time: end };
-    const title = card.place?.title ?? (card.details as { title?: string } | null)?.title ?? "Card";
+    const title = cardTitle(card);
     handleCardUpdate({ ...card, ...after });
     const { error } = await queuedUpdate("cards", { id: card.id }, after);
     if (error) {
