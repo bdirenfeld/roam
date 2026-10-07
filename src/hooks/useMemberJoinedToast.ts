@@ -30,7 +30,8 @@ export function useMemberJoinedToast(tripId: string, tripTitle: string, enabled:
         const { members } = (await res.json()) as { members?: JoinedMember[] };
         if (cancelled || !members?.length) return;
         const message = joinedToastFor(localStore(), tripId, tripTitle, members, Date.now());
-        if (message) toast({ message, duration: 5000 });
+        // wait: on a journey's eve the eve toast arrives too; neither replaces the other (7 Oct 2026, re-audit).
+        if (message) toast({ message, duration: 5000, wait: true });
       } catch {
         // Offline or a failed read: say nothing; it will be news next time.
       }

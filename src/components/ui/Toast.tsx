@@ -11,6 +11,11 @@
 // `useToast()` and shows a message, optionally with an Undo action. Showing a
 // new toast replaces the old one; an Undo toast lives 6 s, a plain notice 3 s.
 // The Undo handler runs once and the toast closes as soon as it is tapped.
+//
+// Except a toast that nobody's tap caused (7 Oct 2026, re-audit): `wait: true`
+// queues it, one deep, until the toast on screen is gone. On a journey's eve
+// "Isha joined Lisbon" and "Lisbon tomorrow · 2 still to book" both arrive on
+// the first open; each marks itself seen, so the one replaced was lost for good.
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
@@ -27,6 +32,13 @@ export interface ToastOptions {
   action?: { label: string; onClick: () => void };
   /** Override the default lifetime in ms. */
   duration?: number;
+  /**
+   * Nobody tapped anything to cause this (a "joined" or eve-of-departure notice):
+   * wait for the toast on screen to go instead of replacing it. One deep — a
+   * later waiting toast takes the place of an earlier one still waiting.
+   * A toast without it (a delete, an error) still replaces at once.
+   */
+  wait?: boolean;
 }
 
 interface ToastContextValue {
@@ -41,20 +53,41 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [current, setCurrent] = useState<(ToastOptions & { key: number }) | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const keyRef = useRef(0);
+  // Is a toast on screen right now? A ref, so toast() can decide synchronously.
+  const showingRef = useRef(false);
+  const waitingRef = useRef<ToastOptions | null>(null);
+  const closeRef = useRef<() => void>(() => {});
 
-  const dismiss = useCallback(() => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = null;
-    setCurrent(null);
-  }, []);
-
-  const toast = useCallback((opts: ToastOptions) => {
+  const show = useCallback((opts: ToastOptions) => {
     if (timerRef.current) clearTimeout(timerRef.current);
     keyRef.current += 1;
+    showingRef.current = true;
     setCurrent({ ...opts, key: keyRef.current });
     const life = opts.duration ?? (opts.undo || opts.action ? 6000 : 3000);
-    timerRef.current = setTimeout(() => setCurrent(null), life);
+    timerRef.current = setTimeout(() => closeRef.current(), life);
   }, []);
+
+  // The toast on screen goes; a waiting one takes its place.
+  const close = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = null;
+    showingRef.current = false;
+    setCurrent(null);
+    const next = waitingRef.current;
+    waitingRef.current = null;
+    if (next) show(next);
+  }, [show]);
+  closeRef.current = close;
+
+  const dismiss = close;
+
+  const toast = useCallback((opts: ToastOptions) => {
+    if (opts.wait && showingRef.current) {
+      waitingRef.current = opts;
+      return;
+    }
+    show(opts);
+  }, [show]);
 
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 

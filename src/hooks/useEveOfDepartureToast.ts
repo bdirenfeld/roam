@@ -81,6 +81,8 @@ export function useEveOfDepartureToast(tripId: string, destination: string, star
           action: open > 0
             ? { label: "Bookings", onClick: () => window.dispatchEvent(new CustomEvent("roam:open-bookings")) }
             : undefined,
+          // Waits behind a "joined" toast instead of replacing it (7 Oct 2026, re-audit).
+          wait: true,
         });
       } catch {
         // Offline or a failed read: say nothing.

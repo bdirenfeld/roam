@@ -61,6 +61,8 @@ describe("useEveOfDepartureToast", () => {
     expect(toast.mock.calls[0][0].message).toBe("Lisbon tomorrow · all booked ✓");
     expect(toast.mock.calls[0][0].action).toBeUndefined();
     expect(toast.mock.calls[0][0].undo).toBeUndefined();
+    // Waits behind a "joined" toast instead of replacing it (7 Oct 2026, re-audit).
+    expect(toast.mock.calls[0][0].wait).toBe(true);
   });
 
   it("the day before, rows open: 'n still to book' with a Bookings button that opens the sheet", async () => {

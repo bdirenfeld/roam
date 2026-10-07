@@ -26,6 +26,8 @@ describe("useMemberJoinedToast", () => {
     const first = renderHook(() => useMemberJoinedToast("t1", "Tuscany", true));
     await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({ message: "Isha joined Tuscany" })));
     expect(toast.mock.calls[0][0].undo).toBeUndefined();
+    // Waits behind any toast on screen, so the eve toast cannot erase it (7 Oct 2026, re-audit).
+    expect(toast.mock.calls[0][0].wait).toBe(true);
     expect(f).toHaveBeenCalledWith("/api/trips/t1/members");
     first.unmount();
 
