@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
     site: siteOf(url),
     url,
     total: price.total,
-    currency: price.total != null ? "CAD" : null,
+    currency: price.total != null ? ctx.homeCurrency : null,
     nightly_cad: price.nightly,
     beds: null, baths: null, sleeps: null, pool: null, ac: null,
     score: exact?.rating ?? extras.rating ?? null,

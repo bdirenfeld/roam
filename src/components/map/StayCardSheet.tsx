@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { scoreLabel, siteName } from "@/lib/stays/price";
+import { homeSymbol } from "@/lib/budget/currency";
 import { bookingUrl, canPrefill, priceSearchUrl, noPriceReason, type StayDates } from "@/lib/stays/bookingUrl";
 import type { StayBrief } from "@/lib/stays/brief";
 import type { StayCandidate } from "@/types/database";
@@ -55,8 +56,9 @@ interface Props {
   onClose: () => void;
 }
 
-function cad(n: number): string {
-  return "$" + Math.round(n).toLocaleString("en-CA");
+/** In the currency the price was asked for: the person's own (6 Oct 2026). */
+function cad(n: number, currency?: string | null): string {
+  return homeSymbol(currency || "CAD") + Math.round(n).toLocaleString("en-CA");
 }
 
 function fmtRange(start: string, end: string): string {
@@ -264,7 +266,7 @@ export default function StayCardSheet({ inPanel = false, backLabel = "Back", can
             <Row icon="💶" k={`${fmtRange(startDate, endDate)} · ${nights} ${nights === 1 ? "night" : "nights"}`}>
               {c.total != null ? (
                 <>
-                  {`${cad(Number(c.total))}${c.nightly_cad != null ? ` · ${cad(Number(c.nightly_cad))} a night` : ""}${c.site ? ` · ${siteName(c.site)}` : ""}`}
+                  {`${cad(Number(c.total), c.currency)}${c.nightly_cad != null ? ` · ${cad(Number(c.nightly_cad), c.currency)} a night` : ""}${c.site ? ` · ${siteName(c.site)}` : ""}`}
                   {priceYear && (
                     <span className="block font-normal" style={{ color: SIENNA }}>
                       Typical: this is the same week in {priceYear}, the closest anyone quotes.

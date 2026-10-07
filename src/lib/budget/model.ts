@@ -208,14 +208,19 @@ export function defaultAssumptions(
   };
 }
 
-/** Card budgets carry their own currency; this is the one place FX applies. */
+/**
+ * Card budgets carry their own currency; this is the one place FX applies.
+ * `home` is the person's own currency (lib/budget/currency homeCurrencyFor):
+ * a budget already in it needs no rate. The name says CAD for history.
+ */
 export function cardBudgetToCad(
   b: CardBudget,
   partySize: number,
   fxToCad: number,
+  home = "CAD",
 ): number {
   const base = b.per === "person" ? b.amount * partySize : b.amount;
-  const rate = !b.currency || b.currency === "CAD" ? 1 : fxToCad;
+  const rate = !b.currency || b.currency === home ? 1 : fxToCad;
   return base * rate;
 }
 

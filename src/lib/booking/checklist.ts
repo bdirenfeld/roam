@@ -17,7 +17,7 @@ import { townFromAddress, countryFromAddress } from "@/lib/stays/brief";
 import { isRentalCar, range } from "@/lib/bookings/summary";
 import { cardTimes } from "@/lib/cardTime";
 import { SYMBOL } from "@/lib/budget/currency";
-import { airportCity, carsUrl, englishTown, flightsUrl, isIata, kayakParty, kayakPlace, staysUrl, travellers, twoCars, KAYAK, type KayakParty } from "./kayak";
+import { airportCity, carsUrl, englishTown, flightsUrl, isIata, kayakBase, kayakParty, kayakPlace, staysUrl, travellers, twoCars, type KayakParty } from "./kayak";
 
 export type RowKey = "flights" | "stays" | "car";
 /** "open" (6 Oct 2026): "Not booked yet" — overrides an automatic tick back to ○. */
@@ -52,7 +52,8 @@ export interface CheckInput {
     party_ages: number[] | null;
     booking_checklist?: Record<string, unknown> | null;
   };
-  home: { airport: string | null; country: string | null };
+  /** Profile's home; the passport stands in for a blank home country when choosing Kayak's site. */
+  home: { airport: string | null; country: string | null; passport?: string | null };
   days: { id: string; date: string }[];
   cards: CheckCard[];
   /** people.birthdate, the fallback when the journey has no ages. */
@@ -130,6 +131,16 @@ export function storeChecklist(choices: Checklist, costs: Costs): Record<string,
 export function costLabel(c: Cost): string {
   const sym = SYMBOL[c.currency] ?? `${c.currency} `;
   return `${sym}${Math.round(c.amount).toLocaleString("en-CA")}`;
+}
+
+/**
+ * "What did it cost?" — which currency the box starts in, and the choices.
+ * It starts in the person's home currency (6 Oct 2026): Kayak's regional site
+ * quotes them there, so that is what they paid. The journey's own currency
+ * is the next choice, for a booking paid locally.
+ */
+export function costCurrencies(home: string, local: string | null | undefined): { initial: string; options: string[] } {
+  return { initial: home, options: Array.from(new Set([home, ...(local ? [local] : []), "USD", "EUR", "GBP"])) };
 }
 
 /** The checklist with one row set (or cleared with null). */
@@ -213,6 +224,8 @@ export function checklistRows(input: CheckInput): CheckRow[] {
   const party = partyOf(input);
   const people = travellers(party);
   const homeAirport = isIata(home.airport) ? home.airport : null;
+  // Kayak's site for where they live, so its prices are in their currency (6 Oct 2026).
+  const base = kayakBase(home.country || home.passport);
   const destCountry = destinationCountry(trip.destination);
   const destName = trip.destination.split(",")[0].trim() || trip.destination;
 
@@ -252,10 +265,10 @@ export function checklistRows(input: CheckInput): CheckRow[] {
     const from = airportCity(homeAirport) ?? homeAirport;
     const to = airportCity(airports[0]) ?? airports[0] ?? destName;
     const open = !homeAirport
-      ? { line: "Add your home airport in Profile", url: `${KAYAK}/flights` }
+      ? { line: "Add your home airport in Profile", url: `${base}/flights` }
       : {
           line: `${from} → ${to} · ${peopleLine(people)}`,
-          url: flightsUrl({ from: homeAirport, to: airports, out, back: trip.end_date, party }),
+          url: flightsUrl({ from: homeAirport, to: airports, out, back: trip.end_date, party, base }),
         };
     rows.push(row("flights", auto, open, { dayId: flights[0]?.c.day_id ?? null, name: airline }));
   }
@@ -269,7 +282,7 @@ export function checklistRows(input: CheckInput): CheckRow[] {
     for (const r of runs) for (let d = r.checkIn; d < r.checkOut; d = addDays(d, 1)) covered.add(d);
     const open = nights.filter((n) => !covered.has(n));
     let auto: { state: "booked" | "skip"; line: string } | null = null;
-    let openRow = { line: "", url: `${KAYAK}/stays` };
+    let openRow = { line: "", url: `${base}/stays` };
     if (!nights.length) auto = { state: "skip", line: "Not needed" };
     else if (!open.length) auto = { state: "booked", line: `${runs.length === 1 ? runs[0].title : `${runs.length} stays`} · all ${plural(nights.length, "night")}` };
     else {
@@ -292,7 +305,7 @@ export function checklistRows(input: CheckInput): CheckRow[] {
       // on Kayak, "Florence" and "Lisbon" the city (tested live 6 Oct 2026). A region ("Tuscany") is
       // not a Kayak place and falls back to the stays page with dates and guests kept.
       void country;
-      const url = staysUrl({ place: kayakPlace(englishTown(town)), checkIn, checkOut, party });
+      const url = staysUrl({ place: kayakPlace(englishTown(town)), checkIn, checkOut, party, base });
       openRow = covered.size
         ? { line: `${covered.size} of ${nights.length} nights booked`, url }
         : { line: `${town} · ${plural(nights.length, "night")}`, url };
@@ -320,7 +333,7 @@ export function checklistRows(input: CheckInput): CheckRow[] {
     // Seats for the whole party (Kayak's filter); ten or more need two cars.
     rows.push(row("car", auto, {
       line: `${code ? `${airportCity(code) ?? code} airport` : englishTown(town)} · ${plural(people, "seat")}${twoCars(people) ? ", two cars" : ""}`,
-      url: carsUrl({ at, pickUp, pickUpHour, dropOff: trip.end_date, dropOffHour: 10, people }),
+      url: carsUrl({ at, pickUp, pickUpHour, dropOff: trip.end_date, dropOffHour: 10, people, base }),
     }, { dayId: car?.day_id ?? null, name: carName }));
   }
   return rows;

@@ -242,6 +242,9 @@ something is queued. Queued inserts are not overlaid on cached reads: after a re
 offline, a card created offline is absent until it syncs. Known and accepted.
 
 ## Exchange rate: two live sources, then a dated table — never "a guess" (lib/budget/currency.ts)
+**Home currency (6 Oct 2026):** a person's money is in `homeCurrencyFor(users.home_country, passport_country)`, else CAD —
+the Estimate (loadEstimate reads the viewer's row; `fx_to_cad` is really "to home"), Bookings' "What did it cost?" default,
+and stay prices (SerpApi `currency`). Rates and the reference table convert to that home. Local prices keep the destination's currency.
 `fetchRateToHome` tries exchangerate-api's open feed, then Frankfurter on `api.frankfurter.dev`
 (the old `api.frankfurter.app` host only redirects now, which is what broke the live rate on
 2026-09-04). If both fail the Estimate uses `REFERENCE_RATES` and says "the <month> rate";
@@ -2188,8 +2191,10 @@ timers stalls the async reads the day view does after mount.
   "Booked"/"Not needed" in `trips.booking_checklist` (jsonb, migration 016) wins over everything. Writes go through
   `queuedUpdate("trips", …)` with a toast + Undo. Stays' open run is searched in the town of that night's plans
   (Tuscany's 31 Aug gap → Firenze, as the mock shows), else the stay beside the gap, else the destination.
-- **Kayak URL rules (lib/booking/kayak, shapes verified live by Brennan 6 Oct 2026):** always
-  `https://www.kayak.com` — **kayak.ca does not resolve on his network (DNS)**. Flights need IATA codes; **a town in
+- **Kayak URL rules (lib/booking/kayak, shapes verified live by Brennan 6 Oct 2026):** the host is the
+  person's own Kayak site (`kayakBase`, home country then passport), because Kayak prices in its regional
+  site's currency: Canada `www.ca.kayak.com` (**kayak.ca does not resolve — DNS**), UK `kayak.co.uk`, AU, IE, DE,
+  FR, IT, ES, NL, CH, MX, IN (all three shapes curl-checked 6 Oct); US and the rest `www.kayak.com`. Flights need IATA codes; **a town in
   the route is silently dropped**, so no codes = the plain /flights page. Several arrival airports comma-join
   (`YYZ-FLR,PSA`). Stays: `/hotels/Town/in/out/Nadults/Kchildren-a-b/Rrooms` with the **plain English town, no country**
   (tested live: "Florence-Italy" and "Lisboa-Portugal" opened the AIRPORT, "Roma" opened Roma, Queensland, "Firenze"

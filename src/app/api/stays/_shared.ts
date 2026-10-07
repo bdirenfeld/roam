@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { StayCandidate } from "@/types/database";
 import { buildStayBrief, countryOfPins, type BriefPin, type StayBrief } from "@/lib/stays/brief";
 import { searchCeiling } from "@/lib/stays/budget";
+import { HOME_CURRENCY, loadHomeCurrency } from "@/lib/budget/currency";
 
 export interface TripContext {
   trip: {
@@ -25,6 +26,8 @@ export interface TripContext {
   /** Stay-type places already saved on this journey, once each. */
   /** Places on the map with a location — how much the search has to go on. */
   pinCount: number;
+  /** The person's own currency: stay prices are asked for in it (6 Oct 2026). */
+  homeCurrency: string;
   savedStays: { place_id: string; title: string; address: string | null; lat: number; lng: number; google_place_id: string | null; rating: number | null; website: string | null; scheduledDays: string[]; types: string[] | null }[];
 }
 
@@ -40,6 +43,7 @@ export async function loadTripContext(supabase: SupabaseClient, tripId: string, 
   // The lodging budget already exists on the Estimate screen: no question to ask.
   const { data: budgetRow } = await supabase.from("trip_budgets").select("assumptions").eq("trip_id", tripId).maybeSingle();
   const nightlyRate = searchCeiling(budgetRow?.assumptions as Record<string, unknown> | null);
+  const homeCurrency = await loadHomeCurrency(supabase, userId);
 
   const dayDate = new Map<string, string>();
   for (const d of days ?? []) dayDate.set(d.id, d.date);
@@ -73,7 +77,7 @@ export async function loadTripContext(supabase: SupabaseClient, tripId: string, 
   }
 
   const brief = buildStayBrief({ startDate: trip.start_date, endDate: trip.end_date, partyAges: trip.party_ages, partySize: trip.party_size, pins, nightsByBase: (trip.stay_nights ?? null) as Record<string, number> | null });
-  return { trip, days: (days ?? []) as TripContext["days"], brief, country: countryOfPins(pins), nightlyRate, savedStays, pinCount: pins.length };
+  return { trip, days: (days ?? []) as TripContext["days"], brief, country: countryOfPins(pins), nightlyRate, savedStays, pinCount: pins.length, homeCurrency };
 }
 
 // ── Google ────────────────────────────────────────────────────────────────
@@ -188,6 +192,7 @@ export async function stayOffers(
   childrenAges: number[],
   wantHouse: boolean,
   pages = 1,
+  currency: string = HOME_CURRENCY,
 ): Promise<StayOffer[]> {
   // Google pages at about eighteen. Each page is one credit; the caller says
   // how many are worth it (lib/stays/inventory.ts). Pages are deduped on the
@@ -196,7 +201,7 @@ export async function stayOffers(
   const seen = new Set<string>();
   let token: string | null = null;
   for (let i = 0; i < Math.max(1, pages); i++) {
-    const page = await stayOffersPage(key, where, checkIn, checkOut, adults, childrenAges, wantHouse, token);
+    const page = await stayOffersPage(key, where, checkIn, checkOut, adults, childrenAges, wantHouse, token, currency);
     for (const o of page.offers) {
       const k = o.name.toLowerCase();
       if (seen.has(k)) continue;
@@ -218,6 +223,7 @@ async function stayOffersPage(
   childrenAges: number[],
   wantHouse: boolean,
   pageToken: string | null,
+  currency: string,
 ): Promise<{ offers: StayOffer[]; next: string | null }> {
   const url = new URL("https://serpapi.com/search.json");
   url.searchParams.set("engine", "google_hotels");
@@ -229,7 +235,7 @@ async function stayOffersPage(
     url.searchParams.set("children", String(childrenAges.length));
     url.searchParams.set("children_ages", childrenAges.join(","));
   }
-  url.searchParams.set("currency", "CAD");
+  url.searchParams.set("currency", currency);
   // No gl: it is the country the SEARCHER is in, and setting it to Canada
   // pulled Palm Springs results across North America. The country belongs in
   // the query instead (Brennan, 10 Sept 2026).
@@ -259,7 +265,7 @@ async function stayOffersPage(
           site: siteFromLink(p.link),
           total: p.total_rate?.extracted_lowest ?? null,
           nightly: p.rate_per_night?.extracted_lowest ?? null,
-          currency: "CAD",
+          currency,
           score: p.overall_rating != null ? Math.round(p.overall_rating * 100) / 100 : null,
           reviews: p.reviews ?? null,
           beds: num(p.essential_info, /(\d+)\s*bedroom/i),

@@ -5,7 +5,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { overBudget, addSpend } from "@/lib/api/spend";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { currencyForDestination, HOME_CURRENCY } from "@/lib/budget/currency";
+import { currencyForDestination, loadHomeCurrency } from "@/lib/budget/currency";
 import { ticketCost } from "@/lib/budget/load";
 
 // ── Find a price for every activity that has none ─────────────────────────
@@ -104,7 +104,8 @@ export async function POST(req: NextRequest) {
   if (!trip) return NextResponse.json({ error: "Journey not found" }, { status: 404 });
 
   const destination = (trip.destination as string | null) ?? "";
-  const currency = currencyForDestination(destination) ?? HOME_CURRENCY;
+  // Unknown country: the person's own currency, as the Estimate reads it (lib/budget/load).
+  const currency = currencyForDestination(destination) ?? (await loadHomeCurrency(supabase, user.id));
   const when = trip.start_date ? new Date(trip.start_date as string).toLocaleDateString("en-CA", { month: "long", year: "numeric" }) : "";
 
   // Every activity in journey order, so a lookup can see what comes before

@@ -20,7 +20,7 @@ export default async function EstimatePage({ params }: Props) {
     redirect(`/trips/${tripId}`);
   }
 
-  const data = await loadEstimate(supabase, tripId);
+  const data = await loadEstimate(supabase, tripId, user?.id ?? null);
   if (!data) redirect("/trips");
 
   return (
@@ -35,6 +35,7 @@ export default async function EstimatePage({ params }: Props) {
       fxSource={data.fxSource}
       fxReferenceMonth={data.fxReferenceMonth}
       cardCurrency={data.cardCurrency}
+      homeCurrency={data.homeCurrency}
       excursionItems={data.excursionItems}
       excursionFree={data.excursionFree}
       cruise={data.cruise}

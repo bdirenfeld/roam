@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { ExcursionItem } from "@/lib/budget/load";
 import { bookedInHome, type BookedSpend } from "@/lib/budget/booked";
 import { queuedUpdate } from "@/lib/offline/queuedWrite";
-import { SYMBOL } from "@/lib/budget/currency";
+import { SYMBOL, homeSymbol, unitName } from "@/lib/budget/currency";
 import { useToast } from "@/components/ui/Toast";
 import {
   compute,
@@ -36,8 +36,9 @@ const SIENNA = "#B0541F";
 
 const PAD = 14;
 
-const cad = (n: number) =>
-  "$" + Math.round(n).toLocaleString("en-CA", { maximumFractionDigits: 0 });
+/** Home money, in the person's own sign ("$", "£", "€"; 6 Oct 2026). */
+const money = (n: number, sym = "$") =>
+  sym + Math.round(n).toLocaleString("en-CA", { maximumFractionDigits: 0 });
 
 // The app's one input look: white, a hairline ring, no border box.
 const box = (dim: string) => ({
@@ -110,8 +111,10 @@ function Row({
   line,
   setNum,
   toggle,
+  sym = "$",
 }: {
   line: EstimateLine;
+  sym?: string;
   setNum: (key: keyof Assumptions, raw: string) => void;
   toggle: (key: keyof Assumptions) => void;
 }) {
@@ -139,7 +142,7 @@ function Row({
           line.label
         )
       }
-      amount={off || unset ? "—" : cad(line.amount)}
+      amount={off || unset ? "—" : money(line.amount, sym)}
       leading={
         line.enabledKey && (
           <button
@@ -227,8 +230,10 @@ function GroupBar({
   extraItems,
   caption,
   amountText,
+  sym = "$",
 }: {
   label: string;
+  sym?: string;
   lines: EstimateLine[];
   isOpen: boolean;
   onToggle: () => void;
@@ -247,7 +252,7 @@ function GroupBar({
       onClick={onToggle}
       labelColor={CAPTION}
       amountColor={CAPTION}
-      amount={amountText ?? cad(subtotal)}
+      amount={amountText ?? money(subtotal, sym)}
       leading={
         <CaretDown
           size={12}
@@ -286,6 +291,8 @@ interface Props {
   fxSource: "typed" | "live" | "reference" | "fallback";
   fxReferenceMonth?: string;
   cardCurrency: string;
+  /** The person's own currency (users.home_country, then passport, then CAD). */
+  homeCurrency?: string;
   /** The priced activity cards, for the Excursions breakdown table. */
   excursionItems: ExcursionItem[];
   excursionFree: number;
@@ -311,6 +318,7 @@ export default function EstimateClient({
   fxSource,
   fxReferenceMonth,
   cardCurrency,
+  homeCurrency = "CAD",
   excursionItems,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   excursionFree: _excursionFree,
@@ -349,14 +357,17 @@ export default function EstimateClient({
   // day applies on every open.
   const [fxTyped, setFxTyped] = useState(fxSource === "typed");
   const sym = (c: string) => SYMBOL[c || cardCurrency] ?? "";
+  const hs = homeSymbol(homeCurrency);
+  const cad = (n: number) => money(n, hs);
+  const perUnit = `${unitName(homeCurrency)} per ${cardCurrency === "EUR" ? "euro" : cardCurrency}`;
   // The breakdown rows, editable: a cost typed here writes to the card and
   // the line follows (unless you typed the line yourself).
   const [items, setItems] = useState<ExcursionItem[]>(excursionItems);
   const rowTotal = useCallback((x: ExcursionItem, rate: number) => {
     if (x.amount == null) return 0;
     const base = x.per === "person" ? x.amount * x.people : x.amount;
-    return x.currency === "CAD" ? base : base * rate;
-  }, []);
+    return x.currency === homeCurrency ? base : base * rate;
+  }, [homeCurrency]);
   const itemsTotal = items.reduce((sum, x) => sum + rowTotal(x, fx), 0);
   const setItemPeople = (cardId: string, raw: string) => {
     const people = raw.trim() === "" ? 0 : Math.max(0, Math.floor(Number(raw)));
@@ -420,9 +431,9 @@ export default function EstimateClient({
         rolledExcursionCount: items.filter((x) => x.amount != null).length,
         cruise,
         // Converted at the screen's own rate, so typing a rate moves it too.
-        booked: bookedInHome(bookedSpend, cardCurrency, fx),
+        booked: bookedInHome(bookedSpend, cardCurrency, fx, homeCurrency),
       }),
-    [a, items, cruise, bookedSpend, cardCurrency, fx],
+    [a, items, cruise, bookedSpend, cardCurrency, fx, homeCurrency],
   );
 
   const setNum = useCallback((key: keyof Assumptions, raw: string) => {
@@ -686,6 +697,7 @@ export default function EstimateClient({
           </div>
 
           <GroupBar
+            sym={hs}
             label="Standard"
             lines={standard}
             isOpen={open.standard}
@@ -693,13 +705,14 @@ export default function EstimateClient({
           />
           {open.standard &&
             standard.map((l) => (
-              <Row key={l.key} line={l} setNum={setNum} toggle={toggle} />
+              <Row key={l.key} line={l} setNum={setNum} toggle={toggle} sym={hs} />
             ))}
 
           {/* Contingency and points sit inside Additional (Brennan, 25 Sep
               2026: "combine contingency and paid with points into the
               additional items"), so folded, Standard + Additional = Total. */}
           <GroupBar
+            sym={hs}
             label="Additional"
             lines={additional}
             isOpen={open.additional}
@@ -710,7 +723,7 @@ export default function EstimateClient({
           {open.additional && (
             <>
               {additional.map((l) => (
-                <Row key={l.key} line={l} setNum={setNum} toggle={toggle} />
+                <Row key={l.key} line={l} setNum={setNum} toggle={toggle} sym={hs} />
               ))}
               <Shell
                 labelColor={CAPTION}
@@ -773,6 +786,7 @@ export default function EstimateClient({
               share row only appears once someone is actually coming. Folded,
               the bar says who is coming and what they owe. */}
           <GroupBar
+            sym={hs}
             label="Sharing"
             lines={[]}
             isOpen={open.sharing}
@@ -981,7 +995,7 @@ export default function EstimateClient({
                         </tbody>
                       </table>
                       <p className="mt-1.5 text-[11px]" style={{ color: CAPTION, lineHeight: 1.45 }}>
-                        {items.some((x) => x.currency !== "CAD") ? `Converted at ${fx} dollars per ${cardCurrency === "EUR" ? "euro" : cardCurrency}. ` : ""}
+                        {items.some((x) => x.currency !== homeCurrency) ? `Converted at ${fx} ${perUnit}. ` : ""}
                         Cost and people are per row and save to the card; the line follows unless you typed a figure on it. Blank cost means no cost yet; 0 means free. &ldquo;ticket&rdquo; was read from a document attached to the card, &ldquo;found&rdquo; from the venue&rsquo;s page (tap it), &ldquo;guess&rdquo; is the app&rsquo;s estimate; type over any of them to keep your own. &ldquo;est.&rdquo; clears when you mark the card Confirmed.
                       </p>
                     </div>
@@ -1012,7 +1026,7 @@ export default function EstimateClient({
                     </div>
                   ))}
                 <div
-                  className={`flex items-center gap-2 py-2 ${cardCurrency === "CAD" ? "hidden" : ""}`} /* no rate at home (27 Sep 2026) */
+                  className={`flex items-center gap-2 py-2 ${cardCurrency === homeCurrency ? "hidden" : ""}`} /* no rate at home (27 Sep 2026) */
                   style={{ borderTop: `1px solid rgba(26,26,46,0.06)` }}
                 >
                   <span className="w-[76px] shrink-0 text-[11.5px]" style={{ color: INK }}>
@@ -1034,12 +1048,12 @@ export default function EstimateClient({
                   />
                   <span className="flex-1 text-[11px]" style={{ color: CAPTION, lineHeight: 1.45 }}>
                     {fxTyped
-                      ? `dollars per ${cardCurrency === "EUR" ? "euro" : cardCurrency}. Yours; `
+                      ? `${perUnit}. Yours; `
                       : fxSource === "live"
-                        ? `dollars per ${cardCurrency === "EUR" ? "euro" : cardCurrency}, today's rate. `
+                        ? `${perUnit}, today's rate. `
                         : fxSource === "reference"
-                          ? `dollars per ${cardCurrency === "EUR" ? "euro" : cardCurrency}, the ${fxReferenceMonth ?? "reference"} rate (today's couldn't be fetched). `
-                          : `dollars per ${cardCurrency === "EUR" ? "euro" : cardCurrency}, the last rate saved here. `}
+                          ? `${perUnit}, the ${fxReferenceMonth ?? "reference"} rate (today's couldn't be fetched). `
+                          : `${perUnit}, the last rate saved here. `}
                     {fxTyped ? (
                       <button type="button" className="underline underline-offset-2" onClick={() => { setFxTyped(false); setFx(fxToCad); }}>
                         use today&rsquo;s rate

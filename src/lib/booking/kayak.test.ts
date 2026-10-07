@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { airportCity, carCapacity, twoCars, carsUrl, flightsUrl, kayakParty, kayakPlace, roomsFor, staysUrl, travellers, englishTown } from "./kayak";
+import { airportCity, carCapacity, twoCars, carsUrl, flightsUrl, kayakParty, kayakPlace, roomsFor, staysUrl, travellers, englishTown, kayakBase, KAYAK } from "./kayak";
 
 // The URL shapes Brennan checked live on kayak.com, 6 Oct 2026. Tuscany's party:
 // seven people, [43, 40, 70, 70, 10, 8, 5].
@@ -116,5 +116,55 @@ describe("airportCity: the row's line says cities, the link keeps codes", () => 
     expect(airportCity("ZZZ")).toBeNull();
     expect(airportCity("Pisa")).toBeNull();
     expect(airportCity(null)).toBeNull();
+  });
+});
+
+// Kayak prices in its regional site's currency, so the link follows where the
+// person lives (6 Oct 2026). Every host below answered 200 that day, and the
+// flights / hotels / cars shapes resolved on each.
+describe("kayakBase: the person's own Kayak site", () => {
+  it("Canada is www.ca.kayak.com (kayak.ca does not resolve), however it is typed", () => {
+    expect(kayakBase("Canada")).toBe("https://www.ca.kayak.com");
+    expect(kayakBase("canada")).toBe("https://www.ca.kayak.com");
+    expect(kayakBase("Canadian")).toBe("https://www.ca.kayak.com");
+    expect(kayakBase("Toronto, Canada")).toBe("https://www.ca.kayak.com");
+  });
+  it("the big markets have their own site", () => {
+    expect(kayakBase("United Kingdom")).toBe("https://www.kayak.co.uk");
+    expect(kayakBase("UK")).toBe("https://www.kayak.co.uk");
+    expect(kayakBase("England")).toBe("https://www.kayak.co.uk");
+    expect(kayakBase("Australia")).toBe("https://www.kayak.com.au");
+    expect(kayakBase("Germany")).toBe("https://www.kayak.de");
+    expect(kayakBase("France")).toBe("https://www.kayak.fr");
+    expect(kayakBase("Italy")).toBe("https://www.kayak.it");
+    expect(kayakBase("Spain")).toBe("https://www.kayak.es");
+    expect(kayakBase("Ireland")).toBe("https://www.kayak.ie");
+    expect(kayakBase("India")).toBe("https://www.kayak.co.in");
+  });
+  it("the US, anywhere unmapped, and nothing typed are kayak.com", () => {
+    expect(kayakBase("United States")).toBe(KAYAK);
+    expect(kayakBase("USA")).toBe(KAYAK);
+    expect(kayakBase("New Zealand")).toBe(KAYAK); // kayak.co.nz did not answer
+    expect(kayakBase("Narnia")).toBe(KAYAK);
+    expect(kayakBase(null)).toBe(KAYAK);
+    expect(kayakBase("")).toBe(KAYAK);
+  });
+});
+
+describe("the URL builders use the regional site they are given", () => {
+  const ca = "https://www.ca.kayak.com";
+  const two = kayakParty([40, 40], 2);
+  it("flights, stays and cars keep their shapes on ca.kayak.com", () => {
+    expect(flightsUrl({ from: "YYZ", to: ["PSA"], out: "2027-08-24", back: "2027-09-04", party: two, base: ca }))
+      .toBe("https://www.ca.kayak.com/flights/YYZ-PSA/2027-08-24/2027-09-04/2adults?sort=bestflight_a");
+    expect(staysUrl({ place: "Lucca", checkIn: "2027-08-24", checkOut: "2027-09-04", party: two, base: ca }))
+      .toBe("https://www.ca.kayak.com/hotels/Lucca/2027-08-24/2027-09-04/2adults");
+    expect(carsUrl({ at: "PSA", pickUp: "2027-08-24", pickUpHour: 14, dropOff: "2027-09-04", dropOffHour: 10, base: ca }))
+      .toBe("https://www.ca.kayak.com/cars/PSA/2027-08-24-14h/2027-09-04-10h");
+  });
+  it("the plain pages too, when there is not enough for a search", () => {
+    expect(flightsUrl({ from: null, to: ["PSA"], out: "2027-08-24", back: "2027-09-04", party: two, base: "https://www.kayak.co.uk" })).toBe("https://www.kayak.co.uk/flights");
+    expect(staysUrl({ place: "", checkIn: "2027-08-24", checkOut: "2027-09-04", party: two, base: "https://www.kayak.co.uk" })).toBe("https://www.kayak.co.uk/stays");
+    expect(carsUrl({ at: "", pickUp: "2027-08-24", pickUpHour: 14, dropOff: "2027-09-04", dropOffHour: 10, base: "https://www.kayak.co.uk" })).toBe("https://www.kayak.co.uk/cars");
   });
 });

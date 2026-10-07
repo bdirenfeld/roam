@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { compute, defaultAssumptions, splitTotals, suggest, type Assumptions } from "./model";
+import { cardBudgetToCad, compute, defaultAssumptions, splitTotals, suggest, type Assumptions } from "./model";
 
 /**
  * Splitting a journey between two households.
@@ -176,5 +176,17 @@ describe("dog and gifts follow the person, not Brennan", () => {
     expect(a.dogEnabled).toBe(true);
     expect(a.extrasEnabled).toBe(true);
     expect(defaultAssumptions(5, 7, true, false, { dog: true }).dogEnabled).toBe(false); // at home, no boarding
+  });
+});
+
+// The one FX step, with a home that is not Canada (6 Oct 2026).
+describe("cardBudgetToCad follows the person's home currency", () => {
+  it("a budget already in the home currency needs no rate", () => {
+    expect(cardBudgetToCad({ amount: 100, currency: "USD", per: "party" }, 2, 1.16, "USD")).toBe(100);
+    expect(cardBudgetToCad({ amount: 100, currency: "local", per: "person" }, 2, 1.16, "USD")).toBeCloseTo(232, 6);
+  });
+  it("CAD stays the default home", () => {
+    expect(cardBudgetToCad({ amount: 100, currency: "CAD", per: "party" }, 2, 1.6)).toBe(100);
+    expect(cardBudgetToCad({ amount: 100, currency: "USD", per: "party" }, 2, 1.6)).toBe(160);
   });
 });

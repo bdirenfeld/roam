@@ -24,9 +24,9 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
 import { queuedUpdate } from "@/lib/offline/queuedWrite";
-import { currencyForDestination, HOME_CURRENCY } from "@/lib/budget/currency";
+import { currencyForDestination, homeCurrencyFor } from "@/lib/budget/currency";
 import {
-  checklistRows, costLabel, needsAirports, readChecklist, readCosts, storeChecklist, withChoice,
+  checklistRows, costCurrencies, costLabel, needsAirports, readChecklist, readCosts, storeChecklist, withChoice,
   type CheckCard, type CheckInput, type CheckRow, type Choice, type Cost, type RowKey,
 } from "@/lib/booking/checklist";
 import { bookLabel, runSteps, searchSteps, whereToStayHref, type Step } from "@/lib/booking/search";
@@ -44,8 +44,10 @@ const airportsAsked = new Map<string, string[]>();
 
 type Loaded = Omit<CheckInput, "airports" | "trip"> & {
   trip: CheckInput["trip"] & { id: string; cruise?: boolean | null };
-  /** What a typed cost defaults to: the budget's currency. */
+  /** What a typed cost defaults to: the person's home currency (6 Oct 2026). */
   currency: string;
+  /** The journey's own currency, the next choice; null when unknown. */
+  local: string | null;
 };
 
 const STATE_WORDS: Record<CheckRow["state"], string> = { open: "still to book", booked: "booked", skip: "not needed" };
@@ -112,29 +114,30 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
     let cancelled = false;
     const supabase = createClient();
     (async () => {
-      const [{ data: session }, trip, days, cards, people, budget] = await Promise.all([
+      const [{ data: session }, trip, days, cards, people] = await Promise.all([
         supabase.auth.getSession(),
         supabase.from("trips").select("id, user_id, destination, start_date, end_date, party_size, party_ages, booking_checklist, cruise").eq("id", tripId).maybeSingle(),
         supabase.from("days").select("id, date").eq("trip_id", tripId),
         supabase.from("cards").select("id, day_id, place_id, status, start_time, end_time, details, place:places(sub_type, title, address)").eq("trip_id", tripId).not("day_id", "is", null),
         supabase.from("people").select("birthdate").eq("trip_id", tripId),
-        supabase.from("trip_budgets").select("currency").eq("trip_id", tripId).maybeSingle(),
       ]);
       const uid = session?.session?.user?.id ?? null;
       const t = trip.data as (Loaded["trip"] & { user_id: string }) | null;
       if (cancelled) return;
       // Owner only: guests (and cohosts) never see the checklist.
       if (!t || !uid || t.user_id !== uid) { onOwner?.(false); return; }
-      const { data: me } = await supabase.from("users").select("home_airport, home_country").eq("id", uid).maybeSingle();
+      const { data: me } = await supabase.from("users").select("home_airport, home_country, passport_country").eq("id", uid).maybeSingle();
       if (cancelled) return;
-      const budgetCurrency = (budget?.data as { currency?: string | null } | null)?.currency ?? null;
+      const homeCountry = (me?.home_country as string | null) ?? null;
+      const passport = (me?.passport_country as string | null) ?? null;
       setData({
         trip: t,
-        home: { airport: (me?.home_airport as string | null) ?? null, country: (me?.home_country as string | null) ?? null },
+        home: { airport: (me?.home_airport as string | null) ?? null, country: homeCountry, passport },
         days: (days.data ?? []) as { id: string; date: string }[],
         cards: (cards.data ?? []) as unknown as CheckCard[],
         birthdates: ((people.data ?? []) as { birthdate: string | null }[]).map((p) => p.birthdate),
-        currency: budgetCurrency ?? currencyForDestination(t.destination) ?? HOME_CURRENCY,
+        currency: homeCurrencyFor(homeCountry, passport),
+        local: currencyForDestination(t.destination),
       });
       onOwner?.(true);
     })().catch((e) => { console.error("[to book]", e); if (!cancelled) onOwner?.(false); });
@@ -221,7 +224,7 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
   const steps = searchSteps(rows, stayInApp);
   const label = bookLabel(steps);
   const others = otherFiles(files);
-  const currencies = Array.from(new Set([data.currency, HOME_CURRENCY, "USD", "EUR", "GBP"]));
+  const currencies = costCurrencies(data.currency, data.local).options;
 
   const tap = (r: CheckRow) => {
     const t = rowTap(r, files, stayInApp);

@@ -121,20 +121,20 @@ export function bookedSpend(input: {
  * reference — whatever the screen shows), anything else the dated reference
  * table. Null when there is no rate at all.
  */
-export function toHome(p: Paid, cardCurrency: string, fxToCad: number): number | null {
-  if (p.currency === HOME_CURRENCY) return p.amount;
+export function toHome(p: Paid, cardCurrency: string, fxToCad: number, home: string = HOME_CURRENCY): number | null {
+  if (p.currency === home) return p.amount;
   if (p.currency === cardCurrency) return p.amount * fxToCad;
-  const ref = referenceRateToHome(p.currency);
+  const ref = referenceRateToHome(p.currency, home);
   return ref == null ? null : p.amount * ref;
 }
 
-export function bookedInHome(spend: BookedSpend | null | undefined, cardCurrency: string, fxToCad: number): BookedHome {
+export function bookedInHome(spend: BookedSpend | null | undefined, cardCurrency: string, fxToCad: number, home: string = HOME_CURRENCY): BookedHome {
   const out: BookedHome = { unconverted: 0 };
   if (!spend) return out;
   const sum = (ps: Paid[]): number | undefined => {
     let total = 0, any = false;
     for (const p of ps) {
-      const v = toHome(p, cardCurrency, fxToCad);
+      const v = toHome(p, cardCurrency, fxToCad, home);
       if (v == null) { out.unconverted += 1; continue; }
       total += v; any = true;
     }

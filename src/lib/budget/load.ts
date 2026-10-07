@@ -8,7 +8,7 @@ import {
 } from "./model";
 import { bookedSpend, type BookedSpend } from "./booked";
 import type { CheckCard } from "@/lib/booking/checklist";
-import { currencyForDestination, fetchRateToHome, referenceRateToHome, REFERENCE_MONTH, HOME_CURRENCY, isMetroCity } from "./currency";
+import { currencyForDestination, fetchRateToHome, referenceRateToHome, REFERENCE_MONTH, isMetroCity, loadHomeCurrency, unitName } from "./currency";
 
 export interface ExcursionItem {
   cardId: string;
@@ -133,13 +133,14 @@ function excursionsBasis(
   uncosted: number,
   partySize: number,
   fx: number,
+  home: string,
 ): string {
   const parts: string[] = [];
   const pricedCount = priced.length;
   parts.push(
     `${cards} ${cards === 1 ? "activity" : "activities"} on your days: ${pricedCount} priced${freeCount ? `, ${freeCount} free` : ""}${uncosted ? `, ${uncosted} with no cost yet` : ""}.`,
   );
-  if (priced.some((x) => x.currency !== "CAD")) parts.push(`Converted at ${fx} to the dollar.`);
+  if (priced.some((x) => x.currency !== home)) parts.push(`Converted at ${fx} to the ${unitName(home) === "dollars" ? "dollar" : home}.`);
   void partySize;
   parts.push("Change a card's cost and this follows; type a figure on the line and it wins.");
   return parts.join(" ");
@@ -158,8 +159,14 @@ export async function loadEstimate(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   tripId: string,
+  /** Who is looking: their home currency is the budget's (6 Oct 2026). Omitted: the browser session's. */
+  userId?: string | null,
 ): Promise<EstimateData | null> {
-  const [{ data: trip }, { data: days }, { data: cards }, { data: saved }, { data: dayCards }] =
+  let viewer: string | null = userId ?? null;
+  if (userId === undefined) {
+    try { viewer = (await supabase.auth.getSession())?.data?.session?.user?.id ?? null; } catch { viewer = null; }
+  }
+  const [{ data: trip }, { data: days }, { data: cards }, { data: saved }, { data: dayCards }, home] =
     await Promise.all([
       supabase
         .from("trips")
@@ -188,6 +195,7 @@ export async function loadEstimate(
         .eq("trip_id", tripId)
         .not("day_id", "is", null)
         .not("archived", "is", true),
+      loadHomeCurrency(supabase, viewer) as Promise<string>,
     ]);
   // Your last other budget says whether you board a dog and buy gifts.
   const { data: last } = saved ? { data: null } : await supabase
@@ -203,14 +211,14 @@ export async function loadEstimate(
   // unless a rate was typed and saved. 1.47 is the last resort.
   // Unknown country means home currency, not euros ("Toronto & the GTA"
   // read "dollars per euro" before this).
-  const cardCurrency = currencyForDestination(trip.destination as string | null) ?? HOME_CURRENCY;
+  const cardCurrency = currencyForDestination(trip.destination as string | null) ?? home;
   // The column is NOT NULL, so "typed" is a flag in the saved assumptions.
   const savedFx = saved?.fx_to_cad != null ? Number(saved.fx_to_cad) : null;
   const fxTyped = Boolean((saved?.assumptions as { fxTyped?: boolean } | null)?.fxTyped) && savedFx != null;
   // Typed wins. Otherwise today's rate; failing that the dated reference
   // table; failing even that, whatever the row last held.
-  const liveFx = fxTyped ? null : await fetchRateToHome(cardCurrency);
-  const refFx = liveFx == null ? referenceRateToHome(cardCurrency) : null;
+  const liveFx = fxTyped ? null : await fetchRateToHome(cardCurrency, home);
+  const refFx = liveFx == null ? referenceRateToHome(cardCurrency, home) : null;
   const fxToCad = fxTyped ? (savedFx as number) : (liveFx ?? refFx ?? savedFx ?? 1.47);
   const fxSource: "typed" | "live" | "reference" | "fallback" =
     fxTyped ? "typed" : liveFx != null ? "live" : refFx != null ? "reference" : "fallback";
@@ -273,7 +281,7 @@ export async function loadEstimate(
   // in, and the Excursions line arrives already in home currency.
   const rolledCad = Math.round(
     cardBudgets.reduce(
-      (s: number, b: CardBudget) => s + cardBudgetToCad(b, partySize, fxToCad),
+      (s: number, b: CardBudget) => s + cardBudgetToCad(b, partySize, fxToCad, home),
       0,
     ),
   );
@@ -301,7 +309,7 @@ export async function loadEstimate(
     fxSource,
     fxReferenceMonth: REFERENCE_MONTH,
     cardCurrency,
-    homeCurrency: HOME_CURRENCY,
+    homeCurrency: home,
     // Unrounded per row, so the table sums to the same figure as the line
     // (rows rounded first added to one dollar more). Largest first.
     excursionItems: activities
@@ -312,7 +320,7 @@ export async function loadEstimate(
         currency: x.currency,
         per: x.per,
         people: x.per === "person" ? x.people : 1,
-        totalCad: x.amount == null ? 0 : cardBudgetToCad({ amount: x.amount, currency: x.currency || "local", per: x.per }, x.per === "person" ? x.people : 1, fxToCad),
+        totalCad: x.amount == null ? 0 : cardBudgetToCad({ amount: x.amount, currency: x.currency || "local", per: x.per }, x.per === "person" ? x.people : 1, fxToCad, home),
         details: x.details,
         confirmed: x.confirmed,
         fromTicket: x.fromTicket,
@@ -330,7 +338,7 @@ export async function loadEstimate(
     // typed for that line still wins.
     basis: {
       ...(cardBudgets.length
-        ? { excursions: excursionsBasis(cardBudgets.length, priced, freeCount, uncostedExcursions, partySize, fxToCad) }
+        ? { excursions: excursionsBasis(cardBudgets.length, priced, freeCount, uncostedExcursions, partySize, fxToCad, home) }
         : {}),
       ...((saved?.basis ?? {}) as Record<string, string>),
     },

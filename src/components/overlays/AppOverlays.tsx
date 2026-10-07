@@ -276,6 +276,7 @@ function EstimateOverlayBody({
       fxSource={data.fxSource}
       fxReferenceMonth={data.fxReferenceMonth}
       cardCurrency={data.cardCurrency}
+      homeCurrency={data.homeCurrency}
       excursionItems={data.excursionItems}
       excursionFree={data.excursionFree}
       cruise={data.cruise}

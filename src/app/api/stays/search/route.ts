@@ -352,8 +352,8 @@ export async function POST(request: NextRequest) {
     // it would be the only search that ran (found 11 Sept 2026).
     const inv = inventoriesFor(adults + ages.length, wantHouse);
     const [rentals, hotels] = await Promise.all([
-      inv.rentals ? stayOffers(serp, q, priced.start, priced.end, adults, ages, true, inv.pages.rentals) : Promise.resolve([]),
-      inv.hotels ? stayOffers(serp, q, priced.start, priced.end, adults, ages, false, inv.pages.hotels) : Promise.resolve([]),
+      inv.rentals ? stayOffers(serp, q, priced.start, priced.end, adults, ages, true, inv.pages.rentals, ctx.homeCurrency) : Promise.resolve([]),
+      inv.hotels ? stayOffers(serp, q, priced.start, priced.end, adults, ages, false, inv.pages.hotels, ctx.homeCurrency) : Promise.resolve([]),
     ]);
     let [wanted, other] = inv.prefer === "hotels" ? [hotels, rentals] : [rentals, hotels];
     // Places came back but not one of them has a price: the calendar is not
@@ -362,7 +362,7 @@ export async function POST(request: NextRequest) {
     if ((wanted.length || other.length) && ![...wanted, ...other].some((o) => o.total != null) && !priced.shifted) {
       const back = unopenedWindow(baseStart, baseEnd);
       if (back) {
-        const again = await stayOffers(serp, q, back.start, back.end, adults, ages, inv.prefer === "rentals", inv.prefer === "rentals" ? inv.pages.rentals : inv.pages.hotels);
+        const again = await stayOffers(serp, q, back.start, back.end, adults, ages, inv.prefer === "rentals", inv.prefer === "rentals" ? inv.pages.rentals : inv.pages.hotels, ctx.homeCurrency);
         if (again.some((o) => o.total != null)) { wanted = again; other = []; priced = back; }
         else nothingQuoted = true;
       } else {

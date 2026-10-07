@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import journeys from "./fixtures/journeys.json";
-import { checklistRows, costLabel, readCosts, storeChecklist, destinationCountry, needsAirports, overnightOutbound, ownAirports, partyOf, readChecklist, withChoice, type CheckInput, type CheckRow } from "./checklist";
+import { checklistRows, costCurrencies, costLabel, readCosts, storeChecklist, destinationCountry, needsAirports, overnightOutbound, ownAirports, partyOf, readChecklist, withChoice, type CheckInput, type CheckRow } from "./checklist";
 
 // Real journeys, pulled from the live database on 6 Oct 2026 (cards on days,
 // plus saved hotels): Tuscany, Japan, both New Yorks, Last Week of Summer, Australia.
@@ -20,7 +20,7 @@ describe("Tuscany (seven people, villa booked, no flights yet)", () => {
     expect(r.flights.state).toBe("open");
     // One short line, city names (6 Oct 2026 redesign): the airports stay in the link.
     expect(r.flights.line).toBe("Toronto → Pisa · 7 people");
-    expect(r.flights.url).toBe("https://www.kayak.com/flights/YYZ-PSA,FLR/2027-08-23/2027-09-04/4adults/children-10-8-5?sort=bestflight_a");
+    expect(r.flights.url).toBe("https://www.ca.kayak.com/flights/YYZ-PSA,FLR/2027-08-23/2027-09-04/4adults/children-10-8-5?sort=bestflight_a");
   });
   it("Stays ticks itself: Villa Zambaldi covers every night (its check-out card is on the last day)", () => {
     expect(r.stays).toMatchObject({ state: "booked", line: "Villa Zambaldi · all 11 nights", url: null, manual: null, name: "Villa Zambaldi" });
@@ -31,7 +31,7 @@ describe("Tuscany (seven people, villa booked, no flights yet)", () => {
     const s = rowsOf(noVilla).stays;
     expect(s.state).toBe("open");
     expect(s.line).toBe("Lucca · 11 nights");
-    expect(s.url).toBe("https://www.kayak.com/hotels/Lucca/2027-08-24/2027-09-04/4adults/3children-10-8-5/2rooms");
+    expect(s.url).toBe("https://www.ca.kayak.com/hotels/Lucca/2027-08-24/2027-09-04/4adults/3children-10-8-5/2rooms");
   });
   it("some nights covered: counts them and searches the first open run where that night's plans are (Florence, as in the approved mock)", () => {
     const short = get("Tuscany", {
@@ -42,16 +42,16 @@ describe("Tuscany (seven people, villa booked, no flights yet)", () => {
     const s = rowsOf(short).stays;
     expect(s.state).toBe("open");
     expect(s.line).toBe("7 of 11 nights booked");
-    expect(s.url).toBe("https://www.kayak.com/hotels/Florence/2027-08-31/2027-09-04/4adults/3children-10-8-5/2rooms");
+    expect(s.url).toBe("https://www.ca.kayak.com/hotels/Florence/2027-08-31/2027-09-04/4adults/3children-10-8-5/2rooms");
   });
   it("Car is open: from the first airport at 2 pm, back at 10 am on the last day, 7+ seats for the seven", () => {
     expect(r.car.line).toBe("Pisa airport · 7 seats");
-    expect(r.car.url).toBe("https://www.kayak.com/cars/PSA/2027-08-24-14h/2027-09-04-10h?sort=rank_a&fs=carcapacity=pas_7_X");
+    expect(r.car.url).toBe("https://www.ca.kayak.com/cars/PSA/2027-08-24-14h/2027-09-04-10h?sort=rank_a&fs=carcapacity=pas_7_X");
   });
   it("before the airports arrive, Car searches the villa's town, never a code-less route", () => {
     const before = rowsOf(get("Tuscany", { airports: null }));
-    expect(before.car.url).toBe("https://www.kayak.com/cars/Lucca/2027-08-24-14h/2027-09-04-10h?sort=rank_a&fs=carcapacity=pas_7_X");
-    expect(before.flights.url).toBe("https://www.kayak.com/flights");
+    expect(before.car.url).toBe("https://www.ca.kayak.com/cars/Lucca/2027-08-24-14h/2027-09-04-10h?sort=rank_a&fs=carcapacity=pas_7_X");
+    expect(before.flights.url).toBe("https://www.ca.kayak.com/flights");
     expect(needsAirports(get("Tuscany"))).toBe(true);
   });
   it("a manual choice wins: Not needed on the car, Booked on flights", () => {
@@ -69,10 +69,10 @@ describe("Japan (archived; six saved hotels, none booked)", () => {
   it("the ryokans holding day one as 'interested' do not tick Stays", () => {
     expect(r.stays.state).toBe("open");
     expect(r.stays.line).toBe("Tokyo · 13 nights");
-    expect(r.stays.url).toBe("https://www.kayak.com/hotels/Tokyo/2028-04-02/2028-04-15/2adults/3children-10-8-5/2rooms");
+    expect(r.stays.url).toBe("https://www.ca.kayak.com/hotels/Tokyo/2028-04-02/2028-04-15/2adults/3children-10-8-5/2rooms");
   });
   it("flights leave the night before", () => {
-    expect(r.flights.url).toBe("https://www.kayak.com/flights/YYZ-NRT,HND/2028-04-01/2028-04-15/2adults/children-10-8-5?sort=bestflight_a");
+    expect(r.flights.url).toBe("https://www.ca.kayak.com/flights/YYZ-NRT,HND/2028-04-01/2028-04-15/2adults/children-10-8-5?sort=bestflight_a");
   });
 });
 
@@ -89,7 +89,7 @@ describe("New York (Mia & Daddy): everything but a car is on the days", () => {
     expect(needsAirports(input)).toBe(false);
   });
   it("the car is picked up two hours after landing (10:55 → 13h), at LaGuardia", () => {
-    expect(r.car.url).toBe("https://www.kayak.com/cars/LGA/2026-07-23-13h/2026-07-26-10h");
+    expect(r.car.url).toBe("https://www.ca.kayak.com/cars/LGA/2026-07-23-13h/2026-07-26-10h");
   });
   it("a rental car on a day ticks Car", () => {
     const pick = { id: "car1", day_id: input.days[0].id, place_id: null, status: "in_itinerary", details: { title: "Pick up rental car · Hertz", drop_off: "2026-07-26" }, place: { sub_type: "transit", title: "Hertz", address: null } };
@@ -115,7 +115,7 @@ describe("Last Week of Summer (at home in Toronto)", () => {
     const car = rowsOf(get("Last Week of Summer")).car;
     expect(car.url).not.toContain("GTA");
     // Five people: the 5–6 seats filter.
-    expect(car.url).toMatch(/^https:\/\/www\.kayak\.com\/cars\/[^/]+\/2026-08-31-14h\/2026-09-04-10h\?sort=rank_a&fs=carcapacity=pas_5_6$/);
+    expect(car.url).toMatch(/^https:\/\/www\.ca\.kayak\.com\/cars\/[^/]+\/2026-08-31-14h\/2026-09-04-10h\?sort=rank_a&fs=carcapacity=pas_5_6$/);
   });
 });
 
@@ -127,7 +127,7 @@ describe("Australia (flights on the days, no hotel)", () => {
     expect(r.car.state).toBe("open");
   });
   it("the car waits two hours after the 7:00 landing", () => {
-    expect(r.car.url).toBe("https://www.kayak.com/cars/SYD/2026-02-15-09h/2026-02-20-10h");
+    expect(r.car.url).toBe("https://www.ca.kayak.com/cars/SYD/2026-02-15-09h/2026-02-20-10h");
   });
   it("the party is the journey's ages: 41 and 71 adults, one child of 8", () => {
     expect(r.stays.url).toContain("/2adults/1children-8");
@@ -136,12 +136,12 @@ describe("Australia (flights on the days, no hotel)", () => {
 
 describe("every journey reads like sense", () => {
   for (const j of all) {
-    it(`${j.title}: three rows, an open row always has a kayak.com link with no comma in a stay's place`, () => {
+    it(`${j.title}: three rows, an open row always has a Kayak link (Canada's site for a Canadian home) with no comma in a stay's place`, () => {
       const rows = checklistRows(get(j.title, { airports: ["AAA"] }));
       expect(rows.map((r) => r.key)).toEqual(["flights", "stays", "car"]);
       for (const r of rows) {
         expect(r.line.length).toBeGreaterThan(0);
-        if (r.state === "open") expect(r.url).toMatch(/^https:\/\/www\.kayak\.com\//);
+        if (r.state === "open") expect(r.url).toMatch(j.home.country === "Canada" ? /^https:\/\/www\.ca\.kayak\.com\// : /^https:\/\/www\.kayak\.com\//);
         else expect(r.url).toBeNull();
       }
       const stays = rows[1];
@@ -152,7 +152,7 @@ describe("every journey reads like sense", () => {
 
 describe("cars that fit the party (6 Oct 2026)", () => {
   it("New York (two people): no seats filter", () => {
-    expect(rowsOf(get("New York (Mia & Daddy)")).car.url).toBe("https://www.kayak.com/cars/LGA/2026-07-23-13h/2026-07-26-10h");
+    expect(rowsOf(get("New York (Mia & Daddy)")).car.url).toBe("https://www.ca.kayak.com/cars/LGA/2026-07-23-13h/2026-07-26-10h");
   });
   it("Japan (five): 5–6 seats", () => {
     expect(rowsOf(get("Japan", { airports: ["NRT"] })).car.url).toMatch(/fs=carcapacity=pas_5_6$/);
@@ -160,7 +160,7 @@ describe("cars that fit the party (6 Oct 2026)", () => {
   it("Tuscany with three more (ten): 7+ seats and the line says two cars", () => {
     const t = get("Tuscany", { airports: ["PSA"] });
     const ten = rowsOf({ ...t, trip: { ...t.trip, party_size: 10, party_ages: [43, 40, 70, 70, 10, 8, 5, 45, 44, 12] } }).car;
-    expect(ten.url).toBe("https://www.kayak.com/cars/PSA/2027-08-24-14h/2027-09-04-10h?sort=rank_a&fs=carcapacity=pas_7_X");
+    expect(ten.url).toBe("https://www.ca.kayak.com/cars/PSA/2027-08-24-14h/2027-09-04-10h?sort=rank_a&fs=carcapacity=pas_7_X");
     expect(ten.line).toBe("Pisa airport · 10 seats, two cars");
     expect(rowsOf(t).car.line).not.toContain("two cars");
   });
@@ -220,5 +220,36 @@ describe("the small rules", () => {
   it("a one-day journey needs no stay", () => {
     const one = get("New York", { trip: { ...get("New York").trip, end_date: "2026-10-30" } });
     expect(rowsOf(one).stays).toMatchObject({ state: "skip", line: "Not needed" });
+  });
+});
+
+// Kayak's site follows where the person lives, so its prices are in their
+// currency (6 Oct 2026). The fixtures' owner is Canadian; these swap the home.
+describe("the Kayak site follows the person's home", () => {
+  const tuscany = (home: CheckInput["home"]) => checklistRows(get("Tuscany", { home, airports: ["PSA", "FLR"] }));
+  const urls = (rows: CheckRow[]) => rows.map((r) => r.url).filter((u): u is string => !!u);
+  it("Canada: every open row on www.ca.kayak.com", () => {
+    const u = urls(tuscany({ airport: "YYZ", country: "Canada" }));
+    expect(u.length).toBeGreaterThan(0);
+    for (const x of u) expect(x.startsWith("https://www.ca.kayak.com/")).toBe(true);
+  });
+  it("a US home: kayak.com; a UK home: kayak.co.uk", () => {
+    for (const x of urls(tuscany({ airport: "JFK", country: "United States" }))) expect(x.startsWith("https://www.kayak.com/")).toBe(true);
+    for (const x of urls(tuscany({ airport: "LHR", country: "United Kingdom" }))) expect(x.startsWith("https://www.kayak.co.uk/")).toBe(true);
+  });
+  it("no home country: the passport picks the site", () => {
+    for (const x of urls(tuscany({ airport: "LHR", country: null, passport: "British" }))) expect(x.startsWith("https://www.kayak.co.uk/")).toBe(true);
+  });
+});
+
+describe("costCurrencies: 'What did it cost?' starts in the person's home currency", () => {
+  it("a US person sees USD first, the journey's currency next", () => {
+    expect(costCurrencies("USD", "EUR")).toEqual({ initial: "USD", options: ["USD", "EUR", "GBP"] });
+  });
+  it("a Canadian on a trip to Italy: CAD, then EUR", () => {
+    expect(costCurrencies("CAD", "EUR")).toEqual({ initial: "CAD", options: ["CAD", "EUR", "USD", "GBP"] });
+  });
+  it("an unknown destination adds nothing", () => {
+    expect(costCurrencies("GBP", null)).toEqual({ initial: "GBP", options: ["GBP", "USD", "EUR"] });
   });
 });

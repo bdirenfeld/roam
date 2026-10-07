@@ -25,12 +25,14 @@ const NY_OUT_DAY = "3566d88c-51ad-4211-aa2e-3b9af0117087"; // New York (Mia & Da
 
 let journey: J;
 let signedIn: string | null;
+/** Profile fields to lay over the journey's owner (6 Oct 2026: home currency and Kayak site). */
+let homeOverride: Record<string, string | null> = {};
 const OWNER = "owner-1";
 
 function query(table: string) {
   const single = () => {
     if (table === "trips") return { ...journey.trip, id: journey.id, user_id: OWNER };
-    if (table === "users") return { home_airport: journey.home.airport, home_country: journey.home.country };
+    if (table === "users") return { home_airport: journey.home.airport, home_country: journey.home.country, passport_country: null, ...homeOverride };
     return null;
   };
   const list = () => (table === "days" ? journey.days : table === "cards" ? journey.cards : table === "people" ? journey.birthdates.map((b) => ({ birthdate: b })) : []);
@@ -52,7 +54,7 @@ vi.mock("@/lib/offline/queuedWrite", () => ({ queuedUpdate: (...a: unknown[]) =>
 import ToBookSection from "./ToBookSection";
 
 const fetchMock = vi.fn((...args: unknown[]) => args && Promise.resolve({ ok: true, json: () => Promise.resolve({ airports: ["PSA", "FLR"] }) }));
-beforeEach(() => { signedIn = OWNER; vi.stubGlobal("fetch", fetchMock); });
+beforeEach(() => { signedIn = OWNER; homeOverride = {}; vi.stubGlobal("fetch", fetchMock); });
 afterEach(() => { cleanup(); vi.clearAllMocks(); vi.unstubAllGlobals(); });
 
 const rowOf = (key: string) => screen.getByTestId(`to-book-${key}-row`);
@@ -74,7 +76,7 @@ describe("Bookings: three rows, one mark each", () => {
     expect(flights.dataset.state).toBe("open");
     expect(rowOf("flights").textContent).toBe("FlightsToronto → Pisa · 7 people›");
     // The row IS the tap: a real link to the filled-in Kayak search.
-    expect(rowOf("flights").getAttribute("href")).toBe("https://www.kayak.com/flights/YYZ-PSA,FLR/2027-08-23/2027-09-04/4adults/children-10-8-5?sort=bestflight_a");
+    expect(rowOf("flights").getAttribute("href")).toBe("https://www.ca.kayak.com/flights/YYZ-PSA,FLR/2027-08-23/2027-09-04/4adults/children-10-8-5?sort=bestflight_a");
     expect(rowOf("flights").getAttribute("target")).toBe("_blank");
 
     expect(screen.getByTestId("to-book-stays").dataset.state).toBe("booked");
@@ -82,7 +84,7 @@ describe("Bookings: three rows, one mark each", () => {
     expect(rowOf("stays").tagName).toBe("BUTTON");
 
     expect(rowOf("car").textContent).toBe("CarPisa airport · 7 seats›");
-    expect(rowOf("car").getAttribute("href")).toBe("https://www.kayak.com/cars/PSA/2027-08-24-14h/2027-09-04-10h?sort=rank_a&fs=carcapacity=pas_7_X");
+    expect(rowOf("car").getAttribute("href")).toBe("https://www.ca.kayak.com/cars/PSA/2027-08-24-14h/2027-09-04-10h?sort=rank_a&fs=carcapacity=pas_7_X");
 
     // One mark per row, a 44px target; no checkbox, no ⋯, no ↗, no section labels.
     const mark = within(flights).getByRole("button", { name: "Flights: still to book. Change" });
@@ -246,8 +248,8 @@ describe("Book N on Kayak, and Stays opening Where to stay", () => {
     await flightsReady();
     await userEvent.click(screen.getByRole("button", { name: "Book 3 on Kayak" }));
     expect(opened).toEqual([
-      "https://www.kayak.com/flights/YYZ-PSA,FLR/2027-08-23/2027-09-04/4adults/children-10-8-5?sort=bestflight_a",
-      "https://www.kayak.com/cars/PSA/2027-08-24-14h/2027-09-04-10h?sort=rank_a&fs=carcapacity=pas_7_X",
+      "https://www.ca.kayak.com/flights/YYZ-PSA,FLR/2027-08-23/2027-09-04/4adults/children-10-8-5?sort=bestflight_a",
+      "https://www.ca.kayak.com/cars/PSA/2027-08-24-14h/2027-09-04-10h?sort=rank_a&fs=carcapacity=pas_7_X",
     ]);
     expect((open.mock.calls[0] as unknown[])[1]).toBe("_blank");
     expect(leave).toHaveBeenCalledTimes(1);
@@ -336,7 +338,7 @@ describe("Book N on Kayak, and Stays opening Where to stay", () => {
 });
 
 describe("What did it cost?", () => {
-  it("Booked by hand asks; the amount is saved in the budget's currency and shows on the row", async () => {
+  it("Booked by hand asks; the box starts in the person's home currency, the journey's is the next choice", async () => {
     journey = J_("Tuscany");
     render(<ToBookSection tripId="tuscany-k" />);
     const car = await screen.findByTestId("to-book-car");
@@ -344,8 +346,11 @@ describe("What did it cost?", () => {
     await userEvent.click(within(car).getByRole("menuitem", { name: "Booked" }));
     expect(queuedUpdate).toHaveBeenLastCalledWith("trips", { id: journey.id }, { booking_checklist: { car: "booked" } });
     const form = await screen.findByTestId("to-book-cost");
-    // No budget row: the destination's currency (Italy → EUR).
-    expect((within(form).getByLabelText("Currency") as HTMLSelectElement).value).toBe("EUR");
+    // A Canadian home: CAD first (Kayak's Canadian site quoted it), Italy's EUR next (6 Oct 2026).
+    const select = within(form).getByLabelText("Currency") as HTMLSelectElement;
+    expect(select.value).toBe("CAD");
+    expect(Array.from(select.options).map((o) => o.value)).toEqual(["CAD", "EUR", "USD", "GBP"]);
+    await userEvent.selectOptions(select, "EUR");
     await userEvent.type(within(form).getByLabelText("What did it cost?"), "1450");
     await userEvent.click(within(form).getByRole("button", { name: "Save" }));
     expect(queuedUpdate).toHaveBeenLastCalledWith("trips", { id: journey.id }, { booking_checklist: { car: "booked", costs: { car: { amount: 1450, currency: "EUR" } } } });
@@ -354,6 +359,29 @@ describe("What did it cost?", () => {
     // The mark is now the green ✓, and the menu offers the cost again.
     await userEvent.click(within(screen.getByTestId("to-book-car")).getByRole("button", { name: "Car: booked. Change" }));
     expect(within(screen.getByRole("menu")).getAllByRole("menuitem").map((b) => b.textContent)).toEqual(["Booked", "Not needed", "What did it cost?", "Clear"]);
+  });
+
+  it("an American sees US dollars in the box and Kayak's US site on the rows (6 Oct 2026)", async () => {
+    journey = J_("Tuscany");
+    homeOverride = { home_country: "United States" };
+    render(<ToBookSection tripId="tuscany-us" />);
+    await waitFor(() => expect(rowOf("car").getAttribute("href")).toBe("https://www.kayak.com/cars/PSA/2027-08-24-14h/2027-09-04-10h?sort=rank_a&fs=carcapacity=pas_7_X"));
+    const car = screen.getByTestId("to-book-car");
+    await userEvent.click(within(car).getByRole("button", { name: /^Car: / }));
+    await userEvent.click(within(car).getByRole("menuitem", { name: "Booked" }));
+    const form = await screen.findByTestId("to-book-cost");
+    expect((within(form).getByLabelText("Currency") as HTMLSelectElement).value).toBe("USD");
+  });
+
+  it("no home country: the passport decides — British gets pounds and kayak.co.uk", async () => {
+    journey = J_("Tuscany");
+    homeOverride = { home_country: null, passport_country: "British" };
+    render(<ToBookSection tripId="tuscany-uk" />);
+    await waitFor(() => expect(rowOf("flights").getAttribute("href")).toContain("https://www.kayak.co.uk/flights/YYZ-PSA,FLR/"));
+    const car = screen.getByTestId("to-book-car");
+    await userEvent.click(within(car).getByRole("button", { name: /^Car: / }));
+    await userEvent.click(within(car).getByRole("menuitem", { name: "Booked" }));
+    expect((within(await screen.findByTestId("to-book-cost")).getByLabelText("Currency") as HTMLSelectElement).value).toBe("GBP");
   });
 
   it("Not now leaves it Booked with no cost", async () => {

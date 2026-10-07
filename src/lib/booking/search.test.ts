@@ -20,7 +20,7 @@ describe("Search all: the steps", () => {
   it("Kayak tabs first, Roam's Where to stay last, booked rows never", () => {
     const steps = searchSteps(tus, true);
     expect(steps.map((s) => s.key)).toEqual(["flights", "car", "stays"]);
-    expect(steps[0].url).toMatch(/^https:\/\/www\.kayak\.com\/flights\/YYZ-PSA,FLR\//);
+    expect(steps[0].url).toMatch(/^https:\/\/www\.ca\.kayak\.com\/flights\/YYZ-PSA,FLR\//);
     expect(steps[2].url).toBeNull();
     expect(searchSteps(aus, true).map((s) => s.key)).toEqual(["car", "stays"]);
   });

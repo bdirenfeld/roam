@@ -134,3 +134,44 @@ describe("Budget uses real numbers (6 Oct 2026)", () => {
     expect(screen.queryByTestId("estimate-booked")).toBeNull();
   });
 });
+
+// The budget is in the person's own currency (6 Oct 2026): home country,
+// then passport, then CAD — read by lib/budget/load and handed in here.
+describe("Budget in the person's home currency", () => {
+  const paid = { flights: [{ amount: 1000, currency: "USD" }], stays: [], car: [], nightsPaid: 0, nights: 11 };
+  const show = (homeCurrency: string | undefined, cardCurrency = "EUR") => render(
+    <EstimateClient
+      tripId="t1" tripTitle="Tuscany" initialAssumptions={defaultAssumptions(7, 11)} initialBasis={{ flights: "6,800 km" }}
+      uncostedExcursions={0} rolledExcursionCount={0} fxToCad={1.16} fxSource="live" cardCurrency={cardCurrency}
+      homeCurrency={homeCurrency}
+      excursionItems={[]} excursionFree={0} dateRange="Aug 24 – Sep 4" distanceKm={6800} peak={false}
+      bookedSpend={paid} variant="overlay" onDismiss={vi.fn()}
+    />,
+  );
+
+  it("a US person: US dollars paid count as they are, and the rate reads dollars per euro", () => {
+    show("USD");
+    expect(screen.getByTestId("estimate-booked").textContent).toMatch(/^booked \$1,000 · /);
+    fireEvent.click(screen.getByText("Budget assumptions"));
+    expect(screen.getByText(/dollars per euro, today's rate/)).toBeTruthy();
+  });
+
+  it("a British person: pounds, written £", () => {
+    show("GBP");
+    // 1,000 US$ through the reference table into pounds: 1000 × 1.379 / 1.865 ≈ £739.
+    expect(screen.getByTestId("estimate-booked").textContent).toMatch(/^booked £739 · /);
+    fireEvent.click(screen.getByText("Budget assumptions"));
+    expect(screen.getByText(/pounds per euro, today's rate/)).toBeTruthy();
+  });
+
+  it("no rate row when the journey is priced in the person's own currency", () => {
+    show("USD", "USD");
+    fireEvent.click(screen.getByText("Budget assumptions"));
+    expect(screen.getByLabelText("Exchange rate to the dollar").closest("div")!.className).toContain("hidden");
+  });
+
+  it("left out, it is CAD as before: US dollars go through the table", () => {
+    show(undefined);
+    expect(screen.getByTestId("estimate-booked").textContent).toMatch(/^booked \$1,379 · /);
+  });
+});

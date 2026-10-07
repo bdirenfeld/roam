@@ -130,3 +130,21 @@ describe("paidOf", () => {
     expect(paidOf(null)).toBeNull();
   });
 });
+
+// A person whose home is not Canada (6 Oct 2026): their own currency counts
+// at 1, the journey's at the screen's rate, anything else through the table.
+describe("toHome / bookedInHome for a US person", () => {
+  it("US dollars count as they are; CAD goes through the reference table", () => {
+    expect(toHome({ amount: 500, currency: "USD" }, "EUR", 1.16, "USD")).toBe(500);
+    expect(toHome({ amount: 1000, currency: "EUR" }, "EUR", 1.16, "USD")).toBe(1160);
+    expect(toHome({ amount: 1379, currency: "CAD" }, "EUR", 1.16, "USD")).toBeCloseTo(1000, 6);
+  });
+  it("a Canadian is unchanged when no home is given", () => {
+    expect(toHome({ amount: 500, currency: "CAD" }, "EUR", 1.6)).toBe(500);
+    expect(toHome({ amount: 500, currency: "USD" }, "EUR", 1.6)).toBe(689.5);
+  });
+  it("the booked flights add up in USD", () => {
+    const spend: BookedSpend = { flights: [{ amount: 900, currency: "USD" }, { amount: 100, currency: "EUR" }], stays: [], car: [], nightsPaid: 0, nights: 5 };
+    expect(bookedInHome(spend, "EUR", 1.16, "USD")).toEqual({ flights: 1016, unconverted: 0 });
+  });
+});

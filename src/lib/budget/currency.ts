@@ -5,6 +5,9 @@
 // costs at that rate unless the traveller typed one (Brennan, Sep 2026:
 // "is the app smart enough to know it's in euros and convert it?").
 
+import { COUNTRIES } from "@/lib/countries";
+
+/** The default when nobody has said where they live: Roam began in Toronto. */
 const HOME = "CAD";
 export const HOME_CURRENCY = HOME;
 
@@ -46,6 +49,72 @@ export function currencyForDestination(destination: string | null | undefined): 
   return null;
 }
 
+/**
+ * What people type for where they live, beyond a country's own name
+ * (6 Oct 2026): codes, "America", "Britain". Demonyms ("Canadian",
+ * "American") come from lib/countries, since a passport is often typed that way.
+ */
+const COUNTRY_ALIASES: Record<string, string> = {
+  ca: "canada", us: "united states", usa: "united states", "u.s.": "united states", "u.s.a.": "united states",
+  america: "united states", "united states of america": "united states", "the united states": "united states",
+  uk: "united kingdom", "u.k.": "united kingdom", gb: "united kingdom", britain: "united kingdom",
+  "great britain": "united kingdom", england: "united kingdom", scotland: "united kingdom", wales: "united kingdom",
+  "northern ireland": "united kingdom", au: "australia", nz: "new zealand", ie: "ireland", "republic of ireland": "ireland",
+  fr: "france", de: "germany", it: "italy", es: "spain", nl: "netherlands", "the netherlands": "netherlands",
+  holland: "netherlands", ch: "switzerland", mx: "mexico", jp: "japan", in: "india", uae: "united arab emirates",
+  korea: "south korea", "republic of korea": "south korea", "czech republic": "czechia",
+};
+
+/**
+ * Where someone lives, as typed in Profile ("Canada", "USA", "Canadian",
+ * "Toronto, Canada"), to one lower-case country name; null when it reads as
+ * nothing known. Shared by the home currency and the Kayak site.
+ */
+export function homeCountryName(raw: string | null | undefined): string | null {
+  if (!raw || !raw.trim()) return null;
+  const parts = raw.toLowerCase().split(",").map((s) => s.trim()).filter(Boolean).reverse();
+  for (const p of parts) {
+    if (COUNTRY_ALIASES[p]) return COUNTRY_ALIASES[p];
+    const c = COUNTRIES.find((x) => x.name.toLowerCase() === p || x.demonym.toLowerCase() === p);
+    if (c) return COUNTRY_ALIASES[c.name.toLowerCase()] ?? c.name.toLowerCase();
+    if (BY_COUNTRY[p]) return p;
+  }
+  if (/(toronto|ontario|gta|quebec|montr[eé]al|vancouver)/i.test(raw)) return "canada";
+  return null;
+}
+
+/**
+ * The currency a person's own money is in (6 Oct 2026, Brennan: "based on
+ * the passport and the person's home country … that's the currency they get
+ * the pricing in"): Profile's home country first, then the passport, then
+ * CAD. Pass them in that order; the first one that names a currency wins.
+ */
+export function homeCurrencyFor(...countries: (string | null | undefined)[]): string {
+  for (const c of countries) {
+    const name = homeCountryName(c);
+    if (name && BY_COUNTRY[name]) return BY_COUNTRY[name];
+  }
+  return HOME;
+}
+
+/**
+ * The signed-in person's home currency, read once from `users`. Either
+ * Supabase client works. No id, or no row: CAD.
+ */
+export async function loadHomeCurrency(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  userId: string | null | undefined,
+): Promise<string> {
+  if (!userId) return HOME;
+  try {
+    const { data } = await supabase.from("users").select("home_country, passport_country").eq("id", userId).maybeSingle();
+    return homeCurrencyFor(data?.home_country as string | null, data?.passport_country as string | null);
+  } catch {
+    return HOME;
+  }
+}
+
 export const SYMBOL: Record<string, string> = {
   CAD: "$", USD: "US$", EUR: "€", GBP: "£", JPY: "¥", CHF: "CHF ", AUD: "A$", NZD: "NZ$", MXN: "MX$",
   DKK: "kr ", SEK: "kr ", NOK: "kr ", ISK: "kr ", CZK: "Kč ", PLN: "zł ", HUF: "Ft ", TRY: "₺", THB: "฿",
@@ -67,9 +136,32 @@ const REFERENCE_RATES: Record<string, number> = {
   PHP: 0.022, MYR: 0.341, CNY: 0.205, ILS: 0.41, VND: 0.00005, IDR: 0.00008, COP: 0.00033, ARS: 0.001,
 };
 
-export function referenceRateToHome(from: string): number | null {
-  if (!from || from === HOME) return 1;
-  return REFERENCE_RATES[from] ?? null;
+/**
+ * How a person's own money is written: a plain "$" for every dollar country
+ * (an American reads "$", not "US$"), otherwise the currency's own sign.
+ */
+export function homeSymbol(home: string): string {
+  if (["CAD", "USD", "AUD", "NZD", "SGD", "HKD"].includes(home)) return "$";
+  return SYMBOL[home] ?? `${home} `;
+}
+
+/** "dollars", "pounds", "euros" — the word in "1.6 dollars per euro". */
+export function unitName(code: string): string {
+  if (/^(CAD|USD|AUD|NZD|SGD|HKD|MXN)$/.test(code)) return "dollars";
+  const words: Record<string, string> = { GBP: "pounds", EUR: "euros", JPY: "yen", CHF: "francs", INR: "rupees", ZAR: "rand" };
+  return words[code] ?? code;
+}
+
+/**
+ * The table's rate from `from` to `home`. The table is quoted against the
+ * Canadian dollar, so any other home divides through it.
+ */
+export function referenceRateToHome(from: string, home: string = HOME): number | null {
+  if (!from || from === home) return 1;
+  const toCad = (c: string) => (c === HOME ? 1 : REFERENCE_RATES[c] ?? null);
+  const a = toCad(from), b = toCad(home);
+  if (a == null || b == null) return null;
+  return a / b;
 }
 
 async function getJson(url: string, ms: number): Promise<Record<string, unknown> | null> {
@@ -93,16 +185,16 @@ async function getJson(url: string, ms: number): Promise<Record<string, unknown>
  * answers; the caller then uses the reference table, and says so.
  * Cached an hour on the server.
  */
-export async function fetchRateToHome(from: string): Promise<number | null> {
-  if (!from || from === HOME) return 1;
+export async function fetchRateToHome(from: string, home: string = HOME): Promise<number | null> {
+  if (!from || from === home) return 1;
   const clean = (r: unknown) => (typeof r === "number" && r > 0 ? Math.round(r * 1000) / 1000 : null);
 
   const a = await getJson(`https://open.er-api.com/v6/latest/${encodeURIComponent(from)}`, 4000);
-  const ra = clean((a?.rates as Record<string, number> | undefined)?.[HOME]);
+  const ra = clean((a?.rates as Record<string, number> | undefined)?.[home]);
   if (ra != null) return ra;
 
-  const b = await getJson(`https://api.frankfurter.dev/v1/latest?base=${encodeURIComponent(from)}&symbols=${HOME}`, 4000);
-  return clean((b?.rates as Record<string, number> | undefined)?.[HOME]);
+  const b = await getJson(`https://api.frankfurter.dev/v1/latest?base=${encodeURIComponent(from)}&symbols=${home}`, 4000);
+  return clean((b?.rates as Record<string, number> | undefined)?.[home]);
 }
 
 /**

@@ -8,13 +8,45 @@
  *   cars     /cars/PSA/2027-08-24-14h/2027-09-04-10h   (+ ?sort=rank_a&fs=carcapacity=pas_7_X for 7–9 seats)
  *
  * Three traps, all found live:
- *   - kayak.ca does not resolve on his network, so it is kayak.com for everyone.
+ *   - kayak.ca does not resolve on his network; Canada's site is www.ca.kayak.com (below).
  *   - a TOWN in a flight route is dropped silently: airports are IATA codes only.
  *   - a comma in a stay's place falls back to Kayak's generic stays page:
  *     Stays and cars take the plain English town ("Florence", not "Florence-Italy", which opened the airport).
  */
 
+import { homeCountryName } from "@/lib/budget/currency";
+
+/** Kayak's own site, for anyone whose home country has no regional one. */
 export const KAYAK = "https://www.kayak.com";
+
+/**
+ * Kayak prices in the currency of its regional site, so the link goes to the
+ * person's own (6 Oct 2026, Brennan: the pricing should be in their home
+ * currency). Every host answered 200 on 6 Oct 2026, and the flights, hotels
+ * and cars shapes below resolved on each (hotels redirect to the place's id,
+ * e.g. /hotels/Lucca-c14879/…). kayak.ca does NOT resolve; www.ca.kayak.com does.
+ * kayak.co.nz did not answer, so New Zealand stays on kayak.com.
+ */
+const KAYAK_HOSTS: Record<string, string> = {
+  canada: "https://www.ca.kayak.com",
+  "united kingdom": "https://www.kayak.co.uk",
+  australia: "https://www.kayak.com.au",
+  ireland: "https://www.kayak.ie",
+  germany: "https://www.kayak.de",
+  france: "https://www.kayak.fr",
+  italy: "https://www.kayak.it",
+  spain: "https://www.kayak.es",
+  netherlands: "https://www.kayak.nl",
+  switzerland: "https://www.kayak.ch",
+  mexico: "https://www.kayak.com.mx",
+  india: "https://www.kayak.co.in",
+};
+
+/** The Kayak site for where someone lives ("Canada" → www.ca.kayak.com); anything else kayak.com. */
+export function kayakBase(homeCountry: string | null | undefined): string {
+  const name = homeCountryName(homeCountry);
+  return (name && KAYAK_HOSTS[name]) || KAYAK;
+}
 
 /** Kayak's party: adults, and every child's age. */
 export interface KayakParty { adults: number; children: number[] }
@@ -73,20 +105,22 @@ export function kayakPlace(...parts: (string | null | undefined)[]): string {
  * airport or any arrival code there is no route Kayak can read, so the link is
  * the plain flights page.
  */
-export function flightsUrl(o: { from: string | null; to: string[]; out: string; back: string; party: KayakParty }): string {
+export function flightsUrl(o: { from: string | null; to: string[]; out: string; back: string; party: KayakParty; base?: string }): string {
+  const site = o.base ?? KAYAK;
   const to = o.to.filter(isIata);
-  if (!isIata(o.from) || !to.length) return `${KAYAK}/flights`;
+  if (!isIata(o.from) || !to.length) return `${site}/flights`;
   const kids = o.party.children.length ? `/children-${o.party.children.join("-")}` : "";
-  return `${KAYAK}/flights/${o.from}-${to.join(",")}/${o.out}/${o.back}/${o.party.adults}adults${kids}?sort=bestflight_a`;
+  return `${site}/flights/${o.from}-${to.join(",")}/${o.out}/${o.back}/${o.party.adults}adults${kids}?sort=bestflight_a`;
 }
 
 /** Stays in a town for a run of nights. One room is Kayak's default and is left out. */
-export function staysUrl(o: { place: string; checkIn: string; checkOut: string; party: KayakParty }): string {
-  if (!o.place) return `${KAYAK}/stays`;
+export function staysUrl(o: { place: string; checkIn: string; checkOut: string; party: KayakParty; base?: string }): string {
+  const site = o.base ?? KAYAK;
+  if (!o.place) return `${site}/stays`;
   const k = o.party.children;
   const kids = k.length ? `/${k.length}children-${k.join("-")}` : "";
   const rooms = roomsFor(o.party);
-  return `${KAYAK}/hotels/${o.place}/${o.checkIn}/${o.checkOut}/${o.party.adults}adults${kids}${rooms > 1 ? `/${rooms}rooms` : ""}`;
+  return `${site}/hotels/${o.place}/${o.checkIn}/${o.checkOut}/${o.party.adults}adults${kids}${rooms > 1 ? `/${rooms}rooms` : ""}`;
 }
 
 const hour = (h: number) => `${String(Math.min(23, Math.max(0, Math.round(h)))).padStart(2, "0")}h`;
@@ -106,10 +140,11 @@ export function carCapacity(people: number): "pas_5_6" | "pas_7_X" | null {
 export const twoCars = (people: number) => people >= 10;
 
 /** A car from an airport (or a town) to the last morning, big enough for the party. */
-export function carsUrl(o: { at: string; pickUp: string; pickUpHour: number; dropOff: string; dropOffHour: number; people?: number }): string {
-  if (!o.at) return `${KAYAK}/cars`;
+export function carsUrl(o: { at: string; pickUp: string; pickUpHour: number; dropOff: string; dropOffHour: number; people?: number; base?: string }): string {
+  const site = o.base ?? KAYAK;
+  if (!o.at) return `${site}/cars`;
   const seats = carCapacity(o.people ?? 0);
-  return `${KAYAK}/cars/${o.at}/${o.pickUp}-${hour(o.pickUpHour)}/${o.dropOff}-${hour(o.dropOffHour)}${seats ? `?sort=rank_a&fs=carcapacity=${seats}` : ""}`;
+  return `${site}/cars/${o.at}/${o.pickUp}-${hour(o.pickUpHour)}/${o.dropOff}-${hour(o.dropOffHour)}${seats ? `?sort=rank_a&fs=carcapacity=${seats}` : ""}`;
 }
 
 /**
