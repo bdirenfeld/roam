@@ -108,4 +108,23 @@ describe("Plan a journey", { timeout: 20000 }, () => {
     expect(screen.getByRole("button", { name: /Dates/ }).textContent).toMatch(/→/);
     expect(screen.getByRole("button", { name: /Dates/ }).textContent).toContain("5 nights");
   });
+
+  it("a swipe on the month changes it, like the arrows (6 Oct 2026)", async () => {
+    await act(async () => { render(<NewJourneyForm variant="overlay" onDismiss={vi.fn()} />); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /Dates/ })); });
+    const title = () => screen.getByRole("button", { name: "Previous month" }).nextElementSibling?.textContent ?? "";
+    const before = title();
+    const grid = screen.getByTestId("month-grid");
+    await act(async () => {
+      fireEvent.touchStart(grid, { touches: [{ clientX: 300, clientY: 400 }] });
+      fireEvent.touchEnd(grid, { changedTouches: [{ clientX: 150, clientY: 405 }] });
+    });
+    const after = title();
+    expect(after).not.toBe(before);
+    await act(async () => {
+      fireEvent.touchStart(grid, { touches: [{ clientX: 100, clientY: 400 }] });
+      fireEvent.touchEnd(grid, { changedTouches: [{ clientX: 260, clientY: 402 }] });
+    });
+    expect(title()).toBe(before);
+  });
 });

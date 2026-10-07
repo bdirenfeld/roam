@@ -24,6 +24,7 @@ import { NESTED_SHEET_ATTR } from "@/components/ui/Overlay";
 import { TRAVELLERS_ENABLED } from "@/lib/featureFlags";
 import { revokeWarning, revokeToast } from "@/lib/shareCopy";
 import type { Trip, Day } from "@/types/database";
+import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
@@ -521,7 +522,10 @@ export default function TripSettingsClient({
   const nextMonth = () => {
     if (calMonth === 11) { setCalMonth(0); setCalYear((y) => y + 1); }
     else setCalMonth((m) => m + 1);
-  };
+  };  // Swipe the month left or right; the arrows stay (6 Oct 2026, Brennan:
+  // "scroll left and right without using the arrows").
+  const monthSwipe = useSwipeNavigation({ onSwipeLeft: nextMonth, onSwipeRight: prevMonth });
+
 
   const handleDayClick = (dateStr: string) => {
     if (pickPhase === "start") {
@@ -1011,7 +1015,7 @@ export default function TripSettingsClient({
               </div>
 
               {/* Calendar grid */}
-              <div className="grid grid-cols-7">
+              <div className="grid grid-cols-7" data-testid="month-grid" {...monthSwipe}>
                 {calCells.map((dateStr, i) => {
                   if (!dateStr) return <div key={`e-${i}`} className="h-9" />;
                   const dayNum = parseInt(dateStr.split("-")[2]);

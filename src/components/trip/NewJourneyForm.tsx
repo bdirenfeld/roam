@@ -33,6 +33,7 @@ import type { OpenWindow, TravelWindowRow } from "@/lib/yearView/openWindows";
 import { isHouseholdOwner } from "@/lib/household";
 import PartyPicker from "@/components/trip/PartyPicker";
 import { partyFrom, agesFrom, ageForward, partySize as sizeOf, type Party } from "@/lib/party";
+import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 
 const UNSPLASH_KEY = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY;
 
@@ -520,7 +521,10 @@ export default function NewJourneyForm({
   const nextMonth = () => {
     if (calMonth === 11) { setCalMonth(0); setCalYear((y) => y + 1); }
     else setCalMonth((m) => m + 1);
-  };
+  };  // Swipe the month left or right; the arrows stay (6 Oct 2026, Brennan:
+  // "scroll left and right without using the arrows").
+  const monthSwipe = useSwipeNavigation({ onSwipeLeft: nextMonth, onSwipeRight: prevMonth });
+
 
   // One tap fills the range and moves the calendar to it
   const handleQuickWindow = (w: OpenWindow) => {
@@ -1029,7 +1033,7 @@ export default function NewJourneyForm({
               </div>
 
               {/* Calendar grid */}
-              <div className="grid grid-cols-7">
+              <div className="grid grid-cols-7" data-testid="month-grid" {...monthSwipe}>
                 {calCells.map((dateStr, i) => {
                   if (!dateStr) return <div key={`e-${i}`} className="h-9" />;
                   const dayNum = parseInt(dateStr.split("-")[2]);
