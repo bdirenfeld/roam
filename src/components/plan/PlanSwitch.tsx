@@ -14,6 +14,7 @@ import type { Trip, DayWithCards, ListWithCards, Card } from "@/types/database";
 import WeekBoard from "./WeekBoard";
 import PlanBoard from "./PlanBoard";
 import { useMemberJoinedToast } from "@/hooks/useMemberJoinedToast";
+import { useEveOfDepartureToast } from "@/hooks/useEveOfDepartureToast";
 
 interface Props {
   trip: Trip;
@@ -29,6 +30,8 @@ export default function PlanSwitch(props: Props) {
   // The Plan route is owner-only (guests are redirected), so the owner's
   // "Isha joined Tuscany" toast runs here for both boards (7 Oct 2026, delight audit).
   useMemberJoinedToast(props.trip.id, props.trip.title, true);
+  // "Lisbon tomorrow · 2 still to book" the day before, once (7 Oct 2026, delight audit).
+  useEveOfDepartureToast(props.trip.id, props.trip.destination, props.trip.start_date, true);
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 767px)");
     const apply = () => setPhone(mq.matches);

@@ -19,6 +19,12 @@ export interface ToastOptions {
   message: string;
   /** Present → the pill grows an Undo button and stays for 6 s. */
   undo?: () => void | Promise<void>;
+  /**
+   * A button that is not Undo (7 Oct 2026, eve of departure): "Bookings" on
+   * "Lisbon tomorrow · 2 still to book". Same pill, same 6 s, closes on tap.
+   * Ignored when `undo` is present: one button per toast.
+   */
+  action?: { label: string; onClick: () => void };
   /** Override the default lifetime in ms. */
   duration?: number;
 }
@@ -46,7 +52,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     if (timerRef.current) clearTimeout(timerRef.current);
     keyRef.current += 1;
     setCurrent({ ...opts, key: keyRef.current });
-    const life = opts.duration ?? (opts.undo ? 6000 : 3000);
+    const life = opts.duration ?? (opts.undo || opts.action ? 6000 : 3000);
     timerRef.current = setTimeout(() => setCurrent(null), life);
   }, []);
 
@@ -60,6 +66,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     if (undo) await undo();
   };
 
+  const handleAction = () => {
+    const action = current?.action;
+    dismiss();
+    action?.onClick();
+  };
+  const action = current && !current.undo ? current.action : undefined;
+
   return (
     <ToastContext.Provider value={value}>
       {children}
@@ -72,7 +85,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           // bottom it covered the centred sheets' own buttons — "Copy to 9 days"
           // sat under "Something to do before Spain" for seven seconds.
           className="fixed bottom-24 md:bottom-auto md:top-[76px] left-1/2 -translate-x-1/2 z-[80] max-w-[min(92vw,420px)] bg-gray-900 text-white text-[13px] font-medium rounded-2xl shadow-lg flex items-center gap-3 animate-in fade-in"
-          style={{ padding: current.undo ? "6px 6px 6px 16px" : "10px 16px", maxWidth: "calc(100vw - 32px)" }}
+          style={{ padding: current.undo || action ? "6px 6px 6px 16px" : "10px 16px", maxWidth: "calc(100vw - 32px)" }}
         >
           <span>{current.message}</span>
           {current.undo && (
@@ -86,6 +99,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                   under it (6 Oct 2026, taps audit). */}
               <span aria-hidden="true" data-testid="undo-target" className="absolute -inset-y-1.5 -right-1.5 -left-2" />
               Undo
+            </button>
+          )}
+          {action && (
+            <button
+              type="button"
+              onClick={handleAction}
+              className="relative px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 font-semibold transition-colors flex-shrink-0"
+            >
+              <span aria-hidden="true" className="absolute -inset-y-1.5 -right-1.5 -left-2" />
+              {action.label}
             </button>
           )}
         </div>
