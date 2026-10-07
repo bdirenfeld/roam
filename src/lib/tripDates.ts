@@ -12,3 +12,17 @@ export function tripDates(start: string, end: string): string[] {
   }
   return out;
 }
+
+const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+
+/**
+ * "MAR 2026" from a "YYYY-MM-DD" date (7 Oct 2026, delight audit). A past
+ * journey is remembered as a month, not "4–12"; a trip spanning two months
+ * reads as its start month. Read off the string, so no timezone can shift it.
+ */
+export function monthYear(date: string | null | undefined): string {
+  const m = /^(\d{4})-(\d{2})/.exec(date ?? "");
+  if (!m) return "";
+  const month = MONTHS[Number(m[2]) - 1];
+  return month ? `${month} ${m[1]}` : "";
+}

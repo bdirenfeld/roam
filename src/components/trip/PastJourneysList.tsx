@@ -10,6 +10,8 @@ import { useToast } from "@/components/ui/Toast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { setTripArchived } from "@/lib/tripArchive";
 import { isPastJourney } from "@/lib/tripRecency";
+import { monthYear } from "@/lib/tripDates";
+import TripCover from "@/components/ui/TripCover";
 import type { Trip } from "@/types/database";
 
 interface Props {
@@ -31,6 +33,15 @@ function formatDateShort(start: string, end: string): string {
 // it's shelved, not over.
 function dateLine(trip: Trip): string {
   const base = formatDateShort(trip.start_date, trip.end_date);
+  return trip.archived === true && !isPastJourney(trip)
+    ? `${base} · still upcoming`
+    : base;
+}
+
+// The phone row's date (7 Oct 2026, delight audit): a memory is "MAR 2026",
+// not "MAR 4–12". A shelved trip that hasn't happened yet still says so.
+function phoneDateLine(trip: Trip): string {
+  const base = monthYear(trip.start_date);
   return trip.archived === true && !isPastJourney(trip)
     ? `${base} · still upcoming`
     : base;
@@ -117,7 +128,7 @@ export default function PastJourneysList({ trips, hrefByTrip }: Props) {
 
   // Restore only shows for explicitly archived trips — a trip that is past by
   // date alone has nothing to un-archive; clearing the flag would change nothing.
-  const actions = (trip: Trip) => (
+  const actions = (trip: Trip, withDelete = true) => (
     <div className="flex items-center gap-2 flex-shrink-0">
       {trip.archived === true && (
         <button
@@ -129,14 +140,14 @@ export default function PastJourneysList({ trips, hrefByTrip }: Props) {
           <ArrowCounterClockwise size={12} weight="light" className="text-gray-400" />
         </button>
       )}
-      <button
+      {withDelete && <button
         onClick={() => setDeleteTarget(trip)}
         className="w-8 h-8 rounded-full flex items-center justify-center active:scale-90 transition-transform"
         style={{ background: "rgba(254,242,242,0.6)" }}
         aria-label={`Delete ${trip.title}`}
       >
         <Trash size={12} weight="light" className="text-red-400" />
-      </button>
+      </button>}
     </div>
   );
 
@@ -156,26 +167,40 @@ export default function PastJourneysList({ trips, hrefByTrip }: Props) {
               href={hrefFor(trip)}
               className="flex items-center gap-3 flex-1 min-w-0"
             >
-              <div
-                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                style={{ background: "#D4CFC8" }}
-              />
+              {/* 36px round cover where the grey dot was (7 Oct 2026, delight
+                  audit) — TripCover, the same source and fallbacks as the
+                  journey cards: the cover, else the destination's map, else
+                  a soft neutral circle. */}
+              <span data-cover className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 block" style={{ background: "#E8E3DA" }}>
+                <TripCover
+                  destination={trip.destination}
+                  coverImageUrl={trip.cover_image_url ?? null}
+                  lat={trip.destination_lat}
+                  lng={trip.destination_lng}
+                  className="w-9 h-9 rounded-full block"
+                />
+              </span>
               <div className="flex-1 min-w-0">
                 <p
-                  className="font-display italic text-[13px] truncate"
-                  style={{ color: "#9CA3AF" }}
+                  className="font-display text-[15px] truncate"
+                  style={{ color: "#1A1A2E" }}
                 >
                   {trip.title}
                 </p>
                 <p
-                  className="text-[9px] uppercase tracking-widest mt-0.5"
-                  style={{ color: "#C4C0B8" }}
+                  className="text-[10px] uppercase tracking-widest mt-0.5"
+                  style={{ color: "rgba(26,26,46,0.62)" }}
                 >
-                  {dateLine(trip)}
+                  {phoneDateLine(trip)}
                 </p>
               </div>
             </Link>
-            {actions(trip)}
+            {/* No bin on the phone rows (7 Oct 2026, delight audit): the trips
+                you took read as clutter to clear out. Delete lives in the
+                journey's Settings → "Delete permanently", owner-only and shown
+                for archived journeys too, so archived rows lose it as well and
+                keep only Restore. */}
+            {actions(trip, false)}
           </div>
             ))}
           </div>
