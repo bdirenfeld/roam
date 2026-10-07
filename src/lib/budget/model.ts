@@ -23,6 +23,7 @@
  */
 
 import type { BookedHome } from "./booked";
+import { homeSymbol } from "./currency";
 
 export type Confidence = "quoted" | "estimated" | "placeholder";
 
@@ -516,6 +517,7 @@ export interface Suggestion {
   basis: Record<string, string>;
 }
 
+/** The origin when the person's Profile says nothing (lib/budget/homeOrigin). */
 export const HOME = { lat: 43.6532, lng: -79.3832 }; // Toronto
 
 export function greatCircleKm(
@@ -540,10 +542,29 @@ const near = (n: number, to: number) => Math.round(n / to) * to;
 
 export function suggest(
   a: Assumptions,
-  ctx: { distanceKm: number; peak: boolean; cruise?: boolean },
+  ctx: {
+    distanceKm: number;
+    peak: boolean;
+    cruise?: boolean;
+    /**
+     * The priors below are Canadian-dollar figures. A person whose money is
+     * elsewhere gets them in their own (7 Oct 2026): `home` is their currency,
+     * `cadToHome` how many of it one Canadian dollar buys, `from` the city
+     * the distance was measured from. Left out: CAD from Toronto, as before.
+     */
+    home?: string;
+    cadToHome?: number;
+    from?: string;
+  },
 ): Suggestion {
   const people = Math.max(a.people, 1);
   const km = ctx.distanceKm;
+  const k = ctx.cadToHome && ctx.cadToHome > 0 ? ctx.cadToHome : 1;
+  const sym = homeSymbol(ctx.home ?? "CAD");
+  // A prior in the person's money, rounded the way the CAD figure was.
+  const hm = (cad: number, to: number) => near(cad * k, to);
+  // A unit price quoted in a basis sentence: "$22", "£12".
+  const each = (cad: number) => `${sym}${Math.round(cad * k)}`;
 
   const band =
     km < 800 ? 240 : km < 2500 ? 480 : km < 6000 ? 880 : km < 10000 ? 1050 : 1500;
@@ -552,34 +573,34 @@ export function suggest(
   // At home there is no fare. Toronto & the GTA came out with $1,400 of
   // flights before this (Brennan, Sep 2026).
   const home = km < 80;
-  const fare = home ? 0 : near(band * (ctx.peak ? 1.15 : 1), 10);
+  const fare = home ? 0 : hm(band * (ctx.peak ? 1.15 : 1), 10);
   const bedrooms = Math.max(1, Math.ceil(people / 2));
   const vehicles = people > 5 ? 2 : 1;
 
   // A cruise fare is quoted per person for the sailing; a mid-market
   // balcony cabin runs about $190 a person a night.
-  const cruiseFare = near(190 * Math.max(a.nights, 1), 10);
+  const cruiseFare = hm(190 * Math.max(a.nights, 1), 10);
   return {
     values: {
       flightPerPerson: fare,
-      nightlyRate: near(150 + bedrooms * 110, 10),
+      nightlyRate: hm(150 + bedrooms * 110, 10),
       ...(ctx.cruise ? { cruiseFarePerPerson: cruiseFare } : {}),
-      groceriesPerDay: near(22 * people, 10),
-      perMealOut: near(57 * people, 10),
-      carDayRate: near(vehicles * 105, 10),
-      dogNightlyRate: 75,
-      extrasPerDay: near(9 * people, 10),
-      touristTaxPerNight: near(3 * people, 1),
+      groceriesPerDay: hm(22 * people, 10),
+      perMealOut: hm(57 * people, 10),
+      carDayRate: hm(vehicles * 105, 10),
+      dogNightlyRate: hm(75, 5),
+      extrasPerDay: hm(9 * people, 10),
+      touristTaxPerNight: hm(3 * people, 1),
     },
     basis: {
-      flights: home ? "at home · no flights" : `${km.toLocaleString("en-CA")} km from Toronto · ${bandName}${ctx.peak ? " · +15% peak season" : ""}`,
-      accommodation: ctx.cruise ? `$190 per person per night × ${a.nights} nights, balcony cabin` : `${people} people needs ${bedrooms} bedrooms`,
-      groceries: `$22 per person per day × ${people}`,
-      restaurants: `$57 a head × ${people}`,
+      flights: home ? "at home · no flights" : `${km.toLocaleString("en-CA")} km from ${ctx.from ?? "Toronto"} · ${bandName}${ctx.peak ? " · +15% peak season" : ""}`,
+      accommodation: ctx.cruise ? `${each(190)} per person per night × ${a.nights} nights, balcony cabin` : `${people} people needs ${bedrooms} bedrooms`,
+      groceries: `${each(22)} per person per day × ${people}`,
+      restaurants: `${each(57)} a head × ${people}`,
       car: `${vehicles} ${vehicles === 1 ? "vehicle" : "vehicles"} · includes fuel and tolls`,
       dog: `boarding rate · ${a.dogNights} nights`,
-      extras: `$9 per person per day × ${people}`,
-      touristTax: `$3 per person per night × ${people}`,
+      extras: `${each(9)} per person per day × ${people}`,
+      touristTax: `${each(3)} per person per night × ${people}`,
     },
   };
 }

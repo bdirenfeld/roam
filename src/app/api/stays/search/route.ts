@@ -17,6 +17,7 @@ import { priceWindow, priceWindowNote, unopenedWindow, unopenedNote } from "@/li
 import { budgetFlag, budgetVerdict, nightlyOf } from "@/lib/stays/budget";
 import { parseAsk, askNote, askBonus, unansweredNote } from "@/lib/stays/wants";
 import { parseBudget, budgetBasisLine } from "@/lib/stays/budgetInput";
+import { homeSymbol } from "@/lib/budget/currency";
 import { assignLetters } from "@/lib/stays/letters";
 import { inventoriesFor } from "@/lib/stays/inventory";
 import { readiness } from "@/lib/stays/readiness";
@@ -169,7 +170,7 @@ export async function POST(request: NextRequest) {
       user_id: user.id,
       assumptions: { ...a, nightlyRate: typed.nightly, nightlyCeiling: typed.nightly },
       basis: (() => {
-        const line = budgetBasisLine(b.accommodation, typed.nightly, new Date().toLocaleDateString("en-CA", { day: "numeric", month: "short" }));
+        const line = budgetBasisLine(b.accommodation, typed.nightly, new Date().toLocaleDateString("en-CA", { day: "numeric", month: "short" }), homeSymbol(ctx.homeCurrency));
         return line ? { ...b, accommodation: line } : b;
       })(),
       updated_at: new Date().toISOString(),
@@ -511,7 +512,7 @@ export async function POST(request: NextRequest) {
     // nothing, and it says vaguely what "Adds about 6.5 hours of driving over
     // the trip" says exactly — the number that ruled out Villa Bottino in his
     // own villa search (Brennan, 11 Sept 2026). The concrete one stays.
-    const over = budgetFlag(nightlyOf(c.nightly ?? null, c.total ?? null, baseNights), ctx.nightlyRate);
+    const over = budgetFlag(nightlyOf(c.nightly ?? null, c.total ?? null, baseNights), ctx.nightlyRate, homeSymbol(ctx.homeCurrency));
     if (over) flags.push(over);
     // What he asked for: a nice-to-have that turned up is worth saying, and
     // anything we could not verify says so rather than leaving a blank.

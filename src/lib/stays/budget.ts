@@ -52,8 +52,9 @@ export function budgetVerdict(nightly: number | null, ceiling: number | null): B
  * The flag on the row. It names his own number rather than saying "over
  * budget", so the figure it is judged against is never a mystery.
  */
-export function budgetFlag(nightly: number | null, ceiling: number | null): string | null {
+export function budgetFlag(nightly: number | null, ceiling: number | null, symbol = "$"): string | null {
   const v = budgetVerdict(nightly, ceiling);
   if (v !== "over" && v !== "far") return null;
-  return `Over your Estimate ($${Math.round(ceiling as number).toLocaleString("en-CA")} a night)`;
+  // In the person's own money (7 Oct 2026): "£" for a Briton; "$" when not said.
+  return `Over your Estimate (${symbol}${Math.round(ceiling as number).toLocaleString("en-CA")} a night)`;
 }

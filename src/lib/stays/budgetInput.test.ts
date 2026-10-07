@@ -78,3 +78,18 @@ describe("budgetBasisLine", () => {
     expect(budgetBasisLine("Villa Bottino · vrbo · 10 Sep", 1000, "15 Sep")).toBeNull();
   });
 });
+
+// The whole-stay hint is in the person's own money (7 Oct 2026).
+describe("budgetHint in another currency", () => {
+  it("writes the symbol it is given; $ when none is", () => {
+    expect(budgetHint(200, 5, "£")).toBe("about £1,000 for 5 nights");
+    expect(budgetHint(200, 5)).toBe("about $1,000 for 5 nights");
+  });
+});
+
+describe("budgetBasisLine in another currency", () => {
+  it("writes the symbol it is given; $ when none is", () => {
+    expect(budgetBasisLine(null, 250, "7 Oct", "£")).toBe("£250 a night, set on Where to stay · 7 Oct");
+    expect(budgetBasisLine(null, 250, "7 Oct")).toBe("$250 a night, set on Where to stay · 7 Oct");
+  });
+});

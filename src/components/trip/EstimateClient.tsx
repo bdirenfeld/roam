@@ -293,6 +293,10 @@ interface Props {
   cardCurrency: string;
   /** The person's own currency (users.home_country, then passport, then CAD). */
   homeCurrency?: string;
+  /** Home units per Canadian dollar, for the suggested prices (7 Oct 2026). 1 when left out. */
+  cadToHome?: number;
+  /** Where distances are measured from ("London"); Toronto when left out. */
+  originLabel?: string;
   /** The priced activity cards, for the Excursions breakdown table. */
   excursionItems: ExcursionItem[];
   excursionFree: number;
@@ -319,6 +323,8 @@ export default function EstimateClient({
   fxReferenceMonth,
   cardCurrency,
   homeCurrency = "CAD",
+  cadToHome = 1,
+  originLabel = "Toronto",
   excursionItems,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   excursionFree: _excursionFree,
@@ -500,7 +506,7 @@ export default function EstimateClient({
 
   const runSuggest = () => {
     void findPrices();
-    const s = suggest(a, { distanceKm, peak, cruise });
+    const s = suggest(a, { distanceKm, peak, cruise, home: homeCurrency, cadToHome, from: originLabel });
     const next = { ...a };
     if (distanceKm < 80) { next.carEnabled = false; next.dogEnabled = false; }
     if (!excursionsTyped) next.excursionsTotal = rowsTotal();
@@ -561,7 +567,9 @@ export default function EstimateClient({
         {
           trip_id: tripId,
           user_id: user.id,
-          assumptions: { ...a, excursionsTotal: excursionsTyped ? a.excursionsTotal : 0, fxTyped } as unknown as Record<string, unknown>,
+          // fxBase (7 Oct 2026): the currency the rate is in, so a typed rate
+          // reads right for a viewer whose home is elsewhere (lib/budget/load).
+          assumptions: { ...a, excursionsTotal: excursionsTyped ? a.excursionsTotal : 0, fxTyped, fxBase: homeCurrency } as unknown as Record<string, unknown>,
           // NOT NULL: always the number in use; fxTyped above says whether it
           // is yours or the day's market rate.
           fx_to_cad: fx,

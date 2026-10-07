@@ -43,10 +43,11 @@ export function parseBudget(text: string | null | undefined, nights: number): Pa
 }
 
 /** The hint under the field, so the whole-stay number is never a separate box. */
-export function budgetHint(nightly: number | null, nights: number): string | null {
+export function budgetHint(nightly: number | null, nights: number, symbol = "$"): string | null {
   if (nightly == null || nightly <= 0 || nights <= 0) return null;
   const total = nightly * nights;
-  return `about $${total.toLocaleString("en-CA")} for ${nights} ${nights === 1 ? "night" : "nights"}`;
+  // In the person's own money (7 Oct 2026): "£", "€"; "$" when not said.
+  return `about ${symbol}${total.toLocaleString("en-CA")} for ${nights} ${nights === 1 ? "night" : "nights"}`;
 }
 
 /** What to put in the field when it is first shown: the Estimate's own number. */
@@ -62,8 +63,8 @@ export function budgetFieldValue(nightlyRate: number | null | undefined): string
  * working and is left alone (null = do not write); anything else becomes the
  * number and where it was set.
  */
-export function budgetBasisLine(current: string | null | undefined, nightly: number, when: string): string | null {
+export function budgetBasisLine(current: string | null | undefined, nightly: number, when: string, symbol = "$"): string | null {
   const generic = !current || /^\d+ people needs/i.test(current) || /set on (the stay search|Where to stay)/i.test(current);
   if (!generic) return null;
-  return `$${Math.round(nightly).toLocaleString("en-CA")} a night, set on Where to stay · ${when}`;
+  return `${symbol}${Math.round(nightly).toLocaleString("en-CA")} a night, set on Where to stay · ${when}`;
 }

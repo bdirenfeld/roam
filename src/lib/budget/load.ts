@@ -2,13 +2,13 @@ import {
   defaultAssumptions,
   cardBudgetToCad,
   greatCircleKm,
-  HOME,
   type Assumptions,
   type CardBudget,
 } from "./model";
 import { bookedSpend, type BookedSpend } from "./booked";
 import type { CheckCard } from "@/lib/booking/checklist";
-import { currencyForDestination, fetchRateToHome, referenceRateToHome, REFERENCE_MONTH, isMetroCity, loadHomeCurrency, unitName } from "./currency";
+import { currencyForDestination, fetchRateToHome, referenceRateToHome, REFERENCE_MONTH, isMetroCity, unitName } from "./currency";
+import { loadHomeProfile } from "./homeOrigin";
 
 export interface ExcursionItem {
   cardId: string;
@@ -100,6 +100,13 @@ export interface EstimateData {
   /** What the cards are priced in, from the destination ("Tuscany, Italy" → EUR). */
   cardCurrency: string;
   homeCurrency: string;
+  /**
+   * How many home units one Canadian dollar buys, for the suggested prices
+   * (their priors are CAD figures). 1 for a Canadian (7 Oct 2026).
+   */
+  cadToHome: number;
+  /** The city distances are measured from: home airport, home country, else Toronto. */
+  originLabel: string;
   /** One row per priced activity card, in home currency, for the breakdown table. */
   excursionItems: ExcursionItem[];
   /** Activity cards on days with a cost of zero. */
@@ -147,6 +154,17 @@ function excursionsBasis(
 }
 
 /**
+ * A saved typed rate (home units per card unit, typed against `base`) in
+ * `home`'s units (7 Oct 2026). Same base: as typed. Otherwise multiplied by
+ * one base unit in home units, today's or the table's; null when neither knows.
+ */
+export async function typedRateToHome(typed: number, base: string, home: string): Promise<number | null> {
+  if (base === home) return typed;
+  const k = (await fetchRateToHome(base, home)) ?? referenceRateToHome(base, home);
+  return k == null ? null : Math.round(typed * k * 1000) / 1000;
+}
+
+/**
  * Everything the Estimate screen needs, derived once.
  *
  * Called from the route with the server client and from the overlay with the
@@ -166,7 +184,7 @@ export async function loadEstimate(
   if (userId === undefined) {
     try { viewer = (await supabase.auth.getSession())?.data?.session?.user?.id ?? null; } catch { viewer = null; }
   }
-  const [{ data: trip }, { data: days }, { data: cards }, { data: saved }, { data: dayCards }, home] =
+  const [{ data: trip }, { data: days }, { data: cards }, { data: saved }, { data: dayCards }, profile] =
     await Promise.all([
       supabase
         .from("trips")
@@ -195,8 +213,10 @@ export async function loadEstimate(
         .eq("trip_id", tripId)
         .not("day_id", "is", null)
         .not("archived", "is", true),
-      loadHomeCurrency(supabase, viewer) as Promise<string>,
+      loadHomeProfile(supabase, viewer),
     ]);
+  const home = profile.currency;
+  const origin = profile.origin;
   // Your last other budget says whether you board a dog and buy gifts.
   const { data: last } = saved ? { data: null } : await supabase
     .from("trip_budgets").select("assumptions").neq("trip_id", tripId)
@@ -214,14 +234,25 @@ export async function loadEstimate(
   const cardCurrency = currencyForDestination(trip.destination as string | null) ?? home;
   // The column is NOT NULL, so "typed" is a flag in the saved assumptions.
   const savedFx = saved?.fx_to_cad != null ? Number(saved.fx_to_cad) : null;
-  const fxTyped = Boolean((saved?.assumptions as { fxTyped?: boolean } | null)?.fxTyped) && savedFx != null;
+  const savedAssumptions = saved?.assumptions as { fxTyped?: boolean; fxBase?: string } | null;
+  // A typed rate is in the typist's home units (7 Oct 2026). Rows saved before
+  // `fxBase` existed were typed against the Canadian dollar, so a missing
+  // base reads as CAD — nothing moves for a Canadian — and is carried into
+  // this viewer's currency at today's rate (else the table); with no way to
+  // carry it, it is set aside and today's rate applies.
+  const typedFx = savedAssumptions?.fxTyped && savedFx != null
+    ? await typedRateToHome(savedFx, savedAssumptions.fxBase || "CAD", home)
+    : null;
+  const fxTyped = typedFx != null;
   // Typed wins. Otherwise today's rate; failing that the dated reference
   // table; failing even that, whatever the row last held.
   const liveFx = fxTyped ? null : await fetchRateToHome(cardCurrency, home);
   const refFx = liveFx == null ? referenceRateToHome(cardCurrency, home) : null;
-  const fxToCad = fxTyped ? (savedFx as number) : (liveFx ?? refFx ?? savedFx ?? 1.47);
+  const fxToCad = fxTyped ? (typedFx as number) : (liveFx ?? refFx ?? savedFx ?? 1.47);
   const fxSource: "typed" | "live" | "reference" | "fallback" =
     fxTyped ? "typed" : liveFx != null ? "live" : refFx != null ? "reference" : "fallback";
+  // The suggested prices are CAD priors; a non-Canadian gets them in their own money.
+  const cadToHome = home === "CAD" ? 1 : ((await fetchRateToHome("CAD", home)) ?? referenceRateToHome("CAD", home) ?? 1);
 
   // An excursion is any scheduled activity card. Those carrying details.budget
   // seed the Excursions line; the rest are counted so the screen can say how
@@ -295,7 +326,7 @@ export async function loadEstimate(
   const lat = trip.destination_lat as number | null;
   const lng = trip.destination_lng as number | null;
   // Within ~80 km of home: no car hire and no boarding for the dog by default.
-  const atHome = lat != null && lng != null && greatCircleKm(HOME.lat, HOME.lng, lat, lng) < 80;
+  const atHome = lat != null && lng != null && greatCircleKm(origin.lat, origin.lng, lat, lng) < 80;
   const assumptions: Assumptions = {
     ...defaultAssumptions(partySize, nights, atHome, isMetroCity(trip.destination as string | null), { dog: lastA.dogEnabled, gifts: lastA.extrasEnabled }),
     excursionsTotal: rolledCad,
@@ -310,6 +341,8 @@ export async function loadEstimate(
     fxReferenceMonth: REFERENCE_MONTH,
     cardCurrency,
     homeCurrency: home,
+    cadToHome,
+    originLabel: origin.label,
     // Unrounded per row, so the table sums to the same figure as the line
     // (rows rounded first added to one dollar more). Largest first.
     excursionItems: activities
@@ -349,7 +382,7 @@ export async function loadEstimate(
         ? `${fmt(trip.start_date)} – ${fmt(trip.end_date)}, ${new Date(trip.end_date + "T12:00:00").getFullYear()}`
         : "",
     distanceKm:
-      lat != null && lng != null ? greatCircleKm(HOME.lat, HOME.lng, lat, lng) : 0,
+      lat != null && lng != null ? greatCircleKm(origin.lat, origin.lng, lat, lng) : 0,
     peak: trip.start_date
       ? [7, 8, 12].includes(Number(trip.start_date.slice(5, 7)))
       : false,

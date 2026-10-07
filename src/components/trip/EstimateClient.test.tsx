@@ -175,3 +175,56 @@ describe("Budget in the person's home currency", () => {
     expect(screen.getByTestId("estimate-booked").textContent).toMatch(/^booked \$1,379 · /);
   });
 });
+
+// Suggestions and typed rates in the person's own money (7 Oct 2026).
+describe("Budget from this journey, outside Canada", () => {
+  const show = (homeCurrency?: string, cadToHome?: number, originLabel?: string) => render(
+    <EstimateClient
+      tripId="t1" tripTitle="Paris" initialAssumptions={defaultAssumptions(4, 7)} initialBasis={{}}
+      uncostedExcursions={0} rolledExcursionCount={0} fxToCad={1.1} fxSource="live" cardCurrency="EUR"
+      homeCurrency={homeCurrency} cadToHome={cadToHome} originLabel={originLabel}
+      excursionItems={[]} excursionFree={0} dateRange="May 1 – 8" distanceKm={6500} peak={false}
+      variant="overlay" onDismiss={vi.fn()}
+    />,
+  );
+  const suggested = async () => {
+    fireEvent.click(screen.getByText("Budget from this journey"));
+    await act(async () => { vi.advanceTimersByTime(800); });
+    return upserts[upserts.length - 1];
+  };
+
+  it("an American gets US-dollar prices and the basis says where from", async () => {
+    show("USD", 0.725, "New York");
+    const row = await suggested();
+    const a = row.assumptions as { groceriesPerDay: number; flightPerPerson: number; fxBase: string };
+    expect(a.groceriesPerDay).toBe(60);
+    expect(a.flightPerPerson).toBe(760);
+    expect((row.basis as Record<string, string>).flights).toBe("6,500 km from New York · long-haul");
+    expect((row.basis as Record<string, string>).groceries).toBe("$16 per person per day × 4");
+  });
+
+  it("a Briton's basis is in pounds", async () => {
+    show("GBP", 0.536, "London");
+    const row = await suggested();
+    expect((row.basis as Record<string, string>).restaurants).toBe("£31 a head × 4");
+  });
+
+  it("a Canadian, or nothing said, gets the same figures as before", async () => {
+    show();
+    const row = await suggested();
+    const a = row.assumptions as { groceriesPerDay: number; flightPerPerson: number };
+    expect(a.groceriesPerDay).toBe(90);
+    expect(a.flightPerPerson).toBe(1050);
+    expect((row.basis as Record<string, string>).flights).toBe("6,500 km from Toronto · long-haul");
+  });
+
+  it("a typed rate is saved with the currency it is in", async () => {
+    show("USD", 0.725, "New York");
+    await suggested(); // a suggestion gives the assumptions a basis, and opens them
+    fireEvent.change(screen.getByLabelText("Exchange rate to the dollar"), { target: { value: "1.09" } });
+    await act(async () => { vi.advanceTimersByTime(800); });
+    const row = upserts[upserts.length - 1];
+    expect(row.fx_to_cad).toBe(1.09);
+    expect(row.assumptions).toMatchObject({ fxTyped: true, fxBase: "USD" });
+  });
+});

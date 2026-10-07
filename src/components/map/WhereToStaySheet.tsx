@@ -34,6 +34,7 @@ import { orderRows } from "@/lib/stays/orderRows";
 import { decisionLine } from "@/lib/stays/sheetCopy";
 import { markChosen } from "@/lib/stays/localState";
 import { searchCeiling } from "@/lib/stays/budget";
+import { homeSymbol, loadHomeCurrency } from "@/lib/budget/currency";
 import type { StayBrief } from "@/lib/stays/brief";
 import type { StayCandidate, StayBriefRow, StayRejectReason, Trip } from "@/types/database";
 import StayCardSheet from "./StayCardSheet";
@@ -63,14 +64,21 @@ interface Props {
   onClose: () => void;
 }
 
-function cad(n: number): string {
-  return "$" + Math.round(n).toLocaleString("en-CA");
+/**
+ * A price in the currency it was asked for (7 Oct 2026): the row's own
+ * `currency` (the person's home since 6 Oct), else their home. "$" was
+ * hard-coded, so a Londoner's pounds read as dollars.
+ */
+function cad(n: number, currency: string | null | undefined): string {
+  return homeSymbol(currency || "CAD") + Math.round(n).toLocaleString("en-CA");
 }
 
 export default function WhereToStaySheet({ panel = false, trip, placesCount, focusedId, onFocus, onCandidates, onChanged, onClose }: Props) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [brief, setBrief] = useState<StayBriefRow | null>(null);
+  /** The person's own currency: the budget line and any row without one. */
+  const [homeCur, setHomeCur] = useState("CAD");
   const [cands, setCands] = useState<StayCandidate[]>([]);
   /** Everything ever proposed for this journey, including set-aside and rejected. */
   const [everything, setEverything] = useState<StayCandidate[]>([]);
@@ -157,6 +165,10 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
       supabase.from("trip_budgets").select("assumptions").eq("trip_id", trip.id).maybeSingle(),
     ]);
     setBrief((b.data as StayBriefRow | null) ?? null);
+    try {
+      const uid = (await supabase.auth.getSession())?.data?.session?.user?.id ?? null;
+      setHomeCur(await loadHomeCurrency(supabase, uid));
+    } catch { /* no session to read: CAD, as before */ }
     publish((c.data ?? []) as StayCandidate[]);
     // The field shows the search's own limit, not what the chosen stay costs.
     const rate = searchCeiling(bud.data?.assumptions as Record<string, unknown> | null);
@@ -297,7 +309,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
   const termsLine = [
     said.must ? said.must.replace(/^Must have: /, "Must have ") : null,
     said.nice,
-    budgetNightly ? `up to $${budgetNightly.toLocaleString("en-CA")} a night` : null,
+    budgetNightly ? `up to ${homeSymbol(homeCur)}${budgetNightly.toLocaleString("en-CA")} a night` : null,
     multi ? bases.map((b) => `${b.label} ${b.nights}`).join(", ") : null,
   ].filter(Boolean).join(" · ") || "Anything that matters here?";
   const chips = suggestions({
@@ -735,7 +747,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                         </p>
                         <p className="text-[12px] mt-[3px] leading-snug" style={{ color: CAPTION }}>
                           {c.total != null
-                            ? <><span style={{ color: INK, fontWeight: 600 }}>{cad(Number(c.total))}</span>{` for ${nights} ${nights === 1 ? "night" : "nights"}`}</>
+                            ? <><span style={{ color: INK, fontWeight: 600 }}>{cad(Number(c.total), c.currency || homeCur)}</span>{` for ${nights} ${nights === 1 ? "night" : "nights"}`}</>
                             : noPriceReason({ site: c.site, url: c.url, source: c.source, othersPriced, party: travellers })}
                           {rated ? ` · ${rated}` : nearest ? ` · ${nearest}` : null}
                           {warning && <> · <span style={{ color: SIENNA, fontWeight: 600 }}>{warning}</span></>}
@@ -789,7 +801,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                       <div className="flex-1 min-w-0">
                         <p className="font-display italic line-clamp-1" style={{ fontSize: 15, lineHeight: 1.3, color: CAPTION }}>{c.name}</p>
                         <p className="text-[11.5px] mt-[2px]" style={{ color: CAPTION }}>
-                          {why}{c.total != null ? ` · ${cad(Number(c.total))}` : ""}
+                          {why}{c.total != null ? ` · ${cad(Number(c.total), c.currency || homeCur)}` : ""}
                         </p>
                       </div>
                       <button
@@ -886,7 +898,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                   </div>
                   {(() => {
                     const b = parseBudget(budget, nights);
-                    const hint = budgetHint(b.nightly, nights);
+                    const hint = budgetHint(b.nightly, nights, homeSymbol(homeCur));
                     if (!hint) return null;
                     return (
                       <p className="text-[12px] mt-1" style={{ color: CAPTION }}>

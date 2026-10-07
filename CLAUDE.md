@@ -248,7 +248,7 @@ and stay prices (SerpApi `currency`). Rates and the reference table convert to t
 **7 Oct 2026:** the Budget's suggested prices are CAD priors scaled by `cadToHome` (live, else the table) and written with
 `homeSymbol`; distances start at `homeOriginFor(home_airport, home_country, passport)` (lib/budget/homeOrigin; YYZ/Canada = the old
 Toronto point, blank = Toronto). A typed rate saves `assumptions.fxBase` (the typist's home); a row without one is CAD-based and is
-carried into the viewer's home on load (`typedRateToHome`). WhereToStaySheet writes each price with its row's `currency`.
+carried into the viewer's home on load (`typedRateToHome`). WhereToStaySheet writes each price with its row's `currency`; the search's "Over your Estimate" flag and the accommodation basis line take `homeSymbol` too.
 `fetchRateToHome` tries exchangerate-api's open feed, then Frankfurter on `api.frankfurter.dev`
 (the old `api.frankfurter.app` host only redirects now, which is what broke the live rate on
 2026-09-04). If both fail the Estimate uses `REFERENCE_RATES` and says "the <month> rate";

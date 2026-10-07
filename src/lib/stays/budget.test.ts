@@ -76,3 +76,11 @@ describe("searchCeiling", () => {
     expect(searchCeiling({})).toBeNull();
   });
 });
+
+// The flag names the ceiling in the person's own money (7 Oct 2026).
+describe("budgetFlag in another currency", () => {
+  it("writes the symbol it is given; $ when none is", () => {
+    expect(budgetFlag(400, 200, "£")).toBe("Over your Estimate (£200 a night)");
+    expect(budgetFlag(400, 200)).toBe("Over your Estimate ($200 a night)");
+  });
+});

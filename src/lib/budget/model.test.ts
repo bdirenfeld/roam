@@ -190,3 +190,36 @@ describe("cardBudgetToCad follows the person's home currency", () => {
     expect(cardBudgetToCad({ amount: 100, currency: "USD", per: "party" }, 2, 1.6)).toBe(160);
   });
 });
+
+// The suggested prices were Canadian-dollar figures for everyone (7 Oct
+// 2026). They are priors in CAD, carried into the person's own money.
+describe("suggest in the person's home currency", () => {
+  const a = defaultAssumptions(4, 7);
+  const ctx = { distanceKm: 6500, peak: false };
+
+  it("a Canadian, or nothing said, sees exactly what they saw before", () => {
+    const before = suggest(a, ctx);
+    expect(suggest(a, { ...ctx, home: "CAD", cadToHome: 1, from: "Toronto" })).toEqual(before);
+    expect(before.values.groceriesPerDay).toBe(90);
+    expect(before.values.dogNightlyRate).toBe(75);
+    expect(before.basis.groceries).toBe("$22 per person per day × 4");
+    expect(before.basis.flights).toBe("6,500 km from Toronto · long-haul");
+  });
+
+  it("an American sees US dollars, written $", () => {
+    const s = suggest(a, { ...ctx, home: "USD", cadToHome: 0.725, from: "New York" });
+    // 22 × 4 × 0.725 = 63.8 → 60; 57 × 4 × 0.725 = 165.3 → 170; fare 1050 × 0.725 = 761 → 760.
+    expect(s.values.groceriesPerDay).toBe(60);
+    expect(s.values.perMealOut).toBe(170);
+    expect(s.values.flightPerPerson).toBe(760);
+    expect(s.basis.groceries).toBe("$16 per person per day × 4");
+    expect(s.basis.flights).toBe("6,500 km from New York · long-haul");
+  });
+
+  it("a Briton sees pounds, written £, measured from London", () => {
+    const s = suggest(a, { distanceKm: 340, peak: false, home: "GBP", cadToHome: 0.536, from: "London" });
+    expect(s.basis.restaurants).toBe("£31 a head × 4");
+    expect(s.basis.flights).toBe("340 km from London · short-haul");
+    expect(s.values.flightPerPerson).toBe(130); // 240 × 0.536 = 128.6
+  });
+});
