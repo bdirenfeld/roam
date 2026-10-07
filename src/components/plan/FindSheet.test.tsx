@@ -224,8 +224,37 @@ describe("Find sheet", { timeout: 20000 }, () => {
     expect(inserted).toHaveLength(1);
     expect(inserted[0]).toMatchObject({ trip_id: "t1", day_id: null, place_id: "p1", status: "interested", position: 0 });
     expect(onSaved).toHaveBeenCalledTimes(1);
-    expect(toasts[0].message).toBe("Saved Trattoria Da Enzo to your map");
+    // An empty journey: this is its first place (7 Oct 2026, delight audit).
+    expect(toasts[0].message).toBe("Your first place for Rome. Tap its pin to put it on a day.");
     expect(screen.getByRole("button", { name: "Saved" })).toBeTruthy();
+  });
+
+  it("only the journey's first place gets the first-place line; the next save reads as before (7 Oct 2026, delight audit)", async () => {
+    const second: FindResult = { ...result, placeId: "g2", name: "Roscioli" };
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: { body: string }) => {
+      calls.push({ url, body: init?.body ? JSON.parse(init.body) : {} });
+      if (url === "/api/find") return { ok: true, json: async () => ({ results: [result, second], travellers: true }) };
+      return { ok: true, json: async () => ({ imported: [{ place_id: "p1", google_place_id: "g1", title: "Da Enzo al 29" }] }) };
+    }));
+    // The host has not re-rendered with the new card yet: Find still knows it saved one.
+    await act(async () => { render(<FindSheet trip={trip} days={[]} cards={[] as Card[]} onClose={vi.fn()} onSaved={vi.fn()} />); });
+    await act(async () => { fireEvent.click(screen.getAllByRole("button", { name: "Save" })[0]); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Save" })); });
+    expect(toasts.map((t) => t.message)).toEqual(["Your first place for Rome. Tap its pin to put it on a day.", "Saved Roscioli to your map"]);
+  });
+
+  it("a journey that already has a place on its map gets the usual line (7 Oct 2026, delight audit)", async () => {
+    const colosseum = { id: "c1", trip_id: "t1", day_id: "d1", status: "in_itinerary", position: 0, details: {}, place_id: "p9",
+      place: { id: "p9", title: "Colosseum", type: "activity", sub_type: "self_directed", lat: 41.8902, lng: 12.4922, address: null } } as unknown as Card;
+    await act(async () => { render(<FindSheet trip={trip} days={[]} cards={[colosseum]} onClose={vi.fn()} onSaved={vi.fn()} />); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Save" })); });
+    expect(toasts[0].message).toBe("Saved Trattoria Da Enzo to your map");
+  });
+
+  it("the phone Map's own count wins when it knows of a place Find's cards do not (7 Oct 2026, delight audit)", async () => {
+    await act(async () => { render(<FindSheet trip={trip} days={[]} cards={[] as Card[]} hadPlaces onClose={vi.fn()} onSaved={vi.fn()} />); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Save" })); });
+    expect(toasts[0].message).toBe("Saved Trattoria Da Enzo to your map");
   });
 
   it("a Ticketmaster show links to buy, and Save looks its venue up on Google first (1 Oct 2026)", async () => {
@@ -342,7 +371,8 @@ describe("an event carries its own name", { timeout: 20000 }, () => {
       return { ok: true, json: async () => ({ imported: [{ place_id: "pmp", google_place_id: "gmp", title: "Comune di Montepulciano", created: true }] }) };
     }));
     const onSaved = vi.fn();
-    await act(async () => { render(<FindSheet trip={trip} days={[]} cards={[] as Card[]} onClose={vi.fn()} onSaved={onSaved} />); });
+    // Not the journey's first place, so the toast names the event (7 Oct 2026).
+    await act(async () => { render(<FindSheet trip={trip} days={[]} cards={[] as Card[]} hadPlaces onClose={vi.fn()} onSaved={onSaved} />); });
     expect(screen.getByText("Bravio delle Botti")).toBeTruthy();
     expect(screen.getByText("At Comune di Montepulciano")).toBeTruthy();
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Save" })); });

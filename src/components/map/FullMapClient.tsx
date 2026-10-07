@@ -44,6 +44,7 @@ import dynamic from "next/dynamic";
 import { reloadOnStale } from "@/lib/chunkReload";
 import { useWarmFind } from "@/hooks/useWarmFind";
 import { useFreshPush } from "@/hooks/useFreshPush";
+import { firstPlaceLine, PIN_TO_DAY } from "@/lib/map/firstPlace";
 import { dayForCard, onlyOnLine } from "@/lib/plan/eventDays";
 // Loaded when first opened, not with the map (29 Sep 2026).
 const PlanMyTripSheet = dynamic(reloadOnStale(() => import("@/components/plan/PlanMyTripSheet")), { ssr: false });
@@ -648,6 +649,9 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
   }, [cards, addPinToMap]);
 
   function handlePlaceCardCreated(card: Card) {
+    // Read before the new pin lands: an empty map's first place is named as
+    // such (7 Oct 2026, delight audit; lib/map/firstPlace).
+    const first = firstPlaceLine({ hadPlaces: hasRealPins, destination: trip.destination });
     if (tempPinRef.current) { tempPinRef.current.remove(); tempPinRef.current = null; }
     setPendingPlace(null);
     registerNewCard(card);
@@ -658,7 +662,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
     toast({
       message: onDay
         ? `Put on ${dayChip(onDay.date, spansMonths(days.map((d) => d.date)))}`
-        : "Saved to your map. Tap its pin to put it on a day.",
+        : first ?? `Saved to your map. ${PIN_TO_DAY}`,
     });
   }
   registerNewCardRef.current = registerNewCard;
@@ -1187,7 +1191,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
           </div>
         </div>
         {findOpen && (
-          <FindSheet trip={trip} days={days} cards={cards} onClose={() => {
+          <FindSheet trip={trip} days={days} cards={cards} hadPlaces={hasRealPins} onClose={() => {
               setFindOpen(false); setFindTall(false);
               // Android Chrome scrolls the page to make room for the keyboard
               // when Find's search is typed in, and leaves it there: the header

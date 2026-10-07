@@ -19,6 +19,7 @@ import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import { reloadOnStale } from "@/lib/chunkReload";
 import { useWarmFind } from "@/hooks/useWarmFind";
+import { firstPlaceLine, hasPlacedCard } from "@/lib/map/firstPlace";
 // Loaded when first opened: they were in every week page's download (29 Sep 2026).
 const PlanMyTripSheet = dynamic(reloadOnStale(() => import("./PlanMyTripSheet")), { ssr: false });
 import { stackOrder, restack } from "@/lib/map/pinStack";
@@ -555,9 +556,11 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
           days={days}
           onClose={() => { clearTemp(); setPending(null); }}
           onCardCreated={(c) => {
+            // An empty journey's first place is named as such (7 Oct 2026, delight audit).
+            const first = firstPlaceLine({ hadPlaces: hasPlacedCard(cards), destination: trip.destination, next: "Drag its pin onto the week." });
             clearTemp(); setPending(null); onCardCreated(c);
             const onDay = c.day_id ? days.find((d) => d.id === c.day_id) : null;
-            toast({ message: onDay ? `Put on ${dayChip(onDay.date, spansMonths(days.map((d) => d.date)))}` : "Saved to your map. Drag its pin onto the week." });
+            toast({ message: onDay ? `Put on ${dayChip(onDay.date, spansMonths(days.map((d) => d.date)))}` : first ?? "Saved to your map. Drag its pin onto the week." });
           }}
         />
       )}

@@ -17,6 +17,7 @@ import { whatsOnUrl } from "@/lib/find/yearly";
 import { distanceLine } from "@/lib/find/distance";
 import { inferTypeOrSight } from "@/lib/places/inferType";
 import Pieces from "@/components/ui/Pieces";
+import { firstPlaceLine, hasPlacedCard } from "@/lib/map/firstPlace";
 
 /**
  * Find (29 Sep 2026): places for what a base is short of, in Roam's own
@@ -27,11 +28,13 @@ import Pieces from "@/components/ui/Pieces";
  * Map. Mock: https://claude.ai/artifact/Y7jvE2BRLyzFgropo5bqSG
  */
 export default function FindSheet({
-  trip, days, cards, onClose, onSaved, dock, onFocus, onTall,
+  trip, days, cards, onClose, onSaved, dock, onFocus, onTall, hadPlaces,
 }: {
   trip: Trip;
   days: Day[];
   cards: Card[];
+  /** The host's own count of placed pins (the phone Map's, which also knows map-search saves); unset: read from cards. */
+  hadPlaces?: boolean;
   onClose: () => void;
   onSaved: (card: Card) => void;
   /** On a computer: "beside" the week's map (over the week), or "inside" a widened map. Unset: the phone's half sheet. */
@@ -133,6 +136,10 @@ export default function FindSheet({
   const [tall, setTall] = useState(false);
   const save = async (r: FindResult) => {
     if (!category || saved.has(r.placeId)) return;
+    // The journey's first place gets its own line (7 Oct 2026, delight
+    // audit): read from its cards now, plus anything this sheet just saved
+    // that the host has not handed back yet.
+    const first = firstPlaceLine({ hadPlaces: !!hadPlaces || hasPlacedCard(cards) || saved.size > 0, destination: trip.destination });
     setSaved((prev) => new Set(prev).add(r.placeId));
     // On the phone a save drops it to half height, so the map above shows
     // the pin land (Brennan, 2 Oct 2026: after Save the sheet "is all the
@@ -170,7 +177,7 @@ export default function FindSheet({
       const { error } = await createClient().from("cards").insert(card);
       if (error) throw error;
       onSaved({ ...card, created_at: new Date().toISOString(), place: { id: placeId, title, type: kind.type, sub_type: kind.sub_type, lat: r.lat, lng: r.lng, address: r.address } } as unknown as Card);
-      toast({ message: `Saved ${r.title ?? r.name} to your map` });
+      toast({ message: first ?? `Saved ${r.title ?? r.name} to your map` });
     } catch {
       setSaved((prev) => { const n = new Set(prev); n.delete(r.placeId); return n; });
       toast({ message: "Couldn't save it. Try again." });

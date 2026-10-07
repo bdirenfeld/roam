@@ -34,7 +34,8 @@ vi.mock("next/dynamic", () => ({
 }));
 vi.mock("next/link", () => ({ default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => <a href={href} {...rest}>{children}</a> }));
 vi.mock("@phosphor-icons/react", () => ({ Funnel: () => null, Heart: () => null, Files: () => null }));
-vi.mock("@/components/ui/Toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
+const toast = vi.hoisted(() => vi.fn());
+vi.mock("@/components/ui/Toast", () => ({ useToast: () => ({ toast }) }));
 vi.mock("@/components/search/GlobalSearch", () => ({ useGlobalSearch: () => ({ open: vi.fn() }) }));
 // jsdom has no WebGL: with a token set, the real Map rejects after the test
 // ends ("Failed to initialize WebGL") and npm test exits 1. An inert stand-in:
@@ -57,7 +58,7 @@ vi.mock("./MapPinPopup", () => ({ default: (p: Record<string, unknown>) => { see
 const lookup = vi.hoisted(() => vi.fn(async () => null));
 vi.mock("./lookupPlace", () => ({ lookupPlace: lookup, TEMP_PIN_SVG: "" }));
 vi.mock("./PlaceSearch", () => ({ default: (p: Record<string, unknown>) => { seen.search = p; return null; } }));
-vi.mock("./AddToTripSheet", () => ({ default: () => null }));
+vi.mock("./AddToTripSheet", () => ({ default: (p: Record<string, unknown>) => { seen.add = p; return null; } }));
 vi.mock("./WhereToStaySheet", () => ({ default: () => null }));
 vi.mock("@/components/plan/ConfirmationPreviewSheet", () => ({ default: () => null }));
 vi.mock("@/components/plan/DocumentsSheet", () => ({ default: () => null }));
@@ -220,5 +221,44 @@ describe("map search: a place already on the map (6 Oct 2026, taps audit)", () =
     lookup.mockClear();
     await act(async () => { await (seen.search.onPlaceSelect as (id: string, t: string) => Promise<void>)("gnew", "tok"); });
     expect(lookup).toHaveBeenCalledWith("gnew", "tok");
+  });
+});
+
+describe("the journey's first place (7 Oct 2026, delight audit)", () => {
+  const search = async (id: string) => {
+    lookup.mockResolvedValueOnce({ place_id: id, name: "Reservoir", lat: 32.89, lng: -96.94 } as never);
+    await act(async () => { await (seen.search.onPlaceSelect as (id: string, t: string) => Promise<void>)(id, "tok"); });
+  };
+  const irving = { ...trip, destination: "Irving, Texas" } as unknown as Trip;
+
+  it("a map search saved onto an empty journey's map says it is the first place for the town; the next save reads as before", async () => {
+    toast.mockClear();
+    await act(async () => { render(<FullMapClient trip={irving} days={days} cards={[]} />); });
+    await search("gr1");
+    await act(async () => { (seen.add.onCardCreated as (c: Card) => void)(saved("r1", "Reservoir", 32.89, -96.94)); });
+    expect(toast.mock.calls.at(-1)![0].message).toBe("Your first place for Irving. Tap its pin to put it on a day.");
+    await search("gr2");
+    await act(async () => { (seen.add.onCardCreated as (c: Card) => void)(saved("r2", "Toyota Music Factory", 32.88, -96.94)); });
+    expect(toast.mock.calls.at(-1)![0].message).toBe("Saved to your map. Tap its pin to put it on a day.");
+  });
+
+  it("a journey that already has places gets the usual line on its next save", async () => {
+    toast.mockClear();
+    await act(async () => { render(<FullMapClient trip={trip} days={days} cards={cards} />); });
+    await search("gnew");
+    await act(async () => { (seen.add.onCardCreated as (c: Card) => void)(saved("n9", "Peles Castle", 45.36, 25.54)); });
+    expect(toast.mock.calls.at(-1)![0].message).toBe("Saved to your map. Tap its pin to put it on a day.");
+  });
+
+  it("Find is told whether the map already has a place, so its first save matches", async () => {
+    vi.stubEnv("NEXT_PUBLIC_MAPBOX_TOKEN", "pk.test");
+    let r!: ReturnType<typeof render>;
+    await act(async () => { r = render(<FullMapClient trip={trip} days={days} cards={[]} />); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Find places" })); });
+    expect((sheets.find as unknown as { hadPlaces: boolean }).hadPlaces).toBe(false);
+    await act(async () => { sheets.find.onSaved(cards[0]); });
+    expect((sheets.find as unknown as { hadPlaces: boolean }).hadPlaces).toBe(true);
+    r.unmount();
+    vi.unstubAllEnvs();
   });
 });
