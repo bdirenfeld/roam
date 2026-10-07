@@ -107,7 +107,7 @@ describe("uploading several bookings", () => {
 
   it("one file still opens the full form, and the toast reads singular", async () => {
     await pick(["uffizi.png"]);
-    await screen.findByText("Confirmation parsed");
+    await screen.findByText("Here’s what we read");
     expect((screen.getByLabelText("Title") as HTMLInputElement).value).toBe("Uffizi Gallery");
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Add to my days" })); });
     await waitFor(() => expect(onAdded).toHaveBeenCalled());
