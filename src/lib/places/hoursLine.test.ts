@@ -28,3 +28,13 @@ describe("isLocalToday", () => {
     expect(isLocalToday("2026-10-14", lateEvening)).toBe(false);
   });
 });
+
+describe("hours past midnight (7 Oct 2026, found testing live)", () => {
+  it("says next day or midnight instead of reading like a typo", () => {
+    expect(hoursSummary("6:30 AM – 6:00 AM", "Friday", false)).toBe("Open 6:30 AM – 6:00 AM (next day) on Friday");
+    expect(hoursSummary("6:30 AM – 12:00 AM", "Sunday", true)).toBe("Open 6:30 AM – midnight today");
+    expect(hoursSummary("6:00 PM – 2:00 AM", "Friday", true)).toBe("Open 6:00 PM – 2:00 AM (next day) today");
+    expect(hoursSummary("8:15 AM – 6:30 PM", "Tuesday", true)).toBe("Open 8:15 AM – 6:30 PM today");
+    expect(hoursSummary("11:00 AM – 2:30 PM, 6:00 – 10:00 PM", "Tuesday", true)).toBe("Open 11:00 AM – 2:30 PM, 6:00 – 10:00 PM today");
+  });
+});
