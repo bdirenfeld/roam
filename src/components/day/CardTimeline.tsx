@@ -30,7 +30,7 @@ interface Props {
    *  empty day reads "A free day", not "Nothing planned yet" (6 Oct 2026, delight audit). */
   underway?: boolean;
   /** Phone: "Give these times" under the untimed group runs the day-strip menu's
-   *  Fill in missing times (7 Oct 2026, taps audit). Shown at 2+ untimed places. */
+   *  Give these times (7 Oct 2026, taps audit). Shown at 2+ untimed places. */
   onGiveTimes?: () => void;
 }
 
@@ -198,7 +198,7 @@ export default function CardTimeline({
             </div>
           ))}
 
-          {/* "Give these times" (7 Oct 2026, taps audit): the same Fill in missing
+          {/* "Give these times" (7 Oct 2026, taps audit): the same Give these
               times as the day strip's long-press menu, where nobody found it.
               Phone only; desktop has it in the day header's menu. */}
           {showGiveTimes && (

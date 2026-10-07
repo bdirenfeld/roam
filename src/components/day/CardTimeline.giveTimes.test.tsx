@@ -4,7 +4,7 @@ import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import type { DayWithCards } from "@/types/database";
 import CardTimeline from "./CardTimeline";
 
-// "Give these times" (7 Oct 2026, taps audit): Fill in missing times lived only
+// "Give these times" (7 Oct 2026, taps audit): the action (named "Fill in missing times" until 7 Oct) lived only
 // on a long-press of the day strip. A quiet link under the untimed group runs
 // the same action, when two or more places on the day have no time.
 afterEach(cleanup);
@@ -48,11 +48,22 @@ describe("Give these times", () => {
   });
 });
 
-describe("DayViewClient wires it to the same Fill in missing times action", () => {
+describe("DayViewClient wires it to the same Give these times action", () => {
   it("passes arrangeDayCards(…, \"rest\") and keeps the long-press menu item", async () => {
     const { readFileSync } = await import("fs");
     const src = readFileSync(require.resolve("./DayViewClient.tsx"), "utf8");
     expect(src).toMatch(/onGiveTimes=\{readOnly \? undefined : \(\) => void arrangeDayCards\([^)]*, "rest"\)\}/);
-    expect(src).toContain(">Fill in missing times</button>");
+    expect(src).toContain(">Give these times</button>");
+  });
+
+  // One name for one action (owner's choice, 7 Oct 2026; supersedes the 26 Sep
+  // "Fill in missing times"): the long-press menu and the week's day menu too.
+  it("no menu still says 'Fill in missing times'", async () => {
+    const { readFileSync } = await import("fs");
+    const day = readFileSync(require.resolve("./DayViewClient.tsx"), "utf8");
+    const week = readFileSync(require.resolve("../plan/WeekBoard.tsx"), "utf8");
+    expect(day).not.toContain("Fill in missing times");
+    expect(week).not.toContain("Fill in missing times");
+    expect(week).toContain(">Give these times</button>");
   });
 });

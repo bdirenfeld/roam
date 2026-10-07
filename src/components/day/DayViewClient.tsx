@@ -306,7 +306,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   // names days from the Plan's day header, as before.
   const [dayTitle, setDayTitle] = useState<string>(dayWithCards.theme ?? "");
   // Long-press a day in the strip (25 Sep 2026): Rename (this day only), Give
-  // times to the rest, Rearrange the whole day (labelled "Fill in missing times" / "Re-plan the whole day" since 26 Sep 2026) — the desktop header's menu on
+  // times to the rest, Rearrange the whole day (labelled "Give these times" / "Re-plan the whole day"; the first renamed by the owner 7 Oct 2026, superseding the 26 Sep name) — the desktop header's menu on
   // the phone. Mock: https://claude.ai/artifact/YZAUNZQhqBBwpmWweLPeeV
   const [dayMenu, setDayMenu] = useState<Day | null>(null);
   // The phone calendar: null when shut, else the header's bottom edge (px).
@@ -915,7 +915,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
             {dayMenu.id === dayWithCards.id && (
               <button className="w-full text-left px-3 py-3 rounded-lg active:bg-[#F3EFE4]" onClick={() => { setPhoneName(dayTitle); setPhoneRenaming(true); setDayMenu(null); }}>Rename this day</button>
             )}
-            <button className="w-full text-left px-3 py-3 rounded-lg active:bg-[#F3EFE4]" onClick={() => void arrangeDayCards(dayMenu, "rest")}>Fill in missing times</button>
+            <button className="w-full text-left px-3 py-3 rounded-lg active:bg-[#F3EFE4]" onClick={() => void arrangeDayCards(dayMenu, "rest")}>Give these times</button>
             <button className="w-full text-left px-3 py-3 rounded-lg active:bg-[#F3EFE4]" onClick={() => void arrangeDayCards(dayMenu, "all")}>Re-plan the whole day</button>
           </div>
         </div>

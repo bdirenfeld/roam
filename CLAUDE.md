@@ -1582,8 +1582,10 @@ the component mounted and you are looking at throttling, not a broken map.
   pin selects without the disc (first one turns select mode on; Esc leaves). Dragging a
   selected pin carries the whole selection as one chip ("4 places", `fromMapMany`); a drop on
   a day column runs `putMany`, and the board bumps `selectionEpoch` so the map clears.
-- The header "…" is three items: Rename this day, Give times to the rest (timeless blocks
-  only), Rearrange the whole day (every block re-timed by the engine; confirmed cards stay as
+- The header "…" is three items: Rename this day, Give these times (timeless blocks
+  only; named "Give these times" by the owner 7 Oct 2026, superseding 26 Sep's "Fill in
+  missing times" — one name for the action everywhere, the phone link under the untimed
+  group included), Rearrange the whole day (every block re-timed by the engine; confirmed cards stay as
   fixed points; anything that no longer fits goes anytime; Undo restores every time).
 - A batch drop skips places already on that day (dedupe by place_id, and within the batch)
   and the toast says how many were already there. It happened: the same six places went on
@@ -1602,8 +1604,8 @@ the component mounted and you are looking at throttling, not a broken map.
   `putPickedOnDay` (planBatch → scheduleCardOnDay per card → registerNewCard) and then
   `router.push` to that day; Undo deletes the new cards.
 - Agenda: long-press a day in `DayStrip` (`onDayLongPress`) → a phone menu: Rename this day
-  (current day only; inline input under the strip → `commitDayTitle`), Give times to the
-  rest, Rearrange the whole day (`arrangeDayCards`: fetches that day's cards, planExisting,
+  (current day only; inline input under the strip → `commitDayTitle`), Give these
+  times, Rearrange the whole day (`arrangeDayCards`: fetches that day's cards, planExisting,
   queuedUpdate each, local list patched when it is the open day, router.refresh, Undo).
 - The phone Map's Filter has the same sub-type row (once one category is chosen), driving
   `activeSubTypes` — the set the desktop sidebar used — with the type pills' tap rule.
