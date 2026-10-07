@@ -25,6 +25,7 @@ import DayHeading from "./DayHeading";
 import RefreshOnFocus from "./RefreshOnFocus";
 import JoinButton from "./JoinButton";
 import type { Stay } from "@/lib/sharedItinerary";
+import SharedCountdown from "./SharedCountdown";
 
 const INK = "#1A1A2E";
 const CAPTION = "rgba(26,26,46,0.62)";
@@ -151,6 +152,7 @@ export default function SharedItinerary({
         {(journey.destination || dates) && (
           <p className="text-[14px] mt-1.5" style={{ color: CAPTION }}>
             {[journey.destination, dates].filter(Boolean).join(" · ")}
+            <SharedCountdown start={journey.startDate} end={journey.endDate} />
           </p>
         )}
 
