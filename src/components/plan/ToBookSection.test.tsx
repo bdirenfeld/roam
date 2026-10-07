@@ -348,6 +348,8 @@ describe("What did it cost?", () => {
     await userEvent.click(within(car).getByRole("menuitem", { name: "Booked" }));
     expect(queuedUpdate).toHaveBeenLastCalledWith("trips", { id: journey.id }, { booking_checklist: { car: "booked" } });
     const form = await screen.findByTestId("to-book-cost");
+    // The cursor is already in the amount box (7 Oct 2026, taps audit).
+    expect(document.activeElement).toBe(within(form).getByLabelText("What did it cost?"));
     // A Canadian home: CAD first (Kayak's Canadian site quoted it), Italy's EUR next (6 Oct 2026).
     const select = within(form).getByLabelText("Currency") as HTMLSelectElement;
     expect(select.value).toBe("CAD");

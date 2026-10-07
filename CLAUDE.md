@@ -245,6 +245,10 @@ offline, a card created offline is absent until it syncs. Known and accepted.
 **Home currency (6 Oct 2026):** a person's money is in `homeCurrencyFor(users.home_country, passport_country)`, else CAD —
 the Estimate (loadEstimate reads the viewer's row; `fx_to_cad` is really "to home"), Bookings' "What did it cost?" default,
 and stay prices (SerpApi `currency`). Rates and the reference table convert to that home. Local prices keep the destination's currency.
+**7 Oct 2026:** the Budget's suggested prices are CAD priors scaled by `cadToHome` (live, else the table) and written with
+`homeSymbol`; distances start at `homeOriginFor(home_airport, home_country, passport)` (lib/budget/homeOrigin; YYZ/Canada = the old
+Toronto point, blank = Toronto). A typed rate saves `assumptions.fxBase` (the typist's home); a row without one is CAD-based and is
+carried into the viewer's home on load (`typedRateToHome`). WhereToStaySheet writes each price with its row's `currency`.
 `fetchRateToHome` tries exchangerate-api's open feed, then Frankfurter on `api.frankfurter.dev`
 (the old `api.frankfurter.app` host only redirects now, which is what broke the live rate on
 2026-09-04). If both fail the Estimate uses `REFERENCE_RATES` and says "the <month> rate";
@@ -2369,7 +2373,7 @@ Approved scope only. Find KEEPS its two-level filters (Activity / Food, then kin
   not editable (it would rename the end place). Changing From retitles a named leg's A (withFrom).
 - Day map: dashed line only for legs >= 60 min (untimed: >= 60 km straight-line; never < 0.5 km), 1.5px,
   opacity 0.4, PIN_COLORS.logistics; a dot at the start, the mode glyph at the middle, fit includes the start.
-  The journey Map (FullMapClient) does NOT draw legs yet.
+  The journey Map (FullMapClient) draws them too, through the shared lib/map/legLayer.ts (4df1601, 7 Oct 2026).
 - Hand-add: CreateCardSheet holds a station/port pick (no auto-add) to show From, defaulted to the hotel
   covering the night before (stayRuns via defaultFromForDay; useDefaultFrom fetches days + cards once).
 - The G Adventures test journey's 63 "<Mode>: A → B" transit cards were converted 7 Oct 2026 (from = the

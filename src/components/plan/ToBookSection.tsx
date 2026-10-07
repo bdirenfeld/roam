@@ -374,6 +374,8 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
                 <div className="flex items-center gap-2">
                   <input
                     id={`cost-${r.key}`}
+                    // The cursor is already in the box (7 Oct 2026, taps audit).
+                    autoFocus
                     type="number"
                     inputMode="decimal"
                     min="0"
