@@ -2439,3 +2439,4 @@ Approved scope only. Find KEEPS its two-level filters (Activity / Food, then kin
   Live host only (`roam-roan.vercel.app`), never for Brennan's own emails (incl. `+` aliases), signed-out guests ARE recorded.
   Identify sends the Supabase user id (Clarity hashes it), never the email. Keep Clarity masking on "Balanced" or stricter.
 - To stop recording: set `NEXT_PUBLIC_CLARITY_PROJECT_ID=off` in Vercel and redeploy. The privacy page names Clarity; keep them in step.
+- Short links for posts live in `next.config.mjs` `redirects()`: /ig, /reddit, /beta → `/?utm_source=…` (307). `src/lib/shortLinks.test.ts` pins them; add a row to both when a new channel gets a link.
