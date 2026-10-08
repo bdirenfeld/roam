@@ -23,7 +23,7 @@ import { welcomeHomeKey } from "@/lib/trips/welcomeHome";
 import { installStub, type StubConfig } from "./stub";
 import type { ClientScreen } from "./screens";
 import {
-  OWNER, TRIP_ID, nextDoorDay, SHEET_DAYS, COPY_TODAY, copyTables, mapCards, pastTrip, ADD_LEG_API, ADD_LEG_DAY, addLegTables, bookingTables, days, isoFromToday, journeyCards, sheetCards, timeCard, trip, tuscanyDay,
+  OWNER, TRIP_ID, nextDoorDay, nextDoorJourney, SHEET_DAYS, COPY_TODAY, copyTables, mapCards, pastTrip, ADD_LEG_API, ADD_LEG_DAY, addLegTables, bookingTables, days, isoFromToday, journeyCards, sheetCards, timeCard, trip, tuscanyDay,
 } from "./fixtures";
 
 
@@ -75,6 +75,21 @@ function useTypeAndPick(target: { placeholder: string; text: string; pick: strin
 }
 
 /** Clicks the first VISIBLE element matching `selector` once it appears (an aria-labelled ⋯ has no text). */
+/** Taps the days row's nth day once the map has opened (the day page's map screens). */
+function useTapDayWhenMapOpen(n: number | null) {
+  useEffect(() => {
+    if (n == null) return;
+    let tries = 0;
+    const t = window.setInterval(() => {
+      const open = document.querySelector("[data-testid='day-trip-map'] .mapboxgl-marker");
+      const day = document.querySelectorAll<HTMLElement>("[data-testid='strip-day-target']")[n]?.parentElement;
+      if (open && day) { window.clearInterval(t); window.setTimeout(() => day.click(), 1500); }
+      else if (++tries > 200) window.clearInterval(t);
+    }, 50);
+    return () => window.clearInterval(t);
+  }, [n]);
+}
+
 function useClickSelector(selector: string | null) {
   useEffect(() => {
     if (!selector) return;
@@ -115,9 +130,9 @@ function stubFor(screen: ClientScreen): StubConfig {
   // The full Map draws real Mapbox tiles: the one screen whose network is not off (Mapbox only).
   if (screen === "map" || screen === "map-one") return { userId: OWNER, tables: {}, passHosts: MAPBOX_HOSTS };
   // The day strip with real tiles: two stops next door, side by side.
-  if (screen === "day-nextdoor") {
+  if (screen === "day-nextdoor" || screen.startsWith("day-map")) {
     const ds = days(isoFromToday(0), 5);
-    return { userId: OWNER, tables: { cards: nextDoorDay(ds[0]).cards, trips: [trip(ds[0].date, ds[4].date)], days: ds }, passHosts: MAPBOX_HOSTS };
+    return { userId: OWNER, tables: { cards: screen.startsWith("day-map") ? nextDoorJourney(ds) : nextDoorDay(ds[0]).cards, trips: [trip(ds[0].date, ds[4].date)], days: ds }, passHosts: MAPBOX_HOSTS };
   }
   return { userId: OWNER, tables: {} };
 }
@@ -130,6 +145,10 @@ function Screen({ screen }: { screen: ClientScreen }) {
       : null,
   );
   // The hand-add screens: search "mfuwe bus" and pick the station.
+  // The day's map, opened in place: tap the strip's map disc.
+  useClickSelector(screen.startsWith("day-map") ? '[aria-label="Open the map"]' : null);
+  // Then the same day again (the whole trip), or the next day (the map goes there).
+  useTapDayWhenMapOpen(screen === "day-map-trip" ? 0 : screen === "day-map-next" ? 1 : null);
   useClickSelector(screen === "past-menu" ? '[aria-label="Options for New York (Mia & Daddy)"]' : screen === "copy-sheet-dates" ? '[data-testid="copy-start"]' : null);
   useTypeAndPick(screen === "add-leg" || screen === "add-leg-from" ? { placeholder: "Search", text: "mfuwe bus", pick: "Mfuwe Bus Station" } : null);
 
@@ -140,7 +159,7 @@ function Screen({ screen }: { screen: ClientScreen }) {
     const shown = screen === "day" ? tuscanyDay(ds[0]) : { ...ds[4], cards: [] };
     return <DayViewClient trip={t} days={ds} dayWithCards={shown} hotelCards={[]} initialNotes={null} phone />;
   }
-  if (screen === "day-nextdoor") {
+  if (screen === "day-nextdoor" || screen.startsWith("day-map")) {
     const ds = days(isoFromToday(0), 5);
     return <DayViewClient trip={trip(ds[0].date, ds[4].date)} days={ds} dayWithCards={nextDoorDay(ds[0])} hotelCards={[]} initialNotes={null} phone />;
   }

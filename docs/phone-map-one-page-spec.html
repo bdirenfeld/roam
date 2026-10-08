@@ -1,0 +1,56 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Phone day view spec</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#fff;font-family:'DM Sans',sans-serif;color:#1A1A2E;font-size:13.5px;line-height:1.45}
+.p{width:860px;padding:34px 40px}
+h1{font-size:24px;margin:0 0 2px}.sub{color:#666;margin:0 0 18px}
+h2{font-size:15px;margin:20px 0 6px;padding-bottom:4px;border-bottom:1px solid #e6e6e6}
+table{border-collapse:collapse;width:100%}td{padding:5px 8px;vertical-align:top;border-bottom:1px solid #f0f0f0}
+td:first-child{width:22px;color:#999;font-weight:700}td.w{width:190px;font-weight:700}
+.tag{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:9px;background:#eef6f0;color:#2a7a45;margin-left:4px}
+.tag.n{background:#f3effd;color:#6a3fd0}
+ul{margin:4px 0;padding-left:18px}li{margin:3px 0}
+.goal{background:#f6f4ef;border-radius:10px;padding:10px 14px}
+</style></head><body><div class="p">
+<h1>Phone day view: one page for the list and the map</h1>
+<p class="sub">Spec for Brennan's OK · 8 Oct 2026 · built from the mocks agreed in this session · phone only, desktop unchanged</p>
+<div class="goal"><b>Goal.</b> On a phone, the day's list and its map feel like one page, as they do on the computer. Opening the map grows it in place; it never leaves the day. <span class="tag">exists</span> = already in the code, reused. <span class="tag n">new</span> = to build.</div>
+
+<h2>The list</h2>
+<table>
+<tr><td>1</td><td class="w">Header</td><td>‹ Wednesday, 25 August ⋯. The magnifier goes: search lives on the map. <span class="tag n">new</span></td></tr>
+<tr><td>2</td><td class="w">Days row</td><td>Just the days. No "All". <span class="tag">exists</span></td></tr>
+<tr><td>3</td><td class="w">Map strip</td><td>Only the day's stops, framed on them. Pins in their legend colour and icon, with the order number. Today the strip paints them all dark. <span class="tag n">new</span></td></tr>
+<tr><td>4</td><td class="w">Round map button</td><td>Opens the map on this page. It no longer goes to the separate Map screen. <span class="tag n">new</span></td></tr>
+</table>
+
+<h2>The map (open)</h2>
+<table>
+<tr><td>5</td><td class="w">Same header and days</td><td>Nothing jumps. The list button (top right) closes the map back to the list. <span class="tag">exists</span> (the strip already has an unused full-screen mode)</td></tr>
+<tr><td>6</td><td class="w">Every saved place</td><td>The chosen day's stops are in full colour with numbers. Everything else is muted, same as the desktop week map. <span class="tag n">new</span> on phone</td></tr>
+<tr><td>7</td><td class="w">Search</td><td>A "Search places in Tuscany…" pill under the days. <span class="tag">exists</span> (moved from the Map screen)</td></tr>
+<tr><td>8</td><td class="w">Controls</td><td>Filter · Plan my trip · Find places at the bottom; zoom and locate on the right. Same as the Map screen today. <span class="tag">exists</span></td></tr>
+<tr><td>9</td><td class="w">Tapping days</td><td>Tap a day: the map fits it. Tap the same day again: the whole trip, nothing muted, header reads "Tuscany · Aug 24 – Sep 4". Map only; on the list a second tap does nothing. <span class="tag">exists</span> on desktop, copied</td></tr>
+</table>
+
+<h2>Pins (list and map)</h2>
+<table>
+<tr><td>10</td><td class="w">The legend always holds</td><td>Colour = type (purple food, teal things to do, dark logistics), icon = kind. The order number is a small tag. <span class="tag">exists</span></td></tr>
+<tr><td>11</td><td class="w">2–3 pins touching</td><td>They sit side by side, each with its own colour and icon. This replaces today's "2 · 4" pile on the strip. <span class="tag n">new</span></td></tr>
+<tr><td>12</td><td class="w">Zoomed out, a crowd</td><td>One round pin with a count; its ring shows the colour mix. Tap it to zoom in. The chosen day's stops only merge with each other. <span class="tag n">new</span> (the Map screen has no merging today)</td></tr>
+</table>
+
+<h2>Build: three pushes, each checked at phone width before it goes out</h2>
+<ul>
+<li><b>Push 1, pins:</b> legend colours on the strip, side by side instead of piled, strip framed on the day (3, 10, 11).</li>
+<li><b>Push 2, the map opens in place:</b> full-screen map on the day page, every saved place with the rest muted, search pill, list button, bottom controls; the magnifier comes off (1, 4–8).</li>
+<li><b>Push 3, days and crowds:</b> tap a day to fit, tap again for the whole trip, count pins when zoomed out (9, 12).</li>
+</ul>
+<p style="margin:6px 0 0">Links that open the Map screen today (Plan my trip, Find, a shared pin) will open the day page with the map already open. The Map screen stays for the computer.</p>
+
+<h2>Two things to watch on your phone</h2>
+<ul>
+<li>The second tap to see the whole trip is easy to miss. If testers miss it, pinching out still gets them there.</li>
+<li>Muted pins use the desktop's strength (about a quarter). Outdoors in sun that may be too faint; it's one number to change.</li>
+</ul>
+</div></body></html>

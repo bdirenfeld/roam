@@ -19,6 +19,8 @@ import { autoDayTitle } from "@/lib/autoDayTitle";
 import { dayChip, spansMonths } from "@/lib/dayChip";
 import { givenTimesLine } from "@/lib/plan/givenTimes";
 import DayMap from "@/components/day/DayMap";
+import DayTripMap from "@/components/day/DayTripMap";
+import { shortRange } from "@/lib/shareCopy";
 import CardTimeline from "@/components/day/CardTimeline";
 import StartHere from "@/components/plan/StartHere";
 import TripUnderwayVideo from "@/components/videos/TripUnderwayVideo";
@@ -430,12 +432,14 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
     window.addEventListener("roam:open-bookings", onOpen);
     return () => window.removeEventListener("roam:open-bookings", onOpen);
   }, []);
+  const search = useGlobalSearch();
   // Guests get Bookings too — the villa confirmation and the flight are
   // theirs to read; only the upload is the owner's.
   const agendaMenuExtra = [
     { key: "bookings", title: "Bookings", sub: "", icon: <Files size={15} weight="light" />, onClick: () => setShowDocs(true) },
+    // Saved places across journeys: its door now that the header glyph is gone (8 Oct 2026).
+    { key: "search", title: "Search", sub: "", icon: <MagnifyingGlass size={15} weight="light" />, onClick: () => search.open() },
   ];
-  const search = useGlobalSearch();
 
   const handleCardUpdate = useCallback(
     (updated: Card) => {
@@ -653,12 +657,45 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dayWithCards.id]);
 
+  // The journey's map, opened in place on the phone (8 Oct 2026, spec:
+  // docs/phone-map-one-page-spec.html). ?map=1 keeps it open across days.
+  const [mapOpen, setMapOpen] = useState(false);
+  const mapOpenRef = useRef(false);
+  mapOpenRef.current = mapOpen;
+  // The day the open map is on: tap a day to go there, tap it again for the
+  // whole trip (null), as the desktop week map does (spec item 9).
+  const [mapDayId, setMapDayId] = useState<string | null>(dayWithCards.id);
+  const mapDayRef = useRef(mapDayId);
+  mapDayRef.current = mapDayId;
+  const stripEndRef = useRef<HTMLDivElement>(null);
+  const stripEndTop = useCallback(() => stripEndRef.current?.getBoundingClientRect().top ?? 119, []);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("map") === "1") { setMapDayId(dayWithCards.id); setMapOpen(true); }
+  }, [dayWithCards.id]);
+  const openMap = useCallback(() => {
+    setMapDayId(dayWithCards.id);
+    setMapOpen(true);
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}?map=1`);
+  }, [dayWithCards.id]);
+  const closeMap = useCallback(() => {
+    setMapOpen(false);
+    window.history.replaceState(window.history.state, "", window.location.pathname);
+    // Back to the list of the day the map was on; with the whole trip showing,
+    // the day you opened it from. Either way anything put on a day from the map shows.
+    const onDay = mapDayRef.current;
+    if (onDay && onDay !== dayWithCards.id) router.push(`/trips/${trip.id}/days/${onDay}`);
+    else router.refresh();
+  }, [router, trip.id, dayWithCards.id]);
+
   const handleDaySelect = useCallback(
     (day: Day) => {
+      // On the open map a day is a place on the map, not a page: tap a day to
+      // go there, tap the same day again for the whole trip.
+      if (mapOpenRef.current) { setMapDayId((cur) => (cur === day.id ? null : day.id)); return; }
       if (navTimeoutRef.current) clearTimeout(navTimeoutRef.current);
       setContentVisible(false);
       navTimeoutRef.current = setTimeout(() => {
-        router.push(`/trips/${trip.id}/days/${day.id}`);
+        router.push(`/trips/${trip.id}/days/${day.id}${mapOpenRef.current ? "?map=1" : ""}`);
       }, 150);
     },
     [router, trip.id]
@@ -793,6 +830,16 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
     return days >= -1 && days <= 16;
   })();
 
+  // The header follows the open map: another day's date, or the trip itself
+  // when the whole trip is showing ("Tuscany · Aug 24 – Sep 4").
+  const mapElsewhere = mapOpen && mapDayId !== dayWithCards.id;
+  const mapDay = mapElsewhere && mapDayId ? days.find((d) => d.id === mapDayId) : undefined;
+  const headerTitle = !mapElsewhere
+    ? formatDayTitle(dayWithCards.date)
+    : mapDay
+      ? formatDayTitle(mapDay.date)
+      : [trip.title, shortRange(trip.start_date, trip.end_date)].filter(Boolean).join(" · ");
+
   return (
     <div className="flex flex-col h-dvh md:block md:h-auto">
       {/* Mobile-only trip header — h-[58px] is constant; the subtitle row always reserves its height */}
@@ -829,7 +876,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
             }}
             aria-expanded={phoneCal !== null}
             aria-haspopup="dialog"
-            aria-label={`${formatDayTitle(dayWithCards.date)}. Open the calendar`}
+            aria-label={`${headerTitle}. Open the calendar`}
             className={`relative pointer-events-auto flex items-center gap-[5px] px-2 py-px rounded-md font-display text-gray-900 ${
               weatherReachable ? "text-[16px]" : "text-[18px]"
             }`}
@@ -840,7 +887,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
                 side, and they split the 2px between them, so neither takes
                 the other's tap. With no weather line the date grows both ways. */}
             <span aria-hidden="true" data-testid="date-target" className={`absolute -left-2 right-0 -top-2 ${weatherReachable && dayWeather ? "-bottom-px" : weatherReachable ? "-bottom-[22px]" : "-bottom-2"}`} />
-            {formatDayTitle(dayWithCards.date)}
+            {headerTitle}
             <span
               aria-hidden
               className="text-[8px] transition-transform duration-200"
@@ -851,7 +898,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           </button>
           {/* The day's name used to sit here. Brennan, 24 Sep 2026: "remove the
               name of the day so it's just the weather". */}
-          {weatherReachable && (
+          {weatherReachable && !mapElsewhere && (
             <WeatherSubtitle
               weather={dayWeather}
               expanded={weatherExpanded}
@@ -863,16 +910,9 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
         </div>
 
         <span className="flex-1" />
-        {/* Search, one tap from the header. It was a row in the menu, where
-            the thing you use most sat among nine others. */}
-        <button
-          type="button"
-          onClick={() => search.open()}
-          aria-label="Search"
-          className="flex items-center justify-center w-11 h-11 text-gray-500 hover:text-gray-800 transition-colors"
-        >
-          <MagnifyingGlass size={19} weight="light" />
-        </button>
+        {/* The header's search glyph is gone (8 Oct 2026, Brennan: "you're not
+            going to search for things in the day view"). Places are searched on
+            the map; saved places across journeys from the home screen's search. */}
         <AppMenu
           variant="mobile"
           tripId={trip.id}
@@ -890,11 +930,23 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
       {/* Day strip — md:hidden lives inside DayStrip itself */}
       <DayStrip
         days={days}
-        activeDayId={dayWithCards.id}
+        activeDayId={mapOpen ? mapDayId ?? "" : dayWithCards.id}
         tripId={trip.id}
         onDaySelect={handleDaySelect}
         onDayLongPress={readOnly ? undefined : (d) => { setPhoneRenaming(false); setDayMenu(d); }}
       />
+      {/* Where the day's map starts when it opens: right under the days row. */}
+      <div ref={stripEndRef} aria-hidden="true" className="md:hidden h-0" />
+      {mapOpen && (
+        <DayTripMap
+          trip={trip}
+          days={days}
+          focusDayId={mapDayId}
+          topFrom={stripEndTop}
+          readOnly={readOnly}
+          onClose={closeMap}
+        />
+      )}
       {phoneCal !== null && (
         <PhoneDayCalendar
           tripId={trip.id}
@@ -1112,6 +1164,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
             startZoom={startZoomFor(trip.destination, 13)}
             onPinTap={handlePinTap}
             mapHref={`/trips/${trip.id}/map`}
+            onOpenMap={openMap}
           />
         </div>
 

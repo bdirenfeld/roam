@@ -150,6 +150,20 @@ export function nextDoorDay(day: Day): DayWithCards {
   };
 }
 
+/** The journey around nextDoorDay: its own stops, another day's, and saved places. */
+export function nextDoorJourney(ds: Day[]): Card[] {
+  const saved = (id: string, p: Place) => card(id, null, p, { status: "interested" as Card["status"] });
+  return [
+    ...nextDoorDay(ds[0]).cards,
+    card("n-david", ds[1].id, place("p-david", { title: "David", sub_type: "guided", lat: 43.7767194, lng: 11.2593217 }), { start_time: "10:00:00" }),
+    saved("n-gilli", place("p-gilli", { title: "Caffè Gilli", type: "food", sub_type: "coffee", lat: 43.7719748, lng: 11.2541636 })),
+    saved("n-repubblica", place("p-repubblica", { title: "Piazza della Repubblica", sub_type: "self_directed", lat: 43.7715112, lng: 11.2539314 })),
+    saved("n-vivoli", place("p-vivoli", { title: "Vivoli", type: "food", sub_type: "dessert", lat: 43.7699351, lng: 11.2600892 })),
+    saved("n-duomo", place("p-duomo", { title: "Santa Maria del Fiore", sub_type: "guided", lat: 43.773145, lng: 11.2559602 })),
+    saved("n-vini", place("p-vini", { title: "Vini e Vecchi Sapori", type: "food", sub_type: "restaurant", lat: 43.7700901, lng: 11.2568157 })),
+  ];
+}
+
 /** Every card of the journey, the shape DayViewClient's journey reads ask for. */
 export function journeyCards(ds: Day[]): Card[] {
   return [
