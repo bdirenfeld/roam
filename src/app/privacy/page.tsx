@@ -8,7 +8,7 @@ export const metadata = { title: "Privacy · Roam" };
 
 export default function PrivacyPage() {
   return (
-    <LegalPage title="Privacy" updated="5 September 2026">
+    <LegalPage title="Privacy" updated="8 October 2026">
       <p>Roam is a travel planner. This page says what it keeps about you, why, and how to take it back.</p>
 
       <h2>What Roam keeps</h2>
@@ -17,13 +17,14 @@ export default function PrivacyPage() {
         <li><b>Your journeys.</b> Destinations, dates, the places you save, the days you plan, notes, budgets, travellers&rsquo; names and ages, and the entry requirements Roam looks up for you.</li>
         <li><b>Files you attach.</b> Booking confirmations and tickets you upload, stored privately and shown only to you and the people you share the journey with.</li>
         <li><b>Ideas you save.</b> Links you send to Roam from other apps.</li>
+        <li><b>How you use the app.</b> While Roam is being tested, Microsoft Clarity records how people move through it (taps, scrolling, which screens) so problems can be found and fixed. What you type is hidden from these recordings.</li>
         <li><b>Usage counts.</b> How many times a day you use the features that call outside services, so no one can run up the bill.</li>
       </ul>
 
       <h2>Who else sees it</h2>
       <ul>
         <li><b>People you invite.</b> A guest sees the journey you shared: its days, places, notes and attachments. They cannot see your other journeys.</li>
-        <li><b>Services Roam uses to work.</b> Google (place search and photos), Mapbox (maps), Anthropic (the assistant, price lookups and entry-rule lookups), Unsplash (cover photos), Resend (invite emails), Stripe (payments), Supabase (the database) and Vercel (hosting). Each receives only what it needs for that job. Roam does not sell or share your data for advertising.</li>
+        <li><b>Services Roam uses to work.</b> Google (place search and photos), Mapbox (maps), Anthropic (the assistant, price lookups and entry-rule lookups), Unsplash (cover photos), Resend (invite emails), Stripe (payments), Supabase (the database), Vercel (hosting) and Microsoft Clarity (recordings of how the app is used). Each receives only what it needs for that job. Roam does not sell or share your data for advertising.</li>
       </ul>
 
       <h2>Where it lives</h2>
@@ -37,7 +38,7 @@ export default function PrivacyPage() {
       </ul>
 
       <h2>Cookies</h2>
-      <p>One cookie keeps you signed in. There are no advertising or tracking cookies.</p>
+      <p>One cookie keeps you signed in. Microsoft Clarity sets cookies so a visit can be followed from screen to screen. There are no advertising cookies.</p>
 
       <p className="mt-8"><Link href="/terms">Terms of use</Link> · <Link href="/">Home</Link></p>
     </LegalPage>
