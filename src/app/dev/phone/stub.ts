@@ -28,6 +28,8 @@ export interface StubConfig {
   userId: string | null;
   /** Canned answers for same-origin API routes, by pathname. */
   api?: Record<string, unknown>;
+  /** Cross-origin hosts this screen may reach for real (the Map: Mapbox tiles). Everything else stays off. */
+  passHosts?: RegExp[];
 }
 
 export const stubLog: { reads: string[]; writes: Array<{ table: string; op: string; payload?: unknown }>; blocked: string[] } = {
@@ -96,7 +98,7 @@ let installed = false;
 
 export function installStub(config: StubConfig): void {
   if (typeof window === "undefined") return;
-  const { tables, userId, api = {} } = config;
+  const { tables, userId, api = {}, passHosts = [] } = config;
 
   const sb = createClient() as unknown as Record<string, unknown>;
   define(sb, "from", (table: string) => builder(table, tables));
@@ -137,6 +139,7 @@ export function installStub(config: StubConfig): void {
     const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
     if (isNextTraffic(u, headers)) return real(input, init);
     if (u.pathname.endsWith("/how-to-videos/videos.json")) return json({});
+    if (u.protocol === "https:" && passHosts.some((h) => h.test(u.hostname))) return real(input, init);
     if (u.origin === window.location.origin && u.pathname.startsWith("/api/")) {
       // An API route the screen has no fixture for answers as a failed request
       // would, which every caller already handles; a made-up 200 {} does not

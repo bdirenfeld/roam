@@ -52,6 +52,22 @@ export function openSheetTop(toastLane: HTMLElement | null): number | null {
   return null;
 }
 
+/**
+ * The top edge of the highest on-screen control marked `data-toast-clear` (the
+ * Map's bottom row, which rides above Find's half sheet and grows the Filter's
+ * pills upward), or null. The toast stands above it (lib/ui/toastPlacement).
+ */
+export function toastClearTop(): number | null {
+  if (typeof document === "undefined") return null;
+  let top: number | null = null;
+  document.querySelectorAll<HTMLElement>("[data-toast-clear]").forEach((el) => {
+    const r = el.getBoundingClientRect();
+    if (r.width <= 0 || r.height <= 0 || r.bottom <= 0 || r.top >= window.innerHeight) return;
+    top = top == null ? r.top : Math.min(top, r.top);
+  });
+  return top;
+}
+
 export interface ToastOptions {
   /** One sentence. "Deleted Uffizi Gallery", "Couldn't save that. Try again." */
   message: string;
@@ -157,6 +173,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         viewportH: window.innerHeight,
         sheetTop: openSheetTop(lane ?? null),
         toastH: pill?.offsetHeight ?? 0,
+        clearTop: toastClearTop(),
       });
       setPlacement((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
     };

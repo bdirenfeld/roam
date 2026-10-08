@@ -21,6 +21,22 @@ describe("toastPlacement", () => {
     expect(toastPlacement({ ...phone, sheetTop: 790 })).toEqual({ bottom: 96 });
   });
 
+  // The Map's bottom row rides 12px above Find's half sheet (7 Oct 2026: "the
+  // legend at the bottom disappears" when a pin is removed). The toast stands
+  // above the row, not on it.
+  it("a control riding above the sheet (data-toast-clear): the toast stands above that, not the sheet", () => {
+    // Find's half sheet top at 406; the chip row 28px tall, 12px above it.
+    expect(toastPlacement({ ...phone, sheetTop: 406, clearTop: 366 })).toEqual({ bottom: 812 - 366 + 8 });
+  });
+
+  it("the Filter's pills open with no sheet: the toast lifts above them", () => {
+    expect(toastPlacement({ ...phone, sheetTop: null, clearTop: 680 })).toEqual({ bottom: 812 - 680 + 8 });
+  });
+
+  it("the closed row sits under the usual place: no change", () => {
+    expect(toastPlacement({ ...phone, sheetTop: null, clearTop: 768 })).toBeNull();
+  });
+
   it("from md up sheets are centred cards and the toast is under the masthead: no change", () => {
     expect(toastPlacement({ viewportW: 1280, viewportH: 800, toastH: 44, sheetTop: 300 })).toBeNull();
   });

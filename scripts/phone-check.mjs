@@ -60,9 +60,14 @@ const ALL = [
   "shared",
   "toasts", "toasts-second",
   "past-menu", "copy-sheet", "copy-sheet-dates",
+  "map", "map-one",
 ];
 const picked = args.filter((a) => !a.startsWith("--"));
 const SCREENS = picked.length ? picked : ALL;
+// The Map screens draw real tiles, so Mapbox resolves for a run that includes one
+// (the page side lets only those hosts through on those screens: src/app/dev/phone/stub.ts passHosts).
+const MAPBOX_RULES = ", EXCLUDE api.mapbox.com, EXCLUDE *.tiles.mapbox.com, EXCLUDE events.mapbox.com";
+const NEEDS_MAPBOX = SCREENS.some((x) => x.startsWith("map"));
 
 // What each screen is for. `has` must be in the page text (folded <details>
 // count), `not` must not; `sel`/`noSel` are selectors that must / must not match.
@@ -100,6 +105,9 @@ const EXPECT = {
     has: ["Copy New York (Mia & Daddy)", "Last time you started on a Thursday", "4 days · Thu 22 Jul – Sun 25 Jul 2027", "Bring the 3 places saved on the map", "Copy trip"],
     sel: ['[role="switch"][aria-checked="true"]'],
   },
+  // The full Map over real Mapbox tiles: the bottom chip row is the door to Filter, Plan my trip and Find.
+  map: { has: ["Filter", "Plan my trip", "Find places"] },
+  "map-one": { has: ["Filter", "Plan my trip", "Find places"] },
   "copy-sheet-dates": { has: ["July 2027", "4 days · Thu 22 Jul – Sun 25 Jul 2027"], sel: ['[data-testid="copy-calendar"]'] },
 };
 
@@ -240,7 +248,7 @@ function launch() {
   const chrome = spawn(CHROME, [
     "--headless=new", "--disable-gpu", "--hide-scrollbars", "--no-first-run", "--no-default-browser-check",
     `--user-data-dir=${dir}`, "--remote-debugging-port=0",
-    "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1, EXCLUDE fonts.googleapis.com, EXCLUDE fonts.gstatic.com",
+    "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1, EXCLUDE fonts.googleapis.com, EXCLUDE fonts.gstatic.com" + (NEEDS_MAPBOX ? MAPBOX_RULES : ""),
     "about:blank",
   ], { stdio: ["ignore", "ignore", "pipe"] });
   return new Promise((resolve, reject) => {

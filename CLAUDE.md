@@ -2397,6 +2397,13 @@ Approved scope only. Find KEEPS its two-level filters (Activity / Food, then kin
   (`offsetHeight`, so slide-in/drag transforms don't matter); `lib/ui/toastPlacement` puts the toast 8px above it, or at
   `top: 8px` when the sheet leaves no room (card sheet 95dvh). Re-measured on a MutationObserver while a toast is up.
   No sheet needs a marker; a new sheet only has to stay at z-60+ and bottom-pinned.
+- **Controls that ride ABOVE a sheet are marked `data-toast-clear`** (7 Oct 2026, "delete a pin ... the legend at the
+  bottom disappears"): the Map's Filter / Plan my trip / Find row sits 12px over Find's half sheet and the Filter's pills
+  grow up from it, so the toast (8px above the sheet) landed on the row for 6 s. `toastClearTop` (Toast.tsx) takes the
+  highest marked box's top and `toastPlacement({ clearTop })` stands the toast above it; a closed row low on the screen
+  changes nothing. A new floating control near the bottom gets the attribute. Harness: `/dev/phone/map` and `map-one`
+  render FullMapClient over real Mapbox tiles (the only screens whose network is on: stub `passHosts`, and phone-check
+  lets the Mapbox hosts resolve only when a map screen is in the run).
 - **Tap targets left under 44px on purpose:** card-sheet header discs 34×44 (28px discs 6px apart); the card sheet's
   address 17px (4px between the editable title and the time chip); the day header's date 35px when the weather line
   is there (two stacked controls in a 58px header); the shared page's "Tonight: <hotel>" inline link (inside the

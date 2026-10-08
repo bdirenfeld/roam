@@ -135,6 +135,17 @@ describe("the phone Map", { timeout: 20000 }, () => {
     expect(screen.getByRole("button", { name: "Find places" })).toBeTruthy();
   });
 
+  // 7 Oct 2026, Brennan: "If you delete a pin from a map ... the legend at the
+  // bottom disappears on mobile." With Find open the toast stood 8px above the
+  // half sheet, which is where this row rides, so "Removed from the map · Undo"
+  // covered it. The row is marked for the toast to stand above (ui/Toast toastClearTop).
+  it("the bottom row is a control the toast stands above, never on (pin removed with Find open)", async () => {
+    await act(async () => { render(<FullMapClient trip={trip} days={days} cards={cards} />); });
+    expect(bottomRow().hasAttribute("data-toast-clear")).toBe(true);
+    // And the Toast reads that same marker.
+    expect(readFileSync("src/components/ui/Toast.tsx", "utf8")).toContain('querySelectorAll<HTMLElement>("[data-toast-clear]")');
+  });
+
   it("a place saved in Find lands on the map at once, without a reload (Hanoi, 2 Oct 2026)", async () => {
     vi.stubEnv("NEXT_PUBLIC_MAPBOX_TOKEN", "pk.test");
     await act(async () => { render(<FullMapClient trip={trip} days={days} cards={[]} />); });

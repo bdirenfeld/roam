@@ -243,3 +243,16 @@ export function copyTables() {
   const saved = ["Sloomoo Institute", "Joe's Pizza", "The High Line"].map((title, i) => ({ id: `saved-${i}`, status: "interested", archived: false, place_id: `place-${i}`, title }));
   return { cards: saved, trips: [pastTrip()] };
 }
+
+// ── The full Map (FullMapClient) ──────────────────────────────────────────
+/** Saved pins around Florence and one scheduled on Day 1; `one` = a single saved pin (removing it empties the map). */
+export function mapCards(ds: Day[], one = false): Card[] {
+  const saved = (id: string, p: Place) => card(id, null, p, { status: "interested" as Card["status"] });
+  if (one) return [saved("m-uffizi", places.uffizi)];
+  return [
+    saved("m-uffizi", places.uffizi),
+    saved("m-trattoria", places.trattoria),
+    saved("m-boboli", places.boboli),
+    card("m-ponte", ds[0].id, places.pontevecchio, { start_time: "16:00:00", end_time: "17:00:00" }),
+  ];
+}

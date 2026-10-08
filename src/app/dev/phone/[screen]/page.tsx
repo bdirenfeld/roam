@@ -17,6 +17,7 @@
 //   /dev/phone/bookings-open | bookings-asking | bookings-booked
 //   /dev/phone/shared          the shared journey page
 //   /dev/phone/toasts | toasts-second
+//   /dev/phone/map | map-one    the full Map over real Mapbox tiles: four pins, or one (removing it empties the map)
 //
 // scripts/phone-check.mjs screenshots and measures every one at 375 px.
 

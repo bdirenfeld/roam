@@ -165,6 +165,23 @@ describe("Toast placement on a phone", () => {
     expect(screen.getByTestId("toast-lane").style.bottom).toBe("");
   });
 
+  // 7 Oct 2026: removing a pin with Find open put "Removed from the map · Undo"
+  // exactly over the Map's Filter / Plan my trip row, which rides above the sheet.
+  it("a control marked data-toast-clear above the sheet: the toast stands above it", () => {
+    size(375, 812);
+    mountSheet(406);
+    const row = document.createElement("div");
+    row.setAttribute("data-toast-clear", "");
+    row.getBoundingClientRect = () => ({ top: 366, bottom: 394, left: 12, right: 280, width: 268, height: 28, x: 12, y: 366, toJSON: () => ({}) });
+    document.body.appendChild(row);
+    try {
+      show({ message: "Removed from the map", undo: () => {} });
+      expect(screen.getByTestId("toast-lane").style.bottom).toBe(`${812 - 366 + 8}px`);
+    } finally {
+      row.remove();
+    }
+  });
+
   it("on a computer the toast stays under the masthead whatever is open", () => {
     size(1280, 800);
     mountSheet(300);

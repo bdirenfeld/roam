@@ -6,6 +6,13 @@
 // the sheet is too tall to leave room (the card sheet is 95dvh) it goes to the
 // top of the screen, where only the sheet's drag handle is.
 //
+// Controls that ride ABOVE a sheet count too (7 Oct 2026, Brennan: "if you delete
+// a pin from a map ... the legend at the bottom disappears"). The Map's Filter /
+// Plan my trip / Find row sits 12px above Find's half sheet, and the Filter's
+// pill rows grow up from it — exactly where the toast stood, so "Removed from
+// the map · Undo" covered the row for six seconds. Such a control is marked
+// `data-toast-clear` and its top edge is `clearTop`; the toast stands above it.
+//
 // Pure: Toast.tsx finds the open sheet's top edge and the toast's own height;
 // this decides. `null` = leave the CSS default (bottom-24 on a phone, under
 // the masthead from md up, where sheets are centred and never at the bottom).
@@ -24,9 +31,15 @@ export function toastPlacement(p: {
   sheetTop: number | null;
   /** The toast's own height in px. */
   toastH: number;
+  /** Top edge of the highest control the toast must not cover (`data-toast-clear`), or null. */
+  clearTop?: number | null;
 }): ToastPlacement {
-  if (p.viewportW >= MD || p.sheetTop == null) return null;
-  const bottom = Math.max(TOAST_PHONE_BOTTOM, p.viewportH - p.sheetTop + TOAST_GAP);
+  if (p.viewportW >= MD) return null;
+  // A control low enough to sit under the usual place changes nothing.
+  const lift = p.clearTop != null && p.viewportH - p.clearTop + TOAST_GAP > TOAST_PHONE_BOTTOM ? p.clearTop : null;
+  const edge = lift == null ? p.sheetTop : p.sheetTop == null ? lift : Math.min(p.sheetTop, lift);
+  if (edge == null) return null;
+  const bottom = Math.max(TOAST_PHONE_BOTTOM, p.viewportH - edge + TOAST_GAP);
   // No room above the sheet: the top of the screen, never off it.
   if (bottom + p.toastH + TOAST_GAP > p.viewportH) return { top: TOAST_GAP };
   return { bottom };

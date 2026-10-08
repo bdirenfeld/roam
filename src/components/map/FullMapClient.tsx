@@ -1023,6 +1023,10 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
             since their sidebar is suppressed. */}
         <div
           className="absolute left-3 flex flex-col gap-2"
+          // The toast stands above this row and its open pills, never on them
+          // (7 Oct 2026: removing a pin with Find or the Filter open put
+          // "Removed from the map · Undo" over the row; ui/Toast toastClearTop).
+          data-toast-clear=""
           // The bar that used to sit under this is gone (24 Sep 2026); clear the
           // phone's home indicator instead. With Find's half sheet up (50dvh,
           // z-70) the row rides just above it; it sat underneath for as long as

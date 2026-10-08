@@ -11,6 +11,7 @@ export const CLIENT_SCREENS = [
   "bookings-open", "bookings-asking", "bookings-booked",
   "toasts", "toasts-second",
   "past-menu", "copy-sheet", "copy-sheet-dates",
+  "map", "map-one",
 ] as const;
 export type ClientScreen = (typeof CLIENT_SCREENS)[number];
 

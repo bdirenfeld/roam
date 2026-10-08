@@ -17,16 +17,19 @@ import DocumentsSheet from "@/components/plan/DocumentsSheet";
 import CreateCardSheet from "@/components/plan/CreateCardSheet";
 import PastJourneysList from "@/components/trip/PastJourneysList";
 import CopyJourneySheet from "@/components/trip/CopyJourneySheet";
+import FullMapClient from "@/components/map/FullMapClient";
 import { openedKey } from "@/lib/booking/didYouBook";
 import { welcomeHomeKey } from "@/lib/trips/welcomeHome";
 import { installStub, type StubConfig } from "./stub";
 import type { ClientScreen } from "./screens";
 import {
-  OWNER, TRIP_ID, SHEET_DAYS, COPY_TODAY, copyTables, pastTrip, ADD_LEG_API, ADD_LEG_DAY, addLegTables, bookingTables, days, isoFromToday, journeyCards, sheetCards, timeCard, trip, tuscanyDay,
+  OWNER, TRIP_ID, SHEET_DAYS, COPY_TODAY, copyTables, mapCards, pastTrip, ADD_LEG_API, ADD_LEG_DAY, addLegTables, bookingTables, days, isoFromToday, journeyCards, sheetCards, timeCard, trip, tuscanyDay,
 } from "./fixtures";
 
 
 const noop = () => {};
+/** Hosts the Map screens may reach (scripts/phone-check.mjs lets the same ones resolve). */
+const MAPBOX_HOSTS = [/^api\.mapbox\.com$/, /\.tiles\.mapbox\.com$/, /^events\.mapbox\.com$/];
 
 /** Clicks the first button inside `scope` whose text is `text`, once it appears (a state behind a tap). */
 function useClickWhenReady(target: { scope: string; text: string } | null) {
@@ -109,6 +112,8 @@ function stubFor(screen: ClientScreen): StubConfig {
     return { userId: OWNER, tables: bookingTables(checklist), api: { "/api/booking/airports": { airports: ["FLR", "PSA"] } } };
   }
   if (screen === "past-menu" || screen.startsWith("copy-sheet")) return { userId: OWNER, tables: copyTables() };
+  // The full Map draws real Mapbox tiles: the one screen whose network is not off (Mapbox only).
+  if (screen === "map" || screen === "map-one") return { userId: OWNER, tables: {}, passHosts: MAPBOX_HOSTS };
   return { userId: OWNER, tables: {} };
 }
 
@@ -145,6 +150,11 @@ function Screen({ screen }: { screen: ClientScreen }) {
   }
   if (screen === "past-menu") {
     return <div className="px-4 pt-3"><PastJourneysList trips={[pastTrip(), pastTrip()].map((t, i) => (i ? { ...t, id: "trip-preview-cr", title: "Costa Rica", start_date: "2026-03-04", end_date: "2026-03-14" } : t))} hrefByTrip={{}} userId={OWNER} /></div>;
+  }
+  if (screen === "map" || screen === "map-one") {
+    const start = isoFromToday(0);
+    const ds = days(start, 5);
+    return <FullMapClient trip={trip(start, ds[4].date)} days={ds} cards={mapCards(ds, screen === "map-one")} />;
   }
   if (screen.startsWith("copy-sheet")) {
     return <CopyJourneySheet trip={pastTrip()} onClose={noop} today={COPY_TODAY} />;
