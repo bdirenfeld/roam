@@ -59,6 +59,7 @@ const ALL = [
   "bookings-open", "bookings-asking", "bookings-booked",
   "shared",
   "toasts", "toasts-second",
+  "past-menu", "copy-sheet", "copy-sheet-dates",
 ];
 const picked = args.filter((a) => !a.startsWith("--"));
 const SCREENS = picked.length ? picked : ALL;
@@ -93,6 +94,13 @@ const EXPECT = {
   shared: { has: ["Annual Tech Summit", "Check in from 3 pm"], not: ["73500000000042", "Irving Convention Center"] },
   toasts: { has: ["Sam joined Lisbon"], not: ["2 still to book"] },
   "toasts-second": { has: ["Lisbon tomorrow · 2 still to book"], not: ["Sam joined Lisbon"] },
+  // Copy to new dates (7 Oct 2026, mock t07): the past row's ⋯, and the sheet.
+  "past-menu": { has: ["Copy to new dates", "Archive", "Delete…"], sel: ['[role="menu"]'] },
+  "copy-sheet": {
+    has: ["Copy New York (Mia & Daddy)", "Last time you started on a Thursday", "4 days · Thu 22 Jul – Sun 25 Jul 2027", "Bring the 3 places saved on the map", "Copy trip"],
+    sel: ['[role="switch"][aria-checked="true"]'],
+  },
+  "copy-sheet-dates": { has: ["July 2027", "4 days · Thu 22 Jul – Sun 25 Jul 2027"], sel: ['[data-testid="copy-calendar"]'] },
 };
 
 const UA = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36";

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import journeys from "./fixtures/journeys.json";
+import { copyJourney } from "@/lib/trips/copyJourney";
 import { checklistRows, costCurrencies, costLabel, readCosts, storeChecklist, destinationCountry, needsAirports, overnightOutbound, ownAirports, partyOf, readChecklist, withChoice, type CheckInput, type CheckRow } from "./checklist";
 
 // Real journeys, pulled from the live database on 6 Oct 2026 (cards on days,
@@ -251,5 +252,42 @@ describe("costCurrencies: 'What did it cost?' starts in the person's home curren
   });
   it("an unknown destination adds nothing", () => {
     expect(costCurrencies("GBP", null)).toEqual({ initial: "GBP", options: ["GBP", "USD", "EUR"] });
+  });
+});
+
+describe("a copy of New York (Mia & Daddy) a year on (7 Oct 2026, copy to new dates)", () => {
+  // The real journey through the real copy: its flights and 11 Howard come
+  // back as placeholders, so nothing ticks itself, but the rows still know
+  // where — LaGuardia, and last time's hotel with "book again".
+  const src = get("New York (Mia & Daddy)");
+  let n = 0;
+  const out = copyJourney(
+    {
+      trip: { id: "ny", user_id: "me", title: "New York (Mia & Daddy)", destination: src.trip.destination, destination_lat: null, destination_lng: null, start_date: src.trip.start_date, end_date: src.trip.end_date },
+      days: src.days,
+      cards: src.cards.map((c, i) => ({ position: i, start_time: null, end_time: null, ...c, status: c.status ?? "in_itinerary", details: c.details ?? {} })) as never,
+    },
+    { userId: "me", title: "New York (Bodhi & Daddy)", startDate: "2027-07-22", partySize: 3, partyAges: [43, 8, 5], includeSaved: false, newId: () => `n${++n}` },
+  );
+  const placeOf = new Map(src.cards.map((c) => [c.place_id, c.place]));
+  const copy: CheckInput = {
+    ...src,
+    trip: { ...src.trip, start_date: out.trip.start_date as string, end_date: out.trip.end_date as string, party_size: 3, party_ages: [43, 8, 5], booking_checklist: {} },
+    days: out.days.map((d) => ({ id: d.id as string, date: d.date as string })),
+    cards: out.cards.map((c) => ({ ...(c as unknown as CheckInput["cards"][number]), place: placeOf.get(c.place_id as string) ?? null })),
+  };
+  const r = rowsOf(copy);
+  it("Flights is open, from the copied flight's airport", () => {
+    expect(r.flights.state).toBe("open");
+    expect(r.flights.url).toContain("/flights/YYZ-LGA/");
+    expect(r.flights.line).toBe("Toronto → New York · 3 people");
+  });
+  it("Stays is open and names last time's hotel: '11 Howard · 22–25 Jul · book again'", () => {
+    expect(r.stays).toMatchObject({ state: "open", line: "11 Howard · 22–25 Jul · book again" });
+    expect(r.stays.url).toContain("/2027-07-22/2027-07-25/");
+  });
+  it("once the stay is booked (the card sheet's switch), it ticks itself again", () => {
+    const booked = { ...copy, cards: copy.cards.map((c) => (c.place?.title === "11 Howard" ? { ...c, confirmed: true } : c)) };
+    expect(rowsOf(booked).stays.state).toBe("booked");
   });
 });

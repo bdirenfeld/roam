@@ -262,3 +262,55 @@ describe("an agenda's days share one place (7 Oct 2026)", () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe("a copied journey's placeholders fill in on upload (7 Oct 2026)", () => {
+  const stubPlace = () => vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+    if (url.startsWith("/api/places/autocomplete")) return { json: async () => ({ predictions: [{ place_id: "gV" }] }) };
+    return { json: async () => ({ imported: [{ place_id: "pv" }] }) };
+  }));
+  const villa = { type: "hotel", title: "Villa Zambaldi", date: "2027-08-24", time: "16:00", end_time: null, confirmation_number: "SV-88",
+    address: "Via Fonda 403, Lucca", phone: null, website: null, notes: null, check_out_date: "2027-09-04", check_out_time: "10:00",
+    total_paid: 4200, paid_currency: "EUR" } as ParsedConfirmation;
+  const withCard = (c: Record<string, unknown>) => [
+    { id: "d1", date: "2027-08-24", day_number: 1, cards: [{ id: "old", place_id: "pv", status: "in_itinerary", end_time: null, place: { sub_type: "hotel" }, ...c }] },
+    { id: "d12", date: "2027-09-04", day_number: 12, cards: [] },
+  ] as unknown as DayWithCards[];
+  const upload = async (days: DayWithCards[], items: ParsedConfirmation[]) => {
+    queued.mockResolvedValue({ queued: false, error: null });
+    updated.mockClear();
+    stubPlace();
+    const done = vi.fn();
+    render(<ConfirmationPreviewSheet items={items} fileName="b.pdf" fileType="application/pdf" days={days} tripId="t1" onClose={vi.fn()} onCardsCreated={done} onDaysChanged={vi.fn()} />);
+    fireEvent.click(screen.getByText("Add to my days"));
+    await waitFor(() => expect(done).toHaveBeenCalled());
+    vi.unstubAllGlobals();
+    return updated.mock.calls.find((c) => (c[1] as { id: string }).id === "old")?.[2] as Record<string, unknown>;
+  };
+
+  it("a placeholder stay takes the booking's time, confirmation, check-out and price, and stops being 'to book'", async () => {
+    const patch = await upload(withCard({ start_time: "15:00:00", confirmed: false, details: { title: "Villa Zambaldi", notes: "Pool", check_out: "2027-09-03", to_book: true } }), [villa]);
+    expect(patch).toMatchObject({ confirmed: true, start_time: "16:00:00" });
+    expect(patch.details).toEqual({ title: "Villa Zambaldi", notes: "Pool", confirmation: "SV-88", check_out: "2027-09-04", paid_total: 4200, paid_currency: "EUR" });
+  });
+
+  it("an already-booked card keeps today's behaviour: its own time, details untouched", async () => {
+    const patch = await upload(withCard({ start_time: "15:00:00", confirmed: true, details: { title: "Villa Zambaldi", confirmation: "OLD" } }), [villa]);
+    expect(patch).toEqual({ confirmed: true, start_time: "15:00:00", end_time: null });
+  });
+
+  it("a placeholder flight of the same kind at the same airport takes the new flight number and seat", async () => {
+    const days = [
+      { id: "d1", date: "2027-08-24", day_number: 1, cards: [
+        { id: "dep", place_id: "pv", status: "in_itinerary", start_time: "08:00:00", end_time: null, confirmed: false, place: { sub_type: "flight_departure" }, details: { title: "Pisa" } },
+        { id: "old", place_id: "pv", status: "in_itinerary", start_time: "09:20:00", end_time: null, confirmed: false, place: { sub_type: "flight_arrival" }, details: { title: "Pisa", airline: "Air Canada", to_book: true } },
+      ] },
+      { id: "d12", date: "2027-09-04", day_number: 12, cards: [] },
+    ] as unknown as DayWithCards[];
+    const ac = { ...flight("flight_arrival", "2027-08-24", "YYZ → PSA"), address: "Pisa Airport", flight_number: "AC 892", seat: "22A", airline: "Air Canada" } as ParsedConfirmation;
+    const patch = await upload(days, [ac]);
+    expect(patch).toMatchObject({ confirmed: true, start_time: "10:05:00", end_time: "12:40:00" });
+    expect(patch.details).toMatchObject({ flight_number: "AC892", seat: "22A", confirmation: "ABC123" });
+    expect(patch.details).not.toHaveProperty("to_book");
+    expect(updated.mock.calls.some((c) => (c[1] as { id: string }).id === "dep")).toBe(false);
+  });
+});

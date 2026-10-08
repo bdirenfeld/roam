@@ -16,6 +16,7 @@ import { stayRuns } from "@/lib/stays/stayRuns";
 import { townFromAddress, countryFromAddress } from "@/lib/stays/brief";
 import { isRentalCar, range } from "@/lib/bookings/summary";
 import { cardTimes } from "@/lib/cardTime";
+import { isToBook } from "@/lib/trips/copyJourney";
 import { SYMBOL } from "@/lib/budget/currency";
 import { airportCity, carsUrl, englishTown, flightsUrl, isIata, kayakBase, kayakParty, kayakPlace, staysUrl, travellers, twoCars, type KayakParty } from "./kayak";
 
@@ -37,6 +38,8 @@ export interface CheckCard {
   day_id: string | null;
   place_id: string | null;
   status?: string | null;
+  /** Booked (the card sheet's switch, or read from a confirmation). Only read for copied placeholders. */
+  confirmed?: boolean | null;
   start_time?: string | null;
   end_time?: string | null;
   details?: Record<string, unknown> | null;
@@ -220,7 +223,12 @@ export function checklistRows(input: CheckInput): CheckRow[] {
   const costs = readCosts(trip.booking_checklist);
   const dayIds = new Set(input.days.map((d) => d.id));
   const dateOf = new Map(input.days.map((d) => [d.id, d.date]));
-  const mine = input.cards.filter((c) => onDays(c, dayIds));
+  const onTheDays = input.cards.filter((c) => onDays(c, dayIds));
+  // A copied journey's flights, stays and car are placeholders to book again
+  // (7 Oct 2026, lib/trips/copyJourney): they never tick a row, but they say
+  // where (the airports, the hotel) until the real booking replaces them.
+  const mine = onTheDays.filter((c) => !isToBook(c));
+  const again = onTheDays.filter(isToBook);
   const party = partyOf(input);
   const people = travellers(party);
   const homeAirport = isIata(home.airport) ? home.airport : null;
@@ -306,7 +314,13 @@ export function checklistRows(input: CheckInput): CheckRow[] {
       // not a Kayak place and falls back to the stays page with dates and guests kept.
       void country;
       const url = staysUrl({ place: kayakPlace(englishTown(town)), checkIn, checkOut, party, base });
-      openRow = covered.size
+      // Last time's hotel, copied as a placeholder, names the gap: "11 Howard ·
+      // 22–25 Jul · book again" (7 Oct 2026, mock t07).
+      const lastTime = stayRuns(input.days.map((d) => ({ date: d.date, cards: again.filter((c) => c.day_id === d.id) })), trip.end_date)
+        .find((r) => r.checkIn <= checkIn && checkIn < r.checkOut);
+      openRow = lastTime
+        ? { line: `${lastTime.title} · ${range(lastTime.checkIn, lastTime.checkOut)} · book again`, url }
+        : covered.size
         ? { line: `${covered.size} of ${nights.length} nights booked`, url }
         : { line: `${town} · ${plural(nights.length, "night")}`, url };
     }

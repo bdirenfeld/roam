@@ -29,7 +29,7 @@ export default function BookingsSection({ tripId, days, endDate }: { tripId: str
   const load = useCallback(async () => {
     const { data } = await createClient()
       .from("cards")
-      .select("id, day_id, place_id, status, start_time, details, place:places(sub_type, title, address)")
+      .select("id, day_id, place_id, status, confirmed, start_time, details, place:places(sub_type, title, address)")
       .eq("trip_id", tripId)
       .not("day_id", "is", null);
     setLines(bookingLines(days.map((d) => ({ id: d.id, date: d.date })), (data ?? []) as unknown as BookingCard[], endDate));

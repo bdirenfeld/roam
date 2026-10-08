@@ -114,7 +114,7 @@ export default async function TripsPage() {
               {upcoming.length > 0 && (
                 <div className="space-y-3 mb-8 md:space-y-0 md:grid md:grid-cols-2 md:gap-7 md:mb-14">
                   {upcoming.map((trip: Trip) => (
-                    <TripCard key={trip.id} trip={trip} href={hrefByTrip[trip.id]} />
+                    <TripCard key={trip.id} trip={trip} href={hrefByTrip[trip.id]} owner={trip.user_id === user?.id} />
                   ))}
                 </div>
               )}
@@ -152,7 +152,7 @@ export default async function TripsPage() {
                   label="Past journeys"
                   className="mt-7 mb-3 md:mt-10"
                 >
-                  <PastJourneysList trips={past} hrefByTrip={hrefByTrip} />
+                  <PastJourneysList trips={past} hrefByTrip={hrefByTrip} userId={user?.id ?? null} />
                 </CollapsibleSection>
               )}
 
@@ -161,7 +161,7 @@ export default async function TripsPage() {
                   trip back in Upcoming; a date-past one lands in Past above. */}
               {archivedTrips.length > 0 && (
                 <CollapsibleSection label="Archived">
-                  <PastJourneysList trips={archivedTrips} hrefByTrip={hrefByTrip} />
+                  <PastJourneysList trips={archivedTrips} hrefByTrip={hrefByTrip} userId={user?.id ?? null} />
                 </CollapsibleSection>
               )}
             </>

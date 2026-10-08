@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { DotsThree, Archive, Trash } from "@phosphor-icons/react";
+import { DotsThree, Archive, Trash, Copy } from "@phosphor-icons/react";
 import TripCover from "./TripCover";
 import { createClient } from "@/lib/supabase/client";
 import { deleteJourney } from "@/lib/deleteJourney";
@@ -13,6 +13,8 @@ import { setTripArchived } from "@/lib/tripArchive";
 import { tripCountdown } from "@/lib/trips/countdown";
 import { localDate } from "@/lib/isSameLocalDay";
 import Pieces from "./Pieces";
+import JourneyMenu from "./JourneyMenu";
+import CopyJourneySheet from "@/components/trip/CopyJourneySheet";
 import type { Trip } from "@/types/database";
 
 interface Props {
@@ -20,6 +22,8 @@ interface Props {
   // Where a tap goes, resolved upstream by lib/tripHref (the week on a
   // computer, the day on a phone). Falls back to the trip root when absent.
   href?: string;
+  /** The signed-in person owns it: only then does the ⋯ offer "Copy to new dates" (7 Oct 2026). */
+  owner?: boolean;
 }
 
 function tripNights(start: string, end: string): number {
@@ -42,11 +46,12 @@ function formatDateCompact(start: string, end: string): string {
   return `${sMonth} ${sDay} – ${eMonth} ${eDay} · ${nightsStr}`;
 }
 
-export default function TripCard({ trip, href }: Props) {
+export default function TripCard({ trip, href, owner = false }: Props) {
   const router = useRouter();
   const [menuOpen,      setMenuOpen]      = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting,      setDeleting]      = useState(false);
+  const [copying,       setCopying]       = useState(false);
   useEscapeKey(() => setConfirmDelete(false), confirmDelete && !deleting);
 
   // The countdown at the end of the caption (6 Oct 2026, Brennan): "IN 5
@@ -65,7 +70,6 @@ export default function TripCard({ trip, href }: Props) {
   // away with no word, so a slip of the thumb looked like the journey vanished.
   // Same toast and Undo as Settings' Archive (TripSettingsClient).
   const handleArchive = async () => {
-    setMenuOpen(false);
     const failure = await setTripArchived(createClient(), trip.id, true);
     if (failure) {
       console.error("Failed to archive journey:", failure);
@@ -157,42 +161,26 @@ export default function TripCard({ trip, href }: Props) {
               and on a dark Toronto one without painting a hole in either. The
               tap target grows to 36px as the chrome goes, so it is easier to
               hit than the 28px disc it replaces. */}
+          <span aria-hidden="true" data-testid="trip-options-target" className="absolute -inset-1" />
           <DotsThree size={22} weight="bold" color="#fff" style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.55))" }} />
         </button>
 
         {menuOpen && (
-          <>
-            <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)} />
-            <div
-              className="absolute top-10 right-2 z-30 w-[176px] bg-white rounded-xl overflow-hidden"
-              role="menu"
-              style={{
-                border: "1px solid rgba(26,26,46,0.08)",
-                boxShadow: "0 8px 30px rgba(26,26,46,0.18)",
-              }}
-            >
-              {/* No "Change cover" here (6 Oct 2026, Brennan: changing the cover
-                  isn't needed; covers are picked from the destination). */}
-              <button
-                role="menuitem"
-                onClick={handleArchive}
-                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] text-gray-800 hover:bg-gray-50 transition-colors"
-              >
-                <Archive size={14} weight="light" className="text-gray-500" />
-                Archive
-              </button>
-              <button
-                role="menuitem"
-                onClick={() => { setMenuOpen(false); setConfirmDelete(true); }}
-                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] text-red-500 hover:bg-red-50 transition-colors border-t border-black/5"
-              >
-                <Trash size={14} weight="light" className="text-red-400" />
-                Delete…
-              </button>
-            </div>
-          </>
+          // No "Change cover" here (6 Oct 2026, Brennan: changing the cover
+          // isn't needed; covers are picked from the destination). Copy to new
+          // dates first, owner only (7 Oct 2026, mock t07).
+          <JourneyMenu
+            onClose={() => setMenuOpen(false)}
+            items={[
+              ...(owner ? [{ label: "Copy to new dates", icon: <Copy size={14} weight="light" className="text-gray-500" />, onSelect: () => setCopying(true) }] : []),
+              { label: "Archive", icon: <Archive size={14} weight="light" className="text-gray-500" />, onSelect: handleArchive },
+              { label: "Delete…", icon: <Trash size={14} weight="light" className="text-red-400" />, onSelect: () => setConfirmDelete(true), danger: true },
+            ]}
+          />
         )}
       </div>
+
+      {copying && <CopyJourneySheet trip={trip} onClose={() => setCopying(false)} />}
 
       {/* Delete confirmation — same sheet pattern as Past journeys */}
       {confirmDelete && (

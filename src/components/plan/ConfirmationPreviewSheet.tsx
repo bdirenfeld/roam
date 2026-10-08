@@ -10,6 +10,7 @@ import { resolvePlace } from "@/lib/confirmations/resolvePlace";
 import { bookingOutside, dayFor, shortDay } from "@/lib/confirmations/outsideDates";
 import { extendJourney } from "@/lib/confirmations/extendJourney";
 import { whenLine, type FileRef } from "@/lib/confirmations/batch";
+import { existingFor, fillFrom, type DayCard } from "@/lib/confirmations/fillPlaceholder";
 
 // ── ParsedConfirmation — matches API response (lib/confirmations/toCards) ──
 export type { ParsedConfirmation };
@@ -263,20 +264,27 @@ export default function ConfirmationPreviewSheet({
       return [main, card(outDay.id, close.time, null, closingDetails(details, close.title), place)];
     });
 
-    // Already on the days (same day, same place): mark that card booked and fill
-    // a missing time, instead of adding a second copy (6 Oct 2026).
-    const flipped: Card[] = [];
+    // Already on the days (same day, same place): mark that card booked instead
+    // of adding a second copy (6 Oct 2026). A placeholder that is not booked yet
+    // (a copied journey's "to book" flight or hotel) takes the booking's times
+    // and details; a flight matches by kind and airport whatever its number
+    // (7 Oct 2026, lib/confirmations/fillPlaceholder). Booked cards keep only
+    // a missing time filled, as before.
+    const flipped: { id: string; patch: Record<string, unknown> }[] = [];
     const finalId = new Map<string, string>();
-    const fresh = createdCards.filter((c) => {
+    const taken = new Set<string>();
+    const fresh = createdCards.filter((c, k) => {
       if (!c.place_id) return true;
-      const there = days.find((d) => d.id === c.day_id)?.cards.find((x) => x.place_id === c.place_id && x.status === "in_itinerary");
+      const dayCards = (days.find((d) => d.id === c.day_id)?.cards ?? []).filter((x) => !taken.has(x.id)) as unknown as DayCard[];
+      const there = existingFor({ ...c, details: c.details as Record<string, unknown> }, items[cardItem[k]].type, dayCards);
       if (!there) return true;
+      taken.add(there.id);
       finalId.set(c.id, there.id);
-      flipped.push({ ...there, confirmed: true, start_time: there.start_time ?? c.start_time, end_time: there.end_time ?? c.end_time });
+      flipped.push({ id: there.id, patch: fillFrom(there, { ...c, details: c.details as Record<string, unknown> }).patch });
       return false;
     });
-    for (const c of flipped) {
-      const { error: flipError } = await queuedUpdate("cards", { id: c.id }, { confirmed: true, start_time: c.start_time, end_time: c.end_time });
+    for (const f of flipped) {
+      const { error: flipError } = await queuedUpdate("cards", { id: f.id }, f.patch);
       if (flipError) console.error("[ConfirmationPreviewSheet] could not mark booked:", flipError);
     }
 

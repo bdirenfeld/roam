@@ -19,6 +19,7 @@
 
 import type { Card } from "@/types/database";
 import { checklistProgress } from "./cardChecklistModel";
+import { isToBook } from "@/lib/trips/copyJourney";
 
 const QUIET_INK = "rgba(26,26,46,0.45)";
 const DONE_FG = "#3F5D33";
@@ -62,8 +63,12 @@ export default function CardBadges({ card, className = "", showBooked = true }: 
   // `confirmed` is only ever set on a card that can be booked — a flight, a
   // hotel, a restaurant, a guided thing — so it needs no second test here.
   const booked = showBooked && card.confirmed === true;
+  // The one exception to "draw the rare state" (7 Oct 2026, copy to new dates):
+  // a copied journey's flights and stays come back as placeholders, and each
+  // says "To book" until the confirmation lands or the Booked switch is on.
+  const toBook = showBooked && isToBook(card);
 
-  if (!progress && attachments < 1 && !booked) return null;
+  if (!progress && attachments < 1 && !booked && !toBook) return null;
 
   const complete = progress !== null && progress.done === progress.total;
 
@@ -98,6 +103,15 @@ export default function CardBadges({ card, className = "", showBooked = true }: 
         >
           <TickGlyph color={DONE_FG} />
           Booked
+        </span>
+      )}
+      {toBook && (
+        <span
+          className="inline-flex items-center rounded-[5px] px-[5px] py-[1px] text-[10.5px] font-medium leading-none"
+          style={{ color: "#9A4A1F", background: "#F8E9DD" }}
+          aria-label="To book"
+        >
+          To book
         </span>
       )}
       {attachments > 0 && (

@@ -15,12 +15,14 @@ import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import TimeSheet from "@/components/day/TimeSheet";
 import DocumentsSheet from "@/components/plan/DocumentsSheet";
 import CreateCardSheet from "@/components/plan/CreateCardSheet";
+import PastJourneysList from "@/components/trip/PastJourneysList";
+import CopyJourneySheet from "@/components/trip/CopyJourneySheet";
 import { openedKey } from "@/lib/booking/didYouBook";
 import { welcomeHomeKey } from "@/lib/trips/welcomeHome";
 import { installStub, type StubConfig } from "./stub";
 import type { ClientScreen } from "./screens";
 import {
-  OWNER, TRIP_ID, SHEET_DAYS, ADD_LEG_API, ADD_LEG_DAY, addLegTables, bookingTables, days, isoFromToday, journeyCards, sheetCards, timeCard, trip, tuscanyDay,
+  OWNER, TRIP_ID, SHEET_DAYS, COPY_TODAY, copyTables, pastTrip, ADD_LEG_API, ADD_LEG_DAY, addLegTables, bookingTables, days, isoFromToday, journeyCards, sheetCards, timeCard, trip, tuscanyDay,
 } from "./fixtures";
 
 
@@ -69,6 +71,20 @@ function useTypeAndPick(target: { placeholder: string; text: string; pick: strin
   }, [placeholder, text, pick]);
 }
 
+/** Clicks the first VISIBLE element matching `selector` once it appears (an aria-labelled ⋯ has no text). */
+function useClickSelector(selector: string | null) {
+  useEffect(() => {
+    if (!selector) return;
+    let tries = 0;
+    const t = window.setInterval(() => {
+      const el = Array.from(document.querySelectorAll<HTMLElement>(selector)).find((e) => e.offsetParent !== null);
+      if (el) { window.clearInterval(t); el.click(); }
+      else if (++tries > 100) window.clearInterval(t);
+    }, 50);
+    return () => window.clearInterval(t);
+  }, [selector]);
+}
+
 function Toasts({ second }: { second: boolean }) {
   const { toast } = useToast();
   useEffect(() => {
@@ -92,6 +108,7 @@ function stubFor(screen: ClientScreen): StubConfig {
     const checklist = screen === "bookings-booked" ? { flights: "booked", stays: "booked", car: "booked" } : null;
     return { userId: OWNER, tables: bookingTables(checklist), api: { "/api/booking/airports": { airports: ["FLR", "PSA"] } } };
   }
+  if (screen === "past-menu" || screen.startsWith("copy-sheet")) return { userId: OWNER, tables: copyTables() };
   return { userId: OWNER, tables: {} };
 }
 
@@ -103,6 +120,7 @@ function Screen({ screen }: { screen: ClientScreen }) {
       : null,
   );
   // The hand-add screens: search "mfuwe bus" and pick the station.
+  useClickSelector(screen === "past-menu" ? '[aria-label="Options for New York (Mia & Daddy)"]' : screen === "copy-sheet-dates" ? '[data-testid="copy-start"]' : null);
   useTypeAndPick(screen === "add-leg" || screen === "add-leg-from" ? { placeholder: "Search", text: "mfuwe bus", pick: "Mfuwe Bus Station" } : null);
 
   if (screen === "day" || screen === "day-welcome") {
@@ -124,6 +142,12 @@ function Screen({ screen }: { screen: ClientScreen }) {
   }
   if (screen.startsWith("bookings")) {
     return <DocumentsSheet tripId={TRIP_ID} onClose={noop} onImport={noop} />;
+  }
+  if (screen === "past-menu") {
+    return <div className="px-4 pt-3"><PastJourneysList trips={[pastTrip(), pastTrip()].map((t, i) => (i ? { ...t, id: "trip-preview-cr", title: "Costa Rica", start_date: "2026-03-04", end_date: "2026-03-14" } : t))} hrefByTrip={{}} userId={OWNER} /></div>;
+  }
+  if (screen.startsWith("copy-sheet")) {
+    return <CopyJourneySheet trip={pastTrip()} onClose={noop} today={COPY_TODAY} />;
   }
   return <Toasts second={screen === "toasts-second"} />;
 }

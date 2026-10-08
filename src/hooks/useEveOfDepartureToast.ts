@@ -32,7 +32,7 @@ async function loadRows(tripId: string) {
     supabase.auth.getSession(),
     supabase.from("trips").select("id, user_id, destination, start_date, end_date, party_size, party_ages, booking_checklist").eq("id", tripId).maybeSingle(),
     supabase.from("days").select("id, date").eq("trip_id", tripId),
-    supabase.from("cards").select("id, day_id, place_id, status, start_time, end_time, details, place:places(sub_type, title, address)").eq("trip_id", tripId).not("day_id", "is", null),
+    supabase.from("cards").select("id, day_id, place_id, status, confirmed, start_time, end_time, details, place:places(sub_type, title, address)").eq("trip_id", tripId).not("day_id", "is", null),
     supabase.from("people").select("birthdate").eq("trip_id", tripId),
   ]);
   const uid = session?.session?.user?.id ?? null;

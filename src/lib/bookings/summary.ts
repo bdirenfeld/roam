@@ -1,5 +1,6 @@
 import { stayRuns, type StayCard } from "@/lib/stays/stayRuns";
 import { townFromAddress } from "@/lib/stays/brief";
+import { isToBook } from "@/lib/trips/copyJourney";
 
 /**
  * The Bookings row in a journey's Settings (1 Oct 2026): one line per kind —
@@ -12,6 +13,7 @@ import { townFromAddress } from "@/lib/stays/brief";
 
 export interface BookingCard extends StayCard {
   day_id: string | null;
+  confirmed?: boolean | null;
   details?: Record<string, unknown> | null;
   place?: { sub_type?: string | null; title?: string | null; address?: string | null } | null;
 }
@@ -28,7 +30,8 @@ export function range(a: string, b: string): string {
 }
 
 const FLIGHT = new Set(["flight_arrival", "flight_departure"]);
-const booked = (c: BookingCard) => !!c.day_id && c.status !== "interested" && c.status !== "cut";
+// A copied journey's placeholders (lib/trips/copyJourney) are not bookings yet (7 Oct 2026).
+const booked = (c: BookingCard) => !!c.day_id && c.status !== "interested" && c.status !== "cut" && !isToBook(c);
 const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
 
 /** Where a flight goes, in a word or two: the city it lands in. */

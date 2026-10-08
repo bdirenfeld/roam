@@ -10,6 +10,7 @@ export const CLIENT_SCREENS = [
   "time", "time-cleared",
   "bookings-open", "bookings-asking", "bookings-booked",
   "toasts", "toasts-second",
+  "past-menu", "copy-sheet", "copy-sheet-dates",
 ] as const;
 export type ClientScreen = (typeof CLIENT_SCREENS)[number];
 

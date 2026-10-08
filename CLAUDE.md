@@ -2408,3 +2408,21 @@ Approved scope only. Find KEEPS its two-level filters (Activity / Food, then kin
   door), the caption once, pills behind "Change how you travel". Hand-add = From only; pills once From is set, none
   picked; no mode means no mode word (legModeWord returns "") and withFrom no longer sets drive. Harness screens:
   card-leg, add-leg (no stay the night before), add-leg-from (last night's stay).
+
+## Copy to new dates (7 Oct 2026, mock t07)
+- Doors, owner only: a past journey row's ⋯ (`PastJourneysList`, new `ui/JourneyMenu`, 44px rows), the upcoming
+  card's ⋯ (`TripCard owner`), Journey settings' manage row. Sheet: `trip/CopyJourneySheet` (start = same weekday
+  52 weeks on, end follows; ages a year older via `agesOn`; switch for saved places, hidden at 0).
+- `lib/trips/copyJourney` is the one rule (pure); `POST /api/trips/copy` writes as the user (RLS + explicit owner
+  check): trip, days, cards in three statements, and `deleteJourney` on the new trip if days/cards are refused.
+  No migration. No share_token, no trip_members, `booking_checklist: {}`, lists not copied (list_id null).
+- Copied flights / hotels / rental cars / anything confirmed come back `confirmed: false` with
+  `details.to_book = true`; booking-only keys stripped (confirmation, flight_number, seat, paid_*; a "found"
+  cost_source with its cost), check_out / check_out_date / end_date / drop_off shifted by the day offset.
+  `isToBook(c)` = to_book && !confirmed — the card sheet's Booked switch ends it with no extra write.
+  Placeholders never tick Bookings rows or the Settings Bookings lines (selects now read `confirmed`); the Stays
+  row names last time's hotel: "11 Howard · 22–25 Jul · book again". CardBadges shows "To book" for them.
+- Upload onto a placeholder (`lib/confirmations/fillPlaceholder`): same day + same place (or Google id) → a
+  booked card keeps old behaviour (missing time only); an unbooked one takes the booking's times and booking
+  keys and loses to_book. Flights prefer the same kind (arrival/departure) at that airport.
+- Harness screens: past-menu, copy-sheet, copy-sheet-dates.

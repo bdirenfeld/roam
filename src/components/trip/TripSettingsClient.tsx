@@ -12,6 +12,7 @@ import PartyPicker from "@/components/trip/PartyPicker";
 import { partyFrom, agesFrom, partySize as sizeOf } from "@/lib/party";
 import EntrySection from "./EntrySection";
 import BookingsSection from "./BookingsSection";
+import CopyJourneySheet from "./CopyJourneySheet";
 import { createShareLink, revokeShareLink, removeGuest, loadShareState } from "@/lib/share-actions";
 
 /** A guest on a shared journey, as the Settings page loads it server-side. */
@@ -98,6 +99,18 @@ export default function TripSettingsClient({
   scrollTo = null,
 }: Props) {
   const router = useRouter();
+  // Copy to new dates is the owner's alone (7 Oct 2026); a cohost reaches
+  // Settings too. The stored session, no round trip.
+  const [isOwner, setIsOwner] = useState(false);
+  const [copying, setCopying] = useState(false);
+  useEffect(() => {
+    let off = false;
+    // Optional chaining: a host (or a test) whose client has no auth simply shows no copy.
+    createClient().auth?.getSession?.()
+      .then(({ data }) => { if (!off) setIsOwner(data.session?.user?.id === trip.user_id); })
+      .catch(() => {});
+    return () => { off = true; };
+  }, [trip.user_id]);
   const overlay = variant === "overlay";
   const scrollerRef = useRef<HTMLDivElement>(null);
 
@@ -898,7 +911,18 @@ export default function TripSettingsClient({
 
         {/* ── Manage journey — quiet text links. An archived journey offers
             Restore in place of Archive; both write through setTripArchived. ── */}
-        <div className="py-8 flex items-center justify-center gap-3">
+        <div className="py-8 flex flex-wrap items-center justify-center gap-x-3">
+          {isOwner && (
+            <>
+              <button
+                onClick={() => setCopying(true)}
+                className="text-[12px] text-gray-500 cursor-pointer active:opacity-60 transition-opacity px-3 py-3"
+              >
+                Copy to new dates
+              </button>
+              <span className="text-gray-300 text-[12px]">·</span>
+            </>
+          )}
           <button
             onClick={trip.archived ? handleRestore : handleArchive}
             className="text-[12px] text-gray-400 italic cursor-pointer active:opacity-60 transition-opacity px-3 py-3"
@@ -916,6 +940,8 @@ export default function TripSettingsClient({
         </div>
 
       </div>{/* end scrollable */}
+
+      {copying && <CopyJourneySheet trip={trip} onClose={() => setCopying(false)} onCopied={variant === "overlay" ? onDismiss : undefined} />}
 
       {/* ── Delete confirmation sheet ── */}
       {showDeleteConfirm && (

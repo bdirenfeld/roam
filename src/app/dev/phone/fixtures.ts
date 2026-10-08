@@ -229,3 +229,17 @@ export const ADD_LEG_API = {
     result: { name: "Mfuwe Bus Station", formatted_address: "Mfuwe, Zambia", geometry: { location: { lat: -13.2549974, lng: 31.9326952 } }, types: ["bus_station"] },
   },
 };
+
+// ── Copy to new dates (7 Oct 2026) ─────────────────────────────────────────
+// A past long weekend like New York (Mia & Daddy): Thursday to Sunday, a
+// grown-up and a kid, three places saved on the map. Dated in 2026 so it is
+// past; the sheet is pinned to "today" so its suggested start is fixed.
+export const COPY_TODAY = "2026-10-07";
+export const pastTrip = (): Trip => trip("2026-07-23", "2026-07-26", {
+  id: "trip-preview-ny", title: "New York (Mia & Daddy)", destination: "New York, NY, USA",
+  destination_lat: 40.7128, destination_lng: -74.006, party_size: 2, party_ages: [42, 7],
+});
+export function copyTables() {
+  const saved = ["Sloomoo Institute", "Joe's Pizza", "The High Line"].map((title, i) => ({ id: `saved-${i}`, status: "interested", archived: false, place_id: `place-${i}`, title }));
+  return { cards: saved, trips: [pastTrip()] };
+}
