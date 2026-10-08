@@ -4,7 +4,7 @@
 
 /** Rendered in the browser by PhoneHarness over the stubbed data layer. */
 export const CLIENT_SCREENS = [
-  "day", "day-welcome", "day-nextdoor", "day-map", "day-map-trip", "day-map-next",
+  "day", "day-welcome", "day-nextdoor", "day-map", "day-map-trip", "day-map-next", "day-lucca", "day-lucca-map",
   "card-cost", "card-closed", "card-late", "card-fit", "card-leg",
   "add-leg", "add-leg-from",
   "time", "time-cleared",

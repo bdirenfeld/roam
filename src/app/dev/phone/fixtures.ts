@@ -150,11 +150,32 @@ export function nextDoorDay(day: Day): DayWithCards {
   };
 }
 
+/** A Lucca day like Brennan's Tuesday (8 Oct 2026): six stops in the old town
+ * and the villa (stop 4) out in the hills, so zoomed to the whole day the town's
+ * six crowd into one pile — "1–3 · 5–7", the villa apart. */
+export function luccaDay(day: Day): DayWithCards {
+  const c = (id: string, p: Place, start: string, pos: number) => card(id, day.id, p, { start_time: start, position: pos });
+  return {
+    ...day,
+    cards: [
+      c("l-pinelli", place("p-pinelli", { title: "Pinelli Bakery", type: "food", sub_type: "coffee", lat: 43.8420969, lng: 10.5029626 }), "09:00:00", 8),
+      c("l-michele", place("p-michele", { title: "Piazza San Michele", sub_type: "self_directed", lat: 43.8430907, lng: 10.5031507 }), "10:00:00", 4),
+      c("l-buca", place("p-bucasa", { title: "Buca di Sant'Antonio", type: "food", sub_type: "restaurant", lat: 43.842762, lng: 10.5016987 }), "12:45:00", 5),
+      c("l-villa", place("p-villa", { title: "Villa Zambaldi", type: "logistics", sub_type: "hotel", lat: 43.8298808, lng: 10.4497198 }), "14:00:00", 2),
+      c("l-taddeucci", place("p-taddeucci", { title: "Buccellato Taddeucci", type: "food", sub_type: "dessert", lat: 43.842987, lng: 10.5031921 }), "15:15:00", 6),
+      c("l-fillungo", place("p-fillungo", { title: "Via Fillungo", sub_type: "shopping", lat: 43.8453423, lng: 10.5049652 }), "16:00:00", 3),
+      c("l-ciacco", place("p-ciacco", { title: "Ciacco", type: "food", sub_type: "restaurant", lat: 43.841865, lng: 10.5026964 }), "19:30:00", 7),
+    ],
+  };
+}
+
 /** The journey around nextDoorDay: its own stops, another day's, and saved places. */
 export function nextDoorJourney(ds: Day[]): Card[] {
   const saved = (id: string, p: Place) => card(id, null, p, { status: "interested" as Card["status"] });
   return [
     ...nextDoorDay(ds[0]).cards,
+    // Saved before it went on the day: the same place twice, one pin on the map.
+    saved("n-pan-saved", place("p-panetteria", { title: "Panetteria De Neri", type: "food", sub_type: "restaurant", lat: 43.7679671, lng: 11.2588158 })),
     card("n-david", ds[1].id, place("p-david", { title: "David", sub_type: "guided", lat: 43.7767194, lng: 11.2593217 }), { start_time: "10:00:00" }),
     saved("n-gilli", place("p-gilli", { title: "Caffè Gilli", type: "food", sub_type: "coffee", lat: 43.7719748, lng: 11.2541636 })),
     saved("n-repubblica", place("p-repubblica", { title: "Piazza della Repubblica", sub_type: "self_directed", lat: 43.7715112, lng: 11.2539314 })),

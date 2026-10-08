@@ -65,3 +65,43 @@ export function pileRing(counts: Record<string, number>, colours: Record<string,
   }
   return `conic-gradient(${arcs.join(", ")})`;
 }
+
+/**
+ * What a pile of the day's stops says (8 Oct 2026, Brennan's Lucca day: the
+ * strip read "1·2·3·5·6·7" and the map "1–7", though 4 was the hotel, apart).
+ * Runs of three or more as a range, the rest one by one: "1–3 · 5–7", "2 · 4".
+ * One function, so the strip and the map can never say different things.
+ */
+export function pileLabel(nums: number[]): string {
+  const s = Array.from(new Set(nums)).sort((a, b) => a - b);
+  const parts: string[] = [];
+  for (let i = 0; i < s.length; ) {
+    let j = i;
+    while (j + 1 < s.length && s[j + 1] === s[j] + 1) j++;
+    if (j - i >= 2) parts.push(`${s[i]}–${s[j]}`);
+    else for (let k = i; k <= j; k++) parts.push(String(s[k]));
+    i = j + 1;
+  }
+  return parts.join(" · ");
+}
+
+/**
+ * One pin per place (8 Oct 2026, Brennan: "why are the pins duplicated?").
+ * A place saved and then put on a day has two cards at the same spot; piled,
+ * one hid the other, but side by side they showed as twins. Keeps the card the
+ * map should show (the chosen day's stop, else one on a day, else the saved
+ * one) and returns the ids of the rest, to draw nowhere.
+ */
+export function twinsToHide(
+  cards: { id: string; place_id: string | null; status: string | null }[],
+  prefer: (id: string) => boolean = () => false,
+): Set<string> {
+  const rank = (c: { id: string; status: string | null }) => (prefer(c.id) ? 2 : c.status === "in_itinerary" ? 1 : 0);
+  const best = new Map<string, { id: string; status: string | null }>();
+  for (const c of cards) {
+    if (!c.place_id) continue;
+    const cur = best.get(c.place_id);
+    if (!cur || rank(c) > rank(cur)) best.set(c.place_id, c);
+  }
+  return new Set(cards.filter((c) => c.place_id && best.get(c.place_id)!.id !== c.id).map((c) => c.id));
+}

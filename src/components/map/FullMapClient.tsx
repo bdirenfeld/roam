@@ -5,8 +5,9 @@ import { stackOrder, restack } from "@/lib/map/pinStack";
 import { dayChip, spansMonths } from "@/lib/dayChip";
 import { startZoomFor } from "@/lib/places/regions";
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { dayPinNumbers, pinOpacity, MUTED_PIN_OPACITY } from "@/lib/map/dayFocus";
-import { layoutPins, pileRing, type LayoutPin } from "@/lib/map/pinLayout";
+import { dayPinNumbers, pinOpacity, stayPlaceFor, MUTED_PIN_OPACITY } from "@/lib/map/dayFocus";
+import { layoutPins, pileLabel, twinsToHide, type LayoutPin } from "@/lib/map/pinLayout";
+import { makePileElement } from "@/lib/map/pileElement";
 import { pileZoom } from "@/lib/map/stackGroups";
 import { useRouter, useSearchParams } from "next/navigation";
 import MapPinPopup from "./MapPinPopup";
@@ -339,6 +340,17 @@ export default function FullMapClient({ trip, days, cards, readOnly = false, emb
   }, [enterPick, readOnly]); // eslint-disable-line react-hooks/exhaustive-deps
   // The chosen day's stops, numbered as the day's list numbers them (lib/map/dayFocus).
   const dayNumbers = useMemo(() => dayPinNumbers(localCards, focusDayId), [localCards, focusDayId]);
+  // …and that night's stay, starred and full strength like the strip's hotel
+  // (8 Oct 2026, Brennan). One pin for it: today's own card of the hotel when
+  // it is a stop, else the first; its other cards (check-out) step aside.
+  const stay = useMemo(() => {
+    const placeId = stayPlaceFor(localCards, days, trip.end_date, focusDayId);
+    const at = placeId ? localCards.filter((c) => c.place_id === placeId && isRealPlace(c)) : [];
+    const pick = at.find((c) => dayNumbers.has(c.id)) ?? at[0];
+    return { id: pick?.id ?? null, others: new Set(at.filter((c) => c !== pick).map((c) => c.id)) };
+  }, [localCards, days, trip.end_date, focusDayId, dayNumbers]);
+  const stayRef = useRef(stay);
+  stayRef.current = stay;
   // rings and fades follow the picked set; with a day chosen (the day page's
   // map) its stops carry their number and every other pin is muted.
   useEffect(() => {
@@ -347,7 +359,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false, emb
       const inner = el.children[0] as HTMLElement | undefined; if (!inner) return;
       const on = pickedIds.has(id);
       inner.style.boxShadow = on ? "0 0 0 3px #fff, 0 0 0 5px #1A1A2E" : "";
-      const dayOp = pinOpacity(id, dayNumbers, focusDayId);
+      const dayOp = id === stay.id ? 1 : pinOpacity(id, dayNumbers, focusDayId);
       inner.style.opacity = pickMode && pickedIds.size > 0 && !on ? "0.35" : dayOp < 1 ? String(dayOp) : "";
       if (on) inner.style.transform = "scale(1.25)"; else if (inner.dataset.selected !== "1") inner.style.transform = "";
       const n = dayNumbers.get(id);
@@ -370,10 +382,26 @@ export default function FullMapClient({ trip, days, cards, readOnly = false, emb
         el.style.zIndex = "3";
       } else {
         tag?.remove();
-        el.style.zIndex = "";
+        el.style.zIndex = id === stay.id ? "3" : "";
       }
+      // The night's stay wears the strip's gold star (components/day/DayMap).
+      let star = el.querySelector<HTMLElement>("[data-stay-star]");
+      if (id === stay.id) {
+        if (!star) {
+          star = document.createElement("span");
+          star.dataset.stayStar = "";
+          star.style.cssText =
+            "position:absolute;bottom:-3px;right:-3px;width:13px;height:13px;border-radius:50%;background:white;" +
+            "display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(0,0,0,0.25);" +
+            "font-size:8px;line-height:1;color:#F5A623;pointer-events:none;z-index:2;";
+          star.textContent = "★";
+          el.style.overflow = "visible";
+          el.appendChild(star);
+        }
+      } else star?.remove();
     });
-  }, [pickMode, pickedIds, dayNumbers, focusDayId, mapReady]);
+    layoutRef.current();
+  }, [pickMode, pickedIds, dayNumbers, focusDayId, mapReady, stay]);
 
   // The day page's map frames the chosen day, or the whole trip when none is
   // chosen; a later change of day glides there. Once per change, so a pinch is never undone.
@@ -385,7 +413,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false, emb
     if (!isEmbedded || !mapReady || !map || !mb || fittedDayRef.current === focusDayId) return;
     const first = fittedDayRef.current === undefined;
     fittedDayRef.current = focusDayId;
-    const shown = focusDayId ? localCards.filter((c) => dayNumbers.has(c.id)) : localCards.filter(isRealPlace);
+    const shown = focusDayId ? localCards.filter((c) => dayNumbers.has(c.id) || c.id === stay.id) : localCards.filter(isRealPlace);
     const coords = shown.map((c) => [c.place!.lng!, c.place!.lat!] as [number, number]);
     if (coords.length === 0) return;
     if (coords.length === 1) {
@@ -397,7 +425,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false, emb
       new mb.LngLatBounds(coords[0], coords[0]),
     );
     map.fitBounds(bounds, { padding: { top: 64, bottom: 72, left: 44, right: 44 }, maxZoom: focusDayId ? 15 : 13, animate: !first, duration: 700 });
-  }, [isEmbedded, mapReady, focusDayId, dayNumbers, localCards]);
+  }, [isEmbedded, mapReady, focusDayId, dayNumbers, localCards, stay]);
 
   // ── The day page's pin layout (lib/map/pinLayout, 8 Oct 2026) ──────────
   // Two or three touching pins sit side by side; a crowd is one count pin
@@ -414,35 +442,32 @@ export default function FullMapClient({ trip, days, cards, readOnly = false, emb
     pileMarkersRef.current = [];
     if (!map || !mb) return;
     const shown: LayoutPin[] = [];
+    // One pin per place: a saved place later put on a day has two cards at one spot (lib/map/pinLayout twinsToHide).
+    const twins = embedded ? twinsToHide(Array.from(MARKERS.values()).map((m) => m.cardRef.current), (cid) => dayNumbersRef.current.has(cid) || cid === stayRef.current.id) : new Set<string>();
     MARKERS.forEach(({ marker, cardRef }, id) => {
       marker.setOffset([0, 0]);
       const el = marker.getElement() as HTMLElement;
       el.style.visibility = "";
       const c = cardRef.current;
       if (!embedded || !el.isConnected || !c.place) return;
+      if (twins.has(id) || stayRef.current.others.has(id)) { el.style.visibility = "hidden"; return; }
       const p = map.project([c.place.lng!, c.place.lat!]) as { x: number; y: number };
-      shown.push({ id, x: p.x, y: p.y, day: dayNumbersRef.current.has(id), type: c.place.type });
+      shown.push({ id, x: p.x, y: p.y, day: dayNumbersRef.current.has(id) || id === stayRef.current.id, type: c.place.type });
     });
     if (!embedded) return;
     const layout = layoutPins(shown, 32);
     layout.offsets.forEach((o, id) => MARKERS.get(id)?.marker.setOffset(o));
     layout.hidden.forEach((id) => { const el = MARKERS.get(id)?.marker.getElement() as HTMLElement | undefined; if (el) el.style.visibility = "hidden"; });
     for (const pile of layout.piles) {
-      const nums = pile.ids.map((id) => dayNumbersRef.current.get(id)).filter((n): n is number => n != null).sort((a, b) => a - b);
-      const el = document.createElement("div");
-      el.setAttribute("role", "button");
-      el.setAttribute("aria-label", pile.day ? `Stops ${nums[0]} to ${nums[nums.length - 1]}` : `${pile.ids.length} places here`);
-      el.dataset.pile = pile.day ? "day" : "saved";
-      const size = pile.day ? 48 : 44; // 44 to the finger (phone harness)
-      el.style.cssText =
-        `width:${size}px;height:${size}px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;` +
-        `background:${pileRing(pile.counts, PIN_COLORS)};box-shadow:${pile.day ? "0 0 0 3px #fff, " : ""}0 2px 6px rgba(0,0,0,0.3);z-index:${pile.day ? 4 : 2};` +
-        (focusDayRef.current && !pile.day ? `opacity:${MUTED_PIN_OPACITY};` : "");
-      const disc = document.createElement("span");
-      disc.style.cssText = `width:${size - 12}px;height:${size - 12}px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;` +
-        "font-family:'DM Sans',Inter,system-ui,sans-serif;font-size:13px;font-weight:700;color:#1A1A2E;white-space:nowrap;";
-      disc.textContent = pile.day ? `${nums[0]}–${nums[nums.length - 1]}` : String(pile.ids.length);
-      el.appendChild(disc);
+      const nums = pile.ids.map((id) => dayNumbersRef.current.get(id)).filter((n): n is number => n != null);
+      const withStay = pile.ids.includes(stayRef.current.id ?? "");
+      const label = pile.day ? [pileLabel(nums), withStay ? "★" : ""].filter(Boolean).join(" · ") : String(pile.ids.length);
+      // The strip draws the same pin (lib/map/pileElement), so the two maps agree.
+      const el = makePileElement({
+        label, counts: pile.counts, colours: PIN_COLORS, day: pile.day,
+        ariaLabel: pile.day ? `Stops ${label}` : `${pile.ids.length} places here`,
+        muted: focusDayRef.current && !pile.day ? MUTED_PIN_OPACITY : undefined,
+      });
       const ll = pile.ids.map((id) => MARKERS.get(id)!.cardRef.current.place!).map((p) => [p.lng!, p.lat!] as [number, number]);
       el.addEventListener("click", (e) => {
         e.stopPropagation();
