@@ -5,6 +5,7 @@
 //
 //   /dev/phone/day             Day 1 of a Tuscany-like journey: timed + untimed + an overland leg
 //   /dev/phone/day-welcome     two days after the journey: Welcome home
+//   /dev/phone/day-nextdoor    a Florence day over real tiles: stops 2 and 4 next door, side by side
 //   /dev/phone/card-cost       card sheet: €29 × 2
 //   /dev/phone/card-closed     card sheet: closed on the card's Monday
 //   /dev/phone/card-late       card sheet: finishing after it closes

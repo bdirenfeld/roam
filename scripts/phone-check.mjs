@@ -52,7 +52,7 @@ const HEIGHT = Number(flag("height", "812"));
 
 // Same list as src/app/dev/phone/screens.ts.
 const ALL = [
-  "day", "day-welcome",
+  "day", "day-welcome", "day-nextdoor",
   "card-cost", "card-closed", "card-late", "card-fit", "card-leg",
   "add-leg", "add-leg-from",
   "time", "time-cleared",
@@ -67,7 +67,7 @@ const SCREENS = picked.length ? picked : ALL;
 // The Map screens draw real tiles, so Mapbox resolves for a run that includes one
 // (the page side lets only those hosts through on those screens: src/app/dev/phone/stub.ts passHosts).
 const MAPBOX_RULES = ", EXCLUDE api.mapbox.com, EXCLUDE *.tiles.mapbox.com, EXCLUDE events.mapbox.com";
-const NEEDS_MAPBOX = SCREENS.some((x) => x.startsWith("map"));
+const NEEDS_MAPBOX = SCREENS.some((x) => x.startsWith("map") || x === "day-nextdoor");
 
 // What each screen is for. `has` must be in the page text (folded <details>
 // count), `not` must not; `sel`/`noSel` are selectors that must / must not match.

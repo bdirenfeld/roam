@@ -33,5 +33,24 @@ export function pileZoom(current: number, fit: number | null | undefined, step =
   return Math.min(want, max);
 }
 
+/**
+ * Two or three touching pins sit side by side instead of piling (8 Oct 2026,
+ * mock "pins4"): a pile hid each stop's colour and icon, so a food stop next to
+ * an activity read as one thing. Larger crowds still pile and zoom on a tap.
+ */
+export const SIDE_BY_SIDE_MAX = 3;
+
+/**
+ * Where each pin of a small group moves to, as an offset from its own screen
+ * point: all on one row through the group's centre, `gap` px apart, in input
+ * order (so 2 sits left of 4). Returns [dx, dy] per point.
+ */
+export function sideBySide(pts: { x: number; y: number }[], gap: number): [number, number][] {
+  if (pts.length === 0) return [];
+  const cx = pts.reduce((s, p) => s + p.x, 0) / pts.length;
+  const cy = pts.reduce((s, p) => s + p.y, 0) / pts.length;
+  return pts.map((p, k) => [cx + (k - (pts.length - 1) / 2) * gap - p.x, cy - p.y]);
+}
+
 /** Two pins count as stacked once their discs overlap at all, with a little slack for the number badge. */
 export const STACK_FACTOR = 1.1;
