@@ -39,7 +39,7 @@ describe("pileZoom: a tap on a pile always zooms in", () => {
     const { readFileSync } = await import("fs");
     const { join } = await import("path");
     const src = readFileSync(join(__dirname, "..", "..", "components", "day", "DayMap.tsx"), "utf8");
-    expect(src.match(/zoomToPile\(b\)/g)?.length).toBe(3);
+    expect(src.match(/zoomToPile\(b\)/g)?.length).toBe(2);
     expect(src).toContain("pileZoom(map.getZoom()");
   });
   it("further in when the fit needs it, capped at street level", () => {

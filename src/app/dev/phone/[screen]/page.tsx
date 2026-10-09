@@ -9,7 +9,6 @@
 //   /dev/phone/day-map         the same day with its map opened in place: every saved place, the day numbered
 //   /dev/phone/day-map-trip    …then the same day tapped again: the whole trip, nothing muted
 //   /dev/phone/day-map-next    …then the next day tapped: the map goes there
-//   /dev/phone/day-lucca | day-lucca-map   Brennan's Lucca Tuesday: six town stops pile as "1–3 · 5–7", the villa apart
 //   /dev/phone/card-cost       card sheet: €29 × 2
 //   /dev/phone/card-closed     card sheet: closed on the card's Monday
 //   /dev/phone/card-late       card sheet: finishing after it closes

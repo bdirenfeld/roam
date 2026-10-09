@@ -67,23 +67,3 @@ describe("the day page's map is wired the way the spec says", async () => {
     expect(full).toContain("if (!embedded) return;\n    const layout = layoutPins(shown, 32);");
   });
 });
-
-describe("twinsToHide: one pin per place", () => {
-  it("Buca Mario saved and on a day: the day's card stays, the saved twin goes", async () => {
-    const { twinsToHide } = await import("./pinLayout");
-    const hide = twinsToHide([
-      { id: "saved", place_id: "buca-mario", status: "interested" },
-      { id: "on-day", place_id: "buca-mario", status: "in_itinerary" },
-      { id: "alone", place_id: "gilli", status: "interested" },
-    ]);
-    expect(Array.from(hide)).toEqual(["saved"]);
-  });
-  it("the chosen day's stop wins over another day's card of the same place (the villa)", async () => {
-    const { twinsToHide } = await import("./pinLayout");
-    const hide = twinsToHide([
-      { id: "check-in", place_id: "villa", status: "in_itinerary" },
-      { id: "check-out", place_id: "villa", status: "in_itinerary" },
-    ], (id) => id === "check-out");
-    expect(Array.from(hide)).toEqual(["check-in"]);
-  });
-});

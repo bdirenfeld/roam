@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { dayPinNumbers, pinOpacity, stayPlaceFor, MUTED_PIN_OPACITY, type FocusCard } from "./dayFocus";
+import { dayPinNumbers, pinOpacity, MUTED_PIN_OPACITY, type FocusCard } from "./dayFocus";
 
 const at = (lat: number, lng: number) => ({ lat, lng, sub_type: null });
 const card = (id: string, day: string | null, start: string | null, position: number, over: Partial<FocusCard> = {}): FocusCard => ({
@@ -44,18 +44,5 @@ describe("pinOpacity: the day stands out, the rest stays as context", () => {
   });
   it("the whole trip: nothing muted", () => {
     expect(pinOpacity("thu", new Map(), null)).toBe(1);
-  });
-});
-
-describe("stayPlaceFor: the night's hotel comes with the day", () => {
-  const days = [{ id: "d1", date: "2027-08-24" }, { id: "d2", date: "2027-08-25" }, { id: "d3", date: "2027-08-26" }];
-  const villa = { id: "villa-in", day_id: "d1", place_id: "villa", status: "in_itinerary", start_time: "14:00:00", place: { sub_type: "hotel", title: "Villa Zambaldi" } };
-  it("checked in on Tuesday, still there Wednesday and Thursday (Brennan's Sunday in Colonnata had no star)", () => {
-    expect(stayPlaceFor([villa], days, "2027-09-04", "d1")).toBe("villa");
-    expect(stayPlaceFor([villa], days, "2027-09-04", "d3")).toBe("villa");
-  });
-  it("no day chosen, or no hotel: nothing", () => {
-    expect(stayPlaceFor([villa], days, "2027-09-04", null)).toBeNull();
-    expect(stayPlaceFor([], days, "2027-09-04", "d2")).toBeNull();
   });
 });
