@@ -62,9 +62,8 @@ export default function DayTripMap({ trip, days, focusDayId, topFrom, readOnly =
     return () => { live = false; };
   }, [trip.id]);
 
-  // z-25: under the day header (z-30), so its ⋯ menu opens over the map, not behind it (8 Oct 2026).
   return (
-    <div data-testid="day-trip-map" className="md:hidden fixed left-0 right-0 bottom-0 z-[25] bg-[#EEE9E2]" style={{ top }}>
+    <div data-testid="day-trip-map" className="md:hidden fixed left-0 right-0 bottom-0 z-[45] bg-[#EEE9E2]" style={{ top }}>
       {cards && (
         <FullMapClient trip={trip} days={days} cards={cards} readOnly={readOnly} embedded={{ focusDayId, onClose }} />
       )}

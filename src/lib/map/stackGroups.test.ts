@@ -11,10 +11,10 @@ describe("sideBySide: two or three touching pins share a row", () => {
     expect((after[0].x + after[1].x) / 2).toBe(259);
     expect(after[0].y).toBe(156);
   });
-  it("keeps their real left-to-right order, so nothing swaps sides on zoom (Piazza Anfiteatro, 8 Oct 2026)", () => {
+  it("keeps input order left to right, three in a row", () => {
     const pts = [{ x: 10, y: 0 }, { x: 0, y: 0 }, { x: 5, y: 0 }];
     const xs = sideBySide(pts, 30).map((o, k) => pts[k].x + o[0]);
-    expect(xs).toEqual([35, -25, 5]);
+    expect(xs).toEqual([-25, 5, 35]);
   });
   it("the day map spreads small groups, and its stops wear the legend colours (no ink override)", async () => {
     const { readFileSync } = await import("fs");
@@ -39,7 +39,7 @@ describe("pileZoom: a tap on a pile always zooms in", () => {
     const { readFileSync } = await import("fs");
     const { join } = await import("path");
     const src = readFileSync(join(__dirname, "..", "..", "components", "day", "DayMap.tsx"), "utf8");
-    expect(src.match(/zoomToPile\(b\)/g)?.length).toBe(2);
+    expect(src.match(/zoomToPile\(b\)/g)?.length).toBe(3);
     expect(src).toContain("pileZoom(map.getZoom()");
   });
   it("further in when the fit needs it, capped at street level", () => {

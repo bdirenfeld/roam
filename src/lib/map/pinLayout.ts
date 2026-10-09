@@ -2,35 +2,87 @@ import { stackGroups, sideBySide, SIDE_BY_SIDE_MAX, STACK_FACTOR } from "./stack
 
 /**
  * Where the pins on the day page's map go at this zoom (8 Oct 2026, spec:
- * docs/phone-map-one-page-spec.html).
+ * docs/phone-map-one-page-spec.html, mocks "pins4" and "all2").
  *
  *  - Two or three pins that would touch sit side by side, each keeping its
  *    legend colour and icon.
- *  - Nothing is ever merged into one pin. A count pin and a fan-out were both
- *    tried the same evening; Brennan: "I just don't want it to be clustered …
- *    it just looks like a huge blob." A bigger crowd is drawn where it is.
- *  - The chosen day's stops only ever sit beside each other, never beside the
- *    saved places around them.
+ *  - A crowd (four or more) becomes one round pin with a count; its ring shows
+ *    the mix of types. A tap zooms in until they come apart.
+ *  - The chosen day's stops only ever group with each other, never with the
+ *    saved places around them, so the day never disappears into a crowd.
  */
 export type LayoutPin = { id: string; x: number; y: number; day: boolean; type: string };
+
+export type Pile = { ids: string[]; x: number; y: number; day: boolean; counts: Record<string, number> };
 
 export type PinLayout = {
   /** Screen offset per spread pin, [dx, dy]. Pins not listed sit where they are. */
   offsets: Map<string, [number, number]>;
+  /** Pins drawn as part of a pile instead of on their own. */
+  hidden: Set<string>;
+  piles: Pile[];
 };
 
 export function layoutPins(pins: LayoutPin[], pinPx: number): PinLayout {
-  const out: PinLayout = { offsets: new Map() };
+  const out: PinLayout = { offsets: new Map(), hidden: new Set(), piles: [] };
   for (const day of [true, false]) {
     const set = pins.filter((p) => p.day === day);
     for (const g of stackGroups(set, pinPx * STACK_FACTOR)) {
-      if (g.length < 2 || g.length > SIDE_BY_SIDE_MAX) continue;
+      if (g.length < 2) continue;
       const members = g.map((k) => set[k]);
-      const offs = sideBySide(members, pinPx + 4);
-      members.forEach((m, k) => out.offsets.set(m.id, offs[k]));
+      if (g.length <= SIDE_BY_SIDE_MAX) {
+        const offs = sideBySide(members, pinPx + 4);
+        members.forEach((m, k) => out.offsets.set(m.id, offs[k]));
+        continue;
+      }
+      const counts: Record<string, number> = {};
+      members.forEach((m) => { counts[m.type] = (counts[m.type] ?? 0) + 1; out.hidden.add(m.id); });
+      out.piles.push({
+        ids: members.map((m) => m.id),
+        x: members.reduce((s, m) => s + m.x, 0) / members.length,
+        y: members.reduce((s, m) => s + m.y, 0) / members.length,
+        day,
+        counts,
+      });
     }
   }
   return out;
+}
+
+/** The ring around a pile: one arc per type in the legend's order, sized by count (a CSS conic-gradient). */
+export function pileRing(counts: Record<string, number>, colours: Record<string, string>): string {
+  const order = ["food", "activity", "logistics"];
+  const total = order.reduce((s, t) => s + (counts[t] ?? 0), 0);
+  if (total === 0) return "#1A1A2E";
+  let at = 0;
+  const arcs: string[] = [];
+  for (const t of order) {
+    const n = counts[t] ?? 0;
+    if (!n) continue;
+    const to = at + (n / total) * 360;
+    arcs.push(`${colours[t]} ${Math.round(at)}deg ${Math.round(to)}deg`);
+    at = to;
+  }
+  return `conic-gradient(${arcs.join(", ")})`;
+}
+
+/**
+ * What a pile of the day's stops says (8 Oct 2026, Brennan's Lucca day: the
+ * strip read "1·2·3·5·6·7" and the map "1–7", though 4 was the hotel, apart).
+ * Runs of three or more as a range, the rest one by one: "1–3 · 5–7", "2 · 4".
+ * One function, so the strip and the map can never say different things.
+ */
+export function pileLabel(nums: number[]): string {
+  const s = Array.from(new Set(nums)).sort((a, b) => a - b);
+  const parts: string[] = [];
+  for (let i = 0; i < s.length; ) {
+    let j = i;
+    while (j + 1 < s.length && s[j + 1] === s[j] + 1) j++;
+    if (j - i >= 2) parts.push(`${s[i]}–${s[j]}`);
+    else for (let k = i; k <= j; k++) parts.push(String(s[k]));
+    i = j + 1;
+  }
+  return parts.join(" · ");
 }
 
 /**
