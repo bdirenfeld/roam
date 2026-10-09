@@ -5,10 +5,8 @@ import { stackOrder, restack } from "@/lib/map/pinStack";
 import { dayChip, spansMonths } from "@/lib/dayChip";
 import { startZoomFor } from "@/lib/places/regions";
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { dayPinNumbers, pinOpacity, stayPlaceFor, MUTED_PIN_OPACITY } from "@/lib/map/dayFocus";
-import { layoutPins, pileLabel, twinsToHide, type LayoutPin } from "@/lib/map/pinLayout";
-import { makePileElement } from "@/lib/map/pileElement";
-import { pileZoom } from "@/lib/map/stackGroups";
+import { dayPinNumbers, pinOpacity, stayPlaceFor } from "@/lib/map/dayFocus";
+import { layoutPins, twinsToHide, type LayoutPin } from "@/lib/map/pinLayout";
 import { useRouter, useSearchParams } from "next/navigation";
 import MapPinPopup from "./MapPinPopup";
 import { popupPanY } from "@/lib/map/popupRoom";
@@ -20,7 +18,7 @@ import AddToTripSheet from "./AddToTripSheet";
 import WhereToStaySheet from "./WhereToStaySheet";
 import type { PlaceResult } from "./AddToTripSheet";
 import type { Trip, Day, Card, CardType, StayCandidate } from "@/types/database";
-import { makeMaterialPinElement, makePinElement, PIN_COLORS } from "@/lib/mapPins";
+import { makeMaterialPinElement, makePinElement } from "@/lib/mapPins";
 import { Funnel, Heart, Files, List } from "@phosphor-icons/react";
 import { useBookingUpload } from "@/components/trip/useBookingUpload";
 import DocumentsSheet from "@/components/plan/DocumentsSheet";
@@ -424,22 +422,22 @@ export default function FullMapClient({ trip, days, cards, readOnly = false, emb
       (b: unknown, coord) => (b as { extend: (c: [number, number]) => unknown }).extend(coord),
       new mb.LngLatBounds(coords[0], coords[0]),
     );
-    map.fitBounds(bounds, { padding: { top: 64, bottom: 72, left: 44, right: 44 }, maxZoom: focusDayId ? 15 : 13, animate: !first, duration: 700 });
+    // Clear of what floats on the map: the search row on top, Filter row below,
+    // zoom and locate down the right (8 Oct 2026: Sunday's hotel sat under the zoom).
+    map.fitBounds(bounds, { padding: { top: 92, bottom: 96, left: 56, right: 72 }, maxZoom: focusDayId ? 15 : 13, animate: !first, duration: 700 });
   }, [isEmbedded, mapReady, focusDayId, dayNumbers, localCards, stay]);
 
   // ── The day page's pin layout (lib/map/pinLayout, 8 Oct 2026) ──────────
-  // Two or three touching pins sit side by side; a crowd is one count pin
-  // whose ring shows the mix; the day's stops only group with each other.
+  // Two or three touching pins sit side by side, the day's stops only with
+  // each other. Nothing is merged into one pin (Brennan, 8 Oct 2026: "I just
+  // don't want it to be clustered").
   // The Map screen itself is unchanged. Re-laid after every move.
-  const pileMarkersRef = useRef<{ remove: () => void }[]>([]);
   const dayNumbersRef = useRef(dayNumbers);
   dayNumbersRef.current = dayNumbers;
   const layoutRef = useRef<() => void>(() => {});
   layoutRef.current = () => {
     const map = mapInstRef.current;
     const mb = mbRef.current;
-    pileMarkersRef.current.forEach((m) => m.remove());
-    pileMarkersRef.current = [];
     if (!map || !mb) return;
     const shown: LayoutPin[] = [];
     // One pin per place: a saved place later put on a day has two cards at one spot (lib/map/pinLayout twinsToHide).
@@ -457,28 +455,6 @@ export default function FullMapClient({ trip, days, cards, readOnly = false, emb
     if (!embedded) return;
     const layout = layoutPins(shown, 32);
     layout.offsets.forEach((o, id) => MARKERS.get(id)?.marker.setOffset(o));
-    layout.hidden.forEach((id) => { const el = MARKERS.get(id)?.marker.getElement() as HTMLElement | undefined; if (el) el.style.visibility = "hidden"; });
-    for (const pile of layout.piles) {
-      const nums = pile.ids.map((id) => dayNumbersRef.current.get(id)).filter((n): n is number => n != null);
-      const withStay = pile.ids.includes(stayRef.current.id ?? "");
-      const label = pile.day ? [pileLabel(nums), withStay ? "★" : ""].filter(Boolean).join(" · ") : String(pile.ids.length);
-      // The strip draws the same pin (lib/map/pileElement), so the two maps agree.
-      const el = makePileElement({
-        label, counts: pile.counts, colours: PIN_COLORS, day: pile.day,
-        ariaLabel: pile.day ? `Stops ${label}` : `${pile.ids.length} places here`,
-        muted: focusDayRef.current && !pile.day ? MUTED_PIN_OPACITY : undefined,
-      });
-      const ll = pile.ids.map((id) => MARKERS.get(id)!.cardRef.current.place!).map((p) => [p.lng!, p.lat!] as [number, number]);
-      el.addEventListener("click", (e) => {
-        e.stopPropagation();
-        clickedPinRef.current = true;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const b = ll.reduce((acc: any, c) => acc.extend(c), new mb.LngLatBounds(ll[0], ll[0]));
-        const cam = map.cameraForBounds(b, { padding: 60, maxZoom: 17 }) as { zoom?: number } | undefined;
-        map.easeTo({ center: b.getCenter(), zoom: pileZoom(map.getZoom(), cam?.zoom), duration: 600 });
-      });
-      pileMarkersRef.current.push(new mb.Marker({ element: el, anchor: "center" }).setLngLat(map.unproject([pile.x, pile.y])).addTo(map));
-    }
   };
   useEffect(() => {
     const map = mapInstRef.current;

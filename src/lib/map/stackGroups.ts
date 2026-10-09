@@ -42,14 +42,17 @@ export const SIDE_BY_SIDE_MAX = 3;
 
 /**
  * Where each pin of a small group moves to, as an offset from its own screen
- * point: all on one row through the group's centre, `gap` px apart, in input
- * order (so 2 sits left of 4). Returns [dx, dy] per point.
+ * point: all on one row through the group's centre, `gap` px apart, in their
+ * real left-to-right order, so nothing swaps sides as you zoom in and the row
+ * opens back onto the true spots (8 Oct 2026, Brennan: "it switches positions
+ * when you zoom in"; the row went by list order). Returns [dx, dy] per point.
  */
 export function sideBySide(pts: { x: number; y: number }[], gap: number): [number, number][] {
   if (pts.length === 0) return [];
   const cx = pts.reduce((s, p) => s + p.x, 0) / pts.length;
   const cy = pts.reduce((s, p) => s + p.y, 0) / pts.length;
-  return pts.map((p, k) => [cx + (k - (pts.length - 1) / 2) * gap - p.x, cy - p.y]);
+  const slot = new Map(pts.map((p, i) => ({ p, i })).sort((a, b) => a.p.x - b.p.x || a.i - b.i).map((o, k) => [o.i, k]));
+  return pts.map((p, i) => [cx + (slot.get(i)! - (pts.length - 1) / 2) * gap - p.x, cy - p.y]);
 }
 
 /** Two pins count as stacked once their discs overlap at all, with a little slack for the number badge. */

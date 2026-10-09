@@ -5,12 +5,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { mapGoNow } from "@/lib/map/mapGoNow";
 import type { ReactNode } from "react";
 import type { Card } from "@/types/database";
-import { makeMaterialPinElement, PIN_COLORS } from "@/lib/mapPins";
+import { makeMaterialPinElement } from "@/lib/mapPins";
 import { legLines } from "@/lib/travel/leg";
 import { drawLegs, legStarts } from "@/lib/map/legLayer";
 import { stackGroups, STACK_FACTOR, pileZoom, sideBySide, SIDE_BY_SIDE_MAX } from "@/lib/map/stackGroups";
-import { pileLabel } from "@/lib/map/pinLayout";
-import { makePileElement } from "@/lib/map/pileElement";
 import Link from "next/link";
 import { MapTrifold } from "@phosphor-icons/react";
 
@@ -53,8 +51,6 @@ interface PinItem {
   badge: HTMLElement;
   /** Set while this pin stands for others too (they are hidden under it). */
   group: PinItem[] | null;
-  /** Its legend type, for the colour ring of a pile it joins. */
-  type: string;
   /** Its Mapbox marker, so a small group can sit side by side (setOffset). */
   marker?: { setOffset: (o: [number, number]) => unknown };
 }
@@ -309,7 +305,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
             wrapper.appendChild(homeStar);
           }
 
-          const item: PinItem = { cardId: card.id, index: i, lng, lat, wrapper, badge, group: null, type: card.place!.type };
+          const item: PinItem = { cardId: card.id, index: i, lng, lat, wrapper, badge, group: null };
           pinsRef.current.push(item);
 
           // Tap: a plain pin opens its card. A pin standing for several zooms
@@ -338,48 +334,21 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
 
         // ── Stacking ─────────────────────────────────────────────────
         // Pins that would sit on each other at this zoom: two or three sit
-        // side by side, each keeping its colour and icon (8 Oct 2026); more
-        // become one pin drawn where they are, its badge listing every number
-        // it stands for ("2 – 5"). Recomputed after every move, so a zoom in
-        // pulls them apart again.
-        const piles: { remove: () => void }[] = [];
+        // side by side, each keeping its colour and icon (8 Oct 2026). Nothing
+        // is ever merged into one pin (Brennan, 8 Oct 2026: "I just don't want
+        // it to be clustered"): a bigger crowd is drawn where it is, each pin
+        // its own. Recomputed after every move.
         const restack = () => {
-          piles.splice(0).forEach((p) => p.remove());
           const items = pinsRef.current;
           items.forEach((it) => { it.wrapper.style.display = ""; it.badge.textContent = it.index < 0 ? "★" : String(it.index + 1); it.group = null; it.marker?.setOffset([0, 0]); });
           const pinPx = (items.find((it) => it.index >= 0) ?? items[0])?.wrapper.getBoundingClientRect().width || PIN_FALLBACK_PX;
           const pts = items.map((it) => ({ it, p: map.project([it.lng, it.lat]) as { x: number; y: number } }));
-          // Any overlap, chained (lib/map/stackGroups), so a tap on a pile always zooms.
           for (const g of stackGroups(pts.map((x) => x.p), pinPx * STACK_FACTOR)) {
-            if (g.length < 2) continue;
+            if (g.length < 2 || g.length > SIDE_BY_SIDE_MAX) continue;
             const order = (x: PinItem, y: PinItem) => (x.index < 0 ? 1e9 : x.index) - (y.index < 0 ? 1e9 : y.index);
-            if (g.length <= SIDE_BY_SIDE_MAX) {
-              const row = g.map((k) => pts[k]).sort((a, b) => order(a.it, b.it));
-              const offs = sideBySide(row.map((r) => r.p), pinPx + 4);
-              row.forEach((r, k) => r.it.marker?.setOffset(offs[k]));
-              continue;
-            }
-            const members = g.map((k) => pts[k].it).sort(order);
-            // A crowd: the same pile pin the day page's map draws
-            // (lib/map/pileElement), labelled the same way ("1–3 · 5–7").
-            const nums = members.filter((m) => m.index >= 0).map((m) => m.index + 1);
-            const hasHotel = members.some((m) => m.index < 0);
-            const numLabel = pileLabel(nums);
-            const label = hasHotel ? (numLabel ? `${numLabel} · ★` : "★") : numLabel;
-            const counts: Record<string, number> = {};
-            members.forEach((mm) => { counts[mm.type] = (counts[mm.type] ?? 0) + 1; mm.wrapper.style.display = "none"; });
-            const el = makePileElement({ label, counts, colours: PIN_COLORS, day: true, ariaLabel: `Stops ${label}` });
-            const b = members.reduce(
-              (acc, g2) => acc.extend([g2.lng, g2.lat]),
-              new mb.LngLatBounds([members[0].lng, members[0].lat], [members[0].lng, members[0].lat]),
-            );
-            el.addEventListener("click", () => {
-              if (!expandedRef.current && window.innerWidth < 768) onToggleExpandRef.current?.();
-              setTimeout(() => zoomToPile(b), 60);
-            });
-            const cx = g.reduce((s, k) => s + pts[k].p.x, 0) / g.length;
-            const cy = g.reduce((s, k) => s + pts[k].p.y, 0) / g.length;
-            piles.push(new mb.Marker({ element: el, anchor: "center" }).setLngLat(map.unproject([cx, cy])).addTo(map));
+            const row = g.map((k) => pts[k]).sort((p, q) => order(p.it, q.it));
+            const offs = sideBySide(row.map((r) => r.p), pinPx + 4);
+            row.forEach((r, k) => r.it.marker?.setOffset(offs[k]));
           }
         };
         restackRef.current = restack;
@@ -430,7 +399,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
 
             // The hotel pin opens its card too — every pin on this map is tappable
             acInner.style.cursor = "pointer";
-            const hotelItem: PinItem = { cardId: ac.id, index: -1, lng: acLng, lat: acLat, wrapper: acWrapper, badge: null as unknown as HTMLElement, group: null, type: "logistics" };
+            const hotelItem: PinItem = { cardId: ac.id, index: -1, lng: acLng, lat: acLat, wrapper: acWrapper, badge: null as unknown as HTMLElement, group: null };
             acInner.addEventListener("click", () => {
               if (hotelItem.group) {
                 const b = hotelItem.group.reduce(
