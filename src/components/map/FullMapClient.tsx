@@ -4,10 +4,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { stackOrder, restack } from "@/lib/map/pinStack";
 import { dayChip, spansMonths } from "@/lib/dayChip";
 import { startZoomFor } from "@/lib/places/regions";
-import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { dayPinNumbers, pinOpacity, MUTED_PIN_OPACITY } from "@/lib/map/dayFocus";
-import { layoutPins, pileRing, type LayoutPin } from "@/lib/map/pinLayout";
-import { pileZoom } from "@/lib/map/stackGroups";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import MapPinPopup from "./MapPinPopup";
 import { popupPanY } from "@/lib/map/popupRoom";
@@ -19,8 +16,8 @@ import AddToTripSheet from "./AddToTripSheet";
 import WhereToStaySheet from "./WhereToStaySheet";
 import type { PlaceResult } from "./AddToTripSheet";
 import type { Trip, Day, Card, CardType, StayCandidate } from "@/types/database";
-import { makeMaterialPinElement, makePinElement, PIN_COLORS } from "@/lib/mapPins";
-import { Funnel, Heart, Files, List } from "@phosphor-icons/react";
+import { makeMaterialPinElement, makePinElement } from "@/lib/mapPins";
+import { Funnel, Heart, Files } from "@phosphor-icons/react";
 import { useBookingUpload } from "@/components/trip/useBookingUpload";
 import DocumentsSheet from "@/components/plan/DocumentsSheet";
 import AppMenu from "@/components/ui/AppMenu";
@@ -64,12 +61,6 @@ interface Props {
   userAvatarUrl?: string | null;
   /** Guest view — no place search/add, no pin editing/delete, no sidebar. */
   readOnly?: boolean;
-  /** Phone, inside the day page (8 Oct 2026, docs/phone-map-one-page-spec.html):
-   *  the map grows in place under the day's own header and days. No back or
-   *  menu disc (the day's header has both); a list disc closes it. With a day
-   *  chosen, that day's stops are numbered as the list numbers them and every
-   *  other pin is muted; null shows the whole trip. */
-  embedded?: { focusDayId: string | null; onClose: () => void };
 }
 
 // Sub-types whose visibility is controlled by the sidebar toggles. Derived
@@ -123,10 +114,7 @@ const CHIP_TARGET = "absolute -inset-x-1 -top-1 -bottom-3";
 
 // userAvatarUrl stays in Props for the page that passes it; the avatar disc
 // it fed left with the one header (consistency sweep, Sep 2026).
-export default function FullMapClient({ trip, days, cards, readOnly = false, embedded }: Props) {
-  const focusDayId = embedded ? embedded.focusDayId : null;
-  const focusDayRef = useRef(focusDayId);
-  focusDayRef.current = focusDayId;
+export default function FullMapClient({ trip, days, cards, readOnly = false }: Props) {
   const [planOpen, setPlanOpen] = useState(false);
   const [findOpen, setFindOpen] = useState(false);
   // Find's phone half sheet raised to 88dvh (FindSheet onTall): the bottom row steps aside.
@@ -337,132 +325,16 @@ export default function FullMapClient({ trip, days, cards, readOnly = false, emb
     el.addEventListener("pointercancel", clear);
     el.addEventListener("contextmenu", (e) => e.preventDefault());
   }, [enterPick, readOnly]); // eslint-disable-line react-hooks/exhaustive-deps
-  // The chosen day's stops, numbered as the day's list numbers them (lib/map/dayFocus).
-  const dayNumbers = useMemo(() => dayPinNumbers(localCards, focusDayId), [localCards, focusDayId]);
-  // rings and fades follow the picked set; with a day chosen (the day page's
-  // map) its stops carry their number and every other pin is muted.
+  // rings and fades follow the picked set
   useEffect(() => {
     MARKERS.forEach(({ marker }, id) => {
-      const el = marker.getElement() as HTMLElement;
-      const inner = el.children[0] as HTMLElement | undefined; if (!inner) return;
+      const inner = marker.getElement().children[0] as HTMLElement | undefined; if (!inner) return;
       const on = pickedIds.has(id);
       inner.style.boxShadow = on ? "0 0 0 3px #fff, 0 0 0 5px #1A1A2E" : "";
-      const dayOp = pinOpacity(id, dayNumbers, focusDayId);
-      inner.style.opacity = pickMode && pickedIds.size > 0 && !on ? "0.35" : dayOp < 1 ? String(dayOp) : "";
+      inner.style.opacity = pickMode && pickedIds.size > 0 && !on ? "0.35" : "";
       if (on) inner.style.transform = "scale(1.25)"; else if (inner.dataset.selected !== "1") inner.style.transform = "";
-      const n = dayNumbers.get(id);
-      let tag = el.querySelector<HTMLElement>("[data-day-number]");
-      if (n) {
-        if (!tag) {
-          tag = document.createElement("span");
-          tag.dataset.dayNumber = "";
-          // The day strip's number tag (components/day/DayMap), so the two maps read alike.
-          tag.style.cssText =
-            "position:absolute;top:-7px;right:-8px;min-width:18px;height:18px;border-radius:9px;" +
-            "background:white;border:1.5px solid rgba(26,26,46,0.35);" +
-            "font-family:'DM Sans',Inter,system-ui,sans-serif;font-size:11px;font-weight:700;" +
-            "color:#1A1A2E;display:flex;align-items:center;justify-content:center;" +
-            "padding:0 4px;line-height:1;pointer-events:none;z-index:1;white-space:nowrap;";
-          el.style.overflow = "visible";
-          el.appendChild(tag);
-        }
-        tag.textContent = String(n);
-        el.style.zIndex = "3";
-      } else {
-        tag?.remove();
-        el.style.zIndex = "";
-      }
     });
-  }, [pickMode, pickedIds, dayNumbers, focusDayId, mapReady]);
-
-  // The day page's map frames the chosen day, or the whole trip when none is
-  // chosen; a later change of day glides there. Once per change, so a pinch is never undone.
-  const fittedDayRef = useRef<string | null | undefined>(undefined);
-  const isEmbedded = !!embedded;
-  useEffect(() => {
-    const map = mapInstRef.current;
-    const mb = mbRef.current;
-    if (!isEmbedded || !mapReady || !map || !mb || fittedDayRef.current === focusDayId) return;
-    const first = fittedDayRef.current === undefined;
-    fittedDayRef.current = focusDayId;
-    const shown = focusDayId ? localCards.filter((c) => dayNumbers.has(c.id)) : localCards.filter(isRealPlace);
-    const coords = shown.map((c) => [c.place!.lng!, c.place!.lat!] as [number, number]);
-    if (coords.length === 0) return;
-    if (coords.length === 1) {
-      if (first) map.jumpTo({ center: coords[0], zoom: 15 }); else map.easeTo({ center: coords[0], zoom: 15, duration: 700 });
-      return;
-    }
-    const bounds = coords.reduce(
-      (b: unknown, coord) => (b as { extend: (c: [number, number]) => unknown }).extend(coord),
-      new mb.LngLatBounds(coords[0], coords[0]),
-    );
-    map.fitBounds(bounds, { padding: { top: 64, bottom: 72, left: 44, right: 44 }, maxZoom: focusDayId ? 15 : 13, animate: !first, duration: 700 });
-  }, [isEmbedded, mapReady, focusDayId, dayNumbers, localCards]);
-
-  // ── The day page's pin layout (lib/map/pinLayout, 8 Oct 2026) ──────────
-  // Two or three touching pins sit side by side; a crowd is one count pin
-  // whose ring shows the mix; the day's stops only group with each other.
-  // The Map screen itself is unchanged. Re-laid after every move.
-  const pileMarkersRef = useRef<{ remove: () => void }[]>([]);
-  const dayNumbersRef = useRef(dayNumbers);
-  dayNumbersRef.current = dayNumbers;
-  const layoutRef = useRef<() => void>(() => {});
-  layoutRef.current = () => {
-    const map = mapInstRef.current;
-    const mb = mbRef.current;
-    pileMarkersRef.current.forEach((m) => m.remove());
-    pileMarkersRef.current = [];
-    if (!map || !mb) return;
-    const shown: LayoutPin[] = [];
-    MARKERS.forEach(({ marker, cardRef }, id) => {
-      marker.setOffset([0, 0]);
-      const el = marker.getElement() as HTMLElement;
-      el.style.visibility = "";
-      const c = cardRef.current;
-      if (!embedded || !el.isConnected || !c.place) return;
-      const p = map.project([c.place.lng!, c.place.lat!]) as { x: number; y: number };
-      shown.push({ id, x: p.x, y: p.y, day: dayNumbersRef.current.has(id), type: c.place.type });
-    });
-    if (!embedded) return;
-    const layout = layoutPins(shown, 32);
-    layout.offsets.forEach((o, id) => MARKERS.get(id)?.marker.setOffset(o));
-    layout.hidden.forEach((id) => { const el = MARKERS.get(id)?.marker.getElement() as HTMLElement | undefined; if (el) el.style.visibility = "hidden"; });
-    for (const pile of layout.piles) {
-      const nums = pile.ids.map((id) => dayNumbersRef.current.get(id)).filter((n): n is number => n != null).sort((a, b) => a - b);
-      const el = document.createElement("div");
-      el.setAttribute("role", "button");
-      el.setAttribute("aria-label", pile.day ? `Stops ${nums[0]} to ${nums[nums.length - 1]}` : `${pile.ids.length} places here`);
-      el.dataset.pile = pile.day ? "day" : "saved";
-      const size = pile.day ? 48 : 44; // 44 to the finger (phone harness)
-      el.style.cssText =
-        `width:${size}px;height:${size}px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;` +
-        `background:${pileRing(pile.counts, PIN_COLORS)};box-shadow:${pile.day ? "0 0 0 3px #fff, " : ""}0 2px 6px rgba(0,0,0,0.3);z-index:${pile.day ? 4 : 2};` +
-        (focusDayRef.current && !pile.day ? `opacity:${MUTED_PIN_OPACITY};` : "");
-      const disc = document.createElement("span");
-      disc.style.cssText = `width:${size - 12}px;height:${size - 12}px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;` +
-        "font-family:'DM Sans',Inter,system-ui,sans-serif;font-size:13px;font-weight:700;color:#1A1A2E;white-space:nowrap;";
-      disc.textContent = pile.day ? `${nums[0]}–${nums[nums.length - 1]}` : String(pile.ids.length);
-      el.appendChild(disc);
-      const ll = pile.ids.map((id) => MARKERS.get(id)!.cardRef.current.place!).map((p) => [p.lng!, p.lat!] as [number, number]);
-      el.addEventListener("click", (e) => {
-        e.stopPropagation();
-        clickedPinRef.current = true;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const b = ll.reduce((acc: any, c) => acc.extend(c), new mb.LngLatBounds(ll[0], ll[0]));
-        const cam = map.cameraForBounds(b, { padding: 60, maxZoom: 17 }) as { zoom?: number } | undefined;
-        map.easeTo({ center: b.getCenter(), zoom: pileZoom(map.getZoom(), cam?.zoom), duration: 600 });
-      });
-      pileMarkersRef.current.push(new mb.Marker({ element: el, anchor: "center" }).setLngLat(map.unproject([pile.x, pile.y])).addTo(map));
-    }
-  };
-  useEffect(() => {
-    const map = mapInstRef.current;
-    if (!map || !mapReady || !isEmbedded) return;
-    const run = () => layoutRef.current();
-    map.on("moveend", run);
-    run();
-    return () => { map.off("moveend", run); };
-  }, [mapReady, isEmbedded, dayNumbers]);
+  }, [pickMode, pickedIds]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tempPinRef = useRef<any>(null);
 
@@ -516,7 +388,6 @@ export default function FullMapClient({ trip, days, cards, readOnly = false, emb
       if (cardShown(cardRef.current)) marker.addTo(map); else marker.remove();
     });
     restackAll();
-    layoutRef.current();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleSubTypesChange(next: Set<string>) {
@@ -1049,7 +920,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false, emb
   }, []);
 
   return (
-    <div className={`flex w-full overflow-hidden ${embedded ? "h-full" : "h-dvh md:h-[calc(100dvh-64px)]"}`}>
+    <div className="flex w-full overflow-hidden h-dvh md:h-[calc(100dvh-64px)]">
 
       {/* Desktop sidebar retired (5 Oct 2026, Brennan: "why is the old legend
           there?"). The Filter below is the one control on every screen, as on
@@ -1076,14 +947,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false, emb
             you know it's the location of the trip"). Guest: the ribbon stays,
             because a guest has no place search to fill the row and keeps the
             saved-places search glyph instead. */}
-        {embedded ? (
-          // Inside the day page: its header already has the way back and the
-          // menu. One disc, the list, closes the map back to the day.
-          <button type="button" onClick={embedded.onClose} aria-label="Back to the list" className={`${MAP_DISC} right-3 top-3`} style={MAP_DISC_STYLE}>
-            <span aria-hidden="true" data-testid="map-list-target" className="absolute -inset-1" />
-            <List size={17} weight="light" color="#1A1A2E" />
-          </button>
-        ) : readOnly ? (
+        {readOnly ? (
           <JourneyHeader
             absolute
             backHref={`/trips/${trip.id}`}
@@ -1150,7 +1014,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false, emb
 
         {/* Place search — the add-a-place entry; owner only */}
         {!readOnly && (
-          <PlaceSearch onPlaceSelect={handlePlaceSelect} destination={trip.destination} lat={trip.destination_lat} lng={trip.destination_lng} savedPlaceIds={savedPlaceIds(localCards.filter(isRealPlace))} positionClassName={embedded ? "absolute top-3 left-3 right-[60px]" : undefined} />
+          <PlaceSearch onPlaceSelect={handlePlaceSelect} destination={trip.destination} lat={trip.destination_lat} lng={trip.destination_lng} savedPlaceIds={savedPlaceIds(localCards.filter(isRealPlace))} />
         )}
 
         {/* Filter button + pill bar — bottom-left, expands upward. View-only

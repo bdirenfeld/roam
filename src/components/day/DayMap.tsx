@@ -36,8 +36,6 @@ interface Props {
    *  that used to be the ⤢. The bottom bar that used to be this door is gone
    *  (24 Sep 2026). */
   mapHref?: string;
-  /** Phone: open the journey's map on this page instead (8 Oct 2026). Wins over mapHref. */
-  onOpenMap?: () => void;
 }
 
 // One placed pin, with what the stacking pass needs to know about it.
@@ -61,7 +59,7 @@ interface PinItem {
 // first layout.
 const PIN_FALLBACK_PX = 32;
 
-export default function DayMap({ cards, accommodationCard, centerLat, centerLng, startZoom = 13, onPinTap, pulsedCardId, expanded = false, onToggleExpand, dock, focus, mapHref, onOpenMap }: Props) {
+export default function DayMap({ cards, accommodationCard, centerLat, centerLng, startZoom = 13, onPinTap, pulsedCardId, expanded = false, onToggleExpand, dock, focus, mapHref }: Props) {
   const mapRef         = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<unknown>(null);
   const pinsRef        = useRef<PinItem[]>([]);
@@ -544,21 +542,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
           <div ref={dockListRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4">{dock}</div>
         </div>
       )}
-      {onOpenMap && !expanded && (
-        // Phone only. The map disc opens the journey's map in place, under the
-        // day's own header and days (8 Oct 2026, docs/phone-map-one-page-spec.html).
-        <button
-          type="button"
-          onClick={onOpenMap}
-          aria-label="Open the map"
-          className="md:hidden absolute right-3 z-10 w-9 h-9 rounded-full bg-white flex items-center justify-center active:opacity-70"
-          style={{ top: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.2)", color: "#1A1A2E" }}
-        >
-          <span aria-hidden="true" data-testid="map-disc-target" className="absolute -inset-1" />
-          <MapTrifold size={17} weight="light" color="#1A1A2E" />
-        </button>
-      )}
-      {mapHref && !onOpenMap && !expanded && (
+      {mapHref && !expanded && (
         // Phone only. One disc, top-right, the map glyph: it opens the journey
         // Map screen (Brennan, 24 Sep 2026: "take out the expand arrows and
         // replace that with the map icon"). The full-screen day map is still
