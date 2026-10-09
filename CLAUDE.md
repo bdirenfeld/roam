@@ -2440,3 +2440,6 @@ Approved scope only. Find KEEPS its two-level filters (Activity / Food, then kin
   Identify sends the Supabase user id (Clarity hashes it), never the email. Keep Clarity masking on "Balanced" or stricter.
 - To stop recording: set `NEXT_PUBLIC_CLARITY_PROJECT_ID=off` in Vercel and redeploy. The privacy page names Clarity; keep them in step.
 - Short links for posts live in `next.config.mjs` `redirects()`: /ig, /reddit, /beta → `/?utm_source=…` (307). `src/lib/shortLinks.test.ts` pins them; add a row to both when a new channel gets a link.
+
+## Reverted 8 Oct 2026: phone "one page" day map (do not rebuild without him asking)
+Four commits (bbf019a, f532668, cb36b20, 614cef0) opened the journey map in place on the phone's day page, focused it on a day (tap again = whole trip), and tried several pin layouts on the strip and map: merged count pins with a colour ring, a fan-out, side-by-side rows. All reverted at his request the same evening: "we're not going in the right direction at all". What he rejected along the way, in his words: clustering ("it just looks like a huge blob"), pins nudged side by side ("the pins move depending on whether I zoom in and out"), a filled or grey pill for the chosen day ("looks absolutely terrible"), a merged one-row header. The day view, strip and Map screen are back exactly as of 2fbc4c0.
