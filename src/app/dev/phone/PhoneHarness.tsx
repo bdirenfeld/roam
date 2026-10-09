@@ -23,7 +23,7 @@ import { welcomeHomeKey } from "@/lib/trips/welcomeHome";
 import { installStub, type StubConfig } from "./stub";
 import type { ClientScreen } from "./screens";
 import {
-  OWNER, TRIP_ID, nextDoorDay, SHEET_DAYS, COPY_TODAY, copyTables, mapCards, pastTrip, ADD_LEG_API, ADD_LEG_DAY, addLegTables, bookingTables, days, isoFromToday, journeyCards, sheetCards, timeCard, trip, tuscanyDay,
+  OWNER, TRIP_ID, SHEET_DAYS, COPY_TODAY, copyTables, mapCards, pastTrip, ADD_LEG_API, ADD_LEG_DAY, addLegTables, bookingTables, days, isoFromToday, journeyCards, sheetCards, timeCard, trip, tuscanyDay,
 } from "./fixtures";
 
 
@@ -114,11 +114,6 @@ function stubFor(screen: ClientScreen): StubConfig {
   if (screen === "past-menu" || screen.startsWith("copy-sheet")) return { userId: OWNER, tables: copyTables() };
   // The full Map draws real Mapbox tiles: the one screen whose network is not off (Mapbox only).
   if (screen === "map" || screen === "map-one") return { userId: OWNER, tables: {}, passHosts: MAPBOX_HOSTS };
-  // The day strip with real tiles: two stops next door, side by side.
-  if (screen === "day-nextdoor") {
-    const ds = days(isoFromToday(0), 5);
-    return { userId: OWNER, tables: { cards: nextDoorDay(ds[0]).cards, trips: [trip(ds[0].date, ds[4].date)], days: ds }, passHosts: MAPBOX_HOSTS };
-  }
   return { userId: OWNER, tables: {} };
 }
 
@@ -139,10 +134,6 @@ function Screen({ screen }: { screen: ClientScreen }) {
     const t = trip(start, ds[4].date);
     const shown = screen === "day" ? tuscanyDay(ds[0]) : { ...ds[4], cards: [] };
     return <DayViewClient trip={t} days={ds} dayWithCards={shown} hotelCards={[]} initialNotes={null} phone />;
-  }
-  if (screen === "day-nextdoor") {
-    const ds = days(isoFromToday(0), 5);
-    return <DayViewClient trip={trip(ds[0].date, ds[4].date)} days={ds} dayWithCards={nextDoorDay(ds[0])} hotelCards={[]} initialNotes={null} phone />;
   }
   if (screen.startsWith("card-")) {
     const c = { "card-cost": sheetCards.cost, "card-closed": sheetCards.closed, "card-late": sheetCards.late, "card-fit": sheetCards.fit, "card-leg": sheetCards.leg }[screen as "card-cost"];

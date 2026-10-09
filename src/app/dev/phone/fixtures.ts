@@ -134,22 +134,6 @@ export function tuscanyDay(day: Day): DayWithCards {
   };
 }
 
-/** A day in Florence whose 2nd and 4th stops are next door on Via dei Neri, so
- * the strip shows them side by side (8 Oct 2026). Coordinates are the real shops'. */
-export function nextDoorDay(day: Day): DayWithCards {
-  const c = (id: string, p: Place, start: string | null, pos: number) =>
-    card(id, day.id, p, { start_time: start, position: pos });
-  return {
-    ...day,
-    cards: [
-      c("n-girone", place("p-girone", { title: "I' Girone De' Ghiotti", sub_type: "self_directed", lat: 43.7705273, lng: 11.2556892 }), "09:45:00", 1),
-      c("n-panetteria", place("p-panetteria", { title: "Panetteria De Neri", type: "food", sub_type: "restaurant", lat: 43.7679671, lng: 11.2588158 }), "12:30:00", 2),
-      c("n-buca", place("p-buca", { title: "Buca dell'Orafo", type: "food", sub_type: "restaurant", lat: 43.768454, lng: 11.253986 }), "13:45:00", 3),
-      c("n-gelato", place("p-gelato", { title: "Gelateria dei Neri", type: "food", sub_type: "dessert", lat: 43.7677669, lng: 11.2590689 }), "20:30:00", 4),
-    ],
-  };
-}
-
 /** Every card of the journey, the shape DayViewClient's journey reads ask for. */
 export function journeyCards(ds: Day[]): Card[] {
   return [

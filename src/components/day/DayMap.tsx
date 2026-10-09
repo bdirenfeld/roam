@@ -8,7 +8,7 @@ import type { Card } from "@/types/database";
 import { makeMaterialPinElement } from "@/lib/mapPins";
 import { legLines } from "@/lib/travel/leg";
 import { drawLegs, legStarts } from "@/lib/map/legLayer";
-import { stackGroups, STACK_FACTOR, pileZoom, sideBySide, SIDE_BY_SIDE_MAX } from "@/lib/map/stackGroups";
+import { stackGroups, STACK_FACTOR, pileZoom } from "@/lib/map/stackGroups";
 import Link from "next/link";
 import { MapTrifold } from "@phosphor-icons/react";
 
@@ -49,8 +49,6 @@ interface PinItem {
   badge: HTMLElement;
   /** Set while this pin stands for others too (they are hidden under it). */
   group: PinItem[] | null;
-  /** Its Mapbox marker, so a small group can sit side by side (setOffset). */
-  marker?: { setOffset: (o: [number, number]) => unknown };
 }
 
 // Pins whose drawn discs would touch are one pin. Measured from the pin the
@@ -266,9 +264,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
         mappable.forEach(({ card, lat, lng }, i) => {
           const cardDetails = card.details as Record<string, unknown> | null;
           const { wrapper, inner } = makeMaterialPinElement(
-            // Legend colours, the same as the Map (8 Oct 2026). These were all
-            // ink, so the strip and the Map disagreed about what a pin meant.
-            card.place!.type, card.place!.sub_type, card.status, !!(cardDetails?.recommended_by),
+            card.place!.type, card.place!.sub_type, card.status, !!(cardDetails?.recommended_by), "#1A1A2E",
           );
 
           // Store inner element so the pulse effect can animate it
@@ -325,33 +321,26 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
             onPinTapRef.current?.(card.id);
           });
 
-          item.marker = new mb.Marker({ element: wrapper, anchor: "center" })
+          new mb.Marker({ element: wrapper, anchor: "center" })
             .setLngLat([lng, lat])
             .addTo(map);
         });
 
         // ── Stacking ─────────────────────────────────────────────────
-        // Pins that would sit on each other at this zoom: two or three sit
-        // side by side, each keeping its colour and icon (8 Oct 2026); more
-        // become one pin drawn where they are, its badge listing every number
-        // it stands for ("2 – 5"). Recomputed after every move, so a zoom in
-        // pulls them apart again.
+        // Pins that would sit on each other at this zoom become one pin
+        // drawn exactly where they are, its badge listing every number it
+        // stands for ("2 · 3", or "2 – 4" for a run). Recomputed after every
+        // move, so a zoom in pulls them apart again. Positions are never
+        // nudged: a pin is always where its place is.
         const restack = () => {
           const items = pinsRef.current;
-          items.forEach((it) => { it.wrapper.style.display = ""; it.badge.textContent = it.index < 0 ? "★" : String(it.index + 1); it.group = null; it.marker?.setOffset([0, 0]); });
+          items.forEach((it) => { it.wrapper.style.display = ""; it.badge.textContent = it.index < 0 ? "★" : String(it.index + 1); it.group = null; });
           const pinPx = (items.find((it) => it.index >= 0) ?? items[0])?.wrapper.getBoundingClientRect().width || PIN_FALLBACK_PX;
           const pts = items.map((it) => ({ it, p: map.project([it.lng, it.lat]) as { x: number; y: number } }));
           // Any overlap, chained (lib/map/stackGroups), so a tap on a pile always zooms.
           for (const g of stackGroups(pts.map((x) => x.p), pinPx * STACK_FACTOR)) {
             if (g.length < 2) continue;
-            const order = (x: PinItem, y: PinItem) => (x.index < 0 ? 1e9 : x.index) - (y.index < 0 ? 1e9 : y.index);
-            if (g.length <= SIDE_BY_SIDE_MAX) {
-              const row = g.map((k) => pts[k]).sort((a, b) => order(a.it, b.it));
-              const offs = sideBySide(row.map((r) => r.p), pinPx + 4);
-              row.forEach((r, k) => r.it.marker?.setOffset(offs[k]));
-              continue;
-            }
-            const members = g.map((k) => pts[k].it).sort(order);
+            const members = g.map((k) => pts[k].it).sort((x, y) => (x.index < 0 ? 1e9 : x.index) - (y.index < 0 ? 1e9 : y.index));
             const nums = members.filter((m) => m.index >= 0).map((m) => m.index + 1);
             const hasHotel = members.some((m) => m.index < 0);
             const run = nums.every((n, k) => k === 0 || n === nums[k - 1] + 1);
@@ -447,7 +436,6 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
             const accomMarker = new mb.Marker({ element: acWrapper, anchor: "center" })
               .setLngLat(accomCoord)
               .addTo(map);
-            hotelItem.marker = accomMarker;
 
             // Raise z-index so accommodation pin renders above regular card pins
             accomMarker.getElement().style.zIndex = "";
