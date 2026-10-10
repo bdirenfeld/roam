@@ -31,7 +31,7 @@ function CloseX({ size, onClick }: { size: number; onClick: () => void }) {
   );
 }
 
-export default function StartHere({ cards, place, reading, onUpload, onFind, floating, firstDay, several, readingLabel }: {
+export default function StartHere({ cards, place, reading, onUpload, onFind, onPlan, floating, firstDay, several, readingLabel }: {
   cards: StartCard[];
   /** The phone's day: is this the journey's first day? Upload shows only there. The week omits it. */
   firstDay?: boolean;
@@ -44,6 +44,8 @@ export default function StartHere({ cards, place, reading, onUpload, onFind, flo
   readingLabel?: string;
   onUpload: () => void;
   onFind: () => void;
+  /** Plan my trip from here (10 Oct 2026, growth audit): shown once places are saved and none planned. */
+  onPlan?: () => void;
   /** The week's floating card (a shadow) rather than the phone's inline one (a hairline). */
   floating?: boolean;
 }) {
@@ -55,8 +57,9 @@ export default function StartHere({ cards, place, reading, onUpload, onFind, flo
     if (vids.ready && atLoad === null) setAtLoad(vids.seen);
   }, [vids.ready, vids.seen, atLoad]);
 
-  const { upload, find } = startSteps(cards, { firstDay });
-  if (!upload && !find) return playing ? player() : null;
+  const { upload, find, plan: planStep } = startSteps(cards, { firstDay });
+  const plan = planStep && !!onPlan;
+  if (!upload && !find && !plan) return playing ? player() : null;
   const town = place.split(",")[0].trim() || "the area";
   // The phone's card carries video 1 on the journey's first day, like Upload.
   const pick = atLoad && (floating || firstDay !== false)
@@ -97,6 +100,21 @@ export default function StartHere({ cards, place, reading, onUpload, onFind, flo
             <CloseX size={12} onClick={() => vids.markSeen(video.id)} />
           </div>
           {HR}
+        </>
+      )}
+      {plan && (
+        <>
+          <button type="button" onClick={onPlan} className="flex items-center gap-3 px-3.5 py-3.5 rounded-[10px] text-left hover:bg-[rgba(26,26,46,0.03)]">
+            <span aria-hidden className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: "#F6EBE2" }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B0541F" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" /><path d="M19 17l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z" /></svg>
+            </span>
+            <span className="flex-1 min-w-0">
+              <span className="block text-[14.5px] font-semibold" style={{ color: INK }}>Plan my trip</span>
+              <span className="block text-[12.5px] leading-snug mt-px" style={{ color: CAPTION }}>Roam fills your days with the best of {town}. Change anything after.</span>
+            </span>
+            <span aria-hidden className="text-[18px]" style={{ color: "rgba(26,26,46,0.4)" }}>›</span>
+          </button>
+          {(upload || find) && HR}
         </>
       )}
       {upload && (

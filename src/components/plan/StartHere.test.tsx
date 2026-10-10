@@ -21,6 +21,24 @@ const hotel = { day_id: "d1", status: "in_itinerary", place: { type: "logistics"
 const sight = { day_id: null, status: "interested", place: { type: "activity", sub_type: "self_directed" } };
 
 describe("Start here", () => {
+  // 10 Oct 2026, growth audit: the row appears with the first saved place.
+  it("Plan my trip: not on an empty journey; on top once a place is saved; opens the planner", () => {
+    const onPlan = vi.fn();
+    const { unmount } = render(<StartHere cards={[]} place="Hanoi, Vietnam" onUpload={() => {}} onFind={() => {}} onPlan={onPlan} />);
+    expect(screen.queryByRole("button", { name: /Plan my trip/ })).toBeNull();
+    unmount();
+    render(<StartHere cards={[sight]} place="Hanoi, Vietnam" onUpload={() => {}} onFind={() => {}} onPlan={onPlan} />);
+    const buttons = screen.getAllByRole("button");
+    expect(buttons[0].textContent).toContain("Plan my trip");
+    expect(buttons[0].textContent).toContain("Roam fills your days with the best of Hanoi.");
+    expect(screen.queryByRole("button", { name: /Find places/ })).toBeNull();
+    fireEvent.click(buttons[0]);
+    expect(onPlan).toHaveBeenCalledTimes(1);
+  });
+  it("Plan my trip: without a host that can open it, no row", () => {
+    render(<StartHere cards={[sight]} place="Hanoi, Vietnam" onUpload={() => {}} onFind={() => {}} />);
+    expect(screen.queryByRole("button", { name: /Plan my trip/ })).toBeNull();
+  });
   it("a new journey: both buttons, in the journey's own words, and each does its job", () => {
     const onUpload = vi.fn(), onFind = vi.fn();
     render(<StartHere cards={[]} place="Tuscany, Italy" onUpload={onUpload} onFind={onFind} floating />);

@@ -391,7 +391,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
     const first = [...days].sort((a, b) => (a.date ?? "").localeCompare(b.date ?? "") || a.day_number - b.day_number)[0];
     return !first || first.id === dayWithCards.id;
   }, [days, dayWithCards.id]);
-  const startShown = startCards !== null && (() => { const s = startSteps(startCards, { firstDay }); return s.upload || s.find; })();
+  const startShown = startCards !== null && (() => { const s = startSteps(startCards, { firstDay }); return s.upload || s.find || s.plan; })();
   // Video 4 (2 Oct 2026): "Your trip's started" on the phone's day while the
   // journey is under way, by the PHONE's date (after mount: the server is UTC).
   // One card at a time: it waits while Start here shows, and until we know.
@@ -1138,7 +1138,8 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
               <div className="mb-4 flex justify-center">
                 <StartHere cards={startCards!} firstDay={firstDay} place={trip.destination ?? ""} reading={upload.reading} readingLabel={upload.readingLabel} several
                   onUpload={upload.pick}
-                  onFind={() => router.push(`/trips/${trip.id}/map?find=1`)} />
+                  onFind={() => router.push(`/trips/${trip.id}/map?find=1`)}
+                  onPlan={() => router.push(`/trips/${trip.id}/map?plan=1`)} />
               </div>
             )}
             <CardTimeline

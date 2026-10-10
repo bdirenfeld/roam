@@ -2459,3 +2459,9 @@ Four commits (bbf019a, f532668, cb36b20, 614cef0) opened the journey map in plac
   stage only for a question someone will actually ask.
 - The growth audit brief is roam-ship §3f. Not done: Plan my trip inside Start here (needs a
   mock), a return email (no sending domain), pricing (no paywall stays).
+- Start here gained a third row, **Plan my trip**, on top (10 Oct 2026): `startSteps` returns `plan`
+  = something saved and nothing planned, because the planner works from SAVED places and says
+  "Nothing saved to plan yet" on an empty journey. So Find first, then the row flips to Plan my trip.
+  Phone: `/map?plan=1` opens the sheet (FullMapClient); week: `roam:open-plan` (WeekMap). Free, not a
+  paid tier — his call after the growth lead's case: never gate the aha, charge per trip later, once
+  about a third of sign-ups reach a filled trip.

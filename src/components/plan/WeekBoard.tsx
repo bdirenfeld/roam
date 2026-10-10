@@ -908,7 +908,8 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
             <div className="flex justify-center px-4">
               <div className="pointer-events-auto w-full max-w-[360px]">
                 <StartHere floating cards={pinCards} place={trip.destination ?? ""} reading={upload.reading} readingLabel={upload.readingLabel} several onUpload={upload.pick}
-                  onFind={() => window.dispatchEvent(new Event("roam:open-find"))} />
+                  onFind={() => window.dispatchEvent(new Event("roam:open-find"))}
+                  onPlan={() => window.dispatchEvent(new Event("roam:open-plan"))} />
               </div>
             </div>
           </div>

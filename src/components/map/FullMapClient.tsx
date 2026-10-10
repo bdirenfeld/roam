@@ -205,6 +205,8 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
     if (searchParams.get("stays") === "1" && !readOnly) setShowStays(true);
     // A new journey's "Find places" on the phone's day (StartHere) lands here with Find open.
     if (searchParams.get("find") === "1" && !readOnly) setFindOpen(true);
+    // ...and its "Plan my trip" (10 Oct 2026) lands here with the planner open.
+    if (searchParams.get("plan") === "1" && !readOnly) setPlanOpen(true);
   }, [searchParams, readOnly]);
   // ?pin=<card id> — a place just shared in from TikTok or Instagram. Fly to
   // it and open its card, which carries Put on a day. Once per id, and after

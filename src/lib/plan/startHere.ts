@@ -12,6 +12,12 @@
  * week, so it passes nothing.
  * Find places: until something to do or eat is on the journey, saved or planned.
  *
+ * Plan my trip (10 Oct 2026, growth audit): once something is saved and nothing
+ * is planned yet — the moment Plan my trip has material. It plans from the
+ * journey's SAVED places (lib/plan/draftTrip), so on an empty journey it would
+ * only say "Nothing saved to plan yet"; Find places comes first. Shown on every
+ * phone day, since it plans the whole journey.
+ *
  * And once a stop is planned — something to do or eat on a day, not just
  * saved — the whole card goes, both buttons and its video row (Brennan, 2 Oct
  * 2026: his Japan journey, 46 stops on its days and its ryokans only saved,
@@ -45,8 +51,9 @@ function isPlannedStop(c: StartCard): boolean {
   return !!c.day_id && c.status === "in_itinerary" && isPlace(c);
 }
 
-export function startSteps(cards: StartCard[], opts: { firstDay?: boolean } = {}): { upload: boolean; find: boolean } {
+export function startSteps(cards: StartCard[], opts: { firstDay?: boolean } = {}): { upload: boolean; find: boolean; plan: boolean } {
   const firstDay = opts.firstDay ?? true;
-  if (cards.some(isPlannedStop)) return { upload: false, find: false };
-  return { upload: firstDay && !cards.some(isBooking), find: !cards.some(isPlace) };
+  if (cards.some(isPlannedStop)) return { upload: false, find: false, plan: false };
+  const saved = cards.some(isPlace);
+  return { upload: firstDay && !cards.some(isBooking), find: !saved, plan: saved };
 }

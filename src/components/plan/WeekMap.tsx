@@ -115,6 +115,12 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
     window.addEventListener("roam:open-find", open);
     return () => window.removeEventListener("roam:open-find", open);
   }, []);
+  // ...and its "Plan my trip" (10 Oct 2026) opens the planner here.
+  useEffect(() => {
+    const open = () => setPlanOpen(true);
+    window.addEventListener("roam:open-plan", open);
+    return () => window.removeEventListener("roam:open-plan", open);
+  }, []);
   // ...and the week hides Start here while Find is open, so "Find places" is
   // not on screen twice (2 Oct 2026).
   useEffect(() => {
