@@ -5,6 +5,7 @@ import { render, screen, cleanup } from "@testing-library/react";
 vi.mock("@/lib/auth-actions", () => ({ signInWithGoogle: vi.fn(), signInWithEmail: vi.fn() }));
 
 import LandingPage from "./LandingPage";
+import { DEMO_JOURNEY } from "./landingAtoms";
 
 afterEach(cleanup);
 
@@ -24,5 +25,16 @@ describe("the landing page sign-in", () => {
   it("offers email sign-in on both the phone and the computer layouts", () => {
     render(<LandingPage />);
     expect(screen.getAllByLabelText("Email address for a sign-in link")).toHaveLength(2);
+  });
+
+  // 10 Oct 2026, landing audit: a stranger could not see the product before the
+  // account wall, and the page never said it was free.
+  it("opens a real journey without an account, on both layouts", () => {
+    render(<LandingPage />);
+    const doors = screen.getAllByRole("link", { name: "See a real trip" });
+    expect(doors).toHaveLength(2);
+    for (const d of doors) expect(d.getAttribute("href")).toBe(DEMO_JOURNEY.href);
+    expect(DEMO_JOURNEY.href).toMatch(/^\/journey\/[a-f0-9]{12}$/);
+    expect(screen.getAllByText("Free. No card.").length).toBeGreaterThanOrEqual(2);
   });
 });

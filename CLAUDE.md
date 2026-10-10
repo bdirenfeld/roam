@@ -2443,3 +2443,19 @@ Approved scope only. Find KEEPS its two-level filters (Activity / Food, then kin
 
 ## Reverted 8 Oct 2026: phone "one page" day map (do not rebuild without him asking)
 Four commits (bbf019a, f532668, cb36b20, 614cef0) opened the journey map in place on the phone's day page, focused it on a day (tap again = whole trip), and tried several pin layouts on the strip and map: merged count pins with a colour ring, a fan-out, side-by-side rows. All reverted at his request the same evening: "we're not going in the right direction at all". What he rejected along the way, in his words: clustering ("it just looks like a huge blob"), pins nudged side by side ("the pins move depending on whether I zoom in and out"), a filled or grey pill for the chosen day ("looks absolutely terrible"), a merged one-row header. The day view, strip and Map screen are back exactly as of 2fbc4c0.
+
+## Front door, first run and the funnel (10 Oct 2026)
+- `/` is `components/landing/LandingPage.tsx`: product first, no stock photo (the Amalfi photo page
+  of 26 Sep and its 500 KB jpg are gone). Atoms, palette, the three plates and `DEMO_JOURNEY` (the
+  public New York page a stranger can read without an account) live in `landingAtoms.tsx`.
+  Tagline "The whole trip, in one place." (his "amazing"); subhead is his Instagram bio line;
+  "Free. No card." under every Google button. Keep the words matching the bio.
+- First sign-in: `components/trips/FirstRunOpen.tsx` opens the Plan a journey overlay once per
+  browser session when the account has no journeys (sessionStorage `roam:first-run-form-opened`).
+  The Journeys page is still the signed-in landing (26 Sep ruling); this only opens the form over it.
+- Funnel counting is in Clarity, not Vercel (Web Analytics is off; his dashboard toggle).
+  `lib/funnel.ts`: `funnelEvent` (landing_view, landing_demo, signin_google, signin_email,
+  trip_created) and a `source` tag from `utm_source`. Silent when Clarity isn't loaded. Add a
+  stage only for a question someone will actually ask.
+- The growth audit brief is roam-ship §3f. Not done: Plan my trip inside Start here (needs a
+  mock), a return email (no sending domain), pricing (no paywall stays).

@@ -27,6 +27,7 @@ import {
   useState,
 } from "react";
 import type { CSSProperties, MouseEvent, ReactNode } from "react";
+import { FUNNEL, funnelEvent } from "@/lib/funnel";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { reloadOnStale } from "@/lib/chunkReload";
@@ -195,6 +196,7 @@ function NewJourneyProvider({ children }: { children: ReactNode }) {
             // lands on the new day rather than on a screen behind a sheet.
             // The form decides where (Day 1 of the Agenda; see NewJourneyForm).
             onCreated={(_tripId, landing) => {
+              funnelEvent(FUNNEL.tripCreated);
               close();
               router.push(landing);
             }}
