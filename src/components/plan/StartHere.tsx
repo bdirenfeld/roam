@@ -110,7 +110,7 @@ export default function StartHere({ cards, place, reading, onUpload, onFind, onP
             </span>
             <span className="flex-1 min-w-0">
               <span className="block text-[14.5px] font-semibold" style={{ color: INK }}>Plan my trip</span>
-              <span className="block text-[12.5px] leading-snug mt-px" style={{ color: CAPTION }}>Roam fills your days with the best of {town}. Change anything after.</span>
+              <span className="block text-[12.5px] leading-snug mt-px" style={{ color: CAPTION }}>Puts your saved places on your days. Change anything after.</span>
             </span>
             <span aria-hidden className="text-[18px]" style={{ color: "rgba(26,26,46,0.4)" }}>›</span>
           </button>

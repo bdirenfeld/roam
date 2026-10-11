@@ -30,7 +30,9 @@ describe("Start here", () => {
     render(<StartHere cards={[sight]} place="Hanoi, Vietnam" onUpload={() => {}} onFind={() => {}} onPlan={onPlan} />);
     const buttons = screen.getAllByRole("button");
     expect(buttons[0].textContent).toContain("Plan my trip");
-    expect(buttons[0].textContent).toContain("Roam fills your days with the best of Hanoi.");
+    // It plans from saved places only, so it must not promise picks (10 Oct 2026).
+    expect(buttons[0].textContent).toContain("Puts your saved places on your days.");
+    expect(buttons[0].textContent).not.toMatch(/best of/);
     expect(screen.queryByRole("button", { name: /Find places/ })).toBeNull();
     fireEvent.click(buttons[0]);
     expect(onPlan).toHaveBeenCalledTimes(1);
