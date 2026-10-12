@@ -214,6 +214,7 @@ export default function PlaceSearch({ onPlaceSelect, destination, lat, lng, posi
               return (
               <li key={p.place_id} role="option" aria-selected="false">
                 <button
+                  onMouseDown={(event) => event.preventDefault()}
                   onClick={() => handleSelect(p)}
                   className={`w-full flex items-start gap-3 px-4 py-3 hover:bg-gray-50 active:bg-gray-100 transition-colors text-left ${
                     i < predictions.length - 1 ? "border-b border-gray-50" : ""

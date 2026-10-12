@@ -122,6 +122,8 @@ const MONTHS = [
 ];
 
 interface Props {
+  /** Optional destination catalog for an isolated practice journey. */
+  practiceDestinations?: { name: string; lat: number; lng: number }[];
   /** Dates and/or destination handed over by a deep link or an in-app trigger. */
   seed?: NewJourneySeed | null;
   /**
@@ -142,6 +144,7 @@ export default function NewJourneyForm({
   variant = "page",
   onDismiss,
   onCreated,
+  practiceDestinations,
 }: Props) {
   const router = useRouter();
   const { toast } = useToast();
@@ -750,7 +753,13 @@ export default function NewJourneyForm({
             <span className="text-[10px] uppercase tracking-widest text-[#1A1A2E] w-20 flex-shrink-0">
               Destination
             </span>
-            <input
+            {practiceDestinations ? <select aria-label="Practice destination" value={destination?.name ?? ''} onChange={e => {
+              const picked = practiceDestinations.find(p => p.name === e.target.value);
+              if (picked) { setDestInput(picked.name); setDestination({ ...picked, placeId: '' }); setCoverUrl(null); }
+            }} className="flex-1 min-w-0 text-[14px] text-[#1A1A2E] bg-transparent outline-none">
+              {practiceDestinations.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
+            </select> : <input
+
               type="text"
               value={destInput}
               onChange={(e) => {
@@ -776,7 +785,7 @@ export default function NewJourneyForm({
               placeholder="City, Country"
               autoComplete="off"
               className="flex-1 text-[14px] text-[#1A1A2E] bg-transparent outline-none placeholder:text-[rgba(26,26,46,0.4)]"
-            />
+            />}
             <div className="ml-2 flex-shrink-0 w-4 flex items-center justify-center">
               {loadingDetails && (
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" className="animate-spin">

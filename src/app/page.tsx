@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import LandingPage from "@/components/landing/LandingPage";
+import LandingPage from "@/components/landing/ReleasedLandingPage";
 import { getAuthUser } from "@/lib/supabase/authUser";
 
 const isSupabaseConfigured =

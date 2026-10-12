@@ -1269,7 +1269,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
             card covered the map the pin is meant to land on (2 Oct 2026). */}
         {!hasRealPins && !readOnly && hasToken && !findOpen && (
           <div
-            className="absolute top-16 left-1/2 -translate-x-1/2 z-30 w-[min(340px,calc(100%-32px))] bg-white rounded-2xl shadow-sheet border border-gray-100 px-5 py-4"
+            className="pointer-events-none absolute top-16 left-1/2 -translate-x-1/2 z-10 w-[min(340px,calc(100%-32px))] bg-white rounded-2xl shadow-sheet border border-gray-100 px-5 py-4"
           >
             <p className="text-[14px] font-semibold text-gray-900">Nothing on the map yet</p>
             <p className="text-[13px] text-gray-500 leading-[1.55] mt-1">
