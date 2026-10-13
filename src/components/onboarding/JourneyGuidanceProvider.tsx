@@ -59,8 +59,10 @@ export default function JourneyGuidanceProvider({ children, preview = false }: {
     if (preview || !uid || !tripId) return;
     let live = true;
     // Recount on journey entry: the layout may have mounted before journey #1 existed.
-    void createClient().from('trips').select('id', { count: 'exact', head: true }).eq('user_id', uid).then(({ count, error }) => {
+    createClient().from('trips').select('id', { count: 'exact', head: true }).eq('user_id', uid).then(({ count, error }) => {
       if (live) { setOwnedCount(error ? null : count); setCountedTrip(tripId); }
+    }).catch(() => {
+      if (live) { setOwnedCount(null); setCountedTrip(tripId); }
     });
     return () => { live = false; };
   }, [preview, uid, tripId]);
@@ -85,7 +87,9 @@ export default function JourneyGuidanceProvider({ children, preview = false }: {
   useEffect(() => {
     if (!ready || !eligible || !screen || (!preview && countedTrip !== screen.trip.id) || decided.current === screen.trip.id) return;
     decided.current = screen.trip.id;
-    if (shouldAutoStart(progressRef.current, ownedCount, screen.cards.length === 0)) {
+    const age = Date.now() - Date.parse(screen.trip.created_at);
+    const newJourney = preview || (age >= 0 && age < 24 * 60 * 60 * 1000);
+    if (shouldAutoStart(progressRef.current, ownedCount, screen.cards.length === 0 && newJourney)) {
       setActive(true);
       save({ ...(progressRef.current ?? INITIAL), updatedAt: Date.now() });
     }

@@ -15,7 +15,7 @@ vi.mock('@/lib/supabase/client', () => ({ createClient: () => ({
 }) }));
 vi.mock('@/components/ui/Toast', () => ({ useToast: () => ({ toast: mocks.toast }) }));
 vi.mock('./JourneyPointer', () => ({ default: ({ step, screen: current, onSkip, onNext, replay }: { step: string; screen: GuidanceScreen; onSkip: () => void; onNext: () => void; replay: boolean }) => <div role="note">{step}:{current.view}{replay && ':replay'}<button onClick={onSkip}>Skip</button><button onClick={onNext}>Next</button></div> }));
-const trip = { id: 't1', user_id: 'owner' } as Trip;
+const trip = { id: 't1', user_id: 'owner', created_at: new Date().toISOString() } as Trip;
 const saved = { id: 'c1', day_id: null, status: 'interested', place: { type: 'activity' } } as unknown as Card;
 function Surface(props: GuidanceScreen) {
   useGuidanceScreen(props);
@@ -71,5 +71,10 @@ describe('live journey guidance', () => {
     expect(screen.queryByRole('note')).toBeNull();
     fireEvent.click(screen.getByText('Continue'));
     expect(screen.getByRole('note').textContent).toContain('plan:map');
+  });
+  it('does not interrupt an established user opening an empty day in their only journey', async () => {
+    render(app({ trip: { ...trip, created_at: '2020-01-01T00:00:00Z' } }));
+    await screen.findByText('Continue');
+    expect(screen.queryByRole('note')).toBeNull();
   });
 });
