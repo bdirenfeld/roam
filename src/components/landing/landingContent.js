@@ -8,7 +8,7 @@ export const landingStyles = baseLandingStyles + `
 
 .example-toggle{display:flex;gap:3px;padding:3px;background:#e9e8e5;border-radius:6px}.modal-controls .example-toggle button{border:0;min-height:38px;padding:8px 18px}.modal-controls .example-close{display:grid;place-items:center;border:0;padding:0;width:44px;height:44px;flex:none;background:transparent}.example-screen{width:100%;min-height:0;overflow:hidden;position:relative;flex:1}#image-dialog:not(.mobile-mode) .example-screen{flex:none}#image-dialog:not(.mobile-mode) .example-screen iframe{width:1280px;height:820px;transform-origin:top left}#image-dialog.mobile-mode .example-screen iframe{width:100%;height:100%;transform:none!important}@media(max-width:650px){#image-dialog .modal-controls{width:auto;flex-wrap:nowrap}#image-dialog .dialog-top{flex-wrap:nowrap}#dialog-title{font-size:11px}.modal-controls .example-toggle button{padding:8px 12px}}
 
-.benefits h3{display:flex;align-items:flex-start;gap:10px}.benefits h3 svg{flex:none;margin-top:2px}
+.benefits h3{display:flex;align-items:flex-start;gap:10px}.benefits h3 svg{flex:none;margin-top:2px} .benefits h3 span{white-space:nowrap}@media(max-width:1100px){.benefits{grid-template-columns:1fr;gap:24px}}@media(max-width:400px){.benefits{padding:20px}.benefits h3{font-size:16px;gap:8px}}@media(max-width:360px){.benefits{padding:12px}.benefits h3{font-size:14px}}
 
 .content .demo-tabs,.content .demo-layout{display:none}
 
