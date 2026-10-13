@@ -13,6 +13,7 @@ import { createTrainingState, practiceDestinations } from './trainingState';
 function LoadingSample() { return <p role="status" className="p-5 text-sm text-activity/50">Opening the sample journey…</p>; }
 const DayViewClient = dynamic(() => import('@/components/day/DayViewClient'), { ssr: false, loading: LoadingSample });
 const FullMapClient = dynamic(() => import('@/components/map/FullMapClient'), { ssr: false, loading: LoadingSample });
+const DesktopMasthead = dynamic(() => import('@/components/ui/DesktopMasthead'), { ssr: false });
 const WeekBoard = dynamic(() => import('@/components/plan/WeekBoard'), { ssr: false, loading: LoadingSample });
 const NewJourneyForm = dynamic(() => import('@/components/trip/NewJourneyForm'), { ssr: false, loading: LoadingSample });
 const CardBottomSheet = dynamic(() => import('@/components/cards/CardBottomSheet'), { ssr: false, loading: LoadingSample });
@@ -55,13 +56,13 @@ export default function DemoClient({ initialView = 'day', initialDay, initialCar
         else window.location.assign('/demo?view=booking');
         return;
       }
-      if (['Search', 'Budget', 'Notes', 'Share & settings', 'Documents', 'Attachments', 'Share journey', 'Invite people', 'Where to stay', 'Paste a TikTok or Instagram link'].includes(label)) {
+      if (['Search', 'Budget', 'Notes', 'Share & settings', 'Documents', 'Attachments', 'Share journey', 'Invite people', 'Where to stay', 'Profile', 'Sign out', 'Paste a TikTok or Instagram link'].includes(label)) {
         event.preventDefault(); event.stopPropagation();
         setNotice('This account feature is available in the full app. In this demo, try the supplied booking confirmation and the preloaded places.');
         return;
       }
       const link = (event.target as HTMLElement).closest('a');
-      if (link?.getAttribute('href') === '/') {
+      if (['/', '/trips'].includes(link?.getAttribute('href') ?? '')) {
         event.preventDefault(); event.stopPropagation();
         window.parent.postMessage({ type: 'roam-demo-close' }, window.location.origin);
       }
@@ -84,6 +85,7 @@ export default function DemoClient({ initialView = 'day', initialDay, initialCar
   const chosen = DEMO_CARDS.find(c => c.id === `demo-${selected}`);
   const day = week.find(d => d.id === (query.get('day') ?? initialDay ?? chosen?.day_id)) ?? (training ? week.find(d => d.cards.length) ?? week[0] : week[2]);
   return <GlobalSearchProvider><AppOverlaysProvider><ToastProvider>
+    {view === 'week' && <DesktopMasthead previewPath={`/trips/${trip.id}/plan`} />}
     <div className="mobile-container flex flex-col bg-white md:bg-transparent">
       <main className="flex-1" data-landing-demo={view}>
         {notice && <div role="dialog" aria-label="About this demo" className="fixed inset-x-4 top-4 z-[200] p-5 rounded-xl bg-white shadow-xl border"><p>{notice}</p><button className="mt-3 underline" onClick={() => setNotice('')}>Got it</button></div>}

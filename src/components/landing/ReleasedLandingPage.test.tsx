@@ -11,36 +11,42 @@ beforeEach(() => {
   vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
-it('opens working top-level Google sign-in and returns to journey creation', async () => {
+it('offers the finished example as the primary action, with no interactive walkthrough', () => {
   render(<ReleasedLandingPage />);
-  fireEvent.click(screen.getByRole('button',{name:'Sign in'}));
-  expect(screen.getByRole('dialog',{name:'Sign in'})).toBeTruthy();
-  fireEvent.click(screen.getByRole('button',{name:'Continue with Google'}));
-  await waitFor(() => expect(auth.signInWithGoogle).toHaveBeenCalledWith('/trips/new'));
+  expect(document.querySelector('#guide-dialog')).toBeNull();
+  expect(document.querySelector('[data-guide]')).toBeNull();
+  const primary=document.querySelector<HTMLButtonElement>('.hero-actions .primary')!;
+  expect(primary.textContent).toBe('View example journey ↗');
+  fireEvent.click(primary);
+  expect(document.querySelector('#image-dialog')?.hasAttribute('open')).toBe(true);
+  expect(document.querySelector('#full-demo')?.getAttribute('src')).toContain('/demo?view=');
 });
-it('starts the guided sample on the public demo route and shows auth failures', () => {
+it('offers Desktop and Mobile with an accessible icon close control', () => {
+  render(<ReleasedLandingPage />);
+  fireEvent.click(document.querySelector('.hero-actions [data-example]')!);
+  const modal=document.querySelector('#image-dialog')!;
+  const mobile=modal.querySelector<HTMLButtonElement>('[data-modal-view="day"]')!;
+  fireEvent.click(mobile);
+  expect(document.querySelector('#full-demo')?.getAttribute('src')).toBe('/demo?view=day');
+  expect(mobile.getAttribute('aria-pressed')).toBe('true');
+  fireEvent.click(modal.querySelector('[data-modal-view="week"]')!);
+  expect(document.querySelector('#full-demo')?.getAttribute('src')).toBe('/demo?view=week');
+  expect(modal.querySelector('[data-modal-view="map"]')).toBeNull();
+  fireEvent.click(screen.getByRole('button',{name:'Close example journey'}));
+  expect(modal.hasAttribute('open')).toBe(false);
+});
+it('makes the example available after the video ends', () => {
+  render(<ReleasedLandingPage />);
+  fireEvent.ended(document.querySelector('#intro-video')!);
+  const next=document.querySelector<HTMLButtonElement>('#video-next')!;
+  expect(next.hidden).toBe(false);
+  fireEvent.click(next);
+  expect(document.querySelector('#image-dialog')?.hasAttribute('open')).toBe(true);
+});
+it('preserves Google sign-in and the return to real journey creation', async () => {
   render(<ReleasedLandingPage signInFailed />);
   expect(screen.getByRole('alert').textContent).toContain('Sign-in didn’t finish');
-  fireEvent.click(screen.getByRole('dialog',{name:'Sign in'}).querySelector('#close-auth')!);
-  fireEvent.click(screen.getAllByRole('button',{name:'Build a sample journey →'})[0]);
-  expect(screen.getByRole('dialog',{name:'Start your practice journey.'})).toBeTruthy();
-  expect(document.querySelector('#training-frame-holder iframe')?.getAttribute('src')).toBe('/demo?view=new&training=true&reset=true');
-});
-it('hands off a completed practice journey to sign-in', () => {
-  render(<ReleasedLandingPage />);
-  fireEvent.click(screen.getAllByRole('button', { name: 'Build a sample journey →' })[0]);
-  const notify = (data: Record<string, unknown>) => {
-    const frame = document.querySelector<HTMLIFrameElement>('#training-frame-holder iframe')!;
-    fireEvent(window, new MessageEvent('message', { origin: location.origin, source: frame.contentWindow, data }));
-  };
-  notify({ type: 'roam-training-created' });
-  notify({ type: 'roam-practice-state', count: 2, planned: 0 });
-  fireEvent.click(screen.getByRole('button', { name: 'Add a sample booking →' }));
-  notify({ type: 'roam-training-booking' });
-  fireEvent.click(screen.getByRole('button', { name: 'Plan my days →' }));
-  notify({ type: 'roam-practice-state', count: 2, planned: 3 });
-  fireEvent.click(screen.getByRole('button', { name: 'See my mobile agenda →' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Plan my own journey →' }));
-  expect(screen.getByRole('dialog', { name: 'Sign in' })).toBeTruthy();
-  expect(document.querySelector('#guide-dialog')?.hasAttribute('open')).toBe(false);
+  fireEvent.click(screen.getByRole('button',{name:'Sign in'}));
+  fireEvent.click(screen.getByRole('button',{name:'Continue with Google'}));
+  await waitFor(()=>expect(auth.signInWithGoogle).toHaveBeenCalledWith('/trips/new'));
 });

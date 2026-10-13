@@ -54,8 +54,10 @@ function formatDateRange(start: string, end: string): string {
 /**
  * Desktop-only masthead. Renders at ≥768px above the (app) content area.
  */
-export default function DesktopMasthead() {
-  const pathname = usePathname() ?? "";
+export default function DesktopMasthead({ previewPath }: { previewPath?: string } = {}) {
+  const currentPath = usePathname() ?? "";
+  // Public demos reuse the real journey chrome with their isolated fixture route.
+  const pathname = previewPath ?? currentPath;
 
   // Derive trip ID + section segment from the current path. Matches
   // /trips/{id}, /trips/{id}/plan, /trips/{id}/days/{dayId}, /trips/{id}/map,
