@@ -1,11 +1,23 @@
 'use client';
 import { useEffect } from 'react';
 import JourneySignIn from './JourneySignIn';
+import { FUNNEL, funnelEvent, funnelSource } from '@/lib/funnel';
 import { landingMarkup, landingStyles, initializeLanding } from './landingContent.js';
 const marketingMarkup = landingMarkup.replace(/<dialog id="auth-dialog"[\s\S]*?<\/dialog>/, '');
 
 /** Approved landing design; authentication stays in the top-level React app. */
 export default function ReleasedLandingPage({ signInFailed = false }: { signInFailed?: boolean }) {
+  // Clarity funnel (10 Oct 2026), lost when this page replaced LandingPage on
+  // 11 Oct and restored 13 Oct: the visit, its source, and the example tapped.
+  useEffect(() => {
+    funnelSource(window.location.search);
+    funnelEvent(FUNNEL.landingView);
+    const onClick = (e: MouseEvent) => {
+      if ((e.target as Element | null)?.closest?.('[data-example]')) funnelEvent(FUNNEL.landingDemo);
+    };
+    document.addEventListener('click', onClick);
+    return () => document.removeEventListener('click', onClick);
+  }, []);
   useEffect(() => {
     const cleanup = initializeLanding();
     if (signInFailed) (document.getElementById('auth-dialog') as HTMLDialogElement).showModal();

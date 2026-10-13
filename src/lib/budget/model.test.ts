@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { cardBudgetToCad, compute, defaultAssumptions, splitTotals, suggest, type Assumptions } from "./model";
+import { cardBudgetToCad, compute, defaultAssumptions, migrateAssumptions, splitTotals, suggest, type Assumptions } from "./model";
 
 /**
  * Splitting a journey between two households.
@@ -28,8 +28,6 @@ function tuscany(over: Partial<Assumptions> = {}): Assumptions {
     dogEnabled: true,
     dogNightlyRate: 50,      // ours    → 12 × 50  = 600
     dogNights: 12,
-    extrasEnabled: false,
-    touristTaxEnabled: false,
     contingencyPct: 0,
     pointsCredit: 0,
     guestPeople: 2,
@@ -68,10 +66,10 @@ describe("splitTotals", () => {
     }
   });
 
-  it("never charges the guests for the dog or the gifts", () => {
+  it("never charges the guests for the dog", () => {
     // Everything per-person and shared removed: only "ours" lines remain.
     const e = compute(
-      tuscany({ flightPerPerson: 0, nightlyRate: 0, carEnabled: false, extrasEnabled: true, extrasPerDay: 40 }),
+      tuscany({ flightPerPerson: 0, nightlyRate: 0, carEnabled: false }),
       NO_EXCURSIONS,
     );
     expect(e.split!.guests).toBe(0);
@@ -139,14 +137,13 @@ describe("compute", () => {
 
 // 27 Sep 2026: a family of five on a 7-night Mediterranean cruise.
 describe("a cruise", () => {
-  const a = { ...defaultAssumptions(5, 7), nightlyRate: 480, cruiseFarePerPerson: 1330, groceriesPerDay: 110, carEnabled: true, carDayRate: 210, touristTaxEnabled: true, touristTaxPerNight: 15 };
+  const a = { ...defaultAssumptions(5, 7), nightlyRate: 480, cruiseFarePerPerson: 1330, groceriesPerDay: 110, carEnabled: true, carDayRate: 210 };
   const opts = { uncostedExcursions: 0, rolledExcursionCount: 0 };
-  it("prices a fare per person instead of hotel nights, with no groceries, car or tourist tax", () => {
+  it("prices a fare per person instead of hotel nights, with no groceries or car", () => {
     const est = compute(a, { ...opts, cruise: true });
     const keys = est.lines.map((l) => l.key);
     expect(keys).not.toContain("groceries");
     expect(keys).not.toContain("car");
-    expect(keys).not.toContain("touristTax");
     const fare = est.lines.find((l) => l.key === "accommodation")!;
     expect(fare.label).toBe("Cruise fare");
     expect(fare.amount).toBe(1330 * 5);
@@ -164,17 +161,16 @@ describe("a cruise", () => {
   });
 });
 
-// 27 Sep 2026: Dog boarding and Gifts were on for everyone.
-describe("dog and gifts follow the person, not Brennan", () => {
-  it("are off with nothing to go on", () => {
+// 27 Sep 2026: Dog boarding was on for everyone.
+describe("the dog follows the person, not Brennan", () => {
+  it("is off with nothing to go on", () => {
     const a = defaultAssumptions(8, 3);
     expect(a.dogEnabled).toBe(false);
-    expect(a.extrasEnabled).toBe(false);
+    expect(a.customLines).toEqual([]);
   });
-  it("follow the last journey's choice", () => {
-    const a = defaultAssumptions(5, 7, false, false, { dog: true, gifts: true });
+  it("follows the last journey's choice", () => {
+    const a = defaultAssumptions(5, 7, false, false, { dog: true });
     expect(a.dogEnabled).toBe(true);
-    expect(a.extrasEnabled).toBe(true);
     expect(defaultAssumptions(5, 7, true, false, { dog: true }).dogEnabled).toBe(false); // at home, no boarding
   });
 });
@@ -221,5 +217,52 @@ describe("suggest in the person's home currency", () => {
     expect(s.basis.restaurants).toBe("£31 a head × 4");
     expect(s.basis.flights).toBe("340 km from London · short-haul");
     expect(s.values.flightPerPerson).toBe(130); // 240 × 0.536 = 128.6
+  });
+});
+
+// 13 Oct 2026 (Brennan): Car hire into Standard with its tick, Restaurants and
+// Groceries under Food, Gifts and Tourist tax out, your own lines in.
+describe("the 13 Oct 2026 layout", () => {
+  const a = tuscany({ guestPeople: 0, groceriesPerDay: 100, perMealOut: 300, mealsOut: 5 });
+  it("puts Car hire in Standard, still with a tick, and Food's two rows after it", () => {
+    const e = compute(a, NO_EXCURSIONS);
+    const std = e.lines.filter((l) => l.group === "standard").map((l) => l.key);
+    expect(std).toEqual(["flights", "accommodation", "car", "restaurants", "groceries", "excursions"]);
+    expect(e.lines.find((l) => l.key === "car")!.enabledKey).toBe("carEnabled");
+    expect(e.lines.filter((l) => l.parent === "food").map((l) => l.key)).toEqual(["restaurants", "groceries"]);
+    expect(e.lines.filter((l) => l.group === "additional").map((l) => l.key)).toEqual(["dog"]);
+  });
+  it("drops an unticked car from the total and keeps its rate", () => {
+    const on = compute(a, NO_EXCURSIONS);
+    const off = compute({ ...a, carEnabled: false }, NO_EXCURSIONS);
+    expect(on.total - off.total).toBe(1100);
+    expect(off.lines.find((l) => l.key === "car")!.unit).toBe(100);
+  });
+  it("adds your own lines to Additional and to the total, shared like the villa", () => {
+    const base = compute(a, NO_EXCURSIONS);
+    const e = compute({ ...a, customLines: [{ id: "x", label: "Ski passes", amount: 1200 }] }, NO_EXCURSIONS);
+    const line = e.lines.find((l) => l.customId === "x")!;
+    expect(line).toMatchObject({ group: "additional", label: "Ski passes", amount: 1200, share: "shared", enabled: true });
+    expect(e.total - base.total).toBe(1200);
+  });
+});
+
+describe("migrateAssumptions", () => {
+  // Japan's saved budget on 13 Oct 2026: Gifts on at $50 a day for 13 days.
+  const japan = { ...defaultAssumptions(5, 13), extrasEnabled: true, extrasPerDay: 50, touristTaxEnabled: false, touristTaxPerNight: 15 } as Assumptions;
+  it("turns a Gifts line that was on into a line of your own with the same figure", () => {
+    const m = migrateAssumptions(japan);
+    expect(m.customLines).toEqual([{ id: "gifts", label: "Gifts", amount: 650 }]);
+    expect(m).not.toHaveProperty("extrasEnabled");
+    expect(m).not.toHaveProperty("touristTaxPerNight");
+  });
+  it("keeps the total exactly where it was", () => {
+    const before = compute({ ...defaultAssumptions(5, 13), customLines: [{ id: "g", label: "g", amount: 650 }] }, NO_EXCURSIONS).total;
+    expect(compute(migrateAssumptions(japan), NO_EXCURSIONS).total).toBe(before);
+  });
+  it("adds nothing for Gifts that was off, and is safe to run twice", () => {
+    expect(migrateAssumptions({ ...japan, extrasEnabled: false } as Assumptions).customLines).toEqual([]);
+    const twice = migrateAssumptions(migrateAssumptions(japan));
+    expect(twice.customLines).toHaveLength(1);
   });
 });

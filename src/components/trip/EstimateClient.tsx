@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CaretLeft, CaretDown, Check, X } from "@phosphor-icons/react";
 import { createClient } from "@/lib/supabase/client";
@@ -24,8 +24,6 @@ const FILLS: [keyof Assumptions, string][] = [
   ["perMealOut", "restaurants"],
   ["carDayRate", "car"],
   ["dogNightlyRate", "dog"],
-  ["extrasPerDay", "extras"],
-  ["touristTaxPerNight", "touristTax"],
 ];
 
 const INK = "#1A1A2E";
@@ -64,7 +62,10 @@ function Shell({
   onClick,
   tint,
   pv = 10,
+  indent = false,
 }: {
+  /** A row folded under a parent (Food's Restaurants and Groceries). */
+  indent?: boolean;
   leading?: React.ReactNode;
   label: React.ReactNode;
   labelColor: string;
@@ -79,7 +80,7 @@ function Shell({
     <div className="flex items-center gap-1 w-full">
       <div className="w-4 shrink-0 flex items-center">{leading}</div>
       <div
-        className="flex-1 min-w-0 text-[13.5px] truncate text-left"
+        className={`flex-1 min-w-0 text-[13.5px] truncate text-left${indent ? " pl-4" : ""}`}
         style={{ color: labelColor }}
       >
         {label}
@@ -128,6 +129,7 @@ function Row({
   const dim = off ? SOFT : INK;
   return (
     <Shell
+      indent={line.parent != null}
       labelColor={dim}
       amountColor={off || unset ? SOFT : dim}
       label={
@@ -221,6 +223,108 @@ function Row({
   );
 }
 
+/**
+ * Food: one row with the sum of Restaurants and Groceries, folded by default
+ * (Brennan, 13 Oct 2026). The caret sits where a tick would, like the group bars.
+ */
+function FoodRow({
+  lines,
+  isOpen,
+  onToggle,
+  sym = "$",
+}: {
+  lines: EstimateLine[];
+  isOpen: boolean;
+  onToggle: () => void;
+  sym?: string;
+}) {
+  const sum = lines.reduce((s, l) => s + (l.enabled ? l.amount : 0), 0);
+  const unset = lines.every((l) => l.unit === 0);
+  return (
+    <Shell
+      onClick={onToggle}
+      labelColor={INK}
+      amountColor={unset ? SOFT : INK}
+      amount={unset ? "—" : money(sum, sym)}
+      leading={
+        <CaretDown
+          size={12}
+          weight="bold"
+          color={SOFT}
+          aria-label={isOpen ? "Hide food lines" : "Show food lines"}
+          style={{ transform: isOpen ? "none" : "rotate(-90deg)", transition: "transform 140ms" }}
+        />
+      }
+      label="Food"
+    />
+  );
+}
+
+/** A cost you named yourself: the name, one figure, and ✕ where the count would be. */
+function CustomRow({
+  line,
+  sym = "$",
+  autoFocus,
+  onLabel,
+  onAmount,
+  onRemove,
+}: {
+  line: EstimateLine;
+  sym?: string;
+  autoFocus?: boolean;
+  onLabel: (v: string) => void;
+  onAmount: (raw: string) => void;
+  onRemove: () => void;
+}) {
+  const unset = line.unit === 0;
+  return (
+    <Shell
+      labelColor={INK}
+      amountColor={unset ? SOFT : INK}
+      amount={unset ? "—" : money(line.amount, sym)}
+      label={
+        <input
+          type="text"
+          value={line.label}
+          autoFocus={autoFocus}
+          onChange={(e) => onLabel(e.target.value)}
+          placeholder="Name this cost"
+          aria-label="Cost name"
+          className="w-full bg-transparent outline-none placeholder:text-[rgba(26,26,46,0.4)]"
+          style={{ color: INK }}
+        />
+      }
+      middle={
+        <>
+          <div className="w-[58px] shrink-0">
+            <input
+              type="number"
+              inputMode="decimal"
+              value={unset ? "" : String(line.unit)}
+              onChange={(e) => onAmount(e.target.value)}
+              aria-label={`${line.label || "Cost"} amount`}
+              className="w-full rounded-full px-2 py-1.5 text-[12.5px] text-right"
+              style={box(INK)}
+            />
+          </div>
+          <div className="shrink-0 w-[44px] sm:w-[92px] flex justify-center">
+            <button
+              type="button"
+              onClick={onRemove}
+              aria-label={`Remove ${line.label || "this cost"}`}
+              className="relative flex items-center justify-center w-6 h-6"
+              style={{ color: SOFT }}
+            >
+              <span aria-hidden="true" className="absolute -inset-2" />
+              <X size={13} weight="bold" />
+            </button>
+          </div>
+        </>
+      }
+    />
+  );
+}
+
 function GroupBar({
   label,
   lines,
@@ -270,7 +374,8 @@ function GroupBar({
           {!isOpen && (
             <span className="normal-case tracking-normal" style={{ color: SOFT }}>
               {" "}
-              · {caption ?? `${lines.filter((l) => l.enabled).length + (extraItems ?? 0)} items`}
+              {/* Food counts once, however many rows sit under it. */}
+              · {caption ?? `${new Set(lines.filter((l) => l.enabled).map((l) => l.parent ?? l.key)).size + (extraItems ?? 0)} items`}
             </span>
           )}
         </span>
@@ -348,7 +453,9 @@ export default function EstimateClient({
   // Both groups open folded: the total, two subtotals and the Total are the
   // screen (contingency and points are Additional's last two rows); the nine lines with their fields are a tap away
   // (Brennan, 15 Sept 2026: "the budget should open with all fields collapsed").
-  const [open, setOpen] = useState({ standard: false, additional: false, sharing: false });
+  // Food opens folded too: one row with the sum, Restaurants and Groceries a
+  // tap away (Brennan, 13 Oct 2026).
+  const [open, setOpen] = useState({ standard: false, additional: false, sharing: false, food: false });
   // Saves as you go (audit, 23 Sep 2026). There was a Save button, and
   // closing with × threw every change away without a word — the only screen
   // in Roam that worked that way. Every edit now writes itself a moment after
@@ -536,6 +643,8 @@ export default function EstimateClient({
     next.excursionsTotal = rowsTotal();
     setExcursionsTyped(false);
     next.pointsCredit = 0;
+    // Your own lines keep their names; only the figures go.
+    next.customLines = (a.customLines ?? []).map((c) => ({ ...c, amount: 0 }));
     setPrev({ a, basis });
     setA(next);
     setBasis({});
@@ -551,6 +660,33 @@ export default function EstimateClient({
   const toggle = useCallback((key: keyof Assumptions) => {
     setA((p) => ({ ...p, [key]: !p[key] }));
   }, []);
+
+  // Lines you name yourself under Additional (13 Oct 2026: replaced Gifts and
+  // Tourist tax). A name and one figure each; ✕ takes it away, with Undo.
+  const [focusCustom, setFocusCustom] = useState<string | null>(null);
+  const addCustom = () => {
+    const id = Date.now().toString(36);
+    setA((p) => ({ ...p, customLines: [...(p.customLines ?? []), { id, label: "", amount: 0 }] }));
+    setFocusCustom(id);
+  };
+  const setCustom = (id: string, patch: { label?: string; amount?: number }) => {
+    setA((p) => ({ ...p, customLines: (p.customLines ?? []).map((c) => (c.id === id ? { ...c, ...patch } : c)) }));
+  };
+  const removeCustom = (id: string) => {
+    const lines = a.customLines ?? [];
+    const at = lines.findIndex((c) => c.id === id);
+    if (at < 0) return;
+    const gone = lines[at];
+    setA((p) => ({ ...p, customLines: (p.customLines ?? []).filter((c) => c.id !== id) }));
+    toast({
+      message: `Removed ${gone.label.trim() || "that cost"}`,
+      undo: () => setA((p) => {
+        const now = [...(p.customLines ?? [])];
+        now.splice(Math.min(at, now.length), 0, gone);
+        return { ...p, customLines: now };
+      }),
+    });
+  };
 
   const persist = async (): Promise<boolean> => {
     setStatus("saving");
@@ -712,9 +848,20 @@ export default function EstimateClient({
             onToggle={() => setOpen((p) => ({ ...p, standard: !p.standard }))}
           />
           {open.standard &&
-            standard.map((l) => (
-              <Row key={l.key} line={l} setNum={setNum} toggle={toggle} sym={hs} />
-            ))}
+            standard.map((l, i) => {
+              if (!l.parent) return <Row key={l.key} line={l} setNum={setNum} toggle={toggle} sym={hs} />;
+              const food = standard.filter((x) => x.parent === "food");
+              const header = standard.findIndex((x) => x.parent === "food") === i ? (
+                <FoodRow key="food" lines={food} isOpen={open.food} sym={hs}
+                  onToggle={() => setOpen((p) => ({ ...p, food: !p.food }))} />
+              ) : null;
+              return (
+                <Fragment key={l.key}>
+                  {header}
+                  {open.food && <Row line={l} setNum={setNum} toggle={toggle} sym={hs} />}
+                </Fragment>
+              );
+            })}
 
           {/* Contingency and points sit inside Additional (Brennan, 25 Sep
               2026: "combine contingency and paid with points into the
@@ -730,9 +877,22 @@ export default function EstimateClient({
           />
           {open.additional && (
             <>
-              {additional.map((l) => (
+              {additional.map((l) => l.customId ? (
+                <CustomRow key={l.key} line={l} sym={hs} autoFocus={focusCustom === l.customId}
+                  onLabel={(v) => setCustom(l.customId!, { label: v })}
+                  onAmount={(raw) => { const v = raw === "" ? 0 : Number(raw); if (!Number.isNaN(v)) setCustom(l.customId!, { amount: v }); }}
+                  onRemove={() => removeCustom(l.customId!)} />
+              ) : (
                 <Row key={l.key} line={l} setNum={setNum} toggle={toggle} sym={hs} />
               ))}
+              <button
+                type="button"
+                onClick={addCustom}
+                className="w-full text-left text-[13px]"
+                style={{ borderTop: `1px solid ${RULE}`, padding: `10px ${PAD}px 10px ${PAD + 20}px`, color: SIENNA }}
+              >
+                + Add a cost
+              </button>
               <Shell
                 labelColor={CAPTION}
                 amountColor={INK}

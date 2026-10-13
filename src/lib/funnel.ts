@@ -15,16 +15,37 @@ export const FUNNEL = {
 } as const;
 export type FunnelEvent = (typeof FUNNEL)[keyof typeof FUNNEL];
 
-type ClarityWindow = { clarity?: (...args: unknown[]) => void };
+type ClarityWindow = { clarity?: (...args: unknown[]) => void; __roamFunnel?: unknown[][] };
 
-/** Count an event. Silent when Clarity is not loaded (dev, Brennan's own
- *  sessions, a blocked script): the event is never the point of the tap. */
-export function funnelEvent(name: FunnelEvent, win: ClarityWindow | undefined = typeof window === "undefined" ? undefined : (window as ClarityWindow)): void {
+/**
+ * Clarity loads after the session is read (SessionRecorder), so an event sent
+ * as the page mounts — landing_view, the source tag — found no Clarity and was
+ * dropped (13 Oct 2026). Calls made before it loads wait here, on the window,
+ * and SessionRecorder hands them over with flushFunnel once it has loaded.
+ * A visitor who is never recorded just leaves a few entries behind.
+ */
+function send(win: ClarityWindow | undefined, args: unknown[]): void {
+  if (!win) return;
   try {
-    win?.clarity?.("event", name);
+    if (win.clarity) win.clarity(...args);
+    else (win.__roamFunnel = win.__roamFunnel ?? []).push(args);
   } catch {
     /* a recorder fault must never reach the page */
   }
+}
+
+/** Hand anything sent before Clarity loaded to it, once. */
+export function flushFunnel(win: ClarityWindow | undefined = typeof window === "undefined" ? undefined : (window as ClarityWindow)): void {
+  const waiting = win?.__roamFunnel;
+  if (!win?.clarity || !waiting) return;
+  win.__roamFunnel = [];
+  for (const args of waiting) send(win, args);
+}
+
+/** Count an event. Silent when Clarity is never loaded (dev, Brennan's own
+ *  sessions, a blocked script): the event is never the point of the tap. */
+export function funnelEvent(name: FunnelEvent, win: ClarityWindow | undefined = typeof window === "undefined" ? undefined : (window as ClarityWindow)): void {
+  send(win, ["event", name]);
 }
 
 /** Where the visitor came from, as a Clarity tag: the /ig, /reddit and /beta
@@ -36,9 +57,5 @@ export function sourceFromSearch(search: string): string {
 }
 
 export function funnelSource(search: string, win: ClarityWindow | undefined = typeof window === "undefined" ? undefined : (window as ClarityWindow)): void {
-  try {
-    win?.clarity?.("set", "source", sourceFromSearch(search));
-  } catch {
-    /* as above */
-  }
+  send(win, ["set", "source", sourceFromSearch(search)]);
 }

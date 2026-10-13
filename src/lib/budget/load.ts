@@ -2,6 +2,7 @@ import {
   defaultAssumptions,
   cardBudgetToCad,
   greatCircleKm,
+  migrateAssumptions,
   type Assumptions,
   type CardBudget,
 } from "./model";
@@ -217,7 +218,7 @@ export async function loadEstimate(
     ]);
   const home = profile.currency;
   const origin = profile.origin;
-  // Your last other budget says whether you board a dog and buy gifts.
+  // Your last other budget says whether you board a dog.
   const { data: last } = saved ? { data: null } : await supabase
     .from("trip_budgets").select("assumptions").neq("trip_id", tripId)
     .order("updated_at", { ascending: false }).limit(1).maybeSingle();
@@ -327,11 +328,12 @@ export async function loadEstimate(
   const lng = trip.destination_lng as number | null;
   // Within ~80 km of home: no car hire and no boarding for the dog by default.
   const atHome = lat != null && lng != null && greatCircleKm(origin.lat, origin.lng, lat, lng) < 80;
-  const assumptions: Assumptions = {
-    ...defaultAssumptions(partySize, nights, atHome, isMetroCity(trip.destination as string | null), { dog: lastA.dogEnabled, gifts: lastA.extrasEnabled }),
+  // Older saves carry Gifts and Tourist tax; Gifts becomes a line of your own.
+  const assumptions: Assumptions = migrateAssumptions({
+    ...defaultAssumptions(partySize, nights, atHome, isMetroCity(trip.destination as string | null), { dog: lastA.dogEnabled }),
     excursionsTotal: rolledCad,
     ...savedA,
-  };
+  });
 
 
   return {

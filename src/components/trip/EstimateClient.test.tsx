@@ -228,3 +228,35 @@ describe("Budget from this journey, outside Canada", () => {
     expect(row.assumptions).toMatchObject({ fxTyped: true, fxBase: "USD" });
   });
 });
+
+// 13 Oct 2026 (Brennan): Car hire in Standard with a tick; Food folds over
+// Restaurants and Groceries; your own lines under Additional.
+describe("Budget layout, 13 Oct 2026", () => {
+  it("shows Car hire with its tick in Standard, and Food folded over its two rows", () => {
+    open();
+    fireEvent.click(screen.getByText("Standard"));
+    expect(screen.getByLabelText(/Car hire$/)).toBeTruthy();     // "Include/Exclude Car hire"
+    expect(screen.getByText("Food")).toBeTruthy();
+    expect(screen.queryByLabelText("Restaurants unit cost")).toBeNull();
+    fireEvent.click(screen.getByText("Food"));
+    expect(screen.getByLabelText("Restaurants unit cost")).toBeTruthy();
+    expect(screen.getByLabelText("Groceries unit cost")).toBeTruthy();
+    fireEvent.click(screen.getByText("Food"));
+    expect(screen.queryByLabelText("Groceries unit cost")).toBeNull();
+  });
+
+  it("has no Gifts or Tourist tax, and adds, names, prices and saves a cost of your own", async () => {
+    open();
+    openAdditional();
+    expect(screen.queryByText("Gifts")).toBeNull();
+    expect(screen.queryByText("Tourist tax")).toBeNull();
+    fireEvent.click(screen.getByText("+ Add a cost"));
+    fireEvent.change(screen.getByLabelText("Cost name"), { target: { value: "Ski passes" } });
+    fireEvent.change(screen.getByLabelText("Ski passes amount"), { target: { value: "1200" } });
+    await act(async () => { vi.advanceTimersByTime(800); });
+    const saved = upserts.at(-1)!.assumptions as { customLines: { label: string; amount: number }[] };
+    expect(saved.customLines).toEqual([expect.objectContaining({ label: "Ski passes", amount: 1200 })]);
+    fireEvent.click(screen.getByLabelText("Remove Ski passes"));
+    expect(screen.queryByLabelText("Cost name")).toBeNull();
+  });
+});

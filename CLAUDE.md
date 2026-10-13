@@ -111,7 +111,7 @@ The benchmark: someone opens Roam in a Centurion Lounge and the person next to t
 
 ## Estimate (trip budget)
 - Table `trip_budgets` (trip_id PK, user_id, currency, fx_to_cad, `assumptions` jsonb, `basis` jsonb), own-rows RLS.
-- Nine lines in two groups (`standard` / `additional`). Model in `src/lib/budget/model.ts`; `src/lib/budget/load.ts` is shared by the route and the overlay so the two can never drift.
+- Lines in two groups (`standard` / `additional`). **13 Oct 2026 (Brennan):** Car hire is Standard with its tick; Restaurants + Groceries carry `parent: "food"` and render folded under one Food row; Gifts and Tourist tax are gone; Additional = Dog boarding + `assumptions.customLines` (name + one figure, shared). `migrateAssumptions()` (run in load.ts) turns an old saved Gifts-on into a custom "Gifts" line so totals did not move (Japan $650, Costa Rica $400, Rome $120). Model in `src/lib/budget/model.ts`; `src/lib/budget/load.ts` is shared by the route and the overlay so the two can never drift.
 - Defaults ship with **prices blank and counts real** — the app never invents a price. `suggest()` fills them from a great-circle flight band and per-card `details.budget`.
 - **Sub-components must live at module scope.** Defining `Row`/`Shell` inside the component body gives them a new identity every render, which remounts the subtree and destroys the focused `<input>` — that was the "typing one digit kicks me out of the cell" bug.
 
@@ -2465,3 +2465,7 @@ Four commits (bbf019a, f532668, cb36b20, 614cef0) opened the journey map in plac
   Phone: `/map?plan=1` opens the sheet (FullMapClient); week: `roam:open-plan` (WeekMap). Free, not a
   paid tier — his call after the growth lead's case: never gate the aha, charge per trip later, once
   about a third of sign-ups reach a filled trip.
+
+## Clarity funnel events
+- Clarity loads only after SessionRecorder reads the session, so anything sent at page mount found no `window.clarity` and was dropped (landing_view and the source tag, 10–13 Oct 2026). `lib/funnel` now queues on `window.__roamFunnel` and SessionRecorder calls `flushFunnel()` after `loadClarity`. Never pre-create a `window.clarity` stub yourself: `loadClarity` returns early if one exists and the script never loads.
+- The landing page ChatGPT shipped 11 Oct (`ReleasedLandingPage`, HTML in `landingContent.js`) dropped every funnel call; restored 13 Oct. If the landing is replaced again, carry them over.

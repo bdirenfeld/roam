@@ -9,7 +9,13 @@
  * to find out what they are.
  *
  * Two groups: the costs every journey carries, and the ones only some do.
- * Additional rows keep their numbers when unticked and simply drop out.
+ * Rows with a tick keep their numbers when unticked and simply drop out.
+ *
+ * 13 Oct 2026 (Brennan): Car hire moved into Standard, keeping its tick.
+ * Restaurants and Groceries sit under one Food row. Gifts and Tourist tax were
+ * taken out ("contingency would cover that"); Additional is Dog boarding plus
+ * lines you name yourself. A saved Gifts figure becomes one of those lines
+ * (migrateAssumptions), so no journey's total moved.
  *
  * Everything is in home currency. Excursions is seeded from the costed cards —
  * converted once, on the server, at the journey's stored rate — and is then an
@@ -37,6 +43,13 @@ export interface CardBudget {
   confidence?: Confidence;
 }
 
+/** A cost you named yourself under Additional: one figure, no × count. */
+export interface CustomLine {
+  id: string;
+  label: string;
+  amount: number;
+}
+
 export interface Assumptions {
   // Counts, seeded from the journey but editable here.
   people: number;
@@ -58,16 +71,16 @@ export interface Assumptions {
    */
   cruiseFarePerPerson: number;
 
-  // Additional
+  /** Standard, with a tick. */
   carEnabled: boolean;
   carDayRate: number;
+
+  // Additional
   dogEnabled: boolean;
   dogNightlyRate: number;
   dogNights: number;
-  extrasEnabled: boolean;
-  extrasPerDay: number;
-  touristTaxEnabled: boolean;
-  touristTaxPerNight: number;
+  /** Lines you added and named. Absent on budgets saved before 13 Oct 2026. */
+  customLines?: CustomLine[];
 
   contingencyPct: number;
   /** Dollars covered by card points, deducted from the total. */
@@ -103,6 +116,10 @@ export interface EstimateLine {
   countLabel: string;
   enabled: boolean;
   enabledKey?: keyof Assumptions;
+  /** Shown folded under one parent row ("food": Restaurants, Groceries). */
+  parent?: "food";
+  /** A line you named yourself (Assumptions.customLines). */
+  customId?: string;
   /** A flat sum: one editable figure, no × count. */
   lump?: boolean;
   /** Where a lump figure came from, shown where the count would be. */
@@ -164,10 +181,10 @@ export function defaultAssumptions(
   metro = false,
   /**
    * What this person chose on their last journey's budget (27 Sep 2026). Dog
-   * boarding and Gifts were on for everyone — Brennan's family, a tester with
-   * no dog, eight friends in Nashville. Nothing to go on means off.
+   * boarding was on for everyone — Brennan's family, a tester with no dog,
+   * eight friends in Nashville. Nothing to go on means off.
    */
-  habits: { dog?: boolean; gifts?: boolean } = {},
+  habits: { dog?: boolean } = {},
 ): Assumptions {
   return {
     // Counts are true — they come from the journey. Prices are left unset:
@@ -187,17 +204,13 @@ export function defaultAssumptions(
     cruiseFarePerPerson: 0,
 
     // Smart rather than arbitrary: a multi-night journey almost always needs a
-    // car and leaves the dog behind; tourist tax is destination-specific, so it
-    // stays off until the traveller says otherwise.
+    // car and leaves the dog behind.
     carEnabled: !home && !metro && nights >= 2,
     carDayRate: 0,
     dogEnabled: !home && nights >= 1 && habits.dog === true,
     dogNightlyRate: 0,
     dogNights: nights + 1,
-    extrasEnabled: habits.gifts === true,
-    extrasPerDay: 0,
-    touristTaxEnabled: false,
-    touristTaxPerNight: 0,
+    customLines: [],
 
     contingencyPct: 10,
     pointsCredit: 0,
@@ -207,6 +220,27 @@ export function defaultAssumptions(
     guestPeople: 0,
     guestSharePct: 33,
   };
+}
+
+/**
+ * Budgets saved before 13 Oct 2026 carry Gifts and Tourist tax fields. A Gifts
+ * line that was on and priced becomes a line of your own called "Gifts" with
+ * the same figure (rate × days), so the total does not move; Tourist tax was
+ * off on every saved budget and simply goes. Safe to run twice.
+ */
+export function migrateAssumptions(a: Assumptions): Assumptions {
+  const legacy = a as Assumptions & {
+    extrasEnabled?: boolean; extrasPerDay?: number;
+    touristTaxEnabled?: boolean; touristTaxPerNight?: number;
+  };
+  const { extrasEnabled, extrasPerDay, touristTaxEnabled, touristTaxPerNight, ...rest } = legacy;
+  void touristTaxEnabled; void touristTaxPerNight;
+  const lines = [...(rest.customLines ?? [])];
+  const gifts = extrasEnabled ? money((extrasPerDay ?? 0) * Math.max(rest.days, 0)) : 0;
+  if (gifts > 0 && !lines.some((l) => l.id === "gifts")) {
+    lines.unshift({ id: "gifts", label: "Gifts", amount: gifts });
+  }
+  return { ...rest, customLines: lines };
 }
 
 /**
@@ -318,13 +352,13 @@ export function withBooked(lines: EstimateLine[], a: Assumptions, booked: Booked
 /**
  * A cruise's budget (27 Sep 2026): the ship is the hotel and most of the
  * meals, and the port taxes are in the fare. Accommodation becomes the fare
- * per person; groceries, car hire and tourist tax go. The hotel rate is left
+ * per person; groceries and car hire go. The hotel rate is left
  * alone, so switching back to a land journey gets it back.
  */
 export function cruiseLines(lines: EstimateLine[], a: Assumptions): EstimateLine[] {
   const people = Math.max(a.people, 0);
   return lines
-    .filter((l) => l.key !== "groceries" && l.key !== "car" && l.key !== "touristTax")
+    .filter((l) => l.key !== "groceries" && l.key !== "car")
     .map((l) => l.key !== "accommodation" ? l : {
       ...l, label: "Cruise fare", share: "person", amount: money(a.cruiseFarePerPerson * people),
       unit: a.cruiseFarePerPerson, unitKey: "cruiseFarePerPerson",
@@ -370,29 +404,45 @@ export function compute(
       enabled: true,
     },
     {
-      key: "groceries",
-      share: "person",
-      label: "Groceries",
+      key: "car",
+      share: "shared",
+      label: "Car hire",
       group: "standard",
-      amount: money(a.groceriesPerDay * days),
-      unit: a.groceriesPerDay,
-      unitKey: "groceriesPerDay",
+      amount: money(a.carEnabled ? a.carDayRate * days : 0),
+      unit: a.carDayRate,
+      unitKey: "carDayRate",
       count: a.days,
       countKey: "days",
       countLabel: "days",
-      enabled: true,
+      enabled: a.carEnabled,
+      enabledKey: "carEnabled",
     },
     {
       key: "restaurants",
       share: "person",
       label: "Restaurants",
       group: "standard",
+      parent: "food",
       amount: money(a.perMealOut * a.mealsOut),
       unit: a.perMealOut,
       unitKey: "perMealOut",
       count: a.mealsOut,
       countKey: "mealsOut",
       countLabel: "meals",
+      enabled: true,
+    },
+    {
+      key: "groceries",
+      share: "person",
+      label: "Groceries",
+      group: "standard",
+      parent: "food",
+      amount: money(a.groceriesPerDay * days),
+      unit: a.groceriesPerDay,
+      unitKey: "groceriesPerDay",
+      count: a.days,
+      countKey: "days",
+      countLabel: "days",
       enabled: true,
     },
     {
@@ -417,20 +467,6 @@ export function compute(
         : undefined,
     },
     {
-      key: "car",
-      share: "shared",
-      label: "Car hire",
-      group: "additional",
-      amount: money(a.carEnabled ? a.carDayRate * days : 0),
-      unit: a.carDayRate,
-      unitKey: "carDayRate",
-      count: a.days,
-      countKey: "days",
-      countLabel: "days",
-      enabled: a.carEnabled,
-      enabledKey: "carEnabled",
-    },
-    {
       key: "dog",
       share: "ours",
       label: "Dog boarding",
@@ -444,34 +480,22 @@ export function compute(
       enabled: a.dogEnabled,
       enabledKey: "dogEnabled",
     },
-    {
-      key: "extras",
-      share: "ours",
-      label: "Gifts",
+    // Lines you named yourself: one figure each, shared like the villa.
+    ...(a.customLines ?? []).map((c): EstimateLine => ({
+      key: `custom-${c.id}`,
+      customId: c.id,
+      share: "shared",
+      label: c.label,
       group: "additional",
-      amount: money(a.extrasEnabled ? a.extrasPerDay * days : 0),
-      unit: a.extrasPerDay,
-      unitKey: "extrasPerDay",
-      count: a.days,
-      countKey: "days",
-      countLabel: "days",
-      enabled: a.extrasEnabled,
-      enabledKey: "extrasEnabled",
-    },
-    {
-      key: "touristTax",
-      share: "person",
-      label: "Tourist tax",
-      group: "additional",
-      amount: money(a.touristTaxEnabled ? a.touristTaxPerNight * a.nights : 0),
-      unit: a.touristTaxPerNight,
-      unitKey: "touristTaxPerNight",
-      count: a.nights,
-      countKey: "nights",
-      countLabel: "nights",
-      enabled: a.touristTaxEnabled,
-      enabledKey: "touristTaxEnabled",
-    },
+      amount: money(c.amount),
+      unit: c.amount,
+      unitKey: "customLines",
+      count: 0,
+      countKey: "customLines",
+      countLabel: "",
+      enabled: true,
+      lump: true,
+    })),
   ];
   const lines = withBooked(opts.cruise ? cruiseLines(base, a) : base, a, opts.booked);
 
@@ -589,8 +613,6 @@ export function suggest(
       perMealOut: hm(57 * people, 10),
       carDayRate: hm(vehicles * 105, 10),
       dogNightlyRate: hm(75, 5),
-      extrasPerDay: hm(9 * people, 10),
-      touristTaxPerNight: hm(3 * people, 1),
     },
     basis: {
       flights: home ? "at home · no flights" : `${km.toLocaleString("en-CA")} km from ${ctx.from ?? "Toronto"} · ${bandName}${ctx.peak ? " · +15% peak season" : ""}`,
@@ -599,8 +621,6 @@ export function suggest(
       restaurants: `${each(57)} a head × ${people}`,
       car: `${vehicles} ${vehicles === 1 ? "vehicle" : "vehicles"} · includes fuel and tolls`,
       dog: `boarding rate · ${a.dogNights} nights`,
-      extras: `${each(9)} per person per day × ${people}`,
-      touristTax: `${each(3)} per person per night × ${people}`,
     },
   };
 }
