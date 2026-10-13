@@ -1,5 +1,6 @@
 "use client";
 
+import JourneyGuidanceProvider from "@/components/onboarding/JourneyGuidanceProvider";
 import DesktopMasthead from "@/components/ui/DesktopMasthead";
 import { GlobalSearchProvider } from "@/components/search/GlobalSearch";
 import { AppOverlaysProvider } from "@/components/overlays/AppOverlays";
@@ -25,7 +26,7 @@ export default function AppLayout({
       <AppOverlaysProvider>
        {/* One toast for the whole app — every host's "deleted · Undo" and
            "Couldn't save" goes through it (see ui/Toast.tsx). */}
-       <ToastProvider>
+       <ToastProvider><JourneyGuidanceProvider>
         <DesktopMasthead />
         <div className="mobile-container flex flex-col bg-white md:bg-transparent md:!min-h-[calc(100dvh-64px)]">
           {/* No bottom bar since 24 Sep 2026: the day map carries a map disc and
@@ -41,7 +42,7 @@ export default function AppLayout({
         {/* Records what the app could not handle, so a failure on someone
             else's phone is not silent (scale audit, Sept 2026). */}
         <ErrorReporter />
-       </ToastProvider>
+       </JourneyGuidanceProvider></ToastProvider>
       </AppOverlaysProvider>
     </GlobalSearchProvider>
   );

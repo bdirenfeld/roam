@@ -46,7 +46,7 @@ it('makes the example available after the video ends', () => {
   fireEvent.click(next);
   expect(document.querySelector('#image-dialog')?.hasAttribute('open')).toBe(true);
 });
-it('preserves Google sign-in and the return to real journey creation', async () => {
+it('returns Google sign-in to existing journeys rather than forcing creation', async () => {
   render(<ReleasedLandingPage signInFailed />);
   expect(screen.getByRole('alert').textContent).toContain('Sign-in didn’t finish');
   fireEvent.click(screen.getByRole('button',{name:'Sign in'}));
@@ -54,5 +54,13 @@ it('preserves Google sign-in and the return to real journey creation', async () 
   expect(screen.queryByText('Plan your journey.')).toBeNull();
   expect(screen.getByRole('button',{name:'Close sign-in'})).toBeTruthy();
   fireEvent.click(screen.getByRole('button',{name:'Continue with Google'}));
-  await waitFor(()=>expect(auth.signInWithGoogle).toHaveBeenCalledWith('/trips/new'));
+  await waitFor(()=>expect(auth.signInWithGoogle).toHaveBeenCalledWith('/trips'));
+});
+it('returns email sign-in to journeys too', async () => {
+  auth.signInWithEmail.mockResolvedValue({ sent: true, message: 'Check your inbox' });
+  render(<ReleasedLandingPage />);
+  fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+  fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'traveller@example.com' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Email me a sign-in link' }));
+  await waitFor(() => expect(auth.signInWithEmail).toHaveBeenCalledWith('traveller@example.com', '/trips'));
 });

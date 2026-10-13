@@ -1,4 +1,5 @@
 "use client";
+import { useGuidanceScreen } from "@/components/onboarding/JourneyGuidanceContext";
 
 /**
  * The desktop Plan as a week (24 Sep 2026): days across, hours down, every
@@ -239,6 +240,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const mapPanelRef = useRef<HTMLDivElement | null>(null);
   const supabase = useMemo(() => createClient(), []);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
+  useGuidanceScreen({ trip, cards: tripCards, view: "week", readOnly: false, openedId: selectedCard?.id });
   const [hover, setHover] = useState<{ day: number; min: number | null } | null>(null);
   // The hover slot (6 Oct 2026, Brennan): a faint dashed hour exactly where a
   // click would make a block. Mouse and trackpad only (a phone or tablet has
@@ -1023,6 +1025,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                         onClick={(e) => e.stopPropagation()}
                         onPointerEnter={() => setHoveredId(c.id)}
                         onPointerLeave={() => setHoveredId((h) => (h === c.id ? null : h))}
+                        data-card-id={c.id}
                         className={`text-[10px] font-medium bg-[#FBFAF7] rounded-[5px] px-1.5 py-[3px] truncate max-w-full cursor-grab ${pickedBlocks.has(c.id) ? "ring-2 ring-[#1A1A2E]" : ""}`}
                         style={{ border: "1px dashed rgba(26,26,46,0.22)", borderLeft: `3px solid ${isNote(c) ? "rgba(26,26,46,0.4)" : PIN_COLORS[c.place!.type]}`, opacity: ghost?.id === c.id ? 0.6 : 1 }}
                         title={`${cardTitle(c)} · no time yet`}
@@ -1102,6 +1105,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                           onPointerDown={(e) => onBlockPointerDown(e, c, day.id)}
                           onPointerEnter={() => setHoveredId(c.id)}
                           onPointerLeave={() => setHoveredId((h) => (h === c.id ? null : h))}
+                          data-card-id={c.id}
                           className={`absolute rounded-[6px] overflow-hidden cursor-grab ${pickedBlocks.has(c.id) ? "ring-2 ring-[#1A1A2E]" : selectedCard?.id === c.id || hoveredId === c.id ? "ring-1 ring-[#B0541F]" : ""}`}
                           style={{
                             top: b.top, height: b.height,

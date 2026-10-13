@@ -9,6 +9,7 @@ import {
   PlayCircle,
 } from "@phosphor-icons/react";
 import VideosSheet from "@/components/videos/VideosSheet";
+import { useJourneyGuidance } from "@/components/onboarding/JourneyGuidanceContext";
 import { useHowToVideos } from "@/hooks/useHowToVideos";
 import { listed, deviceOf } from "@/lib/videos/howTo";
 import {
@@ -68,6 +69,7 @@ export default function AppMenu({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const notes = useJourneyNotes();
+  const guidance = useJourneyGuidance();
   // How-to videos (2 Oct 2026, video-placement-mock §5, his yes): a sixth tile
   // for anyone signed in, filling the second row. Shown once at least one
   // video is switched on (videos.json in the how-to-videos bucket).
@@ -94,7 +96,7 @@ export default function AppMenu({
   // 64px each, under the disc where the thumb already is — half the height
   // of six rows. A bottom sheet was mocked and rejected: the trigger is
   // top-right, so the menu must open there, not make the thumb travel.
-  const ownerItems = tripId ? (guest ? 1 : 3) + (extra?.length ?? 0) + (hasVideos ? 1 : 0) : 1;
+  const ownerItems = tripId ? (guest ? 1 : 3) + (extra?.length ?? 0) + (hasVideos ? 1 : 0) + (guidance && !guest ? 1 : 0) : 1;
   const tileCols = Math.min(3, Math.max(1, ownerItems));
 
   // Tiles on the desktop too (Brennan, 25 Sep 2026): the same two rows.
@@ -263,6 +265,14 @@ export default function AppMenu({
                 </TripSettingsLink>
               )}
 
+              {guidance && !guest && (
+                <div className="col-span-full border-t border-activity/10 pt-2 text-left">
+                  <button role="menuitem" onClick={() => { setOpen(false); guidance.resume(); }} className="flex min-h-11 w-full items-center gap-2 px-2 text-sm">
+                    <PlayCircle size={16} weight="light" /> Continue walkthrough
+                  </button>
+                  {guidance.restart && <button role="menuitem" aria-label="Start walkthrough again" onClick={() => { setOpen(false); guidance.restart?.(); }} className="min-h-11 w-full px-2 text-left text-xs text-activity/55">Start again</button>}
+                </div>
+              )}
               {hasVideos && (
                 <button
                   role="menuitem"

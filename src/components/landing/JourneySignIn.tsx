@@ -3,7 +3,7 @@ import { useState, useTransition } from 'react';
 import { signInWithEmail, signInWithGoogle } from '@/lib/auth-actions';
 import { FUNNEL, funnelEvent } from '@/lib/funnel';
 
-/** Reuse the current auth actions and return directly to journey creation. */
+/** Reuse the current auth actions and return to journeys; only a first-time user opens creation. */
 export default function JourneySignIn({ preview = false }: { preview?: boolean }) {
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState('');
@@ -14,7 +14,7 @@ export default function JourneySignIn({ preview = false }: { preview?: boolean }
     <button className="auth-google" disabled={pending || sent} onClick={() => {
       if (preview) { setMessage(previewMessage); return; }
       funnelEvent(FUNNEL.signInGoogle);
-      startTransition(async () => { try { await signInWithGoogle('/trips/new'); } catch (error) {
+      startTransition(async () => { try { await signInWithGoogle('/trips'); } catch (error) {
         // Next redirects must propagate to the framework.
         if (error instanceof Error && error.message === 'NEXT_REDIRECT') throw error;
         setMessage('Couldn’t open Google sign-in. Please try again.');
@@ -26,7 +26,7 @@ export default function JourneySignIn({ preview = false }: { preview?: boolean }
       const email = String(new FormData(event.currentTarget).get('email') ?? '');
       if (preview) { setMessage(previewMessage); return; }
       startTransition(async () => {
-        try { const result = await signInWithEmail(email, '/trips/new'); setMessage(result.message); setSent(result.sent); if (result.sent) funnelEvent(FUNNEL.signInEmail); }
+        try { const result = await signInWithEmail(email, '/trips'); setMessage(result.message); setSent(result.sent); if (result.sent) funnelEvent(FUNNEL.signInEmail); }
         catch { setMessage('Couldn’t send the link. Please try again.'); }
       });
     }}>

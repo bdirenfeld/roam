@@ -36,6 +36,7 @@ vi.mock("@/hooks/useHowToVideos", () => ({
 }));
 
 import AppMenu from "./AppMenu";
+import { JourneyGuidanceContext } from "@/components/onboarding/JourneyGuidanceContext";
 
 afterEach(cleanup);
 
@@ -48,6 +49,23 @@ function rows(guest: boolean) {
 }
 
 describe("the journey menu", () => {
+  it('restarts only when the separate Start again action is selected', () => {
+    const resume = vi.fn(); const restart = vi.fn();
+    render(<JourneyGuidanceContext.Provider value={{ resume, restart }}><AppMenu variant="mobile" tripId="t1" triggerClassName="" /></JourneyGuidanceContext.Provider>);
+    fireEvent.click(screen.getByLabelText('More options'));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Start walkthrough again' }));
+    expect(restart).toHaveBeenCalledTimes(1);
+    expect(resume).not.toHaveBeenCalled();
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+  it.each(['mobile', 'desktop'] as const)('resumes guidance and closes the %s menu', variant => {
+    const resume = vi.fn();
+    render(<JourneyGuidanceContext.Provider value={{ resume }}><AppMenu variant={variant} tripId="t1" triggerClassName="" /></JourneyGuidanceContext.Provider>);
+    fireEvent.click(screen.getByLabelText('More options'));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Continue walkthrough' }));
+    expect(resume).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
   it("is four tiles for the owner, Share and Settings as one, phone-short words", () => {
     const r = rows(false);
     expect(r).toEqual(["Budget", "Notes", "Bookings", "Settings"]);
