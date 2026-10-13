@@ -17,6 +17,9 @@ it('offers the finished example as the primary action, with no interactive walkt
   expect(document.querySelector('[data-guide]')).toBeNull();
   const primary=document.querySelector<HTMLButtonElement>('.hero-actions .primary')!;
   expect(primary.textContent).toBe('View example journey ↗');
+  expect(document.querySelector('.hero-actions [data-auth]')).toBeNull();
+  expect(document.querySelector('#demo-title')).toBeNull();
+  expect(document.querySelector('#demo-section [data-example]')).toBeNull();
   fireEvent.click(primary);
   expect(document.querySelector('#image-dialog')?.hasAttribute('open')).toBe(true);
   expect(document.querySelector('#full-demo')?.getAttribute('src')).toContain('/demo?view=');
@@ -47,6 +50,9 @@ it('preserves Google sign-in and the return to real journey creation', async () 
   render(<ReleasedLandingPage signInFailed />);
   expect(screen.getByRole('alert').textContent).toContain('Sign-in didn’t finish');
   fireEvent.click(screen.getByRole('button',{name:'Sign in'}));
+  expect(screen.getByRole('heading',{name:'Sign in to Roam.'})).toBeTruthy();
+  expect(screen.queryByText('Plan your journey.')).toBeNull();
+  expect(screen.getByRole('button',{name:'Close sign-in'})).toBeTruthy();
   fireEvent.click(screen.getByRole('button',{name:'Continue with Google'}));
   await waitFor(()=>expect(auth.signInWithGoogle).toHaveBeenCalledWith('/trips/new'));
 });

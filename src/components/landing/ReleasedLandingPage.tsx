@@ -15,7 +15,7 @@ export default function ReleasedLandingPage({ signInFailed = false }: { signInFa
     <style dangerouslySetInnerHTML={{ __html: landingStyles }} />
     <div dangerouslySetInnerHTML={{ __html: marketingMarkup }} />
     <dialog id="auth-dialog" aria-labelledby="auth-title">
-      <div className="dialog-top"><span id="auth-title">Sign in</span><button className="text-button" id="close-auth">Close</button></div>
+      <button className="auth-close" id="close-auth" aria-label="Close sign-in"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
       <div id="landing-auth-root">
         {signInFailed && <p role="alert" className="px-8 pt-4 text-sm">Sign-in didn’t finish. Please try again.</p>}
         <JourneySignIn />

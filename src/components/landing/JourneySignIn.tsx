@@ -9,8 +9,7 @@ export default function JourneySignIn({ preview = false }: { preview?: boolean }
   const [sent, setSent] = useState(false);
   const previewMessage = 'This is a design preview. Sign-in will be connected when this page is added to the live app.';
   return <div className="journey-auth">
-    <p className="auth-brand">roam</p>
-    <h1>Plan your journey.</h1>
+    <h1 id="auth-title">Sign in to Roam.</h1>
     <button className="auth-google" disabled={pending || sent} onClick={() => {
       if (preview) { setMessage(previewMessage); return; }
       startTransition(async () => { try { await signInWithGoogle('/trips/new'); } catch (error) {
