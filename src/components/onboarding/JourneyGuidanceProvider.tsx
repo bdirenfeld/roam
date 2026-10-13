@@ -61,7 +61,7 @@ export default function JourneyGuidanceProvider({ children, preview = false }: {
     // Recount on journey entry: the layout may have mounted before journey #1 existed.
     createClient().from('trips').select('id', { count: 'exact', head: true }).eq('user_id', uid).then(({ count, error }) => {
       if (live) { setOwnedCount(error ? null : count); setCountedTrip(tripId); }
-    }).catch(() => {
+    }, () => {
       if (live) { setOwnedCount(null); setCountedTrip(tripId); }
     });
     return () => { live = false; };
