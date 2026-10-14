@@ -69,11 +69,11 @@ describe('the Walkthroughs list (⋯ → Walkthrough)', () => {
     const list = screen.getByTestId('walkthrough-library');
     const rowOf = (title: string) => within(list).getByText(title).closest('button')!;
     expect(rowOf('Your day').textContent).toBe('Your day' + 'Change times and fill the gaps in a day.');
-    expect(rowOf('Notes').textContent).toContain('2 of 3');
+    expect(rowOf('Notes & checklists').textContent).toContain('2 of 3');
     expect(within(rowOf('Budget')).getByLabelText('Done')).toBeTruthy();
     expect(rowOf('Budget').textContent).toContain('See what the journey will cost.');
-    expect(screen.getByTestId('walkthrough-progress').textContent).toBe('1 of 10 done');
-    expect(rowOf('Your first journey').getAttribute('data-next')).toBe('true');
+    expect(within(list).getAllByRole('heading', { level: 3 }).map(h => h.textContent)).toEqual(['Start here', 'Planning the trip', 'On the trip']);
+    expect(within(list).queryByText('Next up')).toBeNull();
     expect(within(list).getByText('Planning the trip')).toBeTruthy();
     expect(within(list).getByText('On the trip')).toBeTruthy();
     fireEvent.click(within(list).getByText('Your day'));
