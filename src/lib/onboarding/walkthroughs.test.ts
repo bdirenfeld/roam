@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GROUPS, TOURS, TOUR_IDS, advance, fromTile, mergeRecords, onOpen, parseRecord, pickAnchor, statusLine, tourStepLabel, type TourState } from "./walkthroughs";
+import { GROUPS, TOURS, TOUR_IDS, advance, fromTile, mergeRecords, onOpen, parseRecord, pickAnchor, listMark, listProgress, LIST_ORDER, tourStepLabel, type TourState } from "./walkthroughs";
 
 const s = (status: TourState["status"], step = 0, updatedAt = 1): TourState => ({ status, step, updatedAt });
 
@@ -78,12 +78,23 @@ describe("the Walkthroughs list", () => {
     }
     for (const g of GROUPS) expect(TOUR_IDS.some((id) => TOURS[id].group === g)).toBe(true);
   });
-  it("says where each one stands", () => {
-    expect(statusLine("budget", undefined)).toBe(TOURS.budget.benefit);
-    expect(statusLine("budget", s("underway", 1))).toBe("Continue · Step 2 of 3");
-    expect(statusLine("stays", s("underway", 0))).toBe("Continue · Step 1 of 2");
-    expect(statusLine("notes", s("done", 2))).toBe("Done · Run it again");
-    expect(statusLine("notes", s("skipped", 0))).toBe("Skipped · Run it again");
+  it("marks each one: ✓ done, its step while under way, nothing when new or skipped", () => {
+    expect(listMark("budget", undefined)).toBeNull();
+    expect(listMark("budget", s("underway", 1))).toBe("2 of 3");
+    expect(listMark("stays", s("underway", 0))).toBe("1 of 2");
+    expect(listMark("notes", s("done", 2))).toBe("done");
+    expect(listMark("notes", s("skipped", 0))).toBeNull();
+  });
+  it("counts the first journey in the progress, and suggests it first until it is done", () => {
+    expect(listProgress(["map", "day"], { map: s("done", 1) }, "underway")).toEqual({ done: 1, total: 3, next: "first" });
+    expect(listProgress(["map", "day", "budget"], { map: s("done", 1), day: s("skipped", 0) }, "done")).toEqual({ done: 2, total: 4, next: "budget" });
+    expect(listProgress(["map"], { map: s("done", 1) }, "done").next).toBeNull();
+  });
+  it("lists every walkthrough once, planning before the trip", () => {
+    expect([...LIST_ORDER].sort()).toEqual([...TOUR_IDS].sort());
+    expect(LIST_ORDER.indexOf("ontrip")).toBeGreaterThan(LIST_ORDER.indexOf("notes"));
+    expect(TOURS.card.group).toBe("On the trip");
+    expect(TOURS.ontrip.group).toBe("On the trip");
   });
   it("Next opens a fold only for a step that has one to open", () => {
     expect(TOURS.budget.steps[1].reveal).toBe('[data-walk="budget-standard"]');

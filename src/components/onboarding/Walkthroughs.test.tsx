@@ -67,9 +67,15 @@ describe('the Walkthroughs list (⋯ → Walkthrough)', () => {
     app('day');
     fireEvent.click(await screen.findByText('Walkthrough'));
     const list = screen.getByTestId('walkthrough-library');
-    expect(within(list).getByText('Your day').nextSibling?.textContent).toBe('Skipped · Run it again');
-    expect(within(list).getByText('Notes').nextSibling?.textContent).toBe('Continue · Step 2 of 3');
-    expect(within(list).getByText('Budget').nextSibling?.textContent).toBe('Done · Run it again');
+    const rowOf = (title: string) => within(list).getByText(title).closest('button')!;
+    expect(rowOf('Your day').textContent).toBe('Your day' + 'Change times and fill the gaps in a day.');
+    expect(rowOf('Notes').textContent).toContain('2 of 3');
+    expect(within(rowOf('Budget')).getByLabelText('Done')).toBeTruthy();
+    expect(rowOf('Budget').textContent).toContain('See what the journey will cost.');
+    expect(screen.getByTestId('walkthrough-progress').textContent).toBe('1 of 10 done');
+    expect(rowOf('Your first journey').getAttribute('data-next')).toBe('true');
+    expect(within(list).getByText('Planning the trip')).toBeTruthy();
+    expect(within(list).getByText('On the trip')).toBeTruthy();
     fireEvent.click(within(list).getByText('Your day'));
     expect((await screen.findByRole('note')).textContent).toBe('day:0NextSkip');
     expect(mocks.push).not.toHaveBeenCalled();
@@ -104,6 +110,7 @@ describe('the Walkthroughs list (⋯ → Walkthrough)', () => {
     const list = screen.getByTestId('walkthrough-library');
     expect(within(list).queryByText('The week board')).not.toBeNull();
     expect(within(list).queryByText('Your day')).toBeNull();
-    expect(within(list).queryByText('Travel')).toBeNull();
+    expect(within(list).queryByText('On the day')).toBeNull();
+    expect(within(list).getByText('On the trip')).toBeTruthy();
   });
 });

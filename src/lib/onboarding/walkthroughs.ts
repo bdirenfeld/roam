@@ -42,7 +42,7 @@ export type TourStep = {
    */
   reveal?: string;
 };
-export type Group = "Plan your days" | "Prepare" | "Travel";
+export type Group = "Planning the trip" | "On the trip";
 /**
  * Where the list sends someone who picks a walkthrough from another screen.
  * `route` and `overlay` open the screen; `hint` says where to go (Bookings
@@ -65,7 +65,7 @@ export const TOURS: Record<TourId, Tour> = {
     id: "day",
     title: "Your day",
     benefit: "Change times and fill the gaps in a day.",
-    group: "Plan your days",
+    group: "Planning the trip",
     door: { kind: "route", path: "day" },
     device: "phone",
     steps: [
@@ -79,7 +79,7 @@ export const TOURS: Record<TourId, Tour> = {
     id: "week",
     title: "The week board",
     benefit: "Move places between days and times on a computer.",
-    group: "Plan your days",
+    group: "Planning the trip",
     door: { kind: "route", path: "plan" },
     device: "computer",
     steps: [
@@ -91,8 +91,8 @@ export const TOURS: Record<TourId, Tour> = {
   map: {
     id: "map",
     title: "Your map",
-    benefit: "Show only what you need, and move several places at once.",
-    group: "Plan your days",
+    benefit: "Show only what you need, move several at once.",
+    group: "Planning the trip",
     door: { kind: "route", path: "map" },
     steps: [
       { anchors: [{ selector: '[data-walk="map-filter"]', text: "Filter makes a busy map easier to read: just food, ideas still to fit in, or what’s planned." }] },
@@ -102,8 +102,8 @@ export const TOURS: Record<TourId, Tour> = {
   card: {
     id: "card",
     title: "A place’s card",
-    benefit: "Keep directions, tickets and a checklist with each stop.",
-    group: "Prepare",
+    benefit: "Directions, tickets and a checklist per stop.",
+    group: "On the trip",
     door: { kind: "hint", text: "Open any place on your day to start it." },
     steps: [
       { anchors: [{ selector: '[aria-label^="Directions to "]', text: "Tap the address for directions when it’s time to go." }] },
@@ -119,8 +119,8 @@ export const TOURS: Record<TourId, Tour> = {
   budget: {
     id: "budget",
     title: "Budget",
-    benefit: "See what the journey will cost, and change any price.",
-    group: "Prepare",
+    benefit: "See what the journey will cost.",
+    group: "Planning the trip",
     door: { kind: "overlay", which: "budget" },
     steps: [
       {
@@ -148,8 +148,8 @@ export const TOURS: Record<TourId, Tour> = {
   stays: {
     id: "stays",
     title: "Where to stay",
-    benefit: "Five places to stay that fit your days and party.",
-    group: "Prepare",
+    benefit: "Five places that fit your days and party.",
+    group: "Planning the trip",
     door: { kind: "route", path: "stays" },
     steps: [
       { anchors: [{ selector: '[data-walk="stays-find"]', text: "Roam picks five places to stay near what you’ve saved, priced for your dates and party." }] },
@@ -159,8 +159,8 @@ export const TOURS: Record<TourId, Tour> = {
   bookings: {
     id: "bookings",
     title: "Bookings",
-    benefit: "See what’s still to book, and keep the confirmations.",
-    group: "Prepare",
+    benefit: "What’s still to book, and the confirmations.",
+    group: "Planning the trip",
     door: { kind: "hint", text: "Open Bookings from ⋯ to start it." },
     steps: [
       { anchors: [{ selector: '[data-testid="to-book"] button[aria-haspopup="menu"]', text: "Each row is something to book. Tap its circle to mark it booked or not needed." }] },
@@ -170,8 +170,8 @@ export const TOURS: Record<TourId, Tour> = {
   share: {
     id: "share",
     title: "Share & travellers",
-    benefit: "Who’s coming, entry rules, and inviting people.",
-    group: "Prepare",
+    benefit: "Who’s coming, entry rules, invites.",
+    group: "Planning the trip",
     door: { kind: "overlay", which: "settings" },
     steps: [
       // Settings' real rows (14 Oct 2026 walk): the party is a "Change" row, entry a folded row.
@@ -183,8 +183,8 @@ export const TOURS: Record<TourId, Tour> = {
   notes: {
     id: "notes",
     title: "Notes",
-    benefit: "A packing list and the essentials, in one place.",
-    group: "Prepare",
+    benefit: "A packing list and the essentials.",
+    group: "Planning the trip",
     door: { kind: "overlay", which: "notes" },
     steps: [
       { anchors: [{ selector: '[data-walk="notes-item"]', text: "Add a packing item or a to-do. Tap its box to tick it off." }] },
@@ -195,8 +195,8 @@ export const TOURS: Record<TourId, Tour> = {
   ontrip: {
     id: "ontrip",
     title: "On the day",
-    benefit: "Today’s stops, directions and details while you’re away.",
-    group: "Travel",
+    benefit: "Today’s stops, directions and details.",
+    group: "On the trip",
     door: { kind: "route", path: "day" },
     device: "phone",
     steps: [
@@ -207,7 +207,9 @@ export const TOURS: Record<TourId, Tour> = {
 };
 
 export const TOUR_IDS = Object.keys(TOURS) as TourId[];
-export const GROUPS: Group[] = ["Plan your days", "Prepare", "Travel"];
+export const GROUPS: Group[] = ["Planning the trip", "On the trip"];
+/** The list's order: the order a trip is usually planned in (14 Oct 2026 mock, his yes). */
+export const LIST_ORDER: TourId[] = ["map", "day", "week", "stays", "bookings", "budget", "share", "notes", "ontrip", "card"];
 
 export function parseRecord(value: unknown): TourRecord {
   if (!value || typeof value !== "object") return {};
@@ -245,11 +247,21 @@ export function fromTile(state: TourState | undefined, now: number): TourState {
   return state?.status === "underway" ? { ...state, updatedAt: now } : { status: "underway", step: 0, updatedAt: now };
 }
 
-/** The list's line under a walkthrough's name. */
-export function statusLine(id: TourId, state: TourState | undefined): string {
-  if (!state) return TOURS[id].benefit;
-  if (state.status === "underway") return `Continue · Step ${state.step + 1} of ${TOURS[id].steps.length}`;
-  return state.status === "done" ? "Done · Run it again" : "Skipped · Run it again";
+/**
+ * The list's mark on the right of a row: ✓ when done, "2 of 3" while under
+ * way, nothing when new or skipped (skipping isn't finishing). The row's
+ * benefit line never changes.
+ */
+export function listMark(id: TourId, state: TourState | undefined): "done" | string | null {
+  if (!state || state.status === "skipped") return null;
+  return state.status === "done" ? "done" : `${state.step + 1} of ${TOURS[id].steps.length}`;
+}
+
+/** "6 of 10 done", counting the first journey; and the one worth doing next. */
+export function listProgress(ids: TourId[], tours: TourRecord, firstJourney: "new" | "underway" | "done"): { done: number; total: number; next: TourId | "first" | null } {
+  const done = ids.filter((id) => tours[id]?.status === "done").length + (firstJourney === "done" ? 1 : 0);
+  const next = firstJourney !== "done" ? "first" : ids.find((id) => !tours[id] || tours[id]?.status === "underway") ?? null;
+  return { done, total: ids.length + 1, next };
 }
 
 export function tourStepLabel(step: number, total: number): string {

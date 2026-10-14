@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/ui/Toast';
 import { useEstimate, useJourneyNotes, useTripSettings } from '@/components/overlays/AppOverlays';
 import { GuidanceScreenContext, JourneyGuidanceContext, WalkthroughRegistryContext, WalkthroughScreensContext, useWalkthroughScreens, type GuidanceScreen } from './JourneyGuidanceContext';
-import { INITIAL, journeyStep, laterStep, parseProgress, shouldAutoStart, stepLabel, type Progress } from './progress';
+import { INITIAL, journeyStep, laterStep, parseProgress, shouldAutoStart, type Progress } from './progress';
 import WalkthroughLibrary from './WalkthroughLibrary';
 import { TOURS, advance, fromTile, mergeRecords, onOpen, parseRecord, type TourId, type TourRecord, type TourState } from '@/lib/onboarding/walkthroughs';
 import JourneyPointer from './JourneyPointer';
@@ -222,12 +222,13 @@ export default function JourneyGuidanceProvider({ children, preview = false }: {
   const firstJourney = eligible && ready;
   const controls = useMemo(() => firstJourney ? { resume, restart, resumable, choose } : null,
     [firstJourney, resume, restart, resumable, choose]);
-  const firstLine = progress?.completed ? 'Done · Run it again' : resumable && progress ? `Continue · ${stepLabel(step)}` : 'Search, save a place, and put it on a day.';
+  const firstState = progress?.completed ? 'done' : resumable ? 'underway' : 'new';
+  const firstStep = `${['find', 'plan', 'card'].indexOf(step) + 1} of 3`;
   return <GuidanceScreenContext.Provider value={setScreen}><WalkthroughRegistryContext.Provider value={register}><JourneyGuidanceContext.Provider value={controls}>
     {children}
     {firstJourneyShowing && <JourneyPointer screen={screen} step={step} replay={!!progress?.replay} onSkip={skip} onNext={next} />}
     {showTour && current && tourState && <TourPointer tour={TOURS[current.id]} step={tourState.step} onNext={tourNext} onSkip={tourSkip} />}
-    {library && firstJourney && <WalkthroughLibrary tours={tours} firstJourney={firstLine} computer={typeof window !== 'undefined' && window.innerWidth >= 768}
+    {library && firstJourney && <WalkthroughLibrary tours={tours} firstJourney={firstState} firstStep={firstStep} computer={typeof window !== 'undefined' && window.innerWidth >= 768}
       onFirstJourney={firstJourneyPick} onPick={pick} onResetAll={resetAll} onClose={() => setLibrary(false)} />}
   </JourneyGuidanceContext.Provider></WalkthroughRegistryContext.Provider></GuidanceScreenContext.Provider>;
 }
