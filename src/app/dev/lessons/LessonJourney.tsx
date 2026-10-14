@@ -92,7 +92,11 @@ function PointerJourney({ lesson }: { lesson: LessonId }) {
         return;
       }
       const link = element?.closest('a');
-      if (link?.hash === '#share') { event.preventDefault(); event.stopPropagation(); setSharing(true); return; }
+      if (link?.hash === '#share') {
+        event.preventDefault(); event.stopPropagation();
+        document.querySelector<HTMLButtonElement>('button[aria-label="More options"][aria-expanded="true"]')?.click();
+        setSharing(true); return;
+      }
       if (!link || !link.pathname.startsWith(`/trips/${DEMO_TRIP.id}`)) return;
       event.preventDefault(); event.stopPropagation();
       navigate(link.href);
