@@ -39,14 +39,14 @@ describe('optional walkthroughs in the real app', () => {
     fireEvent.click(screen.getByText('Walkthrough', { exact: true }));
     fireEvent.click(screen.getByText('Keep a booking handy'));
     expect((await screen.findByRole('note')).textContent).toContain('Step 1 of 3');
-    fireEvent.click(screen.getByRole('button', { name: 'Next', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     fireEvent.click(screen.getByRole('button', { name: 'Skip guidance' }));
     fireEvent.click(screen.getByText('Walkthrough', { exact: true }));
     expect(screen.getByText('Continue · Step 2 of 3')).toBeTruthy();
     fireEvent.click(screen.getByText('Keep a booking handy'));
     expect((await screen.findByRole('note')).textContent).toContain('Step 2 of 3');
-    fireEvent.click(screen.getByRole('button', { name: 'Next', exact: true }));
-    fireEvent.click(screen.getByRole('button', { name: 'Done', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
     await waitFor(() => expect(parseLessonHistory(localStorage.getItem(lessonHistoryKey('owner'))).bookings?.complete).toBe(true));
     fireEvent.click(screen.getByText('Walkthrough', { exact: true }));
     expect(screen.getByText('Completed · Watch again')).toBeTruthy();
