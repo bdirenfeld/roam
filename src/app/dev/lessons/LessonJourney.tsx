@@ -87,7 +87,7 @@ function PointerJourney({ lesson }: { lesson: LessonId }) {
         event.preventDefault(); event.stopPropagation();
         // Close the native menu before mounting the isolated sheet. Its own
         // handler cannot run after this dev-only interception.
-        document.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+        document.querySelector<HTMLButtonElement>('button[aria-label="More options"][aria-expanded="true"]')?.click();
         if (label === 'Bookings') setDocuments(true); else setSharing(true);
         return;
       }
