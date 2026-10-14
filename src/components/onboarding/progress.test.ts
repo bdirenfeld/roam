@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { INITIAL, journeyStep, laterStep, parseProgress, shouldAutoStart } from './progress';
+import { INITIAL, journeyStep, laterStep, parseProgress, shouldAutoStart, mapHint, stepLabel } from './progress';
 import type { Card } from '@/types/database';
 const card = (extra = {}) => ({ id: 'a', status: 'interested', day_id: null, place: { type: 'activity' }, ...extra }) as unknown as Card;
 describe('first-journey progress', () => {
@@ -28,5 +28,17 @@ describe('first-journey progress', () => {
     expect(parseProgress({ step: 'bogus' })).toBeNull();
     expect(parseProgress(null)).toBeNull();
     expect(parseProgress(INITIAL)).toEqual(INITIAL);
+  });
+});
+
+describe('hints that never read as a restart', () => {
+  it('numbers the three steps', () => {
+    expect(['find', 'plan', 'card'].map(s => stepLabel(s as 'find'))).toEqual(['Step 1 of 3', 'Step 2 of 3', 'Step 3 of 3']);
+  });
+  it('gives each step its own words when its control is not on screen', () => {
+    const hints = (['find', 'plan', 'card'] as const).map(mapHint);
+    expect(new Set(hints).size).toBe(3);
+    expect(mapHint('plan')).toContain('Plan my trip');
+    expect(mapHint('find')).not.toContain('plan');
   });
 });

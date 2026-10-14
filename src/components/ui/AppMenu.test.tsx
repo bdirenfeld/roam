@@ -26,7 +26,7 @@ vi.mock("@/components/overlays/AppOverlays", () => {
 // run for minutes. The rows are what is being tested, not the glyphs.
 vi.mock("@phosphor-icons/react", () => {
   const Glyph = () => null;
-  return { Coins: Glyph, DotsThree: Glyph, Gear: Glyph, NotePencil: Glyph, ShareNetwork: Glyph, Lightbulb: Glyph, Bed: Glyph, PlayCircle: Glyph };
+  return { Coins: Glyph, DotsThree: Glyph, Gear: Glyph, NotePencil: Glyph, ShareNetwork: Glyph, Lightbulb: Glyph, Bed: Glyph, PlayCircle: Glyph, HandPointing: Glyph };
 });
 
 const vids = vi.hoisted(() => ({ available: {} as Record<string, number>, markSeen: () => {} }));
@@ -49,22 +49,30 @@ function rows(guest: boolean) {
 }
 
 describe("the journey menu", () => {
-  it('restarts only when the separate Start again action is selected', () => {
+  it.each(['mobile', 'desktop'] as const)('Walkthrough picks up a walkthrough under way and closes the %s menu', variant => {
     const resume = vi.fn(); const restart = vi.fn();
-    render(<JourneyGuidanceContext.Provider value={{ resume, restart }}><AppMenu variant="mobile" tripId="t1" triggerClassName="" /></JourneyGuidanceContext.Provider>);
-    fireEvent.click(screen.getByLabelText('More options'));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Start walkthrough again' }));
-    expect(restart).toHaveBeenCalledTimes(1);
-    expect(resume).not.toHaveBeenCalled();
-    expect(screen.queryByRole('menu')).toBeNull();
-  });
-  it.each(['mobile', 'desktop'] as const)('resumes guidance and closes the %s menu', variant => {
-    const resume = vi.fn();
-    render(<JourneyGuidanceContext.Provider value={{ resume }}><AppMenu variant={variant} tripId="t1" triggerClassName="" /></JourneyGuidanceContext.Provider>);
+    render(<JourneyGuidanceContext.Provider value={{ resume, restart, resumable: true }}><AppMenu variant={variant} tripId="t1" triggerClassName="" /></JourneyGuidanceContext.Provider>);
     fireEvent.click(screen.getByLabelText('More options'));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Continue walkthrough' }));
     expect(resume).toHaveBeenCalledTimes(1);
+    expect(restart).not.toHaveBeenCalled();
     expect(screen.queryByRole('menu')).toBeNull();
+  });
+  it('Walkthrough starts from the beginning when nothing is under way (never started, or finished)', () => {
+    const resume = vi.fn(); const restart = vi.fn();
+    render(<JourneyGuidanceContext.Provider value={{ resume, restart, resumable: false }}><AppMenu variant="mobile" tripId="t1" triggerClassName="" /></JourneyGuidanceContext.Provider>);
+    fireEvent.click(screen.getByLabelText('More options'));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Start walkthrough' }));
+    expect(restart).toHaveBeenCalledTimes(1);
+    expect(resume).not.toHaveBeenCalled();
+  });
+  it('is one tile in the sixth slot, after Videos — not a list (13 Oct 2026)', () => {
+    vids.available = { 'first-journey': 1 };
+    render(<JourneyGuidanceContext.Provider value={{ resume: () => {}, restart: () => {}, resumable: true }}><AppMenu variant="mobile" tripId="t1" extra={bookings} triggerClassName="" /></JourneyGuidanceContext.Provider>);
+    fireEvent.click(screen.getByLabelText('More options'));
+    expect(screen.getAllByRole('menuitem').map(el => el.textContent?.trim())).toEqual(['Budget', 'Notes', 'Bookings', 'Settings', 'Videos', 'Walkthrough']);
+    expect(screen.queryByText('Start again')).toBeNull();
+    vids.available = {};
   });
   it("is four tiles for the owner, Share and Settings as one, phone-short words", () => {
     const r = rows(false);

@@ -18,3 +18,21 @@ export function laterStep(a: Step, b: Step): Step {
 export function shouldAutoStart(progress: Progress | null, ownedCount: number | null, empty: boolean): boolean {
   return progress ? !progress.paused && !progress.completed : ownedCount === 1 && empty;
 }
+
+const ORDER: Step[] = ['find', 'plan', 'card'];
+/** "Step 2 of 3" — shown on every hint, so picking a walkthrough back up never reads as starting over. */
+export function stepLabel(step: Step): string {
+  return `Step ${ORDER.indexOf(step) + 1} of ${ORDER.length}`;
+}
+/**
+ * The hint when the step's own control isn't on this screen. Find places and
+ * Plan my trip live only on the Map, so from the day or the week every step
+ * points at the Map — in its own words. Until 13 Oct 2026 steps 1 and 2 shared
+ * one line ("Open the map to search for places and plan your days"), so a
+ * walkthrough resumed at step 2 from the day view read as a restart.
+ */
+export function mapHint(step: Step): string {
+  if (step === 'find') return 'Open the map to find places for this journey.';
+  if (step === 'plan') return 'Place saved. Next, open the map and tap Plan my trip to put it on a day.';
+  return 'Open a place in your agenda or on the map to see its details.';
+}

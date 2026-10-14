@@ -110,7 +110,7 @@ export default function JourneyGuidanceProvider({ children, preview = false }: {
   const skip = useCallback(() => {
     setActive(false);
     save({ ...(progressRef.current ?? INITIAL), step, paused: true, updatedAt: Date.now() });
-    toast({ message: 'Continue anytime from ⋯ → Continue walkthrough.' });
+    toast({ message: 'Pick it up anytime from ⋯ → Walkthrough.' });
   }, [save, step, toast]);
   const resume = useCallback(() => {
     setActive(true);
@@ -124,7 +124,8 @@ export default function JourneyGuidanceProvider({ children, preview = false }: {
     if (step === 'card') { finish(); return; }
     save({ ...(progressRef.current ?? INITIAL), step: step === 'find' ? 'plan' : 'card', updatedAt: Date.now() });
   }, [step, save, finish]);
-  const controls = useMemo(() => eligible && ready ? { resume, restart } : null, [eligible, ready, resume, restart]);
+  const resumable = !!progress && !progress.completed;
+  const controls = useMemo(() => eligible && ready ? { resume, restart, resumable } : null, [eligible, ready, resume, restart, resumable]);
   return <GuidanceScreenContext.Provider value={setScreen}><JourneyGuidanceContext.Provider value={controls}>
     {children}
     {active && eligible && screen && <JourneyPointer screen={screen} step={step} replay={!!progress?.replay} onSkip={skip} onNext={next} />}

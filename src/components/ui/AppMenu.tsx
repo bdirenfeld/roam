@@ -7,6 +7,7 @@ import {
   NotePencil,
   ShareNetwork,
   PlayCircle,
+  HandPointing,
 } from "@phosphor-icons/react";
 import VideosSheet from "@/components/videos/VideosSheet";
 import { useJourneyGuidance } from "@/components/onboarding/JourneyGuidanceContext";
@@ -265,14 +266,6 @@ export default function AppMenu({
                 </TripSettingsLink>
               )}
 
-              {guidance && !guest && (
-                <div className="col-span-full border-t border-activity/10 pt-2 text-left">
-                  <button role="menuitem" onClick={() => { setOpen(false); guidance.resume(); }} className="flex min-h-11 w-full items-center gap-2 px-2 text-sm">
-                    <PlayCircle size={16} weight="light" /> Continue walkthrough
-                  </button>
-                  {guidance.restart && <button role="menuitem" aria-label="Start walkthrough again" onClick={() => { setOpen(false); guidance.restart?.(); }} className="min-h-11 w-full px-2 text-left text-xs text-activity/55">Start again</button>}
-                </div>
-              )}
               {hasVideos && (
                 <button
                   role="menuitem"
@@ -284,6 +277,26 @@ export default function AppMenu({
                     <PlayCircle size={15} weight="light" />
                   </span>
                   <Label title="Videos" />
+                </button>
+              )}
+
+              {/* Walkthrough is a tile like the rest (13 Oct 2026, his yes to the
+                  mock): it had landed as a full-width "Continue walkthrough / Start
+                  again" list between Settings and Videos, doubling the menu's height
+                  and stranding Videos under it. One tile, one tap: it picks up a
+                  walkthrough that is under way or paused, and otherwise starts it
+                  from the beginning. A hand, not a second play glyph next to Videos. */}
+              {guidance && !guest && (
+                <button
+                  role="menuitem"
+                  aria-label={guidance.resumable ? "Continue walkthrough" : "Start walkthrough"}
+                  onClick={() => { setOpen(false); if (guidance.resumable || !guidance.restart) guidance.resume(); else guidance.restart(); }}
+                  style={itemStyle}
+                >
+                  <span style={glyphStyle}>
+                    <HandPointing size={15} weight="light" />
+                  </span>
+                  <Label title="Walkthrough" />
                 </button>
               )}
             </>

@@ -1617,6 +1617,7 @@ the component mounted and you are looking at throttling, not a broken map.
   `activeSubTypes` — the set the desktop sidebar used — with the type pills' tap rule.
 - The desktop AppMenu is the same 3-across tiles as the phone (25 Sep 2026). Mocks:
   https://claude.ai/artifact/Re8LgyCtx1jWw3PRZYMo7W, https://claude.ai/artifact/Mc6jFQTci62sEV4KbeHtCJ.
+- Walkthrough is the sixth tile (13 Oct 2026, his yes to a mock): one tap resumes a walkthrough under way or paused (`resumable` on JourneyGuidanceContext), otherwise restarts it. Never a list row inside the tile grid — ChatGPT's "Continue walkthrough / Start again" rows doubled the menu and stranded Videos. Walkthrough hints carry "Step N of 3", and off the Map each step has its own words (`mapHint` in onboarding/progress.ts): Find places and Plan my trip exist only on the Map, and a shared fallback line made a resumed step 2 read as a restart.
 - The phone AppMenu is a 3-across grid of 64px tiles under the disc (25 Sep 2026), titles
   "Stay" and "Settings" there; desktop keeps rows. A bottom sheet was mocked and rejected:
   the trigger is top-right, so the menu opens where the thumb already is.
