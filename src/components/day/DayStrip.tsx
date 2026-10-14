@@ -87,6 +87,7 @@ export default function DayStrip({ days, activeDayId, onDaySelect, onDayLongPres
                 onPointerUp={clearPress}
                 onPointerCancel={clearPress}
                 onContextMenu={(e) => e.preventDefault()}
+                data-walk={onDayLongPress && isActive ? "day-strip-day" : undefined}
                 className="relative flex-shrink-0 min-w-[40px] text-center pb-2"
                 style={{
                   boxShadow: isActive ? "inset 0 -1.5px 0 #1A1A2E" : undefined,

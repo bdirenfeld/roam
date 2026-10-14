@@ -24,6 +24,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
+import { useWalkthrough } from "@/components/onboarding/JourneyGuidanceContext";
 
 import { noPriceReason, shiftToYear, type StayDates } from "@/lib/stays/bookingUrl";
 import { parseAsk, askSummary, suggestions } from "@/lib/stays/wants";
@@ -83,6 +84,8 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
   /** Everything ever proposed for this journey, including set-aside and rejected. */
   const [everything, setEverything] = useState<StayCandidate[]>([]);
   const [showEarlier, setShowEarlier] = useState(false);
+  // A journey that has had a search before already knows this sheet.
+  useWalkthrough("stays", { ready: !loading, used: everything.length > 0 });
   /** Start over asks first: it throws away every run for the journey. */
   const [confirmClear, setConfirmClear] = useState(false);
   /** Search again asks first once there is nothing left to find. */
@@ -628,6 +631,7 @@ export default function WhereToStaySheet({ panel = false, trip, placesCount, foc
                   type="button"
                   onClick={run}
                   disabled={running || !ready.ready}
+                  data-walk="stays-find"
                   className="mt-5 w-full h-12 rounded-full text-[15px] font-semibold text-white disabled:opacity-60"
                   style={{ background: INK }}
                 >

@@ -1,5 +1,5 @@
 "use client";
-import { useGuidanceScreen } from "@/components/onboarding/JourneyGuidanceContext";
+import { useGuidanceScreen, useWalkthrough } from "@/components/onboarding/JourneyGuidanceContext";
 
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useCardNotes, withNotes } from "@/hooks/useCardNotes";
@@ -513,6 +513,8 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
 
   const [isCardOpen, setIsCardOpen] = useState(false);
   useGuidanceScreen({ trip, cards: localCards, view: "day", readOnly, openedId: isCardOpen ? selectedCard?.id : null });
+  // The day's own walkthrough: once the day has something on it to point at.
+  useWalkthrough(readOnly ? null : "day", { ready: localCards.length > 0 && !isCardOpen, used: false });
   const [swipeDir, setSwipeDir] = useState<"left" | "right" | null>(null);
   const [gapTimes, setGapTimes] = useState<{ start: string; end: string } | null>(null);
 

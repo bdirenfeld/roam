@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { deleteJourney } from "@/lib/deleteJourney";
 import { useToast } from "@/components/ui/Toast";
+import { useWalkthrough } from "@/components/onboarding/JourneyGuidanceContext";
 import { setTripArchived } from "@/lib/tripArchive";
 import TravellersSection, { type Person } from "@/components/trip/TravellersSection";
 import PartyPicker from "@/components/trip/PartyPicker";
@@ -162,6 +163,8 @@ export default function TripSettingsClient({
   const [linkBusy, setLinkBusy] = useState(false);
   const [confirmRevoke, setConfirmRevoke] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  // Shared before (a link, a guest, an invite): this walkthrough stays quiet.
+  useWalkthrough("share", { ready: true, used: !!shareToken || guests.length > 0 || invites.length > 0 });
   // What renders must not depend on `window`: the server has none, so a
   // window-gated value makes the server's HTML and the browser's first render
   // disagree and hydration fails (React #425/#422 on every load of this page

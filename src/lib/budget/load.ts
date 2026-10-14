@@ -108,6 +108,8 @@ export interface EstimateData {
   cadToHome: number;
   /** The city distances are measured from: home airport, home country, else Toronto. */
   originLabel: string;
+  /** A budget has been saved for this journey before: its walkthrough stays quiet. */
+  everSaved: boolean;
   /** One row per priced activity card, in home currency, for the breakdown table. */
   excursionItems: ExcursionItem[];
   /** Activity cards on days with a cost of zero. */
@@ -345,6 +347,7 @@ export async function loadEstimate(
     homeCurrency: home,
     cadToHome,
     originLabel: origin.label,
+    everSaved: !!saved,
     // Unrounded per row, so the table sums to the same figure as the line
     // (rows rounded first added to one dollar more). Largest first.
     excursionItems: activities

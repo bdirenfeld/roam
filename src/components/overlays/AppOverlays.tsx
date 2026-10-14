@@ -281,6 +281,7 @@ function EstimateOverlayBody({
       homeCurrency={data.homeCurrency}
       cadToHome={data.cadToHome}
       originLabel={data.originLabel}
+      everSaved={data.everSaved}
       excursionItems={data.excursionItems}
       excursionFree={data.excursionFree}
       cruise={data.cruise}

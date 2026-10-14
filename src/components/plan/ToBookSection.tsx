@@ -443,7 +443,7 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
       ) : null}
       {onImport && (
         <div className="text-center pt-3">
-          <button type="button" onClick={onImport} className="relative text-[13px] underline underline-offset-[3px] py-1.5" style={{ color: CAPTION }}>
+          <button type="button" onClick={onImport} data-walk="bookings-upload" className="relative text-[13px] underline underline-offset-[3px] py-1.5" style={{ color: CAPTION }}>
             {/* 6px up into the 12px under Book on Kayak (half of it), 6px down. */}
             <span aria-hidden="true" data-testid="upload-target" className="absolute -inset-y-1.5 inset-x-0" />
             Upload a confirmation

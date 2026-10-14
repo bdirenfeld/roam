@@ -9,6 +9,7 @@ import { bookedInHome, type BookedSpend } from "@/lib/budget/booked";
 import { queuedUpdate } from "@/lib/offline/queuedWrite";
 import { SYMBOL, homeSymbol, unitName } from "@/lib/budget/currency";
 import { useToast } from "@/components/ui/Toast";
+import { useWalkthrough } from "@/components/onboarding/JourneyGuidanceContext";
 import {
   compute,
   suggest,
@@ -63,7 +64,10 @@ function Shell({
   tint,
   pv = 10,
   indent = false,
+  walk,
 }: {
+  /** What a walkthrough points at (lib/onboarding/walkthroughs.ts). */
+  walk?: string;
   /** A row folded under a parent (Food's Restaurants and Groceries). */
   indent?: boolean;
   leading?: React.ReactNode;
@@ -100,7 +104,7 @@ function Shell({
     background: tint,
   };
   return onClick ? (
-    <button onClick={onClick} className="w-full" style={style}>
+    <button onClick={onClick} className="w-full" style={style} data-walk={walk}>
       {inner}
     </button>
   ) : (
@@ -334,8 +338,10 @@ function GroupBar({
   extraItems,
   caption,
   amountText,
+  walk,
   sym = "$",
 }: {
+  walk?: string;
   label: string;
   sym?: string;
   lines: EstimateLine[];
@@ -354,6 +360,7 @@ function GroupBar({
       pv={11}
       tint="rgba(26,26,46,0.025)"
       onClick={onToggle}
+      walk={walk}
       labelColor={CAPTION}
       amountColor={CAPTION}
       amount={amountText ?? money(subtotal, sym)}
@@ -402,6 +409,7 @@ interface Props {
   cadToHome?: number;
   /** Where distances are measured from ("London"); Toronto when left out. */
   originLabel?: string;
+  everSaved?: boolean;
   /** The priced activity cards, for the Excursions breakdown table. */
   excursionItems: ExcursionItem[];
   excursionFree: number;
@@ -430,6 +438,7 @@ export default function EstimateClient({
   homeCurrency = "CAD",
   cadToHome = 1,
   originLabel = "Toronto",
+  everSaved = false,
   excursionItems,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   excursionFree: _excursionFree,
@@ -443,6 +452,7 @@ export default function EstimateClient({
 }: Props) {
   const router = useRouter();
   const { toast } = useToast();
+  useWalkthrough("budget", { ready: true, used: everSaved });
   const [a, setA] = useState<Assumptions>(initialAssumptions);
   const [basis, setBasis] = useState<Record<string, string>>(initialBasis);
   const [prev, setPrev] = useState<{
@@ -843,6 +853,7 @@ export default function EstimateClient({
           <GroupBar
             sym={hs}
             label="Standard"
+            walk="budget-standard"
             lines={standard}
             isOpen={open.standard}
             onToggle={() => setOpen((p) => ({ ...p, standard: !p.standard }))}
@@ -869,6 +880,7 @@ export default function EstimateClient({
           <GroupBar
             sym={hs}
             label="Additional"
+            walk="budget-additional"
             lines={additional}
             isOpen={open.additional}
             onToggle={() => setOpen((p) => ({ ...p, additional: !p.additional }))}
@@ -888,6 +900,7 @@ export default function EstimateClient({
               <button
                 type="button"
                 onClick={addCustom}
+                data-walk="budget-add-cost"
                 className="w-full text-left text-[13px]"
                 style={{ borderTop: `1px solid ${RULE}`, padding: `10px ${PAD}px 10px ${PAD + 20}px`, color: SIENNA }}
               >

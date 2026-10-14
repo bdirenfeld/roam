@@ -26,6 +26,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSheetDrag as useSharedSheetDrag } from "@/hooks/useSheetDrag";
 import { CaretRight, Check, DotsSixVertical, Plus, X } from "@phosphor-icons/react";
+import { useWalkthrough } from "@/components/onboarding/JourneyGuidanceContext";
 import {
   DndContext,
   closestCenter,
@@ -162,6 +163,8 @@ export default function JourneyNotes({
   const edges = useListEdges();
 
   const [items, setItems] = useState<NoteItem[]>(() => parseNotes(initialNotes ?? ""));
+  // The Notes sheet's walkthrough; notes already written = already known.
+  useWalkthrough(!readOnly && !inline ? "notes" : null, { ready: true, used: items.length > 0 });
 
   // Which sections are folded shut. Per viewer, never in the notes text: this
   // is how one person is reading, not what the journey says, and writing it
@@ -642,6 +645,7 @@ export default function JourneyNotes({
               type="button"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => handleAdd("task")}
+              data-walk="notes-item"
               className="flex items-center gap-1.5 py-1 text-[13.5px] font-medium transition-colors hover:text-[#1A1A2E]"
               style={{ color: "rgba(26,26,46,0.62)" }}
             >
@@ -655,6 +659,7 @@ export default function JourneyNotes({
               type="button"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => handleAdd("text")}
+              data-walk="notes-note"
               className="py-1 text-[12.5px] transition-colors hover:text-[rgba(26,26,46,0.7)]"
               style={{ color: "rgba(26,26,46,0.38)" }}
             >
@@ -664,6 +669,7 @@ export default function JourneyNotes({
               type="button"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => handleAdd("section")}
+              data-walk="notes-section"
               className="py-1 text-[12.5px] transition-colors hover:text-[rgba(26,26,46,0.7)]"
               style={{ color: "rgba(26,26,46,0.38)" }}
             >

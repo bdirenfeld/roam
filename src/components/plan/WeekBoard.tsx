@@ -1,5 +1,5 @@
 "use client";
-import { useGuidanceScreen } from "@/components/onboarding/JourneyGuidanceContext";
+import { useGuidanceScreen, useWalkthrough } from "@/components/onboarding/JourneyGuidanceContext";
 
 /**
  * The desktop Plan as a week (24 Sep 2026): days across, hours down, every
@@ -241,6 +241,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const supabase = useMemo(() => createClient(), []);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   useGuidanceScreen({ trip, cards: tripCards, view: "week", readOnly: false, openedId: selectedCard?.id });
+  useWalkthrough("week", { ready: tripCards.some((c) => c.day_id) && !selectedCard, used: false });
   const [hover, setHover] = useState<{ day: number; min: number | null } | null>(null);
   // The hover slot (6 Oct 2026, Brennan): a faint dashed hour exactly where a
   // click would make a block. Mouse and trackpad only (a phone or tablet has

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import type { Document } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
+import { useWalkthrough } from "@/components/onboarding/JourneyGuidanceContext";
 import { useSheetDrag } from "@/hooks/useSheetDrag";
 import FileViewer, { type ViewableFile } from "@/components/ui/FileViewer";
 import { cardLabel, documentLabel, rowForCard, rowForDocument, type BookingFile } from "@/lib/booking/files";
@@ -54,6 +55,8 @@ export default function DocumentsSheet({ tripId, onClose, onImport }: Props) {
   const [loading, setLoading] = useState(true);
   // Owner (the booking rows) or not (the plain list); null until known.
   const [owner,   setOwner]   = useState<boolean | null>(null);
+  // Owners only: guests see a plain list. An upload already made = known.
+  useWalkthrough(owner ? "bookings" : null, { ready: !loading, used: docs.length + atts.length > 0 });
 
   // Scroll lock
   useEffect(() => {
