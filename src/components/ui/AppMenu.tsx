@@ -292,8 +292,8 @@ export default function AppMenu({
               {guidance && !guest && (
                 <button
                   role="menuitem"
-                  aria-label={guidance.resumable ? "Continue walkthrough" : "Start walkthrough"}
-                  onClick={() => { setOpen(false); if (guidance.resumable || !guidance.restart) guidance.resume(); else guidance.restart(); }}
+                  aria-label={guidance.choose ? "Choose walkthrough" : guidance.resumable ? "Continue walkthrough" : "Start walkthrough"}
+                  onClick={() => { setOpen(false); if (guidance.choose) guidance.choose(); else if (guidance.resumable || !guidance.restart) guidance.resume(); else guidance.restart(); }}
                   style={itemStyle}
                 >
                   <span style={glyphStyle}>

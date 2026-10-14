@@ -1,7 +1,9 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { GuidanceScreen } from './JourneyGuidanceContext';
-import { mapHint, stepLabel, type Step } from './progress';
+import { mapHint, type Step } from './progress';
+import GuidanceBubble from './GuidanceBubble';
+
 type Rect = { x: number; y: number; width: number; height: number };
 const visible = (el: Element) => {
   const r = el.getBoundingClientRect();
@@ -18,8 +20,6 @@ export default function JourneyPointer({ screen, step, replay, onSkip, onNext }:
   const [target, setTarget] = useState<Rect | null>(null);
   const [searchRect, setSearchRect] = useState<Rect | null>(null);
   const [copy, setCopy] = useState('');
-  const [tipHeight, setTipHeight] = useState(110);
-  const tip = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const measure = () => {
       const find = (selector: string) => Array.from(document.querySelectorAll(selector)).find(visible);
@@ -62,32 +62,18 @@ export default function JourneyPointer({ screen, step, replay, onSkip, onNext }:
       const second = step === 'find' && rect ? rectangle(search) : null;
       setSearchRect(old => JSON.stringify(old) === JSON.stringify(second) ? old : second);
       setCopy(text);
-      if (tip.current) setTipHeight(tip.current.getBoundingClientRect().height);
+
     };
     measure();
     // Mapbox moves pins outside React. Only measure while guidance is active.
     const timer = window.setInterval(measure, 250);
-    const key = (e: KeyboardEvent) => { if (e.key === 'Escape' && tip.current) onSkip(); };
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape' && document.querySelector('[aria-label="Getting started hint"]')) onSkip(); };
     document.addEventListener('keydown', key);
     return () => { clearInterval(timer); document.removeEventListener('keydown', key); };
   }, [screen, step, onSkip, replay]);
-  const width = typeof window === 'undefined' ? 248 : Math.min(268, innerWidth - 32);
-  const left = target ? Math.max(16, Math.min(target.x + target.width / 2 - width + 32, innerWidth - width - 16)) : 0;
-  const below = !!target && target.y < tipHeight + 26;
-  const ring = (r: Rect, key: string) => <div key={key} aria-hidden="true" className="pointer-events-none fixed z-[201]" style={{ left: r.x - 3, top: r.y - 3, width: r.width + 6, height: r.height + 6, border: '2px solid #B0541F', borderRadius: step === 'card' ? 10 : 999 }} />;
-  return <>
-    {target && <>
-      <style>{'[data-testid=start-here],[data-guidance-empty-map]{display:none!important}'}</style>
-      {ring(target, 'target')}{searchRect && ring(searchRect, 'search')}
-      <div ref={tip} role="note" aria-label="Getting started hint" className="fixed z-[202] rounded-xl bg-[#1A1A2E] px-4 pb-2 pt-4 text-white" style={{ width, left, top: Math.max(12, Math.min(innerHeight - tipHeight - 12, below ? target.y + target.height + 14 : target.y - tipHeight - 14)), boxShadow: '0 8px 24px rgba(26,26,46,.16)' }}>
-        <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.08em] text-white/55">{stepLabel(step)}</p>
-        <p className="text-[15px] leading-[22px]">{copy}</p>
-        <div className="mt-1 flex items-center justify-between gap-4">
-          {replay && <button onClick={onNext} className="min-h-10 text-xs font-medium">{step === 'card' ? 'Done' : 'Next'}</button>}
-          <button onClick={onSkip} className="ml-auto min-h-10 text-xs text-white/70 underline underline-offset-4">Skip guidance</button>
-        </div>
-        <span aria-hidden="true" className="absolute h-3 w-3 rotate-45 bg-[#1A1A2E]" style={{ ...(below ? { top: -6 } : { bottom: -6 }), left: Math.max(14, Math.min(width - 26, target.x + target.width / 2 - left - 6)) }} />
-      </div>
-    </>}
-  </>;
+  return <>{target && <>
+    <style>{'[data-testid=start-here],[data-guidance-empty-map]{display:none!important}'}</style>
+    {searchRect && <div aria-hidden="true" className="pointer-events-none fixed z-[201] rounded-full border-2 border-[#B0541F]" style={{ left: searchRect.x - 3, top: searchRect.y - 3, width: searchRect.width + 6, height: searchRect.height + 6 }} />}
+    <GuidanceBubble target={target} label="Getting started hint" text={copy} step={['find', 'plan', 'card'].indexOf(step)} onNext={replay ? onNext : undefined} onSkip={onSkip} rounded={step !== 'card'} />
+  </>}</>;
 }

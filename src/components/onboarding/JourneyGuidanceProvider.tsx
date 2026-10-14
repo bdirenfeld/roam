@@ -5,6 +5,7 @@ import { useToast } from '@/components/ui/Toast';
 import { GuidanceScreenContext, JourneyGuidanceContext, type GuidanceScreen } from './JourneyGuidanceContext';
 import { INITIAL, journeyStep, laterStep, parseProgress, shouldAutoStart, type Progress } from './progress';
 import JourneyPointer from './JourneyPointer';
+import FeatureWalkthroughs from './FeatureWalkthroughs';
 
 const META_KEY = 'roam_journey_guidance_v1';
 // UI preference only: metadata is never used to grant access to a journey.
@@ -126,8 +127,14 @@ export default function JourneyGuidanceProvider({ children, preview = false }: {
   }, [step, save, finish]);
   const resumable = !!progress && !progress.completed;
   const controls = useMemo(() => eligible && ready ? { resume, restart, resumable } : null, [eligible, ready, resume, restart, resumable]);
+  const beginFeature = useCallback(() => {
+    setActive(false);
+    if (active) save({ ...(progressRef.current ?? INITIAL), step, paused: true, updatedAt: Date.now() });
+  }, [active, save, step]);
   return <GuidanceScreenContext.Provider value={setScreen}><JourneyGuidanceContext.Provider value={controls}>
+    <FeatureWalkthroughs uid={uid} screen={eligible ? screen : null} onBegin={beginFeature}>
     {children}
     {active && eligible && screen && <JourneyPointer screen={screen} step={step} replay={!!progress?.replay} onSkip={skip} onNext={next} />}
+    </FeatureWalkthroughs>
   </JourneyGuidanceContext.Provider></GuidanceScreenContext.Provider>;
 }
