@@ -1,5 +1,5 @@
 "use client";
-import { useGuidanceScreen } from "@/components/onboarding/JourneyGuidanceContext";
+import { useGuidanceScreen, useWalkthrough } from "@/components/onboarding/JourneyGuidanceContext";
 
 import "mapbox-gl/dist/mapbox-gl.css";
 import { stackOrder, restack } from "@/lib/map/pinStack";
@@ -287,6 +287,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
   const registerNewCardRef = useRef<(card: Card) => void>(() => {});
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   useGuidanceScreen({ trip, cards: localCards, view: "map", readOnly, openedId: selectedCard?.id });
+  useWalkthrough(readOnly ? null : "map", { ready: !selectedCard, used: false });
   const [activeSubTypes, setActiveSubTypesState] = useState<Set<string>>(makeInitialSubTypes);
   const [activeTypes, setActiveTypesState] = useState<Set<CardType>>(
     () => new Set(["activity", "food", "logistics"] as CardType[]),
@@ -1173,6 +1174,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
           <div className="flex items-center gap-2">
           <button
             onClick={() => setFilterOpen((v) => !v)}
+            data-walk="map-filter"
             className="relative self-start flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors duration-200"
             style={{
               backdropFilter: "blur(8px)",

@@ -514,7 +514,11 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   const [isCardOpen, setIsCardOpen] = useState(false);
   useGuidanceScreen({ trip, cards: localCards, view: "day", readOnly, openedId: isCardOpen ? selectedCard?.id : null });
   // The day's own walkthrough: once the day has something on it to point at.
-  useWalkthrough(readOnly ? null : "day", { ready: localCards.length > 0 && !isCardOpen, used: false });
+  // While the journey is under way (`underway`, by the phone's date) the day view teaches "On the day" instead.
+  // Ready only once the phone's date is known, so an under-way journey never starts "Your day" first.
+  const [dateKnown, setDateKnown] = useState(false);
+  useEffect(() => { setDateKnown(true); }, []);
+  useWalkthrough(readOnly ? null : underway ? "ontrip" : "day", { ready: dateKnown && localCards.length > 0 && !isCardOpen, used: false });
   const [swipeDir, setSwipeDir] = useState<"left" | "right" | null>(null);
   const [gapTimes, setGapTimes] = useState<{ start: string; end: string } | null>(null);
 

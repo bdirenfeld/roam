@@ -1,10 +1,12 @@
 'use client';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/ui/Toast';
-import { GuidanceScreenContext, JourneyGuidanceContext, ResetWalkthroughsContext, WalkthroughRegistryContext, type GuidanceScreen, type WalkthroughScreen } from './JourneyGuidanceContext';
-import { INITIAL, journeyStep, laterStep, parseProgress, shouldAutoStart, type Progress } from './progress';
+import { useEstimate, useJourneyNotes, useTripSettings } from '@/components/overlays/AppOverlays';
+import { GuidanceScreenContext, JourneyGuidanceContext, WalkthroughRegistryContext, WalkthroughScreensContext, useWalkthroughScreens, type GuidanceScreen } from './JourneyGuidanceContext';
+import { INITIAL, journeyStep, laterStep, parseProgress, shouldAutoStart, stepLabel, type Progress } from './progress';
+import WalkthroughLibrary from './WalkthroughLibrary';
 import { TOURS, advance, fromTile, mergeRecords, onOpen, parseRecord, type TourId, type TourRecord, type TourState } from '@/lib/onboarding/walkthroughs';
 import JourneyPointer from './JourneyPointer';
 import TourPointer from './TourPointer';
@@ -28,7 +30,10 @@ export default function JourneyGuidanceProvider({ children, preview = false }: {
   const [ownedCount, setOwnedCount] = useState<number | null>(preview ? 1 : null);
   const [countedTrip, setCountedTrip] = useState<string | null>(null);
   const [tours, setTours] = useState<TourRecord>({});
-  const [screens, setScreens] = useState<Map<symbol, WalkthroughScreen>>(() => new Map());
+  // Registrations: the layout's WalkthroughRegistry when mounted (it reaches the overlays), else our own.
+  const outer = useContext(WalkthroughScreensContext);
+  const own = useWalkthroughScreens();
+  const screens = outer ?? own.screens;
   // The page the first journey finished on stays quiet: no second walkthrough
   // straight after "You're ready".
   const [hushPath, setHushPath] = useState<string | null>(null);
@@ -104,15 +109,7 @@ export default function JourneyGuidanceProvider({ children, preview = false }: {
     toursRef.current = next; setTours(next);
     persist(TOURS_KEY, next);
   }, [persist]);
-  const register = useCallback((key: symbol, s: WalkthroughScreen | null) => {
-    setScreens(old => {
-      const prev = old.get(key);
-      if (s ? !!prev && prev.id === s.id && prev.ready === s.ready && prev.used === s.used : !prev) return old;
-      const next = new Map(old);
-      if (s) next.set(key, s); else next.delete(key);
-      return next;
-    });
-  }, []);
+  const register = useContext(WalkthroughRegistryContext) ?? own.register;
 
   const eligible = !!screen && !screen.readOnly && (preview || screen.trip.user_id === uid);
   const actualStep = journeyStep(screen?.cards ?? []);
@@ -160,9 +157,10 @@ export default function JourneyGuidanceProvider({ children, preview = false }: {
   }, [step, save, finish]);
   const resumable = !!progress && !progress.completed;
 
-  // The screen's own walkthrough: the most recently opened screen that has one.
+  // The screen's own walkthrough: the most recently opened screen that has one
+  // and is ready (the day steps back while a card sheet is open over it).
   // The first journey goes first; the rest wait until it is finished or skipped.
-  const current = Array.from(screens.values()).pop() ?? null;
+  const current = Array.from(screens.values()).filter(s => s.ready).pop() ?? null;
   const firstJourneyShowing = active && eligible && !!screen;
   useEffect(() => {
     if (!ready || preview || !uid || !current || !current.ready || firstJourneyShowing || hushPath === pathname) return;
@@ -172,11 +170,6 @@ export default function JourneyGuidanceProvider({ children, preview = false }: {
   }, [ready, preview, uid, current, firstJourneyShowing, hushPath, pathname, saveTour, tours]);
   const tourState = current ? tours[current.id] : undefined;
   const showTour = !!current && current.ready && tourState?.status === 'underway' && !firstJourneyShowing && hushPath !== pathname;
-  const tourTile = useCallback(() => {
-    if (!current) return;
-    setHushPath(null);
-    saveTour(current.id, fromTile(toursRef.current[current.id], Date.now()));
-  }, [current, saveTour]);
   const tourNext = useCallback(() => {
     if (!current) return;
     const state = toursRef.current[current.id];
@@ -190,29 +183,51 @@ export default function JourneyGuidanceProvider({ children, preview = false }: {
     saveTour(current.id, { status: 'skipped', step: toursRef.current[current.id]?.step ?? 0, updatedAt: Date.now() });
     toast({ message: 'Pick it up anytime from ⋯ → Walkthrough.' });
   }, [current, saveTour, toast]);
-  // Profile → "Show all walkthroughs again": each one shows once more on its
-  // own screen; the first journey replays from step 1 on the next journey opened.
+  // "Show all again" (the list's footer): each one shows once more on its own
+  // screen; the first journey replays from step 1 on the next journey opened.
   const resetAll = useCallback(() => {
     setHushPath(null);
+    setLibrary(false);
     decided.current = null;
     toursRef.current = {}; setTours({});
     persist(TOURS_KEY, {});
     save({ ...INITIAL, replay: true, updatedAt: Date.now() });
+    // On a journey screen the first journey replays now, ahead of the rest.
+    if (eligible) setActive(true);
     toast({ message: 'Walkthroughs are back. Each one shows once, on its own screen.' });
-  }, [persist, save, toast]);
+  }, [persist, save, toast, eligible]);
 
-  const tourTileOn = !!current && current.ready && !preview && !!uid;
-  const tourResumable = tourState?.status === 'underway';
-  // The tile: a first journey left part-way comes first (it is what a new
-  // person is in the middle of); otherwise this screen's own walkthrough.
+  // ⋯ → Walkthrough opens the list (WalkthroughLibrary). Picking one runs it
+  // here if this is its screen, otherwise opens its screen, where it starts.
+  const [library, setLibrary] = useState(false);
+  const router = useRouter();
+  const estimate = useEstimate(), notes = useJourneyNotes(), settings = useTripSettings();
+  const pick = useCallback((id: TourId) => {
+    setLibrary(false); setHushPath(null);
+    if (active) { setActive(false); save({ ...(progressRef.current ?? INITIAL), step, paused: true, updatedAt: Date.now() }); }
+    saveTour(id, fromTile(toursRef.current[id], Date.now()));
+    const trip = screen?.trip.id;
+    if (current?.id === id || !trip) return;
+    const door = TOURS[id].door;
+    if (door.kind === 'hint') toast({ message: door.text });
+    else if (door.kind === 'overlay') (door.which === 'budget' ? () => estimate.open(trip) : door.which === 'notes' ? () => notes.open(trip) : () => settings.open(trip))();
+    else router.push(door.path === 'day' ? `/trips/${trip}` : door.path === 'stays' ? `/trips/${trip}/map?stays=1` : `/trips/${trip}/${door.path}`);
+  }, [active, save, step, saveTour, screen, current, toast, estimate, notes, settings, router]);
+  const firstJourneyPick = useCallback(() => {
+    setLibrary(false);
+    if (resumable) resume(); else restart();
+  }, [resumable, resume, restart]);
+  const choose = useCallback(() => setLibrary(true), []);
+
   const firstJourney = eligible && ready;
-  const controls = useMemo(() => firstJourney && resumable ? { resume, restart, resumable }
-    : tourTileOn ? { resume: tourTile, restart: tourTile, resumable: tourResumable }
-    : firstJourney ? { resume, restart, resumable } : null,
-  [tourTileOn, tourTile, tourResumable, firstJourney, resume, restart, resumable]);
-  return <GuidanceScreenContext.Provider value={setScreen}><WalkthroughRegistryContext.Provider value={register}><ResetWalkthroughsContext.Provider value={uid && !preview ? resetAll : null}><JourneyGuidanceContext.Provider value={controls}>
+  const controls = useMemo(() => firstJourney ? { resume, restart, resumable, choose } : null,
+    [firstJourney, resume, restart, resumable, choose]);
+  const firstLine = progress?.completed ? 'Done · Run it again' : resumable && progress ? `Continue · ${stepLabel(step)}` : 'Search, save a place, and put it on a day.';
+  return <GuidanceScreenContext.Provider value={setScreen}><WalkthroughRegistryContext.Provider value={register}><JourneyGuidanceContext.Provider value={controls}>
     {children}
     {firstJourneyShowing && <JourneyPointer screen={screen} step={step} replay={!!progress?.replay} onSkip={skip} onNext={next} />}
     {showTour && current && tourState && <TourPointer tour={TOURS[current.id]} step={tourState.step} onNext={tourNext} onSkip={tourSkip} />}
-  </JourneyGuidanceContext.Provider></ResetWalkthroughsContext.Provider></WalkthroughRegistryContext.Provider></GuidanceScreenContext.Provider>;
+    {library && firstJourney && <WalkthroughLibrary tours={tours} firstJourney={firstLine} computer={typeof window !== 'undefined' && window.innerWidth >= 768}
+      onFirstJourney={firstJourneyPick} onPick={pick} onResetAll={resetAll} onClose={() => setLibrary(false)} />}
+  </JourneyGuidanceContext.Provider></WalkthroughRegistryContext.Provider></GuidanceScreenContext.Provider>;
 }

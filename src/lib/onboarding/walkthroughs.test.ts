@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TOURS, TOUR_IDS, advance, fromTile, mergeRecords, onOpen, parseRecord, pickAnchor, tourStepLabel, type TourState } from "./walkthroughs";
+import { GROUPS, TOURS, TOUR_IDS, advance, fromTile, mergeRecords, onOpen, parseRecord, pickAnchor, statusLine, tourStepLabel, type TourState } from "./walkthroughs";
 
 const s = (status: TourState["status"], step = 0, updatedAt = 1): TourState => ({ status, step, updatedAt });
 
@@ -65,5 +65,29 @@ describe("the walkthroughs themselves", () => {
     expect(pickAnchor(step, (sel) => (sel.includes("budget-standard") ? "bar" : null))).toEqual({ el: "bar", text: "Tap Standard to see each cost." });
     expect(pickAnchor(step, () => "tick")?.text).toContain("Tick a cost");
     expect(pickAnchor(step, () => null)).toBeNull();
+  });
+});
+
+describe("the Walkthroughs list", () => {
+  it("every walkthrough sits in a group, with a one-line benefit and a way to its screen", () => {
+    for (const id of TOUR_IDS) {
+      expect(GROUPS).toContain(TOURS[id].group);
+      expect(TOURS[id].benefit.length).toBeGreaterThan(10);
+      expect(TOURS[id].benefit.length).toBeLessThan(70);
+      expect(TOURS[id].door).toBeTruthy();
+    }
+    for (const g of GROUPS) expect(TOUR_IDS.some((id) => TOURS[id].group === g)).toBe(true);
+  });
+  it("says where each one stands", () => {
+    expect(statusLine("budget", undefined)).toBe(TOURS.budget.benefit);
+    expect(statusLine("budget", s("underway", 1))).toBe("Continue · Step 2 of 3");
+    expect(statusLine("stays", s("underway", 0))).toBe("Continue · Step 1 of 2");
+    expect(statusLine("notes", s("done", 2))).toBe("Done · Run it again");
+    expect(statusLine("notes", s("skipped", 0))).toBe("Skipped · Run it again");
+  });
+  it("Next opens a fold only for a step that has one to open", () => {
+    expect(TOURS.budget.steps[1].reveal).toBe('[data-walk="budget-standard"]');
+    expect(TOURS.budget.steps[2].reveal).toBe('[data-walk="budget-additional"]');
+    expect(TOURS.budget.steps[0].reveal).toBeUndefined();
   });
 });

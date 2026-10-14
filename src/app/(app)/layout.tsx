@@ -1,6 +1,7 @@
 "use client";
 
 import JourneyGuidanceProvider from "@/components/onboarding/JourneyGuidanceProvider";
+import { WalkthroughRegistry } from "@/components/onboarding/JourneyGuidanceContext";
 import DesktopMasthead from "@/components/ui/DesktopMasthead";
 import { GlobalSearchProvider } from "@/components/search/GlobalSearch";
 import { AppOverlaysProvider } from "@/components/overlays/AppOverlays";
@@ -19,6 +20,9 @@ export default function AppLayout({
     // Search is mounted once, here, so every entry point in the app (the ⌕ in
     // the masthead and the app header, the two ··· menus, "/" and ⌘/Ctrl-K)
     // drives the same overlay rather than each screen keeping its own.
+    // Walkthrough registrations sit above everything, so the overlays' screens
+    // (Budget, Notes, Settings) reach the guidance provider too.
+    <WalkthroughRegistry>
     <GlobalSearchProvider>
       {/* Plan a journey, Trip settings and Profile are mounted once here too,
           so every trigger in the app opens the screen in place instead of
@@ -45,5 +49,6 @@ export default function AppLayout({
        </JourneyGuidanceProvider></ToastProvider>
       </AppOverlaysProvider>
     </GlobalSearchProvider>
+    </WalkthroughRegistry>
   );
 }

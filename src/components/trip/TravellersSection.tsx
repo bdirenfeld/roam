@@ -127,7 +127,6 @@ export default function TravellersSection({ tripId, initialPeople }: Props) {
             <div className="border-t border-black/5" />
             <button
               onClick={openAdd}
-              data-walk="travellers-add"
               className="w-full flex items-center gap-3 py-[15px] text-left"
             >
               <span

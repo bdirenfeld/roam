@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback, useState } from "react";
+import { useWalkthrough } from "@/components/onboarding/JourneyGuidanceContext";
 import { SUB_TYPE_LABEL } from "@/lib/subTypeLabel";
 import TimeSheet from "@/components/day/TimeSheet";
 import { CaretDown, Clock, Heart, WarningCircle } from "@phosphor-icons/react";
@@ -449,6 +450,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const [showLinkSheet,     setShowLinkSheet]     = useState(false);
   const [showAttachments,   setShowAttachments]   = useState(false);
   const [showEmptyFields,   setShowEmptyFields]   = useState(false);
+  // A place's card has its own walkthrough (directions, files, Add details).
+  useWalkthrough(readOnly ? null : "card", { ready: true, used: false });
   const [isDeleting,        setIsDeleting]        = useState(false);
   const [deleteError,       setDeleteError]       = useState<string | null>(null);
   const [showSubTypePicker, setShowSubTypePicker] = useState(false);
@@ -1632,6 +1635,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             {!readOnly && place && place.sub_type !== "note" && (
               <button
                 onClick={() => setShowEmptyFields((v) => !v)}
+                data-walk="card-add-details"
                 className="relative mt-4 flex items-center gap-1.5 text-[12px] text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <span aria-hidden="true" data-testid="add-details-target" className="absolute -inset-x-1 -top-3 -bottom-[14px]" />

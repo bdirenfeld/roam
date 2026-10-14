@@ -163,8 +163,6 @@ export default function TripSettingsClient({
   const [linkBusy, setLinkBusy] = useState(false);
   const [confirmRevoke, setConfirmRevoke] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
-  // Shared before (a link, a guest, an invite): this walkthrough stays quiet.
-  useWalkthrough("share", { ready: true, used: !!shareToken || guests.length > 0 || invites.length > 0 });
   // What renders must not depend on `window`: the server has none, so a
   // window-gated value makes the server's HTML and the browser's first render
   // disagree and hydration fails (React #425/#422 on every load of this page
@@ -173,13 +171,19 @@ export default function TripSettingsClient({
   // `window` certainly exists.
   const sharePath = shareToken ? `/journey/${shareToken}` : null;
   const absoluteShareUrl = () => (sharePath ? `${window.location.origin}${sharePath}` : null);
+  // Whether the share state has come back: the walkthrough waits for it, so a
+  // journey shared only by email invite never reads as never shared.
+  const [shareKnown, setShareKnown] = useState(!shareAvailable);
   const refreshShare = useCallback(() => {
     if (!shareAvailable) return;
     loadShareState(trip.id)
       .then((s) => { setShareToken(s.shareToken); setGuests(s.guests); setInvites(s.invites); })
-      .catch(() => { /* the server-rendered state stands */ });
+      .catch(() => { /* the server-rendered state stands */ })
+      .finally(() => setShareKnown(true));
   }, [shareAvailable, trip.id]);
   useEffect(() => { refreshShare(); }, [refreshShare]);
+  // Shared before (a link, a guest, an invite): this walkthrough stays quiet.
+  useWalkthrough("share", { ready: shareKnown, used: !!shareToken || guests.length > 0 || invites.length > 0 });
   const [destination, setDestination] = useState(trip.destination);
   const [startDate, setStartDate] = useState(trip.start_date);
   const [endDate, setEndDate] = useState(trip.end_date);

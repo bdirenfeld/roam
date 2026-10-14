@@ -61,6 +61,7 @@ export default function PartyPicker({ party, onChange, labelClass }: { party: Pa
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
+        data-walk="travellers-change"
         className="w-full flex items-center px-5 py-[14px] text-left"
       >
         <span className={`text-[10px] uppercase tracking-widest w-20 flex-shrink-0 ${labelClass}`}>Travellers</span>

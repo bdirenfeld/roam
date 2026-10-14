@@ -126,6 +126,7 @@ export default function EntrySection({ tripId, destination, startDate, defaultOp
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
+        data-walk="entry-row"
         className="w-full flex items-center px-5 py-[14px] border-b border-black/5 text-left"
       >
         <span className="text-[10px] uppercase tracking-widest text-gray-400 w-20 flex-shrink-0">
@@ -257,7 +258,6 @@ export default function EntrySection({ tripId, destination, startDate, defaultOp
                   type="button"
                   onClick={() => void check()}
                   disabled={checking}
-                  data-walk="entry-check"
                   className="rounded-full px-4 py-2 text-[13.5px]"
                   style={{ background: INK, color: "#fff", opacity: checking ? 0.7 : 1 }}
                 >

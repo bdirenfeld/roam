@@ -13,6 +13,7 @@ vi.mock('@/lib/supabase/client', () => ({ createClient: () => ({
   },
   from: () => ({ select: () => ({ eq: async () => ({ count: mocks.count, error: null }) }) }),
 }) }));
+vi.mock('next/navigation', () => ({ usePathname: () => '/trips/t1/map', useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('@/components/ui/Toast', () => ({ useToast: () => ({ toast: mocks.toast }) }));
 vi.mock('./JourneyPointer', () => ({ default: ({ step, screen: current, onSkip, onNext, replay }: { step: string; screen: GuidanceScreen; onSkip: () => void; onNext: () => void; replay: boolean }) => <div role="note">{step}:{current.view}{replay && ':replay'}<button onClick={onSkip}>Skip</button><button onClick={onNext}>Next</button></div> }));
 const trip = { id: 't1', user_id: 'owner', created_at: new Date().toISOString() } as Trip;

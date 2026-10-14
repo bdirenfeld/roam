@@ -14,7 +14,6 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import ProfileClient from "@/components/profile/ProfileClient";
 import { GuideLink } from "@/components/overlays/AppOverlays";
-import { useResetWalkthroughs } from "@/components/onboarding/JourneyGuidanceContext";
 import { signOut } from "@/lib/auth-actions";
 
 export interface ProfileData {
@@ -170,7 +169,7 @@ export default function ProfileForm({ initial = null, variant = "page", onDismis
               show: the overlay is reachable from a phone, where there is no
               dropdown at all. */}
           <div
-            className={`flex flex-wrap items-center gap-x-6 gap-y-3 ${
+            className={`flex items-center gap-6 ${
               overlay
                 ? "mt-8 pt-4 border-t border-gray-100 md:hidden"
                 : "mt-10 pt-4 border-t border-gray-100 md:hidden"
@@ -179,7 +178,6 @@ export default function ProfileForm({ initial = null, variant = "page", onDismis
             <GuideLink className="text-sm font-semibold text-gray-400 hover:text-gray-500 transition-colors">
               How Roam works
             </GuideLink>
-            <ResetWalkthroughs />
             <form action={signOut}>
               <button
                 type="submit"
@@ -263,19 +261,5 @@ function DeleteAccount() {
         </button>
       </div>
     </div>
-  );
-}
-
-/**
- * Every walkthrough shows once more, each on its own screen, the next time
- * that screen opens (14 Oct 2026). Nothing fires here and now.
- */
-function ResetWalkthroughs() {
-  const reset = useResetWalkthroughs();
-  if (!reset) return null;
-  return (
-    <button type="button" onClick={reset} className="text-sm font-semibold text-gray-400 hover:text-gray-500 transition-colors">
-      Show walkthroughs again
-    </button>
   );
 }

@@ -116,7 +116,7 @@ export default function CardTimeline({
   // survives for a host that offers no search.
   const renderAddControls = (row: boolean) =>
     !readOnly && (onAddFromSaved || onGapTap) ? (
-      <div className={`w-full pt-2 ${row ? "md:ml-[94px]" : ""}`}>
+      <div data-walk="day-add" className={`w-full pt-2 ${row ? "md:ml-[94px]" : ""}`}>
         {onGapTap && <AddPlaceRow onClick={() => onGapTap("", "")} centered={!row} />}
         {!onGapTap && onAddFromSaved && (
           <button

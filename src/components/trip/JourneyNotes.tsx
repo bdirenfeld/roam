@@ -164,7 +164,8 @@ export default function JourneyNotes({
 
   const [items, setItems] = useState<NoteItem[]>(() => parseNotes(initialNotes ?? ""));
   // The Notes sheet's walkthrough; notes already written = already known.
-  useWalkthrough(!readOnly && !inline ? "notes" : null, { ready: true, used: items.length > 0 });
+  // Not ready while the notes are still on their way (initialNotes null = pending), or a full list would read as empty.
+  useWalkthrough(!readOnly && !inline ? "notes" : null, { ready: initialNotes != null, used: items.length > 0 });
 
   // Which sections are folded shut. Per viewer, never in the notes text: this
   // is how one person is reading, not what the journey says, and writing it
