@@ -26,7 +26,7 @@ vi.mock("@/components/overlays/AppOverlays", () => {
 // run for minutes. The rows are what is being tested, not the glyphs.
 vi.mock("@phosphor-icons/react", () => {
   const Glyph = () => null;
-  return { Coins: Glyph, DotsThree: Glyph, Gear: Glyph, NotePencil: Glyph, ShareNetwork: Glyph, Lightbulb: Glyph, Bed: Glyph, PlayCircle: Glyph, HandPointing: Glyph };
+  return { Coins: Glyph, DotsThree: Glyph, Gear: () => <i data-icon="gear" />, NotePencil: Glyph, ShareNetwork: Glyph, Lightbulb: Glyph, Bed: Glyph, PlayCircle: Glyph, HandPointing: Glyph };
 });
 
 const vids = vi.hoisted(() => ({ available: {} as Record<string, number>, markSeen: () => {} }));
@@ -77,6 +77,12 @@ describe("the journey menu", () => {
   it("is four tiles for the owner, Share and Settings as one, phone-short words", () => {
     const r = rows(false);
     expect(r).toEqual(["Budget", "Notes", "Bookings", "Settings"]);
+  });
+
+  it("Settings wears a gear, matching its word (13 Oct 2026)", () => {
+    rows(false);
+    const settings = screen.getAllByRole("menuitem").find((el) => el.textContent?.trim() === "Settings")!;
+    expect(settings.querySelector('[data-icon="gear"]')).not.toBeNull();
   });
 
   it("is Notes and Bookings for a guest — no planner's Ideas", () => {

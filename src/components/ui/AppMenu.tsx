@@ -5,7 +5,7 @@ import {
   Coins,
   DotsThree,
   NotePencil,
-  ShareNetwork,
+  Gear,
   PlayCircle,
   HandPointing,
 } from "@phosphor-icons/react";
@@ -260,7 +260,10 @@ export default function AppMenu({
                   style={itemStyle}
                 >
                   <span style={glyphStyle}>
-                    <ShareNetwork size={15} weight="light" />
+                    {/* A gear, not the share glyph (13 Oct 2026, his pick of mock A): the tile
+                        says Settings, and the share glyph was left over from "Share & settings".
+                        It still opens at the Share block. */}
+                    <Gear size={15} weight="light" />
                   </span>
                   <Label title="Settings" />
                 </TripSettingsLink>
