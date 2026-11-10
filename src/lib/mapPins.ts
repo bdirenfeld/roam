@@ -169,6 +169,11 @@ const MATERIAL_ICONS: Record<string, string> = {
   flight_arrival:   "flight_land",
   flight_departure: "flight_takeoff",
   transit:          "directions_transit",
+  // A travel leg shows how you go, not just "transit" (10 Nov 2026, lib/travel/leg iconSubType).
+  leg_drive:        "directions_car",
+  leg_bus:          "directions_bus",
+  leg_train:        "train",
+  leg_ferry:        "directions_boat",
   grocery:          "local_grocery_store",
   pet_care:         "pets",
   medical:          "medical_services",

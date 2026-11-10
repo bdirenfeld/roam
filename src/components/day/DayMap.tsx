@@ -6,7 +6,7 @@ import { mapGoNow } from "@/lib/map/mapGoNow";
 import type { ReactNode } from "react";
 import type { Card } from "@/types/database";
 import { makeMaterialPinElement } from "@/lib/mapPins";
-import { legLines } from "@/lib/travel/leg";
+import { legLines, iconSubType } from "@/lib/travel/leg";
 import { drawLegs, legStarts } from "@/lib/map/legLayer";
 import { stackGroups, STACK_FACTOR, pileZoom } from "@/lib/map/stackGroups";
 import Link from "next/link";
@@ -264,7 +264,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
         mappable.forEach(({ card, lat, lng }, i) => {
           const cardDetails = card.details as Record<string, unknown> | null;
           const { wrapper, inner } = makeMaterialPinElement(
-            card.place!.type, card.place!.sub_type, card.status, !!(cardDetails?.recommended_by), "#1A1A2E",
+            card.place!.type, iconSubType(card), card.status, !!(cardDetails?.recommended_by), "#1A1A2E",
           );
 
           // Store inner element so the pulse effect can animate it

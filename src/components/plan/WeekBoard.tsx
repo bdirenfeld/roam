@@ -26,6 +26,7 @@ import { queuedUpdate, queuedInsert, queuedDelete } from "@/lib/offline/queuedWr
 import { createClient } from "@/lib/supabase/client";
 import { scheduleCardOnDay, unscheduleCard } from "@/lib/scheduleCard";
 import { PIN_COLORS, getMaterialIconHTML } from "@/lib/mapPins";
+import { iconSubType } from "@/lib/travel/leg";
 import { autoDayTitle } from "@/lib/autoDayTitle";
 import { useToast } from "@/components/ui/Toast";
 import { cardTimes } from "@/lib/cardTime";
@@ -1124,7 +1125,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                         >
                           <div onPointerDown={(e) => onStartHandlePointerDown(e, c)} className="absolute left-0 right-0 top-0 h-[6px] cursor-ns-resize" aria-label="Change the start time" />
                           <div className="text-[11px] font-medium leading-tight truncate pointer-events-none flex items-center gap-1">
-                            {!note && <span className="inline-flex flex-shrink-0 opacity-70" dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(c.place!.sub_type, 12) }} />}
+                            {!note && <span className="inline-flex flex-shrink-0 opacity-70" dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(iconSubType(c), 12) }} />}
                             <span className="truncate">{blockTitle(c, day.date)}</span>
                           </div>
                           {!short && (

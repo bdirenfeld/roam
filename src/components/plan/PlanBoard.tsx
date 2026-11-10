@@ -69,6 +69,7 @@ import AppMenu from "@/components/ui/AppMenu";
 import JourneyHeader from "@/components/ui/JourneyHeader";
 import AddPlaceRow from "@/components/ui/AddPlaceRow";
 import { getMaterialIconHTML } from "@/lib/mapPins";
+import { iconSubType } from "@/lib/travel/leg";
 import { timeFirst } from "@/lib/agendaOrder";
 import { type DayWeather, fetchTripWeather, dayStopsAnchor, getWeatherCategory, WeatherIcon, HourlyStrip } from "@/lib/weather";
 import { deletedToast, cardTitle } from "@/lib/cardTitle";
@@ -2410,7 +2411,7 @@ function CardTile({
         >
           <span
             // eslint-disable-next-line react/no-danger
-            dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(place.sub_type, 22) }}
+            dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(iconSubType(card), 22) }}
           />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img

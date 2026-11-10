@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { Heart } from "@phosphor-icons/react";
 import type { Card, CardType } from "@/types/database";
 import { getMaterialIconHTML, PIN_COLORS } from "@/lib/mapPins";
+import { iconSubType } from "@/lib/travel/leg";
 import { createClient } from "@/lib/supabase/client";
 import { queuedDelete } from "@/lib/offline/queuedWrite";
 import LovedHeart, { LOVED_ACCENT } from "@/components/ui/LovedHeart";
@@ -414,7 +415,7 @@ export default function MapSidebar({
                                           className="flex-shrink-0"
                                           style={{ color: iconColor, opacity: isFocused ? 1 : 0.7 }}
                                           // eslint-disable-next-line react/no-danger
-                                          dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(card.place!.sub_type, 12) }}
+                                          dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(iconSubType(card), 12) }}
                                         />
                                         <span className="flex-1 min-w-0">
                                           <span className="flex items-center gap-1 min-w-0">

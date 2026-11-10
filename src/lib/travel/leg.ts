@@ -93,6 +93,19 @@ export function canBeLeg(place: { type?: string | null; sub_type?: string | null
   return place?.type === "logistics" && !!place.sub_type && LEG_SUB_TYPES.has(place.sub_type);
 }
 
+/**
+ * The icon key for any card (10 Nov 2026): a travel leg with a mode shows that
+ * mode (car, train, bus, ferry), so a drive no longer looks like public
+ * transit; every other card keeps its place's sub_type. Feed the result to
+ * getMaterialIconHTML / makeMaterialPinElement wherever a sub_type went.
+ */
+export function iconSubType(card: { details?: unknown; place?: { type?: string | null; sub_type?: string | null } | null } | null | undefined): string | null {
+  const sub = card?.place?.sub_type ?? null;
+  if (!card || !canBeLeg(card.place) || !readFrom(card.details)) return sub;
+  const mode = readMode(card.details);
+  return mode ? `leg_${mode}` : sub;
+}
+
 export function isTravelLeg(card: LegCard | null | undefined): boolean {
   return !!card && canBeLeg(card.place) && readFrom(card.details) !== null;
 }

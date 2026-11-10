@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { getMaterialIconHTML } from "@/lib/mapPins";
 import {
   isTravelLeg, legTitle, legSubtitle, legDurationMins, shouldDrawLine, defaultFromForDay,
-  legLines, withFrom, readFrom, formatLegDuration, legModeWord, type LegDay,
+  legLines, withFrom, readFrom, formatLegDuration, legModeWord, iconSubType, type LegDay,
 } from "./leg";
 
 /**
@@ -178,5 +181,33 @@ describe("defaultFromForDay — a hand-added leg starts at last night's stay (hi
       { id: "b", date: "2027-02-20", cards: [] },
     ];
     expect(defaultFromForDay(ideas, "b")).toBeNull();
+  });
+});
+
+describe("iconSubType — a leg shows how you go, not just transit (10 Nov 2026)", () => {
+  const glyph = (c: Parameters<typeof iconSubType>[0]) => getMaterialIconHTML(iconSubType(c)).match(/>([a-z_]+)<\/span>/)![1];
+  it("a drive is a car, a train is a train", () => {
+    expect(glyph(truck)).toBe("directions_car");
+    expect(glyph(leg({}, { mode: "train" }))).toBe("train");
+    expect(glyph(leg({}, { mode: "bus" }))).toBe("directions_bus");
+    expect(glyph(leg({}, { mode: "ferry" }))).toBe("directions_boat");
+  });
+  it("a leg with no mode, a transit stop with no start, and every other card keep their sub_type", () => {
+    expect(glyph(leg({}, { mode: undefined }))).toBe("directions_transit");
+    expect(glyph({ ...truck, details: { title: "Pick up rental car" } })).toBe("directions_transit");
+    expect(glyph({ ...truck, place: { ...mfuwePlace, type: "food", sub_type: "restaurant" } })).toBe("restaurant");
+    expect(iconSubType({ ...truck, place: null })).toBeNull();
+    expect(iconSubType(null)).toBeNull();
+  });
+  it("every board, sidebar and pin that draws a card icon goes through it", () => {
+    // Brennan, 10 Nov 2026: the pins said subway while the line said car. A surface
+    // that reads place.sub_type directly brings that back; fix the file named here.
+    const root = join(__dirname, "..", "..");
+    for (const f of ["components/plan/WeekBoard.tsx", "components/plan/PlanBoard.tsx", "components/plan/WeekMap.tsx",
+      "components/day/DayMap.tsx", "components/map/FullMapClient.tsx", "components/map/MapSidebar.tsx"]) {
+      const src = readFileSync(join(root, f), "utf8");
+      expect(src, f).toContain("iconSubType(");
+      expect(src, f).not.toMatch(/(getMaterialIconHTML|makeMaterialPinElement)\([^)]*place!?\.sub_type/);
+    }
   });
 });

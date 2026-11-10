@@ -32,6 +32,7 @@ import { startZoomFor } from "@/lib/places/regions";
 import "mapbox-gl/dist/mapbox-gl.css";
 import type { Card, Day, Trip } from "@/types/database";
 import { makeMaterialPinElement } from "@/lib/mapPins";
+import { iconSubType } from "@/lib/travel/leg";
 import MapPinPopup from "@/components/map/MapPinPopup";
 import { popupPanY } from "@/lib/map/popupRoom";
 import PlaceSearch from "@/components/map/PlaceSearch";
@@ -379,7 +380,7 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
         } else continue;
       }
       const hasRec = !!(c.details as Record<string, unknown> | null)?.recommended_by;
-      const { wrapper, inner } = makeMaterialPinElement(c.place!.type, c.place!.sub_type, status, hasRec);
+      const { wrapper, inner } = makeMaterialPinElement(c.place!.type, iconSubType(c), status, hasRec);
       wrapper.dataset.status = status;
       inner.title = c.place!.title;
       inner.style.transition = "transform 150ms ease, opacity 150ms ease";

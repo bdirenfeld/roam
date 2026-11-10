@@ -38,7 +38,7 @@ import { takenOffMapToast } from "@/lib/takenOff";
 import { createClient } from "@/lib/supabase/client";
 import { scheduleCardOnDay } from "@/lib/scheduleCard";
 import { planPutOnDay, singlePutLine, alreadyLine, batchPutLine } from "@/lib/map/putOnDay";
-import { legLines } from "@/lib/travel/leg";
+import { legLines, iconSubType } from "@/lib/travel/leg";
 import { drawLegs, legStarts } from "@/lib/map/legLayer";
 import { tapFilter } from "@/lib/map/tapFilter";
 import { pulseAt, showAt } from "@/lib/map/pulse";
@@ -451,7 +451,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
     const cardRef: { current: Card } = { current: card };
     const cardDetails = card.details as Record<string, unknown> | null;
     const hasRec = !!(cardDetails?.recommended_by);
-    const { wrapper, inner } = makeMaterialPinElement(place.type, place.sub_type, card.status, hasRec);
+    const { wrapper, inner } = makeMaterialPinElement(place.type, iconSubType(card), card.status, hasRec);
     inner.title = place.title;
 
     const mbMarker = new mb.Marker({ element: wrapper, anchor: "center" })
@@ -843,7 +843,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
           const place = card.place!;
           const cardRef: { current: Card } = { current: card };
           const initDetails = card.details as Record<string, unknown> | null;
-          const { wrapper, inner } = makeMaterialPinElement(place.type, place.sub_type, card.status, !!(initDetails?.recommended_by));
+          const { wrapper, inner } = makeMaterialPinElement(place.type, iconSubType(card), card.status, !!(initDetails?.recommended_by));
           inner.title = place.title;
 
           const mbMarker = new mb.Marker({ element: wrapper, anchor: "center" })
