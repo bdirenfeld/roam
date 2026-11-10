@@ -122,6 +122,16 @@ describe("Toast placement on a phone", () => {
     size(1024, 768);
   });
 
+  it("on a computer it sits in the bottom-left corner, clear of the centred card sheet (10 Nov 2026)", () => {
+    // Centred under the masthead it covered the card sheet's type badge, the
+    // "Note" dropdown (Brennan); centred at the bottom it covered sheet buttons.
+    show({ message: "Card removed", action: { label: "Undo", onClick: () => {} } });
+    const lane = screen.getByTestId("toast-lane");
+    expect(lane.className).toContain("md:bottom-6");
+    expect(lane.className).toContain("md:justify-start");
+    expect(lane.className).not.toMatch(/md:top-\[/);
+  });
+
   it("the toast uses the full width minus 16px gutters, centred — not the right half", () => {
     show({ message: "Lisbon tomorrow · 2 still to book", action: { label: "Bookings", onClick: () => {} } });
     const lane = screen.getByTestId("toast-lane");

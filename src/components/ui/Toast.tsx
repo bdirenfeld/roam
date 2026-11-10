@@ -202,10 +202,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           key={current.key}
           ref={laneRef}
           data-testid="toast-lane"
-          // On a computer the toast sits under the masthead (27 Sep 2026): at the
-          // bottom it covered the centred sheets' own buttons — "Copy to 9 days"
-          // sat under "Something to do before Spain" for seven seconds.
-          className="fixed inset-x-4 bottom-24 md:bottom-auto md:top-[76px] z-[80] flex justify-center pointer-events-none"
+          // On a computer the toast sits in the bottom-left corner (10 Nov 2026).
+          // Centred at the bottom it covered the centred sheets' own buttons
+          // ("Copy to 9 days", 27 Sep); centred under the masthead it covered the
+          // card sheet's type badge, the new "Note" dropdown (Brennan). The
+          // corner is clear of every centred sheet.
+          className="fixed inset-x-4 bottom-24 md:bottom-6 md:top-auto md:justify-start z-[80] flex justify-center pointer-events-none"
           style={placement ? ("top" in placement ? { top: placement.top, bottom: "auto" } : { bottom: placement.bottom }) : undefined}
         >
         <div

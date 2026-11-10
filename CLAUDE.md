@@ -2476,3 +2476,8 @@ Four commits (bbf019a, f532668, cb36b20, 614cef0) opened the journey map in plac
   passes `iconSubType(card)` (lib/travel/leg), not `place.sub_type` — a drive leg is `directions_car`,
   a train `train`, via `leg_<mode>` keys in MATERIAL_ICONS. leg.test.ts fails if WeekBoard, PlanBoard,
   WeekMap, DayMap, FullMapClient or MapSidebar read `place.sub_type` for an icon directly.
+
+- **A note can become any card (10 Nov 2026, 60f0503):** the note's type badge opens NoteTypePicker
+  (lib/cards/noteKinds): pick a kind, search any Google place, bulk-import it, card keeps time/notes.
+  `legCapable(card)` = transit place OR any place with `details.mode`, so a drive can end at a farm or a
+  restaurant. Every leg check (isTravelLeg, iconSubType, the sheet's travel panel) goes through it.
