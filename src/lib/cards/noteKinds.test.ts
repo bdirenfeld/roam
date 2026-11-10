@@ -51,3 +51,26 @@ describe("convertedDetails", () => {
       .toEqual({ notes: "About an hour.", checklist, recommended_by: "Rita" });
   });
 });
+
+describe("type now, place later (10 Nov 2026)", () => {
+  it("withNoteKind saves the kind on the note and Note clears it", async () => {
+    const { withNoteKind, readNoteKind } = await import("./noteKinds");
+    const food = withNoteKind({ title: "Dinner in Lucca", notes: "Early." }, "food");
+    expect(food).toEqual({ title: "Dinner in Lucca", notes: "Early.", kind: "food" });
+    expect(readNoteKind(food)?.label).toBe("Food");
+    expect(readNoteKind(food)?.cardType).toBe("food");
+    const back = withNoteKind(food, "note");
+    expect(back).toEqual({ title: "Dinner in Lucca", notes: "Early." });
+    expect(readNoteKind(back)).toBeNull();
+  });
+  it("a junk kind reads as no kind", async () => {
+    const { readNoteKind } = await import("./noteKinds");
+    expect(readNoteKind({ kind: "spaceship" })).toBeNull();
+    expect(readNoteKind({ kind: 7 })).toBeNull();
+    expect(readNoteKind(null)).toBeNull();
+  });
+  it("adding the place later drops the stored kind (the place says what it is)", () => {
+    const d = convertedDetails({ title: "Dinner in Lucca", kind: "food", notes: "Early." }, noteKind("food"), null);
+    expect(d).toEqual({ notes: "Early." });
+  });
+});

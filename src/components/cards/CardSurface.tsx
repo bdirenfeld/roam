@@ -1,7 +1,8 @@
 import type { Card } from "@/types/database";
 import { thumbSrc } from "@/lib/places/photoWarm";
 import { noteLead } from "@/lib/noteLead";
-import { getMaterialIconHTML } from "@/lib/mapPins";
+import { getMaterialIconHTML, getGlyphHTML } from "@/lib/mapPins";
+import { readNoteKind } from "@/lib/cards/noteKinds";
 import { getPriceRange } from "@/lib/priceRange";
 import { formatTimeRange } from "@/lib/formatTime";
 import { cardTimes } from "@/lib/cardTime";
@@ -117,7 +118,9 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTim
   // "🍴 Via Rosina" says what "Restaurant · Via Rosina" said, in one shape.
   // A leg with no mode shows the transit glyph, not a car (7 Oct 2026, mock t05: no guessed Drive).
   const legMode    = isLeg ? readMode(det) : null;
-  const detailIcon = legMode ? legGlyph(legMode) : place ? getMaterialIconHTML(place.sub_type ?? null, 14) : null;
+  // A typed note with no place yet shows its kind's glyph (10 Nov 2026).
+  const noteKind   = place ? null : readNoteKind(det);
+  const detailIcon = legMode ? legGlyph(legMode) : place ? getMaterialIconHTML(place.sub_type ?? null, 14) : noteKind ? getGlyphHTML(noteKind.glyph, 14) : null;
 
   const surfRating = place?.type === "food" ? place.rating : null;
   const isLoved    = place?.loved === true;

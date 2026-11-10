@@ -92,6 +92,14 @@ export function getMaterialIconHTML(
   );
 }
 
+/** A named glyph drawn like getMaterialIconHTML draws a sub_type's (10 Nov 2026: a typed note's kind). */
+export function getGlyphHTML(name: string, size = 16): string {
+  return (
+    `<span class="material-symbols-outlined" style="font-size:${size}px;line-height:1;display:block;user-select:none;` +
+    `font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20;">${name}</span>`
+  );
+}
+
 /**
  * Standalone icon SVG — 24×24 viewBox, no pin shape.
  * Used for popup rows and legend items.

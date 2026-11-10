@@ -25,7 +25,8 @@ import type { Trip, DayWithCards, Card, Day, Place } from "@/types/database";
 import { queuedUpdate, queuedInsert, queuedDelete } from "@/lib/offline/queuedWrite";
 import { createClient } from "@/lib/supabase/client";
 import { scheduleCardOnDay, unscheduleCard } from "@/lib/scheduleCard";
-import { PIN_COLORS, getMaterialIconHTML } from "@/lib/mapPins";
+import { PIN_COLORS, getMaterialIconHTML, getGlyphHTML } from "@/lib/mapPins";
+import { readNoteKind, PLACE_TO_COME } from "@/lib/cards/noteKinds";
 import { iconSubType } from "@/lib/travel/leg";
 import { autoDayTitle } from "@/lib/autoDayTitle";
 import { useToast } from "@/components/ui/Toast";
@@ -1091,6 +1092,8 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                     {placed.map((b) => {
                       const c = byId.get(b.id); if (!c) return null;
                       const note = isNote(c);
+                      // A typed note with no place yet (10 Nov 2026): its kind's colour, glyph and "place to come".
+                      const nk = note ? readNoteKind(c.details) : null;
                       // A strip keeps the shape of its day: coloured bars, no text.
                       if (collapsed(di)) return (
                         <div key={c.id} className="absolute rounded-[3px] pointer-events-none" style={{ top: b.top, height: Math.max(b.height, 12), left: 6, right: 6, background: note ? "rgba(26,26,46,0.18)" : PIN_COLORS[c.place!.type], opacity: 0.55 }} />
@@ -1117,7 +1120,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                             // The pin's colour on the edge and its glyph before the
                             // name (Brennan, 25 Sep 2026): three colours the map
                             // already taught, so a glance says food, sight, transit.
-                            borderLeft: `3px solid ${note ? "rgba(26,26,46,0.4)" : PIN_COLORS[c.place!.type]}`,
+                            borderLeft: `3px solid ${note ? (nk?.cardType ? PIN_COLORS[nk.cardType] : "rgba(26,26,46,0.4)") : PIN_COLORS[c.place!.type]}`,
                             boxShadow: isGhost ? "0 10px 24px rgba(26,26,46,0.22)" : "0 1px 2px rgba(26,26,46,0.05)",
                             opacity: isGhost ? 0.9 : 1, zIndex: isGhost ? 6 : 1,
                             padding: short ? "2px 6px" : "4px 6px",
@@ -1125,8 +1128,8 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                         >
                           <div onPointerDown={(e) => onStartHandlePointerDown(e, c)} className="absolute left-0 right-0 top-0 h-[6px] cursor-ns-resize" aria-label="Change the start time" />
                           <div className="text-[11px] font-medium leading-tight truncate pointer-events-none flex items-center gap-1">
-                            {!note && <span className="inline-flex flex-shrink-0 opacity-70" dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(iconSubType(c), 12) }} />}
-                            <span className="truncate">{blockTitle(c, day.date)}</span>
+                            {(!note || nk) && <span className="inline-flex flex-shrink-0 opacity-70" dangerouslySetInnerHTML={{ __html: nk ? getGlyphHTML(nk.glyph, 12) : getMaterialIconHTML(iconSubType(c), 12) }} />}
+                            <span className="truncate">{blockTitle(c, day.date)}{nk ? ` · ${PLACE_TO_COME}` : ""}</span>
                           </div>
                           {!short && (
                             <div className="text-[9.5px] text-activity/60 truncate tabular-nums pointer-events-none">

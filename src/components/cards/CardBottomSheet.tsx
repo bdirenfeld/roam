@@ -50,8 +50,8 @@ import HotelDetail from "./detail/HotelDetail";
 import { withDetails } from "@/lib/cardDetails";
 import { UNTITLED_NOTE, cardTitle, deletedToast } from "@/lib/cardTitle";
 import TravelLegPanel, { LegFromLine, useDefaultFrom } from "./TravelLegPanel";
-import NoteTypePicker from "./NoteTypePicker";
-import { convertedDetails, type NoteKind } from "@/lib/cards/noteKinds";
+import NoteTypePicker, { NoteWhereRow } from "./NoteTypePicker";
+import { convertedDetails, readNoteKind, withNoteKind, type NoteKind } from "@/lib/cards/noteKinds";
 import { legCapable as cardLegCapable, isTravelLeg, legTitle, legDurationMins, legModeWord, readFrom, readMode, withFrom, type LegFrom, type LegMode } from "@/lib/travel/leg";
 
 /** Read Google's `weekday_text` (seven "Monday: 9:00 AM – 5:00 PM" lines) off
@@ -697,6 +697,12 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     }
   }, [localCard, noteFrom, onCardUpdate, supabase]);
 
+  const handleNoteKind = useCallback((kind: NoteKind) => {
+    setShowNotePicker(false);
+    setNoteError(null);
+    void saveDetailsPatch(withNoteKind(localCard.details as Record<string, unknown>, kind.key));
+  }, [localCard.details, saveDetailsPatch]);
+
   // ── Link place from map — repoint the card to the selected place ─
   // Clean relink: set place_id to the selected pin's place. If the card
   // already pointed at a different place, this replaces it. Nothing else
@@ -938,11 +944,12 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     address: place?.address ?? null,
   };
   // Unlinked cards default to a muted note accent
+  const noteKind  = isNote ? readNoteKind(localCard.details) : null;
   const accent    = isNote
-    ? { dot: "bg-gray-300", bg: "bg-gray-50", text: "text-gray-500" }
+    ? (noteKind?.cardType ? (TYPE_ACCENT[noteKind.cardType] ?? TYPE_ACCENT.logistics) : { dot: "bg-gray-300", bg: "bg-gray-50", text: "text-gray-500" })
     : (TYPE_ACCENT[place.type] ?? TYPE_ACCENT.logistics);
   const typeLabel = isNote
-    ? "Note"
+    ? (noteKind?.label ?? "Note")
     : ((place.sub_type ? SUB_TYPE_LABEL[place.sub_type] : undefined) ??
        SUB_TYPE_OPTIONS[place.type]?.[0]?.label ??
        place.type);
@@ -1169,13 +1176,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   )}
                 </button>
                 {showNotePicker && !place && !readOnly && (
-                  <NoteTypePicker
-                    destination={tripDestination}
-                    busy={noteBusy}
-                    error={noteError}
-                    onPick={handleNoteConvert}
-                    onClose={() => setShowNotePicker(false)}
-                  />
+                  <NoteTypePicker current={noteKind?.key ?? "note"} onPick={handleNoteKind} />
                 )}
                 {showSubTypePicker && place && !readOnly && (
                   <SubTypePicker
@@ -1390,6 +1391,15 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               />
             ) : (
               <h2 className="text-[19px] font-bold text-gray-900 leading-snug">{displayTitle}</h2>
+            )}
+            {isNote && noteKind && !readOnly && (
+              <NoteWhereRow
+                kind={noteKind}
+                destination={tripDestination}
+                busy={noteBusy}
+                error={noteError}
+                onPick={(gid) => void handleNoteConvert(noteKind, gid)}
+              />
             )}
             {/* One quiet line under the route, "From Lusaka · change" (7 Oct
                 2026, mock t05): it replaced the From and To rows in the body,

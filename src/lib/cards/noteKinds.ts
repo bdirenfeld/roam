@@ -30,16 +30,18 @@ export interface NoteKind {
   defaults: { type: "activity" | "food" | "logistics"; sub_type: string } | null;
   /** Drive and Train make the card a travel leg. */
   mode: LegMode | null;
+  /** The colour family on the board while the place is still to come. */
+  cardType: "activity" | "food" | "logistics" | null;
 }
 
 export const NOTE_KINDS: NoteKind[] = [
-  { key: "note",     label: "Note",     glyph: "edit_note",        prompt: null,             defaults: null, mode: null },
-  { key: "activity", label: "Activity", glyph: "directions_walk",  prompt: "Which place?",   defaults: null, mode: null },
-  { key: "food",     label: "Food",     glyph: "restaurant",       prompt: "Which place?",   defaults: null, mode: null },
-  { key: "hotel",    label: "Hotel",    glyph: "hotel",            prompt: "Which hotel?",   defaults: { type: "logistics", sub_type: "hotel" }, mode: null },
-  { key: "drive",    label: "Drive",    glyph: "directions_car",   prompt: "Where to?",      defaults: null, mode: "drive" },
-  { key: "train",    label: "Train",    glyph: "train",            prompt: "Which station?", defaults: null, mode: "train" },
-  { key: "flight",   label: "Flight",   glyph: "flight_land",      prompt: "Which airport?", defaults: { type: "logistics", sub_type: "flight_arrival" }, mode: null },
+  { key: "note",     label: "Note",     glyph: "edit_note",        prompt: null,             defaults: null, mode: null, cardType: null },
+  { key: "activity", label: "Activity", glyph: "directions_walk",  prompt: "Which place?",   defaults: null, mode: null, cardType: "activity" },
+  { key: "food",     label: "Food",     glyph: "restaurant",       prompt: "Which place?",   defaults: null, mode: null, cardType: "food" },
+  { key: "hotel",    label: "Hotel",    glyph: "hotel",            prompt: "Which hotel?",   defaults: { type: "logistics", sub_type: "hotel" }, mode: null, cardType: "logistics" },
+  { key: "drive",    label: "Drive",    glyph: "directions_car",   prompt: "Where to?",      defaults: null, mode: "drive", cardType: "logistics" },
+  { key: "train",    label: "Train",    glyph: "train",            prompt: "Which station?", defaults: null, mode: "train", cardType: "logistics" },
+  { key: "flight",   label: "Flight",   glyph: "flight_land",      prompt: "Which airport?", defaults: { type: "logistics", sub_type: "flight_arrival" }, mode: null, cardType: "logistics" },
 ];
 
 export function noteKind(key: NoteKindKey): NoteKind {
@@ -59,6 +61,7 @@ export function convertedDetails(
   from: LegFrom | null,
 ): Record<string, unknown> {
   const d: Record<string, unknown> = { ...(details ?? {}) };
+  delete d.kind;
   delete d.title;
   delete d.named;
   if (kind.mode) {
@@ -71,3 +74,24 @@ export function convertedDetails(
   }
   return d;
 }
+
+/**
+ * Type now, place later (10 Nov 2026, mock approved): picking a kind saves it
+ * on the note as details.kind at once, so "Dinner in Lucca" can be Food before
+ * anyone knows which restaurant. The place is an optional "Where?" line.
+ */
+export function readNoteKind(details: unknown): NoteKind | null {
+  const k = (details as Record<string, unknown> | null | undefined)?.kind;
+  if (typeof k !== "string" || k === "note") return null;
+  return NOTE_KINDS.find((x) => x.key === k) ?? null;
+}
+
+/** The note's details with its kind set; Note clears it. Nothing else changes. */
+export function withNoteKind(details: Record<string, unknown> | null | undefined, key: NoteKindKey): Record<string, unknown> {
+  const d: Record<string, unknown> = { ...(details ?? {}) };
+  if (key === "note") delete d.kind; else d.kind = key;
+  return d;
+}
+
+/** What the board says for a typed note with no place yet. */
+export const PLACE_TO_COME = "place to come";

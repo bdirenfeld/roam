@@ -10,8 +10,9 @@ import type { Card, Day } from "@/types/database";
  * "Drive to My Tuscan Kitchen, Montefoscoli (~1 h)".
  */
 
+const writes = vi.hoisted(() => ({ calls: [] as Array<Record<string, unknown>> }));
 vi.mock("@/lib/offline/queuedWrite", () => ({
-  queuedUpdate: vi.fn(async () => ({ error: null })),
+  queuedUpdate: vi.fn(async (_t: string, _m: unknown, patch: Record<string, unknown>) => { writes.calls.push(patch); return { error: null }; }),
   queuedDelete: vi.fn(async () => ({ error: null })),
 }));
 vi.mock("@/components/ui/Toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
@@ -57,13 +58,26 @@ describe("CardBottomSheet — Note is a dropdown (10 Nov 2026)", () => {
     expect(rows).toEqual(["Note", "Activity", "Food", "Hotel", "Drive", "Train", "Flight"]);
   });
 
-  it("Drive asks where to, with the place search", async () => {
+  it("picking Food saves it at once: the badge says Food and an optional Where? row appears (type now, place later)", async () => {
+    writes.calls = [];
+    await open();
+    await act(async () => { fireEvent.click(screen.getByTestId("note-type-button")); });
+    await act(async () => { fireEvent.click(within(screen.getByTestId("note-type-picker")).getByRole("menuitem", { name: /Food/ })); });
+    expect(screen.queryByTestId("note-type-picker")).toBeNull();
+    expect(writes.calls.at(-1)).toEqual({ details: { title: "Drive to My Tuscan Kitchen, Montefoscoli (~1 h)", kind: "food" } });
+    expect(screen.getByTestId("note-type-button").textContent).toContain("Food");
+    const where = screen.getByTestId("note-where");
+    expect(where.textContent).toContain("Where? Add a place");
+    expect(where.textContent).toContain("optional");
+    await act(async () => { fireEvent.click(within(where).getByRole("button")); });
+    expect(screen.getByTestId("note-where").querySelector("input")).not.toBeNull();
+  });
+
+  it("Drive asks 'Where to?'", async () => {
     await open();
     await act(async () => { fireEvent.click(screen.getByTestId("note-type-button")); });
     await act(async () => { fireEvent.click(within(screen.getByTestId("note-type-picker")).getByRole("menuitem", { name: /Drive/ })); });
-    const picker = screen.getByTestId("note-type-picker");
-    expect(picker.textContent).toContain("Where to?");
-    expect(picker.querySelector("input")).not.toBeNull();
+    expect(screen.getByTestId("note-where").textContent).toContain("Where to? Add a place");
   });
 
   it("a guest gets no dropdown", async () => {
