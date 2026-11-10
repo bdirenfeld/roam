@@ -2471,3 +2471,8 @@ Four commits (bbf019a, f532668, cb36b20, 614cef0) opened the journey map in plac
 ## Clarity funnel events
 - Clarity loads only after SessionRecorder reads the session, so anything sent at page mount found no `window.clarity` and was dropped (landing_view and the source tag, 10–13 Oct 2026). `lib/funnel` now queues on `window.__roamFunnel` and SessionRecorder calls `flushFunnel()` after `loadClarity`. Never pre-create a `window.clarity` stub yourself: `loadClarity` returns early if one exists and the script never loads.
 - The landing page ChatGPT shipped 11 Oct (`ReleasedLandingPage`, HTML in `landingContent.js`) dropped every funnel call; restored 13 Oct. If the landing is replaced again, carry them over.
+
+- **Leg icons follow the mode (10 Nov 2026, 6109980):** any surface that draws a card's icon or pin
+  passes `iconSubType(card)` (lib/travel/leg), not `place.sub_type` — a drive leg is `directions_car`,
+  a train `train`, via `leg_<mode>` keys in MATERIAL_ICONS. leg.test.ts fails if WeekBoard, PlanBoard,
+  WeekMap, DayMap, FullMapClient or MapSidebar read `place.sub_type` for an icon directly.

@@ -101,13 +101,24 @@ export function canBeLeg(place: { type?: string | null; sub_type?: string | null
  */
 export function iconSubType(card: { details?: unknown; place?: { type?: string | null; sub_type?: string | null } | null } | null | undefined): string | null {
   const sub = card?.place?.sub_type ?? null;
-  if (!card || !canBeLeg(card.place) || !readFrom(card.details)) return sub;
+  if (!card || !legCapable(card) || !readFrom(card.details)) return sub;
   const mode = readMode(card.details);
   return mode ? `leg_${mode}` : sub;
 }
 
+/**
+ * Can this card carry a leg? A transit place, as before, OR any place once the
+ * card says how you travel (10 Nov 2026): a note turned into "Drive" ends at
+ * My Tuscan Kitchen, an activity, and must still read as a drive. A card with
+ * no place is never a leg.
+ */
+export function legCapable(card: { details?: unknown; place?: { type?: string | null; sub_type?: string | null } | null } | null | undefined): boolean {
+  if (!card?.place) return false;
+  return canBeLeg(card.place) || readMode(card.details) !== null;
+}
+
 export function isTravelLeg(card: LegCard | null | undefined): boolean {
-  return !!card && canBeLeg(card.place) && readFrom(card.details) !== null;
+  return !!card && legCapable(card) && readFrom(card.details) !== null;
 }
 
 /** "Lusaka → Mfuwe", in full. A named title that already reads A → B wins

@@ -36,9 +36,14 @@ describe("isTravelLeg", () => {
   it("is not a transit stop with no start (the airport, a rental car pick-up)", () => {
     expect(isTravelLeg({ ...truck, details: { title: "Pick up rental car" } })).toBe(false);
   });
-  it("is not a hotel or a restaurant that somehow carries a from", () => {
-    expect(isTravelLeg({ ...truck, place: { ...mfuwePlace, sub_type: "hotel" } })).toBe(false);
-    expect(isTravelLeg({ ...truck, place: { ...mfuwePlace, type: "food", sub_type: "restaurant" } })).toBe(false);
+  it("is not a hotel or a restaurant that carries a from but no mode", () => {
+    const noMode = { ...truck.details, mode: undefined, mode_label: undefined };
+    expect(isTravelLeg({ ...truck, details: noMode, place: { ...mfuwePlace, sub_type: "hotel" } })).toBe(false);
+    expect(isTravelLeg({ ...truck, details: noMode, place: { ...mfuwePlace, type: "food", sub_type: "restaurant" } })).toBe(false);
+  });
+  it("IS a leg to any place once it says how you travel (10 Nov 2026: a note turned into Drive)", () => {
+    expect(isTravelLeg({ ...truck, place: { ...mfuwePlace, type: "activity", sub_type: "guided" } })).toBe(true);
+    expect(isTravelLeg({ ...truck, place: null })).toBe(false);
   });
   it("is not a leg whose start has no real point", () => {
     expect(isTravelLeg(leg({}, { from: { title: "Lusaka" } }))).toBe(false);
@@ -195,7 +200,9 @@ describe("iconSubType — a leg shows how you go, not just transit (10 Nov 2026)
   it("a leg with no mode, a transit stop with no start, and every other card keep their sub_type", () => {
     expect(glyph(leg({}, { mode: undefined }))).toBe("directions_transit");
     expect(glyph({ ...truck, details: { title: "Pick up rental car" } })).toBe("directions_transit");
-    expect(glyph({ ...truck, place: { ...mfuwePlace, type: "food", sub_type: "restaurant" } })).toBe("restaurant");
+    expect(glyph({ ...truck, details: { title: "Lunch" }, place: { ...mfuwePlace, type: "food", sub_type: "restaurant" } })).toBe("restaurant");
+    // A drive that ends at a restaurant shows the car (10 Nov 2026, any place can end a leg).
+    expect(glyph({ ...truck, place: { ...mfuwePlace, type: "food", sub_type: "restaurant" } })).toBe("directions_car");
     expect(iconSubType({ ...truck, place: null })).toBeNull();
     expect(iconSubType(null)).toBeNull();
   });

@@ -50,7 +50,9 @@ import HotelDetail from "./detail/HotelDetail";
 import { withDetails } from "@/lib/cardDetails";
 import { UNTITLED_NOTE, cardTitle, deletedToast } from "@/lib/cardTitle";
 import TravelLegPanel, { LegFromLine, useDefaultFrom } from "./TravelLegPanel";
-import { canBeLeg, isTravelLeg, legTitle, legDurationMins, legModeWord, readFrom, readMode, withFrom, type LegFrom, type LegMode } from "@/lib/travel/leg";
+import NoteTypePicker from "./NoteTypePicker";
+import { convertedDetails, type NoteKind } from "@/lib/cards/noteKinds";
+import { legCapable as cardLegCapable, isTravelLeg, legTitle, legDurationMins, legModeWord, readFrom, readMode, withFrom, type LegFrom, type LegMode } from "@/lib/travel/leg";
 
 /** Read Google's `weekday_text` (seven "Monday: 9:00 AM – 5:00 PM" lines) off
  *  the raw place hours. The bottom sheet is the deliberate lookup surface, so it
@@ -455,6 +457,10 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const [isDeleting,        setIsDeleting]        = useState(false);
   const [deleteError,       setDeleteError]       = useState<string | null>(null);
   const [showSubTypePicker, setShowSubTypePicker] = useState(false);
+  // The word "Note" as a dropdown (10 Nov 2026): a note becomes a real card.
+  const [showNotePicker, setShowNotePicker] = useState(false);
+  const [noteBusy, setNoteBusy] = useState(false);
+  const [noteError, setNoteError] = useState<string | null>(null);
   // Deleted, but the sheet is still up so the undo is under the same thumb
   // that pressed delete. See handleDelete.
   const [justDeleted, setJustDeleted] = useState(false);
@@ -574,7 +580,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     },
     [localCard, onCardUpdate, toast]
   );
-  const legCapable = canBeLeg(localCard.place);
+  // A transit place, or any place once the card says how you travel (10 Nov 2026).
+  const legCapable = cardLegCapable(localCard);
   const legFrom = readFrom(localCard.details);
   // Last night's stay, offered as the start of a transit card that has none.
   const legSuggestion = useDefaultFrom(localCard.trip_id, localCard.day_id, legCapable && !readOnly);
@@ -654,6 +661,41 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     (items: ChecklistItem[]) => { void saveDetails("checklist", items); },
     [saveDetails],
   );
+
+  // ── Note → a real card (10 Nov 2026) ─────────────────────────
+  // Import the picked Google place (enriched, deduped per user), point the
+  // card at it, and rewrite details: notes kept, the note title dropped, a
+  // Drive/Train becoming a leg from last night's stay. Time and day untouched.
+  const noteFrom = useDefaultFrom(localCard.trip_id, localCard.day_id, localCard.place == null && !readOnly);
+  const handleNoteConvert = useCallback(async (kind: NoteKind, googlePlaceId: string) => {
+    setNoteBusy(true);
+    setNoteError(null);
+    try {
+      const res = await fetch("/api/places/bulk-import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(kind.defaults
+          ? { google_place_ids: [googlePlaceId], defaults: kind.defaults }
+          : { google_place_ids: [googlePlaceId] }),
+      });
+      const out = res.ok ? await res.json() : null;
+      const placeId: string | undefined = out?.imported?.[0]?.place_id;
+      if (!placeId) throw new Error("import");
+      const { data: placeRow, error: placeErr } = await supabase.from("places").select("*").eq("id", placeId).single();
+      if (placeErr || !placeRow) throw new Error("place");
+      const details = convertedDetails(localCard.details as Record<string, unknown>, kind, noteFrom);
+      const { error: cardErr } = await supabase.from("cards").update({ place_id: placeId, details }).eq("id", localCard.id);
+      if (cardErr) throw new Error("card");
+      const updated = { ...localCard, place_id: placeId, place: placeRow, details } as Card;
+      setLocalCard(updated);
+      onCardUpdate?.(updated);
+      setShowNotePicker(false);
+    } catch {
+      setNoteError("Couldn't add that place. Try again.");
+    } finally {
+      setNoteBusy(false);
+    }
+  }, [localCard, noteFrom, onCardUpdate, supabase]);
 
   // ── Link place from map — repoint the card to the selected place ─
   // Clean relink: set place_id to the selected pin's place. If the card
@@ -1111,20 +1153,30 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               {/* Type badge — tappable to change sub-type (only when linked to a place) */}
               <div className="relative">
                 <button
-                  onClick={readOnly ? undefined : () => place && setShowSubTypePicker((v) => !v)}
-                  className={`relative flex items-center gap-1.5 px-2 py-1 rounded-lg ${accent.bg} ${place && !readOnly ? "hover:opacity-80 active:opacity-70 transition-opacity cursor-pointer" : "cursor-default"}`}
+                  onClick={readOnly ? undefined : () => (place ? setShowSubTypePicker((v) => !v) : setShowNotePicker((v) => !v))}
+                  data-testid={place ? undefined : "note-type-button"}
+                  className={`relative flex items-center gap-1.5 px-2 py-1 rounded-lg ${accent.bg} ${!readOnly ? "hover:opacity-80 active:opacity-70 transition-opacity cursor-pointer" : "cursor-default"}`}
                 >
                   {/* 44px tall (7 Oct 2026, phone harness): the discs' reach (8px
                       above, to 8px under the row), half the 8px gap sideways. */}
-                  {place && !readOnly && <span aria-hidden="true" data-testid="type-pill-target" className="absolute -inset-x-1 -top-2 -bottom-3" />}
+                  {!readOnly && <span aria-hidden="true" data-testid="type-pill-target" className="absolute -inset-x-1 -top-2 -bottom-3" />}
                   <span className={`w-2 h-2 rounded-full ${accent.dot}`} />
                   <span className={`text-[11px] font-semibold ${accent.text}`}>{typeLabel}</span>
-                  {place && !readOnly && (
+                  {!readOnly && (
                     <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className={accent.text}>
                       <polyline points="6 9 12 15 18 9" />
                     </svg>
                   )}
                 </button>
+                {showNotePicker && !place && !readOnly && (
+                  <NoteTypePicker
+                    destination={tripDestination}
+                    busy={noteBusy}
+                    error={noteError}
+                    onPick={handleNoteConvert}
+                    onClose={() => setShowNotePicker(false)}
+                  />
+                )}
                 {showSubTypePicker && place && !readOnly && (
                   <SubTypePicker
                     currentType={place.type}
