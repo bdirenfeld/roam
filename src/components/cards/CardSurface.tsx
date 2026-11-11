@@ -243,7 +243,7 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTim
           row is still time · title · picture. */}
       <div
         className="w-[52px] h-[52px] md:w-[76px] md:h-[76px] rounded-lg shrink-0 overflow-hidden flex items-center justify-center"
-        style={{ background: place?.id ? "rgba(26,26,46,0.05)" : "#F3EFE4" }}
+        style={{ background: place?.id || noteKind ? "rgba(26,26,46,0.05)" : "#F3EFE4" }}
       >
         {place?.id ? (
           // eslint-disable-next-line @next/next/no-img-element

@@ -1115,7 +1115,8 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                           style={{
                             top: b.top, height: b.height,
                             left: `calc(${b.lane * laneW}% + 3px)`, width: `calc(${laneW}% - 6px)`,
-                            background: note ? "#F3EFE4" : "#FFFFFF",
+                            // A typed note looks like its kind, not like a note (11 Nov 2026).
+                            background: note && !nk ? "#F3EFE4" : "#FFFFFF",
                             border: `1px ${noEnd ? "dashed" : "solid"} rgba(26,26,46,0.10)`,
                             // The pin's colour on the edge and its glyph before the
                             // name (Brennan, 25 Sep 2026): three colours the map
