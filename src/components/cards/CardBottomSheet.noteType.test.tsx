@@ -80,6 +80,14 @@ describe("CardBottomSheet — Note is a dropdown (10 Nov 2026)", () => {
     expect(screen.getByTestId("note-where").textContent).toContain("Where to? Add a place");
   });
 
+  it("a typed Activity with no place gets the activity fields behind Add details (11 Nov 2026)", async () => {
+    const activity = { ...note, details: { title: "Lucca Wandering — Walls → San Michele", kind: "activity", notes: "Easy." } } as unknown as Card;
+    await act(async () => { render(<CardBottomSheet card={activity} onClose={() => {}} days={days} tripDestination="Tuscany, Italy" />); });
+    const add = screen.getByRole("button", { name: /Add details/ });
+    await act(async () => { fireEvent.click(add); });
+    expect(screen.getByText("Cost")).toBeTruthy();
+  });
+
   it("a guest gets no dropdown", async () => {
     await open(true);
     await act(async () => { fireEvent.click(screen.getByTestId("note-type-button")); });

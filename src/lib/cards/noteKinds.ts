@@ -32,16 +32,18 @@ export interface NoteKind {
   mode: LegMode | null;
   /** The colour family on the board while the place is still to come. */
   cardType: "activity" | "food" | "logistics" | null;
+  /** Which detail fields the sheet shows before there is a place (11 Nov 2026: an Activity got none). */
+  detailKey: string;
 }
 
 export const NOTE_KINDS: NoteKind[] = [
-  { key: "note",     label: "Note",     glyph: "edit_note",        prompt: null,             defaults: null, mode: null, cardType: null },
-  { key: "activity", label: "Activity", glyph: "directions_walk",  prompt: "Which place?",   defaults: null, mode: null, cardType: "activity" },
-  { key: "food",     label: "Food",     glyph: "restaurant",       prompt: "Which place?",   defaults: null, mode: null, cardType: "food" },
-  { key: "hotel",    label: "Hotel",    glyph: "hotel",            prompt: "Which hotel?",   defaults: { type: "logistics", sub_type: "hotel" }, mode: null, cardType: "logistics" },
-  { key: "drive",    label: "Drive",    glyph: "directions_car",   prompt: "Where to?",      defaults: null, mode: "drive", cardType: "logistics" },
-  { key: "train",    label: "Train",    glyph: "train",            prompt: "Which station?", defaults: null, mode: "train", cardType: "logistics" },
-  { key: "flight",   label: "Flight",   glyph: "flight_land",      prompt: "Which airport?", defaults: { type: "logistics", sub_type: "flight_arrival" }, mode: null, cardType: "logistics" },
+  { key: "note",     label: "Note",     glyph: "edit_note",        prompt: null,             defaults: null, mode: null, cardType: null, detailKey: "note" },
+  { key: "activity", label: "Activity", glyph: "directions_walk",  prompt: "Which place?",   defaults: null, mode: null, cardType: "activity", detailKey: "activity/self_directed" },
+  { key: "food",     label: "Food",     glyph: "restaurant",       prompt: "Which place?",   defaults: null, mode: null, cardType: "food", detailKey: "food/restaurant" },
+  { key: "hotel",    label: "Hotel",    glyph: "hotel",            prompt: "Which hotel?",   defaults: { type: "logistics", sub_type: "hotel" }, mode: null, cardType: "logistics", detailKey: "logistics/hotel" },
+  { key: "drive",    label: "Drive",    glyph: "directions_car",   prompt: "Where to?",      defaults: null, mode: "drive", cardType: "logistics", detailKey: "logistics/transit" },
+  { key: "train",    label: "Train",    glyph: "train",            prompt: "Which station?", defaults: null, mode: "train", cardType: "logistics", detailKey: "logistics/transit" },
+  { key: "flight",   label: "Flight",   glyph: "flight_land",      prompt: "Which airport?", defaults: { type: "logistics", sub_type: "flight_arrival" }, mode: null, cardType: "logistics", detailKey: "logistics/flight_arrival" },
 ];
 
 export function noteKind(key: NoteKindKey): NoteKind {

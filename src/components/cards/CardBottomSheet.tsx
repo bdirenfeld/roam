@@ -1022,7 +1022,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const recommendedBy = readRecommendedBy(localCard.details);
 
   // ── Route to sub-type component ───────────────────────────
-  const key = place ? `${place.type}/${place.sub_type ?? ""}` : "note";
+  // A typed note with no place yet gets its kind's fields (11 Nov 2026).
+  const key = place ? `${place.type}/${place.sub_type ?? ""}` : (noteKind?.detailKey ?? "note");
+  const detailType = place?.type ?? noteKind?.cardType ?? null;
 
   function renderDetail() {
     // Read-only (guest): every detail component already renders static when
@@ -1075,8 +1077,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       case "activity/wellness":
         return <WellnessDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
       default:
-        if (place?.type === "logistics") return <LogisticsDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
-        if (place?.type === "activity")  return <ActivityDetail  card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
+        if (detailType === "logistics") return <LogisticsDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
+        if (detailType === "activity")  return <ActivityDetail  card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
         return <RestaurantDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
     }
   }
@@ -1694,7 +1696,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             {/* The Booked switch moved into the ⋯ menu at the top (6 Oct 2026). */}
 
             {/* Add details / collapse toggle — owner only, not shown for notes */}
-            {!readOnly && place && place.sub_type !== "note" && (
+            {!readOnly && ((place && place.sub_type !== "note") || noteKind) && (
               <button
                 onClick={() => setShowEmptyFields((v) => !v)}
                 data-walk="card-add-details"
