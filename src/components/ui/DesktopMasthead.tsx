@@ -20,6 +20,10 @@ import { groupTrips, type SwitcherTrip } from "@/lib/tripSwitcher";
 const INK = "#1A1A2E";
 const RULE = "rgba(26,26,46,0.10)";
 const CAPTION = "rgba(26,26,46,0.62)";
+// The bar itself is ink (Brennan, 12 Nov 2026); controls ON it use these. Popups keep INK/CAPTION/RULE.
+const ON_BAR = "#FFFFFF";
+const ON_BAR_CAP = "rgba(255,255,255,0.66)";
+const BAR_RULE = "rgba(255,255,255,0.18)";
 
 type UserSummary = { name: string | null; email: string | null; avatarUrl: string | null };
 
@@ -190,9 +194,8 @@ export default function DesktopMasthead({ previewPath }: { previewPath?: string 
         paddingLeft: 28,
         paddingRight: 28,
         alignItems: "center",
-        borderBottom: `1px solid ${RULE}`,
-        background: "#F5F4F1",
-        color: INK,
+        background: INK,
+        color: ON_BAR,
       }}
     >
       <Link
@@ -202,7 +205,7 @@ export default function DesktopMasthead({ previewPath }: { previewPath?: string 
           fontWeight: 500,
           fontSize: 24,
           letterSpacing: "-0.015em",
-          color: INK,
+          color: ON_BAR,
           textDecoration: "none",
         }}
       >
@@ -219,7 +222,7 @@ export default function DesktopMasthead({ previewPath }: { previewPath?: string 
               style={{
                 width: 1,
                 height: 22,
-                background: RULE,
+                background: BAR_RULE,
                 margin: "0 22px",
               }}
             />
@@ -245,7 +248,7 @@ export default function DesktopMasthead({ previewPath }: { previewPath?: string 
                   style={{
                     fontSize: 10,
                     fontWeight: 500,
-                    color: CAPTION,
+                    color: ON_BAR_CAP,
                     letterSpacing: "0.14em",
                     whiteSpace: "nowrap",
                     background: "none",
@@ -255,7 +258,7 @@ export default function DesktopMasthead({ previewPath }: { previewPath?: string 
                     borderRadius: 6,
                     cursor: tripCtx?.days?.length ? "pointer" : "default",
                   }}
-                  className="hover:bg-[rgba(26,26,46,0.06)]"
+                  className="hover:bg-[rgba(255,255,255,0.10)]"
                 >
                   {tripCtx ? formatDateRange(tripCtx.start_date, tripCtx.end_date) : " "}
                 </button>
@@ -274,7 +277,7 @@ export default function DesktopMasthead({ previewPath }: { previewPath?: string 
                 style={{
                   width: 1,
                   height: 22,
-                  background: RULE,
+                  background: BAR_RULE,
                   margin: "0 22px",
                   flexShrink: 0,
                 }}
@@ -298,11 +301,11 @@ export default function DesktopMasthead({ previewPath }: { previewPath?: string 
                   gap: 4,
                   padding: "6px 14px 6px 10px",
                   borderRadius: 999,
-                  background: "rgba(26,26,46,0.05)",
-                  boxShadow: `inset 0 0 0 1px ${RULE}`,
+                  background: "rgba(255,255,255,0.08)",
+                  boxShadow: `inset 0 0 0 1px ${BAR_RULE}`,
                   fontWeight: 600,
                   fontSize: 13,
-                  color: INK,
+                  color: ON_BAR,
                   textDecoration: "none",
                   flexShrink: 0,
                 }}
@@ -336,7 +339,7 @@ export default function DesktopMasthead({ previewPath }: { previewPath?: string 
           style={{
             display: "inline-flex", alignItems: "center", gap: 7, height: 33,
             padding: "0 13px 0 11px", marginRight: 8, borderRadius: 8,
-            background: INK, color: "#F5F4F1", fontSize: 13, fontWeight: 500,
+            background: "#FFFFFF", color: INK, fontSize: 13, fontWeight: 500,
             letterSpacing: "-0.005em", border: "none", cursor: "pointer",
           }}
         >
@@ -363,7 +366,7 @@ export default function DesktopMasthead({ previewPath }: { previewPath?: string 
         extra={showTripStrip && !guest ? [
           { key: "bookings", title: "Bookings", sub: "", icon: <Files size={15} weight="light" />, onClick: () => window.dispatchEvent(new CustomEvent("roam:open-bookings")) },
         ] : undefined}
-        triggerClassName="inline-flex items-center justify-center w-[33px] h-[33px] rounded-lg text-[rgba(26,26,46,0.62)] hover:bg-[rgba(26,26,46,0.06)] transition-colors"
+        triggerClassName="inline-flex items-center justify-center w-[33px] h-[33px] rounded-lg text-[rgba(255,255,255,0.72)] hover:bg-[rgba(255,255,255,0.10)] transition-colors"
       />
       )}
 
@@ -378,7 +381,7 @@ export default function DesktopMasthead({ previewPath }: { previewPath?: string 
           style={{
             display: "inline-flex",
             alignItems: "center",
-            color: INK,
+            color: ON_BAR,
             background: "transparent",
             border: "none",
             cursor: "pointer",
@@ -573,7 +576,7 @@ function TripSwitcher({ currentTripId, title }: { currentTripId: string; title: 
         aria-haspopup="menu"
         aria-expanded={open}
         title="Switch journey"
-        className="font-display italic hover:bg-[rgba(26,26,46,0.05)]"
+        className="font-display italic hover:bg-[rgba(255,255,255,0.10)]"
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -582,18 +585,18 @@ function TripSwitcher({ currentTripId, title }: { currentTripId: string; title: 
           padding: "4px 8px",
           borderRadius: 8,
           border: 0,
-          background: open ? "rgba(26,26,46,0.05)" : "transparent",
+          background: open ? "rgba(255,255,255,0.10)" : "transparent",
           cursor: "pointer",
           fontWeight: 500,
           fontSize: 17,
-          color: INK,
+          color: ON_BAR,
           letterSpacing: "-0.005em",
           whiteSpace: "nowrap",
           maxWidth: 380,
         }}
       >
         <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{title}</span>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={CAPTION} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ flexShrink: 0 }}><polyline points="6 9 12 15 18 9" /></svg>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={ON_BAR_CAP} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ flexShrink: 0 }}><polyline points="6 9 12 15 18 9" /></svg>
       </button>
       {open && (
         <div
@@ -668,7 +671,7 @@ function TripTabs({
     <div
       ref={wrapRef}
       role="tablist"
-      style={{ position: "relative", display: "inline-flex", alignItems: "center", padding: 3, borderRadius: 999, background: "rgba(26,26,46,0.05)", boxShadow: `inset 0 0 0 1px ${RULE}`, flexShrink: 0 }}
+      style={{ position: "relative", display: "inline-flex", alignItems: "center", padding: 3, borderRadius: 999, background: "rgba(255,255,255,0.08)", boxShadow: `inset 0 0 0 1px ${BAR_RULE}`, flexShrink: 0 }}
     >
       {thumb && (
         <span
@@ -695,13 +698,13 @@ function TripTabs({
               gap: 7,
               fontWeight: on ? 600 : 500,
               fontSize: 13,
-              color: on ? INK : CAPTION,
+              color: on ? INK : ON_BAR_CAP,
               letterSpacing: "-0.005em",
               textDecoration: "none",
               transition: "color 160ms",
             }}
           >
-            <Icon size={14} weight="light" color={on ? INK : CAPTION} />
+            <Icon size={14} weight="light" color={on ? INK : ON_BAR_CAP} />
             {t.label}
           </Link>
         );

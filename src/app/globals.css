@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  --background: #F5F4F1;
+  --background: #F0F0F0;
   --foreground: #111827;
   /* Card type colours */
   --color-logistics: #64748B;

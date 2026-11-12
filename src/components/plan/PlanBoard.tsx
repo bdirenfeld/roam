@@ -1350,7 +1350,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   return (
     <HomeTownCtx.Provider value={homeTown}>
     <div
-      className="relative flex flex-col h-dvh md:h-[calc(100dvh-64px)] overflow-hidden md:!bg-none md:!bg-[#F5F4F1]"
+      className="relative flex flex-col h-dvh md:h-[calc(100dvh-64px)] overflow-hidden md:!bg-none md:!bg-[#F0F0F0]"
       style={boardBgStyle}
     >
       {/* Nav bar — mobile only (md:hidden). Desktop nav lives in Masthead. */}

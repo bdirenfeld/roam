@@ -196,7 +196,7 @@ export default function MapSidebar({
   }
 
   return (
-    <div className="flex flex-col h-full" style={{ background: "#F5F4F1" }}>
+    <div className="flex flex-col h-full" style={{ background: "#F0F0F0" }}>
       <div className="flex-1 overflow-y-auto" style={{ padding: "14px 18px" }}>
 
         {/* ── Status filter pills ── */}

@@ -891,7 +891,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const collapsed = (i: number) => focusIdx >= 0 && i !== focusIdx;
 
   return (
-    <div ref={frameRef} className="flex h-[calc(100dvh-64px)] bg-[#F5F4F1]">
+    <div ref={frameRef} className="flex h-[calc(100dvh-64px)] bg-[#F0F0F0]">
       {/* One scroller for both axes (25 Sep 2026): the header and the Anytime
           lane stick to the top, the hours gutter sticks to the left. Two nested
           scrollers (sideways outside, down inside) left the gutter sliding
@@ -1043,7 +1043,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
           {/* the hours */}
           <div className="relative">
             <div ref={colsRef} className="grid relative" style={{ ...gridStyle, height: gridHeight() }}>
-              <div className="sticky left-0 z-[8] bg-[#F5F4F1]">
+              <div className="sticky left-0 z-[8] bg-[#F0F0F0]">
                 {hours.map((h) => (
                   <div key={h} className="absolute right-1.5 text-[10px] text-activity/40 tabular-nums" style={{ top: (h - HOUR_START) * PX_PER_HOUR - 6 }}>{h % 12 || 12}{h < 12 ? " am" : " pm"}</div>
                 ))}
@@ -1052,7 +1052,10 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                 {laidOut.map(({ day, placed }, di) => (
                   <div key={day.id} data-daycol={day.id} onClick={(e) => (collapsed(di) ? setFocusDayId(day.id) : onColumnClick(e, day.id, di))} onMouseMove={(e) => onColumnMove(e, di)} onMouseLeave={() => setSlot(null)} className={`relative border-l min-w-0 transition-colors ${collapsed(di) ? "cursor-pointer hover:bg-[rgba(26,26,46,0.04)]" : "cursor-cell"}`} style={{ borderColor: "rgba(26,26,46,0.10)", background: collapsed(di) ? "rgba(26,26,46,0.02)" : hover && hover.day === di && hover.min !== null ? "rgba(26,26,46,0.04)" : undefined }}>
                     {hours.map((h) => (
-                      <div key={h} data-hourline="1" className="absolute left-0 right-0" style={{ top: (h - HOUR_START) * PX_PER_HOUR, borderTop: "1px solid rgba(26,26,46,0.06)" }} />
+                      <div key={h} data-hourline="1" className="absolute left-0 right-0" style={{ top: (h - HOUR_START) * PX_PER_HOUR, borderTop: "1px solid rgba(26,26,46,0.06)" }}>
+                        {/* Half-hour mark (12 Nov 2026): a faint dashed line so 9:40 has somewhere to sit. */}
+                        {h < HOUR_END && <div data-halfhour="1" className="absolute left-0 right-0 pointer-events-none" style={{ top: PX_PER_HOUR / 2 - 1, borderTop: "1px dashed rgba(26,26,46,0.13)" }} />}
+                      </div>
                     ))}
                     {canHover && slot && slot.dayIdx === di && !collapsed(di) && !draftBlock && !ghost && !dragChip && (
                       <div

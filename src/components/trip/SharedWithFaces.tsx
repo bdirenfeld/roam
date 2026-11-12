@@ -60,7 +60,7 @@ export default function SharedWithFaces({
                 height: 24,
                 borderRadius: "50%",
                 marginLeft: i === 0 ? 0 : -6,
-                border: "1.5px solid #F5F4F1",
+                border: `1.5px solid ${INK}`, // the ink masthead behind it (12 Nov 2026)
                 background: g.avatarUrl ? `center/cover url(${g.avatarUrl})` : "#E7E0D5",
                 color: INK,
                 fontSize: 10,
@@ -78,7 +78,7 @@ export default function SharedWithFaces({
             <span
               style={{
                 width: 24, height: 24, borderRadius: "50%", marginLeft: -6,
-                border: `1.5px solid #F5F4F1`, background: "#E7E0D5",
+                border: `1.5px solid ${INK}`, background: "#E7E0D5",
                 color: CAPTION, fontSize: 10, fontWeight: 600,
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}

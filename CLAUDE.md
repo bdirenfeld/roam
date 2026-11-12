@@ -2481,3 +2481,11 @@ Four commits (bbf019a, f532668, cb36b20, 614cef0) opened the journey map in plac
   (lib/cards/noteKinds): pick a kind, search any Google place, bulk-import it, card keeps time/notes.
   `legCapable(card)` = transit place OR any place with `details.mode`, so a drive can end at a farm or a
   restaurant. Every leg check (isTravelLeg, iconSubType, the sheet's travel panel) goes through it.
+
+## Ground and masthead (12 Nov 2026, supersedes the warm near-white)
+Desktop ground is neutral grey `#F0F0F0` and the desktop masthead is solid ink `#1A1A2E` with white
+type (Brennan picked both from live mock-ups of his Tuscany board). Controls on the bar use
+`ON_BAR` / `ON_BAR_CAP` / `BAR_RULE` in DesktopMasthead; popups that open from it keep INK/CAPTION/RULE.
+"Plan a journey" is a white button on the bar. The Plan board draws a faint dashed half-hour line
+(`data-halfhour`). `src/lib/ui/ground.test.ts` fails if the CSS var, the Tailwind token and the
+boards' own bg classes drift apart. #F5F4F1 still appears as TEXT on ink buttons elsewhere; that is fine.
