@@ -174,7 +174,8 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const [legMenu, setLegMenu] = useState<string | null>(null);
   useEffect(() => {
     if (!legMenu) return;
-    const off = (e: PointerEvent) => { if (!(e.target as HTMLElement).closest?.("[data-leg-menu]")) setLegMenu(null); };
+    // The click that opened it is still bubbling to window when this registers; ignore the strip itself.
+    const off = (e: PointerEvent) => { const t = e.target as HTMLElement; if (!t.closest?.("[data-leg-menu]") && !t.closest?.(`[data-card-id="${legMenu}"]`)) setLegMenu(null); };
     window.addEventListener("pointerdown", off);
     return () => window.removeEventListener("pointerdown", off);
   }, [legMenu]);
@@ -1145,7 +1146,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                             data-card-id={c.id}
                             data-travel-strip={run ? "joined" : "1"}
                             onPointerDown={(e) => {
-                              if (run) { if (e.button === 0) { e.preventDefault(); setLegMenu((m) => (m === c.id ? null : c.id)); } return; }
+                              if (run) { if ((e.target as HTMLElement).closest("[data-leg-menu]")) return; if (e.button === 0) { e.preventDefault(); setLegMenu((m) => (m === c.id ? null : c.id)); } return; }
                               onBlockPointerDown(e, c, day.id);
                             }}
                             onPointerEnter={() => setHoveredId(c.id)}
