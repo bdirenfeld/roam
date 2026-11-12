@@ -2489,3 +2489,12 @@ type (Brennan picked both from live mock-ups of his Tuscany board). Controls on 
 "Plan a journey" is a white button on the bar. The Plan board draws a faint dashed half-hour line
 (`data-halfhour`). `src/lib/ui/ground.test.ts` fails if the CSS var, the Tailwind token and the
 boards' own bg classes drift apart. #F5F4F1 still appears as TEXT on ink buttons elsewhere; that is fine.
+
+## Travel strips on the Plan board (12 Nov 2026)
+A travel leg (`isTravelLeg`) draws on WeekBoard as a strip, not a card: dashed left line and one
+line, "🚗 9:40am My Tuscan Kitchen · 55 min" (leave time bold first; the length wraps away via
+flex-wrap + a 16px clip when the column is narrow). Destinations go through `stripDest` (end of
+"A → B", no brackets/commas; a stay reads by its short name, "Villa"). Legs back to back
+(next starts ≤15 min after, `joinLegs`) draw as ONE strip from the first card; a click opens
+`data-leg-menu` listing each leg, and picking one opens that card. Cards are never merged in
+the data. Single strips keep drag/click via onBlockPointerDown; joined strips don't drag.

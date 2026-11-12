@@ -27,7 +27,8 @@ import { createClient } from "@/lib/supabase/client";
 import { scheduleCardOnDay, unscheduleCard } from "@/lib/scheduleCard";
 import { PIN_COLORS, getMaterialIconHTML, getGlyphHTML } from "@/lib/mapPins";
 import { readNoteKind, PLACE_TO_COME } from "@/lib/cards/noteKinds";
-import { iconSubType } from "@/lib/travel/leg";
+import { iconSubType, isTravelLeg, legTitle } from "@/lib/travel/leg";
+import { joinLegs, stripDest, stripDuration } from "@/lib/week/travelStrip";
 import { autoDayTitle } from "@/lib/autoDayTitle";
 import { useToast } from "@/components/ui/Toast";
 import { cardTimes } from "@/lib/cardTime";
@@ -169,6 +170,14 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   // The saved places' notes, written ahead so a drop shows its note at once.
   useEffect(() => { warmNotes(trip.id, saved.filter((c) => c.place_id).map((c) => c.id)); }, [trip.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  // A joined travel strip (drive, then train) opens this list of its legs (12 Nov 2026).
+  const [legMenu, setLegMenu] = useState<string | null>(null);
+  useEffect(() => {
+    if (!legMenu) return;
+    const off = (e: PointerEvent) => { if (!(e.target as HTMLElement).closest?.("[data-leg-menu]")) setLegMenu(null); };
+    window.addEventListener("pointerdown", off);
+    return () => window.removeEventListener("pointerdown", off);
+  }, [legMenu]);
   const [activeDayId, setActiveDayId] = useState<string | null>(null);
   // One screen (26 Sep 2026): a day header widens that day in place — the
   // other days shrink to strips, the map fits the day. The header again, a
@@ -871,7 +880,19 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
       if (ghost.min === null) { const src = [...saved, ...days.flatMap((x) => x.cards)].find((c) => c.id === ghost.id); if (src) untimed.push(src); }
       else timed.push({ id: ghost.id, startMin: ghost.min, endMin: ghost.endMin });
     }
-    return { day: d, placed: placeBlocks(timed), untimed };
+    // Back-to-back legs draw as one strip (12 Nov 2026, lib/week/travelStrip): the run's
+    // first card stands for the whole run; the rest stay real cards, listed on click.
+    const legRuns = new Map<string, string[]>();
+    const legSpans = timed.filter((b) => b.id !== ghost?.id && isTravelLeg(d.cards.find((c) => c.id === b.id)) && b.endMin !== null);
+    for (const r of joinLegs(legSpans.map((b) => ({ id: b.id, startMin: b.startMin, endMin: b.endMin })))) {
+      if (r.ids.length < 2) continue;
+      legRuns.set(r.lead, r.ids);
+      for (let i = timed.length - 1; i >= 0; i--) {
+        if (timed[i].id === r.lead) timed[i] = { ...timed[i], startMin: r.startMin, endMin: r.endMin };
+        else if (r.ids.includes(timed[i].id)) timed.splice(i, 1);
+      }
+    }
+    return { day: d, placed: placeBlocks(timed), untimed, legRuns };
   }), [shown, days, ghost, saved]);
   const byId = useMemo(() => { const m = new Map<string, Card>(); saved.forEach((c) => m.set(c.id, c)); days.forEach((d) => d.cards.forEach((c) => m.set(c.id, c))); return m; }, [days, saved]);
   // Where you sleep (1 Oct 2026, lib/stays/stayRuns). The Anytime lane went
@@ -1049,7 +1070,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                 ))}
               </div>
               <div className="contents">
-                {laidOut.map(({ day, placed }, di) => (
+                {laidOut.map(({ day, placed, legRuns }, di) => (
                   <div key={day.id} data-daycol={day.id} onClick={(e) => (collapsed(di) ? setFocusDayId(day.id) : onColumnClick(e, day.id, di))} onMouseMove={(e) => onColumnMove(e, di)} onMouseLeave={() => setSlot(null)} className={`relative border-l min-w-0 transition-colors ${collapsed(di) ? "cursor-pointer hover:bg-[rgba(26,26,46,0.04)]" : "cursor-cell"}`} style={{ borderColor: "rgba(26,26,46,0.10)", background: collapsed(di) ? "rgba(26,26,46,0.02)" : hover && hover.day === di && hover.min !== null ? "rgba(26,26,46,0.04)" : undefined }}>
                     {hours.map((h) => (
                       <div key={h} data-hourline="1" className="absolute left-0 right-0" style={{ top: (h - HOUR_START) * PX_PER_HOUR, borderTop: "1px solid rgba(26,26,46,0.06)" }}>
@@ -1107,6 +1128,65 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                       const short = b.height < 34;
                       const isGhost = ghost?.id === c.id;
                       const laneW = 100 / b.lanes;
+                      // Travel is a strip, not a card (Brennan, 12 Nov 2026): a dashed
+                      // line and "🚗 9:40am My Tuscan Kitchen · 55 min". Leave time
+                      // first; the length wraps away when the column is narrow.
+                      const run = legRuns.get(c.id);
+                      if (run || isTravelLeg(c)) {
+                        const legs = (run ?? [c.id]).map((id) => byId.get(id)).filter((x): x is Card => !!x);
+                        const last = legs[legs.length - 1] ?? c;
+                        const icons = Array.from(new Set(legs.map((x) => iconSubType(x))));
+                        const startMin = b.startMin, endMin = b.endMin;
+                        const dest = stripDest(legTitle(last), runs.map((r) => r.title));
+                        const isOn = selectedCard && legs.some((x) => x.id === selectedCard.id);
+                        return (
+                          <div
+                            key={c.id}
+                            data-card-id={c.id}
+                            data-travel-strip={run ? "joined" : "1"}
+                            onPointerDown={(e) => {
+                              if (run) { if (e.button === 0) { e.preventDefault(); setLegMenu((m) => (m === c.id ? null : c.id)); } return; }
+                              onBlockPointerDown(e, c, day.id);
+                            }}
+                            onPointerEnter={() => setHoveredId(c.id)}
+                            onPointerLeave={() => setHoveredId((h) => (h === c.id ? null : h))}
+                            className={`absolute cursor-pointer ${pickedBlocks.has(c.id) ? "ring-2 ring-[#1A1A2E]" : isOn || hoveredId === c.id ? "bg-[rgba(176,84,31,0.06)]" : ""}`}
+                            style={{
+                              top: b.top, height: b.height,
+                              left: `calc(${b.lane * laneW}% + 3px)`, width: `calc(${laneW}% - 6px)`,
+                              borderLeft: "2px dashed rgba(26,26,46,0.35)",
+                              padding: "1px 0 0 6px", zIndex: legMenu === c.id ? 20 : 1,
+                              opacity: isGhost ? 0.9 : 1,
+                            }}
+                          >
+                            <div className="flex flex-wrap items-center gap-x-1 h-[16px] overflow-hidden text-[11px] leading-[16px] pointer-events-none" style={{ color: "rgba(26,26,46,0.62)" }}>
+                              <span className="flex items-center gap-1 min-w-0 flex-shrink">
+                                <span className="inline-flex flex-shrink-0 opacity-80" dangerouslySetInnerHTML={{ __html: icons.map((s) => getMaterialIconHTML(s, 13)).join("") }} />
+                                <span className="font-semibold tabular-nums flex-shrink-0" style={{ color: "rgba(26,26,46,0.85)" }}>{fmt12(startMin)}</span>
+                                <span className="truncate" style={{ color: "rgba(26,26,46,0.85)" }}>{dest}</span>
+                              </span>
+                              {endMin !== null && endMin > startMin && <span className="whitespace-nowrap">· {stripDuration(endMin - startMin)}</span>}
+                            </div>
+                            {legMenu === c.id && run && (
+                              <div data-leg-menu="1" className="absolute left-2 top-[20px] w-[230px] bg-white rounded-lg py-1" style={{ boxShadow: "0 10px 28px rgba(26,26,46,0.18)", border: "1px solid rgba(26,26,46,0.10)" }}>
+                                {legs.map((x) => {
+                                  const tx = cardTimes(x);
+                                  const len = tx.start && tx.end ? toMin(tx.end) - toMin(tx.start) : null;
+                                  return (
+                                    <button key={x.id} type="button" onClick={() => { setLegMenu(null); setSelectedCard(x); }}
+                                      className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-left text-[12px] hover:bg-[#F3EFE4]" style={{ color: "#1A1A2E" }}>
+                                      <span className="inline-flex opacity-75" dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(iconSubType(x), 14) }} />
+                                      <span className="font-semibold tabular-nums">{tx.start ? fmt12(toMin(tx.start)) : ""}</span>
+                                      <span className="truncate flex-1">{stripDest(legTitle(x), runs.map((r) => r.title))}</span>
+                                      {len !== null && len > 0 && <span className="text-[11px]" style={{ color: "rgba(26,26,46,0.55)" }}>{stripDuration(len)}</span>}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
                       return (
                         <div
                           key={c.id}
