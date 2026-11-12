@@ -31,6 +31,8 @@ export interface LegFrom {
   lng: number;
   google_place_id?: string | null;
   place_id?: string | null;
+  /** Shown under From on the card (12 Nov 2026); older legs fetch it from place_id. */
+  address?: string | null;
 }
 
 /** The mode picker, in the order the sheet shows it. */
@@ -80,6 +82,7 @@ export function readFrom(details: unknown): LegFrom | null {
     title, lat, lng,
     ...(typeof f.google_place_id === "string" ? { google_place_id: f.google_place_id } : {}),
     ...(typeof f.place_id === "string" ? { place_id: f.place_id } : {}),
+    ...(typeof f.address === "string" && f.address.trim() ? { address: f.address.trim() } : {}),
   };
 }
 
@@ -126,10 +129,34 @@ export function isTravelLeg(card: LegCard | null | undefined): boolean {
 export function legTitle(card: LegCard): string {
   const d = det(card);
   const own = typeof d?.title === "string" ? d.title.trim() : "";
-  if (d?.named === true && own.includes("→")) return own;
+  // Any name he typed wins (12 Nov 2026, the title is editable now), not only an A → B one.
+  if (d?.named === true && own) return own;
   const from = readFrom(d);
   const to = card.place?.title?.trim() || own || "";
   return from ? `${from.title} → ${to}` : to;
+}
+
+/**
+ * Where a leg ends, in words: the B of a named "A → B" title (a return leg's
+ * pin is a motorway exit near the villa, its title says the villa), else the
+ * card's place. The board's strip and the card's To row read this, so a leg
+ * renamed "Drive to pizza class" still says where it goes.
+ */
+export function legDestTitle(card: LegCard): string {
+  const d = det(card);
+  const own = typeof d?.title === "string" ? d.title.trim() : "";
+  if (d?.named === true && own.includes("→")) return own.slice(own.lastIndexOf("→") + 1).trim();
+  return card.place?.title?.trim() || own;
+}
+
+/** A new end for a leg: a named "A → B" title takes the new B; any other name is his and stays. */
+export function withTo(details: unknown, toTitle: string): Record<string, unknown> {
+  const d = { ...((details as Record<string, unknown> | null) ?? {}) };
+  if (d.named === true && typeof d.title === "string" && d.title.includes("→")) {
+    d.title = `${d.title.slice(0, d.title.indexOf("→")).trim()} → ${toTitle}`;
+  }
+  delete d.estimate;
+  return d;
 }
 
 /** Minutes between the leg's start and end; an overnight leg wraps. Null when untimed. */
@@ -230,7 +257,7 @@ export function withFrom(details: unknown, from: LegFrom): Record<string, unknow
 }
 
 export interface LegDayCard extends StayCard {
-  place?: { id?: string | null; sub_type?: string | null; title?: string | null; lat?: number | null; lng?: number | null; google_place_id?: string | null } | null;
+  place?: { id?: string | null; sub_type?: string | null; title?: string | null; lat?: number | null; lng?: number | null; google_place_id?: string | null; address?: string | null } | null;
 }
 export interface LegDay { id: string; date: string; cards: LegDayCard[] }
 
@@ -254,5 +281,6 @@ export function defaultFromForDay(days: LegDay[], dayId: string): LegFrom | null
     title: p.title, lat: p.lat, lng: p.lng,
     ...(p.google_place_id ? { google_place_id: p.google_place_id } : {}),
     ...(card?.place_id ? { place_id: card.place_id } : {}),
+    ...(p.address ? { address: p.address } : {}),
   };
 }

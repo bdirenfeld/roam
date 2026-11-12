@@ -49,10 +49,11 @@ import ActivityDetail from "./detail/ActivityDetail";
 import HotelDetail from "./detail/HotelDetail";
 import { withDetails } from "@/lib/cardDetails";
 import { UNTITLED_NOTE, cardTitle, deletedToast } from "@/lib/cardTitle";
-import TravelLegPanel, { LegFromLine, useDefaultFrom } from "./TravelLegPanel";
+import TravelLegPanel, { LegRoute, LegEstimateRow, useDefaultFrom } from "./TravelLegPanel";
+import { readEstimate, endAfter, planMinutes, type LegEstimate } from "@/lib/travel/estimate";
 import NoteTypePicker, { NoteWhereRow } from "./NoteTypePicker";
 import { convertedDetails, readNoteKind, withNoteKind, type NoteKind } from "@/lib/cards/noteKinds";
-import { legCapable as cardLegCapable, isTravelLeg, legTitle, legDurationMins, legModeWord, readFrom, readMode, withFrom, type LegFrom, type LegMode } from "@/lib/travel/leg";
+import { legCapable as cardLegCapable, isTravelLeg, legTitle, legDestTitle, legDurationMins, legModeWord, readFrom, readMode, withFrom, withTo, type LegFrom, type LegMode } from "@/lib/travel/leg";
 
 /** Read Google's `weekday_text` (seven "Monday: 9:00 AM – 5:00 PM" lines) off
  *  the raw place hours. The bottom sheet is the deliberate lookup surface, so it
@@ -587,7 +588,92 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const legSuggestion = useDefaultFrom(localCard.trip_id, localCard.day_id, legCapable && !readOnly);
   // The header's "From Lusaka · change" opens the search at the top of the
   // body (7 Oct 2026, mock t05); picking a start closes it.
-  const [legFromOpen, setLegFromOpen] = useState(false);
+  // Which end's search is open: From or To (12 Nov 2026, the From / To rows).
+  const [legOpen, setLegOpen] = useState<"from" | "to" | null>(null);
+  const legFromOpen = legOpen === "from";
+  // An older leg's From has a place_id but no address saved: read it once.
+  const [fromAddress, setFromAddress] = useState<string | null>(null);
+  useEffect(() => {
+    setFromAddress(null);
+    if (!legCapable || !legFrom || legFrom.address || !legFrom.place_id) return;
+    let off = false;
+    supabase.from("places").select("address").eq("id", legFrom.place_id).maybeSingle()
+      .then(({ data }) => { if (!off && data?.address) setFromAddress(data.address as string); });
+    return () => { off = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [legCapable, legFrom?.place_id, legFrom?.address]);
+
+  // Car and transit times for this From / To (lib/travel/estimate): asked once
+  // per pair, kept on the card, so reopening it costs nothing.
+  const toPt = localCard.place?.lat != null && localCard.place?.lng != null ? { lat: localCard.place.lat, lng: localCard.place.lng } : null;
+  const legEstimate = legCapable ? readEstimate(localCard.details, legFrom, toPt) : null;
+  const asked = useRef<string | null>(null);
+  useEffect(() => {
+    if (readOnly || !legCapable || !legFrom || !toPt || legEstimate) return;
+    const k = `${legFrom.lat},${legFrom.lng}>${toPt.lat},${toPt.lng}`;
+    if (asked.current === k) return;
+    asked.current = k;
+    const date = days?.find((d) => d.id === localCard.day_id)?.date ?? null;
+    const hour = localCard.start_time ? Number(localCard.start_time.slice(0, 2)) : 9;
+    fetch("/api/travel/estimate", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ from: { lat: legFrom.lat, lng: legFrom.lng }, to: toPt, date, hour }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((est: LegEstimate | null) => {
+        if (!est || (est.drive == null && est.transit == null)) return;
+        setLocalCard((cur) => {
+          const next = { ...cur, details: { ...(cur.details as Record<string, unknown>), estimate: est } as Card["details"] };
+          void queuedUpdate("cards", { id: cur.id }, { details: next.details });
+          onCardUpdate?.(next);
+          return next;
+        });
+      })
+      .catch(() => { /* no times: the row just doesn't show */ });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readOnly, legCapable, legFrom?.lat, legFrom?.lng, toPt?.lat, toPt?.lng, !!legEstimate]);
+
+  // A tap on a time: that mode, and the end time moved to fit. One write.
+  const applyEstimate = useCallback(async (mode: LegMode, mins: number) => {
+    const prev = localCard;
+    const details = { ...(localCard.details as Record<string, unknown>), mode } as Record<string, unknown>;
+    if (mode !== readMode(localCard.details)) delete details.mode_label;
+    const patch: Record<string, unknown> = { details };
+    if (localCard.start_time) patch.end_time = toDbTime(endAfter(localCard.start_time, planMinutes(mins)));
+    const updated = { ...localCard, ...patch } as Card;
+    setLocalCard(updated);
+    onCardUpdate?.(updated);
+    const { error } = await queuedUpdate("cards", { id: localCard.id }, patch);
+    if (error) { toast({ message: "Couldn't save that. Try again." }); setLocalCard(prev); onCardUpdate?.(prev); }
+  }, [localCard, onCardUpdate, toast]);
+
+  // A new To: import the picked place (enriched, deduped), point the card at
+  // it; a named A → B title takes the new B. The card stays a leg: with no
+  // mode yet it becomes a drive, since a restaurant can't be "transit".
+  const handleLegTo = useCallback(async (to: LegFrom) => {
+    setLegOpen(null);
+    if (!to.google_place_id) return;
+    try {
+      const res = await fetch("/api/places/bulk-import", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ google_place_ids: [to.google_place_id] }),
+      });
+      const out = res.ok ? await res.json() : null;
+      const placeId: string | undefined = out?.imported?.[0]?.place_id;
+      if (!placeId) throw new Error("import");
+      const { data: placeRow } = await supabase.from("places").select("*").eq("id", placeId).single();
+      if (!placeRow) throw new Error("place");
+      const details = withTo(localCard.details, placeRow.title as string);
+      if (!readMode(details)) details.mode = "drive";
+      const { error } = await supabase.from("cards").update({ place_id: placeId, details }).eq("id", localCard.id);
+      if (error) throw new Error("card");
+      const updated = { ...localCard, place_id: placeId, place: placeRow, details } as Card;
+      setLocalCard(updated);
+      onCardUpdate?.(updated);
+    } catch {
+      toast({ message: "Couldn't change where this goes. Try again." });
+    }
+  }, [localCard, onCardUpdate, supabase, toast]);
 
 
   // ── "We loved this" ──────────────────────────────────────────
@@ -1385,7 +1471,16 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             {isTravelLeg(localCard) ? (
               // A leg's title is its route, "Lusaka → Mfuwe"; renaming it would
               // rename the place it ends at. Change the start below instead.
-              <h2 className="text-[19px] font-bold text-gray-900 leading-snug">{legTitle(localCard)}</h2>
+              readOnly ? (
+                <h2 className="text-[19px] font-bold text-gray-900 leading-snug">{legTitle(localCard)}</h2>
+              ) : (
+                // His own name for the leg (12 Nov 2026): kept in details.title,
+                // never the place's name, so the end stays where it was.
+                <TitleEditor
+                  value={legTitle(localCard)}
+                  onSave={(v) => void saveDetailsPatch({ ...(localCard.details as Record<string, unknown>), title: v, named: true })}
+                />
+              )
             ) : place && !readOnly ? (
               <TitleEditor
                 value={place.title}
@@ -1408,18 +1503,26 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 which said the route twice more. The address below stays: it
                 is the sheet's only door to directions. */}
             {legCapable && place && (
-              <LegFromLine
+              <LegRoute
                 from={legFrom}
+                fromAddress={fromAddress}
+                toTitle={legDestTitle(localCard)}
+                toAddress={place.address}
                 readOnly={readOnly}
-                open={legFromOpen}
-                onToggle={() => { setLegFromOpen((v) => !v); scrollRef.current?.scrollTo?.({ top: 0 }); }}
+                open={legOpen}
+                onOpen={(w) => { setLegOpen(w); scrollRef.current?.scrollTo?.({ top: 0 }); }}
+                onDirections={() => {
+                  const url = navApp ? directionsUrl(navApp, navTarget) : null;
+                  if (url) window.open(url, "_blank");
+                  else setNavSheetOpen(true);
+                }}
               />
             )}
             {/* The address, in words. The sheet had Maps, Website and Call
                 buttons but never said where the place was — on a journey
                 spanning eight towns that is the first thing you want. The
                 country is dropped; the town is the point. */}
-            {place?.address && (
+            {place?.address && !(legCapable && place) && (
               (place.lat != null && place.lng != null) || (localCard.details as Record<string, unknown>)?.place_id != null ? (
                 /* The address IS the Maps button now. It was already printed
                    here doing nothing, and the pill it replaces opened this same
@@ -1580,7 +1683,20 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   readOnly={readOnly}
                   biasLat={place.lat}
                   biasLng={place.lng}
-                  onFromChange={(f: LegFrom) => { setLegFromOpen(false); void saveDetailsPatch(withFrom(localCard.details, f)); }}
+                  onFromChange={(f: LegFrom) => { setLegOpen(null); void saveDetailsPatch(withFrom(localCard.details, f)); }}
+                  toOpen={legOpen === "to"}
+                  onToPick={(t: LegFrom) => void handleLegTo(t)}
+                  estimate={legEstimate ? (
+                    <LegEstimateRow
+                      drive={legEstimate.drive}
+                      transit={legEstimate.transit}
+                      via={legEstimate.via}
+                      rides={legEstimate.rides}
+                      mode={readMode(localCard.details)}
+                      readOnly={readOnly}
+                      onUse={(m, mins) => void applyEstimate(m, mins)}
+                    />
+                  ) : null}
                   onModeChange={(m: LegMode) => {
                     // A mode chosen by hand replaces the tour's words for it;
                     // a tap on the one already chosen changes nothing.

@@ -5,8 +5,8 @@ import type { Card, Day } from "@/types/database";
 
 /**
  * The card sheet of a travel leg (7 Oct 2026, mock d13): the title is the
- * route with one quiet "From Lusaka · change" line under it (mock t05, same
- * day: it replaced the From and To rows), the caption once, the mode
+ * route (renameable since 12 Nov 2026) with From and To rows and their
+ * addresses under it (back on 12 Nov 2026 at his ask; mock t05 had cut them), the caption once, the mode
  * picker writes details.mode, and a transit card with no start offers one.
  * The leg is the G Adventures journey's Day 23 as converted.
  */
@@ -65,16 +65,38 @@ const revealModes = async () => {
 };
 
 describe("CardBottomSheet — a travel leg (7 Oct 2026)", () => {
-  it("the route is the title, one quiet 'From Lusaka · change' line sits under it, and there are no From / To rows (mock t05)", async () => {
+  it("the route is the title, with From and To rows under it, each with its address (12 Nov 2026)", async () => {
     await open(truck());
-    const h = screen.getByRole("heading", { name: "Lusaka → Mfuwe" });
-    const line = screen.getByTestId("leg-from-line");
-    expect(line.textContent).toBe("From Lusaka · change");
-    // Directly under the title: the next element after the heading.
-    expect(h.nextElementSibling).toBe(line);
-    const panel = screen.getByTestId("travel-leg-panel");
-    expect(panel.textContent).not.toMatch(/\bTo\b/);
-    expect(panel.textContent).not.toContain("From");
+    expect(screen.getByRole("heading", { name: "Lusaka → Mfuwe" })).toBeTruthy();
+    expect(screen.getByTestId("leg-from-row").textContent).toContain("Lusaka");
+    const to = screen.getByTestId("leg-to-row").textContent;
+    expect(to).toContain("Mfuwe");
+    expect(to).toContain("Mfuwe, Zambia");
+  });
+
+  it("the title is his to rename: it saves as a named title, not the place's name", async () => {
+    await open(truck());
+    fireEvent.click(screen.getByRole("heading", { name: "Lusaka → Mfuwe" }));
+    const input = screen.getByDisplayValue("Lusaka → Mfuwe");
+    fireEvent.change(input, { target: { value: "Truck day to the park" } });
+    await act(async () => { fireEvent.keyDown(input, { key: "Enter" }); });
+    const w = writes.calls.find((c) => c.table === "cards")!;
+    expect((w.patch.details as Record<string, unknown>).title).toBe("Truck day to the park");
+    expect((w.patch.details as Record<string, unknown>).named).toBe(true);
+  });
+
+  it("car and transit times show once known; a tap sets the mode and moves the end time", async () => {
+    const { estimateKey } = await import("@/lib/travel/estimate");
+    const key = estimateKey({ lat: -15.4154677, lng: 28.2773267 }, { lat: -13.2549974, lng: 31.9326952 });
+    await open(truck({ estimate: { key, drive: 600, transit: 720, rides: 2, via: "bus" } }));
+    const row = screen.getByTestId("leg-estimate");
+    expect(row.textContent).toContain("10 h");
+    expect(row.textContent).toContain("12 h");
+    expect(row.textContent).toContain("1 change");
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /12 h/ })); });
+    const w = writes.calls.find((c) => c.table === "cards")!;
+    expect((w.patch.details as Record<string, unknown>).mode).toBe("bus");
+    expect(w.patch.end_time).toBe("18:00:00");
   });
 
   it("says 'Overland truck · 13h' once, and keeps the pills behind 'Change how you travel'", async () => {
@@ -93,7 +115,7 @@ describe("CardBottomSheet — a travel leg (7 Oct 2026)", () => {
     expect(screen.getByPlaceholderText("Search a town, station or port")).toBeTruthy();
     cleanup();
     await open(truck(), true);
-    expect(screen.getByTestId("leg-from-line").textContent).toBe("From Lusaka");
+    expect(screen.getByTestId("leg-from-row").textContent).toContain("Lusaka");
     expect(screen.queryByRole("button", { name: /Change where this starts/ })).toBeNull();
     expect(screen.queryByRole("button", { name: "Change how you travel" })).toBeNull();
     expect(screen.getByTestId("travel-leg-panel").textContent).toContain("Overland truck · 13h");
@@ -118,7 +140,8 @@ describe("CardBottomSheet — a travel leg (7 Oct 2026)", () => {
 
   it("a leg with no mode: the caption is only the length and no pill is lit", async () => {
     await open(truck({ mode: undefined, mode_label: undefined }));
-    expect(screen.getByTestId("leg-caption").textContent).toBe("13h");
+    expect(screen.getByTestId("leg-caption").textContent).toContain("13h");
+    expect(screen.getByTestId("leg-caption").textContent).not.toMatch(/Drive|truck/);
     await revealModes();
     for (const r of screen.getAllByRole("radio")) expect(r.getAttribute("aria-checked")).toBe("false");
   });
@@ -126,7 +149,7 @@ describe("CardBottomSheet — a travel leg (7 Oct 2026)", () => {
   it("a transit card with no start asks where you leave from, and the tap opens the search", async () => {
     await open(truck({ from: undefined, title: "Pick up rental car", named: false }));
     const set = screen.getByRole("button", { name: "Set where this starts" });
-    expect(set.textContent).toBe("Add where you leave from");
+    expect(set.textContent).toBe("add");
     expect(screen.queryByRole("radio")).toBeNull();
     fireEvent.click(set);
     expect(screen.getByPlaceholderText("Search a town, station or port")).toBeTruthy();

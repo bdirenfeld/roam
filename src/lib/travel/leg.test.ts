@@ -218,3 +218,18 @@ describe("iconSubType — a leg shows how you go, not just transit (10 Nov 2026)
     }
   });
 });
+
+describe("renamed legs (12 Nov 2026)", () => {
+  it("any name he types is the title; the destination still comes from the route or the place", async () => {
+    const { legDestTitle } = await import("./leg");
+    const renamed = leg({}, { named: true, title: "Truck day to the park" });
+    expect(legTitle(renamed)).toBe("Truck day to the park");
+    expect(legDestTitle(renamed)).toBe("Mfuwe");
+    expect(legDestTitle(leg({}, { named: true, title: "Casello → Villa Zambaldi" }))).toBe("Villa Zambaldi");
+  });
+  it("a new To rewrites only an A → B title, and drops the old times", async () => {
+    const { withTo } = await import("./leg");
+    expect(withTo({ named: true, title: "Lusaka → Mfuwe", estimate: { key: "x" } }, "Chipata")).toEqual({ named: true, title: "Lusaka → Chipata" });
+    expect(withTo({ named: true, title: "Truck day" }, "Chipata")).toEqual({ named: true, title: "Truck day" });
+  });
+});

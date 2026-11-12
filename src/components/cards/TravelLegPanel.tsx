@@ -9,7 +9,7 @@
  * only the inputs.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   LEG_MODES, defaultFromForDay, formatLegDuration,
@@ -37,7 +37,7 @@ export function useDefaultFrom(tripId: string | null | undefined, dayId: string 
         supabase.from("days").select("id, date").eq("trip_id", tripId),
         supabase
           .from("cards")
-          .select("id, day_id, place_id, status, start_time, details, place:places ( id, title, sub_type, lat, lng, google_place_id )")
+          .select("id, day_id, place_id, status, start_time, details, place:places ( id, title, sub_type, lat, lng, google_place_id, address )")
           .eq("trip_id", tripId)
           .not("place_id", "is", null),
       ]);
@@ -104,7 +104,7 @@ export function LegFromSearch({
       const r = data.result;
       const lat = r?.geometry?.location?.lat, lng = r?.geometry?.location?.lng;
       if (typeof lat === "number" && typeof lng === "number") {
-        onPick({ title: r.name ?? p.structured_formatting.main_text, lat, lng, google_place_id: p.place_id });
+        onPick({ title: r.name ?? p.structured_formatting.main_text, lat, lng, google_place_id: p.place_id, ...(r.formatted_address ? { address: r.formatted_address } : {}) });
       }
     } catch { /* stay in the search */ } finally {
       setBusy(false);
@@ -281,7 +281,13 @@ export function LegModePicker({ value, onChange, readOnly = false }: { value: Le
  */
 export default function TravelLegPanel({
   from, mode, modeLabel, durationMins, suggestion, fromOpen = false, onFromChange, onModeChange, readOnly = false, biasLat, biasLng,
+  toOpen = false, onToPick, estimate,
 }: {
+  /** The To row's "change" is open: a place search shows here (12 Nov 2026). */
+  toOpen?: boolean;
+  onToPick?: (to: LegFrom) => void;
+  /** The car / transit times row, under the caption. */
+  estimate?: ReactNode;
   from: LegFrom | null;
   mode: LegMode | null;
   modeLabel?: string | null;
@@ -298,27 +304,150 @@ export default function TravelLegPanel({
   const [modesOpen, setModesOpen] = useState(false);
   const caption = [modeLabel, durationMins ? formatLegDuration(durationMins) : null].filter(Boolean).join(" · ");
   const searching = fromOpen && !readOnly;
-  if (!searching && !from) return null;
+  const searchingTo = toOpen && !readOnly && !!onToPick;
+  if (!searching && !searchingTo && !from) return null;
+  // One line, "🚗 Drive · 1 h · change" (12 Nov 2026): the mode's own "change"
+  // replaced the separate "Change how you travel" link under the caption.
+  const glyph = mode === "train" ? "train" : mode === "bus" ? "directions_bus" : mode === "ferry" ? "directions_boat" : mode === "drive" ? "directions_car" : null;
   return (
     <div className="mb-4" data-testid="travel-leg-panel">
       {searching && <LegFromSearch value={from} suggestion={suggestion} onPick={onFromChange} biasLat={biasLat} biasLng={biasLng} />}
-      {from && caption && (
-        <p className="pt-1 text-[14px]" style={{ color: INK }} data-testid="leg-caption">{caption}</p>
+      {searchingTo && <LegFromSearch value={null} onPick={onToPick!} biasLat={biasLat} biasLng={biasLng} />}
+      {from && (caption || !readOnly) && (
+        <p className="pt-1 text-[14px] flex items-center gap-1.5" style={{ color: INK }} data-testid="leg-caption">
+          {glyph && <span className="material-symbols-outlined" style={{ fontSize: 16 }} aria-hidden="true">{glyph}</span>}
+          <span>{caption || "How you travel"}</span>
+          {!readOnly && !modesOpen && (
+            <button
+              type="button"
+              onClick={() => setModesOpen(true)}
+              aria-label="Change how you travel"
+              className="relative ml-1 text-[12.5px] underline underline-offset-2"
+              style={{ color: CAP }}
+            >
+              {/* 44px to the finger, one quiet word to the eye. */}
+              <span aria-hidden="true" className="absolute -inset-y-[14px] -inset-x-2" />
+              change
+            </button>
+          )}
+        </p>
       )}
-      {from && !readOnly && (modesOpen ? (
+      {from && !readOnly && modesOpen && (
         <LegModePicker value={mode} onChange={(m) => { onModeChange(m); setModesOpen(false); }} />
-      ) : (
-        <button
-          type="button"
-          onClick={() => setModesOpen(true)}
-          className="relative mt-0.5 text-[12.5px] underline underline-offset-2"
-          style={{ color: CAP }}
-        >
-          {/* 44px to the finger, one quiet line to the eye. */}
-          <span aria-hidden="true" className="absolute -inset-y-[14px] inset-x-0" />
-          Change how you travel
-        </button>
-      ))}
+      )}
+      {from && estimate}
     </div>
   );
+}
+
+/**
+ * From and To, each with its address and its own "change" (Brennan, 12 Nov
+ * 2026: "it feels weird without that"). Two dots joined by a dotted line, the
+ * same mark the map draws. It replaces the one-line "From Lusaka · change"
+ * and the bare address under the title. The To address is still the sheet's
+ * door to directions.
+ */
+export function LegRoute({
+  from, fromAddress, toTitle, toAddress, readOnly = false, open, onOpen, onDirections,
+}: {
+  from: LegFrom | null;
+  fromAddress?: string | null;
+  toTitle: string;
+  toAddress?: string | null;
+  readOnly?: boolean;
+  open: "from" | "to" | null;
+  onOpen: (which: "from" | "to" | null) => void;
+  onDirections?: () => void;
+}) {
+  const row = (which: "from" | "to", title: string | null, address: string | null | undefined) => (
+    <div className="flex items-start gap-2.5" data-testid={`leg-${which}-row`}>
+      <span
+        aria-hidden="true"
+        className="mt-[19px] w-[9px] h-[9px] rounded-full flex-shrink-0"
+        style={which === "from" ? { border: `2px solid ${INK}`, background: "#fff" } : { background: INK }}
+      />
+      <div className="flex-1 min-w-0">
+        <div className="text-[10.5px] uppercase" style={{ letterSpacing: "0.1em", color: "rgba(26,26,46,0.5)" }}>{which === "from" ? "From" : "To"}</div>
+        <div className="text-[14px] font-medium leading-snug truncate" style={{ color: title ? INK : CAP }}>{title ?? "Where you leave from"}</div>
+        {address && (which === "to" && onDirections ? (
+          <button type="button" onClick={onDirections} title="Directions" aria-label={`Directions to ${address}`}
+            className="block text-left text-[12px] leading-snug hover:underline truncate max-w-full" style={{ color: "rgba(26,26,46,0.55)" }}>
+            {address}
+          </button>
+        ) : (
+          <div className="text-[12px] leading-snug truncate" style={{ color: "rgba(26,26,46,0.55)" }}>{address}</div>
+        ))}
+      </div>
+      {!readOnly && (
+        <button
+          type="button"
+          onClick={() => onOpen(open === which ? null : which)}
+          aria-expanded={open === which}
+          aria-label={which === "from" ? (from ? `Change where this starts, now ${from.title}` : "Set where this starts") : `Change where this goes, now ${toTitle}`}
+          className="relative mt-[17px] text-[12px] underline underline-offset-2 flex-shrink-0"
+          style={{ color: "rgba(26,26,46,0.5)" }}
+        >
+          <span aria-hidden="true" className="absolute -inset-y-3 -inset-x-2" />
+          {which === "from" && !from ? "add" : "change"}
+        </button>
+      )}
+    </div>
+  );
+  return (
+    <div className="relative mt-3 flex flex-col gap-2.5" data-testid="leg-route">
+      <span aria-hidden="true" className="absolute left-[3.5px] top-[30px] h-[38px]" style={{ borderLeft: "2px dotted rgba(26,26,46,0.3)" }} />
+      {row("from", from?.title ?? null, fromAddress ?? from?.address ?? null)}
+      {row("to", toTitle, toAddress)}
+    </div>
+  );
+}
+
+/**
+ * Car and transit times side by side, "🚗 55 min   🚆 1 h 40 · 1 change"
+ * (12 Nov 2026). The way the card is set to now is filled; a tap on the
+ * other sets that mode and moves the end time to fit.
+ */
+export function LegEstimateRow({
+  drive, transit, via, rides, mode, readOnly = false, onUse,
+}: {
+  drive: number | null;
+  transit: number | null;
+  via: LegMode | null;
+  rides: number | null;
+  mode: LegMode | null;
+  readOnly?: boolean;
+  onUse: (mode: LegMode, mins: number) => void;
+}) {
+  if (drive == null && transit == null) return null;
+  const pill = (m: LegMode, mins: number, icon: string, extra: string) => {
+    const on = mode === m;
+    return (
+      <button
+        key={m}
+        type="button"
+        disabled={readOnly}
+        onClick={() => onUse(m, mins)}
+        aria-pressed={on}
+        className="relative inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] disabled:cursor-default"
+        style={on ? { background: INK, color: "#fff" } : { color: INK, boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.14)" }}
+      >
+        <span aria-hidden="true" className="absolute -inset-y-[7px] -inset-x-1" />
+        <span className="material-symbols-outlined" style={{ fontSize: 15 }} aria-hidden="true">{icon}</span>
+        {fmtMins(mins)}{extra ? <span style={{ opacity: 0.7 }}>· {extra}</span> : null}
+      </button>
+    );
+  };
+  const changes = rides && rides > 1 ? (rides - 1 === 1 ? "1 change" : `${rides - 1} changes`) : "";
+  return (
+    <div className="flex flex-wrap items-center gap-2 pt-2" data-testid="leg-estimate">
+      {drive != null && pill("drive", drive, "directions_car", "")}
+      {transit != null && pill(via ?? "train", transit, via === "bus" ? "directions_bus" : via === "ferry" ? "directions_boat" : "train", changes)}
+    </div>
+  );
+}
+
+function fmtMins(m: number): string {
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60), r = m % 60;
+  return r ? `${h} h ${r}` : `${h} h`;
 }

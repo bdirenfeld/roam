@@ -2498,3 +2498,13 @@ flex-wrap + a 16px clip when the column is narrow). Destinations go through `str
 (next starts ≤15 min after, `joinLegs`) draw as ONE strip from the first card; a click opens
 `data-leg-menu` listing each leg, and picking one opens that card. Cards are never merged in
 the data. Single strips keep drag/click via onBlockPointerDown; joined strips don't drag.
+
+## Drive card: From / To, renameable, car vs transit times (12 Nov 2026)
+Brennan asked for the From and To rows back (mock t05 had cut them). A leg's sheet shows `LegRoute`
+(From and To, each with address and its own "change"; To's address is the directions button) and
+the title is a TitleEditor writing `details.title` + `named: true` — any name wins in `legTitle`,
+so the board strip and To row read `legDestTitle` (B of a named A → B, else the place). Changing To
+imports the Google place and repoints `place_id` (`withTo`; no mode → drive). Times come from
+`/api/travel/estimate` (Google Directions, both modes, find_cache "route|" keys shared with
+getting-there, quota `legEstimate`), asked once per From/To pair and saved as `details.estimate`
+(`readEstimate` checks the pair). `LegEstimateRow` pills set mode + end time in one write.

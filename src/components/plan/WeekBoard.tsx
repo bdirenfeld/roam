@@ -27,7 +27,7 @@ import { createClient } from "@/lib/supabase/client";
 import { scheduleCardOnDay, unscheduleCard } from "@/lib/scheduleCard";
 import { PIN_COLORS, getMaterialIconHTML, getGlyphHTML } from "@/lib/mapPins";
 import { readNoteKind, PLACE_TO_COME } from "@/lib/cards/noteKinds";
-import { iconSubType, isTravelLeg, legTitle } from "@/lib/travel/leg";
+import { iconSubType, isTravelLeg, legDestTitle } from "@/lib/travel/leg";
 import { joinLegs, stripDest, stripDuration } from "@/lib/week/travelStrip";
 import { autoDayTitle } from "@/lib/autoDayTitle";
 import { useToast } from "@/components/ui/Toast";
@@ -1138,7 +1138,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                         const last = legs[legs.length - 1] ?? c;
                         const icons = Array.from(new Set(legs.map((x) => iconSubType(x))));
                         const startMin = b.startMin, endMin = b.endMin;
-                        const dest = stripDest(legTitle(last), runs.map((r) => r.title));
+                        const dest = stripDest(legDestTitle(last), runs.map((r) => r.title));
                         const isOn = selectedCard && legs.some((x) => x.id === selectedCard.id);
                         return (
                           <div
@@ -1178,7 +1178,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                                       className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-left text-[12px] hover:bg-[#F3EFE4]" style={{ color: "#1A1A2E" }}>
                                       <span className="inline-flex opacity-75" dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(iconSubType(x), 14) }} />
                                       <span className="font-semibold tabular-nums">{tx.start ? fmt12(toMin(tx.start)) : ""}</span>
-                                      <span className="truncate flex-1">{stripDest(legTitle(x), runs.map((r) => r.title))}</span>
+                                      <span className="truncate flex-1">{stripDest(legDestTitle(x), runs.map((r) => r.title))}</span>
                                       {len !== null && len > 0 && <span className="text-[11px]" style={{ color: "rgba(26,26,46,0.55)" }}>{stripDuration(len)}</span>}
                                     </button>
                                   );
