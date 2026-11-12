@@ -446,8 +446,10 @@ export function LegEstimateRow({
   );
 }
 
-function fmtMins(m: number): string {
+// Rounded to five minutes, like the end time a tap sets: "1 h 05", not "1 h 3".
+function fmtMins(raw: number): string {
+  const m = Math.max(5, Math.round(raw / 5) * 5);
   if (m < 60) return `${m} min`;
   const h = Math.floor(m / 60), r = m % 60;
-  return r ? `${h} h ${r}` : `${h} h`;
+  return r ? `${h} h ${r < 10 ? "0" : ""}${r}` : `${h} h`;
 }

@@ -155,3 +155,12 @@ describe("CardBottomSheet — a travel leg (7 Oct 2026)", () => {
     expect(screen.getByPlaceholderText("Search a town, station or port")).toBeTruthy();
   });
 });
+
+describe("travel time pills round like the end time", () => {
+  it("63 minutes reads 1 h 05", async () => {
+    const { estimateKey } = await import("@/lib/travel/estimate");
+    const key = estimateKey({ lat: -15.4154677, lng: 28.2773267 }, { lat: -13.2549974, lng: 31.9326952 });
+    await open(truck({ estimate: { key, drive: 63, transit: null, rides: null, via: null } }));
+    expect(screen.getByTestId("leg-estimate").textContent).toContain("1 h 05");
+  });
+});
