@@ -219,6 +219,8 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
     const legs = legLines(cards);
 
     let cancelled = false;
+    // Stations in the frame too, so you see where you arrive (12 Nov 2026).
+    const stationCoords: [number, number][] = [];
     markerInnerRef.current.clear();
     pinsRef.current = [];
 
@@ -452,6 +454,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
         // it's hard to get a sense of where we need to go"). Both ends of every train, bus or ferry leg.
         {
           const seen = new Set<string>();
+          stationCoords.length = 0;
           for (const c of cards) {
             if (!isTravelLeg(c)) continue;
             const mode = (c.details as { mode?: string } | null)?.mode;
@@ -472,9 +475,9 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
               ic.textContent = mode === "ferry" ? "directions_boat" : mode === "bus" ? "directions_bus" : "train";
               ic.style.cssText = "font-size:13px;color:rgba(26,26,46,0.55);";
               el.appendChild(ic);
-              const sm = new mb.Marker({ element: el }).setLngLat([lng, lat]).addTo(map);
-              // Under the day's numbered pins, never over them.
-              { const se = sm.getElement() as HTMLElement; se.parentElement?.prepend(se); }
+              stationCoords.push([lng, lat]);
+              // On top of a pin it sits ON the pin, small, like the approved mock (12 Nov 2026).
+              new mb.Marker({ element: el }).setLngLat([lng, lat]).addTo(map);
             }
           }
         }
@@ -486,7 +489,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
         // of the first frame; pinch out to see the route.
         const placeCoords = mappable.map(({ lng, lat }) => [lng, lat] as [number, number]);
         const awayKm = accomCoord && placeCoords.length > 1 ? Math.min(...placeCoords.map(([x, y]) => Math.hypot((x - accomCoord[0]) * 80, (y - accomCoord[1]) * 111))) : 0;
-        const allCoords: [number, number][] = awayKm > 15 ? placeCoords : [
+        const allCoords: [number, number][] = awayKm > 15 ? [...placeCoords, ...stationCoords] : [
           ...placeCoords,
           ...(accomCoord ? [accomCoord] : []),
           ...legStarts(legs),
