@@ -28,11 +28,10 @@ const noteCard = {
 } as unknown as Card;
 
 describe("CardSurface — Row E", () => {
-  it("draws no pin number on the row; the rail is only the time", () => {
+  it("shows the pin's number in a quiet circle before the name, not in the rail (12 Nov 2026)", () => {
     const { container } = render(<CardSurface card={placeCard} dayDate="2027-08-31" pinIndex={3} />);
-    expect(container.querySelector('[aria-label^="Pin "]')).toBeNull();
+    expect(container.querySelector('[data-pin-number]')?.textContent).toBe("3");
     expect(container.textContent).toMatch(/12:30/);
-    expect(container.textContent).not.toMatch(/(^|\D)3(\D|$)/);
   });
 
   it("leads the subtitle with the category glyph, not the category word", () => {

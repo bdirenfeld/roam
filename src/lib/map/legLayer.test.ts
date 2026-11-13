@@ -79,12 +79,11 @@ describe("drawLegs", () => {
     expect(map.removeLayer).not.toHaveBeenCalled();
   });
 
-  it("both maps draw through it: neither carries its own copy of the line", () => {
-    for (const file of ["src/components/day/DayMap.tsx", "src/components/map/FullMapClient.tsx"]) {
-      const src = readFileSync(file, "utf8");
-      expect(src, file).toMatch(/drawLegs\(map, mb, /);
-      expect(src, file).toMatch(/legStarts\(/);
-      expect(src, file).not.toMatch(/"line-dasharray"/);
-    }
+  it("only the journey map draws through it; the day map draws no travel lines (12 Nov 2026)", () => {
+    const full = readFileSync("src/components/map/FullMapClient.tsx", "utf8");
+    expect(full).toMatch(/drawLegs(map, mb, /);
+    const day = readFileSync("src/components/day/DayMap.tsx", "utf8");
+    expect(day).not.toMatch(/drawLegs(map/);
+    for (const src of [full, day]) expect(src).not.toMatch(/"line-dasharray"/);
   });
 });
