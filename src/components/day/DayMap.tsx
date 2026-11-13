@@ -6,7 +6,7 @@ import { mapGoNow } from "@/lib/map/mapGoNow";
 import type { ReactNode } from "react";
 import type { Card } from "@/types/database";
 import { makeMaterialPinElement } from "@/lib/mapPins";
-import { legLines, iconSubType } from "@/lib/travel/leg";
+import { legLines, iconSubType, isTravelLeg } from "@/lib/travel/leg";
 import { drawLegs, legStarts } from "@/lib/map/legLayer";
 import { stackGroups, STACK_FACTOR, pileZoom } from "@/lib/map/stackGroups";
 import Link from "next/link";
@@ -198,8 +198,10 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
 
     // Resolve lat/lng from the linked place
     type Resolved = { card: Card; lat: number; lng: number };
+    // Travel legs keep their dashed line but lose their pins (Brennan, 12 Nov 2026):
+    // the stations and car parks piled up with the villa and the day's stops.
     const mappable: Resolved[] = cards
-      .filter((c) => c.status !== "cut")
+      .filter((c) => c.status !== "cut" && !isTravelLeg(c))
       .flatMap((c) => {
         const p = c.place;
         if (p != null && p.lat != null && p.lng != null) {
@@ -217,6 +219,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
     const legs = legLines(cards);
 
     let cancelled = false;
+    let onRoute: ((e: Event) => void) | null = null;
     markerInnerRef.current.clear();
     pinsRef.current = [];
 
@@ -448,10 +451,14 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
         // the journey Map (7 Oct 2026).
         drawLegs(map, mb, legs);
 
-        const allCoords: [number, number][] = [
-          ...mappable.map(({ lng, lat }) => [lng, lat] as [number, number]),
+        // A day trip frames where you spend the day, not the drive there (12 Nov 2026):
+        // when every stop is over 15 km from the stay, the stay and the route stay out
+        // of the first frame. A tap on the day's travel line zooms out to all of it.
+        const placeCoords = mappable.map(({ lng, lat }) => [lng, lat] as [number, number]);
+        const awayKm = accomCoord && placeCoords.length > 1 ? Math.min(...placeCoords.map(([x, y]) => Math.hypot((x - accomCoord[0]) * 80, (y - accomCoord[1]) * 111))) : 0;
+        const allCoords: [number, number][] = awayKm > 15 ? placeCoords : [
+          ...placeCoords,
           ...(accomCoord ? [accomCoord] : []),
-          // The leg's start is in the frame too, so the line is seen whole.
           ...legStarts(legs),
         ];
 
@@ -470,6 +477,16 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
           map.jumpTo({ center: allCoords[0], zoom: 14 });
         }
 
+        // The whole route on request: CardTimeline's travel line sends roam:day-route.
+        const routeCoords: [number, number][] = [...placeCoords, ...(accomCoord ? [accomCoord] : []), ...legStarts(legs)];
+        const frame = (coords: [number, number][]) => {
+          if (coords.length < 2) return;
+          const b = coords.reduce((acc, c) => acc.extend(c), new mb.LngLatBounds(coords[0], coords[0]));
+          map.fitBounds(b, { padding: 40, maxZoom: 14, duration: 600 });
+        };
+        onRoute = (e: Event) => frame((e as CustomEvent<{ open?: boolean }>).detail?.open === false ? allCoords : routeCoords);
+        window.addEventListener("roam:day-route", onRoute);
+
         requestAnimationFrame(() => { map.resize(); restack(); });
       });
     });
@@ -477,6 +494,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
     const markerInner = markerInnerRef.current;
     return () => {
       cancelled = true;
+      if (onRoute) window.removeEventListener("roam:day-route", onRoute);
       markerInner.clear();
       if (mapInstanceRef.current) {
         (mapInstanceRef.current as { remove: () => void }).remove();

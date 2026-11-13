@@ -13,6 +13,7 @@ import CardBadges from "./CardBadges";
 import { streetAndTown } from "@/lib/week/cardText";
 import { UNTITLED_NOTE, cardTitle } from "@/lib/cardTitle";
 import { isTravelLeg, legTitle, legSubtitle, readMode, LEG_MODE_GLYPH } from "@/lib/travel/leg";
+import { dropTown } from "@/lib/day/dayFlow";
 
 interface Props {
   card: Card;
@@ -29,6 +30,8 @@ interface Props {
    *  (It was dropped once as debris; a day with three forks on the map
    *  proved the glyph alone could not tie a row to a pin — Brennan, Sep 2026.) */
   pinIndex?: number;
+  /** Under an "In Florence" heading: the address drops its town (12 Nov 2026, lib/day/dayFlow). */
+  dropTown?: boolean;
 }
 
 /** Cards eligible to show a confirmation dot */
@@ -83,7 +86,7 @@ function noteLeadOf(det: Record<string, unknown> | null): string | null {
 // Row E (Brennan, 24 Sep 2026): the rail is the time and nothing else. The
 // pin number is not drawn on the row any more — the map pins keep it, and a
 // pin tap lifts its row. `pinIndex` stays in Props so callers need not change.
-export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTimeTap }: Props) {
+export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTimeTap, dropTown: inTown = false }: Props) {
   const place     = card.place;
   const det       = card.details as Record<string, unknown> | null;
   const subLabel  = subTypeLabel(place?.sub_type);
@@ -112,7 +115,7 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTim
     : isFlight
     ? flightRoute(det, timeRange)
     : place
-      ? (shortAddress(place.address) || subLabel || null)
+      ? ((inTown ? dropTown(shortAddress(place.address)) : shortAddress(place.address)) || subLabel || null)
       : noteLeadOf(det);
   // The category glyph leads the subtitle in place of the category word —
   // "🍴 Via Rosina" says what "Restaurant · Via Rosina" said, in one shape.

@@ -2,6 +2,11 @@ import { useState } from "react";
 import AddPlaceRow from "@/components/ui/AddPlaceRow";
 import CardSurface from "@/components/cards/CardSurface";
 import type { DayWithCards, Card } from "@/types/database";
+import { dayFlow } from "@/lib/day/dayFlow";
+import { isTravelLeg, legDestTitle, iconSubType } from "@/lib/travel/leg";
+import { stripDuration } from "@/lib/week/travelStrip";
+import { getMaterialIconHTML } from "@/lib/mapPins";
+import { formatTimeValue } from "@/lib/formatTime";
 
 // No drag here any more. Timed cards sort by the clock; an untimed card gets
 // its place by being given a time (tap the chip). Dragging untimed cards
@@ -32,6 +37,44 @@ interface Props {
   /** Phone: "Give these times" under the untimed group runs the day-strip menu's
    *  Give these times (7 Oct 2026, taps audit). Shown at 2+ untimed places. */
   onGiveTimes?: () => void;
+  /** The trip's stay names, so the way home reads "→ Villa" and "Back at the villa". */
+  stays?: string[];
+}
+
+const hhmm = (m: number) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}:00`;
+
+/**
+ * Travel as one shaded line (12 Nov 2026): "🚗🚆 Leave 8:00 AM → Florence · 1 h 25".
+ * A tap shows the legs underneath (each opens its card) and asks the day map
+ * to zoom out to the whole route.
+ */
+function TravelLine({ cards, startMin, endMin, dest, leave, renderLeg }: {
+  cards: Card[]; startMin: number; endMin: number | null; dest: string; leave: boolean; renderLeg: (c: Card) => React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const icons = Array.from(new Set(cards.map((c) => iconSubType(c))));
+  return (
+    <div data-travel-line="1" data-card-id={cards[0]?.id}>
+      <button
+        type="button"
+        onClick={() => {
+          setOpen((v) => !v);
+          window.dispatchEvent(new CustomEvent("roam:day-route", { detail: { open: !open } }));
+        }}
+        aria-expanded={open}
+        className="w-full my-2 min-h-[46px] flex items-center gap-2 px-4 py-3 rounded-xl text-left active:opacity-80"
+        style={{ background: "#F4F4F6", color: "#1A1A2E" }}
+      >
+        <span className="inline-flex gap-0.5 shrink-0" aria-hidden="true" dangerouslySetInnerHTML={{ __html: icons.map((s) => getMaterialIconHTML(s, 17)).join("") }} />
+        <span className="text-[15px] font-semibold whitespace-nowrap">{leave ? "Leave " : ""}{formatTimeValue(hhmm(startMin))}</span>
+        <span className="text-[15px] truncate min-w-0">→ {dest}</span>
+        {endMin !== null && endMin > startMin && (
+          <span className="text-[13px] whitespace-nowrap" style={{ color: "rgba(26,26,46,0.55)" }}>· {stripDuration(endMin - startMin)}</span>
+        )}
+      </button>
+      {open && <div className="mb-2 pl-3" data-testid="travel-legs">{cards.map((c) => <div key={c.id}>{renderLeg(c)}</div>)}</div>}
+    </div>
+  );
 }
 
 function minutesBetween(end: string | null, start: string | null): number {
@@ -90,6 +133,7 @@ export default function CardTimeline({
   quietEmpty = false,
   underway = false,
   onGiveTimes,
+  stays = [],
 }: Props) {
   const { cards } = dayWithCards;
 
@@ -101,9 +145,10 @@ export default function CardTimeline({
   const untimedPlaces = untimedCards.filter((c) => c.place_id || c.place).length;
   const showGiveTimes = !!onGiveTimes && !readOnly && untimedPlaces >= 2;
 
-  const surface = (card: Card) => (
+  const surface = (card: Card, inSection = false) => (
     <CardSurface
       card={card}
+      dropTown={inSection}
       dayDate={dayWithCards.date}
       onTap={onCardTap ? () => onCardTap(card) : undefined}
       isHighlighted={highlightedCardId === card.id}
@@ -161,13 +206,26 @@ export default function CardTimeline({
         </div>
       ) : (
         <div>
-          {timedCards.map((card, index) => {
+          {dayFlow(timedCards, isTravelLeg, legDestTitle, stays).map((item, i, items) => {
+            if (item.kind === "travel") {
+              return <TravelLine key={item.ids[0]} cards={item.cards} startMin={item.startMin} endMin={item.endMin} dest={item.dest} leave={item.leave} renderLeg={(c) => surface(c)} />;
+            }
+            if (item.kind === "heading") {
+              return (
+                <p key={`h${i}`} data-day-heading="1" className="pt-3 pb-0.5 text-[11px] uppercase" style={{ letterSpacing: "0.12em", color: "rgba(26,26,46,0.5)" }}>
+                  {item.text}
+                </p>
+              );
+            }
+            const card = item.card;
+            const index = timedCards.indexOf(card);
             const nextCard = timedCards[index + 1];
             const gap = nextCard ? minutesBetween(card.end_time, nextCard.start_time) : 0;
+            const inSection = items.slice(0, i).some((x) => x.kind === "heading");
 
             return (
               <div key={card.id} data-card-id={card.id}>
-                {surface(card)}
+                {surface(card, inSection)}
                 {gap >= 30 && !readOnly && (
                   <GapRow
                     minutes={gap}

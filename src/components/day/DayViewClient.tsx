@@ -1161,6 +1161,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
               readOnly={readOnly}
               onTimeTap={readOnly ? undefined : (card) => setTimeCard(card)}
               onGiveTimes={readOnly ? undefined : () => void arrangeDayCards(dayWithCards, "rest")}
+              stays={accommodationCard?.place?.title ? [accommodationCard.place.title] : []}
             />
           </div>
         </div>

@@ -371,7 +371,8 @@ export function LegRoute({
         <div className="text-[14px] font-medium leading-snug truncate" style={{ color: title ? INK : CAP }}>{title ?? "Where you leave from"}</div>
         {address && (which === "to" && onDirections ? (
           <button type="button" onClick={onDirections} title="Directions" aria-label={`Directions to ${address}`}
-            className="block text-left text-[12px] leading-snug hover:underline truncate max-w-full" style={{ color: "rgba(26,26,46,0.55)" }}>
+            className="relative block text-left text-[12px] leading-snug hover:underline truncate max-w-full" style={{ color: "rgba(26,26,46,0.55)" }}>
+            <span aria-hidden="true" className="absolute -inset-y-[14px] inset-x-0" />
             {address}
           </button>
         ) : (
@@ -387,7 +388,7 @@ export function LegRoute({
           className="relative mt-[17px] text-[12px] underline underline-offset-2 flex-shrink-0"
           style={{ color: "rgba(26,26,46,0.5)" }}
         >
-          <span aria-hidden="true" className="absolute -inset-y-3 -inset-x-2" />
+          <span aria-hidden="true" className="absolute -inset-y-[14px] -inset-x-2" />
           {which === "from" && !from ? "add" : "change"}
         </button>
       )}

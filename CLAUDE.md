@@ -2508,3 +2508,12 @@ imports the Google place and repoints `place_id` (`withTo`; no mode → drive). 
 `/api/travel/estimate` (Google Directions, both modes, find_cache "route|" keys shared with
 getting-there, quota `legEstimate`), asked once per From/To pair and saved as `details.estimate`
 (`readEstimate` checks the pair). `LegEstimateRow` pills set mode + end time in one write.
+
+## Phone day as a flow (12 Nov 2026)
+CardTimeline runs timed cards through `lib/day/dayFlow`: travel legs (back to back joined) draw as
+one shaded `TravelLine` ("🚗🚆 Leave 8:00 AM → Florence · 1 h 25"; "Leave" only when nothing but
+travel comes before), the stops after it sit under "In <dest>" (addresses drop the town via
+`dropTown`), and after a leg home "Back at the villa". A tap expands the legs and sends
+`roam:day-route`; DayMap (which no longer pins legs and, when every stop is >15 km from the stay,
+frames just the stops) zooms out to the whole route. Day with no travel = unchanged.
+Check phone screens in the phone viewer (`/dev/phone`, `scripts/phone-check.mjs`), never a narrow window.
