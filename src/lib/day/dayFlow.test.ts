@@ -70,3 +70,13 @@ describe("the phone day uses it", () => {
     expect(m).toMatch(/!isTravelLeg\(c\)/);
   });
 });
+
+describe("the trip map shows no travel", () => {
+  it("FullMapClient's place check leaves travel legs out (no pin, so no line); the popup X always closes", async () => {
+    const { readFileSync } = await import("node:fs");
+    const f = readFileSync("src/components/map/FullMapClient.tsx", "utf8");
+    expect(f).toMatch(/function isRealPlace[\s\S]{0,400}!isTravelLeg\(card\)/);
+    const p = readFileSync("src/components/map/MapPinPopup.tsx", "utf8");
+    expect(p).not.toContain("setPhotosOpen(false) : onClose()");
+  });
+});

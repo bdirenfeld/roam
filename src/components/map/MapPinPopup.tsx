@@ -533,12 +533,13 @@ function CardBody({
       )}
 
       {/* Close — over the gallery when it is open, a grey disc on the card when
-          it is not. Tapping it with the photos open folds them first. */}
+          it is not. It always closes the whole card (Brennan, 12 Nov 2026: it used to fold
+          the photos first, which read as the card not closing). */}
       <button
-        onClick={() => (photosOpen && !desktop ? setPhotosOpen(false) : onClose())}
+        onClick={onClose}
         className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center transition-colors z-10 ${hero ? "bg-black/40 hover:bg-black/60" : "bg-gray-100 hover:bg-gray-200"}`}
         style={{ backdropFilter: "blur(8px)" }}
-        aria-label={photosOpen && !desktop ? "Hide photos" : "Close"}
+        aria-label="Close"
       >
         {/* A bigger target, the same 24px disc (6 Oct 2026, taps audit): 8px
             out to the card's edge above and right, only 4px toward the heart,

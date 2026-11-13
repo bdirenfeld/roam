@@ -38,7 +38,7 @@ import { takenOffMapToast } from "@/lib/takenOff";
 import { createClient } from "@/lib/supabase/client";
 import { scheduleCardOnDay } from "@/lib/scheduleCard";
 import { planPutOnDay, singlePutLine, alreadyLine, batchPutLine } from "@/lib/map/putOnDay";
-import { legLines, iconSubType } from "@/lib/travel/leg";
+import { legLines, iconSubType, isTravelLeg } from "@/lib/travel/leg";
 import { drawLegs, legStarts } from "@/lib/map/legLayer";
 import { tapFilter } from "@/lib/map/tapFilter";
 import { pulseAt, showAt } from "@/lib/map/pulse";
@@ -94,7 +94,10 @@ function isRealPlace(card: Card): boolean {
     card.place != null &&
     card.place.lat != null &&
     card.place.lng != null &&
-    !isSkeletonCard(card)
+    !isSkeletonCard(card) &&
+    // No travel on the trip map (Brennan, 12 Nov 2026: the dashed lines, car
+    // discs and station pins were "too much"): no pin, so no line either.
+    !isTravelLeg(card)
   );
 }
 
