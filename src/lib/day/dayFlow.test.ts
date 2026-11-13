@@ -80,3 +80,14 @@ describe("the trip map shows no travel", () => {
     expect(p).not.toContain("setPhotosOpen(false) : onClose()");
   });
 });
+
+describe("day map: stations, no lines; list numbers match pins", () => {
+  it("DayMap draws small station markers and no dashed legs; numbers skip travel legs; rows show them", async () => {
+    const { readFileSync } = await import("node:fs");
+    const m = readFileSync("src/components/day/DayMap.tsx", "utf8");
+    expect(m).toContain("data-station-pin");
+    expect(m).not.toContain("drawLegs(map");
+    expect(readFileSync("src/components/day/DayViewClient.tsx", "utf8")).toContain("mappableCards.filter((c) => !isTravelLeg(c))");
+    expect(readFileSync("src/components/cards/CardSurface.tsx", "utf8")).toContain("data-pin-number");
+  });
+});

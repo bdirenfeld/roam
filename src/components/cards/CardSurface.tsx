@@ -86,7 +86,7 @@ function noteLeadOf(det: Record<string, unknown> | null): string | null {
 // Row E (Brennan, 24 Sep 2026): the rail is the time and nothing else. The
 // pin number is not drawn on the row any more — the map pins keep it, and a
 // pin tap lifts its row. `pinIndex` stays in Props so callers need not change.
-export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTimeTap, dropTown: inTown = false }: Props) {
+export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTimeTap, dropTown: inTown = false, pinIndex }: Props) {
   const place     = card.place;
   const det       = card.details as Record<string, unknown> | null;
   const subLabel  = subTypeLabel(place?.sub_type);
@@ -195,6 +195,8 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTim
             in the rail carries it now, and the route says more than the label
             did. */}
         <div className="flex items-center gap-1.5 min-w-0">
+          {/* The map pin's number, quiet (Brennan, 12 Nov 2026: numbered pins with an unnumbered list were confusing). */}
+          {pinIndex != null && (<span data-pin-number="1" className="shrink-0 inline-flex items-center justify-center w-[17px] h-[17px] rounded-full text-[10px] font-semibold" style={{ boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.35)", color: "rgba(26,26,46,0.75)" }}>{pinIndex}</span>)}
           <p
             className="min-w-0 font-display text-[15.5px] md:text-[18px] leading-[1.3] truncate"
             style={{ color: "#1A1A2E" }}

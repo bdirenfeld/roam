@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 import type { Card } from "@/types/database";
 import { makeMaterialPinElement } from "@/lib/mapPins";
 import { legLines, iconSubType, isTravelLeg } from "@/lib/travel/leg";
-import { drawLegs, legStarts } from "@/lib/map/legLayer";
+import { legStarts } from "@/lib/map/legLayer";
 import { stackGroups, STACK_FACTOR, pileZoom } from "@/lib/map/stackGroups";
 import Link from "next/link";
 import { MapTrifold } from "@phosphor-icons/react";
@@ -448,7 +448,38 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
         // Thin, low-opacity, dashed, in the transit pins' own colour (his
         // tweak 3: "soft and quiet"). Drawn by lib/map/legLayer, shared with
         // the journey Map (7 Oct 2026).
-        drawLegs(map, mb, legs);
+        // Stations as small grey markers, no number, no line (Brennan, 12 Nov 2026: "without them
+        // it's hard to get a sense of where we need to go"). Both ends of every train, bus or ferry leg.
+        {
+          const seen = new Set<string>();
+          for (const c of cards) {
+            if (!isTravelLeg(c)) continue;
+            const mode = (c.details as { mode?: string } | null)?.mode;
+            if (mode !== "train" && mode !== "bus" && mode !== "ferry") continue;
+            const from = (c.details as { from?: { lat?: number; lng?: number } } | null)?.from;
+            const ends: [number, number][] = [];
+            if (c.place?.lat != null && c.place?.lng != null) ends.push([c.place.lng, c.place.lat]);
+            if (typeof from?.lat === "number" && typeof from?.lng === "number") ends.push([from.lng, from.lat]);
+            for (const [lng, lat] of ends) {
+              const k = lng.toFixed(3) + "," + lat.toFixed(3);
+              if (seen.has(k)) continue;
+              seen.add(k);
+              const el = document.createElement("div");
+              el.setAttribute("data-station-pin", "1");
+              el.style.cssText = "width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 0 0 1px rgba(26,26,46,0.25),0 1px 2px rgba(0,0,0,0.12);display:flex;align-items:center;justify-content:center;pointer-events:none;";
+              const ic = document.createElement("span");
+              ic.className = "material-symbols-outlined";
+              ic.textContent = mode === "ferry" ? "directions_boat" : mode === "bus" ? "directions_bus" : "train";
+              ic.style.cssText = "font-size:13px;color:rgba(26,26,46,0.55);";
+              el.appendChild(ic);
+              const sm = new mb.Marker({ element: el }).setLngLat([lng, lat]).addTo(map);
+              // Under the day's numbered pins, never over them.
+              { const se = sm.getElement() as HTMLElement; se.parentElement?.prepend(se); }
+            }
+          }
+        }
+        // No dashed travel lines on the day map either (Brennan, 12 Nov 2026: "distracting").
+        // The legs still set where the map looks when the day stays near the villa.
 
         // A day trip frames where you spend the day, not the drive there (12 Nov 2026):
         // when every stop is over 15 km from the stay, the stay and the route stay out

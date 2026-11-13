@@ -1,5 +1,6 @@
 "use client";
 import { useGuidanceScreen, useWalkthrough } from "@/components/onboarding/JourneyGuidanceContext";
+import { isTravelLeg } from "@/lib/travel/leg";
 
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useCardNotes, withNotes } from "@/hooks/useCardNotes";
@@ -738,7 +739,8 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
   // Order mirrors what DayMap uses when rendering markers so the numbers match.
   const cardNumberById = useMemo(() => {
     const m = new Map<string, number>();
-    mappableCards.forEach((c, i) => m.set(c.id, i + 1));
+    // Travel legs have no pin since 12 Nov 2026, so no number: the list counts what the map pins.
+    mappableCards.filter((c) => !isTravelLeg(c)).forEach((c, i) => m.set(c.id, i + 1));
     return m;
   }, [mappableCards]);
 
