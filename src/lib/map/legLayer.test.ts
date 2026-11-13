@@ -81,9 +81,9 @@ describe("drawLegs", () => {
 
   it("only the journey map draws through it; the day map draws no travel lines (12 Nov 2026)", () => {
     const full = readFileSync("src/components/map/FullMapClient.tsx", "utf8");
-    expect(full).toMatch(/drawLegs(map, mb, /);
+    expect(full).toContain("drawLegs(map, mb, ");
     const day = readFileSync("src/components/day/DayMap.tsx", "utf8");
-    expect(day).not.toMatch(/drawLegs(map/);
+    expect(day).not.toContain("drawLegs(map");
     for (const src of [full, day]) expect(src).not.toMatch(/"line-dasharray"/);
   });
 });
