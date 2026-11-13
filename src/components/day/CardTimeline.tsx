@@ -4,7 +4,7 @@ import CardSurface from "@/components/cards/CardSurface";
 import type { DayWithCards, Card } from "@/types/database";
 import { dayFlow } from "@/lib/day/dayFlow";
 import { isTravelLeg, legDestTitle, iconSubType } from "@/lib/travel/leg";
-import { stripDuration } from "@/lib/week/travelStrip";
+import { stripDuration, stripDest } from "@/lib/week/travelStrip";
 import { getMaterialIconHTML } from "@/lib/mapPins";
 import { formatTimeValue } from "@/lib/formatTime";
 
@@ -44,35 +44,63 @@ interface Props {
 const hhmm = (m: number) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}:00`;
 
 /**
- * Travel as one shaded line (12 Nov 2026): "🚗🚆 Leave 8:00 AM → Florence · 1 h 25".
- * A tap shows the legs underneath (each opens its card) and asks the day map
- * to zoom out to the whole route.
+ * Travel as one light line (Brennan, 12 Nov 2026, second pass: the shaded box
+ * and the legs opening inside the list were "clunky"). The time sits in the
+ * time column like every stop; then the mode glyphs and "Leave for Florence ·
+ * 1 h 25" (first line of a day that starts out) or "→ Villa · 1 h 40". A tap
+ * on one leg opens its card; on a drive-then-train line, a small sheet lists
+ * the legs and a tap opens that one.
  */
-function TravelLine({ cards, startMin, endMin, dest, leave, renderLeg }: {
-  cards: Card[]; startMin: number; endMin: number | null; dest: string; leave: boolean; renderLeg: (c: Card) => React.ReactNode;
+function TravelLine({ cards, startMin, endMin, dest, leave, onOpen }: {
+  cards: Card[]; startMin: number; endMin: number | null; dest: string; leave: boolean; onOpen?: (c: Card) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [sheet, setSheet] = useState(false);
   const icons = Array.from(new Set(cards.map((c) => iconSubType(c))));
+  const len = endMin !== null && endMin > startMin ? stripDuration(endMin - startMin) : null;
+  const tap = onOpen ? () => (cards.length > 1 ? setSheet(true) : onOpen(cards[0])) : undefined;
+  const Wrapper = (tap ? "button" : "div") as "button";
   return (
     <div data-travel-line="1" data-card-id={cards[0]?.id}>
-      <button
-        type="button"
-        onClick={() => {
-          setOpen((v) => !v);
-          window.dispatchEvent(new CustomEvent("roam:day-route", { detail: { open: !open } }));
-        }}
-        aria-expanded={open}
-        className="w-full my-2 min-h-[46px] flex items-center gap-2 px-4 py-3 rounded-xl text-left active:opacity-80"
-        style={{ background: "#F4F4F6", color: "#1A1A2E" }}
+      <Wrapper
+        type={tap ? "button" : undefined}
+        onClick={tap}
+        className="w-full text-left flex items-center gap-3 md:gap-5 py-3 min-h-[48px] active:opacity-70"
+        style={{ borderBottom: "1px solid rgba(26,26,46,0.10)" }}
       >
-        <span className="inline-flex gap-0.5 shrink-0" aria-hidden="true" dangerouslySetInnerHTML={{ __html: icons.map((s) => getMaterialIconHTML(s, 17)).join("") }} />
-        <span className="text-[15px] font-semibold whitespace-nowrap">{leave ? "Leave " : ""}{formatTimeValue(hhmm(startMin))}</span>
-        <span className="text-[15px] truncate min-w-0">→ {dest}</span>
-        {endMin !== null && endMin > startMin && (
-          <span className="text-[13px] whitespace-nowrap" style={{ color: "rgba(26,26,46,0.55)" }}>· {stripDuration(endMin - startMin)}</span>
-        )}
-      </button>
-      {open && <div className="mb-2 pl-3" data-testid="travel-legs">{cards.map((c) => <div key={c.id}>{renderLeg(c)}</div>)}</div>}
+        <span className="w-[62px] md:w-[74px] shrink-0 text-[10px] md:text-[10.5px] uppercase whitespace-nowrap pl-1.5" style={{ letterSpacing: "0.05em", color: "#1A1A2E", fontWeight: 600 }}>
+          {formatTimeValue(hhmm(startMin))}
+        </span>
+        <span className="flex-1 min-w-0 flex items-center gap-1.5 pl-3" style={{ borderLeft: "2px dashed rgba(26,26,46,0.28)", color: "rgba(26,26,46,0.62)" }}>
+          <span className="inline-flex gap-0.5 shrink-0" aria-hidden="true" dangerouslySetInnerHTML={{ __html: icons.map((s) => getMaterialIconHTML(s, 15)).join("") }} />
+          <span className="text-[14px] truncate min-w-0" style={{ color: "#1A1A2E" }}>{leave ? `Leave for ${dest}` : `→ ${dest}`}</span>
+          {len && <span className="text-[12.5px] whitespace-nowrap">· {len}</span>}
+        </span>
+      </Wrapper>
+      {sheet && onOpen && (
+        <div className="fixed inset-0 z-[60]" data-testid="travel-sheet">
+          <button type="button" aria-label="Close" className="absolute inset-0 bg-black/35" onClick={() => setSheet(false)} />
+          <div className="absolute inset-x-0 bottom-0 bg-white rounded-t-[18px] px-5 pt-2.5 pb-7 max-w-mobile mx-auto">
+            <div className="w-9 h-1 rounded-full mx-auto mb-3.5" style={{ background: "rgba(26,26,46,0.18)" }} />
+            <p className="text-[17px] font-semibold" style={{ color: "#1A1A2E" }}>{formatTimeValue(hhmm(startMin))} → {dest}</p>
+            {len && <p className="text-[13px] mt-0.5 mb-2" style={{ color: "rgba(26,26,46,0.55)" }}>{cards.length} legs · {len}</p>}
+            {cards.map((c) => {
+              const t = c.start_time ? formatTimeValue(c.start_time) : "";
+              const mins = c.start_time && c.end_time ? (Number(c.end_time.slice(0, 2)) * 60 + Number(c.end_time.slice(3, 5))) - (Number(c.start_time.slice(0, 2)) * 60 + Number(c.start_time.slice(3, 5))) : 0;
+              return (
+                <button key={c.id} type="button" onClick={() => { setSheet(false); onOpen(c); }}
+                  className="w-full flex items-center gap-3 py-3.5 min-h-[52px] text-left" style={{ borderTop: "1px solid rgba(26,26,46,0.08)" }}>
+                  <span className="shrink-0" aria-hidden="true" dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(iconSubType(c), 20) }} />
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-[15px] truncate" style={{ color: "#1A1A2E" }}>{legDestTitle(c) ? `To ${stripDest(legDestTitle(c))}` : ""}</span>
+                    <span className="block text-[12.5px]" style={{ color: "rgba(26,26,46,0.55)" }}>{t}{mins > 0 ? ` · ${stripDuration(mins)}` : ""}</span>
+                  </span>
+                  <span aria-hidden="true" style={{ color: "rgba(26,26,46,0.35)", fontSize: 20 }}>›</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -208,7 +236,7 @@ export default function CardTimeline({
         <div>
           {dayFlow(timedCards, isTravelLeg, legDestTitle, stays).map((item, i, items) => {
             if (item.kind === "travel") {
-              return <TravelLine key={item.ids[0]} cards={item.cards} startMin={item.startMin} endMin={item.endMin} dest={item.dest} leave={item.leave} renderLeg={(c) => surface(c)} />;
+              return <TravelLine key={item.ids[0]} cards={item.cards} startMin={item.startMin} endMin={item.endMin} dest={item.dest} leave={item.leave} onOpen={onCardTap} />;
             }
             if (item.kind === "heading") {
               return (

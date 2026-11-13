@@ -219,7 +219,6 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
     const legs = legLines(cards);
 
     let cancelled = false;
-    let onRoute: ((e: Event) => void) | null = null;
     markerInnerRef.current.clear();
     pinsRef.current = [];
 
@@ -453,7 +452,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
 
         // A day trip frames where you spend the day, not the drive there (12 Nov 2026):
         // when every stop is over 15 km from the stay, the stay and the route stay out
-        // of the first frame. A tap on the day's travel line zooms out to all of it.
+        // of the first frame; pinch out to see the route.
         const placeCoords = mappable.map(({ lng, lat }) => [lng, lat] as [number, number]);
         const awayKm = accomCoord && placeCoords.length > 1 ? Math.min(...placeCoords.map(([x, y]) => Math.hypot((x - accomCoord[0]) * 80, (y - accomCoord[1]) * 111))) : 0;
         const allCoords: [number, number][] = awayKm > 15 ? placeCoords : [
@@ -477,15 +476,6 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
           map.jumpTo({ center: allCoords[0], zoom: 14 });
         }
 
-        // The whole route on request: CardTimeline's travel line sends roam:day-route.
-        const routeCoords: [number, number][] = [...placeCoords, ...(accomCoord ? [accomCoord] : []), ...legStarts(legs)];
-        const frame = (coords: [number, number][]) => {
-          if (coords.length < 2) return;
-          const b = coords.reduce((acc, c) => acc.extend(c), new mb.LngLatBounds(coords[0], coords[0]));
-          map.fitBounds(b, { padding: 40, maxZoom: 14, duration: 600 });
-        };
-        onRoute = (e: Event) => frame((e as CustomEvent<{ open?: boolean }>).detail?.open === false ? allCoords : routeCoords);
-        window.addEventListener("roam:day-route", onRoute);
 
         requestAnimationFrame(() => { map.resize(); restack(); });
       });
@@ -494,7 +484,6 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
     const markerInner = markerInnerRef.current;
     return () => {
       cancelled = true;
-      if (onRoute) window.removeEventListener("roam:day-route", onRoute);
       markerInner.clear();
       if (mapInstanceRef.current) {
         (mapInstanceRef.current as { remove: () => void }).remove();

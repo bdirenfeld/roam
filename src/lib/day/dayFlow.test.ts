@@ -60,14 +60,13 @@ describe("dropTown", () => {
 });
 
 describe("the phone day uses it", () => {
-  it("CardTimeline draws travel lines and headings from dayFlow, and the day map listens for the route tap", async () => {
+  it("CardTimeline draws travel lines and headings from dayFlow, and a joined line opens a sheet of its legs", async () => {
     const { readFileSync } = await import("node:fs");
     const t = readFileSync("src/components/day/CardTimeline.tsx", "utf8");
     expect(t).toContain("dayFlow(");
     expect(t).toContain('data-travel-line="1"');
-    expect(t).toContain("roam:day-route");
+    expect(t).toContain('data-testid="travel-sheet"');
     const m = readFileSync("src/components/day/DayMap.tsx", "utf8");
-    expect(m).toContain("roam:day-route");
     expect(m).toMatch(/!isTravelLeg\(c\)/);
   });
 });
