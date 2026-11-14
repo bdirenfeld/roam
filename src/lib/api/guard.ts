@@ -70,6 +70,7 @@ export const QUOTA = {
                        // while the Anthropic credit was out every page load asked, failed and still counted (43).
   gettingThere:   30,  // Plan my trip travel cards: one call per plan, two Google routes per day trip (cached)
   findGoogle:    200,  // Find: the fast Google half; cache misses only
+  parkNearby:   100,  // Drive, park, walk: car parks near a place + their drive/walk times, cached a month (14 Nov 2026)
   legEstimate:  200,  // A drive card's car and transit times, once per From/To pair (saved on the card, routes cached) (12 Nov 2026)
   bookingAirports: 20, // To book: Claude Haiku names a destination's airports, once per destination ever (cached)
 } as const;

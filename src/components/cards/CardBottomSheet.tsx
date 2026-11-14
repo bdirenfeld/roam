@@ -49,7 +49,8 @@ import ActivityDetail from "./detail/ActivityDetail";
 import HotelDetail from "./detail/HotelDetail";
 import { withDetails } from "@/lib/cardDetails";
 import { UNTITLED_NOTE, cardTitle, deletedToast } from "@/lib/cardTitle";
-import TravelLegPanel, { LegRoute, LegEstimateRow, useDefaultFrom } from "./TravelLegPanel";
+import TravelLegPanel, { LegRoute, LegEstimateRow, LegParkRow, useDefaultFrom } from "./TravelLegPanel";
+import { readPark, inItaly } from "@/lib/travel/park";
 import { readEstimate, endAfter, planMinutes, type LegEstimate } from "@/lib/travel/estimate";
 import NoteTypePicker, { NoteWhereRow } from "./NoteTypePicker";
 import { convertedDetails, readNoteKind, withNoteKind, type NoteKind } from "@/lib/cards/noteKinds";
@@ -624,7 +625,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   // be made, its car / transit pills ARE the choices (Brennan, 14 Nov 2026: "you
   // can't take a ferry across land in Italy"), so no caption and no four-mode
   // list. A tour's own words ("Overland truck") keep their caption.
-  const legMerged = legCard && !!legEstimate && !(localCard.details as { mode_label?: unknown } | null)?.mode_label;
+  // Drive, park, walk (14 Nov 2026, step 3): the car park saved by Add travel.
+  const legPark = legCard ? readPark(localCard.details) : null;
+  const legMerged = legCard && (!!legEstimate || !!legPark) && !(localCard.details as { mode_label?: unknown } | null)?.mode_label;
   const asked = useRef<string | null>(null);
   useEffect(() => {
     if (readOnly || !legCapable || !legFrom || !toPt || legEstimate) return;
@@ -1752,9 +1755,20 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   onFromChange={(f: LegFrom) => { setLegOpen(null); void saveDetailsPatch(withFrom(localCard.details, f)); }}
                   toOpen={legOpen === "to"}
                   onToPick={(t: LegFrom) => void handleLegTo(t)}
-                  estimate={legEstimate ? (
+                  estimate={legEstimate || legPark ? (
+                    <>
+                    {legPark && (
+                      <LegParkRow
+                        park={legPark}
+                        on={readMode(localCard.details) === "drive"}
+                        readOnly={readOnly}
+                        italy={inItaly(place.address)}
+                        onUse={(mins) => void applyEstimate("drive", mins)}
+                      />
+                    )}
+                    {legEstimate && (
                     <LegEstimateRow
-                      drive={legEstimate.drive}
+                      drive={legPark ? null : legEstimate.drive}
                       transit={legEstimate.transit}
                       via={legEstimate.via}
                       rides={legEstimate.rides}
@@ -1762,6 +1776,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                       readOnly={readOnly}
                       onUse={(m, mins) => void applyEstimate(m, mins)}
                     />
+                    )}
+                    </>
                   ) : null}
                   onModeChange={(m: LegMode) => {
                     // A mode chosen by hand replaces the tour's words for it;

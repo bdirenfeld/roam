@@ -516,3 +516,41 @@ function fmtMins(raw: number): string {
   const h = Math.floor(m / 60), r = m % 60;
   return r ? `${h} h ${r < 10 ? "0" : ""}${r}` : `${h} h`;
 }
+
+/**
+ * Drive, park, walk on the card (14 Nov 2026, step 3): "🚗 10 min drive → park
+ * at Lucca station car park → 15 min walk", lit when the card is a drive. A tap
+ * sets the drive and the end time to the whole door-to-door time. In Italy, one
+ * line asks to check the car park is outside the restricted zone.
+ */
+export function LegParkRow({
+  park, on, readOnly = false, italy = false, onUse,
+}: {
+  park: { title: string; drive: number; walk: number };
+  on: boolean;
+  readOnly?: boolean;
+  italy?: boolean;
+  onUse: (mins: number) => void;
+}) {
+  return (
+    <div className="pt-2" data-testid="leg-park">
+      <button
+        type="button"
+        disabled={readOnly}
+        aria-pressed={on}
+        onClick={() => onUse(park.drive + park.walk)}
+        className="w-full text-left rounded-2xl px-3.5 py-2.5 disabled:cursor-default"
+        style={{ boxShadow: on ? `inset 0 0 0 2px ${INK}` : "inset 0 0 0 1px rgba(26,26,46,0.14)" }}
+      >
+        <span className="flex items-center justify-between text-[14px] font-semibold" style={{ color: INK }}>
+          <span>🚗 Drive, park, walk</span>
+          <span>{fmtMins(park.drive + park.walk)}</span>
+        </span>
+        <span className="block mt-0.5 text-[12.5px] leading-snug" style={{ color: CAP }}>
+          <b className="font-medium" style={{ color: INK }}>{park.drive} min drive</b> → park at <b className="font-medium" style={{ color: INK }}>{park.title}</b> → <b className="font-medium" style={{ color: INK }}>{park.walk} min walk</b>
+        </span>
+      </button>
+      {italy && <p className="mt-1.5 text-[11.5px] leading-snug" style={{ color: "#B0541F" }} data-testid="leg-ztl">Italian old towns often ban cars (ZTL). Check the car park is outside the zone.</p>}
+    </div>
+  );
+}

@@ -207,3 +207,31 @@ describe("travel time pills round like the end time", () => {
     expect(screen.getByTestId("leg-estimate").textContent).toContain("1 h 05");
   });
 });
+
+describe("drive, park, walk on the card (14 Nov 2026, step 3)", () => {
+  const PARK = { title: "Lucca station car park", lat: 43.8374, lng: 10.5061, drive: 10, walk: 15 };
+  it("shows the drive, the car park and the walk; the plain car pill steps aside for it", async () => {
+    const { estimateKey } = await import("@/lib/travel/estimate");
+    const key = estimateKey({ lat: -15.4154677, lng: 28.2773267 }, { lat: -13.2549974, lng: 31.9326952 });
+    await open(truck({ mode_label: undefined, park: PARK, estimate: { key, drive: 600, transit: 720, rides: 2, via: "bus" } }));
+    expect(screen.getByTestId("leg-park").textContent).toContain("10 min drive → park at Lucca station car park → 15 min walk");
+    expect(screen.getByTestId("leg-estimate").textContent).not.toContain("10 h");
+    expect(screen.getByTestId("leg-estimate").textContent).toContain("12 h");
+    expect(screen.queryByTestId("leg-ztl")).toBeNull();
+  });
+
+  it("a tap on it sets the drive and the end time to the whole trip", async () => {
+    await open(truck({ mode: "bus", mode_label: undefined, park: PARK }));
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /Drive, park, walk/ })); });
+    const w = writes.calls.find((c) => c.table === "cards")!;
+    expect((w.patch.details as Record<string, unknown>).mode).toBe("drive");
+    expect(w.patch.end_time).toBe("06:25:00");
+  });
+
+  it("in Italy it carries the one ZTL line", async () => {
+    const c = truck({ mode_label: undefined, park: PARK });
+    (c.place as unknown as { address: string }).address = "Piazza San Michele, 55100 Lucca LU, Italy";
+    await open(c);
+    expect(screen.getByTestId("leg-ztl").textContent).toContain("ZTL");
+  });
+});

@@ -26,6 +26,7 @@ import { LegFromSearch, LegModePicker, LegRoute, useDefaultFrom } from "@/compon
 import type { LegFrom, LegMode } from "@/lib/travel/leg";
 import { estimateLabel, changesLabel, planMinutes, type LegEstimate } from "@/lib/travel/estimate";
 import { planLeave, withLeave, type DayStop, type LeavePlan } from "@/lib/travel/leaveTime";
+import { isParkOrStation, inItaly, parkMinutes, ZTL_LINE, type Park } from "@/lib/travel/park";
 import { formatTimeValue } from "@/lib/formatTime";
 
 const INK = "#1A1A2E";
@@ -46,7 +47,7 @@ interface Props {
   onCardRemoved?: (cardId: string) => void;
 }
 
-type Way = { mode: LegMode; mins: number; extra: string };
+type Way = { key: string; mode: LegMode; mins: number; extra: string };
 
 export default function AddTravelSheet({
   dayId, tripId, endPosition, dayLabel, biasLat, biasLng, onBack, onClose, onCardCreated, onCardRemoved,
@@ -102,17 +103,48 @@ export default function AddTravelSheet({
       .finally(() => { if (asked.current === k) setAsking(false); });
   }, [from, to, date]);
 
-  const ways: Way[] = useMemo(() => {
-    if (!estimate) return [];
-    const w: Way[] = [];
-    if (estimate.drive != null) w.push({ mode: "drive", mins: estimate.drive, extra: "" });
-    if (estimate.transit != null) w.push({ mode: estimate.via ?? "train", mins: estimate.transit, extra: changesLabel(estimate.rides) });
-    return w;
-  }, [estimate]);
+  // Drive, park, walk (14 Nov 2026, step 3): car parks near where you're going,
+  // with the drive to each and the walk from it. Not for a car park or station.
+  const [parks, setParks] = useState<Park[]>([]);
+  const [parkIdx, setParkIdx] = useState(0);
+  const parkAsked = useRef<string | null>(null);
+  useEffect(() => {
+    if (!from || !to || isParkOrStation(to.title)) { setParks([]); return; }
+    const k = `${from.lat},${from.lng}>${to.lat},${to.lng}`;
+    if (parkAsked.current === k) return;
+    parkAsked.current = k;
+    setParks([]); setParkIdx(0);
+    fetch("/api/travel/park", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ from: { lat: from.lat, lng: from.lng }, to: { lat: to.lat, lng: to.lng } }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((out: { parks?: Park[] } | null) => { if (parkAsked.current === k) setParks(out?.parks ?? []); })
+      .catch(() => { /* no car parks: the drive goes to the door */ });
+  }, [from, to]);
+  const park = parks[parkIdx] ?? null;
 
-  const [mode, setMode] = useState<LegMode | null>(null);
-  useEffect(() => { setMode(ways[0]?.mode ?? null); }, [ways]);
-  const mins = ways.find((w) => w.mode === mode)?.mins ?? null;
+  const ways: Way[] = useMemo(() => {
+    const w: Way[] = [];
+    if (park) w.push({ key: "park", mode: "drive", mins: parkMinutes(park), extra: "" });
+    if (estimate?.drive != null) w.push({ key: "drive", mode: "drive", mins: estimate.drive, extra: "" });
+    if (estimate?.transit != null) w.push({ key: estimate.via ?? "train", mode: estimate.via ?? "train", mins: estimate.transit, extra: changesLabel(estimate.rides) });
+    return w;
+  }, [estimate, park]);
+
+  // Which way is picked: "park", or a mode. A car park within a 15-minute walk
+  // leads (driving into an old town is the wrong default); otherwise the first.
+  const [choice, setChoice] = useState<string | null>(null);
+  const firstPark = parks[0] ?? null;
+  useEffect(() => {
+    setChoice(firstPark && firstPark.walk <= 15 ? "park" : (ways.find((w) => w.key !== "park")?.key ?? ways[0]?.key ?? null));
+    // Only when what is on offer changes, not when a different car park is picked.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [estimate, firstPark]);
+  const picked = ways.find((w) => w.key === choice) ?? null;
+  const mode: LegMode | null = picked ? picked.mode : (choice && choice !== "park" ? (choice as LegMode) : null);
+  const setMode = (m: LegMode) => setChoice(m);
+  const mins = picked?.mins ?? null;
 
   const [leaveTyped, setLeaveTyped] = useState<string | null>(null);
   const [timeOpen, setTimeOpen] = useState(false);
@@ -132,6 +164,7 @@ export default function AddTravelSheet({
       const title = `${from.title} → ${to.title}`;
       const details: Record<string, unknown> = { from, named: true, title };
       if (mode) details.mode = mode;
+      if (choice === "park" && park) details.park = park;
       if (estimate) details.estimate = estimate;
       if (to.google_place_id) details.to_google_place_id = to.google_place_id;
       const card = {
@@ -241,22 +274,49 @@ export default function AddTravelSheet({
               <div className="mt-4 flex flex-col gap-2" data-testid="add-travel-ways">
                 {asking && <p className="text-[13px]" style={{ color: CAP }}>Working out the times…</p>}
                 {!asking && ways.map((w) => {
-                  const on = w.mode === mode;
+                  const on = w.key === choice;
+                  const isPark = w.key === "park" && park;
                   return (
-                    <button
-                      key={w.mode}
-                      type="button"
-                      aria-pressed={on}
-                      onClick={() => { setMode(w.mode); }}
-                      className="w-full text-left rounded-2xl px-4 py-3"
+                    <div
+                      key={w.key}
+                      className="rounded-2xl"
                       style={{ boxShadow: on ? `inset 0 0 0 2px ${INK}` : "inset 0 0 0 1px rgba(26,26,46,0.14)" }}
                     >
-                      <span className="flex items-center justify-between text-[15px] font-semibold" style={{ color: INK }}>
-                        <span>{MODE_EMOJI[w.mode]} {MODE_WORD[w.mode]}</span>
-                        <span>{estimateLabel(planMinutes(w.mins))}</span>
-                      </span>
-                      {w.extra && <span className="block mt-0.5 text-[12.5px]" style={{ color: CAP }}>{w.extra}</span>}
-                    </button>
+                      <button
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => setChoice(w.key)}
+                        className="w-full text-left px-4 pt-3 pb-3"
+                      >
+                        <span className="flex items-center justify-between text-[15px] font-semibold" style={{ color: INK }}>
+                          <span>{isPark ? "🚗 Drive, park, walk" : `${MODE_EMOJI[w.mode]} ${MODE_WORD[w.mode]}`}</span>
+                          <span>{estimateLabel(planMinutes(w.mins))}</span>
+                        </span>
+                        {isPark ? (
+                          <span className="block mt-1 text-[12.5px] leading-snug" style={{ color: CAP }} data-testid="add-travel-park">
+                            <b className="font-medium" style={{ color: INK }}>{park.drive} min drive</b> → park at <b className="font-medium" style={{ color: INK }}>{park.title}</b> → <b className="font-medium" style={{ color: INK }}>{park.walk} min walk</b>
+                          </span>
+                        ) : w.extra ? (
+                          <span className="block mt-0.5 text-[12.5px]" style={{ color: CAP }}>{w.extra}</span>
+                        ) : null}
+                      </button>
+                      {isPark && (parks.length > 1 || inItaly(to.address)) && (
+                        <div className="px-4 pb-3 -mt-1">
+                          {inItaly(to.address) && <p className="text-[11.5px] leading-snug" style={{ color: "#B0541F" }} data-testid="add-travel-ztl">{ZTL_LINE}</p>}
+                          {parks.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => { setParkIdx((i) => (i + 1) % parks.length); setChoice("park"); }}
+                              className="relative mt-1 text-[12px] underline underline-offset-2"
+                              style={{ color: "rgba(26,26,46,0.5)" }}
+                            >
+                              <span aria-hidden="true" className="absolute -inset-y-[13px] -inset-x-2" />
+                              Different car park
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
                 {!asking && ways.length === 0 && (
@@ -344,6 +404,4 @@ async function travelEnd(supabase: ReturnType<typeof createClient>, userId: stri
 }
 
 /** A station, car park, port or stop by its name: it can be the shared transit place. */
-export function isTransitName(name: string): boolean {
-  return /\b(station|stazione|gare|bahnhof|car ?park|parking|parcheggio|port|porto|ferry|terminal|bus stop|metro)\b/i.test(name);
-}
+export const isTransitName = isParkOrStation;

@@ -52,10 +52,13 @@ import AddTravelSheet, { isTransitName } from "./AddTravelSheet";
 type Pick = { id: string; name: string; secondary: string; lat: number; lng: number; address: string };
 let picks: Pick[] = [];
 let estimate: Record<string, unknown> | null = null;
+let parks: Record<string, unknown>[] = [];
+const parkCalls: string[] = [];
 
 beforeEach(() => {
   db.inserts = []; db.updates = []; db.existingPlace = null; toasts.length = 0;
   estimate = { key: "k", drive: 10, transit: 39, rides: 2, via: "bus" };
+  parks = []; parkCalls.length = 0;
   global.fetch = vi.fn(async (url: RequestInfo | URL) => {
     const u = String(url);
     if (u.startsWith("/api/places/autocomplete")) {
@@ -66,6 +69,7 @@ beforeEach(() => {
       const p = picks.find((x) => x.id === id)!;
       return new Response(JSON.stringify({ result: { name: p.name, geometry: { location: { lat: p.lat, lng: p.lng } }, formatted_address: p.address } }));
     }
+    if (u.startsWith("/api/travel/park")) { parkCalls.push(u); return new Response(JSON.stringify({ parks })); }
     if (u.startsWith("/api/travel/estimate")) return estimate ? new Response(JSON.stringify(estimate)) : new Response("{}", { status: 500 });
     return new Response("{}");
   }) as unknown as typeof fetch;
@@ -151,5 +155,49 @@ describe("isTransitName", () => {
     for (const n of ["Lucca station car park", "Stazione di Firenze", "Parcheggio Carducci", "Porto di Livorno", "Levanto"]) {
       expect([n, isTransitName(n)]).toEqual([n, n !== "Levanto"]);
     }
+  });
+});
+
+const SAN_MICHELE: Pick = { id: "g-sm", name: "Piazza San Michele", secondary: "Lucca", lat: 43.8430, lng: 10.5050, address: "Piazza San Michele, 55100 Lucca LU, Italy" };
+const STATION_PARK = { title: "Lucca station car park", lat: 43.8374125, lng: 10.5061477, address: "Viale Cavour", google_place_id: "g-station", drive: 10, walk: 15 };
+const MAZZINI_PARK = { title: "Parcheggio Mazzini", lat: 43.8395, lng: 10.4985, address: "Via Mazzini", google_place_id: "g-mazzini", drive: 9, walk: 9 };
+
+describe("Drive, park, walk (14 Nov 2026, step 3)", () => {
+  it("villa → San Michele (old town): drive, park, walk leads, timed to arrive by the 9:15 walk, with the ZTL line", async () => {
+    parks = [STATION_PARK, MAZZINI_PARK];
+    await openAndGo(SAN_MICHELE);
+    const park = await screen.findByTestId("add-travel-park", {}, { timeout: 2000 });
+    expect(park.textContent).toBe("10 min drive → park at Lucca station car park → 15 min walk");
+    expect(screen.getByTestId("add-travel-ztl").textContent).toContain("ZTL");
+    await waitFor(() => expect(screen.getByTestId("add-travel-leave").textContent).toContain("8:50 AM"));
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /^Add drive · 8:50 AM – 9:15 AM$/ })); });
+    const d = db.inserts.find((i) => i.table === "cards")!.row.details as Record<string, unknown>;
+    expect(d.mode).toBe("drive");
+    expect(d.park).toMatchObject({ title: "Lucca station car park", drive: 10, walk: 15 });
+  });
+
+  it("'Different car park' moves to the next one and its times", async () => {
+    parks = [STATION_PARK, MAZZINI_PARK];
+    await openAndGo(SAN_MICHELE);
+    await screen.findByTestId("add-travel-park", {}, { timeout: 2000 });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Different car park" })); });
+    expect(screen.getByTestId("add-travel-park").textContent).toContain("Parcheggio Mazzini");
+    await waitFor(() => expect(screen.getByTestId("add-travel-leave").textContent).toContain("8:55 AM"));
+  });
+
+  it("picking the plain drive saves no car park", async () => {
+    parks = [STATION_PARK];
+    await openAndGo(SAN_MICHELE);
+    await screen.findByTestId("add-travel-park", {}, { timeout: 2000 });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /^🚗 Drive\s*10 min$/ })); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /^Add drive/ })); });
+    expect((db.inserts.find((i) => i.table === "cards")!.row.details as Record<string, unknown>).park).toBeUndefined();
+  });
+
+  it("a car park or station as the destination never asks for car parks", async () => {
+    await openAndGo(STATION);
+    await waitFor(() => expect(screen.getByTestId("add-travel-ways").textContent).toContain("10 min"));
+    expect(parkCalls).toHaveLength(0);
+    expect(screen.queryByTestId("add-travel-park")).toBeNull();
   });
 });
