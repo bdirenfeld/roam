@@ -368,11 +368,16 @@ function NoteDetail({ notes, onSave }: { notes: string; onSave: (v: string) => v
 function TitleEditor({
   value,
   onSave,
+  autoEdit = false,
+  onDone,
 }: {
   value: string;
   onSave: (v: string) => void;
+  /** Open as the input (a travel card's ⋯ → Rename, 14 Nov 2026). */
+  autoEdit?: boolean;
+  onDone?: () => void;
 }) {
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(autoEdit);
   const [draft, setDraft] = useState(value);
 
   useEffect(() => {
@@ -384,6 +389,7 @@ function TitleEditor({
     const trimmed = draft.trim();
     if (trimmed && trimmed !== value) onSave(trimmed);
     else setDraft(value);
+    onDone?.();
   };
 
   return editing ? (
@@ -394,7 +400,7 @@ function TitleEditor({
       onBlur={commit}
       onKeyDown={(e) => {
         if (e.key === "Enter") { e.preventDefault(); commit(); }
-        if (e.key === "Escape") { setDraft(value); setEditing(false); }
+        if (e.key === "Escape") { setDraft(value); setEditing(false); onDone?.(); }
       }}
       className="w-full text-[19px] font-bold text-gray-900 leading-snug bg-gray-50 rounded-md px-1 py-0.5 outline-none border border-gray-200 focus:border-blue-300"
     />
@@ -584,6 +590,13 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   // A transit place, or any place once the card says how you travel (10 Nov 2026).
   const legCapable = cardLegCapable(localCard);
   const legFrom = readFrom(localCard.details);
+  // The simpler travel card (14 Nov 2026, approved mock D): a leg with a start
+  // drops what belongs to a place (photo, rating, heart, website, call, link,
+  // the type pill) and its separate title. The From and To rows are the top of
+  // the card; the time sits with the travel times; Rename and Change type live
+  // behind the ⋯. A transit card with no start yet keeps the place layout.
+  const legCard = isTravelLeg(localCard) && !!localCard.place;
+  const [renaming, setRenaming] = useState(false);
   // Last night's stay, offered as the start of a transit card that has none.
   const legSuggestion = useDefaultFrom(localCard.trip_id, localCard.day_id, legCapable && !readOnly);
   // The header's "From Lusaka · change" opens the search at the top of the
@@ -607,6 +620,13 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   // per pair, kept on the card, so reopening it costs nothing.
   const toPt = localCard.place?.lat != null && localCard.place?.lng != null ? { lat: localCard.place.lat, lng: localCard.place.lng } : null;
   const legEstimate = legCapable ? readEstimate(localCard.details, legFrom, toPt) : null;
+  // One travel row on the simpler card: the car / transit pills are the mode,
+  // and "Drive · 15m · change" goes (the 15m only repeated the time). Kept when
+  // the pills could not show what is set: a tour's own words ("Overland
+  // truck"), or a mode neither pill is (a ferry when the pills are car / bus).
+  const legModeNow = readMode(localCard.details);
+  const legMerged = legCard && !!legEstimate && !(localCard.details as { mode_label?: unknown } | null)?.mode_label
+    && (legModeNow === null || legModeNow === "drive" || legModeNow === (legEstimate.via ?? "train"));
   const asked = useRef<string | null>(null);
   useEffect(() => {
     if (readOnly || !legCapable || !legFrom || !toPt || legEstimate) return;
@@ -1039,7 +1059,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     : ((place.sub_type ? SUB_TYPE_LABEL[place.sub_type] : undefined) ??
        SUB_TYPE_OPTIONS[place.type]?.[0]?.label ??
        place.type);
-  const rating  = place?.rating ?? null;
+  const rating  = legCard ? null : (place?.rating ?? null);
   // Prefer the embedded place (world facts); fall back to card.details for
   // cards saved before the place row carried these fields (transitional).
   const rawPhone = place?.phone ?? (typeof det?.phone === "string" ? (det.phone as string) : null);
@@ -1199,7 +1219,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           onClick={onClose}
           aria-label="Close"
           className="absolute top-2 right-2 w-9 h-9 flex items-center justify-center rounded-full opacity-60 hover:opacity-100 transition-opacity"
-          style={place
+          style={place && !legCard
             ? { zIndex: 30, color: "#fff", filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.55))" }
             : { zIndex: 30, color: "rgba(26,26,46,0.45)" }}
         >
@@ -1216,7 +1236,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             you opened, and scrolling it away cost more than it gave back. What
             it gives up instead is height — 150 rather than 220, which is still
             a photograph and no longer a quarter of a phone screen. */}
-        {place ? (
+        {place && !legCard ? (
           <div className="relative w-full overflow-hidden">
             <PlacePhotoGallery
               key={place.id}
@@ -1247,6 +1267,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
               {/* Type badge — tappable to change sub-type (only when linked to a place) */}
               <div className="relative">
+                {!legCard && (
                 <button
                   onClick={readOnly ? undefined : () => (place ? setShowSubTypePicker((v) => !v) : setShowNotePicker((v) => !v))}
                   data-testid={place ? undefined : "note-type-button"}
@@ -1263,6 +1284,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                     </svg>
                   )}
                 </button>
+                )}
                 {showNotePicker && !place && !readOnly && (
                   <NoteTypePicker current={noteKind?.key ?? "note"} onPick={handleNoteKind} />
                 )}
@@ -1310,7 +1332,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   Worded pills spent a whole row saying what these shapes say,
                   and sat beside each other as though a heart and a phone number
                   were the same kind of thing. */}
-              {showLoved && (
+              {showLoved && !legCard && (
                 readOnly ? (
                   <span className="w-7 h-7 flex items-center justify-center"><LovedHeart size={15} /></span>
                 ) : (
@@ -1326,7 +1348,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   </button>
                 )
               )}
-              {website && (
+              {website && !legCard && (
                 <a
                   href={website}
                   target="_blank"
@@ -1343,7 +1365,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   </svg>
                 </a>
               )}
-              {phone && (
+              {phone && !legCard && (
                 <a href={phone.href} aria-label="Call" title={phone.display} className="relative w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors">
                   <span aria-hidden="true" className={DISC_TARGET} />
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1352,7 +1374,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 </a>
               )}
               {/* Paperclip — attachments (logistics and activity cards only) */}
-              {!readOnly && (place?.type === "logistics" || place?.type === "activity") && (
+              {!readOnly && !(legCard && readMode(localCard.details) === "drive") && (place?.type === "logistics" || place?.type === "activity") && (
                 <button
                   onClick={() => setShowAttachments(true)}
                   className="relative w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
@@ -1364,7 +1386,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   </svg>
                 </button>
               )}
-              {!readOnly && localCard.status === "in_itinerary" && (
+              {!readOnly && !legCard && localCard.status === "in_itinerary" && (
                 <button
                   onClick={() => setShowLinkSheet(true)}
                   className="relative w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
@@ -1381,8 +1403,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   Move and Take-off as header buttons (Sep 2026) and found the
                   row cluttered, so the header keeps its glyphs and the verbs
                   live here. The sheet still closes itself after a move. */}
-              {(canMove || canBook) && (
-                <div className={place ? "relative" : "relative mr-10" /* a note card has the ✕ in this corner: keep the ⋯ clear of it (Brennan, 25 Sep 2026) */}>
+              {(canMove || canBook || (legCard && !readOnly)) && (
+                <div className={place && !legCard ? "relative" : "relative mr-10" /* a note card has the ✕ in this corner: keep the ⋯ clear of it (Brennan, 25 Sep 2026) */}>
                   <button
                     onClick={() => setShowCardMenu((v) => !v)}
                     aria-expanded={showCardMenu}
@@ -1458,6 +1480,24 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                             </span>
                           </button>
                         )}
+                        {legCard && !readOnly && (
+                          <>
+                            <button
+                              role="menuitem"
+                              onClick={() => { setShowCardMenu(false); setRenaming(true); }}
+                              className={`w-full text-left px-3.5 py-2.5 text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors${canMove || canBook ? " border-t border-gray-100" : ""}`}
+                            >
+                              Rename
+                            </button>
+                            <button
+                              role="menuitem"
+                              onClick={() => { setShowCardMenu(false); setShowSubTypePicker(true); }}
+                              className="w-full text-left px-3.5 py-2.5 text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors border-t border-gray-100"
+                            >
+                              Change type
+                            </button>
+                          </>
+                        )}
                       </div>
                     </>
                   )}
@@ -1468,7 +1508,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
 
           {/* Title — editable when linked to a place (owner); static otherwise */}
           <div className="mt-2.5">
-            {isTravelLeg(localCard) ? (
+            {legCard && !renaming ? null : isTravelLeg(localCard) ? (
               // A leg's title is its route, "Lusaka → Mfuwe"; renaming it would
               // rename the place it ends at. Change the start below instead.
               readOnly ? (
@@ -1478,6 +1518,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 // never the place's name, so the end stays where it was.
                 <TitleEditor
                   value={legTitle(localCard)}
+                  autoEdit={renaming}
+                  onDone={() => setRenaming(false)}
                   onSave={(v) => void saveDetailsPatch({ ...(localCard.details as Record<string, unknown>), title: v, named: true })}
                 />
               )
@@ -1504,6 +1546,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 is the sheet's only door to directions. */}
             {legCapable && place && (
               <LegRoute
+                prominent={legCard}
                 from={legFrom}
                 fromAddress={fromAddress}
                 toTitle={legDestTitle(localCard)}
@@ -1572,6 +1615,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           </div>
 
           {/* Editable time row */}
+          {!legCard && (
           <div className="flex items-center gap-1 mt-1 flex-wrap -ml-2">
             {readOnly ? (
               /* Static time (guest) — no editable chips */
@@ -1637,6 +1681,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               </>
             )}
           </div>
+          )}
 
           {/* Hours speak up top only when they change the plan (7 Oct 2026,
               delight audit, mock t04). The always-on "Open 8:15 AM – 6:30 PM
@@ -1674,6 +1719,29 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             <NoteDisplay.Provider value={weekdayText ? withoutHoursLine : identityNote}>
               {legCapable && place && (!readOnly || legFrom) && (
                 <TravelLegPanel
+                  merged={legMerged}
+                  time={legCard ? (
+                    readOnly ? (
+                      localCard.start_time ? (
+                        <span className="text-[14px] font-medium" style={{ color: "#1A1A2E" }}>
+                          {formatTimeValue(localCard.start_time)}{localCard.end_time ? ` – ${formatTimeValue(localCard.end_time)}` : ""}
+                        </span>
+                      ) : null
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setTimeOpen(true)}
+                        aria-label={localCard.start_time ? "Change the time" : "Set a time"}
+                        className="relative text-left text-[14px] font-medium hover:underline underline-offset-2"
+                        style={{ color: localCard.start_time ? "#1A1A2E" : "rgba(26,26,46,0.45)" }}
+                      >
+                        <span aria-hidden="true" data-testid="leg-time-target" className="absolute -inset-y-[13px] -inset-x-1" />
+                        {localCard.start_time
+                          ? `${formatTimeValue(localCard.start_time)}${localCard.end_time ? ` – ${formatTimeValue(localCard.end_time)}` : ""}`
+                          : "Set a time"}
+                      </button>
+                    )
+                  ) : undefined}
                   from={legFrom}
                   mode={readMode(localCard.details)}
                   modeLabel={legFrom ? legModeWord(localCard.details) : null}

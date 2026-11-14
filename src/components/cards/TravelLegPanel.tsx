@@ -281,8 +281,13 @@ export function LegModePicker({ value, onChange, readOnly = false }: { value: Le
  */
 export default function TravelLegPanel({
   from, mode, modeLabel, durationMins, suggestion, fromOpen = false, onFromChange, onModeChange, readOnly = false, biasLat, biasLng,
-  toOpen = false, onToPick, estimate,
+  toOpen = false, onToPick, estimate, merged = false, time,
 }: {
+  /** The simpler card (14 Nov 2026, mock D): the estimate pills are the mode;
+   *  no caption, and "Other ways" opens the four modes. */
+  merged?: boolean;
+  /** The card's time, first in the body on the simpler card. */
+  time?: ReactNode;
   /** The To row's "change" is open: a place search shows here (12 Nov 2026). */
   toOpen?: boolean;
   onToPick?: (to: LegFrom) => void;
@@ -313,7 +318,8 @@ export default function TravelLegPanel({
     <div className="mb-4" data-testid="travel-leg-panel">
       {searching && <LegFromSearch value={from} suggestion={suggestion} onPick={onFromChange} biasLat={biasLat} biasLng={biasLng} />}
       {searchingTo && <LegFromSearch value={null} onPick={onToPick!} biasLat={biasLat} biasLng={biasLng} />}
-      {from && (caption || !readOnly) && (
+      {from && time && <div className="pt-1 pb-1" data-testid="leg-time">{time}</div>}
+      {from && (caption || !readOnly) && !merged && (
         <p className="pt-1 text-[14px] flex items-center gap-1.5" style={{ color: INK }} data-testid="leg-caption">
           {glyph && <span className="material-symbols-outlined" style={{ fontSize: 16 }} aria-hidden="true">{glyph}</span>}
           <span>{caption || "How you travel"}</span>
@@ -335,7 +341,25 @@ export default function TravelLegPanel({
       {from && !readOnly && modesOpen && (
         <LegModePicker value={mode} onChange={(m) => { onModeChange(m); setModesOpen(false); }} />
       )}
-      {from && estimate}
+      {from && !merged && estimate}
+      {from && merged && (
+        <div className="flex flex-wrap items-end gap-x-3">
+          {estimate}
+          {!readOnly && !modesOpen && (
+            <button
+              type="button"
+              onClick={() => setModesOpen(true)}
+              aria-label="Change how you travel"
+              className="relative text-[12.5px] underline underline-offset-2 pb-1.5"
+              style={{ color: CAP }}
+            >
+              {/* 44px to the finger, one quiet line to the eye. */}
+              <span aria-hidden="true" className="absolute -inset-y-[10px] -inset-x-2" />
+              Other ways
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -348,8 +372,12 @@ export default function TravelLegPanel({
  * door to directions.
  */
 export function LegRoute({
-  from, fromAddress, toTitle, toAddress, readOnly = false, open, onOpen, onDirections,
+  from, fromAddress, toTitle, toAddress, readOnly = false, open, onOpen, onDirections, prominent = false,
 }: {
+  /** The simpler card (14 Nov 2026, mock D): the rows are the top of the card,
+   *  a size up, no From / To labels; a tap on the name changes that end (the
+   *  › says so), and the To address stays the door to directions. */
+  prominent?: boolean;
   from: LegFrom | null;
   fromAddress?: string | null;
   toTitle: string;
@@ -359,6 +387,51 @@ export function LegRoute({
   onOpen: (which: "from" | "to" | null) => void;
   onDirections?: () => void;
 }) {
+  const label = (which: "from" | "to") => which === "from" ? (from ? `Change where this starts, now ${from.title}` : "Set where this starts") : `Change where this goes, now ${toTitle}`;
+  const big = (which: "from" | "to", title: string | null, address: string | null | undefined) => (
+    <div className="flex items-start gap-2.5" data-testid={`leg-${which}-row`}>
+      <span
+        aria-hidden="true"
+        className="mt-[9px] w-[9px] h-[9px] rounded-full flex-shrink-0"
+        style={which === "from" ? { border: `2px solid ${INK}`, background: "#fff" } : { background: INK }}
+      />
+      <div className="flex-1 min-w-0">
+        {readOnly ? (
+          <div className="text-[18px] font-bold leading-snug truncate" style={{ color: title ? INK : CAP }}>{title ?? "Where you leave from"}</div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onOpen(open === which ? null : which)}
+            aria-expanded={open === which}
+            aria-label={label(which)}
+            className="relative w-full flex items-center gap-2 text-left"
+          >
+            <span aria-hidden="true" className={`absolute inset-x-0 ${which === "from" ? "-top-[12px] -bottom-[7px]" : "-top-[19px] bottom-0"}`} />
+            <span className="flex-1 min-w-0 text-[18px] font-bold leading-snug truncate" style={{ color: title ? INK : CAP }}>{title ?? "Add where you leave from"}</span>
+            <svg className="flex-shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(26,26,46,0.4)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18" /></svg>
+          </button>
+        )}
+        {address && (which === "to" && onDirections ? (
+          <button type="button" onClick={onDirections} title="Directions" aria-label={`Directions to ${address}`}
+            className="relative block text-left text-[12px] leading-snug hover:underline truncate max-w-full" style={{ color: "rgba(26,26,46,0.55)" }}>
+            <span aria-hidden="true" className="absolute -top-1 -bottom-[23px] inset-x-0" />
+            {address}
+          </button>
+        ) : (
+          <div className="text-[12px] leading-snug truncate" style={{ color: "rgba(26,26,46,0.55)" }}>{address}</div>
+        ))}
+      </div>
+    </div>
+  );
+  if (prominent) {
+    return (
+      <div className="relative mt-1 flex flex-col gap-3.5" data-testid="leg-route">
+        <span aria-hidden="true" className="absolute left-[3.5px] top-[20px] h-[44px]" style={{ borderLeft: "2px dotted rgba(26,26,46,0.3)" }} />
+        {big("from", from?.title ?? null, fromAddress ?? from?.address ?? null)}
+        {big("to", toTitle, toAddress)}
+      </div>
+    );
+  }
   const row = (which: "from" | "to", title: string | null, address: string | null | undefined) => (
     <div className="flex items-start gap-2.5" data-testid={`leg-${which}-row`}>
       <span

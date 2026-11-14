@@ -65,18 +65,59 @@ const revealModes = async () => {
 };
 
 describe("CardBottomSheet — a travel leg (7 Oct 2026)", () => {
-  it("the route is the title, with From and To rows under it, each with its address (12 Nov 2026)", async () => {
+  it("From and To are the top of the card, each with its address; no separate title (14 Nov 2026, mock D)", async () => {
     await open(truck());
-    expect(screen.getByRole("heading", { name: "Lusaka → Mfuwe" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Lusaka → Mfuwe" })).toBeNull();
     expect(screen.getByTestId("leg-from-row").textContent).toContain("Lusaka");
     const to = screen.getByTestId("leg-to-row").textContent;
     expect(to).toContain("Mfuwe");
     expect(to).toContain("Mfuwe, Zambia");
   });
 
-  it("the title is his to rename: it saves as a named title, not the place's name", async () => {
+  it("a travel card drops the place's furniture: no rating, heart, website, call, link or type pill", async () => {
+    await open(truck({}));
+    for (const name of ["We loved this", "Website", "Call", "Link place from map", "Attachments"]) {
+      expect(screen.queryByRole("button", { name }) ?? screen.queryByRole("link", { name })).toBeNull();
+    }
+    expect(screen.queryByTestId("type-pill-target")).toBeNull();
+    expect(screen.getByTestId("leg-time").textContent).toContain("6:00 AM");
+    expect(screen.queryByRole("button", { name: "Change the time" })).toBeTruthy();
+  });
+
+  it("a train keeps the paperclip (tickets ride on it); a drive does not", async () => {
+    await open(truck({ mode: "train", mode_label: undefined }));
+    expect(screen.getByRole("button", { name: "Attachments" })).toBeTruthy();
+  });
+
+  it("the ⋯ holds Change type, which opens the type picker", async () => {
     await open(truck());
-    fireEvent.click(screen.getByRole("heading", { name: "Lusaka → Mfuwe" }));
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "More options" })); });
+    await act(async () => { fireEvent.click(screen.getByRole("menuitem", { name: "Change type" })); });
+    expect(screen.queryByRole("menuitem", { name: "Change type" })).toBeNull();
+    expect(screen.getByText("Transit")).toBeTruthy();
+  });
+
+  it("the time and the travel times are one row: the pills are the mode, 'Other ways' opens the four", async () => {
+    const { estimateKey } = await import("@/lib/travel/estimate");
+    const key = estimateKey({ lat: -15.4154677, lng: 28.2773267 }, { lat: -13.2549974, lng: 31.9326952 });
+    await open(truck({ mode_label: undefined, estimate: { key, drive: 600, transit: 720, rides: 2, via: "bus" } }));
+    expect(screen.queryByTestId("leg-caption")).toBeNull();
+    expect(screen.getByTestId("leg-estimate").textContent).toContain("10 h");
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Change how you travel" })); });
+    expect(screen.getAllByRole("radio")).toHaveLength(4);
+  });
+
+  it("a mode neither pill shows (a ferry beside car / bus) keeps the caption, so the card still says it", async () => {
+    const { estimateKey } = await import("@/lib/travel/estimate");
+    const key = estimateKey({ lat: -15.4154677, lng: 28.2773267 }, { lat: -13.2549974, lng: 31.9326952 });
+    await open(truck({ mode: "ferry", mode_label: undefined, estimate: { key, drive: 600, transit: 720, rides: 2, via: "bus" } }));
+    expect(screen.getByTestId("leg-caption").textContent).toContain("Ferry");
+  });
+
+  it("the title is his to rename (⋯ → Rename): it saves as a named title, not the place's name", async () => {
+    await open(truck());
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "More options" })); });
+    await act(async () => { fireEvent.click(screen.getByRole("menuitem", { name: "Rename" })); });
     const input = screen.getByDisplayValue("Lusaka → Mfuwe");
     fireEvent.change(input, { target: { value: "Truck day to the park" } });
     await act(async () => { fireEvent.keyDown(input, { key: "Enter" }); });
