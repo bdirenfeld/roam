@@ -39,7 +39,8 @@ export function useDefaultFrom(tripId: string | null | undefined, dayId: string 
           .from("cards")
           .select("id, day_id, place_id, status, start_time, details, place:places ( id, title, sub_type, lat, lng, google_place_id, address )")
           .eq("trip_id", tripId)
-          .not("place_id", "is", null),
+          .not("place_id", "is", null)
+          .not("archived", "is", true),
       ]);
       if (cancelled || daysRes.error || cardsRes.error) return;
       const byDay = new Map<string, LegDay>();

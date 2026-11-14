@@ -18,7 +18,11 @@ const VILLA = { id: "p-villa", title: "Villa Zambaldi", type: "logistics", sub_t
 const TABLES: Record<string, unknown[]> = {
   days: [{ id: "d25", date: "2027-08-25" }, { id: "d26", date: "2027-08-26" }],
   cards: [{ id: "c-villa", day_id: "d25", place_id: "p-villa", status: "in_itinerary", start_time: "15:00:00", details: { check_in_date: "Wed, Aug 25", check_out_date: "Sun, Sep 5" }, place: VILLA }],
-  dayStops: [{ start_time: "09:15:00", end_time: "15:30:00", details: { title: "Lucca Wandering" }, place: { title: "San Michele in Foro", lat: 43.8430, lng: 10.5050 } }],
+  dayStops: [
+    { start_time: "09:15:00", end_time: "15:30:00", details: { title: "Lucca Wandering" }, place: { title: "San Michele in Foro", lat: 43.8430, lng: 10.5050 } },
+    // Archived (live test, 14 Nov 2026: "arrive by 9:00 for Pinelli Bakery", a stop he had taken off).
+    { start_time: "09:00:00", end_time: "09:45:00", archived: true, details: {}, place: { title: "Pinelli Bakery", lat: 43.8425, lng: 10.5040 } },
+  ],
 };
 
 vi.mock("@/lib/supabase/client", () => {
@@ -28,10 +32,11 @@ vi.mock("@/lib/supabase/client", () => {
     const chain: Record<string, unknown> = {};
     for (const k of ["select", "not", "order", "limit", "in", "is", "neq", "update", "delete", "upsert"]) chain[k] = () => { if (k === "update" || k === "upsert") db.updates.push(table); return chain; };
     chain.eq = (col: string, v: unknown) => { f[col] = v; return chain; };
+    chain.not = (col: string, op: string, v: unknown) => { if (col === "archived" && op === "is" && v === true) f.notArchived = true; else if (col === "place_id") f.hasPlace = true; return chain; };
     chain.insert = (row: Record<string, unknown>) => { insertRow = row; db.inserts.push({ table, row }); return chain; };
     const rows = () => {
       if (table === "days") return f.id ? TABLES.days.find((d) => (d as { id: string }).id === f.id) ?? null : TABLES.days;
-      if (table === "cards") return f.day_id ? TABLES.dayStops : TABLES.cards;
+      if (table === "cards") return (f.day_id ? TABLES.dayStops : TABLES.cards).filter((c) => !(f.notArchived && (c as { archived?: boolean }).archived));
       if (table === "places") return f.google_place_id ? db.existingPlace : null;
       return [];
     };

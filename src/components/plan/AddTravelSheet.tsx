@@ -69,7 +69,7 @@ export default function AddTravelSheet({
     let off = false;
     Promise.all([
       supabase.from("days").select("date").eq("id", dayId).maybeSingle(),
-      supabase.from("cards").select("start_time, end_time, details, place:places ( title, lat, lng )").eq("day_id", dayId).eq("status", "in_itinerary"),
+      supabase.from("cards").select("start_time, end_time, details, place:places ( title, lat, lng )").eq("day_id", dayId).eq("status", "in_itinerary").not("archived", "is", true),
     ]).then(([d, c]) => {
       if (off) return;
       setDate(((d.data as { date?: string } | null)?.date) ?? null);
