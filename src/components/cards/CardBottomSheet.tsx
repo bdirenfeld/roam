@@ -620,13 +620,11 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   // per pair, kept on the card, so reopening it costs nothing.
   const toPt = localCard.place?.lat != null && localCard.place?.lng != null ? { lat: localCard.place.lat, lng: localCard.place.lng } : null;
   const legEstimate = legCapable ? readEstimate(localCard.details, legFrom, toPt) : null;
-  // One travel row on the simpler card: the car / transit pills are the mode,
-  // and "Drive · 15m · change" goes (the 15m only repeated the time). Kept when
-  // the pills could not show what is set: a tour's own words ("Overland
-  // truck"), or a mode neither pill is (a ferry when the pills are car / bus).
-  const legModeNow = readMode(localCard.details);
-  const legMerged = legCard && !!legEstimate && !(localCard.details as { mode_label?: unknown } | null)?.mode_label
-    && (legModeNow === null || legModeNow === "drive" || legModeNow === (legEstimate.via ?? "train"));
+  // One travel row on the simpler card: once Google has said how this trip can
+  // be made, its car / transit pills ARE the choices (Brennan, 14 Nov 2026: "you
+  // can't take a ferry across land in Italy"), so no caption and no four-mode
+  // list. A tour's own words ("Overland truck") keep their caption.
+  const legMerged = legCard && !!legEstimate && !(localCard.details as { mode_label?: unknown } | null)?.mode_label;
   const asked = useRef<string | null>(null);
   useEffect(() => {
     if (readOnly || !legCapable || !legFrom || !toPt || legEstimate) return;

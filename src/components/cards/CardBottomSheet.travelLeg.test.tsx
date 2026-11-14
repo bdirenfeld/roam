@@ -97,21 +97,23 @@ describe("CardBottomSheet — a travel leg (7 Oct 2026)", () => {
     expect(screen.getByText("Transit")).toBeTruthy();
   });
 
-  it("the time and the travel times are one row: the pills are the mode, 'Other ways' opens the four", async () => {
+  it("once Google has the times, its car / transit pills are the only choices: no caption, no four-mode list", async () => {
     const { estimateKey } = await import("@/lib/travel/estimate");
     const key = estimateKey({ lat: -15.4154677, lng: 28.2773267 }, { lat: -13.2549974, lng: 31.9326952 });
     await open(truck({ mode_label: undefined, estimate: { key, drive: 600, transit: 720, rides: 2, via: "bus" } }));
     expect(screen.queryByTestId("leg-caption")).toBeNull();
     expect(screen.getByTestId("leg-estimate").textContent).toContain("10 h");
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Change how you travel" })); });
-    expect(screen.getAllByRole("radio")).toHaveLength(4);
+    expect(screen.queryByRole("button", { name: "Change how you travel" })).toBeNull();
+    expect(screen.queryByRole("radio")).toBeNull();
   });
 
-  it("a mode neither pill shows (a ferry beside car / bus) keeps the caption, so the card still says it", async () => {
+  it("a ferry picked over land (his Lucca drive, 14 Nov 2026) is not offered back: a tap on the car pill puts it right", async () => {
     const { estimateKey } = await import("@/lib/travel/estimate");
     const key = estimateKey({ lat: -15.4154677, lng: 28.2773267 }, { lat: -13.2549974, lng: 31.9326952 });
     await open(truck({ mode: "ferry", mode_label: undefined, estimate: { key, drive: 600, transit: 720, rides: 2, via: "bus" } }));
-    expect(screen.getByTestId("leg-caption").textContent).toContain("Ferry");
+    expect(screen.queryByText(/Ferry/)).toBeNull();
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /10 h/ })); });
+    expect((writes.calls.find((c) => c.table === "cards")!.patch.details as Record<string, unknown>).mode).toBe("drive");
   });
 
   it("the title is his to rename (⋯ → Rename): it saves as a named title, not the place's name", async () => {

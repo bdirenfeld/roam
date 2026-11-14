@@ -68,7 +68,11 @@ interface Prediction {
  */
 export function LegFromSearch({
   value, suggestion, onPick, biasLat, biasLng,
+  placeholder = "Search a town, station or port", suggestionLabel = "Last night’s stay",
 }: {
+  /** The box's hint; Add travel's To asks for any place (14 Nov 2026). */
+  placeholder?: string;
+  suggestionLabel?: string;
   value: LegFrom | null;
   suggestion?: LegFrom | null;
   onPick: (from: LegFrom) => void;
@@ -123,14 +127,14 @@ export function LegFromSearch({
           className="w-full text-left py-2 min-h-[44px] text-[13px]"
           style={{ color: INK }}
         >
-          Last night&rsquo;s stay · {offer.title}
+          {suggestionLabel} · {offer.title}
         </button>
       )}
       <input
         autoFocus
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search a town, station or port"
+        placeholder={placeholder}
         className="w-full rounded-full px-3.5 py-2 text-[14px] outline-none"
         style={{ background: "#F3F4F6", color: INK }}
       />
@@ -283,8 +287,8 @@ export default function TravelLegPanel({
   from, mode, modeLabel, durationMins, suggestion, fromOpen = false, onFromChange, onModeChange, readOnly = false, biasLat, biasLng,
   toOpen = false, onToPick, estimate, merged = false, time,
 }: {
-  /** The simpler card (14 Nov 2026, mock D): the estimate pills are the mode;
-   *  no caption, and "Other ways" opens the four modes. */
+  /** The simpler card (14 Nov 2026, mock D): Google's car / transit pills are
+   *  the only choices — no caption, no four-mode list of ways that may not exist. */
   merged?: boolean;
   /** The card's time, first in the body on the simpler card. */
   time?: ReactNode;
@@ -343,22 +347,7 @@ export default function TravelLegPanel({
       )}
       {from && !merged && estimate}
       {from && merged && (
-        <div className="flex flex-wrap items-end gap-x-3">
-          {estimate}
-          {!readOnly && !modesOpen && (
-            <button
-              type="button"
-              onClick={() => setModesOpen(true)}
-              aria-label="Change how you travel"
-              className="relative text-[12.5px] underline underline-offset-2 pb-1.5"
-              style={{ color: CAP }}
-            >
-              {/* 44px to the finger, one quiet line to the eye. */}
-              <span aria-hidden="true" className="absolute -inset-y-[10px] -inset-x-2" />
-              Other ways
-            </button>
-          )}
-        </div>
+        <div>{estimate}</div>
       )}
     </div>
   );

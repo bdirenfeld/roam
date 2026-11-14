@@ -12,6 +12,7 @@ import { useSheetDrag } from "@/hooks/useSheetDrag";
 import type { PlaceResult } from "@/components/map/AddToTripSheet";
 import { LegFromField, LegModePicker, useDefaultFrom } from "@/components/cards/TravelLegPanel";
 import type { LegFrom, LegMode } from "@/lib/travel/leg";
+import AddTravelSheet from "./AddTravelSheet";
 
 const SUB_TYPES: Record<CardType, { value: string; label: string }[]> = {
   activity: [
@@ -159,6 +160,7 @@ export default function CreateCardSheet({
   // Slimmed the same day (mock t05): only From shows at first; the four mode
   // pills wait until From is set, with none picked, and Add works without one.
   const isTransitPick = !!selected && type === "logistics" && subType === "transit";
+  const [travelOpen, setTravelOpen] = useState(false);
   const [legFrom, setLegFrom] = useState<LegFrom | null>(null);
   const [legMode, setLegMode] = useState<LegMode | null>(null);
   const defaultFrom = useDefaultFrom(tripId, dayId, isTransitPick && !!dayId);
@@ -546,6 +548,24 @@ export default function CreateCardSheet({
     void handleCreate();
   }, [autoAdd, selected, type, saving, handleCreate]);
 
+  // "Travel" (14 Nov 2026, Add travel): its own sheet, Where to? first.
+  if (travelOpen && dayId) {
+    return (
+      <AddTravelSheet
+        dayId={dayId}
+        tripId={tripId}
+        endPosition={endPosition}
+        dayLabel={dayLabel}
+        biasLat={destinationLat}
+        biasLng={destinationLng}
+        onBack={() => setTravelOpen(false)}
+        onClose={onClose}
+        onCardCreated={onCardCreated}
+        onCardRemoved={onCardRemoved}
+      />
+    );
+  }
+
   const pillStyle = (isSelected: boolean): React.CSSProperties => isSelected
     ? { background: "#1A1A2E", color: "white", border: "1px solid #1A1A2E" }
     : { background: "transparent", color: "#6B7280", border: "1px solid #E5E7EB" };
@@ -651,6 +671,26 @@ export default function CreateCardSheet({
               )}
 
               </div>
+
+              {/* Travel (14 Nov 2026): a drive, train, bus or ferry between two
+                  places. Its own sheet asks where to; the start is filled in. */}
+              {dayId && !title.trim() && (
+                <button
+                  type="button"
+                  onClick={() => setTravelOpen(true)}
+                  data-testid="add-travel-row"
+                  className="w-full flex items-center gap-3 px-1 py-2.5 mb-3 text-left active:opacity-70"
+                  style={{ borderBottom: "1px solid rgba(26,26,46,0.08)" }}
+                >
+                  <span className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#F0EFEB", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)" }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 16, color: "#1A1A2E" }} aria-hidden="true">directions_car</span>
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[14px] font-medium text-[#1A1A2E]">Travel</span>
+                    <span className="block text-[11.5px] mt-0.5" style={{ color: "rgba(26,26,46,0.62)" }}>Drive, train, bus or ferry between two places</span>
+                  </span>
+                </button>
+              )}
 
               {/* Saved first — one tap puts the place on the day and closes. */}
               {savedGroups.map((g) => (
