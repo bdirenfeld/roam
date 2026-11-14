@@ -34,6 +34,7 @@ vi.mock("@/lib/supabase/client", () => {
   return { createClient: () => make() };
 });
 vi.mock("./PlacePhotoGallery", () => ({ default: () => null }));
+vi.mock("@/lib/supabase/authUser", () => ({ getAuthUser: async () => ({ id: "u1" }) }));
 
 import CardBottomSheet from "./CardBottomSheet";
 
@@ -154,9 +155,10 @@ describe("CardBottomSheet — a travel leg (7 Oct 2026)", () => {
 
   it("'change' opens the From search; a guest gets no 'change' and no mode link", async () => {
     await open(truck());
-    expect(screen.queryByPlaceholderText("Search a town, station or port")).toBeNull();
+    expect(screen.queryByTestId("route-editor")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Change where this starts, now Lusaka" }));
-    expect(screen.getByPlaceholderText("Search a town, station or port")).toBeTruthy();
+    expect(screen.getByTestId("route-editor")).toBeTruthy();
+    expect(screen.getByPlaceholderText("Where from?")).toBeTruthy();
     cleanup();
     await open(truck(), true);
     expect(screen.getByTestId("leg-from-row").textContent).toContain("Lusaka");
@@ -255,7 +257,7 @@ describe("a new To (Brennan, 14 Nov 2026: the farm drive changed to Rome kept th
   it("the end time moves to the new drive, the old car park goes, and the note is offered for clearing, not cleared", async () => {
     await open(truck({ mode_label: undefined, notes: "~1 h. The farm is at Località Torricchio.", park: { title: "Farm lot", lat: 1, lng: 1, drive: 50, walk: 5 } }));
     fireEvent.click(screen.getByRole("button", { name: "Change where this goes, now Mfuwe" }));
-    fireEvent.change(screen.getByPlaceholderText("Search a place, town or station"), { target: { value: "Rome" } });
+    fireEvent.change(screen.getByPlaceholderText("Where to?"), { target: { value: "Rome" } });
     const hit = await screen.findByText("Rome", { selector: "span" }, { timeout: 2000 });
     await act(async () => { fireEvent.click(hit.closest("button")!); });
     await waitFor(() => expect(writes.calls.some((c) => c.patch.end_time === "10:05:00")).toBe(true));
@@ -265,5 +267,26 @@ describe("a new To (Brennan, 14 Nov 2026: the farm drive changed to Rome kept th
     const cleared = writes.calls.at(-1)!.patch.details as Record<string, unknown>;
     expect(cleared.notes).toBeUndefined();
     expect(screen.queryByTestId("leg-stale-note")).toBeNull();
+  });
+});
+
+describe("the From / To editor on the card (14 Nov 2026)", () => {
+  beforeEach(() => { global.fetch = vi.fn(async () => new Response("{}", { status: 500 })) as unknown as typeof fetch; });
+  it("Cancel closes it with nothing written", async () => {
+    await open(truck());
+    fireEvent.click(screen.getByRole("button", { name: "Change where this goes, now Mfuwe" }));
+    expect(screen.getByTestId("route-editor")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByTestId("route-editor")).toBeNull();
+    expect(writes.calls).toHaveLength(0);
+  });
+
+  it("⇅ swaps the ends: From is Mfuwe, To is Lusaka, and a named title reads the other way", async () => {
+    singleBox.data = { id: "p-lusaka" };
+    await open(truck({ mode_label: undefined }));
+    fireEvent.click(screen.getByRole("button", { name: "Change where this goes, now Mfuwe" }));
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Swap start and end" })); });
+    await waitFor(() => expect(screen.getByTestId("leg-from-row").textContent).toContain("Mfuwe"));
+    expect(screen.getByTestId("leg-to-row").textContent).toContain("Lusaka");
   });
 });

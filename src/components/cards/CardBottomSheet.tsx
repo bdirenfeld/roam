@@ -50,6 +50,9 @@ import HotelDetail from "./detail/HotelDetail";
 import { withDetails } from "@/lib/cardDetails";
 import { UNTITLED_NOTE, cardTitle, deletedToast } from "@/lib/cardTitle";
 import TravelLegPanel, { LegRoute, LegEstimateRow, LegParkRow, useDefaultFrom } from "./TravelLegPanel";
+import RouteEditor, { useRouteCards } from "./RouteEditor";
+import { travelEnd } from "./travelEnd";
+import { getAuthUser } from "@/lib/supabase/authUser";
 import { readPark, inItaly } from "@/lib/travel/park";
 import { readEstimate, endAfter, planMinutes, type LegEstimate } from "@/lib/travel/estimate";
 import NoteTypePicker, { NoteWhereRow } from "./NoteTypePicker";
@@ -604,6 +607,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const [staleNoteFor, setStaleNoteFor] = useState<string | null>(null);
   // Last night's stay, offered as the start of a transit card that has none.
   const legSuggestion = useDefaultFrom(localCard.trip_id, localCard.day_id, legCapable && !readOnly);
+  // The From / To editor's lists (14 Nov 2026): fetched when it first opens.
+  const [editorUsed, setEditorUsed] = useState(false);
+  const routeCards = useRouteCards(localCard.trip_id, editorUsed);
   // The header's "From Lusaka · change" opens the search at the top of the
   // body (7 Oct 2026, mock t05); picking a start closes it.
   // Which end's search is open: From or To (12 Nov 2026, the From / To rows).
@@ -685,19 +691,19 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   // A new To: import the picked place (enriched, deduped), point the card at
   // it; a named A → B title takes the new B. The card stays a leg: with no
   // mode yet it becomes a drive, since a restaurant can't be "transit".
+  // A new To ends at a travel end of its own (components/cards/travelEnd, 14
+  // Nov 2026), as Add travel does: a picked villa or restaurant is never
+  // retyped, and one of your places (no Google id) works as well as Google's.
   const handleLegTo = useCallback(async (to: LegFrom) => {
     setLegOpen(null);
-    if (!to.google_place_id) return;
     try {
-      const res = await fetch("/api/places/bulk-import", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ google_place_ids: [to.google_place_id] }),
-      });
-      const out = res.ok ? await res.json() : null;
-      const placeId: string | undefined = out?.imported?.[0]?.place_id;
-      if (!placeId) throw new Error("import");
-      const { data: placeRow } = await supabase.from("places").select("*").eq("id", placeId).single();
-      if (!placeRow) throw new Error("place");
+      const user = await getAuthUser(supabase);
+      if (!user) throw new Error("auth");
+      const placeId = await travelEnd(supabase, user.id, to);
+      const placeRow = {
+        id: placeId, title: to.title, type: "logistics", sub_type: "transit", lat: to.lat, lng: to.lng,
+        address: to.address ?? null, google_place_id: to.google_place_id ?? null, cover_image_url: null, rating: null, price_level: null,
+      };
       const details = withTo(localCard.details, placeRow.title as string);
       if (!readMode(details)) details.mode = "drive";
       // The old car park and the old times belonged to the old place.
@@ -714,6 +720,41 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       toast({ message: "Couldn't change where this goes. Try again." });
     }
   }, [localCard, onCardUpdate, supabase, toast]);
+
+  // A new From: the old car park and times go with it, as for a new To.
+  const handleLegFrom = useCallback((f: LegFrom) => {
+    setLegOpen(null);
+    const details = withFrom(localCard.details, f);
+    delete details.park;
+    retimeAfterTo.current = true;
+    void saveDetailsPatch(details);
+  }, [localCard.details, saveDetailsPatch]);
+
+  // ⇅ in the editor: the To becomes the From and the other way round; a named
+  // "A → B" reads "B → A"; the times follow on the next travel times.
+  const swapLeg = useCallback(async () => {
+    const p = localCard.place;
+    if (!legFrom || !p || p.lat == null || p.lng == null) return;
+    setLegOpen(null);
+    try {
+      const user = await getAuthUser(supabase);
+      if (!user) throw new Error("auth");
+      const newFrom: LegFrom = { title: legDestTitle(localCard), lat: p.lat, lng: p.lng, ...(localCard.place_id ? { place_id: localCard.place_id } : {}), ...(p.address ? { address: p.address } : {}) };
+      const placeId = await travelEnd(supabase, user.id, legFrom);
+      const details: Record<string, unknown> = { ...(localCard.details as Record<string, unknown>), from: newFrom };
+      delete details.park;
+      if (details.named === true && typeof details.title === "string" && details.title.includes("→")) details.title = `${newFrom.title} → ${legFrom.title}`;
+      retimeAfterTo.current = true;
+      const { error } = await supabase.from("cards").update({ place_id: placeId, details }).eq("id", localCard.id);
+      if (error) throw new Error("card");
+      const placeRow = { id: placeId, title: legFrom.title, type: "logistics", sub_type: "transit", lat: legFrom.lat, lng: legFrom.lng, address: legFrom.address ?? null, google_place_id: legFrom.google_place_id ?? null, cover_image_url: null, rating: null, price_level: null };
+      const updated = { ...localCard, place_id: placeId, place: placeRow, details } as unknown as Card;
+      setLocalCard(updated);
+      onCardUpdate?.(updated);
+    } catch {
+      toast({ message: "Couldn't swap them. Try again." });
+    }
+  }, [legFrom, localCard, onCardUpdate, supabase, toast]);
 
 
   // ── "We loved this" ──────────────────────────────────────────
@@ -1564,7 +1605,21 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 2026, mock t05): it replaced the From and To rows in the body,
                 which said the route twice more. The address below stays: it
                 is the sheet's only door to directions. */}
-            {legCapable && place && (
+            {legCard && place && legOpen && !readOnly ? (
+              <RouteEditor
+                from={legFrom}
+                to={place.lat != null && place.lng != null ? { title: legDestTitle(localCard), lat: place.lat, lng: place.lng, ...(localCard.place_id ? { place_id: localCard.place_id } : {}), ...(place.address ? { address: place.address } : {}) } : null}
+                focus={legOpen}
+                cards={routeCards}
+                dayId={localCard.day_id}
+                stay={legSuggestion}
+                biasLat={place.lat}
+                biasLng={place.lng}
+                onPick={(w, picked) => (w === "to" ? void handleLegTo(picked) : handleLegFrom(picked))}
+                onSwap={() => void swapLeg()}
+                onCancel={() => setLegOpen(null)}
+              />
+            ) : legCapable && place && (
               <LegRoute
                 prominent={legCard}
                 from={legFrom}
@@ -1573,7 +1628,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 toAddress={place.address}
                 readOnly={readOnly}
                 open={legOpen}
-                onOpen={(w) => { setLegOpen(w); scrollRef.current?.scrollTo?.({ top: 0 }); }}
+                onOpen={(w) => { setLegOpen(w); if (w) setEditorUsed(true); scrollRef.current?.scrollTo?.({ top: 0 }); }}
                 onDirections={() => {
                   const url = navApp ? directionsUrl(navApp, navTarget) : null;
                   if (url) window.open(url, "_blank");
@@ -1767,12 +1822,12 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   modeLabel={legFrom ? legModeWord(localCard.details) : null}
                   durationMins={legFrom ? legDurationMins(localCard) : null}
                   suggestion={legSuggestion}
-                  fromOpen={legFromOpen}
+                  fromOpen={legFromOpen && !legCard}
                   readOnly={readOnly}
                   biasLat={place.lat}
                   biasLng={place.lng}
-                  onFromChange={(f: LegFrom) => { setLegOpen(null); void saveDetailsPatch(withFrom(localCard.details, f)); }}
-                  toOpen={legOpen === "to"}
+                  onFromChange={(f: LegFrom) => handleLegFrom(f)}
+                  toOpen={legOpen === "to" && !legCard}
                   onToPick={(t: LegFrom) => void handleLegTo(t)}
                   estimate={legEstimate || legPark ? (
                     <>

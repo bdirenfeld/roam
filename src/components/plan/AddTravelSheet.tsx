@@ -22,11 +22,13 @@ import { getAuthUser } from "@/lib/supabase/authUser";
 import { queuedDelete } from "@/lib/offline/queuedWrite";
 import { useToast } from "@/components/ui/Toast";
 import { useSheetDrag } from "@/hooks/useSheetDrag";
-import { LegFromSearch, LegModePicker, LegRoute, useDefaultFrom } from "@/components/cards/TravelLegPanel";
+import { LegModePicker, LegRoute, useDefaultFrom } from "@/components/cards/TravelLegPanel";
 import type { LegFrom, LegMode } from "@/lib/travel/leg";
 import { estimateLabel, changesLabel, planMinutes, type LegEstimate } from "@/lib/travel/estimate";
 import { planLeave, withLeave, type DayStop, type LeavePlan } from "@/lib/travel/leaveTime";
 import { isParkOrStation, inItaly, parkMinutes, ZTL_LINE, type Park } from "@/lib/travel/park";
+import { travelEnd } from "@/components/cards/travelEnd";
+import RouteEditor, { useRouteCards } from "@/components/cards/RouteEditor";
 import { formatTimeValue } from "@/lib/formatTime";
 
 const INK = "#1A1A2E";
@@ -61,6 +63,7 @@ export default function AddTravelSheet({
   const from = fromPick ?? lastNight;
   const [to, setTo] = useState<LegFrom | null>(null);
   const [editing, setEditing] = useState<"from" | "to" | null>(null);
+  const routeCards = useRouteCards(tripId, true);
 
   // The day's stops and date: the leave time is worked back from them.
   const [stops, setStops] = useState<DayStop[]>([]);
@@ -230,34 +233,21 @@ export default function AddTravelSheet({
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 pb-6">
-          {/* Where to: any place. The start is already there. */}
-          {(!to || editing === "to") && (
-            <>
-              <LegFromSearch
-                value={null}
-                onPick={(t) => { setTo(t); setEditing(null); setLeaveTyped(null); }}
-                biasLat={biasLat}
-                biasLng={biasLng}
-                placeholder="Search a place, town or station"
-              />
-              {editing !== "to" && (
-                <p className="mt-1 text-[12.5px]" style={{ color: CAP }} data-testid="add-travel-from">
-                  {from ? <>From <b className="font-semibold" style={{ color: INK }}>{from.title}</b>{!fromPick && lastNight ? " · last night’s stay" : ""} · </> : null}
-                  <button type="button" onClick={() => setEditing("from")} className="relative underline underline-offset-2" style={{ color: from ? CAP : INK }}>
-                    <span aria-hidden="true" className="absolute -inset-y-[13px] -inset-x-2" />
-                    {from ? "change" : "Where you leave from"}
-                  </button>
-                </p>
-              )}
-            </>
-          )}
-          {editing === "from" && (
-            <LegFromSearch
-              value={from}
-              suggestion={lastNight}
-              onPick={(f) => { setFromPick(f); setEditing(null); setLeaveTyped(null); }}
+          {/* Where to / where from: the From / To editor (14 Nov 2026), the same one the
+              card uses. The start is already there; your places come first. */}
+          {(!to || editing !== null) && (
+            <RouteEditor
+              from={from}
+              to={to}
+              focus={editing ?? "to"}
+              cards={routeCards}
+              dayId={dayId}
+              stay={lastNight}
               biasLat={biasLat}
               biasLng={biasLng}
+              onPick={(w, p) => { if (w === "to") setTo(p); else setFromPick(p); setEditing(null); setLeaveTyped(null); }}
+              onSwap={from && to ? () => { const f = from; setFromPick(to); setTo(f); setEditing(null); setLeaveTyped(null); } : undefined}
+              onCancel={() => { if (!to) onBack(); else setEditing(null); }}
             />
           )}
 
@@ -373,35 +363,6 @@ export default function AddTravelSheet({
       </div>
     </div>
   );
-}
-
-/**
- * The place a new travel card ends at. A station / car park / port already
- * saved as transit is reused. Anything else (a villa, a restaurant, a town)
- * gets a travel end of its own at the same spot, with no Google id, so the
- * saved place is never retyped: the villa stays a hotel.
- */
-async function travelEnd(supabase: ReturnType<typeof createClient>, userId: string, to: LegFrom): Promise<string> {
-  if (to.google_place_id) {
-    const { data: existing } = await supabase
-      .from("places").select("id, type, sub_type").eq("user_id", userId).eq("google_place_id", to.google_place_id).maybeSingle();
-    const row = existing as { id: string; type: string | null; sub_type: string | null } | null;
-    if (row && row.type === "logistics" && row.sub_type === "transit") return row.id;
-    if (!row && isTransitName(to.title)) {
-      const { data, error } = await supabase.from("places").insert({
-        user_id: userId, google_place_id: to.google_place_id, title: to.title, type: "logistics", sub_type: "transit",
-        lat: to.lat, lng: to.lng, address: to.address ?? null,
-      }).select("id").single();
-      if (!error && data) return (data as { id: string }).id;
-    }
-  }
-  const { data, error } = await supabase.from("places").insert({
-    user_id: userId, google_place_id: null, title: to.title, type: "logistics", sub_type: "transit",
-    lat: to.lat, lng: to.lng, address: to.address ?? null,
-    details: to.google_place_id ? { travel_end_of: to.google_place_id } : null,
-  }).select("id").single();
-  if (error || !data) throw new Error("place");
-  return (data as { id: string }).id;
 }
 
 /** A station, car park, port or stop by its name: it can be the shared transit place. */

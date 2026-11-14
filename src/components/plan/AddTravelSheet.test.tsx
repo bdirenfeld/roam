@@ -17,7 +17,11 @@ const db = vi.hoisted(() => ({
 const VILLA = { id: "p-villa", title: "Villa Zambaldi", type: "logistics", sub_type: "hotel", lat: 43.8298808, lng: 10.4497198, google_place_id: "g-villa", address: "Via Fonda, 403, 55100 Lucca LU, Italy" };
 const TABLES: Record<string, unknown[]> = {
   days: [{ id: "d25", date: "2027-08-25" }, { id: "d26", date: "2027-08-26" }],
-  cards: [{ id: "c-villa", day_id: "d25", place_id: "p-villa", status: "in_itinerary", start_time: "15:00:00", details: { check_in_date: "Wed, Aug 25", check_out_date: "Sun, Sep 5" }, place: VILLA }],
+  cards: [
+    { id: "c-villa", day_id: "d25", place_id: "p-villa", status: "in_itinerary", start_time: "15:00:00", details: { check_in_date: "Wed, Aug 25", check_out_date: "Sun, Sep 5" }, place: VILLA },
+    { id: "c-walk", day_id: "d26", place_id: "p-sm", status: "in_itinerary", start_time: "09:15:00", details: { title: "Lucca Wandering" }, place: { id: "p-sm", title: "San Michele in Foro", type: "activity", sub_type: "self_directed", lat: 43.8430, lng: 10.5050, address: "P.za San Michele, 55100 Lucca LU, Italy" } },
+    { id: "c-giulio", day_id: null, place_id: "p-giu", status: "interested", start_time: null, details: {}, place: { id: "p-giu", title: "Trattoria da Giulio", type: "food", sub_type: "restaurant", lat: 43.8456, lng: 10.4979, address: "Via delle Conce, 45, 55100 Lucca LU, Italy" } },
+  ],
   dayStops: [
     { start_time: "09:15:00", end_time: "15:30:00", details: { title: "Lucca Wandering" }, place: { title: "San Michele in Foro", lat: 43.8430, lng: 10.5050 } },
     // Archived (live test, 14 Nov 2026: "arrive by 9:00 for Pinelli Bakery", a stop he had taken off).
@@ -87,8 +91,11 @@ async function openAndGo(to: Pick) {
   await act(async () => {
     render(<AddTravelSheet dayId="d26" tripId="t1" endPosition={5} dayLabel="Thu 26" onBack={() => {}} onClose={() => {}} onCardCreated={(c) => created.push(c)} />);
   });
-  fireEvent.change(screen.getByPlaceholderText("Search a place, town or station"), { target: { value: to.name.slice(0, 5) } });
-  const hit = await screen.findByText(to.name, {}, { timeout: 2000 });
+  fireEvent.change(screen.getByPlaceholderText("Where to?"), { target: { value: to.name.slice(0, 5) } });
+  // Google's results sit under your own places: take the last match, Google's.
+  await screen.findByText("Everywhere", {}, { timeout: 2000 });
+  const all = screen.getAllByText(to.name);
+  const hit = all[all.length - 1];
   await act(async () => { fireEvent.click(hit.closest("button")!); });
 }
 
@@ -99,8 +106,8 @@ describe("Add travel (14 Nov 2026)", () => {
   it("starts at last night's stay without asking", async () => {
     picks = [];
     await act(async () => { render(<AddTravelSheet dayId="d26" tripId="t1" endPosition={0} onBack={() => {}} onClose={() => {}} onCardCreated={() => {}} />); });
-    await waitFor(() => expect(screen.getByTestId("add-travel-from").textContent).toContain("Villa Zambaldi"));
-    expect(screen.getByTestId("add-travel-from").textContent).toContain("last night");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Change where this starts, now Villa Zambaldi" })).toBeTruthy());
+    expect(screen.getByPlaceholderText("Where to?")).toBeTruthy();
   });
 
   it("villa → Lucca station car park: drive and bus times show, and the drive arrives by the 9:15 walk", async () => {
@@ -204,5 +211,37 @@ describe("Drive, park, walk (14 Nov 2026, step 3)", () => {
     await waitFor(() => expect(screen.getByTestId("add-travel-ways").textContent).toContain("10 min"));
     expect(parkCalls).toHaveLength(0);
     expect(screen.queryByTestId("add-travel-park")).toBeNull();
+  });
+});
+
+describe("the From / To editor in Add travel (14 Nov 2026)", () => {
+  it("your places show before typing: today's walk and the nearest saved pin; the villa (already From) is not offered", async () => {
+    picks = [];
+    await act(async () => { render(<AddTravelSheet dayId="d26" tripId="t1" endPosition={0} biasLat={43.84} biasLng={10.5} onBack={() => {}} onClose={() => {}} onCardCreated={() => {}} />); });
+    const list = await screen.findByTestId("route-editor-list");
+    await waitFor(() => expect(list.textContent).toContain("Lucca Wandering"));
+    expect(list.textContent).toContain("Today · 9:15 AM · Lucca");
+    expect(list.textContent).toContain("Trattoria da Giulio");
+    expect(list.textContent).not.toContain("Villa Zambaldi");
+  });
+
+  it("one tap on your place picks it, and ⇅ swaps the two ends", async () => {
+    picks = [];
+    await act(async () => { render(<AddTravelSheet dayId="d26" tripId="t1" endPosition={0} onBack={() => {}} onClose={() => {}} onCardCreated={() => {}} />); });
+    const walk = await screen.findByText("Lucca Wandering", {}, { timeout: 2000 });
+    await act(async () => { fireEvent.click(walk.closest("button")!); });
+    await waitFor(() => expect(screen.getByTestId("leg-to-row").textContent).toContain("Lucca Wandering"));
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /Change where this goes/ })); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Swap start and end" })); });
+    expect(screen.getByTestId("leg-from-row").textContent).toContain("Lucca Wandering");
+    expect(screen.getByTestId("leg-to-row").textContent).toContain("Villa Zambaldi");
+  });
+
+  it("Cancel before anything is picked goes back to the add sheet", async () => {
+    picks = [];
+    const back = vi.fn();
+    await act(async () => { render(<AddTravelSheet dayId="d26" tripId="t1" endPosition={0} onBack={back} onClose={() => {}} onCardCreated={() => {}} />); });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(back).toHaveBeenCalled();
   });
 });
