@@ -598,6 +598,10 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   // behind the ⋯. A transit card with no start yet keeps the place layout.
   const legCard = isTravelLeg(localCard) && !!localCard.place;
   const [renaming, setRenaming] = useState(false);
+  // After a new To: re-time on the next travel times, and ask about the note,
+  // which was written for the old place (14 Nov 2026). Never cleared unasked.
+  const retimeAfterTo = useRef(false);
+  const [staleNoteFor, setStaleNoteFor] = useState<string | null>(null);
   // Last night's stay, offered as the start of a transit card that has none.
   const legSuggestion = useDefaultFrom(localCard.trip_id, localCard.day_id, legCapable && !readOnly);
   // The header's "From Lusaka · change" opens the search at the top of the
@@ -644,8 +648,18 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       .then((est: LegEstimate | null) => {
         if (!est || (est.drive == null && est.transit == null)) return;
         setLocalCard((cur) => {
-          const next = { ...cur, details: { ...(cur.details as Record<string, unknown>), estimate: est } as Card["details"] };
-          void queuedUpdate("cards", { id: cur.id }, { details: next.details });
+          const next = { ...cur, details: { ...(cur.details as Record<string, unknown>), estimate: est } as Card["details"] } as Card;
+          const patch: Record<string, unknown> = { details: next.details };
+          // A new To moves the end time to the new trip (Brennan, 14 Nov 2026: the
+          // Rome drive kept the farm's 9:40 – 10:40). The way already set, if
+          // Google has it; else the drive.
+          if (retimeAfterTo.current && cur.start_time) {
+            const m = readMode(cur.details);
+            const mins = m && m !== "drive" && est.via === m && est.transit != null ? est.transit : (est.drive ?? est.transit);
+            if (mins != null) { patch.end_time = toDbTime(endAfter(cur.start_time, planMinutes(mins))); next.end_time = patch.end_time as string; }
+          }
+          retimeAfterTo.current = false;
+          void queuedUpdate("cards", { id: cur.id }, patch);
           onCardUpdate?.(next);
           return next;
         });
@@ -686,6 +700,11 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       if (!placeRow) throw new Error("place");
       const details = withTo(localCard.details, placeRow.title as string);
       if (!readMode(details)) details.mode = "drive";
+      // The old car park and the old times belonged to the old place.
+      delete details.park;
+      retimeAfterTo.current = true;
+      const note = (localCard.details as { notes?: unknown } | null)?.notes;
+      if (typeof note === "string" && note.trim()) setStaleNoteFor(legDestTitle(localCard));
       const { error } = await supabase.from("cards").update({ place_id: placeId, details }).eq("id", localCard.id);
       if (error) throw new Error("card");
       const updated = { ...localCard, place_id: placeId, place: placeRow, details } as Card;
@@ -1788,6 +1807,15 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                     void saveDetailsPatch(next);
                   }}
                 />
+              )}
+              {/* The note was written for the old place (14 Nov 2026): one tap clears it, nothing is cleared unasked. */}
+              {legCard && staleNoteFor && !readOnly && (localCard.details as { notes?: string } | null)?.notes && (
+                <div className="mb-3 rounded-xl px-3.5 py-2.5 text-[12.5px] leading-snug" style={{ background: "#FBF5EE", color: "#7A4A1F" }} data-testid="leg-stale-note">
+                  The note below was written for {staleNoteFor}.{" "}
+                  <button type="button" className="underline underline-offset-2 font-medium" onClick={() => { const d = { ...(localCard.details as Record<string, unknown>) }; delete d.notes; void saveDetailsPatch(d); setStaleNoteFor(null); }}>Clear note</button>
+                  {" · "}
+                  <button type="button" className="underline underline-offset-2" onClick={() => setStaleNoteFor(null)}>Keep it</button>
+                </div>
               )}
               <CostContext.Provider value={{ destination: tripDestination, partySize }}>
                 {renderDetail()}

@@ -19,6 +19,9 @@ export interface DayStop {
   end_time: string | null;
   lat: number | null;
   lng: number | null;
+  /** Another travel card: never the stop to arrive by (live test, 14 Nov 2026: "arrive by
+   *  8:45 for Villa Zambaldi → Lucca (station car park)"), only a time to leave after. */
+  travel?: boolean;
 }
 
 export interface LeavePlan {
@@ -57,7 +60,7 @@ export function planLeave(stops: DayStop[], to: { lat: number; lng: number }, mi
   let targetAt = Infinity;
   for (const s of timed) {
     const at = toMin(s.start_time!);
-    if (s.lat != null && s.lng != null && km({ lat: s.lat, lng: s.lng }, to) <= NEAR_KM && at < targetAt) { target = s; targetAt = at; }
+    if (!s.travel && s.lat != null && s.lng != null && km({ lat: s.lat, lng: s.lng }, to) <= NEAR_KM && at < targetAt) { target = s; targetAt = at; }
   }
   if (target) {
     const at = hhmm(target.start_time!);

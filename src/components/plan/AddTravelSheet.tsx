@@ -77,6 +77,7 @@ export default function AddTravelSheet({
       setStops(rows.map((r) => ({
         title: (typeof r.details?.title === "string" ? r.details.title : null) ?? r.place?.title ?? null,
         start_time: r.start_time, end_time: r.end_time, lat: r.place?.lat ?? null, lng: r.place?.lng ?? null,
+        travel: !!(r.details && typeof r.details.from === "object" && r.details.from),
       })));
     });
     return () => { off = true; };

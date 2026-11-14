@@ -321,7 +321,7 @@ export default function TravelLegPanel({
   return (
     <div className="mb-4" data-testid="travel-leg-panel">
       {searching && <LegFromSearch value={from} suggestion={suggestion} onPick={onFromChange} biasLat={biasLat} biasLng={biasLng} />}
-      {searchingTo && <LegFromSearch value={null} onPick={onToPick!} biasLat={biasLat} biasLng={biasLng} />}
+      {searchingTo && <LegFromSearch value={null} onPick={onToPick!} biasLat={biasLat} biasLng={biasLng} placeholder="Search a place, town or station" />}
       {from && time && <div className="pt-1 pb-1" data-testid="leg-time">{time}</div>}
       {from && (caption || !readOnly) && !merged && (
         <p className="pt-1 text-[14px] flex items-center gap-1.5" style={{ color: INK }} data-testid="leg-caption">

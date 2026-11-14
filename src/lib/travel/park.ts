@@ -55,25 +55,39 @@ export function km(a: { lat: number; lng: number }, b: { lat: number; lng: numbe
 
 export interface ParkSpot { title: string; lat: number; lng: number; address: string | null; google_place_id: string | null }
 
+/** Not a place to leave a car: motorbike bays, reserved spaces, bike hire. */
+const NOT_FOR_CARS = /\b(moto|motorbike|motorcycle|riservat[oa]|reserved|bici|bike|cycle)\b/i;
+
 /**
- * Car parks out of a Google Nearby Search answer (nearest first, as asked):
- * within PARK_MAX_KM of where you're going, closed-for-good ones dropped, at
- * most PARK_CHOICES.
+ * Car parks out of a Google Nearby Search answer, ranked by how many people
+ * have reviewed them, not by distance (live test on Lucca, 14 Nov 2026): the
+ * nearest "parking" to San Michele were residents-only bays and a bike-hire
+ * shop inside the walls, the no-car zone itself, while the big public car parks
+ * outside them (Palatucci, 1,148 reviews; Mazzini, 939) are what a visitor
+ * uses. Only places whose main kind is parking; motorbike, reserved and bike
+ * spots dropped; within PARK_MAX_KM; closed-for-good dropped; at most
+ * PARK_CHOICES.
  */
 export function parkSpots(json: unknown, to: { lat: number; lng: number }): ParkSpot[] {
   const results = ((json as { results?: unknown[] } | null)?.results ?? []) as Record<string, unknown>[];
-  const out: ParkSpot[] = [];
-  for (const r of results) {
+  const out: { spot: ParkSpot; reviews: number; i: number }[] = [];
+  results.forEach((r, i) => {
     const loc = (r.geometry as { location?: { lat?: number; lng?: number } } | undefined)?.location;
     const lat = num(loc?.lat), lng = num(loc?.lng);
     const title = typeof r.name === "string" ? r.name.trim() : "";
-    if (lat == null || lng == null || !title) continue;
-    if (r.business_status === "CLOSED_PERMANENTLY") continue;
-    if (km({ lat, lng }, to) > PARK_MAX_KM) continue;
-    out.push({ title, lat, lng, address: typeof r.vicinity === "string" ? r.vicinity : null, google_place_id: typeof r.place_id === "string" ? r.place_id : null });
-    if (out.length >= PARK_CHOICES) break;
-  }
-  return out;
+    if (lat == null || lng == null || !title) return;
+    if (r.business_status === "CLOSED_PERMANENTLY") return;
+    const types = Array.isArray(r.types) ? (r.types as string[]) : [];
+    if (types.length > 0 && types[0] !== "parking") return;
+    if (NOT_FOR_CARS.test(title)) return;
+    if (km({ lat, lng }, to) > PARK_MAX_KM) return;
+    out.push({
+      spot: { title, lat, lng, address: typeof r.vicinity === "string" ? r.vicinity : null, google_place_id: typeof r.place_id === "string" ? r.place_id : null },
+      reviews: num(r.user_ratings_total) ?? 0,
+      i,
+    });
+  });
+  return out.sort((a, b) => b.reviews - a.reviews || a.i - b.i).slice(0, PARK_CHOICES).map((x) => x.spot);
 }
 
 /** Door to door: the drive, then the walk. */

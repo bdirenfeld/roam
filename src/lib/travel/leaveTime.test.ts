@@ -49,3 +49,15 @@ describe("planLeave — when a trip added by hand leaves (14 Nov 2026)", () => {
     expect(withLeave("08:30", 10)).toEqual({ leave: "08:30", arrive: "08:40", why: null });
   });
 });
+
+describe("planLeave — another travel card is not a stop (live test, 14 Nov 2026)", () => {
+  it("the morning drive to the station car park is skipped; the trip arrives by the 9:15 walk", () => {
+    const withDrive: DayStop[] = [
+      { title: "Villa Zambaldi → Lucca (station car park)", start_time: "08:45:00", end_time: "08:55:00", ...STATION_CAR_PARK, travel: true },
+      ...AUG26,
+    ];
+    const p = planLeave(withDrive, SAN_MICHELE, 15);
+    expect(p.why).toEqual({ kind: "arrive_by", title: AUG26[0].title, at: "09:15" });
+    expect(p.leave).toBe("09:00");
+  });
+});

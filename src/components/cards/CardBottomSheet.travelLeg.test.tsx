@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, act, fireEvent, cleanup } from "@testing-library/react";
+import { render, screen, act, fireEvent, cleanup, waitFor } from "@testing-library/react";
 import type { Card, Day } from "@/types/database";
 
 /**
@@ -18,13 +18,14 @@ vi.mock("@/lib/offline/queuedWrite", () => ({
 }));
 vi.mock("@/components/ui/Toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
+const singleBox = vi.hoisted(() => ({ data: null as unknown }));
 vi.mock("@/lib/supabase/client", () => {
   const make = (): Record<string, unknown> => {
     const chain: Record<string, unknown> = {};
     const self = () => chain;
     for (const k of ["from", "select", "not", "order", "limit", "eq", "in", "is", "update", "insert", "delete", "upsert", "neq"]) chain[k] = self;
     chain.maybeSingle = () => Promise.resolve({ data: null, error: null });
-    chain.single = () => Promise.resolve({ data: null, error: null });
+    chain.single = () => Promise.resolve({ data: singleBox.data, error: null });
     chain.then = (ok: (v: unknown) => unknown) => Promise.resolve({ data: [], error: null, count: 0 }).then(ok);
     chain.auth = { getSession: () => Promise.resolve({ data: { session: null } }) };
     chain.storage = { from: () => ({ createSignedUrl: () => Promise.resolve({ data: null }) }) };
@@ -55,7 +56,7 @@ function truck(details: Record<string, unknown> = {}): Card {
   } as unknown as Card;
 }
 
-beforeEach(() => { writes.calls = []; });
+beforeEach(() => { writes.calls = []; singleBox.data = null; });
 
 async function open(card: Card, readOnly = false) {
   await act(async () => { render(<CardBottomSheet card={card} onClose={() => {}} days={days} readOnly={readOnly} />); });
@@ -233,5 +234,36 @@ describe("drive, park, walk on the card (14 Nov 2026, step 3)", () => {
     (c.place as unknown as { address: string }).address = "Piazza San Michele, 55100 Lucca LU, Italy";
     await open(c);
     expect(screen.getByTestId("leg-ztl").textContent).toContain("ZTL");
+  });
+});
+
+describe("a new To (Brennan, 14 Nov 2026: the farm drive changed to Rome kept the farm's note and times)", () => {
+  const ROME = { id: "p-rome", title: "Rome", type: "locality", sub_type: null, address: "Rome, Metropolitan City of Rome Capital, Italy", lat: 41.9028, lng: 12.4964 };
+  beforeEach(async () => {
+    const { estimateKey } = await import("@/lib/travel/estimate");
+    singleBox.data = ROME;
+    global.fetch = vi.fn(async (url: RequestInfo | URL) => {
+      const u = String(url);
+      if (u.startsWith("/api/places/autocomplete")) return new Response(JSON.stringify({ predictions: [{ place_id: "g-rome", structured_formatting: { main_text: "Rome", secondary_text: "Italy" } }] }));
+      if (u.startsWith("/api/places/details")) return new Response(JSON.stringify({ result: { name: "Rome", formatted_address: ROME.address, geometry: { location: { lat: ROME.lat, lng: ROME.lng } } } }));
+      if (u.startsWith("/api/places/bulk-import")) return new Response(JSON.stringify({ imported: [{ place_id: "p-rome" }] }));
+      if (u.startsWith("/api/travel/estimate")) return new Response(JSON.stringify({ key: estimateKey({ lat: -15.4154677, lng: 28.2773267 }, { lat: ROME.lat, lng: ROME.lng }), drive: 245, transit: 275, rides: 5, via: "train" }));
+      return new Response("{}");
+    }) as unknown as typeof fetch;
+  });
+
+  it("the end time moves to the new drive, the old car park goes, and the note is offered for clearing, not cleared", async () => {
+    await open(truck({ mode_label: undefined, notes: "~1 h. The farm is at Località Torricchio.", park: { title: "Farm lot", lat: 1, lng: 1, drive: 50, walk: 5 } }));
+    fireEvent.click(screen.getByRole("button", { name: "Change where this goes, now Mfuwe" }));
+    fireEvent.change(screen.getByPlaceholderText("Search a place, town or station"), { target: { value: "Rome" } });
+    const hit = await screen.findByText("Rome", { selector: "span" }, { timeout: 2000 });
+    await act(async () => { fireEvent.click(hit.closest("button")!); });
+    await waitFor(() => expect(writes.calls.some((c) => c.patch.end_time === "10:05:00")).toBe(true));
+    expect(screen.getByTestId("leg-stale-note").textContent).toContain("written for Mfuwe");
+    expect(writes.calls.some((c) => (c.patch.details as Record<string, unknown> | undefined)?.notes === undefined && c.patch.details)).toBe(false);
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Clear note" })); });
+    const cleared = writes.calls.at(-1)!.patch.details as Record<string, unknown>;
+    expect(cleared.notes).toBeUndefined();
+    expect(screen.queryByTestId("leg-stale-note")).toBeNull();
   });
 });

@@ -6,7 +6,7 @@ import { parkSpots, type Park } from "@/lib/travel/park";
 
 // ── Drive, park, walk (14 Nov 2026) ───────────────────────────────────────
 // Car parks near where you're going (Google Nearby Search, type parking,
-// nearest first), each with the drive to it from the start and the walk from
+// within 1.2 km, the most-reviewed first), each with the drive to it from the start and the walk from
 // it to the place (Google Directions). Everything is cached in find_cache for a
 // month, so a second trip to the same town costs nothing.
 
@@ -57,10 +57,12 @@ export async function POST(req: NextRequest) {
     });
 
   try {
-    const spots = await cached(`parking|${to.lat.toFixed(4)},${to.lng.toFixed(4)}`, async () => {
+    // "parking2" (14 Nov 2026): ranked by reviews within 1.2 km. The first
+    // version kept the nearest twenty, which in a walled town are the wrong ones.
+    const spots = await cached(`parking2|${to.lat.toFixed(4)},${to.lng.toFixed(4)}`, async () => {
       const u = new URL("https://maps.googleapis.com/maps/api/place/nearbysearch/json");
       u.searchParams.set("location", `${to.lat},${to.lng}`);
-      u.searchParams.set("rankby", "distance");
+      u.searchParams.set("radius", "1200");
       u.searchParams.set("type", "parking");
       u.searchParams.set("key", key);
       const res = await fetch(u, { cache: "no-store" });
