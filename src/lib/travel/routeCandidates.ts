@@ -35,7 +35,7 @@ export interface Candidate extends LegFrom {
 
 export const YOURS_MAX = 4;
 export const SAVED_MAX = 3;
-const SAME_KM = 0.05;
+const SAME_KM = 0.01;
 
 function km(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const R = 6371, toRad = (d: number) => (d * Math.PI) / 180;
@@ -76,10 +76,19 @@ const point = (c: RouteCard): LegFrom | null => {
   };
 };
 
-function same(a: { lat: number; lng: number; title: string }, b: { lat: number; lng: number; title: string } | null): boolean {
+/**
+ * The same place: the same place id, the same name, or a few metres apart.
+ * Not 50 m (live test, 14 Nov 2026): in Lucca the bakery and San Michele are
+ * that close, and the 12:30 lunch vanished from the list as a "duplicate".
+ */
+function same(a: { lat: number; lng: number; title: string; place_id?: string | null }, b: { lat: number; lng: number; title: string; place_id?: string | null } | null): boolean {
   if (!b) return false;
+  if (a.place_id && b.place_id) return a.place_id === b.place_id || a.title.toLowerCase() === b.title.toLowerCase();
   return a.title.toLowerCase() === b.title.toLowerCase() || km(a, b) <= SAME_KM;
 }
+
+/** A car park or station used on the trip counts only near this trip: not Vernazza for a Lucca drive. */
+const USED_NEAR_KM = 15;
 
 export function routeCandidates(opts: {
   cards: RouteCard[];
@@ -113,10 +122,17 @@ export function routeCandidates(opts: {
     push({ ...p, title: titleOf(c) ?? p.title, sub: ["Today", formatTimeValue(c.start_time), town].filter(Boolean).join(" · "), kind: "stop" });
   }
 
+  const used: { p: LegFrom; d: number; c: RouteCard }[] = [];
   for (const c of live) {
     if (!isTravel(c) || c.place?.sub_type !== "transit") continue;
     const p = point(c);
     if (!p) continue;
+    const d = near ? km(p, near) : 0;
+    if (near && d > USED_NEAR_KM) continue;
+    used.push({ p, d, c });
+  }
+  used.sort((x, y) => x.d - y.d);
+  for (const { p, c } of used) {
     // The name the card gives it ("Lucca (station car park)"), not the bare pin's ("Lucca").
     const d = c.details as { named?: unknown; title?: unknown } | null;
     if (d?.named === true && typeof d.title === "string" && d.title.includes("→")) p.title = d.title.slice(d.title.lastIndexOf("→") + 1).trim() || p.title;

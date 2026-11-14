@@ -60,3 +60,24 @@ describe("townOf", () => {
     expect(townOf(null)).toBeNull();
   });
 });
+
+describe("routeCandidates — live test on his Thu 26 Aug (14 Nov 2026)", () => {
+  const near = { lat: 43.8374, lng: 10.5061 };
+  const live: RouteCard[] = [
+    { id: "walk", day_id: "d26", status: "in_itinerary", start_time: "09:15:00", details: { title: "Lucca Wandering" }, place: { id: "p-sm", title: "San Michele in Foro", lat: 43.8432, lng: 10.5034, address: "P.za San Michele, 55100 Lucca LU, Italy", sub_type: "self_directed" } },
+    // 30-odd metres from San Michele: a different place, not a duplicate.
+    { id: "lunch", day_id: "d26", status: "in_itinerary", start_time: "12:30:00", place: { id: "p-forno", title: "Forno a Vapore Amedeo Giusti", lat: 43.8435394, lng: 10.5031778, address: "Via Santa Lucia, 20, 55100 Lucca LU, Italy", sub_type: "restaurant" } },
+    // A station used on the Cinque Terre day, 70 km away: not for a Lucca drive.
+    { id: "vern", day_id: "d30", status: "in_itinerary", start_time: "09:15:00", details: { from: { title: "Levanto", lat: 44.17, lng: 9.61 }, mode: "train" }, place: { id: "p-vern", title: "Vernazza", lat: 44.134968, lng: 9.684806, address: "19018 Vernazza SP, Italy", sub_type: "transit", type: "logistics" } },
+  ];
+
+  it("the bakery 30 m from San Michele is still offered", () => {
+    const { yours } = routeCandidates({ cards: live, dayId: "d26", stay: null, exclude: null, near });
+    expect(yours.map((c) => c.title)).toEqual(["Lucca Wandering", "Forno a Vapore Amedeo Giusti"]);
+  });
+
+  it("a station used far from here (Vernazza) is not offered", () => {
+    const { yours } = routeCandidates({ cards: live, dayId: "d26", stay: null, exclude: null, near });
+    expect(yours.map((c) => c.title)).not.toContain("Vernazza");
+  });
+});
