@@ -1198,12 +1198,15 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
               </span>
             )}
           </button>
-          {/* On every trip (1 Oct 2026); the sheet explains a full or empty one. */}
+          {/* On every trip (1 Oct 2026); the sheet explains a full or empty one.
+              Desktop only (Brennan, 15 Nov 2026): planning happens on the computer;
+              the phone is for being on the trip. Same for Find places below. */}
           {!readOnly && !filterOpen && (
             <button
               // From above Find's half sheet too: Find closes, so the two sheets never stack.
               onClick={() => { setFindOpen(false); setFindTall(false); setPlanOpen(true); }}
-              className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium"
+              data-desktop-only="plan-my-trip"
+              className="relative hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium"
               style={{ backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", background: "rgba(255,255,255,0.9)", color: "#1A1A2E" }}
             >
               <span aria-hidden="true" className={CHIP_TARGET} />
@@ -1214,7 +1217,8 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
           {!readOnly && !filterOpen && !findOpen && (
             <button
               onClick={() => setFindOpen(true)}
-              className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium"
+              data-desktop-only="find-places"
+              className="relative hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium"
               style={{ backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", background: "rgba(255,255,255,0.9)", color: "#1A1A2E" }}
             >
               <span aria-hidden="true" className={CHIP_TARGET} />
@@ -1281,7 +1285,8 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
           >
             <p className="text-[14px] font-semibold text-gray-900">Nothing on the map yet</p>
             <p className="text-[13px] text-gray-500 leading-[1.55] mt-1">
-              Tap Find places below, or search above. Whatever you save lands here as a pin.
+              <span className="hidden md:inline">Tap Find places below, or search above.</span>
+              <span className="md:hidden">Search above.</span> Whatever you save lands here as a pin.
             </p>
           </div>
         )}
