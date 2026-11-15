@@ -116,7 +116,7 @@ describe("Add travel (14 Nov 2026)", () => {
     await waitFor(() => expect(ways.textContent).toContain("10 min"));
     expect(ways.textContent).toContain("Bus");
     expect(screen.getByTestId("add-travel-leave").textContent).toContain("9:05 AM");
-    expect(screen.getByTestId("add-travel-leave").textContent).toContain("arrive by 9:15 AM for Lucca Wandering");
+    expect(screen.getByTestId("add-travel-leave").textContent).toContain("Arrive by 9:15 AM for Lucca Wandering");
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: /^Add drive · 9:05 AM – 9:15 AM$/ })); });
     const card = db.inserts.find((i) => i.table === "cards")!.row;
     expect(card.start_time).toBe("09:05:00");
@@ -138,6 +138,17 @@ describe("Add travel (14 Nov 2026)", () => {
     await waitFor(() => expect(ways.textContent).toContain("Bus"));
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: /Bus/ })); });
     expect(screen.getByTestId("add-travel-leave").textContent).toContain("8:35 AM");
+  });
+
+  it("the leave time is itself the control (he couldn't find the 'change' link): tap it, the arrival follows", async () => {
+    await openAndGo(STATION);
+    await waitFor(() => expect(screen.getByTestId("add-travel-ways").textContent).toContain("10 min"));
+    expect(screen.queryByRole("button", { name: "Change when you leave" })).toBeNull();
+    fireEvent.change(screen.getByLabelText("Leave at"), { target: { value: "09:30" } });
+    expect(screen.getByTestId("add-travel-leave").textContent).toContain("arrive 9:40 AM");
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /^Add drive · 9:30 AM – 9:40 AM$/ })); });
+    const card = db.inserts.find((i) => i.table === "cards")!.row;
+    expect([card.start_time, card.end_time]).toEqual(["09:30:00", "09:40:00"]);
   });
 
   it("a saved restaurant as the end is never retyped: the trip gets its own travel end at the same spot", async () => {

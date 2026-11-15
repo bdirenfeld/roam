@@ -151,7 +151,7 @@ export default function AddTravelSheet({
   const mins = picked?.mins ?? null;
 
   const [leaveTyped, setLeaveTyped] = useState<string | null>(null);
-  const [timeOpen, setTimeOpen] = useState(false);
+  const setTypedClear = () => setLeaveTyped(null);
   const plan: LeavePlan | null = to
     ? (leaveTyped ? withLeave(leaveTyped, mins) : planLeave(stops, { lat: to.lat, lng: to.lng }, mins))
     : null;
@@ -245,8 +245,8 @@ export default function AddTravelSheet({
               stay={lastNight}
               biasLat={biasLat}
               biasLng={biasLng}
-              onPick={(w, p) => { if (w === "to") setTo(p); else setFromPick(p); setEditing(null); setLeaveTyped(null); }}
-              onSwap={from && to ? () => { const f = from; setFromPick(to); setTo(f); setEditing(null); setLeaveTyped(null); } : undefined}
+              onPick={(w, p) => { if (w === "to") setTo(p); else setFromPick(p); setEditing(null); setTypedClear(); }}
+              onSwap={from && to ? () => { const f = from; setFromPick(to); setTo(f); setEditing(null); setTypedClear(); } : undefined}
               onCancel={() => { if (!to) onBack(); else setEditing(null); }}
             />
           )}
@@ -319,31 +319,15 @@ export default function AddTravelSheet({
               </div>
 
               {plan && (
-                <div className="mt-4 py-3 flex items-baseline justify-between gap-3" style={{ borderTop: "1px solid rgba(26,26,46,0.08)", borderBottom: "1px solid rgba(26,26,46,0.08)" }} data-testid="add-travel-leave">
-                  <span className="text-[14px]" style={{ color: INK }}>
-                    Leave <b className="font-semibold">{formatTimeValue(plan.leave)}</b>
-                    {plan.why && (
-                      <span className="text-[12.5px]" style={{ color: CAP }}>
-                        {plan.why.kind === "arrive_by" ? ` · arrive by ${formatTimeValue(plan.why.at)} for ${plan.why.title}` : ` · after ${plan.why.title}`}
-                      </span>
-                    )}
-                  </span>
-                  {timeOpen ? (
-                    <input
-                      type="time"
-                      autoFocus
-                      defaultValue={plan.leave}
-                      onChange={(e) => { if (e.target.value) setLeaveTyped(e.target.value); }}
-                      onBlur={() => setTimeOpen(false)}
-                      className="text-[14px] rounded-md px-1.5 py-0.5"
-                      style={{ background: "#F3F4F6", color: INK }}
-                      aria-label="Leave at"
-                    />
-                  ) : (
-                    <button type="button" onClick={() => setTimeOpen(true)} className="relative text-[12px] underline underline-offset-2 flex-shrink-0" style={{ color: "rgba(26,26,46,0.5)" }} aria-label="Change when you leave">
-                      <span aria-hidden="true" className="absolute -inset-y-[14px] -inset-x-2" />
-                      change
-                    </button>
+                <div className="mt-4 py-3" style={{ borderTop: "1px solid rgba(26,26,46,0.08)", borderBottom: "1px solid rgba(26,26,46,0.08)" }} data-testid="add-travel-leave">
+                  <div className="flex items-center gap-2 text-[14px]" style={{ color: INK }}>
+                    <TimeChip label="Leave" value={plan.leave} onChange={setLeaveTyped} />
+                    {plan.arrive && <span style={{ color: CAP }}>arrive {formatTimeValue(plan.arrive)}</span>}
+                  </div>
+                  {plan.why && (
+                    <p className="mt-1 text-[12.5px]" style={{ color: CAP }}>
+                      {plan.why.kind === "arrive_by" ? `Arrive by ${formatTimeValue(plan.why.at)} for ${plan.why.title}` : `After ${plan.why.title}`}
+                    </p>
                   )}
                 </div>
               )}
@@ -367,3 +351,20 @@ export default function AddTravelSheet({
 
 /** A station, car park, port or stop by its name: it can be the shared transit place. */
 export const isTransitName = isParkOrStation;
+
+/** A time you tap to change: the face is the time, a real time input sits over it (opens the phone's picker). */
+function TimeChip({ label, value, onChange }: { label: string; value: string | null; onChange: (v: string) => void }) {
+  return (
+    <label className="relative inline-flex items-baseline gap-1.5 rounded-lg px-2.5 py-1.5" style={{ background: "#F3F4F6" }}>
+      <span className="text-[12px]" style={{ color: CAP }}>{label}</span>
+      <b className="font-semibold">{value ? formatTimeValue(value) : "Add"}</b>
+      <input
+        type="time"
+        value={value ?? ""}
+        onChange={(e) => { if (e.target.value) onChange(e.target.value); }}
+        aria-label={`${label} at`}
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+      />
+    </label>
+  );
+}
