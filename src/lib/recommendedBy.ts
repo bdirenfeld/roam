@@ -15,6 +15,11 @@ export function readRecommendedBy(details: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+/** True when someone is named as recommending it. The map filters' "Recommended" pill reads this. */
+export function isRecommended(details: unknown): boolean {
+  return readRecommendedBy(details) !== null;
+}
+
 /** The one phrasing: "via Gorav". */
 export function recommendedByLine(name: string): string {
   return `via ${name}`;

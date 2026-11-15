@@ -18,7 +18,8 @@ import WhereToStaySheet from "./WhereToStaySheet";
 import type { PlaceResult } from "./AddToTripSheet";
 import type { Trip, Day, Card, CardType, StayCandidate } from "@/types/database";
 import { makeMaterialPinElement, makePinElement } from "@/lib/mapPins";
-import { Funnel, Heart, Files } from "@phosphor-icons/react";
+import { Funnel, ThumbsUp, Files } from "@phosphor-icons/react";
+import { isRecommended } from "@/lib/recommendedBy";
 import { useBookingUpload } from "@/components/trip/useBookingUpload";
 import DocumentsSheet from "@/components/plan/DocumentsSheet";
 import AppMenu from "@/components/ui/AppMenu";
@@ -139,7 +140,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
   const activeStatusesRef  = useRef<Set<string>>(new Set(["interested", "in_itinerary"]));
   // "We loved this" as a filter — off by default, and composed with the type,
   // sub-type and status filters rather than replacing any of them.
-  const lovedOnlyRef       = useRef<boolean>(false);
+  const recommendedOnlyRef       = useRef<boolean>(false);
 
   const selectedCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
   const [anchorPos, setAnchorPos] = useState<{ x: number; y: number } | null>(null);
@@ -298,7 +299,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
   const [activeStatuses, setActiveStatusesState] = useState<Set<string>>(
     () => new Set(["interested", "in_itinerary"]),
   );
-  const [lovedOnly, setLovedOnlyState] = useState(false);
+  const [recommendedOnly, setRecommendedOnlyState] = useState(false);
   const [pendingPlace, setPendingPlace] = useState<PlaceResult | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   // Picking several pins (25 Sep 2026): long-press a pin (or "Pick more pins
@@ -384,8 +385,8 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
     const sub = place.sub_type;
     const subTypeOk = !sub || !CONTROLLED_SUB_TYPES.has(sub) || activeSubTypesRef.current.has(sub);
     const statusOk = activeStatusesRef.current.has(card.status ?? "");
-    const lovedOk  = !lovedOnlyRef.current || place.loved === true;
-    return activeTypesRef.current.has(place.type) && subTypeOk && statusOk && lovedOk;
+    const recOk  = !recommendedOnlyRef.current || isRecommended(card.details);
+    return activeTypesRef.current.has(place.type) && subTypeOk && statusOk && recOk;
   };
 
   // ── Sync all marker visibility against type + sub-type + status toggles ─
@@ -433,11 +434,11 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
   const filterNarrowed =
     (activeTypes.size < ALL_FILTER_TYPES.length ? ALL_FILTER_TYPES.length - activeTypes.size : 0) +
     (activeStatuses.size < ALL_FILTER_STATUSES.length ? ALL_FILTER_STATUSES.length - activeStatuses.size : 0) +
-    (lovedOnly ? 1 : 0);
+    (recommendedOnly ? 1 : 0);
 
-  function handleLovedOnlyChange(next: boolean) {
-    lovedOnlyRef.current = next;
-    setLovedOnlyState(next);
+  function handleRecommendedOnlyChange(next: boolean) {
+    recommendedOnlyRef.current = next;
+    setRecommendedOnlyState(next);
     syncVisibility();
   }
 
@@ -512,8 +513,8 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
       handleSubTypesChange(new Set(activeSubTypesRef.current).add(sub));
     }
 
-    if (lovedOnlyRef.current && place.loved !== true) {
-      handleLovedOnlyChange(false);
+    if (recommendedOnlyRef.current && !isRecommended(card.details)) {
+      handleRecommendedOnlyChange(false);
     }
   }
 
@@ -637,7 +638,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
     if (!map || !mb || !mapReady) return;
     legsDrawnRef.current = drawLegs(map, mb, legLines(localCards.filter((c) => !!c.day_id && c.status === "in_itinerary" && isRealPlace(c) && cardShown(c))));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapReady, localCards, activeTypes, activeSubTypes, activeStatuses, lovedOnly]);
+  }, [mapReady, localCards, activeTypes, activeSubTypes, activeStatuses, recommendedOnly]);
 
   function handleAddToTripClose() {
     if (tempPinRef.current) { tempPinRef.current.remove(); tempPinRef.current = null; }
@@ -1060,7 +1061,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
                 if (!group) return null;
                 const rows = group.rows.map((r) => ({
                   ...r,
-                  n: localCards.filter((c) => c.place && r.subTypes.includes(c.place.sub_type ?? "") && activeStatuses.has(c.status ?? "") && (!lovedOnly || c.place.loved === true)).length,
+                  n: localCards.filter((c) => c.place && r.subTypes.includes(c.place.sub_type ?? "") && activeStatuses.has(c.status ?? "") && (!recommendedOnly || isRecommended(c.details))).length,
                   on: r.subTypes.every((st) => activeSubTypes.has(st)),
                 })).filter((r) => r.n > 0);
                 if (rows.length === 0) return null;
@@ -1150,22 +1151,23 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
                   );
                 })}
 
-                {/* Loved — the same filter the desktop sidebar has. Roam is
-                    mobile-first; leaving it desktop-only made the one
-                    un-gameable signal in the app unreachable on a phone. */}
+                {/* Recommended — the same filter the desktop sidebar has: only places
+                    someone recommended (details.recommended_by). Replaced Loved,
+                    15 Nov 2026 (Brennan: "what are all the things people
+                    recommend to me?"). */}
                 <button
-                  onClick={() => handleLovedOnlyChange(!lovedOnly)}
-                  aria-pressed={lovedOnly}
+                  onClick={() => handleRecommendedOnlyChange(!recommendedOnly)}
+                  aria-pressed={recommendedOnly}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200"
                   style={{
                     backdropFilter: "blur(8px)",
                     WebkitBackdropFilter: "blur(8px)",
-                    background: lovedOnly ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.5)",
-                    color: lovedOnly ? "#B0541F" : "#9CA3AF",
+                    background: recommendedOnly ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.5)",
+                    color: recommendedOnly ? "#1A1A2E" : "#9CA3AF",
                   }}
                 >
-                  <Heart size={11} weight={lovedOnly ? "fill" : "light"} color={lovedOnly ? "#B0541F" : "#9CA3AF"} />
-                  Loved
+                  <ThumbsUp size={11} weight={recommendedOnly ? "fill" : "light"} color={recommendedOnly ? "#1A1A2E" : "#9CA3AF"} />
+                  Recommended
                 </button>
               </div>
               )}

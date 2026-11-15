@@ -46,7 +46,6 @@ const GRANDFATHERED = new Set([
   "places/photoCache.ts",
   "places/predictions.ts",
   "planWeeks.ts",
-  "recommendedBy.ts",
   "sampleTrip/actions.ts",
   "scheduleCard.ts",
   "share-actions.ts",

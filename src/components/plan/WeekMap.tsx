@@ -40,7 +40,8 @@ import AddToTripSheet, { type PlaceResult } from "@/components/map/AddToTripShee
 import { lookupPlace } from "@/components/map/lookupPlace";
 import { TEMP_PIN_SVG } from "@/components/map/lookupPlace";
 import { useToast } from "@/components/ui/Toast";
-import { Funnel, Heart } from "@phosphor-icons/react";
+import { Funnel, ThumbsUp } from "@phosphor-icons/react";
+import { isRecommended } from "@/lib/recommendedBy";
 import { GROUPS } from "@/components/map/MapSidebar";
 import WhereToStaySheet from "@/components/map/WhereToStaySheet";
 import { makePinElement } from "@/lib/mapPins";
@@ -162,7 +163,7 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
   const [filterOpen, setFilterOpen] = useState(false);
   const [types, setTypes] = useState<Set<CardType>>(() => new Set(ALL_TYPES));
   const [statuses, setStatuses] = useState<Set<string>>(() => new Set(ALL_STATUSES));
-  const [lovedOnly, setLovedOnly] = useState(false);
+  const [recommendedOnly, setRecommendedOnly] = useState(false);
   // The sub-type row (25 Sep 2026): once ONE category is chosen, its rows
   // (Restaurant, Coffee, …) appear as pills with counts; a row switched off
   // hides its sub-types. The row is the old sidebar, as pills.
@@ -179,7 +180,7 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
     const next = tapFilter(rowsOn ?? new Set(rowLabels), rowLabels, label);
     setRowsOn(next.size === rowLabels.length ? null : next);
   };
-  const narrowed = (ALL_TYPES.length - types.size) + (ALL_STATUSES.length - statuses.size) + (lovedOnly ? 1 : 0) + (onlyType && rowsOn ? rowLabels.length - rowsOn.size : 0);
+  const narrowed = (ALL_TYPES.length - types.size) + (ALL_STATUSES.length - statuses.size) + (recommendedOnly ? 1 : 0) + (onlyType && rowsOn ? rowLabels.length - rowsOn.size : 0);
 
   // Select (25 Sep 2026): on the wide map, a disc turns pointer drags into a
   // box and taps into toggles; the chosen pins get a ring, the rest fade, and
@@ -424,7 +425,7 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
     markers.current.forEach((m, id) => {
       const c = m.cardRef.current;
       const dim = activeDayId !== null && c.day_id !== activeDayId;
-      const shown = types.has(c.place!.type) && statuses.has(c.day_id ? "in_itinerary" : "interested") && (!lovedOnly || c.place!.loved === true) && !(c.place!.sub_type && offSubs.has(c.place!.sub_type));
+      const shown = types.has(c.place!.type) && statuses.has(c.day_id ? "in_itinerary" : "interested") && (!recommendedOnly || isRecommended(c.details)) && !(c.place!.sub_type && offSubs.has(c.place!.sub_type));
       m.wrapper.style.display = shown ? "" : "none";
       const isSel = picked.has(id);
       const fade = picked.size > 0 && !isSel;
@@ -434,7 +435,7 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
       m.wrapper.style.zIndex = id === hoveredId || isSel ? "5" : "";
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hoveredId, activeDayId, cards, types, statuses, lovedOnly, picked, rowsOn]);
+  }, [hoveredId, activeDayId, cards, types, statuses, recommendedOnly, picked, rowsOn]);
 
   // Click a day header and the map goes to that day (25 Sep 2026): fit the map
   // to the day's pins, one pin gets a zoom, and clicking the day again fits
@@ -578,7 +579,7 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
             {subRows.length > 0 && (
               <div className="flex items-center gap-1.5 flex-wrap max-w-[420px]">
                 {subRows.map((r) => {
-                  const n = cards.filter((c) => c.place && r.subTypes.includes(c.place.sub_type ?? "") && statuses.has(c.day_id ? "in_itinerary" : "interested") && (!lovedOnly || c.place.loved === true)).length;
+                  const n = cards.filter((c) => c.place && r.subTypes.includes(c.place.sub_type ?? "") && statuses.has(c.day_id ? "in_itinerary" : "interested") && (!recommendedOnly || isRecommended(c.details))).length;
                   if (n === 0) return null;
                   const active = rowActive(r.label);
                   const chosen = active && rowsOn !== null;
@@ -608,9 +609,9 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
                   <button key={k} onClick={() => setStatuses(tapFilter(statuses, ALL_STATUSES, k))} className={PILL} style={{ ...pillStyle(active, chosen), textDecoration: active ? "none" : "line-through" }}>{label}</button>
                 );
               })}
-              <button onClick={() => setLovedOnly((v) => !v)} aria-pressed={lovedOnly} className={`flex items-center gap-1.5 ${PILL}`} style={{ backdropFilter: "blur(8px)", background: lovedOnly ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.5)", color: lovedOnly ? "#B0541F" : "#9CA3AF" }}>
-                <Heart size={11} weight={lovedOnly ? "fill" : "light"} color={lovedOnly ? "#B0541F" : "#9CA3AF"} />
-                Loved
+              <button onClick={() => setRecommendedOnly((v) => !v)} aria-pressed={recommendedOnly} className={`flex items-center gap-1.5 ${PILL}`} style={{ backdropFilter: "blur(8px)", background: recommendedOnly ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.5)", color: recommendedOnly ? "#1A1A2E" : "#9CA3AF" }}>
+                <ThumbsUp size={11} weight={recommendedOnly ? "fill" : "light"} color={recommendedOnly ? "#1A1A2E" : "#9CA3AF"} />
+                Recommended
               </button>
             </div>
           </div>

@@ -1,15 +1,15 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Heart } from "@phosphor-icons/react";
+import { ThumbsUp } from "@phosphor-icons/react";
 import type { Card, CardType } from "@/types/database";
 import { getMaterialIconHTML, PIN_COLORS } from "@/lib/mapPins";
 import { iconSubType } from "@/lib/travel/leg";
 import { createClient } from "@/lib/supabase/client";
 import { queuedDelete } from "@/lib/offline/queuedWrite";
-import LovedHeart, { LOVED_ACCENT } from "@/components/ui/LovedHeart";
+import LovedHeart from "@/components/ui/LovedHeart";
 import { tapFilter } from "@/lib/map/tapFilter";
-import { readRecommendedBy, recommendedByLine } from "@/lib/recommendedBy";
+import { readRecommendedBy, recommendedByLine, isRecommended } from "@/lib/recommendedBy";
 
 /** The two states a pin can be in. Saved is every pin, so it is not a filter. */
 const ALL_STATUSES = ["interested", "in_itinerary"];
@@ -90,8 +90,8 @@ interface Props {
   /** Narrows every list and every pin to places marked "we loved this".
    *  Composes with the status pills and the type toggles — it is one more
    *  filter, never a mode. */
-  lovedOnly: boolean;
-  setLovedOnly: (next: boolean) => void;
+  recommendedOnly: boolean;
+  setRecommendedOnly: (next: boolean) => void;
   onCardSelect: (card: Card) => void;
   onCardDelete?: (cardId: string) => void;
 }
@@ -128,8 +128,8 @@ export default function MapSidebar({
   setActiveTypes,
   activeStatuses,
   setActiveStatuses,
-  lovedOnly,
-  setLovedOnly,
+  recommendedOnly,
+  setRecommendedOnly,
   onCardSelect,
   onCardDelete,
 }: Props) {
@@ -184,9 +184,9 @@ export default function MapSidebar({
   function cardsForRow(row: SubTypeRow): Card[] {
     return cards.filter(
       (c) => c.place?.sub_type != null && row.subTypes.includes(c.place.sub_type) && c.place.lat != null && c.place.lng != null
-        // The Loved chip narrows the lists and the counts, not just the pins —
+        // The Recommended chip narrows the lists and the counts, not just the pins —
         // a row reading "6" over three visible places would be a lie.
-        && (!lovedOnly || c.place.loved === true),
+        && (!recommendedOnly || isRecommended(c.details)),
     );
   }
 
@@ -201,7 +201,7 @@ export default function MapSidebar({
 
         {/* ── Status filter pills ── */}
         <p className="text-[9.5px] tracking-[0.18em] uppercase font-semibold mb-2.5" style={{ color: "rgba(26,26,46,0.62)" }}>Status</p>
-        {/* Two pills now, Scheduled and Loved: both narrow, neither is the
+        {/* Two pills now, Scheduled and Recommended: both narrow, neither is the
             whole map wearing a label. */}
         <div className="flex flex-wrap items-center gap-2 mb-1">
           {(
@@ -240,22 +240,22 @@ export default function MapSidebar({
             );
           })}
 
-          {/* Loved — the same shape as the status pills because it behaves the
+          {/* Recommended (was Loved until 15 Nov 2026) — the same shape as the status pills because it behaves the
               same way: one more narrowing, composed with everything else. It
               sits here rather than on each row; a control per place turns a
               list you read into a panel you fight. */}
           <button
-            onClick={() => setLovedOnly(!lovedOnly)}
-            aria-pressed={lovedOnly}
+            onClick={() => setRecommendedOnly(!recommendedOnly)}
+            aria-pressed={recommendedOnly}
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium transition-all border"
             style={
-              lovedOnly
-                ? { background: "rgba(196,98,45,0.08)", color: LOVED_ACCENT, borderColor: LOVED_ACCENT }
+              recommendedOnly
+                ? { background: "rgba(26,26,46,0.06)", color: "#1A1A2E", borderColor: "#1A1A2E" }
                 : { background: "transparent", color: "#9CA3AF", borderColor: "#D1D5DB" }
             }
           >
-            <Heart size={9} weight="fill" color={lovedOnly ? LOVED_ACCENT : "#D1D5DB"} />
-            Loved
+            <ThumbsUp size={10} weight="fill" color={recommendedOnly ? "#1A1A2E" : "#D1D5DB"} />
+            Recommended
           </button>
         </div>
 
