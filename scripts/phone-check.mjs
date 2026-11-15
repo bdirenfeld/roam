@@ -72,7 +72,7 @@ const NEEDS_MAPBOX = SCREENS.some((x) => x.startsWith("map"));
 // What each screen is for. `has` must be in the page text (folded <details>
 // count), `not` must not; `sel`/`noSel` are selectors that must / must not match.
 const EXPECT = {
-  day: { has: ["Lusaka → Mfuwe", "Overland truck · 13h", "Give these times", "Day 1 in Florence · have a great trip"] },
+  day: { has: ["Leave for Mfuwe", "Overland truck to Mfuwe", "Give these times", "Day 1 in Florence · have a great trip"] },
   "day-welcome": { has: ["Welcome home"] },
   "card-cost": { has: ["€29", "× 2 = €58"] },
   "card-closed": { has: ["Closed on Monday"] },

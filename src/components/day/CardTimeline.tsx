@@ -3,7 +3,7 @@ import AddPlaceRow from "@/components/ui/AddPlaceRow";
 import CardSurface from "@/components/cards/CardSurface";
 import type { DayWithCards, Card } from "@/types/database";
 import { dayFlow } from "@/lib/day/dayFlow";
-import { isTravelLeg, legDestTitle, iconSubType } from "@/lib/travel/leg";
+import { isTravelLeg, legDestTitle, iconSubType, legModeWord } from "@/lib/travel/leg";
 import { stripDuration, stripDest } from "@/lib/week/travelStrip";
 import { getMaterialIconHTML } from "@/lib/mapPins";
 import { formatTimeValue } from "@/lib/formatTime";
@@ -57,23 +57,32 @@ function TravelLine({ cards, startMin, endMin, dest, leave, onOpen }: {
   const [sheet, setSheet] = useState(false);
   const icons = Array.from(new Set(cards.map((c) => iconSubType(c))));
   const len = endMin !== null && endMin > startMin ? stripDuration(endMin - startMin) : null;
+  // "Drive to Lucca station · Train to Florence": each leg, in order.
+  const legsLine = cards.map((c) => { const w = legModeWord(c.details); const d = legDestTitle(c) ? stripDest(legDestTitle(c)!) : ""; return [w, d && `to ${d}`].filter(Boolean).join(" "); }).filter(Boolean).join(" · ");
   const tap = onOpen ? () => (cards.length > 1 ? setSheet(true) : onOpen(cards[0])) : undefined;
   const Wrapper = (tap ? "button" : "div") as "button";
   return (
     <div data-travel-line="1" data-card-id={cards[0]?.id}>
+      {/* The same row as a stop (15 Nov 2026, the Outlook row): the time with how
+          long it takes under it, one grey icon, "Leave for Florence", and the legs
+          in one grey line. */}
       <Wrapper
         type={tap ? "button" : undefined}
         onClick={tap}
-        className="w-full text-left flex items-center gap-3 md:gap-5 py-3 min-h-[48px] active:opacity-70"
+        className="w-full text-left flex items-start gap-3 md:gap-5 py-3 md:py-4 min-h-[62px] active:opacity-70"
         style={{ borderBottom: "1px solid rgba(26,26,46,0.10)" }}
       >
-        <span className="w-[62px] md:w-[74px] shrink-0 text-[10px] md:text-[10.5px] uppercase whitespace-nowrap pl-1.5" style={{ letterSpacing: "0.05em", color: "#1A1A2E", fontWeight: 600 }}>
-          {formatTimeValue(hhmm(startMin))}
+        <span className="w-[70px] md:w-[80px] shrink-0 flex flex-col items-start">
+          <span className="text-[13.5px] leading-[20px] uppercase whitespace-nowrap" style={{ color: "#1A1A2E", fontWeight: 600 }}>
+            {formatTimeValue(hhmm(startMin))}
+          </span>
+          {len && <span className="text-[11.5px] mt-[2px]" style={{ color: "rgba(26,26,46,0.55)" }}>{len}</span>}
         </span>
-        <span className="flex-1 min-w-0 flex items-center gap-1.5 pl-3" style={{ borderLeft: "2px dashed rgba(26,26,46,0.28)", color: "rgba(26,26,46,0.62)" }}>
-          <span className="inline-flex gap-0.5 shrink-0" aria-hidden="true" dangerouslySetInnerHTML={{ __html: icons.map((s) => getMaterialIconHTML(s, 15)).join("") }} />
-          <span className="text-[14px] truncate min-w-0" style={{ color: "#1A1A2E" }}>{leave ? `Leave for ${dest}` : `→ ${dest}`}</span>
-          {len && <span className="text-[12.5px] whitespace-nowrap">· {len}</span>}
+        <span className="w-5 h-5 shrink-0 flex items-center justify-center" aria-hidden="true" style={{ color: "rgba(26,26,46,0.5)" }}
+          dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(icons[0], 20) }} />
+        <span className="flex-1 min-w-0">
+          <span className="block font-display text-[15.5px] md:text-[17px] leading-[20px] truncate" style={{ color: "#1A1A2E" }}>{leave ? `Leave for ${dest}` : `Back to ${dest}`}</span>
+          {legsLine && <span className="block mt-[2px] text-[12.5px] md:text-[13px] leading-[1.45] truncate" style={{ color: "rgba(26,26,46,0.62)" }}>{legsLine}</span>}
         </span>
       </Wrapper>
       {sheet && onOpen && (
@@ -173,10 +182,9 @@ export default function CardTimeline({
   const untimedPlaces = untimedCards.filter((c) => c.place_id || c.place).length;
   const showGiveTimes = !!onGiveTimes && !readOnly && untimedPlaces >= 2;
 
-  const surface = (card: Card, inSection = false) => (
+  const surface = (card: Card) => (
     <CardSurface
       card={card}
-      dropTown={inSection}
       dayDate={dayWithCards.date}
       onTap={onCardTap ? () => onCardTap(card) : undefined}
       isHighlighted={highlightedCardId === card.id}
@@ -234,26 +242,21 @@ export default function CardTimeline({
         </div>
       ) : (
         <div>
-          {dayFlow(timedCards, isTravelLeg, legDestTitle, stays).map((item, i, items) => {
+          {dayFlow(timedCards, isTravelLeg, legDestTitle, stays).map((item) => {
             if (item.kind === "travel") {
               return <TravelLine key={item.ids[0]} cards={item.cards} startMin={item.startMin} endMin={item.endMin} dest={item.dest} leave={item.leave} onOpen={onCardTap} />;
             }
-            if (item.kind === "heading") {
-              return (
-                <p key={`h${i}`} data-day-heading="1" className="pt-3 pb-0.5 text-[11px] uppercase" style={{ letterSpacing: "0.12em", color: "rgba(26,26,46,0.5)" }}>
-                  {item.text}
-                </p>
-              );
-            }
+            // No "In Florence" heading (15 Nov 2026, the Outlook row): one shape,
+            // every row, so the address keeps its town.
+            if (item.kind === "heading") return null;
             const card = item.card;
             const index = timedCards.indexOf(card);
             const nextCard = timedCards[index + 1];
             const gap = nextCard ? minutesBetween(card.end_time, nextCard.start_time) : 0;
-            const inSection = items.slice(0, i).some((x) => x.kind === "heading");
 
             return (
               <div key={card.id} data-card-id={card.id}>
-                {surface(card, inSection)}
+                {surface(card)}
                 {gap >= 30 && !readOnly && (
                   <GapRow
                     minutes={gap}

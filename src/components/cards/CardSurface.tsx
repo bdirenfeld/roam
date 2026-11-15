@@ -1,5 +1,4 @@
 import type { Card } from "@/types/database";
-import { thumbSrc } from "@/lib/places/photoWarm";
 import { noteLead } from "@/lib/noteLead";
 import { getMaterialIconHTML, getGlyphHTML } from "@/lib/mapPins";
 import { readNoteKind } from "@/lib/cards/noteKinds";
@@ -14,6 +13,7 @@ import { streetAndTown } from "@/lib/week/cardText";
 import { UNTITLED_NOTE, cardTitle } from "@/lib/cardTitle";
 import { isTravelLeg, legTitle, legSubtitle, readMode, LEG_MODE_GLYPH } from "@/lib/travel/leg";
 import { dropTown } from "@/lib/day/dayFlow";
+import { stripDuration } from "@/lib/week/travelStrip";
 
 interface Props {
   card: Card;
@@ -54,6 +54,8 @@ function flightRoute(det: Record<string, unknown> | null, timeRange: string | nu
 const shortAddress = streetAndTown;
 
 /** "6:00 pm" for the rail. The range still shows in the line beneath. */
+const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+
 function railTime(start: string | null): string | null {
   if (!start) return null;
   const [h, m] = start.split(":").map(Number);
@@ -65,7 +67,7 @@ function railTime(start: string | null): string | null {
 
 /** The leg's mode glyph, drawn the way getMaterialIconHTML draws a sub_type's (7 Oct 2026). */
 function legGlyph(mode: keyof typeof LEG_MODE_GLYPH): string {
-  return `<span class="material-symbols-outlined" style="font-size:14px;line-height:1;display:block;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20;">${LEG_MODE_GLYPH[mode]}</span>`;
+  return `<span class="material-symbols-outlined" style="font-size:20px;line-height:1;display:block;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20;">${LEG_MODE_GLYPH[mode]}</span>`;
 }
 
 /** The first real sentence of a note: lib/noteLead (shared with the week and the map pin, 6 Oct 2026). */
@@ -123,7 +125,7 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTim
   const legMode    = isLeg ? readMode(det) : null;
   // A typed note with no place yet shows its kind's glyph (10 Nov 2026).
   const noteKind   = place ? null : readNoteKind(det);
-  const detailIcon = legMode ? legGlyph(legMode) : place ? getMaterialIconHTML(place.sub_type ?? null, 14) : noteKind ? getGlyphHTML(noteKind.glyph, 14) : null;
+  const rowIcon = legMode ? legGlyph(legMode) : place ? getMaterialIconHTML(place.sub_type ?? null, 20) : getGlyphHTML(noteKind?.glyph ?? "edit_note", 20);
 
   const surfRating = place?.type === "food" ? place.rating : null;
   const isLoved    = place?.loved === true;
@@ -136,7 +138,9 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTim
   const rail = railTime(shown.start);
   // A leg's chip shows the range, start over end: a 13-hour day on the truck
   // looks like one (7 Oct 2026, mock d13).
-  const railEnd = isLeg ? railTime(shown.end) : null;
+  // Under the time, how long it lasts (15 Nov 2026, the Outlook row): "1 h 15", "30 min".
+  const mins = shown.start && shown.end ? toMin(shown.end) - toMin(shown.start) : 0;
+  const length = mins > 0 ? stripDuration(mins) : null;
 
   const interactive = !!onTap;
   const Wrapper = (interactive ? "button" : "div") as "button";
@@ -144,89 +148,71 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTim
   return (
     <Wrapper
       onClick={onTap}
-      className={`w-full text-left flex gap-3 md:gap-5 py-3.5 md:py-[18px] transition-colors select-none ${
+      className={`w-full text-left flex items-start gap-3 md:gap-5 py-3 md:py-4 min-h-[62px] transition-colors select-none ${
         isHighlighted ? "card-highlight" : ""
       }`}
       style={{ borderBottom: "1px solid rgba(26,26,46,0.10)" }}
     >
-      {/* The rail is the time, in its pill, and nothing else (Row E, 24 Sep
-          2026). Untimed entries keep the column so every title starts on the
-          same line — an empty rail reads as "anytime", not as a gap. */}
-      <div className="w-[62px] md:w-[74px] shrink-0 pt-[3px] flex flex-col items-start gap-[3px]">
+      {/* One row, every row (Brennan, 15 Nov 2026: the list under the map had "too
+          many types of shapes"; he wanted Outlook's structure). The time, bold, with
+          how long it lasts under it; one grey icon; the name and one grey line. No
+          photo tile, no ring around the pin number, no pill around the time. The
+          time still opens the quick time sheet. */}
+      <div className="w-[70px] md:w-[80px] shrink-0 flex flex-col items-start">
         {onTimeTap ? (
-          // The time as a chip: white is what you touch. Tapping it opens the
-          // quick time sheet; the whole card is a button, so this is a span
-          // with a role, not a nested button. An untimed card says so.
           <span
             role="button"
             tabIndex={0}
             onClick={(e) => { e.stopPropagation(); onTimeTap(); }}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onTimeTap(); } }}
             aria-label={rail ? `Change the time, now ${rail}` : "Set a time"}
-            className={`relative inline-flex ${railEnd ? "flex-col items-start rounded-[9px]" : "items-center rounded-full"} bg-white px-1.5 py-[3px] text-[10px] md:text-[10.5px] uppercase whitespace-nowrap cursor-pointer`}
-            style={{ letterSpacing: "0.05em", color: rail ? "rgba(26,26,46,0.62)" : "rgba(26,26,46,0.4)", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.14)" }}
+            className={`relative text-[13.5px] leading-[20px] whitespace-nowrap cursor-pointer ${rail ? "uppercase" : ""}`}
+            style={{ color: rail ? "#1A1A2E" : "rgba(26,26,46,0.4)", fontWeight: rail ? 600 : 400 }}
           >
             {/* A finger-sized target (44px) around a small label: a near-miss on
                 Android opened the card instead (6 Oct 2026, taps audit). */}
             <span aria-hidden="true" data-testid="time-chip-target" className="absolute -inset-x-1.5 -inset-y-[13px]" />
-            {rail ?? "No time"}
-            {rail && railEnd && <span data-testid="time-chip-end">{railEnd}</span>}
+            {rail ?? "Set time"}
           </span>
         ) : rail && (
-          <span
-            className="text-[10px] md:text-[10.5px] uppercase flex flex-col"
-            style={{ letterSpacing: "0.1em", color: "rgba(26,26,46,0.35)" }}
-          >
+          <span className="text-[13.5px] leading-[20px] uppercase whitespace-nowrap" style={{ color: "#1A1A2E", fontWeight: 600 }}>
             {rail}
-            {railEnd && <span data-testid="time-chip-end">{railEnd}</span>}
           </span>
+        )}
+        {rail && length && (
+          <span data-testid="row-length" className="text-[11.5px] mt-[2px]" style={{ color: "rgba(26,26,46,0.55)" }}>{length}</span>
         )}
       </div>
 
-      <div className="flex-1 min-w-0">
-        {/* No RESTAURANT eyebrow. It was desktop-only and said the same word
-            the line below already says — "Restaurant" above the title and
-            "Restaurant · 235 Mulberry St" under it, twenty pixels apart. The
-            phone never had it, so dropping it also makes both screens name a
-            place kind in the same place (Brennan, Sep 2026).
+      <span
+        data-row-icon="1"
+        aria-hidden="true"
+        className="w-5 h-5 shrink-0 flex items-center justify-center"
+        style={{ color: "rgba(26,26,46,0.5)" }}
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: rowIcon }}
+      />
 
-            A flight is the one card that loses something: its meta line is the
-            route, "YYZ → LGA", so ARRIVAL was not a duplicate there. The plane
-            in the rail carries it now, and the route says more than the label
-            did. */}
+      <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 min-w-0">
-          {/* The map pin's number, quiet (Brennan, 12 Nov 2026: numbered pins with an unnumbered list were confusing). */}
-          {pinIndex != null && (<span data-pin-number="1" className="shrink-0 inline-flex items-center justify-center w-[17px] h-[17px] rounded-full text-[10px] font-semibold" style={{ boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.35)", color: "rgba(26,26,46,0.75)" }}>{pinIndex}</span>)}
           <p
-            className="min-w-0 font-display text-[15.5px] md:text-[18px] leading-[1.3] truncate"
+            className="min-w-0 font-display text-[15.5px] md:text-[17px] leading-[20px] truncate"
             style={{ color: "#1A1A2E" }}
           >
             {title}
           </p>
           {isLoved && <LovedHeart size={11} />}
-          {/* The booked tick used to live here, unlabelled, beside the loved
-              heart. It says "Booked" in the badge row below now, where there is
-              room for the word and where the Plan board says it too. */}
         </div>
 
-        {/* Two lines, no exceptions (Brennan, 24 Sep 2026): the title above, and
-            ONE meta line here that truncates. Everything the face used to say
-            on its own line folds in, in priority order: an hours warning
-            replaces the address; rating and price follow; then the badges
-            (Booked, checklist, attachments). Recommended-by leaves the face and
-            stays in the card sheet. Notes: their lead line, cut at the edge.
-            Every row is the same height, which is the point. */}
+        {/* Two lines, no exceptions (24 Sep 2026): ONE grey line that truncates.
+            The map pin's number leads it, plain (12 Nov 2026: numbered pins with
+            an unnumbered list were confusing; 15 Nov: no ring). An hours warning
+            replaces the address; rating and price follow; then the badges. */}
         <div
-          className="mt-[3px] flex items-center gap-[6px] min-w-0 text-[12.5px] md:text-[13px] leading-[1.45]"
+          className="mt-[2px] flex items-center gap-[6px] min-w-0 text-[12.5px] md:text-[13px] leading-[1.45]"
           style={{ color: "rgba(26,26,46,0.62)" }}
         >
-          {detailIcon && !hoursSignal && (
-            <span
-              className="shrink-0 opacity-50"
-              // eslint-disable-next-line react/no-danger
-              dangerouslySetInnerHTML={{ __html: detailIcon }}
-            />
-          )}
+          {pinIndex != null && <span data-pin-number="1" className="shrink-0">{pinIndex} ·</span>}
           {hoursSignal ? (
             <span className={`min-w-0 truncate ${openingHoursTone(hoursSignal)}`}>{openingHoursCaption(hoursSignal)}</span>
           ) : detail ? (
@@ -239,31 +225,6 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTim
           )}
           <CardBadges card={card} className="shrink-0" />
         </div>
-      </div>
-
-      {/* Every row carries a tile so the column never drops out (Brennan, 24
-          Sep 2026: "notes should have a default picture even if there isn't
-          one selected"). A place shows its photo; a place with none, and a
-          note, show a quiet tile. The squint test: blur the screen and every
-          row is still time · title · picture. */}
-      <div
-        className="w-[52px] h-[52px] md:w-[76px] md:h-[76px] rounded-lg shrink-0 overflow-hidden flex items-center justify-center"
-        style={{ background: place?.id || noteKind ? "rgba(26,26,46,0.05)" : "#F3EFE4" }}
-      >
-        {place?.id ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={thumbSrc(place)}
-            alt=""
-            loading="lazy"
-            className="w-full h-full object-cover"
-            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-          />
-        ) : (
-          <span className="material-symbols-outlined" style={{ fontSize: 18, color: "rgba(26,26,46,0.4)", fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20" }}>
-            edit_note
-          </span>
-        )}
       </div>
     </Wrapper>
   );

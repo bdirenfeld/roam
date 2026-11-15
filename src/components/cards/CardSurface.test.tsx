@@ -28,24 +28,33 @@ const noteCard = {
 } as unknown as Card;
 
 describe("CardSurface — Row E", () => {
-  it("shows the pin's number in a quiet circle before the name, not in the rail (12 Nov 2026)", () => {
+  it("leads the grey line with the pin's number, plain, no ring (15 Nov 2026, the Outlook row)", () => {
     const { container } = render(<CardSurface card={placeCard} dayDate="2027-08-31" pinIndex={3} />);
-    expect(container.querySelector('[data-pin-number]')?.textContent).toBe("3");
+    const n = container.querySelector('[data-pin-number]') as HTMLElement;
+    expect(n.textContent).toBe("3 ·");
+    expect(n.className).not.toContain("rounded-full");
+    expect(n.parentElement?.textContent).toMatch(/Via Rosina/);
     expect(container.textContent).toMatch(/12:30/);
   });
 
-  it("leads the subtitle with the category glyph, not the category word", () => {
+  it("puts how long it lasts under the time (15 Nov 2026, the Outlook row)", () => {
+    const timed = { ...placeCard, end_time: "13:45:00" } as unknown as Card;
+    const { getByTestId } = render(<CardSurface card={timed} dayDate="2027-08-31" />);
+    expect(getByTestId("row-length").textContent).toBe("1 h 15");
+  });
+
+  it("shows the category as one grey icon in its own column, not the category word", () => {
     const { container } = render(<CardSurface card={placeCard} dayDate="2027-08-31" />);
     expect(container.textContent).not.toMatch(/Restaurant ·/);
     expect(container.textContent).toMatch(/Via Rosina/);
-    expect(container.querySelector(".material-symbols-outlined")?.textContent).toBe("restaurant");
+    const icon = container.querySelector("[data-row-icon]") as HTMLElement;
+    expect(icon.textContent).toBe("restaurant");
+    expect(icon.style.color).toBe("rgba(26, 26, 46, 0.5)");
   });
 
-  it("gives a note the default tile so the column never drops out", () => {
+  it("gives a note the note icon, so the icon column never drops out", () => {
     const { container } = render(<CardSurface card={noteCard} dayDate="2027-08-31" />);
-    const glyphs = Array.from(container.querySelectorAll(".material-symbols-outlined")).map((e) => e.textContent);
-    expect(glyphs).toContain("edit_note");
-    expect(container.querySelector("img")).toBeNull();
+    expect(container.querySelector("[data-row-icon]")?.textContent).toBe("edit_note");
   });
 
   it("is two lines, no exceptions: the rating sits on the meta line, not a third", () => {
@@ -59,10 +68,9 @@ describe("CardSurface — Row E", () => {
     expect(meta.nextElementSibling).toBeNull();
   });
 
-  it("gives a place its photo inside the same tile", () => {
+  it("shows no photo on the row; the photo lives in the card sheet (15 Nov 2026)", () => {
     const { container } = render(<CardSurface card={placeCard} dayDate="2027-08-31" />);
-    const img = container.querySelector("img");
-    expect(img?.getAttribute("src")).toContain("place_id=p1");
+    expect(container.querySelector("img")).toBeNull();
   });
 });
 
@@ -140,10 +148,10 @@ describe("CardSurface — a travel leg (7 Oct 2026)", () => {
     expect(container.textContent).not.toContain("Mfuwe, Zambia");
   });
 
-  it("the time chip shows the range, start and end", () => {
+  it("the time shows the start, and how long it takes under it", () => {
     const { getByRole, getByTestId } = render(<CardSurface card={legCard} dayDate="2027-02-22" onTimeTap={() => {}} />);
     expect(getByRole("button", { name: /Change the time/ }).textContent).toMatch(/6:00 am/);
-    expect(getByTestId("time-chip-end").textContent).toBe("7:00 pm");
+    expect(getByTestId("row-length").textContent).toBe("13 h");
   });
 
   it("the subtitle leads with the mode glyph (a car), not the transit sign", () => {
@@ -156,6 +164,8 @@ describe("CardSurface — a travel leg (7 Oct 2026)", () => {
     const stop = { ...legCard, details: { title: "Pick up rental car" } } as unknown as Card;
     const { container, queryByTestId } = render(<CardSurface card={stop} dayDate="2027-02-22" onTimeTap={() => {}} />);
     expect(container.textContent).toContain("Mfuwe, Zambia");
-    expect(queryByTestId("time-chip-end")).toBeNull();
+    // One time, never a range: the end shows only as the length under it (15 Nov 2026).
+    expect(container.textContent).not.toMatch(/7:00 pm/i);
+    expect(queryByTestId("row-length")?.textContent).toBe("13 h");
   });
 });
