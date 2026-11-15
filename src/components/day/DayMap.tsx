@@ -477,7 +477,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
               el.appendChild(ic);
               stationCoords.push([lng, lat]);
               // On top of a pin it sits ON the pin, small, like the approved mock (12 Nov 2026).
-              new mb.Marker({ element: el }).setLngLat([lng, lat]).addTo(map);
+              new mb.Marker({ element: el }).setLngLat([lng, lat]).addTo(map);
             }
           }
         }
@@ -544,7 +544,10 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
           // only a BASIS — without this it shrinks as the list below it grows, so
           // scrolling to the bottom of a day squeezed the map instead of scrolling
           // the list (Brennan, Sep 2026: "it pushes the map up").
-          : "relative h-48 min-h-[12rem] flex-shrink-0 overflow-hidden border-b border-gray-100 md:h-[620px] md:rounded-2xl md:border md:border-[rgba(26,26,46,0.12)]"
+          // Phone: a rounded card on the list's 16px margins, not a full-width band
+          // between two rules (Brennan, 15 Nov 2026: the strip, map and list
+          // "don't seem to flow into each other").
+          : "relative h-48 min-h-[12rem] flex-shrink-0 overflow-hidden mx-4 mt-1 rounded-2xl md:mx-0 md:mt-0 md:h-[620px] md:border md:border-[rgba(26,26,46,0.12)]"
       }
     >
       <div ref={mapRef} className="absolute inset-0" />

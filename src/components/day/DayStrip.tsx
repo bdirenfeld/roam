@@ -61,10 +61,8 @@ export default function DayStrip({ days, activeDayId, onDaySelect, onDayLongPres
   return (
     // Pins directly beneath the 58px day header, so the day you are on and the
     // way to the next one both stay put while the entries scroll.
-    <div
-      className="sticky top-[58px] z-20 bg-white md:hidden"
-      style={{ borderBottom: "1px solid rgba(26,26,46,0.10)" }}
-    >
+    // No rule under it (15 Nov 2026): the strip, the map card and the list are one column.
+    <div className="sticky top-[58px] z-20 bg-white md:hidden">
       <div className="relative">
         <div className="flex gap-2 px-3 pt-1.5 pb-3 overflow-x-auto scrollbar-none">
           {days.map((day) => {
