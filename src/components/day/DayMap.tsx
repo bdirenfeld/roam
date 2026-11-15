@@ -547,9 +547,7 @@ export default function DayMap({ cards, accommodationCard, centerLat, centerLng,
           // Phone: a rounded card on the list's 16px margins, not a full-width band
           // between two rules (Brennan, 15 Nov 2026: the strip, map and list
           // "don't seem to flow into each other").
-          // 174px, not 192: the full-width map scaled to the inset width keeps its
-          // proportions (his mock, 15 Nov 2026: the taller card read narrower).
-          : "relative h-[174px] flex-shrink-0 overflow-hidden mx-4 mt-1 rounded-2xl md:mx-0 md:mt-0 md:h-[620px] md:border md:border-[rgba(26,26,46,0.12)]"
+          : "relative h-48 min-h-[12rem] flex-shrink-0 overflow-hidden mx-4 mt-1 rounded-2xl md:mx-0 md:mt-0 md:h-[620px] md:border md:border-[rgba(26,26,46,0.12)]"
       }
     >
       <div ref={mapRef} className="absolute inset-0" />
