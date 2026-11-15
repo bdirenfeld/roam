@@ -44,6 +44,7 @@ import { drawLegs, legStarts } from "@/lib/map/legLayer";
 import { tapFilter } from "@/lib/map/tapFilter";
 import { pulseAt, showAt } from "@/lib/map/pulse";
 import { boxCentre, stayGlide } from "@/lib/map/glide";
+import { framePins } from "@/lib/map/framePins";
 import dynamic from "next/dynamic";
 import { reloadOnStale } from "@/lib/chunkReload";
 import { useWarmFind } from "@/hooks/useWarmFind";
@@ -882,8 +883,10 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
 
         // Fit to all pins, and to where each drawn travel leg starts, so its
         // line is seen whole (7 Oct 2026; the day map does the same).
+        // Less a flight pin far from every stop: the home airport (lib/map/framePins, 15 Nov 2026).
+        const framed = framePins(mappable.map((m) => ({ ...m, isFlight: m.card.place?.sub_type === "flight_arrival" || m.card.place?.sub_type === "flight_departure" })));
         const coords: [number, number][] = [
-          ...mappable.map(({ lng, lat }) => [lng, lat] as [number, number]),
+          ...framed.map(({ lng, lat }) => [lng, lat] as [number, number]),
           ...legStarts(legLines(cards.filter((c) => !!c.day_id && c.status === "in_itinerary" && isRealPlace(c)))),
         ];
         if (coords.length > 1) {
