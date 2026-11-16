@@ -58,6 +58,7 @@ import { readEstimate, endAfter, planMinutes, type LegEstimate } from "@/lib/tra
 import NoteTypePicker, { NoteWhereRow } from "./NoteTypePicker";
 import { convertedDetails, readNoteKind, withNoteKind, type NoteKind } from "@/lib/cards/noteKinds";
 import { getMaterialIconHTML, getGlyphHTML } from "@/lib/mapPins";
+import { BookedTag } from "./CardBadges";
 import { legCapable as cardLegCapable, isTravelLeg, legTitle, legDestTitle, legDurationMins, legModeWord, readFrom, readMode, withFrom, withTo, type LegFrom, type LegMode } from "@/lib/travel/leg";
 
 /** Read Google's `weekday_text` (seven "Monday: 9:00 AM – 5:00 PM" lines) off
@@ -1748,6 +1749,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 )}
               </button>
             )}
+
+            {/* Booked, as the day row says it (16 Nov 2026). */}
+            {localCard.confirmed === true && <span className="ml-1.5"><BookedTag size="sheet" /></span>}
 
             {/* No duration beside the times (6 Oct 2026, designer audit): the
                 range already says it. */}

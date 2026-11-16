@@ -55,6 +55,26 @@ function ClipGlyph({ color }: { color: string }) {
  * has neither a checklist nor attachments, so no card face pays for it in
  * whitespace.
  */
+/**
+ * The Booked tag: the day row's, and the opened card's beside its time
+ * (16 Nov 2026: the row said Booked and the opened card didn't).
+ * Status, not a control (6 Oct 2026, taps audit): one tap here un-booked the
+ * card with no toast and no Undo. A tap falls through; the Booked switch is
+ * in the card's ⋯ menu.
+ */
+export function BookedTag({ size = "row" }: { size?: "row" | "sheet" }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-[5px] font-medium leading-none ${size === "sheet" ? "px-[7px] py-[5px] text-[12px]" : "px-[5px] py-[1px] text-[10.5px]"}`}
+      style={{ color: DONE_FG, background: DONE_BG }}
+      aria-label="Booked"
+    >
+      <TickGlyph color={DONE_FG} />
+      Booked
+    </span>
+  );
+}
+
 export default function CardBadges({ card, className = "", showBooked = true }: { card: Card; className?: string;
   /** Off where a surface deliberately carries no booked state at all. */
   showBooked?: boolean }) {
@@ -92,19 +112,7 @@ export default function CardBadges({ card, className = "", showBooked = true }: 
           {progress.done}/{progress.total}
         </span>
       )}
-      {booked && (
-        <span
-          // Status, not a control (6 Oct 2026, taps audit): one tap here
-          // un-booked the card with no toast and no Undo. A tap now falls
-          // through to the card; the Booked switch is in the card's ⋯ menu.
-          className="inline-flex items-center gap-1 rounded-[5px] px-[5px] py-[1px] text-[10.5px] font-medium leading-none"
-          style={{ color: DONE_FG, background: DONE_BG }}
-          aria-label="Booked"
-        >
-          <TickGlyph color={DONE_FG} />
-          Booked
-        </span>
-      )}
+      {booked && <BookedTag />}
       {toBook && (
         <span
           className="inline-flex items-center rounded-[5px] px-[5px] py-[1px] text-[10.5px] font-medium leading-none"

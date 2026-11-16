@@ -91,6 +91,18 @@ describe("CardBottomSheet — the designer-audit surface (6 Oct 2026)", () => {
     expect(screen.getByTestId("type-pill-icon").textContent).toBe("restaurant");
   });
 
+  it("a booked card says Booked beside its time, as the day row does; an unbooked one doesn't (16 Nov 2026)", async () => {
+    const { unmount } = render(<CardBottomSheet card={buca({ confirmed: true } as Partial<Card>)} onClose={() => {}} days={days} />);
+    await act(async () => {});
+    const tag = screen.getByLabelText("Booked");
+    expect(tag.textContent).toBe("Booked");
+    expect(tag.closest("button")).toBeNull();
+    unmount();
+    render(<CardBottomSheet card={buca()} onClose={() => {}} days={days} />);
+    await act(async () => {});
+    expect(screen.queryByLabelText("Booked")).toBeNull();
+  });
+
   it("drops the note's 'Open … that day' point when the Hours row is there, and keeps it when not", async () => {
     const { unmount } = render(<CardBottomSheet card={buca()} onClose={() => {}} days={days} />);
     await act(async () => {});
