@@ -16,6 +16,7 @@ import { dayChip, spansMonths } from "@/lib/dayChip";
 import { scheduleCardOnDay, unscheduleCard } from "@/lib/scheduleCard";
 import LovedHeart from "@/components/ui/LovedHeart";
 import { readRecommendedBy, recommendedLink } from "@/lib/recommendedBy";
+import { streetAndTown } from "@/lib/week/cardText";
 import FieldRow, { SectionLabel, NoteDisplay } from "./detail/FieldRow";
 import { CostContext } from "./detail/CostPerPersonRow";
 import { withoutHoursLine } from "@/lib/plan/notes";
@@ -1176,6 +1177,22 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   // way the day row shows them; desktop keeps them in the header row.
   const showRating = rating !== null && place?.sub_type !== "flight_arrival" && place?.sub_type !== "flight_departure";
   const ratingOnAddress = !!place?.address && !(legCapable && place) && (showRating || !!badgePriceLabel);
+  // One line on the phone (16 Nov 2026, chunk 4): the street and town, as the day
+  // row writes them, cut with "…" if still too long; stars and price never cut.
+  // Desktop keeps the full address and wraps as before.
+  const fullAddress = place?.address ? place.address.replace(/,\s*[^,]+$/, "") : "";
+  const shortAddress = streetAndTown(place?.address) ?? fullAddress;
+  const addressLine = (
+    <>
+      <span data-testid="address-short" className="md:hidden min-w-0 truncate">{shortAddress}</span>
+      <span className="hidden md:inline">{fullAddress}</span>
+      {ratingOnAddress && (
+        <span data-testid="address-rating" className="md:hidden shrink-0 whitespace-nowrap" style={{ color: "#B45309", fontWeight: 500 }}>
+          {"\u00a0· "}{showRating ? `★ ${rating!.toFixed(1)}` : ""}{showRating && badgePriceLabel ? " · " : ""}{badgePriceLabel ?? ""}
+        </span>
+      )}
+    </>
+  );
 
   const badge = bookingBadge(localCard.details);
   // Booked lives in the ⋯ (6 Oct 2026, designer audit): set once per
@@ -1689,26 +1706,16 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   }}
                   aria-label={`Directions to ${place.address}`}
                   title="Directions"
-                  className="block text-left text-[12.5px] leading-snug mt-1 hover:underline"
+                  className="flex md:block max-w-full text-left text-[12.5px] leading-snug mt-1 hover:underline"
                   style={{ color: "rgba(26,26,46,0.62)" }}
                 >
-                  {place.address.replace(/,\s*[^,]+$/, "")}
-                  {ratingOnAddress && (
-                    <span data-testid="address-rating" className="md:hidden" style={{ color: "#B45309", fontWeight: 500 }}>
-                      {" · "}{showRating ? `★ ${rating!.toFixed(1)}` : ""}{showRating && badgePriceLabel ? " · " : ""}{badgePriceLabel ?? ""}
-                    </span>
-                  )}
+                  {addressLine}
                 </button>
                 {/* The "Use … instead" line moved into the ⋯ menu (16 Nov 2026). */}
                 </>
               ) : (
-                <p className="text-[12.5px] leading-snug mt-1" style={{ color: "rgba(26,26,46,0.62)" }}>
-                  {place.address.replace(/,\s*[^,]+$/, "")}
-                  {ratingOnAddress && (
-                    <span data-testid="address-rating" className="md:hidden" style={{ color: "#B45309", fontWeight: 500 }}>
-                      {" · "}{showRating ? `★ ${rating!.toFixed(1)}` : ""}{showRating && badgePriceLabel ? " · " : ""}{badgePriceLabel ?? ""}
-                    </span>
-                  )}
+                <p className="flex md:block max-w-full text-[12.5px] leading-snug mt-1" style={{ color: "rgba(26,26,46,0.62)" }}>
+                  {addressLine}
                 </p>
               )
             )}

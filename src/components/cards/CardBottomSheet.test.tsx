@@ -85,8 +85,13 @@ describe("CardBottomSheet — the designer-audit surface (6 Oct 2026)", () => {
   it("phone: stars and price ride the address line; the category pill shows the place's icon (16 Nov 2026)", async () => {
     await open(buca());
     const onAddress = screen.getByTestId("address-rating");
-    expect(onAddress.textContent).toBe(" · ★ 4.6 · €€€");
+    expect(onAddress.textContent).toBe(" · ★ 4.6 · €€€");
     expect(onAddress.className).toContain("md:hidden");
+    expect(onAddress.className).toContain("shrink-0");
+    // One line (16 Nov 2026, chunk 4): street and town, cut with … if long; the stars never cut.
+    const short = screen.getByTestId("address-short");
+    expect(short.textContent).toBe("Via della Cervia, 3, Lucca");
+    expect(short.className).toContain("truncate");
     expect(onAddress.closest("button")?.getAttribute("aria-label")).toMatch(/^Directions to Via della Cervia/);
     expect(screen.getByTestId("type-pill-icon").textContent).toBe("restaurant");
   });
