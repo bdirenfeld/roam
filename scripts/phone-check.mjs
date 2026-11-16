@@ -82,7 +82,7 @@ const EXPECT = {
   // the card (no separate title, no photo), the time first in the body, the
   // tour's caption kept, the four modes folded away.
   "card-leg": {
-    has: ["Lusaka", "Mfuwe", "Overland truck · 13h", "6:00 AM – 7:00 PM"],
+    has: ["Lusaka", "Mfuwe", "Overland truck · 13 h", "6:00 AM – 7:00 PM"],
     sel: ['[data-testid="travel-leg-panel"]', '[data-testid="leg-from-row"]', '[data-testid="leg-to-row"]', '[data-testid="leg-time"]'],
     noSel: ['[role="radio"]', 'h2', '[data-testid="type-pill-target"]'],
   },

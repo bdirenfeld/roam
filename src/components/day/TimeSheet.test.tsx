@@ -35,7 +35,8 @@ describe("the time sheet says each thing once (6 Oct 2026, designer review)", ()
     expect(screen.getByRole("button", { name: "Done" })).toBeTruthy();
     fireEvent.change(start, { target: { value: "230p" } });
     expect(screen.getByText("2:30 PM")).toBeTruthy();
-    expect(screen.getByText(/1h/).className).toContain("whitespace-nowrap");
+    // The length reads like the day row: "1 h", not "1h" (16 Nov 2026).
+    expect(screen.getByText(/1 h/).className).toContain("whitespace-nowrap");
   });
 });
 

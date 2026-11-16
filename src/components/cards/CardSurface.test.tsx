@@ -141,10 +141,10 @@ const legCard = {
 } as unknown as Card;
 
 describe("CardSurface — a travel leg (7 Oct 2026)", () => {
-  it("titles the row 'Lusaka → Mfuwe' and says 'Overland truck · 13h' under it, not the address", () => {
+  it("titles the row 'Lusaka → Mfuwe' and says 'Overland truck · 13 h' under it, not the address", () => {
     const { container } = render(<CardSurface card={legCard} dayDate="2027-02-22" onTimeTap={() => {}} />);
     expect(container.textContent).toContain("Lusaka → Mfuwe");
-    expect(container.textContent).toContain("Overland truck · 13h");
+    expect(container.textContent).toContain("Overland truck · 13 h");
     expect(container.textContent).not.toContain("Mfuwe, Zambia");
   });
 

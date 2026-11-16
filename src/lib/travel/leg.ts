@@ -20,6 +20,7 @@
  * (defaultFromForDay); the line is thin, low-opacity and dashed (DayMap).
  */
 
+import { stripDuration } from "@/lib/week/travelStrip";
 import { cardTimes, type TimedCard } from "@/lib/cardTime";
 import { stayRuns, addDays, type StayCard } from "@/lib/stays/stayRuns";
 
@@ -170,11 +171,9 @@ export function legDurationMins(card: LegCard): number | null {
   return mins > 0 ? mins : mins < 0 ? mins + 24 * 60 : null;
 }
 
-/** "13h", "1h 30m", "45m". */
+/** "13 h", "1 h 30", "45 min": one way of writing a length, app-wide (16 Nov 2026). */
 export function formatLegDuration(mins: number): string {
-  const h = Math.floor(mins / 60), m = mins % 60;
-  if (h === 0) return `${m}m`;
-  return m ? `${h}h ${m}m` : `${h}h`;
+  return stripDuration(mins);
 }
 
 /** The mode in words: mode_label first ("Overland truck"), else the mode's word.

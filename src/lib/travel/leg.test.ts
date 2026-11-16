@@ -71,16 +71,16 @@ describe("legTitle", () => {
 describe("legDurationMins / legSubtitle", () => {
   it("13 hours on the truck reads 'Overland truck · 13h'", () => {
     expect(legDurationMins(truck)).toBe(780);
-    expect(legSubtitle(truck)).toBe("Overland truck · 13h");
+    expect(legSubtitle(truck)).toBe("Overland truck · 13 h");
   });
   it("uses the mode's own word when there is no label", () => {
-    expect(legSubtitle(leg({ start_time: "08:30:00", end_time: "10:00:00" }, { mode: "ferry", mode_label: undefined }))).toBe("Ferry · 1h 30m");
+    expect(legSubtitle(leg({ start_time: "08:30:00", end_time: "10:00:00" }, { mode: "ferry", mode_label: undefined }))).toBe("Ferry · 1 h 30");
     expect(legModeWord({ mode: "train" })).toBe("Train");
   });
   it("no mode, no mode word: the caption is only the length (7 Oct 2026, mock t05)", () => {
     expect(legModeWord({})).toBe("");
     expect(legModeWord(null)).toBe("");
-    expect(legSubtitle(leg({}, { mode: undefined, mode_label: undefined }))).toBe("13h");
+    expect(legSubtitle(leg({}, { mode: undefined, mode_label: undefined }))).toBe("13 h");
     expect(legSubtitle(leg({ start_time: null, end_time: null }, { mode: undefined, mode_label: undefined }))).toBe("");
   });
   it("an untimed leg says only its mode", () => {
@@ -91,9 +91,9 @@ describe("legDurationMins / legSubtitle", () => {
     expect(legDurationMins(leg({ start_time: "22:00:00", end_time: "06:00:00" }))).toBe(480);
   });
   it("formats minutes the short way", () => {
-    expect(formatLegDuration(45)).toBe("45m");
-    expect(formatLegDuration(60)).toBe("1h");
-    expect(formatLegDuration(95)).toBe("1h 35m");
+    expect(formatLegDuration(45)).toBe("45 min");
+    expect(formatLegDuration(60)).toBe("1 h");
+    expect(formatLegDuration(95)).toBe("1 h 35");
   });
 });
 

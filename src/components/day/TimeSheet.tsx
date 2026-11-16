@@ -19,6 +19,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSheetDrag } from "@/hooks/useSheetDrag";
 import { formatTimeValue } from "@/lib/formatTime";
+import { stripDuration } from "@/lib/week/travelStrip";
 import type { Card } from "@/types/database";
 import { cardTitle } from "@/lib/cardTitle";
 
@@ -39,10 +40,8 @@ function fromMin(n: number): string {
 }
 function lengthLabel(mins: number): string {
   if (mins <= 0) return "—";
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  if (h === 0) return `${m}m`;
-  return m ? `${h}h ${m}m` : `${h}h`;
+  // "1 h 30", the day row's words (16 Nov 2026).
+  return stripDuration(mins);
 }
 
 /**

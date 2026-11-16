@@ -144,9 +144,9 @@ describe("CardBottomSheet — a travel leg (7 Oct 2026)", () => {
     expect(w.patch.end_time).toBe("18:00:00");
   });
 
-  it("says 'Overland truck · 13h' once, and keeps the pills behind 'Change how you travel'", async () => {
+  it("says 'Overland truck · 13 h' once, and keeps the pills behind 'Change how you travel'", async () => {
     await open(truck());
-    expect(screen.getAllByText("Overland truck · 13h")).toHaveLength(1);
+    expect(screen.getAllByText("Overland truck · 13 h")).toHaveLength(1);
     expect(screen.queryByRole("radio")).toBeNull();
     await revealModes();
     expect(screen.getAllByRole("radio")).toHaveLength(4);
@@ -164,7 +164,7 @@ describe("CardBottomSheet — a travel leg (7 Oct 2026)", () => {
     expect(screen.getByTestId("leg-from-row").textContent).toContain("Lusaka");
     expect(screen.queryByRole("button", { name: /Change where this starts/ })).toBeNull();
     expect(screen.queryByRole("button", { name: "Change how you travel" })).toBeNull();
-    expect(screen.getByTestId("travel-leg-panel").textContent).toContain("Overland truck · 13h");
+    expect(screen.getByTestId("travel-leg-panel").textContent).toContain("Overland truck · 13 h");
   });
 
   it("the mode picker writes details.mode, and the tour's label gives way to it", async () => {
@@ -186,7 +186,7 @@ describe("CardBottomSheet — a travel leg (7 Oct 2026)", () => {
 
   it("a leg with no mode: the caption is only the length and no pill is lit", async () => {
     await open(truck({ mode: undefined, mode_label: undefined }));
-    expect(screen.getByTestId("leg-caption").textContent).toContain("13h");
+    expect(screen.getByTestId("leg-caption").textContent).toContain("13 h");
     expect(screen.getByTestId("leg-caption").textContent).not.toMatch(/Drive|truck/);
     await revealModes();
     for (const r of screen.getAllByRole("radio")) expect(r.getAttribute("aria-checked")).toBe("false");

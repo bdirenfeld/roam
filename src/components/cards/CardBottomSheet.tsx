@@ -57,6 +57,7 @@ import { readPark, inItaly } from "@/lib/travel/park";
 import { readEstimate, endAfter, planMinutes, type LegEstimate } from "@/lib/travel/estimate";
 import NoteTypePicker, { NoteWhereRow } from "./NoteTypePicker";
 import { convertedDetails, readNoteKind, withNoteKind, type NoteKind } from "@/lib/cards/noteKinds";
+import { getMaterialIconHTML, getGlyphHTML } from "@/lib/mapPins";
 import { legCapable as cardLegCapable, isTravelLeg, legTitle, legDestTitle, legDurationMins, legModeWord, readFrom, readMode, withFrom, withTo, type LegFrom, type LegMode } from "@/lib/travel/leg";
 
 /** Read Google's `weekday_text` (seven "Monday: 9:00 AM – 5:00 PM" lines) off
@@ -1170,6 +1171,11 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     ? (["Free", "€", "€€", "€€€", "€€€€"] as const)[priceLevel] ?? null
     : null;
 
+  // Stars and price: on the phone they ride the address line (16 Nov 2026), the
+  // way the day row shows them; desktop keeps them in the header row.
+  const showRating = rating !== null && place?.sub_type !== "flight_arrival" && place?.sub_type !== "flight_departure";
+  const ratingOnAddress = !!place?.address && !(legCapable && place) && (showRating || !!badgePriceLabel);
+
   const badge = bookingBadge(localCard.details);
   // Booked lives in the ⋯ (6 Oct 2026, designer audit): set once per
   // reservation, so it does not earn a row on the surface. Same write as the
@@ -1337,7 +1343,14 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   {/* 44px tall (7 Oct 2026, phone harness): the discs' reach (8px
                       above, to 8px under the row), half the 8px gap sideways. */}
                   {!readOnly && <span aria-hidden="true" data-testid="type-pill-target" className="absolute -inset-x-1 -top-2 -bottom-3" />}
-                  <span className={`w-2 h-2 rounded-full ${accent.dot}`} />
+                  {/* The kind's icon, not a plain dot (16 Nov 2026): the same glyph as the day row. */}
+                  <span
+                    aria-hidden="true"
+                    data-testid="type-pill-icon"
+                    className={`flex items-center ${accent.text}`}
+                    // eslint-disable-next-line react/no-danger
+                    dangerouslySetInnerHTML={{ __html: place ? getMaterialIconHTML(place.sub_type ?? null, 14) : getGlyphHTML(noteKind?.glyph ?? "edit_note", 14) }}
+                  />
                   <span className={`text-[11px] font-semibold ${accent.text}`}>{typeLabel}</span>
                   {!readOnly && (
                     <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className={accent.text}>
@@ -1371,8 +1384,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             </div>
             <div className="flex items-center gap-1.5 flex-shrink-0">
               {/* Rating + price — badge row, right of type badge */}
+              {/* Phone: on the address line instead, when there is one (16 Nov 2026). */}
               {(rating !== null && place?.sub_type !== "flight_arrival" && place?.sub_type !== "flight_departure" || badgePriceLabel) && (
-                <div className="flex items-center mr-0.5" style={{ gap: 3 }}>
+                <div className={`${ratingOnAddress ? "hidden md:flex" : "flex"} items-center mr-0.5`} style={{ gap: 3 }}>
                   {rating !== null && place?.sub_type !== "flight_arrival" && place?.sub_type !== "flight_departure" && (
                     <>
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="#B45309" stroke="none">
@@ -1661,6 +1675,11 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   style={{ color: "rgba(26,26,46,0.62)" }}
                 >
                   {place.address.replace(/,\s*[^,]+$/, "")}
+                  {ratingOnAddress && (
+                    <span data-testid="address-rating" className="md:hidden" style={{ color: "#B45309", fontWeight: 500 }}>
+                      {" · "}{showRating ? `★ ${rating!.toFixed(1)}` : ""}{showRating && badgePriceLabel ? " · " : ""}{badgePriceLabel ?? ""}
+                    </span>
+                  )}
                 </button>
                 {navApp && directionsUrl(otherApp(navApp), navTarget) && (
                   /* The way out of a remembered choice (6 Oct 2026, taps
@@ -1684,6 +1703,11 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               ) : (
                 <p className="text-[12.5px] leading-snug mt-1" style={{ color: "rgba(26,26,46,0.62)" }}>
                   {place.address.replace(/,\s*[^,]+$/, "")}
+                  {ratingOnAddress && (
+                    <span data-testid="address-rating" className="md:hidden" style={{ color: "#B45309", fontWeight: 500 }}>
+                      {" · "}{showRating ? `★ ${rating!.toFixed(1)}` : ""}{showRating && badgePriceLabel ? " · " : ""}{badgePriceLabel ?? ""}
+                    </span>
+                  )}
                 </p>
               )
             )}

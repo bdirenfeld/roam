@@ -122,10 +122,7 @@ function minutesBetween(end: string | null, start: string | null): number {
 }
 
 function gapLabel(minutes: number): string {
-  if (minutes < 60) return `${minutes}m free`;
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return m > 0 ? `${h}h ${m}m free` : `${h}h free`;
+  return `${stripDuration(minutes)} free`;
 }
 
 /**

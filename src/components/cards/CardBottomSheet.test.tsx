@@ -82,6 +82,15 @@ describe("CardBottomSheet — the designer-audit surface (6 Oct 2026)", () => {
     expect(screen.getByText(/One of Lucca's oldest trattorias/)).toBeTruthy();
   });
 
+  it("phone: stars and price ride the address line; the category pill shows the place's icon (16 Nov 2026)", async () => {
+    await open(buca());
+    const onAddress = screen.getByTestId("address-rating");
+    expect(onAddress.textContent).toBe(" · ★ 4.6 · €€€");
+    expect(onAddress.className).toContain("md:hidden");
+    expect(onAddress.closest("button")?.getAttribute("aria-label")).toMatch(/^Directions to Via della Cervia/);
+    expect(screen.getByTestId("type-pill-icon").textContent).toBe("restaurant");
+  });
+
   it("drops the note's 'Open … that day' point when the Hours row is there, and keeps it when not", async () => {
     const { unmount } = render(<CardBottomSheet card={buca()} onClose={() => {}} days={days} />);
     await act(async () => {});
