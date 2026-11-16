@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { DotsThree, Archive, Trash, Copy } from "@phosphor-icons/react";
+import { DotsThree, Archive, Trash, Copy, GearSix } from "@phosphor-icons/react";
 import TripCover from "./TripCover";
 import { createClient } from "@/lib/supabase/client";
 import { deleteJourney } from "@/lib/deleteJourney";
@@ -16,6 +16,7 @@ import Pieces from "./Pieces";
 import JourneyMenu from "./JourneyMenu";
 import CopyJourneySheet from "@/components/trip/CopyJourneySheet";
 import type { Trip } from "@/types/database";
+import { useTripSettings } from "@/components/overlays/AppOverlays";
 
 interface Props {
   trip: Trip;
@@ -49,6 +50,7 @@ function formatDateCompact(start: string, end: string): string {
 export default function TripCard({ trip, href, owner = false }: Props) {
   const router = useRouter();
   const [menuOpen,      setMenuOpen]      = useState(false);
+  const { open: openSettings } = useTripSettings();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting,      setDeleting]      = useState(false);
   const [copying,       setCopying]       = useState(false);
@@ -172,6 +174,9 @@ export default function TripCard({ trip, href, owner = false }: Props) {
           <JourneyMenu
             onClose={() => setMenuOpen(false)}
             items={[
+              // Settings without going into the journey first (Brennan, 16 Nov 2026):
+              // the same sheet, over the list; closing it leaves you on Journeys.
+              ...(owner ? [{ label: "Settings", icon: <GearSix size={14} weight="light" className="text-gray-500" />, onSelect: () => openSettings(trip.id, { trip }) }] : []),
               ...(owner ? [{ label: "Copy to new dates", icon: <Copy size={14} weight="light" className="text-gray-500" />, onSelect: () => setCopying(true) }] : []),
               { label: "Archive", icon: <Archive size={14} weight="light" className="text-gray-500" />, onSelect: handleArchive },
               { label: "Delete…", icon: <Trash size={14} weight="light" className="text-red-400" />, onSelect: () => setConfirmDelete(true), danger: true },

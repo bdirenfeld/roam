@@ -26,6 +26,8 @@ const toast = vi.fn();
 vi.mock("@/components/ui/Toast", () => ({ useToast: () => ({ toast }) }));
 vi.mock("next/link", () => ({ default: ({ children }: { children: React.ReactNode }) => <a>{children}</a> }));
 vi.mock("./TripCover", () => ({ default: () => null }));
+const openSettings = vi.fn();
+vi.mock("@/components/overlays/AppOverlays", () => ({ useTripSettings: () => ({ open: openSettings }) }));
 
 import TripCard from "./TripCard";
 import PastJourneysList from "@/components/trip/PastJourneysList";
@@ -89,5 +91,22 @@ describe("Past journeys restore", () => {
     render(<PastJourneysList trips={[trip]} hrefByTrip={{}} />);
     await act(async () => { fireEvent.click(screen.getAllByLabelText("Restore Tuscany")[0]); });
     expect(toast.mock.calls[0][0].message).toMatch(/Couldn't restore/);
+  });
+});
+
+describe("TripCard ⋯ → Settings (16 Nov 2026)", () => {
+  it("the owner gets Settings first; it opens the journey's Settings sheet over the list", () => {
+    render(<TripCard trip={{ ...trip, archived: false } as Trip} owner />);
+    fireEvent.click(screen.getByLabelText("Options for Tuscany"));
+    const items = screen.getAllByRole("menuitem").map((e) => e.textContent?.trim());
+    expect(items[0]).toBe("Settings");
+    fireEvent.click(screen.getByRole("menuitem", { name: /Settings/ }));
+    expect(openSettings).toHaveBeenCalledWith("t1", { trip: expect.objectContaining({ id: "t1" }) });
+  });
+
+  it("a guest gets no Settings", () => {
+    render(<TripCard trip={{ ...trip, archived: false } as Trip} />);
+    fireEvent.click(screen.getByLabelText("Options for Tuscany"));
+    expect(screen.queryByRole("menuitem", { name: /Settings/ })).toBeNull();
   });
 });
