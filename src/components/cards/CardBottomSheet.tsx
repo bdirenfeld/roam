@@ -618,6 +618,16 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   // behind the ⋯. A transit card with no start yet keeps the place layout.
   const legCard = isTravelLeg(localCard) && !!localCard.place;
   const [renaming, setRenaming] = useState(false);
+  // Phone vs desktop (16 Nov 2026): on the phone the ⋯ keeps only what you use
+  // on the trip. Move / Repeat / Take off / Rename / Change type stay on desktop.
+  const [desktop, setDesktop] = useState(false);
+  useEffect(() => {
+    const mq = typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(min-width: 768px)") : null;
+    if (!mq) return;
+    const on = () => setDesktop(mq.matches);
+    on(); mq.addEventListener?.("change", on);
+    return () => mq.removeEventListener?.("change", on);
+  }, []);
   // After a new To: re-time on the next travel times, and ask about the note,
   // which was written for the old place (14 Nov 2026). Never cleared unasked.
   const retimeAfterTo = useRef(false);
@@ -1538,7 +1548,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   Move and Take-off as header buttons (Sep 2026) and found the
                   row cluttered, so the header keeps its glyphs and the verbs
                   live here. The sheet still closes itself after a move. */}
-              {(canMove || canBook || (legCard && !readOnly)) && (
+              {(canBook || (navApp && place?.address && directionsUrl(otherApp(navApp), navTarget)) || (desktop && (canMove || (legCard && !readOnly)))) && (
                 <div className={place && !legCard ? "relative" : "relative mr-10" /* a note card has the ✕ in this corner: keep the ⋯ clear of it (Brennan, 25 Sep 2026) */}>
                   <button
                     onClick={() => setShowCardMenu((v) => !v)}
@@ -1560,7 +1570,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                         role="menu"
                         className="absolute right-0 top-9 z-50 w-44 bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden"
                       >
-                        {canMove && days && days.length > 1 && (
+                        {desktop && canMove && days && days.length > 1 && (
                           <button
                             role="menuitem"
                             onClick={() => { setShowCardMenu(false); setShowMovePicker(true); }}
@@ -1569,7 +1579,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                             Move to day
                           </button>
                         )}
-                        {canMove && days && days.length > 1 && (
+                        {desktop && canMove && days && days.length > 1 && (
                           <button
                             role="menuitem"
                             disabled={isCopying}
@@ -1579,7 +1589,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                             {isCopying ? "Copying…" : "Repeat on other days"}
                           </button>
                         )}
-                        {canMove && onCardDelete && (
+                        {desktop && canMove && onCardDelete && (
                           <button
                             role="menuitem"
                             disabled={isDeleting}
@@ -1597,7 +1607,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                             role="menuitemcheckbox"
                             aria-checked={!!localCard.confirmed}
                             onClick={() => saveTopLevel("confirmed", !localCard.confirmed)}
-                            className={`w-full flex items-center justify-between px-3.5 py-2.5 text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors${canMove ? " border-t border-gray-100" : ""}`}
+                            className={`w-full flex items-center justify-between px-3.5 py-2.5 text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors${desktop && canMove ? " border-t border-gray-100" : ""}`}
                           >
                             Booked
                             <span aria-hidden style={{
@@ -1617,7 +1627,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                             </span>
                           </button>
                         )}
-                        {legCard && !readOnly && (
+                        {desktop && legCard && !readOnly && (
                           <>
                             <button
                               role="menuitem"
@@ -1646,7 +1656,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                               setNavApp(next);
                               setShowCardMenu(false);
                             }}
-                            className="w-full text-left px-3.5 py-2.5 text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors border-t border-gray-100"
+                            className={`w-full text-left px-3.5 py-2.5 text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors${canBook || desktop ? " border-t border-gray-100" : ""}`}
                           >
                             {navApp === "google" ? "Directions in Waze" : "Directions in Google Maps"}
                           </button>
@@ -1663,7 +1673,12 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           <div className="mt-2.5">
             {legCard && !renaming ? (
               <>
-                <h2 className="text-[19px] font-bold text-gray-900 leading-snug" data-testid="leg-title">{legTitle(localCard)}</h2>
+                {/* Tap the title to rename it (16 Nov 2026): "Rename" left the ⋯. */}
+                <h2 className="text-[19px] font-bold text-gray-900 leading-snug" data-testid="leg-title">
+                  {readOnly ? legTitle(localCard) : (
+                    <button type="button" onClick={() => setRenaming(true)} aria-label={`Rename ${legTitle(localCard)}`} className="text-left">{legTitle(localCard)}</button>
+                  )}
+                </h2>
                 {place?.address && (
                   <button
                     type="button"

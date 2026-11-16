@@ -38,6 +38,9 @@ vi.mock("@/lib/supabase/authUser", () => ({ getAuthUser: async () => ({ id: "u1"
 
 import CardBottomSheet from "./CardBottomSheet";
 
+/** Desktop width (16 Nov 2026): the phone's ⋯ keeps only Booked and the directions app. */
+const asDesktop = () => vi.stubGlobal("matchMedia", (q: string) => ({ matches: true, media: q, addEventListener() {}, removeEventListener() {} }));
+
 const days = [{ id: "d23", trip_id: "t1", date: "2027-02-22", day_number: 23 }] as unknown as Day[];
 
 function truck(details: Record<string, unknown> = {}): Card {
@@ -57,7 +60,7 @@ function truck(details: Record<string, unknown> = {}): Card {
   } as unknown as Card;
 }
 
-beforeEach(() => { writes.calls = []; singleBox.data = null; });
+beforeEach(() => { writes.calls = []; singleBox.data = null; vi.unstubAllGlobals(); });
 
 async function open(card: Card, readOnly = false) {
   await act(async () => { render(<CardBottomSheet card={card} onClose={() => {}} days={days} readOnly={readOnly} />); });
@@ -91,7 +94,8 @@ describe("CardBottomSheet — a travel leg (7 Oct 2026)", () => {
     expect(screen.getByRole("button", { name: "Attachments" })).toBeTruthy();
   });
 
-  it("the ⋯ holds Change type, which opens the type picker", async () => {
+  it("the ⋯ holds Change type on desktop, which opens the type picker", async () => {
+    asDesktop();
     await open(truck());
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "More options" })); });
     await act(async () => { fireEvent.click(screen.getByRole("menuitem", { name: "Change type" })); });
@@ -118,10 +122,9 @@ describe("CardBottomSheet — a travel leg (7 Oct 2026)", () => {
     expect((writes.calls.find((c) => c.table === "cards")!.patch.details as Record<string, unknown>).mode).toBe("drive");
   });
 
-  it("the title is his to rename (⋯ → Rename): it saves as a named title, not the place's name", async () => {
+  it("the title is his to rename (tap it): it saves as a named title, not the place's name", async () => {
     await open(truck());
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "More options" })); });
-    await act(async () => { fireEvent.click(screen.getByRole("menuitem", { name: "Rename" })); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Rename Lusaka → Mfuwe" })); });
     const input = screen.getByDisplayValue("Lusaka → Mfuwe");
     fireEvent.change(input, { target: { value: "Truck day to the park" } });
     await act(async () => { fireEvent.keyDown(input, { key: "Enter" }); });

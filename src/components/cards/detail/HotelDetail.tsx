@@ -21,7 +21,7 @@ function fmtTime(t: string | null): string | null {
 /** One stay row: grey icon, label, value — the sheet's Hours-row look. */
 function StayRow({ icon, label, children }: { icon: string; label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2.5 min-h-[44px] text-[13.5px]" style={{ borderBottom: "1px solid rgba(26,26,46,0.06)" }}>
+    <div className="flex items-center gap-2.5 min-h-[44px] text-[13.5px] border-b border-[rgba(26,26,46,0.06)] last:border-b-0">
       <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 18, color: "rgba(26,26,46,0.5)", fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20" }}>{icon}</span>
       <span className="font-medium min-w-[96px]" style={{ color: "#1A1A2E" }}>{label}</span>
       <span className="flex-1 min-w-0 flex" style={{ color: "rgba(26,26,46,0.62)" }}>{children}</span>
@@ -51,9 +51,10 @@ export default function HotelDetail({ card, onSaveDetails, showEmpty = false, st
       {/* STAY — plain rows like the sheet's Hours row (16 Nov 2026): no uppercase
           labels, no colour emoji, and no empty "yyyy-mm-dd" box. An unset
           check-out says "Add a date"; the real date input sits over it, so a
-          tap still opens the phone's own picker. */}
+          tap still opens the phone's own picker. One hairline between the rows only:
+          lines above and below doubled the sheet's own divider. */}
       {(showEmpty || hasStayData || canSetLeave) && (
-        <div data-testid="hotel-stay" style={{ borderTop: "1px solid rgba(26,26,46,0.08)" }}>
+        <div data-testid="hotel-stay">
           {checkIn && (
             <StayRow icon="key" label="Check-in">{checkIn}</StayRow>
           )}

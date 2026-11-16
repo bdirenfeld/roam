@@ -41,6 +41,9 @@ vi.mock("./PlacePhotoGallery", () => ({ default: () => null }));
 
 import CardBottomSheet from "./CardBottomSheet";
 
+/** Desktop width (16 Nov 2026): the phone's ⋯ keeps only Booked and the directions app. */
+const asDesktop = () => vi.stubGlobal("matchMedia", (q: string) => ({ matches: true, media: q, addEventListener() {}, removeEventListener() {} }));
+
 const NOTE = "**Intent**\nOne of Lucca's oldest trattorias, serving traditional Lucchese food that has barely changed in decades.\n\n**Know before you go**\n- Booking ahead is strongly advised, especially for a group of seven.\n- The menu leans heavily on offal and game; the roast meats and handmade pasta are safer bets for children.\n- Prices are mid-to-high for Lucca; service is formal by local standards.\n- Open 12:30 – 2:30 PM, 7:30 – 10:00 PM that day";
 const WEEK = ["Monday: Closed", "Tuesday: 12:30 – 2:30 PM, 7:30 – 10:00 PM", "Wednesday: 12:30 – 2:30 PM, 7:30 – 10:00 PM", "Thursday: 12:30 – 2:30 PM, 7:30 – 10:00 PM", "Friday: 12:30 – 2:30 PM, 7:30 – 10:00 PM", "Saturday: 12:30 – 2:30 PM, 7:30 – 10:00 PM", "Sunday: Closed"];
 
@@ -71,7 +74,7 @@ async function open(card: Card, extra: Record<string, unknown> = {}) {
   return { onCardUpdate };
 }
 
-beforeEach(() => { writes.calls = []; });
+beforeEach(() => { writes.calls = []; vi.unstubAllGlobals(); });
 
 describe("CardBottomSheet — the designer-audit surface (6 Oct 2026)", () => {
   it("shows the times without a duration, and the note without a NOTES label", async () => {
@@ -233,14 +236,24 @@ describe("CardBottomSheet — the designer-audit surface (6 Oct 2026)", () => {
     expect(clash()).toBeNull();
   });
 
+  it("on the phone the ⋯ holds Booked, not Move / Repeat / Take off (16 Nov 2026)", async () => {
+
+    await open(buca());
+    await userEvent.click(screen.getByLabelText("More options"));
+    const menu = screen.getByRole("menu");
+    expect(within(menu).getByRole("menuitemcheckbox", { name: "Booked" })).toBeTruthy();
+    for (const gone of ["Move to day", "Repeat on other days", "Take off this day"]) expect(within(menu).queryByText(gone)).toBeNull();
+  });
+
   it("has no Booked switch on the surface; Booked is in the ⋯ and writes cards.confirmed", async () => {
+    asDesktop();
     const { onCardUpdate } = await open(buca());
     expect(screen.queryByText("Booked")).toBeNull();
     await userEvent.click(screen.getByLabelText("More options"));
     const menu = screen.getByRole("menu");
     const booked = within(menu).getByRole("menuitemcheckbox", { name: "Booked" });
     expect(booked.getAttribute("aria-checked")).toBe("false");
-    // Move / Repeat / Take off still there beside it.
+    // On desktop, Move / Repeat / Take off still there beside it.
     expect(within(menu).getByText("Move to day")).toBeTruthy();
     expect(within(menu).getByText("Take off this day")).toBeTruthy();
     await userEvent.click(booked);
@@ -251,6 +264,7 @@ describe("CardBottomSheet — the designer-audit surface (6 Oct 2026)", () => {
   });
 
   it("Take off this day reports itself to the host as a take-off, not a delete, so the toast can say so (6 Oct 2026, taps audit)", async () => {
+    asDesktop();
     const onCardDelete = vi.fn();
     await open(buca(), { onCardDelete });
     await userEvent.click(screen.getByLabelText("More options"));

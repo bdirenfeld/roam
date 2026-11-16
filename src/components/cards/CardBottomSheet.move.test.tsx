@@ -37,6 +37,9 @@ vi.mock("./PlacePhotoGallery", () => ({ default: () => null }));
 
 import CardBottomSheet from "./CardBottomSheet";
 
+/** Desktop width (16 Nov 2026): the phone's ⋯ keeps only Booked and the directions app. */
+const asDesktop = () => vi.stubGlobal("matchMedia", (q: string) => ({ matches: true, media: q, addEventListener() {}, removeEventListener() {} }));
+
 const days = [
   { id: "d1", trip_id: "t1", date: "2027-08-24", day_number: 1 },
   { id: "d2", trip_id: "t1", date: "2027-08-25", day_number: 2 },
@@ -51,10 +54,11 @@ function lunch(): Card {
   } as unknown as Card;
 }
 
-beforeEach(() => { writes.calls = []; toasts.calls = []; });
+beforeEach(() => { writes.calls = []; toasts.calls = []; vi.unstubAllGlobals(); });
 
 describe("CardBottomSheet — Move to day says where it went (7 Oct 2026, taps audit)", () => {
   it("toasts the day it moved to, and Undo restores day, time and position", async () => {
+    asDesktop();
     const onCardUpdate = vi.fn();
     const onClose = vi.fn();
     await act(async () => {
