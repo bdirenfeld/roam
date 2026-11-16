@@ -449,6 +449,15 @@ function CardBody({
       <p data-testid="pin-rec-line" className={cls} style={style}>{inner}</p>
     );
   })() : null;
+  // "Remove" beside "more" / "Less" on the phone (16 Nov 2026): it must stay one tap
+  // away (a map tap can add a place by accident) but no longer costs its own row.
+  const canRemove = !desktop && !!onCardDelete && !showDeleteConfirm && !showItineraryMsg && !showDayList;
+  const removeLink = canRemove ? (
+    <button type="button" onClick={handleTrashClick} data-testid="pin-remove"
+      className="relative underline underline-offset-2 decoration-[rgba(26,26,46,0.25)] hover:text-gray-600 text-[11.5px] text-gray-400">
+      <span aria-hidden="true" className="absolute -inset-3" />Remove
+    </button>
+  ) : null;
   const closeMore = () => { setNotesOpen(false); setNoteAuto(false); if (!desktop) setPhotosOpen(false); };
   const [scheduling, setScheduling]               = useState(false);
   // Directions (6 Oct 2026, taps audit): the same as the card sheet's address
@@ -758,6 +767,7 @@ function CardBody({
                 <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 16 }}>expand_less</span>
                 Less
               </button>
+              {removeLink}
               {doors && <span className="ml-auto">{doors}</span>}
             </div>
           </>
@@ -781,9 +791,11 @@ function CardBody({
                 render={(v) => <p className="text-[12px] text-gray-600 mt-1.5 leading-snug">{v}</p>}
               />
             ) : null}
-            {(notes || doors) && (
+            {(notes || doors || removeLink) && (
               <div className="mt-1 flex items-center gap-2 text-[11.5px] text-gray-400 leading-snug">
                 {notes && <button onClick={openMore} className="relative underline underline-offset-2 decoration-[rgba(26,26,46,0.25)] hover:text-gray-600"><span aria-hidden="true" className="absolute -inset-3" />more</button>}
+                {notes && removeLink && <span aria-hidden="true" className="text-gray-300">·</span>}
+                {removeLink}
                 {doors && <span className="ml-auto">{doors}</span>}
               </div>
             )}
@@ -917,7 +929,7 @@ function CardBody({
             old bin: a saved pin asks "Remove this place from your map?", a
             scheduled one offers to take it off its day; the host's toast and
             Undo follow through onCardDelete. */}
-        {onCardDelete && !showDeleteConfirm && !showItineraryMsg && !showDayList && (
+        {desktop && onCardDelete && !showDeleteConfirm && !showItineraryMsg && !showDayList && (
           <div className="mt-2 text-center">
             <button
               type="button"

@@ -52,16 +52,18 @@ window.matchMedia = ((q: string) => ({
 afterEach(() => { cleanup(); vi.clearAllMocks(); wide = false; });
 
 describe("MapPinPopup — removing a pin", () => {
-  it("shows Remove from map on the card without opening anything first", () => {
+  it("phone: Remove sits beside more, on the line with the doors; no bottom row (16 Nov 2026)", () => {
     render(<MapPinPopup card={card} onClose={() => {}} onCardDelete={() => {}} onCardUpdate={() => {}} />);
-    expect(screen.getByRole("button", { name: "Remove from map" })).toBeTruthy();
-    expect(screen.queryByText("remove from map")).toBeNull(); // the old hidden link is gone
+    const remove = screen.getByTestId("pin-remove");
+    expect(remove.textContent).toBe("Remove");
+    expect(screen.queryByRole("button", { name: "Remove from map" })).toBeNull();
+    expect(remove.parentElement?.querySelector("[data-testid=pin-doors]")).toBeTruthy();
   });
 
   it("asks once, then removes", async () => {
     const onCardDelete = vi.fn();
     render(<MapPinPopup card={card} onClose={() => {}} onCardDelete={onCardDelete} onCardUpdate={() => {}} />);
-    fireEvent.click(screen.getByRole("button", { name: "Remove from map" }));
+    fireEvent.click(screen.getByTestId("pin-remove"));
     expect(screen.getByText("Remove this place from your map?")).toBeTruthy();
     expect(del).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: /^Remove$/ }));
@@ -70,23 +72,20 @@ describe("MapPinPopup — removing a pin", () => {
 
   it("offers no Remove where removing is not allowed (a guest's map)", () => {
     render(<MapPinPopup card={card} onClose={() => {}} />);
-    expect(screen.queryByRole("button", { name: "Remove from map" })).toBeNull();
+    expect(screen.queryByTestId("pin-remove")).toBeNull();
   });
 
-  it("Remove is a text link at the bottom, not an icon beside the close", () => {
+  it("desktop keeps the quiet Remove from map link at the bottom", () => {
+    wide = true;
     render(<MapPinPopup card={card} onClose={() => {}} onCardDelete={() => {}} onCardUpdate={() => {}} />);
-    const remove = screen.getByRole("button", { name: "Remove from map" });
-    expect(remove.textContent).toBe("Remove from map");
-    expect(remove.className).not.toMatch(/absolute/);
-    // It comes after the action row's doors in reading order.
-    const put = screen.getByLabelText("Directions");
-    expect(put.compareDocumentPosition(remove) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Remove from map" })).toBeTruthy();
+    expect(screen.queryByTestId("pin-remove")).toBeNull();
   });
 
   it("a scheduled pin's Remove still offers to take it off its day", () => {
     const onDay = { ...card, status: "in_itinerary", day_id: "d1" } as unknown as Card;
     render(<MapPinPopup card={onDay} onClose={() => {}} onCardDelete={() => {}} onCardUpdate={() => {}} days={[{ id: "d1", day_number: 3, date: "2027-08-26" }] as never} tripId="t1" />);
-    fireEvent.click(screen.getByRole("button", { name: "Remove from map" }));
+    fireEvent.click(screen.getByTestId("pin-remove"));
     expect(screen.getByText(/This place is on Day 3/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Take it off the day" })).toBeTruthy();
   });
@@ -95,7 +94,7 @@ describe("MapPinPopup — removing a pin", () => {
     const onDay = { ...card, status: "in_itinerary", day_id: "d1" } as unknown as Card;
     const onCardDelete = vi.fn();
     render(<MapPinPopup card={onDay} onClose={() => {}} onCardDelete={onCardDelete} onCardUpdate={() => {}} onCardCreated={() => {}} days={[{ id: "d1", day_number: 3, date: "2027-08-26" }] as never} tripId="t1" />);
-    fireEvent.click(screen.getByRole("button", { name: "Remove from map" }));
+    fireEvent.click(screen.getByTestId("pin-remove"));
     fireEvent.click(screen.getByRole("button", { name: "Take it off the day" }));
     await waitFor(() => expect(onCardDelete).toHaveBeenCalledWith("c1", { savedId: "s9" }));
   });
