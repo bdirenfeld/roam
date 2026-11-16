@@ -20,6 +20,22 @@ export function isRecommended(details: unknown): boolean {
   return readRecommendedBy(details) !== null;
 }
 
+/**
+ * The page that made you want to go, when the card has one (16 Nov 2026): the
+ * TikTok, the article. A Google Maps link is not it — the add sheet saves one on
+ * every map pick, and the address already does directions — so those don't count.
+ */
+export function recommendedLink(sourceUrl: string | null | undefined): { url: string; host: string } | null {
+  if (!sourceUrl) return null;
+  let u: URL;
+  try { u = new URL(sourceUrl); } catch { return null; }
+  if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+  const host = u.hostname.replace(/^www\./, "").replace(/^(vt|vm|m)\.(?=tiktok\.com$)/, "");
+  const isMaps = /(^|\.)maps\.google\.[a-z.]+$/.test(u.hostname) || (/(^|\.)google\.[a-z.]+$/.test(u.hostname) && u.pathname.startsWith("/maps"))
+    || u.hostname === "maps.app.goo.gl" || (u.hostname === "goo.gl" && u.pathname.startsWith("/maps"));
+  return isMaps ? null : { url: sourceUrl, host };
+}
+
 /** The one phrasing: "via Gorav". */
 export function recommendedByLine(name: string): string {
   return `via ${name}`;

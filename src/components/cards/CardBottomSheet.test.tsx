@@ -103,6 +103,39 @@ describe("CardBottomSheet — the designer-audit surface (6 Oct 2026)", () => {
     expect(screen.queryByLabelText("Booked")).toBeNull();
   });
 
+  it("Recommended by opens the post it came from; the Source link beside the time steps aside (16 Nov 2026)", async () => {
+    const tiktok = { details: { notes: NOTE, recommended_by: "TikTok" }, source_url: "https://vt.tiktok.com/ZSabc123/" } as Partial<Card>;
+    const { unmount } = render(<CardBottomSheet card={buca(tiktok)} onClose={() => {}} days={days} />);
+    await act(async () => {});
+    const link = screen.getByTestId("recommended-link") as HTMLAnchorElement;
+    expect(link.getAttribute("href")).toBe("https://vt.tiktok.com/ZSabc123/");
+    expect(link.textContent).toBe("Open on tiktok.com ↗");
+    expect(screen.queryByLabelText("Source")).toBeNull();
+    unmount();
+    // A map pick's Google link is not what you saw, and the address already opens it:
+    // no link under the name, and no Source beside the time either.
+    render(<CardBottomSheet card={buca({ ...tiktok, source_url: "https://maps.google.com/?cid=1" })} onClose={() => {}} days={days} />);
+    await act(async () => {});
+    expect(screen.queryByTestId("recommended-link")).toBeNull();
+    expect(screen.queryByLabelText("Source")).toBeNull();
+  });
+
+  it("Source beside the time: a real page shows it, a Google Maps page doesn't, a travel route says Directions (16 Nov 2026)", async () => {
+    const at = async (url: string) => {
+      const r = render(<CardBottomSheet card={buca({ source_url: url } as Partial<Card>)} onClose={() => {}} days={days} />);
+      await act(async () => {});
+      return r;
+    };
+    let r = await at("https://maps.google.com/?cid=1406850470182821112");
+    expect(screen.queryByLabelText("Source")).toBeNull();
+    r.unmount();
+    r = await at("https://www.galleriaaccademiafirenze.it/en/tickets/");
+    expect(screen.getByLabelText("Source")).toBeTruthy();
+    r.unmount();
+    await at("https://www.google.com/maps/dir/?api=1&destination=43.8,10.5");
+    expect(screen.getByLabelText("Directions")).toBeTruthy();
+  });
+
   it("drops the note's 'Open … that day' point when the Hours row is there, and keeps it when not", async () => {
     const { unmount } = render(<CardBottomSheet card={buca()} onClose={() => {}} days={days} />);
     await act(async () => {});
@@ -244,10 +277,13 @@ describe("CardBottomSheet — directions remember the app (6 Oct 2026, taps audi
     await userEvent.click(screen.getByLabelText(ADDR));
     expect(screen.queryByText("Get directions to")).toBeNull();
     expect(window.open).toHaveBeenCalledWith(expect.stringMatching(/^https:\/\/www\.google\.com\/maps\/dir\//), "_blank");
-    await userEvent.click(screen.getByRole("button", { name: "Use Waze instead" }));
-    expect(window.open).toHaveBeenLastCalledWith("https://waze.com/ul?ll=43.84,10.5&navigate=yes", "_blank");
+    // The switch lives in ⋯ now, not as a line under the address (16 Nov 2026).
+    expect(screen.queryByRole("button", { name: "Use Waze instead" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "More options" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Directions in Waze" }));
     expect(window.localStorage.getItem("roam:directions-app")).toBe("waze");
-    expect(screen.getByRole("button", { name: "Use Google Maps instead" })).toBeTruthy();
+    await userEvent.click(screen.getByLabelText(ADDR));
+    expect(window.open).toHaveBeenLastCalledWith("https://waze.com/ul?ll=43.84,10.5&navigate=yes", "_blank");
   });
 
   it("with Remember turned off, the chooser keeps asking", async () => {

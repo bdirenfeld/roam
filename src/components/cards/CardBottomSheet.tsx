@@ -15,7 +15,7 @@ import { formatTimeValue } from "@/lib/formatTime";
 import { dayChip, spansMonths } from "@/lib/dayChip";
 import { scheduleCardOnDay, unscheduleCard } from "@/lib/scheduleCard";
 import LovedHeart from "@/components/ui/LovedHeart";
-import { readRecommendedBy } from "@/lib/recommendedBy";
+import { readRecommendedBy, recommendedLink } from "@/lib/recommendedBy";
 import FieldRow, { SectionLabel, NoteDisplay } from "./detail/FieldRow";
 import { CostContext } from "./detail/CostPerPersonRow";
 import { withoutHoursLine } from "@/lib/plan/notes";
@@ -1194,6 +1194,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const isLoved       = place?.loved === true;
   const showLoved     = canLove && (!readOnly || isLoved);
   const recommendedBy = readRecommendedBy(localCard.details);
+  const recLink = recommendedLink(localCard.source_url);
 
   // ── Route to sub-type component ───────────────────────────
   // A typed note with no place yet gets its kind's fields (11 Nov 2026).
@@ -1574,6 +1575,22 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                             </button>
                           </>
                         )}
+                        {/* Which app the address opens (16 Nov 2026): was a line under
+                            the address on every card; switching is rare, so it lives here. */}
+                        {navApp && place?.address && directionsUrl(otherApp(navApp), navTarget) && (
+                          <button
+                            role="menuitem"
+                            onClick={() => {
+                              const next = otherApp(navApp);
+                              writeDirectionsApp(next);
+                              setNavApp(next);
+                              setShowCardMenu(false);
+                            }}
+                            className="w-full text-left px-3.5 py-2.5 text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors border-t border-gray-100"
+                          >
+                            {navApp === "google" ? "Directions in Waze" : "Directions in Google Maps"}
+                          </button>
+                        )}
                       </div>
                     </>
                   )}
@@ -1682,24 +1699,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                     </span>
                   )}
                 </button>
-                {navApp && directionsUrl(otherApp(navApp), navTarget) && (
-                  /* The way out of a remembered choice (6 Oct 2026, taps
-                     audit): opens the other app once and remembers it. */
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const next = otherApp(navApp);
-                      const url = directionsUrl(next, navTarget);
-                      if (url) window.open(url, "_blank");
-                      writeDirectionsApp(next);
-                      setNavApp(next);
-                    }}
-                    className="block text-left text-[11.5px] leading-snug mt-0.5 underline underline-offset-2"
-                    style={{ color: "rgba(26,26,46,0.5)" }}
-                  >
-                    {navApp === "google" ? "Use Waze instead" : "Use Google Maps instead"}
-                  </button>
-                )}
+                {/* The "Use … instead" line moved into the ⋯ menu (16 Nov 2026). */}
                 </>
               ) : (
                 <p className="text-[12.5px] leading-snug mt-1" style={{ color: "rgba(26,26,46,0.62)" }}>
@@ -1762,8 +1762,11 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               <span className="text-[11px] text-amber-500 font-medium ml-0.5">overnight</span>
             )}
 
-            {/* Source link */}
-            {localCard.source_url && (
+            {/* Source link — not when it is the recommendation's own link, which
+                sits under Recommended by (16 Nov 2026): one door, not two. */}
+            {/* …and not when it is only a Google Maps page (16 Nov 2026): the
+                address already opens that. A travel card's route stays. */}
+            {localCard.source_url && (isDirections(localCard.source_url) || (recLink && !recommendedBy)) && (
               <>
                 <span className="text-gray-300 text-sm">·</span>
                 <a
@@ -1953,6 +1956,19 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   placeholder="Who recommended this…"
                   onSave={readOnly ? undefined : saveRecommendedBy}
                 />
+                {/* Back to what you saw (16 Nov 2026): the TikTok, the article. */}
+                {recommendedBy && recLink && (
+                  <a
+                    href={recLink.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-testid="recommended-link"
+                    className="relative inline-flex items-center gap-1 mt-1 min-h-[44px] text-[13.5px] underline underline-offset-2"
+                    style={{ color: "rgba(26,26,46,0.62)", textDecorationColor: "rgba(26,26,46,0.25)" }}
+                  >
+                    Open on {recLink.host} ↗
+                  </a>
+                )}
               </div>
             )}
 

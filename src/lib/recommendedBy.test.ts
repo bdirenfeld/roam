@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readRecommendedBy, isRecommended, recommendedByLine } from "./recommendedBy";
+import { readRecommendedBy, isRecommended, recommendedByLine, recommendedLink } from "./recommendedBy";
 
 describe("recommendedBy", () => {
   it("reads a trimmed name", () => {
@@ -16,5 +16,26 @@ describe("recommendedBy", () => {
   });
   it("writes the one phrasing", () => {
     expect(recommendedByLine("Rita")).toBe("via Rita");
+  });
+});
+
+// The links on his recommended cards, 16 Nov 2026: TikTok posts and Bourdain articles count; map picks do not.
+describe("recommendedLink — back to what you saw", () => {
+  it("a TikTok share link opens the post, named tiktok.com", () => {
+    expect(recommendedLink("https://vt.tiktok.com/ZSabc123/")).toEqual({ url: "https://vt.tiktok.com/ZSabc123/", host: "tiktok.com" });
+    expect(recommendedLink("https://www.tiktok.com/@x/video/1")?.host).toBe("tiktok.com");
+  });
+  it("an article counts", () => {
+    expect(recommendedLink("https://eatlikebourdain.com/rome/")?.host).toBe("eatlikebourdain.com");
+  });
+  it("a Google Maps link is not what you saw", () => {
+    expect(recommendedLink("https://maps.google.com/?cid=123")).toBeNull();
+    expect(recommendedLink("https://www.google.com/maps/dir/?api=1&destination=x")).toBeNull();
+    expect(recommendedLink("https://maps.app.goo.gl/abc")).toBeNull();
+  });
+  it("nothing, or not a web link, is nothing", () => {
+    expect(recommendedLink(null)).toBeNull();
+    expect(recommendedLink("javascript:alert(1)")).toBeNull();
+    expect(recommendedLink("not a url")).toBeNull();
   });
 });
