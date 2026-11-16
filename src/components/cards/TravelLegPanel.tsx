@@ -286,8 +286,13 @@ export function LegModePicker({ value, onChange, readOnly = false }: { value: Le
  */
 export default function TravelLegPanel({
   from, mode, modeLabel, durationMins, suggestion, fromOpen = false, onFromChange, onModeChange, readOnly = false, biasLat, biasLng,
-  toOpen = false, onToPick, estimate, merged = false, time,
+  toOpen = false, onToPick, estimate, merged = false, time, modesOpen: modesOpenProp, onModesOpenChange, hideCaption = false,
 }: {
+  /** The leg card's mode button lives in its top row (16 Nov 2026): it opens the
+   *  pills here, and the caption line in the body steps aside. */
+  modesOpen?: boolean;
+  onModesOpenChange?: (open: boolean) => void;
+  hideCaption?: boolean;
   /** The simpler card (14 Nov 2026, mock D): Google's car / transit pills are
    *  the only choices — no caption, no four-mode list of ways that may not exist. */
   merged?: boolean;
@@ -311,7 +316,12 @@ export default function TravelLegPanel({
   biasLat?: number | null;
   biasLng?: number | null;
 }) {
-  const [modesOpen, setModesOpen] = useState(false);
+  const [modesOpenOwn, setModesOpenOwn] = useState(false);
+  const modesOpen = modesOpenProp ?? modesOpenOwn;
+  const setModesOpen = (v: boolean | ((p: boolean) => boolean)) => {
+    const next = typeof v === "function" ? v(modesOpen) : v;
+    if (onModesOpenChange) onModesOpenChange(next); else setModesOpenOwn(next);
+  };
   const caption = [modeLabel, durationMins ? formatLegDuration(durationMins) : null].filter(Boolean).join(" · ");
   const searching = fromOpen && !readOnly;
   const searchingTo = toOpen && !readOnly && !!onToPick;
@@ -324,7 +334,7 @@ export default function TravelLegPanel({
       {searching && <LegFromSearch value={from} suggestion={suggestion} onPick={onFromChange} biasLat={biasLat} biasLng={biasLng} />}
       {searchingTo && <LegFromSearch value={null} onPick={onToPick!} biasLat={biasLat} biasLng={biasLng} placeholder="Search a place, town or station" />}
       {from && time && <div className="pt-1 pb-1" data-testid="leg-time">{time}</div>}
-      {from && (caption || !readOnly) && !merged && (
+      {from && (caption || !readOnly) && !merged && !hideCaption && (
         // The mode as a button shaped like every card's category button —
         // icon, words, ▾ — not a line with an underlined "change" (16 Nov 2026).
         <p className="pt-1 text-[14px] flex items-center gap-1.5" style={{ color: INK }} data-testid="leg-caption">
@@ -369,8 +379,11 @@ export default function TravelLegPanel({
  * door to directions.
  */
 export function LegRoute({
-  from, fromAddress, toTitle, toAddress, readOnly = false, open, onOpen, onDirections, prominent = false,
+  from, fromAddress, toTitle, toAddress, readOnly = false, open, onOpen, onDirections, prominent = false, rows = false,
 }: {
+  /** The leg card laid out like every other card (16 Nov 2026): From and To as
+   *  plain rows — grey icon, label, the place, › — under the title and time. */
+  rows?: boolean;
   /** The simpler card (14 Nov 2026, mock D): the rows are the top of the card,
    *  a size up, no From / To labels; a tap on the name changes that end (the
    *  › says so), and the To address stays the door to directions. */
@@ -420,6 +433,35 @@ export function LegRoute({
       </div>
     </div>
   );
+  if (rows) {
+    const line = (which: "from" | "to", title: string | null) => {
+      const inner = (
+        <>
+          <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 18, color: "rgba(26,26,46,0.5)", fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20" }}>
+            {which === "from" ? "radio_button_unchecked" : "location_on"}
+          </span>
+          <span className="font-medium min-w-[64px]" style={{ color: INK }}>{which === "from" ? "From" : "To"}</span>
+          <span className="flex-1 min-w-0 truncate" style={{ color: title ? "rgba(26,26,46,0.62)" : CAP }}>{title ?? "Add where you leave from"}</span>
+          {!readOnly && <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 18, color: "rgba(26,26,46,0.35)" }}>chevron_right</span>}
+        </>
+      );
+      const cls = "w-full flex items-center gap-2.5 min-h-[44px] text-[13.5px] text-left";
+      return readOnly ? (
+        <div key={which} className={cls} data-testid={`leg-${which}-row`} style={{ borderBottom: "1px solid rgba(26,26,46,0.06)" }}>{inner}</div>
+      ) : (
+        <button key={which} type="button" data-testid={`leg-${which}-row`} className={cls} style={{ borderBottom: "1px solid rgba(26,26,46,0.06)" }}
+          onClick={() => onOpen(open === which ? null : which)} aria-expanded={open === which} aria-label={label(which)}>
+          {inner}
+        </button>
+      );
+    };
+    return (
+      <div className="mb-3" data-testid="leg-route" style={{ borderTop: "1px solid rgba(26,26,46,0.08)" }}>
+        {line("from", from?.title ?? null)}
+        {line("to", toTitle)}
+      </div>
+    );
+  }
   if (prominent) {
     return (
       <div className="relative mt-1 flex flex-col gap-3.5" data-testid="leg-route">

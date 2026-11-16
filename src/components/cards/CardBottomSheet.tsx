@@ -60,7 +60,7 @@ import NoteTypePicker, { NoteWhereRow } from "./NoteTypePicker";
 import { convertedDetails, readNoteKind, withNoteKind, type NoteKind } from "@/lib/cards/noteKinds";
 import { getMaterialIconHTML, getGlyphHTML } from "@/lib/mapPins";
 import { BookedTag } from "./CardBadges";
-import { legCapable as cardLegCapable, isTravelLeg, legTitle, legDestTitle, legDurationMins, legModeWord, readFrom, readMode, withFrom, withTo, type LegFrom, type LegMode } from "@/lib/travel/leg";
+import { legCapable as cardLegCapable, isTravelLeg, legTitle, legDestTitle, legDurationMins, legModeWord, legSubtitle, iconSubType, readFrom, readMode, withFrom, withTo, type LegFrom, type LegMode } from "@/lib/travel/leg";
 
 /** Read Google's `weekday_text` (seven "Monday: 9:00 AM – 5:00 PM" lines) off
  *  the raw place hours. The bottom sheet is the deliberate lookup surface, so it
@@ -496,6 +496,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   // The remembered directions app (6 Oct 2026, taps audit). Read after mount:
   // localStorage never decides the server render.
   const [navApp,            setNavApp]            = useState<DirectionsApp | null>(null);
+  // The leg's mode button sits in the top row and opens the pills in the body (16 Nov 2026).
+  const [legModesOpen,      setLegModesOpen]      = useState(false);
   useEffect(() => { setNavApp(readDirectionsApp()); }, []);
 
   // ── Keyboard escape ────────────────────────────────────────
@@ -1393,6 +1395,28 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   )}
                 </button>
                 )}
+                {legCard && !legMerged && (
+                  // Not on the simpler card, whose car / transit pills already say how you go.
+                  // A travel card's "category" is how you go (16 Nov 2026): the
+                  // same button shape as every card's, opening the mode pills.
+                  <button
+                    type="button"
+                    data-testid="leg-mode-pill"
+                    onClick={readOnly || legMerged ? undefined : () => setLegModesOpen((v) => !v)}
+                    aria-label={readOnly || legMerged ? undefined : "Change how you travel"}
+                    aria-expanded={readOnly || legMerged ? undefined : legModesOpen}
+                    className={`relative flex items-center gap-1.5 px-2 py-1 rounded-lg bg-gray-100 ${readOnly || legMerged ? "cursor-default" : "active:opacity-70"}`}
+                  >
+                    {!readOnly && !legMerged && <span aria-hidden="true" className="absolute -inset-x-1 -top-2 -bottom-3" />}
+                    <span aria-hidden="true" className="flex items-center text-[#1A1A2E]"
+                      // eslint-disable-next-line react/no-danger
+                      dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(iconSubType(localCard), 14) }} />
+                    <span className="text-[11px] font-semibold text-[#1A1A2E]">{legSubtitle(localCard) || "How you travel"}</span>
+                    {!readOnly && !legMerged && (
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-[#1A1A2E]"><polyline points="6 9 12 15 18 9" /></svg>
+                    )}
+                  </button>
+                )}
                 {showNotePicker && !place && !readOnly && (
                   <NoteTypePicker current={noteKind?.key ?? "note"} onPick={handleNoteKind} />
                 )}
@@ -1635,7 +1659,29 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
 
           {/* Title — editable when linked to a place (owner); static otherwise */}
           <div className="mt-2.5">
-            {legCard && !renaming ? null : isTravelLeg(localCard) ? (
+            {legCard && !renaming ? (
+              <>
+                <h2 className="text-[19px] font-bold text-gray-900 leading-snug" data-testid="leg-title">{legTitle(localCard)}</h2>
+                {place?.address && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const url = navApp ? directionsUrl(navApp, navTarget) : null;
+                      if (url) window.open(url, "_blank");
+                      else setNavSheetOpen(true);
+                    }}
+                    aria-label={`Directions to ${place.address}`}
+                    title="Directions"
+                    className="relative block max-w-full truncate text-left text-[12.5px] leading-snug mt-1 hover:underline"
+                    style={{ color: "rgba(26,26,46,0.62)" }}
+                  >
+                    {/* 44px to the finger: up to the title, down into the gap above the time chip. */}
+                    <span aria-hidden="true" data-testid="leg-address-target" className="absolute -inset-y-[14px] inset-x-0" />
+                    {streetAndTown(place.address) ?? place.address}
+                  </button>
+                )}
+              </>
+            ) : isTravelLeg(localCard) ? (
               // A leg's title is its route, "Lusaka → Mfuwe"; renaming it would
               // rename the place it ends at. Change the start below instead.
               readOnly ? (
@@ -1685,7 +1731,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 onSwap={() => void swapLeg()}
                 onCancel={() => setLegOpen(null)}
               />
-            ) : legCapable && place && (
+            ) : legCapable && place && !legCard && (
               <LegRoute
                 prominent={legCard}
                 from={legFrom}
@@ -1738,8 +1784,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             )}
           </div>
 
-          {/* Editable time row */}
-          {!legCard && (
+          {/* Editable time row — a leg's too (16 Nov 2026): one time chip on every card. */}
+          {(
+
           <div className="flex items-center gap-1 mt-1 flex-wrap -ml-2">
             {readOnly ? (
               /* Static time (guest) — no editable chips */
@@ -1847,31 +1894,24 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         <div className="relative flex-1 min-h-0">
           <div ref={scrollRef} className="absolute inset-0 overflow-y-auto px-5 py-5">
             <NoteDisplay.Provider value={weekdayText ? withoutHoursLine : identityNote}>
+              {legCard && place && (
+                <LegRoute
+                  rows
+                  from={legFrom}
+                  fromAddress={fromAddress}
+                  toTitle={legDestTitle(localCard)}
+                  toAddress={place.address}
+                  readOnly={readOnly}
+                  open={legOpen}
+                  onOpen={(w) => { setLegOpen(w); if (w) setEditorUsed(true); scrollRef.current?.scrollTo?.({ top: 0 }); }}
+                />
+              )}
               {legCapable && place && (!readOnly || legFrom) && (
                 <TravelLegPanel
                   merged={legMerged}
-                  time={legCard ? (
-                    readOnly ? (
-                      localCard.start_time ? (
-                        <span className="text-[14px] font-medium" style={{ color: "#1A1A2E" }}>
-                          {formatTimeValue(localCard.start_time)}{localCard.end_time ? ` – ${formatTimeValue(localCard.end_time)}` : ""}
-                        </span>
-                      ) : null
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setTimeOpen(true)}
-                        aria-label={localCard.start_time ? "Change the time" : "Set a time"}
-                        className="relative text-left text-[14px] font-medium hover:underline underline-offset-2"
-                        style={{ color: localCard.start_time ? "#1A1A2E" : "rgba(26,26,46,0.45)" }}
-                      >
-                        <span aria-hidden="true" data-testid="leg-time-target" className="absolute -inset-y-[13px] -inset-x-1" />
-                        {localCard.start_time
-                          ? `${formatTimeValue(localCard.start_time)}${localCard.end_time ? ` – ${formatTimeValue(localCard.end_time)}` : ""}`
-                          : "Set a time"}
-                      </button>
-                    )
-                  ) : undefined}
+                  modesOpen={legCard ? legModesOpen : undefined}
+                  onModesOpenChange={legCard ? setLegModesOpen : undefined}
+                  hideCaption={legCard}
                   from={legFrom}
                   mode={readMode(localCard.details)}
                   modeLabel={legFrom ? legModeWord(localCard.details) : null}

@@ -83,8 +83,9 @@ const EXPECT = {
   // tour's caption kept, the four modes folded away.
   "card-leg": {
     has: ["Lusaka", "Mfuwe", "Overland truck · 13 h", "6:00 AM – 7:00 PM"],
-    sel: ['[data-testid="travel-leg-panel"]', '[data-testid="leg-from-row"]', '[data-testid="leg-to-row"]', '[data-testid="leg-time"]'],
-    noSel: ['[role="radio"]', 'h2', '[data-testid="type-pill-target"]'],
+    // Laid out like every card (16 Nov 2026): the mode button, the title, the time chip, From / To rows.
+    sel: ['[data-testid="leg-mode-pill"]', '[data-testid="leg-title"]', '[data-testid="leg-from-row"]', '[data-testid="leg-to-row"]', '[aria-label="Change the time"]'],
+    noSel: ['[role="radio"]', '[data-testid="type-pill-target"]', '[data-testid="leg-caption"]'],
   },
   // Adding a leg by hand: before From is set only From shows; after, the four
   // pills with none picked.

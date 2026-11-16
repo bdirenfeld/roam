@@ -194,7 +194,8 @@ const OTHER_GLYPHS = ["place", "edit_note", "hotel", "directions_car", "directio
   // detail rows' emoji drawn as glyphs (detail/FieldRow GLYPH), the add sheet's pills.
   "key", "luggage", "chevron_right", "schedule", "payments", "alarm", "timer", "flight_land", "flight_takeoff",
   "flight", "confirmation_number", "door_front", "location_on", "apartment", "local_taxi", "tag",
-  "airline_seat_recline_normal", "spa", "account_balance", "stadium", "flag", "tour", "restaurant"];
+  "airline_seat_recline_normal", "spa", "account_balance", "stadium", "flag", "tour", "restaurant",
+  "radio_button_unchecked"];
 
 /**
  * The Material Symbols stylesheet with ONLY Roam's glyphs and ONLY the axis
