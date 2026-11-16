@@ -224,12 +224,16 @@ describe("MapPinPopup — the phone popup matches the cards (16 Nov 2026)", () =
     expect(screen.getByRole("button", { name: "Directions" }).className).toContain("w-[34px]");
   });
 
-  it("one Recommended-by line with Open ↗ to the post; no second star, no dotted links", () => {
+  it("one Recommended-by line that opens the post; no second star, no dotted links", () => {
     const { container } = render(<MapPinPopup card={vivoli} onClose={() => {}} onCardUpdate={() => {}} days={days} tripId="t1" />);
     const line = screen.getByTestId("pin-rec-line");
     expect(line.textContent).toContain("Recommended by");
     expect(line.textContent).toContain("TikTok");
-    expect(screen.getByTestId("pin-rec-link").getAttribute("href")).toBe("https://vt.tiktok.com/x/");
+    // One line, and the whole line opens the post (16 Nov 2026: "consolidated").
+    expect(line.tagName).toBe("A");
+    expect(line.getAttribute("href")).toBe("https://vt.tiktok.com/x/");
+    expect(screen.queryByTestId("pin-rec-link")).toBeNull();
+    expect(line.textContent).not.toContain("Open");
     expect(container.textContent).not.toMatch(/via TikTok|from TikTok/);
     expect(container.innerHTML).not.toContain("decoration-dotted");
     expect(screen.getByTestId("pin-type-pill").textContent).toContain("Dessert");

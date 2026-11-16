@@ -1546,7 +1546,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                     aria-label="More options"
                     className="relative w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
                   >
-                    <span aria-hidden="true" className={DISC_TARGET} />
+                    {/* 44 wide (16 Nov 2026, phone sweep): it was 34. The extra goes
+                        right, into the header's own padding, not onto its neighbour. */}
+                    <span aria-hidden="true" data-testid="sheet-menu-target" className="absolute -left-[3px] -right-[13px] -inset-y-2" />
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="#6B7280">
                       <circle cx="5" cy="12" r="1.9" /><circle cx="12" cy="12" r="1.9" /><circle cx="19" cy="12" r="1.9" />
                     </svg>
@@ -1769,9 +1771,11 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   }}
                   aria-label={`Directions to ${place.address}`}
                   title="Directions"
-                  className="flex md:block max-w-full text-left text-[12.5px] leading-snug mt-1 hover:underline"
+                  className="relative flex md:block max-w-full text-left text-[12.5px] leading-snug mt-1 hover:underline"
                   style={{ color: "rgba(26,26,46,0.62)" }}
                 >
+                  {/* 44px to the finger (16 Nov 2026): up to the title, down over the gap to the time chip. */}
+                  <span aria-hidden="true" data-testid="address-target" className="absolute -top-[12px] -bottom-[15px] inset-x-0" />
                   {addressLine}
                 </button>
                 {/* The "Use … instead" line moved into the ⋯ menu (16 Nov 2026). */}

@@ -426,6 +426,29 @@ function CardBody({
   const recLink = recommendedLink(source);
   // "more" opens the note and, on the phone, the photo; "less" folds both (16 Nov 2026).
   const openMore = () => { setNotesOpen(true); if (!desktop) setPhotosOpen(true); };
+  // "👍 Recommended by TikTok ↗" as ONE line (16 Nov 2026: "shouldn't the recommended
+  // by TikTok and open TikTok be consolidated?"): with a page, the whole line opens it.
+  const recLine = (recommendedBy || recLink) ? (() => {
+    const inner = (
+      <>
+        <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 15, color: "rgba(26,26,46,0.5)" }}>thumb_up</span>
+        {recommendedBy ? (
+          <>
+            <span className="font-medium text-gray-800">Recommended by</span>
+            <span className="text-gray-500 truncate">{recommendedBy}</span>
+          </>
+        ) : <span className="text-gray-500 truncate">Where you saw it</span>}
+        {recLink && <span aria-hidden="true" className="flex-shrink-0 text-gray-400">↗</span>}
+      </>
+    );
+    const cls = "relative flex items-center gap-1.5 mt-2 pt-2 min-h-[32px] text-[12px] leading-snug whitespace-nowrap";
+    const style = { borderTop: "1px solid rgba(26,26,46,0.06)" };
+    return recLink ? (
+      <a href={recLink.url} target="_blank" rel="noopener noreferrer" data-testid="pin-rec-line" aria-label={`${recommendedBy ? `Recommended by ${recommendedBy}` : "Where you saw it"}: open ${sourceLabel(recLink.url)}`} className={cls} style={style}>{inner}</a>
+    ) : (
+      <p data-testid="pin-rec-line" className={cls} style={style}>{inner}</p>
+    );
+  })() : null;
   const closeMore = () => { setNotesOpen(false); setNoteAuto(false); if (!desktop) setPhotosOpen(false); };
   const [scheduling, setScheduling]               = useState(false);
   // Directions (6 Oct 2026, taps audit): the same as the card sheet's address
@@ -705,7 +728,7 @@ function CardBody({
             />
             )}
             {/* No empty "Who recommended it?" prompt on the phone (planning). */}
-            {(desktop || recommendedBy) && (
+            {!desktop ? recLine : (
             <DetailsField
               card={card}
               fieldKey="recommended_by"
@@ -723,7 +746,7 @@ function CardBody({
               )}
             />
             )}
-            {recLink && (
+            {desktop && recLink && (
               <a href={recLink.url} target="_blank" rel="noopener noreferrer" data-testid="pin-rec-link" className="inline-block mt-1 text-[11.5px] text-gray-500 hover:text-gray-700 underline underline-offset-2 decoration-[rgba(26,26,46,0.25)]">
                 Open {sourceLabel(recLink.url)} ↗
               </a>
@@ -766,23 +789,7 @@ function CardBody({
             )}
             {/* One line for who sent you, and the post itself (16 Nov 2026): it was
                 "from TikTok · ★ via TikTok", a second star beside the rating's. */}
-            {(recommendedBy || recLink) && (
-              <p data-testid="pin-rec-line" className="flex items-center gap-1.5 mt-2 pt-2 text-[12px] leading-snug whitespace-nowrap" style={{ borderTop: "1px solid rgba(26,26,46,0.06)" }}>
-                <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 15, color: "rgba(26,26,46,0.5)" }}>thumb_up</span>
-                {recommendedBy ? (
-                  <>
-                    <span className="font-medium text-gray-800">Recommended by</span>
-                    <span className="text-gray-500 truncate">{recommendedBy}</span>
-                  </>
-                ) : <span className="text-gray-500 truncate">Where you saw it</span>}
-                {recLink && (
-                  <a href={recLink.url} target="_blank" rel="noopener noreferrer" data-testid="pin-rec-link" className="relative ml-auto flex-shrink-0 text-[11.5px] text-gray-500 hover:text-gray-700 underline underline-offset-2 decoration-[rgba(26,26,46,0.25)]">
-                    <span aria-hidden="true" className="absolute -inset-y-3 -inset-x-2" />
-                    Open ↗
-                  </a>
-                )}
-              </p>
-            )}
+            {recLine}
           </>
         )}
 

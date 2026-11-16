@@ -87,7 +87,9 @@ describe("finger-sized tap areas (6 Oct 2026, taps audit)", () => {
     // Chips: half their 6px gap, no more.
     expect(find.match(/className="absolute -inset-\[3px\]"/g)?.length).toBe(2);
     const sheet = src("src/components/cards/CardBottomSheet.tsx");
-    expect(sheet.match(/className=\{DISC_TARGET\}/g)?.length).toBe(6);
+    // Five discs share DISC_TARGET; the ⋯ reaches 44 wide on its own (16 Nov 2026, phone sweep).
+    expect(sheet.match(/className=\{DISC_TARGET\}/g)?.length).toBe(5);
+    expect(sheet).toMatch(/data-testid="sheet-menu-target" className="absolute -left-\[3px\] -right-\[13px\] -inset-y-2"/);
     expect(sheet).toMatch(/const DISC_TARGET = "absolute -inset-x-\[3px\] -inset-y-2"/);
     expect(sheet).toMatch(/data-testid="sheet-close-target"/);
     const pin = src("src/components/map/MapPinPopup.tsx");

@@ -48,9 +48,12 @@ export default function AppMenu({
   days,
   guest = false,
   triggerClassName,
+  targetClassName,
   wrapperClassName,
   extra,
 }: {
+  /** An invisible tap area inside the trigger, for a small disc (the map's, 16 Nov 2026). */
+  targetClassName?: string;
   variant: "mobile" | "desktop";
   tripId: string | null;
   /** Seeds the Settings overlay — the day view already holds both. */
@@ -155,6 +158,7 @@ export default function AppMenu({
         aria-haspopup="menu"
         aria-expanded={open}
       >
+        {targetClassName && <span aria-hidden="true" data-testid="menu-target" className={targetClassName} />}
         <DotsThree size={mobile ? 20 : 18} weight={mobile ? "light" : "bold"} />
       </button>
 
