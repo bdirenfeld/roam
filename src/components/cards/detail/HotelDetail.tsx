@@ -18,6 +18,17 @@ function fmtTime(t: string | null): string | null {
   return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, "0")} ${p}`;
 }
 
+/** One stay row: grey icon, label, value — the sheet's Hours-row look. */
+function StayRow({ icon, label, children }: { icon: string; label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2.5 min-h-[44px] text-[13.5px]" style={{ borderBottom: "1px solid rgba(26,26,46,0.06)" }}>
+      <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 18, color: "rgba(26,26,46,0.5)", fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20" }}>{icon}</span>
+      <span className="font-medium min-w-[96px]" style={{ color: "#1A1A2E" }}>{label}</span>
+      <span className="flex-1 min-w-0 flex" style={{ color: "rgba(26,26,46,0.62)" }}>{children}</span>
+    </div>
+  );
+}
+
 const isIso = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
 
 export default function HotelDetail({ card, onSaveDetails, showEmpty = false, stayCheckOut = null }: Props) {
@@ -37,51 +48,41 @@ export default function HotelDetail({ card, onSaveDetails, showEmpty = false, st
 
   return (
     <div className="space-y-6">
-      {/* STAY */}
+      {/* STAY — plain rows like the sheet's Hours row (16 Nov 2026): no uppercase
+          labels, no colour emoji, and no empty "yyyy-mm-dd" box. An unset
+          check-out says "Add a date"; the real date input sits over it, so a
+          tap still opens the phone's own picker. */}
       {(showEmpty || hasStayData || canSetLeave) && (
-        <div>
-          <SectionLabel>Stay</SectionLabel>
-          <div className="space-y-4">
-            {checkIn && (
-              <div className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-5 text-center text-base mt-0.5 leading-none">🔑</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Check-in</p>
-                  <p className="text-sm font-medium text-gray-800">{checkIn}</p>
-                </div>
-              </div>
-            )}
-            {(canSetLeave || leaveDay) && (
-              <div className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-5 text-center text-base mt-0.5 leading-none">🧳</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Check-out day</p>
-                  {canSetLeave ? (
+        <div data-testid="hotel-stay" style={{ borderTop: "1px solid rgba(26,26,46,0.08)" }}>
+          {checkIn && (
+            <StayRow icon="key" label="Check-in">{checkIn}</StayRow>
+          )}
+          {(canSetLeave || leaveDay) && (
+            <StayRow icon="luggage" label="Check-out">
+              <span className="relative flex-1 min-w-0 flex items-center justify-between">
+                <span data-testid="checkout-value" style={{ color: leaveDay ? "rgba(26,26,46,0.62)" : "rgba(26,26,46,0.45)" }}>
+                  {leaveDay ? new Date(leaveDay + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) : "Add a date"}
+                </span>
+                {canSetLeave && (
+                  <>
+                    <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 18, color: "rgba(26,26,46,0.35)" }}>chevron_right</span>
                     <input
                       type="date"
                       aria-label="Check-out day"
                       value={leaveDay}
                       onChange={(e) => onSaveDetails!("check_out", e.target.value || null)}
-                      className="text-sm font-medium text-gray-800 bg-transparent outline-none"
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />
-                  ) : (
-                    <p className="text-sm font-medium text-gray-800">{new Date(leaveDay + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}</p>
-                  )}
-                </div>
-              </div>
-            )}
-            {checkOut && (
-              <div className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-5 text-center text-base mt-0.5 leading-none">🕚</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Check-out time</p>
-                  <p className="text-sm font-medium text-gray-800">{checkOut}</p>
-                </div>
-              </div>
-            )}
-            <FieldRow icon="📋" label="Confirmation" value={d.confirmation}
-              placeholder="Add confirmation code…" onSave={save("confirmation")} hideWhenEmpty={hide} />
-          </div>
+                  </>
+                )}
+              </span>
+            </StayRow>
+          )}
+          {checkOut && (
+            <StayRow icon="schedule" label="Check-out time">{checkOut}</StayRow>
+          )}
+          <FieldRow icon="📋" label="Confirmation" value={d.confirmation}
+            placeholder="Add confirmation code…" onSave={save("confirmation")} hideWhenEmpty={hide} />
         </div>
       )}
 

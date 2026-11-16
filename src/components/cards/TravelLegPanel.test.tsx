@@ -51,7 +51,8 @@ describe("travel leg tap targets", () => {
     panel();
     expect(screen.queryByRole("radio")).toBeNull();
     const link = screen.getByRole("button", { name: "Change how you travel" });
-    expect(hiddenTarget(link).className).toContain("-inset-y-[14px]");
+    // The mode is now a button like the category one (16 Nov 2026); still 44px to the finger.
+    expect(hiddenTarget(link).className).toContain("-inset-y-[7px]");
     fireEvent.click(link);
     expect(screen.getAllByRole("radio")).toHaveLength(4);
   });

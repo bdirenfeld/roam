@@ -36,6 +36,15 @@ export function recommendedLink(sourceUrl: string | null | undefined): { url: st
   return isMaps ? null : { url: sourceUrl, host };
 }
 
+/** Two links on the same site (www. ignored): a card's saved page and the place's website (16 Nov 2026). */
+export function sameSite(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (!a || !b) return false;
+  try {
+    const h = (u: string) => new URL(u).hostname.replace(/^www\./, "");
+    return h(a) === h(b);
+  } catch { return false; }
+}
+
 /** The one phrasing: "via Gorav". */
 export function recommendedByLine(name: string): string {
   return `via ${name}`;

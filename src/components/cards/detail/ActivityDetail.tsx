@@ -160,7 +160,7 @@ export default function ActivityDetail({ card, onSaveDetails, showEmpty = false 
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.08em]">{children}</p>
+    <p className="text-[14.5px] font-semibold text-[#1A1A2E]">{children}</p>
   );
 }
 
@@ -178,7 +178,7 @@ function Row({ icon, label, value }: { icon: string; label: string; value: strin
     <div className="flex items-start gap-3">
       <span className="text-base flex-shrink-0 w-5 text-center">{icon}</span>
       <div className="flex-1 min-w-0">
-        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{label}</p>
+        <p className="text-[12.5px] font-medium text-gray-500">{label}</p>
         <p className="text-sm font-medium text-gray-800 mt-0.5 leading-snug">{value}</p>
       </div>
     </div>

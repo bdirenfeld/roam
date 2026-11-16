@@ -1,5 +1,6 @@
 "use client";
 
+import { MATERIAL_ICONS } from "@/lib/mapPins";
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import type { Card, CardType, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
@@ -40,6 +41,16 @@ const SUB_TYPES: Record<CardType, { value: string; label: string }[]> = {
     { value: "medical",          label: "Medical"          },
   ],
 };
+
+// Pills a finger can hit, with the kind's icon (16 Nov 2026, phone sweep): they
+// were 26px tall, and "Flight Arrival" sat beside "Pet care".
+const PILL = "inline-flex items-center gap-1.5 h-10 px-3.5 rounded-full text-[13.5px] font-medium transition-all border";
+const TYPE_GLYPH: Record<string, string> = { activity: "tour", food: "restaurant", logistics: "luggage" };
+const sentenceCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+function PillIcon({ name }: { name: string | null }) {
+  if (!name) return null;
+  return <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 16, lineHeight: 1, fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20" }}>{name}</span>;
+}
 
 const TYPE_OPTIONS: { value: CardType; label: string }[] = [
   { value: "activity",  label: "Activity"  },
@@ -834,9 +845,10 @@ export default function CreateCardSheet({
                   <button
                     key={value}
                     onClick={() => { setType(value); setSubType(SUB_TYPES[value][0].value); }}
-                    className="px-3 py-1 rounded-full text-xs font-semibold transition-all border"
+                    className={PILL}
                     style={pillStyle(type === value)}
                   >
+                    <PillIcon name={TYPE_GLYPH[value]} />
                     {label}
                   </button>
                 ))}
@@ -847,10 +859,11 @@ export default function CreateCardSheet({
                     <button
                       key={value}
                       onClick={() => setSubType(value)}
-                      className="px-3 py-1 rounded-full text-xs font-semibold transition-all border"
+                      className={PILL}
                       style={pillStyle(subType === value)}
                     >
-                      {label}
+                      <PillIcon name={MATERIAL_ICONS[value] ?? null} />
+                      {sentenceCase(label)}
                     </button>
                   ))}
                 </div>

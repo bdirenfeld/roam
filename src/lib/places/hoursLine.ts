@@ -45,6 +45,28 @@ export function readableHours(value: string): string {
 }
 
 /**
+ * The week in one line, for the folded Hours row when the card's own day is
+ * "Closed" and the warning above already says so (16 Nov 2026): the usual
+ * hours, then the closed days — "8:15 AM – 6:20 PM · closed Mon". Null when
+ * the open days differ (the caller keeps the day's line), or nothing is known.
+ */
+export function weekSummary(weekdayText: string[] | null | undefined): string | null {
+  if (!weekdayText?.length) return null;
+  const open: string[] = [];
+  const closed: string[] = [];
+  for (const line of weekdayText) {
+    const i = line.indexOf(":");
+    if (i < 0) continue;
+    const day = line.slice(0, i).trim(), value = line.slice(i + 1).trim();
+    if (/^closed$/i.test(value)) closed.push(day.slice(0, 3));
+    else open.push(value);
+  }
+  if (!open.length || new Set(open).size !== 1) return null;
+  const hours = readableHours(open[0]);
+  return closed.length ? `${hours} · closed ${closed.join(", ")}` : hours;
+}
+
+/**
  * The line under the time when the hours clash with this card's plan
  * (7 Oct 2026, mock t04). `lead` is the fact, `tail` the consequence, drawn
  * lighter:

@@ -22,7 +22,7 @@ export default function WellnessDetail({ card, onSaveDetails, showEmpty = false 
       {/* Booked toggle */}
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Booked</p>
+          <p className="text-[12.5px] font-medium text-gray-500">Booked</p>
           <p className="text-sm text-gray-600 mt-0.5">{d.booked ? "Yes" : "No"}</p>
         </div>
         {onSaveDetails && (

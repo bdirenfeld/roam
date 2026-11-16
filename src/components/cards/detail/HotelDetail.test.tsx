@@ -24,9 +24,17 @@ describe("check-out day on the hotel's sheet", () => {
   it("shows the day the week's band shows when none is written (Tuscany's villa)", () => {
     render(<HotelDetail card={hotel({})} onSaveDetails={vi.fn()} stayCheckOut="2027-09-04" />);
     expect((screen.getByLabelText("Check-out day") as HTMLInputElement).value).toBe("2027-09-04");
-    // Check-in reads first.
-    const labels = Array.from(document.querySelectorAll("p")).map((p) => p.textContent);
-    expect(labels.indexOf("Check-in")).toBeLessThan(labels.indexOf("Check-out day"));
+    // Check-in reads first; rows, not uppercase labels (16 Nov 2026).
+    const text = screen.getByTestId("hotel-stay").textContent ?? "";
+    expect(text.indexOf("Check-in")).toBeLessThan(text.indexOf("Check-out"));
+    expect(screen.getByTestId("checkout-value").textContent).toBe("Sat 4 Sept");
+  });
+
+  it("an unset check-out says 'Add a date', not an empty yyyy-mm-dd box (16 Nov 2026)", () => {
+    render(<HotelDetail card={hotel({})} onSaveDetails={vi.fn()} />);
+    expect(screen.getByTestId("checkout-value").textContent).toBe("Add a date");
+    // The phone's own date picker still opens: the input sits over the row, invisible.
+    expect((screen.getByLabelText("Check-out day") as HTMLInputElement).className).toContain("opacity-0");
   });
 
   it("reads Santa Barbara's check_out_date", () => {

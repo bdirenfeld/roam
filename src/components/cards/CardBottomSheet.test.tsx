@@ -125,6 +125,15 @@ describe("CardBottomSheet — the designer-audit surface (6 Oct 2026)", () => {
     expect(screen.queryByLabelText("Source")).toBeNull();
   });
 
+  it("My Tuscan Kitchen: the saved class page is on the website's own site, so 🌐 opens it and Source steps aside (16 Nov 2026)", async () => {
+    const base = buca({ source_url: "https://www.ariannandfriends.com/cooking-classes/pizza-dessert-cooking/" } as Partial<Card>);
+    const card = { ...base, place: { ...base.place!, website: "https://www.ariannandfriends.com/cooking-classes/?utm_source=googlemybusiness" } } as Card;
+    render(<CardBottomSheet card={card} onClose={() => {}} days={days} />);
+    await act(async () => {});
+    expect(screen.getByLabelText("Website").getAttribute("href")).toBe("https://www.ariannandfriends.com/cooking-classes/pizza-dessert-cooking/");
+    expect(screen.queryByLabelText("Source")).toBeNull();
+  });
+
   it("Source beside the time: a real page shows it, a Google Maps page doesn't, a travel route says Directions (16 Nov 2026)", async () => {
     const at = async (url: string) => {
       const r = render(<CardBottomSheet card={buca({ source_url: url } as Partial<Card>)} onClose={() => {}} days={days} />);

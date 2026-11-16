@@ -152,7 +152,7 @@ export function makePinSVG(
 }
 
 // ── Material Symbols icon names per sub-type ─────────────────
-const MATERIAL_ICONS: Record<string, string> = {
+export const MATERIAL_ICONS: Record<string, string> = {
   // Activity
   guided:           "tour",
   hosted:           "tour",
@@ -189,7 +189,12 @@ const MATERIAL_ICONS: Record<string, string> = {
 
 /** Glyphs used outside MATERIAL_ICONS: the fallback, a note card, the day map's hotel. */
 // The travel leg's mode glyphs (7 Oct 2026, lib/travel/leg LEG_MODE_GLYPH).
-const OTHER_GLYPHS = ["place", "edit_note", "hotel", "directions_car", "directions_bus", "train", "directions_boat"];
+const OTHER_GLYPHS = ["place", "edit_note", "hotel", "directions_car", "directions_bus", "train", "directions_boat",
+  // The card sheet's grey row glyphs (16 Nov 2026, phone sweep): the stay rows, the
+  // detail rows' emoji drawn as glyphs (detail/FieldRow GLYPH), the add sheet's pills.
+  "key", "luggage", "chevron_right", "schedule", "payments", "alarm", "timer", "flight_land", "flight_takeoff",
+  "flight", "confirmation_number", "door_front", "location_on", "apartment", "local_taxi", "tag",
+  "airline_seat_recline_normal", "spa", "account_balance", "stadium", "flag", "tour", "restaurant"];
 
 /**
  * The Material Symbols stylesheet with ONLY Roam's glyphs and ONLY the axis

@@ -325,20 +325,27 @@ export default function TravelLegPanel({
       {searchingTo && <LegFromSearch value={null} onPick={onToPick!} biasLat={biasLat} biasLng={biasLng} placeholder="Search a place, town or station" />}
       {from && time && <div className="pt-1 pb-1" data-testid="leg-time">{time}</div>}
       {from && (caption || !readOnly) && !merged && (
+        // The mode as a button shaped like every card's category button —
+        // icon, words, ▾ — not a line with an underlined "change" (16 Nov 2026).
         <p className="pt-1 text-[14px] flex items-center gap-1.5" style={{ color: INK }} data-testid="leg-caption">
-          {glyph && <span className="material-symbols-outlined" style={{ fontSize: 16 }} aria-hidden="true">{glyph}</span>}
-          <span>{caption || "How you travel"}</span>
-          {!readOnly && !modesOpen && (
+          {readOnly ? (
+            <>
+              {glyph && <span className="material-symbols-outlined" style={{ fontSize: 16 }} aria-hidden="true">{glyph}</span>}
+              <span>{caption || "How you travel"}</span>
+            </>
+          ) : (
             <button
               type="button"
-              onClick={() => setModesOpen(true)}
+              onClick={() => setModesOpen((v) => !v)}
               aria-label="Change how you travel"
-              className="relative ml-1 text-[12.5px] underline underline-offset-2"
-              style={{ color: CAP }}
+              aria-expanded={modesOpen}
+              className="relative inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[13px] font-semibold"
+              style={{ background: "#F2F3F5", color: INK }}
             >
-              {/* 44px to the finger, one quiet word to the eye. */}
-              <span aria-hidden="true" className="absolute -inset-y-[14px] -inset-x-2" />
-              change
+              <span aria-hidden="true" className="absolute -inset-y-[7px] inset-x-0" />
+              {glyph && <span className="material-symbols-outlined" style={{ fontSize: 16, fontVariationSettings: "'FILL' 1" }} aria-hidden="true">{glyph}</span>}
+              <span>{caption || "How you travel"}</span>
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><polyline points="6 9 12 15 18 9" /></svg>
             </button>
           )}
         </p>

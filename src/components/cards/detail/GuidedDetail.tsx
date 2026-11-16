@@ -49,7 +49,7 @@ export default function GuidedDetail({ card, onSaveDetails, showEmpty = false }:
               <div className="flex items-start gap-3">
                 <span className="flex-shrink-0 w-5 text-center text-base mt-0.5 leading-none">💰</span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Paid</p>
+                  <p className="text-[12.5px] font-medium text-gray-500 mb-0.5">Paid</p>
                   {onSaveDetails ? (
                     <button
                       onClick={() => onSaveDetails("paid", !(d.paid as boolean))}

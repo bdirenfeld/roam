@@ -7,7 +7,7 @@ import FieldRow from "./FieldRow";
 interface Props { card: Card; onSaveDetails?: (field: string, value: unknown) => void; showEmpty?: boolean }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.08em] mb-2">{children}</p>;
+  return <p className="text-[14.5px] font-semibold text-[#1A1A2E] mb-2">{children}</p>;
 }
 
 function Row({ icon, label, value }: { icon: string; label: string; value: string }) {
@@ -15,7 +15,7 @@ function Row({ icon, label, value }: { icon: string; label: string; value: strin
     <div className="flex items-start gap-3">
       <span className="text-base flex-shrink-0 w-5 text-center">{icon}</span>
       <div>
-        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{label}</p>
+        <p className="text-[12.5px] font-medium text-gray-500">{label}</p>
         <p className="text-sm font-semibold text-gray-800 mt-0.5">{value}</p>
       </div>
     </div>

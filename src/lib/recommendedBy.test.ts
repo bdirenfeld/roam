@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readRecommendedBy, isRecommended, recommendedByLine, recommendedLink } from "./recommendedBy";
+import { readRecommendedBy, isRecommended, recommendedByLine, recommendedLink, sameSite } from "./recommendedBy";
 
 describe("recommendedBy", () => {
   it("reads a trimmed name", () => {
@@ -37,5 +37,19 @@ describe("recommendedLink — back to what you saw", () => {
     expect(recommendedLink(null)).toBeNull();
     expect(recommendedLink("javascript:alert(1)")).toBeNull();
     expect(recommendedLink("not a url")).toBeNull();
+  });
+});
+
+describe("sameSite — the saved page and the website are one site (16 Nov 2026)", () => {
+  it("My Tuscan Kitchen: the class page and the Google-listed site", () => {
+    expect(sameSite("https://www.ariannandfriends.com/cooking-classes/?utm_source=googlemybusiness", "https://www.ariannandfriends.com/cooking-classes/pizza-dessert-cooking/")).toBe(true);
+  });
+  it("www. or not is the same site; different sites are not", () => {
+    expect(sameSite("https://example.com/a", "https://www.example.com/b")).toBe(true);
+    expect(sameSite("https://example.com", "https://vt.tiktok.com/x")).toBe(false);
+  });
+  it("missing or broken links are not the same site", () => {
+    expect(sameSite(null, "https://a.com")).toBe(false);
+    expect(sameSite("nope", "https://a.com")).toBe(false);
   });
 });

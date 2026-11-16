@@ -15,12 +15,12 @@ import { formatTimeValue } from "@/lib/formatTime";
 import { dayChip, spansMonths } from "@/lib/dayChip";
 import { scheduleCardOnDay, unscheduleCard } from "@/lib/scheduleCard";
 import LovedHeart from "@/components/ui/LovedHeart";
-import { readRecommendedBy, recommendedLink } from "@/lib/recommendedBy";
+import { readRecommendedBy, recommendedLink, sameSite } from "@/lib/recommendedBy";
 import { streetAndTown } from "@/lib/week/cardText";
 import FieldRow, { SectionLabel, NoteDisplay } from "./detail/FieldRow";
 import { CostContext } from "./detail/CostPerPersonRow";
 import { withoutHoursLine } from "@/lib/plan/notes";
-import { readableHours, hoursClash } from "@/lib/places/hoursLine";
+import { readableHours, hoursClash, weekSummary } from "@/lib/places/hoursLine";
 import { getOpeningHoursConflict } from "@/lib/openingHours";
 import LinkPlaceSheet from "@/components/plan/LinkPlaceSheet";
 import dynamic from "next/dynamic";
@@ -360,13 +360,25 @@ const isDirections = (u: string) => u.startsWith("https://www.google.com/maps/di
 // ── Note detail (free-form textarea) ─────────────────────────
 function NoteDetail({ notes, onSave }: { notes: string; onSave: (v: string) => void }) {
   const [draft, setDraft] = useState(notes);
+  // As tall as the words (16 Nov 2026): a fixed 200px box left a two-line note
+  // floating over a big empty gap. Grows as you type; three lines when empty.
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [draft]);
   return (
     <textarea
+      ref={ref}
+      data-testid="note-detail"
       value={draft}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={() => { if (draft !== notes) onSave(draft); }}
       placeholder="Start writing…"
-      className="w-full min-h-[200px] text-[14px] text-gray-700 placeholder-gray-300 resize-none outline-none bg-transparent leading-relaxed"
+      rows={3}
+      className="w-full min-h-[4.5em] overflow-hidden text-[14px] text-gray-700 placeholder-gray-300 resize-none outline-none bg-transparent leading-relaxed"
     />
   );
 }
@@ -1212,6 +1224,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const showLoved     = canLove && (!readOnly || isLoved);
   const recommendedBy = readRecommendedBy(localCard.details);
   const recLink = recommendedLink(localCard.source_url);
+  // The saved page is on the place's own site (My Tuscan Kitchen's class page):
+  // the 🌐 opens it, and "Source" doesn't repeat it (16 Nov 2026).
+  const sourceOnSite = sameSite(website, localCard.source_url);
 
   // ── Route to sub-type component ───────────────────────────
   // A typed note with no place yet gets its kind's fields (11 Nov 2026).
@@ -1444,7 +1459,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               )}
               {website && !legCard && (
                 <a
-                  href={website}
+                  // The saved page when it is on the same site — the class you
+                  // booked, not the school's home page (16 Nov 2026).
+                  href={sourceOnSite ? localCard.source_url! : website}
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Website"
@@ -1773,7 +1790,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 sits under Recommended by (16 Nov 2026): one door, not two. */}
             {/* …and not when it is only a Google Maps page (16 Nov 2026): the
                 address already opens that. A travel card's route stays. */}
-            {localCard.source_url && (isDirections(localCard.source_url) || (recLink && !recommendedBy)) && (
+            {localCard.source_url && (isDirections(localCard.source_url) || (recLink && !recommendedBy && !sourceOnSite)) && (
               <>
                 <span className="text-gray-300 text-sm">·</span>
                 <a
@@ -1920,7 +1937,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 is on; this row fills that gap so a first note is one tap, not
                 a hunt for the gate. It steps aside when the component's own
                 empty row is showing, so the field never appears twice. */}
-            {place && !readOnly && !showEmptyFields && !(localCard.details as { notes?: string } | null)?.notes && (
+            {/* Not on a travel card (16 Nov 2026): its italic "Add a note…" was the
+                one empty box on the leg; a note is still in Add details. */}
+            {place && !legCard && !readOnly && !showEmptyFields && !(localCard.details as { notes?: string } | null)?.notes && (
               <div className="mt-5 pt-4 border-t border-gray-100">
                 <FieldRow
                   value=""
@@ -1998,8 +2017,10 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   <Clock size={14} weight="light" className="text-activity/50" />
                   <span className="text-[12px] font-medium text-activity">Hours</span>
                   {!hoursOpen && cardDayLine && (
-                    <span className="text-[12.5px] text-activity/60 truncate ml-1">
-                      {readableHours(cardDayLine.value)}
+                    <span data-testid="hours-summary" className="text-[12.5px] text-activity/60 truncate ml-1">
+                      {/* The day is Closed and the warning above says so: show the
+                          week instead of repeating it (16 Nov 2026). */}
+                      {/^closed$/i.test(cardDayLine.value.trim()) ? (weekSummary(weekdayText) ?? readableHours(cardDayLine.value)) : readableHours(cardDayLine.value)}
                     </span>
                   )}
                   <CaretDown

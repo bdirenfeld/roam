@@ -11,11 +11,31 @@ import { useState, useEffect, createContext, useContext } from "react";
 export const NoteDisplay = createContext<(s: string) => string>((s) => s);
 
 // ── Shared section heading ─────────────────────────────────────
+// Sentence case, like the note's own "Intent" and "Know before you go"
+// (16 Nov 2026): the uppercase grey eyebrow was a second heading style.
 export function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.08em] mb-3">
+    <p className="text-[14.5px] font-semibold mb-2" style={{ color: "#1A1A2E" }}>
       {children}
     </p>
+  );
+}
+
+// The card sheet's icons are grey outline glyphs (16 Nov 2026); the detail
+// layouts still pass emoji, so they are drawn as the matching glyph here.
+const GLYPH: Record<string, string> = {
+  "🕐": "schedule", "⏰": "alarm", "⏱️": "timer", "🛬": "flight_land", "🛫": "flight_takeoff",
+  "✈️": "flight", "🛩️": "flight", "📋": "confirmation_number", "🚪": "door_front", "📍": "location_on",
+  "🏢": "apartment", "🚕": "local_taxi", "🔢": "tag", "💺": "airline_seat_recline_normal", "💳": "payments",
+  "💆": "spa", "🏨": "hotel", "🏦": "account_balance", "🏟️": "stadium", "🎯": "flag",
+};
+function Glyph({ icon }: { icon: React.ReactNode }) {
+  const name = typeof icon === "string" ? (GLYPH[icon] ?? (/^[a-z_]+$/.test(icon) ? icon : null)) : null;
+  if (!name) return <>{icon}</>;
+  return (
+    <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 18, color: "rgba(26,26,46,0.5)", fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20" }}>
+      {name}
+    </span>
   );
 }
 
@@ -108,13 +128,13 @@ export default function FieldRow({
   return (
     <div className="flex items-start gap-3">
       {icon != null && (
-        <span className="flex-shrink-0 w-5 text-center text-base mt-0.5 leading-none">
-          {icon}
+        <span data-testid="field-icon" className="flex-shrink-0 w-5 flex justify-center mt-0.5 leading-none">
+          <Glyph icon={icon} />
         </span>
       )}
       <div className="flex-1 min-w-0">
         {label && (
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">
+          <p className="text-[12.5px] font-medium mb-0.5" style={{ color: "rgba(26,26,46,0.55)" }}>
             {label}
           </p>
         )}
