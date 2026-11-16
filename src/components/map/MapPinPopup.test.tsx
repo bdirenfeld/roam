@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
 
 /**
@@ -41,13 +41,15 @@ const card = {
   place: { id: "p1", title: "Lucca", type: "activity", sub_type: "self_directed", lat: 43.84, lng: 10.5, google_place_id: "g1" },
 } as unknown as Card;
 
-// A phone: the card's desktop/phone switch reads this.
+// A phone: the card's desktop/phone switch reads this. The day button is desktop
+// only (16 Nov 2026), so its tests set `wide = true`.
+let wide = false;
 window.matchMedia = ((q: string) => ({
-  matches: false, media: q, onchange: null,
+  matches: wide, media: q, onchange: null,
   addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
 })) as unknown as typeof window.matchMedia;
 
-afterEach(() => { cleanup(); vi.clearAllMocks(); });
+afterEach(() => { cleanup(); vi.clearAllMocks(); wide = false; });
 
 describe("MapPinPopup — removing a pin", () => {
   it("shows Remove from map on the card without opening anything first", () => {
@@ -130,8 +132,9 @@ describe("MapPinPopup — the face (6 Oct 2026, designer audit)", () => {
   });
 });
 
-describe("MapPinPopup — a pin on a day says which (6 Oct 2026, taps audit)", () => {
+describe("MapPinPopup — a pin on a day says which (6 Oct 2026, taps audit; desktop since 16 Nov 2026)", () => {
   const days = [{ id: "d1", day_number: 3, date: "2026-08-25" }] as never;
+  beforeEach(() => { wide = true; });
 
   it("a scheduled pin shows Day 3 · Tue 25 Aug, linking to that day, and no Put on a day", () => {
     const onDay = { ...card, status: "in_itinerary", day_id: "d1" } as unknown as Card;
@@ -183,8 +186,9 @@ describe("MapPinPopup — directions remember the app (6 Oct 2026, taps audit)",
   });
 });
 
-describe("MapPinPopup — Put on a day goes through the host (7 Oct 2026, taps audit)", () => {
+describe("MapPinPopup — Put on a day goes through the host (7 Oct 2026, taps audit; desktop since 16 Nov 2026)", () => {
   const days = [{ id: "d1", day_number: 1, date: "2026-08-24" }, { id: "d2", day_number: 2, date: "2026-08-25" }] as never;
+  beforeEach(() => { wide = true; });
 
   it("with onPutOnDay, a tap on a day hands that day to the host (which times it, with Undo) and closes", async () => {
     const onPutOnDay = vi.fn(async () => {});
@@ -194,5 +198,37 @@ describe("MapPinPopup — Put on a day goes through the host (7 Oct 2026, taps a
     fireEvent.click(screen.getByRole("button", { name: /Day 2/ }));
     await waitFor(() => expect(onPutOnDay).toHaveBeenCalledWith(expect.objectContaining({ id: "d2" })));
     expect(onClose).toHaveBeenCalled();
+  });
+});
+
+// Vivoli on the Tuscany map, as on his phone (16 Nov 2026).
+describe("MapPinPopup — the phone popup matches the cards (16 Nov 2026)", () => {
+  const vivoli = { ...card, status: "in_itinerary", day_id: "d1", details: { recommended_by: "TikTok", notes: "The viral one: the square affogato." }, place: { ...card.place!, title: "Vivoli", type: "food", sub_type: "dessert", rating: 4.5, website: "https://vivoli.it", phone: "055 292334" } } as unknown as Card;
+  const days = [{ id: "d1", day_number: 5, date: "2026-08-28" }] as never;
+
+  it("no day button; the doors are small and on the rating line, directions first", () => {
+    render(<MapPinPopup card={vivoli} onClose={() => {}} onCardUpdate={() => {}} days={days} tripId="t1" />);
+    expect(screen.queryByRole("link", { name: /Day 5/ })).toBeNull();
+    const doors = screen.getByTestId("pin-doors");
+    expect(Array.from(doors.querySelectorAll("[aria-label]")).map((e) => e.getAttribute("aria-label"))).toEqual(["Directions", "Website", "Call"]);
+    expect(screen.getByRole("button", { name: "Directions" }).className).toContain("w-[34px]");
+  });
+
+  it("one Recommended-by line with Open ↗ to the post; no second star, no dotted links", () => {
+    const { container } = render(<MapPinPopup card={vivoli} onClose={() => {}} onCardUpdate={() => {}} days={days} tripId="t1" />);
+    const line = screen.getByTestId("pin-rec-line");
+    expect(line.textContent).toContain("Recommended by");
+    expect(line.textContent).toContain("TikTok");
+    expect(screen.getByTestId("pin-rec-link").getAttribute("href")).toBe("https://vt.tiktok.com/x/");
+    expect(container.textContent).not.toMatch(/via TikTok|from TikTok/);
+    expect(container.innerHTML).not.toContain("decoration-dotted");
+    expect(screen.getByTestId("pin-type-pill").textContent).toContain("Dessert");
+  });
+
+  it("the photo tile leaves when the big photo opens: one photo, never two", () => {
+    render(<MapPinPopup card={vivoli} onClose={() => {}} onCardUpdate={() => {}} days={days} tripId="t1" />);
+    fireEvent.click(screen.getByRole("button", { name: "Show photos" }));
+    expect(screen.queryByRole("button", { name: "Show photos" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Hide photos" })).toBeNull();
   });
 });

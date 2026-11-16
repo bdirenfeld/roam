@@ -13,8 +13,8 @@ import { useToast } from "@/components/ui/Toast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { scheduleCardOnDay, unscheduleCard } from "@/lib/scheduleCard";
 import { dayForCard, onlyOnLine } from "@/lib/plan/eventDays";
-import { PIN_COLORS } from "@/lib/mapPins";
-import { readRecommendedBy, recommendedByLine } from "@/lib/recommendedBy";
+import { PIN_COLORS, getMaterialIconHTML } from "@/lib/mapPins";
+import { readRecommendedBy, recommendedLink } from "@/lib/recommendedBy";
 import PlacePhotoGallery from "@/components/cards/PlacePhotoGallery";
 import { renderEmphasis } from "@/components/cards/detail/FieldRow";
 import { noteLead } from "@/lib/noteLead";
@@ -321,7 +321,7 @@ function DetailsField({
   ) : (
     <button
       onClick={open}
-      className="mt-1 text-[11px] text-gray-400 hover:text-gray-600 transition-colors underline decoration-dotted underline-offset-2"
+      className="mt-1 text-[11px] text-gray-400 hover:text-gray-600 transition-colors underline underline-offset-2 decoration-[rgba(26,26,46,0.25)]"
     >
       {emptyLabel}
     </button>
@@ -421,6 +421,12 @@ function CardBody({
   // action row opens the note straight into the editor.
   const [noteAuto, setNoteAuto]                   = useState(false);
   const source = card.source_url && card.source_url !== website ? card.source_url : null;
+  // The page that made you want to go (16 Nov 2026): it opens from the one
+  // Recommended-by line, "Open ↗"; a Google Maps link doesn't count.
+  const recLink = recommendedLink(source);
+  // "more" opens the note and, on the phone, the photo; "less" folds both (16 Nov 2026).
+  const openMore = () => { setNotesOpen(true); if (!desktop) setPhotosOpen(true); };
+  const closeMore = () => { setNotesOpen(false); setNoteAuto(false); if (!desktop) setPhotosOpen(false); };
   const [scheduling, setScheduling]               = useState(false);
   // Directions (6 Oct 2026, taps audit): the same as the card sheet's address
   // (lib/directions). A remembered app opens straight on the route; none
@@ -573,10 +579,11 @@ function CardBody({
             then the name with the heart at its end, then one line of stars
             and category. The doors sit on the action row below. */}
         <div className="flex items-start gap-2.5">
-          {!desktop && (
+          {/* One photo, never two (16 Nov 2026): the tile leaves once the big photo is up. */}
+          {!desktop && !photosOpen && (
           <button
             type="button"
-            onClick={() => setPhotosOpen((v) => !v)}
+            onClick={openMore}
             aria-label={photosOpen ? "Hide photos" : "Show photos"}
             className="relative w-11 h-11 rounded-lg overflow-hidden flex-shrink-0 bg-[rgba(26,26,46,0.05)]"
           >
@@ -612,25 +619,56 @@ function CardBody({
               </button>
             )}
             </div>
-            <div className="flex items-center gap-1.5 mt-0.5 whitespace-nowrap overflow-hidden">
-              {rating !== undefined && (
-                <>
-                  <OneStar />
-                  <span className="text-[12px] font-semibold text-gray-700">{rating.toFixed(1)}</span>
-                </>
-              )}
-              {subTypeLabel && (
-                onCardUpdate ? (
-                  <button
-                    onClick={() => setIsEditing((v) => !v)}
-                    aria-label="Change the type"
-                    className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors truncate"
-                  >
-                    {rating !== undefined ? "· " : ""}{subTypeLabel}
-                  </button>
+            <div className="flex items-center gap-1.5 mt-1 whitespace-nowrap">
+              {/* The kind as the cards show it — icon and word in its colour — then
+                  the stars (16 Nov 2026). Still the door to changing the type. */}
+              {subTypeLabel && (() => {
+                const tint = PIN_COLORS[place.type];
+                const pill = (
+                  <>
+                    <span aria-hidden="true" className="flex items-center" dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(place.sub_type ?? null, 13) }} />
+                    <span className="truncate">{subTypeLabel}</span>
+                  </>
+                );
+                const cls = "inline-flex items-center gap-1 min-w-0 rounded-md px-1.5 py-[3px] text-[11.5px] font-semibold";
+                const style = { color: tint, background: `${tint}14` };
+                return onCardUpdate ? (
+                  <button onClick={() => setIsEditing((v) => !v)} aria-label="Change the type" data-testid="pin-type-pill" className={cls} style={style}>{pill}</button>
                 ) : (
-                  <span className="text-[11px] text-gray-400 truncate">{rating !== undefined ? "· " : ""}{subTypeLabel}</span>
-                )
+                  <span data-testid="pin-type-pill" className={cls} style={style}>{pill}</span>
+                );
+              })()}
+              {rating !== undefined && (
+                <span className="inline-flex items-center gap-1 text-[12px] font-medium" style={{ color: "#B45309" }}>
+                  <OneStar />{rating.toFixed(1)}
+                </span>
+              )}
+              {!desktop && (
+                // The doors, small, on this line (16 Nov 2026): directions in ink as the
+                // trip's main one, then website and call. 34px to the eye, 44 to the finger.
+                <span className="ml-auto flex items-center gap-1 flex-shrink-0" data-testid="pin-doors">
+                  {googleDirectionsUrl(navTarget) && (
+                    <button type="button" onClick={openDirections} aria-label="Directions" title="Directions"
+                      className="relative w-[34px] h-[34px] rounded-full flex items-center justify-center" style={{ background: "#1A1A2E", color: "#fff" }}>
+                      <span aria-hidden="true" className="absolute -inset-[5px]" />
+                      <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 18, fontVariationSettings: "'FILL' 1" }}>directions</span>
+                    </button>
+                  )}
+                  {website && (
+                    <a href={website} target="_blank" rel="noopener noreferrer" aria-label="Website" title="Website"
+                      className="relative w-[34px] h-[34px] rounded-full bg-gray-100 flex items-center justify-center" style={{ color: "#1A1A2E" }}>
+                      <span aria-hidden="true" className="absolute -inset-[5px]" />
+                      <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 17 }}>language</span>
+                    </a>
+                  )}
+                  {phone && (
+                    <a href={`tel:${phone}`} aria-label="Call" title={phone}
+                      className="relative w-[34px] h-[34px] rounded-full bg-gray-100 flex items-center justify-center" style={{ color: "#1A1A2E" }}>
+                      <span aria-hidden="true" className="absolute -inset-[5px]" />
+                      <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 17 }}>call</span>
+                    </a>
+                  )}
+                </span>
               )}
             </div>
           </div>
@@ -666,18 +704,20 @@ function CardBody({
               emptyLabel="Who recommended it?"
               placeholder="Who recommended this…"
               render={(v) => (
-                <p className="text-[11px] text-gray-400 mt-1 leading-snug">
-                  <span className="text-amber-400">★</span> {recommendedByLine(v)}
+                <p className="flex items-center gap-1.5 mt-2 pt-2 text-[12px] leading-snug" style={{ borderTop: "1px solid rgba(26,26,46,0.06)" }}>
+                  <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 15, color: "rgba(26,26,46,0.5)" }}>thumb_up</span>
+                  <span className="font-medium text-gray-800">Recommended by</span>
+                  <span className="text-gray-500 truncate">{v}</span>
                 </p>
               )}
             />
             {source && (
-              <a href={source} target="_blank" rel="noopener noreferrer" className="block mt-1 text-[11px] text-gray-400 hover:text-gray-600 underline decoration-dotted underline-offset-2">
-                from {sourceLabel(source)}
+              <a href={source} target="_blank" rel="noopener noreferrer" data-testid="pin-rec-link" className="inline-block mt-1 text-[11.5px] text-gray-500 hover:text-gray-700 underline underline-offset-2 decoration-[rgba(26,26,46,0.25)]">
+                Open {recLink?.host ?? sourceLabel(source)} ↗
               </a>
             )}
             <div className="mt-1 flex items-center gap-3">
-              <button onClick={() => { setNotesOpen(false); setNoteAuto(false); }} className="text-[11px] text-gray-400 hover:text-gray-600 underline decoration-dotted underline-offset-2">
+              <button onClick={closeMore} className="text-[11px] text-gray-400 hover:text-gray-600 underline underline-offset-2 decoration-[rgba(26,26,46,0.25)]">
                 less
               </button>
             </div>
@@ -702,20 +742,27 @@ function CardBody({
                 render={(v) => <p className="text-[12px] text-gray-600 mt-1.5 leading-snug">{v}</p>}
               />
             ) : null}
-            {(notes || source || recommendedBy) && (
-              <p className="mt-0.5 text-[11px] text-gray-400 leading-snug truncate">
-                <button onClick={() => setNotesOpen(true)} className="underline decoration-dotted underline-offset-2 hover:text-gray-600">more</button>
+            {notes && (
+              <p className="mt-0.5 text-[11px] text-gray-400 leading-snug">
+                <button onClick={openMore} className="underline underline-offset-2 decoration-[rgba(26,26,46,0.25)] hover:text-gray-600">more</button>
+              </p>
+            )}
+            {/* One line for who sent you, and the post itself (16 Nov 2026): it was
+                "from TikTok · ★ via TikTok", a second star beside the rating's. */}
+            {(recommendedBy || source) && (
+              <p data-testid="pin-rec-line" className="flex items-center gap-1.5 mt-2 pt-2 text-[12px] leading-snug whitespace-nowrap" style={{ borderTop: "1px solid rgba(26,26,46,0.06)" }}>
+                <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 15, color: "rgba(26,26,46,0.5)" }}>thumb_up</span>
+                {recommendedBy ? (
+                  <>
+                    <span className="font-medium text-gray-800">Recommended by</span>
+                    <span className="text-gray-500 truncate">{recommendedBy}</span>
+                  </>
+                ) : <span className="text-gray-500 truncate">Where you saw it</span>}
                 {source && (
-                  <>
-                    {" · "}
-                    <a href={source} target="_blank" rel="noopener noreferrer" className="underline decoration-dotted underline-offset-2 hover:text-gray-600">from {sourceLabel(source)}</a>
-                  </>
-                )}
-                {recommendedBy && (
-                  <>
-                    {" · "}
-                    <span className="text-amber-400">★</span> {recommendedByLine(recommendedBy)}
-                  </>
+                  <a href={source} target="_blank" rel="noopener noreferrer" data-testid="pin-rec-link" className="relative ml-auto flex-shrink-0 text-[11.5px] text-gray-500 hover:text-gray-700 underline underline-offset-2 decoration-[rgba(26,26,46,0.25)]">
+                    <span aria-hidden="true" className="absolute -inset-y-3 -inset-x-2" />
+                    Open ↗
+                  </a>
                 )}
               </p>
             )}
@@ -766,6 +813,9 @@ function CardBody({
             {/* The action row (24 Sep 2026): Put on a day as a quiet chip, the
                 doors as 36px discs on the right — directions, website, call.
                 One family, one height; ink is for a true primary. */}
+            {/* Desktop only (16 Nov 2026): on the phone the doors sit on the rating
+                line and the day button is gone — planning lives on the computer. */}
+            {desktop && (
             <div className="mt-2 md:mt-2.5 flex items-center justify-between gap-2">
             {onDay && tripId ? (
               <Link
@@ -835,6 +885,7 @@ function CardBody({
               )}
             </div>
             </div>
+            )}
           </>
         )}
 
@@ -847,7 +898,7 @@ function CardBody({
             <button
               type="button"
               onClick={handleTrashClick}
-              className="text-[11.5px] text-gray-400 hover:text-gray-600 underline decoration-dotted underline-offset-2"
+              className="text-[11.5px] text-gray-400 hover:text-gray-600 underline underline-offset-2 decoration-[rgba(26,26,46,0.25)]"
             >
               Remove from map
             </button>
