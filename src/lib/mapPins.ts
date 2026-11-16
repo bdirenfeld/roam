@@ -197,7 +197,7 @@ const OTHER_GLYPHS = ["place", "edit_note", "hotel", "directions_car", "directio
   "airline_seat_recline_normal", "spa", "account_balance", "stadium", "flag", "tour", "restaurant",
   "radio_button_unchecked",
   // The map pin popup's doors and recommender line (16 Nov 2026).
-  "directions", "language", "call", "thumb_up"];
+  "directions", "language", "call", "thumb_up", "expand_less"];
 
 /**
  * The Material Symbols stylesheet with ONLY Roam's glyphs and ONLY the axis

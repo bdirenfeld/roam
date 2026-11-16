@@ -446,6 +446,34 @@ function CardBody({
     if (url) window.open(url, "_blank");
     else setNavOpen(true);
   };
+  // The doors, small (16 Nov 2026): directions in ink as the trip's main one,
+  // then website and call; 34px to the eye, 44 to the finger. On the phone they
+  // ride the more / less line, so the kind and the stars keep their full width.
+  const doors = !desktop ? (
+                <span className="ml-auto flex items-center gap-1 flex-shrink-0" data-testid="pin-doors">
+                  {googleDirectionsUrl(navTarget) && (
+                    <button type="button" onClick={openDirections} aria-label="Directions" title="Directions"
+                      className="relative w-[34px] h-[34px] rounded-full flex items-center justify-center" style={{ background: "#1A1A2E", color: "#fff" }}>
+                      <span aria-hidden="true" className="absolute -inset-[5px]" />
+                      <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 18, fontVariationSettings: "'FILL' 1" }}>directions</span>
+                    </button>
+                  )}
+                  {website && (
+                    <a href={website} target="_blank" rel="noopener noreferrer" aria-label="Website" title="Website"
+                      className="relative w-[34px] h-[34px] rounded-full bg-gray-100 flex items-center justify-center" style={{ color: "#1A1A2E" }}>
+                      <span aria-hidden="true" className="absolute -inset-[5px]" />
+                      <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 17 }}>language</span>
+                    </a>
+                  )}
+                  {phone && (
+                    <a href={`tel:${phone}`} aria-label="Call" title={phone}
+                      className="relative w-[34px] h-[34px] rounded-full bg-gray-100 flex items-center justify-center" style={{ color: "#1A1A2E" }}>
+                      <span aria-hidden="true" className="absolute -inset-[5px]" />
+                      <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 17 }}>call</span>
+                    </a>
+                  )}
+                </span>
+  ) : null;
 
   // Door 2: place this pin onto a day as a new in_itinerary card via the shared
   // helper. The interested card behind the pin is untouched.
@@ -527,6 +555,7 @@ function CardBody({
           which resolves the photo reference server-side so no API key ever
           reaches the browser. */}
       {hero && (
+        <div onClick={(e) => { if (!desktop && !(e.target as HTMLElement).closest("button")) closeMore(); }}>
         <PlacePhotoGallery
           key={place.id}
           placeId={place.id}
@@ -536,6 +565,7 @@ function CardBody({
           title={place.title}
           height={180}
         />
+        </div>
       )}
 
       {/* Close — over the gallery when it is open, a grey disc on the card when
@@ -643,33 +673,6 @@ function CardBody({
                   <OneStar />{rating.toFixed(1)}
                 </span>
               )}
-              {!desktop && (
-                // The doors, small, on this line (16 Nov 2026): directions in ink as the
-                // trip's main one, then website and call. 34px to the eye, 44 to the finger.
-                <span className="ml-auto flex items-center gap-1 flex-shrink-0" data-testid="pin-doors">
-                  {googleDirectionsUrl(navTarget) && (
-                    <button type="button" onClick={openDirections} aria-label="Directions" title="Directions"
-                      className="relative w-[34px] h-[34px] rounded-full flex items-center justify-center" style={{ background: "#1A1A2E", color: "#fff" }}>
-                      <span aria-hidden="true" className="absolute -inset-[5px]" />
-                      <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 18, fontVariationSettings: "'FILL' 1" }}>directions</span>
-                    </button>
-                  )}
-                  {website && (
-                    <a href={website} target="_blank" rel="noopener noreferrer" aria-label="Website" title="Website"
-                      className="relative w-[34px] h-[34px] rounded-full bg-gray-100 flex items-center justify-center" style={{ color: "#1A1A2E" }}>
-                      <span aria-hidden="true" className="absolute -inset-[5px]" />
-                      <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 17 }}>language</span>
-                    </a>
-                  )}
-                  {phone && (
-                    <a href={`tel:${phone}`} aria-label="Call" title={phone}
-                      className="relative w-[34px] h-[34px] rounded-full bg-gray-100 flex items-center justify-center" style={{ color: "#1A1A2E" }}>
-                      <span aria-hidden="true" className="absolute -inset-[5px]" />
-                      <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 17 }}>call</span>
-                    </a>
-                  )}
-                </span>
-              )}
             </div>
           </div>
         </div>
@@ -681,6 +684,11 @@ function CardBody({
             while closed, so Add to a day stays above the fold. */}
         {notesOpen ? (
           <>
+            {/* Phone: the Intent only, even opened (16 Nov 2026: a long "Know before
+                you go" pushed Less off the screen). The whole note is the day card's. */}
+            {!desktop ? (
+              notes ? <p data-testid="pin-note-lead" className="text-[12px] text-gray-600 mt-1.5 leading-snug">{noteLead(notes) ?? notes}</p> : null
+            ) : (
             <DetailsField
               card={card}
               fieldKey="notes"
@@ -695,6 +703,9 @@ function CardBody({
                 <p className="text-[12px] text-gray-600 mt-1.5 leading-snug whitespace-pre-line">{renderEmphasis(v)}</p>
               )}
             />
+            )}
+            {/* No empty "Who recommended it?" prompt on the phone (planning). */}
+            {(desktop || recommendedBy) && (
             <DetailsField
               card={card}
               fieldKey="recommended_by"
@@ -711,15 +722,20 @@ function CardBody({
                 </p>
               )}
             />
-            {source && (
-              <a href={source} target="_blank" rel="noopener noreferrer" data-testid="pin-rec-link" className="inline-block mt-1 text-[11.5px] text-gray-500 hover:text-gray-700 underline underline-offset-2 decoration-[rgba(26,26,46,0.25)]">
-                Open {recLink?.host ?? sourceLabel(source)} ↗
+            )}
+            {recLink && (
+              <a href={recLink.url} target="_blank" rel="noopener noreferrer" data-testid="pin-rec-link" className="inline-block mt-1 text-[11.5px] text-gray-500 hover:text-gray-700 underline underline-offset-2 decoration-[rgba(26,26,46,0.25)]">
+                Open {sourceLabel(recLink.url)} ↗
               </a>
             )}
-            <div className="mt-1 flex items-center gap-3">
-              <button onClick={closeMore} className="text-[11px] text-gray-400 hover:text-gray-600 underline underline-offset-2 decoration-[rgba(26,26,46,0.25)]">
-                less
+            <div className="mt-2 flex items-center gap-2">
+              {/* Back to the small card (16 Nov 2026: "you can't press anything to go back"). */}
+              <button onClick={closeMore} data-testid="pin-less" className="relative inline-flex items-center gap-1 h-[30px] px-3 rounded-full bg-gray-100 text-[12px] font-medium text-gray-700">
+                <span aria-hidden="true" className="absolute -inset-y-[7px] inset-x-0" />
+                <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 16 }}>expand_less</span>
+                Less
               </button>
+              {doors && <span className="ml-auto">{doors}</span>}
             </div>
           </>
         ) : (
@@ -727,7 +743,7 @@ function CardBody({
             {notes ? (
               <button onClick={() => setNotesOpen(true)} className="block w-full text-left" aria-label="Read the note">
                 {/* The note's first real sentence, past "**Intent**" — the card face's rule (lib/noteLead). */}
-                <p className="text-[12px] text-gray-600 mt-1.5 leading-snug truncate">{noteLead(notes) ?? notes}</p>
+                <p className="text-[12px] text-gray-600 mt-1.5 leading-snug line-clamp-2">{noteLead(notes) ?? notes}</p>
               </button>
             ) : desktop ? (
               <DetailsField
@@ -742,14 +758,15 @@ function CardBody({
                 render={(v) => <p className="text-[12px] text-gray-600 mt-1.5 leading-snug">{v}</p>}
               />
             ) : null}
-            {notes && (
-              <p className="mt-0.5 text-[11px] text-gray-400 leading-snug">
-                <button onClick={openMore} className="underline underline-offset-2 decoration-[rgba(26,26,46,0.25)] hover:text-gray-600">more</button>
-              </p>
+            {(notes || doors) && (
+              <div className="mt-1 flex items-center gap-2 text-[11.5px] text-gray-400 leading-snug">
+                {notes && <button onClick={openMore} className="relative underline underline-offset-2 decoration-[rgba(26,26,46,0.25)] hover:text-gray-600"><span aria-hidden="true" className="absolute -inset-3" />more</button>}
+                {doors && <span className="ml-auto">{doors}</span>}
+              </div>
             )}
             {/* One line for who sent you, and the post itself (16 Nov 2026): it was
                 "from TikTok · ★ via TikTok", a second star beside the rating's. */}
-            {(recommendedBy || source) && (
+            {(recommendedBy || recLink) && (
               <p data-testid="pin-rec-line" className="flex items-center gap-1.5 mt-2 pt-2 text-[12px] leading-snug whitespace-nowrap" style={{ borderTop: "1px solid rgba(26,26,46,0.06)" }}>
                 <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 15, color: "rgba(26,26,46,0.5)" }}>thumb_up</span>
                 {recommendedBy ? (
@@ -758,8 +775,8 @@ function CardBody({
                     <span className="text-gray-500 truncate">{recommendedBy}</span>
                   </>
                 ) : <span className="text-gray-500 truncate">Where you saw it</span>}
-                {source && (
-                  <a href={source} target="_blank" rel="noopener noreferrer" data-testid="pin-rec-link" className="relative ml-auto flex-shrink-0 text-[11.5px] text-gray-500 hover:text-gray-700 underline underline-offset-2 decoration-[rgba(26,26,46,0.25)]">
+                {recLink && (
+                  <a href={recLink.url} target="_blank" rel="noopener noreferrer" data-testid="pin-rec-link" className="relative ml-auto flex-shrink-0 text-[11.5px] text-gray-500 hover:text-gray-700 underline underline-offset-2 decoration-[rgba(26,26,46,0.25)]">
                     <span aria-hidden="true" className="absolute -inset-y-3 -inset-x-2" />
                     Open ↗
                   </a>

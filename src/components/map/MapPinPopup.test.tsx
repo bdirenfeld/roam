@@ -125,10 +125,20 @@ describe("MapPinPopup — the face (6 Oct 2026, designer audit)", () => {
     const { container } = render(<MapPinPopup card={mafalda} onClose={() => {}} onCardUpdate={() => {}} />);
     expect(container.textContent).not.toMatch(/\*\*/);
     expect(screen.getByText(/^A specialist shop and eating spot in Colonnata/)).toBeTruthy();
-    // Opened, the headings render bold, as on the card sheet.
+    // Opened on the phone: still the Intent only, never the whole "Know before you
+    // go" list (16 Nov 2026: it pushed Less off the screen). The full note is the day card's.
     fireEvent.click(screen.getByRole("button", { name: "more" }));
     expect(container.textContent).not.toMatch(/\*\*/);
-    expect(screen.getByText("Intent").tagName).toBe("STRONG");
+    expect(screen.getByTestId("pin-note-lead").textContent).toMatch(/^A specialist shop and eating spot in Colonnata/);
+    expect(screen.queryByText("Intent")).toBeNull();
+  });
+
+  it("phone, opened, nothing written: no 'Add a note', no 'Who recommended it?', no Google Maps link (16 Nov 2026)", () => {
+    const bare = { ...card, source_url: "https://maps.google.com/?cid=1", details: null } as unknown as Card;
+    const { container } = render(<MapPinPopup card={bare} onClose={() => {}} onCardUpdate={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Show photos" }));
+    expect(container.textContent).not.toMatch(/Add a note|Who recommended it\?|Open Google|Open ↗/);
+    expect(screen.getByTestId("pin-less")).toBeTruthy();
   });
 });
 
@@ -223,6 +233,16 @@ describe("MapPinPopup — the phone popup matches the cards (16 Nov 2026)", () =
     expect(container.textContent).not.toMatch(/via TikTok|from TikTok/);
     expect(container.innerHTML).not.toContain("decoration-dotted");
     expect(screen.getByTestId("pin-type-pill").textContent).toContain("Dessert");
+  });
+
+  it("Less is a clear button that folds back to the small card; the icons ride the more / less line", () => {
+    render(<MapPinPopup card={vivoli} onClose={() => {}} onCardUpdate={() => {}} days={days} tripId="t1" />);
+    expect(screen.getByTestId("pin-doors").closest("div")?.textContent).toContain("more");
+    fireEvent.click(screen.getByRole("button", { name: "more" }));
+    expect(screen.queryByRole("button", { name: "Show photos" })).toBeNull();
+    fireEvent.click(screen.getByTestId("pin-less"));
+    expect(screen.getByRole("button", { name: "Show photos" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "more" })).toBeTruthy();
   });
 
   it("the photo tile leaves when the big photo opens: one photo, never two", () => {
