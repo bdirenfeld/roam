@@ -192,23 +192,23 @@ describe("a cruise's port on the week (17 Nov 2026, Don)", () => {
     ? { ...d, cards: [card("p1", d.id, port as typeof villa, { start_time: "07:00:00", end_time: "18:00:00" })] }
     : d) as unknown as DayWithCards[];
 
-  it("names its day in the header with its times, and lights the hours ashore instead of any block (Don's idea)", () => {
+  it("names its day in the header with its times, and paints ship time blue around the hours ashore", () => {
     const { container } = render(<WeekBoard trip={trip} initialDays={withPort} initialSaved={[]} />);
     const port = screen.getByTestId("day-port");
     expect(port.textContent).toContain("Grundarfjörður");
     expect(port.textContent).toContain("7am–6pm");
     expect(container.querySelector('[data-port-marker]')).toBeNull();
-    const band = container.querySelector(`[data-ashore="p1"]`) as HTMLElement;
-    // 7am is the grid's first hour; eleven hours ashore.
-    expect(parseFloat(band.style.top)).toBe(0);
-    expect(parseFloat(band.style.height)).toBe(11 * 48);
+    // Ashore 7am (the grid's first hour) to 6pm; on the ship from 6pm.
+    const bands = Array.from(container.querySelectorAll(`[data-ship="d2"]`)) as HTMLElement[];
+    expect(bands).toHaveLength(1);
+    expect(parseFloat(bands[0].style.top)).toBe(11 * 48);
     // A port day is named by its port: no "Name this day" hint on it.
     const header = port.closest(".group") as HTMLElement;
     expect(header.querySelector('[data-testid="name-day-hint"]')).toBeNull();
     expect(screen.getAllByTestId("name-day-hint").length).toBeGreaterThan(0); // the other days keep it
   });
 
-  it("a night in port: white from docking to midnight, then the next morning until all aboard", () => {
+  it("a night in port: no ship time from docking that day to all aboard the next", () => {
     const isa = { ...port, id: "isa", title: "Ísafjörður" };
     const night = days.map((d, i) => i === 1
       ? { ...d, cards: [card("p2", d.id, isa as typeof villa, { start_time: "08:00:00", end_time: "18:00:00", details: { overnight: true } })] }
@@ -217,11 +217,11 @@ describe("a cruise's port on the week (17 Nov 2026, Don)", () => {
     const labels = screen.getAllByTestId("day-port").map((b) => b.textContent);
     expect(labels.some((t) => t?.includes("8am · overnight"))).toBe(true);
     expect(labels.some((t) => t?.includes("until 6pm"))).toBe(true);
-    const bands = Array.from(container.querySelectorAll(`[data-ashore^="p2"]`)) as HTMLElement[];
-    expect(bands).toHaveLength(2);
-    expect(parseFloat(bands[0].style.top)).toBe(48); // 8am, an hour into the grid
-    expect(parseFloat(bands[1].style.top)).toBe(0); // the next morning from the top
-    expect(parseFloat(bands[1].style.height)).toBe(11 * 48); // until 6pm
+    // One port, one cruise day: on board only before docking at 8am.
+    const bands = Array.from(container.querySelectorAll(`[data-ship]`)) as HTMLElement[];
+    expect(bands).toHaveLength(1);
+    expect(parseFloat(bands[0].style.top)).toBe(0);
+    expect(parseFloat(bands[0].style.height)).toBe(48);
   });
 
   it("the port's name opens its card", () => {

@@ -1,5 +1,6 @@
 "use client";
 
+import { looksLikePortCall } from "@/lib/cards/portHint";
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useWalkthrough } from "@/components/onboarding/JourneyGuidanceContext";
 import { SUB_TYPE_LABEL } from "@/lib/subTypeLabel";
@@ -2051,6 +2052,14 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 </div>
               )}
               <CostContext.Provider value={{ destination: tripDestination, partySize }}>
+                {/* A town visited for the day on a hand-built cruise: one tap makes it a Port,
+                    so the week paints the ship's time around it (lib/cards/portHint, 17 Nov 2026). */}
+                {!readOnly && looksLikePortCall(localCard) && (
+                  <button type="button" data-testid="port-hint" onClick={() => { const prev = { type: place!.type, sub: place!.sub_type ?? "" }; void handleTypeAndSubTypeChange("logistics", "port").then(() => toast({ message: "Marked as a port", undo: () => void handleTypeAndSubTypeChange(prev.type, prev.sub) })); }}
+                    className="mb-4 w-full text-left text-[13.5px] px-3.5 py-3 rounded-xl" style={{ background: "#F3F6F9", color: "#1A1A2E" }}>
+                    Is this a port of call? <span className="underline underline-offset-2 font-medium">Mark it as a port</span>
+                  </button>
+                )}
                 {renderDetail()}
               </CostContext.Provider>
             </NoteDisplay.Provider>

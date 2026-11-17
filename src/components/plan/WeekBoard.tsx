@@ -1,4 +1,5 @@
 "use client";
+import { shipSpans } from "@/lib/plan/cruiseDays";
 import { otherStayNights } from "@/lib/stays/stayPick";
 import { isPortCard, minutesAshore, isOvernight } from "@/lib/cards/port";
 import { useGuidanceScreen, useWalkthrough } from "@/components/onboarding/JourneyGuidanceContext";
@@ -69,6 +70,8 @@ interface Props {
   readOnly?: boolean;
 }
 
+/** On the ship (17 Nov 2026): the one place this blue appears. */
+const SHIP_BLUE = "#DCEAF3";
 const COL_MIN = 168;   // px — seven days fit beside a 440px map at 1440; more scroll sideways
 const COL_FLOOR = 120; // px — the seam will not push a day column below this
 const HOURS_W = 52;
@@ -869,6 +872,8 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
   const pinCards = useMemo(() => [...saved, ...days.flatMap((d) => d.cards)], [saved, days]);
 
   // ── layout per day ─────────────────────────────────────────────
+  // Time on a cruise ship, per day (lib/plan/cruiseDays): painted pale blue on the grid.
+  const ship = useMemo(() => shipSpans(days, days.flatMap((d) => d.cards)), [days]);
   const laidOut = useMemo(() => shown.map((d, di) => {
     const timed: Block[] = []; const untimed: Card[] = []; const ports: Card[] = [];
     for (const c of d.cards) {
@@ -1119,17 +1124,14 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
                 ))}
               </div>
               <div className="contents">
-                {laidOut.map(({ day, placed, legRuns, ports, carry }, di) => (
+                {laidOut.map(({ day, placed, legRuns }, di) => (
                   <div key={day.id} data-daycol={day.id} onClick={(e) => (collapsed(di) ? setFocusDayId(day.id) : onColumnClick(e, day.id, di))} onMouseMove={(e) => onColumnMove(e, di)} onMouseLeave={() => setSlot(null)} className={`relative border-l min-w-0 transition-colors ${collapsed(di) ? "cursor-pointer hover:bg-[rgba(26,26,46,0.04)]" : "cursor-cell"}`} style={{ borderColor: "rgba(26,26,46,0.10)", background: collapsed(di) ? "rgba(26,26,46,0.02)" : hover && hover.day === di && hover.min !== null ? "rgba(26,26,46,0.04)" : undefined }}>
-                    {/* Hours ashore, lit: white over the week's grey (17 Nov 2026). Under everything, never a click target. */}
-                    {!collapsed(di) && [
-                      ...ports.map((p) => ({ p, key: p.id, a: p.start_time ? toMin(p.start_time) : null, z: p.end_time && isOvernight(p) ? (HOUR_END + 1) * 60 : p.end_time ? toMin(p.end_time) : null })),
-                      ...carry.map((p) => ({ p, key: p.id + ":carry", a: HOUR_START * 60, z: toMin(p.end_time!) })),
-                    ].map(({ key, a, z, p }) => {
-                      if (a == null || z == null || !minutesAshore(p)) return null;
+                    {/* On the ship, pale blue (17 Nov 2026, lib/plan/cruiseDays shipSpans): the grey
+                        background means nothing; blue means you're on the water. Under everything, never a click target. */}
+                    {!collapsed(di) && (ship.get(day.id) ?? []).map(([a, z]) => {
                       const a2 = Math.max(a, HOUR_START * 60), z2 = Math.min(z, (HOUR_END + 1) * 60);
                       if (z2 <= a2) return null;
-                      return <div key={key} data-ashore={key} aria-hidden="true" className="absolute left-0 right-0 pointer-events-none bg-white" style={{ top: (a2 / 60 - HOUR_START) * PX_PER_HOUR, height: ((z2 - a2) / 60) * PX_PER_HOUR }} />;
+                      return <div key={a} data-ship={day.id} aria-hidden="true" className="absolute left-0 right-0 pointer-events-none" style={{ background: SHIP_BLUE, top: (a2 / 60 - HOUR_START) * PX_PER_HOUR, height: ((z2 - a2) / 60) * PX_PER_HOUR }} />;
                     })}
                     {hours.map((h) => (
                       <div key={h} data-hourline="1" className="absolute left-0 right-0" style={{ top: (h - HOUR_START) * PX_PER_HOUR, borderTop: "1px solid rgba(26,26,46,0.06)" }}>

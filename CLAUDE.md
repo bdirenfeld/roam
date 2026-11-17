@@ -2532,3 +2532,9 @@ Check phone screens in the phone viewer (`/dev/phone`, `scripts/phone-check.mjs`
 - **Plan my trip skips days on a ship** (`lib/plan/cruiseDays`): first to last ship marker (a Port
   card, a cruise terminal / boarding / disembark card, an "At sea" note). Planner only; by hand,
   anything goes on any day (his ruling).
+- **Ship time is pale blue on the week** (`SHIP_BLUE` #DCEAF3, `shipSpans` in lib/plan/cruiseDays): grey
+  stays the background and means nothing (Brennan: "if I'm in Italy and it's grey, am I on the water?").
+  Sea day = all day; port day = the day less docks→all aboard; boarding day from the boarding card's
+  time (5pm if none); a "disembark" card ends it. The old white "hours ashore" band is gone. Two doors
+  for a hand-built cruise: naming a day "Day at sea" counts as a ship marker, and a town visited for
+  the day (`lib/cards/portHint`) shows "Is this a port of call? Mark it as a port" in its card sheet.

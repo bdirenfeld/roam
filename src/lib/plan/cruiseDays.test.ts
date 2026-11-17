@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { cruiseDayIds, isShipMarker } from "./cruiseDays";
+import { cruiseDayIds, isShipMarker, shipSpans, BOARD_FALLBACK_MIN } from "./cruiseDays";
 import { draftDays } from "./draftRows";
 import type { Card } from "@/types/database";
 
@@ -43,5 +43,39 @@ describe("days on the ship", () => {
 
   it("a journey with no cruise is untouched", () => {
     expect(cruiseDayIds(days, [don[0]]).size).toBe(0);
+  });
+});
+
+describe("ship time, painted blue on the week (17 Nov 2026)", () => {
+  // Don's journey after his ports were marked Port: Grundarfjörður 7am–6pm, Ísafjörður overnight.
+  const port = (date: string, title: string, start: string, end: string, details: Record<string, unknown> = {}) =>
+    ({ ...card(date, place(title, "port", "logistics"), details, start), end_time: end }) as unknown as Card;
+  const cruise = [
+    card("2027-07-20", place("Reykjavík Cruise Terminal", "transit", "logistics")),
+    port("2027-07-21", "Grundarfjörður", "07:00:00", "18:00:00"),
+    port("2027-07-22", "Ísafjörður", "08:00:00", "18:00:00", { overnight: true }),
+    card("2027-07-24", null, { title: "At Sea" }),
+  ];
+  const spans = shipSpans(days, cruise);
+  const on = (date: string) => spans.get(dayOf(date));
+
+  it("boarding day from the evening when the terminal card has no time", () => {
+    expect(on("2027-07-20")).toEqual([[BOARD_FALLBACK_MIN, 1440]]);
+  });
+  it("a port day is the day less the hours ashore", () => {
+    expect(on("2027-07-21")).toEqual([[0, 420], [1080, 1440]]);
+  });
+  it("a night in port: ashore from docking to midnight, then until all aboard the next day", () => {
+    expect(on("2027-07-22")).toEqual([[0, 480]]);
+    expect(on("2027-07-23")).toEqual([[1080, 1440]]);
+  });
+  it("a sea day is blue all day; days off the ship get nothing", () => {
+    expect(on("2027-07-24")).toEqual([[0, 1440]]);
+    expect(on("2027-07-19")).toBeUndefined();
+  });
+  it("naming a day \"Day at sea\" is enough on its own", () => {
+    const named = days.map((d) => (d.date === "2027-07-26" ? { ...d, theme: "Day at sea" } : d));
+    expect(shipSpans(named, []).get(dayOf("2027-07-26"))).toEqual([[0, 1440]]);
+    expect(shipSpans(days, []).size).toBe(0);
   });
 });
