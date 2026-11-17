@@ -9,6 +9,10 @@ interface Props {
   showEmpty?: boolean;
   /** The check-out the journey implies (lib/stays/stayRuns) when none is written. */
   stayCheckOut?: string | null;
+  /** The check-in day (the card's own day, YYYY-MM-DD). The check-out picker
+   *  starts there: with no floor it opened on today's month, a year before a
+   *  2027 trip (Don's feedback, Nov 2026). */
+  checkInDay?: string | null;
 }
 
 function fmtTime(t: string | null): string | null {
@@ -34,7 +38,7 @@ function StayRow({ icon, label, children }: { icon: string; label: string; child
 
 const isIso = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
 
-export default function HotelDetail({ card, onSaveDetails, showEmpty = false, stayCheckOut = null }: Props) {
+export default function HotelDetail({ card, onSaveDetails, showEmpty = false, stayCheckOut = null, checkInDay = null }: Props) {
   const d = card.details as { confirmation?: string; notes?: string; check_out?: unknown; check_out_date?: unknown };
   const save = (field: string) =>
     onSaveDetails ? (v: string) => onSaveDetails(field, v || null) : undefined;
@@ -73,6 +77,7 @@ export default function HotelDetail({ card, onSaveDetails, showEmpty = false, st
                       type="date"
                       aria-label="Check-out day"
                       value={leaveDay}
+                      min={isIso(checkInDay) ? checkInDay : undefined}
                       onChange={(e) => onSaveDetails!("check_out", e.target.value || null)}
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />

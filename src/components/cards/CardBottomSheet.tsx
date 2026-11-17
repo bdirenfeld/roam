@@ -1292,7 +1292,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       case "logistics/flight_departure":
         return <FlightArrivalDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
       case "logistics/hotel":
-        return <HotelDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} stayCheckOut={stayCheckOut} />;
+        return <HotelDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} stayCheckOut={stayCheckOut} checkInDay={days?.find((x) => x.id === dCard.day_id)?.date ?? null} />;
       case "activity/wellness":
         return <WellnessDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
       default:

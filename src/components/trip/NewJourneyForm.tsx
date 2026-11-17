@@ -12,6 +12,7 @@
 // every text input, with deep bottom padding so a phone keyboard can never
 // bottom out a field behind itself.
 
+import { calendarGrid } from "@/lib/calendarGrid";
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
 import { dropdownPlacement, DROPDOWN_GAP, type Placement } from "@/lib/ui/dropdownPlacement";
 import { tripHref } from "@/lib/tripHref";
@@ -103,18 +104,6 @@ function countDays(start: string, end: string): number {
   return Math.max(1, Math.round((e.getTime() - s.getTime()) / 86400000) + 1);
 }
 
-function buildCalendarDays(year: number, month: number): Array<string | null> {
-  const firstDow = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const cells: Array<string | null> = [];
-  for (let i = 0; i < firstDow; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) {
-    cells.push(
-      `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`
-    );
-  }
-  return cells;
-}
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -579,7 +568,7 @@ export default function NewJourneyForm({
     return () => document.removeEventListener("keydown", onKey);
   }, [showDatePicker]);
 
-  const calCells = buildCalendarDays(calYear, calMonth);
+  const calCells = calendarGrid(calYear, calMonth);
   const calNights = pickStart && pickEnd ? Math.max(0, countDays(pickStart, pickEnd) - 1) : null;
   const calSummary = pickStart && pickEnd
     ? `${fmtDate(pickStart)} → ${fmtDate(pickEnd)} · ${calNights} night${calNights !== 1 ? "s" : ""}`

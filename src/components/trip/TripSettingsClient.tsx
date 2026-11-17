@@ -1,5 +1,6 @@
 "use client";
 
+import { calendarGrid } from "@/lib/calendarGrid";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { planDayChanges, rehomeDays } from "@/lib/tripDays";
 import { useRouter } from "next/navigation";
@@ -68,18 +69,6 @@ function countDays(start: string, end: string): number {
   return Math.max(1, Math.round((e.getTime() - s.getTime()) / 86400000) + 1);
 }
 
-function buildCalendarDays(year: number, month: number): Array<string | null> {
-  const firstDow = new Date(year, month, 1).getDay(); // 0=Sun
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const cells: Array<string | null> = [];
-  for (let i = 0; i < firstDow; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) {
-    cells.push(
-      `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`
-    );
-  }
-  return cells;
-}
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -585,7 +574,7 @@ export default function TripSettingsClient({
     return () => document.removeEventListener("keydown", onKey);
   }, [showDatePicker, showDeleteConfirm]);
 
-  const calCells = buildCalendarDays(calYear, calMonth);
+  const calCells = calendarGrid(calYear, calMonth);
 
   const calNights =
     pickStart && pickEnd ? Math.max(0, countDays(pickStart, pickEnd) - 1) : null;

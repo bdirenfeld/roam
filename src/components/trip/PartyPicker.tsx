@@ -53,8 +53,10 @@ function Stepper({ label, value, min, onChange, first = false }: { label: string
 export default function PartyPicker({ party, onChange, labelClass }: { party: Party; onChange: (p: Party) => void; labelClass: string }) {
   const [open, setOpen] = useState(false);
   const total = partySize(party);
-  // Never fewer than one traveller.
-  const min = (n: number) => (total - n >= 1 ? 0 : n);
+  // Never fewer than one traveller: a group can go to 0 while someone else is
+  // travelling, else down to 1. It used to return n itself, so 4 adults and
+  // nobody else locked the minus at 4 (Don's feedback, Nov 2026).
+  const min = (n: number) => (total - n >= 1 ? 0 : 1);
   return (
     <div className="border-b border-black/5">
       <button

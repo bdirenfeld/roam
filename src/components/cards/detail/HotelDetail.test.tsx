@@ -12,6 +12,14 @@ const hotel = (details: Record<string, unknown>, dayId: string | null = "d1") =>
 afterEach(cleanup);
 
 describe("check-out day on the hotel's sheet", () => {
+
+  it("the check-out picker starts at the check-in day, not today (Don, Nov 2026)", () => {
+    render(<HotelDetail card={hotel({})} onSaveDetails={vi.fn()} checkInDay="2027-07-16" />);
+    expect((screen.getByLabelText("Check-out day") as HTMLInputElement).min).toBe("2027-07-16");
+    cleanup();
+    render(<HotelDetail card={hotel({})} onSaveDetails={vi.fn()} />);
+    expect((screen.getByLabelText("Check-out day") as HTMLInputElement).min).toBe("");
+  });
   it("shows the day already written and saves a new one as check_out", () => {
     const save = vi.fn();
     render(<HotelDetail card={hotel({ check_out: "2026-07-26" })} onSaveDetails={save} />);

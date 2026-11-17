@@ -36,4 +36,14 @@ describe("PartyPicker", () => {
     expect((screen.getByLabelText("Fewer adults") as HTMLButtonElement).disabled).toBe(true);
     expect(screen.queryByLabelText("Kid 1's age")).toBeNull();
   });
+
+  it("4 adults and nobody else can go down to 3 (Don, Nov 2026: the minus was greyed out)", () => {
+    const onChange = vi.fn();
+    render(<PartyPicker party={{ adults: 4, seniors: 0, kids: [] }} onChange={onChange} labelClass="" />);
+    fireEvent.click(screen.getByRole("button", { name: /Travellers/ }));
+    const fewer = screen.getByLabelText("Fewer adults") as HTMLButtonElement;
+    expect(fewer.disabled).toBe(false);
+    fireEvent.click(fewer);
+    expect(onChange).toHaveBeenLastCalledWith({ adults: 3, seniors: 0, kids: [] });
+  });
 });
