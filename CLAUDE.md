@@ -2538,3 +2538,6 @@ Check phone screens in the phone viewer (`/dev/phone`, `scripts/phone-check.mjs`
   time (5pm if none); a "disembark" card ends it. The old white "hours ashore" band is gone. Two doors
   for a hand-built cruise: naming a day "Day at sea" counts as a ship marker, and a town visited for
   the day (`lib/cards/portHint`) shows "Is this a port of call? Mark it as a port" in its card sheet.
+- **The week board is white** (same day, his option B): `WeekBoard` root and hours gutter are `bg-white`,
+  so white = an ordinary day and blue = on a ship. The rest of the desktop ground stays #F0F0F0.
+  ground.test.ts pins both.

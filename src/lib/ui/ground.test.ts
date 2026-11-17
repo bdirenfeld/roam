@@ -16,7 +16,6 @@ describe("desktop ground", () => {
   });
 
   it.each([
-    "src/components/plan/WeekBoard.tsx",
     "src/components/plan/PlanBoard.tsx",
     "src/components/map/MapSidebar.tsx",
     "src/app/(app)/trips/[tripId]/plan/loading.tsx",
@@ -24,6 +23,16 @@ describe("desktop ground", () => {
     const s = read(f);
     expect(s).toContain(GROUND);
     expect(s).not.toMatch(OLD);
+  });
+});
+
+describe("the week is white, the ship is blue (17 Nov 2026)", () => {
+  const w = read("src/components/plan/WeekBoard.tsx");
+  it("no grey ground on the week: white for a day, blue only for time on a ship", () => {
+    expect(w).not.toContain(GROUND);
+    expect(w).not.toMatch(OLD);
+    expect(w).toMatch(/className="flex h-\[calc\(100dvh-64px\)\] bg-white"/);
+    expect(w).toContain('SHIP_BLUE = "#DCEAF3"');
   });
 });
 

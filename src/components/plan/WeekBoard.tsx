@@ -931,7 +931,9 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
   const collapsed = (i: number) => focusIdx >= 0 && i !== focusIdx;
 
   return (
-    <div ref={frameRef} className="flex h-[calc(100dvh-64px)] bg-[#F0F0F0]">
+    // The week is white (17 Nov 2026, Brennan's option B): white is an ordinary day, pale
+    // blue is time on a ship (SHIP_BLUE). Grey meant nothing and read as "at sea".
+    <div ref={frameRef} className="flex h-[calc(100dvh-64px)] bg-white">
       {/* One scroller for both axes (25 Sep 2026): the header and the Anytime
           lane stick to the top, the hours gutter sticks to the left. Two nested
           scrollers (sideways outside, down inside) left the gutter sliding
@@ -1118,7 +1120,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
           {/* the hours */}
           <div className="relative">
             <div ref={colsRef} className="grid relative" style={{ ...gridStyle, height: gridHeight() }}>
-              <div className="sticky left-0 z-[8] bg-[#F0F0F0]">
+              <div className="sticky left-0 z-[8] bg-white">
                 {hours.map((h) => (
                   <div key={h} className="absolute right-1.5 text-[10px] text-activity/40 tabular-nums" style={{ top: (h - HOUR_START) * PX_PER_HOUR - 6 }}>{h % 12 || 12}{h < 12 ? " am" : " pm"}</div>
                 ))}
