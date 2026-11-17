@@ -12,6 +12,7 @@ import { extendJourney } from "@/lib/confirmations/extendJourney";
 import { whenLine, type FileRef } from "@/lib/confirmations/batch";
 import { existingFor, fillFrom, type DayCard } from "@/lib/confirmations/fillPlaceholder";
 import { blankBooking, flightTitle, flightAirport, type HandKind } from "@/lib/confirmations/byHand";
+import { portLabel, nextPort, type CruisePort } from "@/lib/confirmations/ports";
 import StayDatesSheet, { dayLabel } from "@/components/cards/StayDatesSheet";
 
 // ── ParsedConfirmation — matches API response (lib/confirmations/toCards) ──
@@ -149,6 +150,8 @@ export default function ConfirmationPreviewSheet({
   };
   const removeBooking = (idx: number) => setRemoved((r) => new Set(r).add(idx));
   const [stayFor, setStayFor] = useState<number | null>(null);
+  const setPorts = (idx: number, fn: (ps: CruisePort[]) => CruisePort[]) =>
+    setOver((o) => ({ ...o, [idx]: { ...o[idx], ports: fn(all[idx].ports ?? []) } }));
   // A hand-added flight is filled as number, from and to; its title and airport follow.
   const patchFlight = (idx: number, patch: Partial<ParsedConfirmation>) => {
     const p = { ...all[idx], ...patch };
@@ -255,6 +258,13 @@ export default function ConfirmationPreviewSheet({
       return lookups.get(key)!;
     }));
 
+    // Each port of call, found as a real place (a Port, so its pin is an anchor).
+    const portPlaces = new Map<string, Place | null>();
+    await Promise.all(kept.flatMap((i) => (all[i].type === "cruise" ? (all[i].ports ?? []) : []).map(async (pt, k) => {
+      if (!pt.port.trim()) return;
+      portPlaces.set(`${i}:${k}`, await resolvePlace({ ...all[i], ports: null, title: portLabel(pt.port), address: pt.port }));
+    })));
+
     const nextPos = new Map<string, number>();
     const posOn = (dayId: string) => {
       const dayCards = days.find((d) => d.id === dayId)?.cards ?? [];
@@ -297,9 +307,15 @@ export default function ConfirmationPreviewSheet({
       const main = card(draft.dayId, hhmm(draft.time), twoPart ? null : hhmm(draft.endTime), details, place);
       // A stay is two events, check-in and check-out; a car, pick-up and drop-off.
       const close = outDay ? closingEvent({ ...parsed, check_out_date: outDay.date, drop_off_date: outDay.date }, parsed.type === "cruise" ? draft.title.trim() : place?.title ?? draft.title.trim()) : null;
-      if (!outDay || !close) { cardItem.push(i); return [main]; }
-      cardItem.push(i, i);
-      return [main, card(outDay.id, close.time, null, closingDetails(details, close.title), place)];
+      // A cruise's ports of call: one Port card each, docks → all aboard (17 Nov 2026).
+      const portCards = parsed.type === "cruise" ? (parsed.ports ?? []).flatMap((pt, k) => {
+        const dayId = findMatchingDay(days, pt.date);
+        if (!dayId || !pt.port.trim()) return [];
+        return [card(dayId, pt.arrive ? hhmm(pt.arrive) : null, pt.depart ? hhmm(pt.depart) : null, { title: portLabel(pt.port) }, portPlaces.get(`${i}:${k}`) ?? null)];
+      }) : [];
+      const made = outDay && close ? [main, card(outDay.id, close.time, null, closingDetails(details, close.title), place), ...portCards] : [main, ...portCards];
+      made.forEach(() => cardItem.push(i));
+      return made;
     });
 
     // Already on the days (same day, same place): mark that card booked instead
@@ -457,6 +473,7 @@ export default function ConfirmationPreviewSheet({
                       <p className="text-[14.5px] font-semibold text-gray-900 truncate">{draft.title.trim() || "Untitled booking"}</p>
                       <p className="text-[12.5px] text-gray-500 truncate">
                         {whenLine(parsed.type, { dayNumber: inDay?.day_number ?? null, date: inDay?.date ?? null, time: draft.time, endTime: draft.endTime, outDate: outDay?.date ?? null })}
+                        {parsed.type === "cruise" && (parsed.ports?.length ?? 0) > 0 ? ` · ${parsed.ports!.length} ${parsed.ports!.length === 1 ? "port" : "ports"}` : ""}
                       </p>
                     </div>
                     <button
@@ -596,6 +613,45 @@ export default function ConfirmationPreviewSheet({
                           </option>
                         ))}
                       </select>
+                    </div>
+                  )}
+
+                  {/* A cruise's ports of call (17 Nov 2026): read from the file or typed here; each becomes a Port card. */}
+                  {parsed.type === "cruise" && (
+                    <div data-testid="ports-of-call">
+                      <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Ports of call</p>
+                      {(parsed.ports ?? []).map((pt, k) => (
+                        <div key={k} data-testid="port-row" className="mt-2 p-3 rounded-xl border border-gray-200 space-y-2">
+                          <div className="flex gap-2">
+                            <select aria-label={`Port ${k + 1} day`} value={pt.date}
+                              onChange={(e) => setPorts(idx, (ps) => ps.map((x, j) => (j === k ? { ...x, date: e.target.value } : x)))}
+                              className="w-[42%] px-2 py-2 text-[13.5px] bg-gray-50 border border-gray-200 rounded-lg outline-none appearance-none">
+                              {days.map((d) => <option key={d.id} value={d.date}>{fmtDate(d.date)}</option>)}
+                            </select>
+                            <input aria-label={`Port ${k + 1}`} value={pt.port} placeholder="Port, e.g. Akureyri"
+                              onChange={(e) => setPorts(idx, (ps) => ps.map((x, j) => (j === k ? { ...x, port: e.target.value } : x)))}
+                              className="flex-1 min-w-0 px-2.5 py-2 text-[13.5px] bg-gray-50 border border-gray-200 rounded-lg outline-none focus:bg-white" />
+                          </div>
+                          <div className="flex gap-2 items-center">
+                            <label className="flex-1 text-[11px] text-gray-500">Docks
+                              <input type="time" aria-label={`Port ${k + 1} docks`} value={pt.arrive ?? ""}
+                                onChange={(e) => setPorts(idx, (ps) => ps.map((x, j) => (j === k ? { ...x, arrive: e.target.value || null } : x)))}
+                                className="w-full mt-0.5 px-2 py-1.5 text-[13.5px] bg-gray-50 border border-gray-200 rounded-lg outline-none" />
+                            </label>
+                            <label className="flex-1 text-[11px] text-gray-500">All aboard
+                              <input type="time" aria-label={`Port ${k + 1} all aboard`} value={pt.depart ?? ""}
+                                onChange={(e) => setPorts(idx, (ps) => ps.map((x, j) => (j === k ? { ...x, depart: e.target.value || null } : x)))}
+                                className="w-full mt-0.5 px-2 py-1.5 text-[13.5px] bg-gray-50 border border-gray-200 rounded-lg outline-none" />
+                            </label>
+                            <button type="button" onClick={() => setPorts(idx, (ps) => ps.filter((_, j) => j !== k))}
+                              className="self-end min-h-[36px] text-[12.5px] text-gray-500 underline underline-offset-2">Remove</button>
+                          </div>
+                        </div>
+                      ))}
+                      <button type="button" onClick={() => setPorts(idx, (ps) => [...ps, nextPort(ps, days.find((d) => d.id === draft.dayId)?.date ?? tripStart ?? "", tripEnd ?? "")])}
+                        className="mt-2 w-full h-10 rounded-full text-[13.5px] font-medium" style={{ boxShadow: "inset 0 0 0 1.5px rgba(26,26,46,0.2)", color: "#1A1A2E" }}>
+                        + Add a port
+                      </button>
                     </div>
                   )}
 

@@ -7,6 +7,7 @@
  */
 
 import type { AgendaDay } from "./agenda";
+import type { CruisePort } from "./ports";
 
 // "cruise" (17 Nov 2026) comes only from adding a booking by hand: the ship,
 // boarded at its port (title = ship, address = port, check_out_date = the day you leave).
@@ -48,6 +49,8 @@ export interface ParsedConfirmation {
    * sheet turns each day into its own card. Absent for ordinary bookings.
    */
   agenda?: AgendaDay[] | null;
+  /** A cruise's ports of call (17 Nov 2026, lib/confirmations/ports): each becomes a Port card. */
+  ports?: CruisePort[] | null;
 }
 
 /** The kinds whose price the budget reads (lib/budget/booked). */

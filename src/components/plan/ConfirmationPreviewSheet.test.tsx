@@ -387,3 +387,51 @@ describe("adding bookings by hand (17 Nov 2026, Don's unreadable cruise PDF)", (
     expect(screen.getByText("Add 2 to my days")).toBeTruthy();
   });
 });
+
+describe("a cruise's ports of call (17 Nov 2026)", () => {
+  const cdays = ["2027-07-20", "2027-07-21", "2027-07-22", "2027-07-23", "2027-07-30"].map((date, i) => ({ id: `c${i}`, date, day_number: i + 1, cards: [] })) as unknown as DayWithCards[];
+  const read: ParsedConfirmation = {
+    type: "cruise", title: "Viking Mars", confirmation_number: "VK123", date: "2027-07-20", time: "14:00", end_time: null,
+    address: "Reykjavík cruise terminal", phone: null, website: null, notes: null, check_out_date: "2027-07-30", check_out_time: "08:00",
+    ports: [
+      { date: "2027-07-21", port: "Grundarfjörður, Iceland", arrive: "07:00", depart: "18:00" },
+      { date: "2027-07-22", port: "Ísafjörður, Iceland", arrive: "08:00", depart: "18:00" },
+    ],
+  };
+
+  it("a read cruise shows its ports; one more is added; saving makes a Port card for each, on its day, docks → all aboard", async () => {
+    queued.mockResolvedValue({ queued: false, error: null });
+    vi.stubGlobal("fetch", vi.fn(async () => ({ json: async () => ({ predictions: [] }) })));
+    const done = vi.fn();
+    render(<ConfirmationPreviewSheet items={[read]} fileName="viking.pdf" fileType="application/pdf" days={cdays} tripId="t1" onClose={vi.fn()} onCardsCreated={done} />);
+    expect(screen.getAllByTestId("port-row")).toHaveLength(2);
+    expect((screen.getByLabelText("Port 1") as HTMLInputElement).value).toBe("Grundarfjörður, Iceland");
+    fireEvent.click(screen.getByText("+ Add a port"));
+    expect((screen.getByLabelText("Port 3 day") as HTMLSelectElement).value).toBe("2027-07-23");
+    fireEvent.change(screen.getByLabelText("Port 3"), { target: { value: "Akureyri, Iceland" } });
+    fireEvent.change(screen.getByLabelText("Port 3 docks"), { target: { value: "07:00" } });
+    fireEvent.change(screen.getByLabelText("Port 3 all aboard"), { target: { value: "17:00" } });
+    fireEvent.click(screen.getByText("Add to my days"));
+    await waitFor(() => expect(done).toHaveBeenCalled());
+    const rows = queued.mock.calls[0][1] as { day_id: string; start_time: string | null; end_time: string | null; details: Record<string, unknown> }[];
+    expect(rows.map((r) => [r.day_id, r.details.title, r.start_time, r.end_time])).toEqual([
+      ["c0", "Board Viking Mars", "14:00:00", null],
+      ["c4", "Leave Viking Mars", "08:00:00", null],
+      ["c1", "Grundarfjörður", "07:00:00", "18:00:00"],
+      ["c2", "Ísafjörður", "08:00:00", "18:00:00"],
+      ["c3", "Akureyri", "07:00:00", "17:00:00"],
+    ]);
+    // Still one booking, however many ports.
+    expect(done.mock.calls[0][3]).toBe(1);
+    vi.unstubAllGlobals();
+  });
+
+  it("a cruise added by hand starts with no ports and '+ Add a port'", () => {
+    render(<ConfirmationPreviewSheet items={[]} fileName="" fileType="" days={cdays} tripId="t1" onClose={vi.fn()} onCardsCreated={vi.fn()} />);
+    fireEvent.click(screen.getByLabelText("Add a cruise"));
+    expect(screen.getByTestId("ports-of-call")).toBeTruthy();
+    expect(screen.queryAllByTestId("port-row")).toHaveLength(0);
+    fireEvent.click(screen.getByText("+ Add a port"));
+    expect((screen.getByLabelText("Port 1 day") as HTMLSelectElement).value).toBe("2027-07-21");
+  });
+});

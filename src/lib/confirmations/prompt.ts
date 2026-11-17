@@ -1,5 +1,6 @@
 import { onePricePerBooking, type ParsedConfirmation } from "./toCards";
 import { cleanAgenda, MAX_AGENDA_ITEMS } from "./agenda";
+import { cleanPorts } from "./ports";
 
 /**
  * The one reader for a booking confirmation (1 Oct 2026). Bookings' upload
@@ -10,17 +11,17 @@ import { cleanAgenda, MAX_AGENDA_ITEMS } from "./agenda";
  */
 export const CONFIRMATION_PROMPT = `You are a travel confirmation parser. Extract structured data from travel confirmations.
 
-Always return a JSON array with ONE object per booking in the document: each flight leg, each hotel stay, each rental car, each reservation. A round-trip flight is two objects (outbound then return); a package with a round-trip flight, a hotel and a car is four.
+Always return a JSON array with ONE object per booking in the document: each flight leg, each hotel stay, each rental car, each cruise, each reservation. A round-trip flight is two objects (outbound then return); a package with a round-trip flight, a hotel and a car is four.
 
 Each object must have exactly these fields (no extra keys):
 {
-  "type": "flight_arrival" | "flight_departure" | "hotel" | "car_rental" | "restaurant" | "activity",
-  "title": "string — e.g. 'Air Canada · YYZ → FCO' for flights, 'Hertz · Pisa Airport' for cars, hotel/restaurant name for others",
+  "type": "flight_arrival" | "flight_departure" | "hotel" | "car_rental" | "cruise" | "restaurant" | "activity",
+  "title": "string — e.g. 'Air Canada · YYZ → FCO' for flights, 'Hertz · Pisa Airport' for cars, the ship's name for a cruise ('Viking Mars'), hotel/restaurant name for others",
   "confirmation_number": "string or null — booking reference shared by both flights if round-trip",
-  "date": "YYYY-MM-DD or null — departure date for flights, check-in date for hotels, pick-up date for cars, reservation date for others",
-  "time": "HH:MM or null — departure time for flights, check-in time for hotels, pick-up time for cars, reservation time for others",
+  "date": "YYYY-MM-DD or null — departure date for flights, check-in date for hotels, pick-up date for cars, boarding date for a cruise, reservation date for others",
+  "time": "HH:MM or null — departure time for flights, check-in time for hotels, pick-up time for cars, boarding time for a cruise, reservation time for others",
   "end_time": "HH:MM or null — arrival time for flights",
-  "address": "string or null — for flight_arrival the airport you LAND at, for flight_departure the airport you LEAVE from (name + city); the pick-up location for cars; full address for others",
+  "address": "string or null — for flight_arrival the airport you LAND at, for flight_departure the airport you LEAVE from (name + city); the pick-up location for cars; the port you board at for a cruise (e.g. 'Reykjavík cruise terminal'); full address for others",
   "phone": "string or null",
   "website": "string or null — airline website or booking URL",
   "notes": "string or null — duration, passenger names, cabin class, anything else worth keeping",
@@ -29,13 +30,14 @@ Each object must have exactly these fields (no extra keys):
   "origin_airport": "string or null — flights only, where it departs, e.g. 'Toronto Pearson (YYZ)'",
   "arriving_at": "string or null — flights only, where it lands, e.g. 'Rome Fiumicino (FCO)'",
   "seat": "string or null — flights only",
-  "check_out_date": "YYYY-MM-DD or null — hotels only, the day you check out",
-  "check_out_time": "HH:MM or null — hotels only, the check-out time",
+  "check_out_date": "YYYY-MM-DD or null — hotels: the day you check out; a cruise: the day you leave the ship",
+  "check_out_time": "HH:MM or null — hotels: the check-out time; a cruise: when you leave the ship",
   "drop_off_date": "YYYY-MM-DD or null — cars only, the day you return it",
   "drop_off_time": "HH:MM or null — cars only, the return time",
   "drop_off_location": "string or null — cars only, where you return it, when not the pick-up location",
   "total_paid": "number or null — flights, hotels and cars: the total charged for this booking, taxes and fees included, as a plain number (1234.56, no symbol)",
   "paid_currency": "string or null — the ISO 4217 code of total_paid, e.g. 'CAD', 'EUR', 'USD'",
+  "ports": "array or null — ONLY for a cruise: each port of call in order, { \"date\": \"YYYY-MM-DD\", \"port\": \"town and country, e.g. 'Grundarfjörður, Iceland'\", \"arrive\": \"HH:MM or null\", \"depart\": \"HH:MM or null — the all-aboard time if given, else departure\" }. Leave out days at sea and the boarding and leaving ports. null for every other booking.",
   "agenda": "array or null — ONLY for a multi-session event (conference, summit, course, festival) whose document gives a day-by-day schedule; null for every other booking. One entry per event day: { \"date\": \"YYYY-MM-DD\", \"start\": \"HH:MM\", \"end\": \"HH:MM\", \"items\": [{ \"time\": \"HH:MM\", \"title\": \"short title\" }] }"
 }
 
@@ -48,6 +50,9 @@ Flight rules:
 - The leg ARRIVING at the trip's destination is "flight_arrival"
 - The leg DEPARTING from the destination (home, or onward) is "flight_departure"
 - Legs of one booking share the same confirmation_number
+
+Cruise rules:
+- A cruise is ONE "cruise" object for the whole voyage, with its ports in "ports". Flights, hotels or transfers sold with it are their own objects.
 
 Agenda rules:
 - A multi-session event is ONE "activity" object for the whole event, never one object per session. Its date and time are the first day's; its end_time is the first day's end.
@@ -71,7 +76,11 @@ export function extractBookings(text: string): ParsedConfirmation[] {
       const arr = Array.isArray(v) ? v : [v];
       const bookings = arr.filter((x): x is ParsedConfirmation => !!x && typeof x === "object" && typeof (x as { type?: unknown }).type === "string");
       // An agenda is kept only cleaned and bounded (lib/confirmations/agenda); an ordinary booking is untouched.
-      return onePricePerBooking(bookings.map((b) => (b.agenda === undefined ? b : { ...b, agenda: cleanAgenda(b.agenda) })));
+      // Ports likewise (lib/confirmations/ports): only a cruise keeps them.
+      return onePricePerBooking(bookings.map((b) => {
+        const withAgenda = b.agenda === undefined ? b : { ...b, agenda: cleanAgenda(b.agenda) };
+        return b.ports === undefined ? withAgenda : { ...withAgenda, ports: b.type === "cruise" ? cleanPorts(b.ports) : null };
+      }));
     } catch { /* next */ }
   }
   throw new Error("No valid JSON in response");
