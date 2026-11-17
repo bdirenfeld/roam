@@ -37,6 +37,7 @@ function StayRow({ icon, label, children }: { icon: string; label: string; child
 }
 
 const isIso = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
+const fmtDay = (iso: string) => new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
 
 export default function HotelDetail({ card, onSaveDetails, showEmpty = false, stayCheckOut = null, checkInDay = null }: Props) {
   const d = card.details as { confirmation?: string; notes?: string; check_out?: unknown; check_out_date?: unknown };
@@ -52,6 +53,13 @@ export default function HotelDetail({ card, onSaveDetails, showEmpty = false, st
   const leaveDay = isIso(d.check_out) ? d.check_out : isIso(d.check_out_date) ? d.check_out_date : isIso(stayCheckOut) ? stayCheckOut : "";
   const canSetLeave = !!onSaveDetails && !!card.day_id;
   const hasStayData = checkIn || checkOut || d.confirmation || leaveDay;
+  // Each end of the stay reads as a date AND a time, and check-out says how
+  // many nights (Don, Nov 2026: "the check-in / check-out times don't have a
+  // date", and he could not tell one hotel card covered several nights).
+  const inDay = isIso(checkInDay) ? checkInDay : null;
+  const nights = inDay && leaveDay ? Math.round((Date.parse(leaveDay) - Date.parse(inDay)) / 86_400_000) : 0;
+  const checkInText = [inDay ? fmtDay(inDay) : null, checkIn].filter(Boolean).join(" · ");
+  const checkOutLabel = nights > 0 ? `Check-out · ${nights} ${nights === 1 ? "night" : "nights"}` : "Check-out";
 
   return (
     <div className="space-y-6">
@@ -61,14 +69,14 @@ export default function HotelDetail({ card, onSaveDetails, showEmpty = false, st
           tap still opens the phone's own picker. Small label above each value, no lines. */}
       {(showEmpty || hasStayData || canSetLeave) && (
         <div data-testid="hotel-stay" className="space-y-3.5">
-          {checkIn && (
-            <StayRow icon="key" label="Check-in">{checkIn}</StayRow>
+          {checkInText && (
+            <StayRow icon="key" label="Check-in"><span data-testid="checkin-value">{checkInText}</span></StayRow>
           )}
           {(canSetLeave || leaveDay) && (
-            <StayRow icon="luggage" label="Check-out">
+            <StayRow icon="luggage" label={checkOutLabel}>
               <span className="relative flex-1 min-w-0 flex items-center justify-between">
                 <span data-testid="checkout-value" style={{ color: leaveDay ? "#1A1A2E" : "rgba(26,26,46,0.45)" }}>
-                  {leaveDay ? new Date(leaveDay + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) : "Add a date"}
+                  {leaveDay ? [fmtDay(leaveDay), checkOut].filter(Boolean).join(" · ") : "Add a date"}
                 </span>
                 {canSetLeave && (
                   <>
@@ -86,7 +94,7 @@ export default function HotelDetail({ card, onSaveDetails, showEmpty = false, st
               </span>
             </StayRow>
           )}
-          {checkOut && (
+          {checkOut && !(canSetLeave || leaveDay) && (
             <StayRow icon="schedule" label="Check-out time">{checkOut}</StayRow>
           )}
           <FieldRow icon="📋" label="Confirmation" value={d.confirmation}

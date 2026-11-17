@@ -13,6 +13,25 @@ afterEach(cleanup);
 
 describe("check-out day on the hotel's sheet", () => {
 
+  it("both ends read as a date and a time, and check-out counts the nights (Don, Nov 2026)", () => {
+    const c = { ...hotel({ check_out: "2027-07-19" }), start_time: "15:00:00", end_time: "11:00:00" } as Card;
+    render(<HotelDetail card={c} onSaveDetails={vi.fn()} checkInDay="2027-07-16" />);
+    expect(screen.getByTestId("checkin-value").textContent).toBe("Fri 16 Jul · 3:00 PM");
+    expect(screen.getByTestId("checkout-value").textContent).toBe("Mon 19 Jul · 11:00 AM");
+    expect(screen.getByText("Check-out · 3 nights")).toBeTruthy();
+    // The time rides on the check-out row; no second "Check-out time" row.
+    expect(screen.queryByText("Check-out time")).toBeNull();
+  });
+
+  it("one night says night; no day known keeps the check-in time alone", () => {
+    render(<HotelDetail card={hotel({ check_out: "2027-07-17" })} onSaveDetails={vi.fn()} checkInDay="2027-07-16" />);
+    expect(screen.getByText("Check-out · 1 night")).toBeTruthy();
+    cleanup();
+    render(<HotelDetail card={hotel({})} onSaveDetails={vi.fn()} />);
+    expect(screen.getByTestId("checkin-value").textContent).toBe("2:00 PM");
+    expect(screen.getByText("Check-out")).toBeTruthy();
+  });
+
   it("the check-out picker starts at the check-in day, not today (Don, Nov 2026)", () => {
     render(<HotelDetail card={hotel({})} onSaveDetails={vi.fn()} checkInDay="2027-07-16" />);
     expect((screen.getByLabelText("Check-out day") as HTMLInputElement).min).toBe("2027-07-16");
