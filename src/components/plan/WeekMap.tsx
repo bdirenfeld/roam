@@ -105,6 +105,8 @@ type Marker = { marker: any; wrapper: HTMLElement; inner: HTMLElement; cardRef: 
 
 /** How close, and how slowly, the map goes to a day. */
 const DAY_ZOOM = 12;
+/** The journey's frame sits this much further out than a tight fit (17 Nov 2026, Brennan: "a tiny bit farther"). */
+const JOURNEY_ROOM = 0.5;
 const DAY_GLIDE_MS = 1000;
 
 function placed(c: Card): boolean {
@@ -364,6 +366,7 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
         if (pts.length > 1) {
           const b = pts.reduce((acc: any, p) => acc.extend(p), new mb.LngLatBounds(pts[0], pts[0])); // eslint-disable-line @typescript-eslint/no-explicit-any
           map.fitBounds(b, { padding: { top: 70, bottom: 40, left: 30, right: 60 }, maxZoom: 14, duration: 0 });
+          map.setZoom(map.getZoom() - JOURNEY_ROOM);
         }
       });
     });
@@ -458,6 +461,11 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
     // neighbourhood, with room round the day's places.
     if (pts.length === 1) { map.easeTo({ center: pts[0], zoom: Math.min(Math.max(map.getZoom(), DAY_ZOOM - 1), DAY_ZOOM), duration: DAY_GLIDE_MS }); return; }
     const b = pts.reduce((acc: any, pt) => acc.extend(pt), new mb.LngLatBounds(pts[0], pts[0])); // eslint-disable-line @typescript-eslint/no-explicit-any
+    if (activeDayId === null) {
+      // Back to the whole journey: the same fit, a little further out.
+      const cam = map.cameraForBounds(b, { padding: { top: 110, bottom: 100, left: 70, right: 90 }, maxZoom: DAY_ZOOM });
+      if (cam) { map.easeTo({ center: cam.center, zoom: (cam.zoom ?? map.getZoom()) - JOURNEY_ROOM, duration: DAY_GLIDE_MS }); return; }
+    }
     map.fitBounds(b, { padding: { top: 110, bottom: 100, left: 70, right: 90 }, maxZoom: DAY_ZOOM, duration: DAY_GLIDE_MS, linear: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeDayId, ready]);
