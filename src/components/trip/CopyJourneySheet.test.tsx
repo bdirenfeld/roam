@@ -128,7 +128,7 @@ describe("the doors", () => {
   it("an upcoming card's ⋯ leads with Copy to new dates for the owner only", () => {
     const { unmount } = render(<TripCard trip={ny} owner />);
     fireEvent.click(screen.getByLabelText("Options for New York (Mia & Daddy)"));
-    expect(items()).toEqual(["Copy to new dates", "Archive", "Delete…"]);
+    expect(items()).toEqual(["Settings", "Copy to new dates", "Archive", "Delete…"]);
     unmount();
     render(<TripCard trip={ny} />);
     fireEvent.click(screen.getByLabelText("Options for New York (Mia & Daddy)"));

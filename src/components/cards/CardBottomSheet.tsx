@@ -60,7 +60,7 @@ import NoteTypePicker, { NoteWhereRow } from "./NoteTypePicker";
 import { convertedDetails, readNoteKind, withNoteKind, type NoteKind } from "@/lib/cards/noteKinds";
 import { getMaterialIconHTML, getGlyphHTML } from "@/lib/mapPins";
 import { BookedTag } from "./CardBadges";
-import { legCapable as cardLegCapable, isTravelLeg, legTitle, legDestTitle, legDurationMins, legModeWord, legSubtitle, iconSubType, readFrom, readMode, withFrom, withTo, type LegFrom, type LegMode } from "@/lib/travel/leg";
+import { legCapable as cardLegCapable, isTravelLeg, legTitle, legDestTitle, legDurationMins, legModeWord, formatLegDuration, iconSubType, readFrom, readMode, withFrom, withTo, type LegFrom, type LegMode } from "@/lib/travel/leg";
 
 /** Read Google's `weekday_text` (seven "Monday: 9:00 AM – 5:00 PM" lines) off
  *  the raw place hours. The bottom sheet is the deliberate lookup surface, so it
@@ -1421,7 +1421,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                     <span aria-hidden="true" className="flex items-center text-[#1A1A2E]"
                       // eslint-disable-next-line react/no-danger
                       dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(iconSubType(localCard), 14) }} />
-                    <span className="text-[11px] font-semibold text-[#1A1A2E]">{legSubtitle(localCard) || "How you travel"}</span>
+                    <span className="text-[11px] font-semibold text-[#1A1A2E]">{legModeWord(localCard.details) || "How you travel"}</span>
                     {!readOnly && !legMerged && (
                       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-[#1A1A2E]"><polyline points="6 9 12 15 18 9" /></svg>
                     )}
@@ -1673,30 +1673,23 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           <div className="mt-2.5">
             {legCard && !renaming ? (
               <>
-                {/* Tap the title to rename it (16 Nov 2026): "Rename" left the ⋯. */}
-                <h2 className="text-[19px] font-bold text-gray-900 leading-snug" data-testid="leg-title">
-                  {readOnly ? legTitle(localCard) : (
-                    <button type="button" onClick={() => setRenaming(true)} aria-label={`Rename ${legTitle(localCard)}`} className="text-left">{legTitle(localCard)}</button>
-                  )}
-                </h2>
-                {place?.address && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const url = navApp ? directionsUrl(navApp, navTarget) : null;
-                      if (url) window.open(url, "_blank");
-                      else setNavSheetOpen(true);
-                    }}
-                    aria-label={`Directions to ${place.address}`}
-                    title="Directions"
-                    className="relative block max-w-full truncate text-left text-[12.5px] leading-snug mt-1 hover:underline"
-                    style={{ color: "rgba(26,26,46,0.62)" }}
-                  >
-                    {/* 44px to the finger: up to the title, down into the gap above the time chip. */}
-                    <span aria-hidden="true" data-testid="leg-address-target" className="absolute -inset-y-[14px] inset-x-0" />
-                    {streetAndTown(place.address) ?? place.address}
-                  </button>
+                {/* Laid out like Google Maps (16 Nov 2026, the mock he liked): the
+                    route line below says "A → B", so no long title — only his own
+                    name for the leg, if he gave one (tap it to rename). Then the
+                    length, big. Directions moved to the Start button. */}
+                {(localCard.details as { named?: boolean } | null)?.named && (
+                  <h2 className="text-[17px] font-bold text-gray-900 leading-snug mb-1" data-testid="leg-title">
+                    {readOnly ? legTitle(localCard) : (
+                      <button type="button" onClick={() => setRenaming(true)} aria-label={`Rename ${legTitle(localCard)}`} className="text-left">{legTitle(localCard)}</button>
+                    )}
+                  </h2>
                 )}
+                <p className="text-[26px] font-bold leading-tight text-gray-900" data-testid="leg-length">
+                  {legDurationMins(localCard) ? formatLegDuration(legDurationMins(localCard)!) : legModeWord(localCard.details) || "Travel"}
+                  {legDurationMins(localCard) && legMerged && legModeWord(localCard.details) && (
+                    <span className="ml-2 text-[15px] font-medium" style={{ color: "rgba(26,26,46,0.55)" }}>{legModeWord(localCard.details).toLowerCase()}</span>
+                  )}
+                </p>
               </>
             ) : isTravelLeg(localCard) ? (
               // A leg's title is its route, "Lusaka → Mfuwe"; renaming it would
@@ -1815,6 +1808,24 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   {localCard.end_time ? ` – ${formatTime(localCard.end_time)}` : ""}
                 </span>
               )
+            ) : legCard ? (
+              // A leg's time is a line under its length (16 Nov 2026, Google Maps mock):
+              // leave → arrive; a tap changes it.
+              <button
+                type="button"
+                onClick={() => setTimeOpen(true)}
+                aria-label={localCard.start_time ? "Change the time" : "Set a time"}
+                className="relative ml-2 text-[14px] text-left"
+                style={{ color: "rgba(26,26,46,0.62)" }}
+              >
+                <span aria-hidden="true" className="absolute inset-x-0 -top-2 -bottom-[14px]" />
+                {localCard.start_time ? (
+                  <>
+                    <span style={{ borderBottom: "1px dashed rgba(26,26,46,0.35)" }}>{formatTimeValue(localCard.start_time)}</span>
+                    {localCard.end_time ? ` → ${formatTimeValue(localCard.end_time)}` : ""}
+                  </>
+                ) : <span style={{ borderBottom: "1px dashed rgba(26,26,46,0.35)" }}>Set a time</span>}
+              </button>
             ) : (
               <button
                 type="button"
@@ -1913,18 +1924,6 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         <div className="relative flex-1 min-h-0">
           <div ref={scrollRef} className="absolute inset-0 overflow-y-auto px-5 py-5">
             <NoteDisplay.Provider value={weekdayText ? withoutHoursLine : identityNote}>
-              {legCard && place && (
-                <LegRoute
-                  rows
-                  from={legFrom}
-                  fromAddress={fromAddress}
-                  toTitle={legDestTitle(localCard)}
-                  toAddress={place.address}
-                  readOnly={readOnly}
-                  open={legOpen}
-                  onOpen={(w) => { setLegOpen(w); if (w) setEditorUsed(true); scrollRef.current?.scrollTo?.({ top: 0 }); }}
-                />
-              )}
               {legCapable && place && (!readOnly || legFrom) && (
                 <TravelLegPanel
                   merged={legMerged}
@@ -1976,6 +1975,36 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                     void saveDetailsPatch(next);
                   }}
                 />
+              )}
+              {legCard && place && (
+                <LegRoute
+                  rows
+                  from={legFrom}
+                  fromAddress={fromAddress}
+                  toTitle={legDestTitle(localCard)}
+                  toAddress={place.address}
+                  readOnly={readOnly}
+                  open={legOpen}
+                  onOpen={(w) => { setLegOpen(w); if (w) setEditorUsed(true); scrollRef.current?.scrollTo?.({ top: 0 }); }}
+                />
+              )}
+              {legCard && place && (place.address || (place.lat != null && place.lng != null)) && (
+                // One Start button, as Google Maps has (16 Nov 2026): directions
+                // used to hide behind the address line and the ⋯.
+                <button
+                  type="button"
+                  data-testid="leg-start"
+                  onClick={() => {
+                    const url = navApp ? directionsUrl(navApp, navTarget) : null;
+                    if (url) window.open(url, "_blank");
+                    else setNavSheetOpen(true);
+                  }}
+                  className="w-full mb-4 flex items-center justify-center gap-2 rounded-full py-3 text-[15px] font-semibold text-white active:opacity-80"
+                  style={{ background: "#1A1A2E" }}
+                >
+                  <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 4.5 20.3l.7.7L12 18l6.8 3 .7-.7z" /></svg>
+                  {navApp === "waze" ? "Start in Waze" : navApp === "google" ? "Start in Google Maps" : "Start"}
+                </button>
               )}
               {/* The note was written for the old place (14 Nov 2026): one tap clears it, nothing is cleared unasked. */}
               {legCard && staleNoteFor && !readOnly && (localCard.details as { notes?: string } | null)?.notes && (

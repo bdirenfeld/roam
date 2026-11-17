@@ -330,7 +330,7 @@ export default function TravelLegPanel({
   // replaced the separate "Change how you travel" link under the caption.
   const glyph = mode === "train" ? "train" : mode === "bus" ? "directions_bus" : mode === "ferry" ? "directions_boat" : mode === "drive" ? "directions_car" : null;
   return (
-    <div className="mb-4" data-testid="travel-leg-panel">
+    <div className="mb-4 empty:mb-0" data-testid="travel-leg-panel">
       {searching && <LegFromSearch value={from} suggestion={suggestion} onPick={onFromChange} biasLat={biasLat} biasLng={biasLng} />}
       {searchingTo && <LegFromSearch value={null} onPick={onToPick!} biasLat={biasLat} biasLng={biasLng} placeholder="Search a place, town or station" />}
       {from && time && <div className="pt-1 pb-1" data-testid="leg-time">{time}</div>}
@@ -434,31 +434,39 @@ export function LegRoute({
     </div>
   );
   if (rows) {
-    const line = (which: "from" | "to", title: string | null) => {
+    // A route line like Google Maps (16 Nov 2026, the mock he liked): a hollow
+    // dot, a dotted line, a red pin; no labels, no rules across the card.
+    // A tap on either stop changes it.
+    const line = (which: "from" | "to", title: string | null, sub?: string | null) => {
       const inner = (
         <>
-          <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 18, color: "rgba(26,26,46,0.5)", fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20" }}>
-            {which === "from" ? "radio_button_unchecked" : "location_on"}
+          {which === "from" ? (
+            <span aria-hidden="true" className="w-[14px] h-[14px] rounded-full flex-shrink-0 ml-[2px]" style={{ border: "2.5px solid rgba(26,26,46,0.6)" }} />
+          ) : (
+            <span aria-hidden="true" className="material-symbols-outlined flex-shrink-0 -ml-px" style={{ fontSize: 20, color: "#C0392B", fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20" }}>location_on</span>
+          )}
+          <span className="flex-1 min-w-0">
+            <span className="block truncate text-[15px] font-medium" style={{ color: title ? INK : CAP }}>{title ?? "Add where you leave from"}</span>
+            {sub && <span className="block truncate text-[12.5px]" style={{ color: "rgba(26,26,46,0.5)" }}>{sub}</span>}
           </span>
-          <span className="font-medium min-w-[64px]" style={{ color: INK }}>{which === "from" ? "From" : "To"}</span>
-          <span className="flex-1 min-w-0 truncate" style={{ color: title ? "rgba(26,26,46,0.62)" : CAP }}>{title ?? "Add where you leave from"}</span>
-          {!readOnly && <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 18, color: "rgba(26,26,46,0.35)" }}>chevron_right</span>}
+          {!readOnly && <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 18, color: "rgba(26,26,46,0.3)" }}>chevron_right</span>}
         </>
       );
-      const cls = "w-full flex items-center gap-2.5 min-h-[44px] text-[13.5px] text-left";
+      const cls = "relative w-full flex items-center gap-3.5 min-h-[44px] text-left";
       return readOnly ? (
-        <div key={which} className={cls} data-testid={`leg-${which}-row`} style={{ borderBottom: "1px solid rgba(26,26,46,0.06)" }}>{inner}</div>
+        <div key={which} className={cls} data-testid={`leg-${which}-row`}>{inner}</div>
       ) : (
-        <button key={which} type="button" data-testid={`leg-${which}-row`} className={cls} style={{ borderBottom: "1px solid rgba(26,26,46,0.06)" }}
+        <button key={which} type="button" data-testid={`leg-${which}-row`} className={cls}
           onClick={() => onOpen(open === which ? null : which)} aria-expanded={open === which} aria-label={label(which)}>
           {inner}
         </button>
       );
     };
     return (
-      <div className="mb-3" data-testid="leg-route" style={{ borderTop: "1px solid rgba(26,26,46,0.08)" }}>
+      <div className="relative mb-4" data-testid="leg-route">
+        <span aria-hidden="true" className="absolute left-[8px] top-[30px] h-[18px]" style={{ borderLeft: "2.5px dotted rgba(26,26,46,0.3)" }} />
         {line("from", from?.title ?? null)}
-        {line("to", toTitle)}
+        {line("to", toTitle, toAddress ? (toAddress.split(",").slice(0, 2).join(",").trim()) : null)}
       </div>
     );
   }
