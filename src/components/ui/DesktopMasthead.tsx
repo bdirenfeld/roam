@@ -320,6 +320,35 @@ export default function DesktopMasthead({ previewPath }: { previewPath?: string 
 
       <div style={{ flex: 1 }} />
 
+      {/* The map's door on a narrow window (17 Nov 2026, Don's feedback): the
+          week's map panel is lg-only, so between md and lg the map, Find places
+          and Plan my trip had no way in. This opens the full Map page; its
+          "‹ Week" is the way back. Hidden from lg, where the panel is there. */}
+      {showTripStrip && currentTripId && !guest && segment === "plan" && (
+        <Link
+          href={`/trips/${currentTripId}/map`}
+          data-testid="open-map"
+          className="inline-flex lg:hidden"
+          style={{
+            alignItems: "center",
+            gap: 6,
+            padding: "6px 14px 6px 11px",
+            marginRight: 14,
+            borderRadius: 999,
+            background: "rgba(255,255,255,0.08)",
+            boxShadow: `inset 0 0 0 1px ${BAR_RULE}`,
+            fontWeight: 600,
+            fontSize: 13,
+            color: ON_BAR,
+            textDecoration: "none",
+            flexShrink: 0,
+          }}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" aria-hidden><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5L9 4Z" /><path d="M9 4v13.5M15 6.5V20" /></svg>
+          Map
+        </Link>
+      )}
+
       {/* Who this journey is shared with — faces, not a settings screen. */}
       {showTripStrip && currentTripId && !guest && (
         <div style={{ marginRight: 14 }}>
