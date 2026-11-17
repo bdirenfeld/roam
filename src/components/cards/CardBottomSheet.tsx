@@ -48,6 +48,7 @@ import WellnessDetail from "./detail/WellnessDetail";
 import LogisticsDetail from "./detail/LogisticsDetail";
 import ActivityDetail from "./detail/ActivityDetail";
 import HotelDetail from "./detail/HotelDetail";
+import PortDetail from "./detail/PortDetail";
 import { withDetails } from "@/lib/cardDetails";
 import { UNTITLED_NOTE, cardTitle, deletedToast } from "@/lib/cardTitle";
 import TravelLegPanel, { LegRoute, LegEstimateRow, LegParkRow, useDefaultFrom } from "./TravelLegPanel";
@@ -144,6 +145,7 @@ const SUB_TYPE_OPTIONS: Record<string, { value: string; label: string }[]> = {
     { value: "flight_arrival",   label: "Flight Arrival"   },
     { value: "flight_departure", label: "Flight Departure" },
     { value: "transit",          label: "Transit"          },
+    { value: "port",             label: "Port"             },
     { value: "grocery",          label: "Grocery"          },
     { value: "pet_care",         label: "Pet care"         },
     { value: "medical",          label: "Medical"          },
@@ -1291,6 +1293,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         return <ChallengeDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
       case "logistics/flight_departure":
         return <FlightArrivalDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
+      case "logistics/port":
+        return <PortDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} onEditTime={readOnly ? undefined : () => setTimeOpen(true)} />;
       case "logistics/hotel":
         return <HotelDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} stayCheckOut={stayCheckOut} checkInDay={days?.find((x) => x.id === dCard.day_id)?.date ?? null} onEditTime={readOnly ? undefined : () => setTimeOpen(true)} />;
       case "activity/wellness":
@@ -1803,7 +1807,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             {/* A hotel has no time chip (17 Nov 2026, Brennan): "3:00 PM – 11:00 AM
                 overnight" read as one evening. Its Check-in / Check-out rows
                 carry both dates and times; the Check-in row opens the time sheet. */}
-            {key === "logistics/hotel" ? null : readOnly ? (
+            {key === "logistics/hotel" || key === "logistics/port" ? null : readOnly ? (
               /* Static time (guest) — no editable chips */
               localCard.start_time && (
                 <span className="text-sm text-gray-700 font-medium px-2 py-0.5">
@@ -1861,7 +1865,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 range already says it. */}
 
             {/* Overnight warning */}
-            {key !== "logistics/hotel" && localCard.start_time && localCard.end_time &&
+            {key !== "logistics/hotel" && key !== "logistics/port" && localCard.start_time && localCard.end_time &&
               toInputTime(localCard.end_time) < toInputTime(localCard.start_time) && (
               <span className="text-[11px] text-amber-500 font-medium ml-0.5">overnight</span>
             )}

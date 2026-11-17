@@ -17,6 +17,8 @@ const ICONS: Record<string, (c: string) => string> = {
     `<path d="M21 17H3M5 9l7 4.5 3-1 4-1 1 2.5-4 1-7 4.5-3.5-.5L1 12" stroke="${c}" stroke-width="1.8" stroke-linecap="round" fill="none"/>`,
   transit: (c) =>
     `<rect x="3" y="5" width="18" height="14" rx="2" stroke="${c}" stroke-width="1.8" fill="none"/><path d="M3 10h18M8 19v2M16 19v2" stroke="${c}" stroke-width="1.8" stroke-linecap="round" fill="none"/><circle cx="8" cy="15" r="1.5" fill="${c}"/><circle cx="16" cy="15" r="1.5" fill="${c}"/>`,
+  port: (c) =>
+    `<circle cx="12" cy="5" r="2.2" stroke="${c}" stroke-width="1.8" fill="none"/><path d="M12 7.2V21M8 11h8M4.5 13.5c0 4.2 3.4 7.5 7.5 7.5s7.5-3.3 7.5-7.5" stroke="${c}" stroke-width="1.8" stroke-linecap="round" fill="none"/>`,
   grocery: (c) =>
     `<path d="M3 4h2l2 11h12l2-8H7" stroke="${c}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="9" cy="19" r="1.5" fill="${c}"/><circle cx="17" cy="19" r="1.5" fill="${c}"/>`,
   medical: (c) =>
@@ -177,6 +179,7 @@ export const MATERIAL_ICONS: Record<string, string> = {
   flight_arrival:   "flight_land",
   flight_departure: "flight_takeoff",
   transit:          "directions_transit",
+  port:             "anchor",
   // A travel leg shows how you go, not just "transit" (10 Nov 2026, lib/travel/leg iconSubType).
   leg_drive:        "directions_car",
   leg_bus:          "directions_bus",

@@ -171,6 +171,12 @@ function SubTypeIcon({ subType, color }: { subType: string; color: string }) {
           <circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" />
         </svg>
       );
+    case "port":
+      return (
+        <svg {...s}>
+          <circle cx="12" cy="5" r="2.2" /><path d="M12 7.2V21M8 11h8M4.5 13.5c0 4.2 3.4 7.5 7.5 7.5s7.5-3.3 7.5-7.5" />
+        </svg>
+      );
     default:
       return (
         <svg {...s}>

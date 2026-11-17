@@ -91,3 +91,42 @@ describe("day map: stations, no lines; list numbers match pins", () => {
     expect(readFileSync("src/components/cards/CardSurface.tsx", "utf8")).toContain("data-pin-number");
   });
 });
+
+describe("dayFlow: a cruise's port of call (Don's Iceland, Wed 21 Jul 2027)", () => {
+  type P = { id: string; start_time: string | null; end_time: string | null; title: string; port?: boolean };
+  const portOpt = { is: (c: P) => !!c.port, name: (c: P) => c.title };
+  const noLeg = () => false;
+  const day: P[] = [
+    { id: "port", start_time: "07:00:00", end_time: "18:00:00", title: "Grundarfjörður", port: true },
+    { id: "walk", start_time: "09:00:00", end_time: "11:00:00", title: "Kirkjufell walk" },
+    { id: "lunch", start_time: "12:30:00", end_time: null, title: "Bjargarsteinn" },
+    { id: "show", start_time: "20:00:00", end_time: null, title: "Show on board" },
+  ];
+
+  it("docks, the stops ashore under 'In Grundarfjörður', all aboard, then the evening on the ship", () => {
+    const f = dayFlow(day, noLeg, (c) => c.title, [], portOpt);
+    expect(f.map((i) => i.kind === "card" ? i.card.id : i.kind === "heading" ? `h:${i.text}` : i.kind === "port" ? i.phase : "travel")).toEqual(
+      ["arrive", "h:In Grundarfjörður", "walk", "lunch", "aboard", "show"],
+    );
+    const arrive = f[0] as Extract<typeof f[number], { kind: "port" }>;
+    expect(arrive.hoursAshore).toBe(11);
+    expect(arrive.min).toBe(7 * 60);
+    expect((f[4] as { min: number }).min).toBe(18 * 60);
+  });
+
+  it("all aboard closes the day when nothing comes after it", () => {
+    const f = dayFlow(day.slice(0, 3), noLeg, (c) => c.title, [], portOpt);
+    expect(f[f.length - 1]).toMatchObject({ kind: "port", phase: "aboard" });
+  });
+
+  it("a port with no end time has no all aboard and no hours", () => {
+    const f = dayFlow([{ ...day[0], end_time: null }, day[1]], noLeg, (c) => c.title, [], portOpt);
+    expect(f.map((i) => i.kind)).toEqual(["port", "heading", "card"]);
+    expect((f[0] as { hoursAshore: number | null }).hoursAshore).toBeNull();
+  });
+
+  it("without the port option nothing changes (every other journey)", () => {
+    const f = dayFlow(day, noLeg, (c) => c.title, []);
+    expect(f.every((i) => i.kind === "card")).toBe(true);
+  });
+});

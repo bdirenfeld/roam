@@ -1,4 +1,5 @@
 "use client";
+import { isPortCard, portName, ashoreLabel, minutesAshore } from "@/lib/cards/port";
 import { useGuidanceScreen, useWalkthrough } from "@/components/onboarding/JourneyGuidanceContext";
 
 /**
@@ -66,6 +67,8 @@ interface Props {
 }
 
 const COL_MIN = 168;   // px — seven days fit beside a 440px map at 1440; more scroll sideways
+/** The all-aboard marker's block id: the port card's id with this after it. */
+const PORT_ABOARD = "::aboard";
 const COL_FLOOR = 120; // px — the seam will not push a day column below this
 const HOURS_W = 52;
 const MAP_MIN = 300;
@@ -874,6 +877,14 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
       }
       const t = cardTimes(c);
       if (!t.start) { untimed.push(c); continue; }
+      // A port is two markers, docks and all aboard (17 Nov 2026, Don's cruise),
+      // like a hotel's check-in and check-out: the hours between stay free.
+      if (isPortCard(c) && minutesAshore(c)) {
+        const s0 = toMin(t.start), e0 = toMin(c.end_time!);
+        timed.push({ id: c.id, startMin: s0, endMin: s0 + 60 });
+        timed.push({ id: c.id + PORT_ABOARD, startMin: e0, endMin: e0 + 30 });
+        continue;
+      }
       timed.push({ id: c.id, startMin: toMin(t.start), endMin: t.end ? toMin(t.end) : null });
     }
     // a block dragged INTO this day from another
@@ -1115,13 +1126,14 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                       </div>
                     )}
                     {placed.map((b) => {
-                      const c = byId.get(b.id); if (!c) return null;
+                      const aboard = b.id.endsWith(PORT_ABOARD);
+                      const c = byId.get(aboard ? b.id.slice(0, -PORT_ABOARD.length) : b.id); if (!c) return null;
                       const note = isNote(c);
                       // A typed note with no place yet (10 Nov 2026): its kind's colour, glyph and "place to come".
                       const nk = note ? readNoteKind(c.details) : null;
                       // A strip keeps the shape of its day: coloured bars, no text.
                       if (collapsed(di)) return (
-                        <div key={c.id} className="absolute rounded-[3px] pointer-events-none" style={{ top: b.top, height: Math.max(b.height, 12), left: 6, right: 6, background: note ? "rgba(26,26,46,0.18)" : PIN_COLORS[c.place!.type], opacity: 0.55 }} />
+                        <div key={b.id} className="absolute rounded-[3px] pointer-events-none" style={{ top: b.top, height: Math.max(b.height, 12), left: 6, right: 6, background: note ? "rgba(26,26,46,0.18)" : PIN_COLORS[c.place!.type], opacity: 0.55 }} />
                       );
                       const wide = focusIdx === di;
                       const noEnd = b.endMin === null;
@@ -1129,6 +1141,39 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                       const short = b.height < 34;
                       const isGhost = ghost?.id === c.id;
                       const laneW = 100 / b.lanes;
+                      if (isPortCard(c) && minutesAshore(c) && !isGhost) {
+                        const portShort = b.height < 34;
+                        return (
+                          <button
+                            type="button"
+                            key={b.id}
+                            data-card-id={aboard ? undefined : c.id}
+                            data-port-marker={aboard ? "aboard" : "docks"}
+                            onClick={() => setSelectedCard(c)}
+                            onPointerEnter={() => setHoveredId(c.id)}
+                            onPointerLeave={() => setHoveredId((h) => (h === c.id ? null : h))}
+                            className={`absolute rounded-[6px] overflow-hidden text-left cursor-pointer ${selectedCard?.id === c.id || hoveredId === c.id ? "ring-1 ring-[#B0541F]" : ""}`}
+                            style={{
+                              top: b.top, height: b.height,
+                              left: `calc(${b.lane * laneW}% + 3px)`, width: `calc(${laneW}% - 6px)`,
+                              background: "#FFFFFF", border: "1px solid rgba(26,26,46,0.10)",
+                              borderLeft: `3px solid ${PIN_COLORS.logistics}`,
+                              boxShadow: "0 1px 2px rgba(26,26,46,0.05)", zIndex: 1,
+                              padding: portShort ? "2px 6px" : "4px 6px",
+                            }}
+                          >
+                            <div className="text-[11px] font-medium leading-tight truncate pointer-events-none flex items-center gap-1">
+                              <span className="inline-flex flex-shrink-0 opacity-70" dangerouslySetInnerHTML={{ __html: getMaterialIconHTML("port", 12) }} />
+                              <span className="truncate">{aboard ? `All aboard${portShort ? ` · ${fmt12(b.startMin)}` : ""}` : portName(c)}</span>
+                            </div>
+                            {!portShort && (
+                              <div className="text-[9.5px] text-activity/60 truncate tabular-nums pointer-events-none">
+                                {aboard ? fmt12(b.startMin) : `Docks ${fmt12(b.startMin)} · ${ashoreLabel(c)}`}
+                              </div>
+                            )}
+                          </button>
+                        );
+                      }
                       // Travel is a strip, not a card (Brennan, 12 Nov 2026): a dashed
                       // line and "🚗 9:40am My Tuscan Kitchen · 55 min". Leave time
                       // first; the length wraps away when the column is narrow.

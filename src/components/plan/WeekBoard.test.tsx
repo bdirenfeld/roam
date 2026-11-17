@@ -167,3 +167,28 @@ describe("the opened day's note line (6 Oct 2026 bug: a raw **Intent**)", () => 
     expect(screen.getAllByText("The heart of Lucca, a Romanesque church in a wide square.").length).toBeGreaterThan(0);
   });
 });
+
+describe("a cruise's port on the week (17 Nov 2026, Don)", () => {
+  const port = { id: "grund", title: "Grundarfjörður", type: "logistics", sub_type: "port", lat: 64.92, lng: -23.25, address: "Grundarfjörður" };
+  const withPort = days.map((d, i) => i === 1
+    ? { ...d, cards: [card("p1", d.id, port as typeof villa, { start_time: "07:00:00", end_time: "18:00:00" })] }
+    : d) as unknown as DayWithCards[];
+
+  it("draws two markers, docks with the hours ashore and all aboard, not one tall block", () => {
+    const { container } = render(<WeekBoard trip={trip} initialDays={withPort} initialSaved={[]} />);
+    const docks = container.querySelector('[data-port-marker="docks"]') as HTMLElement;
+    const aboard = container.querySelector('[data-port-marker="aboard"]') as HTMLElement;
+    expect(docks.textContent).toContain("Grundarfjörður");
+    expect(docks.textContent).toContain("Docks 7am · 11 h ashore");
+    expect(aboard.textContent).toContain("All aboard");
+    // Docks is an hour tall at 7am; all aboard sits at 6pm, eleven hours below.
+    expect(parseFloat(aboard.style.top) - parseFloat(docks.style.top)).toBe(11 * 48);
+    expect(parseFloat(docks.style.height)).toBeGreaterThan(40); // an hour, less the gap between blocks
+  });
+
+  it("either marker opens the port's card", () => {
+    const { container } = render(<WeekBoard trip={trip} initialDays={withPort} initialSaved={[]} />);
+    fireEvent.click(container.querySelector('[data-port-marker="aboard"]')!);
+    expect(screen.getAllByText("Grundarfjörður").length).toBeGreaterThan(1);
+  });
+});

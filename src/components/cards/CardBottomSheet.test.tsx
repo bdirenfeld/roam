@@ -96,6 +96,17 @@ describe("CardBottomSheet — the designer-audit surface (6 Oct 2026)", () => {
     expect(screen.getByLabelText("Change the check-in and check-out times")).toBeTruthy();
   });
 
+  it("a port shows Docks and All aboard with the hours ashore, and no time chip (17 Nov 2026, Don)", async () => {
+    const port = buca({ start_time: "07:00:00", end_time: "18:00:00", details: { notes: "Water shuttle required." } } as Partial<Card>);
+    (port as unknown as { place: Record<string, unknown> }).place = { ...(port as unknown as { place: Record<string, unknown> }).place, title: "Grundarfjörður", type: "logistics", sub_type: "port", hours: null };
+    await open(port);
+    expect(screen.queryByLabelText("Change the time")).toBeNull();
+    expect(screen.getByTestId("port-docks").textContent).toBe("7:00 AM");
+    expect(screen.getByTestId("port-aboard").textContent).toBe("6:00 PM · 11 h ashore");
+    expect(screen.getAllByLabelText("Change the port times").length).toBe(2);
+    expect(screen.getByText("Water shuttle required.")).toBeTruthy();
+  });
+
   it("phone: stars and price ride the address line; the category pill shows the place's icon (16 Nov 2026)", async () => {
     await open(buca());
     const onAddress = screen.getByTestId("address-rating");

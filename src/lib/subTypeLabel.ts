@@ -37,6 +37,8 @@ export const SUB_TYPE_LABEL: Record<string, string> = {
   flight_arrival:   "Arrival",
   flight_departure: "Departure",
   transit:          "Transit",
+  // A cruise's port of call (17 Nov 2026, Don): docks → all aboard, time ashore between.
+  port:             "Port",
   grocery:          "Grocery",
   // Boarding or daycare for the dog. Its own kind because "hotel" is what the
   // accommodation logic reads as "where you are staying", and Finn's hotel is

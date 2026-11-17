@@ -7,6 +7,8 @@ import { isTravelLeg, legDestTitle, iconSubType, legModeWord } from "@/lib/trave
 import { stripDuration, stripDest } from "@/lib/week/travelStrip";
 import { getMaterialIconHTML } from "@/lib/mapPins";
 import { formatTimeValue } from "@/lib/formatTime";
+import { isPortCard, portName, ashoreLabel } from "@/lib/cards/port";
+import { noteLead } from "@/lib/noteLead";
 
 // No drag here any more. Timed cards sort by the clock; an untimed card gets
 // its place by being given a time (tap the chip). Dragging untimed cards
@@ -42,6 +44,42 @@ interface Props {
 }
 
 const hhmm = (m: number) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}:00`;
+
+/**
+ * A port of call as two rows in the travel line's shape (17 Nov 2026, Don's
+ * cruise; mock approved): "7:00 AM · 11 h ashore ⚓ Docked in Grundarfjörður"
+ * with the note's lead under it, and "6:00 PM ⚓ All aboard". A tap opens the
+ * port's card.
+ */
+function PortLine({ card, phase, name, onOpen }: { card: Card; phase: "arrive" | "aboard"; name: string; onOpen?: (c: Card) => void }) {
+  const arrive = phase === "arrive";
+  const time = arrive ? card.start_time : card.end_time;
+  const sub = arrive ? noteLead((card.details as { notes?: string } | null)?.notes ?? "") : "Back on the ship";
+  const Wrapper = (onOpen ? "button" : "div") as "button";
+  return (
+    <div data-port-line={phase} data-card-id={arrive ? card.id : undefined}>
+      <Wrapper
+        type={onOpen ? "button" : undefined}
+        onClick={onOpen ? () => onOpen(card) : undefined}
+        className="w-full text-left flex items-start gap-3 md:gap-5 py-3 md:py-4 min-h-[62px] active:opacity-70"
+        style={{ borderBottom: "1px solid rgba(26,26,46,0.10)" }}
+      >
+        <span className="w-[70px] md:w-[80px] shrink-0 flex flex-col items-start">
+          <span className="text-[13.5px] leading-[20px] uppercase whitespace-nowrap" style={{ color: "#1A1A2E", fontWeight: 600 }}>
+            {time ? formatTimeValue(time) : ""}
+          </span>
+          {arrive && ashoreLabel(card) && <span className="text-[11.5px] mt-[2px]" style={{ color: "rgba(26,26,46,0.55)" }}>{ashoreLabel(card)}</span>}
+        </span>
+        <span className="w-5 h-5 shrink-0 flex items-center justify-center" aria-hidden="true" style={{ color: "rgba(26,26,46,0.5)" }}
+          dangerouslySetInnerHTML={{ __html: getMaterialIconHTML("port", 20) }} />
+        <span className="flex-1 min-w-0">
+          <span className="block font-display text-[15.5px] md:text-[17px] leading-[20px] truncate" style={{ color: "#1A1A2E" }}>{arrive ? `Docked in ${name}` : "All aboard"}</span>
+          {sub && <span className="block mt-[2px] text-[12.5px] md:text-[13px] leading-[1.45] truncate" style={{ color: "rgba(26,26,46,0.62)" }}>{sub}</span>}
+        </span>
+      </Wrapper>
+    </div>
+  );
+}
 
 /**
  * Travel as one light line (Brennan, 12 Nov 2026, second pass: the shaded box
@@ -239,7 +277,10 @@ export default function CardTimeline({
         </div>
       ) : (
         <div>
-          {dayFlow(timedCards, isTravelLeg, legDestTitle, stays).map((item) => {
+          {dayFlow(timedCards, isTravelLeg, legDestTitle, stays, { is: isPortCard, name: portName }).map((item) => {
+            if (item.kind === "port") {
+              return <PortLine key={`${item.card.id}-${item.phase}`} card={item.card} phase={item.phase} name={item.name} onOpen={onCardTap} />;
+            }
             if (item.kind === "travel") {
               return <TravelLine key={item.ids[0]} cards={item.cards} startMin={item.startMin} endMin={item.endMin} dest={item.dest} leave={item.leave} onOpen={onCardTap} />;
             }

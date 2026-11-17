@@ -27,7 +27,7 @@ function fmtTime(t: string | null): string | null {
 
 /** One stay row (16 Nov 2026, Brennan picked "B"): grey icon, a small grey
  *  label above the value, no lines. Tighter than a row per field. */
-function StayRow({ icon, label, children }: { icon: string; label: string; children: React.ReactNode }) {
+export function StayRow({ icon, label, children }: { icon: string; label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-start gap-3">
       <span aria-hidden="true" className="material-symbols-outlined mt-0.5" style={{ fontSize: 18, color: "rgba(26,26,46,0.5)", fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20" }}>{icon}</span>

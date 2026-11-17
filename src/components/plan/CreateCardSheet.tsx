@@ -36,6 +36,7 @@ const SUB_TYPES: Record<CardType, { value: string; label: string }[]> = {
     { value: "flight_departure", label: "Flight Departure" },
     { value: "hotel",            label: "Hotel"            },
     { value: "transit",          label: "Transit"          },
+    { value: "port",             label: "Port"             },
     { value: "grocery",          label: "Grocery"          },
     { value: "pet_care",         label: "Pet care"         },
     { value: "medical",          label: "Medical"          },

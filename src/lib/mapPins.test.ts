@@ -11,7 +11,7 @@ const names = new URL(url).searchParams.get("icon_names")!.split(",");
 describe("the Material Symbols subset", () => {
   it("names every glyph the app draws, sorted as Google requires", () => {
     expect(names).toEqual([...names].sort());
-    for (const sub of ["guided", "restaurant", "coffee", "dessert", "hotel", "flight_arrival", "transit", "grocery", "pet_care", "medical", "beach", "camp", "self_directed", "bar", "street_food", "wellness", "event", "challenge"]) {
+    for (const sub of ["guided", "restaurant", "coffee", "dessert", "hotel", "flight_arrival", "transit", "port", "grocery", "pet_care", "medical", "beach", "camp", "self_directed", "bar", "street_food", "wellness", "event", "challenge"]) {
       const glyph = getMaterialIconHTML(sub).match(/>([a-z_]+)<\/span>/)![1];
       expect(names, `${sub} → ${glyph}`).toContain(glyph);
     }

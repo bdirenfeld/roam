@@ -62,6 +62,7 @@ export const GROUPS: Group[] = [
       { label: "Flight Arrival",   subTypes: ["flight_arrival"]   },
       { label: "Flight Departure", subTypes: ["flight_departure"] },
       { label: "Transit",          subTypes: ["transit"]          },
+      { label: "Port",             subTypes: ["port"]             },
       { label: "Grocery",          subTypes: ["grocery"]          },
       { label: "Pet care",         subTypes: ["pet_care"]         },
       { label: "Medical",          subTypes: ["medical"]          },
@@ -83,7 +84,8 @@ export const SIDEBAR_SUB_TYPES: string[] = GROUPS.flatMap((g) =>
 
 interface Props {
   cards: Card[];
-  activeSubTypes: Set<string>;  activeTypes: Set<CardType>;
+  activeSubTypes: Set<string>;
+  activeTypes: Set<CardType>;
   setActiveTypes: (next: Set<CardType>) => void;
   activeStatuses: Set<string>;
   setActiveStatuses: (next: Set<string>) => void;
@@ -124,7 +126,8 @@ function PillToggle({ on, onToggle, label }: { on: boolean; onToggle: () => void
 
 export default function MapSidebar({
   cards,
-  activeSubTypes,  activeTypes,
+  activeSubTypes,
+  activeTypes,
   setActiveTypes,
   activeStatuses,
   setActiveStatuses,
