@@ -1295,7 +1295,8 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
                         >
                           {!readOnly && <div onPointerDown={(e) => onStartHandlePointerDown(e, c)} className="absolute left-0 right-0 top-0 h-[6px] cursor-ns-resize" aria-label="Change the start time" />}
                           <div className="text-[11px] font-medium leading-tight truncate pointer-events-none flex items-center gap-1">
-                            {(!note || nk) && <span className="inline-flex flex-shrink-0 opacity-70" dangerouslySetInnerHTML={{ __html: nk ? getGlyphHTML(nk.glyph, 12) : getMaterialIconHTML(iconSubType(c), 12) }} />}
+                            {/* Every block leads with a glyph; a plain note's is the page-and-pencil the phone's tile uses (17 Nov 2026). */}
+                            <span className="inline-flex flex-shrink-0 opacity-70" dangerouslySetInnerHTML={{ __html: nk ? getGlyphHTML(nk.glyph, 12) : note ? getGlyphHTML("edit_note", 12) : getMaterialIconHTML(iconSubType(c), 12) }} />
                             <span className="truncate">{blockTitle(c, day.date)}{nk ? ` · ${PLACE_TO_COME}` : ""}</span>
                           </div>
                           {!short && (

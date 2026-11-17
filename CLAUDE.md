@@ -2529,6 +2529,12 @@ Check phone screens in the phone viewer (`/dev/phone`, `scripts/phone-check.mjs`
   cards, places, trip_entry) to the admin account only. `getTripAccess` reads it as "guest", so every
   screen is read only. No attachments, documents, budgets or members. Banner + `/admin/exit`. Enter
   and exit with full page loads (plain `<a>`): the browser client reads the cookie once per load.
+  The page is a table (`components/admin/AdminTable`, rules in `lib/adminJourneys`, rpc reshaped in
+  migration 018): search + All/Upcoming/Under way/Past first (no page title, his call), then Journey ·
+  Country (last part of the destination) · Owner · Dates (+ "in 3 days"/"under way"/"past" tag) · Last
+  active · Planned · Saved · Guests. Every heading sorts, a second click flips; default last active,
+  newest first. "Last active" = newest card created/archived (cards have no updated_at).
+- **Notes on the week lead with a glyph** (`edit_note`, as the phone's tile), not glyphless (17 Nov 2026).
 - **Plan my trip skips days on a ship** (`lib/plan/cruiseDays`): first to last ship marker (a Port
   card, a cruise terminal / boarding / disembark card, an "At sea" note). Planner only; by hand,
   anything goes on any day (his ruling).

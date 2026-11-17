@@ -256,3 +256,11 @@ describe("the ship's blue says what it is (17 Nov 2026)", () => {
     expect(labels).toContain("directions_boatAt sea");
   });
 });
+
+describe("a note on the week has a glyph too (17 Nov 2026)", () => {
+  it("leads with edit_note, like the phone's tile", () => {
+    const withNote = days.map((d, i) => i === 0 ? { ...d, cards: [{ id: "n1", trip_id: "t", day_id: d.id, place_id: null, place: null, status: "in_itinerary", position: 1, start_time: "09:00:00", end_time: "10:00:00", details: { title: "Pack the car" } } as unknown as Card] } : d) as unknown as DayWithCards[];
+    const { container } = render(<WeekBoard trip={trip} initialDays={withNote} initialSaved={[]} />);
+    expect((container.querySelector('[data-card-id="n1"]') as HTMLElement).textContent).toContain("edit_note");
+  });
+});
