@@ -311,7 +311,7 @@ export default function ConfirmationPreviewSheet({
       const portCards = parsed.type === "cruise" ? (parsed.ports ?? []).flatMap((pt, k) => {
         const dayId = findMatchingDay(days, pt.date);
         if (!dayId || !pt.port.trim()) return [];
-        return [card(dayId, pt.arrive ? hhmm(pt.arrive) : null, pt.depart ? hhmm(pt.depart) : null, { title: portLabel(pt.port) }, portPlaces.get(`${i}:${k}`) ?? null)];
+        return [card(dayId, pt.arrive ? hhmm(pt.arrive) : null, pt.depart ? hhmm(pt.depart) : null, { title: portLabel(pt.port), ...(pt.overnight ? { overnight: true } : {}) }, portPlaces.get(`${i}:${k}`) ?? null)];
       }) : [];
       const made = outDay && close ? [main, card(outDay.id, close.time, null, closingDetails(details, close.title), place), ...portCards] : [main, ...portCards];
       made.forEach(() => cardItem.push(i));
@@ -646,6 +646,11 @@ export default function ConfirmationPreviewSheet({
                             <button type="button" onClick={() => setPorts(idx, (ps) => ps.filter((_, j) => j !== k))}
                               className="self-end min-h-[36px] text-[12.5px] text-gray-500 underline underline-offset-2">Remove</button>
                           </div>
+                          <label className="flex items-center gap-2 text-[12.5px] text-gray-600 min-h-[32px]">
+                            <input type="checkbox" checked={!!pt.overnight} aria-label={`Port ${k + 1} overnight`}
+                              onChange={(e) => setPorts(idx, (ps) => ps.map((x, j) => (j === k ? { ...x, overnight: e.target.checked || undefined } : x)))} />
+                            Overnight · all aboard the next day
+                          </label>
                         </div>
                       ))}
                       <button type="button" onClick={() => setPorts(idx, (ps) => [...ps, nextPort(ps, days.find((d) => d.id === draft.dayId)?.date ?? tripStart ?? "", tripEnd ?? "")])}

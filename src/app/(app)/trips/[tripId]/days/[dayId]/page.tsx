@@ -65,7 +65,9 @@ export default async function DayPage({ params }: Props) {
       .eq("trip_id", tripId)
       .neq("status", "cut")
       .not("archived", "is", true)
-      .eq("place.sub_type", "hotel"),
+      // Ports ride along (17 Nov 2026): a night in port ends with all aboard
+      // on the NEXT day, which the phone needs to show there.
+      .in("place.sub_type", ["hotel", "port"]),
   ]);
 
   if (!trip) redirect("/trips");

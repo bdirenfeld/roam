@@ -42,3 +42,20 @@ describe("+ Add a port", () => {
     expect(nextPort([{ date: "2027-07-30", port: "x", arrive: null, depart: null }], "2027-07-20", "2027-07-30")).toEqual({ date: "2027-07-30", port: "", arrive: null, depart: null });
   });
 });
+
+describe("a night in port (17 Nov 2026)", () => {
+  it("the same port two days running is one overnight stop", () => {
+    expect(cleanPorts([
+      { date: "2027-07-22", port: "Ísafjörður, Iceland", arrive: "08:00", depart: null },
+      { date: "2027-07-23", port: "Ísafjörður", arrive: null, depart: "18:00" },
+      { date: "2027-07-24", port: "Akureyri", arrive: "07:00", depart: "17:00" },
+    ])).toEqual([
+      { date: "2027-07-22", port: "Ísafjörður, Iceland", arrive: "08:00", depart: "18:00", overnight: true },
+      { date: "2027-07-24", port: "Akureyri", arrive: "07:00", depart: "17:00" },
+    ]);
+  });
+  it("keeps the reader's own overnight flag; a port two days apart stays two stops", () => {
+    expect(cleanPorts([{ date: "2027-07-22", port: "Reykjavík", arrive: "08:00", depart: "18:00", overnight: true }])![0].overnight).toBe(true);
+    expect(cleanPorts([{ date: "2027-07-20", port: "Reykjavík", arrive: "08:00", depart: "18:00" }, { date: "2027-07-22", port: "Reykjavík", arrive: "08:00", depart: "18:00" }])).toHaveLength(2);
+  });
+});

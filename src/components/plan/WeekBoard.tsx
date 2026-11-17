@@ -1,6 +1,6 @@
 "use client";
 import { otherStayNights } from "@/lib/stays/stayPick";
-import { isPortCard, minutesAshore } from "@/lib/cards/port";
+import { isPortCard, minutesAshore, isOvernight } from "@/lib/cards/port";
 import { useGuidanceScreen, useWalkthrough } from "@/components/onboarding/JourneyGuidanceContext";
 
 /**
@@ -899,7 +899,10 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
         else if (r.ids.includes(timed[i].id)) timed.splice(i, 1);
       }
     }
-    return { day: d, placed: placeBlocks(timed), untimed, legRuns, ports };
+    // A night in port carries into this morning, until all aboard (17 Nov 2026).
+    const prevDate = new Date(Date.parse(d.date + "T00:00:00Z") - 86_400_000).toISOString().slice(0, 10);
+    const carry = (days.find((x) => x.date === prevDate)?.cards ?? []).filter((c) => isPortCard(c) && isOvernight(c));
+    return { day: d, placed: placeBlocks(timed), untimed, legRuns, ports, carry };
   }), [shown, days, ghost, saved]);
   const byId = useMemo(() => { const m = new Map<string, Card>(); saved.forEach((c) => m.set(c.id, c)); days.forEach((d) => d.cards.forEach((c) => m.set(c.id, c))); return m; }, [days, saved]);
   // Where you sleep (1 Oct 2026, lib/stays/stayRuns). The Anytime lane went
@@ -1047,7 +1050,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                   // One click to name a day (17 Nov 2026, Don's "Day at sea"): the name
                   // itself is the door, and an unnamed day shows "Name this day" on hover.
                   // It used to sit only behind the header's "…".
-                  (d.theme || !(laidOut[i]?.ports.length)) ? (
+                  (d.theme || !(laidOut[i]?.ports.length || laidOut[i]?.carry.length)) ? (
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); setNameDraft(d.theme ?? ""); setRenamingDay(d.id); }}
@@ -1057,14 +1060,14 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                   >
                     <span data-testid="day-name">{d.theme ?? ""}</span>
                     {/* A port day is named by its port (below); the hint is for the others. */}
-                    {!d.theme && !(laidOut[i]?.ports.length) && <span aria-hidden="true" data-testid="name-day-hint" className="opacity-0 group-hover:opacity-100 transition-opacity border-b border-dashed border-current">Name this day</span>}
+                    {!d.theme && !(laidOut[i]?.ports.length) && !(laidOut[i]?.carry.length) && <span aria-hidden="true" data-testid="name-day-hint" className="opacity-0 group-hover:opacity-100 transition-opacity border-b border-dashed border-current">Name this day</span>}
                   </button>
                   ) : null
                 )}
                 {/* The port names its day (17 Nov 2026): "⚓ Grundarfjörður 7am–6pm"; a tap opens its card. */}
-                {(laidOut[i]?.ports ?? []).map((p) => (
+                {[...(laidOut[i]?.carry ?? []).map((p) => ({ p, carried: true })), ...(laidOut[i]?.ports ?? []).map((p) => ({ p, carried: false }))].map(({ p, carried }) => (
                   <button
-                    key={p.id}
+                    key={p.id + (carried ? ":carry" : "")}
                     type="button"
                     data-testid="day-port"
                     data-card-id={p.id}
@@ -1074,7 +1077,10 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                   >
                     <span aria-hidden="true" className="inline-flex flex-shrink-0 opacity-70" dangerouslySetInnerHTML={{ __html: getMaterialIconHTML("port", 12) }} />
                     <span className="truncate">{(typeof (p.details as { title?: unknown } | null)?.title === "string" && (p.details as { title: string }).title) || cardTitle(p)}</span>
-                    {p.start_time && <span className="font-normal text-activity/60 whitespace-nowrap">{fmt12(toMin(p.start_time))}{p.end_time && minutesAshore(p) ? `–${fmt12(toMin(p.end_time))}` : ""}</span>}
+                    {p.start_time && <span className="font-normal text-activity/60 whitespace-nowrap">{carried
+                      ? `until ${fmt12(toMin(p.end_time!))}`
+                      : isOvernight(p) ? `${fmt12(toMin(p.start_time))} · overnight`
+                      : `${fmt12(toMin(p.start_time))}${p.end_time && minutesAshore(p) ? `–${fmt12(toMin(p.end_time))}` : ""}`}</span>}
                   </button>
                 ))}
                 {/* Untimed: on its own day, dashed until it has a time. */}
@@ -1108,14 +1114,17 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                 ))}
               </div>
               <div className="contents">
-                {laidOut.map(({ day, placed, legRuns, ports }, di) => (
+                {laidOut.map(({ day, placed, legRuns, ports, carry }, di) => (
                   <div key={day.id} data-daycol={day.id} onClick={(e) => (collapsed(di) ? setFocusDayId(day.id) : onColumnClick(e, day.id, di))} onMouseMove={(e) => onColumnMove(e, di)} onMouseLeave={() => setSlot(null)} className={`relative border-l min-w-0 transition-colors ${collapsed(di) ? "cursor-pointer hover:bg-[rgba(26,26,46,0.04)]" : "cursor-cell"}`} style={{ borderColor: "rgba(26,26,46,0.10)", background: collapsed(di) ? "rgba(26,26,46,0.02)" : hover && hover.day === di && hover.min !== null ? "rgba(26,26,46,0.04)" : undefined }}>
                     {/* Hours ashore, lit: white over the week's grey (17 Nov 2026). Under everything, never a click target. */}
-                    {!collapsed(di) && ports.map((p) => {
-                      if (!p.start_time || !minutesAshore(p)) return null;
-                      const a = Math.max(toMin(p.start_time), HOUR_START * 60), z = Math.min(toMin(p.end_time!), (HOUR_END + 1) * 60);
-                      if (z <= a) return null;
-                      return <div key={p.id} data-ashore={p.id} aria-hidden="true" className="absolute left-0 right-0 pointer-events-none bg-white" style={{ top: (a / 60 - HOUR_START) * PX_PER_HOUR, height: ((z - a) / 60) * PX_PER_HOUR }} />;
+                    {!collapsed(di) && [
+                      ...ports.map((p) => ({ p, key: p.id, a: p.start_time ? toMin(p.start_time) : null, z: p.end_time && isOvernight(p) ? (HOUR_END + 1) * 60 : p.end_time ? toMin(p.end_time) : null })),
+                      ...carry.map((p) => ({ p, key: p.id + ":carry", a: HOUR_START * 60, z: toMin(p.end_time!) })),
+                    ].map(({ key, a, z, p }) => {
+                      if (a == null || z == null || !minutesAshore(p)) return null;
+                      const a2 = Math.max(a, HOUR_START * 60), z2 = Math.min(z, (HOUR_END + 1) * 60);
+                      if (z2 <= a2) return null;
+                      return <div key={key} data-ashore={key} aria-hidden="true" className="absolute left-0 right-0 pointer-events-none bg-white" style={{ top: (a2 / 60 - HOUR_START) * PX_PER_HOUR, height: ((z2 - a2) / 60) * PX_PER_HOUR }} />;
                     })}
                     {hours.map((h) => (
                       <div key={h} data-hourline="1" className="absolute left-0 right-0" style={{ top: (h - HOUR_START) * PX_PER_HOUR, borderTop: "1px solid rgba(26,26,46,0.06)" }}>

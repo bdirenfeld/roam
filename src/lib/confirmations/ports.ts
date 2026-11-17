@@ -9,6 +9,8 @@ export interface CruisePort {
   port: string;
   arrive: string | null;
   depart: string | null;
+  /** The ship stays the night: all aboard (depart) is the NEXT day. */
+  overnight?: boolean;
 }
 
 export const MAX_PORTS = 40;
@@ -33,15 +35,32 @@ export function cleanPorts(raw: unknown): CruisePort[] | null {
     const date = typeof o.date === "string" && ISO.test(o.date.trim()) ? o.date.trim() : null;
     const port = typeof o.port === "string" ? o.port.trim() : "";
     if (!date || !port || AT_SEA.test(port)) continue;
-    out.push({ date, port, arrive: time(o.arrive), depart: time(o.depart) });
+    const p: CruisePort = { date, port, arrive: time(o.arrive), depart: time(o.depart) };
+    if (o.overnight === true) p.overnight = true;
+    out.push(p);
     if (out.length >= MAX_PORTS) break;
   }
   out.sort((a, b) => a.date.localeCompare(b.date));
-  return out.length ? out : null;
+  // A night in port often comes as two lines, the same port on two days in a row:
+  // one port, docking the first day, all aboard the second.
+  const merged: CruisePort[] = [];
+  for (const p of out) {
+    const last = merged[merged.length - 1];
+    if (last && !last.overnight && portLabel(last.port).toLowerCase() === portLabel(p.port).toLowerCase() && addDay(last.date) === p.date) {
+      merged[merged.length - 1] = { ...last, depart: p.depart, overnight: true };
+    } else merged.push(p);
+  }
+  return merged.length ? merged : null;
 }
 
 /** "Grundarfjörður, Iceland" → "Grundarfjörður": the card's name; the full text finds the place. */
 export const portLabel = (port: string): string => port.split(",")[0].trim() || port.trim();
+
+const addDay = (iso: string) => {
+  const d = new Date(iso + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+};
 
 /** "+ Add a port": the day after the last port (or the boarding day), within the cruise, times blank. */
 export function nextPort(ports: CruisePort[], boardDate: string, lastDate: string): CruisePort {

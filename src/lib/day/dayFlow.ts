@@ -37,11 +37,12 @@ export function dayFlow<C extends FlowCard>(
   isLeg: (c: C) => boolean,
   destOf: (c: C) => string,
   stays: string[] = [],
-  port?: { is: (c: C) => boolean; name: (c: C) => string },
+  port?: { is: (c: C) => boolean; name: (c: C) => string; overnight?: (c: C) => boolean; carry?: C[] },
 ): FlowItem<C>[] {
   const isPort = (c: C) => !!port && !!c.start_time && port.is(c);
   const legs = timed.filter((c) => !isPort(c) && isLeg(c) && c.start_time);
-  if (!legs.length && !timed.some(isPort)) return timed.map((card) => ({ kind: "card", card }));
+  const carried = (port?.carry ?? []).filter((c) => c.end_time);
+  if (!legs.length && !timed.some(isPort) && !carried.length) return timed.map((card) => ({ kind: "card", card }));
 
   const runs = joinLegs(legs.map((c) => ({ id: c.id, startMin: toMin(c.start_time!), endMin: c.end_time ? toMin(c.end_time) : null })));
   const runOf = new Map<string, (typeof runs)[number]>();
@@ -55,7 +56,7 @@ export function dayFlow<C extends FlowCard>(
   let seenStop = false;
   // All-aboard rows still to come, earliest first: each lands before the first
   // card that starts at or after it, or at the end of the day.
-  const aboard: FlowItem<C>[] = [];
+  const aboard: FlowItem<C>[] = carried.map((c) => ({ kind: "port" as const, phase: "aboard" as const, card: c, min: toMin(c.end_time!), name: port!.name(c), hoursAshore: null }));
   const flushAboard = (beforeMin: number) => {
     while (aboard.length && (aboard[0] as { min: number }).min <= beforeMin) {
       out.push(aboard.shift()!);
@@ -68,9 +69,12 @@ export function dayFlow<C extends FlowCard>(
       const name = port!.name(c);
       const start = toMin(c.start_time!);
       const end = c.end_time ? toMin(c.end_time) : null;
-      const hoursAshore = end != null && end > start ? Math.round((end - start) / 30) / 2 : null;
+      // A night in port: all aboard is tomorrow, so it closes tomorrow's list, not today's.
+      const night = !!port!.overnight?.(c) && end != null;
+      const span = end == null ? null : end - start + (night ? 24 * 60 : 0);
+      const hoursAshore = span != null && span > 0 ? Math.round(span / 30) / 2 : null;
       out.push({ kind: "port", phase: "arrive", card: c, min: start, name, hoursAshore });
-      if (end != null && end > start) {
+      if (!night && end != null && end > start) {
         aboard.push({ kind: "port", phase: "aboard", card: c, min: end, name, hoursAshore });
         aboard.sort((a, b) => (a as { min: number }).min - (b as { min: number }).min);
       }

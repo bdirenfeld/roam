@@ -130,3 +130,20 @@ describe("dayFlow: a cruise's port of call (Don's Iceland, Wed 21 Jul 2027)", ()
     expect(f.every((i) => i.kind === "card")).toBe(true);
   });
 });
+
+describe("dayFlow: a night in port (17 Nov 2026)", () => {
+  type P = { id: string; start_time: string | null; end_time: string | null; title: string; port?: boolean; night?: boolean };
+  const isa: P = { id: "isa", start_time: "08:00:00", end_time: "18:00:00", title: "Ísafjörður", port: true, night: true };
+  const opt = (carry: P[] = []) => ({ is: (c: P) => !!c.port, name: (c: P) => c.title, overnight: (c: P) => !!c.night, carry });
+
+  it("the arrival day docks and counts 34 hours ashore, with no all aboard that evening", () => {
+    const f = dayFlow([isa, { id: "dinner", start_time: "19:00:00", end_time: null, title: "Dinner in town" }], () => false, (c) => c.title, [], opt());
+    expect(f.map((i) => i.kind === "port" ? i.phase : i.kind === "card" ? i.card.id : i.kind)).toEqual(["arrive", "heading", "dinner"]);
+    expect((f[0] as { hoursAshore: number }).hoursAshore).toBe(34);
+  });
+
+  it("the next day closes the stay with all aboard at 6pm, among that day's plans", () => {
+    const f = dayFlow([{ id: "kayak", start_time: "09:00:00", end_time: "12:00:00", title: "Fjord kayak" }, { id: "show", start_time: "20:00:00", end_time: null, title: "Show" }], () => false, (c) => c.title, [], opt([isa]));
+    expect(f.map((i) => i.kind === "port" ? `${i.phase}:${i.name}` : i.kind === "card" ? i.card.id : i.kind)).toEqual(["kayak", "aboard:Ísafjörður", "show"]);
+  });
+});

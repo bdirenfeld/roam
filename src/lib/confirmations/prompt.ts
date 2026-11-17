@@ -37,7 +37,7 @@ Each object must have exactly these fields (no extra keys):
   "drop_off_location": "string or null — cars only, where you return it, when not the pick-up location",
   "total_paid": "number or null — flights, hotels and cars: the total charged for this booking, taxes and fees included, as a plain number (1234.56, no symbol)",
   "paid_currency": "string or null — the ISO 4217 code of total_paid, e.g. 'CAD', 'EUR', 'USD'",
-  "ports": "array or null — ONLY for a cruise: each port of call in order, { \"date\": \"YYYY-MM-DD\", \"port\": \"town and country, e.g. 'Grundarfjörður, Iceland'\", \"arrive\": \"HH:MM or null\", \"depart\": \"HH:MM or null — the all-aboard time if given, else departure\" }. Leave out days at sea and the boarding and leaving ports. null for every other booking.",
+  "ports": "array or null — ONLY for a cruise: each port of call in order, { \"date\": \"YYYY-MM-DD\", \"port\": \"town and country, e.g. 'Grundarfjörður, Iceland'\", \"arrive\": \"HH:MM or null\", \"depart\": \"HH:MM or null — the all-aboard time if given, else departure\" }. If the ship stays the night, list the port ONCE on the day it docks with \"overnight\": true and \"depart\" = the next day's all-aboard time. Leave out days at sea and the boarding and leaving ports. null for every other booking.",
   "agenda": "array or null — ONLY for a multi-session event (conference, summit, course, festival) whose document gives a day-by-day schedule; null for every other booking. One entry per event day: { \"date\": \"YYYY-MM-DD\", \"start\": \"HH:MM\", \"end\": \"HH:MM\", \"items\": [{ \"time\": \"HH:MM\", \"title\": \"short title\" }] }"
 }
 

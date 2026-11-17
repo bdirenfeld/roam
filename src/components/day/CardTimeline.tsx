@@ -7,7 +7,7 @@ import { isTravelLeg, legDestTitle, iconSubType, legModeWord } from "@/lib/trave
 import { stripDuration, stripDest } from "@/lib/week/travelStrip";
 import { getMaterialIconHTML } from "@/lib/mapPins";
 import { formatTimeValue } from "@/lib/formatTime";
-import { isPortCard, portName, ashoreLabel } from "@/lib/cards/port";
+import { isPortCard, portName, ashoreLabel, isOvernight } from "@/lib/cards/port";
 import { noteLead } from "@/lib/noteLead";
 
 // No drag here any more. Timed cards sort by the clock; an untimed card gets
@@ -41,6 +41,8 @@ interface Props {
   onGiveTimes?: () => void;
   /** The trip's stay names, so the way home reads "→ Villa" and "Back at the villa". */
   stays?: string[];
+  /** Ports from the day before where the ship stayed the night: their "All aboard" is today. */
+  carryPorts?: Card[];
 }
 
 const hhmm = (m: number) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}:00`;
@@ -206,6 +208,7 @@ export default function CardTimeline({
   underway = false,
   onGiveTimes,
   stays = [],
+  carryPorts,
 }: Props) {
   const { cards } = dayWithCards;
 
@@ -248,7 +251,7 @@ export default function CardTimeline({
 
   return (
     <div className="pb-8">
-      {cards.length === 0 ? (
+      {cards.length === 0 && !carryPorts?.length ? (
         quietEmpty ? (
           <div className="w-full max-w-[320px] mx-auto">{renderAddControls(false)}</div>
         ) : <div className="flex flex-col items-center py-14 text-center">
@@ -277,7 +280,7 @@ export default function CardTimeline({
         </div>
       ) : (
         <div>
-          {dayFlow(timedCards, isTravelLeg, legDestTitle, stays, { is: isPortCard, name: portName }).map((item) => {
+          {dayFlow(timedCards, isTravelLeg, legDestTitle, stays, { is: isPortCard, name: portName, overnight: isOvernight, carry: carryPorts }).map((item) => {
             if (item.kind === "port") {
               return <PortLine key={`${item.card.id}-${item.phase}`} card={item.card} phase={item.phase} name={item.name} onOpen={onCardTap} />;
             }

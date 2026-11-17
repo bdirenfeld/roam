@@ -38,3 +38,12 @@ describe("framePins — the map opens on the trip, not the home airport", () => 
     expect(Math.round(kmBetween(PISA, LUCCA))).toBeLessThan(25);
   });
 });
+
+describe("both journey maps frame through framePins (17 Nov 2026)", () => {
+  it("the phone Map and the desktop week's map leave the home airport out", async () => {
+    const { readFileSync } = await import("node:fs");
+    for (const f of ["src/components/map/FullMapClient.tsx", "src/components/plan/WeekMap.tsx"]) {
+      expect(readFileSync(f, "utf8"), f).toMatch(/framePins\(/);
+    }
+  });
+});

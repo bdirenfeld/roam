@@ -47,6 +47,12 @@ import WhereToStaySheet from "@/components/map/WhereToStaySheet";
 import { makePinElement } from "@/lib/mapPins";
 import type { StayCandidate } from "@/types/database";
 import type { CardType } from "@/types/database";
+import { framePins } from "@/lib/map/framePins";
+
+/** The pins a frame should hold: a flight pin far from every stop (Toronto on Tuscany) draws but is left out. */
+const framedCoords = (cs: Card[]): [number, number][] =>
+  framePins(cs.map((c) => ({ lat: c.place!.lat!, lng: c.place!.lng!, isFlight: c.place?.sub_type === "flight_arrival" || c.place?.sub_type === "flight_departure" })))
+    .map((p) => [p.lng, p.lat]);
 
 const ALL_TYPES: CardType[] = ["activity", "food", "logistics"];
 const ALL_STATUSES = ["interested", "in_itinerary"];
@@ -353,7 +359,8 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
         if (mapRef.current !== map) return;
         setReady(true);
         // frame the journey's pins once
-        const pts = cardsRef.current.filter(placed).map((c) => [c.place!.lng!, c.place!.lat!]);
+        // Less the home airport (lib/map/framePins), as the phone's Map does (17 Nov 2026).
+        const pts = framedCoords(cardsRef.current.filter(placed));
         if (pts.length > 1) {
           const b = pts.reduce((acc: any, p) => acc.extend(p), new mb.LngLatBounds(pts[0], pts[0])); // eslint-disable-line @typescript-eslint/no-explicit-any
           map.fitBounds(b, { padding: { top: 70, bottom: 40, left: 30, right: 60 }, maxZoom: 14, duration: 0 });
@@ -444,7 +451,7 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
     const map = mapRef.current, mb = mbRef.current;
     if (!ready || !map || !mb) return;
     const pool = activeDayId === null ? cards : cards.filter((c) => c.day_id === activeDayId);
-    const pts = pool.filter(placed).map((c) => [c.place!.lng!, c.place!.lat!] as [number, number]);
+    const pts = framedCoords(pool.filter(placed));
     if (pts.length === 0) return;
     // Gently (29 Sep 2026, Brennan: "zooms too aggressively … a little too
     // close"): a straight glide, not a fly-out-and-dive, stopping at the

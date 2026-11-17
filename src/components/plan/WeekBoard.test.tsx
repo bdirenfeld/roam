@@ -208,6 +208,22 @@ describe("a cruise's port on the week (17 Nov 2026, Don)", () => {
     expect(screen.getAllByTestId("name-day-hint").length).toBeGreaterThan(0); // the other days keep it
   });
 
+  it("a night in port: white from docking to midnight, then the next morning until all aboard", () => {
+    const isa = { ...port, id: "isa", title: "Ísafjörður" };
+    const night = days.map((d, i) => i === 1
+      ? { ...d, cards: [card("p2", d.id, isa as typeof villa, { start_time: "08:00:00", end_time: "18:00:00", details: { overnight: true } })] }
+      : d) as unknown as DayWithCards[];
+    const { container } = render(<WeekBoard trip={trip} initialDays={night} initialSaved={[]} />);
+    const labels = screen.getAllByTestId("day-port").map((b) => b.textContent);
+    expect(labels.some((t) => t?.includes("8am · overnight"))).toBe(true);
+    expect(labels.some((t) => t?.includes("until 6pm"))).toBe(true);
+    const bands = Array.from(container.querySelectorAll(`[data-ashore^="p2"]`)) as HTMLElement[];
+    expect(bands).toHaveLength(2);
+    expect(parseFloat(bands[0].style.top)).toBe(48); // 8am, an hour into the grid
+    expect(parseFloat(bands[1].style.top)).toBe(0); // the next morning from the top
+    expect(parseFloat(bands[1].style.height)).toBe(11 * 48); // until 6pm
+  });
+
   it("the port's name opens its card", () => {
     render(<WeekBoard trip={trip} initialDays={withPort} initialSaved={[]} />);
     fireEvent.click(screen.getByTestId("day-port"));

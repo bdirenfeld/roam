@@ -17,14 +17,24 @@ export const portName = (c: PortLike): string => (c.place?.title ?? "").trim() |
 
 const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
 
-/** Minutes ashore, or null when there is no all-aboard time (or it is not after docking). */
+/**
+ * Overnight in port (17 Nov 2026): the ship stays the night and all aboard is
+ * the NEXT day. Times alone cannot say so (docks 08:00 Thursday, all aboard
+ * 18:00 Friday has an end after its start), so the card carries
+ * `details.overnight = true`. One night at most.
+ */
+export function isOvernight(c: PortLike): boolean {
+  return (c.details as { overnight?: unknown } | null | undefined)?.overnight === true && !!c.start_time && !!c.end_time;
+}
+
+/** Minutes ashore, a night in port included; null when there is no all-aboard time. */
 export function minutesAshore(c: PortLike): number | null {
   if (!c.start_time || !c.end_time) return null;
-  const m = toMin(c.end_time) - toMin(c.start_time);
+  const m = toMin(c.end_time) - toMin(c.start_time) + (isOvernight(c) ? 24 * 60 : 0);
   return m > 0 ? m : null;
 }
 
-/** "11 h ashore", "9 h 30 ashore", or null. */
+/** "11 h ashore", "9 h 30 ashore", "34 h ashore", or null. */
 export function ashoreLabel(c: PortLike): string | null {
   const m = minutesAshore(c);
   return m == null ? null : `${stripDuration(m)} ashore`;
