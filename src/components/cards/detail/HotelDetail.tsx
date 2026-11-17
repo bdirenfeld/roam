@@ -18,13 +18,16 @@ function fmtTime(t: string | null): string | null {
   return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, "0")} ${p}`;
 }
 
-/** One stay row: grey icon, label, value — the sheet's Hours-row look. */
+/** One stay row (16 Nov 2026, Brennan picked "B"): grey icon, a small grey
+ *  label above the value, no lines. Tighter than a row per field. */
 function StayRow({ icon, label, children }: { icon: string; label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2.5 min-h-[44px] text-[13.5px] border-b border-[rgba(26,26,46,0.06)] last:border-b-0">
-      <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 18, color: "rgba(26,26,46,0.5)", fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20" }}>{icon}</span>
-      <span className="font-medium min-w-[96px]" style={{ color: "#1A1A2E" }}>{label}</span>
-      <span className="flex-1 min-w-0 flex" style={{ color: "rgba(26,26,46,0.62)" }}>{children}</span>
+    <div className="flex items-start gap-3">
+      <span aria-hidden="true" className="material-symbols-outlined mt-0.5" style={{ fontSize: 18, color: "rgba(26,26,46,0.5)", fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20" }}>{icon}</span>
+      <div className="flex-1 min-w-0">
+        <p className="text-[11px] font-medium leading-tight" style={{ color: "rgba(26,26,46,0.5)" }}>{label}</p>
+        <div className="flex text-[14px] font-medium mt-px" style={{ color: "#1A1A2E" }}>{children}</div>
+      </div>
     </div>
   );
 }
@@ -48,20 +51,19 @@ export default function HotelDetail({ card, onSaveDetails, showEmpty = false, st
 
   return (
     <div className="space-y-6">
-      {/* STAY — plain rows like the sheet's Hours row (16 Nov 2026): no uppercase
+      {/* STAY (16 Nov 2026): no uppercase
           labels, no colour emoji, and no empty "yyyy-mm-dd" box. An unset
           check-out says "Add a date"; the real date input sits over it, so a
-          tap still opens the phone's own picker. One hairline between the rows only:
-          lines above and below doubled the sheet's own divider. */}
+          tap still opens the phone's own picker. Small label above each value, no lines. */}
       {(showEmpty || hasStayData || canSetLeave) && (
-        <div data-testid="hotel-stay">
+        <div data-testid="hotel-stay" className="space-y-3.5">
           {checkIn && (
             <StayRow icon="key" label="Check-in">{checkIn}</StayRow>
           )}
           {(canSetLeave || leaveDay) && (
             <StayRow icon="luggage" label="Check-out">
               <span className="relative flex-1 min-w-0 flex items-center justify-between">
-                <span data-testid="checkout-value" style={{ color: leaveDay ? "rgba(26,26,46,0.62)" : "rgba(26,26,46,0.45)" }}>
+                <span data-testid="checkout-value" style={{ color: leaveDay ? "#1A1A2E" : "rgba(26,26,46,0.45)" }}>
                   {leaveDay ? new Date(leaveDay + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) : "Add a date"}
                 </span>
                 {canSetLeave && (

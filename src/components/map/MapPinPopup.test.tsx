@@ -64,7 +64,7 @@ describe("MapPinPopup — removing a pin", () => {
     const onCardDelete = vi.fn();
     render(<MapPinPopup card={card} onClose={() => {}} onCardDelete={onCardDelete} onCardUpdate={() => {}} />);
     fireEvent.click(screen.getByTestId("pin-remove"));
-    expect(screen.getByText("Remove this place from your map?")).toBeTruthy();
+    expect(screen.getByText("Remove Lucca from your map?")).toBeTruthy();
     expect(del).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: /^Remove$/ }));
     await waitFor(() => expect(onCardDelete).toHaveBeenCalledWith("c1"));
@@ -82,10 +82,23 @@ describe("MapPinPopup — removing a pin", () => {
     expect(screen.queryByTestId("pin-remove")).toBeNull();
   });
 
-  it("a scheduled pin's Remove still offers to take it off its day", () => {
+  it("phone: a place on a day gets the same one question, saying it comes off that day too (16 Nov 2026)", async () => {
+    const onDay = { ...card, status: "in_itinerary", day_id: "d1" } as unknown as Card;
+    const onCardDelete = vi.fn();
+    render(<MapPinPopup card={onDay} onClose={() => {}} onCardDelete={onCardDelete} onCardUpdate={() => {}} days={[{ id: "d1", day_number: 3, date: "2027-08-26" }] as never} tripId="t1" />);
+    fireEvent.click(screen.getByTestId("pin-remove"));
+    expect(screen.getByText("Remove Lucca from your map?")).toBeTruthy();
+    expect(screen.getByText(/on Day 3 · it comes off that day too/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Take it off the day" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /^Remove$/ }));
+    await waitFor(() => expect(onCardDelete).toHaveBeenCalledWith("c1"));
+  });
+
+  it("desktop: a scheduled pin's Remove still offers to take it off its day", () => {
+    wide = true;
     const onDay = { ...card, status: "in_itinerary", day_id: "d1" } as unknown as Card;
     render(<MapPinPopup card={onDay} onClose={() => {}} onCardDelete={() => {}} onCardUpdate={() => {}} days={[{ id: "d1", day_number: 3, date: "2027-08-26" }] as never} tripId="t1" />);
-    fireEvent.click(screen.getByTestId("pin-remove"));
+    fireEvent.click(screen.getByRole("button", { name: "Remove from map" }));
     expect(screen.getByText(/This place is on Day 3/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Take it off the day" })).toBeTruthy();
   });
@@ -93,8 +106,9 @@ describe("MapPinPopup — removing a pin", () => {
   it("taking it off the day tells the host it was a take-off, with the saved copy, so its toast says so (6 Oct 2026, taps audit)", async () => {
     const onDay = { ...card, status: "in_itinerary", day_id: "d1" } as unknown as Card;
     const onCardDelete = vi.fn();
+    wide = true;
     render(<MapPinPopup card={onDay} onClose={() => {}} onCardDelete={onCardDelete} onCardUpdate={() => {}} onCardCreated={() => {}} days={[{ id: "d1", day_number: 3, date: "2027-08-26" }] as never} tripId="t1" />);
-    fireEvent.click(screen.getByTestId("pin-remove"));
+    fireEvent.click(screen.getByRole("button", { name: "Remove from map" }));
     fireEvent.click(screen.getByRole("button", { name: "Take it off the day" }));
     await waitFor(() => expect(onCardDelete).toHaveBeenCalledWith("c1", { savedId: "s9" }));
   });

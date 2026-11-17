@@ -546,7 +546,9 @@ function CardBody({
   // A scheduled pin used to refuse ("remove it from your day plan first")
   // and offer nothing to do it with. It now offers the action itself.
   function handleTrashClick() {
-    if (card.status === "in_itinerary") {
+    // The phone asks one plain question for every place (16 Nov 2026, the
+    // mock he approved): remove it, and if it is on a day it comes off that day too.
+    if (desktop && card.status === "in_itinerary") {
       setShowItineraryMsg(true);
     } else {
       setShowDeleteConfirm(true);
@@ -943,20 +945,25 @@ function CardBody({
 
         {/* Delete confirmation */}
         {showDeleteConfirm && (
-          <div className="mt-3 p-3 bg-red-50 rounded-xl border border-red-100">
-            <p className="text-[12px] font-medium text-gray-800 mb-2.5">Remove this place from your map?</p>
-            {deleteError && <p className="text-[11px] text-red-600 mb-2">{deleteError}</p>}
-            <div className="flex gap-2">
+          <div className="mt-3 pt-3 border-t border-[rgba(26,26,46,0.06)]" data-testid="pin-remove-confirm">
+            <p className="text-[13px] font-semibold text-gray-900">Remove {place.title} from your map?</p>
+            {card.status === "in_itinerary" && (
+              <p className="text-[12px] text-gray-500 mt-0.5">
+                It&apos;s on {(() => { const d = days?.find((x) => x.id === card.day_id); return d ? `Day ${d.day_number}` : "a day"; })()} · it comes off that day too.
+              </p>
+            )}
+            {deleteError && <p className="text-[11px] text-red-600 mt-1">{deleteError}</p>}
+            <div className="flex gap-2 mt-2.5">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 py-1.5 rounded-lg text-[11px] font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
+                className="flex-1 py-2 rounded-full text-[13px] font-medium text-gray-700 bg-[#f2f2f4] hover:bg-gray-200 transition-colors"
               >
-                Cancel
+                Keep
               </button>
               <button
                 onClick={handleDelete}
                 disabled={isDeleting}
-                className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-60"
+                className="flex-1 py-2 rounded-full text-[13px] font-medium text-[#c0392b] bg-[#fde8e6] hover:bg-[#fbd9d5] transition-colors disabled:opacity-60"
               >
                 {isDeleting ? "Removing…" : "Remove"}
               </button>
