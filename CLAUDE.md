@@ -2544,5 +2544,6 @@ Check phone screens in the phone viewer (`/dev/phone`, `scripts/phone-check.mjs`
 - **Cards on the week are tinted by kind** (option B, same day): `blockTint` = the kind's PIN_COLORS
   mixed with white (activities 16%, others 11%, 5 points lighter at 3 h+), `blockEdge` 28%; solid, so a
   card on ship blue keeps its colour. Ship time is pale `SHIP_BLUE` #EAF2FB, no edge (a left edge per
-  day lined up as stripes and was dropped). The bottom grab bar shows only on hover. Mocked on the real board first
+  day lined up as stripes and was dropped). A ship stretch of 2 h+ carries a quiet label top right
+  (`data-ship-label`, ship glyph + "On board", or "At sea" for a whole day) in `SHIP_INK` #4A6F9E. The bottom grab bar shows only on hover. Mocked on the real board first
   (a temporary `/dev/cruise-mock`, not committed).

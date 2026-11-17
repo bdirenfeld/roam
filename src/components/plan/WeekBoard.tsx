@@ -72,6 +72,8 @@ interface Props {
 
 /** On the ship (17 Nov 2026): the one place this blue appears. Bluer than the activity green's wash. */
 const SHIP_BLUE = "#EAF2FB";
+/** The ship label's ink on SHIP_BLUE (4.6:1). */
+const SHIP_INK = "#4A6F9E";
 /** A card's wash and edge from its kind's colour (option B, 17 Nov 2026). Activities (teal) a touch
  *  stronger, so they stay green on ship blue; long cards (3 h+) lighter, so a day tour is not a slab. */
 const blockTint = (c: string, long = false) => `color-mix(in srgb, ${c} ${(c === PIN_COLORS.activity ? 16 : 11) - (long ? 5 : 0)}%, white)`;
@@ -1137,7 +1139,18 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
                     {!collapsed(di) && (ship.get(day.id) ?? []).map(([a, z]) => {
                       const a2 = Math.max(a, HOUR_START * 60), z2 = Math.min(z, (HOUR_END + 1) * 60);
                       if (z2 <= a2) return null;
-                      return <div key={a} data-ship={day.id} aria-hidden="true" className="absolute left-0 right-0 pointer-events-none" style={{ background: SHIP_BLUE, top: (a2 / 60 - HOUR_START) * PX_PER_HOUR, height: ((z2 - a2) / 60) * PX_PER_HOUR }} />;
+                      // A quiet label on stretches of 2 h or more (17 Nov 2026): the blue alone had to be guessed.
+                      const label = z2 - a2 >= 120 ? (a <= 0 && z >= 24 * 60 ? "At sea" : "On board") : null;
+                      return (
+                        <div key={a} data-ship={day.id} aria-hidden="true" className="absolute left-0 right-0 pointer-events-none" style={{ background: SHIP_BLUE, top: (a2 / 60 - HOUR_START) * PX_PER_HOUR, height: ((z2 - a2) / 60) * PX_PER_HOUR }}>
+                          {label && (
+                            <span data-ship-label className="absolute top-1.5 right-2 flex items-center gap-1 text-[10px] font-medium" style={{ color: SHIP_INK }}>
+                              <span className="inline-flex" dangerouslySetInnerHTML={{ __html: getGlyphHTML("directions_boat", 11) }} />
+                              {label}
+                            </span>
+                          )}
+                        </div>
+                      );
                     })}
                     {hours.map((h) => (
                       <div key={h} data-hourline="1" className="absolute left-0 right-0" style={{ top: (h - HOUR_START) * PX_PER_HOUR, borderTop: "1px solid rgba(26,26,46,0.06)" }}>

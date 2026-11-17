@@ -243,3 +243,16 @@ describe("read only: a guest's week (17 Nov 2026)", () => {
     expect(screen.getByTestId("sheet")).toBeTruthy();
   });
 });
+
+describe("the ship's blue says what it is (17 Nov 2026)", () => {
+  it("a stretch on board of 2 h or more reads \"On board\"; a full day at sea reads \"At sea\"", () => {
+    const port = { id: "grund2", title: "Grundarfjörður", type: "logistics", sub_type: "port", lat: 64.92, lng: -23.25, address: "Grundarfjörður" };
+    const withPort = days.map((d, i) => i === 1
+      ? { ...d, cards: [card("p9", d.id, port as typeof villa, { start_time: "07:00:00", end_time: "18:00:00" })] }
+      : i === 2 ? { ...d, theme: "Day at sea" } : d) as unknown as DayWithCards[];
+    const { container } = render(<WeekBoard trip={trip} initialDays={withPort} initialSaved={[]} />);
+    const labels = Array.from(container.querySelectorAll("[data-ship-label]")).map((n) => n.textContent);
+    expect(labels).toContain("directions_boatOn board");
+    expect(labels).toContain("directions_boatAt sea");
+  });
+});
