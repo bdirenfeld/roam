@@ -66,6 +66,9 @@ describe("townFromAddress", () => {
     expect(townFromAddress("P.za San Michele, 55100 Lucca LU, Italy")).toBe("Lucca");
     expect(townFromAddress("Piazzale Corradino D'Ascanio, 1, 56121 Pisa PI, Italy")).toBe("Pisa");
     expect(townFromAddress("19016 Monterosso al Mare, SP, Italy")).toBe("Monterosso al Mare");
+    // Iceland writes 3-digit postcodes (Don's cruise, 17 Nov 2026): the town, not the street.
+    expect(townFromAddress("Bergstaðastræti 31, 101 Reykjavík, Iceland")).toBe("Reykjavík");
+    expect(townFromAddress("350 Grundarfjörður, Iceland")).toBe("Grundarfjörður");
   });
   it("reads the North American form", () => {
     expect(townFromAddress("123 Palm Canyon Dr, Palm Springs, CA 92262, USA")).toBe("Palm Springs");

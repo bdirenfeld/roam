@@ -64,13 +64,20 @@ export function findBases(cards: Card[], trip: TripLike): FindBase[] {
   const total = daysOf(trip);
   const seen = new Set<string>();
   const pins: (Pin & { dayId: string | null })[] = [];
+  const extraDays = new Map<string, Set<string>>();
+  const pinKey = new Map<string, string>();
   for (const c of cards) {
     const p = c.place;
     if (!p || p.lat == null || p.lng == null || p.type === "logistics") continue;
     const key = c.place_id ?? c.id;
-    if (seen.has(key)) continue;
+    const day = c.status === "in_itinerary" ? c.day_id : null;
+    // One pin per place, but every day it is on counts (17 Nov 2026): Don's
+    // "Reykjavík" sits on four days and read as one, so the base had 2 days, not 5.
+    if (seen.has(key)) { if (day) extraDays.get(key)!.add(day); continue; }
     seen.add(key);
-    pins.push({ id: c.id, title: p.title, type: p.type, subType: p.sub_type, lat: p.lat, lng: p.lng, address: p.address, dayId: c.status === "in_itinerary" ? c.day_id : null });
+    extraDays.set(key, new Set(day ? [day] : []));
+    pinKey.set(c.id, key);
+    pins.push({ id: c.id, title: p.title, type: p.type, subType: p.sub_type, lat: p.lat, lng: p.lng, address: p.address, dayId: day });
   }
   if (pins.length === 0) {
     if (trip.destination_lat == null || trip.destination_lng == null) return [];
@@ -91,7 +98,13 @@ export function findBases(cards: Card[], trip: TripLike): FindBase[] {
   // Days at a base: its planned days when the journey is planned, else a share
   // of the journey in proportion to its places.
   const planned = new Map<number, Set<string>>();
-  for (const p of pins) { const r = regionOf.get(p.id); if (r != null && p.dayId) { if (!planned.has(r)) planned.set(r, new Set()); planned.get(r)!.add(p.dayId); } }
+  for (const p of pins) {
+    const r = regionOf.get(p.id);
+    const ds = extraDays.get(pinKey.get(p.id)!) ?? new Set<string>();
+    if (r == null || !ds.size) continue;
+    if (!planned.has(r)) planned.set(r, new Set());
+    ds.forEach((d) => planned.get(r)!.add(d));
+  }
   const plannedTotal = Array.from(planned.values()).reduce((s, x) => s + x.size, 0);
   const placesTotal = regions.reduce((s, r) => s + pins.filter((p) => regionOf.get(p.id) === r.id).length, 0) || 1;
 

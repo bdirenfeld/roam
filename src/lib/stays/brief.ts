@@ -147,7 +147,7 @@ function segmentCore(seg: string): { core: string; region: boolean } | null {
   if (/^[A-Z]{2}\s+[A-Z]\d[A-Z]\s?\d[A-Z]\d$/.test(s)) return null;            // "ON M3H 5L3"
   let core = s;
   let m: RegExpExecArray | null;
-  if ((m = /^\d{4,6}\s+(.+?)(?:\s+[A-Z]{2})?$/.exec(s))) core = m[1];          // "55100 Lucca LU"
+  if ((m = /^\d{3,6}\s+(.+?)(?:\s+[A-Z]{2})?$/.exec(s))) core = m[1];          // "55100 Lucca LU", "101 Reykjavík" (Iceland's are 3 digits, 17 Nov 2026)
   else if ((m = /^(.+?)\s+[A-Z]{2,3}\s+\d{4}$/.exec(s))) core = m[1];          // "Sydney NSW 2000"
   else if ((m = /^(.+?)\s+\d{3}-\d{4}$/.exec(s))) core = m[1];                 // "Chiba 279-8511"
   else if ((m = /^(.+?)\s+[A-Z]{2}\s+[A-Z]\d[A-Z]\s?\d[A-Z]\d$/.exec(s))) core = m[1]; // "North York ON M3H 5L3"

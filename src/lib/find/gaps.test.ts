@@ -70,3 +70,16 @@ describe("the stay is the base", () => {
     expect(findBases([...florence, ...saved], trip)[0].label).not.toBe("Lucca");
   });
 });
+
+describe("Don's Iceland cruise (live rows, 17 Nov 2026): 'Find places skipped Reykjavík'", () => {
+  it("names the Reykjavík base after the town, not the hotel's street, and counts all its days", async () => {
+    const don = (await import("./fixtures/don-iceland.json")).default;
+    const bases = findBases(don.cards as never, don.trip as never);
+    // Iceland's 3-digit postcode ("101 Reykjavík") made the town reader give up,
+    // and the chip read "Bergstaðastræti 31", which nobody recognised as Reykjavík.
+    expect(bases[0]).toMatchObject({ label: "Reykjavík", stayName: "Bergstaðastræti 31" });
+    // "Reykjavík" sits on four days (one card each) plus the Silfra tour's: five, not two.
+    expect(bases[0].days).toBe(5);
+    expect(bases.map((b) => b.label)).toContain("Grundarfjörður");
+  });
+});
