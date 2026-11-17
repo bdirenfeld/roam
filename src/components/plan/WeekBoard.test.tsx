@@ -145,11 +145,29 @@ describe("day names on the week (6 Oct 2026, designer audit)", () => {
     expect(screen.getAllByText("Piazza San Michele").length).toBeGreaterThan(0);
   });
 
-  it("Rename this day still opens with the automatic name as the hint", () => {
+  it("one click on the day names it: 'Day at sea', Enter, saved and shown (17 Nov 2026, Don)", async () => {
+    const { queuedUpdate } = await import("@/lib/offline/queuedWrite");
+    (queuedUpdate as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue({ queued: false, error: null });
     render(<WeekBoard trip={trip} initialDays={named} initialSaved={[]} />);
-    fireEvent.click(screen.getAllByRole("button", { name: "Day actions" })[0]);
-    fireEvent.click(screen.getByText("Rename this day"));
+    expect(screen.getAllByTestId("name-day-hint")[0].textContent).toBe("Name this day");
+    fireEvent.click(screen.getAllByRole("button", { name: "Give this day a name" })[0]);
+    const input = screen.getByLabelText("Name this day") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "Day at sea" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await act(async () => {});
+    expect(screen.getAllByTestId("day-name")[0].textContent).toBe("Day at sea");
+    expect(queuedUpdate).toHaveBeenCalledWith("days", { id: named[0].id }, { theme: "Day at sea" });
+    // A named day's name is its own door to rename it.
+    expect(screen.getByRole("button", { name: "Rename Day at sea" })).toBeTruthy();
+  });
+
+  it("naming opens with the automatic name as the hint, and the … menu no longer repeats it", () => {
+    render(<WeekBoard trip={trip} initialDays={named} initialSaved={[]} />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Give this day a name" })[0]);
     expect((screen.getByLabelText("Name this day") as HTMLInputElement).placeholder).toBe("Piazza San Michele");
+    fireEvent.click(screen.getAllByRole("button", { name: "Day actions" })[0]);
+    expect(screen.queryByText("Rename this day")).toBeNull();
+    expect(screen.getByText("Give these times")).toBeTruthy();
   });
 });
 

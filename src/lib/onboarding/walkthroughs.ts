@@ -84,7 +84,7 @@ export const TOURS: Record<TourId, Tour> = {
     device: "computer",
     steps: [
       { anchors: [{ selector: "[data-daycol] [data-card-id]", text: "Drag a block to another day or time. Drag its top or bottom edge to change how long it lasts." }] },
-      { anchors: [{ selector: 'button[aria-label="Day actions"]', text: "Day actions renames a day, gives it times, or re-plans it in one go." }] },
+      { anchors: [{ selector: 'button[aria-label="Day actions"]', text: "Day actions gives a day times or re-plans it in one go. Click under the date to name the day." }] },
       { anchors: [{ selector: 'button[aria-label="Select several pins"]', text: "Select several pins on the map to move them to a day together." }] },
     ],
   },
