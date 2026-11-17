@@ -1144,7 +1144,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
                       return (
                         <div key={a} data-ship={day.id} aria-hidden="true" className="absolute left-0 right-0 pointer-events-none" style={{ background: SHIP_BLUE, top: (a2 / 60 - HOUR_START) * PX_PER_HOUR, height: ((z2 - a2) / 60) * PX_PER_HOUR }}>
                           {label && (
-                            <span data-ship-label className="absolute top-1.5 right-2 flex items-center gap-1 text-[10px] font-medium" style={{ color: SHIP_INK }}>
+                            <span data-ship-label className="absolute top-1.5 left-2 flex items-center gap-1 text-[10px] font-medium" style={{ color: SHIP_INK }}>
                               <span className="inline-flex" dangerouslySetInnerHTML={{ __html: getGlyphHTML("directions_boat", 11) }} />
                               {label}
                             </span>
