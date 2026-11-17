@@ -32,7 +32,7 @@ describe("the week is white, the ship is blue (17 Nov 2026)", () => {
     expect(w).not.toContain(GROUND);
     expect(w).not.toMatch(OLD);
     expect(w).toMatch(/className="flex h-\[calc\(100dvh-64px\)\] bg-white"/);
-    expect(w).toContain('SHIP_BLUE = "#DCEAF3"');
+    expect(w).toContain('SHIP_BLUE = "#EAF2FB"');
   });
 });
 

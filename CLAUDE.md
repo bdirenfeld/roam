@@ -2541,3 +2541,8 @@ Check phone screens in the phone viewer (`/dev/phone`, `scripts/phone-check.mjs`
 - **The week board is white** (same day, his option B): `WeekBoard` root and hours gutter are `bg-white`,
   so white = an ordinary day and blue = on a ship. The rest of the desktop ground stays #F0F0F0.
   ground.test.ts pins both.
+- **Cards on the week are tinted by kind** (option B, same day): `blockTint` = the kind's PIN_COLORS
+  mixed with white (activities 16%, others 11%, 5 points lighter at 3 h+), `blockEdge` 28%; solid, so a
+  card on ship blue keeps its colour. Ship time is pale `SHIP_BLUE` #EAF2FB, no edge (a left edge per
+  day lined up as stripes and was dropped). The bottom grab bar shows only on hover. Mocked on the real board first
+  (a temporary `/dev/cruise-mock`, not committed).

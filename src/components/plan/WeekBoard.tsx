@@ -70,8 +70,12 @@ interface Props {
   readOnly?: boolean;
 }
 
-/** On the ship (17 Nov 2026): the one place this blue appears. */
-const SHIP_BLUE = "#DCEAF3";
+/** On the ship (17 Nov 2026): the one place this blue appears. Bluer than the activity green's wash. */
+const SHIP_BLUE = "#EAF2FB";
+/** A card's wash and edge from its kind's colour (option B, 17 Nov 2026). Activities (teal) a touch
+ *  stronger, so they stay green on ship blue; long cards (3 h+) lighter, so a day tour is not a slab. */
+const blockTint = (c: string, long = false) => `color-mix(in srgb, ${c} ${(c === PIN_COLORS.activity ? 16 : 11) - (long ? 5 : 0)}%, white)`;
+const blockEdge = (c: string) => `color-mix(in srgb, ${c} 28%, white)`;
 const COL_MIN = 168;   // px — seven days fit beside a 440px map at 1440; more scroll sideways
 const COL_FLOOR = 120; // px — the seam will not push a day column below this
 const HOURS_W = 52;
@@ -1250,6 +1254,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
                           </div>
                         );
                       }
+                      const blockColor = note ? (nk?.cardType ? PIN_COLORS[nk.cardType] : "#1A1A2E") : PIN_COLORS[c.place!.type];
                       return (
                         <div
                           key={c.id}
@@ -1257,17 +1262,19 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
                           onPointerEnter={() => setHoveredId(c.id)}
                           onPointerLeave={() => setHoveredId((h) => (h === c.id ? null : h))}
                           data-card-id={c.id}
-                          className={`absolute rounded-[6px] overflow-hidden cursor-grab ${pickedBlocks.has(c.id) ? "ring-2 ring-[#1A1A2E]" : selectedCard?.id === c.id || hoveredId === c.id ? "ring-1 ring-[#B0541F]" : ""}`}
+                          className={`group absolute rounded-[6px] overflow-hidden cursor-grab ${pickedBlocks.has(c.id) ? "ring-2 ring-[#1A1A2E]" : selectedCard?.id === c.id || hoveredId === c.id ? "ring-1 ring-[#B0541F]" : ""}`}
                           style={{
                             top: b.top, height: b.height,
                             left: `calc(${b.lane * laneW}% + 3px)`, width: `calc(${laneW}% - 6px)`,
-                            // A typed note looks like its kind, not like a note (11 Nov 2026).
-                            background: note && !nk ? "#F3EFE4" : "#FFFFFF",
-                            border: `1px ${noEnd ? "dashed" : "solid"} rgba(26,26,46,0.10)`,
+                            // A typed note looks like its kind, not like a note (11 Nov 2026). A place is a
+                            // soft wash of its kind's colour (17 Nov 2026, option B): white cards vanished on
+                            // the white week. Solid, not see-through, so a card on ship blue keeps its colour.
+                            background: note && !nk ? "#F3EFE4" : blockTint(blockColor, b.height >= 3 * PX_PER_HOUR),
+                            border: `1px ${noEnd ? "dashed" : "solid"} ${note && !nk ? "rgba(26,26,46,0.10)" : blockEdge(blockColor)}`,
                             // The pin's colour on the edge and its glyph before the
                             // name (Brennan, 25 Sep 2026): three colours the map
                             // already taught, so a glance says food, sight, transit.
-                            borderLeft: `3px solid ${note ? (nk?.cardType ? PIN_COLORS[nk.cardType] : "rgba(26,26,46,0.4)") : PIN_COLORS[c.place!.type]}`,
+                            borderLeft: `3px solid ${note && !nk?.cardType ? "rgba(26,26,46,0.4)" : blockColor}`,
                             boxShadow: isGhost ? "0 10px 24px rgba(26,26,46,0.22)" : "0 1px 2px rgba(26,26,46,0.05)",
                             opacity: isGhost ? 0.9 : 1, zIndex: isGhost ? 6 : 1,
                             padding: short ? "2px 6px" : "4px 6px",
@@ -1295,7 +1302,8 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
                           )}
                           {c.confirmed && <span className="absolute right-1.5 top-1 text-[9px] font-bold pointer-events-none" style={{ color: "#2F7A46" }}>✓</span>}
                           {!readOnly && <div onPointerDown={(e) => onHandlePointerDown(e, c)} className="absolute left-0 right-0 bottom-0 h-[7px] cursor-ns-resize" aria-label="Change the end time">
-                            <span className="absolute left-1/2 -translate-x-1/2 bottom-[2px] w-[22px] h-[2px] rounded" style={{ background: "rgba(26,26,46,0.10)" }} />
+                            {/* The grab bar only on hover (17 Nov 2026): on every card at once it read as clutter. */}
+                            <span className="absolute left-1/2 -translate-x-1/2 bottom-[2px] w-[22px] h-[2px] rounded opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "rgba(26,26,46,0.18)" }} />
                           </div>}
                         </div>
                       );
