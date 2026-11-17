@@ -85,6 +85,17 @@ describe("CardBottomSheet — the designer-audit surface (6 Oct 2026)", () => {
     expect(screen.getByText(/One of Lucca's oldest trattorias/)).toBeTruthy();
   });
 
+  it("a hotel has no time chip and no 'overnight'; its Check-in row shows the date and opens the times (17 Nov 2026)", async () => {
+    const hotel = buca({ start_time: "15:00:00", end_time: "11:00:00", details: { check_out: "2027-08-27" } } as Partial<Card>);
+    (hotel as unknown as { place: Record<string, unknown> }).place = { ...(hotel as unknown as { place: Record<string, unknown> }).place, title: "Hótel Borg", type: "logistics", sub_type: "hotel" };
+    await open(hotel);
+    expect(screen.queryByLabelText("Change the time")).toBeNull();
+    expect(screen.queryByText("overnight")).toBeNull();
+    expect(screen.getByTestId("checkin-value").textContent).toBe("Tue 24 Aug · 3:00 PM");
+    expect(screen.getByTestId("checkout-value").textContent).toBe("Fri 27 Aug · 11:00 AM");
+    expect(screen.getByLabelText("Change the check-in and check-out times")).toBeTruthy();
+  });
+
   it("phone: stars and price ride the address line; the category pill shows the place's icon (16 Nov 2026)", async () => {
     await open(buca());
     const onAddress = screen.getByTestId("address-rating");

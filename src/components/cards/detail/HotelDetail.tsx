@@ -13,6 +13,9 @@ interface Props {
    *  starts there: with no floor it opened on today's month, a year before a
    *  2027 trip (Don's feedback, Nov 2026). */
   checkInDay?: string | null;
+  /** Opens the time sheet. A hotel has no time chip at the top of its sheet,
+   *  so the Check-in row is where its times are changed. */
+  onEditTime?: () => void;
 }
 
 function fmtTime(t: string | null): string | null {
@@ -39,7 +42,7 @@ function StayRow({ icon, label, children }: { icon: string; label: string; child
 const isIso = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
 const fmtDay = (iso: string) => new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
 
-export default function HotelDetail({ card, onSaveDetails, showEmpty = false, stayCheckOut = null, checkInDay = null }: Props) {
+export default function HotelDetail({ card, onSaveDetails, showEmpty = false, stayCheckOut = null, checkInDay = null, onEditTime }: Props) {
   const d = card.details as { confirmation?: string; notes?: string; check_out?: unknown; check_out_date?: unknown };
   const save = (field: string) =>
     onSaveDetails ? (v: string) => onSaveDetails(field, v || null) : undefined;
@@ -69,8 +72,18 @@ export default function HotelDetail({ card, onSaveDetails, showEmpty = false, st
           tap still opens the phone's own picker. Small label above each value, no lines. */}
       {(showEmpty || hasStayData || canSetLeave) && (
         <div data-testid="hotel-stay" className="space-y-3.5">
-          {checkInText && (
-            <StayRow icon="key" label="Check-in"><span data-testid="checkin-value">{checkInText}</span></StayRow>
+          {(checkInText || onEditTime) && (
+            <StayRow icon="key" label="Check-in">
+              {onEditTime ? (
+                <button type="button" onClick={onEditTime} aria-label="Change the check-in and check-out times"
+                  className="relative flex-1 min-w-0 flex items-center justify-between text-left">
+                  <span data-testid="checkin-value" style={{ color: checkInText ? "#1A1A2E" : "rgba(26,26,46,0.45)" }}>{checkInText || "Add a time"}</span>
+                  <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 18, color: "rgba(26,26,46,0.35)" }}>chevron_right</span>
+                </button>
+              ) : (
+                <span data-testid="checkin-value">{checkInText}</span>
+              )}
+            </StayRow>
           )}
           {(canSetLeave || leaveDay) && (
             <StayRow icon="luggage" label={checkOutLabel}>

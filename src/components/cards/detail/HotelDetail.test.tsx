@@ -32,6 +32,16 @@ describe("check-out day on the hotel's sheet", () => {
     expect(screen.getByText("Check-out")).toBeTruthy();
   });
 
+  it("the Check-in row opens the time sheet, since a hotel has no time chip (17 Nov 2026)", () => {
+    const edit = vi.fn();
+    render(<HotelDetail card={hotel({})} onSaveDetails={vi.fn()} checkInDay="2027-07-16" onEditTime={edit} />);
+    fireEvent.click(screen.getByLabelText("Change the check-in and check-out times"));
+    expect(edit).toHaveBeenCalled();
+    cleanup();
+    render(<HotelDetail card={hotel({})} />);
+    expect(screen.queryByLabelText("Change the check-in and check-out times")).toBeNull();
+  });
+
   it("the check-out picker starts at the check-in day, not today (Don, Nov 2026)", () => {
     render(<HotelDetail card={hotel({})} onSaveDetails={vi.fn()} checkInDay="2027-07-16" />);
     expect((screen.getByLabelText("Check-out day") as HTMLInputElement).min).toBe("2027-07-16");
