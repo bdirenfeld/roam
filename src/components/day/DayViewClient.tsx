@@ -1,4 +1,5 @@
 "use client";
+import { otherStayNights } from "@/lib/stays/stayPick";
 import { useGuidanceScreen, useWalkthrough } from "@/components/onboarding/JourneyGuidanceContext";
 import { isTravelLeg } from "@/lib/travel/leg";
 
@@ -1198,6 +1199,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           tripDestination={trip.destination}
           partySize={trip.party_size}
           stayCheckOut={stays.find((r) => r.placeId === selectedCard.place_id)?.checkOut ?? null}
+          otherStayNights={otherStayNights(stays, selectedCard.place_id)}
           readOnly={readOnly}
         />
       )}

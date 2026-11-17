@@ -49,6 +49,7 @@ import LogisticsDetail from "./detail/LogisticsDetail";
 import ActivityDetail from "./detail/ActivityDetail";
 import HotelDetail from "./detail/HotelDetail";
 import PortDetail from "./detail/PortDetail";
+import StayDatesSheet, { type StayDatesValue } from "./StayDatesSheet";
 import { withDetails } from "@/lib/cardDetails";
 import { UNTITLED_NOTE, cardTitle, deletedToast } from "@/lib/cardTitle";
 import TravelLegPanel, { LegRoute, LegEstimateRow, LegParkRow, useDefaultFrom } from "./TravelLegPanel";
@@ -98,6 +99,8 @@ interface Props {
   /** A hotel's check-out as the host worked it out (lib/stays/stayRuns), so
    *  the sheet says the same day the week's band does when none is written. */
   stayCheckOut?: string | null;
+  /** Night date → another hotel's name, for the hotel picker's dots (lib/stays/stayPick). */
+  otherStayNights?: Record<string, string>;
   /** Opened from the Add-a-place sheet (6 Oct 2026, taps audit): the button
    *  reads "Add to <label>" and runs the row's own Add, then closes back to
    *  the sheet. Without it, "Put on a day" asks for the day as before. */
@@ -441,7 +444,7 @@ function TitleEditor({
  *  side — half the 6px gap — so no disc's target reaches its neighbour. */
 const DISC_TARGET = "absolute -inset-x-[3px] -inset-y-2";
 
-export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDelete, onCardCopied, days, tripDestination, partySize = null, readOnly = false, stayCheckOut = null, addToDay }: Props) {
+export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDelete, onCardCopied, days, tripDestination, partySize = null, readOnly = false, stayCheckOut = null, otherStayNights = {}, addToDay }: Props) {
   // Every field save reverts on refusal; it also says so now (UX audit,
   // Sep 2026, finding 1). Before, eight sites logged to the console only.
   const { toast } = useToast();
@@ -525,6 +528,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   // time control everywhere (Brennan, Sep 2026). Start and end are written
   // together so a half-saved pair can never show.
   const [timeOpen, setTimeOpen] = useState(false);
+  const [stayOpen, setStayOpen] = useState(false);
   const saveTimes = useCallback(async (start: string | null, end: string | null) => {
     const prev = localCard;
     const next = { start_time: start ? toDbTime(start) : null, end_time: end ? toDbTime(end) : null };
@@ -538,6 +542,30 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       onCardUpdate?.(prev);
     }
   }, [localCard, onCardUpdate, toast]);
+
+  // The hotel picker's Done (17 Nov 2026): check-in day, check-out day and both
+  // times in one write. A new check-in day moves the card to that day.
+  const saveStay = useCallback(async (v: StayDatesValue) => {
+    const prev = localCard;
+    const day = (days ?? []).find((d) => d.date === v.checkIn);
+    const details = { ...(localCard.details as Record<string, unknown>) };
+    if (v.checkOut) details.check_out = v.checkOut; else delete details.check_out;
+    const patch = {
+      ...(day && day.id !== localCard.day_id ? { day_id: day.id } : {}),
+      start_time: v.start ? toDbTime(v.start) : null,
+      end_time: v.end ? toDbTime(v.end) : null,
+      details,
+    };
+    const updated = { ...localCard, ...patch } as Card;
+    setLocalCard(updated);
+    onCardUpdate?.(updated);
+    const { error } = await queuedUpdate("cards", { id: localCard.id }, patch);
+    if (error) {
+      toast({ message: "Couldn't save the dates. Try again." });
+      setLocalCard(prev);
+      onCardUpdate?.(prev);
+    }
+  }, [localCard, days, onCardUpdate, toast]);
 
   // ── Persistence helpers ───────────────────────────────────
   // OFFLINE — time edits and every other single-column save go through the
@@ -1296,7 +1324,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       case "logistics/port":
         return <PortDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} onEditTime={readOnly ? undefined : () => setTimeOpen(true)} />;
       case "logistics/hotel":
-        return <HotelDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} stayCheckOut={stayCheckOut} checkInDay={days?.find((x) => x.id === dCard.day_id)?.date ?? null} onEditTime={readOnly ? undefined : () => setTimeOpen(true)} />;
+        return <HotelDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} stayCheckOut={stayCheckOut} checkInDay={days?.find((x) => x.id === dCard.day_id)?.date ?? null} onEditStay={readOnly || !days?.length ? undefined : () => setStayOpen(true)} />;
       case "activity/wellness":
         return <WellnessDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
       default:
@@ -2301,6 +2329,23 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       {timeOpen && (
         <TimeSheet card={localCard} onClose={() => setTimeOpen(false)} onSave={saveTimes} />
       )}
+      {stayOpen && days?.length ? (() => {
+        const dates = days.map((d) => d.date).sort();
+        const checkIn = days.find((d) => d.id === localCard.day_id)?.date ?? dates[0];
+        const dd = localCard.details as { check_out?: unknown; check_out_date?: unknown };
+        const iso = (x: unknown) => (typeof x === "string" && /^\d{4}-\d{2}-\d{2}$/.test(x) ? x : null);
+        return (
+          <StayDatesSheet
+            title={cardTitle(localCard)}
+            tripStart={dates[0]}
+            tripEnd={dates[dates.length - 1]}
+            initial={{ checkIn, checkOut: iso(dd.check_out) ?? iso(dd.check_out_date) ?? iso(stayCheckOut), start: localCard.start_time, end: localCard.end_time }}
+            otherNights={otherStayNights}
+            onSave={saveStay}
+            onClose={() => setStayOpen(false)}
+          />
+        );
+      })() : null}
     </>
   );
 }

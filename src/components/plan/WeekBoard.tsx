@@ -1,4 +1,5 @@
 "use client";
+import { otherStayNights } from "@/lib/stays/stayPick";
 import { isPortCard, portName, ashoreLabel, minutesAshore } from "@/lib/cards/port";
 import { useGuidanceScreen, useWalkthrough } from "@/components/onboarding/JourneyGuidanceContext";
 
@@ -1381,6 +1382,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
           tripDestination={trip.destination}
           partySize={trip.party_size}
           stayCheckOut={runs.find((r) => r.placeId === selectedCard.place_id)?.checkOut ?? null}
+          otherStayNights={otherStayNights(runs, selectedCard.place_id)}
         />
       )}
       {showDocs && <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} onImport={() => { setShowDocs(false); upload.pick(); }} />}

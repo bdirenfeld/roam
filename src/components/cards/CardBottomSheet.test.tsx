@@ -93,7 +93,7 @@ describe("CardBottomSheet — the designer-audit surface (6 Oct 2026)", () => {
     expect(screen.queryByText("overnight")).toBeNull();
     expect(screen.getByTestId("checkin-value").textContent).toBe("Tue 24 Aug · 3:00 PM");
     expect(screen.getByTestId("checkout-value").textContent).toBe("Fri 27 Aug · 11:00 AM");
-    expect(screen.getByLabelText("Change the check-in and check-out times")).toBeTruthy();
+    expect(screen.getAllByLabelText("Change the stay's dates and times").length).toBe(2);
   });
 
   it("a port shows Docks and All aboard with the hours ashore, and no time chip (17 Nov 2026, Don)", async () => {
