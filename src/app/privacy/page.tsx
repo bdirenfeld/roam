@@ -18,6 +18,7 @@ export default function PrivacyPage() {
         <li><b>Files you attach.</b> Booking confirmations and tickets you upload, stored privately and shown only to you and the people you share the journey with.</li>
         <li><b>Ideas you save.</b> Links you send to Roam from other apps.</li>
         <li><b>How you use the app.</b> While Roam is being tested, Microsoft Clarity records how people move through it (taps, scrolling, which screens) so problems can be found and fixed. What you type is hidden from these recordings.</li>
+        <li><b>Help while testing.</b> While Roam is being tested, its maker can open your journey, read only, to help when something goes wrong. Uploaded files are not opened this way.</li>
         <li><b>Usage counts.</b> How many times a day you use the features that call outside services, so no one can run up the bill.</li>
       </ul>
 

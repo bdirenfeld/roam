@@ -65,6 +65,8 @@ interface Props {
   initialDays: DayWithCards[];
   /** Dayless saved places: hollow pins on the map, nothing on the grid. */
   initialSaved: Card[];
+  /** A guest on a computer, or the admin view (17 Nov 2026): the week to read, nothing to change. */
+  readOnly?: boolean;
 }
 
 const COL_MIN = 168;   // px — seven days fit beside a 440px map at 1440; more scroll sideways
@@ -96,7 +98,7 @@ type Drag =
   | { kind: "resize"; card: Card; y0: number; end0: number; moved: boolean }
   | { kind: "resizeStart"; card: Card; y0: number; moved: boolean };
 
-export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
+export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = false }: Props) {
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -168,9 +170,9 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
     countries: searchCountries(trip.destination, tripCards.map((c) => c.place?.address)),
   });
   // Every card that lands on a day gets its Intent and Know before you go (hooks/useCardNotes).
-  useCardNotes(trip.id, days.flatMap((d) => d.cards), true, (notes) => setDays((prev) => prev.map((d) => ({ ...d, cards: d.cards.map((c) => withNotes(c, notes)) }))));
+  useCardNotes(trip.id, days.flatMap((d) => d.cards), !readOnly, (notes) => setDays((prev) => prev.map((d) => ({ ...d, cards: d.cards.map((c) => withNotes(c, notes)) }))));
   // The saved places' notes, written ahead so a drop shows its note at once.
-  useEffect(() => { warmNotes(trip.id, saved.filter((c) => c.place_id).map((c) => c.id)); }, [trip.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (readOnly) return; warmNotes(trip.id, saved.filter((c) => c.place_id).map((c) => c.id)); }, [trip.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   // A joined travel strip (drive, then train) opens this list of its legs (12 Nov 2026).
   const [legMenu, setLegMenu] = useState<string | null>(null);
@@ -376,6 +378,8 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   // ── drag: move ─────────────────────────────────────────────────
   const onBlockPointerDown = (e: React.PointerEvent, card: Card, fromDay: string) => {
     if (e.button !== 0) return;
+    // Read only: a block is something to open, never to move.
+    if (readOnly) { e.preventDefault(); setSelectedCard(card); return; }
     if (e.shiftKey || e.ctrlKey || e.metaKey) {
       e.preventDefault();
       setPickedBlocks((prev) => { const next = new Set(prev); if (next.has(card.id)) next.delete(card.id); else next.add(card.id); return next; });
@@ -688,7 +692,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
 
   // ── plan first ─────────────────────────────────────────────────
   const onColumnClick = (e: React.MouseEvent<HTMLDivElement>, dayId: string, dayIdx: number) => {
-    if (justDraggedRef.current) return;
+    if (justDraggedRef.current || readOnly) return;
     const t = e.target as HTMLElement;
     if (t !== e.currentTarget && !t.dataset.hourline) return;   // a block, not the empty hour
     const min = minAtY(e.clientY); if (min === null) return;
@@ -699,7 +703,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
   const onColumnMove = (e: React.MouseEvent<HTMLDivElement>, dayIdx: number) => {
     const t = e.target as HTMLElement;
     const onEmpty = t === e.currentTarget || !!t.dataset.hourline;
-    const min = canHover && onEmpty && !dragRef.current && !collapsed(dayIdx) ? minAtY(e.clientY) : null;
+    const min = canHover && !readOnly && onEmpty && !dragRef.current && !collapsed(dayIdx) ? minAtY(e.clientY) : null;
     setSlot((s) => (min === null ? null : s && s.dayIdx === dayIdx && s.min === min ? s : { dayIdx, min }));
   };
   // A pick from the box's list (6 Oct 2026, taps audit) makes the block
@@ -940,7 +944,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
           {/* Start here (1 Oct 2026): a new journey's two ways to start, held
               in view over the empty grid (sticky both ways, no height of its
               own); each button goes once done (lib/plan/startHere). */}
-          <div className={`sticky left-0 top-[150px] z-[12] h-0 pointer-events-none ${findShowing ? "hidden" : ""}`} style={{ width: weekW || "100%" }}>
+          <div className={`sticky left-0 top-[150px] z-[12] h-0 pointer-events-none ${findShowing || readOnly ? "hidden" : ""}`} style={{ width: weekW || "100%" }}>
             <div className="flex justify-center px-4">
               <div className="pointer-events-auto w-full max-w-[360px]">
                 <StartHere floating cards={pinCards} place={trip.destination ?? ""} reading={upload.reading} readingLabel={upload.readingLabel} several onUpload={upload.pick}
@@ -1010,14 +1014,14 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                 data-testid={focusIdx === i ? "day-focused" : "day-header"}
                 style={{ borderColor: "rgba(26,26,46,0.10)", background: hover && hover.day === i && hover.min === null ? "rgba(26,26,46,0.06)" : mapDayId === d.id ? "#F3EFE4" : undefined, opacity: mapDayId && mapDayId !== d.id ? 0.55 : 1 }}
               >
-                <button
+                {!readOnly && <button
                   type="button"
                   aria-label="Day actions"
                   onClick={(e) => { e.stopPropagation(); setHeaderMenu((cur) => (cur === d.id ? null : d.id)); }}
                   onPointerDown={(e) => e.stopPropagation()}
                   className={`absolute right-1.5 top-1.5 w-[22px] h-[22px] rounded-full flex items-center justify-center text-[12px] font-bold transition-opacity ${headerMenu === d.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
                   style={{ background: "rgba(26,26,46,0.06)" }}
-                >…</button>
+                >…</button>}
                 {headerMenu === d.id && (
                   <div onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} className="absolute right-1.5 top-8 z-30 bg-white rounded-[10px] p-1 w-[172px] text-[12.5px] font-normal" style={{ border: "1px solid rgba(26,26,46,0.10)", boxShadow: "0 16px 34px rgba(26,26,46,0.17)" }}>
                     {/* Rename went (17 Nov 2026): the day's name is clicked directly now; one door. */}
@@ -1050,6 +1054,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                   // One click to name a day (17 Nov 2026, Don's "Day at sea"): the name
                   // itself is the door, and an unnamed day shows "Name this day" on hover.
                   // It used to sit only behind the header's "…".
+                  readOnly ? (d.theme ? <span data-testid="day-name" className="block max-w-full text-[10.5px] text-activity/60 truncate mt-0.5">{d.theme}</span> : null) :
                   (d.theme || !(laidOut[i]?.ports.length || laidOut[i]?.carry.length)) ? (
                   <button
                     type="button"
@@ -1264,7 +1269,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                             padding: short ? "2px 6px" : "4px 6px",
                           }}
                         >
-                          <div onPointerDown={(e) => onStartHandlePointerDown(e, c)} className="absolute left-0 right-0 top-0 h-[6px] cursor-ns-resize" aria-label="Change the start time" />
+                          {!readOnly && <div onPointerDown={(e) => onStartHandlePointerDown(e, c)} className="absolute left-0 right-0 top-0 h-[6px] cursor-ns-resize" aria-label="Change the start time" />}
                           <div className="text-[11px] font-medium leading-tight truncate pointer-events-none flex items-center gap-1">
                             {(!note || nk) && <span className="inline-flex flex-shrink-0 opacity-70" dangerouslySetInnerHTML={{ __html: nk ? getGlyphHTML(nk.glyph, 12) : getMaterialIconHTML(iconSubType(c), 12) }} />}
                             <span className="truncate">{blockTitle(c, day.date)}{nk ? ` · ${PLACE_TO_COME}` : ""}</span>
@@ -1285,9 +1290,9 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
                             <div className="text-[10.5px] text-activity/80 leading-snug pointer-events-none mt-0.5 line-clamp-2">{noteLine(c)}</div>
                           )}
                           {c.confirmed && <span className="absolute right-1.5 top-1 text-[9px] font-bold pointer-events-none" style={{ color: "#2F7A46" }}>✓</span>}
-                          <div onPointerDown={(e) => onHandlePointerDown(e, c)} className="absolute left-0 right-0 bottom-0 h-[7px] cursor-ns-resize" aria-label="Change the end time">
+                          {!readOnly && <div onPointerDown={(e) => onHandlePointerDown(e, c)} className="absolute left-0 right-0 bottom-0 h-[7px] cursor-ns-resize" aria-label="Change the end time">
                             <span className="absolute left-1/2 -translate-x-1/2 bottom-[2px] w-[22px] h-[2px] rounded" style={{ background: "rgba(26,26,46,0.10)" }} />
-                          </div>
+                          </div>}
                         </div>
                       );
                     })}
@@ -1315,12 +1320,13 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
       )}
       <div ref={mapPanelRef} className={mapWide ? "block flex-1 min-w-0 h-full" : "hidden lg:block flex-shrink-0 h-full"} style={mapWide ? undefined : { width: mapWidth }}>
         <WeekMap
-          onPinDragStart={onPinDragStart}
+          readOnly={readOnly}
+          onPinDragStart={readOnly ? undefined : onPinDragStart}
           hot={overMap}
           wide={mapWide}
           onToggleWide={() => setMapWide((w) => !w)}
-          onPutMany={putMany}
-          onClusterDragStart={onClusterDragStart}
+          onPutMany={readOnly ? undefined : putMany}
+          onClusterDragStart={readOnly ? undefined : onClusterDragStart}
           selectionEpoch={selectionEpoch}
           showStays={showStays}
           onCloseStays={closeStays}
@@ -1334,7 +1340,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
           onCardUpdate={mapCardUpdate}
           onCardCreated={mapCardCreated}
           onCardDelete={mapCardDelete}
-          onDraftCreated={draftCreated}
+          onDraftCreated={readOnly ? undefined : draftCreated}
         />
       </div>
 
@@ -1381,6 +1387,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
       {selectedCard && (
         <CardBottomSheet
           card={selectedCard}
+          readOnly={readOnly}
           onClose={() => setSelectedCard(null)}
           onCardUpdate={handleCardUpdate}
           onCardDelete={handleCardDelete}
@@ -1392,7 +1399,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
           otherStayNights={otherStayNights(runs, selectedCard.place_id)}
         />
       )}
-      {showDocs && <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} onImport={() => { setShowDocs(false); upload.pick(); }} onAddByHand={() => { setShowDocs(false); upload.addByHand(); }} />}
+      {showDocs && <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} onImport={readOnly ? undefined : () => { setShowDocs(false); upload.pick(); }} onAddByHand={readOnly ? undefined : () => { setShowDocs(false); upload.addByHand(); }} />}
       {upload.element}
     </div>
   );

@@ -7,6 +7,7 @@
  * and a guest, open on the day.
  */
 export function tripHref(tripId: string, o: { phone: boolean; owner: boolean; openDayId?: string | null }): string {
-  if (!o.phone && o.owner) return `/trips/${tripId}/plan`;
+  // Guests too (17 Nov 2026): a computer opens the week, read only for a guest.
+  if (!o.phone) return `/trips/${tripId}/plan`;
   return o.openDayId ? `/trips/${tripId}/days/${o.openDayId}` : `/trips/${tripId}`;
 }

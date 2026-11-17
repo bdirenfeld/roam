@@ -44,5 +44,8 @@ export async function getTripAccess(
     .eq("user_id", userId)
     .maybeSingle();
 
-  return member ? "guest" : "none";
+  if (member) return "guest";
+  // Readable without owning or joining: only the admin view (lib/adminView,
+  // migration 017) opens a journey that way. It reads as a guest: read only.
+  return trip ? "guest" : "none";
 }

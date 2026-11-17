@@ -13,6 +13,7 @@
  * every scheduled copy. Nothing already on a day is touched.
  */
 
+import { cruiseDayIds } from "./cruiseDays";
 import type { Card, Day } from "@/types/database";
 import { groupPins, km, type Grouping, type Pin } from "./dayGroups";
 import { placeGroups, regionLabel, freeDays, type DraftDay } from "./draftTrip";
@@ -57,7 +58,10 @@ export const LATE_BAR = 21 * 60;
  */
 export function draftDays(days: Pick<Day, "id" | "date" | "day_number">[], scheduled: Card[]): DraftDay[] {
   const ordered = [...days].sort((a, b) => a.day_number - b.day_number);
+  // Days on a cruise ship take nothing from the planner (./cruiseDays).
+  const atSea = cruiseDayIds(ordered, scheduled);
   return ordered.map((d, i) => {
+    if (atSea.has(d.id)) return { id: d.id, date: d.date, free: 0 };
     const on = scheduled.filter((c) => c.day_id === d.id);
     const taken = on.some((c) => c.place?.type === "activity" || (!c.place && !!cardTimes(c).start));
     // An airport counts as a flight however it was saved (./airports).

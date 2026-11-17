@@ -2517,3 +2517,18 @@ travel comes before), the stops after it sit under "In <dest>" (addresses drop t
 `roam:day-route`; DayMap (which no longer pins legs and, when every stop is >15 km from the stay,
 frames just the stops) zooms out to the whole route. Day with no travel = unchanged.
 Check phone screens in the phone viewer (`/dev/phone`, `scripts/phone-check.mjs`), never a narrow window.
+
+## Guests get the week; the admin view; cruise days (17 Nov 2026)
+- **No desktop Agenda / Map tabs for anyone.** A guest on a computer gets `WeekBoard readOnly` (and
+  `WeekMap readOnly`): a press opens the card sheet read only; no drag, resize, naming, day menu,
+  Start here, Find, Plan my trip, search, or notes calls. `tripHref`, the trip page and the day page
+  send any member on a computer to `/plan`. Brennan: "we can't have this as the view for anyone".
+- **Admin view** (`lib/adminView`, migration 017): `/admin` lists every journey (rpc `admin_journeys`,
+  admin uid only). A row → `/admin/view/<id>` sets cookie `roam_admin_trip` (2 h); both Supabase
+  clients send it as `x-roam-admin-trip`; SELECT-only policies open that one journey (trips, days,
+  cards, places, trip_entry) to the admin account only. `getTripAccess` reads it as "guest", so every
+  screen is read only. No attachments, documents, budgets or members. Banner + `/admin/exit`. Enter
+  and exit with full page loads (plain `<a>`): the browser client reads the cookie once per load.
+- **Plan my trip skips days on a ship** (`lib/plan/cruiseDays`): first to last ship marker (a Port
+  card, a cruise terminal / boarding / disembark card, an "At sea" note). Planner only; by hand,
+  anything goes on any day (his ruling).

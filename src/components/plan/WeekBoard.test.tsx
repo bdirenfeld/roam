@@ -230,3 +230,16 @@ describe("a cruise's port on the week (17 Nov 2026, Don)", () => {
     expect(screen.getByTestId("sheet").textContent).toBe("Grundarfjörður");
   });
 });
+
+describe("read only: a guest's week (17 Nov 2026)", () => {
+  const withCard = days.map((d, i) => i === 0 ? { ...d, cards: [card("v1", d.id, villa, { start_time: "10:00:00", end_time: "12:00:00" })] } : d) as unknown as DayWithCards[];
+  it("opens a block on a press, offers no day menu, no naming, no resize, no start here", () => {
+    const { container } = render(<WeekBoard trip={trip} initialDays={withCard} initialSaved={[]} readOnly />);
+    expect(screen.queryAllByLabelText("Day actions")).toHaveLength(0);
+    expect(screen.queryAllByTestId("name-day-hint")).toHaveLength(0);
+    expect(container.querySelector('[aria-label="Change the end time"]')).toBeNull();
+    const block = container.querySelector('[data-card-id="v1"]') as HTMLElement;
+    fireEvent.pointerDown(block, { button: 0 });
+    expect(screen.getByTestId("sheet")).toBeTruthy();
+  });
+});

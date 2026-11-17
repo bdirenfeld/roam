@@ -30,7 +30,7 @@ export default async function TripPage({ params }: Props) {
   const h = await headers();
   if (!isPhone(h.get("user-agent"), h.get("sec-ch-ua-mobile"))) {
     const user = await getAuthUser(supabase);
-    if ((await getTripAccess(supabase, tripId, user?.id)) === "owner") redirect(`/trips/${tripId}/plan`);
+    if ((await getTripAccess(supabase, tripId, user?.id)) !== "none") redirect(`/trips/${tripId}/plan`);
   }
 
   // Entering the journey: land on today's day, clamped to the journey range

@@ -9,6 +9,7 @@ import { ToastProvider } from "@/components/ui/Toast";
 import OfflineQueueIndicator from "@/components/offline/OfflineQueueIndicator";
 import InstallBanner from "@/components/ui/InstallBanner";
 import ErrorReporter from "@/components/ui/ErrorReporter";
+import AdminViewBanner from "@/components/ui/AdminViewBanner";
 
 export default function AppLayout({
   children,
@@ -31,6 +32,7 @@ export default function AppLayout({
        {/* One toast for the whole app — every host's "deleted · Undo" and
            "Couldn't save" goes through it (see ui/Toast.tsx). */}
        <ToastProvider><JourneyGuidanceProvider>
+        <AdminViewBanner />
         <DesktopMasthead />
         <div className="mobile-container flex flex-col bg-white md:bg-transparent md:!min-h-[calc(100dvh-64px)]">
           {/* No bottom bar since 24 Sep 2026: the day map carries a map disc and

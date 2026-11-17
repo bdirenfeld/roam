@@ -23,15 +23,17 @@ interface Props {
   /** Dayless saved places, for the map beside the week. */
   initialSaved: Card[];
   initialNotes: string | null;
+  /** A guest (or the admin view): the week to read. A phone guest is sent to the day by the routes. */
+  readOnly?: boolean;
 }
 
 export default function PlanSwitch(props: Props) {
   const [phone, setPhone] = useState(false);
   // The Plan route is owner-only (guests are redirected), so the owner's
   // "Isha joined Tuscany" toast runs here for both boards (7 Oct 2026, delight audit).
-  useMemberJoinedToast(props.trip.id, props.trip.title, true);
+  useMemberJoinedToast(props.trip.id, props.trip.title, !props.readOnly);
   // "Lisbon tomorrow · 2 still to book" the day before, once (7 Oct 2026, delight audit).
-  useEveOfDepartureToast(props.trip.id, props.trip.destination, props.trip.start_date, true);
+  useEveOfDepartureToast(props.trip.id, props.trip.destination, props.trip.start_date, !props.readOnly);
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 767px)");
     const apply = () => setPhone(mq.matches);
@@ -39,6 +41,6 @@ export default function PlanSwitch(props: Props) {
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
   }, []);
-  if (phone) return <PlanBoard {...props} />;
-  return <WeekBoard trip={props.trip} initialDays={props.initialDays} initialSaved={props.initialSaved} />;
+  if (phone && !props.readOnly) return <PlanBoard {...props} />;
+  return <WeekBoard trip={props.trip} initialDays={props.initialDays} initialSaved={props.initialSaved} readOnly={props.readOnly} />;
 }

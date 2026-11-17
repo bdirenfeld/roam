@@ -9,8 +9,8 @@ const dayPage = readFileSync("src/app/(app)/trips/[tripId]/days/[dayId]/page.tsx
 const week = readFileSync("src/components/plan/WeekBoard.tsx", "utf8");
 
 describe("a day on a computer opens in the week", () => {
-  it("the day page sends a desktop owner to the week with the day", () => {
-    expect(dayPage).toMatch(/access === "owner"/);
+  it("the day page sends a desktop owner or guest to the week with the day", () => {
+    expect(dayPage).toMatch(/access !== "none" && !phone/);
     expect(dayPage).toMatch(/isPhone\(/);
     expect(dayPage).toContain("/plan?day=${dayId}");
   });

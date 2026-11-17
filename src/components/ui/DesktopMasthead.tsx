@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import TripCalendar from "@/components/ui/TripCalendar";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { UserCircle, Calendar, Columns, MapPin, Plus, Files } from "@phosphor-icons/react";
+import { UserCircle, Plus, Files } from "@phosphor-icons/react";
 import SharedWithFaces from "@/components/trip/SharedWithFaces";
 import AppMenu from "@/components/ui/AppMenu";
 import {
@@ -270,9 +270,9 @@ export default function DesktopMasthead({ previewPath }: { previewPath?: string 
 
             {/* One screen (26 Sep 2026): the owner's Agenda / Plan switch is
                 gone on desktop. The week is home; a day header opens that day,
-                and "‹ Week" is the way back. Guests have no week, so they keep
-                their Agenda / Map tabs. */}
-            {(guest || segment !== "plan") && (
+                and "‹ Week" is the way back. Guests get the same week, read only
+                (17 Nov 2026): the old Agenda / Map tabs are gone for everyone. */}
+            {segment !== "plan" && (
               <div
                 style={{
                   width: 1,
@@ -284,14 +284,7 @@ export default function DesktopMasthead({ previewPath }: { previewPath?: string 
               />
             )}
 
-            {guest ? (
-              <TripTabs
-                tripId={currentTripId}
-                segment={segment}
-                firstDayId={tripCtx?.firstDayId ?? null}
-                guest={guest}
-              />
-            ) : segment !== "plan" ? (
+            {segment !== "plan" ? (
               <Link
                 href={`/trips/${currentTripId}/plan`}
                 data-testid="back-to-week"
@@ -324,7 +317,7 @@ export default function DesktopMasthead({ previewPath }: { previewPath?: string 
           week's map panel is lg-only, so between md and lg the map, Find places
           and Plan my trip had no way in. This opens the full Map page; its
           "‹ Week" is the way back. Hidden from lg, where the panel is there. */}
-      {showTripStrip && currentTripId && !guest && segment === "plan" && (
+      {showTripStrip && currentTripId && segment === "plan" && (
         <Link
           href={`/trips/${currentTripId}/map`}
           data-testid="open-map"
@@ -575,7 +568,7 @@ function TripSwitcher({ currentTripId, title }: { currentTripId: string; title: 
     return (
       <Link
         key={t.id}
-        // Desktop only: straight to the week (lib/tripHref); a guest's /plan sends them on to the day.
+        // Desktop only: straight to the week (lib/tripHref), for guests too (read only).
         href={`/trips/${t.id}/plan`}
         onClick={() => setOpen(false)}
         role="menuitem"
@@ -648,96 +641,6 @@ function TripSwitcher({ currentTripId, title }: { currentTripId: string; title: 
           </Link>
         </div>
       )}
-    </div>
-  );
-}
-
-function TripTabs({
-  tripId,
-  segment,
-  firstDayId,
-  guest = false,
-}: {
-  tripId: string;
-  segment: "days" | "plan" | "map" | "settings" | "estimate" | null;
-  firstDayId: string | null;
-  guest?: boolean;
-}) {
-  const activeTab: "agenda" | "plan" | "map" =
-    segment === "plan" ? "plan" : segment === "map" ? "map" : "agenda";
-
-  const agendaHref = firstDayId
-    ? `/trips/${tripId}/days/${firstDayId}`
-    : `/trips/${tripId}`;
-
-  const TABS = [
-    { id: "agenda" as const, label: "Agenda", icon: Calendar, href: agendaHref },
-    { id: "plan" as const, label: "Plan", icon: Columns, href: `/trips/${tripId}/plan` },
-    { id: "map" as const, label: "Map", icon: MapPin, href: `/trips/${tripId}/map` },
-    // Owners: the map lives inside Plan since 24 Sep 2026 (beside the week,
-    // with a disc that widens it); the tab would be a second door to less.
-    // Guests have no Plan, so they keep the Map tab.
-  ].filter((t) => !(guest && t.id === "plan") && !(!guest && t.id === "map"));
-
-  // One segmented control, not two floating pills (Brennan, 25 Sep 2026): a
-  // binary view switch reads as one thing. The thumb slides between the
-  // segments; it is measured from the links so the labels stay real text.
-  const wrapRef = useRef<HTMLDivElement | null>(null);
-  const [thumb, setThumb] = useState<{ left: number; width: number } | null>(null);
-  useEffect(() => {
-    const wrap = wrapRef.current; if (!wrap) return;
-    const measure = () => {
-      const on = wrap.querySelector<HTMLElement>("[data-on='1']");
-      if (!on) { setThumb(null); return; }
-      setThumb({ left: on.offsetLeft, width: on.offsetWidth });
-    };
-    measure();
-    const ro = new ResizeObserver(measure); ro.observe(wrap);
-    return () => ro.disconnect();
-  }, [activeTab, TABS.length]);
-
-  return (
-    <div
-      ref={wrapRef}
-      role="tablist"
-      style={{ position: "relative", display: "inline-flex", alignItems: "center", padding: 3, borderRadius: 999, background: "rgba(255,255,255,0.08)", boxShadow: `inset 0 0 0 1px ${BAR_RULE}`, flexShrink: 0 }}
-    >
-      {thumb && (
-        <span
-          aria-hidden
-          style={{ position: "absolute", top: 3, bottom: 3, left: thumb.left, width: thumb.width, borderRadius: 999, background: "#fff", boxShadow: "0 1px 2px rgba(26,26,46,0.08)", transition: "left 160ms ease, width 160ms ease" }}
-        />
-      )}
-      {TABS.map((t) => {
-        const on = t.id === activeTab;
-        const Icon = t.icon;
-        return (
-          <Link
-            key={t.id}
-            href={t.href}
-            role="tab"
-            aria-selected={on}
-            data-on={on ? "1" : undefined}
-            style={{
-              position: "relative",
-              padding: "6px 14px",
-              borderRadius: 999,
-              display: "flex",
-              alignItems: "center",
-              gap: 7,
-              fontWeight: on ? 600 : 500,
-              fontSize: 13,
-              color: on ? INK : ON_BAR_CAP,
-              letterSpacing: "-0.005em",
-              textDecoration: "none",
-              transition: "color 160ms",
-            }}
-          >
-            <Icon size={14} weight="light" color={on ? INK : ON_BAR_CAP} />
-            {t.label}
-          </Link>
-        );
-      })}
     </div>
   );
 }

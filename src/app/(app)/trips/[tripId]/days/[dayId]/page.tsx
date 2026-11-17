@@ -24,7 +24,7 @@ export default async function DayPage({ params }: Props) {
   // page. The week opens with this day in place. Guests and phones stay.
   const h = await headers();
   const phone = isPhone(h.get("user-agent"), h.get("sec-ch-ua-mobile"));
-  if (access === "owner" && !phone) redirect(`/trips/${tripId}/plan?day=${dayId}`);
+  if (access !== "none" && !phone) redirect(`/trips/${tripId}/plan?day=${dayId}`);
   // Parallel fetch — trip, all days, cards for today, hotel cards for all days
   const [
     { data: trip },

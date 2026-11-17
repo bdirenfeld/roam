@@ -26,7 +26,7 @@ describe("the doors to Plan my trip", () => {
     expect(week).toMatch(/data-plan-tray/);
     expect(week).toMatch(/setShowStays\(true\); setMapWide\(true\); \}\}[^>]*>Where to stay</);
     expect(week).toMatch(/onClick=\{\(\) => void undoPlan\(\)\}[^>]*>Undo</);
-    expect(week).toMatch(/onDraftCreated=\{draftCreated\}/);
+    expect(week).toMatch(/onDraftCreated=\{readOnly \? undefined : draftCreated\}/);
   });
   it("the sheet can take off what it added", () => {
     expect(read("src/components/plan/PlanMyTripSheet.tsx")).toMatch(/Remove what Plan my trip added/);

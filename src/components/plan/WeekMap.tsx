@@ -99,6 +99,8 @@ interface Props {
   onStaysChanged?: () => void;
   /** Plan my trip made draft cards (28 Sep 2026); the board adds them. */
   onDraftCreated?: (created: Card[]) => void;
+  /** A guest, or the admin view (17 Nov 2026): look, filter and open a pin; nothing changes. */
+  readOnly?: boolean;
 }
 
 type Marker = { marker: any; wrapper: HTMLElement; inner: HTMLElement; cardRef: { current: Card } }; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -113,7 +115,7 @@ function placed(c: Card): boolean {
   return typeof c.place?.lat === "number" && typeof c.place?.lng === "number";
 }
 
-export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onHover, onCardUpdate, onCardCreated, onCardDelete, onPinDragStart, hot, wide, onToggleWide, onPutMany, onClusterDragStart, selectionEpoch, showStays, onCloseStays, onStaysChanged, onDraftCreated }: Props) {
+export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onHover, onCardUpdate, onCardCreated, onCardDelete, onPinDragStart, hot, wide, onToggleWide, onPutMany, onClusterDragStart, selectionEpoch, showStays, onCloseStays, onStaysChanged, onDraftCreated, readOnly = false }: Props) {
   // Plan my trip: a chip beside Filter while saved places are off the days.
   const [planOpen, setPlanOpen] = useState(false);
   // Find (29 Sep 2026): places for what a base is short of.
@@ -151,7 +153,7 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
   }, []);
   const findDocked = wide || lg;
   // Find, searched ahead in the background so it opens with its answers (hooks/useWarmFind).
-  useWarmFind(trip, cards);
+  useWarmFind(trip, cards, !readOnly);
   // Also shown while Plan my trip's cards are still where it put them: the sheet can take them off.
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -563,7 +565,7 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
       {!process.env.NEXT_PUBLIC_MAPBOX_TOKEN && (
         <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-500">Map unavailable</div>
       )}
-      <PlaceSearch
+      {!readOnly && <PlaceSearch
         onPlaceSelect={handlePlaceSelect}
         destination={trip.destination}
         lat={trip.destination_lat}
@@ -571,7 +573,7 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
         getBias={() => { const c = mapRef.current?.getCenter(); return c ? { lat: c.lat, lng: c.lng } : null; }}
         countries={searchCountries(trip.destination, cards.map((c) => c.place?.address))}
         positionClassName="absolute top-3 left-3 right-[60px] max-w-md"
-      />
+      />}
       {pending && (
         <AddToTripSheet
           place={pending}
@@ -680,10 +682,10 @@ export default function WeekMap({ trip, days, cards, hoveredId, activeDayId, onH
             if (dy > 0) map.panBy([0, -dy], { duration: 300 });
           }}
           onClose={close}
-          onCardUpdate={(u) => { setSelected(u); onCardUpdate(u); }}
-          onCardDelete={(id) => { close(); onCardDelete(id); }}
-          onCardCreated={(c) => { close(); onCardCreated(c); }}
-          days={days}
+          onCardUpdate={readOnly ? undefined : (u) => { setSelected(u); onCardUpdate(u); }}
+          onCardDelete={readOnly ? undefined : (id) => { close(); onCardDelete(id); }}
+          onCardCreated={readOnly ? undefined : (c) => { close(); onCardCreated(c); }}
+          days={readOnly ? undefined : days}
           tripId={trip.id}
         />
       )}

@@ -14,13 +14,11 @@ export default async function PlanPage({ params }: Props) {
   const { tripId } = await params;
   const supabase = await createClient();
 
-  // The Plan board is owner-only. A guest can read the trip under RLS, so the
-  // not-found check below won't catch them — guard explicitly and send them to
-  // the Day view rather than a starved board.
+  // A guest gets the week too, read only (17 Nov 2026: the old desktop
+  // Agenda / Map pages are gone). RLS already limits a guest to the
+  // scheduled cards, so the saved pile below comes back empty for them.
   const user = await getAuthUser(supabase);
-  if ((await getTripAccess(supabase, tripId, user?.id)) === "guest") {
-    redirect(`/trips/${tripId}`);
-  }
+  const readOnly = (await getTripAccess(supabase, tripId, user?.id)) !== "owner";
 
   // Cards embed shape — identical for the scheduled and the list query, so a
   // card tile renders the same whichever column it lands in (place details for
@@ -128,6 +126,7 @@ export default async function PlanPage({ params }: Props) {
       // Notes ride the `*` select, so they arrive with the page payload and
       // work offline.
       initialNotes={(trip as Trip).notes ?? null}
+      readOnly={readOnly}
     />
   );
 }

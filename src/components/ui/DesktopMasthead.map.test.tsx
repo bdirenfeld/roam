@@ -50,15 +50,17 @@ describe("DesktopMasthead: the Map link on a narrow window", () => {
     expect(link.textContent).toBe("Map");
   });
 
-  it("not off the week, and not for a guest (guests keep their Agenda / Map tabs)", async () => {
+  it("not off the week", async () => {
     state.path = "/trips/t1/days/d1";
     await mount();
     expect(screen.queryByTestId("open-map")).toBeNull();
   });
 
-  it("not for a guest on the week", async () => {
+  it("a guest on the week has it too: the week is theirs, read only (17 Nov 2026)", async () => {
     state.guest = true;
     await mount();
-    expect(screen.queryByTestId("open-map")).toBeNull();
+    expect(screen.getByTestId("open-map")).toBeTruthy();
+    // ...and no old Agenda / Map tabs.
+    expect(screen.queryByRole("link", { name: "Agenda" })).toBeNull();
   });
 });

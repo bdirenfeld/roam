@@ -4,11 +4,11 @@ import path from "node:path";
 import { tripHref } from "./tripHref";
 
 describe("tripHref", () => {
-  it("an owner on a computer goes straight to the week; a phone or a guest to the day", () => {
+  it("a computer goes straight to the week, a guest's read only (17 Nov 2026); a phone to the day", () => {
     expect(tripHref("t", { phone: false, owner: true, openDayId: "d" })).toBe("/trips/t/plan");
     expect(tripHref("t", { phone: true, owner: true, openDayId: "d" })).toBe("/trips/t/days/d");
-    expect(tripHref("t", { phone: false, owner: false, openDayId: "d" })).toBe("/trips/t/days/d");
-    expect(tripHref("t", { phone: false, owner: false })).toBe("/trips/t");
+    expect(tripHref("t", { phone: false, owner: false, openDayId: "d" })).toBe("/trips/t/plan");
+    expect(tripHref("t", { phone: true, owner: false })).toBe("/trips/t");
   });
 });
 
