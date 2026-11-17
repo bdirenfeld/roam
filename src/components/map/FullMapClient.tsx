@@ -1357,7 +1357,7 @@ export default function FullMapClient({ trip, days, cards, readOnly = false }: P
         {/* Bookings — the shared hidden picker and check-and-add sheet, the documents sheet. */}
         {!readOnly && upload.element}
         {showDocs && (
-          <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} onImport={readOnly ? undefined : () => { setShowDocs(false); upload.pick(); }} />
+          <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} onImport={readOnly ? undefined : () => { setShowDocs(false); upload.pick(); }} onAddByHand={readOnly ? undefined : () => { setShowDocs(false); upload.addByHand(); }} />
         )}
         {upload.reading && (
           <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[70] px-4 py-2 rounded-full bg-[#1A1A2E] text-white text-[12.5px] shadow-lg">

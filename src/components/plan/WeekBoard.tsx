@@ -1385,7 +1385,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved }: Props) {
           otherStayNights={otherStayNights(runs, selectedCard.place_id)}
         />
       )}
-      {showDocs && <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} onImport={() => { setShowDocs(false); upload.pick(); }} />}
+      {showDocs && <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} onImport={() => { setShowDocs(false); upload.pick(); }} onAddByHand={() => { setShowDocs(false); upload.addByHand(); }} />}
       {upload.element}
     </div>
   );

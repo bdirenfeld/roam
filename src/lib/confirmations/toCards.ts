@@ -8,7 +8,9 @@
 
 import type { AgendaDay } from "./agenda";
 
-export type ConfirmationType = "flight_arrival" | "flight_departure" | "hotel" | "car_rental" | "restaurant" | "activity";
+// "cruise" (17 Nov 2026) comes only from adding a booking by hand: the ship,
+// boarded at its port (title = ship, address = port, check_out_date = the day you leave).
+export type ConfirmationType = "flight_arrival" | "flight_departure" | "hotel" | "car_rental" | "cruise" | "restaurant" | "activity";
 
 export interface ParsedConfirmation {
   type: ConfirmationType;
@@ -130,7 +132,7 @@ export function closingDetails(details: Record<string, unknown> | null | undefin
  * which the reader puts in `address`.
  */
 export function placeQuery(p: ParsedConfirmation): string | null {
-  if (isFlight(p.type) || p.type === "car_rental") return clean(p.address);
+  if (isFlight(p.type) || p.type === "car_rental" || p.type === "cruise") return clean(p.address);
   const parts = [clean(p.title), clean(p.address)].filter(Boolean);
   return parts.length ? parts.join(", ") : null;
 }
@@ -140,6 +142,8 @@ export function placeSubType(t: ConfirmationType): { type: "logistics" | "food" 
   if (isFlight(t) || t === "hotel") return { type: "logistics", sub_type: t };
   // Roam has no car category; a pick-up desk is a transit stop, as a station is.
   if (t === "car_rental") return { type: "logistics", sub_type: "transit" };
+  // Boarding a ship is a port (lib/cards/port), its own kind since 17 Nov 2026.
+  if (t === "cruise") return { type: "logistics", sub_type: "port" };
   if (t === "restaurant") return { type: "food", sub_type: "restaurant" };
   return { type: "activity", sub_type: "self_directed" };
 }
@@ -171,10 +175,15 @@ export function closingEvent(p: ParsedConfirmation, name: string): { date: strin
     const where = clean(p.drop_off_location);
     return date ? { date, time: asTime(p.drop_off_time, "10:00:00"), title: where ? `Return the rental car · ${where}` : "Return the rental car" } : null;
   }
+  if (p.type === "cruise") {
+    const date = day(p.check_out_date);
+    return date ? { date, time: asTime(p.check_out_time, "08:00:00"), title: `Leave ${name}` } : null;
+  }
   return null;
 }
 
 /** The first event's title: a car's reads as the pick-up. */
 export function openingTitle(p: ParsedConfirmation, title: string): string {
+  if (p.type === "cruise" && !/^board\b/i.test(title)) return `Board ${title}`;
   return p.type === "car_rental" && !/pick.?up/i.test(title) ? `Pick up rental car · ${title}` : title;
 }

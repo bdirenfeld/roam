@@ -94,13 +94,15 @@ interface Props {
   onOpenFile?: (f: BookingFile) => void;
   /** The upload; absent on a read-only host. */
   onImport?: () => void;
+  /** Adds a booking by hand (17 Nov 2026): the same "Your bookings" sheet, empty. */
+  onAddByHand?: () => void;
   /** Takes an upload record off the list (the file and its cards stay). */
   onRemoveDocument?: (id: string) => void;
   /** Tells the host whether this is the owner, once known. */
   onOwner?: (owner: boolean) => void;
 }
 
-export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile, onImport, onRemoveDocument, onOwner }: Props) {
+export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile, onImport, onAddByHand, onRemoveDocument, onOwner }: Props) {
   const { toast } = useToast();
   const router = useRouter();
   const [data, setData] = useState<Loaded | null>(null);
@@ -268,7 +270,7 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
     const t = rowTap(r, files, stayInApp);
     if (t.kind === "stays") { goStays(); return; }
     if (t.kind === "file") { onOpenFile?.(t.file); return; }
-    if (t.kind === "files") { setUnfolded((u) => (u === r.key ? null : r.key)); return; }
+    if (t.kind === "files" || t.kind === "list") { setUnfolded((u) => (u === r.key ? null : r.key)); return; }
     if (t.kind === "day") { onLeave?.(); router.push(`/trips/${tripId}/days/${t.dayId}`); return; }
     setMenu(r.key);
   };
@@ -364,6 +366,18 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
                 </div>
               )}
             </div>
+            {/* Several bookings: one line each, a tap opens its day (17 Nov 2026). */}
+            {unfolded === r.key && tapsTo === "list" && (
+              <div className="pl-[38px] pb-2 grid" data-testid={`to-book-${r.key}-items`}>
+                {r.items.map((it, i) => (
+                  <button key={i} type="button" disabled={!it.dayId}
+                    onClick={() => { if (!it.dayId) return; onLeave?.(); router.push(`/trips/${tripId}/days/${it.dayId}`); }}
+                    className="text-left text-[13px] py-2 truncate" style={{ color: INK }}>
+                    {it.label}
+                  </button>
+                ))}
+              </div>
+            )}
             {unfolded === r.key && canOpen.length > 0 && (
               <div className="pl-[38px] pb-2 grid" data-testid={`to-book-${r.key}-files`}>
                 {canOpen.map((f) => (
@@ -448,6 +462,15 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
             <span aria-hidden="true" data-testid="upload-target" className="absolute -inset-y-1.5 inset-x-0" />
             Upload a confirmation
           </button>
+          {onAddByHand && (
+            <>
+              <span aria-hidden="true" className="mx-2 text-[13px]" style={{ color: CAPTION }}>·</span>
+              <button type="button" onClick={onAddByHand} className="relative text-[13px] underline underline-offset-[3px] py-1.5" style={{ color: CAPTION }}>
+                <span aria-hidden="true" className="absolute -inset-y-1.5 inset-x-0" />
+                Add one yourself
+              </button>
+            </>
+          )}
         </div>
       )}
       {others.length > 0 && (

@@ -24,7 +24,7 @@ describe("Tuscany (seven people, villa booked, no flights yet)", () => {
     expect(r.flights.url).toBe("https://www.ca.kayak.com/flights/YYZ-PSA,FLR/2027-08-23/2027-09-04/4adults/children-10-8-5?sort=bestflight_a");
   });
   it("Stays ticks itself: Villa Zambaldi covers every night (its check-out card is on the last day)", () => {
-    expect(r.stays).toMatchObject({ state: "booked", line: "Villa Zambaldi · all 11 nights", url: null, manual: null, name: "Villa Zambaldi" });
+    expect(r.stays).toMatchObject({ state: "booked", line: "Villa Zambaldi · 11 nights", url: null, manual: null, name: "Villa Zambaldi" });
     expect(r.stays.dayId).toBe(t.days.find((d) => d.date === "2027-08-24")!.id); // the check-in day
   });
   it("the four saved villas (interested, no day) never count — take the booked one away and it is open", () => {
@@ -83,7 +83,7 @@ describe("New York (Mia & Daddy): everything but a car is on the days", () => {
   it("Flights and Stays tick themselves", () => {
     expect(r.flights).toMatchObject({ state: "booked", line: "23 Jul and 26 Jul", name: null });
     expect(r.flights.dayId).toBe(input.days.find((d) => d.date === "2026-07-23")!.id);
-    expect(r.stays).toMatchObject({ state: "booked", line: "11 Howard · all 3 nights", name: "11 Howard" });
+    expect(r.stays).toMatchObject({ state: "booked", line: "11 Howard · 3 nights", name: "11 Howard" });
   });
   it("the airport comes from the flight card, so no Claude call", () => {
     expect(ownAirports(input)).toEqual(["LGA"]);
@@ -289,5 +289,41 @@ describe("a copy of New York (Mia & Daddy) a year on (7 Oct 2026, copy to new da
   it("once the stay is booked (the card sheet's switch), it ticks itself again", () => {
     const booked = { ...copy, cards: copy.cards.map((c) => (c.place?.title === "11 Howard" ? { ...c, confirmed: true } : c)) };
     expect(rowsOf(booked).stays.state).toBe("booked");
+  });
+});
+
+describe("a big trip keeps each row to one line (17 Nov 2026)", () => {
+  const t = get("Tuscany", { airports: ["PSA", "FLR"] });
+  const villa = t.cards.find((c) => c.place?.sub_type === "hotel")!;
+  const on = (i: number) => t.days[i].id;
+  const flight = (i: number) => ({ ...villa, id: `f${i}`, day_id: on(i), details: { airline: "ITA Airways" }, place: { ...villa.place!, sub_type: "flight_departure", title: `Flight ${i}` } });
+  const car = (i: number, back: string) => ({ ...villa, id: `car${i}`, day_id: on(i), details: { rental_car: true, drop_off: back }, place: { ...villa.place!, sub_type: "transit", title: `Car ${i}` } });
+
+  it("ten flights read as a count and a span, not ten dates and not the airline", () => {
+    const r = rowsOf({ ...t, cards: [...t.cards, ...[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(flight)] });
+    expect(r.flights.line).toBe("10 flights · 24 Aug – 2 Sep");
+  });
+
+  it("two flights keep the airline and both dates", () => {
+    const r = rowsOf({ ...t, cards: [...t.cards, flight(0), flight(11)] });
+    expect(r.flights.line).toMatch(/^ITA Airways · /);
+  });
+
+  it("two cars read as a count and the span from the first pick-up to the last return", () => {
+    const r = rowsOf({ ...t, cards: [...t.cards, car(1, "2027-08-28"), car(6, "2027-09-02")] });
+    expect(r.car.line).toMatch(/^2 cars · /);
+  });
+});
+
+describe("each booking, one line apiece, for the row to unfold (17 Nov 2026)", () => {
+  const t = get("Tuscany", { airports: ["PSA", "FLR"] });
+  const villa = t.cards.find((c) => c.place?.sub_type === "hotel")!;
+  it("a stay lists its hotel with its dates and nights; ten flights list ten lines", () => {
+    const r = rowsOf(t);
+    expect(r.stays.items).toEqual([{ label: "Villa Zambaldi · 24 Aug → 4 Sep · 11 nights", dayId: villa.day_id }]);
+    const flights = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => ({ ...villa, id: `f${i}`, day_id: t.days[i].id, details: { flight_number: `AZ${100 + i}` }, place: { ...villa.place!, sub_type: "flight_departure" } }));
+    const many = rowsOf({ ...t, cards: [...t.cards, ...flights] });
+    expect(many.flights.items).toHaveLength(10);
+    expect(many.flights.items[0]).toEqual({ label: "AZ100 · 24 Aug", dayId: t.days[0].id });
   });
 });

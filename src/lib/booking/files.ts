@@ -83,6 +83,8 @@ export type RowTap =
   | { kind: "stays" }
   | { kind: "file"; file: BookingFile }
   | { kind: "files" }
+  // Several bookings in one row (17 Nov 2026): it unfolds to one line each.
+  | { kind: "list" }
   | { kind: "day"; dayId: string }
   | { kind: "menu" };
 
@@ -98,6 +100,8 @@ export function rowTap(row: CheckRow, files: BookingFile[], stayInApp: boolean):
     return row.url ? { kind: "kayak", url: row.url } : { kind: "menu" };
   }
   if (row.state === "skip") return { kind: "menu" };
+  // Three or more: a round trip is still one confirmation to open (New York's AC890 out and back).
+  if ((row.items?.length ?? 0) > 2) return { kind: "list" };
   const can = openable(filesFor(row.key, files));
   if (can.length === 1) return { kind: "file", file: can[0] };
   if (can.length > 1) return { kind: "files" };

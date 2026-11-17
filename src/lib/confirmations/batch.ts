@@ -88,6 +88,7 @@ export function whenLine(type: ParsedConfirmation["type"], at: {
   const out = at.outDate ? longDay(at.outDate) : null;
   if (type === "hotel") return [`Check in ${day}`.trim(), out ? `out ${out}` : null].filter(Boolean).join(" → ");
   if (type === "car_rental") return out ? `${day} → ${out}` : day;
+  if (type === "cruise") return [`Board ${day}`.trim(), out ? `leave ${out}` : null].filter(Boolean).join(" → ");
   const lead = at.dayNumber != null ? `Day ${at.dayNumber}${day ? ` — ${day}` : ""}` : day;
   let t = "";
   if (type === "flight_arrival") t = at.endTime ? `arrives ${clock(at.endTime)}` : at.time ? `departs ${clock(at.time)}` : "";

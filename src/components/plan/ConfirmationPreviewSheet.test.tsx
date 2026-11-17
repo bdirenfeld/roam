@@ -91,7 +91,8 @@ describe("importing a hotel booking (1 Oct 2026)", () => {
     }));
     const done = vi.fn();
     render(<ConfirmationPreviewSheet items={[villa]} fileName="villa.pdf" fileType="application/pdf" days={days} tripId="t1" onClose={vi.fn()} onCardsCreated={done} />);
-    expect((screen.getByLabelText(/Check out/) as HTMLSelectElement).value).toBe("d12");
+    // The stay is one calendar now (17 Nov 2026): its button names both days.
+    expect(screen.getByTestId("stay-dates-button").textContent).toContain("→ Sat 4 Sept");
     fireEvent.click(screen.getByText("Add to my days"));
     await waitFor(() => expect(done).toHaveBeenCalled());
     expect(asked[0]).toContain(encodeURIComponent("Villa Zambaldi, Via Fonda 403, Lucca"));
@@ -137,7 +138,8 @@ describe("a booking dated outside the journey (3 Oct 2026)", () => {
       address: "Via Fonda 403, Lucca", phone: null, website: null, notes: null, check_out_date: "2027-09-05", check_out_time: "10:00" };
     sheet([stay], { onCardsCreated: done });
     expect(screen.getByTestId("outside-note").textContent).toContain("Check-out from Villa Zambaldi is Sun 5 Sep, a day after the trip ends.");
-    expect((screen.getByLabelText(/Check out/) as HTMLSelectElement).value).toBe("d12");
+    // The stay is one calendar now (17 Nov 2026): its button names both days.
+    expect(screen.getByTestId("stay-dates-button").textContent).toContain("→ Sat 4 Sept");
     fireEvent.click(screen.getByText("Add to my days"));
     await waitFor(() => expect(done).toHaveBeenCalled());
     const rows = queued.mock.calls[0][1] as { day_id: string; details: Record<string, unknown> }[];
@@ -312,5 +314,76 @@ describe("a copied journey's placeholders fill in on upload (7 Oct 2026)", () =>
     expect(patch.details).toMatchObject({ flight_number: "AC892", seat: "22A", confirmation: "ABC123" });
     expect(patch.details).not.toHaveProperty("to_book");
     expect(updated.mock.calls.some((c) => (c[1] as { id: string }).id === "dep")).toBe(false);
+  });
+});
+
+describe("adding bookings by hand (17 Nov 2026, Don's unreadable cruise PDF)", () => {
+  const noPlace = () => vi.stubGlobal("fetch", vi.fn(async () => ({ json: async () => ({ predictions: [] }) })));
+  const empty = (done = vi.fn()) => {
+    render(<ConfirmationPreviewSheet items={[]} fileName="Viking-Booking.pdf" fileType="application/pdf" failedFile="Viking-Booking.pdf"
+      days={days} tripId="t1" onClose={vi.fn()} onCardsCreated={done} />);
+    return done;
+  };
+
+  it("a file that can't be read opens 'Your bookings' empty, naming it, with nothing to add yet", () => {
+    empty();
+    expect(screen.getByText("Your bookings")).toBeTruthy();
+    expect(screen.getByTestId("failed-file").textContent).toBe("We couldn't read Viking-Booking.pdf");
+    expect(screen.getByTestId("nothing-yet")).toBeTruthy();
+    expect((screen.getByText("Add to my days").closest("button") as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("Flight adds a row to fill; a second Flight comes back the other way, on the last day", () => {
+    empty();
+    fireEvent.click(screen.getByLabelText("Add a flight"));
+    fireEvent.change(screen.getByLabelText("Flight"), { target: { value: "AC 890" } });
+    fireEvent.change(screen.getByLabelText("From"), { target: { value: "YYZ" } });
+    fireEvent.change(screen.getByLabelText("To"), { target: { value: "PSA" } });
+    fireEvent.click(screen.getByLabelText("Add a flight"));
+    const froms = screen.getAllByLabelText("From") as HTMLInputElement[];
+    expect(froms[1].value).toBe("PSA");
+    expect((screen.getAllByLabelText("To") as HTMLInputElement[])[1].value).toBe("YYZ");
+    expect(screen.getByText("Add 2 to my days")).toBeTruthy();
+  });
+
+  it("Remove takes a row off, and the count follows", () => {
+    empty();
+    fireEvent.click(screen.getByLabelText("Add a flight"));
+    fireEvent.click(screen.getByLabelText("Add a car"));
+    expect(screen.getByText("Add 2 to my days")).toBeTruthy();
+    fireEvent.click(screen.getAllByText("Remove")[0]);
+    expect(screen.getByText("Add to my days")).toBeTruthy();
+    expect(screen.getAllByTestId("booking-row")).toHaveLength(1);
+  });
+
+  it("saves a hand flight and a cruise: the flight at the airport you land at, the ship boarded and left", async () => {
+    queued.mockResolvedValue({ queued: false, error: null });
+    noPlace();
+    const done = empty();
+    fireEvent.click(screen.getByLabelText("Add a flight"));
+    fireEvent.change(screen.getByLabelText("Flight"), { target: { value: "AC 890" } });
+    fireEvent.change(screen.getByLabelText("From"), { target: { value: "YYZ" } });
+    fireEvent.change(screen.getByLabelText("To"), { target: { value: "PSA" } });
+    fireEvent.click(screen.getByLabelText("Add a cruise"));
+    fireEvent.change(screen.getByLabelText("Ship"), { target: { value: "Viking Mars" } });
+    fireEvent.click(screen.getByText("Add 2 to my days"));
+    await waitFor(() => expect(done).toHaveBeenCalled());
+    const rows = queued.mock.calls[0][1] as { day_id: string; details: Record<string, unknown> }[];
+    expect(rows.map((r) => [r.day_id, r.details.title])).toEqual([
+      ["d1", "AC 890 · YYZ → PSA"],
+      ["d1", "Board Viking Mars"],
+      ["d12", "Leave Viking Mars"],
+    ]);
+    expect(rows[0].details).toMatchObject({ flight_number: "AC890", origin_airport: "YYZ", arriving_at: "PSA" });
+    // Nothing was read from a file, so no document record is written.
+    expect(queued.mock.calls.some((c) => c[0] === "documents")).toBe(false);
+    vi.unstubAllGlobals();
+  });
+
+  it("after a good read, the same buttons add what the file missed", () => {
+    render(<ConfirmationPreviewSheet items={[flight("flight_arrival", "2027-08-24", "YYZ → PSA")]} fileName="ac.pdf" fileType="application/pdf"
+      days={days} tripId="t1" onClose={vi.fn()} onCardsCreated={vi.fn()} />);
+    fireEvent.click(screen.getByLabelText("Add a hotel"));
+    expect(screen.getByText("Add 2 to my days")).toBeTruthy();
   });
 });

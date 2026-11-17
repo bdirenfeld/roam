@@ -59,7 +59,7 @@ describe("the row's one line", () => {
   });
   it("no upload: the row's own line; Stays always names its hotel and nights", () => {
     expect(rowLine(ny.flights, [])).toBe("23 Jul and 26 Jul");
-    expect(rowLine(ny.stays, [file({ row: "stays", label: "11 Howard" })])).toBe("11 Howard · all 3 nights");
+    expect(rowLine(ny.stays, [file({ row: "stays", label: "11 Howard" })])).toBe("11 Howard · 3 nights");
   });
   it("a row still to book keeps its search line even with a file", () => {
     expect(rowLine(ny.car, [file({ row: "car" })])).toBe(ny.car.line);
@@ -93,5 +93,13 @@ describe("what a tap on the row does", () => {
     const m = rowsOf({ ...t, trip: { ...t.trip, booking_checklist: { car: "skip", flights: "booked" } } });
     expect(rowTap(m.car, [], true)).toEqual({ kind: "menu" });
     expect(rowTap(m.flights, [], true)).toEqual({ kind: "menu" });
+  });
+});
+
+describe("a row with several bookings (17 Nov 2026)", () => {
+  it("three or more unfold to their list; a round trip still opens its confirmation", () => {
+    const row = (n: number) => ({ ...rowsOf(get("New York (Mia & Daddy)")).flights, items: Array.from({ length: n }, (_, i) => ({ label: `AC ${890 + i}`, dayId: "d1" })) });
+    expect(rowTap(row(3), [file({})], true)).toEqual({ kind: "list" });
+    expect(rowTap(row(2), [file({})], true).kind).toBe("file");
   });
 });

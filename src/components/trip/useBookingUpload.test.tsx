@@ -114,9 +114,11 @@ describe("uploading several bookings", () => {
     expect(toast.mock.calls.at(-1)![0].message).toBe("Added to your days · Wed 26 Aug");
   });
 
-  it("one unreadable file says why, with no sheet", async () => {
+  it("one unreadable file opens 'Your bookings' empty, naming it, to add them by hand (17 Nov 2026)", async () => {
     await pick(["blurry.png"]);
-    await waitFor(() => expect(toast).toHaveBeenCalledWith({ message: "Couldn't read that file. Try again." }));
+    await waitFor(() => expect(screen.getByTestId("failed-file").textContent).toBe("We couldn't read blurry.png"));
     expect(screen.queryByTestId("booking-row")).toBeNull();
+    expect(screen.getByLabelText("Add a flight")).toBeTruthy();
+    expect(toast).not.toHaveBeenCalled();
   });
 });

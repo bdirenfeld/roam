@@ -70,7 +70,7 @@ export default function BookingsSection({ tripId, days, endDate }: { tripId: str
           </button>
         ) : lines !== null && <span aria-hidden="true" className="text-[14px] flex-shrink-0 ml-2" style={{ color: FAINT }}>›</span>}
       </div>
-      {showDocs && <DocumentsSheet tripId={tripId} onClose={() => setShowDocs(false)} onImport={() => { setShowDocs(false); upload.pick(); }} />}
+      {showDocs && <DocumentsSheet tripId={tripId} onClose={() => setShowDocs(false)} onImport={() => { setShowDocs(false); upload.pick(); }} onAddByHand={() => { setShowDocs(false); upload.addByHand(); }} />}
     </div>
   );
 }

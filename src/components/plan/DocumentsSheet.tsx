@@ -21,6 +21,8 @@ interface Props {
   onClose: () => void;
   /** Opens the host's file picker — the same parse → preview → cards flow. */
   onImport?: () => void;
+  /** Adds a booking by hand: the host's upload sheet, opened empty. */
+  onAddByHand?: () => void;
 }
 
 // The kind an upload record names, for a file that matches no booking row.
@@ -41,7 +43,7 @@ type AttachmentRow = {
   cards: { details: Record<string, unknown> | null; places: { title: string | null; sub_type: string | null } | null } | null;
 };
 
-export default function DocumentsSheet({ tripId, onClose, onImport }: Props) {
+export default function DocumentsSheet({ tripId, onClose, onImport, onAddByHand }: Props) {
   const supabase = createClient();
   const { toast } = useToast();
   const listRef  = useRef<HTMLDivElement>(null);
@@ -206,6 +208,7 @@ export default function DocumentsSheet({ tripId, onClose, onImport }: Props) {
             files={loading ? [] : files}
             onOpenFile={open}
             onImport={onImport}
+            onAddByHand={onAddByHand}
             onRemoveDocument={removeDocument}
             onOwner={setOwner}
           />
@@ -233,6 +236,15 @@ export default function DocumentsSheet({ tripId, onClose, onImport }: Props) {
                     <span aria-hidden="true" className="absolute -inset-y-1.5 inset-x-0" />
                     Upload a confirmation
                   </button>
+                  {onAddByHand && (
+                    <>
+                      <span aria-hidden="true" className="mx-2 text-[13px]" style={{ color: CAPTION }}>·</span>
+                      <button type="button" onClick={onAddByHand} className="relative text-[13px] underline underline-offset-[3px] py-1.5" style={{ color: CAPTION }}>
+                        <span aria-hidden="true" className="absolute -inset-y-1.5 inset-x-0" />
+                        Add one yourself
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>

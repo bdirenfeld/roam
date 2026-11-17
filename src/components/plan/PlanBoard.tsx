@@ -1662,7 +1662,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
       )}
 
       {showDocs && (
-        <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} onImport={() => { setShowDocs(false); upload.pick(); }} />
+        <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} onImport={() => { setShowDocs(false); upload.pick(); }} onAddByHand={() => { setShowDocs(false); upload.addByHand(); }} />
       )}
 
       {/* Journey notes — bottom sheet on mobile, modal at md+ */}

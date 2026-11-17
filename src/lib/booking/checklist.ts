@@ -80,6 +80,8 @@ export interface CheckRow {
   dayId: string | null;
   /** The booking's own name: the airline, the hotel, the car company. */
   name: string | null;
+  /** Each booking in the row, one line apiece (17 Nov 2026): a row with several unfolds to these. */
+  items: { label: string; dayId: string | null }[];
 }
 
 const TITLES: Record<RowKey, string> = { flights: "Flights", stays: "Stays", car: "Car" };
@@ -249,10 +251,10 @@ export function checklistRows(input: CheckInput): CheckRow[] {
   const rows: CheckRow[] = [];
   // The mark says booked / to book / not needed, so the line never does: it
   // says where and how many (6 Oct 2026 redesign).
-  const row = (key: RowKey, auto: { state: "booked" | "skip"; line: string } | null, open: { line: string; url: string }, at: { dayId: string | null; name: string | null }): CheckRow => {
+  const row = (key: RowKey, auto: { state: "booked" | "skip"; line: string } | null, open: { line: string; url: string }, at: { dayId: string | null; name: string | null }, items: CheckRow["items"] = []): CheckRow => {
     const m = manual[key] ?? null;
     const cost = m === "booked" ? costs[key] ?? null : null;
-    const base = { key, title: TITLES[key], dayId: at.dayId, name: at.name };
+    const base = { key, title: TITLES[key], dayId: at.dayId, name: at.name, items };
     if (m === "open") return { ...base, line: open.line, state: "open", manual: m, url: open.url, cost: null };
     if (m) return { ...base, line: m === "booked" ? (cost ? `Paid ${costLabel(cost)}` : "Marked booked") : "Not needed", state: m, manual: m, url: null, cost };
     if (auto) return { ...base, line: auto.line, state: auto.state, manual: null, url: null, cost: null };
@@ -263,9 +265,11 @@ export function checklistRows(input: CheckInput): CheckRow[] {
   {
     const dates = Array.from(new Set(flights.map((f) => f.date)));
     const airline = flights.map(({ c }) => str(c.details?.airline)).find(Boolean) ?? null;
-    const when = dates.length <= 2 ? dates.map(short).join(" and ") : `${flights.length} flights, ${range(dates[0], dates[dates.length - 1])}`;
+    // Many flights read as a count and a span, one line however many (17 Nov 2026).
+    const many = dates.length > 2;
+    const when = many ? `${flights.length} flights · ${range(dates[0], dates[dates.length - 1])}` : dates.map(short).join(" and ");
     const auto = dates.length
-      ? { state: "booked" as const, line: airline ? `${airline} · ${when}` : when }
+      ? { state: "booked" as const, line: airline && !many ? `${airline} · ${when}` : when }
       // Every airport Kayak could fly to is home: a journey from the doorstep.
       : !own.length && asked.length > 0 && !airports.length ? { state: "skip" as const, line: "Not needed" } : null;
     const out = overnightOutbound(home.country, destCountry) ? addDays(trip.start_date, -1) : trip.start_date;
@@ -278,7 +282,12 @@ export function checklistRows(input: CheckInput): CheckRow[] {
           line: `${from} → ${to} · ${peopleLine(people)}`,
           url: flightsUrl({ from: homeAirport, to: airports, out, back: trip.end_date, party, base }),
         };
-    rows.push(row("flights", auto, open, { dayId: flights[0]?.c.day_id ?? null, name: airline }));
+    const flightItems = flights.map(({ c, date }) => {
+      const num = str(c.details?.flight_number);
+      const what = num ?? str(c.details?.title) ?? str(c.place?.title) ?? "Flight";
+      return { label: `${what} · ${short(date)}`, dayId: c.day_id ?? null };
+    });
+    rows.push(row("flights", auto, open, { dayId: flights[0]?.c.day_id ?? null, name: airline }, flightItems));
   }
 
   // ── Stays ────────────────────────────────────────────────────────────────
@@ -292,7 +301,7 @@ export function checklistRows(input: CheckInput): CheckRow[] {
     let auto: { state: "booked" | "skip"; line: string } | null = null;
     let openRow = { line: "", url: `${base}/stays` };
     if (!nights.length) auto = { state: "skip", line: "Not needed" };
-    else if (!open.length) auto = { state: "booked", line: `${runs.length === 1 ? runs[0].title : `${runs.length} stays`} · all ${plural(nights.length, "night")}` };
+    else if (!open.length) auto = { state: "booked", line: `${runs.length === 1 ? runs[0].title : `${runs.length} hotels`} · ${plural(nights.length, "night")}` };
     else {
       // The first run of open nights.
       const checkIn = open[0];
@@ -325,14 +334,20 @@ export function checklistRows(input: CheckInput): CheckRow[] {
         : { line: `${town} · ${plural(nights.length, "night")}`, url };
     }
     const first = runs[0] ? mine.find((c) => c.id === runs[0].cardId) ?? null : null;
-    rows.push(row("stays", auto, openRow, { dayId: first?.day_id ?? null, name: runs.length === 1 ? runs[0].title : null }));
+    const stayItems = runs.map((r) => ({ label: `${r.title} · ${short(r.checkIn)} → ${short(r.checkOut)} · ${plural(r.nights, "night")}`, dayId: mine.find((c) => c.id === r.cardId)?.day_id ?? null }));
+    rows.push(row("stays", auto, openRow, { dayId: first?.day_id ?? null, name: runs.length === 1 ? runs[0].title : null }, stayItems));
   }
 
   // ── Car ──────────────────────────────────────────────────────────────────
   {
-    const car = mine.find(isRentalCar);
+    const carItems = (list: typeof mine) => list.map((c) => ({ label: `${str(c.place?.title) ?? str(c.details?.title) ?? "Rental car"} · ${range(dateOf.get(c.day_id!)!, str(c.details?.drop_off) ?? trip.end_date)}`, dayId: c.day_id ?? null }));
+    const cars = mine.filter(isRentalCar).sort((a, b) => dateOf.get(a.day_id!)!.localeCompare(dateOf.get(b.day_id!)!));
+    const car = cars[0];
     const carName = car ? str(car.place?.title) ?? str(car.details?.title) : null;
-    const auto = car ? { state: "booked" as const, line: `${carName ?? "Rental car"} · ${range(dateOf.get(car.day_id!)!, str(car.details?.drop_off) ?? trip.end_date)}` } : null;
+    const lastCar = cars[cars.length - 1];
+    const auto = car ? { state: "booked" as const, line: cars.length > 1
+      ? `${cars.length} cars · ${range(dateOf.get(car.day_id!)!, str(lastCar.details?.drop_off) ?? trip.end_date)}`
+      : `${carName ?? "Rental car"} · ${range(dateOf.get(car.day_id!)!, str(car.details?.drop_off) ?? trip.end_date)}` } : null;
     // Picked up where the journey lands: two hours after a known landing, else 2 pm.
     const landing = flights.find(({ c }) => c.place?.sub_type === "flight_arrival" && codeOf(c.details?.arriving_at) !== homeAirport);
     const landAt = landing ? cardTimes({ start_time: landing.c.start_time ?? null, end_time: landing.c.end_time ?? null, details: landing.c.details ?? null, place: { sub_type: landing.c.place?.sub_type ?? null } }).start : null;
@@ -348,7 +363,7 @@ export function checklistRows(input: CheckInput): CheckRow[] {
     rows.push(row("car", auto, {
       line: `${code ? `${airportCity(code) ?? code} airport` : englishTown(town)} · ${plural(people, "seat")}${twoCars(people) ? ", two cars" : ""}`,
       url: carsUrl({ at, pickUp, pickUpHour, dropOff: trip.end_date, dropOffHour: 10, people, base }),
-    }, { dayId: car?.day_id ?? null, name: carName }));
+    }, { dayId: car?.day_id ?? null, name: carName }, carItems(cars)));
   }
   return rows;
 }

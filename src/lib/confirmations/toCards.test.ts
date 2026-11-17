@@ -104,3 +104,13 @@ describe("what a booking cost (6 Oct 2026): once per booking, on the opening car
     expect(extractBookings(JSON.stringify([{ ...flight, total_paid: 900, paid_currency: "CAD" }, { ...back, total_paid: 900, paid_currency: "CAD" }])).map((b) => b.total_paid)).toEqual([900, null]);
   });
 });
+
+describe("a cruise added by hand (17 Nov 2026)", () => {
+  const cruise = { type: "cruise" as const, title: "Viking Mars", confirmation_number: null, date: "2027-07-20", time: "14:00", end_time: null, address: "Reykjavík cruise terminal", phone: null, website: null, notes: null, check_out_date: "2027-07-30" };
+  it("boards the ship at its port, a Port place, and leaves it on the last day", () => {
+    expect(placeSubType("cruise")).toEqual({ type: "logistics", sub_type: "port" });
+    expect(placeQuery(cruise)).toBe("Reykjavík cruise terminal");
+    expect(openingTitle(cruise, "Viking Mars")).toBe("Board Viking Mars");
+    expect(closingEvent(cruise, "Viking Mars")).toEqual({ date: "2027-07-30", time: "08:00:00", title: "Leave Viking Mars" });
+  });
+});

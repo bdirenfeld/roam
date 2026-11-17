@@ -1243,7 +1243,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards, in
           onSave={(start, end) => handleTimeSave(timeCard, start, end)}
         />
       )}
-      {showDocs && <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} onImport={readOnly ? undefined : () => { setShowDocs(false); upload.pick(); }} />}
+      {showDocs && <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} onImport={readOnly ? undefined : () => { setShowDocs(false); upload.pick(); }} onAddByHand={readOnly ? undefined : () => { setShowDocs(false); upload.addByHand(); }} />}
       {upload.reading && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[70] px-4 py-2 rounded-full bg-[#1A1A2E] text-white text-[12.5px] shadow-lg">
           {upload.readingLabel}

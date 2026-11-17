@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
-import { render, screen, cleanup, waitFor, within } from "@testing-library/react";
+import { render, screen, cleanup, waitFor, within, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import journeys from "@/lib/booking/fixtures/journeys.json";
 import type { BookingFile } from "@/lib/booking/files";
@@ -80,7 +80,7 @@ describe("Bookings: three rows, one mark each", () => {
     expect(rowOf("flights").getAttribute("target")).toBe("_blank");
 
     expect(screen.getByTestId("to-book-stays").dataset.state).toBe("booked");
-    expect(rowOf("stays").textContent).toBe("StaysVilla Zambaldi · all 11 nights›");
+    expect(rowOf("stays").textContent).toBe("StaysVilla Zambaldi · 11 nights›");
     expect(rowOf("stays").tagName).toBe("BUTTON");
 
     expect(rowOf("car").textContent).toBe("CarPisa airport · 7 seats›");
@@ -497,5 +497,30 @@ describe("Did you book it? (7 Oct 2026, delight audit, mock approved)", () => {
     expect(screen.getByTestId("to-book-car").dataset.state).toBe("booked");
     expect(screen.queryByTestId("to-book-car-ask")).toBeNull();
     expect(rowOf("car").textContent).toBe("CarMarked booked›");
+  });
+});
+
+describe("a row with many bookings (17 Nov 2026)", () => {
+  it("ten flights read as one line, and a tap unfolds one line each; a line opens its day", async () => {
+    const t = J_("Tuscany");
+    const dayIds = (t.days as unknown as { id: string }[]).map((d) => d.id);
+    const villa = t.cards.find((c) => (c as { place?: { sub_type?: string } }).place?.sub_type === "hotel") as unknown as Record<string, unknown> & { place: Record<string, unknown> };
+    const flights = Array.from({ length: 10 }, (_, i) => ({ ...villa, id: `f${i}`, day_id: dayIds[i], details: { flight_number: `AZ${100 + i}` }, place: { ...villa.place, sub_type: "flight_departure" } }));
+    journey = { ...t, cards: [...t.cards, ...flights] } as unknown as J;
+    render(<ToBookSection tripId="tuscany-a" onImport={() => {}} />);
+    await waitFor(() => expect(rowOf("flights").textContent).toContain("10 flights · 24 Aug – 2 Sep"));
+    fireEvent.click(rowOf("flights"));
+    const list = screen.getByTestId("to-book-flights-items");
+    expect(list.querySelectorAll("button")).toHaveLength(10);
+    fireEvent.click(list.querySelectorAll("button")[0]);
+    expect(push).toHaveBeenCalledWith(`/trips/tuscany-a/days/${dayIds[0]}`);
+  });
+
+  it("Add one yourself sits beside Upload a confirmation", async () => {
+    journey = J_("Tuscany");
+    const byHand = vi.fn();
+    render(<ToBookSection tripId="tuscany-a" onImport={() => {}} onAddByHand={byHand} />);
+    fireEvent.click(await screen.findByText("Add one yourself"));
+    expect(byHand).toHaveBeenCalled();
   });
 });

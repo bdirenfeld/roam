@@ -8,7 +8,7 @@ const mem = (): KeyStore & { m: Map<string, string> } => {
   const m = new Map<string, string>();
   return { m, getItem: (k) => m.get(k) ?? null, setItem: (k, v) => void m.set(k, v), removeItem: (k) => void m.delete(k) };
 };
-const row = (key: RowKey, state: CheckRow["state"]): CheckRow => ({ key, title: key, line: "", state, manual: null, url: null, cost: null, dayId: null, name: null });
+const row = (key: RowKey, state: CheckRow["state"]): CheckRow => ({ key, title: key, line: "", state, manual: null, url: null, cost: null, dayId: null, name: null, items: [] });
 
 describe("the remembered rows", () => {
   it("round-trips per journey, in row order, and an empty list removes the entry", () => {
