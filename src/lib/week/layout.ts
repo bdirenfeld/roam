@@ -31,13 +31,23 @@ export function snap(m: number): number {
 
 /** Grid y (px from the top of the hour rows) → minutes since midnight, snapped
  *  and clamped to the drawn hours. */
-export function minutesAtY(y: number): number {
-  const raw = HOUR_START * 60 + (y / PX_PER_HOUR) * 60;
+export function minutesAtY(y: number, pxPerHour = PX_PER_HOUR): number {
+  const raw = HOUR_START * 60 + (y / pxPerHour) * 60;
   return Math.max(HOUR_START * 60, Math.min(HOUR_END * 60, snap(raw)));
 }
 
-export function gridHeight(): number {
-  return (HOUR_END - HOUR_START + 1) * PX_PER_HOUR;
+export function gridHeight(pxPerHour = PX_PER_HOUR): number {
+  return (HOUR_END - HOUR_START + 1) * pxPerHour;
+}
+
+/** Hours sized so 7 am to midnight fits the room under the day headers
+ *  (18 Nov 2026, Brennan: "see the entire day without scrolling"). PX_PER_HOUR
+ *  is the ceiling on a tall screen; MIN_PX_PER_HOUR the floor, below which the
+ *  week scrolls rather than squash a one-hour card. */
+export const MIN_PX_PER_HOUR = 28;
+export function fitPxPerHour(room: number): number {
+  const fit = Math.floor(room / (HOUR_END - HOUR_START + 1));
+  return Math.max(MIN_PX_PER_HOUR, Math.min(PX_PER_HOUR, fit));
 }
 
 export interface Block {
@@ -64,7 +74,7 @@ function effectiveEnd(b: Block): number {
  * the way a calendar does. Overlap is decided on the DRAWN extent, so a
  * no-end card still gets a lane. Sorted by start, then longest first.
  */
-export function placeBlocks(blocks: Block[]): Placed[] {
+export function placeBlocks(blocks: Block[], pxPerHour = PX_PER_HOUR): Placed[] {
   const sorted = [...blocks].sort((a, b) =>
     a.startMin - b.startMin || effectiveEnd(b) - effectiveEnd(a),
   );
@@ -83,8 +93,8 @@ export function placeBlocks(blocks: Block[]): Placed[] {
       laneOf.set(b.id, lane);
     }
     for (const b of cluster) {
-      const top = ((b.startMin - HOUR_START * 60) / 60) * PX_PER_HOUR;
-      const height = Math.max(22, ((effectiveEnd(b) - b.startMin) / 60) * PX_PER_HOUR - 3);
+      const top = ((b.startMin - HOUR_START * 60) / 60) * pxPerHour;
+      const height = Math.max(22, ((effectiveEnd(b) - b.startMin) / 60) * pxPerHour - 3);
       out.push({ ...b, top, height, lane: laneOf.get(b.id)!, lanes: laneEnds.length });
     }
     cluster = [];

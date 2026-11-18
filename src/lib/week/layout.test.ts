@@ -87,3 +87,18 @@ describe("the hover slot (6 Oct 2026, Brennan)", () => {
     expect(slotLabel(23 * 60, newBlockEnd(23 * 60))).toBe("11:00 – 11:45 PM");
   });
 });
+
+describe("fitPxPerHour", () => {
+  it("fits 7 am to midnight in the room, between the floor and the old 48px", async () => {
+    const { fitPxPerHour, gridHeight } = await import("./layout");
+    expect(fitPxPerHour(653)).toBe(38);            // a 1366×768 laptop under the masthead and headers
+    expect(gridHeight(fitPxPerHour(653))).toBeLessThanOrEqual(653);
+    expect(fitPxPerHour(2000)).toBe(48);           // a tall monitor keeps today's spacing
+    expect(fitPxPerHour(300)).toBe(28);            // a tiny window scrolls rather than squash
+  });
+  it("scales the blocks and the pointer maths with it", async () => {
+    const { placeBlocks, minutesAtY } = await import("./layout");
+    expect(placeBlocks([{ id: "a", startMin: 9 * 60, endMin: 10 * 60 }], 38)[0]).toMatchObject({ top: 76, height: 35 });
+    expect(minutesAtY(76, 38)).toBe(9 * 60);
+  });
+});

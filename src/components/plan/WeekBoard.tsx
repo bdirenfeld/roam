@@ -52,7 +52,7 @@ import { stayRuns } from "@/lib/stays/stayRuns";
 import { searchCountries } from "@/lib/entry/countries";
 import { useHourSuggest, HourSuggestList, hourPickName, importPrediction, type HourPick } from "./HourSuggest";
 import {
-  placeBlocks, movedTimes, resizedEnd, resizedStart, minutesAtY, toMin, toTime, fmt12, slotLabel, newBlockEnd, gridHeight,
+  placeBlocks, movedTimes, resizedEnd, resizedStart, minutesAtY, toMin, toTime, fmt12, slotLabel, newBlockEnd, gridHeight, fitPxPerHour,
   HOUR_START, HOUR_END, PX_PER_HOUR, NO_END_MIN, type Block,
 } from "@/lib/week/layout";
 // The same name the day view and card use: an event keeps its own over the venue (7 Oct 2026).
@@ -285,6 +285,25 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
   const gridRef = useRef<HTMLDivElement | null>(null);
   const colsRef = useRef<HTMLDivElement | null>(null);
   const laneRef = useRef<HTMLDivElement | null>(null);
+  // The whole day on one screen (18 Nov 2026): hours sized to the room left
+  // under the day headers in the week's scroller (lib/week/layout fitPxPerHour).
+  // Re-measured when the window, the headers (untimed cards) or the entry line change.
+  const [pph, setPph] = useState(PX_PER_HOUR);
+  useEffect(() => {
+    const el = gridRef.current, cols = colsRef.current;
+    if (!el || !cols || typeof ResizeObserver === "undefined") return;
+    const measure = () => {
+      if (!el.clientHeight) return; // not laid out (hidden behind the wide map, or jsdom)
+      const above = cols.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop;
+      setPph(fitPxPerHour(el.clientHeight - above - 2));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    if (el.firstElementChild) ro.observe(el.firstElementChild);
+    if (laneRef.current) ro.observe(laneRef.current);
+    return () => ro.disconnect();
+  }, []);
   const dragRef = useRef<Drag | null>(null);
   // While a drag is in flight the block follows the pointer through a live
   // override; the real times are written once on drop.
@@ -371,7 +390,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
     const g = colsRef.current; if (!g) return null;
     const r = g.getBoundingClientRect();
     if (clientY < r.top || clientY > r.bottom) return null;
-    return minutesAtY(clientY - r.top);
+    return minutesAtY(clientY - r.top, pph);
   }
   function overMapPanel(x: number, y: number): boolean {
     const p = mapPanelRef.current; if (!p) return false;
@@ -461,13 +480,13 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
         const r = g.getBoundingClientRect();
         const t = cardTimes(d.card);
         const end = t.end ? toMin(t.end) : null;
-        const min = toMin(resizedStart({ id: d.card.id, startMin: toMin(t.start ?? "07:00:00"), endMin: end }, minutesAtY(e.clientY - r.top)));
+        const min = toMin(resizedStart({ id: d.card.id, startMin: toMin(t.start ?? "07:00:00"), endMin: end }, minutesAtY(e.clientY - r.top, pph)));
         const dayIdx = shownRef.current.findIndex((x) => x.id === d.card.day_id);
         setGhost({ id: d.card.id, day: dayIdx, min, endMin: end });
       } else {
         const g = colsRef.current; if (!g) return;
         const r = g.getBoundingClientRect();
-        const endMin = Math.max(toMin(cardTimes(d.card).start ?? "07:00:00") + 30, minutesAtY(e.clientY - r.top));
+        const endMin = Math.max(toMin(cardTimes(d.card).start ?? "07:00:00") + 30, minutesAtY(e.clientY - r.top, pph));
         const dayIdx = shownRef.current.findIndex((x) => x.id === d.card.day_id);
         setGhost({ id: d.card.id, day: dayIdx, min: toMin(cardTimes(d.card).start ?? "07:00:00"), endMin });
       }
@@ -532,7 +551,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
     return () => { window.removeEventListener("pointermove", onMove); window.removeEventListener("pointerup", onUp); };
     // dayAtX/minAtY/overLane read refs and nDays; nDays only changes with days, which re-runs via ghost writes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ghost, write, nDays, overMap]);
+  }, [ghost, write, nDays, overMap, pph]);
 
   // ── events on set days ─────────────────────────────────────────
   // Brennan, 1 Oct 2026: the Bravio delle Botti is on one Sunday; dropping it
@@ -917,8 +936,8 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
     // A night in port carries into this morning, until all aboard (17 Nov 2026).
     const prevDate = new Date(Date.parse(d.date + "T00:00:00Z") - 86_400_000).toISOString().slice(0, 10);
     const carry = (days.find((x) => x.date === prevDate)?.cards ?? []).filter((c) => isPortCard(c) && isOvernight(c));
-    return { day: d, placed: placeBlocks(timed), untimed, legRuns, ports, carry };
-  }), [shown, days, ghost, saved]);
+    return { day: d, placed: placeBlocks(timed, pph), untimed, legRuns, ports, carry };
+  }), [shown, days, ghost, saved, pph]);
   const byId = useMemo(() => { const m = new Map<string, Card>(); saved.forEach((c) => m.set(c.id, c)); days.forEach((d) => d.cards.forEach((c) => m.set(c.id, c))); return m; }, [days, saved]);
   // Where you sleep (1 Oct 2026, lib/stays/stayRuns). The Anytime lane went
   // (untimed cards sit in their day's header); a band across the hotel's
@@ -1125,10 +1144,10 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
           </div>
           {/* the hours */}
           <div className="relative">
-            <div ref={colsRef} className="grid relative" style={{ ...gridStyle, height: gridHeight() }}>
+            <div ref={colsRef} className="grid relative" style={{ ...gridStyle, height: gridHeight(pph) }}>
               <div className="sticky left-0 z-[8] bg-white">
                 {hours.map((h) => (
-                  <div key={h} className="absolute right-1.5 text-[10px] text-activity/40 tabular-nums" style={{ top: (h - HOUR_START) * PX_PER_HOUR - 6 }}>{h % 12 || 12}{h < 12 ? " am" : " pm"}</div>
+                  <div key={h} className="absolute right-1.5 text-[10px] text-activity/40 tabular-nums" style={{ top: h === HOUR_START ? 2 : (h - HOUR_START) * pph - 6 }}>{h % 12 || 12}{h < 12 ? " am" : " pm"}</div>
                 ))}
               </div>
               <div className="contents">
@@ -1142,7 +1161,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
                       // A quiet label on stretches of 2 h or more (17 Nov 2026): the blue alone had to be guessed.
                       const label = z2 - a2 >= 120 ? (a <= 0 && z >= 24 * 60 ? "At sea" : "On board") : null;
                       return (
-                        <div key={a} data-ship={day.id} aria-hidden="true" className="absolute left-0 right-0 pointer-events-none" style={{ background: SHIP_BLUE, top: (a2 / 60 - HOUR_START) * PX_PER_HOUR, height: ((z2 - a2) / 60) * PX_PER_HOUR }}>
+                        <div key={a} data-ship={day.id} aria-hidden="true" className="absolute left-0 right-0 pointer-events-none" style={{ background: SHIP_BLUE, top: (a2 / 60 - HOUR_START) * pph, height: ((z2 - a2) / 60) * pph }}>
                           {label && (
                             <span data-ship-label className="absolute top-1.5 left-2 flex items-center gap-1 text-[10px] font-medium" style={{ color: SHIP_INK }}>
                               <span className="inline-flex" dangerouslySetInnerHTML={{ __html: getGlyphHTML("directions_boat", 11) }} />
@@ -1153,9 +1172,9 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
                       );
                     })}
                     {hours.map((h) => (
-                      <div key={h} data-hourline="1" className="absolute left-0 right-0" style={{ top: (h - HOUR_START) * PX_PER_HOUR, borderTop: "1px solid rgba(26,26,46,0.06)" }}>
+                      <div key={h} data-hourline="1" className="absolute left-0 right-0" style={{ top: (h - HOUR_START) * pph, borderTop: "1px solid rgba(26,26,46,0.06)" }}>
                         {/* Half-hour mark (12 Nov 2026): a faint dashed line so 9:40 has somewhere to sit. */}
-                        {h < HOUR_END && <div data-halfhour="1" className="absolute left-0 right-0 pointer-events-none" style={{ top: PX_PER_HOUR / 2 - 1, borderTop: "1px dashed rgba(26,26,46,0.13)" }} />}
+                        {h < HOUR_END && <div data-halfhour="1" className="absolute left-0 right-0 pointer-events-none" style={{ top: pph / 2 - 1, borderTop: "1px dashed rgba(26,26,46,0.13)" }} />}
                       </div>
                     ))}
                     {canHover && slot && slot.dayIdx === di && !collapsed(di) && !draftBlock && !ghost && !dragChip && (
@@ -1163,7 +1182,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
                         data-testid="hover-slot"
                         aria-hidden
                         className="absolute left-[3px] right-[3px] rounded-[6px] pointer-events-none"
-                        style={{ top: ((slot.min - HOUR_START * 60) / 60) * PX_PER_HOUR, height: PX_PER_HOUR, background: "rgba(26,26,46,0.05)", border: "1px dashed rgba(26,26,46,0.18)", zIndex: 0, padding: "4px 6px" }}
+                        style={{ top: ((slot.min - HOUR_START * 60) / 60) * pph, height: pph, background: "rgba(26,26,46,0.05)", border: "1px dashed rgba(26,26,46,0.18)", zIndex: 0, padding: "4px 6px" }}
                       >
                         <div className="text-[9.5px] text-activity/40 tabular-nums">{slotLabel(slot.min, newBlockEnd(slot.min))}</div>
                       </div>
@@ -1173,7 +1192,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
                         onPointerDown={(e) => e.stopPropagation()}
                         onClick={(e) => e.stopPropagation()}
                         className="absolute left-[3px] right-[3px] rounded-[6px] z-[7]"
-                        style={{ top: ((draftBlock.min - HOUR_START * 60) / 60) * PX_PER_HOUR, height: PX_PER_HOUR, background: "#F3EFE4", border: "1px dashed rgba(26,26,46,0.35)", borderLeft: "3px solid rgba(26,26,46,0.4)", padding: "4px 6px" }}
+                        style={{ top: ((draftBlock.min - HOUR_START * 60) / 60) * pph, height: pph, background: "#F3EFE4", border: "1px dashed rgba(26,26,46,0.35)", borderLeft: "3px solid rgba(26,26,46,0.4)", padding: "4px 6px" }}
                       >
                         <input
                           autoFocus
@@ -1282,7 +1301,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
                             // A typed note looks like its kind, not like a note (11 Nov 2026). A place is a
                             // soft wash of its kind's colour (17 Nov 2026, option B): white cards vanished on
                             // the white week. Solid, not see-through, so a card on ship blue keeps its colour.
-                            background: note && !nk ? "#F3EFE4" : blockTint(blockColor, b.height >= 3 * PX_PER_HOUR),
+                            background: note && !nk ? "#F3EFE4" : blockTint(blockColor, b.height >= 3 * pph),
                             border: `1px ${noEnd ? "dashed" : "solid"} ${note && !nk ? "rgba(26,26,46,0.10)" : blockEdge(blockColor)}`,
                             // The pin's colour on the edge and its glyph before the
                             // name (Brennan, 25 Sep 2026): three colours the map

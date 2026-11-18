@@ -2553,3 +2553,10 @@ Check phone screens in the phone viewer (`/dev/phone`, `scripts/phone-check.mjs`
   day lined up as stripes and was dropped). A ship stretch of 2 h+ carries a quiet label top left (moved from the right: everything on the board reads from the left)
   (`data-ship-label`, ship glyph + "On board", or "At sea" for a whole day) in `SHIP_INK` #4A6F9E. The bottom grab bar shows only on hover. Mocked on the real board first
   (a temporary `/dev/cruise-mock`, not committed).
+
+## The week fits the whole day (18 Nov 2026)
+The grid is always 7 am to midnight (his call: no "ends at your latest plan" rule). WeekBoard measures the room
+under the day headers and sizes the hours with `fitPxPerHour` (lib/week/layout): 48px on a tall screen, 38 on a
+1366×768 laptop, never under 28 (then it scrolls). Every px maths reads the `pph` state, never `PX_PER_HOUR`;
+`placeBlocks`/`minutesAtY`/`gridHeight` take it as an argument. The 7 am label sits under its line (it was half
+hidden under the headers).
