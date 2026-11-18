@@ -68,7 +68,15 @@ const ICONS: Record<string, (c: string) => string> = {
     `<path d="M5 3l2 8h10l2-8H5zm6 8v9m-3 2h6" stroke="${c}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`,
 };
 
+// The 18 Nov 2026 kinds borrow their nearest sibling's pin drawing.
+const PIN_ALIAS: Record<string, string> = {
+  bakery: "dessert", market: "grocery", shopping: "grocery", museum: "guided", hike: "self_directed",
+  park: "self_directed", zoo: "self_directed", theme_park: "event", festival: "event",
+  car_rental: "transfer", pharmacy: "medical", hospital: "medical",
+};
+
 function getIcon(subType: string | null | undefined, color: string): string {
+  if (subType && !ICONS[subType] && PIN_ALIAS[subType]) subType = PIN_ALIAS[subType];
   if (subType && ICONS[subType]) return ICONS[subType](color);
   return `<circle cx="12" cy="12" r="4" fill="${color}"/>`;
 }
@@ -188,6 +196,19 @@ export const MATERIAL_ICONS: Record<string, string> = {
   grocery:          "local_grocery_store",
   pet_care:         "pets",
   medical:          "medical_services",
+  // 18 Nov 2026 kinds
+  hospital:         "local_hospital",
+  pharmacy:         "local_pharmacy",
+  car_rental:       "car_rental",
+  bakery:           "bakery_dining",
+  market:           "storefront",
+  shopping:         "shopping_bag",
+  museum:           "museum",
+  hike:             "hiking",
+  park:             "park",
+  zoo:              "cruelty_free",
+  theme_park:       "attractions",
+  festival:         "event",
 };
 
 /** Glyphs used outside MATERIAL_ICONS: the fallback, a note card, the day map's hotel. */

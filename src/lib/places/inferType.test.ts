@@ -7,7 +7,7 @@ describe("inferType", () => {
     expect(inferType(["restaurant", "food", "point_of_interest", "establishment"])).toEqual({ type: "food", sub_type: "restaurant" });
     expect(inferType(["lodging", "point_of_interest", "establishment"])).toEqual({ type: "logistics", sub_type: "hotel" });
     expect(inferType(["airport", "point_of_interest", "establishment"])).toEqual({ type: "logistics", sub_type: "flight_arrival" });
-    expect(inferType(["amusement_park", "establishment", "museum"])).toEqual({ type: "activity", sub_type: "guided" }); // teamLab: museum is ranked first
+    expect(inferType(["amusement_park", "establishment", "museum"])).toEqual({ type: "activity", sub_type: "museum" }); // teamLab: museum is ranked first
   });
   it("keeps a gelateria as food, not a shop", () => {
     expect(inferType(["food", "point_of_interest", "store", "establishment"])).toEqual({ type: "food", sub_type: "restaurant" });
@@ -43,7 +43,7 @@ describe("ports", () => {
     expect(inferTypeOrSight(["establishment", "point_of_interest"], "Cruise Terminal, Palma de Mallorca, Estacio Maritima 2")).toEqual(TRANSIT);
   });
   it("never turns a museum, a meal or a town into a port", () => {
-    expect(inferTypeOrSight(["museum", "establishment"], "Museu Marítim de Barcelona")).toEqual({ type: "activity", sub_type: "guided" });
+    expect(inferTypeOrSight(["museum", "establishment"], "Museu Marítim de Barcelona")).toEqual({ type: "activity", sub_type: "museum" });
     expect(inferTypeOrSight(["restaurant", "food"], "Port of Call Grill").type).toBe("food");
     expect(isPortName("Portofino")).toBe(false);
     expect(isPortName("Sports Bar Barcelona")).toBe(false);
@@ -79,7 +79,7 @@ describe("bars", () => {
 
 describe("a venue with a gift shop", () => {
   it("is the venue, not Shopping", () => {
-    expect(inferType(["establishment", "museum", "point_of_interest", "store", "tourist_attraction"])).toEqual({ type: "activity", sub_type: "guided" }); // Ryman Auditorium
+    expect(inferType(["establishment", "museum", "point_of_interest", "store", "tourist_attraction"])).toEqual({ type: "activity", sub_type: "museum" }); // Ryman Auditorium
     expect(inferType(["clothing_store", "establishment", "store"])).toEqual({ type: "activity", sub_type: "shopping" });
     expect(inferType(["establishment", "point_of_interest", "store"])).toEqual({ type: "activity", sub_type: "shopping" });
   });
@@ -127,5 +127,24 @@ describe("a boat tour is not a port", () => {
     expect(isPortName("Niagara City Cruises")).toBe(false);
     expect(isPortName("Hornblower Niagara Cruises")).toBe(false);
     expect(isPortName("Dover Ferry Terminal")).toBe(true);
+  });
+});
+
+describe("the 18 Nov 2026 kinds", () => {
+  it("names the place: pharmacy, hospital, clinic, car rental", () => {
+    expect(inferType(["drugstore", "health", "store"])).toEqual({ type: "logistics", sub_type: "pharmacy" });
+    expect(inferType(["hospital", "health", "point_of_interest"])).toEqual({ type: "logistics", sub_type: "hospital" });
+    expect(inferType(["doctor", "health"])).toEqual({ type: "logistics", sub_type: "medical" });
+    expect(inferType(["car_rental", "point_of_interest"])).toEqual({ type: "logistics", sub_type: "car_rental" });
+  });
+  it("a zoo, a theme park and a park are not just something to explore, even with a gift shop", () => {
+    expect(inferType(["zoo", "store", "tourist_attraction"])).toEqual({ type: "activity", sub_type: "zoo" });
+    expect(inferType(["aquarium", "tourist_attraction"])).toEqual({ type: "activity", sub_type: "zoo" });
+    expect(inferType(["amusement_park", "store", "tourist_attraction"])).toEqual({ type: "activity", sub_type: "theme_park" });
+    expect(inferType(["park", "tourist_attraction"])).toEqual({ type: "activity", sub_type: "park" });
+    expect(inferType(["tourist_attraction", "point_of_interest"])).toEqual({ type: "activity", sub_type: "self_directed" });
+  });
+  it("a bakery is a Bakery, not a dessert stop", () => {
+    expect(inferType(["bakery", "food", "store"])).toEqual({ type: "food", sub_type: "bakery" });
   });
 });

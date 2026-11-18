@@ -20,8 +20,8 @@ describe("a rental car in a package is a pick-up and a drop-off", () => {
     type: "car_rental", title: "Hertz · Pisa Airport", confirmation_number: "H1", date: "2027-08-24", time: "11:30", end_time: null,
     address: "Pisa International Airport", phone: null, website: null, notes: null, drop_off_date: "2027-09-04", drop_off_time: "08:00", drop_off_location: null,
   };
-  it("is saved as a transit stop at the pick-up desk", () => {
-    expect(placeSubType("car_rental")).toEqual({ type: "logistics", sub_type: "transit" });
+  it("is saved as a Car rental at the pick-up desk (18 Nov 2026; was Transit)", () => {
+    expect(placeSubType("car_rental")).toEqual({ type: "logistics", sub_type: "car_rental" });
     expect(placeQuery(car)).toBe("Pisa International Airport");
   });
   it("opens as the pick-up and closes on the drop-off day", () => {

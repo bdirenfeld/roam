@@ -35,6 +35,9 @@ export interface FindCategory {
 const KINDS: [string, FindCategory["type"]][] = [
   ["self_directed", "activity"], ["restaurant", "food"], ["coffee", "food"], ["dessert", "food"], ["bar", "food"],
   ["guided", "activity"], ["beach", "activity"], ["wellness", "activity"], ["event", "activity"], ["challenge", "activity"], ["camp", "activity"],
+  // 18 Nov 2026: the new kinds, so Find still covers the whole list.
+  ["bakery", "food"], ["market", "food"],
+  ["museum", "activity"], ["park", "activity"], ["hike", "activity"], ["zoo", "activity"], ["theme_park", "activity"], ["shopping", "activity"],
 ];
 export const FIND_CATEGORIES: FindCategory[] = KINDS.map(([subType, type]) => ({ subType, type, label: subTypeLabel(subType)! }));
 

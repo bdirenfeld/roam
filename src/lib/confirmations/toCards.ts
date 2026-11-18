@@ -144,7 +144,7 @@ export function placeQuery(p: ParsedConfirmation): string | null {
 export function placeSubType(t: ConfirmationType): { type: "logistics" | "food" | "activity"; sub_type: string } {
   if (isFlight(t) || t === "hotel") return { type: "logistics", sub_type: t };
   // Roam has no car category; a pick-up desk is a transit stop, as a station is.
-  if (t === "car_rental") return { type: "logistics", sub_type: "transit" };
+  if (t === "car_rental") return { type: "logistics", sub_type: "car_rental" }; // __types_nov18__
   // Boarding a ship is a port (lib/cards/port), its own kind since 17 Nov 2026.
   if (t === "cruise") return { type: "logistics", sub_type: "port" };
   if (t === "restaurant") return { type: "food", sub_type: "restaurant" };

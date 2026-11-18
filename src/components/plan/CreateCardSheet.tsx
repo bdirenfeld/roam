@@ -25,12 +25,20 @@ const SUB_TYPES: Record<CardType, { value: string; label: string }[]> = sortOpti
     { value: "event",         label: "Event"         },
     { value: "beach",         label: "Beach"         },
     { value: "camp",          label: "Camp"          },
+    { value: "shopping",      label: "Shopping"      },
+    { value: "museum",        label: "Museum"        },
+    { value: "hike",          label: "Hike"          },
+    { value: "park",          label: "Park"          },
+    { value: "zoo",           label: "Zoo"           },
+    { value: "theme_park",    label: "Theme park"    },
   ],
   food: [
     { value: "restaurant", label: "Restaurant" },
     { value: "coffee",     label: "Coffee"     },
     { value: "dessert",    label: "Dessert"    },
     { value: "bar",        label: "Bar"        },
+    { value: "bakery",     label: "Bakery"     },
+    { value: "market",     label: "Market"     },
   ],
   logistics: [
     { value: "flight_arrival",   label: "Arrival"          },
@@ -40,7 +48,10 @@ const SUB_TYPES: Record<CardType, { value: string; label: string }[]> = sortOpti
     { value: "port",             label: "Port"             },
     { value: "grocery",          label: "Grocery"          },
     { value: "pet_care",         label: "Pet care"         },
-    { value: "medical",          label: "Medical"          },
+    { value: "medical",          label: "Clinic"           },
+    { value: "hospital",         label: "Hospital"         },
+    { value: "pharmacy",         label: "Pharmacy"         },
+    { value: "car_rental",       label: "Car rental"       },
   ],
 });
 
@@ -70,21 +81,26 @@ function inferType(googleTypes: string[], name: string): { type: CardType; subTy
     return { type: "logistics", subType: "transit" };
   if (t.has("supermarket") || t.has("grocery_or_supermarket"))
     return { type: "logistics", subType: "grocery" };
-  if (t.has("pharmacy") || t.has("hospital") || t.has("doctor"))
-    return { type: "logistics", subType: "medical" };
+  if (t.has("hospital")) return { type: "logistics", subType: "hospital" };
+  if (t.has("pharmacy") || t.has("drugstore")) return { type: "logistics", subType: "pharmacy" };
+  if (t.has("doctor") || t.has("dentist")) return { type: "logistics", subType: "medical" };
+  if (t.has("car_rental")) return { type: "logistics", subType: "car_rental" };
   // A cruise or ferry port has no Google category of its own (lib/places/inferType).
   if (isPortName(name) && !["museum", "art_gallery", "restaurant", "bar", "cafe", "food"].some((k) => t.has(k)))
     return { type: "logistics", subType: "transit" };
   if (t.has("cafe") || /caff[eè]|coffee|espresso/i.test(name)) return { type: "food", subType: "coffee" };
-  if (t.has("bakery") || /gelato|dessert|pastel/i.test(name))  return { type: "food", subType: "dessert" };
+  if (t.has("bakery"))                                         return { type: "food", subType: "bakery" };
+  if (/gelato|dessert|pastel/i.test(name))                     return { type: "food", subType: "dessert" };
   if (isBarLike(googleTypes, name))                            return { type: "food", subType: "bar" };
   if (t.has("restaurant") || t.has("meal_takeaway") || t.has("food"))
     return { type: "food", subType: "restaurant" };
   if (t.has("spa") || /massage|spa|wellness/i.test(name)) return { type: "activity", subType: "wellness" };
   if (isCampName(name) && !t.has("lodging") && !t.has("campground")) return { type: "activity", subType: "camp" };
   if (t.has("beach"))                                     return { type: "activity", subType: "beach" };
-  if (t.has("museum") || t.has("art_gallery") || t.has("park") || t.has("tourist_attraction"))
-    return { type: "activity", subType: "self_directed" };
+  if (t.has("museum") || t.has("art_gallery"))            return { type: "activity", subType: "museum" };
+  if (t.has("amusement_park") || t.has("water_park"))     return { type: "activity", subType: "theme_park" };
+  if (t.has("zoo") || t.has("aquarium"))                  return { type: "activity", subType: "zoo" };
+  if (t.has("park"))                                      return { type: "activity", subType: "park" };
   return { type: "activity", subType: "self_directed" };
 }
 

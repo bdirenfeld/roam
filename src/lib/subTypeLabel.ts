@@ -13,6 +13,9 @@ export const SUB_TYPE_LABEL: Record<string, string> = {
   dessert:          "Dessert",
   bar:              "Bar",
   fine_dining:      "Fine dining",
+  // 18 Nov 2026: a bakery is not a dessert stop, a market is an outing, not a meal.
+  bakery:           "Bakery",
+  market:           "Market",
   // activity
   // "Guided" and "Self-directed" were the database talking. A tour is a tour
   // (Colosseum, the Vatican, the truffle hunt, the cooking classes), and the
@@ -31,6 +34,15 @@ export const SUB_TYPE_LABEL: Record<string, string> = {
   beach:            "Beach",
   // A kids' day camp or class: nine to three, most weekdays (27 Sep 2026).
   camp:             "Camp",
+  // Explore held 195 cards (18 Nov 2026); these name the place, not the audience
+  // ("Kids" was too vague, Brennan): a playground is a Park, an aquarium a Zoo.
+  museum:           "Museum",
+  hike:             "Hike",
+  park:             "Park",
+  zoo:              "Zoo",
+  theme_park:       "Theme park",
+  // A one-off tag from an import; Event already means anything on a fixed date.
+  festival:         "Event",
   // logistics
   hotel:            "Hotel",
   accommodation:    "Hotel",
@@ -44,7 +56,12 @@ export const SUB_TYPE_LABEL: Record<string, string> = {
   // accommodation logic reads as "where you are staying", and Finn's hotel is
   // not Brennan's (Sep 2026).
   pet_care:         "Pet care",
-  medical:          "Medical",
+  // Medical split three ways (18 Nov 2026): the value "medical" stays and reads Clinic.
+  medical:          "Clinic",
+  hospital:         "Hospital",
+  pharmacy:         "Pharmacy",
+  // Roam reads rental confirmations; they used to land as Transit.
+  car_rental:       "Car rental",
   // older spellings still in a few rows
   hosted:           "Tour",
   coffee_dessert:   "Coffee",

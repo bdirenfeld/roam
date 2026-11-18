@@ -11,7 +11,7 @@ const GOOGLE_WORDS: Record<string, string> = {
   self_directed: "things to do",
   restaurant: "restaurants",
   coffee: "coffee shop",
-  dessert: "dessert gelato bakery",
+  dessert: "dessert gelato pastry",
   guided: "tours and classes",
   bar: "cocktail bar",
   challenge: "running races",
@@ -19,6 +19,14 @@ const GOOGLE_WORDS: Record<string, string> = {
   event: "live shows and events",
   beach: "beaches",
   camp: "kids day camps",
+  bakery: "bakery",
+  market: "food market",
+  museum: "museums",
+  park: "parks and playgrounds",
+  hike: "hiking trails",
+  zoo: "zoo and aquarium",
+  theme_park: "theme parks and water parks",
+  shopping: "shopping streets",
 };
 
 /**
@@ -62,10 +70,18 @@ const TRAVELLER_WORDS: Record<string, string> = {
   guided: "tours, classes and experiences you book with a guide or teacher: walking, bike and food tours, cooking classes, boat trips (never a sight on its own, a restaurant or a shop)",
   restaurant: "restaurants for a proper lunch or dinner (not inside a theme park)",
   coffee: "cafés and coffee bars (not inside a theme park)",
-  dessert: "gelato, pastry, bakery and dessert shops (not inside a theme park)",
+  dessert: "gelato, pastry and dessert shops (not inside a theme park)",
   bar: "bars, wine bars and cocktail bars (not cafés or restaurants)",
   wellness: "spas, massage, thermal baths and hot springs (not gyms or adventure parks)",
   beach: "beaches and beach clubs",
+  bakery: "bakeries for bread, pastries and a breakfast on the go (not inside a theme park)",
+  market: "food markets, market halls and farmers' markets (not supermarkets)",
+  museum: "museums and galleries",
+  park: "parks, gardens and playgrounds",
+  hike: "hikes and walking trails, each a named trail or route",
+  zoo: "zoos, aquariums and wildlife parks",
+  theme_park: "theme parks, amusement parks and water parks",
+  shopping: "shopping streets, outlet villages and markets for browsing (not supermarkets or chain stores)",
 };
 const DATED_WORDS: Record<string, string> = {
   event: "festivals, concerts, shows, markets and other events",

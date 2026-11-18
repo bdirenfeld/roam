@@ -50,7 +50,6 @@ const GRANDFATHERED = new Set([
   "scheduleCard.ts",
   "share-actions.ts",
   "stripe/server.ts",
-  "subTypeLabel.ts",
   "supabase/admin.ts",
   "supabase/client.ts",
   "supabase/middleware.ts",

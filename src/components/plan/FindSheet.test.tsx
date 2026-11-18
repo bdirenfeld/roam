@@ -195,7 +195,7 @@ describe("Find sheet", { timeout: 20000 }, () => {
     await act(async () => { render(<FindSheet trip={trip} days={[]} cards={[] as Card[]} onClose={vi.fn()} onSaved={vi.fn()} />); });
     const google = new Set(finds().filter((c) => c.body.mode === "google").map((c) => c.body.subType));
     const travellers = new Set(finds().filter((c) => c.body.mode === "travellers").map((c) => c.body.subType));
-    expect(google.size).toBe(11);
+    expect(google.size).toBe(19); // 18 Nov 2026: eight new kinds
     expect(Array.from(travellers).sort()).toEqual(["bar", "coffee", "dessert", "restaurant", "self_directed"]);
     const before = finds().length;
     await act(async () => { fireEvent.click(screen.getByRole("tab", { name: "Food" })); });

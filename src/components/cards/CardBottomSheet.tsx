@@ -141,12 +141,20 @@ const SUB_TYPE_OPTIONS: Record<string, { value: string; label: string }[]> = sor
     { value: "event",         label: "Event"          },
     { value: "beach",         label: "Beach"          },
     { value: "camp",          label: "Camp"           },
+    { value: "shopping",      label: "Shopping"      },
+    { value: "museum",        label: "Museum"        },
+    { value: "hike",          label: "Hike"          },
+    { value: "park",          label: "Park"          },
+    { value: "zoo",           label: "Zoo"           },
+    { value: "theme_park",    label: "Theme park"    },
   ],
   food: [
     { value: "restaurant", label: "Restaurant" },
     { value: "coffee",     label: "Coffee"     },
     { value: "dessert",    label: "Dessert"    },
     { value: "bar",        label: "Bar"        },
+    { value: "bakery",     label: "Bakery"     },
+    { value: "market",     label: "Market"     },
   ],
   logistics: [
     { value: "hotel",            label: "Hotel"            },
@@ -156,7 +164,10 @@ const SUB_TYPE_OPTIONS: Record<string, { value: string; label: string }[]> = sor
     { value: "port",             label: "Port"             },
     { value: "grocery",          label: "Grocery"          },
     { value: "pet_care",         label: "Pet care"         },
-    { value: "medical",          label: "Medical"          },
+    { value: "medical",          label: "Clinic"           },
+    { value: "hospital",         label: "Hospital"         },
+    { value: "pharmacy",         label: "Pharmacy"         },
+    { value: "car_rental",       label: "Car rental"       },
   ],
 });
 

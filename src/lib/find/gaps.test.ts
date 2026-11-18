@@ -43,7 +43,7 @@ describe("gapsFor", () => {
   it("covers every place sub-type Roam has, with a count and no target", () => {
     const gaps = gapsFor({ label: "Kyoto", lat: 35, lng: 135.7, days: 4, counts: { restaurant: 1, self_directed: 3 }, sights: [] });
     expect(gaps.map((g) => g.category.subType)).toEqual(FIND_CATEGORIES.map((c) => c.subType));
-    // The same kinds, in the same words, as the map's Filter: food 4, activity 7.
+    // The same kinds, in the same words, as the map's Filter: food 6, activity 13 (18 Nov 2026).
     const filter = GROUPS.filter((g) => g.typeKey === "food" || g.typeKey === "activity").flatMap((g) => g.rows.map((r) => ({ label: r.label, subType: r.subTypes[0] })));
     expect(FIND_CATEGORIES.map((c) => `${c.label}:${c.subType}`).sort()).toEqual(filter.map((r) => `${r.label}:${r.subType}`).sort());
     const by = (s: string) => gaps.find((g) => g.category.subType === s)!;
