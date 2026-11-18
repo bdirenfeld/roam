@@ -257,6 +257,24 @@ describe("the ship's blue says what it is (17 Nov 2026)", () => {
   });
 });
 
+describe("clicking the ship's label opens the port it left (18 Nov 2026)", () => {
+  it("On board and At sea open the card of the port the ship just left; the blue itself stays unclickable", () => {
+    const port = { id: "grund3", title: "Grundarfjörður", type: "logistics", sub_type: "port", lat: 64.92, lng: -23.25, address: "Grundarfjörður" };
+    const withPort = days.map((d, i) => i === 1
+      ? { ...d, cards: [card("p10", d.id, port as typeof villa, { start_time: "07:00:00", end_time: "18:00:00" })] }
+      : i === 2 ? { ...d, theme: "Day at sea" } : d) as unknown as DayWithCards[];
+    const { container } = render(<WeekBoard trip={trip} initialDays={withPort} initialSaved={[]} />);
+    const buttons = Array.from(container.querySelectorAll("button[data-ship-label]")) as HTMLButtonElement[];
+    expect(buttons.map((b) => b.textContent)).toEqual(["directions_boatOn board", "directions_boatAt sea"]);
+    expect(buttons.every((b) => b.dataset.shipSource === "p10")).toBe(true);
+    expect(screen.queryByTestId("sheet")).toBeNull();
+    fireEvent.click(buttons[1]);
+    expect(screen.getByTestId("sheet").textContent).toBe("Grundarfjörður");
+    // the first morning has no port before it on this trip, so it stays a plain label
+    expect(container.querySelector("[data-ship-label]:not(button)")).toBeNull();
+  });
+});
+
 describe("a note on the week has a glyph too (17 Nov 2026)", () => {
   it("leads with edit_note, like the phone's tile", () => {
     const withNote = days.map((d, i) => i === 0 ? { ...d, cards: [{ id: "n1", trip_id: "t", day_id: d.id, place_id: null, place: null, status: "in_itinerary", position: 1, start_time: "09:00:00", end_time: "10:00:00", details: { title: "Pack the car" } } as unknown as Card] } : d) as unknown as DayWithCards[];

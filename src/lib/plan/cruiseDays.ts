@@ -84,3 +84,32 @@ export function shipSpans(days: (Pick<Day, "id" | "date"> & { theme?: string | n
   });
   return out;
 }
+
+/**
+ * The card a stretch of ship time starts from (18 Nov 2026, Brennan: clicking
+ * "On board" / "At sea" should open the card it relates to). That is the port
+ * the ship just left (its all-aboard time is where the blue begins), or the
+ * boarding card on the first night. Worked out by moment, so a night in port,
+ * a sea day or two in a row all land on the right port. Null when nothing on
+ * the trip starts it (a cruise that begins on a port day with no boarding card).
+ */
+export function shipSpanSource<T extends ShipCard>(days: Pick<Day, "id" | "date">[], scheduled: T[], dayId: string, spanStart: number): T | null {
+  const ordered = byDate(days);
+  const idx = new Map(ordered.map((d, i) => [d.id, i]));
+  const at = idx.get(dayId);
+  if (at === undefined) return null;
+  const startMoment = at * 1440 + spanStart;
+  let best: T | null = null, bestAt = -Infinity;
+  const consider = (c: T, moment: number) => { if (moment <= startMoment && moment > bestAt) { best = c; bestAt = moment; } };
+  for (const c of scheduled) {
+    const i = c.day_id ? idx.get(c.day_id) : undefined;
+    if (i === undefined) continue;
+    if (isPortCard(c)) {
+      // Leaves at all aboard; a night in port leaves the next day; no all-aboard time reads as midnight (as shipSpans does).
+      consider(c, c.end_time ? (isOvernight(c) ? i + 1 : i) * 1440 + toMin(c.end_time) : (i + 1) * 1440);
+    } else if (isShipMarker(c) && !DISEMBARK.test(titleOf(c)) && !SEA_DAY.test(titleOf(c))) {
+      consider(c, i * 1440 + (c.start_time ? toMin(c.start_time) : BOARD_FALLBACK_MIN));
+    }
+  }
+  return best;
+}

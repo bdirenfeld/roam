@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { cruiseDayIds, isShipMarker, shipSpans, BOARD_FALLBACK_MIN } from "./cruiseDays";
+import { cruiseDayIds, isShipMarker, shipSpans, shipSpanSource, BOARD_FALLBACK_MIN } from "./cruiseDays";
 import { draftDays } from "./draftRows";
 import type { Card } from "@/types/database";
 
@@ -72,6 +72,24 @@ describe("ship time, painted blue on the week (17 Nov 2026)", () => {
   it("a sea day is blue all day; days off the ship get nothing", () => {
     expect(on("2027-07-24")).toEqual([[0, 1440]]);
     expect(on("2027-07-19")).toBeUndefined();
+  });
+  it("each blue stretch knows the card it starts from: the port just left, or boarding (18 Nov 2026)", () => {
+    const from = (date: string, start: number) => shipSpanSource(days, cruise, dayOf(date), start)?.place?.title ?? null;
+    expect(from("2027-07-20", BOARD_FALLBACK_MIN)).toBe("Reykjavík Cruise Terminal");
+    expect(from("2027-07-21", 0)).toBe("Reykjavík Cruise Terminal");
+    expect(from("2027-07-21", 1080)).toBe("Grundarfjörður");
+    expect(from("2027-07-22", 0)).toBe("Grundarfjörður");
+    // the night in port: the ship leaves Ísafjörður at 6 pm on the 23rd, and the sea day after is still Ísafjörður's
+    expect(from("2027-07-23", 1080)).toBe("Ísafjörður");
+    expect(from("2027-07-24", 0)).toBe("Ísafjörður");
+    // while still tied up in Ísafjörður overnight, the last port left is Grundarfjörður
+    expect(from("2027-07-23", 0)).toBe("Grundarfjörður");
+    expect(shipSpanSource(days, cruise, "nope", 0)).toBeNull();
+  });
+  it("a cruise that starts on a port day with nothing before it has no source for its first morning", () => {
+    const portOnly = [{ ...card("2027-07-21", place("Grundarfjörður", "port", "logistics"), {}, "07:00:00"), end_time: "18:00:00" }] as unknown as Card[];
+    expect(shipSpanSource(days, portOnly, dayOf("2027-07-21"), 0)).toBeNull();
+    expect(shipSpanSource(days, portOnly, dayOf("2027-07-21"), 1080)?.place?.title).toBe("Grundarfjörður");
   });
   it("naming a day \"Day at sea\" is enough on its own", () => {
     const named = days.map((d) => (d.date === "2027-07-26" ? { ...d, theme: "Day at sea" } : d));

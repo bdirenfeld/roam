@@ -1,5 +1,5 @@
 "use client";
-import { shipSpans } from "@/lib/plan/cruiseDays";
+import { shipSpans, shipSpanSource } from "@/lib/plan/cruiseDays";
 import { otherStayNights } from "@/lib/stays/stayPick";
 import { isPortCard, minutesAshore, isOvernight } from "@/lib/cards/port";
 import { useGuidanceScreen, useWalkthrough } from "@/components/onboarding/JourneyGuidanceContext";
@@ -1154,20 +1154,38 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
                 {laidOut.map(({ day, placed, legRuns }, di) => (
                   <div key={day.id} data-daycol={day.id} onClick={(e) => (collapsed(di) ? setFocusDayId(day.id) : onColumnClick(e, day.id, di))} onMouseMove={(e) => onColumnMove(e, di)} onMouseLeave={() => setSlot(null)} className={`relative border-l min-w-0 transition-colors ${collapsed(di) ? "cursor-pointer hover:bg-[rgba(26,26,46,0.04)]" : "cursor-cell"}`} style={{ borderColor: "rgba(26,26,46,0.10)", background: collapsed(di) ? "rgba(26,26,46,0.02)" : hover && hover.day === di && hover.min !== null ? "rgba(26,26,46,0.04)" : undefined }}>
                     {/* On the ship, pale blue (17 Nov 2026, lib/plan/cruiseDays shipSpans): the grey
-                        background means nothing; blue means you're on the water. Under everything, never a click target. */}
+                        background means nothing; blue means you're on the water. The blue itself is never a click
+                        target; only its label is (18 Nov 2026): it opens the card the stretch starts from. */}
                     {!collapsed(di) && (ship.get(day.id) ?? []).map(([a, z]) => {
                       const a2 = Math.max(a, HOUR_START * 60), z2 = Math.min(z, (HOUR_END + 1) * 60);
                       if (z2 <= a2) return null;
                       // A quiet label on stretches of 2 h or more (17 Nov 2026): the blue alone had to be guessed.
                       const label = z2 - a2 >= 120 ? (a <= 0 && z >= 24 * 60 ? "At sea" : "On board") : null;
+                      // The port the ship just left (or the boarding card): the label opens that card, the one the
+                      // port at the top of the day opens, so its times are where people change them (18 Nov 2026).
+                      const source = label ? shipSpanSource(days, days.flatMap((x) => x.cards), day.id, a) : null;
                       return (
-                        <div key={a} data-ship={day.id} aria-hidden="true" className="absolute left-0 right-0 pointer-events-none" style={{ background: SHIP_BLUE, top: (a2 / 60 - HOUR_START) * pph, height: ((z2 - a2) / 60) * pph }}>
-                          {label && (
+                        <div key={a} data-ship={day.id} aria-hidden={source ? undefined : true} className="absolute left-0 right-0 pointer-events-none" style={{ background: SHIP_BLUE, top: (a2 / 60 - HOUR_START) * pph, height: ((z2 - a2) / 60) * pph }}>
+                          {label && (source ? (
+                            <button
+                              type="button"
+                              data-ship-label
+                              data-ship-source={source.id}
+                              onClick={(e) => { e.stopPropagation(); setSelectedCard(source); }}
+                              onPointerDown={(e) => e.stopPropagation()}
+                              title={`${label} · open ${cardTitle(source)}`}
+                              className="pointer-events-auto absolute top-1 left-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium hover:bg-[rgba(74,111,158,0.14)] hover:underline underline-offset-2"
+                              style={{ color: SHIP_INK }}
+                            >
+                              <span className="inline-flex" dangerouslySetInnerHTML={{ __html: getGlyphHTML("directions_boat", 11) }} />
+                              {label}
+                            </button>
+                          ) : (
                             <span data-ship-label className="absolute top-1.5 left-2 flex items-center gap-1 text-[10px] font-medium" style={{ color: SHIP_INK }}>
                               <span className="inline-flex" dangerouslySetInnerHTML={{ __html: getGlyphHTML("directions_boat", 11) }} />
                               {label}
                             </span>
-                          )}
+                          ))}
                         </div>
                       );
                     })}
