@@ -282,3 +282,21 @@ describe("a note on the week has a glyph too (17 Nov 2026)", () => {
     expect((container.querySelector('[data-card-id="n1"]') as HTMLElement).textContent).toContain("edit_note");
   });
 });
+
+describe("time in the air, shaded (18 Nov 2026)", () => {
+  it("his Tuscany placeholders: grey from 7 pm to landing, 'In the air · to Pisa' opens the takeoff card; the port anchor is blue", () => {
+    const yyz = { id: "yyz", title: "YYZ Terminal 1", type: "logistics", sub_type: "flight_arrival", lat: 43.68, lng: -79.61, address: "Mississauga" };
+    const psa = { id: "psa", title: "Pisa International Airport", type: "logistics", sub_type: "flight_arrival", lat: 43.69, lng: 10.4, address: "Pisa" };
+    const flown = days.map((d, i) => i === 0
+      ? { ...d, cards: [card("f1", d.id, yyz as typeof villa, { start_time: "19:00:00", details: { origin_airport: "YYZ", arriving_at: "PSA" } })] }
+      : i === 1 ? { ...d, cards: [card("f2", d.id, psa as typeof villa, { start_time: "11:30:00", end_time: "12:30:00", details: { origin_airport: "YYZ", arriving_at: "PSA" } })] } : d) as unknown as DayWithCards[];
+    const { container } = render(<WeekBoard trip={trip} initialDays={flown} initialSaved={[]} />);
+    const bands = Array.from(container.querySelectorAll("[data-air]")) as HTMLElement[];
+    expect(bands.map((b) => b.getAttribute("data-air"))).toEqual(["d1", "d2"]);
+    const labels = Array.from(container.querySelectorAll("button[data-air-label]")) as HTMLButtonElement[];
+    expect(labels.map((l) => l.textContent)).toEqual(["flightIn the air · to Pisa", "flightIn the air · to Pisa"]);
+    expect(labels.every((l) => l.dataset.airSource === "f1")).toBe(true);
+    fireEvent.click(labels[1]);
+    expect(screen.getByTestId("sheet").textContent).toBe("YYZ Terminal 1");
+  });
+});

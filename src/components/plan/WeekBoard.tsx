@@ -1,5 +1,6 @@
 "use client";
 import { shipSpans, shipSpanSource } from "@/lib/plan/cruiseDays";
+import { flightBands } from "@/lib/week/flightTime";
 import { otherStayNights } from "@/lib/stays/stayPick";
 import { isPortCard, minutesAshore, nightsInPort, portDayRole, addIsoDays, otherPortDays } from "@/lib/cards/port";
 import { useGuidanceScreen, useWalkthrough } from "@/components/onboarding/JourneyGuidanceContext";
@@ -74,6 +75,9 @@ interface Props {
 const SHIP_BLUE = "#EAF2FB";
 /** The ship label's ink on SHIP_BLUE (4.6:1). */
 const SHIP_INK = "#4A6F9E";
+// In the air (18 Nov 2026, mock approved): a paler grey than the grey logistics cards, so a flight's cards stand out on it.
+const AIR_GREY = "#F5F5F7";
+const AIR_INK = "#5E6070";
 /** A card's wash and edge from its kind's colour (option B, 17 Nov 2026). Activities (teal) a touch
  *  stronger, so they stay green on ship blue; long cards (3 h+) lighter, so a day tour is not a slab. */
 const blockTint = (c: string, long = false) => `color-mix(in srgb, ${c} ${(c === PIN_COLORS.activity ? 16 : 11) - (long ? 5 : 0)}%, white)`;
@@ -899,6 +903,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
   // ── layout per day ─────────────────────────────────────────────
   // Time on a cruise ship, per day (lib/plan/cruiseDays): painted pale blue on the grid.
   const ship = useMemo(() => shipSpans(days, days.flatMap((d) => d.cards)), [days]);
+  const air = useMemo(() => flightBands(days, days.flatMap((d) => d.cards), HOUR_START, HOUR_END), [days]);
   const dateOfDay = useCallback((id: string | null) => days.find((x) => x.id === id)?.date ?? "", [days]);
   const weekdayOf = (iso: string) => new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short" });
   const laidOut = useMemo(() => shown.map((d, di) => {
@@ -1113,7 +1118,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
                     onPointerDown={(e) => e.stopPropagation()}
                     className="flex items-center gap-1 max-w-full mt-0.5 text-left text-[10.5px] font-semibold text-activity truncate hover:opacity-70"
                   >
-                    <span aria-hidden="true" className="inline-flex flex-shrink-0 opacity-70" dangerouslySetInnerHTML={{ __html: getMaterialIconHTML("port", 12) }} />
+                    <span aria-hidden="true" className="inline-flex flex-shrink-0" style={{ color: SHIP_INK }} dangerouslySetInnerHTML={{ __html: getMaterialIconHTML("port", 12) }} />
                     <span className="truncate">{(typeof (p.details as { title?: unknown } | null)?.title === "string" && (p.details as { title: string }).title) || cardTitle(p)}</span>
                     {p.start_time && <span className="font-normal text-activity/60 whitespace-nowrap">{carried
                       ? (portDayRole(p, dateOfDay(p.day_id), d.date) === "leaves" ? `until ${fmt12(toMin(p.end_time!))}` : "in port")
@@ -1190,6 +1195,27 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
                         </div>
                       );
                     })}
+                    {/* In the air (18 Nov 2026, lib/week/flightTime): takeoff to landing, across midnight.
+                        The label opens the flight's card; on the takeoff day it sits below the card. */}
+                    {!collapsed(di) && (air.get(day.id) ?? []).map((f) => (
+                      <div key={`air-${f.card.id}-${f.from}`} data-air={day.id} aria-hidden={f.label ? undefined : true} className="absolute left-0 right-0 pointer-events-none" style={{ background: AIR_GREY, top: (f.from / 60 - HOUR_START) * pph, height: ((f.to - f.from) / 60) * pph }}>
+                        {f.label && (
+                          <button
+                            type="button"
+                            data-air-label
+                            data-air-source={f.card.id}
+                            onClick={(e) => { e.stopPropagation(); setSelectedCard(f.card); }}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            title={`In the air · to ${f.dest} · open the flight`}
+                            className="pointer-events-auto absolute left-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium hover:bg-[rgba(94,96,112,0.14)] hover:underline underline-offset-2 max-w-[calc(100%-12px)] truncate"
+                            style={{ color: AIR_INK, top: f.takeoff ? 26 : 4 }}
+                          >
+                            <span className="inline-flex flex-shrink-0" dangerouslySetInnerHTML={{ __html: getGlyphHTML("flight", 11) }} />
+                            <span className="truncate">In the air · to {f.dest}</span>
+                          </button>
+                        )}
+                      </div>
+                    ))}
                     {hours.map((h) => (
                       <div key={h} data-hourline="1" className="absolute left-0 right-0" style={{ top: (h - HOUR_START) * pph, borderTop: "1px solid rgba(26,26,46,0.06)" }}>
                         {/* Half-hour mark (12 Nov 2026): a faint dashed line so 9:40 has somewhere to sit. */}
