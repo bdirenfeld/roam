@@ -20,11 +20,11 @@ export default async function AdminPage() {
   const rows = ((data ?? []) as AdminRow[]).map((r) => ({ ...r, planned: Number(r.planned), saved: Number(r.saved), guests: Number(r.guests) }));
   return (
     <main className="min-h-screen bg-white">
-      <div className="h-14 flex items-center gap-3.5 px-7" style={{ background: "#1A1A2E", color: "#fff" }}>
+      <div className="sticky top-0 z-20 h-14 flex items-center gap-3.5 px-7" style={{ background: "#1A1A2E", color: "#fff" }}>
         <a href="/trips" className="font-display text-[21px]">Roam</a>
         <span className="text-[11px] tracking-[0.14em]" style={{ color: "rgba(255,255,255,0.62)" }}>ADMIN</span>
       </div>
-      <div className="max-w-[1180px] mx-auto px-7 py-8">
+      <div className="max-w-[1180px] mx-auto px-7 pt-4 pb-8">
         {error ? <p className="text-[14px]" style={{ color: "#B0541F" }}>Couldn&apos;t load the journeys. Try again.</p> : <AdminTable rows={rows} />}
       </div>
     </main>

@@ -42,7 +42,9 @@ export default function AdminTable({ rows }: { rows: AdminRow[] }) {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-3">
+      {/* Frozen like a spreadsheet's top rows (18 Nov 2026): the ink bar is sticky at 0 (56px),
+          this row at 56px for 64px, the headings at 120px. Change one height, change all three. */}
+      <div className="sticky top-14 z-10 bg-white h-16 flex items-center gap-3" data-testid="admin-controls">
         <label className="flex items-center gap-2 h-10 w-[340px] max-w-full px-4 rounded-full" style={{ boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.14)" }}>
           <span aria-hidden="true" style={{ color: SOFT }}>⌕</span>
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search journey, person or place" aria-label="Search journeys" className="flex-1 min-w-0 bg-transparent outline-none text-[14px]" />
@@ -55,17 +57,17 @@ export default function AdminTable({ rows }: { rows: AdminRow[] }) {
         </div>
       </div>
 
-      <table className="w-full mt-5 text-[14px] border-collapse" data-testid="admin-table">
+      <table className="w-full text-[14px] border-collapse" data-testid="admin-table">
         <thead>
           <tr>
             {COLUMNS.map((c) => (
-              <th key={c.key} className={`px-3 py-2.5 border-b border-black/10 ${c.num ? "text-right" : "text-left"}`} aria-sort={sort.key === c.key ? (sort.desc ? "descending" : "ascending") : "none"}>
+              <th key={c.key} className={`sticky top-[120px] z-10 bg-white px-3 py-2.5 shadow-[inset_0_-1px_0_rgba(0,0,0,0.1)] ${c.num ? "text-right" : "text-left"}`} aria-sort={sort.key === c.key ? (sort.desc ? "descending" : "ascending") : "none"}>
                 <button type="button" onClick={() => tap(c)} className="text-[11px] font-semibold uppercase tracking-[0.08em] whitespace-nowrap" style={{ color: sort.key === c.key ? "#1A1A2E" : CAPTION }}>
                   {c.label}{sort.key === c.key ? (sort.desc ? " ↓" : " ↑") : ""}
                 </button>
               </th>
             ))}
-            <th className="border-b border-black/10" />
+            <th className="sticky top-[120px] z-10 bg-white shadow-[inset_0_-1px_0_rgba(0,0,0,0.1)]" />
           </tr>
         </thead>
         <tbody>
