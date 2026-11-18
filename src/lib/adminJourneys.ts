@@ -88,3 +88,33 @@ export function sortRows(rows: AdminRow[], key: SortKey, desc: boolean): AdminRo
     return (desc ? -c : c) || byActive(a, b);
   });
 }
+
+/**
+ * Excel-style column filters (18 Nov 2026, Brennan): Owner and Country each
+ * open a checklist of their values. A pick is the set of values to show;
+ * null means everyone. Owner and Country combine (AND) with each other and
+ * with the search and phase pills.
+ */
+export type PickColumn = "owner" | "country";
+export type Picks = Partial<Record<PickColumn, Set<string> | null>>;
+
+/** The value a row shows in a pickable column; blanks get a readable stand-in. */
+export const pickValue = (r: Pick<AdminRow, "owner" | "destination">, col: PickColumn): string =>
+  col === "owner" ? (r.owner?.trim() || "Someone") : (countryOf(r.destination) || "No country");
+
+/** Every value in a column with how many journeys have it, A→Z ignoring case. */
+export function pickOptions(rows: AdminRow[], col: PickColumn): { value: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const r of rows) { const v = pickValue(r, col); counts.set(v, (counts.get(v) ?? 0) + 1); }
+  return Array.from(counts).map(([value, count]) => ({ value, count })).sort((a, b) => a.value.localeCompare(b.value, undefined, { sensitivity: "base" }));
+}
+
+/** Keeps rows whose value is picked in every column that has a pick. */
+export function applyPicks(rows: AdminRow[], picks: Picks): AdminRow[] {
+  const active = (Object.entries(picks) as [PickColumn, Set<string> | null | undefined][]).filter(([, s]) => s);
+  if (!active.length) return rows;
+  return rows.filter((r) => active.every(([col, s]) => s!.has(pickValue(r, col))));
+}
+
+/** The checklist's search: a name matches when it contains what was typed, ignoring case (as Excel does). */
+export const matchesTyped = (value: string, typed: string) => value.toLocaleLowerCase().includes(typed.trim().toLocaleLowerCase());

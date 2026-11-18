@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { countryOf, phaseOf, whenTag, ago, isQuiet, filterRows, sortRows, type AdminRow } from "./adminJourneys";
+import { countryOf, phaseOf, whenTag, ago, isQuiet, filterRows, sortRows, pickValue, pickOptions, applyPicks, matchesTyped, type AdminRow } from "./adminJourneys";
 
 const row = (o: Partial<AdminRow>): AdminRow => ({ id: "x", title: "T", destination: null, start_date: null, end_date: null, owner: "o", created_at: "2026-01-01T00:00:00Z", planned: 0, saved: 0, guests: 0, last_active: null, archived: false, ...o });
 const TODAY = "2026-11-17";
@@ -40,5 +40,22 @@ describe("admin table", () => {
     expect(sortRows(rows, "country", false).map((r) => r.id)).toEqual(["ca", "is", "it"]);
     expect(sortRows(rows, "country", true).map((r) => r.id)).toEqual(["it", "is", "ca"]);
     expect(sortRows(rows, "planned", true).map((r) => r.id)).toEqual(["it", "is", "ca"]);
+  });
+  it("Owner and Country checklists: values with counts, A to Z, blanks named", () => {
+    const rs = [row({ id: "a", owner: "sandra M", destination: "Toronto, Canada" }), row({ id: "b", owner: "Brennan", destination: "Italy" }), row({ id: "c", owner: "Brennan", destination: null }), row({ id: "d", owner: null, destination: "Italy" })];
+    expect(pickOptions(rs, "owner")).toEqual([{ value: "Brennan", count: 2 }, { value: "sandra M", count: 1 }, { value: "Someone", count: 1 }]);
+    expect(pickOptions(rs, "country")).toEqual([{ value: "Canada", count: 1 }, { value: "Italy", count: 2 }, { value: "No country", count: 1 }]);
+    expect(pickValue(rs[3], "owner")).toBe("Someone");
+  });
+  it("picks combine: Owner and Country both have to match; null means everyone", () => {
+    const rs = [row({ id: "a", owner: "Brennan", destination: "Italy" }), row({ id: "b", owner: "Brennan", destination: "USA" }), row({ id: "c", owner: "David", destination: "Italy" })];
+    expect(applyPicks(rs, {}).map((r) => r.id)).toEqual(["a", "b", "c"]);
+    expect(applyPicks(rs, { owner: null, country: new Set(["Italy"]) }).map((r) => r.id)).toEqual(["a", "c"]);
+    expect(applyPicks(rs, { owner: new Set(["Brennan"]), country: new Set(["Italy"]) }).map((r) => r.id)).toEqual(["a"]);
+    expect(applyPicks(rs, { owner: new Set() }).map((r) => r.id)).toEqual([]);
+  });
+  it("typing in the checklist matches anywhere in the name, ignoring case", () => {
+    expect(["Isaac Z", "samdirenfeld", "Sandra M", "Brennan"].filter((v) => matchesTyped(v, " SA"))).toEqual(["Isaac Z", "samdirenfeld", "Sandra M"]);
+    expect(matchesTyped("Brennan", "")).toBe(true);
   });
 });
