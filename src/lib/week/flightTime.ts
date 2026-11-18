@@ -50,27 +50,30 @@ export function flightsInAir<C extends FlightCard>(days: Day[], cards: C[]): Fli
   const live = cards.filter((c) => c.status !== "cut" && c.start_time && airports(c));
   const out: FlightSpan<C>[] = [];
   const landingCards = new Set<string>();
+  // A card's moment on the journey clock. One helper, so no sort below reads a raw start_time
+  // (houseRules: a day's ORDER comes from agendaOrder; these are flight spans, not a day's order).
+  const at = (x: C) => momentOf(dayNum, x, x.start_time!);
   // The two-card flight: a takeoff with no end, landed by the next card at the airport it names (within two days).
   for (const c of live) {
     if (c.end_time) continue;
-    const a = airports(c)!, start = momentOf(dayNum, c, c.start_time!);
+    const a = airports(c)!, start = at(c);
     if (start === null) continue;
     const want = codeOf(a.to) ?? a.to.toLowerCase();
     const landing = live
       .filter((x) => x.id !== c.id)
-      .map((x) => ({ x, at: momentOf(dayNum, x, x.start_time!) }))
-      .filter(({ x, at }) => at !== null && at > start && at - start <= 2 * 1440 && (codeOf(airports(x)!.to) ?? airports(x)!.to.toLowerCase()) === want)
-      .sort((p, q) => p.at! - q.at!)[0];
+      .map((x) => ({ x, when: at(x) }))
+      .filter(({ x, when }) => when !== null && when > start && when - start <= 2 * 1440 && (codeOf(airports(x)!.to) ?? airports(x)!.to.toLowerCase()) === want)
+      .sort((p, q) => p.when! - q.when!)[0];
     if (!landing) continue;
     landingCards.add(landing.x.id);
-    out.push({ start, end: landing.at!, card: c, to: placeName(landing.x.place?.title || a.to) });
+    out.push({ start, end: landing.when!, card: c, to: placeName(landing.x.place?.title || a.to) });
   }
   // The one-card flight: start to end; an end before the start lands the next day.
   for (const c of live) {
     if (!c.end_time || landingCards.has(c.id)) continue;
-    const start = momentOf(dayNum, c, c.start_time!);
+    const start = at(c);
     if (start === null) continue;
-    let end = start - toMin(c.start_time!) + toMin(c.end_time);
+    let end = start - (start % 1440) + toMin(c.end_time);
     if (end <= start) end += 1440;
     out.push({ start, end, card: c, to: placeName(airports(c)!.to) });
   }
