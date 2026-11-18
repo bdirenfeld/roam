@@ -14,8 +14,9 @@ import type { PlaceResult } from "@/components/map/AddToTripSheet";
 import { LegFromField, LegModePicker, useDefaultFrom } from "@/components/cards/TravelLegPanel";
 import type { LegFrom, LegMode } from "@/lib/travel/leg";
 import AddTravelSheet from "./AddTravelSheet";
+import { sortOptionLists } from "@/lib/sortOptions";
 
-const SUB_TYPES: Record<CardType, { value: string; label: string }[]> = {
+const SUB_TYPES: Record<CardType, { value: string; label: string }[]> = sortOptionLists({
   activity: [
     { value: "guided",        label: "Tour"          },
     { value: "challenge",     label: "Race"          },
@@ -32,8 +33,8 @@ const SUB_TYPES: Record<CardType, { value: string; label: string }[]> = {
     { value: "bar",        label: "Bar"        },
   ],
   logistics: [
-    { value: "flight_arrival",   label: "Flight Arrival"   },
-    { value: "flight_departure", label: "Flight Departure" },
+    { value: "flight_arrival",   label: "Arrival"          },
+    { value: "flight_departure", label: "Departure"        },
     { value: "hotel",            label: "Hotel"            },
     { value: "transit",          label: "Transit"          },
     { value: "port",             label: "Port"             },
@@ -41,7 +42,7 @@ const SUB_TYPES: Record<CardType, { value: string; label: string }[]> = {
     { value: "pet_care",         label: "Pet care"         },
     { value: "medical",          label: "Medical"          },
   ],
-};
+});
 
 // Pills a finger can hit, with the kind's icon (16 Nov 2026, phone sweep): they
 // were 26px tall, and "Flight Arrival" sat beside "Pet care".

@@ -21,6 +21,7 @@ import { noteLead } from "@/lib/noteLead";
 import { createPortal } from "react-dom";
 import { NavigationSheet } from "@/components/ui/NavigationSheet";
 import { directionsUrl, googleDirectionsUrl, readDirectionsApp } from "@/lib/directions";
+import { sortOptionLists } from "@/lib/sortOptions";
 
 /**
  * "https://vt.tiktok.com/ZSVWDnuF8/" → "TikTok".
@@ -61,7 +62,7 @@ const TYPE_OPTIONS: { type: CardType; label: string }[] = [
   { type: "logistics", label: "Logistics" },
 ];
 
-const SUB_TYPE_OPTIONS: Record<CardType, { label: string; value: string }[]> = {
+const SUB_TYPE_OPTIONS: Record<CardType, { label: string; value: string }[]> = sortOptionLists({
   activity:  [
     { label: "Tour",          value: "guided"        },
     { label: "Race",          value: "challenge"     },
@@ -86,7 +87,7 @@ const SUB_TYPE_OPTIONS: Record<CardType, { label: string; value: string }[]> = {
     { label: "Pet care", value: "pet_care"      },
     { label: "Medical", value: "medical"        },
   ],
-};
+});
 
 const POPUP_W = 300;
 const PIN_R   = 14;

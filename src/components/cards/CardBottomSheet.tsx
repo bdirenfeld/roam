@@ -65,6 +65,7 @@ import { convertedDetails, readNoteKind, withNoteKind, type NoteKind } from "@/l
 import { getMaterialIconHTML, getGlyphHTML } from "@/lib/mapPins";
 import { BookedTag } from "./CardBadges";
 import { legCapable as cardLegCapable, isTravelLeg, legTitle, legDestTitle, legDurationMins, legModeWord, formatLegDuration, iconSubType, readFrom, readMode, withFrom, withTo, type LegFrom, type LegMode } from "@/lib/travel/leg";
+import { sortOptionLists } from "@/lib/sortOptions";
 
 /** Read Google's `weekday_text` (seven "Monday: 9:00 AM – 5:00 PM" lines) off
  *  the raw place hours. The bottom sheet is the deliberate lookup surface, so it
@@ -131,7 +132,7 @@ const CATEGORY_OPTIONS = [
 ] as const;
 
 // ── Sub-type options per parent type ──────────────────────────
-const SUB_TYPE_OPTIONS: Record<string, { value: string; label: string }[]> = {
+const SUB_TYPE_OPTIONS: Record<string, { value: string; label: string }[]> = sortOptionLists({
   activity: [
     { value: "guided",        label: "Tour"          },
     { value: "challenge",     label: "Race"          },
@@ -149,15 +150,15 @@ const SUB_TYPE_OPTIONS: Record<string, { value: string; label: string }[]> = {
   ],
   logistics: [
     { value: "hotel",            label: "Hotel"            },
-    { value: "flight_arrival",   label: "Flight Arrival"   },
-    { value: "flight_departure", label: "Flight Departure" },
+    { value: "flight_arrival",   label: "Arrival"          },
+    { value: "flight_departure", label: "Departure"        },
     { value: "transit",          label: "Transit"          },
     { value: "port",             label: "Port"             },
     { value: "grocery",          label: "Grocery"          },
     { value: "pet_care",         label: "Pet care"         },
     { value: "medical",          label: "Medical"          },
   ],
-};
+});
 
 // ── Type accent colours ────────────────────────────────────────
 const TYPE_ACCENT: Record<string, { dot: string; bg: string; text: string }> = {
