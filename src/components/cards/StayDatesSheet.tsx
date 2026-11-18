@@ -15,6 +15,11 @@ import { formatTimeValue } from "@/lib/formatTime";
  * picked. A dot marks a night another hotel covers. Check in / Check out times
  * sit at the bottom as boxes you type in. An uploaded confirmation overwrites
  * all of this later, which is fine (his words).
+ *
+ * A port uses the same calendar (18 Nov 2026, Brennan: "use an actual calendar
+ * date picker"): tap the day it docks, then the day it leaves; one tap is the
+ * same day. Docks / All aboard times at the bottom. Another port's days carry
+ * the dot and can't be picked.
  */
 
 const INK = "#1A1A2E";
@@ -30,7 +35,7 @@ export function dayLabel(iso: string): string {
 
 export interface StayDatesValue { checkIn: string; checkOut: string | null; start: string | null; end: string | null }
 
-export default function StayDatesSheet({ title, tripStart, tripEnd, initial, otherNights, onSave, onClose }: {
+export default function StayDatesSheet({ title, tripStart, tripEnd, initial, otherNights, onSave, onClose, port = false }: {
   title: string;
   tripStart: string;
   tripEnd: string;
@@ -39,6 +44,8 @@ export default function StayDatesSheet({ title, tripStart, tripEnd, initial, oth
   otherNights: Record<string, string>;
   onSave: (v: StayDatesValue) => void;
   onClose: () => void;
+  /** A port of call: Docks / All aboard, same day allowed, other ports' days blocked. */
+  port?: boolean;
 }) {
   const [pick, setPick] = useState<StayPick>({ checkIn: initial.checkIn, checkOut: initial.checkOut });
   const first = new Date((initial.checkIn || tripStart) + "T00:00:00");
@@ -53,7 +60,9 @@ export default function StayDatesSheet({ title, tripStart, tripEnd, initial, oth
   const others = Array.from(new Set(Object.values(otherNights)));
   // One line however many hotels the journey has (17 Nov 2026: "if you have
   // like 5 hotels will the design break"): the name when there is one other.
-  const legend = others.length === 1 ? `${others[0]} that night` : "Another hotel that night";
+  const legend = port
+    ? (others.length === 1 ? `${others[0]} that day` : "Another port that day")
+    : (others.length === 1 ? `${others[0]} that night` : "Another hotel that night");
   const shownHasOther = cells.some((c) => c && otherNights[c]);
   const step = (n: number) => setYm(({ y, m }) => { const d = new Date(y, m + n, 1); return { y: d.getFullYear(), m: d.getMonth() }; });
 
@@ -64,7 +73,8 @@ export default function StayDatesSheet({ title, tripStart, tripEnd, initial, oth
 
   const done = () => {
     if (!pick.checkIn) { onClose(); return; }
-    onSave({ checkIn: pick.checkIn, checkOut: pick.checkOut, start: startTime, end: endTime });
+    // A port with one day tapped leaves the same day.
+    onSave({ checkIn: pick.checkIn, checkOut: port ? (pick.checkOut ?? pick.checkIn) : pick.checkOut, start: startTime, end: endTime });
     onClose();
   };
 
@@ -81,12 +91,17 @@ export default function StayDatesSheet({ title, tripStart, tripEnd, initial, oth
         <div className="flex justify-center pt-2.5"><div className="w-9 h-[3px] rounded-full" style={{ background: "rgba(26,26,46,0.20)" }} /></div>
         <p className="text-center text-[18px] font-medium mt-3 truncate" style={{ color: INK }}>{title}</p>
         <p className="text-center text-[14px] mt-0.5 mb-4" data-testid="stay-summary" style={{ color: "rgba(26,26,46,0.62)" }}>
-          {pick.checkIn ? (
+          {pick.checkIn && port ? (
+            <>
+              <b className="font-semibold" style={{ color: INK }}>{dayLabel(pick.checkIn)}{nights > 0 ? ` → ${dayLabel(pick.checkOut!)}` : ""}</b>
+              {nights > 0 ? ` · ${nights} ${nights === 1 ? "night" : "nights"} in port` : " · same day"}
+            </>
+          ) : pick.checkIn ? (
             <>
               <b className="font-semibold" style={{ color: INK }}>{dayLabel(pick.checkIn)} → {pick.checkOut ? dayLabel(pick.checkOut) : "…"}</b>
               {nights > 0 ? ` · ${nights} ${nights === 1 ? "night" : "nights"}` : " · pick the day you leave"}
             </>
-          ) : "Pick the day you arrive"}
+          ) : port ? "Pick the day it docks" : "Pick the day you arrive"}
         </p>
 
         <div className="flex items-center justify-between px-1 mb-2">
@@ -100,23 +115,23 @@ export default function StayDatesSheet({ title, tripStart, tripEnd, initial, oth
         <div className="grid grid-cols-7">
           {cells.map((iso, i) => {
             if (!iso) return <span key={`e-${i}`} className="h-[42px]" />;
-            const ok = selectable(iso, tripStart, tripEnd);
-            const isIn = iso === pick.checkIn, isOut = iso === pick.checkOut;
+            const other = otherNights[iso];
+            const ok = selectable(iso, tripStart, tripEnd) && !(port && other);
+            const isIn = iso === pick.checkIn, isOut = iso === pick.checkOut && iso !== pick.checkIn;
             const between = !!(pick.checkIn && pick.checkOut && iso > pick.checkIn && iso < pick.checkOut);
             const col = i % 7;
-            const band = between || ((isIn && pick.checkOut) ? "in" : null) || (isOut ? "out" : null);
+            const band = between || ((isIn && pick.checkOut && pick.checkOut !== pick.checkIn) ? "in" : null) || (isOut ? "out" : null);
             const bg = between ? "#F0EFEB"
-              : isIn && pick.checkOut && col !== 6 ? "linear-gradient(90deg, transparent 50%, #F0EFEB 50%)"
+              : isIn && pick.checkOut && pick.checkOut !== pick.checkIn && col !== 6 ? "linear-gradient(90deg, transparent 50%, #F0EFEB 50%)"
               : isOut && col !== 0 ? "linear-gradient(90deg, #F0EFEB 50%, transparent 50%)" : "transparent";
             const radius = between && col === 0 ? "21px 0 0 21px" : between && col === 6 ? "0 21px 21px 0" : undefined;
-            const other = otherNights[iso];
             return (
               <button
                 key={iso}
                 type="button"
                 disabled={!ok}
                 onClick={() => setPick((p) => tapDay(p, iso))}
-                aria-label={`${dayLabel(iso)}${isIn ? ", check in" : isOut ? ", check out" : ""}${other ? `, ${other} that night` : ""}`}
+                aria-label={`${dayLabel(iso)}${isIn ? (port ? ", docks" : ", check in") : isOut ? (port ? ", all aboard" : ", check out") : ""}${other ? `, ${other} that ${port ? "day" : "night"}` : ""}`}
                 aria-pressed={isIn || isOut}
                 data-band={band ? "1" : undefined}
                 className="relative h-[42px] flex flex-col items-center justify-center text-[15px]"
@@ -136,16 +151,16 @@ export default function StayDatesSheet({ title, tripStart, tripEnd, initial, oth
 
         <div className="flex items-center justify-between gap-3 mt-3 pt-3.5" style={{ borderTop: "1px solid rgba(26,26,46,0.08)" }}>
           <label className="flex items-center gap-2 text-[13.5px]" style={{ color: "rgba(26,26,46,0.62)" }}>
-            Check in
+            {port ? "Docks" : "Check in"}
             <input value={startText} onChange={(e) => setStartText(e.target.value)} onBlur={() => startTime && setStartText(formatTimeValue(startTime))}
-              placeholder="3:00 PM" aria-label="Check-in time" inputMode="text"
+              placeholder={port ? "8:00 AM" : "3:00 PM"} aria-label={port ? "Docks time" : "Check-in time"} inputMode="text"
               className="w-[96px] h-[38px] rounded-[10px] px-2.5 text-[15px] text-center outline-none"
               style={{ color: INK, border: `1.5px solid ${badStart ? "#B0541F" : "rgba(26,26,46,0.16)"}` }} />
           </label>
           <label className="flex items-center gap-2 text-[13.5px]" style={{ color: "rgba(26,26,46,0.62)" }}>
-            Check out
+            {port ? "All aboard" : "Check out"}
             <input value={endText} onChange={(e) => setEndText(e.target.value)} onBlur={() => endTime && setEndText(formatTimeValue(endTime))}
-              placeholder="11:00 AM" aria-label="Check-out time" inputMode="text"
+              placeholder={port ? "6:00 PM" : "11:00 AM"} aria-label={port ? "All aboard time" : "Check-out time"} inputMode="text"
               className="w-[96px] h-[38px] rounded-[10px] px-2.5 text-[15px] text-center outline-none"
               style={{ color: INK, border: `1.5px solid ${badEnd ? "#B0541F" : "rgba(26,26,46,0.16)"}` }} />
           </label>

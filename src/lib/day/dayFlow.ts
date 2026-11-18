@@ -37,7 +37,7 @@ export function dayFlow<C extends FlowCard>(
   isLeg: (c: C) => boolean,
   destOf: (c: C) => string,
   stays: string[] = [],
-  port?: { is: (c: C) => boolean; name: (c: C) => string; overnight?: (c: C) => boolean; carry?: C[] },
+  port?: { is: (c: C) => boolean; name: (c: C) => string; overnight?: (c: C) => boolean; nights?: (c: C) => number; carry?: C[] },
 ): FlowItem<C>[] {
   const isPort = (c: C) => !!port && !!c.start_time && port.is(c);
   const legs = timed.filter((c) => !isPort(c) && isLeg(c) && c.start_time);
@@ -71,7 +71,7 @@ export function dayFlow<C extends FlowCard>(
       const end = c.end_time ? toMin(c.end_time) : null;
       // A night in port: all aboard is tomorrow, so it closes tomorrow's list, not today's.
       const night = !!port!.overnight?.(c) && end != null;
-      const span = end == null ? null : end - start + (night ? 24 * 60 : 0);
+      const span = end == null ? null : end - start + (night ? (port!.nights?.(c) ?? 1) * 24 * 60 : 0);
       const hoursAshore = span != null && span > 0 ? Math.round(span / 30) / 2 : null;
       out.push({ kind: "port", phase: "arrive", card: c, min: start, name, hoursAshore });
       if (!night && end != null && end > start) {

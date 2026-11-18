@@ -1,7 +1,7 @@
 "use client";
 import { shipSpans, shipSpanSource } from "@/lib/plan/cruiseDays";
 import { otherStayNights } from "@/lib/stays/stayPick";
-import { isPortCard, minutesAshore, isOvernight } from "@/lib/cards/port";
+import { isPortCard, minutesAshore, nightsInPort, portDayRole, addIsoDays, otherPortDays } from "@/lib/cards/port";
 import { useGuidanceScreen, useWalkthrough } from "@/components/onboarding/JourneyGuidanceContext";
 
 /**
@@ -899,6 +899,8 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
   // ── layout per day ─────────────────────────────────────────────
   // Time on a cruise ship, per day (lib/plan/cruiseDays): painted pale blue on the grid.
   const ship = useMemo(() => shipSpans(days, days.flatMap((d) => d.cards)), [days]);
+  const dateOfDay = useCallback((id: string | null) => days.find((x) => x.id === id)?.date ?? "", [days]);
+  const weekdayOf = (iso: string) => new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short" });
   const laidOut = useMemo(() => shown.map((d, di) => {
     const timed: Block[] = []; const untimed: Card[] = []; const ports: Card[] = [];
     for (const c of d.cards) {
@@ -933,9 +935,8 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
         else if (r.ids.includes(timed[i].id)) timed.splice(i, 1);
       }
     }
-    // A night in port carries into this morning, until all aboard (17 Nov 2026).
-    const prevDate = new Date(Date.parse(d.date + "T00:00:00Z") - 86_400_000).toISOString().slice(0, 10);
-    const carry = (days.find((x) => x.date === prevDate)?.cards ?? []).filter((c) => isPortCard(c) && isOvernight(c));
+    // A port that stays carries into the days after it docked: in port all day, then until all aboard (17–18 Nov 2026).
+    const carry = days.filter((x) => x.date < d.date).flatMap((x) => x.cards.filter((c) => isPortCard(c) && portDayRole(c, x.date, d.date) !== null));
     return { day: d, placed: placeBlocks(timed, pph), untimed, legRuns, ports, carry };
   }), [shown, days, ghost, saved, pph]);
   const byId = useMemo(() => { const m = new Map<string, Card>(); saved.forEach((c) => m.set(c.id, c)); days.forEach((d) => d.cards.forEach((c) => m.set(c.id, c))); return m; }, [days, saved]);
@@ -1115,8 +1116,8 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
                     <span aria-hidden="true" className="inline-flex flex-shrink-0 opacity-70" dangerouslySetInnerHTML={{ __html: getMaterialIconHTML("port", 12) }} />
                     <span className="truncate">{(typeof (p.details as { title?: unknown } | null)?.title === "string" && (p.details as { title: string }).title) || cardTitle(p)}</span>
                     {p.start_time && <span className="font-normal text-activity/60 whitespace-nowrap">{carried
-                      ? `until ${fmt12(toMin(p.end_time!))}`
-                      : isOvernight(p) ? `${fmt12(toMin(p.start_time))} · overnight`
+                      ? (portDayRole(p, dateOfDay(p.day_id), d.date) === "leaves" ? `until ${fmt12(toMin(p.end_time!))}` : "in port")
+                      : nightsInPort(p) > 0 ? `${fmt12(toMin(p.start_time))} → ${weekdayOf(addIsoDays(d.date, nightsInPort(p)))} ${fmt12(toMin(p.end_time!))}`
                       : `${fmt12(toMin(p.start_time))}${p.end_time && minutesAshore(p) ? `–${fmt12(toMin(p.end_time))}` : ""}`}</span>}
                   </button>
                 ))}
@@ -1460,6 +1461,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
           partySize={trip.party_size}
           stayCheckOut={runs.find((r) => r.placeId === selectedCard.place_id)?.checkOut ?? null}
           otherStayNights={otherStayNights(runs, selectedCard.place_id)}
+          otherPortDays={otherPortDays(days.flatMap((x) => x.cards), dateOfDay, selectedCard.id)}
         />
       )}
       {showDocs && <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} onImport={readOnly ? undefined : () => { setShowDocs(false); upload.pick(); }} onAddByHand={readOnly ? undefined : () => { setShowDocs(false); upload.addByHand(); }} />}

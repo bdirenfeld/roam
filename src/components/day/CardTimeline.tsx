@@ -7,7 +7,7 @@ import { isTravelLeg, legDestTitle, iconSubType, legModeWord } from "@/lib/trave
 import { stripDuration, stripDest } from "@/lib/week/travelStrip";
 import { getMaterialIconHTML } from "@/lib/mapPins";
 import { formatTimeValue } from "@/lib/formatTime";
-import { isPortCard, portName, ashoreLabel, isOvernight } from "@/lib/cards/port";
+import { isPortCard, portName, ashoreLabel, isOvernight, nightsInPort } from "@/lib/cards/port";
 import { noteLead } from "@/lib/noteLead";
 
 // No drag here any more. Timed cards sort by the clock; an untimed card gets
@@ -280,7 +280,7 @@ export default function CardTimeline({
         </div>
       ) : (
         <div>
-          {dayFlow(timedCards, isTravelLeg, legDestTitle, stays, { is: isPortCard, name: portName, overnight: isOvernight, carry: carryPorts }).map((item) => {
+          {dayFlow(timedCards, isTravelLeg, legDestTitle, stays, { is: isPortCard, name: portName, overnight: isOvernight, nights: nightsInPort, carry: carryPorts }).map((item) => {
             if (item.kind === "port") {
               return <PortLine key={`${item.card.id}-${item.phase}`} card={item.card} phase={item.phase} name={item.name} onOpen={onCardTap} />;
             }

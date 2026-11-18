@@ -13,7 +13,7 @@
  * on the water"). Grey stays the background and means nothing.
  */
 import type { Card, Day } from "@/types/database";
-import { isPortCard, isOvernight } from "@/lib/cards/port";
+import { isPortCard, nightsInPort, portDayRole } from "@/lib/cards/port";
 
 const SHIP_WORDS = /\bcruise (terminal|port|ship)\b|\b(board|embark|disembark)(ation|ing)?\b|\b(at sea|sea day|day at sea)\b/i;
 
@@ -57,6 +57,7 @@ export function shipSpans(days: (Pick<Day, "id" | "date"> & { theme?: string | n
   const on = cruiseDayIds(days, scheduled);
   if (!on.size) return out;
   const ordered = byDate(days.filter((d) => on.has(d.id)));
+  const dateOf = new Map(days.map((d) => [d.id, d.date]));
   ordered.forEach((d, i) => {
     const cards = scheduled.filter((c) => c.day_id === d.id);
     let from = 0, to = 24 * 60;
@@ -68,11 +69,17 @@ export function shipSpans(days: (Pick<Day, "id" | "date"> & { theme?: string | n
     }
     const off = cards.find((c) => DISEMBARK.test(titleOf(c)) && c.start_time);
     if (off) to = toMin(off.start_time!);
-    // Ashore: today's ports, and last night's port if the ship stayed.
-    const prev = i > 0 ? ordered[i - 1] : null;
+    // Ashore: a port's docking day from docking (to midnight if it stays), each whole
+    // day it stays, and the morning of the day it leaves (nights in port, 18 Nov 2026).
     const ashore: [number, number][] = [];
-    for (const c of cards) if (isPortCard(c) && c.start_time) ashore.push([toMin(c.start_time), isOvernight(c) || !c.end_time ? 24 * 60 : toMin(c.end_time)]);
-    if (prev) for (const c of scheduled) if (c.day_id === prev.id && isPortCard(c) && isOvernight(c)) ashore.push([0, toMin(c.end_time!)]);
+    for (const c of scheduled) {
+      if (!isPortCard(c) || !c.start_time || !c.day_id) continue;
+      const docked = dateOf.get(c.day_id);
+      const role = docked ? portDayRole(c, docked, d.date) : null;
+      if (role === "docks") ashore.push([toMin(c.start_time), nightsInPort(c) > 0 || !c.end_time ? 24 * 60 : toMin(c.end_time)]);
+      else if (role === "in-port") ashore.push([0, 24 * 60]);
+      else if (role === "leaves") ashore.push([0, toMin(c.end_time!)]);
+    }
     const spans: [number, number][] = [];
     let at = from;
     for (const [a, z] of bySpanStart(ashore)) {
@@ -94,8 +101,7 @@ export function shipSpans(days: (Pick<Day, "id" | "date"> & { theme?: string | n
  * the trip starts it (a cruise that begins on a port day with no boarding card).
  */
 export function shipSpanSource<T extends ShipCard>(days: Pick<Day, "id" | "date">[], scheduled: T[], dayId: string, spanStart: number): T | null {
-  const ordered = byDate(days);
-  const idx = new Map(ordered.map((d, i) => [d.id, i]));
+  const idx = new Map(days.map((d) => [d.id, Math.round(Date.parse(d.date + "T00:00:00Z") / 86_400_000)]));
   const at = idx.get(dayId);
   if (at === undefined) return null;
   const startMoment = at * 1440 + spanStart;
@@ -105,8 +111,8 @@ export function shipSpanSource<T extends ShipCard>(days: Pick<Day, "id" | "date"
     const i = c.day_id ? idx.get(c.day_id) : undefined;
     if (i === undefined) continue;
     if (isPortCard(c)) {
-      // Leaves at all aboard; a night in port leaves the next day; no all-aboard time reads as midnight (as shipSpans does).
-      consider(c, c.end_time ? (isOvernight(c) ? i + 1 : i) * 1440 + toMin(c.end_time) : (i + 1) * 1440);
+      // Leaves at all aboard, nights in port later; no all-aboard time reads as midnight (as shipSpans does).
+      consider(c, c.end_time ? (i + nightsInPort(c)) * 1440 + toMin(c.end_time) : (i + 1) * 1440);
     } else if (isShipMarker(c) && !DISEMBARK.test(titleOf(c)) && !SEA_DAY.test(titleOf(c))) {
       consider(c, i * 1440 + (c.start_time ? toMin(c.start_time) : BOARD_FALLBACK_MIN));
     }

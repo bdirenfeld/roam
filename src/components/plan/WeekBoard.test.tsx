@@ -215,7 +215,7 @@ describe("a cruise's port on the week (17 Nov 2026, Don)", () => {
       : d) as unknown as DayWithCards[];
     const { container } = render(<WeekBoard trip={trip} initialDays={night} initialSaved={[]} />);
     const labels = screen.getAllByTestId("day-port").map((b) => b.textContent);
-    expect(labels.some((t) => t?.includes("8am · overnight"))).toBe(true);
+    expect(labels.some((t) => /8am → \w{3} 6pm/.test(t ?? ""))).toBe(true);
     expect(labels.some((t) => t?.includes("until 6pm"))).toBe(true);
     // One port, one cruise day: on board only before docking at 8am.
     const bands = Array.from(container.querySelectorAll(`[data-ship]`)) as HTMLElement[];

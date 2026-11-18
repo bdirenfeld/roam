@@ -86,6 +86,21 @@ describe("ship time, painted blue on the week (17 Nov 2026)", () => {
     expect(from("2027-07-23", 0)).toBe("Grundarfjörður");
     expect(shipSpanSource(days, cruise, "nope", 0)).toBeNull();
   });
+  it("two nights in port: ashore from docking, all the next day, then until all aboard; the blue after it opens that port (18 Nov 2026)", () => {
+    const two = [
+      card("2027-07-20", place("Reykjavík Cruise Terminal", "transit", "logistics")),
+      port("2027-07-21", "Grundarfjörður", "07:00:00", "18:00:00", { nights: 2 }),
+      card("2027-07-25", null, { title: "At Sea" }),
+    ];
+    const sp = shipSpans(days, two);
+    expect(sp.get(dayOf("2027-07-21"))).toEqual([[0, 420]]);
+    expect(sp.get(dayOf("2027-07-22"))).toEqual([]);
+    expect(sp.get(dayOf("2027-07-23"))).toEqual([[1080, 1440]]);
+    expect(shipSpanSource(days, two, dayOf("2027-07-23"), 1080)?.place?.title).toBe("Grundarfjörður");
+    expect(shipSpanSource(days, two, dayOf("2027-07-24"), 0)?.place?.title).toBe("Grundarfjörður");
+    // still tied up on the 22nd: the last thing it left is the terminal
+    expect(shipSpanSource(days, two, dayOf("2027-07-22"), 0)?.place?.title).toBe("Reykjavík Cruise Terminal");
+  });
   it("a cruise that starts on a port day with nothing before it has no source for its first morning", () => {
     const portOnly = [{ ...card("2027-07-21", place("Grundarfjörður", "port", "logistics"), {}, "07:00:00"), end_time: "18:00:00" }] as unknown as Card[];
     expect(shipSpanSource(days, portOnly, dayOf("2027-07-21"), 0)).toBeNull();

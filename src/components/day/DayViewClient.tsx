@@ -4,7 +4,7 @@ import { useGuidanceScreen, useWalkthrough } from "@/components/onboarding/Journ
 import { isTravelLeg } from "@/lib/travel/leg";
 
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
-import { isPortCard, isOvernight } from "@/lib/cards/port";
+import { isPortCard, portDayRole, otherPortDays } from "@/lib/cards/port";
 import { useCardNotes, withNotes } from "@/hooks/useCardNotes";
 import { searchCountries } from "@/lib/entry/countries";
 import { tripCountries } from "@/lib/entry/countries";
@@ -272,13 +272,12 @@ function formatDayTitle(dateStr: string): string {
 export default function DayViewClient({ trip, days, dayWithCards, hotelCards: stayAndPortCards, initialNotes, readOnly = false, phone = false }: Props) {
   // The page sends hotels and ports in one query; ports only feed the overnight carry-over.
   const hotelCards = useMemo(() => stayAndPortCards.filter((c) => !isPortCard(c)), [stayAndPortCards]);
-  const carryPorts = useMemo(() => {
-    const prev = new Date(`${dayWithCards.date}T12:00:00`);
-    prev.setDate(prev.getDate() - 1);
-    const y = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, "0")}-${String(prev.getDate()).padStart(2, "0")}`;
-    const prevDay = days.find((d) => d.date === y);
-    return prevDay ? stayAndPortCards.filter((c) => c.day_id === prevDay.id && c.status === "in_itinerary" && isPortCard(c) && isOvernight(c)) : [];
-  }, [stayAndPortCards, days, dayWithCards.date]);
+  // A port that docked on an earlier day and leaves today: its All aboard row closes today (17–18 Nov 2026).
+  const carryPorts = useMemo(() => stayAndPortCards.filter((c) => {
+    if (c.status !== "in_itinerary" || !isPortCard(c)) return false;
+    const docked = days.find((d) => d.id === c.day_id)?.date;
+    return !!docked && portDayRole(c, docked, dayWithCards.date) === "leaves";
+  }), [stayAndPortCards, days, dayWithCards.date]);
   const router = useRouter();
   const supabase = createClient();
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
@@ -1211,6 +1210,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards: st
           partySize={trip.party_size}
           stayCheckOut={stays.find((r) => r.placeId === selectedCard.place_id)?.checkOut ?? null}
           otherStayNights={otherStayNights(stays, selectedCard.place_id)}
+          otherPortDays={otherPortDays(stayAndPortCards, (id) => days.find((d) => d.id === id)?.date, selectedCard.id)}
           readOnly={readOnly}
         />
       )}

@@ -101,10 +101,42 @@ describe("CardBottomSheet — the designer-audit surface (6 Oct 2026)", () => {
     (port as unknown as { place: Record<string, unknown> }).place = { ...(port as unknown as { place: Record<string, unknown> }).place, title: "Grundarfjörður", type: "logistics", sub_type: "port", hours: null };
     await open(port);
     expect(screen.queryByLabelText("Change the time")).toBeNull();
-    expect(screen.getByTestId("port-docks").textContent).toBe("7:00 AM");
-    expect(screen.getByTestId("port-aboard").textContent).toBe("6:00 PM · 11 h ashore");
-    expect(screen.getAllByLabelText("Change the port times").length).toBe(2);
+    expect(screen.getByTestId("port-docks").textContent).toBe("Tue 24 Aug · 7:00 AM");
+    expect(screen.getByTestId("port-aboard").textContent).toBe("Tue 24 Aug · 6:00 PM · 11 h ashore");
+    expect(screen.getAllByLabelText("Change the port dates and times").length).toBe(2);
     expect(screen.getByText("Water shuttle required.")).toBeTruthy();
+    expect(screen.queryByRole("switch", { name: /night in port/ })).toBeNull();
+  });
+
+  it("a port's rows open the hotel calendar: tap the docking day, then the leaving day; Done writes nights (18 Nov 2026)", async () => {
+    const port = buca({ start_time: "07:00:00", end_time: "18:00:00", details: { overnight: true, notes: "x" } } as Partial<Card>);
+    (port as unknown as { place: Record<string, unknown> }).place = { ...(port as unknown as { place: Record<string, unknown> }).place, title: "Grundarfjörður", type: "logistics", sub_type: "port", hours: null };
+    await open(port, { otherPortDays: {} });
+    // the old overnight flag reads as one night
+    expect(screen.getByTestId("port-aboard").textContent).toBe("Wed 25 Aug · 6:00 PM · 35 h ashore");
+    await userEvent.click(screen.getAllByLabelText("Change the port dates and times")[1]);
+    expect(screen.getByTestId("stay-summary").textContent).toBe("Tue 24 Aug → Wed 25 Aug · 1 night in port");
+    expect(screen.getByLabelText("Docks time")).toBeTruthy();
+    expect(screen.getByLabelText("All aboard time")).toBeTruthy();
+    // first tap starts again: one day = leaves the same day
+    await userEvent.click(screen.getByRole("button", { name: /^Tue 24 Aug/ }));
+    expect(screen.getByTestId("stay-summary").textContent).toBe("Tue 24 Aug · same day");
+    await userEvent.click(screen.getByRole("button", { name: "Done" }));
+    const write = writes.calls.find((w) => "details" in w.patch)!;
+    expect(write.patch.details).toEqual({ notes: "x" });
+    expect(write.patch.start_time).toBe("07:00:00");
+    expect(write.patch.end_time).toBe("18:00:00");
+  }, 20_000);
+
+  it("another port's days carry the dot and can't be picked", async () => {
+    const port = buca({ start_time: "07:00:00", end_time: "18:00:00", details: {} } as Partial<Card>);
+    (port as unknown as { place: Record<string, unknown> }).place = { ...(port as unknown as { place: Record<string, unknown> }).place, title: "Grundarfjörður", type: "logistics", sub_type: "port", hours: null };
+    await open(port, { otherPortDays: { "2027-08-25": "Ísafjörður" } });
+    await userEvent.click(screen.getAllByLabelText("Change the port dates and times")[0]);
+    const wed = screen.getByRole("button", { name: /^Wed 25 Aug/ }) as HTMLButtonElement;
+    expect(wed.disabled).toBe(true);
+    expect(wed.getAttribute("aria-label")).toContain("Ísafjörður that day");
+    expect(screen.getByTestId("stay-legend").textContent).toBe("Ísafjörður that day");
   });
 
   it("phone: stars and price ride the address line; the category pill shows the place's icon (16 Nov 2026)", async () => {
