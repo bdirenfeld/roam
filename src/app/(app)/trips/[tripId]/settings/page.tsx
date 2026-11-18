@@ -20,7 +20,9 @@ export default async function TripSettingsPage({ params }: Props) {
   // A guest can read the trip under RLS, so guard explicitly and bounce them to
   // the Day view.
   const user = await getAuthUser(supabase);
-  if ((await getTripAccess(supabase, tripId, user?.id)) === "guest") {
+  // The admin view edits the plan only (migration 019), never budgets or settings.
+  const access = await getTripAccess(supabase, tripId, user?.id);
+  if (access === "guest" || access === "admin") {
     redirect(`/trips/${tripId}`);
   }
 
@@ -72,7 +74,8 @@ export default async function TripSettingsPage({ params }: Props) {
       days={(days ?? []) as Day[]}
       initialPeople={(people ?? []) as Person[]}
       initialShareToken={shareToken}
-      initialGuests={guests}      shareAvailable={shareAvailable}
+      initialGuests={guests}
+      shareAvailable={shareAvailable}
     />
   );
 }

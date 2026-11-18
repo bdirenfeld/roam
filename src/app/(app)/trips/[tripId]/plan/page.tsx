@@ -18,7 +18,8 @@ export default async function PlanPage({ params }: Props) {
   // Agenda / Map pages are gone). RLS already limits a guest to the
   // scheduled cards, so the saved pile below comes back empty for them.
   const user = await getAuthUser(supabase);
-  const readOnly = (await getTripAccess(supabase, tripId, user?.id)) !== "owner";
+  const access = await getTripAccess(supabase, tripId, user?.id);
+  const readOnly = access !== "owner" && access !== "admin";
 
   // Cards embed shape — identical for the scheduled and the list query, so a
   // card tile renders the same whichever column it lands in (place details for

@@ -13,7 +13,7 @@ export default function AdminViewBanner() {
   if (!on) return null;
   return (
     <div data-testid="admin-view-banner" className="relative z-[100] flex items-center justify-center gap-3 px-4 py-2 text-[13px] text-white" style={{ background: "#B0541F" }}>
-      <span>Admin view · read only. This is someone else&apos;s journey.</span>
+      <span>Admin view · you can change this plan, and the changes are real. This is someone else&apos;s journey.</span>
       <a href="/admin/exit" className="underline underline-offset-2 font-medium">Exit</a>
     </div>
   );

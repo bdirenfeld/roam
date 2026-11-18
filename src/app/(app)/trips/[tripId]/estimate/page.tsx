@@ -16,7 +16,9 @@ export default async function EstimatePage({ params }: Props) {
   // The estimate is the owner's own planning figure — a guest reads the journey
   // but has no business seeing what it costs. Same guard as Trip Settings.
   const user = await getAuthUser(supabase);
-  if ((await getTripAccess(supabase, tripId, user?.id)) === "guest") {
+  // The admin view edits the plan only (migration 019), never budgets or settings.
+  const access = await getTripAccess(supabase, tripId, user?.id);
+  if (access === "guest" || access === "admin") {
     redirect(`/trips/${tripId}`);
   }
 

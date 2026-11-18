@@ -2526,8 +2526,11 @@ Check phone screens in the phone viewer (`/dev/phone`, `scripts/phone-check.mjs`
 - **Admin view** (`lib/adminView`, migration 017): `/admin` lists every journey (rpc `admin_journeys`,
   admin uid only). A row → `/admin/view/<id>` sets cookie `roam_admin_trip` (2 h); both Supabase
   clients send it as `x-roam-admin-trip`; SELECT-only policies open that one journey (trips, days,
-  cards, places, trip_entry) to the admin account only. `getTripAccess` reads it as "guest", so every
-  screen is read only. No attachments, documents, budgets or members. Banner + `/admin/exit`. Enter
+  cards, places, trip_entry) to the admin account only. **Editing (18 Nov 2026, migration 019):** the
+  admin may change the plan (cards/days insert-update-delete, trips/places/trip_entry update), same double
+  scope. `getTripAccess` returns "admin": the week, day and map are editable; Budget and Settings redirect.
+  A place the admin adds is owned by the admin, so `owner_view_trip_places` lets a journey's owner read every
+  place its cards point at. adminView.test pins 019's tables. No attachments, documents, budgets or members. Banner + `/admin/exit`. Enter
   and exit with full page loads (plain `<a>`): the browser client reads the cookie once per load.
   The page is a table (`components/admin/AdminTable`, rules in `lib/adminJourneys`, rpc reshaped in
   migration 018): search + All/Upcoming/Under way/Past first (no page title, his call), then Journey ·

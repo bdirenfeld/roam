@@ -7,8 +7,11 @@
 // ============================================================
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isAdmin } from "@/lib/adminView";
 
-export type TripAccess = "owner" | "guest" | "none";
+/** "admin": Brennan inside a tester's journey through the admin view (lib/adminView,
+ *  migrations 017 + 019): may change the plan, not the budget, sharing or settings. */
+export type TripAccess = "owner" | "admin" | "guest" | "none";
 
 /**
  * Resolve a user's access to a journey. Reads through the caller's
@@ -46,6 +49,7 @@ export async function getTripAccess(
 
   if (member) return "guest";
   // Readable without owning or joining: only the admin view (lib/adminView,
-  // migration 017) opens a journey that way. It reads as a guest: read only.
+  // migrations 017 + 019) opens a journey that way. The admin may edit the plan.
+  if (trip && isAdmin(userId)) return "admin";
   return trip ? "guest" : "none";
 }
