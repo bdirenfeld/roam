@@ -396,6 +396,11 @@ and forget must be `.then(({ error }) => …)`, never `void`.
   `day/TimeSheet.tsx`. Never add a second time editor.
 - **One label table.** `lib/subTypeLabel.ts` names every place kind; a new
   `sub_type` goes there or it renders humanised from the key.
+  A new kind also goes in all FOUR pickers (CardBottomSheet, CreateCardSheet,
+  AddToTripSheet, MapPinPopup; each wrapped in sortOptionLists, so A-Z is
+  automatic), the map Filter (MapSidebar), Find (find/gaps KINDS + ask.ts words;
+  gaps.test fails if Find and the Filter differ), a glyph in mapPins
+  MATERIAL_ICONS (+ PIN_ALIAS or an SVG), and inferType if Google has a type for it (18 Nov 2026).
 - Screens hosted in `Overlay` take `variant="overlay"` +
   `onDismiss` and render × instead of ‹.
 - **Install banner** is `ui/InstallBanner.tsx`, mounted once in (app)/layout.
