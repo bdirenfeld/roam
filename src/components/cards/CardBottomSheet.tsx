@@ -66,6 +66,7 @@ import { getMaterialIconHTML, getGlyphHTML } from "@/lib/mapPins";
 import { BookedTag } from "./CardBadges";
 import { legCapable as cardLegCapable, isTravelLeg, legTitle, legDestTitle, legDurationMins, legModeWord, formatLegDuration, iconSubType, readFrom, readMode, withFrom, withTo, type LegFrom, type LegMode } from "@/lib/travel/leg";
 import { sortOptionLists } from "@/lib/sortOptions";
+import { TypeSheet } from "./TypeSheet";
 
 /** Read Google's `weekday_text` (seven "Monday: 9:00 AM – 5:00 PM" lines) off
  *  the raw place hours. The bottom sheet is the deliberate lookup surface, so it
@@ -124,12 +125,6 @@ function withoutConfirmation(details: Card["details"]): Card["details"] {
 // One table for the names (lib/subTypeLabel): this copy said "Self-Directed"
 // and "Guided" where every other screen said Explore and Tour (27 Sep 2026).
 
-// ── Category options (top level of two-level picker) ──────────
-const CATEGORY_OPTIONS = [
-  { value: "food",      label: "Food"      },
-  { value: "activity",  label: "Activity"  },
-  { value: "logistics", label: "Logistics" },
-] as const;
 
 // ── Sub-type options per parent type ──────────────────────────
 const SUB_TYPE_OPTIONS: Record<string, { value: string; label: string }[]> = sortOptionLists({
@@ -178,78 +173,7 @@ const TYPE_ACCENT: Record<string, { dot: string; bg: string; text: string }> = {
   food:      { dot: "bg-gray-400", bg: "bg-amber-50",  text: "text-food"      },
 };
 
-// ── Sub-type picker — self-contained so activeCategory initialises correctly ──
-function SubTypePicker({
-  currentType,
-  currentSubType,
-  onSelect,
-  onClose,
-}: {
-  currentType: string;
-  currentSubType: string | null;
-  onSelect: (type: string, subType: string) => void;
-  onClose: () => void;
-}) {
-  const initial = (["food", "activity", "logistics"] as const).includes(
-    currentType as "food" | "activity" | "logistics"
-  )
-    ? (currentType as "food" | "activity" | "logistics")
-    : "food";
-  const [activeCategory, setActiveCategory] = useState<"food" | "activity" | "logistics">(initial);
-
-  return (
-    <>
-      <div className="fixed inset-0 z-10" onClick={onClose} />
-      <div
-        className="absolute left-0 top-8 z-20 bg-white rounded-xl shadow-sheet border border-gray-100 overflow-hidden"
-        style={{ minWidth: 220 }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Section 1 — Category tabs */}
-        <div className="flex border-b border-gray-100">
-          {CATEGORY_OPTIONS.map(({ value, label }) => {
-            const isActive = activeCategory === value;
-            const dotCls = "bg-gray-400";
-            return (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setActiveCategory(value)}
-                className={`relative flex-1 flex items-center justify-center gap-1 py-2.5 text-[11px] font-semibold transition-colors ${
-                  isActive ? "text-gray-900" : "text-gray-400 hover:text-gray-600"
-                }`}
-              >
-                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotCls}`} />
-                {label}
-                {isActive && (
-                  <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-gray-800 rounded-t" />
-                )}
-              </button>
-            );
-          })}
-        </div>
-        {/* Section 2 — Sub-types for the selected category */}
-        <div className="py-1">
-          {(SUB_TYPE_OPTIONS[activeCategory] ?? []).map(({ value, label }) => {
-            const isCurrent = currentSubType === value && currentType === activeCategory;
-            return (
-              <button
-                key={value}
-                type="button"
-                onClick={() => onSelect(activeCategory, value)}
-                className={`w-full text-left px-4 py-2.5 text-[13px] transition-colors hover:bg-gray-50 ${
-                  isCurrent ? "font-bold text-gray-900" : "text-gray-700"
-                }`}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </>
-  );
-}
+// The type picker is TypeSheet (18 Nov 2026); the one-per-row dropdown is gone.
 
 // ── Booking badge ──────────────────────────────────────────────
 function bookingBadge(details: Record<string, unknown>) {
@@ -1503,9 +1427,10 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   <NoteTypePicker current={noteKind?.key ?? "note"} onPick={handleNoteKind} />
                 )}
                 {showSubTypePicker && place && !readOnly && (
-                  <SubTypePicker
+                  <TypeSheet
                     currentType={place.type}
                     currentSubType={place.sub_type ?? null}
+                    options={SUB_TYPE_OPTIONS}
                     onSelect={handleTypeAndSubTypeChange}
                     onClose={() => setShowSubTypePicker(false)}
                   />
