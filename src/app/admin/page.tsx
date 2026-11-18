@@ -24,7 +24,7 @@ export default async function AdminPage() {
         <a href="/trips" className="font-display text-[21px]">Roam</a>
         <span className="text-[11px] tracking-[0.14em]" style={{ color: "rgba(255,255,255,0.62)" }}>ADMIN</span>
       </div>
-      <div className="max-w-[1180px] mx-auto px-7 pt-4 pb-8">
+      <div className="max-w-[1180px] mx-auto px-7 pb-8">
         {error ? <p className="text-[14px]" style={{ color: "#B0541F" }}>Couldn&apos;t load the journeys. Try again.</p> : <AdminTable rows={rows} />}
       </div>
     </main>
