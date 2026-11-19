@@ -1764,7 +1764,9 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
 
       {selectedCard && (
         <CardBottomSheet
+          key={selectedCard.id}
           card={selectedCard}
+          onOpenCard={setSelectedCard}
           onClose={() => setSelectedCard(null)}
           onCardUpdate={handleCardUpdate}
           onCardDelete={handleDelete}

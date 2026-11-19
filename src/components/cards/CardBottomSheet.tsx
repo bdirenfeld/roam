@@ -38,6 +38,9 @@ import { type DirectionsApp, directionsUrl, otherApp, readDirectionsApp, writeDi
 
 // ── Type-specific detail components ───────────────────────────
 import FlightArrivalDetail from "./detail/FlightArrivalDetail";
+import { FlightPassTop, FlightPassBody, LayoverRow, ConnectingFlight, useTripFlights } from "./FlightPass";
+import { flightPass, isPassFlight } from "@/lib/flights/pass";
+import { flightsInAir, connectionsOf } from "@/lib/week/flightTime";
 import RestaurantDetail from "./detail/RestaurantDetail";
 import SelfDirectedDetail from "./detail/SelfDirectedDetail";
 import GuidedDetail from "./detail/GuidedDetail";
@@ -111,6 +114,8 @@ interface Props {
    *  reads "Add to <label>" and runs the row's own Add, then closes back to
    *  the sheet. Without it, "Put on a day" asks for the day as before. */
   addToDay?: { label: string; onAdd: () => Promise<boolean> };
+  /** Open another card in this sheet's place: a flight's layover row opens the connecting flight (19 Nov 2026). */
+  onOpenCard?: (card: Card) => void;
 }
 
 /** Drop the booking/flight confirmation reference so it never renders for a
@@ -384,7 +389,7 @@ function TitleEditor({
  *  side — half the 6px gap — so no disc's target reaches its neighbour. */
 const DISC_TARGET = "absolute -inset-x-[3px] -inset-y-2";
 
-export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDelete, onCardCopied, days, tripDestination, partySize = null, readOnly = false, stayCheckOut = null, otherStayNights = {}, otherPortDays = {}, addToDay }: Props) {
+export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDelete, onCardCopied, days, tripDestination, partySize = null, readOnly = false, stayCheckOut = null, otherStayNights = {}, otherPortDays = {}, addToDay, onOpenCard }: Props) {
   // Every field save reverts on refusal; it also says so now (UX audit,
   // Sep 2026, finding 1). Before, eight sites logged to the console only.
   const { toast } = useToast();
@@ -610,6 +615,19 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   // the card; the time sits with the travel times; Rename and Change type live
   // behind the ⋯. A transit card with no start yet keeps the place layout.
   const legCard = isTravelLeg(localCard) && !!localCard.place;
+  // The boarding-pass flight card (19 Nov 2026, approved mocks): a flight that
+  // names both airports drops the photo, rating, heart, website, call and link
+  // pin; its top is the pass (FlightPass). The landing card of a two-card flight
+  // (Tuscany's placeholders) keeps the place layout: the pass is on the takeoff.
+  const flightish = !legCard && isPassFlight(localCard.details, localCard.place?.sub_type);
+  const [flightsVersion, setFlightsVersion] = useState(0);
+  const tripFlights = useTripFlights(localCard.trip_id, flightish, flightsVersion);
+  const flightCards = flightish ? [...tripFlights.filter((c) => c.id !== localCard.id), localCard] : [];
+  const flightSpan = flightish && days ? flightsInAir(days, flightCards).find((s) => s.card.id === localCard.id || s.landing?.id === localCard.id) : undefined;
+  const passOn = flightish && flightSpan?.landing?.id !== localCard.id;
+  const passView = passOn ? flightPass(localCard, days?.find((d) => d.id === localCard.day_id)?.date ?? null, flightSpan?.landing?.start_time ?? null) : null;
+  const passConn = passOn && days ? connectionsOf(days, flightCards, localCard.id) : null;
+  const noPhoto = legCard || passOn;
   const [renaming, setRenaming] = useState(false);
   // Phone vs desktop (16 Nov 2026): on the phone the ⋯ keeps only what you use
   // on the trip. Move / Repeat / Take off / Rename / Change type stay on desktop.
@@ -1249,7 +1267,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     const empty = readOnly ? false : showEmptyFields;
     switch (key) {
       case "logistics/flight_arrival":
-        return <FlightArrivalDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
+        return <FlightArrivalDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} pass={passOn} />;
       case "food/coffee":
       case "food/coffee_dessert":
         // Coffee, bar and restaurant shared one byte-identical component under
@@ -1283,7 +1301,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         // Beaches want the same free-notes sheet a challenge used
         return <ChallengeDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
       case "logistics/flight_departure":
-        return <FlightArrivalDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
+        return <FlightArrivalDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} pass={passOn} />;
       case "logistics/port":
         // Both rows open the hotel calendar for the docking and leaving days (18 Nov 2026); without the journey's days, the time sheet.
         return <PortDetail card={dCard} docksDate={days?.find((d) => d.id === dCard.day_id)?.date ?? null} onSaveDetails={onSave} showEmpty={empty} onEditTime={readOnly ? undefined : () => (days?.length ? setStayOpen(true) : setTimeOpen(true))} />;
@@ -1328,7 +1346,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           onClick={onClose}
           aria-label="Close"
           className="absolute top-2 right-2 w-9 h-9 flex items-center justify-center rounded-full opacity-60 hover:opacity-100 transition-opacity"
-          style={place && !legCard
+          style={place && !noPhoto
             ? { zIndex: 30, color: "#fff", filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.55))" }
             : { zIndex: 30, color: "rgba(26,26,46,0.45)" }}
         >
@@ -1345,7 +1363,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             you opened, and scrolling it away cost more than it gave back. What
             it gives up instead is height — 150 rather than 220, which is still
             a photograph and no longer a quarter of a phone screen. */}
-        {place && !legCard ? (
+        {place && !noPhoto ? (
           <div className="relative w-full overflow-hidden">
             <PlacePhotoGallery
               key={place.id}
@@ -1376,7 +1394,11 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
               {/* Type badge — tappable to change sub-type (only when linked to a place) */}
               <div className="relative">
-                {!legCard && (
+                {/* A flight's top line is its airline and number (19 Nov 2026); Change type is in the ⋯. */}
+                {passView && (
+                  <FlightPassTop view={passView} readOnly={readOnly} onSave={(f, v) => void saveDetails(f, v)} />
+                )}
+                {!legCard && !passOn && (
                 <button
                   onClick={readOnly ? undefined : () => (place ? setShowSubTypePicker((v) => !v) : setShowNotePicker((v) => !v))}
                   data-testid={place ? undefined : "note-type-button"}
@@ -1472,7 +1494,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   Worded pills spent a whole row saying what these shapes say,
                   and sat beside each other as though a heart and a phone number
                   were the same kind of thing. */}
-              {showLoved && !legCard && (
+              {showLoved && !noPhoto && (
                 readOnly ? (
                   <span className="w-7 h-7 flex items-center justify-center"><LovedHeart size={15} /></span>
                 ) : (
@@ -1488,7 +1510,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   </button>
                 )
               )}
-              {website && !legCard && (
+              {website && !noPhoto && (
                 <a
                   // The saved page when it is on the same site — the class you
                   // booked, not the school's home page (16 Nov 2026).
@@ -1507,7 +1529,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   </svg>
                 </a>
               )}
-              {phone && !legCard && (
+              {phone && !noPhoto && (
                 <a href={phone.href} aria-label="Call" title={phone.display} className="relative w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors">
                   <span aria-hidden="true" className={DISC_TARGET} />
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1528,7 +1550,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   </svg>
                 </button>
               )}
-              {!readOnly && !legCard && localCard.status === "in_itinerary" && (
+              {!readOnly && !noPhoto && localCard.status === "in_itinerary" && (
                 <button
                   onClick={() => setShowLinkSheet(true)}
                   className="relative w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
@@ -1545,8 +1567,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   Move and Take-off as header buttons (Sep 2026) and found the
                   row cluttered, so the header keeps its glyphs and the verbs
                   live here. The sheet still closes itself after a move. */}
-              {(canBook || (navApp && place?.address && directionsUrl(otherApp(navApp), navTarget)) || (desktop && (canMove || (legCard && !readOnly)))) && (
-                <div className={place && !legCard ? "relative" : "relative mr-10" /* a note card has the ✕ in this corner: keep the ⋯ clear of it (Brennan, 25 Sep 2026) */}>
+              {(canBook || (navApp && place?.address && directionsUrl(otherApp(navApp), navTarget)) || (desktop && (canMove || (legCard && !readOnly))) || (passOn && !readOnly)) && (
+                <div className={place && !noPhoto ? "relative" : "relative mr-10" /* a note card has the ✕ in this corner: keep the ⋯ clear of it (Brennan, 25 Sep 2026) */}>
                   <button
                     onClick={() => setShowCardMenu((v) => !v)}
                     aria-expanded={showCardMenu}
@@ -1642,6 +1664,16 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                             </button>
                           </>
                         )}
+                        {/* A boarding-pass flight has no type pill (19 Nov 2026): Change type is here, on the phone too. */}
+                        {passOn && !readOnly && (
+                          <button
+                            role="menuitem"
+                            onClick={() => { setShowCardMenu(false); setShowSubTypePicker(true); }}
+                            className="w-full text-left px-3.5 py-2.5 text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors border-t border-gray-100"
+                          >
+                            Change type
+                          </button>
+                        )}
                         {/* Which app the address opens (16 Nov 2026): was a line under
                             the address on every card; switching is rare, so it lives here. */}
                         {navApp && place?.address && directionsUrl(otherApp(navApp), navTarget) && (
@@ -1668,7 +1700,14 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
 
           {/* Title — editable when linked to a place (owner); static otherwise */}
           <div className="mt-2.5">
-            {legCard && !renaming ? (
+            {passView ? (
+              <>
+                <FlightPassBody view={passView} details={localCard.details as Record<string, unknown>} readOnly={readOnly}
+                  onSave={(f, v) => void saveDetails(f, v)} onTime={() => setTimeOpen(true)} />
+                {passConn?.before && <LayoverRow layover={passConn.before} side="before" onOpen={onOpenCard} />}
+                {passConn?.after && <LayoverRow layover={passConn.after} side="after" onOpen={onOpenCard} />}
+              </>
+            ) : legCard && !renaming ? (
               <>
                 {/* Laid out like Google Maps (16 Nov 2026, the mock he liked): the
                     route line below says "A → B", so no long title — only his own
@@ -1759,7 +1798,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 buttons but never said where the place was — on a journey
                 spanning eight towns that is the first thing you want. The
                 country is dropped; the town is the point. */}
-            {place?.address && !(legCapable && place) && (
+            {place?.address && !passOn && !(legCapable && place) && (
               (place.lat != null && place.lng != null) || (localCard.details as Record<string, unknown>)?.place_id != null ? (
                 /* The address IS the Maps button now. It was already printed
                    here doing nothing, and the pill it replaces opened this same
@@ -1800,7 +1839,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             {/* A hotel has no time chip (17 Nov 2026, Brennan): "3:00 PM – 11:00 AM
                 overnight" read as one evening. Its Check-in / Check-out rows
                 carry both dates and times; the Check-in row opens the time sheet. */}
-            {key === "logistics/hotel" || key === "logistics/port" ? null : readOnly ? (
+            {passOn || key === "logistics/hotel" || key === "logistics/port" ? null : readOnly ? (
               /* Static time (guest) — no editable chips */
               localCard.start_time && (
                 <span className="text-sm text-gray-700 font-medium px-2 py-0.5">
@@ -1858,7 +1897,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 range already says it. */}
 
             {/* Overnight warning */}
-            {key !== "logistics/hotel" && key !== "logistics/port" && localCard.start_time && localCard.end_time &&
+            {!passOn && key !== "logistics/hotel" && key !== "logistics/port" && localCard.start_time && localCard.end_time &&
               toInputTime(localCard.end_time) < toInputTime(localCard.start_time) && (
               <span className="text-[11px] text-amber-500 font-medium ml-0.5">overnight</span>
             )}
@@ -2023,6 +2062,16 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                     className="mb-4 w-full text-left text-[13.5px] px-3.5 py-3 rounded-xl" style={{ background: "#F3F6F9", color: "#1A1A2E" }}>
                     Is this a port of call? <span className="underline underline-offset-2 font-medium">Mark it as a port</span>
                   </button>
+                )}
+                {/* A connection is added from the flight you're looking at (19 Nov 2026, approved frame 2). */}
+                {passView && !readOnly && !passConn?.after && days && days.length > 0 && (
+                  <div className="-mt-3 mb-3">
+                    <ConnectingFlight card={localCard} view={passView} days={days} onAdded={(c) => {
+                      onCardCopied?.(c);
+                      setFlightsVersion((v) => v + 1);
+                      toast({ message: "Connecting flight added" });
+                    }} />
+                  </div>
                 )}
                 {renderDetail()}
               </CostContext.Provider>

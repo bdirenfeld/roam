@@ -1194,7 +1194,9 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards: st
       {/* Card detail bottom sheet */}
       {selectedCard && (
         <CardBottomSheet
+          key={selectedCard.id}
           card={selectedCard}
+          onOpenCard={setSelectedCard}
           onClose={() => {
             setSelectedCard(null);
             setIsCardOpen(false);

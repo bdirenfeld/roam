@@ -7,15 +7,18 @@ interface Props {
   card: Card;
   onSaveDetails?: (field: string, value: unknown) => void;
   showEmpty?: boolean;
+  /** The boarding pass is showing (19 Nov 2026): it carries the airline, number, airports, times,
+   *  length, seat, terminal and confirmation, so only the aircraft stays in this list. */
+  pass?: boolean;
 }
 
-export default function FlightArrivalDetail({ card, onSaveDetails, showEmpty = false }: Props) {
+export default function FlightArrivalDetail({ card, onSaveDetails, showEmpty = false, pass = false }: Props) {
   const d = card.details;
   const save = (field: string) =>
     onSaveDetails ? (v: string) => onSaveDetails(field, v || null) : undefined;
   const hide = !showEmpty;
 
-  const hasFlightData = d.airline || d.flight_number || d.aircraft || d.origin_airport ||
+  const hasFlightData = pass ? !!d.aircraft : d.airline || d.flight_number || d.aircraft || d.origin_airport ||
     d.arriving_at || d.departure_time || d.arrival_time || d.duration || d.terminal ||
     d.seat || d.confirmation;
 
@@ -26,12 +29,13 @@ export default function FlightArrivalDetail({ card, onSaveDetails, showEmpty = f
         <div>
           <SectionLabel>Flight</SectionLabel>
           <div className="space-y-4">
-            <FieldRow icon="✈️" label="Airline" value={d.airline as string | undefined}
-              placeholder="Add airline…" onSave={save("airline")} hideWhenEmpty={hide} />
-            <FieldRow icon="🔢" label="Flight Number" value={d.flight_number as string | undefined}
-              placeholder="e.g. AZ 123" onSave={save("flight_number")} hideWhenEmpty={hide} />
+            {!pass && <FieldRow icon="✈️" label="Airline" value={d.airline as string | undefined}
+              placeholder="Add airline…" onSave={save("airline")} hideWhenEmpty={hide} />}
+            {!pass && <FieldRow icon="🔢" label="Flight Number" value={d.flight_number as string | undefined}
+              placeholder="e.g. AZ 123" onSave={save("flight_number")} hideWhenEmpty={hide} />}
             <FieldRow icon="🛩️" label="Aircraft" value={d.aircraft as string | undefined}
               placeholder="Add aircraft…" onSave={save("aircraft")} hideWhenEmpty={hide} />
+            {!pass && <>
             <FieldRow icon="🛫" label="Departing From" value={d.origin_airport as string | undefined}
               placeholder="Add airport…" onSave={save("origin_airport")} hideWhenEmpty={hide} />
             <FieldRow icon="🛬" label="Arriving At" value={d.arriving_at as string | undefined}
@@ -48,6 +52,7 @@ export default function FlightArrivalDetail({ card, onSaveDetails, showEmpty = f
               placeholder="Add seat…" onSave={save("seat")} hideWhenEmpty={hide} />
             <FieldRow icon="📋" label="Confirmation" value={d.confirmation as string | undefined}
               placeholder="Add confirmation code…" onSave={save("confirmation")} hideWhenEmpty={hide} />
+            </>}
           </div>
         </div>
       )}
