@@ -2591,3 +2591,17 @@ hidden under the headers).
   "Pisa Airport car rental" (no Google listing for the shared rental building; the trip's airport place is a flight
   stop and bulk-import would reuse it).
 - **Dates on the pass/voucher are spelled by hand** (`passDate`): ICU writes "Sept".
+- **Editing one card never rewrites another** (`lib/places/sharedPlace`, 19 Nov 2026): a card's name and kind live
+  on its place, and a place carries several cards (saved pin + scheduled copies; a hotel's check-in/out). Renaming
+  a shared place's card stores the name on the card (`details.title` + `named`); retyping forks only a booking's
+  place (`isBookingPlace`: hotel, car_rental, port), every other retype reaches all copies. Cause: in Sep 2026 a
+  "Dinner at the villa" card renamed/retyped Villa Zambaldi into a restaurant and the stay vanished.
+- **Departure day on the week**: every flight gets hatched airport time before takeoff; a flight card draws as its
+  takeoff block (the grey band carries the air time); a flight landing at your home airport stays on the trip's
+  clock with its true length and is labelled "lands Toronto 9:30 PM · home ~11:00 PM (Toronto time)"
+  (`flightTime` `landsHome`, `zoneCity`). The week measures home drives itself (`HomeLeg.measureHomeDrive`,
+  traffic for that weekday/hour, `details.home_drive.traffic`), so no card has to be opened.
+- **One type picker**: `TypeSheet` everywhere (card, note with a "Just a note" chip, map popup). A note keeps the
+  exact kind in `details.kind_type`/`kind_sub` (`noteDefaults` files the place as it).
+- **The week drops a card's `archived` rows**: when auditing a day by SQL, filter `not archived` or you will count
+  cards the app never shows (I told him 4 Sep had 14 cards; it had 2).
