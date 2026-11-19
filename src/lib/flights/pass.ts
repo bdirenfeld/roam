@@ -7,6 +7,7 @@
 
 import { airportCode, flightLength } from "./airportZones";
 import { placeName } from "@/lib/week/flightTime";
+import { storedOnLandingDay } from "@/lib/cardTime";
 
 export interface PassEnd { code: string | null; name: string; raw: string }
 export interface FlightPassView {
@@ -42,10 +43,13 @@ export function isPassFlight(details: unknown, subType: string | null | undefine
  * What the pass shows. `landing` is the time a two-card flight lands (its
  * landing card's start), used when this card has no end of its own.
  */
-export function flightPass(card: { details: unknown; start_time: string | null; end_time: string | null }, dayDate: string | null, landing: string | null = null): FlightPassView {
+export function flightPass(card: { details: unknown; start_time: string | null; end_time: string | null; place?: { sub_type?: string | null } | null }, cardDate: string | null, landing: string | null = null): FlightPassView {
   const d = (card.details ?? {}) as Record<string, unknown>;
   const from = end(str(d.origin_airport) ?? ""), to = end(str(d.arriving_at) ?? "");
   const departs = card.start_time, arrives = card.end_time ?? landing;
+  // A flight kept on the day it lands (Rome AC890 on Wed 22 Apr) took off the day before.
+  const onLanding = storedOnLandingDay({ ...card, place: card.place ? { sub_type: card.place.sub_type ?? null } : null });
+  const dayDate = cardDate && onLanding ? addDays(cardDate, -1) : cardDate;
   let minutes: number | null = null, arriveDate: string | null = null;
   if (departs && arrives && dayDate) {
     const len = flightLength(from.code, to.code, dayDate, toMin(departs), toMin(arrives));

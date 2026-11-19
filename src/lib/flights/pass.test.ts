@@ -2,13 +2,13 @@ import { describe, it, expect } from "vitest";
 import { flightPass, isPassFlight, passDate, airportSearch } from "./pass";
 
 // Real rows (19 Nov 2026): Rome AC890 out, Porter to Vegas, Tuscany's placeholder.
-const rome = { start_time: "19:45:00", end_time: "10:20:00", details: { airline: "Air Canada", flight_number: "AC890", origin_airport: "Toronto-Pearson Int. (YYZ)", arriving_at: "Roma Fiumicino Airport (FCO)", seat: "39C" } };
+const rome = { start_time: "19:45:00", end_time: "10:20:00", details: { airline: "Air Canada", flight_number: "AC890", origin_airport: "Toronto-Pearson Int. (YYZ)", arriving_at: "Roma Fiumicino Airport (FCO)", seat: "39C", departure_time: "19:45" }, place: { sub_type: "flight_arrival" } };
 
 describe("the boarding pass (19 Nov 2026)", () => {
-  it("Rome AC890: YYZ 7:45 PM Wed 22 Apr → FCO 10:20 AM Thu 23 Apr, 8 h 35, next day", () => {
+  it("Rome AC890, kept on its landing day Wed 22 Apr: YYZ 7:45 PM Tue 21 Apr → FCO 10:20 AM Wed 22 Apr, 8 h 35, next day", () => {
     const p = flightPass(rome, "2026-04-22");
     expect([p.airline, p.number, p.from.code, p.from.name, p.to.code, p.to.name]).toEqual(["Air Canada", "AC 890", "YYZ", "Toronto-Pearson", "FCO", "Roma Fiumicino"]);
-    expect([p.departs, p.arrives, p.departDate, p.arriveDate, p.nextDay, p.minutes]).toEqual(["19:45:00", "10:20:00", "2026-04-22", "2026-04-23", true, 515]);
+    expect([p.departs, p.arrives, p.departDate, p.arriveDate, p.nextDay, p.minutes]).toEqual(["19:45:00", "10:20:00", "2026-04-21", "2026-04-22", true, 515]);
   });
 
   it("Porter to Vegas: the airline's 'Ltd.' goes; same day, 5 h 07", () => {

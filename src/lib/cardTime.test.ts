@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { cardTimes } from "./cardTime";
+import { cardTimes, storedOnLandingDay } from "./cardTime";
 import type { Card, CardDetails, Place } from "@/types/database";
 
 /**
@@ -126,5 +126,14 @@ describe("cardTimes — the cases that must NOT be rewritten", () => {
   it("leaves a note card with no place alone", () => {
     const note = flightCard(null, "09:00:00", null, { title: "Leave the villa" });
     expect(cardTimes(note)).toEqual({ start: "09:00:00", end: null });
+  });
+});
+
+describe("storedOnLandingDay (19 Nov 2026)", () => {
+  it("Rome AC890 (19:45 → 10:20, departure_time 19:45) is on its landing day; New York's 9:20 → 10:55 and a flight with no departure_time are not", () => {
+    const place = { sub_type: "flight_arrival" };
+    expect(storedOnLandingDay({ start_time: "19:45:00", end_time: "10:20:00", details: { departure_time: "19:45" }, place })).toBe(true);
+    expect(storedOnLandingDay({ start_time: "09:20:00", end_time: "10:55:00", details: { departure_time: "09:20" }, place })).toBe(false);
+    expect(storedOnLandingDay({ start_time: "19:00:00", end_time: "08:35:00", details: {}, place })).toBe(false);
   });
 });

@@ -53,7 +53,7 @@ const lh330 = flight("lh330", "t25", "10:00:00", "11:30:00", { flight_number: "L
 beforeEach(() => { writes.calls = []; rows.data = []; vi.unstubAllGlobals(); });
 
 describe("the boarding-pass flight card (19 Nov 2026)", () => {
-  it("his Rome flight reads like a boarding pass: YYZ 7:45 PM → FCO 10:20 AM next day, 8 h 35; no photo, no repeated time rows", async () => {
+  it("his Rome flight reads like a boarding pass: YYZ 7:45 PM Tue 21 Apr → FCO 10:20 AM Wed 22 Apr (kept on its landing day), 8 h 35; no photo, no repeated time rows", async () => {
     rows.data = [ac890];
     await act(async () => { render(<CardBottomSheet card={ac890} onClose={() => {}} days={romeDays} />); });
     const pass = screen.getByTestId("flight-pass");
@@ -62,7 +62,8 @@ describe("the boarding-pass flight card (19 Nov 2026)", () => {
     expect(pass.textContent).toContain("Roma Fiumicino");
     expect(pass.textContent).toContain("7:45 PM");
     expect(pass.textContent).toContain("10:20 AM");
-    expect(pass.textContent).toContain("Thu 23 Apr · next day");
+    expect(pass.textContent).toContain("Tue 21 Apr");
+    expect(pass.textContent).toContain("Wed 22 Apr · next day");
     expect(screen.getByTestId("pass-length").textContent).toBe("8 h 35");
     expect(pass.textContent).toContain("39C");
     expect(pass.textContent).toContain("B24EDV");

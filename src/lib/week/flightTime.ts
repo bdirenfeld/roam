@@ -15,6 +15,7 @@
  */
 
 import { airportCode } from "@/lib/flights/airportZones";
+import { storedOnLandingDay } from "@/lib/cardTime";
 
 type Day = { id: string; date: string };
 export type FlightCard = {
@@ -82,7 +83,13 @@ export function flightsInAir<C extends FlightCard>(days: Day[], cards: C[]): Fli
     if (start === null) continue;
     let end = start - (start % 1440) + toMin(c.end_time);
     if (end <= start) end += 1440;
+    // Kept on the day it lands (Rome AC890, lib/cardTime): it took off the evening before.
+    const onLanding = storedOnLandingDay({ start_time: c.start_time, end_time: c.end_time, details: c.details ?? null, place: c.place ? { sub_type: c.place.sub_type ?? null } : null });
     const a = airports(c)!;
+    if (onLanding) {
+      out.push({ start: start - 1440, end: end - 1440, card: c, to: placeName(a.to), fromKey: airportKey(a.from), toKey: airportKey(a.to) });
+      continue;
+    }
     out.push({ start, end, card: c, to: placeName(a.to), fromKey: airportKey(a.from), toKey: airportKey(a.to) });
   }
   // A flight entered twice (a departure and an arrival card with the same times) shades once.

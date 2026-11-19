@@ -41,3 +41,16 @@ export function cardTimes(card: TimedCard): { start: string | null; end: string 
   // an arrival reads as a four-hour event in the day, which it is not.
   return { start: card.end_time, end: null };
 }
+
+/**
+ * An overnight flight kept on the day it LANDS (19 Nov 2026): the same cards
+ * cardTimes moves to their landing, with a landing earlier than the takeoff.
+ * Rome AC890 sits on Wed 22 Apr, 19:45 → 10:20: it left Toronto Tue 21 Apr
+ * evening and landed Wed morning (the trip starts the 22nd, hotel at noon).
+ * The boarding pass and the week's grey band read it from the day before.
+ */
+export function storedOnLandingDay(card: TimedCard): boolean {
+  if (!card.start_time || !card.end_time) return false;
+  if (card.end_time.slice(0, 5) >= card.start_time.slice(0, 5)) return false;
+  return cardTimes(card).start === card.end_time;
+}

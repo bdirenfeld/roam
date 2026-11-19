@@ -104,3 +104,13 @@ describe("connecting flights (19 Nov 2026)", () => {
     expect(flightTrips(rome, [out, home]).map((t) => t.layovers.length)).toEqual([0, 0]);
   });
 });
+
+describe("a flight kept on the day it lands (19 Nov 2026)", () => {
+  it("Rome AC890 as stored (on Wed 22 Apr, departure_time 19:45): grey only from 7 am to 10:20 that morning, not Wed evening → Thu", () => {
+    const ds = days(["2026-04-22", "2026-04-23"]);
+    const rome = card("ac890", 0, "19:45:00", "10:20:00", { origin_airport: "Toronto-Pearson Int. (YYZ)", arriving_at: "Roma Fiumicino Airport (FCO)", departure_time: "19:45" }, { title: "Flight to Rome — Air Canada", sub_type: "flight_arrival" });
+    expect(flightsInAir(ds, [rome]).map((x) => [x.start, x.end])).toEqual([[1185 - 1440, 620]]);
+    expect(flightBands(ds, [rome], 7, 23).get("d0")).toEqual([{ from: 420, to: 620, label: true, takeoff: false, card: rome, dest: "Roma Fiumicino" }]);
+    expect(flightBands(ds, [rome], 7, 23).get("d1")).toBeUndefined();
+  });
+});
