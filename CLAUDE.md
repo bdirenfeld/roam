@@ -2568,3 +2568,18 @@ under the day headers and sizes the hours with `fitPxPerHour` (lib/week/layout):
 1366×768 laptop, never under 28 (then it scrolls). Every px maths reads the `pph` state, never `PX_PER_HOUR`;
 `placeBlocks`/`minutesAtY`/`gridHeight` take it as an argument. The 7 am label sits under its line (it was half
 hidden under the headers).
+
+## Flights: connections and the boarding pass (19 Nov 2026)
+- **Connections are worked out, never typed** (TripIt / Google Flights rule, his approved mock): `lib/week/flightTime`
+  `flightTrips` joins flights when the next leaves from the airport the last landed at (`airportKey`: code, else
+  name) within `LAYOVER_MAX` 24 h; longer is a stopover, two trips. Each flight stays its own card. The week draws
+  one band first takeoff → last landing ("In the air · to Pisa · via Frankfurt") with the layover hatched over it
+  (`layoverBands`); a card finds its neighbours with `connectionsOf`.
+- **Airport clocks** live in `lib/flights/airportZones` (zone → codes, busiest airports + every one on his journeys).
+  `flightLength` gives the real length and landing day; an unlisted airport shows NO length, never a guess. Add codes
+  there when a journey flies somewhere new. The week still draws each card on its own city's clock.
+- **The boarding pass** (`components/cards/FlightPass`, `lib/flights/pass`): a flight card whose details name both
+  `origin_airport` and `arriving_at` (`isPassFlight`) has no photo/rating/heart/website/call/link pin and no type pill
+  (Change type is in the ⋯); FlightArrivalDetail with `pass` keeps only the aircraft. "Land in Sydney" (no airports)
+  and the landing card of a two-card flight keep the place layout. Hosts pass `onOpenCard` and key the sheet by card id
+  so the layover row can open the other flight.
