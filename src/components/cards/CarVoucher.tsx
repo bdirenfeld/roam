@@ -40,7 +40,7 @@ export function useTripRentals(tripId: string | null | undefined, enabled: boole
 
 export function CarVoucherTop({ v, readOnly, onSave }: { v: RentalVoucher; readOnly: boolean; onSave: (field: string, value: string | null) => void }) {
   return (
-    <p data-testid="voucher-company" className="flex items-center gap-1 text-[13px] font-semibold pr-10" style={{ color: "rgba(26,26,46,0.75)" }}>
+    <p data-testid="voucher-company" className="flex flex-wrap items-center gap-x-1 text-[13px] font-semibold pr-10 [&>*]:whitespace-nowrap" style={{ color: "rgba(26,26,46,0.75)" }}>
       <PassText label="rental company" value={v.company} placeholder="Rental company" onSave={readOnly ? undefined : (x) => onSave("company", x || null)} />
       <span aria-hidden="true">·</span>
       <span>{v.side === "return" ? "Return it" : "Rental car"}</span>

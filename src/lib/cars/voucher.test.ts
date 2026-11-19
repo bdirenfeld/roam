@@ -58,3 +58,9 @@ describe("the rental voucher (19 Nov 2026)", () => {
     ]);
   });
 });
+
+describe("seen live on the Tuscany van (19 Nov 2026)", () => {
+  it("'Pisa Airport car rental' reads 'Pisa Airport', matching the drop-off side", () => {
+    expect(shortWhere("Pisa Airport car rental")).toBe("Pisa Airport");
+  });
+});

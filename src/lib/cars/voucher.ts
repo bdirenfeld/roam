@@ -60,7 +60,8 @@ export function companyOf(c: VoucherCard): string | null {
 export function shortWhere(s: string | null | undefined): string | null {
   if (!s || !s.trim()) return null;
   const dash = s.split(/\s+-\s+/);
-  return dash[dash.length - 1].split(",")[0].trim() || null;
+  // "Pisa Airport car rental" reads "Pisa Airport", as the drop-off side does (seen live).
+  return dash[dash.length - 1].split(",")[0].replace(/\s+car rental$/i, "").trim() || null;
 }
 
 const daysBetween = (a: string | null, b: string | null) =>

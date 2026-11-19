@@ -41,3 +41,9 @@ describe("the boarding pass (19 Nov 2026)", () => {
     expect(passDate("2026-04-22")).toBe("Wed 22 Apr");
   });
 });
+
+describe("dates spelled by hand (19 Nov 2026)", () => {
+  it("September is 'Sep', never ICU's 'Sept'", () => {
+    expect(passDate("2027-09-05")).toBe("Sun 5 Sep");
+  });
+});

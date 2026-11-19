@@ -77,7 +77,7 @@ export function PassText({ value, placeholder, onSave, className, style, label }
 export function FlightPassTop({ view, readOnly, onSave }: { view: FlightPassView; readOnly: boolean; onSave: (field: string, value: string | null) => void }) {
   const save = (f: string) => (readOnly ? undefined : (v: string) => onSave(f, v || null));
   return (
-    <p data-testid="pass-airline" className="flex items-center gap-1 text-[13px] font-semibold pr-10" style={{ color: "rgba(26,26,46,0.75)" }}>
+    <p data-testid="pass-airline" className="flex flex-wrap items-center gap-x-1 text-[13px] font-semibold pr-10 [&>*]:whitespace-nowrap" style={{ color: "rgba(26,26,46,0.75)" }}>
       <PassText label="airline" value={view.airline} placeholder="Airline" onSave={save("airline")} />
       <span aria-hidden="true">·</span>
       <PassText label="flight number" value={view.number} placeholder="Flight no." onSave={save("flight_number")} />

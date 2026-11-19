@@ -78,5 +78,9 @@ export function airportSearch(s: string): string {
 
 /** "Wed 22 Apr". */
 export function passDate(iso: string): string {
-  return new Date(iso + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+  // Spelled by hand: ICU writes "Sept" in some browsers (seen live, 19 Nov 2026).
+  const d = new Date(iso + "T12:00:00Z");
+  const WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const MO = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${WD[d.getUTCDay()]} ${d.getUTCDate()} ${MO[d.getUTCMonth()]}`;
 }
