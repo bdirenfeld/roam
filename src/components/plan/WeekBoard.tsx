@@ -1,6 +1,7 @@
 "use client";
 import { shipSpans, shipSpanSource } from "@/lib/plan/cruiseDays";
-import { flightBands } from "@/lib/week/flightTime";
+import { flightBands, layoverBands } from "@/lib/week/flightTime";
+import { lengthLabel } from "@/lib/flights/airportZones";
 import { otherStayNights } from "@/lib/stays/stayPick";
 import { isPortCard, minutesAshore, nightsInPort, portDayRole, addIsoDays, otherPortDays } from "@/lib/cards/port";
 import { useGuidanceScreen, useWalkthrough } from "@/components/onboarding/JourneyGuidanceContext";
@@ -904,6 +905,8 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
   // Time on a cruise ship, per day (lib/plan/cruiseDays): painted pale blue on the grid.
   const ship = useMemo(() => shipSpans(days, days.flatMap((d) => d.cards)), [days]);
   const air = useMemo(() => flightBands(days, days.flatMap((d) => d.cards), HOUR_START, HOUR_END), [days]);
+  // Connecting flights (19 Nov 2026): the layover hatched over the band, "1 h 25 layover · Frankfurt".
+  const layovers = useMemo(() => layoverBands(days, days.flatMap((d) => d.cards), HOUR_START, HOUR_END), [days]);
   const dateOfDay = useCallback((id: string | null) => days.find((x) => x.id === id)?.date ?? "", [days]);
   const weekdayOf = (iso: string) => new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short" });
   const laidOut = useMemo(() => shown.map((d, di) => {
@@ -1206,12 +1209,31 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
                             data-air-source={f.card.id}
                             onClick={(e) => { e.stopPropagation(); setSelectedCard(f.card); }}
                             onPointerDown={(e) => e.stopPropagation()}
-                            title={`In the air · to ${f.dest} · open the flight`}
+                            title={`In the air · to ${f.dest}${f.via ? ` · via ${f.via}` : ""} · open the flight`}
                             className="pointer-events-auto absolute left-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium hover:bg-[rgba(94,96,112,0.14)] hover:underline underline-offset-2 max-w-[calc(100%-12px)] truncate"
                             style={{ color: AIR_INK, top: f.takeoff ? 26 : 4 }}
                           >
                             <span className="inline-flex flex-shrink-0" dangerouslySetInnerHTML={{ __html: getGlyphHTML("flight", 11) }} />
-                            <span className="truncate">In the air · to {f.dest}</span>
+                            <span className="truncate">In the air · to {f.dest}{f.via ? ` · via ${f.via}` : ""}</span>
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {!collapsed(di) && (layovers.get(day.id) ?? []).map((l) => (
+                      <div key={`lay-${l.card.id}-${l.from}`} data-layover={day.id} className="absolute left-0 right-0 pointer-events-none"
+                        style={{ top: (l.from / 60 - HOUR_START) * pph, height: ((l.to - l.from) / 60) * pph, background: `repeating-linear-gradient(135deg, ${AIR_GREY} 0 6px, #ECECF0 6px 8px)`, borderTop: "1px dashed #C9C9D2", borderBottom: "1px dashed #C9C9D2" }}>
+                        {l.label && (
+                          <button
+                            type="button"
+                            data-layover-label
+                            onClick={(e) => { e.stopPropagation(); setSelectedCard(l.card); }}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            title={`${lengthLabel(l.minutes)} layover in ${l.at} · open the next flight`}
+                            className="pointer-events-auto absolute left-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium hover:bg-[rgba(94,96,112,0.14)] max-w-[calc(100%-12px)] truncate"
+                            style={{ color: AIR_INK }}
+                          >
+                            <span aria-hidden="true">⇄</span>
+                            <span className="truncate">{lengthLabel(l.minutes)} layover · {l.at}</span>
                           </button>
                         )}
                       </div>
@@ -1476,8 +1498,10 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
       )}
       {selectedCard && (
         <CardBottomSheet
+          key={selectedCard.id}
           card={selectedCard}
           readOnly={readOnly}
+          onOpenCard={setSelectedCard}
           onClose={() => setSelectedCard(null)}
           onCardUpdate={handleCardUpdate}
           onCardDelete={handleCardDelete}

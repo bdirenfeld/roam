@@ -14,12 +14,16 @@
  * gets nothing. Each city's own clock is used, as the cards are entered.
  */
 
+import { airportCode } from "@/lib/flights/airportZones";
+
 type Day = { id: string; date: string };
 export type FlightCard = {
   id: string; day_id: string | null; status?: string | null; start_time: string | null; end_time: string | null;
   details?: unknown; place?: { title?: string | null; sub_type?: string | null } | null;
 };
-export interface FlightSpan<C> { start: number; end: number; card: C; to: string }
+/** One flight on the journey clock: the card its label opens, where it lands, the two airports as
+ *  keys (code, else the name) so a connection can be matched, and a two-card flight's landing card. */
+export interface FlightSpan<C> { start: number; end: number; card: C; to: string; fromKey?: string; toKey?: string; landing?: C }
 
 const DAY_MS = 86_400_000;
 const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
@@ -28,12 +32,15 @@ const airports = (c: FlightCard) => {
   return typeof d.origin_airport === "string" && typeof d.arriving_at === "string" && d.origin_airport.trim() && d.arriving_at.trim()
     ? { from: d.origin_airport.trim(), to: d.arriving_at.trim() } : null;
 };
-/** "PSA", "Roma Fiumicino Airport (FCO)", "Toronto Pearson (YYZ)" → the code, or null. */
-const codeOf = (s: string) => (s.match(/\(([A-Z]{3})\)/)?.[1] ?? (/^[A-Z]{3}$/.test(s) ? s : null));
+/** "PSA", "Roma Fiumicino Airport (FCO)", "Frankfurt FRA" → the code, or null. */
+const codeOf = (s: string) => airportCode(s);
+/** An airport as a key a connection matches on: its code, else its name. */
+export const airportKey = (s: string) => codeOf(s) ?? s.trim().toLowerCase();
 
 /** Where a flight is going, said plainly: "Pisa", "Roma Fiumicino", "Toronto Pearson", or the code. */
 export function placeName(s: string): string {
-  const t = s.replace(/\([A-Z]{3}\)/g, "").replace(/\b(international|int\.?)\b/gi, "").replace(/\bairport\b/gi, "").replace(/\s+/g, " ").replace(/[\s,–-]+$/, "").trim();
+  // "Frankfurt FRA" (the hand form's way) loses its code too (19 Nov 2026); "PSA" alone stays "PSA".
+  const t = s.replace(/\([A-Z]{3}\)/g, "").replace(/(\S)\s+[A-Z]{3}$/, "$1").replace(/\b(international|int)\b\.?/gi, "").replace(/\bairport\b/gi, "").replace(/\s+/g, " ").replace(/[\s,–-]+$/, "").trim();
   return t || s.trim();
 }
 
@@ -66,7 +73,7 @@ export function flightsInAir<C extends FlightCard>(days: Day[], cards: C[]): Fli
       .sort((p, q) => p.when! - q.when!)[0];
     if (!landing) continue;
     landingCards.add(landing.x.id);
-    out.push({ start, end: landing.when!, card: c, to: placeName(landing.x.place?.title || a.to) });
+    out.push({ start, end: landing.when!, card: c, to: placeName(landing.x.place?.title || a.to), fromKey: airportKey(a.from), toKey: airportKey(a.to), landing: landing.x });
   }
   // The one-card flight: start to end; an end before the start lands the next day.
   for (const c of live) {
@@ -75,7 +82,8 @@ export function flightsInAir<C extends FlightCard>(days: Day[], cards: C[]): Fli
     if (start === null) continue;
     let end = start - (start % 1440) + toMin(c.end_time);
     if (end <= start) end += 1440;
-    out.push({ start, end, card: c, to: placeName(airports(c)!.to) });
+    const a = airports(c)!;
+    out.push({ start, end, card: c, to: placeName(a.to), fromKey: airportKey(a.from), toKey: airportKey(a.to) });
   }
   // A flight entered twice (a departure and an arrival card with the same times) shades once.
   const seen = new Set<string>();
@@ -83,27 +91,99 @@ export function flightsInAir<C extends FlightCard>(days: Day[], cards: C[]): Fli
     .sort((p, q) => p.start - q.start);
 }
 
+/** Longest gap between two flights that is still a layover (TripIt's rule: longer is a stopover). */
+export const LAYOVER_MAX = 24 * 60;
+
+/** A layover: landed at `at`, next takeoff from there, `start`→`end` on the journey clock. */
+export interface Layover<C> { start: number; end: number; at: string; arrived: C; leaves: C }
+/** Flights joined by layovers (19 Nov 2026): first takeoff → last landing, where it ends, via where. */
+export interface FlightTrip<C> { start: number; end: number; legs: FlightSpan<C>[]; layovers: Layover<C>[]; to: string; via: string[] }
+
+/**
+ * Connections, worked out, never typed (19 Nov 2026, Brennan approved the
+ * mock; TripIt and Google Flights do it this way): the next flight leaves from
+ * the airport the last one landed at, within 24 hours. Both times are on that
+ * airport's own clock, so the layover's length is exact.
+ */
+export function flightTrips<C extends FlightCard>(days: Day[], cards: C[]): FlightTrip<C>[] {
+  const spans = flightsInAir(days, cards);
+  const used = new Set<FlightSpan<C>>();
+  const trips: FlightTrip<C>[] = [];
+  for (const s of spans) {
+    if (used.has(s)) continue;
+    used.add(s);
+    const legs = [s];
+    const layovers: Layover<C>[] = [];
+    for (;;) {
+      const last = legs[legs.length - 1];
+      const next = spans.find((x) => !used.has(x) && x.fromKey && x.fromKey === last.toKey && x.start >= last.end && x.start - last.end <= LAYOVER_MAX);
+      if (!next) break;
+      used.add(next);
+      layovers.push({ start: last.end, end: next.start, at: last.to, arrived: last.landing ?? last.card, leaves: next.card });
+      legs.push(next);
+    }
+    const end = legs[legs.length - 1];
+    trips.push({ start: s.start, end: end.end, legs, layovers, to: end.to, via: layovers.map((l) => l.at) });
+  }
+  return trips;
+}
+
+/** A day's slice of a stretch of the journey clock, clipped to the grid's hours. */
+function slices(days: Day[], start: number, end: number, hourStart: number, hourEnd: number): { id: string; from: number; to: number; first: boolean }[] {
+  const firstDay = Math.min(...days.map((d) => Date.parse(d.date + "T00:00:00Z")));
+  const byNum = new Map(days.map((d) => [Math.round((Date.parse(d.date + "T00:00:00Z") - firstDay) / DAY_MS), d.id]));
+  const out: { id: string; from: number; to: number; first: boolean }[] = [];
+  for (let n = Math.floor(start / 1440); n <= Math.floor((end - 1) / 1440); n++) {
+    const id = byNum.get(n);
+    if (!id) continue;
+    const s = Math.max(start, n * 1440) - n * 1440, e = Math.min(end, (n + 1) * 1440) - n * 1440;
+    const s2 = Math.max(s, hourStart * 60), e2 = Math.min(e, (hourEnd + 1) * 60);
+    if (e2 > s2) out.push({ id, from: s2, to: e2, first: n * 1440 + s === start });
+  }
+  return out;
+}
+
 /**
  * The bands for each day, clipped to the grid's hours: [from, to) minutes of
  * that day, whether it is long enough to carry a label (2 h, as the ship's),
- * whether the band starts that day at takeoff, the card, and where it lands.
+ * whether the band starts that day at takeoff, the card, where it lands and,
+ * for connecting flights, where it changes: one band from the first takeoff
+ * to the last landing, so a layover never looks like free time.
  */
-export function flightBands<C extends FlightCard>(days: Day[], cards: C[], hourStart: number, hourEnd: number): Map<string, { from: number; to: number; label: boolean; takeoff: boolean; card: C; dest: string }[]> {
-  const out = new Map<string, { from: number; to: number; label: boolean; takeoff: boolean; card: C; dest: string }[]>();
+export function flightBands<C extends FlightCard>(days: Day[], cards: C[], hourStart: number, hourEnd: number): Map<string, { from: number; to: number; label: boolean; takeoff: boolean; card: C; dest: string; via?: string }[]> {
+  const out = new Map<string, { from: number; to: number; label: boolean; takeoff: boolean; card: C; dest: string; via?: string }[]>();
   if (!days.length) return out;
-  const first = Math.min(...days.map((d) => Date.parse(d.date + "T00:00:00Z")));
-  const byNum = new Map(days.map((d) => [Math.round((Date.parse(d.date + "T00:00:00Z") - first) / DAY_MS), d.id]));
-  for (const f of flightsInAir(days, cards)) {
-    for (let n = Math.floor(f.start / 1440); n <= Math.floor((f.end - 1) / 1440); n++) {
-      const id = byNum.get(n);
-      if (!id) continue;
-      const s = Math.max(f.start, n * 1440) - n * 1440, e = Math.min(f.end, (n + 1) * 1440) - n * 1440;
-      const s2 = Math.max(s, hourStart * 60), e2 = Math.min(e, (hourEnd + 1) * 60);
-      if (e2 <= s2) continue;
-      const list = out.get(id) ?? [];
-      list.push({ from: s2, to: e2, label: e2 - s2 >= 120, takeoff: n * 1440 + s === f.start, card: f.card, dest: f.to });
-      out.set(id, list);
+  for (const t of flightTrips(days, cards)) {
+    for (const sl of slices(days, t.start, t.end, hourStart, hourEnd)) {
+      const list = out.get(sl.id) ?? [];
+      list.push({ from: sl.from, to: sl.to, label: sl.to - sl.from >= 120, takeoff: sl.first, card: t.legs[0].card, dest: t.to, ...(t.via.length ? { via: t.via.join(", ") } : {}) });
+      out.set(sl.id, list);
     }
   }
   return out;
+}
+
+/** Each day's layovers, hatched over the band: where, how long, and whether there's room for words (30 min). */
+export function layoverBands<C extends FlightCard>(days: Day[], cards: C[], hourStart: number, hourEnd: number): Map<string, { from: number; to: number; at: string; minutes: number; label: boolean; card: C }[]> {
+  const out = new Map<string, { from: number; to: number; at: string; minutes: number; label: boolean; card: C }[]>();
+  if (!days.length) return out;
+  for (const t of flightTrips(days, cards)) {
+    for (const l of t.layovers) {
+      for (const sl of slices(days, l.start, l.end, hourStart, hourEnd)) {
+        const list = out.get(sl.id) ?? [];
+        list.push({ from: sl.from, to: sl.to, at: l.at, minutes: l.end - l.start, label: sl.to - sl.from >= 30, card: l.leaves });
+        out.set(sl.id, list);
+      }
+    }
+  }
+  return out;
+}
+
+/** The flights either side of a card, for its layover row: the one it connects from and the one it connects to. */
+export function connectionsOf<C extends FlightCard>(days: Day[], cards: C[], cardId: string): { before: Layover<C> | null; after: Layover<C> | null } {
+  for (const t of flightTrips(days, cards)) {
+    const i = t.legs.findIndex((l) => l.card.id === cardId || l.landing?.id === cardId);
+    if (i >= 0) return { before: i > 0 ? t.layovers[i - 1] : null, after: i < t.layovers.length ? t.layovers[i] : null };
+  }
+  return { before: null, after: null };
 }

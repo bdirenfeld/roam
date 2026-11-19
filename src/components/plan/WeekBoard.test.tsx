@@ -300,3 +300,20 @@ describe("time in the air, shaded (18 Nov 2026)", () => {
     expect(screen.getByTestId("sheet").textContent).toBe("YYZ Terminal 1");
   });
 });
+
+describe("connecting flights on the week (19 Nov 2026)", () => {
+  it("one band to Pisa via Frankfurt; the layover hatched and labelled, opening the next flight", () => {
+    const fra = { id: "fra", title: "Frankfurt Airport", type: "logistics", sub_type: "flight_arrival", lat: 50.03, lng: 8.56, address: "Frankfurt" };
+    const psa = { id: "psa", title: "Pisa International Airport", type: "logistics", sub_type: "flight_arrival", lat: 43.69, lng: 10.4, address: "Pisa" };
+    const flown = days.map((d, i) => i === 0
+      ? { ...d, cards: [card("ac", d.id, fra as typeof villa, { start_time: "19:00:00", end_time: "08:35:00", details: { origin_airport: "Toronto Pearson (YYZ)", arriving_at: "Frankfurt (FRA)" } })] }
+      : i === 1 ? { ...d, cards: [card("lh", d.id, psa as typeof villa, { start_time: "10:00:00", end_time: "11:30:00", details: { origin_airport: "Frankfurt FRA", arriving_at: "Pisa PSA" } })] } : d) as unknown as DayWithCards[];
+    const { container } = render(<WeekBoard trip={trip} initialDays={flown} initialSaved={[]} />);
+    expect((Array.from(container.querySelectorAll("button[data-air-label]")) as HTMLElement[]).map((l) => l.textContent))
+      .toEqual(["flightIn the air · to Pisa · via Frankfurt", "flightIn the air · to Pisa · via Frankfurt"]);
+    const lay = container.querySelector("button[data-layover-label]") as HTMLButtonElement;
+    expect(lay.textContent).toBe("⇄1 h 25 layover · Frankfurt");
+    fireEvent.click(lay);
+    expect(screen.getByTestId("sheet").textContent).toBe("Pisa International Airport");
+  });
+});
