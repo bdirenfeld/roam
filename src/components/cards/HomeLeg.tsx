@@ -52,10 +52,10 @@ export async function airportPoint(code: string, place: { lat?: number | null; l
   }
 }
 
-/** Google's drive time between two points, in minutes (the travel card's route, cached a month). */
-export async function driveMinutes(from: { lat: number; lng: number }, to: { lat: number; lng: number }): Promise<number | null> {
+/** Google's drive time between two points with traffic for that weekday and hour, in minutes (cached a month). */
+export async function driveMinutes(from: { lat: number; lng: number }, to: { lat: number; lng: number }, date: string | null, hour: number): Promise<number | null> {
   try {
-    const r = await fetch("/api/travel/estimate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ from, to }) }).then((x) => x.json()) as { drive?: number | null };
+    const r = await fetch("/api/travel/estimate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ from, to, date, hour, traffic: true }) }).then((x) => x.json()) as { drive?: number | null };
     return typeof r.drive === "number" ? r.drive : null;
   } catch {
     return null;
@@ -95,14 +95,14 @@ export function HomeLegRows({ plan, airportName, readOnly, onSave }: {
       {plan.role === "leaving" ? (
         <>
           <Row big when={t(plan.leave)} what="Leave home" sub={plan.leave ? undefined : "Working out the drive…"} />
-          {plan.drive != null && <Row when={minsLabel(plan.drive)} what={`Drive to ${airportName}`} sub="Google's drive time, without traffic" />}
+          {plan.drive != null && <Row when={minsLabel(plan.drive)} what={`Drive to ${airportName}`} sub="Google's estimate with traffic at that hour" />}
           <Row when={t(plan.atAirport)} what="At the airport" sub={`${minsLabel(plan.early)} before the flight`} action={choice("airport_early_min", [120, 180], plan.early)} />
         </>
       ) : (
         <>
           <Row when={t(plan.land)} what={`Land at ${airportName}`} />
           <Row when={minsLabel(plan.bags)} what="Bags and customs" action={choice("bags_min", [30, 60, 90], plan.bags)} />
-          {plan.drive != null && <Row when={minsLabel(plan.drive)} what="Drive home" sub="Google's drive time, without traffic" />}
+          {plan.drive != null && <Row when={minsLabel(plan.drive)} what="Drive home" sub="Google's estimate with traffic at that hour" />}
           <Row big when={plan.home ? `~${t(plan.home)}` : "–"} what="Home" sub={plan.home ? undefined : "Working out the drive…"} />
         </>
       )}

@@ -20,7 +20,8 @@ import { flightsInAir, slices, type FlightCard } from "@/lib/week/flightTime";
 const CANADA = new Set("YYZ YTZ YOW YUL YQB YHM YXU YKF YQT YHZ YFC YSJ YQM YYG YYT YWG YQR YXE YEG YYC YVR YYJ YLW YXX".split(" "));
 
 export type HomeRole = "leaving" | "returning";
-export interface HomeDrive { from: string; mins: number }
+/** The drive as saved on the card; traffic: measured with traffic for that weekday and hour (19 Nov 2026). */
+export interface HomeDrive { from: string; mins: number; traffic?: boolean }
 
 const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
 const hhmm = (m: number) => { const x = ((m % 1440) + 1440) % 1440; return `${String(Math.floor(x / 60)).padStart(2, "0")}:${String(x % 60).padStart(2, "0")}:00`; };
@@ -51,7 +52,8 @@ export function isDomestic(fromCode: string | null, toCode: string | null): bool
 /** The home drive saved on the card, if it was worked out from this home. */
 export function savedDrive(details: unknown, homeKey: string): number | null {
   const h = ((details ?? {}) as Record<string, unknown>).home_drive as HomeDrive | undefined;
-  return h && h.from === homeKey && num(h.mins) != null ? h.mins : null;
+  // A drive saved before traffic was asked for (the first day, 21 min to Pearson at 3:30) is asked again.
+  return h && h.from === homeKey && h.traffic === true && num(h.mins) != null ? h.mins : null;
 }
 
 /** "43.770,-79.410": the home a saved drive was measured from. */

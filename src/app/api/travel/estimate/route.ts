@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, underQuota, quotaExceeded, QUOTA } from "@/lib/api/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { routeFrom, type Route } from "@/lib/plan/gettingThere";
+import { routeFrom, trafficMinutes, type Route } from "@/lib/plan/gettingThere";
 import { estimateKey, viaOf } from "@/lib/travel/estimate";
 
 // ── A leg's drive and transit times (12 Nov 2026) ─────────────────────────
@@ -20,7 +20,7 @@ const okPt = (p: unknown): p is Pt => {
 export async function POST(req: NextRequest) {
   const gate = await requireUser();
   if ("response" in gate) return gate.response;
-  const body = await req.json().catch(() => null) as { from?: unknown; to?: unknown; date?: string; hour?: number } | null;
+  const body = await req.json().catch(() => null) as { from?: unknown; to?: unknown; date?: string; hour?: number; traffic?: boolean } | null;
   if (!okPt(body?.from) || !okPt(body?.to)) return NextResponse.json({ error: "from and to are required" }, { status: 400 });
   const from = body!.from as Pt, to = body!.to as Pt;
   const key = process.env.GOOGLE_PLACES_API_KEY;
@@ -62,6 +62,36 @@ export async function POST(req: NextRequest) {
       return null;
     }
   };
+
+  // The drive to the airport asks for traffic (19 Nov 2026): the same weekday and hour coming
+  // up, on the start's own clock, Google's best guess; cached under its own key.
+  if (body?.traffic === true) {
+    const k = `route|traffic|${from.lat.toFixed(3)},${from.lng.toFixed(3)}|${to.lat.toFixed(3)},${to.lng.toFixed(3)}|${wd}-${hour}`;
+    if (admin) {
+      const { data } = await admin.from("find_cache").select("results, created_at").eq("key", k).maybeSingle();
+      if (data && Date.now() - Date.parse(data.created_at as string) < MONTH) {
+        return NextResponse.json({ key: estimateKey(from, to), drive: (data.results as { drive: number | null }).drive, transit: null, rides: null, via: null, traffic: true });
+      }
+    }
+    const now = new Date();
+    const at = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + ((wd - now.getUTCDay() + 7) % 7 || 7), hour - Math.round(from.lng / 15)));
+    const u = new URL("https://maps.googleapis.com/maps/api/directions/json");
+    u.searchParams.set("origin", `${from.lat},${from.lng}`);
+    u.searchParams.set("destination", `${to.lat},${to.lng}`);
+    u.searchParams.set("mode", "driving");
+    u.searchParams.set("departure_time", String(Math.floor(at.getTime() / 1000)));
+    u.searchParams.set("traffic_model", "best_guess");
+    u.searchParams.set("key", key);
+    let driveMin: number | null = null;
+    try {
+      const json = await (await fetch(u, { cache: "no-store" })).json();
+      driveMin = trafficMinutes(json) ?? routeFrom(json)?.minutes ?? null;
+      if (admin && driveMin != null) await admin.from("find_cache").upsert({ key: k, results: { drive: driveMin }, created_at: new Date().toISOString() });
+    } catch (e) {
+      console.error("[travel/estimate traffic]", e);
+    }
+    return NextResponse.json({ key: estimateKey(from, to), drive: driveMin, transit: null, rides: null, via: null, traffic: true });
+  }
 
   const [drive, transit] = await Promise.all([route("driving"), route("transit")]);
   // A "transit" answer that is all walking is not public transport.

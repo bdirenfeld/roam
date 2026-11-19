@@ -136,7 +136,7 @@ describe("getting to the airport and home (19 Nov 2026)", () => {
   const key = "43.770,-79.410";
   it("Tuscany out from YYZ at 7 PM: leave home 3:30 PM, 30 min drive, at the airport 4:00 PM (3 h); 2 h saves airport_early_min", async () => {
     rows.me = me;
-    const out = flight("out", "t24", "19:00:00", "08:35:00", { origin_airport: "YYZ", arriving_at: "Frankfurt (FRA)", home_drive: { from: key, mins: 30 } }, airport("yyz", "YYZ Terminal 1"));
+    const out = flight("out", "t24", "19:00:00", "08:35:00", { origin_airport: "YYZ", arriving_at: "Frankfurt (FRA)", home_drive: { from: key, mins: 30, traffic: true } }, airport("yyz", "YYZ Terminal 1"));
     rows.data = [out];
     await act(async () => { render(<CardBottomSheet card={out} onClose={() => {}} days={tusDays} />); });
     const box = await waitFor(() => screen.getByTestId("home-leaving"));
@@ -146,7 +146,7 @@ describe("getting to the airport and home (19 Nov 2026)", () => {
   });
   it("a flight landing at home: bags 1 h, drive, home around; a guest sees none of it", async () => {
     rows.me = me;
-    const back = flight("back", "t25", "10:00:00", "16:00:00", { origin_airport: "FRA", arriving_at: "Toronto Pearson (YYZ)", home_drive: { from: key, mins: 35 } }, airport("yyz2", "Toronto Pearson", "flight_departure"));
+    const back = flight("back", "t25", "10:00:00", "16:00:00", { origin_airport: "FRA", arriving_at: "Toronto Pearson (YYZ)", home_drive: { from: key, mins: 35, traffic: true } }, airport("yyz2", "Toronto Pearson", "flight_departure"));
     rows.data = [back];
     const { unmount } = await act(async () => render(<CardBottomSheet card={back} onClose={() => {}} days={tusDays} />));
     const box = await waitFor(() => screen.getByTestId("home-returning"));

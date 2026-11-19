@@ -42,6 +42,17 @@ const DOOR_MIN = 10;
 type GStep = { travel_mode?: string; duration?: { value?: number }; transit_details?: { line?: { short_name?: string; name?: string; vehicle?: { type?: string } }; departure_stop?: { name?: string }; arrival_stop?: { name?: string }; num_stops?: number } };
 type GLeg = { duration?: { value?: number }; distance?: { value?: number }; steps?: GStep[] };
 
+/**
+ * Minutes with traffic (19 Nov 2026, the drive to the airport): Google's
+ * duration_in_traffic, which it returns for a driving request with a
+ * departure_time; null when the answer has none.
+ */
+export function trafficMinutes(json: unknown): number | null {
+  const j = json as { status?: string; routes?: { legs?: { duration_in_traffic?: { value?: number } }[] }[] } | null;
+  const v = j?.status === "OK" ? j.routes?.[0]?.legs?.[0]?.duration_in_traffic?.value : undefined;
+  return typeof v === "number" && v > 0 ? Math.round(v / 60) : null;
+}
+
 /** Google Directions JSON to a route, or null when there is none. */
 export function routeFrom(json: unknown): Route | null {
   const j = json as { status?: string; routes?: { legs?: GLeg[] }[] } | null;

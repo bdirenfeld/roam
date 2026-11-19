@@ -643,6 +643,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const homeLegRole = home && passOn ? homeRole(localCard.details, home.airport) : null;
   const homeDriveMins = home ? savedDrive(localCard.details, home.key) : null;
   const homeAsked = useRef(false);
+  const toMinutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
   useEffect(() => {
     if (!home || !homeLegRole || homeDriveMins != null || readOnly || homeAsked.current) return;
     homeAsked.current = true;
@@ -652,8 +653,13 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       const apt = await airportPoint(code, localCard.place);
       if (!apt) return;
       const here = { lat: home.lat, lng: home.lng };
-      const mins = await driveMinutes(homeLegRole === "leaving" ? here : apt, homeLegRole === "leaving" ? apt : here);
-      if (mins != null) void saveDetails("home_drive", { from: home.key, mins });
+      // Traffic at the hour you'd be driving: half an hour before reaching the airport, or after bags on the way home.
+      const p0 = passView ? homePlan(homeLegRole, localCard.details, passView.departs, passView.arrives, null) : null;
+      const startMin = p0 ? (p0.role === "leaving" ? toMinutes(p0.atAirport) - 30 : toMinutes(p0.land) + p0.bags) : 9 * 60;
+      const hour = Math.max(0, Math.min(23, Math.floor(((startMin % 1440) + 1440) % 1440 / 60)));
+      const date = homeLegRole === "leaving" ? passView?.departDate ?? null : passView?.arriveDate ?? null;
+      const mins = await driveMinutes(homeLegRole === "leaving" ? here : apt, homeLegRole === "leaving" ? apt : here, date, hour);
+      if (mins != null) void saveDetails("home_drive", { from: home.key, mins, traffic: true });
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [home, homeLegRole, homeDriveMins, readOnly]);

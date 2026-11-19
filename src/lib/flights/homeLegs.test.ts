@@ -37,9 +37,10 @@ describe("getting to the airport and home (19 Nov 2026)", () => {
 
   it("a saved drive counts only for the home it was measured from", () => {
     const key = homeKeyOf(43.77, -79.41);
-    expect(savedDrive({ home_drive: { from: key, mins: 30 } }, key)).toBe(30);
+    expect(savedDrive({ home_drive: { from: key, mins: 30, traffic: true } }, key)).toBe(30);
     expect(savedDrive({ home_drive: { from: "1.000,1.000", mins: 30 } }, key)).toBeNull();
     expect(savedDrive({}, key)).toBeNull();
+    expect(savedDrive({ home_drive: { from: key, mins: 21 } }, key)).toBeNull();
   });
 
   it("says lengths plainly", () => {
@@ -50,7 +51,7 @@ describe("getting to the airport and home (19 Nov 2026)", () => {
 describe("the week's home strips (19 Nov 2026)", () => {
   const ds = [{ id: "d0", date: "2027-08-24" }, { id: "d1", date: "2027-08-25" }];
   const key = homeKeyOf(43.77, -79.41);
-  const out = { id: "yyz", day_id: "d0", start_time: "19:00:00", end_time: null, status: "in_itinerary", details: { origin_airport: "YYZ", arriving_at: "PSA", home_drive: { from: key, mins: 30 } }, place: { title: "YYZ Terminal 1", sub_type: "flight_arrival" } };
+  const out = { id: "yyz", day_id: "d0", start_time: "19:00:00", end_time: null, status: "in_itinerary", details: { origin_airport: "YYZ", arriving_at: "PSA", home_drive: { from: key, mins: 30, traffic: true } }, place: { title: "YYZ Terminal 1", sub_type: "flight_arrival" } };
   const land = { id: "psa", day_id: "d1", start_time: "11:30:00", end_time: "12:30:00", status: "in_itinerary", details: { origin_airport: "YYZ", arriving_at: "PSA" }, place: { title: "Pisa International Airport", sub_type: "flight_arrival" } };
 
   it("Tuscany out: the drive 3:30–4:00, then the airport 4:00–7:00, labelled", () => {
@@ -69,7 +70,7 @@ describe("the week's home strips (19 Nov 2026)", () => {
 
   it("Rome home lands 4:00 PM: bags 4:00–5:00, then the drive to ~5:35", () => {
     const rd = [{ id: "r", date: "2026-04-28" }];
-    const home = { id: "h", day_id: "r", start_time: "12:25:00", end_time: "16:00:00", status: "in_itinerary", details: { ...romeHome, home_drive: { from: key, mins: 35 } }, place: { title: "Flight to Toronto", sub_type: "flight_departure" } };
+    const home = { id: "h", day_id: "r", start_time: "12:25:00", end_time: "16:00:00", status: "in_itinerary", details: { ...romeHome, home_drive: { from: key, mins: 35, traffic: true } }, place: { title: "Flight to Toronto", sub_type: "flight_departure" } };
     expect(homeBands(rd, [home], "YYZ", key, 7, 23).get("r")!.map((x) => [x.kind, x.from, x.to, x.label])).toEqual([
       ["bags", 960, 1020, "Bags and customs"],
       ["drive", 1020, 1055, "Home ~5:35 PM"],

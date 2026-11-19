@@ -15,6 +15,8 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: "black-translucent",
   },
+  // Chrome's own "don't offer to translate this page" (see translate="no" on <html>).
+  other: { google: "notranslate" },
 };
 
 export const viewport: Viewport = {
@@ -30,7 +32,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    // translate="no" (19 Nov 2026): Chrome took Roam for a foreign page (Italian place names) and
+    // auto-translated it: "3 h" became "3 hours", "10 h 30" became "10:30". Translation also wraps
+    // text in <font> tags, a known cause of React crashes. Roam is written in English already.
+    <html lang="en" translate="no">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import routes from "./fixtures/routes.json";
-import { routeFrom, bestWay, changes, leaveBy, travelCard, stepLine, hasCar, dayTrips, directionsUrl, clock, type TripCard } from "./gettingThere";
+import { routeFrom, trafficMinutes, bestWay, changes, leaveBy, travelCard, stepLine, hasCar, dayTrips, directionsUrl, clock, type TripCard } from "./gettingThere";
 import { km } from "./dayGroups";
 
 // Real Google Directions answers, trimmed (fixtures/routes.json, 30 Sep 2026).
@@ -94,5 +94,13 @@ describe("dayTrips: which days get a travel card", () => {
   });
   it("no stay saved: nothing to measure from", () => {
     expect(dayTrips(days, [pv], new Set(["pv"]), 25, km)).toEqual([]);
+  });
+});
+
+describe("trafficMinutes (19 Nov 2026)", () => {
+  it("reads duration_in_traffic in minutes; none, or a failed answer, is null", () => {
+    expect(trafficMinutes({ status: "OK", routes: [{ legs: [{ duration: { value: 1260 }, duration_in_traffic: { value: 2460 } }] }] })).toBe(41);
+    expect(trafficMinutes({ status: "OK", routes: [{ legs: [{ duration: { value: 1260 } }] }] })).toBeNull();
+    expect(trafficMinutes({ status: "ZERO_RESULTS" })).toBeNull();
   });
 });
