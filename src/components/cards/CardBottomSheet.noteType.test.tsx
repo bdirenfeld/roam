@@ -93,3 +93,12 @@ describe("CardBottomSheet — Note is a dropdown (10 Nov 2026)", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 });
+
+describe("the sheet opens on the note's own group (19 Nov 2026, seen live)", () => {
+  it("a Food note typed before kind_type existed opens on Food, not Activity", async () => {
+    const food = { ...note, details: { title: "Dinner at the villa", kind: "food" } } as unknown as Card;
+    await act(async () => { render(<CardBottomSheet card={food} onClose={() => {}} days={days} tripDestination="Tuscany, Italy" />); });
+    await act(async () => { fireEvent.click(screen.getByTestId("note-type-button")); });
+    expect(within(screen.getByRole("dialog")).getByRole("tab", { name: "Food" }).getAttribute("aria-selected")).toBe("true");
+  });
+});

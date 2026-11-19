@@ -1500,7 +1500,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 {showNotePicker && !place && !readOnly && (
                   // The same sheet as every card (19 Nov 2026, his ask: notes had the old dropdown).
                   <TypeSheet
-                    currentType={String((localCard.details as Record<string, unknown> | null)?.kind_type ?? "")}
+                    currentType={String((localCard.details as Record<string, unknown> | null)?.kind_type ?? noteKind?.cardType ?? "")}
                     currentSubType={((localCard.details as Record<string, unknown> | null)?.kind_sub as string | undefined) ?? null}
                     options={SUB_TYPE_OPTIONS}
                     note={{ on: !noteKind, onPick: () => handleNoteKind(noteKindOf("note")) }}
