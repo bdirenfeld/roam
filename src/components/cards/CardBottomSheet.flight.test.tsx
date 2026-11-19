@@ -16,13 +16,13 @@ vi.mock("@/lib/offline/queuedWrite", () => ({
 }));
 vi.mock("@/components/ui/Toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
-const rows = vi.hoisted(() => ({ data: [] as unknown[] }));
+const rows = vi.hoisted(() => ({ data: [] as unknown[], me: null as unknown }));
 vi.mock("@/lib/supabase/client", () => {
   const make = (): Record<string, unknown> => {
     const chain: Record<string, unknown> = {};
     const self = () => chain;
     for (const k of ["from", "select", "not", "order", "limit", "eq", "in", "is", "update", "insert", "delete", "upsert", "neq"]) chain[k] = self;
-    chain.maybeSingle = () => Promise.resolve({ data: null, error: null });
+    chain.maybeSingle = () => Promise.resolve({ data: rows.me, error: null });
     chain.single = () => Promise.resolve({ data: null, error: null });
     chain.then = (ok: (v: unknown) => unknown) => Promise.resolve({ data: rows.data, error: null, count: 0 }).then(ok);
     chain.auth = { getSession: () => Promise.resolve({ data: { session: null } }) };
@@ -50,7 +50,7 @@ const tusDays = [{ id: "t24", trip_id: "t1", date: "2027-08-24", day_number: 1 }
 const ac876 = flight("ac876", "t24", "19:00:00", "08:35:00", { airline: "Air Canada", flight_number: "AC876", origin_airport: "Toronto Pearson (YYZ)", arriving_at: "Frankfurt (FRA)" }, airport("fra", "Frankfurt Airport"));
 const lh330 = flight("lh330", "t25", "10:00:00", "11:30:00", { flight_number: "LH330", origin_airport: "Frankfurt FRA", arriving_at: "Pisa PSA" }, airport("psa", "Pisa International Airport"));
 
-beforeEach(() => { writes.calls = []; rows.data = []; vi.unstubAllGlobals(); });
+beforeEach(() => { writes.calls = []; rows.data = []; rows.me = null; vi.unstubAllGlobals(); });
 
 describe("the boarding-pass flight card (19 Nov 2026)", () => {
   it("his Rome flight reads like a boarding pass: YYZ 7:45 PM Tue 21 Apr → FCO 10:20 AM Wed 22 Apr (kept on its landing day), 8 h 35; no photo, no repeated time rows", async () => {
@@ -128,5 +128,38 @@ describe("the boarding-pass flight card (19 Nov 2026)", () => {
     await act(async () => { render(<CardBottomSheet card={syd} onClose={() => {}} days={romeDays} />); });
     expect(screen.queryByTestId("flight-pass")).toBeNull();
     expect(screen.getByTestId("photo")).toBeTruthy();
+  });
+});
+
+describe("getting to the airport and home (19 Nov 2026)", () => {
+  const me = { home_airport: "YYZ", home_lat: 43.77, home_lng: -79.41 };
+  const key = "43.770,-79.410";
+  it("Tuscany out from YYZ at 7 PM: leave home 3:30 PM, 30 min drive, at the airport 4:00 PM (3 h); 2 h saves airport_early_min", async () => {
+    rows.me = me;
+    const out = flight("out", "t24", "19:00:00", "08:35:00", { origin_airport: "YYZ", arriving_at: "Frankfurt (FRA)", home_drive: { from: key, mins: 30 } }, airport("yyz", "YYZ Terminal 1"));
+    rows.data = [out];
+    await act(async () => { render(<CardBottomSheet card={out} onClose={() => {}} days={tusDays} />); });
+    const box = await waitFor(() => screen.getByTestId("home-leaving"));
+    for (const t of ["Leave home", "3:30 PM", "30 min", "At the airport", "4:00 PM", "3 h before the flight"]) expect(box.textContent).toContain(t);
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "2 h" })); });
+    expect(writes.calls.some((w) => (w.patch.details as Record<string, unknown> | undefined)?.airport_early_min === 120)).toBe(true);
+  });
+  it("a flight landing at home: bags 1 h, drive, home around; a guest sees none of it", async () => {
+    rows.me = me;
+    const back = flight("back", "t25", "10:00:00", "16:00:00", { origin_airport: "FRA", arriving_at: "Toronto Pearson (YYZ)", home_drive: { from: key, mins: 35 } }, airport("yyz2", "Toronto Pearson", "flight_departure"));
+    rows.data = [back];
+    const { unmount } = await act(async () => render(<CardBottomSheet card={back} onClose={() => {}} days={tusDays} />));
+    const box = await waitFor(() => screen.getByTestId("home-returning"));
+    for (const t of ["Bags and customs", "1 h", "35 min", "~5:35 PM"]) expect(box.textContent).toContain(t);
+    unmount();
+    await act(async () => { render(<CardBottomSheet card={back} onClose={() => {}} days={tusDays} readOnly />); });
+    expect(screen.queryByTestId("home-returning")).toBeNull();
+  });
+  it("a flight that doesn't touch home gets nothing", async () => {
+    rows.me = me;
+    rows.data = [lh330];
+    await act(async () => { render(<CardBottomSheet card={lh330} onClose={() => {}} days={tusDays} />); });
+    expect(screen.queryByTestId("home-leaving")).toBeNull();
+    expect(screen.queryByTestId("home-returning")).toBeNull();
   });
 });

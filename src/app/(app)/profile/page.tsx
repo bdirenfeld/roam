@@ -35,6 +35,7 @@ export default async function ProfilePage() {
             homeAirport: profile?.home_airport ?? null,
             homeCountry: profile?.home_country ?? null,
             passportCountry: profile?.passport_country ?? null,
+            homeAddress: profile?.home_address ?? null,
           }}
         />
       )}

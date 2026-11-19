@@ -24,6 +24,8 @@ export interface ProfileData {
   homeAirport: string | null;
   homeCountry: string | null;
   passportCountry: string | null;
+  /** Private: only the drive times use it (migration 020). */
+  homeAddress?: string | null;
 }
 
 interface Props {
@@ -60,7 +62,7 @@ export default function ProfileForm({ initial = null, variant = "page", onDismis
       // travel-profile fields simply start empty.
       const { data: profile } = await supabase
         .from("users")
-        .select("name, avatar_url, home_airport, home_country, passport_country")
+        .select("name, avatar_url, home_airport, home_country, passport_country, home_address")
         .eq("id", user.id)
         .maybeSingle();
       if (cancelled) return;
@@ -77,6 +79,7 @@ export default function ProfileForm({ initial = null, variant = "page", onDismis
         homeAirport: profile?.home_airport ?? null,
         homeCountry: profile?.home_country ?? null,
         passportCountry: profile?.passport_country ?? null,
+        homeAddress: (profile as { home_address?: string | null } | null)?.home_address ?? null,
       });
       setLoading(false);
     })();
@@ -162,6 +165,7 @@ export default function ProfileForm({ initial = null, variant = "page", onDismis
             initialHomeAirport={data.homeAirport}
             initialHomeCountry={data.homeCountry}
             initialPassportCountry={data.passportCountry}
+            initialHomeAddress={data.homeAddress ?? null}
           />
 
           {/* Guide + sign out. On the page these are mobile-only — at md:+ the

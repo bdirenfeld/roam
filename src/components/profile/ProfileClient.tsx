@@ -8,6 +8,22 @@ interface Props {
   initialHomeAirport: string | null;
   initialHomeCountry: string | null;
   initialPassportCountry: string | null;
+  /** Private (migration 020): only "leave home" / "home around" on home flights use it. */
+  initialHomeAddress?: string | null;
+}
+
+/** Where a typed home address is, from Google (the same two routes the map's search uses). */
+async function locateHome(address: string): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const ac = await fetch(`/api/places/autocomplete?input=${encodeURIComponent(address)}`).then((r) => r.json()) as { predictions?: { place_id: string }[] };
+    const id = ac.predictions?.[0]?.place_id;
+    if (!id) return null;
+    const det = await fetch(`/api/places/details?place_id=${encodeURIComponent(id)}`).then((r) => r.json()) as { result?: { geometry?: { location?: { lat: number; lng: number } } } };
+    const loc = det.result?.geometry?.location;
+    return loc && Number.isFinite(loc.lat) && Number.isFinite(loc.lng) ? loc : null;
+  } catch {
+    return null;
+  }
 }
 
 export default function ProfileClient({
@@ -15,7 +31,10 @@ export default function ProfileClient({
   initialHomeAirport,
   initialHomeCountry,
   initialPassportCountry,
+  initialHomeAddress = null,
 }: Props) {
+  const [homeAddress, setHomeAddress] = useState(initialHomeAddress ?? "");
+  const [savedAddress, setSavedAddress] = useState(initialHomeAddress ?? "");
   const [homeAirport, setHomeAirport] = useState(initialHomeAirport ?? "");
   const [homeCountry, setHomeCountry] = useState(initialHomeCountry ?? "");
   const [passportCountry, setPassportCountry] = useState(initialPassportCountry ?? "");
@@ -40,6 +59,7 @@ export default function ProfileClient({
 
   const cancel = () => {
     if (snapshot) {
+      setHomeAddress(savedAddress);
       setHomeAirport(snapshot.airport);
       setHomeCountry(snapshot.country);
       setPassportCountry(snapshot.passport);
@@ -53,6 +73,18 @@ export default function ProfileClient({
     setSaving(true);
     setError(null);
 
+    // A new home address is found on Google before saving (19 Nov 2026): the drive times need where it is.
+    const addr = homeAddress.trim();
+    let home: Record<string, unknown> = {};
+    if (addr !== savedAddress.trim()) {
+      if (!addr) home = { home_address: null, home_lat: null, home_lng: null };
+      else {
+        const loc = await locateHome(addr);
+        if (!loc) { setError("Couldn't find that address. Try adding the city."); setSaving(false); return; }
+        home = { home_address: addr, home_lat: loc.lat, home_lng: loc.lng };
+      }
+    }
+
     const supabase = createClient();
     const { error: updateError } = await supabase
       .from("users")
@@ -60,12 +92,14 @@ export default function ProfileClient({
         home_airport: homeAirport.trim() || null,
         home_country: homeCountry.trim() || null,
         passport_country: passportCountry.trim() || null,
+        ...home,
       })
       .eq("id", userId);
 
     if (updateError) {
       setError("Couldn't save that. Try again.");
     } else {
+      setSavedAddress(addr);
       setSnapshot(null);
       setEditing(false);
     }
@@ -98,6 +132,10 @@ export default function ProfileClient({
             <FactInline label="Home airport" value={homeAirport} />
             <FactInline label="Home country" value={homeCountry} />
             <FactInline label="Passport" value={passportCountry} />
+          </div>
+          {/* Home, for "leave home" and "home around" on your flights (19 Nov 2026). Only you see it. */}
+          <div className="mt-3.5 md:mt-4">
+            <FactInline label="Home address · only you see this" value={homeAddress} />
           </div>
         </div>
       ) : (
@@ -134,6 +172,12 @@ export default function ProfileClient({
             value={passportCountry}
             onChange={setPassportCountry}
             placeholder="e.g. Canada"
+          />
+          <ProfileInput
+            label="Home address · only you see this, for the drive to the airport"
+            value={homeAddress}
+            onChange={setHomeAddress}
+            placeholder="e.g. 123 Main St, Toronto"
           />
 
           {error && (

@@ -42,6 +42,8 @@ import { FlightPassTop, FlightPassBody, LayoverRow, ConnectingFlight, useTripFli
 import { flightPass, isPassFlight } from "@/lib/flights/pass";
 import { flightsInAir, connectionsOf } from "@/lib/week/flightTime";
 import { CarVoucherTop, CarVoucherBody, useTripRentals } from "./CarVoucher";
+import { HomeLegRows, useHome, airportPoint, driveMinutes } from "./HomeLeg";
+import { homeRole, homePlan, savedDrive, homeCode } from "@/lib/flights/homeLegs";
 import { isRentalCar, rentalVoucher } from "@/lib/cars/voucher";
 import RestaurantDetail from "./detail/RestaurantDetail";
 import SelfDirectedDetail from "./detail/SelfDirectedDetail";
@@ -635,6 +637,27 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const dateOfDay = (id: string | null) => days?.find((x) => x.id === id)?.date ?? null;
   const voucher = carOn ? rentalVoucher(localCard, dateOfDay(localCard.day_id), [...tripRentals.filter((c) => c.id !== localCard.id), localCard].map((c) => ({ card: c, date: dateOfDay(c.day_id) }))) : null;
   const noPhoto = legCard || passOn || carOn;
+  // Getting to the airport / getting home (19 Nov 2026, approved mock; components/cards/HomeLeg):
+  // only on a flight from or to your home airport, only for you.
+  const home = useHome(passOn && !readOnly);
+  const homeLegRole = home && passOn ? homeRole(localCard.details, home.airport) : null;
+  const homeDriveMins = home ? savedDrive(localCard.details, home.key) : null;
+  const homeAsked = useRef(false);
+  useEffect(() => {
+    if (!home || !homeLegRole || homeDriveMins != null || readOnly || homeAsked.current) return;
+    homeAsked.current = true;
+    const code = homeCode(home.airport);
+    if (!code) return;
+    void (async () => {
+      const apt = await airportPoint(code, localCard.place);
+      if (!apt) return;
+      const here = { lat: home.lat, lng: home.lng };
+      const mins = await driveMinutes(homeLegRole === "leaving" ? here : apt, homeLegRole === "leaving" ? apt : here);
+      if (mins != null) void saveDetails("home_drive", { from: home.key, mins });
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [home, homeLegRole, homeDriveMins, readOnly]);
+  const homeLegPlan = homeLegRole && passView ? homePlan(homeLegRole, localCard.details, passView.departs, passView.arrives, homeDriveMins) : null;
   const [renaming, setRenaming] = useState(false);
   // Phone vs desktop (16 Nov 2026): on the phone the ⋯ keeps only what you use
   // on the trip. Move / Repeat / Take off / Rename / Change type stay on desktop.
@@ -1716,6 +1739,10 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   onSave={(f, v) => void saveDetails(f, v)} onTime={() => setTimeOpen(true)} />
                 {passConn?.before && <LayoverRow layover={passConn.before} side="before" onOpen={onOpenCard} />}
                 {passConn?.after && <LayoverRow layover={passConn.after} side="after" onOpen={onOpenCard} />}
+                {homeLegPlan && passView && (
+                  <HomeLegRows plan={homeLegPlan} airportName={(homeLegPlan.role === "leaving" ? passView.from : passView.to).name}
+                    readOnly={readOnly} onSave={(f, v) => void saveDetails(f, v)} />
+                )}
               </>
             ) : voucher ? (
               <CarVoucherBody v={voucher} readOnly={readOnly} onSave={(f, v) => void saveDetails(f, v)}

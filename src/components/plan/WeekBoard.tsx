@@ -2,6 +2,8 @@
 import { shipSpans, shipSpanSource } from "@/lib/plan/cruiseDays";
 import { flightBands, layoverBands } from "@/lib/week/flightTime";
 import { lengthLabel } from "@/lib/flights/airportZones";
+import { homeBands } from "@/lib/flights/homeLegs";
+import { useHome } from "@/components/cards/HomeLeg";
 import { otherStayNights } from "@/lib/stays/stayPick";
 import { isPortCard, minutesAshore, nightsInPort, portDayRole, addIsoDays, otherPortDays } from "@/lib/cards/port";
 import { useGuidanceScreen, useWalkthrough } from "@/components/onboarding/JourneyGuidanceContext";
@@ -907,6 +909,9 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
   const air = useMemo(() => flightBands(days, days.flatMap((d) => d.cards), HOUR_START, HOUR_END), [days]);
   // Connecting flights (19 Nov 2026): the layover hatched over the band, "1 h 25 layover · Frankfurt".
   const layovers = useMemo(() => layoverBands(days, days.flatMap((d) => d.cards), HOUR_START, HOUR_END), [days]);
+  // Leave home → the airport, and landing → bags → home (19 Nov 2026, lib/flights/homeLegs): yours only, not a guest's.
+  const myHome = useHome(!readOnly);
+  const homeStrips = useMemo(() => homeBands(days, days.flatMap((d) => d.cards), myHome?.airport ?? null, myHome?.key ?? null, HOUR_START, HOUR_END), [days, myHome]);
   const dateOfDay = useCallback((id: string | null) => days.find((x) => x.id === id)?.date ?? "", [days]);
   const weekdayOf = (iso: string) => new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short" });
   const laidOut = useMemo(() => shown.map((d, di) => {
@@ -1215,6 +1220,24 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
                           >
                             <span className="inline-flex flex-shrink-0" dangerouslySetInnerHTML={{ __html: getGlyphHTML("flight", 11) }} />
                             <span className="truncate">In the air · to {f.dest}{f.via ? ` · via ${f.via}` : ""}</span>
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {!collapsed(di) && (homeStrips.get(day.id) ?? []).map((h) => (
+                      <div key={`home-${h.card.id}-${h.kind}-${h.from}`} data-home={h.kind} className="absolute left-0 right-0 pointer-events-none"
+                        style={{
+                          top: (h.from / 60 - HOUR_START) * pph, height: ((h.to - h.from) / 60) * pph,
+                          ...(h.kind === "drive"
+                            ? { background: "#EEF3F8", borderLeft: "3px solid #9DB5D3" }
+                            : { background: "repeating-linear-gradient(135deg, #F7F7F9 0 6px, #EFEFF3 6px 8px)" }),
+                        }}>
+                        {h.label && (
+                          <button type="button" data-home-label onClick={(e) => { e.stopPropagation(); setSelectedCard(h.card); }} onPointerDown={(e) => e.stopPropagation()}
+                            title={`${h.label} · open the flight`}
+                            className="pointer-events-auto absolute left-1.5 top-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium hover:bg-[rgba(94,96,112,0.14)] max-w-[calc(100%-12px)] truncate"
+                            style={{ color: h.kind === "drive" ? SHIP_INK : AIR_INK }}>
+                            {h.kind === "drive" ? (h.label.startsWith("Home") ? "🏠 " : "🚗 ") : ""}{h.label}
                           </button>
                         )}
                       </div>

@@ -14,6 +14,10 @@ export interface User {
   home_airport: string | null
   home_country: string | null
   passport_country: string | null
+  /** Home, for the drive to and from the airport (migration 020, 19 Nov 2026). Only the owner reads it. */
+  home_address?: string | null
+  home_lat?: number | null
+  home_lng?: number | null
   avatar_url: string | null
   created_at: string
   /** How-to videos played or closed: id → when (lib/videos/howTo, migration 014). */

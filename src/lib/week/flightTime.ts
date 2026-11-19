@@ -136,7 +136,7 @@ export function flightTrips<C extends FlightCard>(days: Day[], cards: C[]): Flig
 }
 
 /** A day's slice of a stretch of the journey clock, clipped to the grid's hours. */
-function slices(days: Day[], start: number, end: number, hourStart: number, hourEnd: number): { id: string; from: number; to: number; first: boolean }[] {
+export function slices(days: Day[], start: number, end: number, hourStart: number, hourEnd: number): { id: string; from: number; to: number; first: boolean }[] {
   const firstDay = Math.min(...days.map((d) => Date.parse(d.date + "T00:00:00Z")));
   const byNum = new Map(days.map((d) => [Math.round((Date.parse(d.date + "T00:00:00Z") - firstDay) / DAY_MS), d.id]));
   const out: { id: string; from: number; to: number; first: boolean }[] = [];
