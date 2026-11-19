@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { flightPass, isPassFlight, passDate } from "./pass";
+import { flightPass, isPassFlight, passDate, airportSearch } from "./pass";
 
 // Real rows (19 Nov 2026): Rome AC890 out, Porter to Vegas, Tuscany's placeholder.
 const rome = { start_time: "19:45:00", end_time: "10:20:00", details: { airline: "Air Canada", flight_number: "AC890", origin_airport: "Toronto-Pearson Int. (YYZ)", arriving_at: "Roma Fiumicino Airport (FCO)", seat: "39C" } };
@@ -30,6 +30,11 @@ describe("the boarding pass (19 Nov 2026)", () => {
     expect(isPassFlight(rome.details, "flight_arrival")).toBe(true);
     expect(isPassFlight({ title: "Land in Sydney" }, "flight_arrival")).toBe(false);
     expect(isPassFlight(rome.details, "hotel")).toBe(false);
+  });
+
+  it("a typed airport is looked up as an airport: 'Naples NAP' found the city in the live test", () => {
+    expect(["Naples NAP", "Pisa International Airport", "Roma Fiumicino Airport (FCO)", "Flughafen München"].map(airportSearch))
+      .toEqual(["Naples NAP airport", "Pisa International Airport", "Roma Fiumicino Airport (FCO)", "Flughafen München"]);
   });
 
   it("dates read like the week's", () => {

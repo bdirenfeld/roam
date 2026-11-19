@@ -13,7 +13,7 @@ import type { Card, Day } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { formatTimeValue } from "@/lib/formatTime";
 import { lengthLabel } from "@/lib/flights/airportZones";
-import { passDate, type FlightPassView } from "@/lib/flights/pass";
+import { passDate, airportSearch, type FlightPassView } from "@/lib/flights/pass";
 import { placeName, type Layover } from "@/lib/week/flightTime";
 import { flightTitle } from "@/lib/confirmations/byHand";
 import { resolvePlace } from "@/lib/confirmations/resolvePlace";
@@ -208,7 +208,7 @@ export function ConnectingFlight({ card, view, days, onAdded }: { card: Card; vi
     setBusy(true); setErr(null);
     const sub = (card.place?.sub_type === "flight_departure" ? "flight_departure" : "flight_arrival") as "flight_arrival" | "flight_departure";
     const flight = { flight_number: f.number.trim() || null, origin_airport: f.from.trim(), arriving_at: f.to.trim() };
-    const place = await resolvePlace({ type: sub, title: f.to.trim(), address: f.to.trim(), confirmation_number: null, date: null, time: null, end_time: null, phone: null, website: null, notes: null });
+    const place = await resolvePlace({ type: sub, title: f.to.trim(), address: airportSearch(f.to), confirmation_number: null, date: null, time: null, end_time: null, phone: null, website: null, notes: null });
     const d = card.details as Record<string, unknown>;
     // Same airline code as this flight (AC → AC): the airline carries over.
     const prefix = (s: unknown) => (typeof s === "string" ? s.trim().slice(0, 2).toUpperCase() : "");

@@ -62,6 +62,16 @@ export function flightPass(card: { details: unknown; start_time: string | null; 
   };
 }
 
+/**
+ * What to look up for a typed airport (19 Nov 2026, live test): "Naples NAP"
+ * on its own found the city of Naples, so the card sat in town. "Naples NAP
+ * airport" finds the airport; a name that already says airport is left alone.
+ */
+export function airportSearch(s: string): string {
+  const t = s.trim();
+  return /\b(airport|aeroporto|aeropuerto|a[ée]roport|flughafen)\b/i.test(t) ? t : `${t} airport`;
+}
+
 /** "Wed 22 Apr". */
 export function passDate(iso: string): string {
   return new Date(iso + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
