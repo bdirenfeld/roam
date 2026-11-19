@@ -77,3 +77,10 @@ describe("the week's home strips (19 Nov 2026)", () => {
     ]);
   });
 });
+
+describe("on the 5 minutes (19 Nov 2026)", () => {
+  it("a 21-minute drive before 4:00 leaves home 3:35, not 3:39; home rounds up: 4:00 + 1 h + 37 min → 5:40", () => {
+    expect(homePlan("leaving", tuscanyOut, "19:00:00", null, 21)).toMatchObject({ atAirport: "16:00:00", leave: "15:35:00" });
+    expect(homePlan("returning", romeHome, null, "16:00:00", 37)).toMatchObject({ home: "17:40:00" });
+  });
+});

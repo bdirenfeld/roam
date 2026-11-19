@@ -25,6 +25,9 @@ export interface HomeDrive { from: string; mins: number; traffic?: boolean }
 
 const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
 const hhmm = (m: number) => { const x = ((m % 1440) + 1440) % 1440; return `${String(Math.floor(x / 60)).padStart(2, "0")}:${String(x % 60).padStart(2, "0")}:00`; };
+/** On the 5 minutes (his ask, 19 Nov 2026): leaving rounds DOWN (early is safe), home rounds UP. */
+export const down5 = (m: number) => Math.floor(m / 5) * 5;
+export const up5 = (m: number) => Math.ceil(m / 5) * 5;
 const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null);
 
 /** The home airport as a code: "YYZ", "Toronto Pearson (YYZ)" → "YYZ". */
@@ -77,11 +80,11 @@ export function homePlan(
     if (!takeoff) return null;
     const early = num(d.airport_early_min) ?? (domestic ? 120 : 180);
     const at = toMin(takeoff) - early;
-    return { role, early, drive, atAirport: hhmm(at), leave: drive != null ? hhmm(at - drive) : null };
+    return { role, early, drive, atAirport: hhmm(at), leave: drive != null ? hhmm(down5(at - drive)) : null };
   }
   if (!landing) return null;
   const bags = num(d.bags_min) ?? (domestic ? 30 : 60);
-  return { role, bags, drive, land: landing.length === 5 ? `${landing}:00` : landing, home: drive != null ? hhmm(toMin(landing) + bags + drive) : null };
+  return { role, bags, drive, land: landing.length === 5 ? `${landing}:00` : landing, home: drive != null ? hhmm(up5(toMin(landing) + bags + drive)) : null };
 }
 
 /** "3 h", "2 h 30", "45 min". */
@@ -117,10 +120,10 @@ export function homeBands<C extends FlightCard>(
     if (plan.role === "leaving") {
       const at = f.start - plan.early;
       put(at, f.start, "airport", `At the airport · ${minsLabel(plan.early)} before`, f.card);
-      if (drive != null) put(at - drive, at, "drive", `Leave home ${clock(at - drive)}`, f.card);
+      if (drive != null) put(down5(at - drive), at, "drive", `Leave home ${clock(down5(at - drive))}`, f.card);
     } else if (plan.role === "returning") {
       put(f.end, f.end + plan.bags, "bags", "Bags and customs", f.card);
-      if (drive != null) put(f.end + plan.bags, f.end + plan.bags + drive, "drive", `Home ~${clock(f.end + plan.bags + drive)}`, f.card);
+      if (drive != null) put(f.end + plan.bags, up5(f.end + plan.bags + drive), "drive", `Home ~${clock(up5(f.end + plan.bags + drive))}`, f.card);
     }
   }
   return out;
