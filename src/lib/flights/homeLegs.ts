@@ -103,7 +103,7 @@ export function homeBands<C extends FlightCard>(
   days: { id: string; date: string }[], cards: C[], homeAirport: string | null, homeKey: string | null, hourStart: number, hourEnd: number,
 ): Map<string, { from: number; to: number; kind: "drive" | "airport" | "bags"; label: string | null; card: C }[]> {
   const out = new Map<string, { from: number; to: number; kind: "drive" | "airport" | "bags"; label: string | null; card: C }[]>();
-  if (!days.length || !homeCode(homeAirport)) return out;
+  if (!days.length) return out;
   const put = (start: number, end: number, kind: "drive" | "airport" | "bags", label: string | null, card: C) => {
     for (const sl of slices(days, start, end, hourStart, hourEnd)) {
       const list = out.get(sl.id) ?? [];
@@ -112,19 +112,19 @@ export function homeBands<C extends FlightCard>(
     }
   };
   const clock = (m: number) => { const x = ((m % 1440) + 1440) % 1440; return formatTimeValue(`${String(Math.floor(x / 60)).padStart(2, "0")}:${String(x % 60).padStart(2, "0")}:00`); };
-  for (const f of flightsInAir(days, cards)) {
+  // Every flight gets its time at the airport before takeoff (19 Nov 2026: the flight home from
+  // Pisa had none). Leaving home adds the drive. Coming home is told on the flight's own label
+  // (lib/week/flightTime landsHome): it lands on Toronto's clock, after midnight on the trip's.
+  for (const f of flightsInAir(days, cards, { home: homeAirport })) {
     const role = homeRole(f.card.details, homeAirport);
-    if (!role) continue;
-    const plan = homePlan(role, f.card.details, "00:00:00", "00:00:00", null)!;
-    const drive = homeKey ? savedDrive(f.card.details, homeKey) : null;
-    if (plan.role === "leaving") {
-      const at = f.start - plan.early;
-      put(at, f.start, "airport", `At the airport · ${minsLabel(plan.early)} before`, f.card);
-      if (drive != null) put(down5(at - drive), at, "drive", `Leave home ${clock(down5(at - drive))}`, f.card);
-    } else if (plan.role === "returning") {
-      put(f.end, f.end + plan.bags, "bags", "Bags and customs", f.card);
-      if (drive != null) put(f.end + plan.bags, up5(f.end + plan.bags + drive), "drive", `Home ~${clock(up5(f.end + plan.bags + drive))}`, f.card);
-    }
+    const d = (f.card.details ?? {}) as Record<string, unknown>;
+    const from = airportCode(typeof d.origin_airport === "string" ? d.origin_airport : null);
+    const to = airportCode(typeof d.arriving_at === "string" ? d.arriving_at : null);
+    const early = num(d.airport_early_min) ?? (isDomestic(from, to) ? 120 : 180);
+    const at = f.start - early;
+    put(at, f.start, "airport", `At the airport · ${minsLabel(early)} before`, f.card);
+    const drive = role === "leaving" && homeKey ? savedDrive(f.card.details, homeKey) : null;
+    if (drive != null) put(down5(at - drive), at, "drive", `Leave home ${clock(down5(at - drive))}`, f.card);
   }
   return out;
 }

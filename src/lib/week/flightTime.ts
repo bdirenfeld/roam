@@ -14,7 +14,7 @@
  * gets nothing. Each city's own clock is used, as the cards are entered.
  */
 
-import { airportCode } from "@/lib/flights/airportZones";
+import { airportCode, flightLength } from "@/lib/flights/airportZones";
 import { storedOnLandingDay } from "@/lib/cardTime";
 
 type Day = { id: string; date: string };
@@ -24,7 +24,9 @@ export type FlightCard = {
 };
 /** One flight on the journey clock: the card its label opens, where it lands, the two airports as
  *  keys (code, else the name) so a connection can be matched, and a two-card flight's landing card. */
-export interface FlightSpan<C> { start: number; end: number; card: C; to: string; fromKey?: string; toKey?: string; landing?: C }
+export interface FlightSpan<C> { start: number; end: number; card: C; to: string; fromKey?: string; toKey?: string; landing?: C;
+  /** A flight home (19 Nov 2026): kept on the trip's clock with its true length; this is the landing on the home clock. */
+  landsHome?: string }
 
 const DAY_MS = 86_400_000;
 const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
@@ -52,7 +54,9 @@ function momentOf(dayNum: Map<string, number>, c: FlightCard, time: string): num
 }
 
 /** Every flight's time in the air, as moments, with the card the label opens and where it lands. */
-export function flightsInAir<C extends FlightCard>(days: Day[], cards: C[]): FlightSpan<C>[] {
+export function flightsInAir<C extends FlightCard>(days: Day[], cards: C[], opts: { home?: string | null } = {}): FlightSpan<C>[] {
+  const home = opts.home ? airportCode(opts.home) : null;
+  const dateOf = new Map(days.map((d) => [d.id, d.date]));
   const first = Math.min(...days.map((d) => Date.parse(d.date + "T00:00:00Z")));
   const dayNum = new Map(days.map((d) => [d.id, Math.round((Date.parse(d.date + "T00:00:00Z") - first) / DAY_MS)]));
   const live = cards.filter((c) => c.status !== "cut" && c.start_time && airports(c));
@@ -90,6 +94,13 @@ export function flightsInAir<C extends FlightCard>(days: Day[], cards: C[]): Fli
       out.push({ start: start - 1440, end: end - 1440, card: c, to: placeName(a.to), fromKey: airportKey(a.from), toKey: airportKey(a.to) });
       continue;
     }
+    // The flight home lands on another clock (19 Nov 2026): 1:45 PM Pisa to 9:30 PM Toronto is
+    // 13 h 45, landing 3:30 AM Pisa time. On the trip's clock it runs to the end of the day.
+    const fc = codeOf(a.from), tc = codeOf(a.to);
+    if (home && tc === home && fc !== home) {
+      const len = flightLength(fc, tc, (c.day_id && dateOf.get(c.day_id)) || "", toMin(c.start_time!), toMin(c.end_time));
+      if (len) { out.push({ start, end: start + len.minutes, card: c, to: placeName(a.to), fromKey: airportKey(a.from), toKey: airportKey(a.to), landsHome: c.end_time }); continue; }
+    }
     out.push({ start, end, card: c, to: placeName(a.to), fromKey: airportKey(a.from), toKey: airportKey(a.to) });
   }
   // A flight entered twice (a departure and an arrival card with the same times) shades once.
@@ -112,8 +123,8 @@ export interface FlightTrip<C> { start: number; end: number; legs: FlightSpan<C>
  * the airport the last one landed at, within 24 hours. Both times are on that
  * airport's own clock, so the layover's length is exact.
  */
-export function flightTrips<C extends FlightCard>(days: Day[], cards: C[]): FlightTrip<C>[] {
-  const spans = flightsInAir(days, cards);
+export function flightTrips<C extends FlightCard>(days: Day[], cards: C[], opts: { home?: string | null } = {}): FlightTrip<C>[] {
+  const spans = flightsInAir(days, cards, opts);
   const used = new Set<FlightSpan<C>>();
   const trips: FlightTrip<C>[] = [];
   for (const s of spans) {
@@ -157,13 +168,14 @@ export function slices(days: Day[], start: number, end: number, hourStart: numbe
  * for connecting flights, where it changes: one band from the first takeoff
  * to the last landing, so a layover never looks like free time.
  */
-export function flightBands<C extends FlightCard>(days: Day[], cards: C[], hourStart: number, hourEnd: number): Map<string, { from: number; to: number; label: boolean; takeoff: boolean; card: C; dest: string; via?: string }[]> {
-  const out = new Map<string, { from: number; to: number; label: boolean; takeoff: boolean; card: C; dest: string; via?: string }[]>();
+export function flightBands<C extends FlightCard>(days: Day[], cards: C[], hourStart: number, hourEnd: number, opts: { home?: string | null } = {}): Map<string, { from: number; to: number; label: boolean; takeoff: boolean; card: C; dest: string; via?: string; landsHome?: string }[]> {
+  const out = new Map<string, { from: number; to: number; label: boolean; takeoff: boolean; card: C; dest: string; via?: string; landsHome?: string }[]>();
   if (!days.length) return out;
-  for (const t of flightTrips(days, cards)) {
+  for (const t of flightTrips(days, cards, opts)) {
+    const landsHome = t.legs[t.legs.length - 1].landsHome;
     for (const sl of slices(days, t.start, t.end, hourStart, hourEnd)) {
       const list = out.get(sl.id) ?? [];
-      list.push({ from: sl.from, to: sl.to, label: sl.to - sl.from >= 120, takeoff: sl.first, card: t.legs[0].card, dest: t.to, ...(t.via.length ? { via: t.via.join(", ") } : {}) });
+      list.push({ from: sl.from, to: sl.to, label: sl.to - sl.from >= 120, takeoff: sl.first, card: t.legs[0].card, dest: t.to, ...(t.via.length ? { via: t.via.join(", ") } : {}), ...(landsHome ? { landsHome } : {}) });
       out.set(sl.id, list);
     }
   }

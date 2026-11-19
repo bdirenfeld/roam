@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { airportCode, airportZone, flightLength, lengthLabel } from "./airportZones";
+import { airportCode, airportZone, flightLength, lengthLabel, zoneCity } from "./airportZones";
 
 describe("airport clocks (19 Nov 2026)", () => {
   it("reads the code however a card writes it", () => {
@@ -35,5 +35,11 @@ describe("airport clocks (19 Nov 2026)", () => {
 
   it("says the length plainly", () => {
     expect([515, 45, 480, 307].map(lengthLabel)).toEqual(["8 h 35", "45 min", "8 h", "5 h 07"]);
+  });
+});
+
+describe("zoneCity (19 Nov 2026)", () => {
+  it("names the clock: Toronto time, Los Angeles time; unlisted is null", () => {
+    expect(["YYZ", "LAS", "ZZZ"].map(zoneCity)).toEqual(["Toronto", "Los Angeles", null]);
   });
 });

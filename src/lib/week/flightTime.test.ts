@@ -114,3 +114,17 @@ describe("a flight kept on the day it lands (19 Nov 2026)", () => {
     expect(flightBands(ds, [rome], 7, 23).get("d1")).toBeUndefined();
   });
 });
+
+describe("the flight home on the trip's clock (19 Nov 2026)", () => {
+  it("Tuscany home, PSA 1:45 PM → YYZ 9:30 PM: 13 h 45 in the air, grey to the end of 5 Sep, landing told as Toronto's 9:30", () => {
+    const ds = days(["2027-09-05"]);
+    const home = card("h", 0, "13:45:00", "21:30:00", { origin_airport: "PSA", arriving_at: "YYZ" }, { title: "Pisa International Airport", sub_type: "flight_arrival" });
+    expect(flightsInAir(ds, [home], { home: "YYZ" }).map((x) => [x.start, x.end, x.landsHome])).toEqual([[825, 825 + 825, "21:30:00"]]);
+    expect(flightBands(ds, [home], 7, 23, { home: "YYZ" }).get("d0")).toEqual([{ from: 825, to: 1440, label: true, takeoff: true, card: home, dest: "YYZ", landsHome: "21:30:00" }]);
+  });
+  it("without a home airport it reads as before, each city's own clock", () => {
+    const ds = days(["2027-09-05"]);
+    const home = card("h", 0, "13:45:00", "21:30:00", { origin_airport: "PSA", arriving_at: "YYZ" });
+    expect(flightsInAir(ds, [home]).map((x) => [x.start, x.end, x.landsHome])).toEqual([[825, 1290, undefined]]);
+  });
+});

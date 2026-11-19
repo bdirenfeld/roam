@@ -2,8 +2,10 @@
 import { shipSpans, shipSpanSource } from "@/lib/plan/cruiseDays";
 import { flightBands, layoverBands } from "@/lib/week/flightTime";
 import { lengthLabel } from "@/lib/flights/airportZones";
-import { homeBands } from "@/lib/flights/homeLegs";
-import { useHome } from "@/components/cards/HomeLeg";
+import { homeBands, homePlan, savedDrive, homeCode, homeRole } from "@/lib/flights/homeLegs";
+import { zoneCity } from "@/lib/flights/airportZones";
+import { formatTimeValue } from "@/lib/formatTime";
+import { useHome, measureHomeDrive } from "@/components/cards/HomeLeg";
 import { otherStayNights } from "@/lib/stays/stayPick";
 import { isPortCard, minutesAshore, nightsInPort, portDayRole, addIsoDays, otherPortDays } from "@/lib/cards/port";
 import { useGuidanceScreen, useWalkthrough } from "@/components/onboarding/JourneyGuidanceContext";
@@ -906,12 +908,38 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
   // ── layout per day ─────────────────────────────────────────────
   // Time on a cruise ship, per day (lib/plan/cruiseDays): painted pale blue on the grid.
   const ship = useMemo(() => shipSpans(days, days.flatMap((d) => d.cards)), [days]);
-  const air = useMemo(() => flightBands(days, days.flatMap((d) => d.cards), HOUR_START, HOUR_END), [days]);
+  // Leave home → the airport, and landing → home (19 Nov 2026, lib/flights/homeLegs): yours only, not a guest's.
+  const myHome = useHome(!readOnly);
+  // "In the air · lands Toronto 9:30 PM · home ~11:05 PM (Toronto time)": the flight home's label.
+  const homeLanding = useCallback((card: Card, lands: string) => {
+    const city = zoneCity(homeCode(myHome?.airport ?? null)) ?? "home";
+    const drive = myHome ? savedDrive(card.details, myHome.key) : null;
+    const plan = homePlan("returning", card.details, null, lands, drive);
+    const home = plan && plan.role === "returning" && plan.home ? ` · home ~${formatTimeValue(plan.home)}` : "";
+    return `In the air · lands ${city} ${formatTimeValue(lands)}${home} (${city} time)`;
+  }, [myHome]);
+  // The flight home stays on the trip's clock and says when it lands in Toronto (19 Nov 2026).
+  const air = useMemo(() => flightBands(days, days.flatMap((d) => d.cards), HOUR_START, HOUR_END, { home: myHome?.airport ?? null }), [days, myHome]);
   // Connecting flights (19 Nov 2026): the layover hatched over the band, "1 h 25 layover · Frankfurt".
   const layovers = useMemo(() => layoverBands(days, days.flatMap((d) => d.cards), HOUR_START, HOUR_END), [days]);
-  // Leave home → the airport, and landing → bags → home (19 Nov 2026, lib/flights/homeLegs): yours only, not a guest's.
-  const myHome = useHome(!readOnly);
   const homeStrips = useMemo(() => homeBands(days, days.flatMap((d) => d.cards), myHome?.airport ?? null, myHome?.key ?? null, HOUR_START, HOUR_END), [days, myHome]);
+  // The drive to and from home is worked out here too (19 Nov 2026): the flight home showed no
+  // drive because nobody had opened its card. Once per flight per visit, saved on the card.
+  const drivesAsked = useRef(new Set<string>());
+  useEffect(() => {
+    if (!myHome || readOnly) return;
+    for (const d of days) for (const c of d.cards) {
+      if (c.status === "cut" || drivesAsked.current.has(c.id)) continue;
+      if (!homeRole(c.details, myHome.airport) || savedDrive(c.details, myHome.key) != null) continue;
+      drivesAsked.current.add(c.id);
+      void measureHomeDrive(c, myHome, d.date).then(async (h) => {
+        if (!h) return;
+        const details = { ...(c.details as Record<string, unknown>), home_drive: h };
+        const { error } = await queuedUpdate("cards", { id: c.id }, { details });
+        if (!error) handleCardUpdate({ ...c, details: details as Card["details"] });
+      });
+    }
+  }, [days, myHome, readOnly, handleCardUpdate]);
   const dateOfDay = useCallback((id: string | null) => days.find((x) => x.id === id)?.date ?? "", [days]);
   const weekdayOf = (iso: string) => new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short" });
   const laidOut = useMemo(() => shown.map((d, di) => {
@@ -1219,7 +1247,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
                             style={{ color: AIR_INK, top: f.takeoff ? 26 : 4 }}
                           >
                             <span className="inline-flex flex-shrink-0" dangerouslySetInnerHTML={{ __html: getGlyphHTML("flight", 11) }} />
-                            <span className="truncate">In the air · to {f.dest}{f.via ? ` · via ${f.via}` : ""}</span>
+                            <span className="truncate">{f.landsHome ? homeLanding(f.card, f.landsHome) : <>In the air · to {f.dest}{f.via ? ` · via ${f.via}` : ""}</>}</span>
                           </button>
                         )}
                       </div>

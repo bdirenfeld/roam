@@ -143,3 +143,9 @@ export function lengthLabel(minutes: number): string {
   const h = Math.floor(minutes / 60), m = minutes % 60;
   return h === 0 ? `${m} min` : m === 0 ? `${h} h` : `${h} h ${String(m).padStart(2, "0")}`;
 }
+
+/** The city a clock is named for, for "Toronto time": "YYZ" → "Toronto"; null when unlisted. */
+export function zoneCity(code: string | null | undefined): string | null {
+  const z = airportZone(code);
+  return z ? z.split("/").pop()!.replace(/_/g, " ") : null;
+}

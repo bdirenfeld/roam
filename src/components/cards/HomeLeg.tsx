@@ -12,7 +12,8 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { getAuthUser } from "@/lib/supabase/authUser";
 import { formatTimeValue } from "@/lib/formatTime";
-import { homeKeyOf, minsLabel, type LeavingPlan, type ReturningPlan } from "@/lib/flights/homeLegs";
+import { homeKeyOf, minsLabel, homeRole, homeCode, homePlan, type LeavingPlan, type ReturningPlan } from "@/lib/flights/homeLegs";
+import { flightPass } from "@/lib/flights/pass";
 
 export interface Home { airport: string | null; lat: number; lng: number; key: string }
 
@@ -65,8 +66,10 @@ export async function driveMinutes(from: { lat: number; lng: number }, to: { lat
 const BLUE = "#4A6F9E";
 const t = (v: string | null) => (v ? formatTimeValue(v) : "–");
 
-export function HomeLegRows({ plan, airportName, readOnly, onSave }: {
+export function HomeLegRows({ plan, airportName, readOnly, onSave, clockCity = null }: {
   plan: LeavingPlan | ReturningPlan; airportName: string; readOnly: boolean; onSave: (field: string, value: number) => void;
+  /** "Toronto": coming home, the times are on home's clock, and the box says so (19 Nov 2026). */
+  clockCity?: string | null;
 }) {
   const Row = ({ when, what, sub, big, action }: { when: string; what: string; sub?: string; big?: boolean; action?: React.ReactNode }) => (
     <div className="flex items-baseline gap-3 py-1">
@@ -91,7 +94,7 @@ export function HomeLegRows({ plan, airportName, readOnly, onSave }: {
   );
   return (
     <div data-testid={`home-${plan.role}`} className="mt-2.5 rounded-xl px-3 py-2.5" style={{ background: "#F3F6F9" }}>
-      <p className="text-[11px] font-bold uppercase tracking-wide mb-1" style={{ color: BLUE }}>{plan.role === "leaving" ? "Getting to the airport" : "Getting home"}</p>
+      <p className="text-[11px] font-bold uppercase tracking-wide mb-1" style={{ color: BLUE }}>{plan.role === "leaving" ? "Getting to the airport" : clockCity ? `Getting home · ${clockCity} time` : "Getting home"}</p>
       {plan.role === "leaving" ? (
         <>
           <Row big when={t(plan.leave)} what="Leave home" sub={plan.leave ? undefined : "Working out the drive…"} />
@@ -108,4 +111,29 @@ export function HomeLegRows({ plan, airportName, readOnly, onSave }: {
       )}
     </div>
   );
+}
+
+/**
+ * Work out and return the home drive for a flight (19 Nov 2026): traffic at the hour you'd
+ * drive, half an hour before reaching the airport, or after bags coming home. Used by the
+ * card and by the week, so nobody has to open a card for its drive to appear.
+ */
+export async function measureHomeDrive(
+  card: { details: unknown; start_time: string | null; end_time: string | null; place?: { lat?: number | null; lng?: number | null; title?: string | null; address?: string | null; sub_type?: string | null } | null },
+  home: Home, dayDate: string | null,
+): Promise<{ from: string; mins: number; traffic: true } | null> {
+  const role = homeRole(card.details, home.airport);
+  const code = homeCode(home.airport);
+  if (!role || !code) return null;
+  const view = flightPass(card, dayDate);
+  const p0 = homePlan(role, card.details, view.departs, view.arrives, null);
+  if (!p0) return null;
+  const toM = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+  const start = p0.role === "leaving" ? toM(p0.atAirport) - 30 : toM(p0.land) + p0.bags;
+  const hour = Math.floor((((start % 1440) + 1440) % 1440) / 60);
+  const apt = await airportPoint(code, card.place);
+  if (!apt) return null;
+  const here = { lat: home.lat, lng: home.lng };
+  const mins = await driveMinutes(role === "leaving" ? here : apt, role === "leaving" ? apt : here, role === "leaving" ? view.departDate : view.arriveDate, hour);
+  return mins != null ? { from: home.key, mins, traffic: true } : null;
 }

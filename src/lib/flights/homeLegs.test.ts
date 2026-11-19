@@ -65,15 +65,15 @@ describe("the week's home strips (19 Nov 2026)", () => {
   it("no saved drive: only the airport time; no home airport: nothing", () => {
     const bare = { ...out, details: { origin_airport: "YYZ", arriving_at: "PSA" } };
     expect(homeBands(ds, [bare, land], "YYZ", key, 7, 23).get("d0")!.map((x) => x.kind)).toEqual(["airport"]);
-    expect(homeBands(ds, [out, land], null, key, 7, 23).size).toBe(0);
+    // No home airport set: the airport time still shows, no drive.
+    expect(homeBands(ds, [out, land], null, key, 7, 23).get("d0")!.map((x) => x.kind)).toEqual(["airport"]);
   });
 
-  it("Rome home lands 4:00 PM: bags 4:00–5:00, then the drive to ~5:35", () => {
+  it("Rome home: 3 h at Fiumicino before the 12:25 takeoff; the landing and home are told on the flight band, not as strips", () => {
     const rd = [{ id: "r", date: "2026-04-28" }];
     const home = { id: "h", day_id: "r", start_time: "12:25:00", end_time: "16:00:00", status: "in_itinerary", details: { ...romeHome, home_drive: { from: key, mins: 35, traffic: true } }, place: { title: "Flight to Toronto", sub_type: "flight_departure" } };
     expect(homeBands(rd, [home], "YYZ", key, 7, 23).get("r")!.map((x) => [x.kind, x.from, x.to, x.label])).toEqual([
-      ["bags", 960, 1020, "Bags and customs"],
-      ["drive", 1020, 1055, "Home ~5:35 PM"],
+      ["airport", 565, 745, "At the airport · 3 h before"],
     ]);
   });
 });

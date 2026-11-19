@@ -42,8 +42,10 @@ import { FlightPassTop, FlightPassBody, LayoverRow, ConnectingFlight, useTripFli
 import { flightPass, isPassFlight } from "@/lib/flights/pass";
 import { flightsInAir, connectionsOf } from "@/lib/week/flightTime";
 import { CarVoucherTop, CarVoucherBody, useTripRentals } from "./CarVoucher";
-import { HomeLegRows, useHome, airportPoint, driveMinutes } from "./HomeLeg";
-import { homeRole, homePlan, savedDrive, homeCode } from "@/lib/flights/homeLegs";
+import { placeShared, forkPlace } from "@/lib/places/sharedPlace";
+import { zoneCity, airportCode } from "@/lib/flights/airportZones";
+import { HomeLegRows, useHome, measureHomeDrive } from "./HomeLeg";
+import { homeRole, homePlan, savedDrive } from "@/lib/flights/homeLegs";
 import { isRentalCar, rentalVoucher } from "@/lib/cars/voucher";
 import RestaurantDetail from "./detail/RestaurantDetail";
 import SelfDirectedDetail from "./detail/SelfDirectedDetail";
@@ -643,24 +645,10 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const homeLegRole = home && passOn ? homeRole(localCard.details, home.airport) : null;
   const homeDriveMins = home ? savedDrive(localCard.details, home.key) : null;
   const homeAsked = useRef(false);
-  const toMinutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
   useEffect(() => {
     if (!home || !homeLegRole || homeDriveMins != null || readOnly || homeAsked.current) return;
     homeAsked.current = true;
-    const code = homeCode(home.airport);
-    if (!code) return;
-    void (async () => {
-      const apt = await airportPoint(code, localCard.place);
-      if (!apt) return;
-      const here = { lat: home.lat, lng: home.lng };
-      // Traffic at the hour you'd be driving: half an hour before reaching the airport, or after bags on the way home.
-      const p0 = passView ? homePlan(homeLegRole, localCard.details, passView.departs, passView.arrives, null) : null;
-      const startMin = p0 ? (p0.role === "leaving" ? toMinutes(p0.atAirport) - 30 : toMinutes(p0.land) + p0.bags) : 9 * 60;
-      const hour = Math.max(0, Math.min(23, Math.floor(((startMin % 1440) + 1440) % 1440 / 60)));
-      const date = homeLegRole === "leaving" ? passView?.departDate ?? null : passView?.arriveDate ?? null;
-      const mins = await driveMinutes(homeLegRole === "leaving" ? here : apt, homeLegRole === "leaving" ? apt : here, date, hour);
-      if (mins != null) void saveDetails("home_drive", { from: home.key, mins, traffic: true });
-    })();
+    void measureHomeDrive(localCard, home, days?.find((d) => d.id === localCard.day_id)?.date ?? null).then((h) => { if (h) void saveDetails("home_drive", h); });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [home, homeLegRole, homeDriveMins, readOnly]);
   const homeLegPlan = homeLegRole && passView ? homePlan(homeLegRole, localCard.details, passView.departs, passView.arrives, homeDriveMins) : null;
@@ -1128,6 +1116,23 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       onCardUpdate?.(updated);
 
       if (localCard.place_id) {
+        // A place other cards use gets its own copy for this card (19 Nov 2026): retyping a
+        // "Dinner at the villa" card had turned Villa Zambaldi itself into a restaurant,
+        // and the check-in, check-out and stay with it.
+        if (await placeShared(supabase, localCard.place_id, localCard.id)) {
+          const own = await forkPlace(supabase, localCard.place_id, { type: newType, sub_type: newSubType });
+          if (own) {
+            const moved: Card = { ...updated, place_id: own.id, place: { ...(updated.place as Place), ...own } };
+            setLocalCard(moved);
+            onCardUpdate?.(moved);
+            const { error: cardErr } = await queuedUpdate("cards", { id: localCard.id }, { place_id: own.id });
+            if (!cardErr) return;
+          }
+          toast({ message: "Couldn't save that. Try again." });
+          setLocalCard(prev);
+          onCardUpdate?.(prev);
+          return;
+        }
         const { error: placeErr } = await supabase
           .from("places")
           .update({ type: newType, sub_type: newSubType })
@@ -1145,6 +1150,11 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
 
   const saveTitle = useCallback(
     async (value: string) => {
+      // A place other cards use keeps its name; this card takes the new one as its own (19 Nov 2026).
+      if (localCard.place_id && await placeShared(supabase, localCard.place_id, localCard.id)) {
+        void saveDetailsPatch({ ...(localCard.details as Record<string, unknown>), title: value, named: true });
+        return;
+      }
       const prev = localCard;
       const updated: Card = {
         ...localCard,
@@ -1166,7 +1176,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         }
       }
     },
-    [localCard, onCardUpdate, supabase, toast],
+    [localCard, onCardUpdate, supabase, toast, saveDetailsPatch],
   );
 
   // ── Derived display values ─────────────────────────────────
@@ -1747,7 +1757,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 {passConn?.after && <LayoverRow layover={passConn.after} side="after" onOpen={onOpenCard} />}
                 {homeLegPlan && passView && (
                   <HomeLegRows plan={homeLegPlan} airportName={(homeLegPlan.role === "leaving" ? passView.from : passView.to).name}
-                    readOnly={readOnly} onSave={(f, v) => void saveDetails(f, v)} />
+                    readOnly={readOnly} onSave={(f, v) => void saveDetails(f, v)} clockCity={home ? zoneCity(airportCode(home.airport)) : null} />
                 )}
               </>
             ) : voucher ? (
@@ -1790,7 +1800,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               )
             ) : place && !readOnly ? (
               <TitleEditor
-                value={place.title}
+                value={cardTitle(localCard)}
                 onSave={(v) => saveTitle(v)}
               />
             ) : (
