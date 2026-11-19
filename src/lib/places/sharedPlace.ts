@@ -33,3 +33,12 @@ export async function forkPlace(supabase: SupabaseClient, placeId: string, chang
   const { data: made } = await supabase.from("places").insert(placeCopy(src as Record<string, unknown>, change)).select("*").maybeSingle();
   return (made as (Record<string, unknown> & { id: string }) | null) ?? null;
 }
+
+/**
+ * A place that holds a booking's cards (check-in and check-out, pick-up and
+ * return, docks and all aboard): retyping it from one card would break the
+ * others, so that card gets its own copy. Any other place is retyped everywhere.
+ */
+export function isBookingPlace(subType: string | null | undefined): boolean {
+  return subType === "hotel" || subType === "car_rental" || subType === "port";
+}

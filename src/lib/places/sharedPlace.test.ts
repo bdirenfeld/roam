@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { placeCopy } from "./sharedPlace";
+import { placeCopy, isBookingPlace } from "./sharedPlace";
 
 describe("a card's own copy of a shared place (19 Nov 2026)", () => {
   it("keeps where it is and how it looks, takes the new kind, and drops the Google id and the row's own id", () => {
@@ -28,5 +28,11 @@ describe("placeShared (19 Nov 2026)", () => {
     expect(await placeShared(shared.client, "villa", "dinner")).toBe(true);
     expect(shared.asked).toEqual(["from:cards", "select:id", "eq:place_id,villa", "neq:id,dinner", "limit:1"]);
     expect(await placeShared(fake([]).client, "villa", "dinner")).toBe(false);
+  });
+});
+
+describe("which places fork on a retype (19 Nov 2026)", () => {
+  it("a stay, a rental desk or a port does; an ordinary place is retyped everywhere", () => {
+    expect(["hotel", "car_rental", "port", "restaurant", "self_directed", null].map(isBookingPlace)).toEqual([true, true, true, false, false, false]);
   });
 });

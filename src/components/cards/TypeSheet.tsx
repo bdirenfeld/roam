@@ -28,12 +28,15 @@ export function TypeSheet({
   options,
   onSelect,
   onClose,
+  note,
 }: {
   currentType: string;
   currentSubType: string | null;
   options: Record<string, { value: string; label: string }[]>;
   onSelect: (type: string, subType: string) => void;
   onClose: () => void;
+  /** On a note card (19 Nov 2026): a "Just a note" chip, so notes use this sheet too, on every screen. */
+  note?: { on: boolean; onPick: () => void };
 }) {
   const start: Group = GROUPS.some((g) => g.value === currentType) ? (currentType as Group) : "activity";
   const [group, setGroup] = useState<Group>(start);
@@ -51,13 +54,20 @@ export function TypeSheet({
       >
         <div className="flex justify-center pb-2.5"><div className="w-9 h-1 bg-gray-200 rounded-full" /></div>
         <div className="flex items-center justify-between">
-          <h2 id="type-sheet-title" className="text-base font-bold text-[#1A1A2E]">What kind of place?</h2>
+          <h2 id="type-sheet-title" className="text-base font-bold text-[#1A1A2E]">{note ? "What kind of card?" : "What kind of place?"}</h2>
           <button type="button" onClick={onClose} aria-label="Close" className="p-1 -mr-1 rounded-md text-gray-400 hover:text-gray-600">
             {/* Drawn, not a font glyph: "close" is not in Roam's icon-font subset (lib/mapPins). */}
             <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
         </div>
 
+        {note && (
+          <button type="button" data-testid="type-sheet-note" aria-pressed={note.on} onClick={note.onPick}
+            className={`mt-2.5 inline-flex items-center gap-1.5 h-10 px-3 rounded-full border text-[13px] font-medium ${note.on ? "bg-[#1A1A2E] border-[#1A1A2E] text-white" : "bg-white border-gray-200 text-gray-600"}`}>
+            <span aria-hidden="true" className={`material-symbols-outlined ${note.on ? "text-white" : "text-gray-500"}`} style={{ fontSize: 16, lineHeight: 1 }}>edit_note</span>
+            Just a note
+          </button>
+        )}
         <div role="tablist" className="flex bg-gray-100 rounded-[10px] p-[3px] mt-2.5 mb-3">
           {GROUPS.map(({ value, label }) => (
             <button

@@ -47,36 +47,35 @@ async function open(readOnly = false) {
 }
 
 describe("CardBottomSheet — Note is a dropdown (10 Nov 2026)", () => {
-  it("tapping Note lists the seven kinds", async () => {
+  // Notes use the same type sheet as every card (19 Nov 2026, his ask: desktop notes had the old dropdown).
+  it("tapping Note opens the type sheet: Just a note, then Food / Activity / Logistics", async () => {
     await open();
     await act(async () => { fireEvent.click(screen.getByTestId("note-type-button")); });
-    const picker = screen.getByTestId("note-type-picker");
-    const rows = within(picker).getAllByRole("menuitem").map((b) => {
-      const glyph = b.querySelector(".material-symbols-outlined")?.textContent ?? "";
-      return (b.textContent ?? "").replace(glyph, "").replace("current", "").trim();
-    });
-    expect(rows).toEqual(["Note", "Activity", "Food", "Hotel", "Drive", "Train", "Flight"]);
+    const sheet = screen.getByRole("dialog");
+    expect(within(sheet).getByText("What kind of card?")).toBeTruthy();
+    expect(screen.getByTestId("type-sheet-note").getAttribute("aria-pressed")).toBe("true");
+    expect(within(sheet).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Food", "Activity", "Logistics"]);
   });
 
-  it("picking Food saves it at once: the badge says Food and an optional Where? row appears (type now, place later)", async () => {
+  it("picking Food › Restaurant saves it at once: the badge says Food, the exact kind is kept, and an optional Where? row appears", async () => {
     writes.calls = [];
     await open();
     await act(async () => { fireEvent.click(screen.getByTestId("note-type-button")); });
-    await act(async () => { fireEvent.click(within(screen.getByTestId("note-type-picker")).getByRole("menuitem", { name: /Food/ })); });
-    expect(screen.queryByTestId("note-type-picker")).toBeNull();
-    expect(writes.calls.at(-1)).toEqual({ details: { title: "Drive to My Tuscan Kitchen, Montefoscoli (~1 h)", kind: "food" } });
+    await act(async () => { fireEvent.click(within(screen.getByRole("dialog")).getByRole("tab", { name: "Food" })); });
+    await act(async () => { fireEvent.click(within(screen.getByRole("dialog")).getByRole("radio", { name: /Restaurant/ })); });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(writes.calls.at(-1)).toEqual({ details: { title: "Drive to My Tuscan Kitchen, Montefoscoli (~1 h)", kind: "food", kind_type: "food", kind_sub: "restaurant" } });
     expect(screen.getByTestId("note-type-button").textContent).toContain("Food");
     const where = screen.getByTestId("note-where");
     expect(where.textContent).toContain("Where? Add a place");
     expect(where.textContent).toContain("optional");
-    await act(async () => { fireEvent.click(within(where).getByRole("button")); });
-    expect(screen.getByTestId("note-where").querySelector("input")).not.toBeNull();
   });
 
-  it("Drive asks 'Where to?'", async () => {
+  it("Logistics › Transit makes it a drive: 'Where to?'", async () => {
     await open();
     await act(async () => { fireEvent.click(screen.getByTestId("note-type-button")); });
-    await act(async () => { fireEvent.click(within(screen.getByTestId("note-type-picker")).getByRole("menuitem", { name: /Drive/ })); });
+    await act(async () => { fireEvent.click(within(screen.getByRole("dialog")).getByRole("tab", { name: "Logistics" })); });
+    await act(async () => { fireEvent.click(within(screen.getByRole("dialog")).getByRole("radio", { name: /Transit/ })); });
     expect(screen.getByTestId("note-where").textContent).toContain("Where to? Add a place");
   });
 
@@ -91,6 +90,6 @@ describe("CardBottomSheet — Note is a dropdown (10 Nov 2026)", () => {
   it("a guest gets no dropdown", async () => {
     await open(true);
     await act(async () => { fireEvent.click(screen.getByTestId("note-type-button")); });
-    expect(screen.queryByTestId("note-type-picker")).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });

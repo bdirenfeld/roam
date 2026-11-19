@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef, type ReactNode } from "react";
 import { thumbSrc } from "@/lib/places/photoWarm";
 import { SUB_TYPE_LABEL } from "@/lib/subTypeLabel";
+import { TypeSheet } from "@/components/cards/TypeSheet";
 import { dayChip, spansMonths } from "@/lib/dayChip";
 import { BookmarkSimple, CalendarBlank, CaretRight, Heart, PencilSimple } from "@phosphor-icons/react";
 import Link from "next/link";
@@ -55,12 +56,6 @@ function sourceLabel(url: string): string {
 // ── Constants ────────────────────────────────────────────────
 // One table for the names (lib/subTypeLabel): this copy said "Self-Directed"
 // and "Guided" where every other screen said Explore and Tour (27 Sep 2026).
-
-const TYPE_OPTIONS: { type: CardType; label: string }[] = [
-  { type: "activity",  label: "Activity" },
-  { type: "food",      label: "Food"     },
-  { type: "logistics", label: "Logistics" },
-];
 
 const SUB_TYPE_OPTIONS: Record<CardType, { label: string; value: string }[]> = sortOptionLists({
   activity:  [
@@ -128,23 +123,7 @@ function TypeEditor({
 }) {
   const supabase = createClient();
 
-  // Find the sub-type option that matches current place.sub_type (fall back to first option)
-  function initSubType(type: CardType): string {
-    const opts = SUB_TYPE_OPTIONS[type] ?? [];
-    return opts.find((o) => o.value === card.place!.sub_type)?.value ?? opts[0]?.value ?? "";
-  }
-
-  const [editType,       setEditType]       = useState<CardType>(card.place!.type);
-  const [editSubType,    setEditSubType]    = useState<string>(initSubType(card.place!.type));
-  const [saving,         setSaving]         = useState(false);
-
-  // Picking a type only narrows the sub-type row; nothing is written until a
-  // sub-type is tapped, so a mis-tap on the type pill costs nothing.
-  function pickType(t: CardType) {
-    setEditType(t);
-    const opts = SUB_TYPE_OPTIONS[t] ?? [];
-    setEditSubType(opts[0]?.value ?? "");
-  }
+  const [saving, setSaving] = useState(false);
 
   // Commit on selection. Category lives on the PLACE, so this is one update
   // and the popup restyles through onSaved; the card's details are untouched.
@@ -161,63 +140,15 @@ function TypeEditor({
     }
   }, [saving, card, supabase, onSaved]);
 
-  const typeColor = PIN_COLORS[editType];
-
+  // The same type sheet as the card (19 Nov 2026, his ask: the map had its own older pills).
   return (
-    <div className="mt-1.5 mb-2 p-2.5 bg-gray-50 rounded-xl border border-gray-100">
-      {/* Type pills */}
-      <div className="flex gap-1.5 mb-2">
-        {TYPE_OPTIONS.map(({ type: t, label }) => {
-          const sel   = editType === t;
-          const color = PIN_COLORS[t];
-          return (
-            <button
-              key={t}
-              onClick={() => pickType(t)}
-              className="px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-all"
-              style={sel
-                ? { background: color, color: "white", border: `1px solid ${color}` }
-                : { background: "transparent", color: "#6B7280", border: "1px solid #E5E7EB" }}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Sub-type pills */}
-      <div className="flex gap-1.5 flex-wrap mb-2.5">
-        {(SUB_TYPE_OPTIONS[editType] ?? []).map(({ label, value }) => {
-          const sel = editSubType === value;
-          return (
-            <button
-              key={value}
-              onClick={() => { setEditSubType(value); void commit(editType, value); }}
-              className="px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-all"
-              style={sel
-                ? { background: typeColor, color: "white", border: `1px solid ${typeColor}` }
-                : { background: "transparent", color: "#6B7280", border: "1px solid #E5E7EB" }}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* No Save row: picking a sub-type commits, the way the card sheet's
-          picker already does, so a category change is two taps from the pin
-          instead of four. The recommended-by field that used to sit here is
-          now edited on the popup itself (DetailsField). */}
-      <div className="flex items-center justify-between">
-        <span className="text-[10.5px] text-gray-400">{saving ? "Saving…" : "Tap one to change it"}</span>
-        <button
-          onClick={onCancel}
-          className="px-3 py-1 rounded-lg text-[11px] font-medium text-gray-500 bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
+    <TypeSheet
+      currentType={card.place!.type}
+      currentSubType={card.place!.sub_type ?? null}
+      options={SUB_TYPE_OPTIONS}
+      onSelect={(t, st) => { void commit(t as CardType, st).then(onCancel); }}
+      onClose={onCancel}
+    />
   );
 }
 

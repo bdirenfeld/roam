@@ -12,7 +12,7 @@
 
 import type { LegFrom, LegMode } from "@/lib/travel/leg";
 
-export type NoteKindKey = "note" | "activity" | "food" | "hotel" | "drive" | "train" | "flight";
+export type NoteKindKey = "note" | "activity" | "food" | "hotel" | "drive" | "train" | "flight" | "logistics";
 
 export interface NoteKind {
   key: NoteKindKey;
@@ -44,7 +44,30 @@ export const NOTE_KINDS: NoteKind[] = [
   { key: "drive",    label: "Drive",    glyph: "directions_car",   prompt: "Where to?",      defaults: null, mode: "drive", cardType: "logistics", detailKey: "logistics/transit" },
   { key: "train",    label: "Train",    glyph: "train",            prompt: "Which station?", defaults: null, mode: "train", cardType: "logistics", detailKey: "logistics/transit" },
   { key: "flight",   label: "Flight",   glyph: "flight_land",      prompt: "Which airport?", defaults: { type: "logistics", sub_type: "flight_arrival" }, mode: null, cardType: "logistics", detailKey: "logistics/flight_arrival" },
+  // Any other logistics kind picked on a note (car rental, groceries, pharmacy…), 19 Nov 2026.
+  { key: "logistics", label: "Logistics", glyph: "luggage",        prompt: "Which place?",   defaults: null, mode: null, cardType: "logistics", detailKey: "note" },
 ];
+
+/**
+ * A note typed from the same sheet as every card (19 Nov 2026, his ask: desktop notes had
+ * the old dropdown): the exact kind is kept (details.kind_type / kind_sub) for when a place
+ * is added, and the note's own kind is the nearest of the list above.
+ */
+export function noteKindFor(type: string, subType: string): NoteKindKey {
+  if (type === "food") return "food";
+  if (type === "activity") return "activity";
+  if (subType === "hotel") return "hotel";
+  if (subType === "flight_arrival" || subType === "flight_departure") return "flight";
+  if (subType === "transit") return "drive";
+  return "logistics";
+}
+
+/** The exact kind a typed note will become once it has a place, if one was picked. */
+export function noteDefaults(details: unknown): { type: "activity" | "food" | "logistics"; sub_type: string } | null {
+  const d = (details ?? {}) as Record<string, unknown>;
+  const t = d.kind_type, st = d.kind_sub;
+  return (t === "activity" || t === "food" || t === "logistics") && typeof st === "string" && st ? { type: t, sub_type: st } : null;
+}
 
 export function noteKind(key: NoteKindKey): NoteKind {
   return NOTE_KINDS.find((k) => k.key === key) ?? NOTE_KINDS[0];
@@ -64,6 +87,8 @@ export function convertedDetails(
 ): Record<string, unknown> {
   const d: Record<string, unknown> = { ...(details ?? {}) };
   delete d.kind;
+  delete d.kind_type;
+  delete d.kind_sub;
   delete d.title;
   delete d.named;
   if (kind.mode) {
@@ -91,7 +116,7 @@ export function readNoteKind(details: unknown): NoteKind | null {
 /** The note's details with its kind set; Note clears it. Nothing else changes. */
 export function withNoteKind(details: Record<string, unknown> | null | undefined, key: NoteKindKey): Record<string, unknown> {
   const d: Record<string, unknown> = { ...(details ?? {}) };
-  if (key === "note") delete d.kind; else d.kind = key;
+  if (key === "note") { delete d.kind; delete d.kind_type; delete d.kind_sub; } else d.kind = key;
   return d;
 }
 

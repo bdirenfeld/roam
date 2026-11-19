@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { NOTE_KINDS, noteKind, convertedDetails } from "./noteKinds";
+import { NOTE_KINDS, noteKind, convertedDetails, noteKindFor, noteDefaults, withNoteKind } from "./noteKinds";
 import { isTravelLeg, iconSubType } from "@/lib/travel/leg";
 import { materialFontUrl } from "@/lib/mapPins";
 
@@ -14,8 +14,8 @@ const noteDetails = { title: "Drive to My Tuscan Kitchen, Montefoscoli (~1 h)", 
 const mtk = { type: "activity", sub_type: "guided", title: "My Tuscan Kitchen", lat: 43.5844149, lng: 10.7564421 };
 
 describe("NOTE_KINDS — the dropdown", () => {
-  it("offers the seven kinds in the approved order", () => {
-    expect(NOTE_KINDS.map((k) => k.label)).toEqual(["Note", "Activity", "Food", "Hotel", "Drive", "Train", "Flight"]);
+  it("the seven kinds in the approved order, then Logistics for any other kind picked from the sheet (19 Nov 2026)", () => {
+    expect(NOTE_KINDS.map((k) => k.label)).toEqual(["Note", "Activity", "Food", "Hotel", "Drive", "Train", "Flight", "Logistics"]);
   });
   it("every glyph is in the font subset, or it would show as a word", () => {
     const url = materialFontUrl();
@@ -72,5 +72,16 @@ describe("type now, place later (10 Nov 2026)", () => {
   it("adding the place later drops the stored kind (the place says what it is)", () => {
     const d = convertedDetails({ title: "Dinner in Lucca", kind: "food", notes: "Early." }, noteKind("food"), null);
     expect(d).toEqual({ notes: "Early." });
+  });
+});
+
+
+describe("a note typed from the card sheet (19 Nov 2026)", () => {
+  it("maps the sheet's kind to the note's, and keeps the exact one for the place", () => {
+    expect([["food", "bakery"], ["activity", "museum"], ["logistics", "hotel"], ["logistics", "flight_departure"], ["logistics", "transit"], ["logistics", "car_rental"]].map(([t, s]) => noteKindFor(t, s)))
+      .toEqual(["food", "activity", "hotel", "flight", "drive", "logistics"]);
+    expect(noteDefaults({ kind: "logistics", kind_type: "logistics", kind_sub: "car_rental" })).toEqual({ type: "logistics", sub_type: "car_rental" });
+    expect(noteDefaults({ kind: "food" })).toBeNull();
+    expect(withNoteKind({ kind: "food", kind_type: "food", kind_sub: "bakery", notes: "x" }, "note")).toEqual({ notes: "x" });
   });
 });

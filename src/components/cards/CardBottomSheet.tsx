@@ -42,7 +42,7 @@ import { FlightPassTop, FlightPassBody, LayoverRow, ConnectingFlight, useTripFli
 import { flightPass, isPassFlight } from "@/lib/flights/pass";
 import { flightsInAir, connectionsOf } from "@/lib/week/flightTime";
 import { CarVoucherTop, CarVoucherBody, useTripRentals } from "./CarVoucher";
-import { placeShared, forkPlace } from "@/lib/places/sharedPlace";
+import { placeShared, forkPlace, isBookingPlace } from "@/lib/places/sharedPlace";
 import { zoneCity, airportCode } from "@/lib/flights/airportZones";
 import { HomeLegRows, useHome, measureHomeDrive } from "./HomeLeg";
 import { homeRole, homePlan, savedDrive } from "@/lib/flights/homeLegs";
@@ -69,8 +69,8 @@ import { travelEnd } from "./travelEnd";
 import { getAuthUser } from "@/lib/supabase/authUser";
 import { readPark, inItaly } from "@/lib/travel/park";
 import { readEstimate, endAfter, planMinutes, type LegEstimate } from "@/lib/travel/estimate";
-import NoteTypePicker, { NoteWhereRow } from "./NoteTypePicker";
-import { convertedDetails, readNoteKind, withNoteKind, type NoteKind } from "@/lib/cards/noteKinds";
+import { NoteWhereRow } from "./NoteTypePicker";
+import { convertedDetails, readNoteKind, withNoteKind, noteKindFor, noteDefaults, noteKind as noteKindOf, type NoteKind } from "@/lib/cards/noteKinds";
 import { getMaterialIconHTML, getGlyphHTML } from "@/lib/mapPins";
 import { BookedTag } from "./CardBadges";
 import { legCapable as cardLegCapable, isTravelLeg, legTitle, legDestTitle, legDurationMins, legModeWord, formatLegDuration, iconSubType, readFrom, readMode, withFrom, withTo, type LegFrom, type LegMode } from "@/lib/travel/leg";
@@ -903,8 +903,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       const res = await fetch("/api/places/bulk-import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(kind.defaults
-          ? { google_place_ids: [googlePlaceId], defaults: kind.defaults }
+        // The exact kind picked on the note wins (a note typed "Car rental" files the place as one).
+        body: JSON.stringify((noteDefaults(localCard.details) ?? kind.defaults)
+          ? { google_place_ids: [googlePlaceId], defaults: noteDefaults(localCard.details) ?? kind.defaults }
           : { google_place_ids: [googlePlaceId] }),
       });
       const out = res.ok ? await res.json() : null;
@@ -1119,7 +1120,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         // A place other cards use gets its own copy for this card (19 Nov 2026): retyping a
         // "Dinner at the villa" card had turned Villa Zambaldi itself into a restaurant,
         // and the check-in, check-out and stay with it.
-        if (await placeShared(supabase, localCard.place_id, localCard.id)) {
+        // Only a booking's place (a stay, a rental desk, a port) forks: correcting an ordinary
+        // place's kind ("it's a theme park") should reach the saved pin and every scheduled copy.
+        if (isBookingPlace(localCard.place?.sub_type) && await placeShared(supabase, localCard.place_id, localCard.id)) {
           const own = await forkPlace(supabase, localCard.place_id, { type: newType, sub_type: newSubType });
           if (own) {
             const moved: Card = { ...updated, place_id: own.id, place: { ...(updated.place as Place), ...own } };
@@ -1495,7 +1498,18 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   </button>
                 )}
                 {showNotePicker && !place && !readOnly && (
-                  <NoteTypePicker current={noteKind?.key ?? "note"} onPick={handleNoteKind} />
+                  // The same sheet as every card (19 Nov 2026, his ask: notes had the old dropdown).
+                  <TypeSheet
+                    currentType={String((localCard.details as Record<string, unknown> | null)?.kind_type ?? "")}
+                    currentSubType={((localCard.details as Record<string, unknown> | null)?.kind_sub as string | undefined) ?? null}
+                    options={SUB_TYPE_OPTIONS}
+                    note={{ on: !noteKind, onPick: () => handleNoteKind(noteKindOf("note")) }}
+                    onSelect={(t, st) => {
+                      setShowNotePicker(false);
+                      void saveDetailsPatch({ ...withNoteKind(localCard.details as Record<string, unknown>, noteKindFor(t, st)), kind_type: t, kind_sub: st });
+                    }}
+                    onClose={() => setShowNotePicker(false)}
+                  />
                 )}
                 {showSubTypePicker && place && !readOnly && (
                   <TypeSheet
