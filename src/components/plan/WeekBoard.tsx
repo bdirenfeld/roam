@@ -3,6 +3,7 @@ import { shipSpans, shipSpanSource } from "@/lib/plan/cruiseDays";
 import { flightBands, layoverBands } from "@/lib/week/flightTime";
 import { lengthLabel } from "@/lib/flights/airportZones";
 import { homeBands, homePlan, savedDrive, homeCode, homeRole } from "@/lib/flights/homeLegs";
+import { isPassFlight } from "@/lib/flights/pass";
 import { zoneCity } from "@/lib/flights/airportZones";
 import { formatTimeValue } from "@/lib/formatTime";
 import { useHome, measureHomeDrive } from "@/components/cards/HomeLeg";
@@ -102,7 +103,9 @@ function toastDay(date: string, all: { date: string }[]): string {
   return dayChip(date, spansMonths(all.map((d) => d.date)));
 }
 function dayLabel(date: string): string {
-  return new Date(date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  // "5 Sep", spelled by hand: ICU writes "Sept" (seen live, 19 Nov 2026).
+  const d = new Date(date + "T00:00:00");
+  return `${d.getDate()} ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getMonth()]}`;
 }
 function isNote(c: Card): boolean { return !c.place_id; }
 /** The first sentence of a card's notes, for the widened day — past the
@@ -957,7 +960,10 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
       if (isPortCard(c)) { ports.push(c); continue; }
       const t = cardTimes(c);
       if (!t.start) { untimed.push(c); continue; }
-      timed.push({ id: c.id, startMin: toMin(t.start), endMin: t.end ? toMin(t.end) : null });
+      // A flight is its takeoff on the week (19 Nov 2026): the grey band carries the time in the air.
+      // The flight home was a 1:45–9:30 block (two clocks) that hid its own "home ~11 PM" label.
+      const flight = isPassFlight(c.details, c.place?.sub_type);
+      timed.push({ id: c.id, startMin: toMin(t.start), endMin: flight ? null : t.end ? toMin(t.end) : null });
     }
     // a block dragged INTO this day from another
     if (ghost && ghost.day === di && !d.cards.some((c) => c.id === ghost.id)) {
